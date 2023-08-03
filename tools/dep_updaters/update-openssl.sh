@@ -65,11 +65,11 @@ EOF
 
 download_v3() {
   LATEST_V3_TAG_NAME="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/quictls/openssl/git/matching-refs/tags/openssl-3.0');
+const res = await fetch('https://api.github.com/repos/quictls/openssl/git/matching-refs/tags/openssl-3.');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const releases = await res.json()
 const latest = releases.findLast(({ ref }) => ref.includes('quic'));
-if(!latest) throw new Error(`Could not find latest release for v3.0`);
+if(!latest) throw new Error(`Could not find latest release for v3.x`);
 console.log(latest.ref.replace('refs/tags/',''));
 EOF
 )"
@@ -148,7 +148,8 @@ help() {
     echo "Shell script to update OpenSSL in the source tree to a specific version"
     echo "Sub-commands:"
     printf "%-23s %s\n" "help" "show help menu and commands"
-    printf "%-23s %s\n" "download" "download and replace OpenSSL source code with new version"
+    printf "%-23s %s\n" "download_v1" "download and replace OpenSSLv1 source code with new version"
+    printf "%-23s %s\n" "download_v3" "download and replace OpenSSLv3 source code with new version"
     printf "%-23s %s\n" "regenerate" "regenerate platform-specific files"
     echo ""
     exit "${1:-0}"
