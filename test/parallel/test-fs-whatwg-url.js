@@ -3,20 +3,10 @@
 const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-function pathToFileURL(p) {
-  if (!path.isAbsolute(p))
-    throw new Error('Path must be absolute');
-  if (common.isWindows && p.startsWith('\\\\'))
-    p = p.slice(2);
-  return new URL(`file://${p}`);
-}
-
-const p = path.resolve(fixtures.fixturesDir, 'a.js');
-const url = pathToFileURL(p);
+const url = fixtures.fileURL('a.js');
 
 assert(url instanceof URL);
 
