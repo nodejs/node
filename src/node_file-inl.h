@@ -277,9 +277,10 @@ FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
     return Unwrap<FSReqBase>(value.As<v8::Object>());
   }
 
-  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
-  Environment* env = binding_data->env();
-  if (value->StrictEquals(env->fs_use_promises_symbol())) {
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
+
+  if (value->StrictEquals(realm->isolate_data()->fs_use_promises_symbol())) {
     if (use_bigint) {
       return FSReqPromise<AliasedBigInt64Array>::New(binding_data, use_bigint);
     } else {
