@@ -3,6 +3,7 @@ import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import * as os from 'node:os';
 import { describe, it } from 'node:test';
+import { pathToFileURL } from 'node:url';
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
@@ -20,7 +21,13 @@ function replaceStackTrace(str) {
 
 describe('errors output', { concurrency: true }, () => {
   function normalize(str) {
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('//', '*').replaceAll(/\/(\w)/g, '*$1').replaceAll('*test*', '*').replaceAll('*fixtures*errors*', '*').replaceAll('file:**', 'file:*/');
+    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
+      .replaceAll(pathToFileURL(process.cwd()).pathname, '')
+      .replaceAll('//', '*')
+      .replaceAll(/\/(\w)/g, '*$1')
+      .replaceAll('*test*', '*')
+      .replaceAll('*fixtures*errors*', '*')
+      .replaceAll('file:**', 'file:*/');
   }
 
   function normalizeNoNumbers(str) {
@@ -50,11 +57,11 @@ describe('errors output', { concurrency: true }, () => {
     { name: 'errors/throw_in_line_with_tabs.js', transform: errTransform },
     { name: 'errors/throw_non_error.js', transform: errTransform },
     { name: 'errors/promise_always_throw_unhandled.js', transform: promiseTransform },
-    !skipForceColors ? { name: 'errors/force_colors.js', env: { FORCE_COLOR: 1 } } : null,
-  ].filter(Boolean);
-  for (const { name, transform, env } of tests) {
-    it(name, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { env });
+    { skip: skipForceColors, name: 'errors/force_colors.js', env: { FORCE_COLOR: 1 } },
+  ];
+  for (const { name, transform = defaultTransform, env, skip = false } of tests) {
+    it(name, { skip }, async () => {
+      await snapshot.spawnAndAssert(fixtures.path(name), transform, { env });
     });
   }
 });
