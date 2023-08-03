@@ -713,6 +713,9 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(lines[3], 'hooks initialize 2');
 
     assert.strictEqual(stderr, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
 
   it('should use CJS loader to respond to require.resolve calls by default', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
