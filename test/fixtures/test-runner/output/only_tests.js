@@ -1,4 +1,4 @@
-// Flags: --no-warnings --test-only
+// Flags: --test-only
 'use strict';
 require('../../../common');
 const { test, describe, it } = require('node:test');

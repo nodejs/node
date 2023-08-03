@@ -1,4 +1,3 @@
-// Flags: --no-warnings
 'use strict';
 require('../../../common');
 const assert = require('node:assert');
