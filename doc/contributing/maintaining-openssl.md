@@ -137,9 +137,9 @@ files if they are changed before committing:
 
 ```console
 % git add deps/openssl/config/archs
-% git add deps/openssl/openssl/include/crypto/bn_conf.h
-% git add deps/openssl/openssl/include/crypto/dso_conf.h
-% git add deps/openssl/openssl/include/openssl/opensslconf.h
+% git add -f deps/openssl/openssl/include/crypto/bn_conf.h
+% git add -f deps/openssl/openssl/include/crypto/dso_conf.h
+% git add -f deps/openssl/openssl/include/openssl/opensslconf.h
 % git commit
 ```
 
