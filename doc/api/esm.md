@@ -684,6 +684,9 @@ of Node.js applications.
 <!-- YAML
 added: v8.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/48842
+    description: Added `initialize` hook to replace `globalPreload`.
   - version:
     - v18.6.0
     pr-url: https://github.com/nodejs/node/pull/42623
@@ -736,6 +739,69 @@ Hooks are run in a separate thread, isolated from the main. That means it is a
 different [realm](https://tc39.es/ecma262/#realm). The hooks thread may be
 terminated by the main thread at any time, so do not depend on asynchronous
 operations to (like `console.log`) complete.
+
+#### `initialize()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
+* `data` {any} The data from `register(loader, import.meta.url, { data })`.
+* Returns: {any} The data to be returned to the caller of `register`.
+
+The `initialize` hook provides a way to define a custom function that runs
+in the loader's thread when the loader is initialized. Initialization happens
+when the loader is registered via [`register`][] or registered via the
+`--loader` command line option.
+
+This hook can send and receive data from a [`register`][] invocation, including
+ports and other transferrable objects. The return value of `initialize` must be
+either:
+
+* `undefined`,
+* something that can be posted as a message between threads (e.g. the input to
+  [`port.postMessage`][]),
+* a `Promise` resolving to one of the aforementioned values.
+
+Loader code:
+
+```js
+// In the below example this file is referenced as
+// '/path-to-my-loader.js'
+
+export async function initialize({ number, port }) {
+  port.postMessage(`increment: ${number + 1}`);
+  return 'ok';
+}
+```
+
+Caller code:
+
+```js
+import assert from 'node:assert';
+import { register } from 'node:module';
+import { MessageChannel } from 'node:worker_threads';
+
+// This example showcases how a message channel can be used to
+// communicate between the main (application) thread and the loader
+// running on the loaders thread, by sending `port2` to the loader.
+const { port1, port2 } = new MessageChannel();
+
+port1.on('message', (msg) => {
+  assert.strictEqual(msg, 'increment: 2');
+});
+
+const result = register('/path-to-my-loader.js', {
+  parentURL: import.meta.url,
+  data: { number: 1, port: port2 },
+  transferList: [port2],
+});
+
+assert.strictEqual(result, 'ok');
+```
 
 #### `resolve(specifier, context, nextResolve)`
 
@@ -941,8 +1007,8 @@ changes:
     description: Add support for chaining globalPreload hooks.
 -->
 
-> The loaders API is being redesigned. This hook may disappear or its
-> signature may change. Do not rely on the API described below.
+> This hook will be removed in a future version. Use [`initialize`][] instead.
+> When a loader has an `initialize` export, `globalPreload` will be ignored.
 
 > In a previous version of this API, this hook was named
 > `getGlobalPreloadCode`.
@@ -1642,13 +1708,16 @@ success!
 [`import.meta.resolve`]: #importmetaresolvespecifier-parent
 [`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
+[`initialize`]: #initialize
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
 [`module.register()`]: module.md#moduleregister
 [`module.syncBuiltinESMExports()`]: module.md#modulesyncbuiltinesmexports
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
+[`port.postMessage`]: worker_threads.md#portpostmessagevalue-transferlist
 [`port.ref()`]: https://nodejs.org/dist/latest-v17.x/docs/api/worker_threads.html#portref
 [`port.unref()`]: https://nodejs.org/dist/latest-v17.x/docs/api/worker_threads.html#portunref
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
+[`register`]: module.md#moduleregister
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
