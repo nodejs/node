@@ -83,12 +83,13 @@ void BindingData::Deserialize(Local<Context> context,
 }
 
 void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
   CHECK_GE(args.Length(), 2);
   CHECK(args[0]->IsString());
   CHECK(args[1]->IsUint8Array());
-  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
+
+  Realm* realm = Realm::GetCurrent(args);
+  Isolate* isolate = realm->isolate();
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
 
   Local<String> source = args[0].As<String>();
 

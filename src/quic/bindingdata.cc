@@ -25,7 +25,7 @@ using v8::Value;
 namespace quic {
 
 BindingData& BindingData::Get(Environment* env) {
-  return *Realm::GetBindingData<BindingData>(env->context());
+  return *(env->principal_realm()->GetBindingData<BindingData>());
 }
 
 BindingData::operator ngtcp2_mem() {
