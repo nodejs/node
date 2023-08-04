@@ -17,8 +17,8 @@ static void finalizerOnlyCallback(napi_env env,
   int32_t count = ++data->finalize_count;
 
   // It is safe to access instance data
-  NODE_API_CALL_RETURN_VOID(env, napi_get_instance_data(env, &data));
-  NODE_API_ASSERT(
+  NODE_API_CALL_RETURN_VOID(env, napi_get_instance_data(env, (void**)&data));
+  NODE_API_ASSERT_RETURN_VOID(
       env, count = data->finalize_count, "Expected to the same FinalizerData");
 }
 
@@ -41,7 +41,6 @@ static void finalizerCallingJSCallback(napi_env env,
 static void finalizerWithJSCallback(napi_env env,
                                     void* finalize_data,
                                     void* finalize_hint) {
-  FinalizerData* data = (FinalizerData*)finalize_data;
   NODE_API_CALL_RETURN_VOID(
       env,
       node_api_post_finalizer(
@@ -63,7 +62,7 @@ static napi_value addFinalizer(napi_env env, napi_callback_info info) {
   FinalizerData* data;
 
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
-  NODE_API_CALL(env, napi_get_instance_data(env, &data));
+  NODE_API_CALL(env, napi_get_instance_data(env, (void**)&data));
   NODE_API_CALL(env,
                 napi_add_finalizer(
                     env, argv[0], data, finalizerOnlyCallback, NULL, NULL));
@@ -78,7 +77,7 @@ static napi_value addFinalizerWithJS(napi_env env, napi_callback_info info) {
   FinalizerData* data;
 
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
-  NODE_API_CALL(env, napi_get_instance_data(env, &data));
+  NODE_API_CALL(env, napi_get_instance_data(env, (void**)&data));
   NODE_API_CALL(env, napi_typeof(env, argv[1], &arg_type));
   NODE_API_ASSERT(
       env, arg_type == napi_function, "Expected function as the second arg");
@@ -96,7 +95,7 @@ static napi_value addFinalizerFailOnJS(napi_env env, napi_callback_info info) {
   FinalizerData* data;
 
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
-  NODE_API_CALL(env, napi_get_instance_data(env, &data));
+  NODE_API_CALL(env, napi_get_instance_data(env, (void**)&data));
   NODE_API_CALL(
       env,
       napi_add_finalizer(
@@ -111,7 +110,7 @@ static napi_value getFinalizerCallCount(napi_env env, napi_callback_info info) {
   napi_value result;
 
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
-  NODE_API_CALL(env, napi_get_instance_data(env, &data));
+  NODE_API_CALL(env, napi_get_instance_data(env, (void**)&data));
   NODE_API_CALL(env, napi_create_int32(env, data->finalize_count, &result));
   return result;
 }

@@ -1,7 +1,7 @@
 'use strict';
+const common = require('../../common');
 
 if (process.argv[2] === 'child') {
-  const common = require('../../common');
   const test_finalizer = require(`./build/${common.buildType}/test_finalizer`);
 
   (() => {
@@ -27,5 +27,9 @@ const { spawnSync } = require('child_process');
 const child = spawnSync(process.execPath, [
   '--expose-gc', __filename, 'child',
 ]);
-assert.strictEqual(child.signal, null);
-assert.match(child.stderr.toString(), /Finalizer is calling a function that may affect GC state/);
+if (common.isWindows) {
+  assert.strictEqual(child.signal, null);
+  assert.match(child.stderr.toString(), /Finalizer is calling a function that may affect GC state/);
+} else {
+  assert.strictEqual(child.signal, 'SIGABRT');
+}
