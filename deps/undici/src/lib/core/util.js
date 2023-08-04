@@ -422,6 +422,24 @@ function throwIfAborted (signal) {
   }
 }
 
+let events
+function addAbortListener (signal, listener) {
+  if (typeof Symbol.dispose === 'symbol') {
+    if (!events) {
+      events = require('events')
+    }
+    if (typeof events.addAbortListener === 'function' && 'aborted' in signal) {
+      return events.addAbortListener(signal, listener)
+    }
+  }
+  if ('addEventListener' in signal) {
+    signal.addEventListener('abort', listener, { once: true })
+    return () => signal.removeEventListener('abort', listener)
+  }
+  signal.addListener('abort', listener)
+  return () => signal.removeListener('abort', listener)
+}
+
 const hasToWellFormed = !!String.prototype.toWellFormed
 
 /**
@@ -469,6 +487,7 @@ module.exports = {
   isFormDataLike,
   buildURL,
   throwIfAborted,
+  addAbortListener,
   nodeMajor,
   nodeMinor,
   nodeHasAutoSelectFamily: nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 13)
