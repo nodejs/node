@@ -36,15 +36,15 @@ Node.js contains experimental support for creating policies on loading code.
 Policies are a security feature intended to ensure the integrity
 of the loaded code.
 
-The use of policies assumes safe practices for the policy
-files such as ensuring that policy files cannot be overwritten by the Node.js
-application by using file permissions.
-
 While it does not function as a provenance mechanism to trace the origin of
 code, it serves as a robust defense against the execution of malicious code.
 Unlike runtime-based models that may restrict capabilities once the code is
 loaded, Node.js policies focus on preventing malicious code from ever being
 fully loaded into the application in the first place.
+
+The use of policies assumes safe practices for the policy
+files such as ensuring that policy files cannot be overwritten by the Node.js
+application by using file permissions.
 
 A best practice would be to ensure that the policy manifest is read-only for
 the running Node.js application and that the file cannot be changed
