@@ -8,6 +8,7 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
+const { expectSyncExitWithoutError, expectSyncExit } = require('../common/child_process');
 const fs = require('fs');
 
 tmpdir.refresh();
@@ -15,7 +16,7 @@ tmpdir.refresh();
 let snapshotScript = 'node:embedded_snapshot_main';
 if (!process.config.variables.node_use_node_snapshot) {
   // Check that Node.js built without an embedded snapshot
-  // exits with 1 when node:embedded_snapshot_main is specified
+  // exits with 9 when node:embedded_snapshot_main is specified
   // as snapshot entry point.
   const child = spawnSync(process.execPath, [
     '--build-snapshot',
@@ -24,10 +25,11 @@ if (!process.config.variables.node_use_node_snapshot) {
     cwd: tmpdir.path
   });
 
-  assert.match(
-    child.stderr.toString(),
-    /Node\.js was built without embedded snapshot/);
-  assert.strictEqual(child.status, 9);
+  expectSyncExit(child, {
+    status: 9,
+    signal: null,
+    stderr: /Node\.js was built without embedded snapshot/
+  });
 
   snapshotScript = fixtures.path('empty.js');
 }
@@ -41,12 +43,7 @@ if (!process.config.variables.node_use_node_snapshot) {
   ], {
     cwd: tmpdir.path
   });
-  if (child.status !== 0) {
-    console.log(child.stderr.toString());
-    console.log(child.stdout.toString());
-    console.log(child.signal);
-    assert.strictEqual(child.status, 0);
-  }
+  expectSyncExitWithoutError(child);
   const stats = fs.statSync(tmpdir.resolve('snapshot.blob'));
   assert(stats.isFile());
 }
@@ -63,12 +60,7 @@ const blobPath = tmpdir.resolve('my-snapshot.blob');
   ], {
     cwd: tmpdir.path
   });
-  if (child.status !== 0) {
-    console.log(child.stderr.toString());
-    console.log(child.stdout.toString());
-    console.log(child.signal);
-    assert.strictEqual(child.status, 0);
-  }
+  expectSyncExitWithoutError(child);
   const stats = fs.statSync(blobPath);
   assert(stats.isFile());
 }
@@ -82,13 +74,7 @@ const blobPath = tmpdir.resolve('my-snapshot.blob');
   ], {
     cwd: tmpdir.path
   });
-
-  if (child.status !== 0) {
-    console.log(child.stderr.toString());
-    console.log(child.stdout.toString());
-    console.log(child.signal);
-    assert.strictEqual(child.status, 0);
-  }
+  expectSyncExitWithoutError(child);
 
   assert(child.stdout.toString().includes('--help'));
 }
@@ -105,7 +91,9 @@ const blobPath = tmpdir.resolve('my-snapshot.blob');
   });
 
   // Check that it is a noop.
-  assert.strictEqual(child.stdout.toString().trim(), '');
-  assert.strictEqual(child.stderr.toString().trim(), '');
-  assert.strictEqual(child.status, 0);
+  expectSyncExitWithoutError(child, {
+    stderr: '',
+    stdout: '',
+    trim: true
+  });
 }
