@@ -6,6 +6,7 @@ This directory contains modules used to test the Node.js implementation.
 
 * [ArrayStream module](#arraystream-module)
 * [Benchmark module](#benchmark-module)
+* [Child process module](#child-process-module)
 * [Common module API](#common-module-api)
 * [Countdown module](#countdown-module)
 * [CPU Profiler module](#cpu-profiler-module)
@@ -34,6 +35,42 @@ The `benchmark` module is used by tests to run benchmarks.
 * `name` [\<string>][<string>] Name of benchmark suite to be run.
 * `env` [\<Object>][<Object>] Environment variables to be applied during the
   run.
+
+## Child Process Module
+
+The `child_process` module is used by tests that launch child processes.
+
+### `expectSyncExit(child, options)`
+
+Checks if a _synchronous_ child process runs in the way expected. If it does
+not, print the stdout and stderr output from the child process and additional
+information about it to the stderr of the current process before throwing
+and error. This helps gathering more information about test failures
+coming from child processes.
+
+* `child` [\<ChildProcess>][<ChildProcess>]: a `ChildProcess` instance
+  returned by `child_process.spawnSync()`.
+* `options` [\<Object>][<Object>]
+  * `status` [\<number>][<number>] Expected `child.status`
+  * `signal` [\<string>][<string>] | `null` Expected `child.signal`
+  * `stderr` [\<string>][<string>] | [\<RegExp>][<RegExp>] |
+    [\<Function>][<Function>] Optional. If it's a string, check that the output
+    to the stderr of the child process is exactly the same as the string. If
+    it's a regular expression, check that the stderr matches it. If it's a
+    function, invoke it with the stderr output as a string and check
+    that it returns true. The function can just throw errors (e.g. assertion
+    errors) to provide more information if the check fails.
+  * `stdout` [\<string>][<string>] | [\<RegExp>][<RegExp>] |
+    [\<Function>][<Function>] Optional. Similar to `stderr` but for the stdout.
+  * `trim` [\<boolean>][<boolean>] Optional. Whether this method should trim
+    out the whitespace characters when checking `stderr` and `stdout` outputs.
+    Defaults to `false`.
+
+### `expectSyncExitWithoutError(child[, options])`
+
+Similar to `expectSyncExit()` with the `status` expected to be 0 and
+`signal` expected to be `null`. Any other optional options are passed
+into `expectSyncExit()`.
 
 ## Common Module API
 
@@ -1086,6 +1123,7 @@ See [the WPT tests README][] for details.
 [<ArrayBufferView>]: https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView
 [<Buffer>]: https://nodejs.org/api/buffer.html#buffer_class_buffer
 [<BufferSource>]: https://developer.mozilla.org/en-US/docs/Web/API/BufferSource
+[<ChildProcess>]: ../../doc/api/child_process.md#class-childprocess
 [<Error>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
 [<Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
 [<Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
