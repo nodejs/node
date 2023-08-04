@@ -7,6 +7,7 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
+const { expectSyncExitWithoutError } = require('../common/child_process');
 const fs = require('fs');
 
 const v8 = require('v8');
@@ -36,11 +37,8 @@ const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
   ], {
     cwd: tmpdir.path
   });
-  if (child.status !== 0) {
-    console.log(child.stderr.toString());
-    console.log(child.stdout.toString());
-    assert.strictEqual(child.status, 0);
-  }
+
+  expectSyncExitWithoutError(child);
   const stats = fs.statSync(tmpdir.resolve('snapshot.blob'));
   assert(stats.isFile());
 }
@@ -58,9 +56,9 @@ const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
     }
   });
 
-  const stdout = child.stdout.toString().trim();
-  const stderr = child.stderr.toString().trim();
-  assert.strictEqual(stderr, 'Reading book1.en_US.txt');
-  assert.strictEqual(stdout, 'This is book1.en_US.txt');
-  assert.strictEqual(child.status, 0);
+  expectSyncExitWithoutError(child, {
+    stderr: 'Reading book1.en_US.txt',
+    stdout: 'This is book1.en_US.txt',
+    trim: true
+  });
 }
