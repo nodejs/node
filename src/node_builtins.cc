@@ -407,8 +407,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
     parameters = {FIXED_ONE_BYTE_STRING(isolate, "process"),
                   FIXED_ONE_BYTE_STRING(isolate, "require"),
                   FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
-                  FIXED_ONE_BYTE_STRING(isolate, "primordials"),
-                  FIXED_ONE_BYTE_STRING(isolate, "path")};
+                  FIXED_ONE_BYTE_STRING(isolate, "primordials")};
   } else {
     // others: exports, require, module, process, internalBinding, primordials
     parameters = {
@@ -455,16 +454,12 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
              strncmp(id,
                      "internal/bootstrap/",
                      strlen("internal/bootstrap/")) == 0) {
-    auto path = String::NewFromUtf8(isolate, realm->env()->exec_path().c_str())
-                    .ToLocalChecked();
     // internal/main/*, internal/bootstrap/*: process, require,
     //                                        internalBinding, primordials,
-    //                                        path
     arguments = {realm->process_object(),
                  realm->builtin_module_require(),
                  realm->internal_binding_loader(),
-                 realm->primordials(),
-                 path};
+                 realm->primordials()};
   } else if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
     // Synthetic embedder main scripts from LoadEnvironment(): process, require
     arguments = {

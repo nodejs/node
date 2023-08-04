@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
 
   CHECK(napi_call_function(env, global, import, 1, &es6, &es6_promise),
         "import");
-  napi_await_promise(env, es6_promise, &es6_module);
+  CHECK(napi_await_promise(env, es6_promise, &es6_module), "await");
 
   CHECK(napi_get_property(env, es6_module, value, &es6_result), "value");
   CHECK(napi_get_value_string_utf8(
