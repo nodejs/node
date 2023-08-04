@@ -25,7 +25,7 @@ This a list of all the dependencies:
 * [npm][]
 * [openssl][]
 * [postject][]
-* [simdutf][]
+* [simdutf 3.2.17][]
 * [undici 5.26.4][]
 * [uv][]
 * [uvwasi][]
@@ -273,7 +273,7 @@ See [maintaining-openssl][] for more informations.
 The [postject](https://github.com/nodejs/postject) dependency is used for the
 [Single Executable strategic initiative](https://github.com/nodejs/single-executable).
 
-### simdutf
+### simdutf 3.2.17
 
 The [simdutf](https://github.com/simdutf/simdutf) dependency is
 a C++ library for fast UTF-8 decoding and encoding.
@@ -335,7 +335,7 @@ performance improvements not currently available in standard zlib.
 [npm]: #npm
 [openssl]: #openssl
 [postject]: #postject
-[simdutf]: #simdutf
+[simdutf 3.2.17]: #simdutf-3217
 [undici 5.26.4]: #undici-5264
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uv]: #uv
