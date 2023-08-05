@@ -28,10 +28,16 @@
 #ifndef NAPI_EXTERN
 #ifdef _WIN32
 #define NAPI_EXTERN __declspec(dllexport)
-#elif defined(__wasm32__)
+#elif defined(__wasm__)
+#ifdef __EMSCRIPTEN__
+#define NAPI_EXTERN                                                            \
+  __attribute__((visibility("default")))                                       \
+  __attribute__((__import_module__("env")))
+#else
 #define NAPI_EXTERN                                                            \
   __attribute__((visibility("default")))                                       \
   __attribute__((__import_module__("napi")))
+#endif
 #else
 #define NAPI_EXTERN __attribute__((visibility("default")))
 #endif
