@@ -20,8 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
-const { fixturesDir } = require('../common/fixtures');
+const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 // Check that the calls to Integer::New() and Date::New() succeed and bail out
 // if they don't.
@@ -31,11 +31,13 @@ const { fixturesDir } = require('../common/fixtures');
 // https://github.com/nodejs/node-v0.x-archive/issues/4015
 
 const assert = require('assert');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 
-const cmd =
-  `"${process.execPath}" "${fixturesDir}/test-fs-stat-sync-overflow.js"`;
+const cp = spawn(process.execPath, [fixtures.path('test-fs-stat-sync-overflow.js')]);
 
-exec(cmd, function(err, stdout, stderr) {
-  assert.match(stderr, /RangeError: Maximum call stack size exceeded/);
-});
+const stderr = [];
+cp.stderr.on('data', (chunk) => stderr.push(chunk));
+
+cp.on('exit', common.mustCall(() => {
+  assert.match(Buffer.concat(stderr).toString('utf8'), /RangeError: Maximum call stack size exceeded/);
+}));
