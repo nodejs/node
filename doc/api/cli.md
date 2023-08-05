@@ -513,7 +513,7 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: X.X.X
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/49028
     description: synchronous import.meta.resolve made available by default, with
                  the flag retained for enabling the experimental second argument
