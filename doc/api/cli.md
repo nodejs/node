@@ -514,7 +514,7 @@ added:
   - v12.16.2
 changes:
   - version: X.X.X
-    pr-url: incoming
+    pr-url: https://github.com/nodejs/node/pull/49028
     description: synchronous import.meta.resolve made available by default, with
                  the flag retained for enabling the experimental second argument
                  as previously supported.
