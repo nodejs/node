@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const fixtures = require('../common/fixtures');
 
 const node = process.execPath;
@@ -17,20 +17,25 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
     const preloadFile = fixtures.path('no-wrapper.js');
     const file = fixtures.path('syntax', 'illegal_if_not_wrapped.js');
     const args = [requireFlag, preloadFile, checkFlag, file];
-    const cmd = [node, ...args].join(' ');
-    exec(cmd, common.mustCall((err, stdout, stderr) => {
-      assert.strictEqual(err instanceof Error, true);
-      assert.strictEqual(err.code, 1,
-                         `code ${err.code} !== 1 for error:\n\n${err}`);
+    const cp = spawn(node, args);
 
-      // No stdout should be produced
-      assert.strictEqual(stdout, '');
+    // No stdout should be produced
+    cp.stdout.on('data', common.mustNotCall('stdout data event'));
 
+    const stderrBuffer = [];
+    cp.stderr.on('data', (chunk) => stderrBuffer.push(chunk));
+
+    cp.on('exit', common.mustCall((code, signal) => {
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
+
+      const stderr = Buffer.concat(stderrBuffer).toString('utf-8');
       // stderr should have a syntax error message
       assert.match(stderr, syntaxErrorRE);
 
       // stderr should include the filename
       assert(stderr.startsWith(file), `${stderr} starts with ${file}`);
     }));
+
   });
 });
