@@ -1668,7 +1668,9 @@ each [`Worker`][] thread has its own copy of `process.env`, based on its
 parent thread's `process.env`, or whatever was specified as the `env` option
 to the [`Worker`][] constructor. Changes to `process.env` will not be visible
 across [`Worker`][] threads, and only the main thread can make changes that
-are visible to the operating system or to native add-ons.
+are visible to the operating system or to native add-ons. On Windows, a copy of
+`process.env` on a [`Worker`][] instance operates in a case-sensitive manner
+unlike the main thread.
 
 ## `process.execArgv`
 
