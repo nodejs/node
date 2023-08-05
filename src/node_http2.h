@@ -1035,7 +1035,7 @@ class Http2Settings : public AsyncWrap {
   v8::Global<v8::Function> callback_;
   uint64_t startTime_;
   size_t count_ = 0;
-  nghttp2_settings_entry entries_[IDX_SETTINGS_COUNT];
+  nghttp2_settings_entry entries_[IDX_SETTINGS_COUNT + MAX_ADDITIONAL_SETTINGS];
 };
 
 class Origins {
