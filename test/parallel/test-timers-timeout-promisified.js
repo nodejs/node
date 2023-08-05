@@ -4,7 +4,6 @@ const common = require('../common');
 const assert = require('assert');
 const timers = require('timers');
 const { promisify } = require('util');
-const child_process = require('child_process');
 
 const { getEventListeners } = require('events');
 const { NodeEventTarget } = require('internal/event_target');
@@ -12,7 +11,6 @@ const { NodeEventTarget } = require('internal/event_target');
 const timerPromises = require('timers/promises');
 
 const setPromiseTimeout = promisify(timers.setTimeout);
-const exec = promisify(child_process.exec);
 
 assert.strictEqual(setPromiseTimeout, timerPromises.setTimeout);
 
@@ -91,9 +89,9 @@ process.on('multipleResolves', common.mustNotCall());
 }
 
 {
-  exec(`${process.execPath} -pe "const assert = require('assert');` +
+  common.spawnPromisified(process.execPath, ['-pe', 'const assert = require(\'assert\');' +
     'require(\'timers/promises\').setTimeout(1000, null, { ref: false }).' +
-    'then(assert.fail)"').then(common.mustCall(({ stderr }) => {
+    'then(assert.fail)']).then(common.mustCall(({ stderr }) => {
     assert.strictEqual(stderr, '');
   }));
 }
