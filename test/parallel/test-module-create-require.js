@@ -1,13 +1,12 @@
 'use strict';
 
 require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
-const path = require('path');
 
 const { createRequire } = require('module');
 
-const p = path.resolve(__dirname, '..', 'fixtures', 'fake.js');
-const u = new URL(`file://${p}`);
+const u = fixtures.fileURL('fake.js');
 
 const reqToo = createRequire(u);
 assert.deepStrictEqual(reqToo('./experimental'), { ofLife: 42 });

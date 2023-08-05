@@ -175,6 +175,28 @@ globalPreload: http-to-https
 globalPreload: unpkg
 ```
 
+This function can also be used to pass data to the loader's [`initialize`][]
+hook; the data passed to the hook may include transferrable objects like ports.
+
+```mjs
+import { register } from 'node:module';
+import { MessageChannel } from 'node:worker_threads';
+
+// This example showcases how a message channel can be used to
+// communicate to the loader, by sending `port2` to the loader.
+const { port1, port2 } = new MessageChannel();
+
+port1.on('message', (msg) => {
+  console.log(msg);
+});
+
+register('./my-programmatic-loader.mjs', {
+  parentURL: import.meta.url,
+  data: { number: 1, port: port2 },
+  transferList: [port2],
+});
+```
+
 ### `module.syncBuiltinESMExports()`
 
 <!-- YAML
@@ -364,6 +386,7 @@ returned object contains the following keys:
 [`--enable-source-maps`]: cli.md#--enable-source-maps
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`SourceMap`]: #class-modulesourcemap
+[`initialize`]: esm.md#initialize
 [`module`]: modules.md#the-module-object
 [module wrapper]: modules.md#the-module-wrapper
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
