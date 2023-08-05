@@ -90,5 +90,5 @@ common.expectWarning({
       await setTimeout(0);
       global.gc();
     }
-  })().catch(common.mustNotCall()).then(common.mustCall());
+  })().then(common.mustCall(), common.mustNotCall());
 }
