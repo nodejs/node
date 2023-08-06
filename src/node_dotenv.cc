@@ -1,19 +1,112 @@
 #include "node_dotenv.h"
 #include "env-inl.h"
 #include "node_file.h"
-#include "permission/permission.h"
 #include "uv.h"
 
 namespace node {
 
-using v8::Isolate;
 using v8::NewStringType;
+using v8::String;
 
-namespace dotenv {
+std::optional<std::string> Dotenv::GetPathFromArgs(
+    const std::vector<std::string>& args) {
+  std::string flag = "--env-file";
+  auto path =
+      std::find_if(args.begin(), args.end(), [&flag](const std::string& arg) {
+        return strncmp(arg.c_str(), flag.c_str(), flag.size()) == 0;
+      });
 
-void ParseLine(const std::string_view line,
-               Isolate* isolate,
-               std::shared_ptr<KVStore> store) {
+  if (path == args.end()) {
+    return std::nullopt;
+  }
+
+  auto equal_char = path->find('=');
+
+  if (equal_char != std::string::npos) {
+    return path->substr(equal_char + 1);
+  }
+
+  auto next_arg = std::next(path);
+
+  if (next_arg == args.end()) {
+    return std::nullopt;
+  }
+
+  return *next_arg;
+}
+
+void Dotenv::set_env(node::Environment* env) {
+  if (store.empty()) {
+    return;
+  }
+
+  auto isolate = env->isolate();
+
+  for (const auto& entry : store) {
+    auto key = entry.first;
+    auto value = entry.second;
+    env->env_vars()->Set(
+        isolate,
+        v8::String::NewFromUtf8(
+            isolate, key.data(), NewStringType::kNormal, key.size())
+            .ToLocalChecked(),
+        v8::String::NewFromUtf8(
+            isolate, value.data(), NewStringType::kNormal, value.size())
+            .ToLocalChecked());
+  }
+}
+
+void Dotenv::parse(const std::string_view path) {
+  uv_fs_t req;
+  auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+
+  uv_file file = uv_fs_open(nullptr, &req, path.data(), 0, 438, nullptr);
+  if (req.result < 0) {
+    // req will be cleaned up by scope leave.
+    return;
+  }
+  uv_fs_req_cleanup(&req);
+
+  auto defer_close = OnScopeLeave([file]() {
+    uv_fs_t close_req;
+    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
+    uv_fs_req_cleanup(&close_req);
+  });
+
+  std::string result{};
+  char buffer[8192];
+  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
+
+  while (true) {
+    auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
+    if (req.result < 0) {
+      // req will be cleaned up by scope leave.
+      return;
+    }
+    uv_fs_req_cleanup(&req);
+    if (r <= 0) {
+      break;
+    }
+    result.append(buf.base, r);
+  }
+
+  using std::string_view_literals::operator""sv;
+  auto lines = SplitString(result, "\n"sv);
+
+  for (const auto& line : lines) {
+    ParseLine(line);
+  }
+}
+
+void Dotenv::assignNodeOptionsIfAvailable(std::string* node_options) {
+  auto match = store.find("NODE_OPTIONS");
+
+  if (match != store.end()) {
+    *node_options = match->second;
+  }
+}
+
+void Dotenv::ParseLine(const std::string_view line) {
   auto equal_index = line.find('=');
 
   if (equal_index == std::string_view::npos) {
@@ -62,62 +155,7 @@ void ParseLine(const std::string_view line,
       value.erase(value.size() - 1);
   }
 
-  store->Set(isolate,
-             v8::String::NewFromUtf8(
-                 isolate, key.data(), NewStringType::kNormal, key.size())
-                 .ToLocalChecked(),
-             v8::String::NewFromUtf8(
-                 isolate, value.data(), NewStringType::kNormal, value.size())
-                 .ToLocalChecked());
+  store.emplace(key, value);
 }
-
-void LoadFromFile(Environment* env, const std::string_view path) {
-  Isolate* isolate = env->isolate();
-  auto store = env->env_vars();
-
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, path);
-
-  uv_fs_t req;
-  auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-
-  uv_file file = uv_fs_open(nullptr, &req, path.data(), 0, 438, nullptr);
-  if (req.result < 0) {
-    // req will be cleaned up by scope leave.
-    return;
-  }
-  uv_fs_req_cleanup(&req);
-
-  auto defer_close = OnScopeLeave([file]() {
-    uv_fs_t close_req;
-    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
-    uv_fs_req_cleanup(&close_req);
-  });
-
-  std::string result{};
-  char buffer[8192];
-  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
-
-  while (true) {
-    auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
-    if (req.result < 0) {
-      // req will be cleaned up by scope leave.
-      return;
-    }
-    uv_fs_req_cleanup(&req);
-    if (r <= 0) {
-      break;
-    }
-    result.append(buf.base, r);
-  }
-
-  using std::string_view_literals::operator""sv;
-
-  for (const auto& line : SplitString(result, "\n"sv)) {
-    ParseLine(line, isolate, store);
-  }
-}
-
-}  // namespace dotenv
 
 }  // namespace node

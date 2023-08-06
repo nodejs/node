@@ -5,13 +5,30 @@
 
 #include "util-inl.h"
 
+#include <map>
+#include <optional>
+
 namespace node {
 
-namespace dotenv {
+class Dotenv {
+ public:
+  Dotenv() = default;
+  Dotenv(const Dotenv& d) = default;
+  Dotenv(Dotenv&& d) noexcept = default;
+  Dotenv& operator=(Dotenv&& d) noexcept = default;
+  Dotenv& operator=(const Dotenv& d) = default;
+  ~Dotenv() = default;
 
-void LoadFromFile(Environment* env, const std::string_view path);
+  void parse(const std::string_view path);
+  void assignNodeOptionsIfAvailable(std::string* node_options);
+  void set_env(Environment* env);
+  static std::optional<std::string> GetPathFromArgs(
+      const std::vector<std::string>& args);
 
-}  // namespace dotenv
+ private:
+  void ParseLine(const std::string_view line);
+  std::map<std::string, std::string> store{};
+};
 
 }  // namespace node
 

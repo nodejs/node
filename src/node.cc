@@ -141,6 +141,10 @@ using v8::Value;
 
 namespace per_process {
 
+// node_dotenv.h
+// Instance is used to store environment variables including NODE_OPTIONS.
+node::Dotenv dotenv_file = Dotenv();
+
 // node_revert.h
 // Bit flag used to track security reverts.
 unsigned int reverted_cve = 0;
@@ -307,9 +311,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 #endif
 
   if (env->options()->has_env_file_string) {
-    std::string path =
-        env->GetCwd() + kPathSeparator + env->options()->env_file;
-    node::dotenv::LoadFromFile(env, path);
+    per_process::dotenv_file.set_env(env);
   }
 
   // TODO(joyeecheung): move these conditions into JS land and let the
@@ -838,11 +840,22 @@ static ExitCode InitializeNodeWithArgsInternal(
 
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
+  std::string node_options;
+  auto file_path = node::Dotenv::GetPathFromArgs(*argv);
+
+  if (file_path.has_value()) {
+    auto cwd = Environment::GetCwd(Environment::GetExecPath(*argv));
+    std::string path = cwd + kPathSeparator + file_path.value();
+    CHECK(!per_process::v8_initialized);
+    per_process::dotenv_file.parse(path);
+    per_process::dotenv_file.assignNodeOptionsIfAvailable(&node_options);
+  }
+
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   if (!(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv)) {
-    std::string node_options;
-
-    if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
+    // NODE_OPTIONS environment variable is preferred over the file one.
+    if (credentials::SafeGetenv("NODE_OPTIONS", &node_options) ||
+        !node_options.empty()) {
       std::vector<std::string> env_argv =
           ParseNodeOptionsEnvVar(node_options, errors);
 

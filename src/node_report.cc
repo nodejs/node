@@ -878,7 +878,7 @@ std::string TriggerNodeReport(Isolate* isolate,
       THROW_IF_INSUFFICIENT_PERMISSIONS(
           env,
           permission::PermissionScope::kFileSystemWrite,
-          std::string_view(env->GetCwd()),
+          std::string_view(Environment::GetCwd(env->exec_path())),
           filename);
     }
   }
