@@ -263,8 +263,8 @@ function createZeroFilledFile(filename) {
 
 
 const pwdCommand = isWindows ?
-  [new URL('file:///C:/Windows/system32/cmd.exe'), ['/d', '/c', 'cd']] :
-  [new URL('file:///bin/pwd'), []];
+  ['cmd.exe', ['/d', '/c', 'cd']] :
+  ['pwd', []];
 
 
 function platformTimeout(ms) {
