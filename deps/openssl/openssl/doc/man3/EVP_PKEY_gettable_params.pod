@@ -60,7 +60,7 @@ is allocated by the method.
 
 EVP_PKEY_get_utf8_string_param() get a key I<pkey> UTF8 string value into a
 buffer I<str> of maximum size I<max_buf_sz> associated with a name of
-I<key_name>.  The maximum size must be large enough to accomodate the string
+I<key_name>.  The maximum size must be large enough to accommodate the string
 value including a terminating NUL byte, or this function will fail.
 If I<out_len> is not NULL, I<*out_len> is set to the length of the string
 not including the terminating NUL byte. The required buffer size not including
@@ -125,7 +125,7 @@ These functions were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

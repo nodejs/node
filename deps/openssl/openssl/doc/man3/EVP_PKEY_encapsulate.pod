@@ -3,7 +3,7 @@
 =head1 NAME
 
 EVP_PKEY_encapsulate_init, EVP_PKEY_encapsulate
-- Key encapsulation using a public key algorithm
+- Key encapsulation using a KEM algorithm with a public key
 
 =head1 SYNOPSIS
 
@@ -11,7 +11,7 @@ EVP_PKEY_encapsulate_init, EVP_PKEY_encapsulate
 
  int EVP_PKEY_encapsulate_init(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[]);
  int EVP_PKEY_encapsulate(EVP_PKEY_CTX *ctx,
-                          unsigned char *out, size_t *outlen,
+                          unsigned char *wrappedkey, size_t *wrappedkeylen,
                           unsigned char *genkey, size_t *genkeylen);
 
 =head1 DESCRIPTION
@@ -19,19 +19,27 @@ EVP_PKEY_encapsulate_init, EVP_PKEY_encapsulate
 The EVP_PKEY_encapsulate_init() function initializes a public key algorithm
 context I<ctx> for an encapsulation operation and then sets the I<params>
 on the context in the same way as calling L<EVP_PKEY_CTX_set_params(3)>.
+Note that I<ctx> is usually is produced using L<EVP_PKEY_CTX_new_from_pkey(3)>,
+specifying the public key to use.
 
 The EVP_PKEY_encapsulate() function performs a public key encapsulation
-operation using I<ctx> with the name I<name>.
-If I<out> is B<NULL> then the maximum size of the output buffer is written to the
-I<*outlen> parameter and the maximum size of the generated key buffer is written
-to I<*genkeylen>. If I<out> is not B<NULL> and the call is successful then the
+operation using I<ctx>.
+The symmetric secret generated in I<genkey> can be used as key material.
+The ciphertext in I<wrappedkey> is its encapsulated form, which can be sent
+to another party, who can use L<EVP_PKEY_decapsulate(3)> to retrieve it
+using their private key.
+If I<wrappedkey> is NULL then the maximum size of the output buffer
+is written to the I<*wrappedkeylen> parameter unless I<wrappedkeylen> is NULL
+and the maximum size of the generated key buffer is written to I<*genkeylen>
+unless I<genkeylen> is NULL.
+If I<wrappedkey> is not NULL and the call is successful then the
 internally generated key is written to I<genkey> and its size is written to
 I<*genkeylen>. The encapsulated version of the generated key is written to
-I<out> and its size is written to I<*outlen>.
+I<wrappedkey> and its size is written to I<*wrappedkeylen>.
 
 =head1 NOTES
 
-After the call to EVP_PKEY_encapsulate_init() algorithm specific parameters
+After the call to EVP_PKEY_encapsulate_init() algorithm-specific parameters
 for the operation may be set or modified using L<EVP_PKEY_CTX_set_params(3)>.
 
 =head1 RETURN VALUES
@@ -82,7 +90,7 @@ Encapsulate an RSASVE key (for RSA keys).
 
 =head1 SEE ALSO
 
-L<EVP_PKEY_CTX_new(3)>,
+L<EVP_PKEY_CTX_new_from_pkey(3)>,
 L<EVP_PKEY_decapsulate(3)>,
 L<EVP_KEM-RSA(7)>,
 
@@ -92,7 +100,7 @@ These functions were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -348,7 +348,8 @@ static int get_cert_by_subject_ex(X509_LOOKUP *xl, X509_LOOKUP_TYPE type,
         /*
          * we have added it to the cache so now pull it out again
          */
-        X509_STORE_lock(xl->store_ctx);
+        if (!X509_STORE_lock(xl->store_ctx))
+            goto finish;
         j = sk_X509_OBJECT_find(xl->store_ctx->objs, &stmp);
         tmp = sk_X509_OBJECT_value(xl->store_ctx->objs, j);
         X509_STORE_unlock(xl->store_ctx);

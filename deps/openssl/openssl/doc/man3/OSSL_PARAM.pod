@@ -108,7 +108,7 @@ B<OSSL_PARAM_UTF8_STRING> in relation to C strings.  When setting
 parameters, the size should be set to the length of the string, not
 counting the terminating NUL byte.  When requesting parameters, the
 size should be set to the size of the buffer to be populated, which
-should accomodate enough space for a terminating NUL byte.
+should accommodate enough space for a terminating NUL byte.
 
 When I<requesting parameters>, it's acceptable for I<data> to be NULL.
 This can be used by the I<requester> to figure out dynamically exactly

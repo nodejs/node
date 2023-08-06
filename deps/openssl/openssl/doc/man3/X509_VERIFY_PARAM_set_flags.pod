@@ -223,7 +223,7 @@ X509_VERIFY_PARAM_set1_ip_asc() return 1 for success and 0 for
 failure.
 
 X509_VERIFY_PARAM_get0_host(), X509_VERIFY_PARAM_get0_email(), and
-X509_VERIFY_PARAM_get1_ip_asc(), return the string pointers pecified above
+X509_VERIFY_PARAM_get1_ip_asc(), return the string pointer specified above
 or NULL if the respective value has not been set or on error.
 
 X509_VERIFY_PARAM_get_flags() returns the current verification flags.

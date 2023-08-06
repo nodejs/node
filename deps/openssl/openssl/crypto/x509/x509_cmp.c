@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -277,11 +277,11 @@ int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b)
     if (ret == 0 && a->canon_enclen == 0)
         return 0;
 
-    if (a->canon_enc == NULL || b->canon_enc == NULL)
-        return -2;
-
-    if (ret == 0)
+    if (ret == 0) {
+        if (a->canon_enc == NULL || b->canon_enc == NULL)
+            return -2;
         ret = memcmp(a->canon_enc, b->canon_enc, a->canon_enclen);
+    }
 
     return ret < 0 ? -1 : ret > 0;
 }
