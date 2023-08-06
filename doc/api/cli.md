@@ -984,8 +984,9 @@ added: REPLACEME
 -->
 
 Loads environment variables from a file relative to the current directory.
-
-`NODE_OPTIONS` environment variable is not supported at the moment.
+Environment file supports `NODE_OPTIONS` as a key. If there is an
+environment variable named `NODE_OPTIONS`, environment variable is preferred
+over the file configuration.
 
 The format of the file should be one line per key-value pair of environment
 variable name and value separated by `=`:
