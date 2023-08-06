@@ -236,7 +236,6 @@ describe('Loader hooks', { concurrency: true }, () => {
   it('should be fine to call `process.exit` from a custom sync hook', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-import-meta-resolve',
       '--experimental-loader',
       'data:text/javascript,export function resolve(a,b,next){if(a==="exit:")process.exit(42);return next(a,b)}',
       '--input-type=module',
