@@ -23,6 +23,11 @@ check_include_file(stddef.h    HAVE_STDDEF_H)
 
 option(ENABLE_SIMD_OPTIMIZATIONS "Enable all SIMD optimizations" OFF)
 option(ENABLE_SIMD_AVX512 "Enable SIMD AXV512 optimizations" OFF)
+option(USE_ZLIB_RABIN_KARP_HASH "Enable bitstream compatibility with canonical zlib" OFF)
+
+if (USE_ZLIB_RABIN_KARP_HASH)
+   add_definitions(-DUSE_ZLIB_RABIN_KARP_ROLLING_HASH)
+endif()
 
 # TODO(cavalcantii): add support for other OSes (e.g. Android, fuchsia, osx)
 # and architectures (e.g. Arm).
@@ -238,3 +243,12 @@ enable_language(CXX)
 set(CMAKE_CXX_STANDARD 14) # workaround for older compilers (e.g. g++ 5.4).
 add_executable(zlib_bench contrib/bench/zlib_bench.cc)
 target_link_libraries(zlib_bench zlib)
+
+#============================================================================
+# Minigzip tool
+#============================================================================
+add_executable(minizip_bin contrib/minizip/minizip.c contrib/minizip/ioapi.c
+contrib/minizip/ioapi.h contrib/minizip/unzip.c
+contrib/minizip/unzip.h contrib/minizip/zip.c contrib/minizip/zip.h
+)
+target_link_libraries(minizip_bin zlib)

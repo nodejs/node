@@ -3,6 +3,7 @@ Short Name: minizip
 URL: https://github.com/madler/zlib/tree/master/contrib/minizip
 Version: 1.2.12
 License: Zlib
+License File: //third_party/zlib/LICENSE
 Security Critical: yes
 Shipped: yes
 
