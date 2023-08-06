@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.17.1">18.17.1</a><br/>
 <a href="#18.17.0">18.17.0</a><br/>
 <a href="#18.16.1">18.16.1</a><br/>
 <a href="#18.16.0">18.16.0</a><br/>
@@ -57,6 +58,33 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.17.1"></a>
+
+## 2023-08-09, Version 18.17.1 'Hydrogen' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* [CVE-2023-32002](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32002):  Policies can be bypassed via Module.\_load (High)
+* [CVE-2023-32006](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32006): Policies can be bypassed by module.constructor.createRequire (Medium)
+* [CVE-2023-32559](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32559): Policies can be bypassed via process.binding (Medium)
+* OpenSSL Security Releases
+  * [OpenSSL security advisory 14th July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000264.html).
+  * [OpenSSL security advisory 19th July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000265.html).
+  * [OpenSSL security advisory 31st July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000267.html)
+
+More detailed information on each of the vulnerabilities can be found in [August 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/) blog post.
+
+### Commits
+
+* \[[`fe3abdf82e`](https://github.com/nodejs/node/commit/fe3abdf82e)] - **deps**: update archs files for openssl-3.0.10+quic1 (Node.js GitHub Bot) [#49036](https://github.com/nodejs/node/pull/49036)
+* \[[`2c5a522d9c`](https://github.com/nodejs/node/commit/2c5a522d9c)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.10+quic1 (Node.js GitHub Bot) [#49036](https://github.com/nodejs/node/pull/49036)
+* \[[`15bced0bde`](https://github.com/nodejs/node/commit/15bced0bde)] - **policy**: handle Module.constructor and main.extensions bypass (RafaelGSS) [nodejs-private/node-private#417](https://github.com/nodejs-private/node-private/pull/417)
+* \[[`d4570fae35`](https://github.com/nodejs/node/commit/d4570fae35)] - **policy**: disable process.binding() when enabled (Tobias Nießen) [nodejs-private/node-private#460](https://github.com/nodejs-private/node-private/pull/460)
 
 <a id="18.17.0"></a>
 
