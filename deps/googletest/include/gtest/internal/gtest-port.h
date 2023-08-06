@@ -220,7 +220,6 @@
 //   GTEST_HAS_ALT_PATH_SEP_ - Always defined to 0 or 1.
 //   GTEST_WIDE_STRING_USES_UTF16_ - Always defined to 0 or 1.
 //   GTEST_HAS_MUTEX_AND_THREAD_LOCAL_ - Always defined to 0 or 1.
-//   GTEST_HAS_DOWNCAST_ - Always defined to 0 or 1.
 //   GTEST_HAS_NOTIFICATION_- Always defined to 0 or 1.
 //
 // Synchronization:
@@ -312,10 +311,6 @@
 
 #include "gtest/internal/custom/gtest-port.h"
 #include "gtest/internal/gtest-port-arch.h"
-
-#ifndef GTEST_HAS_DOWNCAST_
-#define GTEST_HAS_DOWNCAST_ 0
-#endif
 
 #ifndef GTEST_HAS_MUTEX_AND_THREAD_LOCAL_
 #define GTEST_HAS_MUTEX_AND_THREAD_LOCAL_ 0
@@ -1153,17 +1148,12 @@ inline To ImplicitCast_(To x) {
 // check to enforce this.
 template <class Derived, class Base>
 Derived* CheckedDowncastToActualType(Base* base) {
+  static_assert(std::is_base_of<Base, Derived>::value,
+                "target type not derived from source type");
 #if GTEST_HAS_RTTI
-  GTEST_CHECK_(typeid(*base) == typeid(Derived));
+  GTEST_CHECK_(base == nullptr || dynamic_cast<Derived*>(base) != nullptr);
 #endif
-
-#if GTEST_HAS_DOWNCAST_
-  return ::down_cast<Derived*>(base);
-#elif GTEST_HAS_RTTI
-  return dynamic_cast<Derived*>(base);  // NOLINT
-#else
-  return static_cast<Derived*>(base);  // Poor man's downcast.
-#endif
+  return static_cast<Derived*>(base);
 }
 
 #if GTEST_HAS_STREAM_REDIRECTION
