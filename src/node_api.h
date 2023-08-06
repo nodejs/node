@@ -16,16 +16,6 @@
 #include "js_native_api.h"
 #include "node_api_types.h"
 
-// See https://github.com/nodejs/node-addon-api/pull/1283
-#ifndef NAPI_HAS_THREADS
-#if !defined(__wasm__) || (defined(__EMSCRIPTEN_PTHREADS__) ||                 \
-                           (defined(__wasi__) && defined(_REENTRANT)))
-#define NAPI_HAS_THREADS 1
-#else
-#define NAPI_HAS_THREADS 0
-#endif
-#endif
-
 struct uv_loop_s;  // Forward declaration.
 
 #ifdef _WIN32
@@ -161,7 +151,6 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_get_buffer_info(napi_env env,
                                                         void** data,
                                                         size_t* length);
 
-#if NAPI_HAS_THREADS
 // Methods to manage simple async operations
 NAPI_EXTERN napi_status NAPI_CDECL
 napi_create_async_work(napi_env env,
@@ -177,7 +166,6 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_queue_async_work(napi_env env,
                                                          napi_async_work work);
 NAPI_EXTERN napi_status NAPI_CDECL napi_cancel_async_work(napi_env env,
                                                           napi_async_work work);
-#endif  // NAPI_HAS_THREADS
 
 // version management
 NAPI_EXTERN napi_status NAPI_CDECL
@@ -215,7 +203,6 @@ napi_close_callback_scope(napi_env env, napi_callback_scope scope);
 
 #if NAPI_VERSION >= 4
 
-#if NAPI_HAS_THREADS
 // Calling into JS from other threads
 NAPI_EXTERN napi_status NAPI_CDECL
 napi_create_threadsafe_function(napi_env env,
@@ -249,7 +236,6 @@ napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 
 NAPI_EXTERN napi_status NAPI_CDECL
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
-#endif  // NAPI_HAS_THREADS
 
 #endif  // NAPI_VERSION >= 4
 
