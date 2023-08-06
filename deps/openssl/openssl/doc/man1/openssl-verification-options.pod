@@ -92,7 +92,7 @@ It does not have a negative trust attribute rejecting the given use.
 =item *
 
 It has a positive trust attribute accepting the given use
-or (by default) one of the following compatibilty conditions apply:
+or (by default) one of the following compatibility conditions apply:
 It is self-signed or the B<-partial_chain> option is given
 (which corresponds to the B<X509_V_FLAG_PARTIAL_CHAIN> flag being set).
 
@@ -686,7 +686,7 @@ The checks enabled by B<-x509_strict> have been extended in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

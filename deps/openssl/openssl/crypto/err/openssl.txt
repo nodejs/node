@@ -1678,6 +1678,7 @@ X509_R_CERTIFICATE_VERIFICATION_FAILED:139:certificate verification failed
 X509_R_CERT_ALREADY_IN_HASH_TABLE:101:cert already in hash table
 X509_R_CRL_ALREADY_DELTA:127:crl already delta
 X509_R_CRL_VERIFY_FAILURE:131:crl verify failure
+X509_R_DUPLICATE_ATTRIBUTE:140:duplicate attribute
 X509_R_ERROR_GETTING_MD_BY_NID:141:error getting md by nid
 X509_R_ERROR_USING_SIGINF_SET:142:error using siginf set
 X509_R_IDP_MISMATCH:128:idp mismatch

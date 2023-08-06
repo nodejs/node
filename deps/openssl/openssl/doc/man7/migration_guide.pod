@@ -130,7 +130,7 @@ New algorithms provided via engines will still work.
 
 Engine-backed keys can be loaded via custom B<OSSL_STORE> implementation.
 In this case the B<EVP_PKEY> objects created via L<ENGINE_load_private_key(3)>
-will be concidered legacy and will continue to work.
+will be considered legacy and will continue to work.
 
 To ensure the future compatibility, the engines should be turned to providers.
 To prefer the provider-based hardware offload, you can specify the default
@@ -641,7 +641,7 @@ set up with the default library context. Use L<X509_new_ex(3)>,
 L<X509_CRL_new_ex(3)>, L<X509_REQ_new_ex(3)> and L<X509_PUBKEY_new_ex(3)> if a
 library context is required.
 
-All functions listed below with a I<NAME> have a replacment function I<NAME_ex>
+All functions listed below with a I<NAME> have a replacement function I<NAME_ex>
 that takes B<OSSL_LIB_CTX> as an additional argument. Functions that have other
 mappings are listed along with the respective name.
 
@@ -999,7 +999,7 @@ that refer to these categories.
 Any accessor that uses an ENGINE is deprecated (such as EVP_PKEY_set1_engine()).
 Applications using engines should instead use providers.
 
-Before providers were added algorithms were overriden by changing the methods
+Before providers were added algorithms were overridden by changing the methods
 used by algorithms. All these methods such as RSA_new_method() and RSA_meth_new()
 are now deprecated and can be replaced by using providers instead.
 
@@ -1548,7 +1548,7 @@ See L</Deprecated low-level validation functions>
 
 EC_KEY_set_flags(), EC_KEY_get_flags(), EC_KEY_clear_flags()
 
-See L<EVP_PKEY-EC(7)/Common EC parameters> which handles flags as seperate
+See L<EVP_PKEY-EC(7)/Common EC parameters> which handles flags as separate
 parameters for B<OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT>,
 B<OSSL_PKEY_PARAM_EC_GROUP_CHECK_TYPE>, B<OSSL_PKEY_PARAM_EC_ENCODING>,
 B<OSSL_PKEY_PARAM_USE_COFACTOR_ECDH> and

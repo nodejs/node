@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -583,6 +583,10 @@ static int pkey_rsa_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         if (rctx->pad_mode != RSA_PKCS1_OAEP_PADDING) {
             ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_PADDING_MODE);
             return -2;
+        }
+        if (p2 == NULL) {
+            ERR_raise(ERR_LIB_EVP, ERR_R_PASSED_NULL_PARAMETER);
+            return 0;
         }
         *(unsigned char **)p2 = rctx->oaep_label;
         return rctx->oaep_labellen;
