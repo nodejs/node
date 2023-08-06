@@ -1,0 +1,186 @@
+# Ignore editor artefacts
+/.dir-locals.el
+
+# Top level excludes
+/Makefile.orig
+/MINFO
+/TABLE
+/*.pc
+/rehash.time
+/inc.*
+/makefile.*
+/out.*
+/tmp.*
+/configdata.pm
+
+# *all* Makefiles
+Makefile
+# ... except in demos
+!/demos/*/Makefile
+
+# Links under apps
+/apps/CA.pl
+/apps/tsget
+/apps/tsget.pl
+/apps/md4.c
+
+# Auto generated headers
+/crypto/buildinf.h
+/apps/progs.h
+/include/crypto/*_conf.h
+/openssl/include/opensslconf.h
+/util/domd
+
+# error code files
+/crypto/err/openssl.txt.old
+/engines/e_afalg.txt.old
+/engines/e_capi.txt.old
+/engines/e_dasync.txt.old
+/engines/e_ossltest.txt.old
+
+# Executables
+/apps/openssl
+/test/sha256t
+/test/sha512t
+/test/gost2814789t
+/test/ssltest_old
+/test/*test
+/test/fips_aesavs
+/test/fips_desmovs
+/test/fips_dhvs
+/test/fips_drbgvs
+/test/fips_dssvs
+/test/fips_ecdhvs
+/test/fips_ecdsavs
+/test/fips_rngvs
+/test/fips_test_suite
+/test/ssltest_old
+/test/x509aux
+/test/v3ext
+/test/versions
+/test/ossl_shim/ossl_shim
+/test/rsa_complex
+
+# Certain files that get created by tests on the fly
+/test/test-runs
+/test/buildtest_*
+
+# Fuzz stuff.
+# Anything without an extension is an executable on Unix, so we keep files
+# with extensions.  And we keep the corpora subddir versioned as well.
+# Anything more generic with extensions that should be ignored will be taken
+# care of by general ignores for those extensions (*.o, *.obj, *.exe, ...)
+/fuzz/*
+!/fuzz/README*
+!/fuzz/corpora
+!/fuzz/*.*
+
+# Misc auto generated files
+/include/openssl/opensslconf.h
+/tools/c_rehash
+/tools/c_rehash.pl
+/util/shlib_wrap.sh
+/tags
+/TAGS
+/libcrypto.map
+/libssl.map
+
+# Windows (legacy)
+/tmp32
+/tmp32.dbg
+/tmp32dll
+/tmp32dll.dbg
+/out32
+/out32.dbg
+/out32dll
+/out32dll.dbg
+/inc32
+/MINFO
+/ms/.rnd
+/ms/bcb.mak
+/ms/libeay32.def
+/ms/nt.mak
+/ms/ntdll.mak
+/ms/ssleay32.def
+/ms/version32.rc
+
+# Files created on other branches that are not held in git, and are not
+# needed on this branch
+/include/openssl/asn1_mac.h
+/include/openssl/des_old.h
+/include/openssl/fips.h
+/include/openssl/fips_rand.h
+/include/openssl/krb5_asn.h
+/include/openssl/kssl.h
+/include/openssl/pq_compat.h
+/include/openssl/ssl23.h
+/include/openssl/tmdiff.h
+/include/openssl/ui_compat.h
+/test/fips_aesavs.c
+/test/fips_desmovs.c
+/test/fips_dsatest.c
+/test/fips_dssvs.c
+/test/fips_hmactest.c
+/test/fips_randtest.c
+/test/fips_rngvs.c
+/test/fips_rsagtest.c
+/test/fips_rsastest.c
+/test/fips_rsavtest.c
+/test/fips_shatest.c
+/test/fips_test_suite.c
+/test/shatest.c
+
+##### Generic patterns
+# Auto generated assembly language source files
+*.s
+!/crypto/*/asm/*.s
+/crypto/arm*.S
+/crypto/*/*.S
+*.asm
+!/crypto/*/asm/*.asm
+
+# Object files
+*.o
+*.obj
+
+# editor artefacts
+*.swp
+.#*
+\#*#
+*~
+
+# Certificate symbolic links
+*.0
+
+# All kinds of libraries and executables
+*.a
+*.so
+*.so.*
+*.dylib
+*.dylib.*
+*.dll
+*.dll.*
+*.exe
+*.pyc
+*.exp
+*.lib
+*.pdb
+*.ilk
+*.def
+*.rc
+*.res
+
+# Misc generated stuff
+Makefile.save
+/crypto/**/lib
+/engines/**/lib
+/ssl/**/lib
+*.bak
+cscope.*
+*.d
+*.d.tmp
+pod2htmd.tmp
+
+# Windows manifest files
+*.manifest
+doc-nits

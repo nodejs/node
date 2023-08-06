@@ -1,0 +1,128 @@
+---
+name: Run-checker daily for 1.1.1
+# Jobs run daily on 1.1.1
+
+on:
+  schedule:
+    - cron: '42 6 * * *'
+permissions:
+  contents: read
+
+jobs:
+  run-checker:
+    strategy:
+      fail-fast: false
+      matrix:
+        opt: [
+          386,
+          no-afalgeng,
+          no-aria,
+          no-asan,
+          no-asm,
+          no-async,
+          no-autoalginit,
+          no-autoerrinit,
+          no-autoload-config,
+          no-bf,
+          no-blake2,
+          no-buildtest-c++,
+          no-camellia,
+          no-capieng,
+          no-cast,
+          no-chacha,
+          no-cmac,
+          no-comp,
+          enable-crypto-mdebug,
+          no-crypto-mdebug,
+          enable-crypto-mdebug-backtrace,
+          no-crypto-mdebug-backtrace,
+          no-deprecated,
+          no-des,
+          no-devcryptoeng,
+          no-dh,
+          no-dsa,
+          no-dtls1,
+          no-dtls1_2,
+          no-dtls1_2-method,
+          no-dtls1-method,
+          no-ecdh,
+          no-ecdsa,
+          enable-ec_nistp_64_gcc_128,
+          no-ec_nistp_64_gcc_128,
+          enable-egd,
+          no-egd,
+          no-engine,
+          no-external-tests,
+          no-tls1_3,
+          no-fuzz-afl,
+          no-fuzz-libfuzzer,
+          no-gost,
+          enable-heartbeats,
+          no-heartbeats,
+          no-hw,
+          no-hw-padlock,
+          no-idea,
+          no-makedepend,
+          enable-md2,
+          no-md2,
+          no-md4,
+          no-mdc2,
+          no-msan,
+          no-multiblock,
+          no-nextprotoneg,
+          no-ocb,
+          no-ocsp,
+          no-pic,
+          no-pinshared,
+          no-poly1305,
+          no-posix-io,
+          no-psk,
+          no-rc2,
+          no-rc4,
+          enable-rc5,
+          no-rc5,
+          no-rdrand,
+          no-rfc3779,
+          no-ripemd,
+          no-rmd160,
+          no-scrypt,
+          no-sctp,
+          no-seed,
+          no-shared,
+          no-siphash,
+          no-sm2,
+          no-sm3,
+          no-sm4,
+          no-sse2,
+          no-ssl,
+          no-ssl3,
+          no-ssl3-method,
+          no-ssl-trace,
+          no-static-engine no-shared,
+          no-stdio,
+          no-tls1,
+          no-tls1_1,
+          no-tls1_1-method,
+          no-tls1_2,
+          no-tls1_2-method,
+          no-tls1-method,
+          no-ubsan,
+          no-ui-console,
+          enable-unit-test,
+          no-weak-ssl-ciphers,
+          no-whirlpool,
+          no-zlib,
+          enable-zlib-dynamic,
+          no-zlib-dynamic,
+        ]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: CC=clang ./config --strict-warnings ${{ matrix.opt }}
+    - name: config dump
+      run: ./configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test

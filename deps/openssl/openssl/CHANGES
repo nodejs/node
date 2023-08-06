@@ -7,6 +7,41 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1u and 1.1.1v [1 Aug 2023]
+
+ *) Fix excessive time spent checking DH q parameter value.
+
+    The function DH_check() performs various checks on DH parameters. After
+    fixing CVE-2023-3446 it was discovered that a large q parameter value can
+    also trigger an overly long computation during some of these checks.
+    A correct q value, if present, cannot be larger than the modulus p
+    parameter, thus it is unnecessary to perform these checks if q is larger
+    than p.
+
+    If DH_check() is called with such q parameter value,
+    DH_CHECK_INVALID_Q_VALUE return flag is set and the computationally
+    intensive checks are skipped.
+
+    (CVE-2023-3817)
+    [Tomáš Mráz]
+
+ *) Fix DH_check() excessive time with over sized modulus
+
+    The function DH_check() performs various checks on DH parameters. One of
+    those checks confirms that the modulus ("p" parameter) is not too large.
+    Trying to use a very large modulus is slow and OpenSSL will not normally use
+    a modulus which is over 10,000 bits in length.
+
+    However the DH_check() function checks numerous aspects of the key or
+    parameters that have been supplied. Some of those checks use the supplied
+    modulus value even if it has already been found to be too large.
+
+    A new limit has been added to DH_check of 32,768 bits. Supplying a
+    key/parameters with a modulus over this size will simply cause DH_check()
+    to fail.
+    (CVE-2023-3446)
+    [Matt Caswell]
+
  Changes between 1.1.1t and 1.1.1u [30 May 2023]
 
   *) Mitigate for the time it takes for `OBJ_obj2txt` to translate gigantic
