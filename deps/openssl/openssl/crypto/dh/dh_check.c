@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -143,7 +143,7 @@ int DH_check(const DH *dh, int *ret)
 #ifdef FIPS_MODULE
     return DH_check_params(dh, ret);
 #else
-    int ok = 0, r;
+    int ok = 0, r, q_good = 0;
     BN_CTX *ctx = NULL;
     BIGNUM *t1 = NULL, *t2 = NULL;
     int nid = DH_get_nid((DH *)dh);
@@ -151,6 +151,13 @@ int DH_check(const DH *dh, int *ret)
     *ret = 0;
     if (nid != NID_undef)
         return 1;
+
+    /* Don't do any checks at all with an excessively large modulus */
+    if (BN_num_bits(dh->params.p) > OPENSSL_DH_CHECK_MAX_MODULUS_BITS) {
+        ERR_raise(ERR_LIB_DH, DH_R_MODULUS_TOO_LARGE);
+        *ret = DH_MODULUS_TOO_LARGE | DH_CHECK_P_NOT_PRIME;
+        return 0;
+    }
 
     if (!DH_check_params(dh, ret))
         return 0;
@@ -165,6 +172,13 @@ int DH_check(const DH *dh, int *ret)
         goto err;
 
     if (dh->params.q != NULL) {
+        if (BN_ucmp(dh->params.p, dh->params.q) > 0)
+            q_good = 1;
+        else
+            *ret |= DH_CHECK_INVALID_Q_VALUE;
+    }
+
+    if (q_good) {
         if (BN_cmp(dh->params.g, BN_value_one()) <= 0)
             *ret |= DH_NOT_SUITABLE_GENERATOR;
         else if (BN_cmp(dh->params.g, dh->params.p) >= 0)

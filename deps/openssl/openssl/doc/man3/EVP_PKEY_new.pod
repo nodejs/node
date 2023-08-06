@@ -62,7 +62,7 @@ see L<openssl_user_macros(7)>:
 B<EVP_PKEY> is a generic structure to hold diverse types of asymmetric keys
 (also known as "key pairs"), and can be used for diverse operations, like
 signing, verifying signatures, key derivation, etc.  The asymmetric keys
-themselves are often refered to as the "internal key", and are handled by
+themselves are often referred to as the "internal key", and are handled by
 backends, such as providers (through L<EVP_KEYMGMT(3)>) or B<ENGINE>s.
 
 Conceptually, an B<EVP_PKEY> internal key may hold a private key, a public
@@ -210,7 +210,7 @@ previously implied to be disallowed.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

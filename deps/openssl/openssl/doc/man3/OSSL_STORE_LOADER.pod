@@ -327,7 +327,7 @@ definition string, or NULL on error.
 OSSL_STORE_LOADER_is_a() returns 1 if I<loader> was identifiable,
 otherwise 0.
 
-OSSL_STORE_LOADER_get0_description() returns a pointer to a decription, or NULL if
+OSSL_STORE_LOADER_get0_description() returns a pointer to a description, or NULL if
 there isn't one.
 
 The functions with the types B<OSSL_STORE_open_fn>,
@@ -380,7 +380,7 @@ were added in OpenSSL 1.1.1, and became deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

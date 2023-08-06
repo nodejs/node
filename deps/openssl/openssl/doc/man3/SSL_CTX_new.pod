@@ -100,7 +100,7 @@ provide serialization of access for these cases.
 
 =head1 NOTES
 
-On session estabilishment, by default, no peer credentials verification is done.
+On session establishment, by default, no peer credentials verification is done.
 This must be explicitly requested, typically using L<SSL_CTX_set_verify(3)>.
 For verifying peer certificates many options can be set using various functions
 such as L<SSL_CTX_load_verify_locations(3)> and L<SSL_CTX_set1_param(3)>.
@@ -249,7 +249,7 @@ SSL_CTX_new_ex() was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

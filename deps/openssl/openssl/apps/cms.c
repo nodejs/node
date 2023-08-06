@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -796,6 +796,9 @@ int cms_main(int argc, char **argv)
     if ((operation & SMIME_IP) == 0 && contfile != NULL)
         BIO_printf(bio_err,
                    "Warning: -contfile option is ignored for the given operation\n");
+    if (operation != SMIME_ENCRYPT && *argv != NULL)
+        BIO_printf(bio_err,
+                   "Warning: recipient certificate file parameters ignored for operation other than -encrypt\n");
 
     if ((flags & CMS_BINARY) != 0) {
         if (!(operation & SMIME_OP))
@@ -823,19 +826,13 @@ int cms_main(int argc, char **argv)
             goto end;
         }
 
-        if (*argv != NULL) {
-            if (operation == SMIME_ENCRYPT) {
-                for (; *argv != NULL; argv++) {
-                    cert = load_cert(*argv, FORMAT_UNDEF,
-                                     "recipient certificate file");
-                    if (cert == NULL)
-                        goto end;
-                    sk_X509_push(encerts, cert);
-                    cert = NULL;
-                }
-            } else {
-                BIO_printf(bio_err, "Warning: recipient certificate file parameters ignored for operation other than -encrypt\n");
-            }
+        for (; *argv != NULL; argv++) {
+            cert = load_cert(*argv, FORMAT_UNDEF,
+                             "recipient certificate file");
+            if (cert == NULL)
+                goto end;
+            sk_X509_push(encerts, cert);
+            cert = NULL;
         }
     }
 
