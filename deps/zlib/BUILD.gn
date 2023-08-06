@@ -385,6 +385,11 @@ config("minizip_warnings") {
 }
 
 static_library("minizip") {
+  include_dirs = [
+    ".",
+    "//third_party/zlib",
+  ]
+
   sources = [
     "contrib/minizip/ioapi.c",
     "contrib/minizip/ioapi.h",
