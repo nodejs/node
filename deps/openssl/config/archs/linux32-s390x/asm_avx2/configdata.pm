@@ -159,7 +159,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.0.9+quic",
+    "full_version" => "3.0.10+quic",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -207,7 +207,7 @@ our %config = (
     "openssl_sys_defines" => [],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-    "patch" => "9",
+    "patch" => "10",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.34.0",
@@ -259,11 +259,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned char",
-    "release_date" => "30 May 2023",
+    "release_date" => "1 Aug 2023",
     "shlib_version" => "81.3",
     "sourcedir" => ".",
     "target" => "linux32-s390x",
-    "version" => "3.0.9"
+    "version" => "3.0.10"
 );
 our %target = (
     "AR" => "ar",
@@ -1601,6 +1601,7 @@ our %unified_info = (
             "OPENSSL_BN_ASM_MONT",
             "OPENSSL_CPUID_OBJ",
             "POLY1305_ASM",
+            "RC4_ASM",
             "S390X_EC_ASM",
             "SHA1_ASM",
             "SHA256_ASM",
@@ -1639,6 +1640,9 @@ our %unified_info = (
             "SHA1_ASM",
             "SHA256_ASM",
             "SHA512_ASM"
+        ],
+        "providers/liblegacy.a" => [
+            "RC4_ASM"
         ],
         "test/provider_internal_test" => [
             "PROVIDER_INIT_FUNCTION_NAME=p_test_init"

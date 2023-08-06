@@ -17,6 +17,7 @@
       'OPENSSL_IA32_SSE2',
       'PADLOCK_ASM',
       'POLY1305_ASM',
+      'RC4_ASM',
       'RMD160_ASM',
       'SHA1_ASM',
       'SHA256_ASM',

@@ -14,6 +14,7 @@
       'OPENSSL_BN_ASM_MONT',
       'OPENSSL_CPUID_OBJ',
       'POLY1305_ASM',
+      'RC4_ASM',
       'S390X_EC_ASM',
       'SHA1_ASM',
       'SHA256_ASM',
