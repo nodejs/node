@@ -415,7 +415,7 @@ For example:
 =head2 Random Configuration
 
 The name B<random> in the initialization section names the section
-containing the random number generater settings.
+containing the random number generator settings.
 
 Within the random section, the following names have meaning:
 

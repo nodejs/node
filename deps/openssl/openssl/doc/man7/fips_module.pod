@@ -14,6 +14,9 @@ This guide details different ways that OpenSSL can be used in conjunction
 with the FIPS module. Which is the correct approach to use will depend on your
 own specific circumstances and what you are attempting to achieve.
 
+For information related to installing the FIPS module see
+L<https://github.com/openssl/openssl/blob/master/README-FIPS.md>.
+
 Note that the old functions FIPS_mode() and FIPS_mode_set() are no longer
 present so you must remove them from your application if you use them.
 
@@ -92,7 +95,7 @@ Obviously the include file location above should match the path and name of the
 FIPS module config file that you installed earlier.
 See L<https://github.com/openssl/openssl/blob/master/README-FIPS.md>.
 
-For FIPS usage, it is recommened that the B<config_diagnostics> option is
+For FIPS usage, it is recommended that the B<config_diagnostics> option is
 enabled to prevent accidental use of non-FIPS validated algorithms via broken
 or mistaken configuration.  See L<config(5)>.
 
@@ -456,9 +459,23 @@ use L<EVP_MD_get0_provider(3)>.
 To extract the name from the B<OSSL_PROVIDER>, use
 L<OSSL_PROVIDER_get0_name(3)>.
 
+=head1 NOTES
+
+Some released versions of OpenSSL do not include a validated
+FIPS provider.  To determine which versions have undergone
+the validation process, please refer to the
+L<OpenSSL Downloads page|https://www.openssl.org/source/>.  If you
+require FIPS-approved functionality, it is essential to build your FIPS
+provider using one of the validated versions listed there.  Normally,
+it is possible to utilize a FIPS provider constructed from one of the
+validated versions alongside F<libcrypto> and F<libssl> compiled from any
+release within the same major release series.  This flexibility enables
+you to address bug fixes and CVEs that fall outside the FIPS boundary.
+
 =head1 SEE ALSO
 
-L<migration_guide(7)>, L<crypto(7)>, L<fips_config(5)>
+L<migration_guide(7)>, L<crypto(7)>, L<fips_config(5)>,
+L<https://www.openssl.org/source/>
 
 =head1 HISTORY
 
@@ -467,7 +484,7 @@ in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

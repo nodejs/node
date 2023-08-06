@@ -73,9 +73,9 @@ the built-in parameter support described above. Applications wishing to supply
 their own DH parameters should call SSL_CTX_set0_tmp_dh_pkey() or
 SSL_set0_tmp_dh_pkey() to supply the parameters for the B<SSL_CTX> or B<SSL>
 respectively. The parameters should be supplied in the I<dhpkey> argument as
-an B<EVP_PKEY> containg DH parameters. Ownership of the I<dhpkey> value is
+an B<EVP_PKEY> containing DH parameters. Ownership of the I<dhpkey> value is
 passed to the B<SSL_CTX> or B<SSL> object as a result of this call, and so the
-caller should not free it if the function call is succesful.
+caller should not free it if the function call is successful.
 
 The deprecated macros SSL_CTX_set_tmp_dh() and SSL_set_tmp_dh() do the same
 thing as SSL_CTX_set0_tmp_dh_pkey() and SSL_set0_tmp_dh_pkey() except that the
@@ -112,7 +112,7 @@ L<openssl-ciphers(1)>, L<openssl-dhparam(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

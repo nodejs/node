@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -1005,6 +1005,13 @@ static int EdDSA_sign_loop(void *args)
     int ret, count;
 
     for (count = 0; COND(eddsa_c[testnum][0]); count++) {
+        ret = EVP_DigestSignInit(edctx[testnum], NULL, NULL, NULL, NULL);
+        if (ret == 0) {
+            BIO_printf(bio_err, "EdDSA sign init failure\n");
+            ERR_print_errors(bio_err);
+            count = -1;
+            break;
+        }
         ret = EVP_DigestSign(edctx[testnum], eddsasig, eddsasigsize, buf, 20);
         if (ret == 0) {
             BIO_printf(bio_err, "EdDSA sign failure\n");
@@ -1026,6 +1033,13 @@ static int EdDSA_verify_loop(void *args)
     int ret, count;
 
     for (count = 0; COND(eddsa_c[testnum][1]); count++) {
+        ret = EVP_DigestVerifyInit(edctx[testnum], NULL, NULL, NULL, NULL);
+        if (ret == 0) {
+            BIO_printf(bio_err, "EdDSA verify init failure\n");
+            ERR_print_errors(bio_err);
+            count = -1;
+            break;
+        }
         ret = EVP_DigestVerify(edctx[testnum], eddsasig, eddsasigsize, buf, 20);
         if (ret != 1) {
             BIO_printf(bio_err, "EdDSA verify failure\n");
@@ -3133,12 +3147,22 @@ skip_hmac:
     }
 
     for (k = 0; k < ALGOR_NUM; k++) {
+        const char *alg_name = names[k];
+
         if (!doit[k])
             continue;
+
+        if (k == D_EVP) {
+            if (evp_cipher == NULL)
+                alg_name = evp_md_name;
+            else if ((alg_name = EVP_CIPHER_get0_name(evp_cipher)) == NULL)
+                app_bail_out("failed to get name of cipher '%s'\n", evp_cipher);
+        }
+
         if (mr)
-            printf("+F:%u:%s", k, names[k]);
+            printf("+F:%u:%s", k, alg_name);
         else
-            printf("%-13s", names[k]);
+            printf("%-13s", alg_name);
         for (testnum = 0; testnum < size_num; testnum++) {
             if (results[k][testnum] > 10000 && !mr)
                 printf(" %11.2fk", results[k][testnum] / 1e3);

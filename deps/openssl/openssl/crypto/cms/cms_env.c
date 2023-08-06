@@ -142,10 +142,12 @@ CMS_EncryptedContentInfo *ossl_cms_get0_env_enc_content(const CMS_ContentInfo *c
 {
     switch (cms_get_enveloped_type(cms)) {
     case CMS_ENVELOPED_STANDARD:
-        return cms->d.envelopedData->encryptedContentInfo;
+        return cms->d.envelopedData == NULL ? NULL
+            : cms->d.envelopedData->encryptedContentInfo;
 
     case CMS_ENVELOPED_AUTH:
-        return cms->d.authEnvelopedData->authEncryptedContentInfo;
+        return cms->d.authEnvelopedData == NULL ? NULL
+            : cms->d.authEnvelopedData->authEncryptedContentInfo;
 
     default:
         return NULL;

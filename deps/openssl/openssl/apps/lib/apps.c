@@ -638,13 +638,13 @@ void *app_malloc(size_t sz, const char *what)
 char *next_item(char *opt) /* in list separated by comma and/or space */
 {
     /* advance to separator (comma or whitespace), if any */
-    while (*opt != ',' && !isspace(*opt) && *opt != '\0')
+    while (*opt != ',' && !isspace(_UC(*opt)) && *opt != '\0')
         opt++;
     if (*opt != '\0') {
         /* terminate current item */
         *opt++ = '\0';
         /* skip over any whitespace after separator */
-        while (isspace(*opt))
+        while (isspace(_UC(*opt)))
             opt++;
     }
     return *opt == '\0' ? NULL : opt; /* NULL indicates end of input */
@@ -1679,7 +1679,10 @@ CA_DB *load_index(const char *dbfile, DB_ATTR *db_attr)
         char *p = NCONF_get_string(dbattr_conf, NULL, "unique_subject");
         if (p) {
             retdb->attributes.unique_subject = parse_yesno(p, 1);
+        } else {
+            ERR_clear_error();
         }
+
     }
 
     retdb->dbfname = OPENSSL_strdup(dbfile);
@@ -2008,7 +2011,8 @@ int bio_to_mem(unsigned char **out, int maxlen, BIO *in)
             BIO_free(mem);
             return -1;
         }
-        maxlen -= len;
+        if (maxlen != -1)
+            maxlen -= len;
 
         if (maxlen == 0)
             break;

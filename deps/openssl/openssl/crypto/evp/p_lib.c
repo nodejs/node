@@ -722,6 +722,7 @@ static void detect_foreign_key(EVP_PKEY *pkey)
         break;
 #  ifndef OPENSSL_NO_EC
     case EVP_PKEY_SM2:
+        break;
     case EVP_PKEY_EC:
         pkey->foreign = pkey->pkey.ec != NULL
                         && ossl_ec_key_is_foreign(pkey->pkey.ec);

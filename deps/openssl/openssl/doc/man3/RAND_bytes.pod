@@ -37,7 +37,7 @@ and L<EVP_RAND(7)>.
 
 RAND_bytes_ex() and RAND_priv_bytes_ex() are the same as RAND_bytes() and
 RAND_priv_bytes() except that they both take additional I<strength> and
-I<ctx> parameters. The bytes genreated will have a security strength of at
+I<ctx> parameters. The bytes generated will have a security strength of at
 least I<strength> bits.
 The DRBG used for the operation is the public or private DRBG associated with
 the specified I<ctx>. The parameter can be NULL, in which case
@@ -101,7 +101,7 @@ The RAND_bytes_ex() and RAND_priv_bytes_ex() functions were added in OpenSSL 3.0
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -22,7 +22,7 @@ libcrypto into a provider supply an OSSL_CORE_BIO parameter. This represents
 a BIO within libcrypto, but cannot be used directly by a provider. Instead it
 should be wrapped using a BIO_s_core().
 
-Once a BIO is contructed based on BIO_s_core(), the associated OSSL_CORE_BIO
+Once a BIO is constructed based on BIO_s_core(), the associated OSSL_CORE_BIO
 object should be set on it using BIO_set_data(3). Note that the BIO will only
 operate correctly if it is associated with a library context constructed using
 OSSL_LIB_CTX_new_from_dispatch(3). To associate the BIO with a library context
@@ -62,7 +62,7 @@ Create a core BIO and write some data to it:
 
 =head1 COPYRIGHT
 
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

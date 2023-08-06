@@ -3,7 +3,7 @@
 =head1 NAME
 
 ASN1_AUX, ASN1_PRINT_ARG, ASN1_STREAM_ARG, ASN1_aux_cb, ASN1_aux_const_cb
-- ASN.1 auxilliary data
+- ASN.1 auxiliary data
 
 =head1 SYNOPSIS
 
@@ -45,7 +45,7 @@ ASN.1 data structures can be associated with an B<ASN1_AUX> object to supply
 additional information about the ASN.1 structure. An B<ASN1_AUX> structure is
 associated with the structure during the definition of the ASN.1 template. For
 example an B<ASN1_AUX> structure will be associated by using one of the various
-ASN.1 template definition macros that supply auxilliary information such as
+ASN.1 template definition macros that supply auxiliary information such as
 ASN1_SEQUENCE_enc(), ASN1_SEQUENCE_ref(), ASN1_SEQUENCE_cb_const_cb(),
 ASN1_SEQUENCE_const_cb(), ASN1_SEQUENCE_cb() or ASN1_NDEF_SEQUENCE_cb().
 
@@ -274,7 +274,7 @@ B<ASN1_OP_GET0_PROPQ> operation types were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

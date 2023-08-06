@@ -191,7 +191,7 @@ For those KDF implementations that support it, this parameter sets the password.
 
 =item "salt" (B<OSSL_KDF_PARAM_SALT>) <octet string>
 
-Some KDF implementations can take a salt.
+Some KDF implementations can take a non-secret unique cryptographic salt.
 For those KDF implementations that support it, this parameter sets the salt.
 
 The default value, if any, is implementation dependent.
@@ -226,6 +226,15 @@ implementations.
 Some KDF implementations require a key.
 For those KDF implementations that support it, this octet string parameter
 sets the key.
+
+=item "info" (B<OSSL_KDF_PARAM_INFO>) <octet string>
+
+Some KDF implementations, such as L<EVP_KDF-HKDF(7)>, take an 'info' parameter
+for binding the derived key material
+to application- and context-specific information.
+This parameter sets the info, fixed info, other info or shared info argument.
+You can specify this parameter multiple times, and each instance will
+be concatenated to form the final value.
 
 =item "maclen" (B<OSSL_KDF_PARAM_MAC_SIZE>) <unsigned integer>
 
@@ -295,7 +304,7 @@ This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

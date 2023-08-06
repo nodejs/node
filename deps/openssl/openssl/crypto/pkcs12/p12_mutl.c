@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -108,15 +108,20 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
     X509_ALGOR_get0(&macoid, NULL, NULL, macalg);
     if (OBJ_obj2txt(md_name, sizeof(md_name), macoid, 0) < 0)
         return 0;
+
+    (void)ERR_set_mark();
     md = md_fetch = EVP_MD_fetch(p12->authsafes->ctx.libctx, md_name,
                                  p12->authsafes->ctx.propq);
     if (md == NULL)
         md = EVP_get_digestbynid(OBJ_obj2nid(macoid));
 
     if (md == NULL) {
+        (void)ERR_clear_last_mark();
         ERR_raise(ERR_LIB_PKCS12, PKCS12_R_UNKNOWN_DIGEST_ALGORITHM);
         return 0;
     }
+    (void)ERR_pop_to_mark();
+
     md_size = EVP_MD_get_size(md);
     md_nid = EVP_MD_get_type(md);
     if (md_size < 0)

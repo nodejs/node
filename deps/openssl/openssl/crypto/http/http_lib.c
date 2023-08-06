@@ -22,6 +22,13 @@ static void init_pstring(char **pstr)
     }
 }
 
+static void init_pint(int *pint)
+{
+    if (pint != NULL) {
+        *pint = 0;
+    }
+}
+
 static int copy_substring(char **dest, const char *start, const char *end)
 {
     return dest == NULL
@@ -54,6 +61,7 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     init_pstring(puser);
     init_pstring(phost);
     init_pstring(pport);
+    init_pint(pport_num);
     init_pstring(ppath);
     init_pstring(pfrag);
     init_pstring(pquery);

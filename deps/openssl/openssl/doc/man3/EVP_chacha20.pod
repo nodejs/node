@@ -22,10 +22,10 @@ The ChaCha20 stream cipher for EVP.
 =item EVP_chacha20()
 
 The ChaCha20 stream cipher. The key length is 256 bits, the IV is 128 bits long.
-The first 32 bits consists of a counter in little-endian order followed by a 96
+The first 64 bits consists of a counter in little-endian order followed by a 64
 bit nonce. For example a nonce of:
 
-000000000000000000000002
+0000000000000002
 
 With an initial counter of 42 (2a in hex) would be expressed as:
 
@@ -46,6 +46,9 @@ Developers should be aware of the negative performance implications of
 calling these functions multiple times and should consider using
 L<EVP_CIPHER_fetch(3)> instead.
 See L<crypto(7)/Performance> for further information.
+
+L<RFC 7539|https://www.rfc-editor.org/rfc/rfc7539.html#section-2.4>
+uses a 32 bit counter and a 96 bit nonce for the IV.
 
 =head1 RETURN VALUES
 

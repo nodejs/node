@@ -627,7 +627,7 @@ OSSL_CMP_CTX_set_certConf_cb_arg(), or NULL if unset.
 
 OSSL_CMP_CTX_get_status() returns for client contexts the PKIstatus from
 the last received CertRepMessage or Revocation Response or error message:
-=item B<OSSL_CMP_PKISTATUS_accepted> on sucessful receipt of a GENP message:
+=item B<OSSL_CMP_PKISTATUS_accepted> on successful receipt of a GENP message:
 
 =over 4
 

@@ -99,7 +99,7 @@ Encrypt the input data using an RSA public key.
 
 Decrypt the input data using an RSA private key.
 
-=item B<-pkcs>, B<-oaep>, B<-x931> B<-raw>
+=item B<-pkcs>, B<-oaep>, B<-x931>, B<-raw>
 
 The padding to use: PKCS#1 v1.5 (the default), PKCS#1 OAEP,
 ANSI X9.31, or no padding, respectively.
@@ -232,7 +232,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

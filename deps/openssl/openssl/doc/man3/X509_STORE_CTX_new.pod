@@ -177,7 +177,7 @@ administrator might only trust it for the former. An X.509 certificate extension
 exists that can record extended key usage information to supplement the purpose
 information described above. This extended mechanism is arbitrarily extensible
 and not well suited for a generic library API; applications that need to
-validate extended key usage information in certifiates will need to define a
+validate extended key usage information in certificates will need to define a
 custom "purpose" (see below) or supply a nondefault verification callback
 (L<X509_STORE_set_verify_cb_func(3)>).
 
@@ -273,7 +273,7 @@ There is no need to call X509_STORE_CTX_cleanup() explicitly since OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -15,7 +15,7 @@ The B<EC> keytype is implemented in OpenSSL's default provider.
 The normal way of specifying domain parameters for an EC curve is via the
 curve name "group". For curves with no curve name, explicit parameters can be
 used that specify "field-type", "p", "a", "b", "generator" and "order".
-Explicit parameters are supported for backwards compability reasons, but they
+Explicit parameters are supported for backwards compatibility reasons, but they
 are not compliant with multiple standards (including RFC5915) which only allow
 named curves.
 
@@ -70,7 +70,7 @@ I<order> multiplied by the I<cofactor> gives the number of points on the curve.
 
 =item  "decoded-from-explicit" (B<OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS>) <integer>
 
-Gets a flag indicating wether the key or parameters were decoded from explicit
+Gets a flag indicating whether the key or parameters were decoded from explicit
 curve parameters. Set to 1 if so or 0 if a named curve was used.
 
 =item "use-cofactor-flag" (B<OSSL_PKEY_PARAM_USE_COFACTOR_ECDH>) <integer>
@@ -99,7 +99,7 @@ point_conversion_forms please see L<EC_POINT_new(3)>. Valid values are
 Sets or Gets the type of group check done when EVP_PKEY_param_check() is called.
 Valid values are "default", "named" and "named-nist".
 The "named" type checks that the domain parameters match the inbuilt curve parameters,
-"named-nist" is similiar but also checks that the named curve is a nist curve.
+"named-nist" is similar but also checks that the named curve is a nist curve.
 The "default" type does domain parameter validation for the OpenSSL default provider,
 but is equivalent to "named-nist" for the OpenSSL FIPS provider.
 
