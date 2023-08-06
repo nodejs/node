@@ -875,12 +875,12 @@ Environment::Environment(IsolateData* isolate_data,
     // unless explicitly allowed by the user
     options_->allow_native_addons = false;
     flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
-    permission()->Apply("*", permission::PermissionScope::kInspector);
+    permission()->Apply({"*"}, permission::PermissionScope::kInspector);
     if (!options_->allow_child_process) {
-      permission()->Apply("*", permission::PermissionScope::kChildProcess);
+      permission()->Apply({"*"}, permission::PermissionScope::kChildProcess);
     }
     if (!options_->allow_worker_threads) {
-      permission()->Apply("*", permission::PermissionScope::kWorkerThreads);
+      permission()->Apply({"*"}, permission::PermissionScope::kWorkerThreads);
     }
 
     if (!options_->allow_fs_read.empty()) {

@@ -36,7 +36,7 @@ fs.writeFileSync(path.join(readWriteFolder, 'file'), 'NO evil file contents');
     process.execPath,
     [
       '--experimental-permission',
-      `--allow-fs-read=${file},${commonPathWildcard},${readOnlyFolder},${readWriteFolder}`,
+      `--allow-fs-read=${file},${commonPathWildcard}`, `--allow-fs-read=${readOnlyFolder}`, `--allow-fs-read=${readWriteFolder}`,
       `--allow-fs-write=${readWriteFolder},${writeOnlyFolder}`,
       file,
     ],
