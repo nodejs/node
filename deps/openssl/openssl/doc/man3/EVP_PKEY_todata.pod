@@ -23,7 +23,7 @@ I<selection> is described in L<EVP_PKEY_fromdata(3)/Selections>.
 L<OSSL_PARAM_free(3)> should be used to free the returned parameters in
 I<*params>.
 
-EVP_PKEY_export() is similiar to EVP_PKEY_todata() but uses a callback
+EVP_PKEY_export() is similar to EVP_PKEY_todata() but uses a callback
 I<export_cb> that gets passed the value of I<export_cbarg>.
 See L<openssl-core.h(7)> for more information about the callback. Note that the
 L<OSSL_PARAM(3)> array that is passed to the callback is not persistent after the
@@ -53,7 +53,7 @@ These functions were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

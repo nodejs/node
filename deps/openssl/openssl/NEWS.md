@@ -18,6 +18,12 @@ OpenSSL Releases
 OpenSSL 3.0
 -----------
 
+### Major changes between OpenSSL 3.0.9 and OpenSSL 3.0.10 [1 Aug 2023]
+
+  * Fix excessive time spent checking DH q parameter value ([CVE-2023-3817])
+  * Fix DH_check() excessive time with over sized modulus ([CVE-2023-3446])
+  * Do not ignore empty associated data entries with AES-SIV ([CVE-2023-2975])
+
 ### Major changes between OpenSSL 3.0.8 and OpenSSL 3.0.9 [30 May 2023]
 
   * Mitigate for very slow `OBJ_obj2txt()` performance with gigantic OBJECT
@@ -1442,6 +1448,9 @@ OpenSSL 0.9.x
 
 <!-- Links -->
 
+[CVE-2023-3817]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-3817
+[CVE-2023-3446]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-3446
+[CVE-2023-2975]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-2975
 [CVE-2023-2650]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-2650
 [CVE-2023-1255]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-1255
 [CVE-2023-0466]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-0466

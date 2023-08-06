@@ -21,7 +21,7 @@ PKCS12_verify_mac - Functions to create and manipulate a PKCS#12 structure
 =head1 DESCRIPTION
 
 PKCS12_gen_mac() generates an HMAC over the entire PKCS#12 object using the
-supplied password along with a set of already configured paramters.
+supplied password along with a set of already configured parameters.
 
 PKCS12_verify_mac() verifies the PKCS#12 object's HMAC using the supplied
 password.
@@ -62,7 +62,7 @@ L<passphrase-encoding(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

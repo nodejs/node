@@ -408,6 +408,19 @@ A simple self test callback is shown below for illustrative purposes.
     return ret;
   }
 
+=head1 NOTES
+
+Some released versions of OpenSSL do not include a validated
+FIPS provider.  To determine which versions have undergone
+the validation process, please refer to the
+L<OpenSSL Downloads page|https://www.openssl.org/source/>.  If you
+require FIPS-approved functionality, it is essential to build your FIPS
+provider using one of the validated versions listed there.  Normally,
+it is possible to utilize a FIPS provider constructed from one of the
+validated versions alongside F<libcrypto> and F<libssl> compiled from any
+release within the same major release series.  This flexibility enables
+you to address bug fixes and CVEs that fall outside the FIPS boundary.
+
 =head1 SEE ALSO
 
 L<openssl-fipsinstall(1)>,
@@ -417,7 +430,8 @@ L<OSSL_SELF_TEST_new(3)>,
 L<OSSL_PARAM(3)>,
 L<openssl-core.h(7)>,
 L<openssl-core_dispatch.h(7)>,
-L<provider(7)>
+L<provider(7)>,
+L<https://www.openssl.org/source/>
 
 =head1 HISTORY
 

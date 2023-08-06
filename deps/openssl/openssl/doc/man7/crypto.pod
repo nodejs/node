@@ -207,7 +207,7 @@ If anything in this step fails, the next step is used as a fallback.
 
 As a fallback, try to fetch the operation type implementation from the same
 provider as the original L<EVP_PKEY(3)>'s L<EVP_KEYMGMT(3)>, still using the
-propery string from the B<EVP_PKEY_CTX>.
+property string from the B<EVP_PKEY_CTX>.
 
 =back
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,7 @@
 #include <openssl/core_names.h>
 #include "crypto/asn1.h"
 #include "crypto/rsa.h"
+#include "crypto/evp.h"
 #include "cms_local.h"
 
 static RSA_OAEP_PARAMS *rsa_oaep_decode(const X509_ALGOR *alg)
@@ -209,6 +210,16 @@ static int rsa_cms_sign(CMS_SignerInfo *si)
     /* We don't support it */
     if (pad_mode != RSA_PKCS1_PSS_PADDING)
         return 0;
+
+    if (evp_pkey_ctx_is_legacy(pkctx)) {
+        /* No provider -> we cannot query it for algorithm ID. */
+        ASN1_STRING *os = NULL;
+
+        os = ossl_rsa_ctx_to_pss_string(pkctx);
+        if (os == NULL)
+            return 0;
+        return X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_PKEY_RSA_PSS), V_ASN1_SEQUENCE, os);
+    }
 
     params[0] = OSSL_PARAM_construct_octet_string(
         OSSL_SIGNATURE_PARAM_ALGORITHM_ID, aid, sizeof(aid));

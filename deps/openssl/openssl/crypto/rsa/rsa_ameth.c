@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -641,6 +641,36 @@ static int rsa_item_sign(EVP_MD_CTX *ctx, const ASN1_ITEM *it, const void *asn,
         size_t aid_len = 0;
         OSSL_PARAM params[2];
 
+        if (evp_pkey_ctx_is_legacy(pkctx)) {
+            /* No provider -> we cannot query it for algorithm ID. */
+            ASN1_STRING *os1 = NULL;
+
+            os1 = ossl_rsa_ctx_to_pss_string(pkctx);
+            if (os1 == NULL)
+                return 0;
+            /* Duplicate parameters if we have to */
+            if (alg2 != NULL) {
+                ASN1_STRING *os2 = ASN1_STRING_dup(os1);
+
+                if (os2 == NULL) {
+                    ASN1_STRING_free(os1);
+                    return 0;
+                }
+                if (!X509_ALGOR_set0(alg2, OBJ_nid2obj(EVP_PKEY_RSA_PSS),
+                                     V_ASN1_SEQUENCE, os2)) {
+                    ASN1_STRING_free(os1);
+                    ASN1_STRING_free(os2);
+                    return 0;
+                }
+            }
+            if (!X509_ALGOR_set0(alg1, OBJ_nid2obj(EVP_PKEY_RSA_PSS),
+                                 V_ASN1_SEQUENCE, os1)) {
+                    ASN1_STRING_free(os1);
+                    return 0;
+            }
+            return 3;
+        }
+
         params[0] = OSSL_PARAM_construct_octet_string(
             OSSL_SIGNATURE_PARAM_ALGORITHM_ID, aid, sizeof(aid));
         params[1] = OSSL_PARAM_construct_end();
@@ -652,11 +682,13 @@ static int rsa_item_sign(EVP_MD_CTX *ctx, const ASN1_ITEM *it, const void *asn,
 
         if (alg1 != NULL) {
             const unsigned char *pp = aid;
+
             if (d2i_X509_ALGOR(&alg1, &pp, aid_len) == NULL)
                 return 0;
         }
         if (alg2 != NULL) {
             const unsigned char *pp = aid;
+
             if (d2i_X509_ALGOR(&alg2, &pp, aid_len) == NULL)
                 return 0;
         }
