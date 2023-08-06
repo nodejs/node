@@ -1,0 +1,37 @@
+---
+name: Run-checker merge for 1.1.1
+# Jobs run per merge to 1.1.1
+
+on: [push]
+permissions:
+  contents: read
+
+jobs:
+  run-checker:
+    strategy:
+      fail-fast: false
+      matrix:
+        opt: [
+          enable-asan no-shared no-asm -DOPENSSL_SMALL_FOOTPRINT,
+          no-dgram,
+          no-dso,
+          no-dynamic-engine,
+          no-engine no-shared,
+          no-err,
+          no-filenames,
+          enable-ubsan no-asm -DPEDANTIC -DOPENSSL_SMALL_FOOTPRINT -fno-sanitize=alignment,
+          no-unit-test,
+          enable-weak-ssl-ciphers,
+          enable-zlib,
+        ]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: CC=clang ./config --strict-warnings ${{ matrix.opt }}
+    - name: config dump
+      run: ./configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test

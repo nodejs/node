@@ -1,0 +1,284 @@
+---
+name: GitHub CI for 1.1.1
+
+on: [pull_request, push]
+
+# for some reason, this does not work:
+# variables:
+#   BUILDOPTS: "-j4"
+
+# not implemented for v1.1.1: HARNESS_JOBS: "${HARNESS_JOBS:-4}"
+
+# for some reason, this does not work:
+# before_script:
+#     - make="make -s"
+
+permissions:
+  contents: read
+
+jobs:
+  check_update:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: config
+      run: ./config --strict-warnings && perl configdata.pm --dump
+    - name: make build_generated
+      run: make -s build_generated
+    - name: make update
+      run: make update
+    - name: git diff
+      run: git diff --exit-code
+
+  check_docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: ./config --strict-warnings && perl configdata.pm --dump
+    - name: make build_generated
+      run: make -s build_generated
+    - name: make doc-nits
+      run: make doc-nits
+
+  # This checks that we use ANSI C language syntax and semantics.
+  # We are not as strict with libraries, but rather adapt to what's
+  # expected to be available in a certain version of each platform.
+  check-ansi:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: CPPFLAGS=-ansi ./config no-asm no-makedepend enable-buildtest-c++ --strict-warnings -D_DEFAULT_SOURCE && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+
+  basic_gcc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: CC=gcc ./config --strict-warnings && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test
+
+  basic_clang:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: CC=clang ./config --strict-warnings && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test
+
+  minimal:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: ./config --strict-warnings no-shared no-dso no-pic no-aria no-async no-autoload-config no-blake2 no-bf no-camellia no-cast no-chacha no-cmac no-cms no-comp no-ct no-des no-dgram no-dh no-dsa no-dtls no-ec2m no-engine no-filenames no-gost no-idea no-mdc2 no-md4 no-multiblock no-nextprotoneg no-ocsp no-ocb no-poly1305 no-psk no-rc2 no-rc4 no-rmd160 no-seed no-siphash no-sm2 no-sm3 no-sm4 no-srp no-srtp no-ssl3 no-ssl3-method no-ts no-ui-console no-whirlpool no-asm -DOPENSSL_NO_SECURE_MEMORY -DOPENSSL_SMALL_FOOTPRINT && perl configdata.pm --dump
+    - name: make
+      run: make -j4  # verbose, so no -s here
+    - name: make test
+      run: make test
+
+  no-deprecated:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: ./config --strict-warnings no-deprecated && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test
+
+  no-shared:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    runs-on: ${{matrix.os}}
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: ./config --strict-warnings no-shared && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test
+
+  address_ub_sanitizer:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: ./config --debug enable-asan enable-ubsan enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test OPENSSL_TEST_RAND_ORDER=0
+
+# The memory sanitizer build is temporarily disabled as in 1.1.1 we do
+# not support running tests in parallel and this build configuration
+# requires more than 3h to run all tests sequentially.
+#  memory_sanitizer:
+#    runs-on: ubuntu-latest
+#    steps:
+#    - uses: actions/checkout@v3
+#    - name: config
+#      # --debug -O1 is to produce a debug build that runs in a reasonable amount of time
+#      run: CC=clang ./config --debug -O1 -fsanitize=memory -DOSSL_SANITIZE_MEMORY -fno-optimize-sibling-calls enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 && perl configdata.pm --dump
+#    - name: make
+#      run: make -s -j4
+#    - name: make test
+#      run: make test
+
+  threads_sanitizer:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: CC=clang ./config --strict-warnings -fsanitize=thread && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make TESTS=test_threads test
+
+  enable_non-default_options:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: ./config --strict-warnings no-ec enable-ssl-trace enable-zlib enable-zlib-dynamic enable-crypto-mdebug enable-crypto-mdebug-backtrace enable-egd && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test
+
+  legacy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: ./config -Werror --debug no-afalgeng no-shared enable-crypto-mdebug enable-rc5 enable-md2 enable-ssl3 enable-ssl3-method enable-weak-ssl-ciphers enable-zlib enable-ec_nistp_64_gcc_128 && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test
+
+  buildtest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: config
+      run: ./config no-asm no-makedepend enable-buildtest-c++ --strict-warnings -D_DEFAULT_SOURCE && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test
+
+  out-of-tree_build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: setup build dir
+      run: |
+          set -eux
+          mkdir -p ${myblddir:=../_build/nest/a/little/more}
+          echo "mysrcdir=$(realpath .)" | tee -a $GITHUB_ENV
+          echo "myblddir=$(realpath $myblddir)" | tee -a $GITHUB_ENV
+    - name: config
+      run: set -eux ; cd ${{ env.myblddir }} && ${{ env.mysrcdir }}/config --strict-warnings && perl configdata.pm --dump
+    - name: make build_generated
+      run: set -eux; cd ${{ env.myblddir }} && make -s build_generated
+    - name: make update
+      run: set -eux; cd ${{ env.myblddir }} && make update
+    - name: make
+      run: set -eux; cd ${{ env.myblddir }} && make -s -j4
+    - name: make test (minimal subset)
+      run: set -eux; cd ${{ env.myblddir }} && make test TESTS='0[0-9]'
+
+  out-of-source-and-install:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest ]
+    runs-on: ${{matrix.os}}
+    steps:
+    - uses: actions/checkout@v3
+    - name: extra preparations
+      run: |
+        mkdir ./build
+        mkdir ./install_dir
+    - name: config
+      run: ../config --strict-warnings --prefix=$(cd ../install_dir; pwd) && perl configdata.pm --dump
+      working-directory: ./build
+    - name: make
+      run: make -s -j4
+      working-directory: ./build
+    - name: make test
+      run: make test
+      working-directory: ./build
+    - name: make install
+      run: make install
+      working-directory: ./build
+
+  external-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: package installs
+      run: |
+        sudo apt-get update
+        sudo apt-get -yq install bison gettext keyutils ldap-utils libldap2-dev libkeyutils-dev python3 python3-paste python3-pyrad slapd tcsh python3-virtualenv virtualenv python3-kdcproxy
+    - name: install cpanm and Test2::V0 for gost_engine testing
+      uses: perl-actions/install-with-cpanm@v1
+      with:
+        install: Test2::V0
+    - name: setup hostname workaround
+      run: sudo hostname localhost
+    - name: config
+      run: ./config --strict-warnings --debug no-afalgeng enable-rc5 enable-md2 enable-ssl3 enable-ssl3-method enable-weak-ssl-ciphers enable-zlib enable-ec_nistp_64_gcc_128 enable-external-tests && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: test external gost-engine
+      run: make test TESTS="test_external_gost_engine" VERBOSE=1
+# krb5 testing temporarily disabled due to failures to be investigated separately
+#    - name: test external krb5
+#      run: make test TESTS="test_external_krb5" VERBOSE=1
+
+  external-test-pyca:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        RUST:
+          - 1.51.0
+        PYTHON:
+          - 3.9
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: Configure OpenSSL
+      run: ./config --strict-warnings --debug enable-external-tests && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: Setup Python
+      uses: actions/setup-python@v4.3.0
+      with:
+        python-version: ${{ matrix.PYTHON }}
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ matrix.RUST }}
+        override: true
+        default: true
+    - name: test external pyca
+      run: make test TESTS="test_external_pyca" VERBOSE=1
