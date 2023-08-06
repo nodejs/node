@@ -165,7 +165,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.0.9+quic",
+    "full_version" => "3.0.10+quic",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -216,7 +216,7 @@ our %config = (
     ],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-    "patch" => "9",
+    "patch" => "10",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.34.0",
@@ -268,11 +268,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned int",
-    "release_date" => "30 May 2023",
+    "release_date" => "1 Aug 2023",
     "shlib_version" => "81.3",
     "sourcedir" => ".",
     "target" => "VC-WIN32",
-    "version" => "3.0.9"
+    "version" => "3.0.10"
 );
 our %target = (
     "AR" => "lib",
@@ -287,7 +287,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x55d85b90f3a0)",
+    "RANLIB" => "CODE(0x55b8a711a640)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",
@@ -1644,6 +1644,7 @@ our %unified_info = (
             "OPENSSL_IA32_SSE2",
             "PADLOCK_ASM",
             "POLY1305_ASM",
+            "RC4_ASM",
             "RMD160_ASM",
             "SHA1_ASM",
             "SHA256_ASM",
@@ -1691,7 +1692,8 @@ our %unified_info = (
             "VPAES_ASM"
         ],
         "providers/liblegacy.a" => [
-            "MD5_ASM"
+            "MD5_ASM",
+            "RC4_ASM"
         ],
         "test/provider_internal_test" => [
             "PROVIDER_INIT_FUNCTION_NAME=p_test_init"
