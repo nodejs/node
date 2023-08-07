@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.5.1">20.5.1</a><br/>
 <a href="#20.5.0">20.5.0</a><br/>
 <a href="#20.4.0">20.4.0</a><br/>
 <a href="#20.3.1">20.3.1</a><br/>
@@ -40,6 +41,41 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.5.1"></a>
+
+## 2023-08-09, Version 20.5.1 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* [CVE-2023-32002](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32002):  Policies can be bypassed via Module.\_load (High)
+* [CVE-2023-32558](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32558): process.binding() can bypass the permission model through path traversal (High)
+* [CVE-2023-32004](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32004): Permission model can be bypassed by specifying a path traversal sequence in a Buffer (High)
+* [CVE-2023-32006](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32006): Policies can be bypassed by module.constructor.createRequire (Medium)
+* [CVE-2023-32559](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32559): Policies can be bypassed via process.binding (Medium)
+* [CVE-2023-32005](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32005): fs.statfs can bypass the permission model (Low)
+* [CVE-2023-32003](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32003): fs.mkdtemp() and fs.mkdtempSync() can bypass the permission model (Low)
+* OpenSSL Security Releases
+  * [OpenSSL security advisory 14th July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000264.html).
+  * [OpenSSL security advisory 19th July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000265.html).
+  * [OpenSSL security advisory 31st July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000267.html)
+
+More detailed information on each of the vulnerabilities can be found in [August 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/) blog post.
+
+### Commits
+
+* \[[`92300b51b4`](https://github.com/nodejs/node/commit/92300b51b4)] - **deps**: update archs files for openssl-3.0.10+quic1 (Node.js GitHub Bot) [#49036](https://github.com/nodejs/node/pull/49036)
+* \[[`559698abf2`](https://github.com/nodejs/node/commit/559698abf2)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.10+quic1 (Node.js GitHub Bot) [#49036](https://github.com/nodejs/node/pull/49036)
+* \[[`1bf3429e8e`](https://github.com/nodejs/node/commit/1bf3429e8e)] - **lib,permission**: restrict process.binding when pm is enabled (RafaelGSS) [nodejs-private/node-private#438](https://github.com/nodejs-private/node-private/pull/438)
+* \[[`98a83a67e6`](https://github.com/nodejs/node/commit/98a83a67e6)] - **permission**: ensure to resolve path when calling mkdtemp (RafaelGSS) [nodejs-private/node-private#464](https://github.com/nodejs-private/node-private/pull/464)
+* \[[`1f0cde466b`](https://github.com/nodejs/node/commit/1f0cde466b)] - **permission**: handle buffer path on fs calls (RafaelGSS) [nodejs-private/node-private#439](https://github.com/nodejs-private/node-private/pull/439)
+* \[[`bd094d60ea`](https://github.com/nodejs/node/commit/bd094d60ea)] - **permission**: handle fstatfs and add pm supported list (RafaelGSS) [nodejs-private/node-private#441](https://github.com/nodejs-private/node-private/pull/441)
+* \[[`7337d21484`](https://github.com/nodejs/node/commit/7337d21484)] - **policy**: handle Module.constructor and main.extensions bypass (RafaelGSS) [nodejs-private/node-private#417](https://github.com/nodejs-private/node-private/pull/417)
+* \[[`cf348ec640`](https://github.com/nodejs/node/commit/cf348ec640)] - **policy**: disable process.binding() when enabled (Tobias Nießen) [nodejs-private/node-private#397](https://github.com/nodejs-private/node-private/pull/397)
 
 <a id="20.5.0"></a>
 
