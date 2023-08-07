@@ -2,8 +2,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { internalBinding } = require('internal/test/binding');
-const { WeakReference } = internalBinding('util');
+const { WeakReference } = require('internal/util');
 
 let obj = { hello: 'world' };
 const ref = new WeakReference(obj);
