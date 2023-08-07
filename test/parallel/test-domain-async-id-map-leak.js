@@ -13,6 +13,8 @@ const isEnumerable = Function.call.bind(Object.prototype.propertyIsEnumerable);
 // See: https://github.com/nodejs/node/issues/23862
 
 let d = domain.create();
+let resourceGCed = false; let domainGCed = false; let
+  emitterGCed = false;
 d.run(() => {
   const resource = new async_hooks.AsyncResource('TestResource');
   const emitter = new EventEmitter();
@@ -30,10 +32,17 @@ d.run(() => {
   // emitter → resource → async id ⇒ domain → emitter.
   // Make sure that all of these objects are released:
 
-  onGC(resource, { ongc: common.mustCall() });
-  onGC(d, { ongc: common.mustCall() });
-  onGC(emitter, { ongc: common.mustCall() });
+  onGC(resource, { ongc: common.mustCall(() => { resourceGCed = true; }) });
+  onGC(d, { ongc: common.mustCall(() => { domainGCed = true; }) });
+  onGC(emitter, { ongc: common.mustCall(() => { emitterGCed = true; }) });
 });
 
 d = null;
-global.gc();
+
+async function main() {
+  await common.gcUntil(
+    'All objects garbage collected',
+    () => resourceGCed && domainGCed && emitterGCed);
+}
+
+main();
