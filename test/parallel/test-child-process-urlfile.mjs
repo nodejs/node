@@ -75,6 +75,9 @@ for (const badFile of [
     [badFile, ['/d', '/c', 'cd'], { cwd: cwdUrl }] :
     [badFile, [], { cwd: cwdUrl }];
 
+  // Passing an object that doesn't have shape of WHATWG URL object
+  // results in TypeError
+
   throws(
     () => cp.execFile(...pwdCommandAndOptions, mustNotCall()),
     { code: 'ERR_INVALID_ARG_TYPE' },
@@ -93,5 +96,197 @@ for (const badFile of [
   throws(
     () => cp.spawnSync(...pwdCommandAndOptions),
     { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+}
+
+// Test for non-file: URL objects
+for (const badFile of [
+  new URL('https://nodejs.org/file:///'),
+  new url.URL('https://nodejs.org/file:///'),
+  {
+    href: 'https://nodejs.org/file:///',
+    origin: 'https://nodejs.org',
+    protocol: 'https:',
+    username: '',
+    password: '',
+    host: 'nodejs.org',
+    hostname: 'nodejs.org',
+    port: '',
+    pathname: '/file:///',
+    search: '',
+    searchParams: new URLSearchParams(),
+    hash: ''
+  },
+]) {
+  const pwdCommandAndOptions = isWindows ?
+    [badFile, ['/d', '/c', 'cd'], { cwd: cwdUrl }] :
+    [badFile, [], { cwd: cwdUrl }];
+
+  // Passing an URL object with protocol other than `file:`
+  // results in TypeError
+
+  throws(
+    () => cp.execFile(...pwdCommandAndOptions, mustNotCall()),
+    { code: 'ERR_INVALID_URL_SCHEME' },
+  );
+
+  throws(
+    () => cp.execFileSync(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_URL_SCHEME' },
+  );
+
+  throws(
+    () => cp.spawn(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_URL_SCHEME' },
+  );
+
+  throws(
+    () => cp.spawnSync(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_URL_SCHEME' },
+  );
+}
+
+// Test for malformed file URL objects
+for (const badFile of [
+  new URL('file://nodejs.org/file:///'),
+  new url.URL('file://nodejs.org/file:///'),
+  {
+    href: 'file://nodejs.org/file:///',
+    origin: 'null',
+    protocol: 'file:',
+    username: '',
+    password: '',
+    host: 'nodejs.org',
+    hostname: 'nodejs.org',
+    port: '',
+    pathname: '/file:///',
+    search: '',
+    searchParams: new URLSearchParams(),
+    hash: ''
+  },
+]) {
+  const pwdCommandAndOptions = isWindows ?
+    [badFile, ['/d', '/c', 'cd'], { cwd: cwdUrl }] :
+    [badFile, [], { cwd: cwdUrl }];
+
+  // Passing an URL object with non-empty host
+  // results in TypeError
+
+  throws(
+    () => cp.execFile(...pwdCommandAndOptions, mustNotCall()),
+    { code: 'ERR_INVALID_FILE_URL_HOST' },
+  );
+
+  throws(
+    () => cp.execFileSync(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_FILE_URL_HOST' },
+  );
+
+  throws(
+    () => cp.spawn(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_FILE_URL_HOST' },
+  );
+
+  throws(
+    () => cp.spawnSync(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_FILE_URL_HOST' },
+  );
+}
+
+// Test for file URL objects with %2F in path
+const urlWithSlash = new URL(pwdWHATWGUrl);
+urlWithSlash.pathname += '%2F';
+for (const badFile of [
+  urlWithSlash,
+  new url.URL(urlWithSlash),
+  {
+    href: urlWithSlash.href,
+    origin: urlWithSlash.origin,
+    protocol: urlWithSlash.protocol,
+    username: urlWithSlash.username,
+    password: urlWithSlash.password,
+    host: urlWithSlash.host,
+    hostname: urlWithSlash.hostname,
+    port: urlWithSlash.port,
+    pathname: urlWithSlash.pathname,
+    search: urlWithSlash.search,
+    searchParams: new URLSearchParams(urlWithSlash.searchParams),
+    hash: urlWithSlash.hash,
+  },
+]) {
+  const pwdCommandAndOptions = isWindows ?
+    [badFile, ['/d', '/c', 'cd'], { cwd: cwdUrl }] :
+    [badFile, [], { cwd: cwdUrl }];
+
+  // Passing an URL object with percent-encoded '/'
+  // results in TypeError
+
+  throws(
+    () => cp.execFile(...pwdCommandAndOptions, mustNotCall()),
+    { code: 'ERR_INVALID_FILE_URL_PATH' },
+  );
+
+  throws(
+    () => cp.execFileSync(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_FILE_URL_PATH' },
+  );
+
+  throws(
+    () => cp.spawn(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_FILE_URL_PATH' },
+  );
+
+  throws(
+    () => cp.spawnSync(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_FILE_URL_PATH' },
+  );
+}
+
+// Test for file URL objects with %00 in path
+const urlWithNul = new URL(pwdWHATWGUrl);
+urlWithNul.pathname += '%00';
+for (const badFile of [
+  urlWithNul,
+  new url.URL(urlWithNul),
+  {
+    href: urlWithNul.href,
+    origin: urlWithNul.origin,
+    protocol: urlWithNul.protocol,
+    username: urlWithNul.username,
+    password: urlWithNul.password,
+    host: urlWithNul.host,
+    hostname: urlWithNul.hostname,
+    port: urlWithNul.port,
+    pathname: urlWithNul.pathname,
+    search: urlWithNul.search,
+    searchParams: new URLSearchParams(urlWithNul.searchParams),
+    hash: urlWithNul.hash,
+  },
+]) {
+  const pwdCommandAndOptions = isWindows ?
+    [badFile, ['/d', '/c', 'cd'], { cwd: cwdUrl }] :
+    [badFile, [], { cwd: cwdUrl }];
+
+  // Passing an URL object with percent-encoded '\0'
+  // results in TypeError
+
+  throws(
+    () => cp.execFile(...pwdCommandAndOptions, mustNotCall()),
+    { code: 'ERR_INVALID_ARG_VALUE' },
+  );
+
+  throws(
+    () => cp.execFileSync(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_ARG_VALUE' },
+  );
+
+  throws(
+    () => cp.spawn(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_ARG_VALUE' },
+  );
+
+  throws(
+    () => cp.spawnSync(...pwdCommandAndOptions),
+    { code: 'ERR_INVALID_ARG_VALUE' },
   );
 }
