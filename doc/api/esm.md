@@ -959,17 +959,20 @@ The final value of `format` must be one of the following:
 The value of `source` is ignored for type `'builtin'` because currently it is
 not possible to replace the value of a Node.js builtin (core) module.
 
-If a `load` hook returns commonjs `source`, that module's `require` calls will
-be processed by ESM loader with registered `resolve` and `load` hooks;
-`require.extensions` and monkey-patching on the CommonJS module loader will not
-apply. If `source` is undefined or `null`, it will be handled by the CommonJS
-module loader and not processed by registered hooks. This behavior for nullish
-`source` is temporary—in the future, nullish `source` will not be supported.
+The value of `source` can be omitted for type `'commonjs'`. When a `source` is
+provided, all `require` calls from this module will be processed by the ESM
+loader with registered `resolve` and `load` hooks; all `require.resolve` calls
+from this module will be processed by the ESM loader with registered `resolve`
+hooks; `require.extensions` and monkey-patching on the CommonJS module loader
+will not apply. If `source` is undefined or `null`, it will be handled by the
+CommonJS module loader and `require`/`require.resolve` calls will not go through
+the registered hooks. This behavior for nullish `source` is temporary — in the
+future, nullish `source` will not be supported.
 
 The Node.js own `load` implementation, which is the value of `next` for the last
-loader in the `load` chain, returns `null` for `source` for backward
-compatibility. Here is an example loader that would opt-in to using the
-non-default behavior:
+loader in the `load` chain, returns `null` for `source` when `format` is
+`'commonjs'` for backward compatibility. Here is an example loader that would
+opt-in to using the non-default behavior:
 
 ```js
 import { readFile } from 'node:fs/promises';
