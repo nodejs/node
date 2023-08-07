@@ -28,8 +28,7 @@ namespace node {
 // The first argument should match what the type passes to
 // SET_OBJECT_ID(), the second argument should match the C++ class
 // name.
-#define SERIALIZABLE_NON_BINDING_TYPES(V)                                      \
-  V(util_weak_reference, util::WeakReference)
+#define SERIALIZABLE_NON_BINDING_TYPES(V)
 
 // Helper list of all binding data wrapper types.
 #define BINDING_TYPES(V)                                                       \
