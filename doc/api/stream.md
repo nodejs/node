@@ -997,6 +997,44 @@ write('hello', () => {
 
 A `Writable` stream in object mode will always ignore the `encoding` argument.
 
+##### `writable.writeAhead(chunk[, encoding][, callback])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `chunk` {string|Buffer|Uint8Array|any} Optional data to write. For streams
+  not operating in object mode, `chunk` must be a string, `Buffer` or
+  `Uint8Array`. For object mode streams, `chunk` may be any JavaScript value
+  other than `null`.
+* `encoding` {string|null} The encoding, if `chunk` is a string. **Default:** `'utf8'`
+* `callback` {Function} Callback for when this chunk of data is flushed.
+* Returns: {boolean} `false` if the stream wishes for the calling code to
+  wait for the `'drain'` event to be emitted before continuing to write
+  additional data; otherwise `true`.
+
+When using `writable.writeAhead()`, it's recommended to buffer
+the stream using [`writable.cork()`][] first since the stream might
+consume the chunk before writing ahead.
+
+For example:
+
+```js
+const fs = require('node:fs');
+const file = fs.createWriteStream('sentence.txt');
+// file.cork();
+file.write('World!');
+setTimeout(() => {
+  file.writeAhead('hello');
+  file.end();
+}, 1_000);
+```
+
+Running the above code would write `World!hello` to the file,
+by uncommenting the `file.cork()`, the code would write `helloWorld!` instead.
+
 ### Readable streams
 
 Readable streams are an abstraction for a _source_ from which data is
