@@ -27,7 +27,6 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#include "node_util.h"
 #include "node_v8_platform-inl.h"
 #include "string_bytes.h"
 #include "uv.h"
