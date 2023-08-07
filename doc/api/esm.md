@@ -959,12 +959,12 @@ The final value of `format` must be one of the following:
 The value of `source` is ignored for type `'builtin'` because currently it is
 not possible to replace the value of a Node.js builtin (core) module.
 
-For type `'commonjs'`, if `source` is defined, `require` calls from inside the
-loaded module will go through the registered `resolve` and `load` hooks.
-If `source` is undefined or `null`, it will be handled by the CommonJS
-module loader and not processed by any registered hooks. This behavior
-for nullish `source` is temporary; in the future, a `source` value that is
-undefined or `null` will not be supported.
+If a `load` hook returns commonjs `source`, that module's `require` calls will
+be processed by ESM loader with registered `resolve` and `load` hooks;
+`require.extensions` and monkey-patching on the CommonJS module loader will not
+apply. If `source` is undefined or `null`, it will be handled by the CommonJS
+module loader and not processed by registered hooks. This behavior for nullish
+`source` is temporary—in the future, nullish `source` will not be supported.
 
 The Node.js own `load` implementation, which is the value of `next` for the last
 loader in the `load` chain, returns `null` for `source` for backward
@@ -975,11 +975,11 @@ non-default behavior:
 import { readFile } from 'node:fs/promises';
 
 export async function load(url, context, nextLoad) {
-  const response = await nextLoad(url, context);
-  if (response.format === 'commonjs') {
-    response.source ??= await readFile(new URL(response.responseURL ?? url));
+  const result = await nextLoad(url, context);
+  if (result.format === 'commonjs') {
+    result.source ??= await readFile(new URL(result.responseURL ?? url));
   }
-  return response;
+  return result;
 }
 ```
 
