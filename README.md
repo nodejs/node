@@ -1,6 +1,7 @@
 # Node.js
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
+Node.js has an event driven and non-blocking architecture, it can handle multiple requests and operations.
 
 For information on using Node.js, see the [Node.js website][].
 
