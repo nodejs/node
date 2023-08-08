@@ -1920,7 +1920,13 @@ clocks or actual timers outside of the mocking environment.
 ## Class: `TestsStream`
 
 <!-- YAML
-added: v18.9.0
+added:
+  - v18.9.0
+  - v16.19.0
+changes:
+  - version: v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/47094
+    description: added type to test:pass and test:fail events for when the test is a suite.
 -->
 
 * Extends {ReadableStream}
@@ -2002,6 +2008,8 @@ Emitted when a test is enqueued for execution.
     * `duration_ms` {number} The duration of the test in milliseconds.
     * `error` {Error} An error wrapping the error thrown by the test.
       * `cause` {Error} The actual error thrown by the test.
+    * `type` {string|undefined} The type of the test, used to denote whether
+      this is a suite.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `name` {string} The test name.
@@ -2017,6 +2025,8 @@ Emitted when a test fails.
 * `data` {Object}
   * `details` {Object} Additional execution metadata.
     * `duration_ms` {number} The duration of the test in milliseconds.
+    * `type` {string|undefined} The type of the test, used to denote whether
+      this is a suite.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `name` {string} The test name.
