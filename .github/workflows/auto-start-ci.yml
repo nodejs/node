@@ -34,7 +34,7 @@ jobs:
                   --label 'request-ci' \
                   --json 'number' \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100)
+                  --limit 5)
           echo "numbers=$numbers" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
