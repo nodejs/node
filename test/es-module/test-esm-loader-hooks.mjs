@@ -428,10 +428,12 @@ describe('Loader hooks', { concurrency: true }, () => {
       const { stderr } = await spawnPromisified(execPath, [
         '--experimental-loader',
         'data:text/javascript,export function globalPreload(){}',
+        '--experimental-loader',
+        'data:text/javascript,export function globalPreload(){return""}',
         fixtures.path('empty.js'),
       ]);
 
-      assert.match(stderr, /`globalPreload` will be removed/);
+      assert.strictEqual(stderr.match(/use `initialize` instead of `globalPreload`/g).length, 1);
     });
 
     it('should handle globalPreload returning undefined', async () => {
