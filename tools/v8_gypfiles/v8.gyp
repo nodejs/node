@@ -1377,6 +1377,10 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
@@ -1413,6 +1417,10 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
     },  # mksnapshot
     {
@@ -1425,6 +1433,10 @@
       'conditions': [
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
+        }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
         }],
       ],
       'defines!': [
@@ -1460,6 +1472,10 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
       'dependencies': [
         'torque_base',
@@ -1491,6 +1507,10 @@
       'conditions': [
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
+        }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
         }],
       ],
       'sources': [

@@ -49,6 +49,10 @@
         }, {
           'includes': ['./openssl-cl_asm.gypi'],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
     },
   ],

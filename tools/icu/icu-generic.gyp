@@ -429,6 +429,12 @@
         '<@(icu_src_derb)',
         'no-op.cc',
       ],
+      'conditions': [
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
+      ],
     },
     # This tool is used to rebuild res_index.res manifests
     {
@@ -439,6 +445,12 @@
       'sources': [
         'iculslocs.cc',
         'no-op.cc',
+      ],
+      'conditions': [
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
     },
     # This tool is used to package, unpackage, repackage .dat files
@@ -452,6 +464,12 @@
         '<@(icu_src_icupkg)',
         'no-op.cc',
       ],
+      'conditions': [
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
+      ],
     },
     # this is used to convert .dat directly into .obj
     {
@@ -462,6 +480,12 @@
       'sources': [
         '<@(icu_src_genccode)',
         'no-op.cc',
+      ],
+      'conditions': [
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
     },
   ],

@@ -63,6 +63,10 @@
             '<(icu_gyp_path):icudata',
           ],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
     },
   ],
