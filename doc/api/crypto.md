@@ -5121,6 +5121,17 @@ added:
 Generates a random [RFC 4122][] version 4 UUID. The UUID is generated using a
 cryptographic pseudorandom number generator.
 
+### `crypto.randomULID([seed])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `seed` {integer} Seed for the random number generator. **Default:** `Date.now()`.
+
+Generates a random [ULID][]. The ULID is generated using a cryptographic
+pseudorandom number generator.
+
 ### `crypto.scrypt(password, salt, keylen[, options], callback)`
 
 <!-- YAML
@@ -6106,6 +6117,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [RFC 5280]: https://www.rfc-editor.org/rfc/rfc5280.txt
+[ULID]: https://github.com/ulid/spec
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
