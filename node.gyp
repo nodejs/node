@@ -1139,6 +1139,11 @@
           'ldflags': [ '-fno-profile' ],
           'ldflags!': [ '-fprofile-use -fprofile-correction' ],
         }, ],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'cflags': [ '-g0' ],
+          'ldflags': [ '-s' ],
+        }],
       ],
     }, # fuzz_env
     {
@@ -1259,6 +1264,11 @@
           'ldflags': [ '-fno-profile' ],
           'ldflags!': [ '-fprofile-use -fprofile-correction' ],
         }, ],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'cflags': [ '-g0' ],
+          'ldflags': [ '-s' ],
+        }],
       ],
     }, # cctest
 
@@ -1332,6 +1342,11 @@
           'ldflags': [ '-fno-profile' ],
           'ldflags!': [ '-fprofile-use -fprofile-correction' ],
         }, ],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'cflags': [ '-g0' ],
+          'ldflags': [ '-s' ],
+        }],
       ],
     }, # embedtest
 
@@ -1367,6 +1382,11 @@
           'ldflags': [ '-fno-profile' ],
           'ldflags!': [ '-fprofile-use -fprofile-correction' ],
         }, ],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'cflags': [ '-g0' ],
+          'ldflags': [ '-s' ],
+        }],
       ]
     }, # overlapped-checker
 
@@ -1514,6 +1534,11 @@
           'ldflags': [ '-fno-profile' ],
           'ldflags!': [ '-fprofile-use -fprofile-correction' ],
         }, ],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'cflags': [ '-g0' ],
+          'ldflags': [ '-s' ],
+        }],
       ],
     }, # node_mksnapshot
   ], # end targets

@@ -1394,6 +1394,11 @@
           'ldflags': [ '-fno-profile' ],
           'ldflags!': [ '-fprofile-use -fprofile-correction' ],
         }, ],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'cflags': [ '-g0' ],
+          'ldflags': [ '-s' ],
+        }],
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
@@ -1447,6 +1452,11 @@
           'ldflags': [ '-fno-profile' ],
           'ldflags!': [ '-fprofile-use -fprofile-correction' ],
         }, ],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'cflags': [ '-g0' ],
+          'ldflags': [ '-s' ],
+        }],
       ],
     },  # mksnapshot
     {
@@ -1477,6 +1487,11 @@
           'ldflags': [ '-fno-profile' ],
           'ldflags!': [ '-fprofile-use -fprofile-correction' ],
         }, ],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'cflags': [ '-g0' ],
+          'ldflags': [ '-s' ],
+        }],
       ],
       'defines!': [
         '_HAS_EXCEPTIONS=0',
@@ -1528,6 +1543,11 @@
           'ldflags': [ '-fno-profile' ],
           'ldflags!': [ '-fprofile-use -fprofile-correction' ],
         }, ],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'cflags': [ '-g0' ],
+          'ldflags': [ '-s' ],
+        }],
       ],
       'dependencies': [
         'torque_base',
@@ -1577,6 +1597,11 @@
           'ldflags': [ '-fno-profile' ],
           'ldflags!': [ '-fprofile-use -fprofile-correction' ],
         }, ],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'cflags': [ '-g0' ],
+          'ldflags': [ '-s' ],
+        }],
       ],
       'sources': [
         "<(V8_ROOT)/src/regexp/gen-regexp-special-case.cc",
