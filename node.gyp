@@ -1126,6 +1126,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     }, # fuzz_env
     {
@@ -1233,6 +1246,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     }, # cctest
 
@@ -1293,6 +1319,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     }, # embedtest
 
@@ -1315,6 +1354,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ]
     }, # overlapped-checker
 
@@ -1381,6 +1433,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     }, # mkcodecache
     {
@@ -1436,6 +1501,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     }, # node_mksnapshot
   ], # end targets

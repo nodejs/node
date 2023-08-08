@@ -1381,6 +1381,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
@@ -1421,6 +1434,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     },  # mksnapshot
     {
@@ -1438,6 +1464,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
       'defines!': [
         '_HAS_EXCEPTIONS=0',
@@ -1476,6 +1515,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
       'dependencies': [
         'torque_base',
@@ -1512,6 +1564,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
       'sources': [
         "<(V8_ROOT)/src/regexp/gen-regexp-special-case.cc",

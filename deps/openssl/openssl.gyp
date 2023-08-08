@@ -53,6 +53,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     },
   ],

@@ -434,6 +434,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     },
     # This tool is used to rebuild res_index.res manifests
@@ -451,6 +464,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     },
     # This tool is used to package, unpackage, repackage .dat files
@@ -469,6 +495,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     },
     # this is used to convert .dat directly into .obj
@@ -486,6 +525,19 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid excessive PGO
+        ['enable_pgo_generate=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-generate' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-generate' ],
+        }, ],
+        ['enable_pgo_use=="true"', {
+          'cflags': [ '-fno-profile' ],
+          'cflags!': [ '-fprofile-use -fprofile-correction' ],
+          'ldflags': [ '-fno-profile' ],
+          'ldflags!': [ '-fprofile-use -fprofile-correction' ],
+        }, ],
       ],
     },
   ],
