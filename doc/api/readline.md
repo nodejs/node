@@ -1247,8 +1247,8 @@ const { createInterface } = require('node:readline');
   </tr>
   <tr>
     <td><kbd>Meta</kbd>+<kbd>Y</kbd></td>
-    <td>Cycle among previously deleted lines</td>
-    <td>Only available when the last keystroke is <kbd>Ctrl</kbd>+<kbd>Y</kbd></td>
+    <td>Cycle among previously deleted texts</td>
+    <td>Only available when the last keystroke is <kbd>Ctrl</kbd>+<kbd>Y</kbd> or <kbd>Meta</kbd>+<kbd>Y</kbd></td>
   </tr>
   <tr>
     <td><kbd>Ctrl</kbd>+<kbd>A</kbd></td>
