@@ -679,6 +679,12 @@ The absolute path to the `test/fixtures/` directory.
 
 Returns the result of `path.join(fixtures.fixturesDir, ...args)`.
 
+### `fixtures.fileURL(...args)`
+
+* `...args` [\<string>][<string>]
+
+Returns the result of `url.pathToFileURL(fixtures.path(...args))`.
+
 ### `fixtures.readSync(args[, enc])`
 
 * `args` [\<string>][<string>] | [\<Array>][<Array>]
