@@ -188,10 +188,10 @@ of these values set to their respective defaults.
 To configure any of them, a custom [`http.Agent`][] instance must be created.
 
 ```mjs
-import http from 'node:http';
-const keepAliveAgent = new http.Agent({ keepAlive: true });
+import { Agent, request } from 'node:http';
+const keepAliveAgent = new Agent({ keepAlive: true });
 options.agent = keepAliveAgent;
-http.request(options, onResponseCallback);
+request(options, onResponseCallback);
 ```
 
 ```cjs
@@ -482,19 +482,19 @@ type other than {net.Socket}.
 A client and server pair demonstrating how to listen for the `'connect'` event:
 
 ```mjs
-import http from 'node:http';
-import net from 'node:net';
+import { createServer, request } from 'node:http';
+import { connect } from 'node:net';
 import { URL } from 'node:url';
 
 // Create an HTTP tunneling proxy
-const proxy = http.createServer((req, res) => {
+const proxy = createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
 proxy.on('connect', (req, clientSocket, head) => {
   // Connect to an origin server
   const { port, hostname } = new URL(`http://${req.url}`);
-  const serverSocket = net.connect(port || 80, hostname, () => {
+  const serverSocket = connect(port || 80, hostname, () => {
     clientSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                     'Proxy-agent: Node.js-Proxy\r\n' +
                     '\r\n');
@@ -515,7 +515,7 @@ proxy.listen(1337, '127.0.0.1', () => {
     path: 'www.google.com:80',
   };
 
-  const req = http.request(options);
+  const req = request(options);
   req.end();
 
   req.on('connect', (res, socket, head) => {
@@ -633,7 +633,7 @@ HTTP version, status code, status message, key-value headers object,
 and array with the raw header names followed by their respective values.
 
 ```mjs
-import http from 'node:http';
+import { request } from 'node:http';
 
 const options = {
   host: '127.0.0.1',
@@ -642,7 +642,7 @@ const options = {
 };
 
 // Make a request
-const req = http.request(options);
+const req = request(options);
 req.end();
 
 req.on('information', (info) => {
