@@ -891,6 +891,55 @@ test('mock implementation can be changed dynamically', (t) => {
   assert.strictEqual(fn.mock.callCount(), 12);
 });
 
+test('mockImplementationOnce chaining', (t) => {
+  let cnt = 0;
+  function addOne() {
+    cnt++;
+    return cnt;
+  }
+
+  const fn = t.mock.fn(addOne);
+  assert.strictEqual(fn(), 1);
+  assert.strictEqual(fn(), 2);
+  fn.mock
+    .mockImplementationOnce(() => 17)
+    .mockImplementationOnce(() => 42)
+    .mockImplementationOnce(() => 77, 5)
+  assert.strictEqual(fn(), 17);
+  assert.strictEqual(fn(), 42);
+  assert.strictEqual(fn(), 3);
+  assert.strictEqual(fn(), 77);
+  assert.strictEqual(fn(), 4);
+  assert.strictEqual(fn(), 5);
+
+  fn.mock.mockImplementationOnce(() => 52)
+  assert.strictEqual(fn(), 52);
+  assert.strictEqual(fn(), 6);
+});
+
+test('mockImplementationOnce chaining with default value', (t) => {
+  let cnt = 0;
+  function addOne() {
+    cnt++;
+    return cnt;
+  }
+
+  const fn = t.mock.fn(addOne);
+  assert.strictEqual(fn(), 1);
+  fn.mock
+    .mockImplementationOnce(() => 17)
+    .mockImplementationOnce(() => 42)
+    .mockImplementation(() => 99)
+  assert.strictEqual(fn(), 17);
+  assert.strictEqual(fn(), 42);
+  assert.strictEqual(fn(), 99);
+  assert.strictEqual(fn(), 99);
+
+  fn.mock.mockImplementationOnce(() => 52)
+  assert.strictEqual(fn(), 52);
+  assert.strictEqual(fn(), 99);
+});
+
 test('local mocks are auto restored after the test finishes', async (t) => {
   const obj = {
     foo() {},
