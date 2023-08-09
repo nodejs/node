@@ -904,7 +904,7 @@ test('mockImplementationOnce chaining', (t) => {
   fn.mock
     .mockImplementationOnce(() => 17)
     .mockImplementationOnce(() => 42)
-    .mockImplementationOnce(() => 77, 5)
+    .mockImplementationOnce(() => 77, 5);
   assert.strictEqual(fn(), 17);
   assert.strictEqual(fn(), 42);
   assert.strictEqual(fn(), 3);
@@ -912,7 +912,7 @@ test('mockImplementationOnce chaining', (t) => {
   assert.strictEqual(fn(), 4);
   assert.strictEqual(fn(), 5);
 
-  fn.mock.mockImplementationOnce(() => 52)
+  fn.mock.mockImplementationOnce(() => 52);
   assert.strictEqual(fn(), 52);
   assert.strictEqual(fn(), 6);
 });
@@ -929,13 +929,13 @@ test('mockImplementationOnce chaining with default value', (t) => {
   fn.mock
     .mockImplementationOnce(() => 17)
     .mockImplementationOnce(() => 42)
-    .mockImplementation(() => 99)
+    .mockImplementation(() => 99);
   assert.strictEqual(fn(), 17);
   assert.strictEqual(fn(), 42);
   assert.strictEqual(fn(), 99);
   assert.strictEqual(fn(), 99);
 
-  fn.mock.mockImplementationOnce(() => 52)
+  fn.mock.mockImplementationOnce(() => 52);
   assert.strictEqual(fn(), 52);
   assert.strictEqual(fn(), 99);
 });
