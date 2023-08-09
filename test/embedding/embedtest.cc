@@ -62,18 +62,19 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
                     const std::vector<std::string>& exec_args) {
   int exit_code = 0;
 
-  // Format of the arguments of this binary:
-  // Building snapshot:
-  // embedtest js_code_to_eval arg1 arg2... \
-  //           --embedder-snapshot-blob blob-path \
-  //           --embedder-snapshot-create
-  //           [--embedder-snapshot-as-file]
-  // Running snapshot:
-  // embedtest --embedder-snapshot-blob blob-path \
-  //           [--embedder-snapshot-as-file]
-  //           arg1 arg2...
-  // No snapshot:
-  // embedtest arg1 arg2...
+  /* Format of the arguments of this binary:
+   * Building snapshot:
+   * embedtest js_code_to_eval arg1 arg2... \
+   *           --embedder-snapshot-blob blob-path \
+   *           --embedder-snapshot-create
+   *           [--embedder-snapshot-as-file]
+   * Running snapshot:
+   * embedtest --embedder-snapshot-blob blob-path \
+   *           [--embedder-snapshot-as-file]
+   *           arg1 arg2...
+   * No snapshot:
+   * embedtest arg1 arg2...
+   */
   node::EmbedderSnapshotData::Pointer snapshot;
 
   std::string binary_path = args[0];
