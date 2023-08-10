@@ -1,18 +1,0 @@
-[\±]=
-==Y
-.include=*
-.include=$#$
-.include=\\e*
-.include=
-.include=n
-.include=
-.include=$
-.include=n*
-.include=
-.include=*
-.include=q$*
-.include=n$*
-.include=\i*
-.include=$$
-.include=$*
-.include$

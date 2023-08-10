@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,9 +28,6 @@ extern "C" {
 
 # ifndef OPENSSL_DH_MAX_MODULUS_BITS
 #  define OPENSSL_DH_MAX_MODULUS_BITS    10000
-# endif
-# ifndef OPENSSL_DH_CHECK_MAX_MODULUS_BITS
-#  define OPENSSL_DH_CHECK_MAX_MODULUS_BITS  32768
 # endif
 
 # define OPENSSL_DH_FIPS_MIN_MODULUS_BITS 1024
