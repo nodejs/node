@@ -902,9 +902,9 @@ test('mockImplementationOnce chaining', (t) => {
   assert.strictEqual(fn(), 1);
   assert.strictEqual(fn(), 2);
   fn.mock
+    .mockImplementationOnce(() => 77, 5)
     .mockImplementationOnce(() => 17)
     .mockImplementationOnce(() => 42)
-    .mockImplementationOnce(() => 77, 5);
   assert.strictEqual(fn(), 17);
   assert.strictEqual(fn(), 42);
   assert.strictEqual(fn(), 3);
