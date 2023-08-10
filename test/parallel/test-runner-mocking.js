@@ -904,7 +904,7 @@ test('mockImplementationOnce chaining', (t) => {
   fn.mock
     .mockImplementationOnce(() => 77, 5)
     .mockImplementationOnce(() => 17)
-    .mockImplementationOnce(() => 42)
+    .mockImplementationOnce(() => 42);
   assert.strictEqual(fn(), 17);
   assert.strictEqual(fn(), 42);
   assert.strictEqual(fn(), 3);
