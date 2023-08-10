@@ -457,7 +457,7 @@ parser.add_argument_group(shared_builtin_optgroup)
 static_optgroup.add_argument('--static-zoslib-gyp',
     action='store',
     dest='static_zoslib_gyp',
-    help='path to zoslib.gyp file for includes and to link to static zoslib libray')
+    help='path to zoslib.gyp file for includes and to link to static zoslib library')
 
 parser.add_argument_group(static_optgroup)
 
