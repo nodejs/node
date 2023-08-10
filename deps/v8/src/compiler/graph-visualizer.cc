@@ -294,7 +294,6 @@ void JsonPrintAllSourceWithPositionsWasm(
   os << "\"inlinings\": {";
   for (size_t i = 0; i < positions.size(); ++i) {
     if (i != 0) os << ", ";
-    DCHECK(source_map.contains(positions[i].inlinee_func_index));
     size_t source_id = source_map.find(positions[i].inlinee_func_index)->second;
     SourcePosition inlining_pos = positions[i].caller_pos;
     os << '"' << i << "\": {\"inliningId\": " << i
