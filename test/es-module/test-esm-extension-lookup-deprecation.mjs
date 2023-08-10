@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import * as tmpdir from '../common/tmpdir.js';
+import tmpdir from '../common/tmpdir.js';
 
 import assert from 'node:assert';
 import { mkdir, writeFile } from 'node:fs/promises';

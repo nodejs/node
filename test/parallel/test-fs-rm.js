@@ -270,7 +270,7 @@ if (isGitPresent) {
   }
 
   // Should accept URL
-  const fileURL = pathToFileURL(path.join(tmpdir.path, 'rm-file.txt'));
+  const fileURL = tmpdir.fileURL('rm-file.txt');
   fs.writeFileSync(fileURL, '');
 
   try {
@@ -376,7 +376,7 @@ if (isGitPresent) {
   }
 
   // Should accept URL
-  const fileURL = pathToFileURL(path.join(tmpdir.path, 'rm-promises-file.txt'));
+  const fileURL = tmpdir.fileURL('rm-promises-file.txt');
   fs.writeFileSync(fileURL, '');
 
   try {
