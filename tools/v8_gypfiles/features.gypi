@@ -280,6 +280,10 @@
     # Sets -DV8_USE_ZLIB
     'v8_use_zlib%': 1,
 
+    # Whether custom embedder snapshots may extend (= allocate new objects in)
+    # ReadOnlySpace.
+    'v8_enable_extensible_ro_snapshot%': 1,
+
     # Variables from v8.gni
 
     # Enable ECMAScript Internationalization API. Enabling this feature will
@@ -459,6 +463,9 @@
       }],
       ['v8_use_zlib==1', {
         'defines': ['V8_USE_ZLIB',],
+      }],
+      ['v8_enable_extensible_ro_snapshot==1', {
+        'defines': ['V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT',],
       }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
