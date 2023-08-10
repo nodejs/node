@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -97,9 +97,16 @@ int DH_check_ex(const DH *dh)
 
 int DH_check(const DH *dh, int *ret)
 {
-    int ok = 0, r;
+    int ok = 0, r, q_good = 0;
     BN_CTX *ctx = NULL;
     BIGNUM *t1 = NULL, *t2 = NULL;
+
+    /* Don't do any checks at all with an excessively large modulus */
+    if (BN_num_bits(dh->p) > OPENSSL_DH_CHECK_MAX_MODULUS_BITS) {
+        DHerr(DH_F_DH_CHECK, DH_R_MODULUS_TOO_LARGE);
+        *ret = DH_CHECK_P_NOT_PRIME;
+        return 0;
+    }
 
     if (!DH_check_params(dh, ret))
         return 0;
@@ -113,7 +120,14 @@ int DH_check(const DH *dh, int *ret)
     if (t2 == NULL)
         goto err;
 
-    if (dh->q) {
+    if (dh->q != NULL) {
+        if (BN_ucmp(dh->p, dh->q) > 0)
+            q_good = 1;
+        else
+            *ret |= DH_CHECK_INVALID_Q_VALUE;
+    }
+
+    if (q_good) {
         if (BN_cmp(dh->g, BN_value_one()) <= 0)
             *ret |= DH_NOT_SUITABLE_GENERATOR;
         else if (BN_cmp(dh->g, dh->p) >= 0)
