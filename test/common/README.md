@@ -1027,6 +1027,16 @@ The `tmpdir` module supports the use of a temporary directory for testing.
 
 The realpath of the testing temporary directory.
 
+### `fileURL([...paths])`
+
+* `...paths` [\<string>][<string>]
+* return [\<URL>][<URL>]
+
+Resolves a sequence of paths into absolute url in the temporary directory.
+
+When called without arguments, returns absolute url of the testing
+temporary directory with explicit trailing `/`.
+
 ### `refresh(useSpawn)`
 
 * `useSpawn` [\<boolean>][<boolean>] default = false
@@ -1092,6 +1102,7 @@ See [the WPT tests README][] for details.
 [<Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
 [<Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [<RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+[<URL>]: https://developer.mozilla.org/en-US/docs/Web/API/URL
 [<any>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Data_types
 [<bigint>]: https://github.com/tc39/proposal-bigint
 [<boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
