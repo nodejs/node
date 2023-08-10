@@ -6,6 +6,6 @@
 
 > Stability: 1 - Experimental
 
-The former Policies documentation is now at [Permissions documentation][]
+The former Policies documentation is now at [Permissions documentation][].
 
 [Permissions documentation]: permissions.md#policies
