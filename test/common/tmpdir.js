@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { isMainThread } = require('worker_threads');
 
 function rmSync(pathname) {
@@ -64,9 +65,17 @@ function hasEnoughSpace(size) {
   return bavail >= Math.ceil(size / bsize);
 }
 
+function fileURL(...paths) {
+  // When called without arguments, add explicit trailing slash
+  const fullPath = path.resolve(tmpPath + path.sep, ...paths);
+
+  return pathToFileURL(fullPath);
+}
+
 module.exports = {
+  fileURL,
+  hasEnoughSpace,
   path: tmpPath,
   refresh,
-  hasEnoughSpace,
   resolve,
 };
