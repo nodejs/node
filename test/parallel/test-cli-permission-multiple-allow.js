@@ -73,12 +73,11 @@ const path = require('path');
       console.log(process.permission.has("fs.write", "/tmp/file,with,comma.txt"));`,
     ]
   );
-  const res = stdout.toString();
-  const [fs, fsIn, fsOut, fsOutAllowed] = res.split('\n');
+  const [fs, fsIn, fsOut, fsOutAllowed] = stdout.toString().split('\n');
   assert.strictEqual(fs, 'false');
   assert.strictEqual(fsIn, 'true');
   assert.strictEqual(fsOut, 'false');
   assert.strictEqual(fsOutAllowed, 'true');
   assert.strictEqual(status, 0);
-  assert.ok(stderr.toString().includes('Warning: the --allow-fs-write CLI flag has recently changed'));
+  assert.ok(stderr.toString().includes('Warning: The --allow-fs-write CLI flag has changed.'));
 }
