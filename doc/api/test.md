@@ -1318,13 +1318,18 @@ test('changes a mock behavior', (t) => {
 added:
   - v19.1.0
   - v18.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49088
+    description: this now return the context as well as appending when not providing the onCall argument.
 -->
 
 * `implementation` {Function|AsyncFunction} The function to be used as the
   mock's implementation for the invocation number specified by `onCall`.
 * `onCall` {integer} The invocation number that will use `implementation`. If
   the specified invocation has already occurred then an exception is thrown.
-  **Default:** The number of the next invocation.
+  **Default:** The number of the next invocation than is not mocked by `mockImplementationOnce`.
+* Returns: {MockFunctionContext} the context to allow chaining.
 
 This function is used to change the behavior of an existing mock for a single
 invocation. Once invocation `onCall` has occurred, the mock will revert to
