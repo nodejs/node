@@ -126,7 +126,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   void LoadJavaScriptSource();  // Loads data into source_
   UnionBytes GetConfig();       // Return data for config.gypi
 
-  std::vector<std::string> GetBuiltinIds() const;
+  std::vector<std::string_view> GetBuiltinIds() const;
 
   struct BuiltinCategories {
     std::set<std::string> can_be_required;

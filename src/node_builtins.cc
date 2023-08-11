@@ -82,8 +82,8 @@ Local<String> BuiltinLoader::GetConfigString(Isolate* isolate) {
   return config_.ToStringChecked(isolate);
 }
 
-std::vector<std::string> BuiltinLoader::GetBuiltinIds() const {
-  std::vector<std::string> ids;
+std::vector<std::string_view> BuiltinLoader::GetBuiltinIds() const {
+  std::vector<std::string_view> ids;
   auto source = source_.read();
   ids.reserve(source->size());
   for (auto const& x : *source) {
@@ -95,7 +95,7 @@ std::vector<std::string> BuiltinLoader::GetBuiltinIds() const {
 BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
   BuiltinCategories builtin_categories;
 
-  std::vector<std::string> prefixes = {
+  const std::vector<std::string_view> prefixes = {
 #if !HAVE_OPENSSL
     "internal/crypto/",
     "internal/debugger/",
@@ -475,7 +475,7 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
 }
 
 bool BuiltinLoader::CompileAllBuiltins(Local<Context> context) {
-  std::vector<std::string> ids = GetBuiltinIds();
+  std::vector<std::string_view> ids = GetBuiltinIds();
   bool all_succeeded = true;
   std::string v8_tools_prefix = "internal/deps/v8/tools/";
   for (const auto& id : ids) {
@@ -483,11 +483,11 @@ bool BuiltinLoader::CompileAllBuiltins(Local<Context> context) {
       continue;
     }
     v8::TryCatch bootstrapCatch(context->GetIsolate());
-    USE(LookupAndCompile(context, id.c_str(), nullptr));
+    USE(LookupAndCompile(context, id.data(), nullptr));
     if (bootstrapCatch.HasCaught()) {
       per_process::Debug(DebugCategory::CODE_CACHE,
                          "Failed to compile code cache for %s\n",
-                         id.c_str());
+                         id.data());
       all_succeeded = false;
       PrintCaughtException(context->GetIsolate(), context, bootstrapCatch);
     }
@@ -607,7 +607,7 @@ void BuiltinLoader::BuiltinIdsGetter(Local<Name> property,
   Environment* env = Environment::GetCurrent(info);
   Isolate* isolate = env->isolate();
 
-  std::vector<std::string> ids = env->builtin_loader()->GetBuiltinIds();
+  std::vector<std::string_view> ids = env->builtin_loader()->GetBuiltinIds();
   info.GetReturnValue().Set(
       ToV8Value(isolate->GetCurrentContext(), ids).ToLocalChecked());
 }
