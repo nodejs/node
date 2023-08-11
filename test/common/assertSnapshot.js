@@ -42,7 +42,17 @@ async function assertSnapshot(actual, filename = process.argv[1]) {
   if (process.env.NODE_REGENERATE_SNAPSHOTS) {
     await fs.writeFile(snapshot, actual);
   } else {
-    const expected = await fs.readFile(snapshot, 'utf8');
+    let expected;
+    try {
+      expected = await fs.readFile(snapshot, 'utf8');
+    } catch (e) {
+      if (e.code === 'ENOENT') {
+        console.log(
+          'Snapshot file does not exist. You can create a new one by running the test with NODE_REGENERATE_SNAPSHOTS=1',
+        );
+      }
+      throw e;
+    }
     assert.strictEqual(actual, replaceWindowsLineEndings(expected));
   }
 }
