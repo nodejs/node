@@ -1352,8 +1352,15 @@ test('changes a mock behavior once', (t) => {
   const fn = t.mock.fn(addOne);
 
   assert.strictEqual(fn(), 1);
-  fn.mock.mockImplementationOnce(addTwo);
+  assert.strictEqual(fn(), 2);
+  fn.mock
+    .mockImplementationOnce(() => 17)
+    .mockImplementationOnce(() => 77, 5)
+    .mockImplementationOnce(() => 42);
+  assert.strictEqual(fn(), 17);
+  assert.strictEqual(fn(), 42);
   assert.strictEqual(fn(), 3);
+  assert.strictEqual(fn(), 77);
   assert.strictEqual(fn(), 4);
 });
 ```
