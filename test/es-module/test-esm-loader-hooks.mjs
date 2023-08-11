@@ -610,12 +610,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       `,
     ]);
 
-    const lines = stdout.split('\n');
-
-    assert.strictEqual(lines[0], 'register ok');
-    assert.strictEqual(lines[1], 'message initialize');
-    assert.strictEqual(lines[2], 'message resolve node:os');
-
+    assert.deepStrictEqual(stdout.split('\n'), ['register ok', 'message initialize', 'message resolve node:os']);
     assert.strictEqual(stderr, '');
 
     assert.strictEqual(code, 0);
@@ -636,17 +631,13 @@ describe('Loader hooks', { concurrency: true }, () => {
           ${JSON.stringify(fixtures.fileURL('/es-module-loaders/loader-load-foo-or-42.mjs'))},
         );
 
-        import('node:os').then((result) => {
+        await import('node:os').then((result) => {
           console.log(result.default);
         });
       `,
     ]);
 
-    const lines = stdout.split('\n');
-
-    assert.strictEqual(lines[0], 'hooks initialize 1');
-    assert.strictEqual(lines[1], 'foo');
-
+    assert.deepStrictEqual(stdout.split('\n'), ['hooks initialize 1', 'foo']);
     assert.strictEqual(stderr, '');
 
     assert.strictEqual(code, 0);
