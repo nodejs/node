@@ -120,6 +120,7 @@ declare namespace primordials {
   export const ArrayPrototypeLastIndexOf: UncurryThis<typeof Array.prototype.lastIndexOf>
   export const ArrayPrototypePop: UncurryThis<typeof Array.prototype.pop>
   export const ArrayPrototypePush: UncurryThis<typeof Array.prototype.push>
+  export const ArrayPrototypeAt: UncurryThis<typeof Array.prototype.at>
   export const ArrayPrototypePushApply: UncurryThisStaticApply<typeof Array.prototype.push>
   export const ArrayPrototypeReverse: UncurryThis<typeof Array.prototype.reverse>
   export const ArrayPrototypeShift: UncurryThis<typeof Array.prototype.shift>
