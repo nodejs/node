@@ -39,7 +39,7 @@ class BlobDeserializer : public BlobSerializerDeserializer {
  public:
   explicit BlobDeserializer(bool is_debug_v, std::string_view s)
       : BlobSerializerDeserializer(is_debug_v), sink(s) {}
-  ~BlobDeserializer() {}
+  ~BlobDeserializer() = default;
 
   size_t read_total = 0;
   std::string_view sink;
@@ -85,7 +85,7 @@ class BlobSerializer : public BlobSerializerDeserializer {
  public:
   explicit BlobSerializer(bool is_debug_v)
       : BlobSerializerDeserializer(is_debug_v) {}
-  ~BlobSerializer() {}
+  ~BlobSerializer() = default;
 
   Impl* impl() { return static_cast<Impl*>(this); }
   const Impl* impl() const { return static_cast<const Impl*>(this); }

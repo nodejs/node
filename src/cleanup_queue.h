@@ -18,7 +18,7 @@ class CleanupQueue : public MemoryRetainer {
  public:
   typedef void (*Callback)(void*);
 
-  CleanupQueue() {}
+  CleanupQueue() = default;
 
   // Not copyable.
   CleanupQueue(const CleanupQueue&) = delete;

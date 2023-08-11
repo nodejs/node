@@ -318,7 +318,7 @@ void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class InitializationResultImpl final : public InitializationResult {
  public:
-  ~InitializationResultImpl();
+  ~InitializationResultImpl() = default;
   int exit_code() const { return static_cast<int>(exit_code_enum()); }
   ExitCode exit_code_enum() const { return exit_code_; }
   bool early_return() const { return early_return_; }

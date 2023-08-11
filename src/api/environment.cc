@@ -408,8 +408,6 @@ void FreeIsolateData(IsolateData* isolate_data) {
   delete isolate_data;
 }
 
-InspectorParentHandle::~InspectorParentHandle() {}
-
 // Hide the internal handle class from the public API.
 #if HAVE_INSPECTOR
 struct InspectorParentHandleImpl : public InspectorParentHandle {
