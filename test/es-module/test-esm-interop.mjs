@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const filename = fileURLToPath(import.meta.url);
 
 assert.strictEqual(__dirname, dirname(filename));
-assert.strictEqual(__filename, (filename));
+assert.strictEqual(__filename, filename);
 
 await assert.rejects(
   import('data:text/javascript,import"node:interop"'),
