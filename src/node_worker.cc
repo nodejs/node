@@ -11,6 +11,7 @@
 #include "node_snapshot_builder.h"
 #include "permission/permission.h"
 #include "util-inl.h"
+#include "v8-cppgc.h"
 
 #include <memory>
 #include <string>
