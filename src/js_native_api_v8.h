@@ -10,8 +10,8 @@ namespace v8impl {
 
 class RefTracker {
  public:
-  RefTracker() {}
-  virtual ~RefTracker() {}
+  RefTracker() = default;
+  virtual ~RefTracker() = default;
   virtual void Finalize() {}
 
   typedef RefTracker RefList;

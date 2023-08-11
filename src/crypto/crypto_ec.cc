@@ -130,8 +130,6 @@ void ECDH::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("key", key_ ? kSizeOf_EC_KEY : 0);
 }
 
-ECDH::~ECDH() {}
-
 void ECDH::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 

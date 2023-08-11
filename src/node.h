@@ -285,7 +285,7 @@ enum Flags : uint32_t {
 
 class NODE_EXTERN InitializationResult {
  public:
-  virtual ~InitializationResult();
+  virtual ~InitializationResult() = default;
 
   // Returns a suggested process exit code.
   virtual int exit_code() const = 0;
@@ -654,7 +654,7 @@ enum Flags : uint64_t {
 }  // namespace EnvironmentFlags
 
 struct InspectorParentHandle {
-  virtual ~InspectorParentHandle();
+  virtual ~InspectorParentHandle() = default;
 };
 
 // TODO(addaleax): Maybe move per-Environment options parsing here.
