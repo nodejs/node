@@ -593,17 +593,19 @@ describe('Loader hooks', { concurrency: true }, () => {
       `
         import {MessageChannel} from 'node:worker_threads';
         import {register} from 'node:module';
+        import {setTimeout} from 'node:timers/promises';
         const {port1, port2} = new MessageChannel();
         port1.on('message', (msg) => {
           console.log('message', msg);
         });
         const result = register(
-          ${JSON.stringify(fixtures.fileURL('/es-module-loaders/hooks-initialize-port.mjs'))},
+          ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize-port.mjs'))},
           {data: port2, transferList: [port2]},
         );
         console.log('register', result);
 
         await import('node:os');
+        await setTimeout(99); // delay to limit flakiness
         port1.close();
       `,
     ]);
