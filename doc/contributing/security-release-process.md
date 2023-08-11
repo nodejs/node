@@ -56,6 +56,8 @@ The current security stewards are documented in the main Node.js
   * [ ] pre-release: _**LINK TO PR**_
   * [ ] post-release: _**LINK TO PR**_
     * List vulnerabilities in order of descending severity
+    * Use the "summary" feature in HackerOne to sync post-release content
+      and CVE requests. Example [2038134](https://hackerone.com/bugs?subject=nodejs\&report_id=2038134)
     * Ask the HackerOne reporter if they would like to be credited on the
       security release blog page:
       ```text
@@ -79,6 +81,9 @@ The current security stewards are documented in the main Node.js
       between Security Releases.
   * Pass `make test`
   * Have CVEs
+    * Use the "summary" feature in HackerOne to create a description for the
+      CVE and the post release announcement.
+      Example [2038134](https://hackerone.com/bugs?subject=nodejs\&report_id=2038134)
     * Make sure that dependent libraries have CVEs for their issues. We should
       only create CVEs for vulnerabilities in Node.js itself. This is to avoid
       having duplicate CVEs for the same vulnerability.
