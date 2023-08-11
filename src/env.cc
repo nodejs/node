@@ -37,6 +37,8 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -61,6 +63,7 @@ using v8::TracingController;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
+using v8::WrapperDescriptor;
 using worker::Worker;
 
 int const ContextEmbedderTag::kNodeContextTag = 0x6e6f64;
@@ -538,6 +541,14 @@ IsolateData::IsolateData(Isolate* isolate,
     // for embedder ID, V8 could accidentally enable cppgc on them. So
     // safe guard against this.
     DCHECK_NE(descriptor.wrappable_type_index, BaseObject::kSlot);
+  } else {
+    cpp_heap_ = CppHeap::Create(
+        platform,
+        CppHeapCreateParams{
+            {},
+            WrapperDescriptor(
+                BaseObject::kEmbedderType, BaseObject::kSlot, cppgc_id)});
+    isolate->AttachCppHeap(cpp_heap_.get());
   }
   // We do not care about overflow since we just want this to be different
   // from the cppgc id.
@@ -563,6 +574,21 @@ IsolateData::IsolateData(Isolate* isolate,
   } else {
     DeserializeProperties(&snapshot_data->isolate_data_info);
   }
+}
+
+IsolateData::~IsolateData() {
+  if (cpp_heap_ != nullptr) {
+    // The CppHeap must be detached before being terminated.
+    isolate_->DetachCppHeap();
+    cpp_heap_->Terminate();
+  }
+}
+
+// Public API
+void SetCppgcReference(Isolate* isolate,
+                       Local<Object> object,
+                       void* wrappable) {
+  IsolateData::SetCppgcReference(isolate, object, wrappable);
 }
 
 void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
