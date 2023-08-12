@@ -1328,8 +1328,9 @@ changes:
   mock's implementation for the invocation number specified by `onCall`.
 * `onCall` {integer} The invocation number that will use `implementation`. If
   the specified invocation has already occurred then an exception is thrown.
-  **Default:** The number of the next invocation than is not mocked by `mockImplementationOnce`.
-* Returns: {MockFunctionContext} the context to allow chaining.
+  **Default:** The number of the next invocation that is not mocked by `mockImplementationOnce`.
+* Returns: {MockFunctionContext} A reference to the `MockFunctionContext`,
+  so that calls can be chained.
 
 This function is used to change the behavior of an existing mock for a single
 invocation. Once invocation `onCall` has occurred, the mock will revert to
