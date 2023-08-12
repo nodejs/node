@@ -29,7 +29,7 @@ std::optional<std::string> Dotenv::GetPathFromArgs(
     return path->substr(equal_char + 1);
   }
 
-  auto next_arg = std::next(path);
+  auto next_arg = std::prev(path);
 
   if (next_arg == args.rend()) {
     return std::nullopt;
