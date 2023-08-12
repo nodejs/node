@@ -56,7 +56,7 @@ const {
 const { kHeadersList } = require('../core/symbols')
 const EE = require('events')
 const { Readable, pipeline } = require('stream')
-const { isErrored, isReadable, nodeMajor, nodeMinor } = require('../core/util')
+const { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor } = require('../core/util')
 const { dataURLProcessor, serializeAMimeType } = require('./dataURL')
 const { TransformStream } = require('stream/web')
 const { getGlobalDispatcher } = require('../global')
@@ -174,22 +174,22 @@ async function fetch (input, init = {}) {
   let controller = null
 
   // 11. Add the following abort steps to requestObject’s signal:
-  requestObject.signal.addEventListener(
-    'abort',
+  addAbortListener(
+    requestObject.signal,
     () => {
       // 1. Set locallyAborted to true.
       locallyAborted = true
 
-      // 2. Abort the fetch() call with p, request, responseObject,
+      // 2. Assert: controller is non-null.
+      assert(controller != null)
+
+      // 3. Abort controller with requestObject’s signal’s abort reason.
+      controller.abort(requestObject.signal.reason)
+
+      // 4. Abort the fetch() call with p, request, responseObject,
       //    and requestObject’s signal’s abort reason.
       abortFetch(p, request, responseObject, requestObject.signal.reason)
-
-      // 3. If controller is not null, then abort controller.
-      if (controller != null) {
-        controller.abort()
-      }
-    },
-    { once: true }
+    }
   )
 
   // 12. Let handleFetchDone given response response be to finalize and
@@ -319,7 +319,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
 function markResourceTiming (timingInfo, originalURL, initiatorType, globalThis, cacheState) {
   if (nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 2)) {
-    performance.markResourceTiming(timingInfo, originalURL, initiatorType, globalThis, cacheState)
+    performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis, cacheState)
   }
 }
 
@@ -1986,7 +1986,7 @@ async function httpNetworkFetch (
             if (key.toLowerCase() === 'content-encoding') {
               // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
               // "All content-coding values are case-insensitive..."
-              codings = val.toLowerCase().split(',').map((x) => x.trim())
+              codings = val.toLowerCase().split(',').map((x) => x.trim()).reverse()
             } else if (key.toLowerCase() === 'location') {
               location = val
             }
@@ -2007,7 +2007,14 @@ async function httpNetworkFetch (
             for (const coding of codings) {
               // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2
               if (coding === 'x-gzip' || coding === 'gzip') {
-                decoders.push(zlib.createGunzip())
+                decoders.push(zlib.createGunzip({
+                  // Be less strict when decoding compressed responses, since sometimes
+                  // servers send slightly invalid responses that are still accepted
+                  // by common browsers.
+                  // Always using Z_SYNC_FLUSH is what cURL does.
+                  flush: zlib.constants.Z_SYNC_FLUSH,
+                  finishFlush: zlib.constants.Z_SYNC_FLUSH
+                }))
               } else if (coding === 'deflate') {
                 decoders.push(zlib.createInflate())
               } else if (coding === 'br') {
