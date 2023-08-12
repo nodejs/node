@@ -131,9 +131,11 @@ function getDirentPath(dirent) {
 }
 
 function assertDirents(dirents) {
+  assert.strictEqual(dirents.length, expected.length);
   dirents.sort((a, b) => (getDirentPath(a) < getDirentPath(b) ? -1 : 1));
   for (const [i, dirent] of dirents.entries()) {
     assert(dirent instanceof fs.Dirent);
+    assert.notStrictEqual(dirent.name, undefined);
     assert.strictEqual(getDirentPath(dirent), expected[i]);
   }
 }
