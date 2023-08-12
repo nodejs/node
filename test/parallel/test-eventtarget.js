@@ -16,8 +16,8 @@ const {
 
 const { once } = require('events');
 
-const { promisify, inspect } = require('util');
-const delay = promisify(setTimeout);
+const { inspect } = require('util');
+const { setTimeout: delay } = require('timers/promises');
 
 // The globals are defined.
 ok(Event);

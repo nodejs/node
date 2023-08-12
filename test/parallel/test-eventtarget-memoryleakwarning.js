@@ -1,4 +1,4 @@
-// Flags: --no-warnings
+// Flags: --expose-internals --no-warnings --expose-gc
 'use strict';
 const common = require('../common');
 const {
@@ -6,6 +6,8 @@ const {
   EventEmitter,
 } = require('events');
 const assert = require('assert');
+const { kWeakHandler } = require('internal/event_target');
+const { setTimeout } = require('timers/promises');
 
 common.expectWarning({
   MaxListenersExceededWarning: [
@@ -72,4 +74,21 @@ common.expectWarning({
   const ee = new EventEmitter();
   setMaxListeners(2, ee);
   assert.strictEqual(ee.getMaxListeners(), 2);
+}
+
+{
+  (async () => {
+    // Test that EventTarget listener don't emit MaxListenersExceededWarning for weak listeners that GCed
+    const et = new EventTarget();
+    setMaxListeners(2, et);
+
+    for (let i = 0; i <= 3; i++) {
+      et.addEventListener('foo', () => {}, {
+        [kWeakHandler]: {},
+      });
+
+      await setTimeout(0);
+      global.gc();
+    }
+  })().then(common.mustCall(), common.mustNotCall());
 }
