@@ -541,28 +541,25 @@ describe('Loader hooks', { concurrency: true }, () => {
       `
         import {MessageChannel} from 'node:worker_threads';
         import {register} from 'node:module';
+        import {setTimeout} from 'node:timers/promises';
         const {port1, port2} = new MessageChannel();
         port1.on('message', (msg) => {
           console.log('message', msg);
         });
         const result = register(
-          ${JSON.stringify(fixtures.fileURL('/es-module-loaders/hooks-initialize-port.mjs'))},
+          ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize-port.mjs'))},
           {data: port2, transferList: [port2]},
         );
         console.log('register', result);
 
         await import('node:os');
+        await setTimeout(99); // delay to limit flakiness
         port1.close();
       `,
     ]);
 
-    const lines = stdout.split('\n');
-
-    assert.strictEqual(lines[0], 'register ok');
-    assert.strictEqual(lines[1], 'message initialize');
-    assert.strictEqual(lines[2], 'message resolve node:os');
-
     assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout.split('\n'), ['register ok', 'message initialize', 'message resolve node:os', '']);
 
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
@@ -574,26 +571,23 @@ describe('Loader hooks', { concurrency: true }, () => {
       '--input-type=commonjs',
       '--eval',
       `
+        'use strict';
         const {register} = require('node:module');
         register(
-          ${JSON.stringify(fixtures.fileURL('/es-module-loaders/hooks-initialize.mjs'))},
+          ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'))},
         );
         register(
-          ${JSON.stringify(fixtures.fileURL('/es-module-loaders/loader-load-foo-or-42.mjs'))},
+          ${JSON.stringify(fixtures.fileURL('es-module-loaders/loader-load-foo-or-42.mjs'))},
         );
 
         import('node:os').then((result) => {
-          console.log(result.default);
+          console.log(JSON.stringify(result));
         });
       `,
     ]);
 
-    const lines = stdout.split('\n');
-
-    assert.strictEqual(lines[0], 'hooks initialize 1');
-    assert.strictEqual(lines[1], 'foo');
-
     assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout.split('\n').sort(), ['hooks initialize 1', '{"default":"foo"}', ''].sort());
 
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
