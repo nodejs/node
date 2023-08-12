@@ -10,13 +10,16 @@ using v8::String;
 
 std::optional<std::string> Dotenv::GetPathFromArgs(
     const std::vector<std::string>& args) {
-  std::string flag = "--env-file";
+  std::string_view flag = "--env-file";
+  // Match the last `--env-file`
+  // This is required to imitate the default behavior of Node.js CLI argument
+  // matching.
   auto path =
-      std::find_if(args.begin(), args.end(), [&flag](const std::string& arg) {
-        return strncmp(arg.c_str(), flag.c_str(), flag.size()) == 0;
+      std::find_if(args.rbegin(), args.rend(), [&flag](const std::string& arg) {
+        return strncmp(arg.c_str(), flag.data(), flag.size()) == 0;
       });
 
-  if (path == args.end()) {
+  if (path == args.rend()) {
     return std::nullopt;
   }
 
@@ -28,7 +31,7 @@ std::optional<std::string> Dotenv::GetPathFromArgs(
 
   auto next_arg = std::next(path);
 
-  if (next_arg == args.end()) {
+  if (next_arg == args.rend()) {
     return std::nullopt;
   }
 
