@@ -433,7 +433,7 @@ describe('Loader hooks', { concurrency: true }, () => {
         fixtures.path('empty.js'),
       ]);
 
-      assert.strictEqual(stderr.match(/use `initialize` instead of `globalPreload`/g).length, 1);
+      assert.strictEqual(stderr.match(/`globalPreload` is an experimental feature/g).length, 1);
     });
 
     it('should not emit deprecation warning when initialize is supplied', async () => {
@@ -443,7 +443,7 @@ describe('Loader hooks', { concurrency: true }, () => {
         fixtures.path('empty.js'),
       ]);
 
-      assert.doesNotMatch(stderr, /use `initialize` instead of `globalPreload`/);
+      assert.doesNotMatch(stderr, /`globalPreload` is an experimental feature/);
     });
 
     it('should handle globalPreload returning undefined', async () => {
