@@ -229,7 +229,7 @@ declare namespace Dispatcher {
     arrayBuffer(): Promise<ArrayBuffer>;
     blob(): Promise<Blob>;
     formData(): Promise<never>;
-    json(): Promise<any>;
+    json(): Promise<unknown>;
     text(): Promise<string>;
   }
 
