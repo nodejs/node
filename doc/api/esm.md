@@ -344,7 +344,10 @@ changes:
                  flagged.
 -->
 
-* `specifier` {string} The module specifier to resolve relative to `parent`.
+> Stability: 1.2 - Release candidate
+
+* `specifier` {string} The module specifier to resolve relative to the
+  current module.
 * Returns: {string} The absolute (`file:`) URL string for the resolved module.
 
 [`import.meta.resolve`][] is a module-relative resolution function scoped to
@@ -366,10 +369,10 @@ import.meta.resolve('./dep', import.meta.url);
 > **Caveat** This can result in synchronous file-system operations, which
 > can impact performance similarly to `require.resolve`.
 
-Previously, Node.js implemented an asynchonous resolver which also permitted
+Previously, Node.js implemented an asynchronous resolver which also permitted
 a second contextual argument. The implementation has since been updated to be
-synchronous, with the second contextual `parent` URL still accessible behind the
-`--experimental-import-meta-resolve` flag:
+synchronous, with the second contextual `parent` argument still accessible
+behind the `--experimental-import-meta-resolve` flag:
 
 * `parent` {string|URL} An optional absolute parent module URL to resolve from.
 
