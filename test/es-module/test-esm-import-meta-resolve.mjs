@@ -39,7 +39,6 @@ assert.strictEqual(import.meta.resolve('baz/', fixtures),
 
 {
   const cp = spawn(execPath, [
-    '--experimental-import-meta-resolve',
     '--input-type=module',
     '--eval', 'console.log(typeof import.meta.resolve)',
   ]);
@@ -48,7 +47,6 @@ assert.strictEqual(import.meta.resolve('baz/', fixtures),
 
 {
   const cp = spawn(execPath, [
-    '--experimental-import-meta-resolve',
     '--input-type=module',
   ]);
   cp.stdin.end('console.log(typeof import.meta.resolve)');
@@ -57,7 +55,6 @@ assert.strictEqual(import.meta.resolve('baz/', fixtures),
 
 {
   const cp = spawn(execPath, [
-    '--experimental-import-meta-resolve',
     '--input-type=module',
     '--eval', 'import "data:text/javascript,console.log(import.meta.resolve(%22node:os%22))"',
   ]);
@@ -66,7 +63,6 @@ assert.strictEqual(import.meta.resolve('baz/', fixtures),
 
 {
   const cp = spawn(execPath, [
-    '--experimental-import-meta-resolve',
     '--input-type=module',
   ]);
   cp.stdin.end('import "data:text/javascript,console.log(import.meta.resolve(%22node:os%22))"');
