@@ -1027,6 +1027,13 @@ Avoid calling it more than once in an asynchronous context as one call
 might refresh the temporary directory of a different context, causing
 the test to fail somewhat mysteriously.
 
+### `resolve([...paths])`
+
+* `...paths` [\<string>][<string>]
+* return [\<string>][<string>]
+
+Resolves a sequence of paths into absolute path in the temporary directory.
+
 ### `hasEnoughSpace(size)`
 
 * `size` [\<number>][<number>] Required size, in bytes.
