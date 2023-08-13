@@ -8,12 +8,6 @@ if (process.config.variables.node_without_node_options) {
   common.skip('missing NODE_OPTIONS support');
 }
 
-if (!common.isMainThread) {
-  common.skip(
-    'test-dotenv-node-options.mjs: NODE_OPTIONS is not available in Workers'
-  );
-}
-
 const relativePath = '../fixtures/dotenv/node-options.env';
 
 describe('.env supports NODE_OPTIONS', () => {
