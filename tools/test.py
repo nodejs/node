@@ -316,6 +316,12 @@ class DotsProgressIndicator(SimpleProgressIndicator):
       sys.stdout.flush()
 
 class ActionsAnnotationProgressIndicator(DotsProgressIndicator):
+  def AboutToRun(self, case):
+    if not hasattr(case, 'additional_flags'):
+      case.additional_flags = []
+    case.additional_flags.append('--test-reporter=./tools/github_reporter/index.js')
+    case.additional_flags.append('--test-reporter-destination=stdout')
+
   def GetAnnotationInfo(self, test, output):
     traceback = output.stdout + output.stderr
     find_full_path = re.search(r' +at .*\(.*%s:([0-9]+):([0-9]+)' % test.file, traceback)
@@ -601,7 +607,8 @@ class TestCase(object):
       result = self.RunCommand(self.GetCommand(), {
         "TEST_SERIAL_ID": "%d" % self.serial_id,
         "TEST_THREAD_ID": "%d" % self.thread_id,
-        "TEST_PARALLEL" : "%d" % self.parallel
+        "TEST_PARALLEL" : "%d" % self.parallel,
+        "GITHUB_STEP_SUMMARY": "",
       })
     finally:
       # Tests can leave the tty in non-blocking mode. If the test runner
