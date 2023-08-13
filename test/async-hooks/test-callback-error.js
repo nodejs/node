@@ -64,9 +64,10 @@ assert.ok(!arg);
     '--abort-on-uncaught-exception', __filename, 'test_callback_abort' ];
   const options = { encoding: 'utf8' };
   if (!common.isWindows) {
-    program = `ulimit -c 0 && exec ${program} ${args.join(' ')}`;
+    program = `ulimit -c 0 && exec "$NODE" ${args[0]} "$FILE" ${args[2]}`;
     args = [];
     options.shell = true;
+    options.env = { NODE: process.execPath, FILE: __filename };
   }
   const child = spawnSync(program, args, options);
   if (common.isWindows) {

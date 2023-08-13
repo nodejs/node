@@ -18,10 +18,11 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-const cmd = `"${process.execPath}" "${__filename}" child`;
+const cmd = '"$NODE" "$FILE" child';
 
 // Test with a different kill signal.
 cp.exec(cmd, {
+  env: { NODE: process.execPath, FILE: __filename },
   timeout: kExpiringParentTimer,
   killSignal: 'SIGKILL'
 }, common.mustCall((err, stdout, stderr) => {

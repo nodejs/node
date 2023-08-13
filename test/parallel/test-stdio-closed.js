@@ -29,8 +29,8 @@ if (process.argv[2] === 'child') {
 }
 
 // Run the script in a shell but close stdout and stderr.
-const cmd = `"${process.execPath}" "${__filename}" child 1>&- 2>&-`;
-const proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit' });
+const cmd = '"$NODE" "$FILE" child 1>&- 2>&-';
+const proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit', env: { NODE: process.execPath, FILE: __filename } });
 
 proc.on('exit', common.mustCall(function(exitCode) {
   assert.strictEqual(exitCode, 0);

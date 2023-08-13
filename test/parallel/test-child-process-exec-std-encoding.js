@@ -12,8 +12,9 @@ if (process.argv[2] === 'child') {
   console.log(stdoutData);
   console.error(stderrData);
 } else {
-  const cmd = `"${process.execPath}" "${__filename}" child`;
-  const child = cp.exec(cmd, common.mustSucceed((stdout, stderr) => {
+  const cmd = '"$NODE" "$FILE" child';
+  const env = { NODE: process.execPath, FILE: __filename };
+  const child = cp.exec(cmd, { env }, common.mustSucceed((stdout, stderr) => {
     assert.strictEqual(stdout, expectedStdout);
     assert.strictEqual(stderr, expectedStderr);
   }));

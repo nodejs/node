@@ -244,9 +244,9 @@ function childShouldThrowAndAbort() {
     // continuous testing and developers' machines
     testCmd += 'ulimit -c 0 && ';
   }
-  testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception `;
-  testCmd += `"${process.argv[1]}" child`;
-  const child = exec(testCmd);
+  testCmd += '"$NODE" --abort-on-uncaught-exception ';
+  testCmd += '"$FILE" child';
+  const child = exec(testCmd, { env: { NODE: process.argv[0], FILE: process.argv[1] } });
   child.on('exit', function onExit(exitCode, signal) {
     const errMsg = 'Test should have aborted ' +
                    `but instead exited with exit code ${exitCode}` +
@@ -1062,6 +1062,15 @@ const common = {
    */
   get checkoutEOL() {
     return fs.readFileSync(__filename).includes('\r\n') ? '\r\n' : '\n';
+  },
+
+  get isInsideCWDWithUnusualChars() {
+    const cwd = process.cwd();
+    return cwd.includes('%') ||
+           (!isWindows && cwd.includes('\\')) ||
+           cwd.includes('\n') ||
+           cwd.includes('\r') ||
+           cwd.includes('\t');
   },
 };
 

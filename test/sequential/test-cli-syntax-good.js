@@ -26,10 +26,10 @@ const syntaxArgs = [
 
   // Loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
-    const _args = args.concat(file);
+    const _args = args.concat('"$FILE"');
 
-    const cmd = [node, ..._args].join(' ');
-    exec(cmd, common.mustCall((err, stdout, stderr) => {
+    const cmd = ['"$NODE"', ..._args].join(' ');
+    exec(cmd, { env: { NODE: node, FILE: file } }, common.mustCall((err, stdout, stderr) => {
       if (err) {
         console.log('-- stdout --');
         console.log(stdout);

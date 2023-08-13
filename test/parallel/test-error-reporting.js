@@ -28,8 +28,8 @@ const fixtures = require('../common/fixtures');
 function errExec(script, option, callback) {
   callback = typeof option === 'function' ? option : callback;
   option = typeof option === 'string' ? option : '';
-  const cmd = `"${process.argv[0]}" ${option} "${fixtures.path(script)}"`;
-  return exec(cmd, (err, stdout, stderr) => {
+  const cmd = `"$NODE" ${option} "$SCRIPT"`;
+  return exec(cmd, { env: { NODE: process.execPath, SCRIPT: fixtures.path(script) } }, (err, stdout, stderr) => {
     // There was some error
     assert.ok(err);
 

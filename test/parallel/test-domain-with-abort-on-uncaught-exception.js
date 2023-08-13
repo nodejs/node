@@ -102,10 +102,9 @@ if (process.argv[2] === 'child') {
     if (options.useTryCatch)
       useTryCatchOpt = 'useTryCatch';
 
-    cmdToExec += `"${process.argv[0]}" ${cmdLineOption ? cmdLineOption : ''} "${
-      process.argv[1]}" child ${throwInDomainErrHandlerOpt} ${useTryCatchOpt}`;
+    cmdToExec += `"$NODE" ${cmdLineOption ? cmdLineOption : ''} "$FILE" child ${throwInDomainErrHandlerOpt} ${useTryCatchOpt}`;
 
-    const child = exec(cmdToExec);
+    const child = exec(cmdToExec, { env: { NODE: process.execPath, FILE: __filename } });
 
     if (child) {
       child.on('exit', function onChildExited(exitCode, signal) {

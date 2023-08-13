@@ -32,7 +32,7 @@ const assert = require('assert');
 const child = require('child_process');
 const path = require('path');
 const fixtures = require('../common/fixtures');
-const nodejs = `"${process.execPath}"`;
+const env = { NODE: process.execPath };
 
 if (process.argv.length > 2) {
   console.log(process.argv.slice(2).join(' '));
@@ -40,13 +40,14 @@ if (process.argv.length > 2) {
 }
 
 // Assert that nothing is written to stdout.
-child.exec(`${nodejs} --eval 42`, common.mustSucceed((stdout, stderr) => {
+child.exec('"$NODE" --eval 42', { env }, common.mustSucceed((stdout, stderr) => {
   assert.strictEqual(stdout, '');
   assert.strictEqual(stderr, '');
 }));
 
 // Assert that "42\n" is written to stderr.
-child.exec(`${nodejs} --eval "console.error(42)"`,
+child.exec('"$NODE" --eval "console.error(42)"',
+           { env },
            common.mustSucceed((stdout, stderr) => {
              assert.strictEqual(stdout, '');
              assert.strictEqual(stderr, '42\n');
@@ -54,14 +55,14 @@ child.exec(`${nodejs} --eval "console.error(42)"`,
 
 // Assert that the expected output is written to stdout.
 ['--print', '-p -e', '-pe', '-p'].forEach((s) => {
-  const cmd = `${nodejs} ${s} `;
+  const cmd = `"$NODE" ${s} `;
 
-  child.exec(`${cmd}42`, common.mustSucceed((stdout, stderr) => {
+  child.exec(`${cmd}42`, { env }, common.mustSucceed((stdout, stderr) => {
     assert.strictEqual(stdout, '42\n');
     assert.strictEqual(stderr, '');
   }));
 
-  child.exec(`${cmd} '[]'`, common.mustSucceed((stdout, stderr) => {
+  child.exec(`${cmd} '[]'`, { env }, common.mustSucceed((stdout, stderr) => {
     assert.strictEqual(stdout, '[]\n');
     assert.strictEqual(stderr, '');
   }));
@@ -73,7 +74,8 @@ child.exec(`${nodejs} --eval "console.error(42)"`,
   // interpreted as the escape character when put between quotes.
   const filename = __filename.replace(/\\/g, '/');
 
-  child.exec(`${nodejs} --eval "require('${filename}')"`,
+  child.exec('"$NODE" --eval "$SCRIPT"',
+             { env: { NODE: process.execPath, SCRIPT: `require(${JSON.stringify(filename)})` } },
              common.mustCall((err, stdout, stderr) => {
                assert.strictEqual(err.code, 42);
                assert.strictEqual(
@@ -83,15 +85,16 @@ child.exec(`${nodejs} --eval "console.error(42)"`,
 }
 
 // Check that builtin modules are pre-defined.
-child.exec(`${nodejs} --print "os.platform()"`,
+child.exec('"$NODE" --print "os.platform()"',
+           { env },
            common.mustSucceed((stdout, stderr) => {
              assert.strictEqual(stderr, '');
              assert.strictEqual(stdout.trim(), require('os').platform());
            }));
 
 // Module path resolve bug regression test.
-child.exec(`${nodejs} --eval "require('./test/parallel/test-cli-eval.js')"`,
-           { cwd: path.resolve(__dirname, '../../') },
+child.exec('"$NODE" --eval "require(\'./test/parallel/test-cli-eval.js\')"',
+           { cwd: path.resolve(__dirname, '../../'), env },
            common.mustCall((err, stdout, stderr) => {
              assert.strictEqual(err.code, 42);
              assert.strictEqual(
@@ -100,7 +103,7 @@ child.exec(`${nodejs} --eval "require('./test/parallel/test-cli-eval.js')"`,
            }));
 
 // Missing argument should not crash.
-child.exec(`${nodejs} -e`, common.mustCall((err, stdout, stderr) => {
+child.exec('"$NODE" -e', { env }, common.mustCall((err, stdout, stderr) => {
   assert.strictEqual(err.code, 9);
   assert.strictEqual(stdout, '');
   assert.strictEqual(stderr.trim(),
@@ -108,18 +111,19 @@ child.exec(`${nodejs} -e`, common.mustCall((err, stdout, stderr) => {
 }));
 
 // Empty program should do nothing.
-child.exec(`${nodejs} -e ""`, common.mustSucceed((stdout, stderr) => {
+child.exec('"$NODE" -e ""', { env }, common.mustSucceed((stdout, stderr) => {
   assert.strictEqual(stdout, '');
   assert.strictEqual(stderr, '');
 }));
 
 // "\\-42" should be interpreted as an escaped expression, not a switch.
-child.exec(`${nodejs} -p "\\-42"`, common.mustSucceed((stdout, stderr) => {
+child.exec('"$NODE" -p "\\-42"', { env }, common.mustSucceed((stdout, stderr) => {
   assert.strictEqual(stdout, '-42\n');
   assert.strictEqual(stderr, '');
 }));
 
-child.exec(`${nodejs} --use-strict -p process.execArgv`,
+child.exec('"$NODE" --use-strict -p process.execArgv',
+           { env },
            common.mustSucceed((stdout, stderr) => {
              assert.strictEqual(
                stdout, "[ '--use-strict', '-p', 'process.execArgv' ]\n"
@@ -134,7 +138,8 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
     emptyFile = emptyFile.replace(/\\/g, '\\\\');
   }
 
-  child.exec(`${nodejs} -e 'require("child_process").fork("${emptyFile}")'`,
+  child.exec('"$NODE" -e "$SCRIPT"',
+             { env: { NODE: process.execPath, SCRIPT: `require("child_process").fork(${JSON.stringify(emptyFile)})` } },
              common.mustSucceed((stdout, stderr) => {
                assert.strictEqual(stdout, '');
                assert.strictEqual(stderr, '');
@@ -142,13 +147,13 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 
   // Make sure that monkey-patching process.execArgv doesn't cause child_process
   // to incorrectly munge execArgv.
-  child.exec(
-    `${nodejs} -e "process.execArgv = ['-e', 'console.log(42)', 'thirdArg'];` +
-                  `require('child_process').fork('${emptyFile}')"`,
-    common.mustSucceed((stdout, stderr) => {
-      assert.strictEqual(stdout, '42\n');
-      assert.strictEqual(stderr, '');
-    }));
+  child.exec('"$NODE" -e "$SCRIPT"', { env: { NODE: process.execPath, SCRIPT:
+              'process.execArgv = [\'-e\', \'console.log(42)\', \'thirdArg\'];' +
+              `require('child_process').fork(${JSON.stringify(emptyFile)})` } },
+             common.mustSucceed((stdout, stderr) => {
+               assert.strictEqual(stdout, '42\n');
+               assert.strictEqual(stderr, '');
+             }));
 }
 
 // Regression test for https://github.com/nodejs/node/issues/8534.
@@ -193,8 +198,8 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 
   // Ensure that arguments are successfully passed to eval.
   const opt = ' --eval "console.log(process.argv.slice(1).join(\' \'))"';
-  const cmd = `${nodejs}${opt} -- ${args}`;
-  child.exec(cmd, common.mustCall(function(err, stdout, stderr) {
+  const cmd = `"$NODE" ${opt} -- ${args}`;
+  child.exec(cmd, { env }, common.mustCall(function(err, stdout, stderr) {
     assert.strictEqual(stdout, `${args}\n`);
     assert.strictEqual(stderr, '');
     assert.strictEqual(err, null);
@@ -202,8 +207,8 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 
   // Ensure that arguments are successfully passed to print.
   const popt = ' --print "process.argv.slice(1).join(\' \')"';
-  const pcmd = `${nodejs}${popt} -- ${args}`;
-  child.exec(pcmd, common.mustCall(function(err, stdout, stderr) {
+  const pcmd = `"$NODE" ${popt} -- ${args}`;
+  child.exec(pcmd, { env }, common.mustCall(function(err, stdout, stderr) {
     assert.strictEqual(stdout, `${args}\n`);
     assert.strictEqual(stderr, '');
     assert.strictEqual(err, null);
@@ -212,12 +217,14 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
   // Ensure that arguments are successfully passed to a script.
   // The first argument after '--' should be interpreted as a script
   // filename.
-  const filecmd = `${nodejs} -- "${__filename}" ${args}`;
-  child.exec(filecmd, common.mustCall(function(err, stdout, stderr) {
-    assert.strictEqual(stdout, `${args}\n`);
-    assert.strictEqual(stderr, '');
-    assert.strictEqual(err, null);
-  }));
+  const filecmd = `"$NODE" -- "$FILE" ${args}`;
+  child.exec(filecmd,
+             { env: { NODE: process.execPath, FILE: __filename } },
+             common.mustCall(function(err, stdout, stderr) {
+               assert.strictEqual(stdout, `${args}\n`);
+               assert.strictEqual(stderr, '');
+               assert.strictEqual(err, null);
+             }));
 });
 
 // ESModule eval tests
@@ -226,14 +233,16 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 // Assert that "42\n" is written to stdout on module eval.
 const execOptions = '--input-type module';
 child.exec(
-  `${nodejs} ${execOptions} --eval "console.log(42)"`,
+  `"$NODE" ${execOptions} --eval "console.log(42)"`,
+  { env },
   common.mustSucceed((stdout) => {
     assert.strictEqual(stdout, '42\n');
   }));
 
 // Assert that "42\n" is written to stdout with print option.
 child.exec(
-  `${nodejs} ${execOptions} --print --eval "42"`,
+  `"$NODE" ${execOptions} --print --eval "42"`,
+  { env },
   common.mustCall((err, stdout, stderr) => {
     assert.ok(err);
     assert.strictEqual(stdout, '');
@@ -242,7 +251,8 @@ child.exec(
 
 // Assert that error is written to stderr on invalid input.
 child.exec(
-  `${nodejs} ${execOptions} --eval "!!!!"`,
+  `"$NODE" ${execOptions} --eval "!!!!"`,
+  { env },
   common.mustCall((err, stdout, stderr) => {
     assert.ok(err);
     assert.strictEqual(stdout, '');
@@ -251,22 +261,25 @@ child.exec(
 
 // Assert that require is undefined in ESM support
 child.exec(
-  `${nodejs} ${execOptions} --eval "console.log(typeof require);"`,
+  `"$NODE" ${execOptions} --eval "console.log(typeof require);"`,
+  { env },
   common.mustSucceed((stdout) => {
     assert.strictEqual(stdout, 'undefined\n');
   }));
 
 // Assert that import.meta is defined in ESM
 child.exec(
-  `${nodejs} ${execOptions} --eval "console.log(typeof import.meta);"`,
+  `"$NODE" ${execOptions} --eval "console.log(typeof import.meta);"`,
+  { env },
   common.mustSucceed((stdout) => {
     assert.strictEqual(stdout, 'object\n');
   }));
 
 // Assert that packages can be imported cwd-relative with --eval
 child.exec(
-  `${nodejs} ${execOptions} ` +
+  `"$NODE" ${execOptions} ` +
   '--eval "import \'./test/fixtures/es-modules/mjs-file.mjs\'"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.strictEqual(stdout, '.mjs file\n');
   }));
@@ -274,17 +287,19 @@ child.exec(
 
 // Assert that packages can be dynamic imported initial cwd-relative with --eval
 child.exec(
-  `${nodejs} ${execOptions} ` +
+  `"$NODE" ${execOptions} ` +
   '--eval "process.chdir(\'..\');' +
           'import(\'./test/fixtures/es-modules/mjs-file.mjs\')"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.strictEqual(stdout, '.mjs file\n');
   }));
 
 child.exec(
-  `${nodejs} ` +
+  '"$NODE" ' +
   '--eval "process.chdir(\'..\');' +
           'import(\'./test/fixtures/es-modules/mjs-file.mjs\')"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.strictEqual(stdout, '.mjs file\n');
   }));
@@ -292,65 +307,75 @@ child.exec(
 if (common.hasCrypto) {
   // Assert that calls to crypto utils work without require.
   child.exec(
-    `${nodejs} ` +
+    '"$NODE" ' +
       '-e "console.log(crypto.randomBytes(16).toString(\'hex\'))"',
+    { env },
     common.mustSucceed((stdout) => {
       assert.match(stdout, /[0-9a-f]{32}/i);
     }));
   child.exec(
-    `${nodejs} ` +
+    '"$NODE" ' +
       '-p "crypto.randomBytes(16).toString(\'hex\')"',
+    { env },
     common.mustSucceed((stdout) => {
       assert.match(stdout, /[0-9a-f]{32}/i);
     }));
 }
 // Assert that overriding crypto works.
 child.exec(
-  `${nodejs} ` +
+  '"$NODE" ' +
       '-p "crypto=Symbol(\'test\')"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.match(stdout, /Symbol\(test\)/i);
   }));
 child.exec(
-  `${nodejs} ` +
+  '"$NODE" ' +
     '-e "crypto = {};console.log(\'randomBytes\', typeof crypto.randomBytes)"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.match(stdout, /randomBytes\sundefined/);
   }));
 // Assert that overriding crypto with a local variable works.
 child.exec(
-  `${nodejs} ` +
+  '"$NODE" ' +
     '-e "const crypto = {};console.log(\'randomBytes\', typeof crypto.randomBytes)"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.match(stdout, /randomBytes\sundefined/);
   }));
 child.exec(
-  `${nodejs} ` +
+  '"$NODE" ' +
     '-e "let crypto = {};console.log(\'randomBytes\', typeof crypto.randomBytes)"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.match(stdout, /randomBytes\sundefined/);
   }));
 child.exec(
-  `${nodejs} ` +
+  '"$NODE" ' +
     '-e "var crypto = {};console.log(\'randomBytes\', typeof crypto.randomBytes)"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.match(stdout, /randomBytes\sundefined/);
   }));
 child.exec(
-  `${nodejs} ` +
+  '"$NODE" ' +
     '-p "const crypto = {randomBytes:1};typeof crypto.randomBytes"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.match(stdout, /^number/);
   }));
 child.exec(
-  `${nodejs} ` +
+  '"$NODE" ' +
     '-p "let crypto = {randomBytes:1};typeof crypto.randomBytes"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.match(stdout, /^number/);
   }));
 child.exec(
-  `${nodejs} --no-experimental-global-webcrypto ` +
+  '"$NODE" --no-experimental-global-webcrypto ' +
     '-p "var crypto = {randomBytes:1};typeof crypto.randomBytes"',
+  { env },
   common.mustSucceed((stdout) => {
     assert.match(stdout, /^number/);
   }));

@@ -26,10 +26,12 @@ tmpdir.refresh();
 fs.writeFileSync(filename, dataExpected);
 
 const exec = require('child_process').exec;
-const f = JSON.stringify(__filename);
-const node = JSON.stringify(process.execPath);
-const cmd = `cat ${filename} | ${node} ${f} child`;
-exec(cmd, { maxBuffer: 1000000 }, common.mustSucceed((stdout, stderr) => {
+const cmd = '"$NODE" "$FILE" child < "$TMP_FILE"';
+exec(cmd, { maxBuffer: 1000000, env: {
+  NODE: process.execPath,
+  FILE: __filename,
+  TMP_FILE: filename,
+} }, common.mustSucceed((stdout, stderr) => {
   assert.strictEqual(
     stdout,
     dataExpected,

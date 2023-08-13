@@ -36,8 +36,8 @@ const fixtures = require('../common/fixtures');
 
 function test(env, cb) {
   const filename = fixtures.path('test-fs-readfile-error.js');
-  const execPath = `"${process.execPath}" "${filename}"`;
-  const options = { env: { ...process.env, ...env } };
+  const execPath = '"$NODE" "$FILE"';
+  const options = { env: { ...process.env, ...env, NODE: process.execPath, FILE: filename } };
   exec(execPath, options, (err, stdout, stderr) => {
     assert(err);
     assert.strictEqual(stdout, '');

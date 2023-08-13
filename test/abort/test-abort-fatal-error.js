@@ -27,21 +27,13 @@ if (common.isWindows)
 const assert = require('assert');
 const exec = require('child_process').exec;
 
-let cmdline = `ulimit -c 0; ${process.execPath}`;
-cmdline += ' --max-old-space-size=16 --max-semi-space-size=4';
-cmdline += ' -e "a = []; for (i = 0; i < 1e9; i++) { a.push({}) }"';
+const cmdline =
+  'ulimit -c 0; "$NODE" --max-old-space-size=16 --max-semi-space-size=4' +
+  ' -e "a = []; for (i = 0; i < 1e9; i++) { a.push({}) }"';
 
-exec(cmdline, function(err, stdout, stderr) {
-  if (!err) {
-    console.log(stdout);
-    console.log(stderr);
-    assert(false, 'this test should fail');
+exec(cmdline, { env: { NODE: process.execPath } }, common.mustCall((err, stdout, stderr) => {
+  if (err?.code !== 134 && err?.signal !== 'SIGABRT') {
+    console.log({ err, stdout, stderr });
+    assert.fail(err?.message);
   }
-
-  if (err.code !== 134 && err.signal !== 'SIGABRT') {
-    console.log(stdout);
-    console.log(stderr);
-    console.log(err);
-    assert(false, err);
-  }
-});
+}));

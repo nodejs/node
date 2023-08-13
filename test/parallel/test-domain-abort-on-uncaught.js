@@ -209,11 +209,11 @@ if (process.argv[2] === 'child') {
       testCmd += 'ulimit -c 0 && ';
     }
 
-    testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception ` +
-               `"${process.argv[1]}" child ${testIndex}`;
+    testCmd += '"$NODE" --abort-on-uncaught-exception ' +
+               `"$FILE" child ${testIndex}`;
 
     try {
-      child_process.execSync(testCmd);
+      child_process.execSync(testCmd, { env: { NODE: process.execPath, FILE: __filename } });
     } catch (e) {
       assert.fail(`Test index ${testIndex} failed: ${e}`);
     }

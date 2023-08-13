@@ -35,7 +35,8 @@ if (ulimit > 64 || Number.isNaN(ulimit)) {
   // ever happens.
   const result = child_process.spawnSync(
     '/bin/sh',
-    ['-c', `ulimit -n 64 && '${process.execPath}' '${__filename}'`]
+    ['-c', 'ulimit -n 64 && "$NODE" "$FILENAME"'],
+    { env: { NODE: process.execPath, FILENAME: __filename } }
   );
   assert.strictEqual(result.stdout.toString(), '');
   assert.strictEqual(result.stderr.toString(), '');

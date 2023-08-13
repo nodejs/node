@@ -13,8 +13,7 @@ if (!common.isMainThread)
 const selfRefModule = fixtures.path('self_ref_module');
 const fixtureA = fixtures.path('printA.js');
 
-exec(`"${nodeBinary}" -r self_ref "${fixtureA}"`, { cwd: selfRefModule },
-     (err, stdout, stderr) => {
-       assert.ifError(err);
+exec('"$NODE" -r self_ref "$FIXTURE_A"', { cwd: selfRefModule, env: { NODE: nodeBinary, FIXTURE_A: fixtureA } },
+     common.mustSucceed((stdout, stderr) => {
        assert.strictEqual(stdout, 'A\n');
-     });
+     }));

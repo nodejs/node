@@ -43,14 +43,8 @@ const filename = require('path').join(tmpdir.path, 'big');
 let server;
 
 function executeRequest(cb) {
-  cp.exec([`"${process.execPath}"`,
-           `"${__filename}"`,
-           'request',
-           server.address().port,
-           '|',
-           `"${process.execPath}"`,
-           `"${__filename}"`,
-           'shasum' ].join(' '),
+  cp.exec('"$NODE" "$FILE" request "$PORT" | "$NODE" "$FILE" shasum',
+          { env: { NODE: process.execPath, FILE: __filename, PORT: server.address().port } },
           (err, stdout, stderr) => {
             if (stderr.trim() !== '') {
               console.log(stderr);

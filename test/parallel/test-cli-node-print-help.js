@@ -12,7 +12,7 @@ let stdOut;
 
 
 function startPrintHelpTest() {
-  exec(`${process.execPath} --help`, common.mustSucceed((stdout, stderr) => {
+  exec('"$NODE" --help', { env: { NODE: process.execPath } }, common.mustSucceed((stdout, stderr) => {
     stdOut = stdout;
     validateNodePrintHelp();
   }));

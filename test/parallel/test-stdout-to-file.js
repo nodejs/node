@@ -14,8 +14,7 @@ const tmpFile = path.join(tmpdir.path, 'stdout.txt');
 tmpdir.refresh();
 
 function test(size, useBuffer, cb) {
-  const cmd = `"${process.argv[0]}" "${
-    useBuffer ? scriptBuffer : scriptString}" ${size} > "${tmpFile}"`;
+  const cmd = `"$NODE" "$SCRIPT" ${size} > "$TMP_FILE"`;
 
   try {
     fs.unlinkSync(tmpFile);
@@ -25,7 +24,11 @@ function test(size, useBuffer, cb) {
 
   console.log(`${size} chars to ${tmpFile}...`);
 
-  childProcess.exec(cmd, common.mustSucceed(() => {
+  childProcess.exec(cmd, { env: {
+    NODE: process.execPath,
+    SCRIPT: useBuffer ? scriptBuffer : scriptString,
+    TMP_FILE: tmpFile,
+  } }, common.mustSucceed(() => {
     console.log('done!');
 
     const stat = fs.statSync(tmpFile);

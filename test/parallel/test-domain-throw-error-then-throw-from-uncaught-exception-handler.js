@@ -13,6 +13,7 @@ const domain = require('domain');
 const uncaughtExceptionHandlerErrMsg = 'boom from uncaughtException handler';
 const domainErrMsg = 'boom from domain';
 
+const env = { NODE: process.execPath, FILE: __filename };
 const RAN_UNCAUGHT_EXCEPTION_HANDLER_EXIT_CODE = 42;
 
 if (process.argv[2] === 'child') {
@@ -51,6 +52,7 @@ if (process.argv[2] === 'child') {
 function runTestWithoutAbortOnUncaughtException() {
   child_process.exec(
     createTestCmdLine(),
+    { env },
     function onTestDone(err, stdout, stderr) {
       // When _not_ passing --abort-on-uncaught-exception, the process'
       // uncaughtException handler _must_ be called, and thus the error
@@ -72,7 +74,7 @@ function runTestWithoutAbortOnUncaughtException() {
 function runTestWithAbortOnUncaughtException() {
   child_process.exec(createTestCmdLine({
     withAbortOnUncaughtException: true
-  }), function onTestDone(err, stdout, stderr) {
+  }), { env }, function onTestDone(err, stdout, stderr) {
     assert.notStrictEqual(err.code, RAN_UNCAUGHT_EXCEPTION_HANDLER_EXIT_CODE,
                           'child process should not have run its ' +
                           'uncaughtException event handler');
@@ -90,13 +92,13 @@ function createTestCmdLine(options) {
     testCmd += 'ulimit -c 0 && ';
   }
 
-  testCmd += `"${process.argv[0]}"`;
+  testCmd += '"$NODE"';
 
   if (options && options.withAbortOnUncaughtException) {
     testCmd += ' --abort-on-uncaught-exception';
   }
 
-  testCmd += ` "${process.argv[1]}" child`;
+  testCmd += ' "$FILE" child';
 
   return testCmd;
 }

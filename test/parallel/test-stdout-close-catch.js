@@ -7,12 +7,12 @@ const { getSystemErrorName } = require('util');
 
 const testScript = fixtures.path('catch-stdout-error.js');
 
-const cmd = `${JSON.stringify(process.execPath)} ` +
-            `${JSON.stringify(testScript)} | ` +
-            `${JSON.stringify(process.execPath)} ` +
+const cmd = '"$NODE" ' +
+            '"$TEST_SCRIPT" | ' +
+            '"$NODE" ' +
             '-pe "process.stdin.on(\'data\' , () => process.exit(1))"';
 
-const child = child_process.exec(cmd);
+const child = child_process.exec(cmd, { env: { NODE: process.execPath, TEST_SCRIPT: testScript } });
 let output = '';
 
 child.stderr.on('data', function(c) {

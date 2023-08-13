@@ -13,14 +13,9 @@ if (process.argv[2] === 'child') {
   );
 } else {
   const cp = require('child_process');
-  cp.exec([
-    'echo',
-    'hello',
-    '|',
-    `"${process.execPath}"`,
-    `"${__filename}"`,
-    'child',
-  ].join(' '), common.mustSucceed((stdout) => {
+  cp.exec('echo hello | "$NODE" "$FILE" child', {
+    env: { NODE: process.execPath, FILE: __filename }
+  }, common.mustSucceed((stdout) => {
     assert.strictEqual(stdout.split(os.EOL).shift().trim(), 'hello');
   }));
 }

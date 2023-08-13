@@ -622,12 +622,17 @@ assert.throws(
   const msgfile = path.join(tmpdir.path, 's5.msg');
   fs.writeFileSync(msgfile, msg);
 
-  const cmd =
-    `"${common.opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
-      sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${
-      msgfile}"`;
+  const cmd = [
+    '"$OPENSSL" dgst -sha256',
+    '-verify "$PUBFILE"',
+    '-signature "$SIGFILE" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2',
+    '"$MSGFILE"',
+  ].join(' ');
 
-  exec(cmd, common.mustCall((err, stdout, stderr) => {
+  exec(cmd, { env: { OPENSSL: common.opensslCli,
+                     PUBFILE: pubfile,
+                     SIGFILE: sigfile,
+                     MSGFILE: msgfile } }, common.mustCall((err, stdout, stderr) => {
     assert(stdout.includes('Verified OK'));
   }));
 }

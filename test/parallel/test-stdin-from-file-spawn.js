@@ -39,4 +39,5 @@ setTimeout(() => {
 }, 100);
 `);
 
-execSync(`${process.argv[0]} ${tmpJsFile} < ${tmpCmdFile}`);
+execSync('"$NODE" "$JS_FILE" < "$CMD_FILE"',
+         { env: { NODE: process.argv0, JS_FILE: tmpJsFile, CMD_FILE: tmpCmdFile } });

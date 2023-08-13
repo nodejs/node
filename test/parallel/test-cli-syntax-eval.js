@@ -10,8 +10,8 @@ const node = process.execPath;
 ['-c', '--check'].forEach(function(checkFlag) {
   ['-e', '--eval'].forEach(function(evalFlag) {
     const args = [checkFlag, evalFlag, 'foo'];
-    const cmd = [node, ...args].join(' ');
-    exec(cmd, common.mustCall((err, stdout, stderr) => {
+    const cmd = ['"$NODE"', ...args].join(' ');
+    exec(cmd, { env: { NODE: node } }, common.mustCall((err, stdout, stderr) => {
       assert.strictEqual(err instanceof Error, true);
       assert.strictEqual(err.code, 9);
       assert(

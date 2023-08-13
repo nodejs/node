@@ -20,7 +20,7 @@ if (process.argv[2] === 'child') {
 {
   // doesNotThrow
   childProcess.spawnSync(process.execPath, ['--version']);
-  childProcess.execSync(process.execPath, ['--version']);
+  childProcess.execSync('"$NODE" --version', { env: { NODE: process.execPath } });
   childProcess.fork(__filename, ['child']);
   childProcess.execFileSync(process.execPath, ['--version']);
 }

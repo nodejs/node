@@ -33,9 +33,10 @@ if (process.env.TEST_INIT) {
 }
 
 process.env.TEST_INIT = 1;
+process.env.NODE = process.execPath;
 
 function test(file, expected) {
-  const path = `"${process.execPath}" ${file}`;
+  const path = `"$NODE" ${file}`;
   child.exec(path, { env: process.env }, common.mustSucceed((out) => {
     assert.strictEqual(out, expected, `'node ${file}' failed!`);
   }));
