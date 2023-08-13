@@ -512,9 +512,18 @@ of `--enable-source-maps`.
 added:
   - v13.9.0
   - v12.16.2
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49028
+    description: synchronous import.meta.resolve made available by default, with
+                 the flag retained for enabling the experimental second argument
+                 as previously supported.
 -->
 
-Enable experimental `import.meta.resolve()` support.
+Enable experimental `import.meta.resolve()` parent URL support, which allows
+passing a second `parentURL` argument for contextual resolution.
+
+Previously gated the entire `import.meta.resolve` feature.
 
 ### `--experimental-loader=module`
 
