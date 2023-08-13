@@ -741,10 +741,8 @@ describe('Loader hooks', { concurrency: true }, () => {
         async function load(u, c, n) {
           const r = await n(u, c);
           if (u.endsWith('/common/index.js')) {
-          // We don't want the test to start failing when the common file is
-          // modified, so we force it to load with CJS loader:
             r.source = '"use strict";module.exports=require("node:module").createRequire(' +
-                     `${JSON.stringify(u)})(${JSON.stringify(fileURLToPath(u))})`;
+                     `${JSON.stringify(u)})(${JSON.stringify(fileURLToPath(u))});\n`;
           } else if (c.format === 'commonjs') {
             r.source = await readFile(new URL(u));
           }
