@@ -372,10 +372,22 @@ describe('Loader hooks', { concurrency: true }, () => {
       const { stderr } = await spawnPromisified(execPath, [
         '--experimental-loader',
         'data:text/javascript,export function globalPreload(){}',
+        '--experimental-loader',
+        'data:text/javascript,export function globalPreload(){return""}',
         fixtures.path('empty.js'),
       ]);
 
-      assert.match(stderr, /`globalPreload` will be removed/);
+      assert.strictEqual(stderr.match(/`globalPreload` is an experimental feature/g).length, 1);
+    });
+
+    it('should not emit deprecation warning when initialize is supplied', async () => {
+      const { stderr } = await spawnPromisified(execPath, [
+        '--experimental-loader',
+        'data:text/javascript,export function globalPreload(){}export function initialize(){}',
+        fixtures.path('empty.js'),
+      ]);
+
+      assert.doesNotMatch(stderr, /`globalPreload` is an experimental feature/);
     });
 
     it('should handle globalPreload returning undefined', async () => {
