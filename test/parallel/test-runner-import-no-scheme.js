@@ -29,8 +29,8 @@ for (const name in ['test', 'test/reporters']) {
 // Verify that files in node_modules can be resolved.
 tmpdir.refresh();
 
-const packageRoot = path.join(tmpdir.path, 'node_modules', 'test');
-const reportersDir = path.join(tmpdir.path, 'node_modules', 'test', 'reporters');
+const packageRoot = tmpdir.resolve('node_modules', 'test');
+const reportersDir = tmpdir.resolve('node_modules', 'test', 'reporters');
 const indexFile = path.join(packageRoot, 'index.js');
 const reportersIndexFile = path.join(reportersDir, 'index.js');
 
@@ -59,7 +59,7 @@ test(['--input-type=module', '-e', 'console.log((await import("test")).default)'
 test(['--input-type=module', '-e', 'console.log((await import("test/reporters")).default)'], true);
 
 {
-  const dummyFile = path.join(tmpdir.path, 'file.js');
+  const dummyFile = tmpdir.resolve('file.js');
   const require = createRequire(dummyFile);
   assert.strictEqual(require.resolve('test'), indexFile);
   assert.strictEqual(require.resolve('test/reporters'), reportersIndexFile);

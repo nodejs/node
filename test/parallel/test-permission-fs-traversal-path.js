@@ -18,7 +18,7 @@ const tmpdir = require('../common/tmpdir');
 
 const file = fixtures.path('permission', 'fs-traversal.js');
 const blockedFolder = tmpdir.path;
-const allowedFolder = path.join(tmpdir.path, 'subdirectory/');
+const allowedFolder = tmpdir.resolve('subdirectory/');
 const commonPathWildcard = path.join(__filename, '../../common*');
 
 {
