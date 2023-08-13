@@ -1,6 +1,7 @@
-name: First commit message adheres to guidelines
-
-on: [pull_request]
+name: Commit messages adheres to guidelines
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 env:
   NODE_VERSION: lts/*
@@ -26,7 +27,13 @@ jobs:
         uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8  # v3.7.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Validate commit message
+      - name: Validate first commit message
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'commit-queue-rebase') }}
         run: |
           echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
           git rev-parse HEAD~${{ steps.nb-of-commits.outputs.minusOne }} | xargs npx -q core-validate-commit --no-validate-metadata --tap
+      - name: Validate commit messages
+        if: contains(github.event.pull_request.labels.*.name, 'commit-queue-rebase')
+        run: |
+          echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
+          git rev-list --reverse HEAD~${{ github.event.pull_request.commits }}..HEAD | xargs npx -q core-validate-commit --no-validate-metadata --tap
