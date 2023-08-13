@@ -41,7 +41,7 @@ describe('.env supports NODE_OPTIONS', () => {
     assert.strictEqual(child.code, 1);
   });
 
-  it('TZ environment variable', async () => {
+  it('TZ environment variable', { skip: !common.hasIntl || process.config.variables.icu_small }, async () => {
     const code = `
       require('assert')(new Date().toString().includes('Hawaii'))
     `.trim();
