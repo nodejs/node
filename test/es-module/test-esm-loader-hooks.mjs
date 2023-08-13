@@ -94,7 +94,6 @@ describe('Loader hooks', { concurrency: true }, () => {
     it('import.meta.resolve of a never-settling resolve', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
-        '--experimental-import-meta-resolve',
         '--experimental-loader',
         fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
         fixtures.path('es-module-loaders/never-settling-resolve-step/import.meta.never-resolve.mjs'),
@@ -155,7 +154,6 @@ describe('Loader hooks', { concurrency: true }, () => {
   it('should not leak internals or expose import.meta.resolve', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-import-meta-resolve',
       '--experimental-loader',
       fixtures.fileURL('es-module-loaders/loader-edge-cases.mjs'),
       fixtures.path('empty.js'),
@@ -170,7 +168,6 @@ describe('Loader hooks', { concurrency: true }, () => {
   it('should be fine to call `process.exit` from a custom async hook', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-import-meta-resolve',
       '--experimental-loader',
       'data:text/javascript,export function load(a,b,next){if(a==="data:exit")process.exit(42);return next(a,b)}',
       '--input-type=module',
@@ -187,7 +184,6 @@ describe('Loader hooks', { concurrency: true }, () => {
   it('should be fine to call `process.exit` from a custom sync hook', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-import-meta-resolve',
       '--experimental-loader',
       'data:text/javascript,export function resolve(a,b,next){if(a==="exit:")process.exit(42);return next(a,b)}',
       '--input-type=module',

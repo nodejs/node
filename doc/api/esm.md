@@ -321,7 +321,7 @@ import { readFileSync } from 'node:fs';
 const buffer = readFileSync(new URL('./data.proto', import.meta.url));
 ```
 
-### `import.meta.resolve(specifier[, parent])`
+### `import.meta.resolve(specifier)`
 
 <!--
 added:
@@ -336,35 +336,44 @@ changes:
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38587
     description: Add support for WHATWG `URL` object to `parentURL` parameter.
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49028
+    description: Unflag import.meta.resolve, with `parentURL` parameter still
+                 flagged.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.2 - Release candidate
 
-This feature is only available with the `--experimental-import-meta-resolve`
-command flag enabled.
+* `specifier` {string} The module specifier to resolve relative to the
+  current module.
+* Returns: {string} The absolute (`file:`) URL string for the resolved module.
 
-* `specifier` {string} The module specifier to resolve relative to `parent`.
-* `parent` {string|URL} The absolute parent module URL to resolve from. If none
-  is specified, the value of `import.meta.url` is used as the default.
-* Returns: {string}
+[`import.meta.resolve`][] is a module-relative resolution function scoped to
+each module, returning the URL string.
 
-Provides a module-relative resolution function scoped to each module, returning
-the URL string. In alignment with browser behavior, this now returns
-synchronously.
+```js
+const dependencyAsset = import.meta.resolve('component-lib/asset.css');
+// file:///app/node_modules/component-lib/asset.css
+```
+
+All features of the Node.js module resolution are supported. Dependency
+resolutions are subject to the permitted exports resolutions within the package.
+
+```js
+import.meta.resolve('./dep', import.meta.url);
+// file:///app/dep
+```
 
 > **Caveat** This can result in synchronous file-system operations, which
 > can impact performance similarly to `require.resolve`.
 
-```js
-const dependencyAsset = import.meta.resolve('component-lib/asset.css');
-```
+Previously, Node.js implemented an asynchronous resolver which also permitted
+a second contextual argument. The implementation has since been updated to be
+synchronous, with the second contextual `parent` argument still accessible
+behind the `--experimental-import-meta-resolve` flag:
 
-`import.meta.resolve` also accepts a second argument which is the parent module
-from which to resolve:
-
-```js
-import.meta.resolve('./dep', import.meta.url);
-```
+* `parent` {string|URL} An optional absolute parent module URL to resolve from.
 
 ## Interoperability with CommonJS
 
@@ -500,8 +509,8 @@ They can instead be loaded with [`module.createRequire()`][] or
 
 Relative resolution can be handled via `new URL('./local', import.meta.url)`.
 
-For a complete `require.resolve` replacement, there is a flagged experimental
-[`import.meta.resolve`][] API.
+For a complete `require.resolve` replacement, there is the
+[import.meta.resolve][] API.
 
 Alternatively `module.createRequire()` can be used.
 
@@ -1705,7 +1714,7 @@ success!
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #import-expressions
-[`import.meta.resolve`]: #importmetaresolvespecifier-parent
+[`import.meta.resolve`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta/resolve
 [`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`initialize`]: #initialize
@@ -1722,6 +1731,7 @@ success!
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
 [custom https loader]: #https-loader
+[import.meta.resolve]: #importmetaresolvespecifier
 [load hook]: #loadurl-context-nextload
 [percent-encoded]: url.md#percent-encoding-in-urls
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
