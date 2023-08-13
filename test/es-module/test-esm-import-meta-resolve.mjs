@@ -9,8 +9,12 @@ const fixtures = dirname.slice(0, dirname.lastIndexOf('/', dirname.length - 2) +
 
 assert.strictEqual(import.meta.resolve('./test-esm-import-meta.mjs'),
                    dirname + 'test-esm-import-meta.mjs');
+const notFound = import.meta.resolve('./notfound.mjs');
+assert.strictEqual(new URL(notFound).href, new URL('./notfound.mjs', import.meta.url).href);
+const noExtension = import.meta.resolve('./asset');
+assert.strictEqual(new URL(noExtension).href, new URL('./asset', import.meta.url).href);
 try {
-  import.meta.resolve('./notfound.mjs');
+  import.meta.resolve('does-not-exist');
   assert.fail();
 } catch (e) {
   assert.strictEqual(e.code, 'ERR_MODULE_NOT_FOUND');
