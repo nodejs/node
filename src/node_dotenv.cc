@@ -38,8 +38,8 @@ std::optional<std::string> Dotenv::GetPathFromArgs(
   return *next_arg;
 }
 
-void Dotenv::set_env(node::Environment* env) {
-  if (store.empty()) {
+void Dotenv::SetEnvironment(node::Environment* env) {
+  if (store_.empty()) {
     return;
   }
 
@@ -59,7 +59,7 @@ void Dotenv::set_env(node::Environment* env) {
   }
 }
 
-void Dotenv::parse(const std::string_view path) {
+void Dotenv::ParsePath(const std::string_view path) {
   uv_fs_t req;
   auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
 
@@ -101,10 +101,10 @@ void Dotenv::parse(const std::string_view path) {
   }
 }
 
-void Dotenv::assignNodeOptionsIfAvailable(std::string* node_options) {
-  auto match = store.find("NODE_OPTIONS");
+void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) {
+  auto match = store_.find("NODE_OPTIONS");
 
-  if (match != store.end()) {
+  if (match != store_.end()) {
     *node_options = match->second;
   }
 }
@@ -158,7 +158,7 @@ void Dotenv::ParseLine(const std::string_view line) {
       value.erase(value.size() - 1);
   }
 
-  store.emplace(key, value);
+  store_.emplace(key, value);
 }
 
 }  // namespace node

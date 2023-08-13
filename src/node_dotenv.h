@@ -19,15 +19,16 @@ class Dotenv {
   Dotenv& operator=(const Dotenv& d) = default;
   ~Dotenv() = default;
 
-  void parse(const std::string_view path);
-  void assignNodeOptionsIfAvailable(std::string* node_options);
-  void set_env(Environment* env);
+  void ParsePath(const std::string_view path);
+  void AssignNodeOptionsIfAvailable(std::string* node_options);
+  void SetEnvironment(Environment* env);
+
   static std::optional<std::string> GetPathFromArgs(
       const std::vector<std::string>& args);
 
  private:
   void ParseLine(const std::string_view line);
-  std::map<std::string, std::string> store{};
+  std::map<std::string, std::string> store_;
 };
 
 }  // namespace node

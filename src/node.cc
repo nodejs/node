@@ -311,7 +311,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 #endif
 
   if (env->options()->has_env_file_string) {
-    per_process::dotenv_file.set_env(env);
+    per_process::dotenv_file.SetEnvironment(env);
   }
 
   // TODO(joyeecheung): move these conditions into JS land and let the
@@ -847,8 +847,8 @@ static ExitCode InitializeNodeWithArgsInternal(
     auto cwd = Environment::GetCwd(Environment::GetExecPath(*argv));
     std::string path = cwd + kPathSeparator + file_path.value();
     CHECK(!per_process::v8_initialized);
-    per_process::dotenv_file.parse(path);
-    per_process::dotenv_file.assignNodeOptionsIfAvailable(&node_options);
+    per_process::dotenv_file.ParsePath(path);
+    per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);
   }
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
