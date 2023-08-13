@@ -45,7 +45,7 @@ void Dotenv::SetEnvironment(node::Environment* env) {
 
   auto isolate = env->isolate();
 
-  for (const auto& entry : store) {
+  for (const auto& entry : store_) {
     auto key = entry.first;
     auto value = entry.second;
     env->env_vars()->Set(
