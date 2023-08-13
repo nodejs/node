@@ -5,6 +5,7 @@ test/fixtures
 test/message/esm_display_syntax_error.mjs
 tools/icu
 tools/lint-md/lint-md.mjs
+tools/github_reporter
 benchmark/tmp
 benchmark/fixtures
 doc/**/*.js

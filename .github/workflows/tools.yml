@@ -140,6 +140,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: github_reporter
+            subsystem: tools
+            label: tools
+            run: |
+              ./tools/dep_updaters/update-github-reporter.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: googletest
             subsystem: deps
             label: dependencies, test
