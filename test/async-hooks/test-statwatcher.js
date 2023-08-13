@@ -6,15 +6,14 @@ const assert = require('assert');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 const fs = require('fs');
-const path = require('path');
 
 if (!common.isMainThread)
   common.skip('Worker bootstrapping works differently -> different async IDs');
 
 tmpdir.refresh();
 
-const file1 = path.join(tmpdir.path, 'file1');
-const file2 = path.join(tmpdir.path, 'file2');
+const file1 = tmpdir.resolve('file1');
+const file2 = tmpdir.resolve('file2');
 
 const onchangex = (x) => (curr, prev) => {
   console.log(`Watcher: ${x}`);

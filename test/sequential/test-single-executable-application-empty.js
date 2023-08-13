@@ -15,16 +15,15 @@ skipIfSingleExecutableIsNotSupported();
 const tmpdir = require('../common/tmpdir');
 const { copyFileSync, writeFileSync, existsSync } = require('fs');
 const { execFileSync } = require('child_process');
-const { join } = require('path');
 const assert = require('assert');
 
-const configFile = join(tmpdir.path, 'sea-config.json');
-const seaPrepBlob = join(tmpdir.path, 'sea-prep.blob');
-const outputFile = join(tmpdir.path, process.platform === 'win32' ? 'sea.exe' : 'sea');
+const configFile = tmpdir.resolve('sea-config.json');
+const seaPrepBlob = tmpdir.resolve('sea-prep.blob');
+const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'sea');
 
 tmpdir.refresh();
 
-writeFileSync(join(tmpdir.path, 'empty.js'), '', 'utf-8');
+writeFileSync(tmpdir.resolve('empty.js'), '', 'utf-8');
 writeFileSync(configFile, `
 {
   "main": "empty.js",
