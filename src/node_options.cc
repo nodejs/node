@@ -567,9 +567,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "profile generated with --heap-prof. (default: 512 * 1024)",
             &EnvironmentOptions::heap_prof_interval);
 #endif  // HAVE_INSPECTOR
-  AddOption("--test-bail",
-            "stop test execution when a test has failed",
-            &EnvironmentOptions::test_bail);
   AddOption("--max-http-header-size",
             "set the maximum size of HTTP headers (default: 16384 (16KB))",
             &EnvironmentOptions::max_http_header_size,
@@ -609,6 +606,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "run test at specific shard",
             &EnvironmentOptions::test_shard,
             kAllowedInEnvvar);
+  AddOption("--test-bail",
+            "stop test runner execution on the first test failure",
+            &EnvironmentOptions::test_bail);
   AddOption("--test-udp-no-try-send", "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send);
   AddOption("--throw-deprecation",
