@@ -542,17 +542,29 @@ Wildcards are supported too:
 
 #### Limitations and known issues
 
-There are constraints you need to know before using this system:
+Before utilizing this system, it's crucial to understand its constraints and
+potential issues:
 
-* Native modules are restricted by default when using the Permission Model.
-* OpenSSL engines currently cannot be requested at runtime when the Permission
-  Model is enabled, affecting the built-in crypto, https, and tls modules.
-* Relative paths are not supported through the CLI (`--allow-fs-*`).
-* The model does not inherit to a child node process.
-* The model does not inherit to a worker thread.
-* When creating symlinks the target (first argument) should have read and
-  write access.
-* Permission changes are not retroactively applied to existing resources.
+1. **Native Module Restrictions**: When employing the Permission Model,
+   native modules are subject to default restrictions.
+2. **OpenSSL Engine Runtime Requests**: At present, requesting OpenSSL
+   engines dynamically during runtime while the Permission Model is active
+   is not supported. This impacts the functionality of built-in crypto,
+   https, and tls modules.
+3. **CLI Relative Paths**: The Command Line Interface (CLI) does not support
+   relative paths (`--allow-fs-*`).
+4. **Inheritance to Child Node Process**: The model's capabilities do not
+   extend to child node processes.
+5. **Inheritance to Worker Threads**: Similarly, the model's functionality
+   is not inherited by worker threads.
+6. **Path Resolution**: The model always attempts to resolve paths.
+   Consequently, creating a _relative symlink_ is not feasible within the
+   context of the permission model.
+7. **Symlink Creation Requirements**: When creating symlinks, ensure that
+   the target (first argument) has both read and write access.
+8. **Non-Retroactive Permission Changes**: Any permission changes made are
+   not retroactively applied to pre-existing resources.
+   This also holds true for relative links pointing to "forbidden" paths.
 
 [Import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
