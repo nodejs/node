@@ -1,15 +1,15 @@
-import * as common from '../common/index.mjs';
-import assert from 'node:assert';
-import { describe, it } from 'node:test';
-import { fileURLToPath } from 'node:url';
+'use strict';
+
+const common = require('../common');
+const assert = require('node:assert');
+const { describe, it } = require('node:test');
 
 if (!common.isMainThread) {
   common.skip(
-    'test-esm-resolve-type.mjs: process.chdir is not available in Workers'
+    'test-dotenv-node-options.mjs: NODE_OPTIONS is not available in Workers'
   );
 }
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const relativePath = '../fixtures/dotenv/node-options.env';
 
 describe('.env supports NODE_OPTIONS', () => {
