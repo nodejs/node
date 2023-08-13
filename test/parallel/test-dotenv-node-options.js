@@ -4,6 +4,10 @@ const common = require('../common');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
 
+if (process.config.variables.node_without_node_options) {
+  common.skip('missing NODE_OPTIONS support');
+}
+
 if (!common.isMainThread) {
   common.skip(
     'test-dotenv-node-options.mjs: NODE_OPTIONS is not available in Workers'
