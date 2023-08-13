@@ -70,6 +70,10 @@ function onexit(useSpawn) {
   }
 }
 
+function resolve(...paths) {
+  return path.resolve(tmpPath, ...paths);
+}
+
 function hasEnoughSpace(size) {
   const { bavail, bsize } = fs.statfsSync(tmpPath);
   return bavail >= Math.ceil(size / bsize);
@@ -87,4 +91,5 @@ module.exports = {
   hasEnoughSpace,
   path: tmpPath,
   refresh,
+  resolve,
 };
