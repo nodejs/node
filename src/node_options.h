@@ -28,24 +28,20 @@ class HostPort {
 
   void set_host(const std::string& host) { host_name_ = host; }
 
-  void set_port(int port) { port_ = port; }
+  void set_port(uint16_t port) { port_ = port; }
 
   const std::string& host() const { return host_name_; }
 
-  int port() const {
-    // TODO(joyeecheung): make port a uint16_t
-    CHECK_GE(port_, 0);
-    return port_;
-  }
+  uint16_t port() const { return port_; }
 
   void Update(const HostPort& other) {
     if (!other.host_name_.empty()) host_name_ = other.host_name_;
-    if (other.port_ >= 0) port_ = other.port_;
+    port_ = other.port_;
   }
 
  private:
   std::string host_name_;
-  int port_;
+  uint16_t port_;
 };
 
 class Options {
