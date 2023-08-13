@@ -431,7 +431,7 @@ describe('Loader hooks', { concurrency: true }, () => {
         fixtures.path('empty.js'),
       ]);
 
-      assert.strictEqual(stderr.match(/`globalPreload` is an experimental feature/g).length, 1);
+      assert.strictEqual(stderr.match(/`globalPreload` has been removed/g).length, 1);
     });
   });
 
