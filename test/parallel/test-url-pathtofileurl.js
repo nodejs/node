@@ -29,13 +29,30 @@ const url = require('url');
 
     // Missing server:
     assert.throws(() => url.pathToFileURL('\\\\\\no-server'), {
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_VALUE',
     });
 
     // Missing share or resource:
     assert.throws(() => url.pathToFileURL('\\\\host'), {
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_VALUE',
     });
+
+    // Regression test for direct String.prototype.startsWith call
+    assert.throws(() => url.pathToFileURL([
+      '\\\\',
+      { [Symbol.toPrimitive]: () => 'blep\\blop' },
+    ]), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+    assert.throws(() => url.pathToFileURL(['\\\\', 'blep\\blop']), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+    assert.throws(() => url.pathToFileURL({
+      [Symbol.toPrimitive]: () => '\\\\blep\\blop',
+    }), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+
   } else {
     // UNC paths on posix are considered a single path that has backslashes:
     const fileURL = url.pathToFileURL('\\\\nas\\share\\path.txt').href;
@@ -142,5 +159,21 @@ const url = require('url');
   for (const { path, expected } of testCases) {
     const actual = url.pathToFileURL(path).href;
     assert.strictEqual(actual, expected);
+  }
+}
+
+// Test for non-string parameter
+{
+  for (const badPath of [
+    undefined, null, true, 42, 42n, Symbol('42'), NaN, {}, [], () => {},
+    Promise.resolve('foo'),
+    new Date(),
+    new String('notPrimitive'),
+    { toString() { return 'amObject'; } },
+    { [Symbol.toPrimitive]: (hint) => 'amObject' },
+  ]) {
+    assert.throws(() => url.pathToFileURL(badPath), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
   }
 }
