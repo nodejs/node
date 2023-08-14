@@ -74,6 +74,7 @@ const tests = [
   { name: 'test-runner/output/unresolved_promise.js' },
   { name: 'test-runner/output/default_output.js', transform: specTransform, tty: true },
   { name: 'test-runner/output/arbitrary-output.js' },
+  { name: 'test-runner/output/async-test-scheduling.mjs' },
   !skipForceColors ? {
     name: 'test-runner/output/arbitrary-output-colored.js',
     transform: snapshot.transform(specTransform, replaceTestDuration), tty: true
