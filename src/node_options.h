@@ -32,10 +32,7 @@ class HostPort {
 
   const std::string& host() const { return host_name_; }
 
-  uint16_t port() const {
-    CHECK_GE(port_, 0);
-    return port_;
-  }
+  uint16_t port() const { return port_; }
 
   void Update(const HostPort& other) {
     if (!other.host_name_.empty()) host_name_ = other.host_name_;
