@@ -114,8 +114,8 @@ platforms. This is true regardless of entries in the table below.
 | Windows          | x86 (native)     | >= Windows 10/Server 2016         | Tier 1 (running) / Experimental (compiling)[^4] |                                      |
 | Windows          | x64, x86         | Windows 8.1/Server 2012           | Experimental                                    |                                      |
 | Windows          | arm64            | >= Windows 10                     | Tier 2                                          |                                      |
-| macOS            | x64              | >= 10.15                          | Tier 1                                          | For notes about compilation see [^5] |
-| macOS            | arm64            | >= 11                             | Tier 1                                          |                                      |
+| macOS            | x64              | >= 11.0                           | Tier 1                                          | For notes about compilation see [^5] |
+| macOS            | arm64            | >= 11.0                           | Tier 1                                          |                                      |
 | SmartOS          | x64              | >= 18                             | Tier 2                                          |                                      |
 | AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2                                          |                                      |
 | FreeBSD          | x64              | >= 12.4                           | Experimental                                    |                                      |
@@ -143,7 +143,7 @@ platforms. This is true regardless of entries in the table below.
     Furthermore, compiling on x86 Windows is Experimental and
     may not be possible.
 
-[^5]: Our macOS x64 Binaries are compiled with 10.15 as a target. Xcode11 is
+[^5]: Our macOS x64 Binaries are compiled with 11.0 as a target. Xcode 13 is
     required to compile.
 
 ### Supported toolchains
@@ -154,7 +154,7 @@ Depending on the host platform, the selection of toolchains may vary.
 | ---------------- | -------------------------------------------------------------- |
 | Linux            | GCC >= 10.1                                                    |
 | Windows          | Visual Studio >= 2019 with the Windows 10 SDK on a 64-bit host |
-| macOS            | Xcode >= 11 (Apple LLVM >= 11)                                 |
+| macOS            | Xcode >= 13 (Apple LLVM >= 12)                                 |
 
 ### Official binary platforms and toolchains
 
@@ -163,8 +163,8 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | Binary package          | Platform and Toolchain                                                                                      |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 10                                                                         |
-| darwin-x64              | macOS 11, Xcode 12 with -mmacosx-version-min=10.15                                                          |
-| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode 12 with -mmacosx-version-min=10.15                                                  |
+| darwin-x64              | macOS 11, Xcode 13 with -mmacosx-version-min=11.0                                                           |
+| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode 13 with -mmacosx-version-min=11.0                                                   |
 | linux-arm64             | RHEL 8 with GCC 10[^6]                                                                                      |
 | linux-armv7l            | Cross-compiled on RHEL 8 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)[^7] |
 | linux-ppc64le           | RHEL 8 with gcc-toolset-10[^6]                                                                              |
@@ -244,7 +244,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 11 for macOS
+* Xcode Command Line Tools >= 13 for macOS
 * Python >=3.6 <=3.11 (see note above)
   * For test coverage, your Python installation must include pip.
 
