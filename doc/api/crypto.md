@@ -5113,7 +5113,7 @@ added:
 * `options` {Object}
   * `disableEntropyCache` {boolean} By default, to improve performance,
     Node.js generates and caches enough
-    random data to generate up to 128 random UUIDs. To generate a UUID
+    random data to generate up to 128 bits long random UUIDs. To generate a UUID
     without using the cache, set `disableEntropyCache` to `true`.
     **Default:** `false`.
 * Returns: {string}
