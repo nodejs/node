@@ -1,3 +1,4 @@
+// Flags: --test --test-bail
 'use strict';
 const common = require('../../../common');
 const test = require('node:test');
