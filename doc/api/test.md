@@ -609,6 +609,8 @@ added:
   - REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 The `--test-bail` flag provides a way to stop the test execution
 as soon as a test fails.
 By enabling this flag, the test runner will exit the test suite early

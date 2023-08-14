@@ -1514,6 +1514,8 @@ added:
   - REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 Instructs the test runner to bail out if a test failure occurs.
 See the documentation on [test bailout][] for more details.
 
