@@ -15,13 +15,12 @@ const {
 const {
   unlink
 } = require('fs/promises');
-const path = require('path');
 const { Blob } = require('buffer');
 
 const tmpdir = require('../common/tmpdir');
-const testfile = path.join(tmpdir.path, 'test-file-backed-blob.txt');
-const testfile2 = path.join(tmpdir.path, 'test-file-backed-blob2.txt');
-const testfile3 = path.join(tmpdir.path, 'test-file-backed-blob3.txt');
+const testfile = tmpdir.resolve('test-file-backed-blob.txt');
+const testfile2 = tmpdir.resolve('test-file-backed-blob2.txt');
+const testfile3 = tmpdir.resolve('test-file-backed-blob3.txt');
 tmpdir.refresh();
 
 const data = `${'a'.repeat(1000)}${'b'.repeat(2000)}`;

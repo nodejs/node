@@ -8,11 +8,10 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
-const path = require('path');
 const fs = require('fs');
 
 tmpdir.refresh();
-const blobPath = path.join(tmpdir.path, 'snapshot.blob');
+const blobPath = tmpdir.resolve('snapshot.blob');
 const file = fixtures.path('snapshot', 'decompress-gzip-sync.js');
 
 {
@@ -36,7 +35,7 @@ const file = fixtures.path('snapshot', 'decompress-gzip-sync.js');
   console.log(stdout);
   assert.strictEqual(child.status, 0);
 
-  const stats = fs.statSync(path.join(tmpdir.path, 'snapshot.blob'));
+  const stats = fs.statSync(tmpdir.resolve('snapshot.blob'));
   assert(stats.isFile());
   assert(stdout.includes('NODE_TEST_MODE: snapshot'));
 }
