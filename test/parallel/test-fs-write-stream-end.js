@@ -22,21 +22,20 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 {
-  const file = path.join(tmpdir.path, 'write-end-test0.txt');
+  const file = tmpdir.resolve('write-end-test0.txt');
   const stream = fs.createWriteStream(file);
   stream.end();
   stream.on('close', common.mustCall());
 }
 
 {
-  const file = path.join(tmpdir.path, 'write-end-test1.txt');
+  const file = tmpdir.resolve('write-end-test1.txt');
   const stream = fs.createWriteStream(file);
   stream.end('a\n', 'utf8');
   stream.on('close', common.mustCall(function() {
@@ -46,7 +45,7 @@ tmpdir.refresh();
 }
 
 {
-  const file = path.join(tmpdir.path, 'write-end-test2.txt');
+  const file = tmpdir.resolve('write-end-test2.txt');
   const stream = fs.createWriteStream(file);
   stream.end();
 

@@ -2,11 +2,10 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
 const tmpdir = require('../common/tmpdir');
 
-const example = path.join(tmpdir.path, 'dummy');
+const example = tmpdir.resolve('dummy');
 
 tmpdir.refresh();
 // Should not throw.

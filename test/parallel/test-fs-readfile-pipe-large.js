@@ -7,7 +7,6 @@ if (common.isWindows || common.isAIX)
   common.skip(`No /dev/stdin on ${process.platform}.`);
 
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 if (process.argv[2] === 'child') {
@@ -20,7 +19,7 @@ if (process.argv[2] === 'child') {
 
 const tmpdir = require('../common/tmpdir');
 
-const filename = path.join(tmpdir.path, '/readfile_pipe_large_test.txt');
+const filename = tmpdir.resolve('readfile_pipe_large_test.txt');
 const dataExpected = 'a'.repeat(999999);
 tmpdir.refresh();
 fs.writeFileSync(filename, dataExpected);

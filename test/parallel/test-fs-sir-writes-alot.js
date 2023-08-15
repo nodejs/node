@@ -23,11 +23,10 @@
 require('../common');
 const fs = require('fs');
 const assert = require('assert');
-const join = require('path').join;
 
 const tmpdir = require('../common/tmpdir');
 
-const filename = join(tmpdir.path, 'out.txt');
+const filename = tmpdir.resolve('out.txt');
 
 tmpdir.refresh();
 
