@@ -246,7 +246,7 @@ bool WeakReference::PrepareForSerialization(Local<Context> context,
 }
 
 InternalFieldInfoBase* WeakReference::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   InternalFieldInfo* info =
       InternalFieldInfoBase::New<InternalFieldInfo>(type());
   info->target = target_index_;
@@ -258,7 +258,7 @@ void WeakReference::Deserialize(Local<Context> context,
                                 Local<Object> holder,
                                 int index,
                                 InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   HandleScope scope(context->GetIsolate());
 
   InternalFieldInfo* weak_info = reinterpret_cast<InternalFieldInfo*>(info);
