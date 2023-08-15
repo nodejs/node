@@ -532,7 +532,7 @@ void BlobBindingData::Deserialize(Local<Context> context,
                                   Local<Object> holder,
                                   int index,
                                   InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   BlobBindingData* binding = realm->AddBindingData<BlobBindingData>(holder);
@@ -548,7 +548,7 @@ bool BlobBindingData::PrepareForSerialization(Local<Context> context,
 }
 
 InternalFieldInfoBase* BlobBindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   InternalFieldInfo* info =
       InternalFieldInfoBase::New<InternalFieldInfo>(type());
   return info;
