@@ -338,7 +338,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/38587
     description: Add support for WHATWG `URL` object to `parentURL` parameter.
   - version:
-      - REPLACEME
+      - v20.6.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: Unflag import.meta.resolve, with `parentURL` parameter still
                  flagged.

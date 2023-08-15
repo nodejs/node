@@ -83,7 +83,7 @@ isBuiltin('wss'); // false
 ### `module.register(specifier[, parentURL][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v20.6.0
 -->
 
 > Stability: 1.1 - Active development

@@ -392,7 +392,7 @@ port2.postMessage(stream, [stream]);
 ### `ReadableStream.from(iterable)`
 
 <!-- YAML
-added: REPLACEME
+added: v20.6.0
 -->
 
 * `iterable` {Iterable} Object implementing the `Symbol.asyncIterator` or
