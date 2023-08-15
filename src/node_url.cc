@@ -54,7 +54,7 @@ bool BindingData::PrepareForSerialization(v8::Local<v8::Context> context,
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   InternalFieldInfo* info =
       InternalFieldInfoBase::New<InternalFieldInfo>(type());
   return info;
@@ -64,7 +64,7 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
                               v8::Local<v8::Object> holder,
                               int index,
                               InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   v8::HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   BindingData* binding = realm->AddBindingData<BindingData>(holder);

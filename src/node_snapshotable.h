@@ -68,6 +68,14 @@ struct InternalFieldInfoBase {
   InternalFieldInfoBase() = default;
 };
 
+struct EmbedderTypeInfo {
+  enum class MemoryMode : uint8_t { kBaseObject, kCppGC };
+  EmbedderTypeInfo(EmbedderObjectType t, MemoryMode m) : type(t), mode(m) {}
+  EmbedderTypeInfo() = default;
+  EmbedderObjectType type;
+  MemoryMode mode;
+};
+
 // An interface for snapshotable native objects to inherit from.
 // Use the SERIALIZABLE_OBJECT_METHODS() macro in the class to define
 // the following methods to implement:
@@ -122,6 +130,8 @@ void DeserializeNodeInternalFields(v8::Local<v8::Object> holder,
 void SerializeSnapshotableObjects(Realm* realm,
                                   v8::SnapshotCreator* creator,
                                   RealmSerializeInfo* info);
+
+#define DCHECK_IS_SNAPSHOT_SLOT(index) DCHECK_EQ(index, BaseObject::kSlot)
 
 namespace mksnapshot {
 class BindingData : public SnapshotableObject {
