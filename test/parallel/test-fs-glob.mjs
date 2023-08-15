@@ -9,8 +9,8 @@ import glob from 'internal/fs/glob';
 
 tmpdir.refresh();
 
-const fixtureDir = resolve(tmpdir.path, 'fixtures');
-const absDir = resolve(tmpdir.path, 'abs');
+const fixtureDir = tmpdir.resolve('fixtures');
+const absDir = tmpdir.resolve('abs');
 
 async function setup() {
   await mkdir(fixtureDir, { recursive: true });

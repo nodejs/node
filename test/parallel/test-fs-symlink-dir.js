@@ -19,11 +19,11 @@ tmpdir.refresh();
 
 const linkTargets = [
   'relative-target',
-  path.join(tmpdir.path, 'absolute-target'),
+  tmpdir.resolve('absolute-target'),
 ];
 const linkPaths = [
-  path.relative(process.cwd(), path.join(tmpdir.path, 'relative-path')),
-  path.join(tmpdir.path, 'absolute-path'),
+  path.relative(process.cwd(), tmpdir.resolve('relative-path')),
+  tmpdir.resolve('absolute-path'),
 ];
 
 function testSync(target, path) {
@@ -43,7 +43,7 @@ async function testPromises(target, path) {
 }
 
 for (const linkTarget of linkTargets) {
-  fs.mkdirSync(path.resolve(tmpdir.path, linkTarget));
+  fs.mkdirSync(tmpdir.resolve(linkTarget));
   for (const linkPath of linkPaths) {
     testSync(linkTarget, `${linkPath}-${path.basename(linkTarget)}-sync`);
     testAsync(linkTarget, `${linkPath}-${path.basename(linkTarget)}-async`);

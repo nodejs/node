@@ -4,14 +4,13 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 fs.access(Buffer.from(tmpdir.path), common.mustSucceed());
 
-const buf = Buffer.from(path.join(tmpdir.path, 'a.txt'));
+const buf = Buffer.from(tmpdir.resolve('a.txt'));
 fs.open(buf, 'w+', common.mustSucceed((fd) => {
   assert(fd);
   fs.close(fd, common.mustSucceed());

@@ -51,7 +51,7 @@ const { promises } = fs;
 });
 
 if (!common.isWindows) {
-  const testFile = path.join(tmpdir.path, path.basename(__filename));
+  const testFile = tmpdir.resolve(path.basename(__filename));
   const uid = process.geteuid();
   const gid = process.getegid();
 

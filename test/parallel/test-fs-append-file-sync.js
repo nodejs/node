@@ -22,7 +22,6 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const join = require('path').join;
 const fs = require('fs');
 
 const currentFileData = 'ABCD';
@@ -40,7 +39,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 // Test that empty file will be created and have content added.
-const filename = join(tmpdir.path, 'append-sync.txt');
+const filename = tmpdir.resolve('append-sync.txt');
 
 fs.appendFileSync(filename, data);
 
@@ -49,7 +48,7 @@ const fileData = fs.readFileSync(filename);
 assert.strictEqual(Buffer.byteLength(data), fileData.length);
 
 // Test that appends data to a non empty file.
-const filename2 = join(tmpdir.path, 'append-sync2.txt');
+const filename2 = tmpdir.resolve('append-sync2.txt');
 fs.writeFileSync(filename2, currentFileData);
 
 fs.appendFileSync(filename2, data);
@@ -60,7 +59,7 @@ assert.strictEqual(Buffer.byteLength(data) + currentFileData.length,
                    fileData2.length);
 
 // Test that appendFileSync accepts buffers.
-const filename3 = join(tmpdir.path, 'append-sync3.txt');
+const filename3 = tmpdir.resolve('append-sync3.txt');
 fs.writeFileSync(filename3, currentFileData);
 
 const buf = Buffer.from(data, 'utf8');
@@ -70,7 +69,7 @@ const fileData3 = fs.readFileSync(filename3);
 
 assert.strictEqual(buf.length + currentFileData.length, fileData3.length);
 
-const filename4 = join(tmpdir.path, 'append-sync4.txt');
+const filename4 = tmpdir.resolve('append-sync4.txt');
 fs.writeFileSync(filename4, currentFileData, common.mustNotMutateObjectDeep({ mode: m }));
 
 [
@@ -95,7 +94,7 @@ assert.strictEqual(Buffer.byteLength(String(num)) + currentFileData.length,
                    fileData4.length);
 
 // Test that appendFile accepts file descriptors.
-const filename5 = join(tmpdir.path, 'append-sync5.txt');
+const filename5 = tmpdir.resolve('append-sync5.txt');
 fs.writeFileSync(filename5, currentFileData);
 
 const filename5fd = fs.openSync(filename5, 'a+', 0o600);
