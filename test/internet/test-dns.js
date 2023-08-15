@@ -21,6 +21,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
 const common = require('../common');
 const { addresses } = require('../common/internet');
 const { internalBinding } = require('internal/test/binding');
