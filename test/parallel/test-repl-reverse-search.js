@@ -7,7 +7,6 @@ const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const { inspect } = require('util');
 
 common.skipIfDumbTerminal();
@@ -16,7 +15,7 @@ common.allowGlobals('aaaa');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
+const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 
 // Create an input stream specialized for testing an array of actions
 class ActionStream extends stream.Stream {

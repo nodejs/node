@@ -2,7 +2,6 @@
 
 const common = require('../common');
 const fs = require('fs');
-const { join } = require('path');
 const readline = require('readline');
 const { Readable } = require('stream');
 const assert = require('assert');
@@ -10,7 +9,7 @@ const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const filename = join(tmpdir.path, 'test.txt');
+const filename = tmpdir.resolve('test.txt');
 
 const testContents = [
   '',
