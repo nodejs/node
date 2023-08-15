@@ -16,14 +16,13 @@ tmpdir.refresh();
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
 let n = 0;
 
 function beforeEach() {
   n++;
-  const source = path.join(tmpdir.path, `source${n}`);
-  const dest = path.join(tmpdir.path, `dest${n}`);
+  const source = tmpdir.resolve(`source${n}`);
+  const dest = tmpdir.resolve(`dest${n}`);
   fs.writeFileSync(source, 'source');
   fs.writeFileSync(dest, 'dest');
   fs.chmodSync(dest, '444');
