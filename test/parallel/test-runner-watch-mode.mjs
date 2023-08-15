@@ -1,6 +1,5 @@
 // Flags: --expose-internals
 import * as common from '../common/index.mjs';
-import path from 'node:path';
 import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -26,7 +25,7 @@ import('data:text/javascript,');
 test('test has ran');`,
 };
 const fixturePaths = Object.keys(fixtureContent)
-  .reduce((acc, file) => ({ ...acc, [file]: path.join(tmpdir.path, file) }), {});
+  .reduce((acc, file) => ({ ...acc, [file]: tmpdir.resolve(file) }), {});
 Object.entries(fixtureContent)
   .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
 

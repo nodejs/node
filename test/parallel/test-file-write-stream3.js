@@ -22,13 +22,12 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 
 
-const filepath = path.join(tmpdir.path, 'write_pos.txt');
+const filepath = tmpdir.resolve('write_pos.txt');
 
 
 const cb_expected = 'write open close write open close write open close ';
