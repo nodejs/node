@@ -39,7 +39,7 @@ const cp = require('child_process');
 
 const tmpdir = require('../common/tmpdir');
 
-const filename = require('path').join(tmpdir.path, 'big');
+const filename = tmpdir.resolve('big');
 let server;
 
 function executeRequest(cb) {
