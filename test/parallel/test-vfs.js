@@ -9,9 +9,9 @@ const tmpdir = require('../common/tmpdir');
 const { deepStrictEqual, ok, strictEqual, throws } = require('assert');
 const { join } = require('path');
 
-const directory = join(tmpdir.path, 'directory');
-const doesNotExist = join(tmpdir.path, 'does-not-exist');
-const file = join(tmpdir.path, 'file.js');
+const directory = tmpdir.resolve('directory');
+const doesNotExist = tmpdir.resolve('does-not-exist');
+const file = tmpdir.resolve('file.js');
 
 tmpdir.refresh();
 fs.writeFileSync(file, "module.exports = { a: 'b' }");

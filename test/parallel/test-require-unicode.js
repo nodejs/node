@@ -8,7 +8,7 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const dirname = path.join(tmpdir.path, '\u4e2d\u6587\u76ee\u5f55');
+const dirname = tmpdir.resolve('\u4e2d\u6587\u76ee\u5f55');
 fs.mkdirSync(dirname);
 fs.writeFileSync(path.join(dirname, 'file.js'), 'module.exports = 42;');
 fs.writeFileSync(path.join(dirname, 'package.json'),
