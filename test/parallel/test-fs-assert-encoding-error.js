@@ -2,10 +2,9 @@
 const common = require('../common');
 const assert = require('node:assert');
 const fs = require('node:fs');
-const path = require('node:path');
 const tmpdir = require('../common/tmpdir');
 
-const testPath = path.join(tmpdir.path, 'assert-encoding-error');
+const testPath = tmpdir.resolve('assert-encoding-error');
 const options = 'test';
 const expectedError = {
   code: 'ERR_INVALID_ARG_VALUE',
