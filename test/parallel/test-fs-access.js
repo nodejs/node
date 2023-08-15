@@ -13,15 +13,14 @@ if (common.isIBMi)
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
 const { internalBinding } = require('internal/test/binding');
 const { UV_ENOENT } = internalBinding('uv');
 
 const tmpdir = require('../common/tmpdir');
-const doesNotExist = path.join(tmpdir.path, '__this_should_not_exist');
-const readOnlyFile = path.join(tmpdir.path, 'read_only_file');
-const readWriteFile = path.join(tmpdir.path, 'read_write_file');
+const doesNotExist = tmpdir.resolve('__this_should_not_exist');
+const readOnlyFile = tmpdir.resolve('read_only_file');
+const readWriteFile = tmpdir.resolve('read_write_file');
 
 function createFileWithPerms(file, mode) {
   fs.writeFileSync(file, '');
