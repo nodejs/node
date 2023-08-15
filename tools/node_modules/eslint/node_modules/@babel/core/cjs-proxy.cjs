@@ -8,6 +8,8 @@ Object.defineProperty(exports, "__ initialize @babel/core cjs proxy __", {
   },
 });
 
+exports.version = require("./package.json").version;
+
 const functionNames = [
   "createConfigItem",
   "loadPartialConfig",
@@ -17,7 +19,7 @@ const functionNames = [
   "transformFromAst",
   "parse",
 ];
-const propertyNames = ["types", "tokTypes", "traverse", "template", "version"];
+const propertyNames = ["types", "tokTypes", "traverse", "template"];
 
 for (const name of functionNames) {
   exports[name] = function (...args) {

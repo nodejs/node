@@ -26,8 +26,8 @@ const {
 
 const anyFunctionPattern = /^(?:Function(?:Declaration|Expression)|ArrowFunctionExpression)$/u;
 const anyLoopPattern = /^(?:DoWhile|For|ForIn|ForOf|While)Statement$/u;
+const arrayMethodWithThisArgPattern = /^(?:every|filter|find(?:Last)?(?:Index)?|flatMap|forEach|map|some)$/u;
 const arrayOrTypedArrayPattern = /Array$/u;
-const arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/u;
 const bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/u;
 const thisTagPattern = /^[\s*]*@this/mu;
 
@@ -467,12 +467,12 @@ function isArrayFromMethod(node) {
 }
 
 /**
- * Checks whether or not a node is a method which has `thisArg`.
+ * Checks whether or not a node is a method which expects a function as a first argument, and `thisArg` as a second argument.
  * @param {ASTNode} node A node to check.
- * @returns {boolean} Whether or not the node is a method which has `thisArg`.
+ * @returns {boolean} Whether or not the node is a method which expects a function as a first argument, and `thisArg` as a second argument.
  */
 function isMethodWhichHasThisArg(node) {
-    return isSpecificMemberAccess(node, null, arrayMethodPattern);
+    return isSpecificMemberAccess(node, null, arrayMethodWithThisArgPattern);
 }
 
 /**
