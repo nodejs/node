@@ -3,11 +3,10 @@ import tmpdir from '../common/tmpdir.js';
 
 import assert from 'node:assert';
 import { open, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 
 tmpdir.refresh();
 
-const filePath = path.join(tmpdir.path, 'file.txt');
+const filePath = tmpdir.resolve('file.txt');
 
 await writeFile(filePath, '1\n\n2\n');
 
