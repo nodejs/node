@@ -513,7 +513,7 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: REPLACEME
+  - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: synchronous import.meta.resolve made available by default, with
                  the flag retained for enabling the experimental second argument
@@ -985,7 +985,7 @@ disappear in a non-semver-major release.
 > Stability: 1.1 - Active development
 
 <!-- YAML
-added: REPLACEME
+added: v20.6.0
 -->
 
 Loads environment variables from a file relative to the current directory,

@@ -338,7 +338,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/38587
     description: Add support for WHATWG `URL` object to `parentURL` parameter.
   - version:
-      - REPLACEME
+      - v20.6.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: Unflag import.meta.resolve, with `parentURL` parameter still
                  flagged.
@@ -694,7 +694,7 @@ of Node.js applications.
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: REPLACEME
+  - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/48842
     description: Added `initialize` hook to replace `globalPreload`.
   - version:
@@ -754,7 +754,7 @@ operations (like `console.log`) to complete.
 #### `initialize()`
 
 <!-- YAML
-added: REPLACEME
+added: v20.6.0
 -->
 
 > The loaders API is being redesigned. This hook may disappear or its
@@ -917,7 +917,7 @@ export function resolve(specifier, context, nextResolve) {
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/47999
     description: Add support for `source` with format `commonjs`.
   - version:
@@ -1329,7 +1329,7 @@ the output will be `some module!`.
 ### Register loaders programmatically
 
 <!-- YAML
-added: REPLACEME
+added: v20.6.0
 -->
 
 In addition to using the `--experimental-loader` option in the CLI,

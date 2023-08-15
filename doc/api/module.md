@@ -83,7 +83,7 @@ isBuiltin('wss'); // false
 ### `module.register()`
 
 <!-- YAML
-added: REPLACEME
+added: v20.6.0
 -->
 
 In addition to using the `--experimental-loader` option in the CLI,
