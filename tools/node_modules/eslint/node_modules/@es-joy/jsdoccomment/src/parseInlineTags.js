@@ -1,4 +1,3 @@
-
 /**
  * @param {RegExpMatchArray & {
  *   indices: {

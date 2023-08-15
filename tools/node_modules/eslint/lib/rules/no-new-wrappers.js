@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const { getVariableByName } = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -28,18 +34,24 @@ module.exports = {
     },
 
     create(context) {
+        const { sourceCode } = context;
 
         return {
 
             NewExpression(node) {
                 const wrapperObjects = ["String", "Number", "Boolean"];
+                const { name } = node.callee;
 
-                if (wrapperObjects.includes(node.callee.name)) {
-                    context.report({
-                        node,
-                        messageId: "noConstructor",
-                        data: { fn: node.callee.name }
-                    });
+                if (wrapperObjects.includes(name)) {
+                    const variable = getVariableByName(sourceCode.getScope(node), name);
+
+                    if (variable && variable.identifiers.length === 0) {
+                        context.report({
+                            node,
+                            messageId: "noConstructor",
+                            data: { fn: name }
+                        });
+                    }
                 }
             }
         };

@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/imports-as-dependencies -- https://github.com/gajus/eslint-plugin-jsdoc/issues/1114 */
 /**
  * Obtained originally from {@link https://github.com/eslint/eslint/blob/master/lib/util/source-code.js#L313}.
  *

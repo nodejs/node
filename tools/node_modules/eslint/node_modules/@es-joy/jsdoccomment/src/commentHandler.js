@@ -31,7 +31,7 @@ const commentHandler = (settings) => {
 
     return esquery.matches(/** @type {import('estree').Node} */ (
       _ast
-    ), selector, null, {
+    ), selector, undefined, {
       visitorKeys: {
         ...jsdocTypePrattParserVisitorKeys,
         ...jsdocVisitorKeys
