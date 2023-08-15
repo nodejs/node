@@ -350,7 +350,10 @@
       'defines': [ 'HAVE_OPENSSL=1' ],
       'conditions': [
         [ 'node_shared_openssl=="false"', {
-          'defines': [ 'OPENSSL_API_COMPAT=0x10100000L', ],
+          'defines': [
+            'OPENSSL_API_COMPAT=0x10100000L',
+            'NODE_OPENSSL_IS_SHARED=0',
+          ],
           'dependencies': [
             './deps/openssl/openssl.gyp:openssl',
 
@@ -392,6 +395,8 @@
               ],
             }],
           ]
+        }, {
+          'defines': [ 'NODE_OPENSSL_IS_SHARED=1', ]
         }],
         [ 'openssl_quic=="true" and node_shared_ngtcp2=="false"', {
           'dependencies': [ './deps/ngtcp2/ngtcp2.gyp:ngtcp2' ]

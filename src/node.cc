@@ -1054,6 +1054,14 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       OPENSSL_init();
     }
 #endif
+#if NODE_OPENSSL_IS_SHARED
+    if (per_process::cli_options->enable_fips_crypto ||
+        per_process::cli_options->force_fips_crypto) {
+      result->errors_.emplace_back(
+          "Warning: FIPS options are not supported with shared OpenSSL library!"
+      );
+    }
+#endif  // NODE_OPENSSL_IS_SHARED
     if (!crypto::ProcessFipsOptions()) {
       // XXX: ERR_GET_REASON does not return something that is
       // useful as an exit code at all.
