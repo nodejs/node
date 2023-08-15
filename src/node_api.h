@@ -1,7 +1,7 @@
 #ifndef SRC_NODE_API_H_
 #define SRC_NODE_API_H_
 
-#ifdef BUILDING_NODE_EXTENSION
+#if defined(BUILDING_NODE_EXTENSION) && !defined(NAPI_EXTERN)
 #ifdef _WIN32
 // Building native addon against node
 #define NAPI_EXTERN __declspec(dllimport)
