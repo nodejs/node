@@ -999,7 +999,8 @@ are parsed and applied. If the same variable is defined in the environment and
 in the file, the value from the environment takes precedence.
 
 The format of the file should be one line per key-value pair of environment
-variable name and value separated by `=`:
+variable name and value separated by `=`, and based on
+[ini file format][]
 
 ```text
 PORT=3000
@@ -2684,6 +2685,7 @@ done
 [emit_warning]: process.md#processemitwarningwarning-options
 [environment_variables]: #environment-variables
 [filtering tests by name]: test.md#filtering-tests-by-name
+[ini file format]: https://en.wikipedia.org/wiki/INI_file#Format
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection

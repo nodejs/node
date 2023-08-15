@@ -16,10 +16,11 @@ describe('.env supports NODE_OPTIONS', () => {
     const code = `
       require('assert')(process.permission.has('fs.read'));
     `.trim();
-    const child = await common.spawnPromisified(process.execPath,
-                                                [ `--env-file=${relativePath}`, '--eval', code ], {
-                                                  cwd: __dirname
-                                                });
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ `--env-file=${relativePath}`, '--eval', code ],
+      { cwd: __dirname },
+    );
     // Test NODE_NO_WARNINGS environment variable
     // `stderr` should not contain "ExperimentalWarning: Permission is an experimental feature" message
     assert.strictEqual(child.stdout, '');
@@ -31,10 +32,11 @@ describe('.env supports NODE_OPTIONS', () => {
     const code = `
       require('fs').writeFileSync(require('path').join(__dirname, 'should-not-write.txt'), 'hello', 'utf-8')
     `.trim();
-    const child = await common.spawnPromisified(process.execPath,
-                                                [ `--env-file=${relativePath}`, '--eval', code ], {
-                                                  cwd: __dirname,
-                                                });
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ `--env-file=${relativePath}`, '--eval', code ],
+      { cwd: __dirname },
+    );
     assert.match(child.stderr, /Error: Access to this API has been restricted/);
     assert.match(child.stderr, /code: 'ERR_ACCESS_DENIED'/);
     assert.match(child.stderr, /permission: 'FileSystemWrite'/);
@@ -45,10 +47,11 @@ describe('.env supports NODE_OPTIONS', () => {
     const code = `
       require('assert')(new Date().toString().includes('Hawaii'))
     `.trim();
-    const child = await common.spawnPromisified(process.execPath,
-                                                [ `--env-file=${relativePath}`, '--eval', code ], {
-                                                  cwd: __dirname,
-                                                });
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ `--env-file=${relativePath}`, '--eval', code ],
+      { cwd: __dirname },
+    );
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
   });
@@ -57,10 +60,11 @@ describe('.env supports NODE_OPTIONS', () => {
     const code = `
       require('assert').strictEqual(process.env.UV_THREADPOOL_SIZE, '5')
     `.trim();
-    const child = await common.spawnPromisified(process.execPath,
-                                                [ `--env-file=${relativePath}`, '--eval', code ], {
-                                                  cwd: __dirname,
-                                                });
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ `--env-file=${relativePath}`, '--eval', code ],
+      { cwd: __dirname },
+    );
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
   });
