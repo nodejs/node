@@ -61,7 +61,7 @@ tmpdir.refresh();
 
 // Outputs coverage when event loop is drained, with no async logic.
 {
-  const coverageDirectory = path.join(tmpdir.path, 'coverage');
+  const coverageDirectory = tmpdir.resolve('coverage');
   async function getCoveredFiles() {
     const coverageFiles = await fs.readdir(coverageDirectory);
     const files = new Set();
