@@ -10,8 +10,8 @@ describe('Loader hooks', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-input.mjs'),
-      fixtures.path('/es-modules/json-modules.mjs'),
+      fixtures.fileURL('es-module-loaders/hooks-input.mjs'),
+      fixtures.path('es-modules/json-modules.mjs'),
     ]);
 
     assert.strictEqual(stderr, '');
@@ -23,6 +23,8 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.match(lines[1], /{"source":{"type":"Buffer","data":\[.*\]},"format":"module","shortCircuit":true}/);
     assert.match(lines[2], /{"url":"file:\/\/\/.*\/experimental\.json","format":"test","shortCircuit":true}/);
     assert.match(lines[3], /{"source":{"type":"Buffer","data":\[.*\]},"format":"json","shortCircuit":true}/);
+    assert.strictEqual(lines[4], '');
+    assert.strictEqual(lines.length, 5);
   });
 
   it('are called with all expected arguments using register function', async () => {
@@ -32,8 +34,8 @@ describe('Loader hooks', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       "import { register } from 'node:module';" +
-      `register(${JSON.stringify(fixtures.fileURL('/es-module-loaders/hooks-input.mjs'))});` +
-      `await import(${JSON.stringify(fixtures.fileURL('/es-modules/json-modules.mjs'))});`,
+      `register(${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-input.mjs'))});` +
+      `await import(${JSON.stringify(fixtures.fileURL('es-modules/json-modules.mjs'))});`,
     ]);
 
     assert.strictEqual(stderr, '');
@@ -45,6 +47,8 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.match(lines[1], /{"source":{"type":"Buffer","data":\[.*\]},"format":"module","shortCircuit":true}/);
     assert.match(lines[2], /{"url":"file:\/\/\/.*\/experimental\.json","format":"test","shortCircuit":true}/);
     assert.match(lines[3], /{"source":{"type":"Buffer","data":\[.*\]},"format":"json","shortCircuit":true}/);
+    assert.strictEqual(lines[4], '');
+    assert.strictEqual(lines.length, 5);
   });
 
   describe('should handle never-settling hooks in ESM files', { concurrency: true }, () => {
@@ -340,7 +344,6 @@ describe('Loader hooks', { concurrency: true }, () => {
 
     it('should handle symbol', async () => {
       const { code, signal, stdout } = await spawnPromisified(execPath, [
-        '--no-warnings',
         '--experimental-loader',
         'data:text/javascript,throw Symbol("symbol descriptor")',
         fixtures.path('empty.js'),
@@ -524,19 +527,14 @@ describe('Loader hooks', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-initialize.mjs'),
+      fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'),
       '--input-type=module',
       '--eval',
       'import os from "node:os";',
     ]);
 
-    const lines = stdout.trim().split('\n');
-
-    assert.strictEqual(lines.length, 1);
-    assert.strictEqual(lines[0], 'hooks initialize 1');
-
     assert.strictEqual(stderr, '');
-
+    assert.deepStrictEqual(stdout.split('\n'), ['hooks initialize 1', '']);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
@@ -567,7 +565,10 @@ describe('Loader hooks', { concurrency: true }, () => {
     ]);
 
     assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), ['register ok', 'message initialize', 'message resolve node:os', '']);
+    assert.deepStrictEqual(stdout.split('\n'), [ 'register ok',
+                                                 'message initialize',
+                                                 'message resolve node:os',
+                                                 '' ]);
 
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
@@ -605,18 +606,14 @@ describe('Loader hooks', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--require',
-      fixtures.path('/es-module-loaders/register-loader.cjs'),
+      fixtures.path('es-module-loaders/register-loader.cjs'),
       '--input-type=module',
       '--eval',
       'import "node:os";',
     ]);
 
-    const lines = stdout.split('\n');
-
-    assert.strictEqual(lines[0], 'resolve passthru');
-
     assert.strictEqual(stderr, '');
-
+    assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', 'resolve passthru', '']);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
@@ -625,7 +622,7 @@ describe('Loader hooks', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--import',
-      fixtures.fileURL('/es-module-loaders/register-loader.mjs'),
+      fixtures.fileURL('es-module-loaders/register-loader.mjs'),
       '--input-type=module',
       '--eval',
       `
@@ -633,12 +630,8 @@ describe('Loader hooks', { concurrency: true }, () => {
       `,
     ]);
 
-    const lines = stdout.split('\n');
-
-    assert.strictEqual(lines[0], 'resolve passthru');
-
     assert.strictEqual(stderr, '');
-
+    assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', '']);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
@@ -651,25 +644,22 @@ describe('Loader hooks', { concurrency: true }, () => {
       `
         import {register} from 'node:module';
         console.log('result', register(
-          ${JSON.stringify(fixtures.fileURL('/es-module-loaders/hooks-initialize.mjs'))}
+          ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'))}
         ));
         console.log('result', register(
-          ${JSON.stringify(fixtures.fileURL('/es-module-loaders/hooks-initialize.mjs'))}
+          ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'))}
         ));
 
         await import('node:os');
       `,
     ]);
 
-    const lines = stdout.split('\n');
-
-    assert.strictEqual(lines[0], 'result 1');
-    assert.strictEqual(lines[1], 'result 2');
-    assert.strictEqual(lines[2], 'hooks initialize 1');
-    assert.strictEqual(lines[3], 'hooks initialize 2');
-
     assert.strictEqual(stderr, '');
-
+    assert.deepStrictEqual(stdout.split('\n'), [ 'result 1',
+                                                 'result 2',
+                                                 'hooks initialize 1',
+                                                 'hooks initialize 2',
+                                                 '' ]);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
