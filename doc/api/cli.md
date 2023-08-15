@@ -1012,6 +1012,13 @@ Any text after a `#` is treated as a comment:
 PORT=3000 # This is also a comment
 ```
 
+Values can start and end with the following quotes: `\`, `"` or `'`.
+They are omitted from the values.
+
+```text
+USERNAME="nodejs" # will result in `nodejs` as the value.
+```
+
 ### `--max-http-header-size=size`
 
 <!-- YAML
