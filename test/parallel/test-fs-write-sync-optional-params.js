@@ -7,12 +7,11 @@ const common = require('../common');
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const dest = path.resolve(tmpdir.path, 'tmp.txt');
+const dest = tmpdir.resolve('tmp.txt');
 const buffer = Buffer.from('zyx');
 
 function testInvalid(dest, expectedCode, ...bufferAndOptions) {
