@@ -17,7 +17,7 @@ const nodeBinary = process.execPath;
 
 tmpdir.refresh();
 
-const appBundlePath = path.join(tmpdir.path, 'node_sandboxed.app');
+const appBundlePath = tmpdir.resolve('node_sandboxed.app');
 const appBundleContentPath = path.join(appBundlePath, 'Contents');
 const appExecutablePath = path.join(
   appBundleContentPath, 'MacOS', 'node');

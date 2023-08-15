@@ -20,7 +20,7 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const dirName = 'module-require-symlink';
 const fixtureSource = fixtures.path(dirName);
-const tmpDirTarget = path.join(tmpdir.path, dirName);
+const tmpDirTarget = tmpdir.resolve(dirName);
 
 // Copy fixtureSource to linkTarget recursively.
 tmpdir.refresh();

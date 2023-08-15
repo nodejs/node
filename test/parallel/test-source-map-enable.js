@@ -16,7 +16,7 @@ tmpdir.refresh();
 let dirc = 0;
 function nextdir() {
   return process.env.NODE_V8_COVERAGE ||
-    path.join(tmpdir.path, `source_map_${++dirc}`);
+    tmpdir.resolve(`source_map_${++dirc}`);
 }
 
 // Outputs source maps when event loop is drained, with no async logic.

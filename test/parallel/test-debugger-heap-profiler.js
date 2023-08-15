@@ -6,13 +6,12 @@ common.skipIfInspectorDisabled();
 const fixtures = require('../common/fixtures');
 const startCLI = require('../common/debugger');
 const tmpdir = require('../common/tmpdir');
-const path = require('path');
 
 tmpdir.refresh();
 
 const { readFileSync } = require('fs');
 
-const filename = path.join(tmpdir.path, 'node.heapsnapshot');
+const filename = tmpdir.resolve('node.heapsnapshot');
 
 // Heap profiler take snapshot.
 {

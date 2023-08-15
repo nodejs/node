@@ -20,7 +20,7 @@ function hash(algo, body) {
   return h.digest('base64');
 }
 
-const tmpdirPath = path.join(tmpdir.path, 'test-policy-parse-integrity');
+const tmpdirPath = tmpdir.resolve('test-policy-parse-integrity');
 fs.rmSync(tmpdirPath, { maxRetries: 3, recursive: true, force: true });
 fs.mkdirSync(tmpdirPath, { recursive: true });
 

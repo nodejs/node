@@ -23,7 +23,7 @@ if (process.versions.icu) {
   // ICU is unavailable, use characters that can't be decomposed
   dirName = 'weird \ud83d\udc04 characters \ud83d\udc05';
 }
-const dir = path.resolve(tmpdir.path, dirName);
+const dir = tmpdir.resolve(dirName);
 
 // Make sure that the tmp directory is clean
 tmpdir.refresh();

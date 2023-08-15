@@ -23,7 +23,7 @@ const {
 
 {
   tmpdir.refresh();
-  const dir = path.join(tmpdir.path, 'prof');
+  const dir = tmpdir.resolve('prof');
   const file = path.join(dir, 'test.heapprofile');
   const output = spawnSync(process.execPath, [
     '--heap-prof',
