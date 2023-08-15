@@ -21,8 +21,9 @@ describe('.env supports NODE_OPTIONS', () => {
       [ `--env-file=${relativePath}`, '--eval', code ],
       { cwd: __dirname },
     );
-    // Test NODE_NO_WARNINGS environment variable
-    // `stderr` should not contain "ExperimentalWarning: Permission is an experimental feature" message
+    // NODE_NO_WARNINGS is set, so `stderr` should not contain
+    // "ExperimentalWarning: Permission is an experimental feature" message
+    // and thus be empty
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
