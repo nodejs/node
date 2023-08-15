@@ -7,7 +7,6 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
-const path = require('path');
 const fs = require('fs');
 
 const v8 = require('v8');
@@ -17,7 +16,7 @@ const v8 = require('v8');
 assert(!v8.startupSnapshot.isBuildingSnapshot());
 
 tmpdir.refresh();
-const blobPath = path.join(tmpdir.path, 'snapshot.blob');
+const blobPath = tmpdir.resolve('snapshot.blob');
 const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
 {
   for (const book of [
@@ -26,9 +25,9 @@ const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
     'book2.zh_CN.txt',
   ]) {
     const content = `This is ${book}`;
-    fs.writeFileSync(path.join(tmpdir.path, book), content, 'utf8');
+    fs.writeFileSync(tmpdir.resolve(book), content, 'utf8');
   }
-  fs.copyFileSync(entry, path.join(tmpdir.path, 'entry.js'));
+  fs.copyFileSync(entry, tmpdir.resolve('entry.js'));
   const child = spawnSync(process.execPath, [
     '--snapshot-blob',
     blobPath,
@@ -42,7 +41,7 @@ const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
     console.log(child.stdout.toString());
     assert.strictEqual(child.status, 0);
   }
-  const stats = fs.statSync(path.join(tmpdir.path, 'snapshot.blob'));
+  const stats = fs.statSync(tmpdir.resolve('snapshot.blob'));
   assert(stats.isFile());
 }
 

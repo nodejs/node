@@ -3,7 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const { scheduler } = require('timers/promises');
 
@@ -21,7 +20,7 @@ if (process.env.isChild === '1') {
 }
 
 tmpdir.refresh();
-const FILE_NAME = path.join(tmpdir.path, 'node_trace.1.log');
+const FILE_NAME = tmpdir.resolve('node_trace.1.log');
 
 cp.spawnSync(process.execPath,
              [

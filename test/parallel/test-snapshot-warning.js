@@ -10,11 +10,10 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
-const path = require('path');
 const fs = require('fs');
 
 const warningScript = fixtures.path('snapshot', 'warning.js');
-const blobPath = path.join(tmpdir.path, 'snapshot.blob');
+const blobPath = tmpdir.resolve('snapshot.blob');
 const empty = fixtures.path('empty.js');
 
 tmpdir.refresh();
@@ -102,8 +101,8 @@ tmpdir.refresh();
 tmpdir.refresh();
 {
   console.log('\n# Check --redirect-warnings');
-  const warningFile1 = path.join(tmpdir.path, 'warnings.txt');
-  const warningFile2 = path.join(tmpdir.path, 'warnings2.txt');
+  const warningFile1 = tmpdir.resolve('warnings.txt');
+  const warningFile2 = tmpdir.resolve('warnings2.txt');
 
   let child = spawnSync(process.execPath, [
     '--snapshot-blob',

@@ -6,18 +6,17 @@ require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
-const path = require('path');
 const fs = require('fs');
 
 tmpdir.refresh();
-const blobPath = path.join(tmpdir.path, 'snapshot.blob');
+const blobPath = tmpdir.resolve('snapshot.blob');
 const code = `
 require('v8').startupSnapshot.setDeserializeMainFunction(() => {
   console.log(JSON.stringify(process.argv));
 });
 `;
 {
-  fs.writeFileSync(path.join(tmpdir.path, 'entry.js'), code, 'utf8');
+  fs.writeFileSync(tmpdir.resolve('entry.js'), code, 'utf8');
   const child = spawnSync(process.execPath, [
     '--snapshot-blob',
     blobPath,
@@ -31,7 +30,7 @@ require('v8').startupSnapshot.setDeserializeMainFunction(() => {
     console.log(child.stdout.toString());
     assert.strictEqual(child.status, 0);
   }
-  const stats = fs.statSync(path.join(tmpdir.path, 'snapshot.blob'));
+  const stats = fs.statSync(tmpdir.resolve('snapshot.blob'));
   assert(stats.isFile());
 }
 

@@ -6,7 +6,6 @@ const stream = require('stream');
 const REPL = require('repl');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const os = require('os');
 const util = require('util');
 
@@ -58,12 +57,11 @@ const CLEAR = { ctrl: true, name: 'u' };
 
 // File paths
 const historyFixturePath = fixtures.path('.node_repl_history');
-const historyPath = path.join(tmpdir.path, '.fixture_copy_repl_history');
+const historyPath = tmpdir.resolve('.fixture_copy_repl_history');
 const historyPathFail = fixtures.path('nonexistent_folder', 'filename');
-const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
+const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 const emptyHiddenHistoryPath = fixtures.path('.empty-hidden-repl-history-file');
-const devNullHistoryPath = path.join(tmpdir.path,
-                                     '.dev-null-repl-history-file');
+const devNullHistoryPath = tmpdir.resolve('.dev-null-repl-history-file');
 // Common message bits
 const prompt = '> ';
 const replDisabled = '\nPersistent history support disabled. Set the ' +
