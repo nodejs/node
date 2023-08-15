@@ -248,6 +248,7 @@ const transformedStream = stream.pipeThrough(transform);
 
 for await (const chunk of transformedStream)
   console.log(chunk);
+  // Prints: A
 ```
 
 ```cjs
@@ -273,6 +274,7 @@ const transformedStream = stream.pipeThrough(transform);
 (async () => {
   for await (const chunk of transformedStream)
     console.log(chunk);
+    // Prints: A
 })();
 ```
 
@@ -410,7 +412,7 @@ async function* asyncIterableGenerator() {
 const stream = ReadableStream.from(asyncIterableGenerator());
 
 for await (const chunk of stream)
-  console.log(chunk); // Prints 'a', 'b', 'c'
+  console.log(chunk); // Prints: 'a', 'b', 'c'
 ```
 
 ```cjs
@@ -426,7 +428,7 @@ async function* asyncIterableGenerator() {
   const stream = ReadableStream.from(asyncIterableGenerator());
 
   for await (const chunk of stream)
-    console.log(chunk); // Prints 'a', 'b', 'c'
+    console.log(chunk); // Prints: 'a', 'b', 'c'
 })();
 ```
 
@@ -1520,6 +1522,7 @@ const dataArray = encoder.encode('hello world from consumers!');
 const readable = Readable.from(dataArray);
 const data = await arrayBuffer(readable);
 console.log(`from readable: ${data.byteLength}`);
+// Prints: from readable: 76
 ```
 
 ```cjs
@@ -1532,6 +1535,7 @@ const dataArray = encoder.encode('hello world from consumers!');
 const readable = Readable.from(dataArray);
 arrayBuffer(readable).then((data) => {
   console.log(`from readable: ${data.byteLength}`);
+  // Prints: from readable: 76
 });
 ```
 
@@ -1553,6 +1557,7 @@ const dataBlob = new Blob(['hello world from consumers!']);
 const readable = dataBlob.stream();
 const data = await blob(readable);
 console.log(`from readable: ${data.size}`);
+// Prints: from readable: 27
 ```
 
 ```cjs
@@ -1563,6 +1568,7 @@ const dataBlob = new Blob(['hello world from consumers!']);
 const readable = dataBlob.stream();
 blob(readable).then((data) => {
   console.log(`from readable: ${data.size}`);
+  // Prints: from readable: 27
 });
 ```
 
@@ -1586,6 +1592,7 @@ const dataBuffer = Buffer.from('hello world from consumers!');
 const readable = Readable.from(dataBuffer);
 const data = await buffer(readable);
 console.log(`from readable: ${data.length}`);
+// Prints: from readable: 27
 ```
 
 ```cjs
@@ -1598,6 +1605,7 @@ const dataBuffer = Buffer.from('hello world from consumers!');
 const readable = Readable.from(dataBuffer);
 buffer(readable).then((data) => {
   console.log(`from readable: ${data.length}`);
+  // Prints: from readable: 27
 });
 ```
 
@@ -1627,6 +1635,7 @@ const items = Array.from(
 const readable = Readable.from(JSON.stringify(items));
 const data = await json(readable);
 console.log(`from readable: ${data.length}`);
+// Prints: from readable: 100
 ```
 
 ```cjs
@@ -1645,6 +1654,7 @@ const items = Array.from(
 const readable = Readable.from(JSON.stringify(items));
 json(readable).then((data) => {
   console.log(`from readable: ${data.length}`);
+  // Prints: from readable: 100
 });
 ```
 
@@ -1665,6 +1675,7 @@ import { Readable } from 'node:stream';
 const readable = Readable.from('Hello world from consumers!');
 const data = await text(readable);
 console.log(`from readable: ${data.length}`);
+// Prints: from readable: 27
 ```
 
 ```cjs
@@ -1674,6 +1685,7 @@ const { Readable } = require('node:stream');
 const readable = Readable.from('Hello world from consumers!');
 text(readable).then((data) => {
   console.log(`from readable: ${data.length}`);
+  // Prints: from readable: 27
 });
 ```
 
