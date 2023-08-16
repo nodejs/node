@@ -974,7 +974,7 @@ ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
       args,
       exec_args);
   if (!setup) {
-    for (const std::string& err : errors)
+    for (const auto& err : errors)
       fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
     return ExitCode::kBootstrapFailure;
   }
