@@ -225,7 +225,7 @@ class StreamResource {
   // These need to be implemented on the readable side of this stream:
 
   // Start reading from the underlying resource. This is called by the consumer
-  // when more data is desired. Use `EmitAlloc()` and `EmitData()` to
+  // when more data is desired. Use `EmitAlloc()` and `EmitRead()` to
   // pass data along to the consumer.
   virtual int ReadStart() = 0;
   // Stop reading from the underlying resource. This is called by the
