@@ -361,7 +361,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   Local<Module> module = obj->module_.Get(isolate);
 
   ContextifyContext* contextify_context = obj->contextify_context_;
-  std::shared_ptr<MicrotaskQueue> microtask_queue;
+  MicrotaskQueue* microtask_queue = nullptr;
   if (contextify_context != nullptr)
       microtask_queue = contextify_context->microtask_queue();
 
