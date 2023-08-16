@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('assert');
+const { spawnSync } = require('child_process');
 const common = require('./');
 const util = require('util');
 
@@ -111,11 +112,21 @@ function expectSyncExit(child, {
   return { child, stderr: stderrStr, stdout: stdoutStr };
 }
 
-function expectSyncExitWithoutError(child, options) {
+function spawnSyncAndExit(...args) {
+  const spawnArgs = args.slice(0, args.length - 1);
+  const expectations = args[args.length - 1];
+  const child = spawnSync(...spawnArgs);
+  return expectSyncExit(child, expectations);
+}
+
+function spawnSyncAndExitWithoutError(...args) {
+  const spawnArgs = args.slice(0, args.length);
+  const expectations = args[args.length - 1];
+  const child = spawnSync(...spawnArgs);
   return expectSyncExit(child, {
     status: 0,
     signal: null,
-    ...options,
+    ...expectations,
   });
 }
 
@@ -124,6 +135,6 @@ module.exports = {
   logAfterTime,
   kExpiringChildRunTime,
   kExpiringParentTimer,
-  expectSyncExit,
-  expectSyncExitWithoutError,
+  spawnSyncAndExit,
+  spawnSyncAndExitWithoutError,
 };
