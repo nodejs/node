@@ -32,7 +32,7 @@ if (common.isWindows) {
     process.execPath,
     [
       '--experimental-permission',
-      `--allow-fs-read=${allowList.join(',')}`,
+      ...allowList.flatMap((path) => ['--allow-fs-read', path]),
       '-e',
       `
         const path = require('path');
@@ -67,7 +67,7 @@ if (common.isWindows) {
     process.execPath,
     [
       '--experimental-permission',
-      `--allow-fs-read=${allowList.join(',')}`,
+      ...allowList.flatMap((path) => ['--allow-fs-read', path]),
       '-e',
       `
         const assert = require('assert')
@@ -92,7 +92,7 @@ if (common.isWindows) {
     process.execPath,
     [
       '--experimental-permission',
-      `--allow-fs-read=${file},${commonPathWildcard},${allowList.join(',')}`,
+      `--allow-fs-read=${file}`, `--allow-fs-read=${commonPathWildcard}`, ...allowList.flatMap((path) => ['--allow-fs-read', path]),
       file,
     ],
   );
