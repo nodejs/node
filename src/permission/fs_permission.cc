@@ -116,9 +116,11 @@ namespace permission {
 
 // allow = '*'
 // allow = '/tmp/,/home/example.js'
-void FSPermission::Apply(const std::string& allow, PermissionScope scope) {
+void FSPermission::Apply(const std::vector<std::string>& allow,
+                         PermissionScope scope) {
   using std::string_view_literals::operator""sv;
-  for (const std::string_view res : SplitString(allow, ","sv)) {
+
+  for (const std::string_view res : allow) {
     if (res == "*"sv) {
       if (scope == PermissionScope::kFileSystemRead) {
         deny_all_in_ = false;

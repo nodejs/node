@@ -532,7 +532,7 @@ Example:
 * `--allow-fs-write=*` - It will allow all `FileSystemWrite` operations.
 * `--allow-fs-write=/tmp/` - It will allow `FileSystemWrite` access to the `/tmp/`
   folder.
-* `--allow-fs-read=/tmp/,/home/.gitignore` - It allows `FileSystemRead` access
+* `--allow-fs-read=/tmp/ --allow-fs-read=/home/.gitignore` - It allows `FileSystemRead` access
   to the `/tmp/` folder **and** the `/home/.gitignore` path.
 
 Wildcards are supported too:
