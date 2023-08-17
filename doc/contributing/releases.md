@@ -182,10 +182,10 @@ metadata, as well as the GitHub labels such as `semver-minor` and
 omitted from a commit, the commit will show up because it's unsure if it's a
 duplicate or not.
 
-For a list of commits that could be landed in a patch release on v1.x:
+For a list of commits that could be landed in a minor release on v1.x:
 
 ```bash
-branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=simple
+branch-diff v1.x-staging main --exclude-label=semver-major,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=simple
 ```
 
 Previously released commits and version bumps do not need to be
@@ -201,12 +201,14 @@ Carefully review the list of commits:
   `baking-for-lts` tag.
 
 When you are ready to cherry-pick commits, you can automate with the following
-command. (For semver-minor releases, make sure to remove the `semver-minor` tag
-from `exclude-label`.)
+command.
 
 ```bash
-branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
+branch-diff v1.x-staging main --exclude-label=semver-major,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
 ```
+
+<sup>For patch releases, make sure to add the `semver-minor` tag
+to `exclude-label`<sup>
 
 When cherry-picking commits, if there are simple conflicts you can resolve
 them. Otherwise, add the `backport-requested-vN.x` label to the original PR
