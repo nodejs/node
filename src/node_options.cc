@@ -1234,6 +1234,13 @@ void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
   Local<Object> ret = Object::New(isolate);
 
   if (ret->Set(context,
+           FIXED_ONE_BYTE_STRING(
+            env->isolate(), "hasPrepareStackTraceCallback"),
+           Boolean::New(isolate,
+            !env->prepare_stack_trace_callback().IsEmpty()))
+      .IsNothing()) return;
+
+  if (ret->Set(context,
            FIXED_ONE_BYTE_STRING(env->isolate(), "shouldNotRegisterESMLoader"),
            Boolean::New(isolate, env->should_not_register_esm_loader()))
       .IsNothing()) return;

@@ -269,6 +269,9 @@ void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
     auto* prepare_stack_trace_cb = s.prepare_stack_trace_callback ?
         s.prepare_stack_trace_callback : PrepareStackTraceCallback;
     isolate->SetPrepareStackTraceCallback(prepare_stack_trace_cb);
+  } else {
+    auto env = Environment::GetCurrent(isolate);
+    env->set_prepare_stack_trace_callback(Local<Function>());
   }
 }
 
