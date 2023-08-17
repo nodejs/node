@@ -8,10 +8,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - 'test/internet/**'
-      - 'internal/dns/**'
-      - 'lib/dns.js'
-      - 'lib/net.js'
+      - test/internet/**
+      - internal/dns/**
+      - lib/dns.js
+      - lib/net.js
   push:
     branches:
       - main
@@ -19,10 +19,10 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths:
-      - 'test/internet/**'
-      - 'internal/dns/**'
-      - 'lib/dns.js'
-      - 'lib/net.js'
+      - test/internet/**
+      - internal/dns/**
+      - lib/dns.js
+      - lib/net.js
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
