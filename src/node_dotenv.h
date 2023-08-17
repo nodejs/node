@@ -7,6 +7,7 @@
 
 #include <map>
 #include <optional>
+#include <vector>
 
 namespace node {
 
@@ -20,7 +21,8 @@ class Dotenv {
   ~Dotenv() = default;
 
   void ParsePath(const std::string_view path);
-  void AssignNodeOptionsIfAvailable(std::string* node_options);
+  void AssignNodeOptionsIfAvailable(std::vector<std::string>* node_options,
+                                    std::vector<std::string>* errors);
   void SetEnvironment(Environment* env);
 
   static std::optional<std::string> GetPathFromArgs(

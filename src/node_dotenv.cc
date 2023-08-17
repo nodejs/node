@@ -1,6 +1,7 @@
 #include "node_dotenv.h"
 #include "env-inl.h"
 #include "node_file.h"
+#include "node_options.h"
 #include "uv.h"
 
 namespace node {
@@ -101,12 +102,15 @@ void Dotenv::ParsePath(const std::string_view path) {
   }
 }
 
-void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) {
+void Dotenv::AssignNodeOptionsIfAvailable(std::vector<std::string>* env_argv,
+                                          std::vector<std::string>* errors) {
   auto match = store_.find("NODE_OPTIONS");
 
-  if (match != store_.end()) {
-    *node_options = match->second;
+  if (match == store_.end()) {
+    return;
   }
+
+  ParseNodeOptionsEnvVar(match->second, env_argv, errors);
 }
 
 void Dotenv::ParseLine(const std::string_view line) {

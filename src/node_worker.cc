@@ -537,8 +537,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     if (maybe_node_opts.ToLocal(&node_opts)) {
       std::string node_options(*String::Utf8Value(isolate, node_opts));
       std::vector<std::string> errors{};
-      std::vector<std::string> env_argv =
-          ParseNodeOptionsEnvVar(node_options, &errors);
+      std::vector<std::string> env_argv{};
+      ParseNodeOptionsEnvVar(node_options, &env_argv, &errors);
       // [0] is expected to be the program name, add dummy string.
       env_argv.insert(env_argv.begin(), "");
       std::vector<std::string> invalid_args{};

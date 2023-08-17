@@ -2,11 +2,17 @@
 
 const common = require('../common');
 const assert = require('node:assert');
+const path = require('node:path');
+const fs = require('node:fs');
 const { describe, it } = require('node:test');
 
 if (process.config.variables.node_without_node_options) {
   common.skip('missing NODE_OPTIONS support');
 }
+
+const tmpdir = require('../common/tmpdir');
+const testDir = tmpdir.path;
+tmpdir.refresh();
 
 const relativePath = '../fixtures/dotenv/node-options.env';
 
@@ -68,6 +74,25 @@ describe('.env supports NODE_OPTIONS', () => {
     );
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
+  });
+
+  it('should merge env variables with .env file', async () => {
+    const filePath = path.join(testDir, 'should-write.txt');
+    const code = `
+      const path = require('path');
+      require('fs').writeFileSync('${filePath}', 'hello', 'utf-8')
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ `--env-file=${relativePath}`, '--eval', code ],
+      { cwd: __dirname, env: { ...process.env, NODE_OPTIONS: '--allow-fs-write=*' } },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.code, 0);
+    assert(fs.existsSync(filePath));
+    fs.unlinkSync(filePath);
+    assert(!fs.existsSync(filePath));
   });
 
 });

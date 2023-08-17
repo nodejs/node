@@ -848,19 +848,23 @@ static ExitCode InitializeNodeWithArgsInternal(
     std::string path = cwd + kPathSeparator + file_path.value();
     CHECK(!per_process::v8_initialized);
     per_process::dotenv_file.ParsePath(path);
-    per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);
   }
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   if (!(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv)) {
-    // NODE_OPTIONS environment variable is preferred over the file one.
-    if (credentials::SafeGetenv("NODE_OPTIONS", &node_options) ||
-        !node_options.empty()) {
-      std::vector<std::string> env_argv =
-          ParseNodeOptionsEnvVar(node_options, errors);
+    std::string node_options;
+    std::vector<std::string> env_argv;
 
-      if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
+    // This behaves like a noop if dotenv does not exist.
+    per_process::dotenv_file.AssignNodeOptionsIfAvailable(&env_argv, errors);
 
+    if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
+      ParseNodeOptionsEnvVar(node_options, &env_argv, errors);
+    }
+
+    if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
+
+    if (!env_argv.empty()) {
       // [0] is expected to be the program name, fill it in from the real argv.
       env_argv.insert(env_argv.begin(), argv->at(0));
 

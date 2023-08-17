@@ -1316,13 +1316,12 @@ void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options,
     env_options->redirect_warnings = opt_getter("NODE_REDIRECT_WARNINGS");
 }
 
-std::vector<std::string> ParseNodeOptionsEnvVar(
-    const std::string& node_options, std::vector<std::string>* errors) {
-  std::vector<std::string> env_argv;
-
+void ParseNodeOptionsEnvVar(const std::string& node_options,
+                            std::vector<std::string>* env_argv,
+                            std::vector<std::string>* errors) {
   bool is_in_string = false;
   bool will_start_new_arg = true;
-  for (std::string::size_type index = 0; index < node_options.size(); ++index) {
+  for (size_t index = 0; index < node_options.size(); ++index) {
     char c = node_options.at(index);
 
     // Backslashes escape the following character
@@ -1330,7 +1329,7 @@ std::vector<std::string> ParseNodeOptionsEnvVar(
       if (index + 1 == node_options.size()) {
         errors->push_back("invalid value for NODE_OPTIONS "
                           "(invalid escape)\n");
-        return env_argv;
+        break;
       } else {
         c = node_options.at(++index);
       }
@@ -1343,10 +1342,10 @@ std::vector<std::string> ParseNodeOptionsEnvVar(
     }
 
     if (will_start_new_arg) {
-      env_argv.emplace_back(std::string(1, c));
+      env_argv->emplace_back(std::string(1, c));
       will_start_new_arg = false;
     } else {
-      env_argv.back() += c;
+      env_argv->back() += c;
     }
   }
 
@@ -1354,7 +1353,6 @@ std::vector<std::string> ParseNodeOptionsEnvVar(
     errors->push_back("invalid value for NODE_OPTIONS "
                       "(unterminated string)\n");
   }
-  return env_argv;
 }
 }  // namespace node
 
