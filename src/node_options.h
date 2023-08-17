@@ -158,6 +158,8 @@ class EnvironmentOptions : public Options {
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   std::string diagnostic_dir;
+  std::string env_file;
+  bool has_env_file_string = false;
   bool test_runner = false;
   bool test_runner_coverage = false;
   std::vector<std::string> test_name_pattern;

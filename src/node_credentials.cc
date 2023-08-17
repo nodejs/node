@@ -123,7 +123,6 @@ bool SafeGetenv(const char* key,
   }
 
 fail:
-  text->clear();
   return false;
 }
 
