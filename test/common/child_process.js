@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { spawnSync } = require('child_process');
+const { spawnSync, execFileSync } = require('child_process');
 const common = require('./');
 const util = require('util');
 
@@ -15,14 +15,13 @@ function cleanupStaleProcess(filename) {
   process.once('beforeExit', () => {
     const basename = filename.replace(/.*[/\\]/g, '');
     try {
-      require('child_process')
-        .execFileSync(`${process.env.SystemRoot}\\System32\\wbem\\WMIC.exe`, [
-          'process',
-          'where',
-          `commandline like '%${basename}%child'`,
-          'delete',
-          '/nointeractive',
-        ]);
+      execFileSync(`${process.env.SystemRoot}\\System32\\wbem\\WMIC.exe`, [
+        'process',
+        'where',
+        `commandline like '%${basename}%child'`,
+        'delete',
+        '/nointeractive',
+      ]);
     } catch {
       // Ignore failures, there might not be any stale process to clean up.
     }
