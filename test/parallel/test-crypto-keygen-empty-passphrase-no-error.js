@@ -12,7 +12,7 @@ const {
 // Passing an empty passphrase string should not throw ERR_OSSL_CRYPTO_MALLOC_FAILURE even on OpenSSL 3.
 // Regression test for https://github.com/nodejs/node/issues/41428.
 generateKeyPair('rsa', {
-  modulusLength: 4096,
+  modulusLength: 1024,
   publicKeyEncoding: {
     type: 'spki',
     format: 'pem'
