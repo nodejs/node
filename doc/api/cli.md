@@ -145,6 +145,10 @@ Error: Access to this API has been restricted
 
 <!-- YAML
 added: v20.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49047
+    description: Paths delimited by comma (`,`) are no longer allowed.
 -->
 
 > Stability: 1 - Experimental
@@ -155,8 +159,11 @@ the [Permission Model][].
 The valid arguments for the `--allow-fs-read` flag are:
 
 * `*` - To allow all `FileSystemRead` operations.
-* Paths delimited by comma (`,`) to allow only matching `FileSystemRead`
-  operations.
+* Multiple paths can be allowed using multiple `--allow-fs-read` flags.
+  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
+
+Paths delimited by comma (`,`) are no longer allowed.
+When passing a single flag with a comma a warning will be diplayed
 
 Examples can be found in the [File System Permissions][] documentation.
 
@@ -192,6 +199,10 @@ node --experimental-permission --allow-fs-read=/path/to/index.js index.js
 
 <!-- YAML
 added: v20.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49047
+    description: Paths delimited by comma (`,`) are no longer allowed.
 -->
 
 > Stability: 1 - Experimental
@@ -202,8 +213,11 @@ the [Permission Model][].
 The valid arguments for the `--allow-fs-write` flag are:
 
 * `*` - To allow all `FileSystemWrite` operations.
-* Paths delimited by comma (`,`) to allow only matching `FileSystemWrite`
-  operations.
+* Multiple paths can be allowed using multiple `--allow-fs-read` flags.
+  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
+
+Paths delimited by comma (`,`) are no longer allowed.
+When passing a single flag with a comma a warning will be diplayed
 
 Examples can be found in the [File System Permissions][] documentation.
 
