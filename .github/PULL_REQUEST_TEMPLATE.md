@@ -10,6 +10,9 @@ For code changes:
 2. Update documentation if relevant.
 3. Ensure that `make -j4 test` (UNIX), or `vcbuild test` (Windows) passes.
 
+If you believe this PR should be highlighted in the Node.js CHANGELOG
+please add the `notable-change` label.
+
 Developer's Certificate of Origin 1.1
 
 By making a contribution to this project, I certify that:
