@@ -12,7 +12,7 @@ const {
 // Test classic Diffie-Hellman key generation.
 {
   generateKeyPair('dh', {
-    primeLength: 1024
+    primeLength: 512
   }, common.mustSucceed((publicKey, privateKey) => {
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'dh');
