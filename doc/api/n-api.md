@@ -5629,7 +5629,7 @@ problems like loss of async context when using the `AsyncLocalStorage` API.
 
 In order to retain ABI compatibility with previous versions, passing `NULL`
 for `async_resource` does not result in an error. However, this is not
-recommended as this will result poor results with  `async_hooks`
+recommended as this will result in undesirable behavior with  `async_hooks`
 [`init` hooks][] and `async_hooks.executionAsyncResource()` as the resource is
 now required by the underlying `async_hooks` implementation in order to provide
 the linkage between async callbacks.
