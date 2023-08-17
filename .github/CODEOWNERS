@@ -148,6 +148,7 @@
 /lib/internal/main/test_runner.js @nodejs/test_runner
 /lib/internal/test_runner/* @nodejs/test_runner
 /lib/test.js @nodejs/test_runner
+/lib/test/reporters.js @nodejs/test_runner
 /test/parallel/test-runner-* @nodejs/test_runner
 
 # Single Executable Applications
