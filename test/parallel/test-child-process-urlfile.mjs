@@ -147,50 +147,51 @@ for (const badFile of [
 }
 
 // Test for malformed file URL objects
-for (const badFile of [
-  new URL('file://nodejs.org/file:///'),
-  new url.URL('file://nodejs.org/file:///'),
-  {
-    href: 'file://nodejs.org/file:///',
-    origin: 'null',
-    protocol: 'file:',
-    username: '',
-    password: '',
-    host: 'nodejs.org',
-    hostname: 'nodejs.org',
-    port: '',
-    pathname: '/file:///',
-    search: '',
-    searchParams: new URLSearchParams(),
-    hash: ''
-  },
-]) {
-  const pwdCommandAndOptions = isWindows ?
-    [badFile, ['/d', '/c', 'cd'], { cwd: cwdUrl }] :
-    [badFile, [], { cwd: cwdUrl }];
+// On Windows, non-empty host is allowed
+if (!isWindows) {
+  for (const badFile of [
+    new URL('file://nodejs.org/file:///'),
+    new url.URL('file://nodejs.org/file:///'),
+    {
+      href: 'file://nodejs.org/file:///',
+      origin: 'null',
+      protocol: 'file:',
+      username: '',
+      password: '',
+      host: 'nodejs.org',
+      hostname: 'nodejs.org',
+      port: '',
+      pathname: '/file:///',
+      search: '',
+      searchParams: new URLSearchParams(),
+      hash: ''
+    },
+  ]) {
+    const pwdCommandAndOptions = [badFile, [], { cwd: cwdUrl }];
 
-  // Passing an URL object with non-empty host
-  // results in TypeError
+    // Passing an URL object with non-empty host
+    // results in TypeError
 
-  throws(
-    () => cp.execFile(...pwdCommandAndOptions, mustNotCall()),
-    { code: 'ERR_INVALID_FILE_URL_HOST' },
-  );
+    throws(
+      () => cp.execFile(...pwdCommandAndOptions, mustNotCall()),
+      { code: 'ERR_INVALID_FILE_URL_HOST' },
+    );
 
-  throws(
-    () => cp.execFileSync(...pwdCommandAndOptions),
-    { code: 'ERR_INVALID_FILE_URL_HOST' },
-  );
+    throws(
+      () => cp.execFileSync(...pwdCommandAndOptions),
+      { code: 'ERR_INVALID_FILE_URL_HOST' },
+    );
 
-  throws(
-    () => cp.spawn(...pwdCommandAndOptions),
-    { code: 'ERR_INVALID_FILE_URL_HOST' },
-  );
+    throws(
+      () => cp.spawn(...pwdCommandAndOptions),
+      { code: 'ERR_INVALID_FILE_URL_HOST' },
+    );
 
-  throws(
-    () => cp.spawnSync(...pwdCommandAndOptions),
-    { code: 'ERR_INVALID_FILE_URL_HOST' },
-  );
+    throws(
+      () => cp.spawnSync(...pwdCommandAndOptions),
+      { code: 'ERR_INVALID_FILE_URL_HOST' },
+    );
+  }
 }
 
 // Test for file URL objects with %2F in path
