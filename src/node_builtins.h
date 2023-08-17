@@ -147,7 +147,8 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
       v8::Local<v8::Context> context,
       const char* id,
       std::vector<v8::Local<v8::String>>* parameters,
-      Result* result);
+      Realm* optional_realm);
+  void SaveCodeCache(const char* id, v8::Local<v8::Function> fn);
 
   static void RecordResult(const char* id,
                            BuiltinLoader::Result result,
