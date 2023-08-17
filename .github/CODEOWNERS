@@ -11,6 +11,8 @@
 # tsc
 
 /.github/CODEOWNERS @nodejs/tsc
+/.github/PULL_REQUEST_TEMPLATE.md @nodejs/tsc
+/.github/ISSUE_TEMPLATE/* @nodejs/tsc
 /CODE_OF_CONDUCT.md @nodejs/tsc
 /CONTRIBUTING.md @nodejs/tsc
 /doc/contributing/*.md @nodejs/tsc
