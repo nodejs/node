@@ -588,6 +588,9 @@ class Environment : public MemoryRetainer {
 
   SET_MEMORY_INFO_NAME(Environment)
 
+  static std::string GetExecPath(const std::vector<std::string>& argv);
+  static std::string GetCwd(const std::string& exec_path);
+
   inline size_t SelfSize() const override;
   bool IsRootNode() const override { return true; }
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -603,8 +606,6 @@ class Environment : public MemoryRetainer {
   void RunDeserializeRequests();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
-
-  std::string GetCwd();
 
 #if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
