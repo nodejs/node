@@ -911,7 +911,7 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
-ExitCode SnapshotBuilder::Generate(
+ExitCode BuildSnapshotWithoutCodeCache(
     SnapshotData* out,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
@@ -933,8 +933,8 @@ ExitCode SnapshotBuilder::Generate(
       fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
     return ExitCode::kBootstrapFailure;
   }
-  Isolate* isolate = setup->isolate();
 
+  Isolate* isolate = setup->isolate();
   {
     HandleScope scope(isolate);
     TryCatch bootstrapCatch(isolate);
@@ -968,7 +968,77 @@ ExitCode SnapshotBuilder::Generate(
     }
   }
 
-  return CreateSnapshot(out, setup.get(), static_cast<uint8_t>(snapshot_type));
+  return SnapshotBuilder::CreateSnapshot(
+      out, setup.get(), static_cast<uint8_t>(snapshot_type));
+}
+
+ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
+                                    const std::vector<std::string>& args,
+                                    const std::vector<std::string>& exec_args) {
+  std::vector<std::string> errors;
+  auto data_wrapper = out->AsEmbedderWrapper();
+  auto setup = CommonEnvironmentSetup::CreateFromSnapshot(
+      per_process::v8_platform.Platform(),
+      &errors,
+      data_wrapper.get(),
+      args,
+      exec_args);
+  if (!setup) {
+    for (const auto& err : errors)
+      fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
+    return ExitCode::kBootstrapFailure;
+  }
+
+  Isolate* isolate = setup->isolate();
+  v8::Locker locker(isolate);
+  Isolate::Scope isolate_scope(isolate);
+  HandleScope handle_scope(isolate);
+  TryCatch bootstrapCatch(isolate);
+
+  auto print_Exception = OnScopeLeave([&]() {
+    if (bootstrapCatch.HasCaught()) {
+      PrintCaughtException(
+          isolate, isolate->GetCurrentContext(), bootstrapCatch);
+    }
+  });
+
+  Environment* env = setup->env();
+  // Regenerate all the code cache.
+  if (!env->builtin_loader()->CompileAllBuiltins(setup->context())) {
+    return ExitCode::kGenericUserError;
+  }
+  env->builtin_loader()->CopyCodeCache(&(out->code_cache));
+  if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
+    for (const auto& item : out->code_cache) {
+      std::string size_str = FormatSize(item.data.length);
+      per_process::Debug(DebugCategory::MKSNAPSHOT,
+                         "Generated code cache for %d: %s\n",
+                         item.id.c_str(),
+                         size_str.c_str());
+    }
+  }
+  return ExitCode::kNoFailure;
+}
+
+ExitCode SnapshotBuilder::Generate(
+    SnapshotData* out,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    std::optional<std::string_view> main_script) {
+  ExitCode code =
+      BuildSnapshotWithoutCodeCache(out, args, exec_args, main_script);
+  if (code != ExitCode::kNoFailure) {
+    return code;
+  }
+
+#ifdef NODE_USE_NODE_CODE_CACHE
+  // Deserialize the snapshot to recompile code cache. We need to do this in the
+  // second pass because V8 requires the code cache to be compiled with a
+  // finalized read-only space.
+  return BuildCodeCacheFromSnapshot(out, args, exec_args);
+#else
+  return ExitCode::kNoFailure;
+#endif
 }
 
 ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
@@ -1020,21 +1090,6 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
       // Serialize the native states
       out->isolate_data_info = setup->isolate_data()->Serialize(creator);
       out->env_info = env->Serialize(creator);
-
-#ifdef NODE_USE_NODE_CODE_CACHE
-      // Regenerate all the code cache.
-      if (!env->builtin_loader()->CompileAllBuiltins(main_context)) {
-        return ExitCode::kGenericUserError;
-      }
-      env->builtin_loader()->CopyCodeCache(&(out->code_cache));
-      for (const auto& item : out->code_cache) {
-        std::string size_str = FormatSize(item.data.length);
-        per_process::Debug(DebugCategory::MKSNAPSHOT,
-                           "Generated code cache for %d: %s\n",
-                           item.id.c_str(),
-                           size_str.c_str());
-      }
-#endif
 
       ResetContextSettingsBeforeSnapshot(main_context);
     }
