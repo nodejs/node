@@ -113,20 +113,20 @@ available-node = \
 .PHONY: all
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run with DEBUG_ONLY=1 in addition to BUILDTYPE=Debug.
-# The .PHONY is needed to ensure that we recursively use the out/Makefile
-# to check for changes.
+
 ifeq ($(BUILDTYPE),Release)
 all: $(NODE_EXE) ## Default target, builds node in out/Release/node.
-.PHONY: $(NODE_EXE)
 else
 ifeq ($(DEBUG_ONLY),1)
 all: $(NODE_G_EXE)
-.PHONY: $(NODE_G_EXE)
 else
 all: $(NODE_EXE) $(NODE_G_EXE)
+endif
+endif
+
+# The .PHONY is needed to ensure that we recursively use the out/Makefile
+# to check for changes.
 .PHONY: $(NODE_EXE) $(NODE_G_EXE)
-endif
-endif
 
 .PHONY: help
 # To add a target to the help, add a double comment (##) on the target line.
@@ -142,10 +142,12 @@ help: ## Print help for targets with comments.
 # See comments on the build-addons target for some more info
 ifeq ($(BUILD_WITH), make)
 $(NODE_EXE): config.gypi out/Makefile
+	@echo "Building release build..."
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
 $(NODE_G_EXE): config.gypi out/Makefile
+	@echo "Building debug build..."
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 
@@ -161,10 +163,12 @@ else
 	NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
 endif
 $(NODE_EXE): config.gypi out/Release/build.ninja
+	@echo "Building release build..."
 	$(NINJA) -C out/Release $(NINJA_ARGS)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
 $(NODE_G_EXE): config.gypi out/Debug/build.ninja
+	@echo "Building debug build..."
 	$(NINJA) -C out/Debug $(NINJA_ARGS)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 else
