@@ -17,7 +17,7 @@ for (let i = 0; i < 10; ++i) {
   }
 }
 
-assert(test_finalizer.getFinalizerCallCount() === 1);
+assert.strictEqual(test_finalizer.getFinalizerCallCount(), 1);
 
 async function runAsyncTests() {
   let js_is_called = false;
