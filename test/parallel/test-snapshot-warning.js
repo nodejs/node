@@ -7,10 +7,9 @@
 require('../common');
 
 const assert = require('assert');
-const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
-const { expectSyncExitWithoutError } = require('../common/child_process');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const fs = require('fs');
 
 const warningScript = fixtures.path('snapshot', 'warning.js');
@@ -20,7 +19,7 @@ const empty = fixtures.path('empty.js');
 tmpdir.refresh();
 {
   console.log('\n# Check snapshot scripts that do not emit warnings.');
-  let child = spawnSync(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     '--build-snapshot',
@@ -28,40 +27,36 @@ tmpdir.refresh();
   ], {
     cwd: tmpdir.path
   });
-  expectSyncExitWithoutError(child);
   const stats = fs.statSync(blobPath);
   assert(stats.isFile());
 
-  child = spawnSync(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     warningScript,
   ], {
     cwd: tmpdir.path
-  });
-  expectSyncExitWithoutError(child, {
+  }, {
     stderr(output) {
       const match = output.match(/Warning: test warning/g);
       assert.strictEqual(match.length, 1);
       return true;
     }
   });
-
 }
 
 tmpdir.refresh();
 {
   console.log('\n# Check snapshot scripts that emit ' +
               'warnings and --trace-warnings hint.');
-  let child = spawnSync(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     '--build-snapshot',
     warningScript,
   ], {
     cwd: tmpdir.path
-  });
-  expectSyncExitWithoutError(child, {
+  }, {
     stderr(output) {
       let match = output.match(/Warning: test warning/g);
       assert.strictEqual(match.length, 1);
@@ -73,15 +68,13 @@ tmpdir.refresh();
   const stats = fs.statSync(blobPath);
   assert(stats.isFile());
 
-  child = spawnSync(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     warningScript,
   ], {
     cwd: tmpdir.path
-  });
-
-  expectSyncExitWithoutError(child, {
+  }, {
     stderr(output) {
       // Warnings should not be handled more than once.
       let match = output.match(/Warning: test warning/g);
@@ -99,7 +92,7 @@ tmpdir.refresh();
   const warningFile1 = tmpdir.resolve('warnings.txt');
   const warningFile2 = tmpdir.resolve('warnings2.txt');
 
-  let child = spawnSync(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     '--redirect-warnings',
@@ -108,9 +101,7 @@ tmpdir.refresh();
     warningScript,
   ], {
     cwd: tmpdir.path
-  });
-
-  expectSyncExitWithoutError(child, {
+  }, {
     stderr(output) {
       assert.doesNotMatch(output, /Warning: test warning/);
     }
@@ -129,7 +120,7 @@ tmpdir.refresh();
     maxRetries: 3, recursive: false, force: true
   });
 
-  child = spawnSync(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     '--redirect-warnings',
@@ -137,9 +128,7 @@ tmpdir.refresh();
     warningScript,
   ], {
     cwd: tmpdir.path
-  });
-
-  expectSyncExitWithoutError(child, {
+  }, {
     stderr(output) {
       assert.doesNotMatch(output, /Warning: test warning/);
       return true;
