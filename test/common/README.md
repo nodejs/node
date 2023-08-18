@@ -40,17 +40,16 @@ The `benchmark` module is used by tests to run benchmarks.
 
 The `child_process` module is used by tests that launch child processes.
 
-### `expectSyncExit(child, options)`
+### `spawnSyncAndExit(command[, args][, spawnOptions], expectations)`
 
-Checks if a _synchronous_ child process runs in the way expected. If it does
-not, print the stdout and stderr output from the child process and additional
-information about it to the stderr of the current process before throwing
-and error. This helps gathering more information about test failures
-coming from child processes.
+Spawns a child process synchronously using [`child_process.spawnSync()`][] and
+check if it runs in the way expected. If it does not, print the stdout and
+stderr output from the child process and additional information about it to
+the stderr of the current process before throwing and error. This helps
+gathering more information about test failures coming from child processes.
 
-* `child` [\<ChildProcess>][<ChildProcess>]: a `ChildProcess` instance
-  returned by `child_process.spawnSync()`.
-* `options` [\<Object>][<Object>]
+* `command`, `args`, `spawnOptions` See [`child_process.spawnSync()`][]
+* `expectations` [\<Object>][<Object>]
   * `status` [\<number>][<number>] Expected `child.status`
   * `signal` [\<string>][<string>] | `null` Expected `child.signal`
   * `stderr` [\<string>][<string>] | [\<RegExp>][<RegExp>] |
@@ -65,8 +64,13 @@ coming from child processes.
   * `trim` [\<boolean>][<boolean>] Optional. Whether this method should trim
     out the whitespace characters when checking `stderr` and `stdout` outputs.
     Defaults to `false`.
+* return [\<Object>][<Object>]
+  * `child` [\<ChildProcess>][<ChildProcess>] The child process returned by
+    [`child_process.spawnSync()`][].
+  * `stderr` [\<string>][<string>] The output from the child process to stderr.
+  * `stdout` [\<string>][<string>] The output from the child process to stdout.
 
-### `expectSyncExitWithoutError(child[, options])`
+### `spawnSyncAndExitWithoutError(command[, args][, spawnOptions], expectations)`
 
 Similar to `expectSyncExit()` with the `status` expected to be 0 and
 `signal` expected to be `null`. Any other optional options are passed
@@ -1160,6 +1164,7 @@ See [the WPT tests README][] for details.
 [<number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [<string>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
+[`child_process.spawnSync()`]: ../../doc/api/child_process.md#child_processspawnsynccommand-args-options
 [`hijackstdio.hijackStdErr()`]: #hijackstderrlistener
 [`hijackstdio.hijackStdOut()`]: #hijackstdoutlistener
 [internationalization]: ../../doc/api/intl.md
