@@ -10,7 +10,7 @@ const os = require('os');
 
 const fixture = fixtures.path('exit.js');
 const echoFixture = fixtures.path('echo.js');
-const execOpts = { encoding: 'utf8', shell: true, env: { NODE: process.execPath, FIXTURE: fixture } };
+const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: process.execPath, FIXTURE: fixture } };
 
 {
   execFile(

@@ -44,7 +44,7 @@ let server;
 
 function executeRequest(cb) {
   cp.exec('"$NODE" "$FILE" request "$PORT" | "$NODE" "$FILE" shasum',
-          { env: { NODE: process.execPath, FILE: __filename, PORT: server.address().port } },
+          { env: { ...process.env, NODE: process.execPath, FILE: __filename, PORT: server.address().port } },
           (err, stdout, stderr) => {
             if (stderr.trim() !== '') {
               console.log(stderr);

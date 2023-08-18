@@ -32,7 +32,7 @@ console.log(`${cmd}\n\n`);
 fs.writeFileSync(tmpFile, string);
 
 childProcess.exec(cmd, { env: {
-  NODE: process.argv0, STDOUT_SCRIPT: stdoutScript, TMP_FILE: tmpFile
+  ...process.env, NODE: process.argv0, STDOUT_SCRIPT: stdoutScript, TMP_FILE: tmpFile,
 } }, common.mustCall(function(err, stdout, stderr) {
   fs.unlinkSync(tmpFile);
 

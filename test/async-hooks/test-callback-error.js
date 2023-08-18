@@ -67,7 +67,7 @@ assert.ok(!arg);
     program = `ulimit -c 0 && exec "$NODE" ${args[0]} "$FILE" ${args[2]}`;
     args = [];
     options.shell = true;
-    options.env = { NODE: process.execPath, FILE: __filename };
+    options.env = { ...process.env, NODE: process.execPath, FILE: __filename };
   }
   const child = spawnSync(program, args, options);
   if (common.isWindows) {

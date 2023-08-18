@@ -29,7 +29,8 @@ function errExec(script, option, callback) {
   callback = typeof option === 'function' ? option : callback;
   option = typeof option === 'string' ? option : '';
   const cmd = `"$NODE" ${option} "$SCRIPT"`;
-  return exec(cmd, { env: { NODE: process.execPath, SCRIPT: fixtures.path(script) } }, (err, stdout, stderr) => {
+  const env = { ...process.env, NODE: process.execPath, SCRIPT: fixtures.path(script) };
+  return exec(cmd, { env }, (err, stdout, stderr) => {
     // There was some error
     assert.ok(err);
 

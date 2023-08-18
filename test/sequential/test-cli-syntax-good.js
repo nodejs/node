@@ -29,7 +29,7 @@ const syntaxArgs = [
     const _args = args.concat('"$FILE"');
 
     const cmd = ['"$NODE"', ..._args].join(' ');
-    exec(cmd, { env: { NODE: node, FILE: file } }, common.mustCall((err, stdout, stderr) => {
+    exec(cmd, { env: { ...process.env, NODE: node, FILE: file } }, common.mustCall((err, stdout, stderr) => {
       if (err) {
         console.log('-- stdout --');
         console.log(stdout);

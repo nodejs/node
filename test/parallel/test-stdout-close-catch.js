@@ -12,7 +12,7 @@ const cmd = '"$NODE" ' +
             '"$NODE" ' +
             '-pe "process.stdin.on(\'data\' , () => process.exit(1))"';
 
-const child = child_process.exec(cmd, { env: { NODE: process.execPath, TEST_SCRIPT: testScript } });
+const child = child_process.exec(cmd, { env: { ...process.env, NODE: process.execPath, TEST_SCRIPT: testScript } });
 let output = '';
 
 child.stderr.on('data', function(c) {

@@ -10,7 +10,7 @@ function runChecks(err, stdio, streamName, expected) {
   assert.deepStrictEqual(stdio[streamName], expected);
 }
 
-const env = { NODE: process.execPath };
+const env = { ...process.env, NODE: process.execPath };
 
 // default value
 {

@@ -26,7 +26,7 @@ const exec = require('child_process').exec;
 const cmd = '"$NODE" "$FILE" child < "$TMP_FILE"';
 exec(
   cmd,
-  { maxBuffer: 1000000, env: { NODE: process.execPath, FILE: __filename, TMP_FILE: filename } },
+  { maxBuffer: 1000000, env: { ...process.env, NODE: process.execPath, FILE: __filename, TMP_FILE: filename } },
   common.mustSucceed((stdout, stderr) => {
     assert.strictEqual(stdout, dataExpected);
     assert.strictEqual(stderr, '');

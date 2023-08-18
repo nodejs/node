@@ -104,7 +104,7 @@ if (process.argv[2] === 'child') {
 
     cmdToExec += `"$NODE" ${cmdLineOption ? cmdLineOption : ''} "$FILE" child ${throwInDomainErrHandlerOpt} ${useTryCatchOpt}`;
 
-    const child = exec(cmdToExec, { env: { NODE: process.execPath, FILE: __filename } });
+    const child = exec(cmdToExec, { env: { ...process.env, NODE: process.execPath, FILE: __filename } });
 
     if (child) {
       child.on('exit', function onChildExited(exitCode, signal) {

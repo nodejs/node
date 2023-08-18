@@ -30,7 +30,7 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
   syntaxArgs.forEach(function(args) {
     const _args = args.concat('"$FILE"');
     const cmd = ['"$NODE"', ..._args].join(' ');
-    exec(cmd, { env: { NODE: node, FILE: file } }, common.mustCall((err, stdout, stderr) => {
+    exec(cmd, { env: { ...process.env, NODE: node, FILE: file } }, common.mustCall((err, stdout, stderr) => {
       assert.strictEqual(err instanceof Error, true);
       assert.strictEqual(err.code, 1,
                          `code ${err.code} !== 1 for error:\n\n${err}`);

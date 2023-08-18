@@ -13,7 +13,7 @@ if (process.argv[2] === 'child') {
   console.error(stderrData);
 } else {
   const cmd = '"$NODE" "$FILE" child';
-  const env = { NODE: process.execPath, FILE: __filename };
+  const env = { ...process.env, NODE: process.execPath, FILE: __filename };
   const child = cp.exec(cmd, { env }, common.mustSucceed((stdout, stderr) => {
     assert.strictEqual(stdout, expectedStdout);
     assert.strictEqual(stderr, expectedStderr);

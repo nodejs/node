@@ -213,7 +213,7 @@ if (process.argv[2] === 'child') {
                `"$FILE" child ${testIndex}`;
 
     try {
-      child_process.execSync(testCmd, { env: { NODE: process.execPath, FILE: __filename } });
+      child_process.execSync(testCmd, { env: { ...process.env, NODE: process.execPath, FILE: __filename } });
     } catch (e) {
       assert.fail(`Test index ${testIndex} failed: ${e}`);
     }

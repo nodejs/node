@@ -25,7 +25,7 @@ if (process.argv[2] === 'child') {
 const cmd = '"$NODE" "$FILE" child';
 
 cp.exec(cmd, {
-  env: { NODE: process.execPath, FILE: __filename },
+  env: { ...process.env, NODE: process.execPath, FILE: __filename },
   timeout: kTimeoutNotSupposedToExpire
 }, common.mustSucceed((stdout, stderr) => {
   assert.strictEqual(stdout.trim(), 'child stdout');

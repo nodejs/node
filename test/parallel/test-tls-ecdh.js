@@ -52,7 +52,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
   const cmd = `"$OPENSSL" s_client -cipher ${
     options.ciphers} -connect 127.0.0.1:${this.address().port}`;
 
-  exec(cmd, { env: { OPENSSL: common.opensslCli } }, common.mustSucceed((stdout, stderr) => {
+  exec(cmd, { env: { ...process.env, OPENSSL: common.opensslCli } }, common.mustSucceed((stdout, stderr) => {
     assert(stdout.includes(reply));
     server.close();
   }));

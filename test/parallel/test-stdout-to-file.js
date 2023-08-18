@@ -25,6 +25,7 @@ function test(size, useBuffer, cb) {
   console.log(`${size} chars to ${tmpFile}...`);
 
   childProcess.exec(cmd, { env: {
+    ...process.env,
     NODE: process.execPath,
     SCRIPT: useBuffer ? scriptBuffer : scriptString,
     TMP_FILE: tmpFile,

@@ -13,7 +13,7 @@ const domain = require('domain');
 const uncaughtExceptionHandlerErrMsg = 'boom from uncaughtException handler';
 const domainErrMsg = 'boom from domain';
 
-const env = { NODE: process.execPath, FILE: __filename };
+const env = { ...process.env, NODE: process.execPath, FILE: __filename };
 const RAN_UNCAUGHT_EXCEPTION_HANDLER_EXIT_CODE = 42;
 
 if (process.argv[2] === 'child') {

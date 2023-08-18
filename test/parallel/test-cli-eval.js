@@ -32,7 +32,7 @@ const assert = require('assert');
 const child = require('child_process');
 const path = require('path');
 const fixtures = require('../common/fixtures');
-const env = { NODE: process.execPath };
+const env = { ...process.env, NODE: process.execPath };
 
 if (process.argv.length > 2) {
   console.log(process.argv.slice(2).join(' '));
@@ -75,7 +75,7 @@ child.exec('"$NODE" --eval "console.error(42)"',
   const filename = __filename.replace(/\\/g, '/');
 
   child.exec('"$NODE" --eval "$SCRIPT"',
-             { env: { NODE: process.execPath, SCRIPT: `require(${JSON.stringify(filename)})` } },
+             { env: { ...process.env, NODE: process.execPath, SCRIPT: `require(${JSON.stringify(filename)})` } },
              common.mustCall((err, stdout, stderr) => {
                assert.strictEqual(err.code, 42);
                assert.strictEqual(
@@ -139,7 +139,7 @@ child.exec('"$NODE" --use-strict -p process.execArgv',
   }
 
   child.exec('"$NODE" -e "$SCRIPT"',
-             { env: { NODE: process.execPath, SCRIPT: `require("child_process").fork(${JSON.stringify(emptyFile)})` } },
+             { env: { ...process.env, NODE: process.execPath, SCRIPT: `require("child_process").fork(${JSON.stringify(emptyFile)})` } },
              common.mustSucceed((stdout, stderr) => {
                assert.strictEqual(stdout, '');
                assert.strictEqual(stderr, '');
@@ -147,7 +147,7 @@ child.exec('"$NODE" --use-strict -p process.execArgv',
 
   // Make sure that monkey-patching process.execArgv doesn't cause child_process
   // to incorrectly munge execArgv.
-  child.exec('"$NODE" -e "$SCRIPT"', { env: { NODE: process.execPath, SCRIPT:
+  child.exec('"$NODE" -e "$SCRIPT"', { env: { ...process.env, NODE: process.execPath, SCRIPT:
               'process.execArgv = [\'-e\', \'console.log(42)\', \'thirdArg\'];' +
               `require('child_process').fork(${JSON.stringify(emptyFile)})` } },
              common.mustSucceed((stdout, stderr) => {
@@ -219,7 +219,7 @@ child.exec('"$NODE" --use-strict -p process.execArgv',
   // filename.
   const filecmd = `"$NODE" -- "$FILE" ${args}`;
   child.exec(filecmd,
-             { env: { NODE: process.execPath, FILE: __filename } },
+             { env: { ...process.env, NODE: process.execPath, FILE: __filename } },
              common.mustCall(function(err, stdout, stderr) {
                assert.strictEqual(stdout, `${args}\n`);
                assert.strictEqual(stderr, '');

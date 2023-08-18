@@ -198,7 +198,7 @@ if (!common.isWindows) {
   const filename = `${tmpdir.path}/foo.pipe`;
   const mkfifoResult = child_process.spawnSync('mkfifo', [filename]);
   if (!mkfifoResult.error) {
-    child_process.exec('echo "xyz foobar" > "$FILE"', { env: { FILE: filename } });
+    child_process.exec('echo "xyz foobar" > "$FILE"', { env: { ...process.env, FILE: filename } });
     const stream = new fs.createReadStream(filename, common.mustNotMutateObjectDeep({ end: 1 }));
     stream.data = '';
 

@@ -28,6 +28,7 @@ fs.writeFileSync(filename, dataExpected);
 const exec = require('child_process').exec;
 const cmd = '"$NODE" "$FILE" child < "$TMP_FILE"';
 exec(cmd, { maxBuffer: 1000000, env: {
+  ...process.env,
   NODE: process.execPath,
   FILE: __filename,
   TMP_FILE: filename,

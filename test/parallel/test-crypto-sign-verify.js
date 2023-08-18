@@ -629,7 +629,8 @@ assert.throws(
     '"$MSGFILE"',
   ].join(' ');
 
-  exec(cmd, { env: { OPENSSL: common.opensslCli,
+  exec(cmd, { env: { ...process.env,
+                     OPENSSL: common.opensslCli,
                      PUBFILE: pubfile,
                      SIGFILE: sigfile,
                      MSGFILE: msgfile } }, common.mustCall((err, stdout, stderr) => {

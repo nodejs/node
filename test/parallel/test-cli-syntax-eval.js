@@ -11,7 +11,7 @@ const node = process.execPath;
   ['-e', '--eval'].forEach(function(evalFlag) {
     const args = [checkFlag, evalFlag, 'foo'];
     const cmd = ['"$NODE"', ...args].join(' ');
-    exec(cmd, { env: { NODE: node } }, common.mustCall((err, stdout, stderr) => {
+    exec(cmd, { env: { ...process.env, NODE: node } }, common.mustCall((err, stdout, stderr) => {
       assert.strictEqual(err instanceof Error, true);
       assert.strictEqual(err.code, 9);
       assert(

@@ -14,7 +14,7 @@ if (process.argv[2] === 'child') {
 } else {
   const cp = require('child_process');
   cp.exec('echo hello | "$NODE" "$FILE" child', {
-    env: { NODE: process.execPath, FILE: __filename }
+    env: { ...process.env, NODE: process.execPath, FILE: __filename }
   }, common.mustSucceed((stdout) => {
     assert.strictEqual(stdout.split(os.EOL).shift().trim(), 'hello');
   }));

@@ -38,7 +38,7 @@ if (common.isWindows) {
   SLEEP = 10000;
 }
 
-const execOpts = { encoding: 'utf8', shell: true, env: { NODE: process.execPath } };
+const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: process.execPath } };
 
 // Verify that stderr is not accessed when a bad shell is used
 assert.throws(
@@ -55,7 +55,7 @@ let ret, err;
 const start = Date.now();
 try {
   const cmd = `"$NODE" -e "setTimeout(function(){}, ${SLEEP});"`;
-  ret = execSync(cmd, { env: { NODE: process.execPath }, timeout: TIMER });
+  ret = execSync(cmd, { env: { ...process.env, NODE: process.execPath }, timeout: TIMER });
 } catch (e) {
   caught = true;
   assert.strictEqual(getSystemErrorName(e.errno), 'ETIMEDOUT');
@@ -81,13 +81,13 @@ const msgBuf = Buffer.from(`${msg}\n`);
 const cmd = `"$NODE" -e 'console.log(${JSON.stringify(msg)})'`;
 
 {
-  const ret = execSync(cmd, { env: { NODE: process.execPath } });
+  const ret = execSync(cmd, { env: { ...process.env, NODE: process.execPath } });
   assert.strictEqual(ret.length, msgBuf.length);
   assert.deepStrictEqual(ret, msgBuf);
 }
 
 {
-  const ret = execSync(cmd, { encoding: 'utf8', env: { NODE: process.execPath } });
+  const ret = execSync(cmd, { encoding: 'utf8', env: { ...process.env, NODE: process.execPath } });
   assert.strictEqual(ret, `${msg}\n`);
 }
 

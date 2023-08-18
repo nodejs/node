@@ -31,7 +31,7 @@ const cmdline =
   'ulimit -c 0; "$NODE" --max-old-space-size=16 --max-semi-space-size=4' +
   ' -e "a = []; for (i = 0; i < 1e9; i++) { a.push({}) }"';
 
-exec(cmdline, { env: { NODE: process.execPath } }, common.mustCall((err, stdout, stderr) => {
+exec(cmdline, { env: { ...process.env, NODE: process.execPath } }, common.mustCall((err, stdout, stderr) => {
   if (err?.code !== 134 && err?.signal !== 'SIGABRT') {
     console.log({ err, stdout, stderr });
     assert.fail(err?.message);

@@ -18,7 +18,7 @@ const args = [
 // Verify that an error is returned if maxBuffer is surpassed.
 {
   assert.throws(() => {
-    execSync(`"$NODE" ${args.join(' ')}`, { env: { NODE: process.execPath }, maxBuffer: 1 });
+    execSync(`"$NODE" ${args.join(' ')}`, { env: { ...process.env, NODE: process.execPath }, maxBuffer: 1 });
   }, (e) => {
     assert.ok(e, 'maxBuffer should error');
     assert.strictEqual(e.code, 'ENOBUFS');
@@ -34,7 +34,7 @@ const args = [
 {
   const ret = execSync(
     `"$NODE" ${args.join(' ')}`,
-    { env: { NODE: process.execPath }, maxBuffer: Infinity },
+    { env: { ...process.env, NODE: process.execPath }, maxBuffer: Infinity },
   );
 
   assert.deepStrictEqual(ret, msgOutBuf);
@@ -45,7 +45,7 @@ const args = [
   assert.throws(() => {
     execSync(
       '"$NODE" -e "console.log(\'a\'.repeat(1024 * 1024))"',
-      { env: { NODE: process.execPath } },
+      { env: { ...process.env, NODE: process.execPath } },
     );
   }, (e) => {
     assert.ok(e, 'maxBuffer should error');
@@ -59,7 +59,7 @@ const args = [
 {
   const ret = execSync(
     '"$NODE" -e "console.log(\'a\'.repeat(1024 * 1024 - 1))"',
-    { env: { NODE: process.execPath } },
+    { env: { ...process.env, NODE: process.execPath } },
   );
 
   assert.deepStrictEqual(
