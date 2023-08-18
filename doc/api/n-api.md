@@ -3130,7 +3130,9 @@ napi_status napi_get_buffer_info(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This method returns the identical `data` and `byte_length` as \[`napi_get_typedarray_info`]\[]. And `napi_get_typedarray_info` accepts a `node::Buffer` (a Uint8Array) as the value too.
+This method returns the identical `data` and `byte_length` as
+[`napi_get_typedarray_info`][]. And `napi_get_typedarray_info` accepts a
+`node::Buffer` (a Uint8Array) as the value too.
 
 This API is used to retrieve the underlying data buffer of a `node::Buffer`
 and its length.
@@ -6559,6 +6561,7 @@ the add-on's file name during loading.
 [`napi_get_last_error_info`]: #napi_get_last_error_info
 [`napi_get_property`]: #napi_get_property
 [`napi_get_reference_value`]: #napi_get_reference_value
+[`napi_get_typedarray_info`]: #napi_get_typedarray_info
 [`napi_get_value_external`]: #napi_get_value_external
 [`napi_has_property`]: #napi_has_property
 [`napi_instanceof`]: #napi_instanceof
