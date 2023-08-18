@@ -124,6 +124,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 
 #include <string>
 #include <tuple>
@@ -858,8 +859,12 @@ static ExitCode InitializeNodeWithArgsInternal(
     auto cwd = Environment::GetCwd(Environment::GetExecPath(*argv));
 
     for (const auto& file_path : file_paths) {
-      std::string path = cwd + kPathSeparator + file_path;
-      per_process::dotenv_file.ParsePath(path);
+      if (file_path.is_absolute()) {
+        per_process::dotenv_file.ParsePath(file_path.string());
+      } else {
+        std::string path = cwd + kPathSeparator + file_path.string();
+        per_process::dotenv_file.ParsePath(path);
+      }
     }
 
     per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);

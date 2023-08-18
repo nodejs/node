@@ -2,10 +2,13 @@
 
 const common = require('../common');
 const assert = require('node:assert');
+const path = require('node:path');
+const fixtures = require('../common/fixtures');
 const { describe, it } = require('node:test');
 
-const validEnvFilePath = '../fixtures/dotenv/valid.env';
-const nodeOptionsEnvFilePath = '../fixtures/dotenv/node-options.env';
+const validEnvFilePath = path.relative(__dirname, fixtures.path('dotenv/valid.env'));
+const absolutePath = fixtures.path('dotenv/node-options.env');
+const relativePath = path.relative(__dirname, absolutePath);
 
 describe('.env supports edge cases', () => {
 
@@ -18,7 +21,7 @@ describe('.env supports edge cases', () => {
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
-      [ `--env-file=${nodeOptionsEnvFilePath}`, `--env-file=${validEnvFilePath}`, '--eval', code ],
+      [ `--env-file=${relativePath}`, `--env-file=${validEnvFilePath}`, '--eval', code ],
       { cwd: __dirname },
     );
     assert.strictEqual(child.stderr, '');
@@ -47,6 +50,19 @@ describe('.env supports edge cases', () => {
       process.execPath,
       [ `--env-file=${validEnvFilePath}`, '--eval', code ],
       { cwd: __dirname, env: { ...process.env, BASIC: 'existing' } },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('should support absolute paths', async () => {
+    const code = `
+      require('assert').strictEqual(process.env.CUSTOM_VARIABLE, 'hello-world');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--env-file', absolutePath, '--eval', code ],
+      { cwd: __dirname },
     );
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);

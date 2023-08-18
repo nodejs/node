@@ -5,6 +5,7 @@
 
 #include "util-inl.h"
 
+#include <filesystem>
 #include <map>
 
 namespace node {
@@ -22,7 +23,7 @@ class Dotenv {
   void AssignNodeOptionsIfAvailable(std::string* node_options);
   void SetEnvironment(Environment* env);
 
-  static std::vector<std::string> GetPathFromArgs(
+  static std::vector<std::filesystem::path> GetPathFromArgs(
       const std::vector<std::string>& args);
 
  private:

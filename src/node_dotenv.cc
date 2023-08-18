@@ -8,20 +8,20 @@ namespace node {
 using v8::NewStringType;
 using v8::String;
 
-std::vector<std::string> Dotenv::GetPathFromArgs(
+std::vector<std::filesystem::path> Dotenv::GetPathFromArgs(
     const std::vector<std::string>& args) {
   const auto find_match = [](const std::string& arg) {
     const std::string_view flag = "--env-file";
     return strncmp(arg.c_str(), flag.data(), flag.size()) == 0;
   };
-  std::vector<std::string> paths;
+  std::vector<std::filesystem::path> paths;
   auto path = std::find_if(args.begin(), args.end(), find_match);
 
   while (path != args.end()) {
     auto equal_char = path->find('=');
 
     if (equal_char != std::string::npos) {
-      paths.push_back(path->substr(equal_char + 1));
+      paths.push_back(std::filesystem::path(path->substr(equal_char + 1)));
     } else {
       auto next_path = std::next(path);
 
@@ -29,7 +29,7 @@ std::vector<std::string> Dotenv::GetPathFromArgs(
         return paths;
       }
 
-      paths.push_back(*next_path);
+      paths.push_back(std::filesystem::path(*next_path));
     }
 
     path = std::find_if(++path, args.end(), find_match);
