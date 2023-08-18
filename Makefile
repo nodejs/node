@@ -113,13 +113,18 @@ available-node = \
 .PHONY: all
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run with DEBUG_ONLY=1 in addition to BUILDTYPE=Debug.
+# The .PHONY is needed to ensure that we recursively use the out/Makefile
+# to check for changes.
 ifeq ($(BUILDTYPE),Release)
 all: $(NODE_EXE) ## Default target, builds node in out/Release/node.
+.PHONY: $(NODE_EXE)
 else
 ifeq ($(DEBUG_ONLY),1)
 all: $(NODE_G_EXE)
+.PHONY: $(NODE_G_EXE)
 else
 all: $(NODE_EXE) $(NODE_G_EXE)
+.PHONY: $(NODE_EXE) $(NODE_G_EXE)
 endif
 endif
 
@@ -130,22 +135,20 @@ help: ## Print help for targets with comments.
 	@grep -E '^[[:alnum:]._-]+:.*?## .*$$' Makefile | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-# The .PHONY is needed to ensure that we recursively use the out/Makefile
-# to check for changes.
-.PHONY: $(NODE_EXE) $(NODE_G_EXE)
-
 # The -r/-L check stops it recreating the link if it is already in place,
 # otherwise $(NODE_EXE) being a .PHONY target means it is always re-run.
 # Without the check there is a race condition between the link being deleted
 # and recreated which can break the addons build when running test-ci
 # See comments on the build-addons target for some more info
 ifeq ($(BUILD_WITH), make)
-$(NODE_EXE): build_type:=Release
-$(NODE_G_EXE): build_type:=Debug
-$(NODE_EXE) $(NODE_G_EXE): config.gypi out/Makefile
-	$(MAKE) -C out BUILDTYPE=${build_type} V=$(V)
-	if [ ! -r $@ ] || [ ! -L $@ ]; then \
-	  ln -fs out/${build_type}/$(NODE_EXE) $@; fi
+$(NODE_EXE): config.gypi out/Makefile
+	$(MAKE) -C out BUILDTYPE=Release V=$(V)
+	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
+
+$(NODE_G_EXE): config.gypi out/Makefile
+	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
+	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
+
 else
 ifeq ($(BUILD_WITH), ninja)
 NINJA ?= ninja
