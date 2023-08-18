@@ -27,6 +27,7 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "string_bytes.h"
 #include "uv.h"
@@ -677,13 +678,16 @@ Local<String> UnionBytes::ToStringChecked(Isolate* isolate) const {
   }
 }
 
-RAIIIsolate::RAIIIsolate()
+RAIIIsolate::RAIIIsolate(const SnapshotData* data)
     : allocator_{ArrayBuffer::Allocator::NewDefaultAllocator()} {
   isolate_ = Isolate::Allocate();
   CHECK_NOT_NULL(isolate_);
   per_process::v8_platform.Platform()->RegisterIsolate(isolate_,
                                                        uv_default_loop());
   Isolate::CreateParams params;
+  if (data != nullptr) {
+    SnapshotBuilder::InitializeIsolateParams(data, &params);
+  }
   params.array_buffer_allocator = allocator_.get();
   Isolate::Initialize(isolate_, params);
 }
