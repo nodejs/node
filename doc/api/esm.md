@@ -377,7 +377,33 @@ behind the `--experimental-import-meta-resolve` flag:
 * `parent` {string|URL} An optional absolute parent module URL to resolve from.
 
 > **Caveat** This feature is not available within custom loaders (it would
-> create a deadlock).
+> create a deadlock). Use [`import.meta.node.resolveURL`][] instead.
+
+### `import.meta.node.resolveURL(specifier[, parentURL])`
+
+<!--
+added: REPLACEME
+-->
+
+> Stability: 1 – Experimental
+
+* `specifier` {string|URL} The module specifier to resolve relative to the
+  `parentURL`.
+* `parentURL` {string|URL} The URL to resolve the specifier. **Default:** `import.meta.url`.
+* Returns: {Promise} Fulfills with a {URL} representing the absolute URL of the resolved specifier.
+
+> **Caveat**: This is a Node.js specific API, consider using
+> [`import.meta.resolve`](#importmetaresolvespecifier) for a more portable code
+> if you don't need the second argument and do not intend your module to run in
+> a custom loader.
+
+```js
+import { readFile } from 'node:fs/promises';
+
+const data = await readFile(await import.meta.node.resolveURL('./data.txt'), 'utf-8');
+// This is equivalent to (but also available in custom loaders):
+const data2 = await readFile(new URL(import.meta.resolve('./data.txt')), 'utf-8');
+```
 
 ## Interoperability with CommonJS
 
@@ -514,7 +540,7 @@ They can instead be loaded with [`module.createRequire()`][] or
 Relative resolution can be handled via `new URL('./local', import.meta.url)`.
 
 For a complete `require.resolve` replacement, there is the
-[import.meta.resolve][] API.
+[`import.meta.node.resolveURL`][] API.
 
 Alternatively `module.createRequire()` can be used.
 
@@ -1711,6 +1737,7 @@ for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #import-expressions
 [`import.meta.resolve`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta/resolve
+[`import.meta.node.resolveURL`]: #importmetanoderesolveurlspecifier-parenturl
 [`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`initialize`]: #initialize
@@ -1728,7 +1755,6 @@ for ESM specifiers is [commonjs-extension-resolution-loader][].
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
 [commonjs-extension-resolution-loader]: https://github.com/nodejs/loaders-test/tree/main/commonjs-extension-resolution-loader
 [custom https loader]: #https-loader
-[import.meta.resolve]: #importmetaresolvespecifier
 [load hook]: #loadurl-context-nextload
 [percent-encoded]: url.md#percent-encoding-in-urls
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
