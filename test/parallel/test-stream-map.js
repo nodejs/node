@@ -8,6 +8,25 @@ const assert = require('assert');
 const { once } = require('events');
 const { setTimeout } = require('timers/promises');
 
+function createDependentPromises(n) {
+  const promiseAndResolveArray = [];
+
+  for (let i = 0; i < n; i++) {
+    let res;
+    const promise = new Promise((resolve) => {
+      if (i === 0) {
+        res = resolve;
+        return;
+      }
+      res = () => promiseAndResolveArray[i - 1][0].then(resolve);
+    });
+
+    promiseAndResolveArray.push([promise, res]);
+  }
+
+  return promiseAndResolveArray;
+}
+
 {
   // Map works on synchronous streams with a synchronous mapper
   const stream = Readable.from([1, 2, 3, 4, 5]).map((x) => x + x);
@@ -171,6 +190,104 @@ const { setTimeout } = require('timers/promises');
       assert.strictEqual(item, expected.shift());
     }
   })().then(common.mustCall());
+}
+
+
+{
+  // highWaterMark with small concurrency
+  const finishOrder = [];
+
+  const promises = createDependentPromises(4);
+
+  const raw = Readable.from([2, 0, 1, 3]);
+  const stream = raw.map(async (item) => {
+    const [promise, resolve] = promises[item];
+    resolve();
+
+    await promise;
+    finishOrder.push(item);
+    return item;
+  }, { concurrency: 2 });
+
+  (async () => {
+    await stream.toArray();
+
+    assert.deepStrictEqual(finishOrder, [0, 1, 2, 3]);
+  })().then(common.mustCall(), common.mustNotCall());
+}
+
+{
+  // highWaterMark with a lot of items and large concurrency
+  const finishOrder = [];
+
+  const promises = createDependentPromises(20);
+
+  const raw = Readable.from([11, 1, 0, 3, 4, 2, 5, 7, 8, 9, 6, 10, 12, 13, 18, 15, 16, 17, 14, 19]);
+  // Should be
+  // 11, 1, 0, 3, 4, 2 | next: 0
+  // 11, 1, 3, 4, 2, 5 | next: 1
+  // 11, 3, 4, 2, 5, 7 | next: 2
+  // 11, 3, 4, 5, 7, 8 | next: 3
+  // 11, 4, 5, 7, 8, 9 | next: 4
+  // 11, 5, 7, 8, 9, 6 | next: 5
+  // 11, 7, 8, 9, 6, 10 | next: 6
+  // 11, 7, 8, 9, 10, 12 | next: 7
+  // 11, 8, 9, 10, 12, 13 | next: 8
+  // 11, 9, 10, 12, 13, 18 | next: 9
+  // 11, 10, 12, 13, 18, 15 | next: 10
+  // 11, 12, 13, 18, 15, 16 | next: 11
+  // 12, 13, 18, 15, 16, 17 | next: 12
+  // 13, 18, 15, 16, 17, 14 | next: 13
+  // 18, 15, 16, 17, 14, 19 | next: 14
+  // 18, 15, 16, 17, 19 | next: 15
+  // 18, 16, 17, 19 | next: 16
+  // 18, 17, 19 | next: 17
+  // 18, 19 | next: 18
+  // 19 | next: 19
+  //
+
+  const stream = raw.map(async (item) => {
+    const [promise, resolve] = promises[item];
+    resolve();
+
+    await promise;
+    finishOrder.push(item);
+    return item;
+  }, { concurrency: 6 });
+
+  (async () => {
+    await stream.toArray();
+
+    assert.deepStrictEqual(finishOrder, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  })().then(common.mustCall(), common.mustNotCall());
+}
+
+{
+  // Where there is a delay between the first and the next item
+  const promises = createDependentPromises(3);
+
+  const raw = Readable.from([0, 1, 2]);
+
+  const stream = raw
+      .map(async (item) => {
+        if (item !== 0) {
+          await promises[item][0];
+        }
+
+        return item;
+      }, { concurrency: 2 })
+      .map((item) => {
+        // eslint-disable-next-line no-unused-vars
+        for (const [_, resolve] of promises) {
+          resolve();
+        }
+
+        return item;
+      });
+
+  (async () => {
+    await stream.toArray();
+  })().then(common.mustCall(), common.mustNotCall());
 }
 
 {
