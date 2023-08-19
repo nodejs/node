@@ -377,7 +377,7 @@ behind the `--experimental-import-meta-resolve` flag:
 * `parent` {string|URL} An optional absolute parent module URL to resolve from.
 
 > **Caveat** This feature is not available within custom loaders (it would
-create a deadlock).
+> create a deadlock).
 
 ## Interoperability with CommonJS
 
