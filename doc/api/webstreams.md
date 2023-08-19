@@ -1172,13 +1172,13 @@ changes:
     description: This class is now exposed on the global object.
 -->
 
-#### `new ByteLengthQueuingStrategy(options)`
+#### `new ByteLengthQueuingStrategy(init)`
 
 <!-- YAML
 added: v16.5.0
 -->
 
-* `options` {Object}
+* `init` {Object}
   * `highWaterMark` {number}
 
 #### `byteLengthQueuingStrategy.highWaterMark`
@@ -1209,13 +1209,13 @@ changes:
     description: This class is now exposed on the global object.
 -->
 
-#### `new CountQueuingStrategy(options)`
+#### `new CountQueuingStrategy(init)`
 
 <!-- YAML
 added: v16.5.0
 -->
 
-* `options` {Object}
+* `init` {Object}
   * `highWaterMark` {number}
 
 #### `countQueuingStrategy.highWaterMark`
