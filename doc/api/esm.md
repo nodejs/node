@@ -359,23 +359,27 @@ each module, returning the URL string.
 ```js
 const dependencyAsset = import.meta.resolve('component-lib/asset.css');
 // file:///app/node_modules/component-lib/asset.css
-import.meta.resolve('./dep');
-// file:///app/dep
+import.meta.resolve('./dep.js');
+// file:///app/dep.js
 ```
 
 All features of the Node.js module resolution are supported. Dependency
 resolutions are subject to the permitted exports resolutions within the package.
 
-> **Caveat** This can result in synchronous file-system operations, which
-> can impact performance similarly to `require.resolve`. This feature is not
-> available within custom loaders (it would create a deadlock).
+**Caveats**:
 
-Previously, Node.js implemented an asynchronous resolver which also permitted
-a second contextual argument. The implementation has since been updated to be
-synchronous, with the second contextual `parent` argument still accessible
-behind the `--experimental-import-meta-resolve` flag:
+* This can result in synchronous file-system operations, which
+  can impact performance similarly to `require.resolve`.
+* This feature is not available within custom loaders (it would
+  create a deadlock).
+
+**Non-standard API**:
+
+When using the `--experimental-import-meta-resolve` flag, that function accepts
+a second argument:
 
 * `parent` {string|URL} An optional absolute parent module URL to resolve from.
+  **Default:** `import.meta.url`
 
 ## Interoperability with CommonJS
 
