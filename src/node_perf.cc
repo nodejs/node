@@ -265,7 +265,7 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
       IntervalHistogram::Create(env, interval, [](Histogram& histogram) {
         uint64_t delta = histogram.RecordDelta();
         TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                      "delay", delta);
+                        "delay", delta);
         TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
                       "min", histogram.Min());
         TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
