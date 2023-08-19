@@ -711,10 +711,10 @@ describe('Loader hooks', { concurrency: true }, () => {
     ]);
 
     assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), [ 'result 1',
-                                                 'result 2',
-                                                 'hooks initialize 1',
+    assert.deepStrictEqual(stdout.split('\n'), [ 'hooks initialize 1',
+                                                 'result 1',
                                                  'hooks initialize 2',
+                                                 'result 2',
                                                  '' ]);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
