@@ -236,18 +236,6 @@ static void RemoveGarbageCollectionTracking(
   GarbageCollectionCleanupHook(env);
 }
 
-// Gets the name of a function
-inline Local<Value> GetName(Local<Function> fn) {
-  Local<Value> val = fn->GetDebugName();
-  if (val.IsEmpty() || val->IsUndefined()) {
-    Local<Value> boundFunction = fn->GetBoundFunction();
-    if (!boundFunction.IsEmpty() && !boundFunction->IsUndefined()) {
-      val = GetName(boundFunction.As<Function>());
-    }
-  }
-  return val;
-}
-
 // Notify a custom PerformanceEntry to observers
 void Notify(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -277,7 +265,7 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
       IntervalHistogram::Create(env, interval, [](Histogram& histogram) {
         uint64_t delta = histogram.RecordDelta();
         TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                        "delay", delta);
+                      "delay", delta);
         TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
                       "min", histogram.Min());
         TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
