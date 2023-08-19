@@ -390,7 +390,8 @@ added: REPLACEME
 * `specifier` {string|URL} The module specifier to resolve relative to the
   `parentURL`.
 * `parentURL` {string|URL} The URL to resolve the specifier. **Default:** `import.meta.url`.
-* Returns: {Promise} Fulfills with a {URL} representing the absolute URL of the resolved specifier.
+* Returns: {Promise} Fulfills with a {URL} representing the absolute URL of the
+  resolved specifier.
 
 > **Caveat**: This is a Node.js specific API, consider using
 > [`import.meta.resolve`](#importmetaresolvespecifier) for a more portable code
@@ -1736,8 +1737,8 @@ for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #import-expressions
-[`import.meta.resolve`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta/resolve
 [`import.meta.node.resolveURL`]: #importmetanoderesolveurlspecifier-parenturl
+[`import.meta.resolve`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta/resolve
 [`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`initialize`]: #initialize
