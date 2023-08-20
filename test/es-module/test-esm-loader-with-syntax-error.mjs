@@ -8,6 +8,7 @@ import { describe, it } from 'node:test';
 describe('ESM: loader with syntax error', { concurrency: true }, () => {
   it('should crash the node process', async () => {
     const { code, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
       '--experimental-loader',
       fileURL('es-module-loaders', 'syntax-error.mjs').href,
       path('print-error-message.js'),
