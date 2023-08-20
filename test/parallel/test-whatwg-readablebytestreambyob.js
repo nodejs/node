@@ -59,4 +59,4 @@ class Source {
   } finally {
     process.emitWarning = emitWarning;
   }
-})();
+})().then(common.mustCall());
