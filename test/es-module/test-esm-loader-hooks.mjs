@@ -547,7 +547,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       `
         import {MessageChannel} from 'node:worker_threads';
         import {register} from 'node:module';
-        import {setTimeout} from 'node:timers/promises';
+        import {once} from 'node:events';
         const {port1, port2} = new MessageChannel();
         port1.on('message', (msg) => {
           console.log('message', msg);
@@ -558,8 +558,12 @@ describe('Loader hooks', { concurrency: true }, () => {
         );
         console.log('register', result);
 
-        await import('node:os');
-        await setTimeout(99); // delay to limit flakiness
+        const timeout = setTimeout(() => {}, 2**31 - 1); // to keep the process alive.
+        await Promise.all([
+          once(port1, 'message').then(() => once(port1, 'message')),
+          import('node:os'),
+        ]);
+        clearTimeout(timeout);
         port1.close();
       `,
     ]);
@@ -655,10 +659,10 @@ describe('Loader hooks', { concurrency: true }, () => {
     ]);
 
     assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), [ 'result 1',
-                                                 'result 2',
-                                                 'hooks initialize 1',
+    assert.deepStrictEqual(stdout.split('\n'), [ 'hooks initialize 1',
+                                                 'result 1',
                                                  'hooks initialize 2',
+                                                 'result 2',
                                                  '' ]);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
