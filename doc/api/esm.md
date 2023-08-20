@@ -1722,14 +1722,14 @@ success!
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`initialize`]: #initialize
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
-[`module.register()`]: module.md#moduleregister
+[`module.register()`]: module.md#moduleregisterspecifier-parenturl-options
 [`module.syncBuiltinESMExports()`]: module.md#modulesyncbuiltinesmexports
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`port.postMessage`]: worker_threads.md#portpostmessagevalue-transferlist
 [`port.ref()`]: https://nodejs.org/dist/latest-v17.x/docs/api/worker_threads.html#portref
 [`port.unref()`]: https://nodejs.org/dist/latest-v17.x/docs/api/worker_threads.html#portunref
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
-[`register`]: module.md#moduleregister
+[`register`]: module.md#moduleregisterspecifier-parenturl-options
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
