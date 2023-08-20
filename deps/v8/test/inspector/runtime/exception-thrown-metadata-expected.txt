@@ -1,0 +1,171 @@
+Check that exceptionThrown is supported by test runner.
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                className : Error
+                description : Error: myerror     at <anonymous>:1:17
+                objectId : <objectId>
+                preview : {
+                    description : Error: myerror     at <anonymous>:1:17
+                    overflow : false
+                    properties : [
+                        [0] : {
+                            name : stack
+                            type : string
+                            value : Error: myerror     at <anonymous>:1:17
+                        }
+                        [1] : {
+                            name : message
+                            type : string
+                            value : myerror
+                        }
+                    ]
+                    subtype : error
+                    type : object
+                }
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            exceptionMetaData : {
+                foo : bar
+            }
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 16
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught Error: myerror
+        }
+        timestamp : <timestamp>
+    }
+}
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 2
+            exception : {
+                className : Error
+                description : Error: myerror2     at <anonymous>:2:19
+                objectId : <objectId>
+                preview : {
+                    description : Error: myerror2     at <anonymous>:2:19
+                    overflow : false
+                    properties : [
+                        [0] : {
+                            name : stack
+                            type : string
+                            value : Error: myerror2     at <anonymous>:2:19
+                        }
+                        [1] : {
+                            name : message
+                            type : string
+                            value : myerror2
+                        }
+                    ]
+                    subtype : error
+                    type : object
+                }
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            exceptionMetaData : {
+                foo2 : bar2
+            }
+            executionContextId : <executionContextId>
+            lineNumber : 1
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 18
+                        functionName : 
+                        lineNumber : 1
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught Error: myerror2
+        }
+        timestamp : <timestamp>
+    }
+}
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 2
+            exception : {
+                description : 2
+                type : number
+                value : 2
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 1
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 2
+                        functionName : 
+                        lineNumber : 1
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught 2
+        }
+        timestamp : <timestamp>
+    }
+}
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 2
+            exception : {
+                className : Object
+                description : Object
+                objectId : <objectId>
+                preview : {
+                    description : Object
+                    overflow : false
+                    properties : [
+                    ]
+                    type : object
+                }
+                type : object
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 1
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 2
+                        functionName : 
+                        lineNumber : 1
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught [object Object]
+        }
+        timestamp : <timestamp>
+    }
+}

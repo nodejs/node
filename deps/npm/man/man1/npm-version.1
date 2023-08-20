@@ -1,0 +1,229 @@
+.TH "NPM-VERSION" "1" "July 2023" "" ""
+.SH "NAME"
+\fBnpm-version\fR - Bump a package version
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm version \[lB]<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git\[rB]
+
+alias: verison
+.fi
+.RE
+.SS "Configuration"
+.SS "\fBallow-same-version\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Prevents throwing an error when \fBnpm version\fR is used to set the new version to the same value as the current version.
+.SS "\fBcommit-hooks\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Run git commit hooks when using the \fBnpm version\fR command.
+.SS "\fBgit-tag-version\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Tag the commit when using the \fBnpm version\fR command. Setting this to false results in no commit being made at all.
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "\fBpreid\fR"
+.RS 0
+.IP \(bu 4
+Default: ""
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+The "prerelease identifier" to use as a prefix for the "prerelease" part of a semver. Like the \fBrc\fR in \fB1.2.0-rc.8\fR.
+.SS "\fBsign-git-tag\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to true, then the \fBnpm version\fR command will tag the version using \fB-s\fR to add a signature.
+.P
+Note that git requires you to have set up GPG keys in your git configs for this to work properly.
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces-update\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to true, the npm cli will run an update after operations that may possibly change the workspaces installed to the \fBnode_modules\fR folder.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SS "Description"
+.P
+Run this in a package directory to bump the version and write the new data back to \fBpackage.json\fR, \fBpackage-lock.json\fR, and, if present, \fBnpm-shrinkwrap.json\fR.
+.P
+The \fBnewversion\fR argument should be a valid semver string, a valid second argument to \fBsemver.inc\fR \fI\(lahttps://github.com/npm/node-semver#functions\(ra\fR (one of \fBpatch\fR, \fBminor\fR, \fBmajor\fR, \fBprepatch\fR, \fBpreminor\fR, \fBpremajor\fR, \fBprerelease\fR), or \fBfrom-git\fR. In the second case, the existing version will be incremented by 1 in the specified field. \fBfrom-git\fR will try to read the latest git tag, and use that as the new npm version.
+.P
+If run in a git repo, it will also create a version commit and tag. This behavior is controlled by \fBgit-tag-version\fR (see below), and can be disabled on the command line by running \fBnpm --no-git-tag-version version\fR. It will fail if the working directory is not clean, unless the \fB-f\fR or \fB--force\fR flag is set.
+.P
+If supplied with \fB-m\fR or \fB\fB--message\fR config\fR \fI\(la/using-npm/config#message\(ra\fR option, npm will use it as a commit message when creating a version commit. If the \fBmessage\fR config contains \fB%s\fR then that will be replaced with the resulting version number. For example:
+.P
+.RS 2
+.nf
+npm version patch -m "Upgrade to %s for reasons"
+.fi
+.RE
+.P
+If the \fB\fBsign-git-tag\fR config\fR \fI\(la/using-npm/config#sign-git-tag\(ra\fR is set, then the tag will be signed using the \fB-s\fR flag to git. Note that you must have a default GPG key set up in your git config for this to work properly. For example:
+.P
+.RS 2
+.nf
+$ npm config set sign-git-tag true
+$ npm version patch
+
+You need a passphrase to unlock the secret key for
+user: "isaacs (http://blog.izs.me/) <i@izs.me>"
+2048-bit RSA key, ID 6C481CF6, created 2010-08-31
+
+Enter passphrase:
+.fi
+.RE
+.P
+If \fBpreversion\fR, \fBversion\fR, or \fBpostversion\fR are in the \fBscripts\fR property of the package.json, they will be executed as part of running \fBnpm
+version\fR.
+.P
+The exact order of execution is as follows:
+.RS 0
+.IP 1. 4
+Check to make sure the git working directory is clean before we get started. Your scripts may add files to the commit in future steps. This step is skipped if the \fB--force\fR flag is set.
+.IP 2. 4
+Run the \fBpreversion\fR script. These scripts have access to the old \fBversion\fR in package.json. A typical use would be running your full test suite before deploying. Any files you want added to the commit should be explicitly added using \fBgit add\fR.
+.IP 3. 4
+Bump \fBversion\fR in \fBpackage.json\fR as requested (\fBpatch\fR, \fBminor\fR, \fBmajor\fR, etc).
+.IP 4. 4
+Run the \fBversion\fR script. These scripts have access to the new \fBversion\fR in package.json (so they can incorporate it into file headers in generated files for example). Again, scripts should explicitly add generated files to the commit using \fBgit add\fR.
+.IP 5. 4
+Commit and tag.
+.IP 6. 4
+Run the \fBpostversion\fR script. Use it to clean up the file system or automatically push the commit and/or tag.
+.RE 0
+
+.P
+Take the following example:
+.P
+.RS 2
+.nf
+{
+  "scripts": {
+    "preversion": "npm test",
+    "version": "npm run build && git add -A dist",
+    "postversion": "git push && git push --tags && rm -rf build/temp"
+  }
+}
+.fi
+.RE
+.P
+This runs all your tests and proceeds only if they pass. Then runs your \fBbuild\fR script, and adds everything in the \fBdist\fR directory to the commit. After the commit, it pushes the new commit and tag up to the server, and deletes the \fBbuild/temp\fR directory.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help init
+.IP \(bu 4
+npm help run-script
+.IP \(bu 4
+npm help scripts
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.IP \(bu 4
+npm help config
+.RE 0

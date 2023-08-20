@@ -1,0 +1,70 @@
+<!DOCTYPE HTML>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="scroll_support.js"></script>
+<style>
+#targetDiv {
+  width: 200px;
+  height: 200px;
+  overflow: scroll;
+}
+
+#innerDiv {
+  width: 400px;
+  height: 400px;
+}
+</style>
+
+<body style="margin:0" onload=runTest()>
+<div id="targetDiv">
+  <div id="innerDiv">
+  </div>
+</div>
+</body>
+
+<script>
+var target_div = document.getElementById('targetDiv');
+var horizontal_scrollend_arrived = false;
+var vertical_scrollend_arrived = false;
+function onHorizontalScrollEnd(event) {
+  assert_false(event.cancelable);
+  // scrollend events are bubbled when the target node is document.
+  assert_true(event.bubbles);
+  horizontal_scrollend_arrived = true;
+}
+function onVerticalScrollEnd(event) {
+  assert_false(event.cancelable);
+  // scrollend events are bubbled when the target node is document.
+  assert_true(event.bubbles);
+  vertical_scrollend_arrived = true;
+}
+
+function runTest() {
+  promise_test (async (t) => {
+    // Make sure that no scrollend event is sent to target_div.
+    target_div.addEventListener("scrollend",
+        t.unreached_func("target_div got unexpected scrollend event."));
+    await waitForCompositorCommit();
+
+    // Scroll left on target div and wait for the doc to get scrollend event.
+    document.addEventListener("scrollend", onHorizontalScrollEnd);
+    await touchScrollInTarget(300, target_div, 'left');
+    await waitFor(() => { return horizontal_scrollend_arrived; },
+        'Document did not receive scrollend event after scroll left on target.');
+    assert_equals(target_div.scrollLeft, 0);
+    document.removeEventListener("scrollend", onHorizontalScrollEnd);
+
+    // Scroll up on target div and wait for the doc to get scrollend event.
+    document.addEventListener("scrollend", onVerticalScrollEnd);
+    await touchScrollInTarget(300, target_div, 'up');
+    await waitFor(() => { return vertical_scrollend_arrived; },
+        'Document did not receive scrollend event after scroll up on target.');
+    assert_equals(target_div.scrollTop, 0);
+  }, 'Tests that the document gets scrollend event when no element scrolls by ' +
+     'touch.');
+}
+</script>

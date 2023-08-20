@@ -1,0 +1,1 @@
+console.log('.mjs file');

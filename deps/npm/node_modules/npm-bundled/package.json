@@ -1,0 +1,49 @@
+{
+  "name": "npm-bundled",
+  "version": "3.0.0",
+  "description": "list things in node_modules that are bundledDependencies, or transitive dependencies thereof",
+  "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/npm-bundled.git"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.5.1",
+    "mkdirp": "^1.0.4",
+    "mutate-fs": "^2.1.1",
+    "rimraf": "^3.0.2",
+    "tap": "^16.3.0"
+  },
+  "scripts": {
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "dependencies": {
+    "npm-normalize-package-bin": "^3.0.0"
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.5.1"
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

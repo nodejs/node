@@ -1,0 +1,29 @@
+{
+  "name": "promise-call-limit",
+  "version": "1.0.2",
+  "files": [
+    "index.js"
+  ],
+  "description": "Call an array of promise-returning functions, restricting concurrency to a specified limit.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacs/promise-call-limit"
+  },
+  "author": "Isaac Z. Schlueter <i@izs.me> (https://izs.me)",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "devDependencies": {
+    "tap": "^16.0.0"
+  },
+  "funding": {
+    "url": "https://github.com/sponsors/isaacs"
+  }
+}

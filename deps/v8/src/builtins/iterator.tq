@@ -1,0 +1,187 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-iterator-gen.h'
+
+namespace iterator {
+// Returned from IteratorBuiltinsAssembler::GetIterator().
+@export
+struct IteratorRecord {
+  // iteratorRecord.[[Iterator]]
+  object: JSReceiver;
+
+  // iteratorRecord.[[NextMethod]]
+  next: JSAny;
+}
+
+extern macro IteratorBuiltinsAssembler::FastIterableToList(
+    implicit context: Context)(JSAny): JSArray labels Slow;
+
+extern macro IteratorBuiltinsAssembler::GetIteratorMethod(
+    implicit context: Context)(JSAny): JSAny;
+extern macro IteratorBuiltinsAssembler::GetIterator(implicit context: Context)(
+    JSAny): IteratorRecord;
+extern macro IteratorBuiltinsAssembler::GetIterator(implicit context: Context)(
+    JSAny, JSAny): IteratorRecord;
+
+extern macro IteratorBuiltinsAssembler::IteratorStep(implicit context: Context)(
+    IteratorRecord): JSReceiver
+    labels Done;
+extern macro IteratorBuiltinsAssembler::IteratorStep(implicit context: Context)(
+    IteratorRecord, Map): JSReceiver
+    labels Done;
+
+extern macro IteratorBuiltinsAssembler::IteratorValue(
+    implicit context: Context)(JSReceiver): JSAny;
+extern macro IteratorBuiltinsAssembler::IteratorValue(
+    implicit context: Context)(JSReceiver, Map): JSAny;
+
+extern macro IteratorBuiltinsAssembler::IterableToList(
+    implicit context: Context)(JSAny, JSAny): JSArray;
+
+extern macro IteratorBuiltinsAssembler::StringListFromIterable(
+    implicit context: Context)(JSAny): JSArray;
+
+extern builtin IterableToListWithSymbolLookup(implicit context: Context)(JSAny):
+    JSArray;
+extern builtin IterableToFixedArrayWithSymbolLookupSlow(
+    implicit context: Context)(JSAny): FixedArray;
+
+transitioning builtin GetIteratorWithFeedback(
+    context: Context, receiver: JSAny, loadSlot: TaggedIndex,
+    callSlot: TaggedIndex,
+    maybeFeedbackVector: Undefined|FeedbackVector): JSAny {
+  // TODO(v8:9891): Remove this dcheck once all callers are ported to Torque.
+  // This dcheck ensures correctness of maybeFeedbackVector's type which can
+  // be easily broken for calls from CSA.
+  dcheck(
+      IsUndefined(maybeFeedbackVector) ||
+      Is<FeedbackVector>(maybeFeedbackVector));
+  let iteratorMethod: JSAny;
+  typeswitch (maybeFeedbackVector) {
+    case (Undefined): {
+      iteratorMethod = GetProperty(receiver, IteratorSymbolConstant());
+    }
+    case (feedback: FeedbackVector): {
+      iteratorMethod = LoadIC(
+          context, receiver, IteratorSymbolConstant(), loadSlot, feedback);
+    }
+  }
+  // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
+  const callSlotSmi: Smi = TaggedIndexToSmi(callSlot);
+  return CallIteratorWithFeedback(
+      context, receiver, iteratorMethod, callSlotSmi, maybeFeedbackVector);
+}
+
+extern macro LoadContextFromBaseline(): Context;
+extern macro LoadFeedbackVectorFromBaseline(): FeedbackVector;
+
+transitioning builtin GetIteratorBaseline(
+    receiver: JSAny, loadSlot: TaggedIndex, callSlot: TaggedIndex): JSAny {
+  const context: Context = LoadContextFromBaseline();
+  const feedback: FeedbackVector = LoadFeedbackVectorFromBaseline();
+  const iteratorMethod: JSAny =
+      LoadIC(context, receiver, IteratorSymbolConstant(), loadSlot, feedback);
+  // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
+  const callSlotSmi: Smi = TaggedIndexToSmi(callSlot);
+  return CallIteratorWithFeedback(
+      context, receiver, iteratorMethod, callSlotSmi, feedback);
+}
+
+extern macro CreateAsyncFromSyncIterator(Context, JSAny): JSAny;
+
+transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
+    JSAny {
+  const context: Context = LoadContextFromBaseline();
+  return CreateAsyncFromSyncIterator(context, syncIterator);
+}
+
+macro GetLazyReceiver(receiver: JSAny): JSAny {
+  return receiver;
+}
+
+transitioning builtin CallIteratorWithFeedback(
+    context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
+    feedback: Undefined|FeedbackVector): JSAny {
+  // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
+  const callSlotUnTagged: uintptr = Unsigned(SmiUntag(callSlot));
+  ic::CollectCallFeedback(
+      iteratorMethod, %MakeLazy<JSAny, JSAny>('GetLazyReceiver', receiver),
+      context, feedback, callSlotUnTagged);
+  const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
+      otherwise ThrowIteratorError(receiver);
+  const iterator = Call(context, iteratorCallable, receiver);
+  ThrowIfNotJSReceiver(iterator, MessageTemplate::kSymbolIteratorInvalid, '');
+  return iterator;
+}
+
+// https://tc39.es/ecma262/#sec-iteratorclose
+// IteratorCloseOnException should be used to close iterators due to exceptions
+// being thrown.
+@export
+transitioning macro IteratorCloseOnException(implicit context: Context)(
+    iterator: IteratorRecord): void {
+  try {
+    // 3. Let innerResult be GetMethod(iterator, "return").
+    const method = GetProperty(iterator.object, kReturnString);
+
+    // 4. If innerResult.[[Type]] is normal, then
+    //   a. Let return be innerResult.[[Value]].
+    //   b. If return is undefined, return Completion(completion).
+    if (method == Undefined || method == Null) return;
+
+    //   c. Set innerResult to Call(return, iterator).
+    // If an exception occurs, the original exception remains bound
+    Call(context, method, iterator.object);
+  } catch (_e, _message) {
+    // Swallow the exception.
+  }
+
+  // (5. If completion.[[Type]] is throw) return Completion(completion).
+}
+
+@export
+transitioning macro IteratorClose(implicit context: Context)(
+    iterator: IteratorRecord): void {
+  // 3. Let innerResult be GetMethod(iterator, "return").
+  const method = GetProperty(iterator.object, kReturnString);
+
+  // 4. If innerResult.[[Type]] is normal, then
+  //   a. Let return be innerResult.[[Value]].
+  //   b. If return is undefined, return Completion(completion).
+  if (method == Undefined || method == Null) return;
+
+  //   c. Set innerResult to Call(return, iterator).
+  const result = Call(context, method, iterator.object);
+
+  // 5. If completion.[[Type]] is throw, return Completion(completion).
+  // It is handled in IteratorCloseOnException.
+
+  // 7. If innerResult.[[Value]] is not an Object, throw a TypeError
+  // exception.
+  Cast<Object>(result)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'return');
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iterator
+transitioning javascript builtin IteratorConstructor(
+    js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
+    target: JSFunction)(): JSObject {
+  const methodName: constexpr string = 'Iterator';
+
+  // 1. If NewTarget is undefined or the active function object, throw a
+  //    TypeError exception.
+  if (newTarget == Undefined) {
+    ThrowTypeError(MessageTemplate::kConstructorNotFunction, methodName);
+  }
+  if (newTarget == target) {
+    ThrowTypeError(MessageTemplate::kConstructAbstractClass, methodName);
+  }
+
+  // 2. Return ? OrdinaryCreateFromConstructor(NewTarget,
+  //    "%Iterator.prototype%").
+  const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
+  return AllocateFastOrSlowJSObjectFromMap(map);
+}
+}  // namespace iterator

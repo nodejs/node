@@ -1,0 +1,8 @@
+.buildstamp
+.docbuildstamp
+Makefile
+*.Makefile
+*.mk
+gyp-mac-tool
+/*/build
+test_cannot_run_js/entry_point.c

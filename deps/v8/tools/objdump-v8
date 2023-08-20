@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+#
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import os.path
+import re
+import subprocess
+import sys
+
+
+def get_address_bounds():
+  start = -1
+  end = -1
+  for arg in sys.argv:
+    if arg.startswith("--start-address="):
+      start = int(arg[-12:], 16)
+    if arg.startswith("--stop-address="):
+      end = int(arg[-12:], 16)
+  return start, end
+
+
+def format_line(line):
+  pieces = line.split(None, 3)
+  return " " + pieces[0][2:] + ":\t" + pieces[3]
+
+
+def is_comment(line):
+  stripped = line.strip()
+  return stripped.startswith("--") or stripped.startswith(";;")
+
+def main():
+  filename = sys.argv[-1]
+  match = re.match(r"/tmp/perf-(.*)\.map", filename)
+  if match:
+    start, end = get_address_bounds()
+    process_codefile = "code-" + match.group(1) + "-1.asm"
+    if os.path.exists(process_codefile):
+      codefile = open(process_codefile, "r")
+    else:
+      codefile = open("code.asm", "r")
+    with codefile:
+      printing = False
+      for line in codefile:
+        if line.startswith("0x"):
+          addr = int(line.split()[0], 0)
+          if start <= addr <= end:
+            printing = True
+            sys.stdout.write(format_line(line))
+          elif printing:
+            break
+        elif printing:
+          if not is_comment(line):
+            break
+          else:
+            sys.stdout.write(line)
+  else:
+    sys.argv[0] = "objdump"
+    sys.exit(subprocess.call(sys.argv))
+
+if __name__ == "__main__":
+  main()

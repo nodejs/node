@@ -1,0 +1,227 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise.h'
+#include 'src/builtins/builtins-promise-gen.h'
+
+namespace promise {
+
+type PromiseValueThunkOrReasonContext extends FunctionContext;
+extern enum PromiseValueThunkOrReasonContextSlot extends intptr
+constexpr 'PromiseBuiltins::PromiseValueThunkOrReasonContextSlot' {
+  kValueSlot: Slot<PromiseValueThunkOrReasonContext, JSAny>,
+  kPromiseValueThunkOrReasonContextLength
+}
+
+type PromiseFinallyContext extends FunctionContext;
+extern enum PromiseFinallyContextSlot extends intptr
+constexpr 'PromiseBuiltins::PromiseFinallyContextSlot' {
+  kOnFinallySlot: Slot<PromiseFinallyContext, Callable>,
+  kConstructorSlot: Slot<PromiseFinallyContext, Constructor>,
+  kPromiseFinallyContextLength
+}
+
+transitioning javascript builtin
+PromiseValueThunkFinally(
+    js-implicit context: Context, receiver: JSAny)(): JSAny {
+  const context = %RawDownCast<PromiseValueThunkOrReasonContext>(context);
+  return *ContextSlot(
+      context, PromiseValueThunkOrReasonContextSlot::kValueSlot);
+}
+
+transitioning javascript builtin
+PromiseThrowerFinally(js-implicit context: Context, receiver: JSAny)(): never {
+  const context = %RawDownCast<PromiseValueThunkOrReasonContext>(context);
+  const reason =
+      *ContextSlot(context, PromiseValueThunkOrReasonContextSlot::kValueSlot);
+  Throw(reason);
+}
+
+macro CreateThrowerFunction(implicit context: Context)(
+    nativeContext: NativeContext, reason: JSAny): JSFunction {
+  const throwerContext = %RawDownCast<PromiseValueThunkOrReasonContext>(
+      AllocateSyntheticFunctionContext(
+          nativeContext,
+          PromiseValueThunkOrReasonContextSlot::
+              kPromiseValueThunkOrReasonContextLength));
+  InitContextSlot(
+      throwerContext, PromiseValueThunkOrReasonContextSlot::kValueSlot, reason);
+  const map = *ContextSlot(
+      nativeContext, ContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  const throwerInfo = PromiseThrowerFinallySharedFunConstant();
+  return AllocateFunctionWithMapAndContext(map, throwerInfo, throwerContext);
+}
+
+transitioning javascript builtin
+PromiseCatchFinally(
+    js-implicit context: Context, receiver: JSAny)(reason: JSAny): JSAny {
+  const context = %RawDownCast<PromiseFinallyContext>(context);
+  // 1. Let onFinally be F.[[OnFinally]].
+  // 2. Assert: IsCallable(onFinally) is true.
+  const onFinally: Callable =
+      *ContextSlot(context, PromiseFinallyContextSlot::kOnFinallySlot);
+
+  // 3. Let result be ? Call(onFinally).
+  const result = Call(context, onFinally, Undefined);
+
+  // 4. Let C be F.[[Constructor]].
+  const constructor: Constructor =
+      *ContextSlot(context, PromiseFinallyContextSlot::kConstructorSlot);
+
+  // 5. Assert: IsConstructor(C) is true.
+  dcheck(IsConstructor(constructor));
+
+  // 6. Let promise be ? PromiseResolve(C, result).
+  const promise = PromiseResolve(constructor, result);
+
+  // 7. Let thrower be equivalent to a function that throws reason.
+  const nativeContext = LoadNativeContext(context);
+  const thrower = CreateThrowerFunction(nativeContext, reason);
+
+  // 8. Return ? Invoke(promise, "then", « thrower »).
+  return UnsafeCast<JSAny>(InvokeThen(nativeContext, promise, thrower));
+}
+
+macro CreateValueThunkFunction(implicit context: Context)(
+    nativeContext: NativeContext, value: JSAny): JSFunction {
+  const valueThunkContext = %RawDownCast<PromiseValueThunkOrReasonContext>(
+      AllocateSyntheticFunctionContext(
+          nativeContext,
+          PromiseValueThunkOrReasonContextSlot::
+              kPromiseValueThunkOrReasonContextLength));
+  InitContextSlot(
+      valueThunkContext, PromiseValueThunkOrReasonContextSlot::kValueSlot,
+      value);
+  const map = *ContextSlot(
+      nativeContext, ContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  const valueThunkInfo = PromiseValueThunkFinallySharedFunConstant();
+  return AllocateFunctionWithMapAndContext(
+      map, valueThunkInfo, valueThunkContext);
+}
+
+transitioning javascript builtin
+PromiseThenFinally(
+    js-implicit context: Context, receiver: JSAny)(value: JSAny): JSAny {
+  const context = %RawDownCast<PromiseFinallyContext>(context);
+  // 1. Let onFinally be F.[[OnFinally]].
+  // 2.  Assert: IsCallable(onFinally) is true.
+  const onFinally =
+      *ContextSlot(context, PromiseFinallyContextSlot::kOnFinallySlot);
+
+  // 3. Let result be ?  Call(onFinally).
+  const result = Call(context, onFinally, Undefined);
+
+  // 4. Let C be F.[[Constructor]].
+  const constructor =
+      *ContextSlot(context, PromiseFinallyContextSlot::kConstructorSlot);
+
+  // 5. Assert: IsConstructor(C) is true.
+  dcheck(IsConstructor(constructor));
+
+  // 6. Let promise be ? PromiseResolve(C, result).
+  const promise = PromiseResolve(constructor, result);
+
+  // 7. Let valueThunk be equivalent to a function that returns value.
+  const nativeContext = LoadNativeContext(context);
+  const valueThunk = CreateValueThunkFunction(nativeContext, value);
+
+  // 8. Return ? Invoke(promise, "then", « valueThunk »).
+  return UnsafeCast<JSAny>(InvokeThen(nativeContext, promise, valueThunk));
+}
+
+struct PromiseFinallyFunctions {
+  then_finally: JSFunction;
+  catch_finally: JSFunction;
+}
+
+macro CreatePromiseFinallyFunctions(implicit context: Context)(
+    nativeContext: NativeContext, onFinally: Callable,
+    constructor: Constructor): PromiseFinallyFunctions {
+  const promiseContext =
+      %RawDownCast<PromiseFinallyContext>(AllocateSyntheticFunctionContext(
+          nativeContext,
+          PromiseFinallyContextSlot::kPromiseFinallyContextLength));
+  InitContextSlot(
+      promiseContext, PromiseFinallyContextSlot::kOnFinallySlot, onFinally);
+  InitContextSlot(
+      promiseContext, PromiseFinallyContextSlot::kConstructorSlot, constructor);
+  const map = *ContextSlot(
+      nativeContext, ContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  const thenFinallyInfo = PromiseThenFinallySharedFunConstant();
+  const thenFinally =
+      AllocateFunctionWithMapAndContext(map, thenFinallyInfo, promiseContext);
+  const catchFinallyInfo = PromiseCatchFinallySharedFunConstant();
+  const catchFinally =
+      AllocateFunctionWithMapAndContext(map, catchFinallyInfo, promiseContext);
+  return PromiseFinallyFunctions{
+    then_finally: thenFinally,
+    catch_finally: catchFinally
+  };
+}
+
+// https://tc39.es/ecma262/#sec-promise.prototype.finally
+transitioning javascript builtin
+PromisePrototypeFinally(
+    js-implicit context: Context, receiver: JSAny)(onFinally: JSAny): JSAny {
+  // 1. Let promise be the this value.
+  // 2. If Type(promise) is not Object, throw a TypeError exception.
+  const jsReceiver = Cast<JSReceiver>(receiver) otherwise ThrowTypeError(
+      MessageTemplate::kCalledOnNonObject, 'Promise.prototype.finally');
+
+  // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
+  // This builtin is attached to JSFunction created by the bootstrapper so
+  // `context` is the native context.
+  check(Is<NativeContext>(context));
+  const nativeContext = UnsafeCast<NativeContext>(context);
+  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
+
+  let constructor: Constructor = UnsafeCast<Constructor>(promiseFun);
+  const receiverMap = jsReceiver.map;
+  if (!IsJSPromiseMap(receiverMap) ||
+      !IsPromiseSpeciesLookupChainIntact(nativeContext, receiverMap))
+    deferred {
+      constructor =
+          UnsafeCast<Constructor>(SpeciesConstructor(jsReceiver, promiseFun));
+    }
+
+  // 4. Assert: IsConstructor(C) is true.
+  dcheck(IsConstructor(constructor));
+
+  // 5. If IsCallable(onFinally) is not true,
+  //    a. Let thenFinally be onFinally.
+  //    b. Let catchFinally be onFinally.
+  // 6. Else,
+  //   a. Let thenFinally be a new built-in function object as defined
+  //   in ThenFinally Function.
+  //   b. Let catchFinally be a new built-in function object as
+  //   defined in CatchFinally Function.
+  //   c. Set thenFinally and catchFinally's [[Constructor]] internal
+  //   slots to C.
+  //   d. Set thenFinally and catchFinally's [[OnFinally]] internal
+  //   slots to onFinally.
+  let thenFinally: JSAny;
+  let catchFinally: JSAny;
+  typeswitch (onFinally) {
+    case (onFinally: Callable): {
+      const pair =
+          CreatePromiseFinallyFunctions(nativeContext, onFinally, constructor);
+      thenFinally = pair.then_finally;
+      catchFinally = pair.catch_finally;
+    }
+    case (JSAny): deferred {
+      thenFinally = onFinally;
+      catchFinally = onFinally;
+    }
+  }
+
+  // 7. Return ? Invoke(promise, "then", « thenFinally, catchFinally »).
+  return UnsafeCast<JSAny>(
+      InvokeThen(nativeContext, receiver, thenFinally, catchFinally));
+}
+
+extern macro PromiseCatchFinallySharedFunConstant(): SharedFunctionInfo;
+extern macro PromiseThenFinallySharedFunConstant(): SharedFunctionInfo;
+extern macro PromiseThrowerFinallySharedFunConstant(): SharedFunctionInfo;
+extern macro PromiseValueThunkFinallySharedFunConstant(): SharedFunctionInfo;
+}

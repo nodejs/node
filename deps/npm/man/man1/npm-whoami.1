@@ -1,0 +1,39 @@
+.TH "NPM-WHOAMI" "1" "July 2023" "" ""
+.SH "NAME"
+\fBnpm-whoami\fR - Display npm username
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm whoami
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Display the npm username of the currently logged-in user.
+.P
+If logged into a registry that provides token-based authentication, then connect to the \fB/-/whoami\fR registry endpoint to find the username associated with the token, and print to standard output.
+.P
+If logged into a registry that uses Basic Auth, then simply print the \fBusername\fR portion of the authentication string.
+.SS "Configuration"
+.SS "\fBregistry\fR"
+.RS 0
+.IP \(bu 4
+Default: "https://registry.npmjs.org/"
+.IP \(bu 4
+Type: URL
+.RE 0
+
+.P
+The base URL of the npm registry.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help adduser
+.RE 0

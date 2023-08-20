@@ -1,0 +1,211 @@
+.TH "NPM-FIND-DUPES" "1" "July 2023" "" ""
+.SH "NAME"
+\fBnpm-find-dupes\fR - Find duplication in the package tree
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm find-dupes
+.fi
+.RE
+.SS "Description"
+.P
+Runs \fBnpm dedupe\fR in \fB--dry-run\fR mode, making npm only output the duplications, without actually changing the package tree.
+.SS "Configuration"
+.SS "\fBinstall-strategy\fR"
+.RS 0
+.IP \(bu 4
+Default: "hoisted"
+.IP \(bu 4
+Type: "hoisted", "nested", "shallow", or "linked"
+.RE 0
+
+.P
+Sets the strategy for installing packages in node_modules. hoisted (default): Install non-duplicated in top-level, and duplicated as necessary within directory structure. nested: (formerly --legacy-bundling) install in place, no hoisting. shallow (formerly --global-style) only install direct deps at top-level. linked: (experimental) install in node_modules/.store, link in place, unhoisted.
+.SS "\fBlegacy-bundling\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.IP \(bu 4
+DEPRECATED: This option has been deprecated in favor of \fB--install-strategy=nested\fR
+.RE 0
+
+.P
+Instead of hoisting package installs in \fBnode_modules\fR, install packages in the same manner that they are depended on. This may cause very deep directory structures and duplicate package installs as there is no de-duplicating. Sets \fB--install-strategy=nested\fR.
+.SS "\fBglobal-style\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.IP \(bu 4
+DEPRECATED: This option has been deprecated in favor of \fB--install-strategy=shallow\fR
+.RE 0
+
+.P
+Only install direct dependencies in the top level \fBnode_modules\fR, but hoist on deeper dependencies. Sets \fB--install-strategy=shallow\fR.
+.SS "\fBstrict-peer-deps\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to \fBtrue\fR, and \fB--legacy-peer-deps\fR is not set, then \fIany\fR conflicting \fBpeerDependencies\fR will be treated as an install failure, even if npm could reasonably guess the appropriate resolution based on non-peer dependency relationships.
+.P
+By default, conflicting \fBpeerDependencies\fR deep in the dependency graph will be resolved using the nearest non-peer dependency specification, even if doing so will result in some packages receiving a peer dependency outside the range set in their package's \fBpeerDependencies\fR object.
+.P
+When such an override is performed, a warning is printed, explaining the conflict and the packages involved. If \fB--strict-peer-deps\fR is set, then this warning is treated as a failure.
+.SS "\fBpackage-lock\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to false, then ignore \fBpackage-lock.json\fR files when installing. This will also prevent \fIwriting\fR \fBpackage-lock.json\fR if \fBsave\fR is true.
+.SS "\fBomit\fR"
+.RS 0
+.IP \(bu 4
+Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production', otherwise empty.
+.IP \(bu 4
+Type: "dev", "optional", or "peer" (can be set multiple times)
+.RE 0
+
+.P
+Dependency types to omit from the installation tree on disk.
+.P
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+.P
+If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
+.P
+If the resulting omit list includes \fB'dev'\fR, then the \fBNODE_ENV\fR environment variable will be set to \fB'production'\fR for all lifecycle scripts.
+.SS "\fBignore-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If true, npm does not run scripts specified in package.json files.
+.P
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run-script\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+.SS "\fBaudit\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When "true" submit audit reports alongside the current npm command to the default registry and all registries configured for scopes. See the documentation for npm help audit for details on what is submitted.
+.SS "\fBbin-links\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Tells npm to create symlinks (or \fB.cmd\fR shims on Windows) for package executables.
+.P
+Set to false to have it not do this. This can be used to work around the fact that some file systems don't support symlinks, even on ostensibly Unix systems.
+.SS "\fBfund\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When "true" displays the message at the end of each \fBnpm install\fR acknowledging the number of dependencies looking for funding. See npm help fund for details.
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinstall-links\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When set file: protocol dependencies will be packed and installed as regular dependencies instead of creating a symlink. This option has no effect on workspaces.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help dedupe
+.IP \(bu 4
+npm help ls
+.IP \(bu 4
+npm help update
+.IP \(bu 4
+npm help install
+.RE 0

@@ -1,0 +1,148 @@
+.TH "NPM-REBUILD" "1" "July 2023" "" ""
+.SH "NAME"
+\fBnpm-rebuild\fR - Rebuild a package
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm rebuild \[lB]<package-spec>\[rB] ...\[rB]
+
+alias: rb
+.fi
+.RE
+.SS "Description"
+.P
+This command runs the \fBnpm build\fR command on the matched folders. This is useful when you install a new version of node, and must recompile all your C++ addons with the new binary. It is also useful when installing with \fB--ignore-scripts\fR and \fB--no-bin-links\fR, to explicitly choose which packages to build and/or link bins.
+.P
+If one or more package specs are provided, then only packages with a name and version matching one of the specifiers will be rebuilt.
+.SS "Configuration"
+.SS "\fBglobal\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "\fBbin-links\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Tells npm to create symlinks (or \fB.cmd\fR shims on Windows) for package executables.
+.P
+Set to false to have it not do this. This can be used to work around the fact that some file systems don't support symlinks, even on ostensibly Unix systems.
+.SS "\fBforeground-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Run all build scripts (ie, \fBpreinstall\fR, \fBinstall\fR, and \fBpostinstall\fR) scripts for installed packages in the foreground process, sharing standard input, output, and error with the main npm process.
+.P
+Note that this will generally make installs run slower, and be much noisier, but can be useful for debugging.
+.SS "\fBignore-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If true, npm does not run scripts specified in package.json files.
+.P
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run-script\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinstall-links\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When set file: protocol dependencies will be packed and installed as regular dependencies instead of creating a symlink. This option has no effect on workspaces.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help "package spec"
+.IP \(bu 4
+npm help install
+.RE 0

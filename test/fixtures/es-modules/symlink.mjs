@@ -1,0 +1,1 @@
+export var symlinked = true;

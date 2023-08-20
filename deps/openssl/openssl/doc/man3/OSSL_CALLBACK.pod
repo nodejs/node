@@ -1,0 +1,77 @@
+=pod
+
+=head1 NAME
+
+OSSL_CALLBACK, OSSL_PASSPHRASE_CALLBACK - OpenSSL Core type to define callbacks
+
+=head1 SYNOPSIS
+
+ #include <openssl/core.h>
+ typedef int (OSSL_CALLBACK)(const OSSL_PARAM params[], void *arg);
+ typedef int (OSSL_PASSPHRASE_CALLBACK)(char *pass, size_t pass_size,
+                                        size_t *pass_len,
+                                        const OSSL_PARAM params[],
+                                        void *arg);
+
+=head1 DESCRIPTION
+
+For certain events or activities, provider functionality may need help from
+the application or the calling OpenSSL libraries themselves.  For example,
+user input or direct (possibly optional) user output could be implemented
+this way.
+
+Callback functions themselves are always provided by or through the calling
+OpenSSL libraries, along with a generic pointer to data I<arg>.  As far as
+the function receiving the pointer to the function pointer and I<arg> is
+concerned, the data that I<arg> points at is opaque, and the pointer should
+simply be passed back to the callback function when it's called.
+
+=over 4
+
+=item B<OSSL_CALLBACK>
+
+This is a generic callback function.  When calling this callback function,
+the caller is expected to build an L<OSSL_PARAM(3)> array of data it wants or
+is expected to pass back, and pass that as I<params>, as well as the opaque
+data pointer it received, as I<arg>.
+
+=item B<OSSL_PASSPHRASE_CALLBACK>
+
+This is a specialised callback function, used specifically to prompt the
+user for a passphrase.  When calling this callback function, a buffer to
+store the pass phrase needs to be given with I<pass>, and its size with
+I<pass_size>.  The length of the prompted pass phrase will be given back in
+I<*pass_len>.
+
+Additional parameters can be passed with the L<OSSL_PARAM(3)> array I<params>,
+
+=back
+
+=begin comment RETURN VALUES doesn't make sense for a manual that only
+describes a type, but document checkers still want that section, and
+to have more than just the section title.
+
+=head1 RETURN VALUES
+
+txt
+
+=end comment
+
+=head1 SEE ALSO
+
+L<openssl-core.h(7)>
+
+=head1 HISTORY
+
+The types described here were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

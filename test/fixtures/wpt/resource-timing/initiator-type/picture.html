@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing initiator type: picture</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-initiatortype"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resource-timing/resources/observe-entry.js"></script>
+<script src="resources/initiator-type-test.js"></script>
+</head>
+<body>
+<picture>
+  <source srcset="blue.png?id=picture-source" type="image/png" />
+  <img src="blue.png?id=picture-img" />
+</picture>
+<picture>
+  <source srcset="blue.png?id=picture-notsupported-source" type="image/notsupported" />
+  <img src="blue.png?id=picture-notsupported-img" />
+</picture>
+<picture>
+  <img src="blue.png?id=picture-img-src"
+    srcset="blue.png?id=picture-img-srcset"
+    sizes="67px"></img>
+</picture>
+<picture>
+  <img src="blue.png?id=picture-99x-img-src"
+    srcset="blue.png?id=picture-99x-img-srcset 99x"
+    sizes="67px"></img>
+</picture>
+<script>
+  initiator_type_test("blue.png?id=picture-source", "img", "<source> in a <picture>");
+  initiator_type_test("blue.png?id=picture-notsupported-img", "img", "<img> in a <picture>");
+  initiator_type_test("blue.png?id=picture-img-srcset", "img", "<img srcset> in a <picture>");
+  initiator_type_test("blue.png?id=picture-99x-img-src", "img", "<img src> in a <picture>");
+</script>
+</body>
+</html>

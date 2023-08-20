@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# Locate an acceptable Python interpreter and then re-execute the script.
+# Note that the mix of single and double quotes is intentional,
+# as is the fact that the ] goes on a new line.
+_=[ 'exec' '/bin/sh' '-c' '''
+command -v python3.11 >/dev/null && exec python3.11 "$0" "$@"
+command -v python3.10 >/dev/null && exec python3.10 "$0" "$@"
+command -v python3.9 >/dev/null && exec python3.9 "$0" "$@"
+command -v python3.8 >/dev/null && exec python3.8 "$0" "$@"
+command -v python3.7 >/dev/null && exec python3.7 "$0" "$@"
+command -v python3.6 >/dev/null && exec python3.6 "$0" "$@"
+command -v python3 >/dev/null && exec python3 "$0" "$@"
+exec python "$0" "$@"
+''' "$0" "$@"
+]
+del _
+
+import sys
+try:
+  from shutil import which
+except ImportError:
+  from distutils.spawn import find_executable as which
+
+print('Node.js android configure: Found Python {}.{}.{}...'.format(*sys.version_info))
+acceptable_pythons = ((3, 11), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6))
+if sys.version_info[:2] in acceptable_pythons:
+  import android_configure
+else:
+  python_cmds = ['python{}.{}'.format(*vers) for vers in acceptable_pythons]
+  sys.stderr.write('Please use {}.\n'.format(' or '.join(python_cmds)))
+  for python_cmd in python_cmds:
+      python_cmd_path = which(python_cmd)
+      if python_cmd_path and 'pyenv/shims' not in python_cmd_path:
+        sys.stderr.write('\t{} {}\n'.format(python_cmd_path, ' '.join(sys.argv[:1])))
+  sys.exit(1)
