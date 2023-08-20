@@ -340,7 +340,7 @@ either:
 
 Loader code:
 
-```js
+```mjs
 // In the below example this file is referenced as
 // '/path-to-my-loader.js'
 
@@ -352,7 +352,7 @@ export async function initialize({ number, port }) {
 
 Caller code:
 
-```js
+```mjs
 import assert from 'node:assert';
 import { register } from 'node:module';
 import { MessageChannel } from 'node:worker_threads';
@@ -444,7 +444,7 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 `context.conditions` array passed to it _must_ include _all_ elements of the
 `context.conditions` array originally passed into the `resolve` hook.
 
-```js
+```mjs
 export function resolve(specifier, context, nextResolve) {
   const { parentURL = null } = context;
 
@@ -544,7 +544,7 @@ loader in the `load` chain, returns `null` for `source` when `format` is
 `'commonjs'` for backward compatibility. Here is an example loader that would
 opt-in to using the non-default behavior:
 
-```js
+```mjs
 import { readFile } from 'node:fs/promises';
 
 export async function load(url, context, nextLoad) {
@@ -573,7 +573,7 @@ source code of an ES module specifier. This would allow a loader to potentially
 avoid reading files from disk. It could also be used to map an unrecognized
 format to a supported one, for example `yaml` to `module`.
 
-```js
+```mjs
 export async function load(url, context, nextLoad) {
   const { format } = context;
 
@@ -632,7 +632,7 @@ builtins like "fs": `getBuiltin(request: string)`.
 If the code needs more advanced `require` features, it has to construct
 its own `require` using  `module.createRequire()`.
 
-```js
+```mjs
 export function globalPreload(context) {
   return `\
 globalThis.someInjectedProperty = 42;
@@ -654,7 +654,7 @@ Some care must be taken in order to properly call [`port.ref()`][] and
 [`port.unref()`][] to prevent a process from being in a state where it won't
 close normally.
 
-```js
+```mjs
 /**
  * This example has the application context send a message to the loader
  * and sends the message back to the application context
@@ -688,7 +688,7 @@ functionality, there are substantial downsides to actually using this loader:
 performance is much slower than loading files from disk, there is no caching,
 and there is no security.
 
-```js
+```mjs
 // https-loader.mjs
 import { get } from 'node:https';
 
@@ -717,7 +717,7 @@ export function load(url, context, nextLoad) {
 }
 ```
 
-```js
+```mjs
 // main.mjs
 import { VERSION } from 'https://coffeescript.org/browser-compiler-modern/coffeescript.js';
 
@@ -738,7 +738,7 @@ This is less performant than transpiling source files before running
 Node.js; a transpiler loader should only be used for development and testing
 purposes.
 
-```js
+```mjs
 // coffeescript-loader.mjs
 import { readFile } from 'node:fs/promises';
 import { dirname, extname, resolve as resolvePath } from 'node:path';
@@ -848,7 +848,7 @@ that does its work via the `resolve` hook. This loader reads an
 URL (this is a very simplistic implemenation of a small subset of the
 "import maps" specification).
 
-```js
+```mjs
 // import-map-loader.js
 import fs from 'node:fs/promises';
 
@@ -865,7 +865,7 @@ export async function resolve(specifier, context, nextResolve) {
 
 Let's assume we have these files:
 
-```js
+```mjs
 // main.js
 import 'a-module';
 ```
@@ -879,7 +879,7 @@ import 'a-module';
 }
 ```
 
-```js
+```mjs
 // some-module.js
 console.log('some module!');
 ```
