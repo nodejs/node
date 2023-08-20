@@ -78,15 +78,29 @@ isBuiltin('fs'); // true
 isBuiltin('wss'); // false
 ```
 
-### `module.register()`
+### `module.register(specifier[, parentURL][, options])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-In addition to using the `--experimental-loader` option in the CLI,
-loaders can be registered programmatically using the
-`module.register()` method.
+> Stability: 1.1 - Active development
+
+* `specifier` {string} Customization hooks to be registered; this should be the
+  same string that would be passed to `import()`, except that if it is relative,
+  it is resolved relative to `parentURL`.
+* `parentURL` {string} If you want to resolve `specifier` relative to a base
+  URL, such as `import.meta.url`, you can pass that URL here. **Default:**
+  `'data:'`
+* `options` {Object}
+  * `data` {any} Any arbitrary, cloneable JavaScript value to pass into the
+    [`initialize`][] hook.
+  * `transferList` {Object\[]} [transferrable objects][] to be passed into the
+    `initialize` hook.
+* Returns: {any} returns whatever was returned by the `initialize` hook.
+
+Register a module that exports hooks that customize Node.js module resolution
+and loading behavior.
 
 ```mjs
 import { register } from 'node:module';
@@ -384,3 +398,4 @@ returned object contains the following keys:
 [`module`]: modules.md#the-module-object
 [module wrapper]: modules.md#the-module-wrapper
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
+[transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist
