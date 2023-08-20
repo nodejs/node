@@ -149,6 +149,9 @@ import('node:fs').then((esmFS) => {
 <!-- YAML
 added: v8.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49144
+    description: Removed `globalPreload`.
   - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/48842
     description: Added `initialize` hook to replace `globalPreload`.
@@ -673,79 +676,6 @@ export async function load(url, context, nextLoad) {
 
 In a more advanced scenario, this can also be used to transform an unsupported
 source to a supported one (see [Examples](#examples) below).
-
-#### `globalPreload()`
-
-<!-- YAML
-changes:
-  - version:
-    - v18.6.0
-    - v16.17.0
-    pr-url: https://github.com/nodejs/node/pull/42623
-    description: Add support for chaining globalPreload hooks.
--->
-
-> Stability: 1.0 - Early development
-
-> **Warning:** This hook will be removed in a future version. Use
-> [`initialize`][] instead. When a hooks module has an `initialize` export,
-> `globalPreload` will be ignored.
-
-* `context` {Object} Information to assist the preload code
-  * `port` {MessagePort}
-* Returns: {string} Code to run before application startup
-
-Sometimes it might be necessary to run some code inside of the same global
-scope that the application runs in. This hook allows the return of a string
-that is run as a sloppy-mode script on startup.
-
-Similar to how CommonJS wrappers work, the code runs in an implicit function
-scope. The only argument is a `require`-like function that can be used to load
-builtins like "fs": `getBuiltin(request: string)`.
-
-If the code needs more advanced `require` features, it has to construct
-its own `require` using  `module.createRequire()`.
-
-```mjs
-export function globalPreload(context) {
-  return `\
-globalThis.someInjectedProperty = 42;
-console.log('I just set some globals!');
-
-const { createRequire } = getBuiltin('module');
-const { cwd } = getBuiltin('process');
-
-const require = createRequire(cwd() + '/<preload>');
-// [...]
-`;
-}
-```
-
-Another argument is provided to the preload code: `port`. This is available as a
-parameter to the hook and inside of the source text returned by the hook. This
-functionality has been moved to the `initialize` hook.
-
-Care must be taken in order to properly call [`port.ref()`][] and
-[`port.unref()`][] to prevent a process from being in a state where it won't
-close normally.
-
-```mjs
-/**
- * This example has the application context send a message to the hook
- * and sends the message back to the application context
- */
-export function globalPreload({ port }) {
-  port.onmessage = (evt) => {
-    port.postMessage(evt.data);
-  };
-  return `\
-    port.postMessage('console.log("I went to the hook and back");');
-    port.onmessage = (evt) => {
-      eval(evt.data);
-    };
-  `;
-}
-```
 
 ### Examples
 
