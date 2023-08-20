@@ -830,62 +830,62 @@ void ChannelWrap::EnsureServers() {
 
 int AnyTraits::Send(QueryWrap<AnyTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_any);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int ATraits::Send(QueryWrap<ATraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_a);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int AaaaTraits::Send(QueryWrap<AaaaTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_aaaa);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int CaaTraits::Send(QueryWrap<CaaTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, T_CAA);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int CnameTraits::Send(QueryWrap<CnameTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_cname);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int MxTraits::Send(QueryWrap<MxTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_mx);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int NsTraits::Send(QueryWrap<NsTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_ns);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int TxtTraits::Send(QueryWrap<TxtTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_txt);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int SrvTraits::Send(QueryWrap<SrvTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_srv);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int PtrTraits::Send(QueryWrap<PtrTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_ptr);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int NaptrTraits::Send(QueryWrap<NaptrTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_naptr);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int SoaTraits::Send(QueryWrap<SoaTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_soa);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int AnyTraits::Parse(
@@ -1381,7 +1381,7 @@ int ReverseTraits::Send(GetHostByAddrWrap* wrap, const char* name) {
       family,
       GetHostByAddrWrap::Callback,
       wrap->MakeCallbackPointer());
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int ReverseTraits::Parse(
