@@ -310,6 +310,7 @@ def headers(action):
   action([
     'common.gypi',
     'config.gypi',
+    'out/Release/obj/gen/node_version.h',
     'src/node.h',
     'src/node_api.h',
     'src/js_native_api.h',
@@ -317,7 +318,6 @@ def headers(action):
     'src/node_api_types.h',
     'src/node_buffer.h',
     'src/node_object_wrap.h',
-    'src/node_version.h',
   ], 'include/node/')
 
   # Add the expfile that is created on AIX

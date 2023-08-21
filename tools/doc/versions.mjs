@@ -5,7 +5,7 @@ const srcRoot = new URL('../../', import.meta.url);
 
 const isRelease = () => {
   const re = /#define NODE_VERSION_IS_RELEASE 0/;
-  const file = new URL('./src/node_version.h', srcRoot);
+  const file = new URL('./src/node_version.h.in', srcRoot);
   return !re.test(readFileSync(file, { encoding: 'utf8' }));
 };
 

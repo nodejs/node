@@ -15,7 +15,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [0. Pre-release steps](#0-pre-release-steps)
   * [1. Update the staging branch](#1-update-the-staging-branch)
   * [2. Create a new branch for the release](#2-create-a-new-branch-for-the-release)
-  * [3. Update `src/node_version.h`](#3-update-srcnode_versionh)
+  * [3. Update `src/node_version.h.in`](#3-update-srcnode_versionhin)
   * [4. Update the changelog](#4-update-the-changelog)
   * [5. Create release commit](#5-create-release-commit)
   * [6. Propose release on GitHub](#6-propose-release-on-github)
@@ -297,7 +297,7 @@ git cherry-pick  ...  # cherry-pick nodejs-private PR commits directly into the 
 
 </details>
 
-### 3. Update `src/node_version.h`
+### 3. Update `src/node_version.h.in`
 
 Set the version for the proposed release using the following macros, which are
 already defined in `src/node_version.h`:
@@ -468,8 +468,8 @@ run.
 
 ### 5. Create release commit
 
-The `CHANGELOG.md`, `doc/changelogs/CHANGELOG_Vx.md`, `src/node_version.h`, and
-`REPLACEME` changes should be the final commit that will be tagged for the
+The `CHANGELOG.md`, `doc/changelogs/CHANGELOG_Vx.md`, `src/node_version.h.in`,
+and `REPLACEME` changes should be the final commit that will be tagged for the
 release. When committing these to git, use the following message format:
 
 ```text
@@ -732,7 +732,7 @@ project README.
 
 ### 12. Set up for the next release
 
-On release proposal branch, edit `src/node_version.h` again and:
+On release proposal branch, edit `src/node_version.h.in` again and:
 
 * Increment `NODE_PATCH_VERSION` by one
 * Change `NODE_VERSION_IS_RELEASE` back to `0`
@@ -790,16 +790,16 @@ git cherry-pick --strategy-option=diff-algorithm=patience v1.x^
 
 Git should stop to let you fix conflicts.
 
-Revert all changes that were made to `src/node_version.h`:
+Revert all changes that were made to `src/node_version.h.in`:
 
 ```bash
-git checkout --ours HEAD -- src/node_version.h
+git checkout --ours HEAD -- src/node_version.h.in
 ```
 
 <details>
 <summary>Major version release</summary>
 
-On the main branch, instead of reverting changes made to `src/node_version.h`
+On the main branch, instead of reverting changes made to `src/node_version.h.in`
 edit it instead and:
 
 * Increment `NODE_MAJOR_VERSION` by one
@@ -815,9 +815,9 @@ git commit --amend
 </details>
 
 Even if there are no conflicts, ensure that you revert all the changes that were
-made to `src/node_version.h`. `NODE_VERSION_IS_RELEASE` must be `0`.
+made to `src/node_version.h.in`. `NODE_VERSION_IS_RELEASE` must be `0`.
 
-<sup>Edit `src/node_version.h`, revert `NODE_VERSION_IS_RELEASE` back to `0`, and `git commit --amend`</sup>
+<sup>Edit `src/node_version.h.in`, revert `NODE_VERSION_IS_RELEASE` back to `0`, and `git commit --amend`</sup>
 
 If there are conflicts in `doc` due to updated `REPLACEME`
 placeholders (that happens when a change previously landed on another release
@@ -832,7 +832,7 @@ the cherry-pick step.
 Then finish cherry-picking and push the commit upstream:
 
 ```bash
-git add src/node_version.h doc
+git add src/node_version.h.in doc
 git diff --staged src doc # read output to validate that changes shows up as expected
 git cherry-pick --continue
 make lint-md && make lint-cpp
@@ -1073,7 +1073,7 @@ git node release --prepare --startLTS
 <summary>Manual steps for reference.</summary>
 
 To mark a release line as LTS, the following changes must be made to
-`src/node_version.h`:
+`src/node_version.h.in`:
 
 * The `NODE_MINOR_VERSION` macro must be incremented by one
 * The `NODE_PATCH_VERSION` macro must be set to `0`
@@ -1205,8 +1205,8 @@ that will need updating to include the new major release.
 
 ### Update `NODE_MODULE_VERSION`
 
-This macro in `src/node_version.h` is used to signal an ABI version for native
-addons. It currently has two common uses in the community:
+This macro in `src/node_version.h.in` is used to signal an ABI version for
+native addons. It currently has two common uses in the community:
 
 * Determining what API to work against for compiling native addons, e.g.
   [NAN](https://github.com/nodejs/nan) uses it to form a compatibility-layer for

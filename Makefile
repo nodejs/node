@@ -175,9 +175,9 @@ out/Makefile: config.gypi common.gypi node.gyp \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
 	$(PYTHON) tools/gyp_node.py -f make
 
-# node_version.h is listed because the N-API version is taken from there
+# node_api_versions.json is listed because the N-API version is taken from there
 # and included in config.gypi
-config.gypi: configure configure.py src/node_version.h
+config.gypi: configure configure.py node_api_versions.json
 	@if [ -x config.status ]; then \
 		export PATH="$(NO_BIN_OVERRIDE_PATH)" && ./config.status; \
 	else \
@@ -390,7 +390,7 @@ ADDONS_BINDING_SOURCES := \
 ADDONS_PREREQS := config.gypi \
 	deps/npm/node_modules/node-gyp/package.json tools/build-addons.mjs \
 	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h
+	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h.in
 
 define run_build_addons
 env npm_config_loglevel=$(LOGLEVEL) npm_config_nodedir="$$PWD" \
@@ -776,7 +776,7 @@ $(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.mjs | out/doc
 	$(call available-node, $(gen-apilink))
 
 # Regenerate previous versions data if the current version changes
-$(VERSIONS_DATA): CHANGELOG.md src/node_version.h tools/doc/versions.mjs
+$(VERSIONS_DATA): CHANGELOG.md src/node_version.h.in tools/doc/versions.mjs
 	$(call available-node, tools/doc/versions.mjs $@)
 
 node_use_icu = $(call available-node,"-p" "typeof Intl === 'object'")
@@ -865,7 +865,7 @@ FULLVERSION=$(VERSION)-$(TAG)
 endif # ifeq ($(DISTTYPE),release)
 
 DISTTYPEDIR ?= $(DISTTYPE)
-RELEASE=$(shell sed -ne 's/\#define NODE_VERSION_IS_RELEASE \([01]\)/\1/p' src/node_version.h)
+RELEASE=$(shell sed -ne 's/\#define NODE_VERSION_IS_RELEASE \([01]\)/\1/p' src/node_version.h.in)
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
 ifeq ($(findstring os/390,$PLATFORM),os/390)
 PLATFORM ?= os390
@@ -1033,7 +1033,7 @@ release-only: check-xz
 	else \
 		echo "" >&2 ; \
 		echo "#NODE_VERSION_IS_RELEASE is set to $(RELEASE)." >&2 ; \
-		echo "Did you remember to update src/node_version.h?" >&2 ; \
+		echo "Did you remember to update src/node_version.h.in?" >&2 ; \
 		echo "" >&2 ; \
 		exit 1 ; \
 	fi
@@ -1270,7 +1270,7 @@ endif
 	$(RM) $(BINARYNAME).tar
 
 .PHONY: binary
-# This requires NODE_VERSION_IS_RELEASE defined as 1 in src/node_version.h.
+# This requires NODE_VERSION_IS_RELEASE defined as 1 in src/node_version.h.in.
 binary: $(BINARYTAR) ## Build release binary tarballs.
 
 .PHONY: binary-upload

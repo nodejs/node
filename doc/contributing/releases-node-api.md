@@ -9,7 +9,7 @@ release process.
   * [0. Pre-release steps](#0-pre-release-steps)
   * [1. Update the main branch](#1-update-the-main-branch)
   * [2. Create a new branch for the release](#2-create-a-new-branch-for-the-release)
-  * [3. Update `NAPI_VERSION`](#3-update-napi_version)
+  * [3. Update `napi_build_version`](#3-update-napi_build_version)
   * [4. Define `addon_context_register_func`](#4-define-addon_context_register_func)
   * [5. Update version guards](#5-update-version-guards)
   * [6. Create release commit](#6-create-release-commit)
@@ -55,17 +55,9 @@ Create a new branch named `node-api-x-proposal`, off the main branch.
 git checkout -b node-api-10-proposal upstream/main
 ```
 
-### 3. Update `NAPI_VERSION`
+### 3. Update `napi_build_version`
 
-Set the version for the proposed release using the following macros, which are
-already defined in `src/node_version.h`:
-
-```c
-#define NAPI_VERSION x
-```
-
-> Note: Do not update the `NAPI_VERSION` defined in `src/js_native_api.h`. It
-> is a fixed constant baseline version of Node-API.
+Set the version for the proposed release using in `node_api_versions.json`.
 
 ### 4. Define `addon_context_register_func`
 

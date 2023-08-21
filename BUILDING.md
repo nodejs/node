@@ -869,7 +869,7 @@ The Node.js ecosystem is reliant on ABI compatibility within a major release.
 To maintain ABI compatibility it is required that distributed builds of Node.js
 be built against the same version of dependencies, or similar versions that do
 not break their ABI compatibility, as those released by Node.js for any given
-`NODE_MODULE_VERSION` (located in `src/node_version.h`).
+`NODE_MODULE_VERSION` (located in `node_api_versions.json`).
 
 When Node.js is built (with an intention to distribute) with an ABI
 incompatible with the official Node.js builds (e.g. using a ABI incompatible

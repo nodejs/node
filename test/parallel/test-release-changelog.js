@@ -16,7 +16,7 @@ const getDefine = (text, name) => {
 
 const srcRoot = path.join(__dirname, '..', '..');
 const mainChangelogFile = path.join(srcRoot, 'CHANGELOG.md');
-const versionFile = path.join(srcRoot, 'src', 'node_version.h');
+const versionFile = path.join(srcRoot, 'src', 'node_version.h.in');
 const versionText = fs.readFileSync(versionFile, { encoding: 'utf8' });
 const release = getDefine(versionText, 'NODE_VERSION_IS_RELEASE') !== '0';
 

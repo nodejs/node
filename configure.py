@@ -37,8 +37,6 @@ import nodedownload
 
 # imports in tools/
 sys.path.insert(0, 'tools')
-import getmoduleversion
-import getnapibuildversion
 import getsharedopensslhasquic
 from gyp_node import run_gyp
 from utils import SearchFiles
@@ -57,6 +55,8 @@ valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
+
+node_api_versions = json.loads(Path('node_api_versions.json').read_text(encoding='utf-8'))
 
 shareable_builtins = {'cjs_module_lexer/lexer': 'deps/cjs-module-lexer/lexer.js',
                      'cjs_module_lexer/dist/lexer': 'deps/cjs-module-lexer/dist/lexer.js',
@@ -818,11 +818,23 @@ parser.add_argument('--v8-enable-snapshot-compression',
     default=None,
     help='Enable the built-in snapshot compression in V8.')
 
+parser.add_argument('--napi-build-version',
+    action='store',
+    dest='napi_build_version',
+    default=None,
+    help='Override the value of napi_build_version')
+
 parser.add_argument('--node-builtin-modules-path',
     action='store',
     dest='node_builtin_modules_path',
     default=False,
     help='node will load builtin modules from disk instead of from binary')
+
+parser.add_argument('--node-module-version',
+    action='store',
+    dest='node_module_version',
+    default=None,
+    help='Override the value of node_module_version')
 
 parser.add_argument('--node-snapshot-main',
     action='store',
@@ -1390,7 +1402,15 @@ def configure_node(o):
 
   o['variables']['node_shared'] = b(options.shared)
   o['variables']['libdir'] = options.libdir
-  node_module_version = getmoduleversion.get_version()
+
+  if options.node_module_version:
+    node_module_version = options.node_module_version
+  else:
+    node_module_version = str(node_api_versions['node_module_version'])
+  if options.napi_build_version:
+    napi_build_version = options.napi_build_version
+  else:
+    napi_build_version = str(node_api_versions['napi_build_version'])
 
   if options.dest_os == 'android':
     shlib_suffix = 'so'
@@ -1408,6 +1428,7 @@ def configure_node(o):
     shlib_suffix %= node_module_version
 
   o['variables']['node_module_version'] = int(node_module_version)
+  o['variables']['napi_build_version'] = napi_build_version
   o['variables']['shlib_suffix'] = shlib_suffix
 
   if options.linked_module:
@@ -1430,10 +1451,6 @@ def configure_node(o):
   if options.node_builtin_modules_path:
     print('Warning! Loading builtin modules from disk is for development')
     o['variables']['node_builtin_modules_path'] = options.node_builtin_modules_path
-
-def configure_napi(output):
-  version = getnapibuildversion.get_napi_version()
-  output['variables']['napi_build_version'] = version
 
 def configure_library(lib, output, pkgname=None):
   shared_lib = 'shared_' + lib
@@ -2013,7 +2030,6 @@ flavor = GetFlavor(flavor_params)
 
 configure_node(output)
 configure_node_lib_files(output)
-configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)

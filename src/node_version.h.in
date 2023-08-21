@@ -89,11 +89,11 @@
  * version matching should open a pull request to reserve a number in this
  * registry.
  */
-#define NODE_MODULE_VERSION 115
+#define NODE_MODULE_VERSION /*NODE_MODULE_VERSION_PLACEHOLDER*/
 
 // The NAPI_VERSION supported by the runtime. This is the inclusive range of
 // versions which the Node.js binary being built supports.
-#define NODE_API_SUPPORTED_VERSION_MAX 9
+#define NODE_API_SUPPORTED_VERSION_MAX /*NAPI_BUILD_VERSION_PLACEHOLDER*/
 #define NODE_API_SUPPORTED_VERSION_MIN 1
 
 // Node API modules use NAPI_VERSION 8 by default if it is not explicitly

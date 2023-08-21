@@ -16,6 +16,6 @@ def get_major_minor_patch(text):
 node_version_h = os.path.join(os.path.dirname(__file__),
                               '..',
                               'src',
-                              'node_version.h')
+                              'node_version.h.in')
 with open(node_version_h) as in_file:
   print('.'.join(get_major_minor_patch(in_file.read())))

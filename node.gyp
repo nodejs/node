@@ -255,7 +255,7 @@
       'src/node_stat_watcher.h',
       'src/node_union_bytes.h',
       'src/node_url.h',
-      'src/node_version.h',
+      'src/node_version.h.in',
       'src/node_v8.h',
       'src/node_v8_platform-inl.h',
       'src/node_wasi.h',
@@ -773,6 +773,12 @@
         'node.gypi',
       ],
 
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(SHARED_INTERMEDIATE_DIR)' # for node_version.h
+        ],
+      },
+
       'include_dirs': [
         'src',
         'deps/postject',
@@ -790,6 +796,8 @@
 
       'sources': [
         '<@(node_sources)',
+        # Generated headers
+        '<(SHARED_INTERMEDIATE_DIR)/node_version.h',
         # Dependency headers
         'deps/v8/include/v8.h',
         'deps/postject/postject-api.h',
@@ -956,6 +964,23 @@
             'config.gypi',
             '<@(deps_files)',
             '<@(linked_module_files)',
+          ],
+        },
+        {
+          'action_name': 'generate_node_version_h',
+          'process_outputs_as_sources': 1,
+          'inputs': [
+            'src/node_version.h.in',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/node_version.h',
+          ],
+          'action': [
+            'tools/generate_node_version.py',
+            '<@(_inputs)',
+            '<@(_outputs)',
+            '<(node_module_version)',
+            '<(napi_build_version)',
           ],
         },
       ],
