@@ -2,13 +2,11 @@
 // general startup, does not test lazy operations
 'use strict';
 const fs = require('node:fs');
-const path = require('node:path');
 const common = require('../common.js');
 
 const tmpdir = require('../../test/common/tmpdir.js');
-const { pathToFileURL } = require('node:url');
 
-const benchmarkDirectory = pathToFileURL(path.resolve(tmpdir.path, 'benchmark-import'));
+const benchmarkDirectory = tmpdir.fileURL('benchmark-import');
 
 const configs = {
   n: [1e3],
