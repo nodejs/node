@@ -4,12 +4,9 @@ const tmpdir = require('../common/tmpdir');
 
 const assert = require('node:assert');
 const fs = require('node:fs/promises');
-const { pathToFileURL } = require('node:url');
 
 tmpdir.refresh();
-const tmpDir = pathToFileURL(tmpdir.path);
-
-const target = new URL(`./${Math.random()}.mjs`, tmpDir);
+const target = tmpdir.fileURL(`${Math.random()}.mjs`);
 
 (async () => {
 
