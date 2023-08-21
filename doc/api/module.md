@@ -803,7 +803,7 @@ console.log(VERSION);
 ```
 
 With the preceding hooks module, running
-`node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./https-hooks.mjs").href);' ./main.mjs`
+`node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./https-hooks.mjs"));' ./main.mjs`
 prints the current version of CoffeeScript per the module at the URL in
 `main.mjs`.
 
@@ -895,7 +895,7 @@ export scream = (str) -> str.toUpperCase()
 ```
 
 With the preceding hooks module, running
-`node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./coffeescript-hooks.mjs").href);' ./main.coffee`
+`node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./coffeescript-hooks.mjs"));' ./main.coffee`
 causes `main.coffee` to be turned into JavaScript after its source code is
 loaded from disk but before Node.js executes it; and so on for any `.coffee`,
 `.litcoffee` or `.coffee.md` files referenced via `import` statements of any
@@ -944,7 +944,7 @@ import 'a-module';
 console.log('some module!');
 ```
 
-Running `node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./import-map-hooks.js").href);' ./import-map-loader.js main.js`
+Running `node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./import-map-hooks.js"));' main.js`
 should print `some module!`.
 
 ## Source map v3 support
