@@ -21,7 +21,7 @@ const {
 
 {
   tmpdir.refresh();
-  const dir = path.join(tmpdir.path, 'prof');
+  const dir = tmpdir.resolve('prof');
   const file = path.join(dir, 'test.cpuprofile');
   const output = spawnSync(process.execPath, [
     '--cpu-prof',

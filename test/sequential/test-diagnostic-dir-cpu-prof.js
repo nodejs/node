@@ -9,7 +9,6 @@ common.skipIfInspectorDisabled();
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const { spawnSync } = require('child_process');
 
 const tmpdir = require('../common/tmpdir');
@@ -24,7 +23,7 @@ const {
 
 {
   tmpdir.refresh();
-  const dir = path.join(tmpdir.path, 'prof');
+  const dir = tmpdir.resolve('prof');
   const output = spawnSync(process.execPath, [
     '--cpu-prof',
     '--cpu-prof-interval',
@@ -50,8 +49,8 @@ const {
 
 {
   tmpdir.refresh();
-  const dir = path.join(tmpdir.path, 'diag');
-  const dir2 = path.join(tmpdir.path, 'prof');
+  const dir = tmpdir.resolve('diag');
+  const dir2 = tmpdir.resolve('prof');
   const output = spawnSync(process.execPath, [
     '--cpu-prof',
     '--cpu-prof-interval',

@@ -211,7 +211,7 @@ function drainQueue() {
   assert.notStrictEqual(status, 0, 'Should not allow multiple policies');
 }
 {
-  const enoentFilepath = path.join(tmpdir.path, 'enoent');
+  const enoentFilepath = tmpdir.resolve('enoent');
   try {
     fs.unlinkSync(enoentFilepath);
   } catch {

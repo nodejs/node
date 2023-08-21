@@ -63,7 +63,7 @@ function getReadFileCodeForPath(path) {
 for (const extraSnapshotArgs of [[], ['--embedder-snapshot-as-file']]) {
   // readSync + eval since snapshots don't support userland require() (yet)
   const snapshotFixture = fixtures.path('snapshot', 'echo-args.js');
-  const blobPath = path.join(tmpdir.path, 'embedder-snapshot.blob');
+  const blobPath = tmpdir.resolve('embedder-snapshot.blob');
   const buildSnapshotArgs = [
     `eval(${getReadFileCodeForPath(snapshotFixture)})`, 'arg1', 'arg2',
     '--embedder-snapshot-blob', blobPath, '--embedder-snapshot-create',
@@ -94,7 +94,7 @@ for (const extraSnapshotArgs of [[], ['--embedder-snapshot-as-file']]) {
 // Create workers and vm contexts after deserialization
 {
   const snapshotFixture = fixtures.path('snapshot', 'create-worker-and-vm.js');
-  const blobPath = path.join(tmpdir.path, 'embedder-snapshot.blob');
+  const blobPath = tmpdir.resolve('embedder-snapshot.blob');
   const buildSnapshotArgs = [
     `eval(${getReadFileCodeForPath(snapshotFixture)})`,
     '--embedder-snapshot-blob', blobPath, '--embedder-snapshot-create',

@@ -7,9 +7,9 @@ const { join } = require('path');
 const { WASI } = require('wasi');
 const modulePath = join(__dirname, 'wasm', 'stdin.wasm');
 const buffer = readFileSync(modulePath);
-const stdinFile = join(tmpdir.path, 'stdin.txt');
-const stdoutFile = join(tmpdir.path, 'stdout.txt');
-const stderrFile = join(tmpdir.path, 'stderr.txt');
+const stdinFile = tmpdir.resolve('stdin.txt');
+const stdoutFile = tmpdir.resolve('stdout.txt');
+const stderrFile = tmpdir.resolve('stderr.txt');
 
 tmpdir.refresh();
 // Write 33 x's. The test's buffer only holds 31 x's + a terminator.
