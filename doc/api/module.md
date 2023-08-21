@@ -283,9 +283,9 @@ were registered. The same applies to all the other hooks.
 ### Communication between main and hooks threads
 
 Module customization hooks run on a dedicated thread, separate from the main
-thread that runs application code. This means that global variables are unique
-to each thread, and message channels must be used to communicate between the
-threads.
+thread that runs application code. This means mutating global variables won't
+affect the other thread(s), and message channels must be used to communicate
+between the threads.
 
 The `register` method can be used to pass data to an [`initialize`][] hook on
 the hooks thread. The data passed to the hook may include transferrable objects
@@ -388,7 +388,7 @@ This hook can send and receive data from a [`register`][] invocation, including
 ports and other transferrable objects. The return value of `initialize` must be
 either:
 
-* `undefined` or `void`,
+* `undefined`,
 * something that can be posted as a message between threads (e.g. the input to
   [`port.postMessage`][]),
 * a `Promise` resolving to one of the aforementioned values.
@@ -420,7 +420,7 @@ port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
 
-const result = register('/path-to-my-hooks.js', {
+const result = register('./path-to-my-hooks.js', {
   parentURL: import.meta.url,
   data: { number: 1, port: port2 },
   transferList: [port2],
@@ -444,7 +444,7 @@ port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
 
-const result = register('/path-to-my-hooks.js', {
+const result = register('./path-to-my-hooks.js', {
   parentURL: pathToFileURL(__filename),
   data: { number: 1, port: port2 },
   transferList: [port2],
@@ -608,10 +608,11 @@ loader with registered `resolve` and `load` hooks; all `require.resolve` calls
 from this module will be processed by the ESM loader with registered `resolve`
 hooks; `require.extensions` and monkey-patching on the CommonJS module loader
 will not apply. (In other words, handled `require` calls will behave similarly
-to an `import` of a CommonJS module.) If `source` is undefined or `null`, it
-will be handled by the CommonJS module loader and `require`/`require.resolve`
-calls will not go through the registered hooks. This behavior for nullish
-`source` is temporary — in the future, nullish `source` will not be supported.
+to an `import` of a CommonJS module, other than `require` being sync.) If
+`source` is undefined or `null`, it will be handled by the CommonJS module
+loader and `require`/`require.resolve` calls will not go through the registered
+hooks. This behavior for nullish `source` is temporary — in the future, nullish
+`source` will not be supported.
 
 The Node.js internal `load` implementation, which is the value of `next` for the
 last hook in the `load` chain, returns `null` for `source` when `format` is
