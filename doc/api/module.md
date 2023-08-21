@@ -335,8 +335,7 @@ register('./my-hooks.mjs', {
 The [`register`][] method can be used to register a module that exports a set of
 hooks. The hooks are functions that are called by Node.js to customize the
 module resolution and loading process. The exported functions must have specific
-names and signatures, and they must be exported as named exports from an ES
-module file.
+names and signatures, and they must be exported as named exports.
 
 ```mjs
 export async function initialize({ number, port }) {
