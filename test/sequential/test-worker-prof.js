@@ -4,7 +4,6 @@ const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const assert = require('assert');
 const util = require('util');
-const { join } = require('path');
 const { spawnSync } = require('child_process');
 
 // Test that --prof also tracks Worker threads.
@@ -67,7 +66,7 @@ if (process.argv[2] === 'child') {
 
   for (const logfile of logfiles) {
     const lines = fs.readFileSync(
-      join(tmpdir.path, logfile), 'utf8').split('\n');
+      tmpdir.resolve(logfile), 'utf8').split('\n');
     const ticks = lines.filter((line) => /^tick,/.test(line)).length;
 
     // Test that at least 15 ticks have been recorded for both parent and child
