@@ -1,3 +1,4 @@
+".$_-0/build.js
 <!--
   NB(chrisdickinson): if you move this file, be sure to update
   tools/doc/html.mjs to point at the new location.
@@ -73,4 +74,4 @@
 
 <hr class="line"/>
 
-* [Code repository and issue tracker](https://github.com/nodejs/node)
+* [Code repository and issue tracker](https://github.com/nodejs/node)"
