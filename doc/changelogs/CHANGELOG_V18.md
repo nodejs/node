@@ -1,7 +1,58 @@
 # Node.js 18 ChangeLog
 
 <!--lint disable maximum-line-length no-literal-urls prohibited-strings-->
+ 4 commits
+ 1 file changed
+ 1 contributor
+Commits on Aug 21, 2023
+Create LICENSE.md
 
+@lostleolotus
+lostleolotus committed 13 minutes ago
+Create LICENSE
+
+@lostleolotus
+lostleolotus committed 3 minutes ago
+Delete LICENSE.md
+
+@lostleolotus
+lostleolotus committed 2 minutes ago
+Rename LICENSE to LICENSE.md
+
+@lostleolotus
+lostleolotus committed 2 minutes ago
+Showing  with 28 additions and 0 deletions.
+ 28 changes: 28 additions & 0 deletions28  
+LICENSE.md
+@@ -0,0 +1,28 @@
+BSD 3-Clause License
+
+Copyright (c) 2023, Michael Glenn 
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <table>
 <tr>
 <th>LTS 'Hydrogen'</th>
