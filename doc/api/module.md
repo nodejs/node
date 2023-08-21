@@ -249,7 +249,7 @@ don't want to create a separate file for that purpose, you can pass a `data:`
 URL to `--import`:
 
 ```bash
-node --import 'data:text/javascript,import { register } from "node:module"; register("http-to-https", import.meta.url);' ./my-app.js
+node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("http-to-https", pathToFileURL("./").href);' ./my-app.js
 ```
 
 ### Chaining
@@ -803,7 +803,7 @@ console.log(VERSION);
 ```
 
 With the preceding hooks module, running
-`node --import 'data:text/javascript,import { register } from "node:module"; register("./https-hooks.mjs", import.meta.url);' ./main.mjs`
+`node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./https-hooks.mjs").href);' ./main.mjs`
 prints the current version of CoffeeScript per the module at the URL in
 `main.mjs`.
 
@@ -895,7 +895,7 @@ export scream = (str) -> str.toUpperCase()
 ```
 
 With the preceding hooks module, running
-`node --import 'data:text/javascript,import { register } from "node:module"; register("./coffeescript-hooks.mjs", import.meta.url);' main.coffee`
+`node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./coffeescript-hooks.mjs").href);' ./main.coffee`
 causes `main.coffee` to be turned into JavaScript after its source code is
 loaded from disk but before Node.js executes it; and so on for any `.coffee`,
 `.litcoffee` or `.coffee.md` files referenced via `import` statements of any
@@ -909,7 +909,7 @@ which specifiers to override to other URLs (this is a very simplistic
 implementation of a small subset of the "import maps" specification).
 
 ```mjs
-// import-map-loader.js
+// import-map-hooks.js
 import fs from 'node:fs/promises';
 
 const { imports } = JSON.parse(await fs.readFile('import-map.json'));
@@ -944,7 +944,7 @@ import 'a-module';
 console.log('some module!');
 ```
 
-Running `node --import 'data:text/javascript,import { register } from "node:module"; register("./import-map-loader.js", import.meta.url);' ./import-map-loader.js main.js`
+Running `node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./import-map-hooks.js").href);' ./import-map-loader.js main.js`
 should print `some module!`.
 
 ## Source map v3 support
