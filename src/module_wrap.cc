@@ -589,8 +589,20 @@ static MaybeLocal<Promise> ImportModuleDynamically(
                     ->Uint32Value(context)
                     .ToChecked();
   if (type == ScriptType::kScript) {
-    contextify::ContextifyScript* wrap = env->id_to_script_map.find(id)->second;
-    object = wrap->object();
+    auto it = env->id_to_script_map.find(id);
+    if (it == env->id_to_script_map.end()) {
+      Local<Promise::Resolver> resolver;
+      if (!Promise::Resolver::New(context).ToLocal(&resolver)) return {};
+      resolver
+          ->Reject(context,
+                   v8::Exception::TypeError(FIXED_ONE_BYTE_STRING(
+                       context->GetIsolate(), "Script not found by id")))
+          .ToChecked();
+      return handle_scope.Escape(resolver->GetPromise());
+    } else {
+      contextify::ContextifyScript* wrap = it->second;
+      object = wrap->object();
+    }
   } else if (type == ScriptType::kModule) {
     ModuleWrap* wrap = ModuleWrap::GetFromID(env, id);
     object = wrap->object();
