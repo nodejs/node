@@ -601,17 +601,19 @@ The final value of `format` must be one of the following:
 The value of `source` is ignored for type `'builtin'` because currently it is
 not possible to replace the value of a Node.js builtin (core) module.
 
-The value of `source` can be omitted for type `'commonjs'`. When a `source` is
-provided, all `require` calls from this module will be processed by the ESM
-loader with registered `resolve` and `load` hooks; all `require.resolve` calls
-from this module will be processed by the ESM loader with registered `resolve`
-hooks; `require.extensions` and monkey-patching on the CommonJS module loader
-will not apply. (In other words, handled `require` calls will behave similarly
-to an `import` of a CommonJS module, other than `require` being sync.) If
-`source` is undefined or `null`, it will be handled by the CommonJS module
-loader and `require`/`require.resolve` calls will not go through the registered
-hooks. This behavior for nullish `source` is temporary — in the future, nullish
-`source` will not be supported.
+The value of `source` can be omitted for type `'commonjs'`:
+
+- When a `source` is provided, all `require` calls from this module will be
+  processed by the ESM loader with registered `resolve` and `load` hooks; all
+  `require.resolve` calls from this module will be processed by the ESM loader
+  with registered `resolve` hooks; only a subset of the CommonJS API will be
+  available (e.g. no `require.extensions`, no `require.cache`, no
+  `require.resolve.paths`) and monkey-patching on the CommonJS module loader
+  will not apply.
+- If `source` is undefined or `null`, it will be handled by the CommonJS module
+  loader and `require`/`require.resolve` calls will not go through the
+  registered hooks. This behavior for nullish `source` is temporary — in the
+  future, nullish `source` will not be supported.
 
 The Node.js internal `load` implementation, which is the value of `next` for the
 last hook in the `load` chain, returns `null` for `source` when `format` is
