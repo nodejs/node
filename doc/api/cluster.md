@@ -900,6 +900,9 @@ values are `'rr'` and `'none'`.
 <!-- YAML
 added: v0.7.1
 changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/xxx
+    description: The `schedulingPolicy` option is supported now.
   - version:
      - v13.2.0
      - v12.16.0
@@ -931,6 +934,9 @@ changes:
     messages between processes. Possible values are `'json'` and `'advanced'`.
     See [Advanced serialization for `child_process`][] for more details.
     **Default:** `false`.
+  * `schedulingPolicy` {string} Scheduling policy to use between processes.
+    **Default:** `cluster.SCHED_RR`. See \[`cluster.schedulingPolicy`]\[] for
+    details.
   * `silent` {boolean} Whether or not to send output to parent's stdio.
     **Default:** `false`.
   * `stdio` {Array} Configures the stdio of forked processes. Because the
