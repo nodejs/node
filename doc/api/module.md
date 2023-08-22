@@ -392,7 +392,7 @@ either:
   [`port.postMessage`][]),
 * a `Promise` resolving to one of the aforementioned values.
 
-Hooks code:
+Module customization code:
 
 ```mjs
 // In the below example this file is referenced as `/path-to-my-hooks.js`.
