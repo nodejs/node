@@ -1003,6 +1003,15 @@ changes:
   * `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
+
+    When using the `recursive` option, please note the following caveat:
+
+    If the filter function is configured to skip certain files based on a
+    condition, and you are performing a recursive copy operation, be aware that
+    directories that do not match the filter condition will also be skipped.
+    This is because the filter function is applied to both files and
+    directories during recursion.
+
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
     * Returns: {boolean|Promise}
@@ -2353,6 +2362,15 @@ changes:
   * `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
+
+    When using the `recursive` option, please note the following caveat:
+
+    If the filter function is configured to skip certain files based on a
+    condition, and you are performing a recursive copy operation, be aware that
+    directories that do not match the filter condition will also be skipped.
+    This is because the filter function is applied to both files and
+    directories during recursion.
+
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
     * Returns: {boolean|Promise}
@@ -5279,6 +5297,15 @@ changes:
     exists, throw an error. **Default:** `false`.
   * `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. **Default:** `undefined`
+
+    When using the `recursive` option, please note the following caveat:
+
+    If the filter function is configured to skip certain files based on a
+    condition, and you are performing a recursive copy operation, be aware that
+    directories that do not match the filter condition will also be skipped.
+    This is because the filter function is applied to both files and
+    directories during recursion.
+
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
     * Returns: {boolean}
