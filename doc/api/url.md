@@ -1726,18 +1726,19 @@ The WHATWG algorithm defines four "percent-encode sets" that describe ranges
 of characters that must be percent-encoded:
 
 * The _C0 control percent-encode set_ includes code points in range U+0000 to
-  U+001F (inclusive) and all code points greater than U+007E.
+  U+001F (inclusive) and all code points greater than U+007E (\~).
 
 * The _fragment percent-encode set_ includes the _C0 control percent-encode set_
-  and code points U+0020, U+0022, U+003C, U+003E, and U+0060.
+  and code points U+0020 SPACE, U+0022 ("), U+003C (<), U+003E (>),
+  and U+0060 (\`).
 
 * The _path percent-encode set_ includes the _C0 control percent-encode set_
-  and code points U+0020, U+0022, U+0023, U+003C, U+003E, U+003F, U+0060,
-  U+007B, and U+007D.
+  and code points U+0020 SPACE, U+0022 ("), U+0023 (#), U+003C (<), U+003E (>),
+  U+003F (?), U+0060 (\`), U+007B ({), and U+007D (}).
 
 * The _userinfo encode set_ includes the _path percent-encode set_ and code
-  points U+002F, U+003A, U+003B, U+003D, U+0040, U+005B, U+005C, U+005D,
-  U+005E, and U+007C.
+  points U+002F (/), U+003A (:), U+003B (;), U+003D (=), U+0040 (@),
+  U+005B (\[) to U+005E(^), and U+007C (|).
 
 The _userinfo percent-encode set_ is used exclusively for username and
 passwords encoded within the URL. The _path percent-encode set_ is used for the
