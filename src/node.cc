@@ -360,7 +360,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/watch_mode");
   }
 
-  if (!first_argv.empty() && first_argv != "-") {
+  if ((!first_argv.empty() && first_argv != "-") ||
+      env->options()->main_esm_module != "") {
     return StartExecution(env, "internal/main/run_main_module");
   }
 

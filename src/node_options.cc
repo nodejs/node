@@ -701,6 +701,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "ES module to preload (option can be repeated)",
             &EnvironmentOptions::preload_esm_modules,
             kAllowedInEnvvar);
+  AddOption("--module",
+            "Main ES module to load by absolute or relative URL",
+            &EnvironmentOptions::main_esm_module);
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",

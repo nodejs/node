@@ -211,6 +211,8 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> preload_esm_modules;
 
+  std::string main_esm_module;
+
   std::vector<std::string> user_argv;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
