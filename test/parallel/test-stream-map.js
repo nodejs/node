@@ -222,7 +222,8 @@ function createDependentPromises(n) {
 
   const promises = createDependentPromises(20);
 
-  const raw = Readable.from([11, 1, 0, 3, 4, 2, 5, 7, 8, 9, 6, 10, 12, 13, 18, 15, 16, 17, 14, 19]);
+  const input = [11, 1, 0, 3, 4, 2, 5, 7, 8, 9, 6, 10, 12, 13, 18, 15, 16, 17, 14, 19];
+  const raw = Readable.from(input);
   // Should be
   // 11, 1, 0, 3, 4, 2 | next: 0
   // 11, 1, 3, 4, 2, 5 | next: 1
@@ -256,14 +257,16 @@ function createDependentPromises(n) {
   }, { concurrency: 6 });
 
   (async () => {
-    await stream.toArray();
+    const outputOrder = await stream.toArray();
 
+    assert.deepStrictEqual(outputOrder, input);
     assert.deepStrictEqual(finishOrder, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
   })().then(common.mustCall(), common.mustNotCall());
 }
 
 {
-  // Where there is a delay between the first and the next item
+  // Where there is a delay between the first and the next item it should not wait for filled queue
+  // before yielding to the user
   const promises = createDependentPromises(3);
 
   const raw = Readable.from([0, 1, 2]);
