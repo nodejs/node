@@ -202,8 +202,9 @@ The file passed to `--import` can also be an export from a dependency:
 node --import some-package/register ./my-app.js
 ```
 
-Where `some-package` has an `"exports"` field defining the `/register` export to
-map to a file that calls `register()`, like this `register-hooks.js` example.
+Where `some-package` has an [`"exports"`][] field defining the `/register`
+export to map to a file that calls `register()`, like this `register-hooks.js`
+example.
 
 Using `--import` ensures that the hooks are registered before any application
 files are imported, including the entry point of the application. Alternatively,
@@ -1097,6 +1098,7 @@ returned object contains the following keys:
 [ES Modules]: esm.md
 [HTTPS and HTTP imports]: esm.md#https-and-http-imports
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
+[`"exports"`]: packages.md#exports
 [`--enable-source-maps`]: cli.md#--enable-source-maps
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
