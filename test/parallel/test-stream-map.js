@@ -162,7 +162,7 @@ function createDependentPromises(n) {
   const stream = range.map(common.mustCall(async (_, { signal }) => {
     await once(signal, 'abort');
     throw signal.reason;
-  }, 2), { signal: ac.signal, concurrency: 2 });
+  }, 2), { signal: ac.signal, concurrency: 2, highWaterMark: 0 });
   // pump
   assert.rejects(async () => {
     for await (const item of stream) {
@@ -255,6 +255,54 @@ function createDependentPromises(n) {
     finishOrder.push(item);
     return item;
   }, { concurrency: 6 });
+
+  (async () => {
+    const outputOrder = await stream.toArray();
+
+    assert.deepStrictEqual(outputOrder, input);
+    assert.deepStrictEqual(finishOrder, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  })().then(common.mustCall(), common.mustNotCall());
+}
+
+{
+  // Custom highWaterMark with a lot of items and large concurrency
+  const finishOrder = [];
+
+  const promises = createDependentPromises(20);
+
+  const input = [11, 1, 0, 3, 4, 2, 5, 7, 8, 9, 6, 10, 12, 13, 18, 15, 16, 17, 14, 19];
+  const raw = Readable.from(input);
+  // Should be
+  // 11, 1, 0, 3, 4     | next: 0, buffer: []
+  // 11, 1, 3, 4, 2     | next: 1, buffer: [0]
+  // 11, 3, 4, 2, 5     | next: 2, buffer: [0, 1]
+  // 11, 3, 4, 5, 7     | next: 3, buffer: [0, 1, 2]
+  // 11, 4, 5, 7, 8     | next: 4, buffer: [0, 1, 2, 3]
+  // 11, 5, 7, 8, 9     | next: 5, buffer: [0, 1, 2, 3, 4]
+  // 11, 7, 8, 9, 6     | next: 6, buffer: [0, 1, 2, 3, 4, 5]
+  // 11, 7, 8, 9, 10    | next: 7, buffer: [0, 1, 2, 3, 4, 5, 6] -- buffer full
+  // 11, 8, 9, 10, 12   | next: 8, buffer: [0, 1, 2, 3, 4, 5, 6]
+  // 11, 9, 10, 12, 13  | next: 9, buffer: [0, 1, 2, 3, 4, 5, 6]
+  // 11, 10, 12, 13, 18 | next: 10, buffer: [0, 1, 2, 3, 4, 5, 6]
+  // 11, 12, 13, 18, 15 | next: 11, buffer: [0, 1, 2, 3, 4, 5, 6]
+  // 12, 13, 18, 15, 16 | next: 12, buffer: [] -- all items flushed as 11 is consumed and all the items wait for it
+  // 13, 18, 15, 16, 17 | next: 13, buffer: []
+  // 18, 15, 16, 17, 14 | next: 14, buffer: []
+  // 18, 15, 16, 17, 19 | next: 15, buffer: [14]
+  // 18, 16, 17, 19     | next: 16, buffer: [14, 15]
+  // 18, 17, 19         | next: 17, buffer: [14, 15, 16]
+  // 18, 19             | next: 18, buffer: [14, 15, 16, 17]
+  // 19                 | next: 19, buffer: [] -- all items flushed
+  //
+
+  const stream = raw.map(async (item) => {
+    const [promise, resolve] = promises[item];
+    resolve();
+
+    await promise;
+    finishOrder.push(item);
+    return item;
+  }, { concurrency: 5, highWaterMark: 7 });
 
   (async () => {
     const outputOrder = await stream.toArray();
