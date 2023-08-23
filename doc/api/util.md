@@ -1522,7 +1522,7 @@ const { values, tokens } = parseArgs({ options, tokens: true });
 
 // Reprocess the option tokens and overwrite the returned values.
 const { color, logfile = 'default.log' } = tokens
-  .filter(({ kind }) => kind === 'option')
+  .filter((token) => token.kind === 'option')
   .reduce((acc, { name, value }) => {
 
     const { [name]: _, ...rest } = acc;
@@ -1551,7 +1551,7 @@ const { values, tokens } = parseArgs({ options, tokens: true });
 
 // Reprocess the option tokens and overwrite the returned values.
 const { color, logfile = 'default.log' } = tokens
-  .filter(({ kind }) => kind === 'option')
+  .filter((token) => token.kind === 'option')
   .reduce((acc, { name, value }) => {
 
     const { [name]: _, ...rest } = acc;
