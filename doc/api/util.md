@@ -1518,7 +1518,7 @@ const options = {
   'logfile': { type: 'string' },
   'no-logfile': { type: 'boolean' },
 };
-const { values, tokens = [] } = parseArgs({ options, tokens: true });
+const { values, tokens } = parseArgs({ options, tokens: true });
 
 // Reprocess the option tokens and overwrite the returned values.
 const { color, logfile = 'default.log' } = tokens
@@ -1547,7 +1547,7 @@ const options = {
   'logfile': { type: 'string' },
   'no-logfile': { type: 'boolean' },
 };
-const { values, tokens = [] } = parseArgs({ options, tokens: true });
+const { values, tokens } = parseArgs({ options, tokens: true });
 
 // Reprocess the option tokens and overwrite the returned values.
 const { color, logfile = 'default.log' } = tokens
