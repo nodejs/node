@@ -773,11 +773,11 @@ void WriteByteVectorLiteral(std::ostream* ss,
                             const T* vec,
                             size_t size,
                             const char* var_name,
-                            bool use_string_literals) {
+                            bool use_array_literals) {
   constexpr bool is_uint8_t = std::is_same_v<T, uint8_t>;
   static_assert(is_uint8_t || std::is_same_v<T, char>);
   constexpr const char* type_name = is_uint8_t ? "uint8_t" : "char";
-  if (use_string_literals) {
+  if (!use_array_literals) {
     const uint8_t* data = reinterpret_cast<const uint8_t*>(vec);
     *ss << "static const " << type_name << " *" << var_name << " = ";
     *ss << (is_uint8_t ? R"(reinterpret_cast<const uint8_t *>(")" : "\"");
@@ -818,7 +818,7 @@ static void WriteCodeCacheInitializer(std::ostream* ss,
 
 void FormatBlob(std::ostream& ss,
                 const SnapshotData* data,
-                bool use_string_literals) {
+                bool use_array_literals) {
   ss << R"(#include <cstddef>
 #include "env.h"
 #include "node_snapshot_builder.h"
@@ -833,7 +833,7 @@ namespace node {
                          data->v8_snapshot_blob_data.data,
                          data->v8_snapshot_blob_data.raw_size,
                          "v8_snapshot_blob_data",
-                         use_string_literals);
+                         use_array_literals);
 
   ss << R"(static const int v8_snapshot_blob_size = )"
      << data->v8_snapshot_blob_data.raw_size << ";\n";
@@ -846,7 +846,7 @@ namespace node {
                            item.data.data,
                            item.data.length,
                            var_name.c_str(),
-                           use_string_literals);
+                           use_array_literals);
   }
 
   ss << R"(const SnapshotData snapshot_data {
@@ -1132,7 +1132,7 @@ ExitCode SnapshotBuilder::GenerateAsSource(
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
     std::optional<std::string_view> main_script_path,
-    bool use_string_literals) {
+    bool use_array_literals) {
   std::string main_script_content;
   std::optional<std::string_view> main_script_optional;
   if (main_script_path.has_value()) {
@@ -1159,7 +1159,7 @@ ExitCode SnapshotBuilder::GenerateAsSource(
   if (exit_code != ExitCode::kNoFailure) {
     return exit_code;
   }
-  FormatBlob(out, &data, use_string_literals);
+  FormatBlob(out, &data, use_array_literals);
 
   if (!out) {
     std::cerr << "Failed to write to " << out_path << "\n";
