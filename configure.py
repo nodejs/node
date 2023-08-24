@@ -2169,6 +2169,8 @@ else:
 
 if options.compile_commands_json:
   gyp_args += ['-f', 'compile_commands_json']
+  os.path.islink('./compile_commands.json') and os.unlink('./compile_commands.json')
+  os.symlink('./out/' + config['BUILDTYPE'] + '/compile_commands.json', './compile_commands.json')
 
 # override the variable `python` defined in common.gypi
 if bin_override is not None:
