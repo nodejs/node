@@ -23,7 +23,7 @@ class NODE_EXTERN_PRIVATE SnapshotBuilder {
       const std::vector<std::string>& args,
       const std::vector<std::string>& exec_args,
       std::optional<std::string_view> main_script_path = std::nullopt,
-      bool use_string_literals = true);
+      bool use_array_literals = false);
 
   // Generate the snapshot into out.
   static ExitCode Generate(SnapshotData* out,

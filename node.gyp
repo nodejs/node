@@ -10,6 +10,7 @@
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
     'node_shared%': 'false',
+    'node_write_snapshot_as_string_literals': 'true',
     'force_dynamic_crt%': 0,
     'ossfuzz' : 'false',
     'node_module_version%': '',
@@ -1247,8 +1248,8 @@
       ],
 
       'conditions': [
-        ['OS in "linux mac"', {
-          'defines': [ 'NODE_MKSNAPSHOT_USE_STRING_LITERALS=1' ],
+        ['node_write_snapshot_as_array_literals=="true"', {
+          'defines': [ 'NODE_MKSNAPSHOT_USE_ARRAY_LITERALS=1' ],
         }],
         [ 'node_use_openssl=="true"', {
           'defines': [
