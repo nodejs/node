@@ -174,7 +174,7 @@ changes:
 
 Module resolution and loading can be customized by registering a file which
 exports a set of hooks. This can be done using the [`register`][] method
-imported from `node:module`, which you can run before your application code by
+from `node:module`, which you can run before your application code by
 using the `--import` flag:
 
 ```bash
@@ -203,7 +203,7 @@ node --import some-package/register ./my-app.js
 ```
 
 Where `some-package` has an [`"exports"`][] field defining the `/register`
-export to map to a file that calls `register()`, like this `register-hooks.js`
+export to map to a file that calls `register()`, like the following `register-hooks.js`
 example.
 
 Using `--import` ensures that the hooks are registered before any application
@@ -235,14 +235,14 @@ import('./my-app.js');
 In this example, we are registering the `http-to-https` hooks, but they will
 only be available for subsequently imported modules—in this case, `my-app.js`
 and anything it references via `import` or `require`. If the
-`import('./my-app.js')` had instead been a static `import './my-app.js'`, _the
-app would already have been loaded_ before the `http-to-https` hooks were
-registered. This is part of the design of ES modules, where static imports are
-evaluated from the leaves of the tree first back to the trunk. There can be
+`import('./my-app.js')` had instead been a static `import './my-app.js'`, the
+app would have _already_ been loaded **before** the `http-to-https` hooks were
+registered. This due to the ES modules specification, where static imports are
+evaluated from the leaves of the tree first, then back to the trunk. There can be
 static imports _within_ `my-app.js`, which will not be evaluated until
 `my-app.js` is when it's dynamically imported.
 
-The `my-app.js` file can also be CommonJS. Customization hooks will run for any
+`my-app.js` can also be CommonJS. Customization hooks will run for any
 modules that it references via either `import` or `require`.
 
 Finally, if all you want to do is register hooks before your app runs and you
@@ -261,7 +261,7 @@ It's possible to call `register` more than once:
 // entrypoint.mjs
 import { register } from 'node:module';
 
-register(new URL('./first.mjs', import.meta.url));
+register('./first.mjs', import.meta.url);
 register('./second.mjs', import.meta.url);
 await import('./my-app.mjs');
 ```
@@ -272,7 +272,7 @@ const { register } = require('node:module');
 const { pathToFileURL } = require('node:url');
 
 const parentURL = pathToFileURL(__filename);
-register(new URL('./first.mjs', parentURL));
+register('./first.mjs', parentURL);
 register('./second.mjs', parentURL);
 import('./my-app.mjs');
 ```
@@ -296,8 +296,8 @@ like ports.
 import { register } from 'node:module';
 import { MessageChannel } from 'node:worker_threads';
 
-// This example showcases how a message channel can be used to
-// communicate to the hooks, by sending `port2` to the hooks.
+// This example demonstrates how a message channel can be used to
+// communicate with the hooks, by sending `port2` to the hooks.
 const { port1, port2 } = new MessageChannel();
 
 port1.on('message', (msg) => {
@@ -317,7 +317,7 @@ const { pathToFileURL } = require('node:url');
 const { MessageChannel } = require('node:worker_threads');
 
 // This example showcases how a message channel can be used to
-// communicate to the hooks, by sending `port2` to the hooks.
+// communicate with the hooks, by sending `port2` to the hooks.
 const { port1, port2 } = new MessageChannel();
 
 port1.on('message', (msg) => {
@@ -396,7 +396,7 @@ either:
 Module customization code:
 
 ```mjs
-// In the below example this file is referenced as `/path-to-my-hooks.js`.
+// path-to-my-hooks.js
 
 export async function initialize({ number, port }) {
   port.postMessage(`increment: ${number + 1}`);
@@ -602,7 +602,7 @@ The final value of `format` must be one of the following:
 The value of `source` is ignored for type `'builtin'` because currently it is
 not possible to replace the value of a Node.js builtin (core) module.
 
-The value of `source` can be omitted for type `'commonjs'`:
+Omitting vs providing a `source` for `'commonjs'` has very different effects:
 
 * When a `source` is provided, all `require` calls from this module will be
   processed by the ESM loader with registered `resolve` and `load` hooks; all

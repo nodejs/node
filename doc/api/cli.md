@@ -43,7 +43,7 @@ Otherwise, the file is loaded using the CommonJS module loader. See
 
 ### ECMAScript modules loader entry point caveat
 
-When loading [ECMAScript module loader][Modules loaders] loads the program entry
+When loading, the [ECMAScript module loader][Modules loaders] loads the program entry
 point, the `node` command will accept as input only files with `.js`, `.mjs`, or
 `.cjs` extensions; and with `.wasm` extensions when
 [`--experimental-wasm-modules`][] is enabled.
