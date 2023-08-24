@@ -1070,7 +1070,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
 [commonjs-extension-resolution-loader]: https://github.com/nodejs/loaders-test/tree/main/commonjs-extension-resolution-loader
-[custom https loader]: module.md#https-loader
+[custom https loader]: module.md#import-from-https
 [import.meta.resolve]: #importmetaresolvespecifier
 [percent-encoded]: url.md#percent-encoding-in-urls
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
