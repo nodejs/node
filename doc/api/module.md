@@ -281,16 +281,24 @@ In this example, the registered hooks will form chains. If both `first.mjs` and
 `second.mjs` define a `resolve` hook, both will be called, in the order they
 were registered. The same applies to all the other hooks.
 
-### Communication between main and hooks threads
+The registered hooks also affect `register` itself. In this example,
+`second.mjs` will be resolved and loaded per the hooks registered by
+`first.mjs`. This allows for things like writing hooks in non-JavaScript
+languages, so long as an earlier registered loader is one that transpiles into
+JavaScript.
+
+The `register` method cannot be called from within the module that defines the
+hooks.
+
+### Communication with module customization hooks
 
 Module customization hooks run on a dedicated thread, separate from the main
 thread that runs application code. This means mutating global variables won't
 affect the other thread(s), and message channels must be used to communicate
 between the threads.
 
-The `register` method can be used to pass data to an [`initialize`][] hook on
-the hooks thread. The data passed to the hook may include transferrable objects
-like ports.
+The `register` method can be used to pass data to an [`initialize`][] hook. The
+data passed to the hook may include transferrable objects like ports.
 
 ```mjs
 import { register } from 'node:module';
