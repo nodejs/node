@@ -234,23 +234,23 @@ import('./my-app.js');
 
 In this example, we are registering the `http-to-https` hooks, but they will
 only be available for subsequently imported modules—in this case, `my-app.js`
-and anything it references via `import` or `require`. If the
+and anything it references via `import` (and optionally `require`). If the
 `import('./my-app.js')` had instead been a static `import './my-app.js'`, the
 app would have _already_ been loaded **before** the `http-to-https` hooks were
 registered. This due to the ES modules specification, where static imports are
 evaluated from the leaves of the tree first, then back to the trunk. There can
 be static imports _within_ `my-app.js`, which will not be evaluated until
-`my-app.js` is when it's dynamically imported.
+`my-app.js` is dynamically imported.
 
 `my-app.js` can also be CommonJS. Customization hooks will run for any
-modules that it references via either `import` or `require`.
+modules that it references via `import` (and optionally `require`).
 
 Finally, if all you want to do is register hooks before your app runs and you
 don't want to create a separate file for that purpose, you can pass a `data:`
 URL to `--import`:
 
 ```bash
-node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("http-to-https", pathToFileURL("./").href);' ./my-app.js
+node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("http-to-https", pathToFileURL("./"));' ./my-app.js
 ```
 
 ### Chaining
