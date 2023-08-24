@@ -15,3 +15,6 @@ Local Modifications:
 - Add parsing of the 'Info-ZIP Unicode Path Extra Field' as described in
   https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT section 4.6.9.
   (see crrev.com/1002476)
+
+- Check for overly long filename, comment, or extra field in
+  zipOpenNewFileInZip4_64 (crbug.com/1470539).
