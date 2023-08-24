@@ -29,8 +29,7 @@ directory. That path is then resolved by [CommonJS][] module loader. If no
 corresponding file is found, an error is thrown.
 
 If a file is found, its path will be passed to the
-[ECMAScript module loader][Modules loaders] under any of the following
-conditions:
+[ES module loader][Modules loaders] under any of the following conditions:
 
 * The program was started with a command-line flag that forces the entry
   point to be loaded with ECMAScript module loader.
