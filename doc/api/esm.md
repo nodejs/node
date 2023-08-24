@@ -1090,7 +1090,7 @@ success!
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
-[custom https loader]: module.md#https-loader
+[custom https loader]: module.md#import-from-https
 [import.meta.resolve]: #importmetaresolvespecifier
 [percent-encoded]: url.md#percent-encoding-in-urls
 [special scheme]: https://url.spec.whatwg.org/#special-scheme

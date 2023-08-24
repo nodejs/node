@@ -100,114 +100,7 @@ added: REPLACEME
 * Returns: {any} returns whatever was returned by the `initialize` hook.
 
 Register a module that exports [hooks][] that customize Node.js module
-resolution and loading behavior.
-
-```mjs
-import { register } from 'node:module';
-
-register('http-to-https', import.meta.url);
-
-// Because this is a dynamic `import()`, the `http-to-https` hooks will run
-// before importing `./my-app.mjs`.
-await import('./my-app.mjs');
-```
-
-In the example above, we are registering the `http-to-https` loader,
-but it will only be available for subsequently imported modules—in
-this case, `my-app.mjs`. If the `await import('./my-app.mjs')` had
-instead been a static `import './my-app.mjs'`, _the app would already
-have been loaded_ before the `http-to-https` hooks were
-registered. This is part of the design of ES modules, where static
-imports are evaluated from the leaves of the tree first back to the
-trunk. There can be static imports _within_ `my-app.mjs`, which
-will not be evaluated until `my-app.mjs` is when it's dynamically
-imported.
-
-The `--experimental-loader` flag of the CLI can be used together
-with the `register` function; the hooks registered with the
-function will follow the same evaluation chain of hooks registered
-within the CLI:
-
-```console
-node \
-  --experimental-loader unpkg \
-  --experimental-loader http-to-https \
-  --experimental-loader cache-buster \
-  entrypoint.mjs
-```
-
-```mjs
-// entrypoint.mjs
-import { URL } from 'node:url';
-import { register } from 'node:module';
-
-const loaderURL = new URL('./my-programmatically-loader.mjs', import.meta.url);
-
-register(loaderURL);
-await import('./my-app.mjs');
-```
-
-The `my-programmatic-loader.mjs` can leverage `unpkg`,
-`http-to-https`, and `cache-buster` loaders.
-
-It's also possible to use `register` more than once:
-
-```mjs
-// entrypoint.mjs
-import { URL } from 'node:url';
-import { register } from 'node:module';
-
-register(new URL('./first-loader.mjs', import.meta.url));
-register('./second-loader.mjs', import.meta.url);
-await import('./my-app.mjs');
-```
-
-Both loaders (`first-loader.mjs` and `second-loader.mjs`) can use
-all the resources provided by the loaders registered in the CLI. But
-remember that they will only be available in the next imported
-module (`my-app.mjs`). The evaluation order of the hooks when
-importing `my-app.mjs` and consecutive modules in the example above
-will be:
-
-```console
-resolve: second-loader.mjs
-resolve: first-loader.mjs
-resolve: cache-buster
-resolve: http-to-https
-resolve: unpkg
-load: second-loader.mjs
-load: first-loader.mjs
-load: cache-buster
-load: http-to-https
-load: unpkg
-globalPreload: second-loader.mjs
-globalPreload: first-loader.mjs
-globalPreload: cache-buster
-globalPreload: http-to-https
-globalPreload: unpkg
-```
-
-This function can also be used to pass data to the loader's [`initialize`][]
-hook; the data passed to the hook may include transferrable objects like ports.
-
-```mjs
-import { register } from 'node:module';
-import { MessageChannel } from 'node:worker_threads';
-
-// This example showcases how a message channel can be used to
-// communicate to the loader, by sending `port2` to the loader.
-const { port1, port2 } = new MessageChannel();
-
-port1.on('message', (msg) => {
-  console.log(msg);
-});
-
-register('./my-programmatic-loader.mjs', {
-  parentURL: import.meta.url,
-  data: { number: 1, port: port2 },
-  transferList: [port2],
-});
-```
+resolution and loading behavior. See [Customization hooks][].
 
 ### `module.syncBuiltinESMExports()`
 
@@ -248,6 +141,8 @@ import('node:fs').then((esmFS) => {
 });
 ```
 
+<i id="module_customization_hooks"></i>
+
 ## Customization Hooks
 
 <!-- YAML
@@ -267,48 +162,218 @@ changes:
                  `globalPreload`; added `load` hook and `getGlobalPreload` hook.
 -->
 
-> Stability: 1 - Experimental
-
-> This API is currently being redesigned and will still change.
+> Stability: 1.1 - Active development
 
 <!-- type=misc -->
 
-To customize the default module resolution, loader hooks can optionally be
-provided via a `--experimental-loader ./loader-name.mjs` argument to Node.js.
+<i id="enabling_module_customization_hooks"></i>
 
-When hooks are used they apply to each subsequent loader, the entry point, and
-all `import` calls. They won't apply to `require` calls; those still follow
-[CommonJS][] rules.
+### Enabling
 
-Loaders follow the pattern of `--require`:
+Module resolution and loading can be customized by registering a file which
+exports a set of hooks. This can be done using the [`register`][] method
+from `node:module`, which you can run before your application code by
+using the `--import` flag:
 
 ```bash
-node \
-  --experimental-loader unpkg \
-  --experimental-loader http-to-https \
-  --experimental-loader cache-buster
+node --import ./register-hooks.js ./my-app.js
 ```
 
-These are called in the following sequence: `cache-buster` calls
-`http-to-https` which calls `unpkg`.
+```mjs
+// register-hooks.js
+import { register } from 'node:module';
+
+register('./hooks.mjs', import.meta.url);
+```
+
+```cjs
+// register-hooks.js
+const { register } = require('node:module');
+const { pathToFileURL } = require('node:url');
+
+register('./hooks.mjs', pathToFileURL(__filename));
+```
+
+The file passed to `--import` can also be an export from a dependency:
+
+```bash
+node --import some-package/register ./my-app.js
+```
+
+Where `some-package` has an [`"exports"`][] field defining the `/register`
+export to map to a file that calls `register()`, like the following `register-hooks.js`
+example.
+
+Using `--import` ensures that the hooks are registered before any application
+files are imported, including the entry point of the application. Alternatively,
+`register` can be called from the entry point, but dynamic `import()` must be
+used for any code that should be run after the hooks are registered:
+
+```mjs
+import { register } from 'node:module';
+
+register('http-to-https', import.meta.url);
+
+// Because this is a dynamic `import()`, the `http-to-https` hooks will run
+// to handle `./my-app.js` and any other files it imports or requires.
+await import('./my-app.js');
+```
+
+```cjs
+const { register } = require('node:module');
+const { pathToFileURL } = require('node:url');
+
+register('http-to-https', pathToFileURL(__filename));
+
+// Because this is a dynamic `import()`, the `http-to-https` hooks will run
+// to handle `./my-app.js` and any other files it imports or requires.
+import('./my-app.js');
+```
+
+In this example, we are registering the `http-to-https` hooks, but they will
+only be available for subsequently imported modules—in this case, `my-app.js`
+and anything it references via `import` (and optionally `require`). If the
+`import('./my-app.js')` had instead been a static `import './my-app.js'`, the
+app would have _already_ been loaded **before** the `http-to-https` hooks were
+registered. This due to the ES modules specification, where static imports are
+evaluated from the leaves of the tree first, then back to the trunk. There can
+be static imports _within_ `my-app.js`, which will not be evaluated until
+`my-app.js` is dynamically imported.
+
+`my-app.js` can also be CommonJS. Customization hooks will run for any
+modules that it references via `import` (and optionally `require`).
+
+Finally, if all you want to do is register hooks before your app runs and you
+don't want to create a separate file for that purpose, you can pass a `data:`
+URL to `--import`:
+
+```bash
+node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("http-to-https", pathToFileURL("./"));' ./my-app.js
+```
+
+### Chaining
+
+It's possible to call `register` more than once:
+
+```mjs
+// entrypoint.mjs
+import { register } from 'node:module';
+
+register('./first.mjs', import.meta.url);
+register('./second.mjs', import.meta.url);
+await import('./my-app.mjs');
+```
+
+```cjs
+// entrypoint.cjs
+const { register } = require('node:module');
+const { pathToFileURL } = require('node:url');
+
+const parentURL = pathToFileURL(__filename);
+register('./first.mjs', parentURL);
+register('./second.mjs', parentURL);
+import('./my-app.mjs');
+```
+
+In this example, the registered hooks will form chains. If both `first.mjs` and
+`second.mjs` define a `resolve` hook, both will be called, in the order they
+were registered. The same applies to all the other hooks.
+
+The registered hooks also affect `register` itself. In this example,
+`second.mjs` will be resolved and loaded per the hooks registered by
+`first.mjs`. This allows for things like writing hooks in non-JavaScript
+languages, so long as an earlier registered loader is one that transpiles into
+JavaScript.
+
+The `register` method cannot be called from within the module that defines the
+hooks.
+
+### Communication with module customization hooks
+
+Module customization hooks run on a dedicated thread, separate from the main
+thread that runs application code. This means mutating global variables won't
+affect the other thread(s), and message channels must be used to communicate
+between the threads.
+
+The `register` method can be used to pass data to an [`initialize`][] hook. The
+data passed to the hook may include transferrable objects like ports.
+
+```mjs
+import { register } from 'node:module';
+import { MessageChannel } from 'node:worker_threads';
+
+// This example demonstrates how a message channel can be used to
+// communicate with the hooks, by sending `port2` to the hooks.
+const { port1, port2 } = new MessageChannel();
+
+port1.on('message', (msg) => {
+  console.log(msg);
+});
+
+register('./my-hooks.mjs', {
+  parentURL: import.meta.url,
+  data: { number: 1, port: port2 },
+  transferList: [port2],
+});
+```
+
+```cjs
+const { register } = require('node:module');
+const { pathToFileURL } = require('node:url');
+const { MessageChannel } = require('node:worker_threads');
+
+// This example showcases how a message channel can be used to
+// communicate with the hooks, by sending `port2` to the hooks.
+const { port1, port2 } = new MessageChannel();
+
+port1.on('message', (msg) => {
+  console.log(msg);
+});
+
+register('./my-hooks.mjs', {
+  parentURL: pathToFileURL(__filename),
+  data: { number: 1, port: port2 },
+  transferList: [port2],
+});
+```
 
 ### Hooks
+
+The [`register`][] method can be used to register a module that exports a set of
+hooks. The hooks are functions that are called by Node.js to customize the
+module resolution and loading process. The exported functions must have specific
+names and signatures, and they must be exported as named exports.
+
+```mjs
+export async function initialize({ number, port }) {
+  // Receive data from `register`, return data to `register`.
+}
+
+export async function resolve(specifier, context, nextResolve) {
+  // Take an `import` or `require` specifier and resolve it to a URL.
+}
+
+export async function load(url, context, nextLoad) {
+  // Take a resolved URL and return the source code to be evaluated.
+}
+```
 
 Hooks are part of a chain, even if that chain consists of only one custom
 (user-provided) hook and the default hook, which is always present. Hook
 functions nest: each one must always return a plain object, and chaining happens
-as a result of each function calling `next<hookName>()`, which is a reference
-to the subsequent loader's hook.
+as a result of each function calling `next<hookName>()`, which is a reference to
+the subsequent loader's hook.
 
-A hook that returns a value lacking a required property triggers an exception.
-A hook that returns without calling `next<hookName>()` _and_ without returning
+A hook that returns a value lacking a required property triggers an exception. A
+hook that returns without calling `next<hookName>()` _and_ without returning
 `shortCircuit: true` also triggers an exception. These errors are to help
-prevent unintentional breaks in the chain.
+prevent unintentional breaks in the chain. Return `shortCircuit: true` from a
+hook to signal that the chain is intentionally ending at your hook.
 
-Hooks are run in a separate thread, isolated from the main. That means it is a
-different [realm](https://tc39.es/ecma262/#realm). The hooks thread may be
-terminated by the main thread at any time, so do not depend on asynchronous
-operations (like `console.log`) to complete.
+Hooks are run in a separate thread, isolated from the main thread where
+application code runs. That means it is a different [realm][]. The hooks thread
+may be terminated by the main thread at any time, so do not depend on
+asynchronous operations (like `console.log`) to complete.
 
 #### `initialize()`
 
@@ -316,16 +381,14 @@ operations (like `console.log`) to complete.
 added: REPLACEME
 -->
 
-> The loaders API is being redesigned. This hook may disappear or its
-> signature may change. Do not rely on the API described below.
+> Stability: 1.1 - Active development
 
 * `data` {any} The data from `register(loader, import.meta.url, { data })`.
 * Returns: {any} The data to be returned to the caller of `register`.
 
-The `initialize` hook provides a way to define a custom function that runs
-in the loader's thread when the loader is initialized. Initialization happens
-when the loader is registered via [`register`][] or registered via the
-`--experimental-loader` command line option.
+The `initialize` hook provides a way to define a custom function that runs in
+the hooks thread when the hooks module is initialized. Initialization happens
+when the hooks module is registered via [`register`][].
 
 This hook can send and receive data from a [`register`][] invocation, including
 ports and other transferrable objects. The return value of `initialize` must be
@@ -336,11 +399,10 @@ either:
   [`port.postMessage`][]),
 * a `Promise` resolving to one of the aforementioned values.
 
-Loader code:
+Module customization code:
 
 ```mjs
-// In the below example this file is referenced as
-// '/path-to-my-loader.js'
+// path-to-my-hooks.js
 
 export async function initialize({ number, port }) {
   port.postMessage(`increment: ${number + 1}`);
@@ -355,17 +417,41 @@ import assert from 'node:assert';
 import { register } from 'node:module';
 import { MessageChannel } from 'node:worker_threads';
 
-// This example showcases how a message channel can be used to
-// communicate between the main (application) thread and the loader
-// running on the loaders thread, by sending `port2` to the loader.
+// This example showcases how a message channel can be used to communicate
+// between the main (application) thread and the hooks running on the hooks
+// thread, by sending `port2` to the `initialize` hook.
 const { port1, port2 } = new MessageChannel();
 
 port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
 
-const result = register('/path-to-my-loader.js', {
+const result = register('./path-to-my-hooks.js', {
   parentURL: import.meta.url,
+  data: { number: 1, port: port2 },
+  transferList: [port2],
+});
+
+assert.strictEqual(result, 'ok');
+```
+
+```cjs
+const assert = require('node:assert');
+const { register } = require('node:module');
+const { pathToFileURL } = require('node:url');
+const { MessageChannel } = require('node:worker_threads');
+
+// This example showcases how a message channel can be used to communicate
+// between the main (application) thread and the hooks running on the hooks
+// thread, by sending `port2` to the `initialize` hook.
+const { port1, port2 } = new MessageChannel();
+
+port1.on('message', (msg) => {
+  assert.strictEqual(msg, 'increment: 2');
+});
+
+const result = register('./path-to-my-hooks.js', {
+  parentURL: pathToFileURL(__filename),
   data: { number: 1, port: port2 },
   transferList: [port2],
 });
@@ -391,8 +477,7 @@ changes:
     description: Add support for import assertions.
 -->
 
-> The loaders API is being redesigned. This hook may disappear or its
-> signature may change. Do not rely on the API described below.
+> Stability: 1.2 - Release candidate
 
 * `specifier` {string}
 * `context` {Object}
@@ -415,21 +500,21 @@ changes:
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
 
-> **Caveat** Despite support for returning promises and async functions, calls
+> **Warning** Despite support for returning promises and async functions, calls
 > to `resolve` may block the main thread which can impact performance.
 
 The `resolve` hook chain is responsible for telling Node.js where to find and
-how to cache a given `import` statement or expression. It can optionally return
-its format (such as `'module'`) as a hint to the `load` hook. If a format is
-specified, the `load` hook is ultimately responsible for providing the final
-`format` value (and it is free to ignore the hint provided by `resolve`); if
-`resolve` provides a `format`, a custom `load` hook is required even if only to
-pass the value to the Node.js default `load` hook.
+how to cache a given `import` statement or expression, or `require` call. It can
+optionally return a format (such as `'module'`) as a hint to the `load` hook. If
+a format is specified, the `load` hook is ultimately responsible for providing
+the final `format` value (and it is free to ignore the hint provided by
+`resolve`); if `resolve` provides a `format`, a custom `load` hook is required
+even if only to pass the value to the Node.js default `load` hook.
 
 Import type assertions are part of the cache key for saving loaded modules into
-the internal module cache. The `resolve` hook is responsible for
-returning an `importAssertions` object if the module should be cached with
-different assertions than were present in the source code.
+the internal module cache. The `resolve` hook is responsible for returning an
+`importAssertions` object if the module should be cached with different
+assertions than were present in the source code.
 
 The `conditions` property in `context` is an array of conditions for
 [package exports conditions][Conditional exports] that apply to this resolution
@@ -443,7 +528,7 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 `context.conditions` array originally passed into the `resolve` hook.
 
 ```mjs
-export function resolve(specifier, context, nextResolve) {
+export async function resolve(specifier, context, nextResolve) {
   const { parentURL = null } = context;
 
   if (Math.random() > 0.5) { // Some condition.
@@ -485,11 +570,7 @@ changes:
       its return.
 -->
 
-> The loaders API is being redesigned. This hook may disappear or its
-> signature may change. Do not rely on the API described below.
-
-> In a previous version of this API, this was split across 3 separate, now
-> deprecated, hooks (`getFormat`, `getSource`, and `transformSource`).
+> Stability: 1.2 - Release candidate
 
 * `url` {string} The URL returned by the `resolve` chain
 * `context` {Object}
@@ -507,8 +588,8 @@ changes:
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `source` {string|ArrayBuffer|TypedArray} The source for Node.js to evaluate
 
-The `load` hook provides a way to define a custom method of determining how
-a URL should be interpreted, retrieved, and parsed. It is also in charge of
+The `load` hook provides a way to define a custom method of determining how a
+URL should be interpreted, retrieved, and parsed. It is also in charge of
 validating the import assertion.
 
 The final value of `format` must be one of the following:
@@ -528,7 +609,7 @@ does not provide a mechanism for the ES module loader to override the
 [CommonJS module return value](esm.md#commonjs-namespaces). This limitation
 might be overcome in the future.
 
-> **Caveat**: The ESM `load` hook and namespaced exports from CommonJS modules
+> **Warning**: The ESM `load` hook and namespaced exports from CommonJS modules
 > are incompatible. Attempting to use them together will result in an empty
 > object from the import. This may be addressed in the future.
 
@@ -541,9 +622,9 @@ If the source value of a text-based format (i.e., `'json'`, `'module'`)
 is not a string, it is converted to a string using [`util.TextDecoder`][].
 
 The `load` hook provides a way to define a custom method for retrieving the
-source code of an ES module specifier. This would allow a loader to potentially
-avoid reading files from disk. It could also be used to map an unrecognized
-format to a supported one, for example `yaml` to `module`.
+source code of a resolved URL. This would allow a loader to potentially avoid
+reading files from disk. It could also be used to map an unrecognized format to
+a supported one, for example `yaml` to `module`.
 
 ```mjs
 export async function load(url, context, nextLoad) {
@@ -583,11 +664,11 @@ changes:
     description: Add support for chaining globalPreload hooks.
 -->
 
-> This hook will be removed in a future version. Use [`initialize`][] instead.
-> When a loader has an `initialize` export, `globalPreload` will be ignored.
+> Stability: 1.0 - Early development
 
-> In a previous version of this API, this hook was named
-> `getGlobalPreloadCode`.
+> **Warning:** This hook will be removed in a future version. Use
+> [`initialize`][] instead. When a hooks module has an `initialize` export,
+> `globalPreload` will be ignored.
 
 * `context` {Object} Information to assist the preload code
   * `port` {MessagePort}
@@ -619,16 +700,17 @@ const require = createRequire(cwd() + '/<preload>');
 }
 ```
 
-In order to allow communication between the application and the loader, another
-argument is provided to the preload code: `port`. This is available as a
-parameter to the loader hook and inside of the source text returned by the hook.
-Some care must be taken in order to properly call [`port.ref()`][] and
+Another argument is provided to the preload code: `port`. This is available as a
+parameter to the hook and inside of the source text returned by the hook. This
+functionality has been moved to the `initialize` hook.
+
+Care must be taken in order to properly call [`port.ref()`][] and
 [`port.unref()`][] to prevent a process from being in a state where it won't
 close normally.
 
 ```mjs
 /**
- * This example has the application context send a message to the loader
+ * This example has the application context send a message to the hook
  * and sends the message back to the application context
  */
 export function globalPreload({ port }) {
@@ -636,7 +718,7 @@ export function globalPreload({ port }) {
     port.postMessage(msg);
   });
   return `\
-    port.postMessage('console.log("I went to the Loader and back");');
+    port.postMessage('console.log("I went to the hook and back");');
     port.on('message', (msg) => {
       eval(msg);
     });
@@ -646,22 +728,23 @@ export function globalPreload({ port }) {
 
 ### Examples
 
-The various loader hooks can be used together to accomplish wide-ranging
-customizations of the Node.js code loading and evaluation behaviors.
+The various module customization hooks can be used together to accomplish
+wide-ranging customizations of the Node.js code loading and evaluation
+behaviors.
 
-#### HTTPS loader
+#### Import from HTTPS
 
 In current Node.js, specifiers starting with `https://` are experimental (see
 [HTTPS and HTTP imports][]).
 
-The loader below registers hooks to enable rudimentary support for such
+The hook below registers hooks to enable rudimentary support for such
 specifiers. While this may seem like a significant improvement to Node.js core
-functionality, there are substantial downsides to actually using this loader:
+functionality, there are substantial downsides to actually using these hooks:
 performance is much slower than loading files from disk, there is no caching,
 and there is no security.
 
 ```mjs
-// https-loader.mjs
+// https-hooks.mjs
 import { get } from 'node:https';
 
 export function load(url, context, nextLoad) {
@@ -696,59 +779,42 @@ import { VERSION } from 'https://coffeescript.org/browser-compiler-modern/coffee
 console.log(VERSION);
 ```
 
-With the preceding loader, running
-`node --experimental-loader ./https-loader.mjs ./main.mjs`
+With the preceding hooks module, running
+`node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./https-hooks.mjs"));' ./main.mjs`
 prints the current version of CoffeeScript per the module at the URL in
 `main.mjs`.
 
-#### Transpiler loader
+#### Transpilation
 
 Sources that are in formats Node.js doesn't understand can be converted into
 JavaScript using the [`load` hook][load hook].
 
-This is less performant than transpiling source files before running
-Node.js; a transpiler loader should only be used for development and testing
-purposes.
+This is less performant than transpiling source files before running Node.js;
+transpiler hooks should only be used for development and testing purposes.
 
 ```mjs
-// coffeescript-loader.mjs
+// coffeescript-hooks.mjs
 import { readFile } from 'node:fs/promises';
 import { dirname, extname, resolve as resolvePath } from 'node:path';
 import { cwd } from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import CoffeeScript from 'coffeescript';
+import coffeescript from 'coffeescript';
 
-const baseURL = pathToFileURL(`${cwd()}/`).href;
+const extensionsRegex = /\.(coffee|litcoffee|coffee\.md)$/;
 
 export async function load(url, context, nextLoad) {
   if (extensionsRegex.test(url)) {
-    // Now that we patched resolve to let CoffeeScript URLs through, we need to
-    // tell Node.js what format such URLs should be interpreted as. Because
-    // CoffeeScript transpiles into JavaScript, it should be one of the two
-    // JavaScript formats: 'commonjs' or 'module'.
-
     // CoffeeScript files can be either CommonJS or ES modules, so we want any
     // CoffeeScript file to be treated by Node.js the same as a .js file at the
     // same location. To determine how Node.js would interpret an arbitrary .js
     // file, search up the file system for the nearest parent package.json file
     // and read its "type" field.
     const format = await getPackageType(url);
-    // When a hook returns a format of 'commonjs', `source` is ignored.
-    // To handle CommonJS files, a handler needs to be registered with
-    // `require.extensions` in order to process the files with the CommonJS
-    // loader. Avoiding the need for a separate CommonJS handler is a future
-    // enhancement planned for ES module loaders.
-    if (format === 'commonjs') {
-      return {
-        format,
-        shortCircuit: true,
-      };
-    }
 
     const { source: rawSource } = await nextLoad(url, { ...context, format });
     // This hook converts CoffeeScript source code into JavaScript source code
     // for all imported CoffeeScript files.
-    const transformedSource = coffeeCompile(rawSource.toString(), url);
+    const transformedSource = coffeescript.compile(rawSource.toString(), url);
 
     return {
       format,
@@ -805,23 +871,22 @@ console.log "Brought to you by Node.js version #{version}"
 export scream = (str) -> str.toUpperCase()
 ```
 
-With the preceding loader, running
-`node --experimental-loader ./coffeescript-loader.mjs main.coffee`
+With the preceding hooks module, running
+`node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./coffeescript-hooks.mjs"));' ./main.coffee`
 causes `main.coffee` to be turned into JavaScript after its source code is
 loaded from disk but before Node.js executes it; and so on for any `.coffee`,
 `.litcoffee` or `.coffee.md` files referenced via `import` statements of any
 loaded file.
 
-#### "import map" loader
+#### Import maps
 
-The previous two loaders defined `load` hooks. This is an example of a loader
-that does its work via the `resolve` hook. This loader reads an
-`import-map.json` file that specifies which specifiers to override to another
-URL (this is a very simplistic implemenation of a small subset of the
-"import maps" specification).
+The previous two examples defined `load` hooks. This is an example of a
+`resolve` hook. This hooks module reads an `import-map.json` file that defines
+which specifiers to override to other URLs (this is a very simplistic
+implementation of a small subset of the "import maps" specification).
 
 ```mjs
-// import-map-loader.js
+// import-map-hooks.js
 import fs from 'node:fs/promises';
 
 const { imports } = JSON.parse(await fs.readFile('import-map.json'));
@@ -835,7 +900,7 @@ export async function resolve(specifier, context, nextResolve) {
 }
 ```
 
-Let's assume we have these files:
+With these files:
 
 ```mjs
 // main.js
@@ -856,19 +921,8 @@ import 'a-module';
 console.log('some module!');
 ```
 
-If you run `node --experimental-loader ./import-map-loader.js main.js`
-the output will be `some module!`.
-
-### Register loaders programmatically
-
-<!-- YAML
-added: REPLACEME
--->
-
-In addition to using the `--experimental-loader` option in the CLI,
-loaders can also be registered programmatically. You can find
-detailed information about this process in the documentation page
-for [`module.register()`][].
+Running `node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./import-map-hooks.js"));' main.js`
+should print `some module!`.
 
 ## Source map v3 support
 
@@ -1012,9 +1066,11 @@ returned object contains the following keys:
 
 [CommonJS]: modules.md
 [Conditional exports]: packages.md#conditional-exports
+[Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
 [HTTPS and HTTP imports]: esm.md#https-and-http-imports
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
+[`"exports"`]: packages.md#exports
 [`--enable-source-maps`]: cli.md#--enable-source-maps
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
@@ -1023,7 +1079,6 @@ returned object contains the following keys:
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`initialize`]: #initialize
-[`module.register()`]: #moduleregisterspecifier-parenturl-options
 [`module`]: modules.md#the-module-object
 [`port.postMessage`]: worker_threads.md#portpostmessagevalue-transferlist
 [`port.ref()`]: worker_threads.md#portref
@@ -1034,5 +1089,6 @@ returned object contains the following keys:
 [hooks]: #customization-hooks
 [load hook]: #loadurl-context-nextload
 [module wrapper]: modules.md#the-module-wrapper
+[realm]: https://tc39.es/ecma262/#realm
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
 [transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist
