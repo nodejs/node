@@ -79,10 +79,10 @@ int BuildSnapshot(int argc, char* argv[]) {
     out_path = result->args()[1];
   }
 
-#ifdef NODE_MKSNAPSHOT_USE_STRING_LITERALS
-  bool use_string_literals = true;
+#ifdef NODE_MKSNAPSHOT_USE_ARRAY_LITERALS
+  bool use_array_literals = true;
 #else
-  bool use_string_literals = false;
+  bool use_array_literals = false;
 #endif
 
   node::ExitCode exit_code =
@@ -90,7 +90,7 @@ int BuildSnapshot(int argc, char* argv[]) {
                                               result->args(),
                                               result->exec_args(),
                                               main_script_path,
-                                              use_string_literals);
+                                              use_array_literals);
 
   node::TearDownOncePerProcess();
   return static_cast<int>(exit_code);
