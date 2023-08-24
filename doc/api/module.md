@@ -238,8 +238,8 @@ and anything it references via `import` or `require`. If the
 `import('./my-app.js')` had instead been a static `import './my-app.js'`, the
 app would have _already_ been loaded **before** the `http-to-https` hooks were
 registered. This due to the ES modules specification, where static imports are
-evaluated from the leaves of the tree first, then back to the trunk. There can be
-static imports _within_ `my-app.js`, which will not be evaluated until
+evaluated from the leaves of the tree first, then back to the trunk. There can
+be static imports _within_ `my-app.js`, which will not be evaluated until
 `my-app.js` is when it's dynamically imported.
 
 `my-app.js` can also be CommonJS. Customization hooks will run for any
