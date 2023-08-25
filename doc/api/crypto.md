@@ -5594,7 +5594,7 @@ instead.
 ### Support for weak or compromised algorithms
 
 The `node:crypto` module still supports some algorithms which are already
-compromised and are not currently recommended for use. The API also allows
+compromised and are not recommended for use. The API also allows
 the use of ciphers and hashes with a small key size that are too weak for safe
 use.
 
