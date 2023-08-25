@@ -444,7 +444,7 @@ Reads data from the file and stores that in the given buffer.
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
 
-#### `filehandle.readableWebStream(options)`
+#### `filehandle.readableWebStream([options])`
 
 <!-- YAML
 added: v17.0.0
