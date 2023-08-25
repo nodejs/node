@@ -89,6 +89,11 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
     const result = spawnSync(process.execPath, args, options);
     const report = getTapCoverageFixtureReport();
 
+    console.log("=======")
+    console.log("RESULT\n", result.stdout.toString())
+    console.log("EXPECTED\n", report)
+    console.log("=======")
+
     assert(result.stdout.toString().includes(report));
     assert.strictEqual(result.stderr.toString(), '');
     assert.strictEqual(result.status, 0);
