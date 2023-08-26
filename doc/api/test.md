@@ -1608,7 +1608,7 @@ import { mock } from 'node:test';
 mock.timers.enable(['setInterval']);
 ```
 
-```js
+```cjs
 const { mock } = require('node:test');
 mock.timers.enable(['setInterval']);
 ```
@@ -1645,7 +1645,7 @@ import { mock } from 'node:test';
 mock.timers.reset();
 ```
 
-```js
+```cjs
 const { mock } = require('node:test');
 mock.timers.reset();
 ```
@@ -1694,7 +1694,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -1733,7 +1733,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -1777,7 +1777,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -1834,7 +1834,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 const nodeTimers = require('node:timers');
@@ -1896,7 +1896,7 @@ test('should tick five times testing a real use case', async (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 const nodeTimersPromises = require('node:timers/promises');
@@ -1962,7 +1962,7 @@ test('runAll functions following the given order', (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
