@@ -7,17 +7,20 @@ import { describe, it } from 'node:test';
 
 describe('ESM: loader with syntax error', { concurrency: true }, () => {
   it('should crash the node process', async () => {
-    const { code, stderr } = await spawnPromisified(execPath, [
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
       fileURL('es-module-loaders', 'syntax-error.mjs').href,
       path('print-error-message.js'),
     ]);
 
-    console.log(stderr);
+    console.log('\n\nstderr', stderr);
+    console.log('\n\nstdout', stdout);
 
-    match(stderr, /SyntaxError \[Error\]:/);
-    doesNotMatch(stderr, /Bad command or file name/);
-    notStrictEqual(code, 0);
+    match('foo', /bar/);
+
+    // match(stderr, /SyntaxError \[Error\]:/);
+    // doesNotMatch(stderr, /Bad command or file name/); // It should have crashed before this.
+    // notStrictEqual(code, 0);
   });
 });
