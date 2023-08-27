@@ -21,10 +21,10 @@ const { StringDecoder } = require('node:string_decoder');
 const decoder = new StringDecoder('utf8');
 
 const cent = Buffer.from([0xC2, 0xA2]);
-console.log(decoder.write(cent));
+console.log(decoder.write(cent)); // Prints: ¢
 
 const euro = Buffer.from([0xE2, 0x82, 0xAC]);
-console.log(decoder.write(euro));
+console.log(decoder.write(euro)); // Prints: €
 ```
 
 When a `Buffer` instance is written to the `StringDecoder` instance, an
@@ -41,7 +41,7 @@ const decoder = new StringDecoder('utf8');
 
 decoder.write(Buffer.from([0xE2]));
 decoder.write(Buffer.from([0x82]));
-console.log(decoder.end(Buffer.from([0xAC])));
+console.log(decoder.end(Buffer.from([0xAC]))); // Prints: €
 ```
 
 ## Class: `StringDecoder`
