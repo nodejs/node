@@ -1844,64 +1844,6 @@
           '<(V8_ROOT)/include',
         ],
       },
-      'actions': [
-        {
-          'action_name': 'v8_dump_build_config',
-          'inputs': [
-            '<(V8_ROOT)/tools/testrunner/utils/dump_build_config_gyp.py',
-          ],
-          'outputs': [
-            '<(PRODUCT_DIR)/v8_build_config.json',
-          ],
-          'variables': {
-            'v8_dump_build_config_args': [
-              '<(PRODUCT_DIR)/v8_build_config.json',
-              'current_cpu=<(v8_current_cpu)',
-              'dcheck_always_on=<(dcheck_always_on)',
-              'is_android=<(is_android)',
-              'is_asan=<(asan)',
-              'is_cfi=<(cfi_vptr)',
-              'is_clang=<(clang)',
-              'is_component_build=<(component)',
-              'is_debug=<(CONFIGURATION_NAME)',
-              # Not available in gyp.
-              'is_full_debug=0',
-              # Not available in gyp.
-              'is_gcov_coverage=0',
-              'is_msan=<(msan)',
-              'is_tsan=<(tsan)',
-              # Not available in gyp.
-              'is_ubsan_vptr=0',
-              'target_cpu=<(target_arch)',
-              'v8_current_cpu=<(v8_current_cpu)',
-              'v8_enable_atomic_object_field_writes=<(v8_enable_atomic_object_field_writes)',
-              'v8_enable_concurrent_marking=<(v8_enable_concurrent_marking)',
-              'v8_enable_i18n_support=<(v8_enable_i18n_support)',
-              'v8_enable_verify_predictable=<(v8_enable_verify_predictable)',
-              'v8_enable_verify_csa=<(v8_enable_verify_csa)',
-              'v8_enable_lite_mode=<(v8_enable_lite_mode)',
-              'v8_enable_pointer_compression=<(v8_enable_pointer_compression)',
-              'v8_enable_shared_ro_heap=<(v8_enable_shared_ro_heap)',
-              'v8_enable_webassembly=<(v8_enable_webassembly)',
-              # Not available in gyp.
-              'v8_control_flow_integrity=0',
-              'v8_target_cpu=<(v8_target_arch)',
-            ]
-          },
-          'conditions': [
-            ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
-              'v8_dump_build_config_args': [
-                'mips_arch_variant=<(mips_arch_variant)',
-                'mips_use_msa=<(mips_use_msa)',
-              ],
-            }],
-          ],
-          'action': [
-            '<(python)', '<(V8_ROOT)/tools/testrunner/utils/dump_build_config_gyp.py',
-            '<@(v8_dump_build_config_args)',
-          ],
-        },
-      ],
     },  # v8
     # missing a bunch of fuzzer targets
 
