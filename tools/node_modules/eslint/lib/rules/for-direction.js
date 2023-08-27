@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const { getStaticValue } = require("@eslint-community/eslint-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -29,6 +35,7 @@ module.exports = {
     },
 
     create(context) {
+        const { sourceCode } = context;
 
         /**
          * report an error.
@@ -46,17 +53,17 @@ module.exports = {
          * check the right side of the assignment
          * @param {ASTNode} update UpdateExpression to check
          * @param {int} dir expected direction that could either be turned around or invalidated
-         * @returns {int} return dir, the negated dir or zero if it's not clear for identifiers
+         * @returns {int} return dir, the negated dir, or zero if the counter does not change or the direction is not clear
          */
         function getRightDirection(update, dir) {
-            if (update.right.type === "UnaryExpression") {
-                if (update.right.operator === "-") {
-                    return -dir;
-                }
-            } else if (update.right.type === "Identifier") {
-                return 0;
+            const staticValue = getStaticValue(update.right, sourceCode.getScope(update));
+
+            if (staticValue && ["bigint", "boolean", "number"].includes(typeof staticValue.value)) {
+                const sign = Math.sign(Number(staticValue.value)) || 0; // convert NaN to 0
+
+                return dir * sign;
             }
-            return dir;
+            return 0;
         }
 
         /**
