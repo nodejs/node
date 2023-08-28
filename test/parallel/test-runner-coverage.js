@@ -183,7 +183,7 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 0);
 });
 
-test('coverage reports on lines, functions, and branches', async (t) => {
+test('coverage reports on lines, functions, and branches', skipIfNoInspector, async (t) => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const child = spawnSync(process.execPath,
                           ['--test', '--experimental-test-coverage', '--test-reporter',
