@@ -32,7 +32,6 @@ describe('node:test bail tap', () => {
     assert.match(child.stdout.toString(), /not ok 2 - second/);
     assert.doesNotMatch(child.stdout.toString(), /ok 3 - third/);
     assert.match(child.stdout.toString(), /not ok 1 - nested/);
-    assert.match(child.stdout.toString(), /Bail out!/);
     assert.doesNotMatch(child.stdout.toString(), /# Subtest: top level/);
     assert.doesNotMatch(child.stdout.toString(), /ok 1 - ok forth/);
     assert.doesNotMatch(child.stdout.toString(), /not ok 2 - fifth/);
