@@ -51,8 +51,8 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
 
   CHECK(args[offset]->IsString());  // Hash
   CHECK(args[offset + 1]->IsObject());  // Key
-  CHECK(IsAnyByteSource(args[offset + 2]));  // Salt
-  CHECK(IsAnyByteSource(args[offset + 3]));  // Info
+  CHECK(IsAnyBufferSource(args[offset + 2]));  // Salt
+  CHECK(IsAnyBufferSource(args[offset + 3]));  // Info
   CHECK(args[offset + 4]->IsUint32());  // Length
 
   Utf8Value hash(env->isolate(), args[offset]);
