@@ -1,5 +1,6 @@
 var path = require('path');
 var fs = require('fs');
+var Keyv = require('keyv');
 var utils = require('./utils');
 var del = require('./del');
 var writeJSON = utils.writeJSON;
@@ -17,13 +18,33 @@ var cache = {
   load: function (docId, cacheDir) {
     var me = this;
 
-    me._visited = {};
-    me._persisted = {};
+    me.keyv = new Keyv();
+
+    me.__visited = {};
+    me.__persisted = {};
     me._pathToFile = cacheDir ? path.resolve(cacheDir, docId) : path.resolve(__dirname, '../.cache/', docId);
 
     if (fs.existsSync(me._pathToFile)) {
       me._persisted = utils.tryParse(me._pathToFile, {});
     }
+  },
+
+  get _persisted() {
+    return this.__persisted;
+  },
+
+  set _persisted(value) {
+    this.__persisted = value;
+    this.keyv.set('persisted', value);
+  },
+
+  get _visited() {
+    return this.__visited;
+  },
+
+  set _visited(value) {
+    this.__visited = value;
+    this.keyv.set('visited', value);
   },
 
   /**
