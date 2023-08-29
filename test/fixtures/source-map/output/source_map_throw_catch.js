@@ -1,11 +1,11 @@
 // Flags:  --enable-source-maps
 
 'use strict';
-require('../common');
+require('../../../common');
 Error.stackTraceLimit = 2;
 
 try {
-  require('../fixtures/source-map/typescript-throw');
+  require('../typescript-throw');
 } catch (err) {
   setTimeout(() => {
     console.info(err);
