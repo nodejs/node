@@ -21,13 +21,13 @@ void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
   // to V8 inlining certain parts of the wrapper. Therefore, keep them in C++.
   // Refs: https://github.com/nodejs/node/issues/34073.
   Environment* env = Environment::GetCurrent(args);
-  if (!IsAnyByteSource(args[0])) {
+  if (!IsAnyBufferSource(args[0])) {
     THROW_ERR_INVALID_ARG_TYPE(
       env, "The \"buf1\" argument must be an instance of "
       "ArrayBuffer, Buffer, TypedArray, or DataView.");
     return;
   }
-  if (!IsAnyByteSource(args[1])) {
+  if (!IsAnyBufferSource(args[1])) {
     THROW_ERR_INVALID_ARG_TYPE(
       env, "The \"buf2\" argument must be an instance of "
       "ArrayBuffer, Buffer, TypedArray, or DataView.");
