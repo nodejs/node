@@ -1,4 +1,4 @@
-// Flags: --test --test-bail
+// Flags: --test-bail --test-reporter=tap
 'use strict';
 const common = require('../../../common');
 const test = require('node:test');

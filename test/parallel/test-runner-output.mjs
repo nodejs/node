@@ -88,6 +88,8 @@ const tests = [
       replaceTestDuration,
     ),
   },
+  { name: 'test-runner/output/bail.js', tty: true },
+  { name: 'test-runner/output/bail-error.js', tty: true },
 ]
 .filter(Boolean)
 .map(({ name, tty, transform }) => ({
