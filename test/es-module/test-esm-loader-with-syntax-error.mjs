@@ -17,10 +17,8 @@ describe('ESM: loader with syntax error', { concurrency: true }, () => {
     console.log('\n\nstderr', stderr);
     console.log('\n\nstdout', stdout);
 
-    match('foo', /bar/);
-
-    // match(stderr, /SyntaxError \[Error\]:/);
-    // doesNotMatch(stderr, /Bad command or file name/); // It should have crashed before this.
-    // notStrictEqual(code, 0);
+    match(stderr, /SyntaxError \[Error\]:/);
+    doesNotMatch(stderr, /Bad command or file name/); // It should have crashed before this.
+    notStrictEqual(code, 0);
   });
 });
