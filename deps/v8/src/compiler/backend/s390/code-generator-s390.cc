@@ -1699,15 +1699,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Mul64WithOverflow: {
       Register dst = i.OutputRegister(), src1 = i.InputRegister(0),
                src2 = i.InputRegister(1);
-      DCHECK(!AreAliased(dst, src1, src2));
+      CHECK(!AreAliased(dst, src1, src2));
       if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
         __ msgrkc(dst, src1, src2);
       } else {
-        __ mgrk(r0, src1, src2);  // r0 = high 64-bits, r1 = low 64-bits.
-        __ lgr(dst, r1);
-        __ ShiftRightS64(r1, r1, Operand(63));
+        // Mul high.
+        __ MulHighS64(r1, src1, src2);
+        // Mul low.
+        __ mov(dst, src1);
+        __ MulS64(dst, src2);
         // Test whether {high} is a sign-extension of {result}.
-        __ CmpU64(r0, r1);
+        __ ShiftRightS64(r0, dst, Operand(63));
+        __ CmpU64(r1, r0);
       }
       break;
     }
@@ -1725,20 +1728,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(RRRInstr(MulHighU64), nullInstr, nullInstr);
       break;
     case kS390_MulHighS64:
-      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
-        ASSEMBLE_BIN_OP(RRRInstr(MulHighS64), nullInstr, nullInstr);
-      } else {
-        __ Push(r2, r3, i.InputRegister(0), i.InputRegister(1));
-        __ Pop(r2, r3);
-        {
-          FrameScope scope(masm(), StackFrame::INTERNAL);
-          __ PrepareCallCFunction(2, 0, kScratchReg);
-          __ CallCFunction(ExternalReference::int64_mul_high_function(), 2, 0);
-        }
-        __ mov(kScratchReg, r2);
-        __ Pop(r2, r3);
-        __ mov(i.OutputRegister(), kScratchReg);
-      }
+      ASSEMBLE_BIN_OP(RRRInstr(MulHighS64), nullInstr, nullInstr);
       break;
     case kS390_MulFloat:
       ASSEMBLE_BIN_OP(DDInstr(meebr), DMTInstr(MulFloat32), nullInstr);
