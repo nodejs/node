@@ -2,6 +2,7 @@
   throw err
   ^
 
+
 Error: an error!
     at functionD (*enclosing-call-site.js:16:17)
     at functionC (*enclosing-call-site.js:10:3)
