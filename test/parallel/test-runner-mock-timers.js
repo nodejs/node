@@ -257,23 +257,15 @@ describe('Mock Timers Test Suite', () => {
       it('should not advance in time if clearImmediate was invoked', (t) => {
         t.mock.timers.enable(['setImmediate']);
 
-        const fn = mock.fn();
-        const id = global.setImmediate(fn);
+        const id = global.setImmediate(common.mustNotCall());
         global.clearImmediate(id);
         t.mock.timers.tick(200);
-
-        assert.strictEqual(fn.mock.callCount(), 0);
       });
 
       it('should advance in time and trigger timers when calling the .tick function', (t) => {
         t.mock.timers.enable(['setImmediate']);
-
-        const fn = mock.fn();
-
-        global.setImmediate(fn);
-
+        global.setImmediate(common.mustCall());
         t.mock.timers.tick(0);
-        assert.strictEqual(fn.mock.callCount(), 1);
       });
 
       it('should execute in order if setImmediate is called multiple times', (t) => {
@@ -433,54 +425,42 @@ describe('Mock Timers Test Suite', () => {
       it('should not advance in time if clearImmediate was invoked', (t) => {
         t.mock.timers.enable(['setImmediate']);
 
-        const fn = mock.fn();
-        const id = nodeTimers.setImmediate(fn);
+        const id = nodeTimers.setImmediate(common.mustNotCall());
         nodeTimers.clearImmediate(id);
         t.mock.timers.tick(200);
-
-        assert.strictEqual(fn.mock.callCount(), 0);
       });
 
       it('should advance in time and trigger timers when calling the .tick function', (t) => {
         t.mock.timers.enable(['setImmediate']);
-
-        const fn = mock.fn();
-
-        nodeTimers.setImmediate(fn);
-
+        nodeTimers.setImmediate(common.mustCall());
         t.mock.timers.tick(0);
-        assert.strictEqual(fn.mock.callCount(), 1);
       });
 
       it('should execute in order if setImmediate is called multiple times', (t) => {
         t.mock.timers.enable(['setImmediate']);
         const order = [];
-        const fn1 = t.mock.fn(() => order.push('f1'));
-        const fn2 = t.mock.fn(() => order.push('f2'));
+        const fn1 = t.mock.fn(common.mustCall(() => order.push('f1')));
+        const fn2 = t.mock.fn(common.mustCall(() => order.push('f2')));
 
         nodeTimers.setImmediate(fn1);
         nodeTimers.setImmediate(fn2);
 
         t.mock.timers.tick(0);
 
-        assert.strictEqual(fn1.mock.callCount(), 1);
-        assert.strictEqual(fn2.mock.callCount(), 1);
         assert.deepStrictEqual(order, ['f1', 'f2']);
       });
 
       it('should execute setImmediate first if setTimeout was also called', (t) => {
         t.mock.timers.enable(['setImmediate', 'setTimeout']);
         const order = [];
-        const fn1 = t.mock.fn(() => order.push('f1'));
-        const fn2 = t.mock.fn(() => order.push('f2'));
+        const fn1 = t.mock.fn(common.mustCall(() => order.push('f1')));
+        const fn2 = t.mock.fn(common.mustCall(() => order.push('f2')));
 
         nodeTimers.setTimeout(fn2, 0);
         nodeTimers.setImmediate(fn1);
 
         t.mock.timers.tick(100);
 
-        assert.strictEqual(fn1.mock.callCount(), 1);
-        assert.strictEqual(fn2.mock.callCount(), 1);
         assert.deepStrictEqual(order, ['f1', 'f2']);
       });
     });
