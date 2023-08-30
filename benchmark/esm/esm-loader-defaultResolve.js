@@ -8,8 +8,7 @@ const common = require('../common.js');
 const tmpdir = require('../../test/common/tmpdir.js');
 const { pathToFileURL } = require('node:url');
 
-const benchmarkDirectory =
-  path.resolve(tmpdir.path, 'benchmark-import-meta-resolve');
+const benchmarkDirectory = tmpdir.resolve('benchmark-import-meta-resolve');
 
 const parentURL = pathToFileURL(path.join(benchmarkDirectory, 'entry-point.js'));
 
