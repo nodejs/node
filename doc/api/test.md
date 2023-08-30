@@ -1579,7 +1579,7 @@ added:
 Enables timer mocking for the specified timers.
 
 * `timers` {Array} An optional array containing the timers to mock.
-  The currently supported timer values are `'setInterval'`, `'setTimeout'`
+  The currently supported timer values are `'setInterval'`, `'setTimeout'`,
   and `'setImmediate'`.  If no value is provided, all timers (`'setInterval'`,
   `'clearInterval'`, `'setTimeout'`, `'clearTimeout'`, `'setImmediate'`,
   and `'clearImmediate'`) will be mocked by default.
