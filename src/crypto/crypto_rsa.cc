@@ -321,7 +321,7 @@ Maybe<bool> RSACipherTraits::AdditionalConfig(
         return Nothing<bool>();
       }
 
-      if (IsAnyByteSource(args[offset + 2])) {
+      if (IsAnyBufferSource(args[offset + 2])) {
         ArrayBufferOrViewContents<char> label(args[offset + 2]);
         if (UNLIKELY(!label.CheckSizeInt32())) {
           THROW_ERR_OUT_OF_RANGE(env, "label is too big");

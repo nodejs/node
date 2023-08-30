@@ -446,7 +446,7 @@ Reads data from the file and stores that in the given buffer.
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
 
-#### `filehandle.readableWebStream(options)`
+#### `filehandle.readableWebStream([options])`
 
 <!-- YAML
 added: v17.0.0
@@ -1001,7 +1001,8 @@ changes:
   * `errorOnExist` {boolean} when `force` is `false`, and the destination
     exists, throw an error. **Default:** `false`.
   * `filter` {Function} Function to filter copied files/directories. Return
-    `true` to copy the item, `false` to ignore it. Can also return a `Promise`
+    `true` to copy the item, `false` to ignore it. When ignoring a directory,
+    all of its contents will be skipped as well. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
@@ -2351,7 +2352,8 @@ changes:
   * `errorOnExist` {boolean} when `force` is `false`, and the destination
     exists, throw an error. **Default:** `false`.
   * `filter` {Function} Function to filter copied files/directories. Return
-    `true` to copy the item, `false` to ignore it. Can also return a `Promise`
+    `true` to copy the item, `false` to ignore it. When ignoring a directory,
+    all of its contents will be skipped as well. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
@@ -5278,7 +5280,8 @@ changes:
   * `errorOnExist` {boolean} when `force` is `false`, and the destination
     exists, throw an error. **Default:** `false`.
   * `filter` {Function} Function to filter copied files/directories. Return
-    `true` to copy the item, `false` to ignore it. **Default:** `undefined`
+    `true` to copy the item, `false` to ignore it. When ignoring a directory,
+    all of its contents will be skipped as well. **Default:** `undefined`
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
     * Returns: {boolean}

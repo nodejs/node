@@ -1593,7 +1593,7 @@ import { mock } from 'node:test';
 mock.timers.enable(['setInterval']);
 ```
 
-```js
+```cjs
 const { mock } = require('node:test');
 mock.timers.enable(['setInterval']);
 ```
@@ -1630,7 +1630,7 @@ import { mock } from 'node:test';
 mock.timers.reset();
 ```
 
-```js
+```cjs
 const { mock } = require('node:test');
 mock.timers.reset();
 ```
@@ -1679,7 +1679,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -1718,7 +1718,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -1762,7 +1762,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -1819,7 +1819,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 const nodeTimers = require('node:timers');
@@ -1881,7 +1881,7 @@ test('should tick five times testing a real use case', async (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 const nodeTimersPromises = require('node:timers/promises');
@@ -1947,7 +1947,7 @@ test('runAll functions following the given order', (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -2011,8 +2011,18 @@ object, streaming a series of events representing the execution of the tests.
       * `coveredLinePercent` {number} The percentage of lines covered.
       * `coveredBranchPercent` {number} The percentage of branches covered.
       * `coveredFunctionPercent` {number} The percentage of functions covered.
-      * `uncoveredLineNumbers` {Array} An array of integers representing line
-        numbers that are uncovered.
+      * `functions` {Array} An array of functions representing function
+        coverage.
+        * `name` {string} The name of the function.
+        * `line` {number} The line number where the function is defined.
+        * `count` {number} The number of times the function was called.
+      * `branches` {Array} An array of branches representing branch coverage.
+        * `line` {number} The line number where the branch is defined.
+        * `count` {number} The number of times the branch was taken.
+      * `lines` {Array} An array of lines representing line
+        numbers and the number of times they were covered.
+        * `line` {number} The line number.
+        * `count` {number} The number of times the line was covered.
     * `totals` {Object} An object containing a summary of coverage for all
       files.
       * `totalLineCount` {number} The total number of lines.

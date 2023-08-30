@@ -38,15 +38,15 @@ if (process.argv[2] === 'wasi-child') {
 
   // Setup the sandbox environment.
   tmpdir.refresh();
-  const sandbox = path.join(tmpdir.path, 'sandbox');
+  const sandbox = tmpdir.resolve('sandbox');
   const sandboxedFile = path.join(sandbox, 'input.txt');
-  const externalFile = path.join(tmpdir.path, 'outside.txt');
+  const externalFile = tmpdir.resolve('outside.txt');
   const sandboxedDir = path.join(sandbox, 'subdir');
   const sandboxedSymlink = path.join(sandboxedDir, 'input_link.txt');
   const escapingSymlink = path.join(sandboxedDir, 'outside.txt');
   const loopSymlink1 = path.join(sandboxedDir, 'loop1');
   const loopSymlink2 = path.join(sandboxedDir, 'loop2');
-  const sandboxedTmp = path.join(tmpdir.path, 'tmp');
+  const sandboxedTmp = tmpdir.resolve('tmp');
 
   fs.mkdirSync(sandbox);
   fs.mkdirSync(sandboxedDir);
