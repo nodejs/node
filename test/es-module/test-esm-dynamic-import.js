@@ -65,9 +65,8 @@ function expectFsNamespace(result) {
     expectModuleError(import('C:\\example\\foo.mjs'),
                       'ERR_UNSUPPORTED_ESM_URL_SCHEME',
                       msg);
-  } else {
-    // If the specifier is an absolute path string without a scheme, it should
-    // be treated as a file URL.
-    expectOkNamespace(import(absolutePath));
   }
+  // If the specifier is an origin-relative URL, it should
+  // be treated as a file: URL.
+  expectOkNamespace(import(targetURL.pathname));
 })();
