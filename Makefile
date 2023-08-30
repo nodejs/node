@@ -77,6 +77,7 @@ EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
 NODE_EXE = node$(EXEEXT)
+NODE_ESM_EXE = node-esm${EXEEXT}
 NODE ?= ./$(NODE_EXE)
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
@@ -132,6 +133,7 @@ $(NODE_EXE): build_type:=Release
 $(NODE_G_EXE): build_type:=Debug
 $(NODE_EXE) $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=${build_type} V=$(V)
+	ln -fs $(NODE_EXE) out/${build_type}/$(NODE_ESM_EXE)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then \
 	  ln -fs out/${build_type}/$(NODE_EXE) $@; fi
 else
@@ -147,10 +149,12 @@ else
 endif
 $(NODE_EXE): config.gypi out/Release/build.ninja
 	$(NINJA) -C out/Release $(NINJA_ARGS)
+	ln -fs $(NODE_EXE) out/Release/$(NODE_ESM_EXE)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
 $(NODE_G_EXE): config.gypi out/Debug/build.ninja
 	$(NINJA) -C out/Debug $(NINJA_ARGS)
+	ln -fs $(NODE_EXE) out/Debug/$(NODE_ESM_EXE)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 else
 $(NODE_EXE) $(NODE_G_EXE):
