@@ -232,6 +232,70 @@ describe('Mock Timers Test Suite', () => {
       });
     });
 
+    describe('setImmediate Suite', () => {
+      it('should keep setImmediate working if timers are disabled', (t, done) => {
+        const now = Date.now();
+        const timeout = 2;
+        const expected = () => now - timeout;
+        global.setImmediate(common.mustCall(() => {
+          assert.strictEqual(now - timeout, expected());
+          done();
+        }));
+      });
+
+      it('should work with the same params as the original setImmediate', (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        const fn = t.mock.fn();
+        const args = ['a', 'b', 'c'];
+        global.setImmediate(fn, ...args);
+        t.mock.timers.tick(9999);
+
+        assert.strictEqual(fn.mock.callCount(), 1);
+        assert.deepStrictEqual(fn.mock.calls[0].arguments, args);
+      });
+
+      it('should not advance in time if clearImmediate was invoked', (t) => {
+        t.mock.timers.enable(['setImmediate']);
+
+        const id = global.setImmediate(common.mustNotCall());
+        global.clearImmediate(id);
+        t.mock.timers.tick(200);
+      });
+
+      it('should advance in time and trigger timers when calling the .tick function', (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        global.setImmediate(common.mustCall(1));
+        t.mock.timers.tick(0);
+      });
+
+      it('should execute in order if setImmediate is called multiple times', (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        const order = [];
+        const fn1 = t.mock.fn(common.mustCall(() => order.push('f1'), 1));
+        const fn2 = t.mock.fn(common.mustCall(() => order.push('f2'), 1));
+
+        global.setImmediate(fn1);
+        global.setImmediate(fn2);
+
+        t.mock.timers.tick(0);
+
+        assert.deepStrictEqual(order, ['f1', 'f2']);
+      });
+
+      it('should execute setImmediate first if setTimeout was also called', (t) => {
+        t.mock.timers.enable(['setImmediate', 'setTimeout']);
+        const order = [];
+        const fn1 = t.mock.fn(common.mustCall(() => order.push('f1'), 1));
+        const fn2 = t.mock.fn(common.mustCall(() => order.push('f2'), 1));
+
+        global.setTimeout(fn2, 0);
+        global.setImmediate(fn1);
+
+        t.mock.timers.tick(100);
+
+        assert.deepStrictEqual(order, ['f1', 'f2']);
+      });
+    });
   });
 
   describe('timers Suite', () => {
@@ -331,6 +395,71 @@ describe('Mock Timers Test Suite', () => {
         assert.strictEqual(fn.mock.callCount(), 0);
       });
     });
+
+    describe('setImmediate Suite', () => {
+      it('should keep setImmediate working if timers are disabled', (t, done) => {
+        const now = Date.now();
+        const timeout = 2;
+        const expected = () => now - timeout;
+        nodeTimers.setImmediate(common.mustCall(() => {
+          assert.strictEqual(now - timeout, expected());
+          done();
+        }, 1));
+      });
+
+      it('should work with the same params as the original setImmediate', (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        const fn = t.mock.fn();
+        const args = ['a', 'b', 'c'];
+        nodeTimers.setImmediate(fn, ...args);
+        t.mock.timers.tick(9999);
+
+        assert.strictEqual(fn.mock.callCount(), 1);
+        assert.deepStrictEqual(fn.mock.calls[0].arguments, args);
+      });
+
+      it('should not advance in time if clearImmediate was invoked', (t) => {
+        t.mock.timers.enable(['setImmediate']);
+
+        const id = nodeTimers.setImmediate(common.mustNotCall());
+        nodeTimers.clearImmediate(id);
+        t.mock.timers.tick(200);
+      });
+
+      it('should advance in time and trigger timers when calling the .tick function', (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        nodeTimers.setImmediate(common.mustCall(1));
+        t.mock.timers.tick(0);
+      });
+
+      it('should execute in order if setImmediate is called multiple times', (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        const order = [];
+        const fn1 = t.mock.fn(common.mustCall(() => order.push('f1'), 1));
+        const fn2 = t.mock.fn(common.mustCall(() => order.push('f2'), 1));
+
+        nodeTimers.setImmediate(fn1);
+        nodeTimers.setImmediate(fn2);
+
+        t.mock.timers.tick(0);
+
+        assert.deepStrictEqual(order, ['f1', 'f2']);
+      });
+
+      it('should execute setImmediate first if setTimeout was also called', (t) => {
+        t.mock.timers.enable(['setImmediate', 'setTimeout']);
+        const order = [];
+        const fn1 = t.mock.fn(common.mustCall(() => order.push('f1'), 1));
+        const fn2 = t.mock.fn(common.mustCall(() => order.push('f2'), 1));
+
+        nodeTimers.setTimeout(fn2, 0);
+        nodeTimers.setImmediate(fn1);
+
+        t.mock.timers.tick(100);
+
+        assert.deepStrictEqual(order, ['f1', 'f2']);
+      });
+    });
   });
 
   describe('timers/promises', () => {
@@ -346,7 +475,7 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.tick(500);
 
         p.then(common.mustCall((result) => {
-          assert.ok(result);
+          assert.strictEqual(result, undefined);
         }));
       });
 
@@ -404,7 +533,7 @@ describe('Mock Timers Test Suite', () => {
 
       });
 
-      it('should abort operation when .abort is called before calling setInterval', async (t) => {
+      it('should abort operation when .abort is called before calling setTimeout', async (t) => {
         t.mock.timers.enable(['setTimeout']);
         const expectedResult = 'result';
         const controller = new AbortController();
@@ -581,5 +710,110 @@ describe('Mock Timers Test Suite', () => {
 
     });
 
+    describe('setImmediate Suite', () => {
+      it('should advance in time and trigger timers when calling the .tick function multiple times', (t, done) => {
+        t.mock.timers.enable(['setImmediate']);
+        const p = nodeTimersPromises.setImmediate();
+
+        t.mock.timers.tick(5555);
+
+        p.then(common.mustCall((result) => {
+          assert.strictEqual(result, undefined);
+          done();
+        }, 1));
+      });
+
+      it('should work with the same params as the original timers/promises/setImmediate', async (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        const expectedResult = 'result';
+        const controller = new AbortController();
+        const p = nodeTimersPromises.setImmediate(expectedResult, {
+          ref: true,
+          signal: controller.signal
+        });
+
+        t.mock.timers.tick(500);
+
+        const result = await p;
+        assert.strictEqual(result, expectedResult);
+      });
+
+      it('should abort operation if timers/promises/setImmediate received an aborted signal', async (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        const expectedResult = 'result';
+        const controller = new AbortController();
+        const p = nodeTimersPromises.setImmediate(expectedResult, {
+          ref: true,
+          signal: controller.signal
+        });
+
+        controller.abort();
+        t.mock.timers.tick(0);
+
+        await assert.rejects(() => p, {
+          name: 'AbortError',
+        });
+
+      });
+      it('should abort operation even if the .tick wasn\'t called', async (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        const expectedResult = 'result';
+        const controller = new AbortController();
+        const p = nodeTimersPromises.setImmediate(expectedResult, {
+          ref: true,
+          signal: controller.signal
+        });
+
+        controller.abort();
+
+        await assert.rejects(() => p, {
+          name: 'AbortError',
+        });
+      });
+
+      it('should abort operation when .abort is called before calling setImmediate', async (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        const expectedResult = 'result';
+        const controller = new AbortController();
+        controller.abort();
+        const p = nodeTimersPromises.setImmediate(expectedResult, {
+          ref: true,
+          signal: controller.signal
+        });
+
+        await assert.rejects(() => p, {
+          name: 'AbortError',
+        });
+
+      });
+
+      it('should reject given an an invalid signal instance', async (t) => {
+        t.mock.timers.enable(['setImmediate']);
+        const expectedResult = 'result';
+        const p = nodeTimersPromises.setImmediate(expectedResult, {
+          ref: true,
+          signal: {}
+        });
+
+        await assert.rejects(() => p, {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_TYPE'
+        });
+
+      });
+
+      it('should execute in order if setImmediate is called multiple times', async (t) => {
+        t.mock.timers.enable(['setImmediate']);
+
+        const p1 = nodeTimersPromises.setImmediate('fn1');
+        const p2 = nodeTimersPromises.setImmediate('fn2');
+
+        t.mock.timers.tick(0);
+
+        const results = await Promise.race([p1, p2]);
+
+        assert.strictEqual(results, 'fn1');
+      });
+    });
   });
 });
