@@ -66,4 +66,7 @@ function expectFsNamespace(result) {
                       'ERR_UNSUPPORTED_ESM_URL_SCHEME',
                       msg);
   }
+  // If the specifier is an origin-relative URL, it should
+  // be treated as a file: URL.
+  expectOkNamespace(import(targetURL.pathname));
 })();
