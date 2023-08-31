@@ -64,12 +64,12 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 
   // Format of the arguments of this binary:
   // Building snapshot:
-  // embedtest js_code_to_eval arg1 arg2... \
-  //           --embedder-snapshot-blob blob-path \
+  // embedtest js_code_to_eval arg1 arg2...
+  //           --embedder-snapshot-blob blob-path
   //           --embedder-snapshot-create
   //           [--embedder-snapshot-as-file]
   // Running snapshot:
-  // embedtest --embedder-snapshot-blob blob-path \
+  // embedtest --embedder-snapshot-blob blob-path
   //           [--embedder-snapshot-as-file]
   //           arg1 arg2...
   // No snapshot:
