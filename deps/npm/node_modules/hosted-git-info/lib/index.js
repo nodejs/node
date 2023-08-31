@@ -1,11 +1,11 @@
 'use strict'
 
-const LRU = require('lru-cache')
+const { LRUCache } = require('lru-cache')
 const hosts = require('./hosts.js')
 const fromUrl = require('./from-url.js')
 const parseUrl = require('./parse-url.js')
 
-const cache = new LRU({ max: 1000 })
+const cache = new LRUCache({ max: 1000 })
 
 class GitHost {
   constructor (type, user, auth, project, committish, defaultRepresentation, opts = {}) {

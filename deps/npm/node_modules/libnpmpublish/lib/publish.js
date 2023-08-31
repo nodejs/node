@@ -50,42 +50,16 @@ Remove the 'private' field from the package.json to publish it.`),
     opts
   )
 
-  try {
-    const res = await npmFetch(spec.escapedName, {
-      ...opts,
-      method: 'PUT',
-      body: metadata,
-      ignoreBody: true,
-    })
-    if (transparencyLogUrl) {
-      res.transparencyLogUrl = transparencyLogUrl
-    }
-    return res
-  } catch (err) {
-    if (err.code !== 'E409') {
-      throw err
-    }
-    // if E409, we attempt exactly ONE retry, to protect us
-    // against malicious activity like trying to publish
-    // a bunch of new versions of a package at the same time
-    // and/or spamming the registry
-    const current = await npmFetch.json(spec.escapedName, {
-      ...opts,
-      query: { write: true },
-    })
-    const newMetadata = patchMetadata(current, metadata)
-    const res = await npmFetch(spec.escapedName, {
-      ...opts,
-      method: 'PUT',
-      body: newMetadata,
-      ignoreBody: true,
-    })
-    /* istanbul ignore next */
-    if (transparencyLogUrl) {
-      res.transparencyLogUrl = transparencyLogUrl
-    }
-    return res
+  const res = await npmFetch(spec.escapedName, {
+    ...opts,
+    method: 'PUT',
+    body: metadata,
+    ignoreBody: true,
+  })
+  if (transparencyLogUrl) {
+    res.transparencyLogUrl = transparencyLogUrl
   }
+  return res
 }
 
 const patchManifest = (_manifest, opts) => {
@@ -193,51 +167,6 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
     metadata: root,
     transparencyLogUrl,
   }
-}
-
-const patchMetadata = (current, newData) => {
-  const curVers = Object.keys(current.versions || {})
-    .map(v => semver.clean(v, true))
-    .concat(Object.keys(current.time || {})
-      .map(v => semver.valid(v, true) && semver.clean(v, true))
-      .filter(v => v))
-
-  const newVersion = Object.keys(newData.versions)[0]
-
-  if (curVers.indexOf(newVersion) !== -1) {
-    const { name: pkgid, version } = newData
-    throw Object.assign(
-      new Error(
-        `Cannot publish ${pkgid}@${version} over existing version.`
-      ), {
-        code: 'EPUBLISHCONFLICT',
-        pkgid,
-        version,
-      })
-  }
-
-  current.versions = current.versions || {}
-  current.versions[newVersion] = newData.versions[newVersion]
-  for (const i in newData) {
-    switch (i) {
-      // objects that copy over the new stuffs
-      case 'dist-tags':
-      case 'versions':
-      case '_attachments':
-        for (const j in newData[i]) {
-          current[i] = current[i] || {}
-          current[i][j] = newData[i][j]
-        }
-        break
-
-      // copy
-      default:
-        current[i] = newData[i]
-        break
-    }
-  }
-
-  return current
 }
 
 // Check that all the prereqs are met for provenance generation
