@@ -2906,8 +2906,23 @@ void MacroAssembler::MulS64(Register dst, const MemOperand& opnd) {
 }
 
 void MacroAssembler::MulHighS64(Register dst, Register src1, Register src2) {
-  mgrk(r0, src1, src2);
-  lgr(dst, r0);
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+    mgrk(r0, src1, src2);
+    lgr(dst, r0);
+  } else {
+    SaveFPRegsMode fp_mode = SaveFPRegsMode::kSave;
+    PushCallerSaved(fp_mode, ip);
+    Push(src1, src2);
+    Pop(r2, r3);
+    {
+      FrameScope scope(this, StackFrame::INTERNAL);
+      PrepareCallCFunction(2, 0, r0);
+      CallCFunction(ExternalReference::int64_mul_high_function(), 2, 0);
+    }
+    mov(r0, r2);
+    PopCallerSaved(fp_mode, ip);
+    mov(dst, r0);
+  }
 }
 
 void MacroAssembler::MulHighS64(Register dst, Register src1,
