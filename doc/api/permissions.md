@@ -560,6 +560,8 @@ Wildcards are supported too:
 
 There are constraints you need to know before using this system:
 
+* When the permission model is enabled, Node.js may resolve some paths
+  differently than when it is disabled.
 * Native modules are restricted by default when using the Permission Model.
 * OpenSSL engines currently cannot be requested at runtime when the Permission
   Model is enabled, affecting the built-in crypto, https, and tls modules.
