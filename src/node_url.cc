@@ -168,7 +168,7 @@ void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
     out->hash = std::nullopt;
   }
 
-  if (unicode) {
+  if (unicode && out->has_hostname()) {
     out->host = ada::idna::to_unicode(out->get_hostname());
   }
 
