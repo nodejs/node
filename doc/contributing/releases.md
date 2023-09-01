@@ -1005,9 +1005,8 @@ This script will use the promoted builds and changelog to generate the post. Run
   attach the `github_actions:pull-request` label to the PR.
 
 * Changes to the base branch, `main`, on the [nodejs.org repository][] will
-  trigger a new build of nodejs.org so your changes should appear a few minutes
-  after pushing. You can follow the 
-  [Deployments](https://github.com/nodejs/nodejs.org/deployments) page
+  trigger a new build of nodejs.org, so your changes should appear a few minutes
+  after pushing. You can follow the [Deployments](https://github.com/nodejs/nodejs.org/deployments) page
   to see when the build finishes and gets published.
 
 ### 18. Create the release on GitHub
