@@ -13,7 +13,7 @@ const { it } = require('node:test');
 tmpdir.refresh();
 
 // TODO - add test to check if can write to file handle itself after it was closed
-it('should write allow writing from the 2nd write stream of file handle after the 1st stream destroyed', async () => {
+it('should allow writing from the 2nd write stream of file handle after the 1st stream destroyed', async () => {
   const filePathForHandle = path.resolve(tmpDir, 'tmp-write.txt');
 
   // TODO - allow closing the fd when signal is aborted
