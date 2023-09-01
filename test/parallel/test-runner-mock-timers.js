@@ -47,6 +47,55 @@ describe('Mock Timers Test Suite', () => {
       });
     });
 
+    it('should check that propertyDescriptor gets back after reseting timers', (t) => {
+      const getDescriptor = (ctx, fn) => Object.getOwnPropertyDescriptor(ctx, fn);
+      const getCurrentTimersDescriptors = () => {
+        const timers = [
+          'setTimeout',
+          'clearTimeout',
+          'setInterval',
+          'clearInterval',
+          'setImmediate',
+          'clearImmediate',
+        ]
+
+        const globalTimersDescriptors = timers.map((fn) => getDescriptor(global, fn));
+        const nodeTimersDescriptors = timers.map((fn) => getDescriptor(nodeTimers, fn));
+        const nodeTimersPromisesDescriptors = timers
+          .filter((fn) => !fn.includes('clear'))
+          .map((fn) => getDescriptor(nodeTimersPromises, fn));
+
+        return {
+          global: globalTimersDescriptors,
+          nodeTimers: nodeTimersDescriptors,
+          nodeTimersPromises: nodeTimersPromisesDescriptors,
+        }
+      }
+      const before = getCurrentTimersDescriptors();
+      t.mock.timers.enable();
+      const during = getCurrentTimersDescriptors();
+      t.mock.timers.reset();
+      const after = getCurrentTimersDescriptors();
+
+      assert.deepStrictEqual(
+        before,
+        after,
+        'after reseting timers, the original propertyDescriptor should be preserved',
+      );
+
+      assert.notDeepStrictEqual(
+        before,
+        during,
+        'after enabling timers, the original propertyDescriptor should be changed',
+      );
+
+      assert.notDeepStrictEqual(
+        during,
+        after,
+        'after reseting timers, the original propertyDescriptor should be changed',
+      );
+    });
+
     it('should reset all timers when calling .reset function', (t) => {
       t.mock.timers.enable();
       const fn = t.mock.fn();
