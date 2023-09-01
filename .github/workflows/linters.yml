@@ -29,7 +29,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8  # v3.7.0
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d  # v3.8.1
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
@@ -60,7 +60,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8  # v3.7.0
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d  # v3.8.1
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -97,7 +97,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8  # v3.7.0
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d  # v3.8.1
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
