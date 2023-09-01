@@ -35,4 +35,16 @@ describe('.env supports edge cases', () => {
     assert.strictEqual(child.code, 0);
   });
 
+  it('should not override existing environment variables', async () => {
+    const code = `
+      require('assert').strictEqual(process.env.BASIC, 'existing');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ `--env-file=${validEnvFilePath}`, '--eval', code ],
+      { cwd: __dirname, env: { BASIC: 'existing' } },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
 });
