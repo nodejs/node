@@ -57,7 +57,7 @@ describe('Mock Timers Test Suite', () => {
           'clearInterval',
           'setImmediate',
           'clearImmediate',
-        ]
+        ];
 
         const globalTimersDescriptors = timers.map((fn) => getDescriptor(global, fn));
         const nodeTimersDescriptors = timers.map((fn) => getDescriptor(nodeTimers, fn));
@@ -69,8 +69,8 @@ describe('Mock Timers Test Suite', () => {
           global: globalTimersDescriptors,
           nodeTimers: nodeTimersDescriptors,
           nodeTimersPromises: nodeTimersPromisesDescriptors,
-        }
-      }
+        };
+      };
       const before = getCurrentTimersDescriptors();
       t.mock.timers.enable();
       const during = getCurrentTimersDescriptors();
@@ -80,19 +80,16 @@ describe('Mock Timers Test Suite', () => {
       assert.deepStrictEqual(
         before,
         after,
-        'after reseting timers, the original propertyDescriptor should be preserved',
       );
 
       assert.notDeepStrictEqual(
         before,
         during,
-        'after enabling timers, the original propertyDescriptor should be changed',
       );
 
       assert.notDeepStrictEqual(
         during,
         after,
-        'after reseting timers, the original propertyDescriptor should be changed',
       );
     });
 
