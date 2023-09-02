@@ -2588,10 +2588,12 @@ will be disabled. When providing the `fs` option, overrides for at least one of
 `write` and `writev` are required. If no `fd` option is supplied, an override
 for `open` is also required. If `autoClose` is `true`, an override for `close`
 is also required.
+
 Like {fs.ReadStream}, if `fd` is specified, {fs.WriteStream} will ignore the
 `path` argument and will use the specified file descriptor. This means that no
 `'open'` event will be emitted. `fd` should be blocking; non-blocking `fd`s
 should be passed to {net.Socket}.
+
 If `options` is a string, then it specifies the encoding.
 
 ### `fs.exists(path, callback)`
