@@ -2563,6 +2563,7 @@ changes:
   * `start` {integer}
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
+  * `highWaterMark` {number} **Default:** `16384`
 * Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
@@ -2580,20 +2581,6 @@ file descriptor leak.
 By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
 
-By providing the `fs` option it is possible to override the corresponding `fs`
-implementations for `open`, `write`, `writev`, and `close`. Overriding `write()`
-without `writev()` can reduce performance as some optimizations (`_writev()`)
-will be disabled. When providing the `fs` option, overrides for at least one of
-`write` and `writev` are required. If no `fd` option is supplied, an override
-for `open` is also required. If `autoClose` is `true`, an override for `close`
-is also required.
-
-Like {fs.ReadStream}, if `fd` is specified, {fs.WriteStream} will ignore the
-`path` argument and will use the specified file descriptor. This means that no
-`'open'` event will be emitted. `fd` should be blocking; non-blocking `fd`s
-should be passed to {net.Socket}.
-
-If `options` is a string, then it specifies the encoding.
 
 ### `fs.exists(path, callback)`
 
