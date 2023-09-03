@@ -11,7 +11,7 @@ This a list of all the dependencies:
 * [acorn 8.10.0][]
 * [ada 2.6.0][]
 * [base64 0.5.0][]
-* [brotli 1.0.9][]
+* [brotli 1.1.0][]
 * [c-ares 1.19.0][]
 * [cjs-module-lexer 1.2.2][]
 * [corepack][]
@@ -162,7 +162,7 @@ stream encoding/decoding library in C99 with SIMD and OpenMP acceleration.
 It also contains wrapper functions to encode/decode simple
 length-delimited strings.
 
-### brotli 1.0.9
+### brotli 1.1.0
 
 The [brotli](https://github.com/google/brotli) dependency is
 used for the homonym generic-purpose lossless compression algorithm.
@@ -321,7 +321,7 @@ performance improvements not currently available in standard zlib.
 [acorn 8.10.0]: #acorn-8100
 [ada 2.6.0]: #ada-260
 [base64 0.5.0]: #base64-050
-[brotli 1.0.9]: #brotli-109
+[brotli 1.1.0]: #brotli-110
 [c-ares 1.19.0]: #c-ares-1190
 [cjs-module-lexer 1.2.2]: #cjs-module-lexer-122
 [corepack]: #corepack
