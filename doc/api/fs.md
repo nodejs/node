@@ -1258,7 +1258,6 @@ changes:
     performance but higher memory usage. **Default:** `32`
   * `recursive` {boolean} Resolved `Dir` will be an {AsyncIterable}
     containing all sub files and directories. **Default:** `false`
-  * `highWaterMark` {number} **Default:** `16384`
 * Returns: {Promise}  Fulfills with an {fs.Dir}.
 
 Asynchronously open a directory for iterative scanning. See the POSIX
