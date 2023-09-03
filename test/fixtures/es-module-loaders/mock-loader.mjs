@@ -75,6 +75,7 @@ export async function load(url, context, defaultLoad) {
   return defaultLoad(url, context);
 }
 
+const mainImportURL = new URL('./mock.mjs', import.meta.url);
 /**
  * Generate the source code for a mocked module.
  * @param {string} encodedTargetURL the module being mocked
@@ -85,12 +86,13 @@ function generateModule(encodedTargetURL) {
     decodeURIComponent(encodedTargetURL)
   );
   let body = [
+    `import { mockedModules } from '${mainImportURL}';`,
     'export {};',
     'let mapping = {__proto__: null};'
   ];
   for (const [i, name] of Object.entries(exports)) {
     let key = JSON.stringify(name);
-    body.push(`import.meta.mock = globalThis.mockedModules.get('${encodedTargetURL}');`);
+    body.push(`import.meta.mock = mockedModules.get(${JSON.stringify(encodedTargetURL)});`);
     body.push(`var _${i} = import.meta.mock.namespace[${key}];`);
     body.push(`Object.defineProperty(mapping, ${key}, { enumerable: true, set(v) {_${i} = v;}, get() {return _${i};} });`);
     body.push(`export {_${i} as ${name}};`);
