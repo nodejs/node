@@ -1,7 +1,8 @@
+import { receiveMessageOnPort } from 'node:worker_threads';
 const mockedModuleExports = new Map();
 let currentMockVersion = 0;
 
-// This loader enables code running on the application thread to
+// These hooks enable code running on the application thread to
 // swap module resolution results for mocking purposes. It uses this instead
 // of import.meta so that CommonJS can still use the functionality.
 //
@@ -33,18 +34,40 @@ let currentMockVersion = 0;
 // assert(namespace1 === namespace2);
 // ```
 
-/** @type {string} */
-let mainImportURL;
+/**
+ * @param param0 message from the application context
+ */
+function onPreloadPortMessage({
+  mockVersion, resolved, exports
+}) {
+  currentMockVersion = mockVersion;
+  mockedModuleExports.set(resolved, exports);
+}
+
+/** @type {URL['href']} */
+let mainImportURL
+/** @type {MessagePort} */
+let preloadPort;
 export async function initialize(data) {
-  mainImportURL = data.mainImportURL;
-  data.port.on('message', ({ mockVersion, resolved, exports }) => {
-    currentMockVersion = mockVersion;
-    mockedModuleExports.set(resolved, exports);
-  });
+  ({ mainImportURL, port: preloadPort } = data);
+  
+  data.port.on('message', onPreloadPortMessage);
+}
+
+/**
+ * FIXME: this is a hack to workaround loaders being
+ * single threaded for now, just ensures that the MessagePort drains
+ */
+function doDrainPort() {
+  let msg;
+  while (msg = receiveMessageOnPort(preloadPort)) {
+    onPreloadPortMessage(msg.message);
+  }
 }
 
 // Rewrites node: loading to mock-facade: so that it can be intercepted
 export async function resolve(specifier, context, defaultResolve) {
+  doDrainPort();
   const def = await defaultResolve(specifier, context);
   if (context.parentURL?.startsWith('mock-facade:')) {
     // Do nothing, let it get the "real" module
@@ -61,17 +84,17 @@ export async function resolve(specifier, context, defaultResolve) {
 }
 
 export async function load(url, context, defaultLoad) {
+  doDrainPort();
   /**
    * Mocked fake module, not going to be handled in default way so it
    * generates the source text, then short circuits
    */
   if (url.startsWith('mock-facade:')) {
-    let [_proto, _version, encodedTargetURL] = url.split(':');
-    let source = generateModule(encodedTargetURL);
+    const encodedTargetURL = url.slice(url.lastIndexOf(':') + 1);
     return {
       shortCircuit: true,
-      source,
-      format: 'module'
+      source: generateModule(encodedTargetURL),
+      format: 'module',
     };
   }
   return defaultLoad(url, context);
@@ -89,19 +112,19 @@ function generateModule(encodedTargetURL) {
   let body = [
     `import { mockedModules } from ${JSON.stringify(mainImportURL)};`,
     'export {};',
-    'let mapping = {__proto__: null};'
+    'let mapping = {__proto__: null};',
+    `const mock = mockedModules.get(${JSON.stringify(encodedTargetURL)});`,
   ];
   for (const [i, name] of Object.entries(exports)) {
     let key = JSON.stringify(name);
-    body.push(`import.meta.mock = mockedModules.get(${JSON.stringify(encodedTargetURL)});`);
-    body.push(`var _${i} = import.meta.mock.namespace[${key}];`);
+    body.push(`var _${i} = mock.namespace[${key}];`);
     body.push(`Object.defineProperty(mapping, ${key}, { enumerable: true, set(v) {_${i} = v;}, get() {return _${i};} });`);
     body.push(`export {_${i} as ${name}};`);
   }
-  body.push(`import.meta.mock.listeners.push(${
+  body.push(`mock.listeners.push(${
     () => {
       for (var k in mapping) {
-        mapping[k] = import.meta.mock.namespace[k];
+        mapping[k] = mock.namespace[k];
       }
     }
   });`);

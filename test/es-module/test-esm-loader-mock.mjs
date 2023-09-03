@@ -1,4 +1,4 @@
-// Flags: --import ./test/fixtures/es-module-loaders/mock.mjs
+import '../common/index.mjs';
 import assert from 'node:assert/strict';
 import { mock } from '../fixtures/es-module-loaders/mock.mjs';
 

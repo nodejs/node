@@ -1,11 +1,10 @@
-import * as fixtures from '../../common/fixtures.mjs';
 import { register } from 'node:module';
 import { MessageChannel } from 'node:worker_threads';
 
 
 const { port1, port2 } = new MessageChannel();
 
-register(fixtures.fileURL('es-module-loaders/mock-loader.mjs'), {
+register('./mock-loader.mjs', import.meta.url, {
   data: {
     port: port2,
     mainImportURL: import.meta.url,
@@ -53,12 +52,12 @@ export function mock(resolved, replacementProperties) {
             /* noop */
           }
         }
-      }
+      },
     });
   }
   mockedModules.set(encodeURIComponent(resolved), {
     namespace,
-    listeners
+    listeners,
   });
   mockVersion++;
   // Inform the loader that the `resolved` URL should now use the specific
