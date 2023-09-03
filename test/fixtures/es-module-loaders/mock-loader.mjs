@@ -55,8 +55,9 @@ export async function initialize(data) {
 }
 
 /**
- * FIXME: this is a hack to workaround loaders being
- * single threaded for now, just ensures that the MessagePort drains
+ * Because Node.js internals use a separate MessagePort for cross-thread
+ * communication, there could be some messages pending that we should handle
+ * before continuing.
  */
 function doDrainPort() {
   let msg;
