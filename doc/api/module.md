@@ -1035,8 +1035,6 @@ returned object contains the following keys:
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`initialize`]: #initialize
 [`module`]: modules.md#the-module-object
-[`port.ref()`]: worker_threads.md#portref
-[`port.unref()`]: worker_threads.md#portunref
 [`register`]: #moduleregisterspecifier-parenturl-options
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
