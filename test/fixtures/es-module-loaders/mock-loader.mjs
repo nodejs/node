@@ -45,7 +45,7 @@ function onPreloadPortMessage({
 }
 
 /** @type {URL['href']} */
-let mainImportURL
+let mainImportURL;
 /** @type {MessagePort} */
 let preloadPort;
 export async function initialize(data) {
