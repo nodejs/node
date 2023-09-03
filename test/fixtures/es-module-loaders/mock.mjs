@@ -6,7 +6,10 @@ import { MessageChannel } from 'node:worker_threads';
 const { port1, port2 } = new MessageChannel();
 
 register(fixtures.fileURL('es-module-loaders/mock-loader.mjs'), {
-  data: { port: port2 },
+  data: {
+    port: port2,
+    mainImportURL: import.meta.url,
+  },
   transferList: [port2],
 });
 

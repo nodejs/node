@@ -33,9 +33,11 @@ let currentMockVersion = 0;
 // assert(namespace1 === namespace2);
 // ```
 
-
-export async function initialize({ port }) {
-  port.on('message', ({ mockVersion, resolved, exports }) => {
+/** @type {string} */
+let mainImportURL;
+export async function initialize(data) {
+  mainImportURL = data.mainImportURL;
+  data.port.on('message', ({ mockVersion, resolved, exports }) => {
     currentMockVersion = mockVersion;
     mockedModuleExports.set(resolved, exports);
   });
@@ -75,7 +77,6 @@ export async function load(url, context, defaultLoad) {
   return defaultLoad(url, context);
 }
 
-const mainImportURL = new URL('./mock.mjs', import.meta.url);
 /**
  * Generate the source code for a mocked module.
  * @param {string} encodedTargetURL the module being mocked
@@ -86,7 +87,7 @@ function generateModule(encodedTargetURL) {
     decodeURIComponent(encodedTargetURL)
   );
   let body = [
-    `import { mockedModules } from '${mainImportURL}';`,
+    `import { mockedModules } from ${JSON.stringify(mainImportURL)};`,
     'export {};',
     'let mapping = {__proto__: null};'
   ];
