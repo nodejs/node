@@ -1,4 +1,4 @@
-/* auto-generated on 2023-08-26 17:38:28 -0400. Do not edit! */
+/* auto-generated on 2023-08-30 11:44:21 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -116,10 +116,11 @@ ada_really_inline constexpr bool verify_dns_length(
 
 ADA_PUSH_DISABLE_ALL_WARNINGS
 /* begin file src/ada_idna.cpp */
-/* auto-generated on 2023-05-07 19:12:14 -0400. Do not edit! */
+/* auto-generated on 2023-08-29 15:28:19 -0400. Do not edit! */
 /* begin file src/idna.cpp */
 /* begin file src/unicode_transcoding.cpp */
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 
@@ -226,38 +227,22 @@ size_t utf8_length_from_utf32(const char32_t* buf, size_t len) {
   // We are not BOM aware.
   const uint32_t* p = reinterpret_cast<const uint32_t*>(buf);
   size_t counter{0};
-  for (size_t i = 0; i < len; i++) {
-    /** ASCII **/
-    if (p[i] <= 0x7F) {
-      counter++;
-    }
-    /** two-byte **/
-    else if (p[i] <= 0x7FF) {
-      counter += 2;
-    }
-    /** three-byte **/
-    else if (p[i] <= 0xFFFF) {
-      counter += 3;
-    }
-    /** four-bytes **/
-    else {
-      counter += 4;
-    }
+  for (size_t i = 0; i != len; ++i) {
+    ++counter;                                      // ASCII
+    counter += static_cast<size_t>(p[i] > 0x7F);    // two-byte
+    counter += static_cast<size_t>(p[i] > 0x7FF);   // three-byte
+    counter += static_cast<size_t>(p[i] > 0xFFFF);  // four-bytes
   }
   return counter;
 }
 
 size_t utf32_length_from_utf8(const char* buf, size_t len) {
   const int8_t* p = reinterpret_cast<const int8_t*>(buf);
-  size_t counter{0};
-  for (size_t i = 0; i < len; i++) {
+  return std::count_if(p, std::next(p, len), [](int8_t c) {
     // -65 is 0b10111111, anything larger in two-complement's
     // should start a new code point.
-    if (p[i] > -65) {
-      counter++;
-    }
-  }
-  return counter;
+    return c > -65;
+  });
 }
 
 size_t utf32_to_utf8(const char32_t* buf, size_t len, char* utf8_output) {
@@ -9525,14 +9510,14 @@ bool constexpr begins_with(std::u32string_view view,
   if (view.size() < prefix.size()) {
     return false;
   }
-  return view.substr(0, prefix.size()) == prefix;
+  return std::equal(prefix.begin(), prefix.end(), view.begin());
 }
 
 bool constexpr begins_with(std::string_view view, std::string_view prefix) {
   if (view.size() < prefix.size()) {
     return false;
   }
-  return view.substr(0, prefix.size()) == prefix;
+  return std::equal(prefix.begin(), prefix.end(), view.begin());
 }
 
 bool constexpr is_ascii(std::u32string_view view) {
@@ -10144,13 +10129,12 @@ ada_really_inline constexpr bool is_lowercase_hex(const char c) noexcept {
   return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
 }
 
+constexpr static char hex_to_binary_table[] = {
+    0,  1,  2,  3,  4, 5, 6, 7, 8, 9, 0, 0,  0,  0,  0,  0,  0, 10, 11,
+    12, 13, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0,  0,  0,  0,  0,  0, 0,  0,
+    0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 10, 11, 12, 13, 14, 15};
 unsigned constexpr convert_hex_to_binary(const char c) noexcept {
-  // this code can be optimized.
-  if (c <= '9') {
-    return c - '0';
-  }
-  char del = c >= 'a' ? 'a' : 'A';
-  return 10 + (c - del);
+  return hex_to_binary_table[c - '0'];
 }
 
 std::string percent_decode(const std::string_view input, size_t first_percent) {
@@ -10159,8 +10143,9 @@ std::string percent_decode(const std::string_view input, size_t first_percent) {
   if (first_percent == std::string_view::npos) {
     return std::string(input);
   }
-  std::string dest(input.substr(0, first_percent));
+  std::string dest;
   dest.reserve(input.length());
+  dest.append(input.substr(0, first_percent));
   const char* pointer = input.data() + first_percent;
   const char* end = input.data() + input.size();
   // Optimization opportunity: if the following code gets
@@ -10197,9 +10182,10 @@ std::string percent_encode(const std::string_view input,
     return std::string(input);
   }
 
-  std::string result(input.substr(0, std::distance(input.begin(), pointer)));
+  std::string result;
   result.reserve(input.length());  // in the worst case, percent encoding might
                                    // produce 3 characters.
+  result.append(input.substr(0, std::distance(input.begin(), pointer)));
 
   for (; pointer != input.end(); pointer++) {
     if (character_sets::bit_at(character_set, *pointer)) {
@@ -15015,7 +15001,7 @@ ada_string ada_get_protocol(ada_url result) noexcept {
   return ada_string_create(out.data(), out.length());
 }
 
-uint8_t ada_get_url_host_type(ada_url result) noexcept {
+uint8_t ada_get_host_type(ada_url result) noexcept {
   ada::result<ada::url_aggregator>& r = get_instance(result);
   if (!r) {
     return 0;
@@ -15092,6 +15078,13 @@ bool ada_set_pathname(ada_url result, const char* input,
   return r->set_pathname(std::string_view(input, length));
 }
 
+/**
+ * Update the search/query of the URL.
+ *
+ * If a URL has `?` as the search value, passing empty string to this function
+ * does not remove the attribute. If you need to remove it, please use
+ * `ada_clear_search` method.
+ */
 void ada_set_search(ada_url result, const char* input, size_t length) noexcept {
   ada::result<ada::url_aggregator>& r = get_instance(result);
   if (r) {
@@ -15099,10 +15092,50 @@ void ada_set_search(ada_url result, const char* input, size_t length) noexcept {
   }
 }
 
+/**
+ * Update the hash/fragment of the URL.
+ *
+ * If a URL has `#` as the hash value, passing empty string to this function
+ * does not remove the attribute. If you need to remove it, please use
+ * `ada_clear_hash` method.
+ */
 void ada_set_hash(ada_url result, const char* input, size_t length) noexcept {
   ada::result<ada::url_aggregator>& r = get_instance(result);
   if (r) {
     r->set_hash(std::string_view(input, length));
+  }
+}
+
+void ada_clear_port(ada_url result) noexcept {
+  ada::result<ada::url_aggregator>& r = get_instance(result);
+  if (r) {
+    r->clear_port();
+  }
+}
+
+/**
+ * Removes the hash of the URL.
+ *
+ * Despite `ada_set_hash` method, this function allows the complete
+ * removal of the hash attribute, even if it has a value of `#`.
+ */
+void ada_clear_hash(ada_url result) noexcept {
+  ada::result<ada::url_aggregator>& r = get_instance(result);
+  if (r) {
+    r->clear_hash();
+  }
+}
+
+/**
+ * Removes the search of the URL.
+ *
+ * Despite `ada_set_search` method, this function allows the complete
+ * removal of the search attribute, even if it has a value of `?`.
+ */
+void ada_clear_search(ada_url result) noexcept {
+  ada::result<ada::url_aggregator>& r = get_instance(result);
+  if (r) {
+    r->clear_search();
   }
 }
 
