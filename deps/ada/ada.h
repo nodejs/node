@@ -1,4 +1,4 @@
-/* auto-generated on 2023-08-26 17:38:28 -0400. Do not edit! */
+/* auto-generated on 2023-08-30 11:44:21 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -8,7 +8,7 @@
 #define ADA_H
 
 /* begin file include/ada/ada_idna.h */
-/* auto-generated on 2023-05-07 19:12:14 -0400. Do not edit! */
+/* auto-generated on 2023-08-29 15:28:19 -0400. Do not edit! */
 /* begin file include/idna.h */
 #ifndef ADA_IDNA_H
 #define ADA_IDNA_H
@@ -4584,9 +4584,10 @@ ada_really_inline constexpr bool is_single_dot_path_segment(
 ada_really_inline constexpr bool is_lowercase_hex(const char c) noexcept;
 
 /**
- * @details Convert hex to binary.
+ * @details Convert hex to binary. Caller is responsible to ensure that
+ * the parameter is an hexadecimal digit (0-9, A-F, a-f).
  */
-unsigned constexpr convert_hex_to_binary(char c) noexcept;
+ada_really_inline unsigned constexpr convert_hex_to_binary(char c) noexcept;
 
 /**
  * first_percent should be  = input.find('%')
@@ -4840,6 +4841,10 @@ struct url_aggregator : url_base {
   /** @return true if the URL has a search component */
   [[nodiscard]] inline bool has_search() const noexcept override;
 
+  inline void clear_port();
+  inline void clear_hash();
+  inline void clear_search() override;
+
  private:
   friend ada::url_aggregator ada::parser::parse_url<ada::url_aggregator>(
       std::string_view, const ada::url_aggregator *);
@@ -4914,12 +4919,9 @@ struct url_aggregator : url_base {
   inline void update_base_port(uint32_t input);
   inline void append_base_pathname(const std::string_view input);
   inline uint32_t retrieve_base_port() const;
-  inline void clear_port();
   inline void clear_hostname();
-  inline void clear_hash();
-  inline void clear_pathname() override;
-  inline void clear_search() override;
   inline void clear_password();
+  inline void clear_pathname() override;
   inline bool has_dash_dot() const noexcept;
   void delete_dash_dot();
   inline void consume_prepared_path(std::string_view input);
@@ -6448,7 +6450,9 @@ inline void url_aggregator::clear_hostname() {
                        " with " + components.to_string() + "\n" + to_diagram());
 #endif
   ADA_ASSERT_TRUE(has_authority());
-  ADA_ASSERT_TRUE(has_empty_hostname());
+  ADA_ASSERT_EQUAL(has_empty_hostname(), true,
+                   "hostname should have been cleared on buffer=" + buffer +
+                       " with " + components.to_string() + "\n" + to_diagram());
   ADA_ASSERT_TRUE(validate());
 }
 
@@ -6922,14 +6926,14 @@ inline void url_search_params::sort() {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.6.3"
+#define ADA_VERSION "2.6.5"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
   ADA_VERSION_MINOR = 6,
-  ADA_VERSION_REVISION = 3,
+  ADA_VERSION_REVISION = 5,
 };
 
 }  // namespace ada
