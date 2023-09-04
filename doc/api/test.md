@@ -907,8 +907,9 @@ changes:
 * Returns: {TestsStream}
 
 ```mjs
-import { tap } from 'node:test/reporters';
+import { tap, run } from 'node:test/reporters';
 import process from 'node:process';
+import path from 'path';
 
 run({ files: [path.resolve('./tests/test.js')] })
   .compose(tap)
