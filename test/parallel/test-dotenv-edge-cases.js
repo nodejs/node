@@ -47,17 +47,4 @@ describe('.env supports edge cases', () => {
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
   });
-
-  it('should override NODE_OPTIONS', async () => {
-    const code = `
-      require('assert').strictEqual(process.env.NODE_OPTIONS, '--experimental-permission --allow-fs-read=*');
-    `.trim();
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ `--env-file=${relativePath}`, '--eval', code ],
-      { cwd: __dirname, env: { NODE_OPTIONS: '--experimental-permission --allow-worker' } },
-    );
-    assert.strictEqual(child.stderr, '');
-    assert.strictEqual(child.code, 0);
-  });
 });

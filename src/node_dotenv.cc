@@ -51,7 +51,7 @@ void Dotenv::SetEnvironment(node::Environment* env) {
 
     auto existing = env->env_vars()->Get(key.data());
 
-    if (existing.IsNothing() || strcmp(key.data(), "NODE_OPTIONS") == 0) {
+    if (existing.IsNothing()) {
       env->env_vars()->Set(
           isolate,
           v8::String::NewFromUtf8(
