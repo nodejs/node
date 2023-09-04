@@ -329,7 +329,7 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: REPLACEME
+  - version: 20.6.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: No longer behind the `--experimental-import-meta-resolve` flag.
   - version: v20.0.0
