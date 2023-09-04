@@ -87,6 +87,7 @@ const tests = [
       replaceTestDuration,
     ),
   },
+  process.features.inspector ? { name: 'test-runner/output/coverage_failure.js' } : false,
 ]
 .filter(Boolean)
 .map(({ name, tty, transform }) => ({
