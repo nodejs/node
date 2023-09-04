@@ -281,13 +281,13 @@ with these additional object properties:
     mechanism.
   * `queue` {Buffer[]} Stores messages in order so that they are sent one at a
     time exactly in the order sent.
-  * `role` {'client'|'server'} Whether the socket is instantiated as a client
-    or server connection.
-  * `status` {'closed'|'open'|'pending'} Current transfer status of the socket.
-    * `closed` - Socket is not destroyed but is no longer receiving or
+  * `role` {string} Whether the socket is instantiated as a `'client'` or
+    `'server'` connection.
+  * `status` {string} Current transfer status of the socket.
+    * `'closed'` - Socket is not destroyed but is no longer receiving or
       transmitting.
-    * `open` - Socket is available to send and receive messages.
-    * `pending` - Socket can receive messages, but is halted from sending
+    * `'open'` - Socket is available to send and receive messages.
+    * `'pending'` - Socket can receive messages, but is halted from sending
       messages. This typically occurs because the socket is writing a message and
       others are stacked up in queue.
   * `subprotocol`: {string} Any sub-protocols defined by the client.
