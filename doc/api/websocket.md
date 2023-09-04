@@ -17,7 +17,7 @@ callbacks only.
 ## Callback example
 
 ### Client TLS Socket example
-```javascript
+```mjs
 const options = {
   authentication: 'auth-string',
   callbackOpen: function(err, socket) {
@@ -46,7 +46,7 @@ websocket.clientConnect(options);
 ```
 
 ### Client Net Socket example
-```javascript
+```mjs
 const options = {
   authentication: 'auth-string',
   callbackOpen: function(err, socket) {
@@ -74,7 +74,7 @@ websocket.clientConnect(options);
 ```
 
 ### Server TLS example
-```javascript
+```mjs
 const options = {
   callbackConnect: function(headerValues, socket, ready) {
     console.log(headerValues);
@@ -105,7 +105,7 @@ const server = ws.server(options);
 ```
 
 ### Server Net example
-```javascript
+```mjs
 const options = {
   callbackConnect: function(headerValues, socket, ready) {
     console.log(headerValues);
@@ -270,8 +270,8 @@ with these additional object properties:
   * `frameExtended` {integer} Stores the extended length value of the current
     message.
   * `masking` {boolean} Determines whether to mask messages before sending them.
-    Defaults to `true` for client roles and `false` for server roles, but default
-    behavior can be changes with options.
+    Defaults to `true` for client roles and `false` for server roles, but
+    default behavior can be changes with options.
   * `messageHandler` {Function} Received messages are passed into this function
     for custom processing. When this function is absent received messages are
     discarded. Receives one argument: `message` {Buffer}.
@@ -288,13 +288,13 @@ with these additional object properties:
       transmitting.
     * `'open'` - Socket is available to send and receive messages.
     * `'pending'` - Socket can receive messages, but is halted from sending
-      messages. This typically occurs because the socket is writing a message and
-      others are stacked up in queue.
+      messages. This typically occurs because the socket is writing a message
+      and others are stacked up in queue.
   * `subprotocol`: {string} Any sub-protocols defined by the client.
   * `userAgent` {string} User agent identifier populated by the client.
 * `write` {Function} Sends WebSocket messages.
   * `message` {Buffer|string} The message to send.
-  * `opcode` {integer} an RFC 6455 message code. **Default:** 1 if the message is
-    text or 2 if the message is a Buffer.
+  * `opcode` {integer} an RFC 6455 message code. **Default:** 1 if the message
+    is text or 2 if the message is a Buffer.
   * `fragmentSize` Determines the size of message fragmentation. **Default:** 0,
     which means no message fragmentation.
