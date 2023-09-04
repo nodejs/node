@@ -170,7 +170,7 @@ to create a WebSocket socket and connects it to a WebSocket server.
     [net.connect](https://nodejs.org/dist/latest-v20.x/docs/api/net.html#netconnect)
     or
     [tls.connect](https://nodejs.org/dist/latest-v20.x/docs/api/tls.html#tlsconnectoptions-callback).
-  * `subProtocol` {string} Any one or more RFC 6455 identified sub-protocols. 
+  * `subProtocol` {string} Any one or more RFC 6455 identified sub-protocols.
 * Returns {websocketClient}
 
 ### Class: `getAddress`
