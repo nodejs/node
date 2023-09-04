@@ -155,7 +155,7 @@ to create a WebSocket socket and connects it to a WebSocket server.
 * `options` {Object}
   * `callbackOpen` {Function} If present will execute upon completion of
     WebSocket connection handshake. Receives two arguments: `err`
-    {NodeJS.ErrnoException} and `socket` {websocketClient}.
+    {errors.Error} and `socket` {websocketClient}.
     **Default:** `undefined`
   * `extensions` {string} Any additional instructions, identifiers, or custom
     descriptive data.
@@ -228,7 +228,7 @@ will be destroyed.
     `server` {Server}.
   * `callbackOpen` {Function} If present will execute upon completion of
     WebSocket connection handshake. Receives two arguments: `err`
-    {NodeJS.ErrnoException} and `socket` {websocketClient}.
+    {errors.Error} and `socket` {websocketClient}.
   * `messageHandler` {Function} Received messages are passed into this function
     for custom processing. When this function is absent received messages are
     discarded. Receives one argument: `message` {Buffer}.
@@ -260,14 +260,14 @@ with these additional object properties:
 * `websocket` {Object}
   * `callbackOpen` {Function} If present will execute upon completion of
     WebSocket connection handshake. Receives two arguments: `err`
-    {NodeJS.ErrnoException} and `socket` {websocketClient}.
+    {errors.Error} and `socket` {websocketClient}.
   * `extensions` {string} Any additional instructions, identifiers, or custom
     descriptive data.
   * `fragment` {Buffer} Stores complete message frames sufficient to assemble a
     complete message.
   * `frame` {Buffer} Stores pieces of a frame sufficient to assemble a complete
     frame.
-  * `frameExtended` {number} Stores the extended length value of the current
+  * `frameExtended` {integer} Stores the extended length value of the current
     message.
   * `masking` {boolean} Determines whether to mask messages before sending them.
     Defaults to `true` for client roles and `false` for server roles, but default
@@ -294,7 +294,7 @@ with these additional object properties:
   * `userAgent` {string} User agent identifier populated by the client.
 * `write` {Function} Sends WebSocket messages.
   * `message` {Buffer|string} The message to send.
-  * `opcode` {Integer} an RFC 6455 message code. **Default:** 1 if the message is
+  * `opcode` {integer} an RFC 6455 message code. **Default:** 1 if the message is
     text or 2 if the message is a Buffer.
   * `fragmentSize` Determines the size of message fragmentation. **Default:** 0,
     which means no message fragmentation.

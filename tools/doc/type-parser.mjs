@@ -228,6 +228,8 @@ const customTypesMap = {
   'vm.Script': 'vm.html#class-vmscript',
   'vm.SourceTextModule': 'vm.html#class-vmsourcetextmodule',
 
+  'websocketClient': 'websocket.html#websocketClient',
+
   'MessagePort': 'worker_threads.html#class-messageport',
   'Worker': 'worker_threads.html#class-worker',
 
