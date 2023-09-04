@@ -16,7 +16,7 @@ try {
     { recursive: true }
   );
 
-  deepStrictEqual(await spawnPromisified(
+  const output = await spawnPromisified(
     execPath,
     [
       '--no-warnings',
@@ -29,15 +29,17 @@ try {
       console.log(JSON.stringify({ before, after }));`,
     ],
     { cwd: base },
-  ), {
+  );
+
+  deepStrictEqual(output, {
+    code: 0,
+    signal: null,
     stderr: '',
     stdout: JSON.stringify({
       before: { importedESM: 0, importedCJS: 0 },
       // Dynamic import in the eval script should increment ESM counter but not CJS counter
       after: { importedESM: 1, importedCJS: 0 },
     }) + '\n',
-    code: 0,
-    signal: null,
   });
 } finally {
   await rm(base, { recursive: true, force: true });
