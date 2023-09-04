@@ -19,17 +19,16 @@ callbacks only.
 ### Client TLS Socket example
 ```mjs
 const options = {
-  authentication: 'auth-string',
   callbackOpen: function(err, socket) {
-    console.log("client callbackOpen");
+    console.log('client callbackOpen');
     if (err === null) {
-      socket.messageSend("hello from client");
+      socket.messageSend('hello from client');
     }
   },
+  extensions: 'extensions here',
   masking: false,
-  id: 'id-string',
   messageHandler: function(message){
-    console.log("message received at client");
+    console.log('message received at client');
     console.log(message.toString());
   },
   'proxy-authorization': 'proxy-auth',
@@ -39,8 +38,8 @@ const options = {
   socketOptions: {
     host: host,
     port: port,
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false,
+  },
 };
 websocket.clientConnect(options);
 ```
@@ -48,17 +47,16 @@ websocket.clientConnect(options);
 ### Client Net Socket example
 ```mjs
 const options = {
-  authentication: 'auth-string',
   callbackOpen: function(err, socket) {
-    console.log("client callbackOpen");
+    console.log('client callbackOpen');
     if (err === null) {
-      socket.messageSend("hello from client");
+      socket.messageSend('hello from client');
     }
   },
+  extensions: 'extensions here',
   masking: false,
-  id: 'id-string',
   messageHandler: function(message){
-    console.log("message received at client");
+    console.log('message received at client');
     console.log(message.toString());
   },
   'proxy-authorization': 'proxy-auth',
@@ -67,8 +65,8 @@ const options = {
   secure: false,
   socketOptions: {
     host: host,
-    port: port
-  }
+    port: port,
+  },
 };
 websocket.clientConnect(options);
 ```
@@ -81,25 +79,25 @@ const options = {
     ready();
   },
   callbackListener: function(server) {
-      console.log("server callbackListener");
+      console.log('server callbackListener');
   },
   callbackOpen: function(err, socket) {
-      console.log("server callbackOpen");
+      console.log('server callbackOpen');
   },
   messageHandler: function(message) {
-      console.log("message received at server");
+      console.log('message received at server');
       console.log(message.toString());
   },
   listenerOptions: {
       host: host,
-      port: port
+      port: port,
   },
   secure: true,
   serverOptions: {
     ca: caCertificate,
     cert: domainCertificate,
-    key: domainKey
-  }
+    key: domainKey,
+  },
 };
 const server = ws.server(options);
 ```
@@ -112,21 +110,21 @@ const options = {
     ready();
   },
   callbackListener: function(server) {
-      console.log("server callbackListener");
+      console.log('server callbackListener');
   },
   callbackOpen: function(err, socket) {
-      console.log("server callbackOpen");
+      console.log('server callbackOpen');
   },
   messageHandler: function(message) {
-      console.log("message received at server");
+      console.log('message received at server');
       console.log(message.toString());
   },
   listenerOptions: {
       host: host,
-      port: port
+      port: port,
   },
   secure: false,
-  serverOptions: {}
+  serverOptions: {},
 };
 const server = ws.server(options);
 ```
