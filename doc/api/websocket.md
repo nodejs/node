@@ -152,7 +152,7 @@ or
 [tls.TLSSocket](https://nodejs.org/dist/latest-v20.x/docs/api/tls.html#class-tlstlssocket)
 to create a WebSocket socket and connects it to a WebSocket server.
 
-* `options` {object}
+* `options` {Object}
   * `callbackOpen` {Function} If present will execute upon completion of
     WebSocket connection handshake. Receives two arguments: `err`
     {NodeJS.ErrnoException} and `socket` {websocketClient}.
@@ -168,7 +168,7 @@ to create a WebSocket socket and connects it to a WebSocket server.
     authorization mechanism.
   * `secure` {boolean} Whether to create a TLS based socket or Net based
     socket. **Default:** `true`
-  * `socketOptions` {object} See
+  * `socketOptions` {Object} See
     [net.connect](https://nodejs.org/dist/latest-v20.x/docs/api/net.html#netconnect)
     or
     [tls.connect](https://nodejs.org/dist/latest-v20.x/docs/api/tls.html#tlsconnectoptions-callback).
@@ -184,7 +184,7 @@ added: REPLACEME
 A convenience utility for attaining addressing data from any network socket.
 
 * `socket` {websocketClient}
-* Returns {object} of form:
+* Returns {Object} of form:
   * `local`
     * `address` {string} An IP address.
     * `port` {number} A port.
@@ -215,12 +215,12 @@ to create a WebSocket server listening for connecting sockets. Any socket that
 fails to complete the handshake within 5 seconds of connecting to the server
 will be destroyed.
 
-* `options` {object}
+* `options` {Object}
   * `callbackConnect` {Function} A callback to execute when a socket connects
     to the server, but before the handshake completes. This function provides a
     means to apply authentication or additional description before completing
     the handshake and allowing messaging. Receives 3 arguments: `headerValues`
-    {object}, `socket` {websocketClient}, `ready` {Function}. The third
+    {Object}, `socket` {websocketClient}, `ready` {Function}. The third
     argument must be called by the callbackConnect function in order for the
     handshake to complete.
   * `callbackListener` {Function} A callback that executes once the server
@@ -232,11 +232,69 @@ will be destroyed.
   * `messageHandler` {Function} Received messages are passed into this function
     for custom processing. When this function is absent received messages are
     discarded. Receives one argument: `message` {Buffer}.
-  * `listenerOptions` {object} See
+  * `listenerOptions` {Object} See
     [net.server.listen](https://nodejs.org/dist/latest-v20.x/docs/api/net.html#serverlistenoptions-callback).
   * `secure` Whether to create a net.Server or a tls.TLSServer. **Default:**
     true
-  * `serverOptions` {object} See
+  * `serverOptions` {Object} See
     [net.createServer](https://nodejs.org/dist/latest-v20.x/docs/api/net.html#netcreateserveroptions-connectionlistener)
     or
     [tls.createServer](https://nodejs.org/dist/latest-v20.x/docs/api/tls.html#tlscreateserveroptions-secureconnectionlistener).
+
+## Common Objects
+
+### websocketClient
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `websocketClient` object inherits from either
+[net.Socket](https://nodejs.org/dist/latest-v20.x/docs/api/net.html#class-netsocket)
+or
+[tls.TLSSocket](https://nodejs.org/dist/latest-v20.x/docs/api/tls.html#class-tlstlssocket)
+with these additional object properties:
+
+* `ping` {Function} Performs an arbitrary connection test that a user may call
+  at their liberty.
+* `websocket` {Object}
+  * `callbackOpen` {Function} If present will execute upon completion of
+    WebSocket connection handshake. Receives two arguments: `err`
+    {NodeJS.ErrnoException} and `socket` {websocketClient}.
+  * `extensions` {string} Any additional instructions, identifiers, or custom
+    descriptive data.
+  * `fragment` {Buffer} Stores complete message frames sufficient to assemble a
+    complete message.
+  * `frame` {Buffer} Stores pieces of a frame sufficient to assemble a complete
+    frame.
+  * `frameExtended` {number} Stores the extended length value of the current
+    message.
+  * `masking` {boolean} Determines whether to mask messages before sending them.
+    Defaults to `true` for client roles and `false` for server roles, but default
+    behavior can be changes with options.
+  * `messageHandler` {Function} Received messages are passed into this function
+    for custom processing. When this function is absent received messages are
+    discarded. Receives one argument: `message` {Buffer}.
+  * `pong` Stores an object with metadata sufficient to test connectivity
+    initiated as a ping from the remote end.
+  * `proxy-authorization` Any identifier required by proxy authorization
+    mechanism.
+  * `queue` {Buffer[]} Stores messages in order so that they are sent one at a
+    time exactly in the order sent.
+  * `role` {'client'|'server'} Whether the socket is instantiated as a client
+    or server connection.
+  * `status` {'closed'|'open'|'pending'} Current transfer status of the socket.
+    * `closed` - Socket is not destroyed but is no longer receiving or
+      transmitting.
+    * `open` - Socket is available to send and receive messages.
+    * `pending` - Socket can receive messages, but is halted from sending
+      messages. This typically occurs because the socket is writing a message and
+      others are stacked up in queue.
+  * `subprotocol`: {string} Any sub-protocols defined by the client.
+  * `userAgent` {string} User agent identifier populated by the client.
+* `write` {Function} Sends WebSocket messages.
+  * `message` {Buffer|string} The message to send.
+  * `opcode` {Integer} an RFC 6455 message code. **Default:** 1 if the message is
+    text or 2 if the message is a Buffer.
+  * `fragmentSize` Determines the size of message fragmentation. **Default:** 0,
+    which means no message fragmentation.
