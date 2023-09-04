@@ -225,7 +225,7 @@ will be destroyed.
     handshake to complete.
   * `callbackListener` {Function} A callback that executes once the server
     starts listening for incoming socket connections. Provides 1 argument:
-    `server` {Server}.
+    `server` {net.Server|tls.Server}.
   * `callbackOpen` {Function} If present will execute upon completion of
     WebSocket connection handshake. Receives two arguments: `err`
     {errors.Error} and `socket` {websocketClient}.
