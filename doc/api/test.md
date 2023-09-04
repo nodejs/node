@@ -916,7 +916,9 @@ run({ files: [path.resolve('./tests/test.js')] })
 ```
 
 ```cjs
-const { tap } = require('node:test/reporters');
+const { tap, run } = require('node:test/reporters');
+const process = require('process');
+const path = require('path');
 
 run({ files: [path.resolve('./tests/test.js')] })
   .compose(tap)
