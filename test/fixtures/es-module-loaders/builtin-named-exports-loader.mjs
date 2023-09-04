@@ -1,16 +1,9 @@
-import module from 'module';
+import module from 'node:module';
 
-const GET_BUILTIN = `$__get_builtin_hole_${Date.now()}`;
-
-export function globalPreload() {
-  return `Object.defineProperty(globalThis, ${JSON.stringify(GET_BUILTIN)}, {
-  value: (builtinName) => {
-    return getBuiltin(builtinName);
-  },
-  enumerable: false,
-  configurable: false,
-});
-`;
+/** @type {string} */
+let GET_BUILTIN;
+export function initialize(data) {
+  GET_BUILTIN = data.GET_BUILTIN;
 }
 
 export async function resolve(specifier, context, next) {
