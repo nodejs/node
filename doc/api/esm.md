@@ -329,6 +329,9 @@ added:
   - v12.16.2
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49028
+    description: No longer behind the `--experimental-import-meta-resolve` flag.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/44710
     description: This API now returns a string synchronously instead of a Promise.
   - version:
@@ -347,7 +350,7 @@ changes:
 
 * `specifier` {string} The module specifier to resolve relative to the
   current module.
-* Returns: {string} The absolute (`file:`) URL string for the resolved module.
+* Returns: {string} The absolute URL string that the specifier would resolve to.
 
 [`import.meta.resolve`][] is a module-relative resolution function scoped to
 each module, returning the URL string.
@@ -355,28 +358,27 @@ each module, returning the URL string.
 ```js
 const dependencyAsset = import.meta.resolve('component-lib/asset.css');
 // file:///app/node_modules/component-lib/asset.css
+import.meta.resolve('./dep.js');
+// file:///app/dep.js
 ```
 
 All features of the Node.js module resolution are supported. Dependency
 resolutions are subject to the permitted exports resolutions within the package.
 
-```js
-import.meta.resolve('./dep', import.meta.url);
-// file:///app/dep
-```
+**Caveats**:
 
-> **Caveat** This can result in synchronous file-system operations, which
-> can impact performance similarly to `require.resolve`.
+* This can result in synchronous file-system operations, which
+  can impact performance similarly to `require.resolve`.
+* This feature is not available within custom loaders (it would
+  create a deadlock).
 
-Previously, Node.js implemented an asynchronous resolver which also permitted
-a second contextual argument. The implementation has since been updated to be
-synchronous, with the second contextual `parent` argument still accessible
-behind the `--experimental-import-meta-resolve` flag:
+**Non-standard API**:
+
+When using the `--experimental-import-meta-resolve` flag, that function accepts
+a second argument:
 
 * `parent` {string|URL} An optional absolute parent module URL to resolve from.
-
-> **Caveat** This feature is not available within module customization hooks (it
-> would create a deadlock).
+  **Default:** `import.meta.url`
 
 ## Interoperability with CommonJS
 
