@@ -454,13 +454,16 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
   auto options = GetHeapSnapshotOptions(args[1]);
 
   if (filename_v->IsUndefined()) {
+    std::string dir = env->options()->diagnostic_dir;
+    if (dir.empty()) {
+      dir = Environment::GetCwd(env->exec_path());
+    }
     DiagnosticFilename name(env, "Heap", "heapsnapshot");
+    std::string filename = dir + kPathSeparator + (*name);
     THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env,
-        permission::PermissionScope::kFileSystemWrite,
-        Environment::GetCwd(env->exec_path()));
-    if (WriteSnapshot(env, *name, options).IsNothing()) return;
-    if (String::NewFromUtf8(isolate, *name).ToLocal(&filename_v)) {
+        env, permission::PermissionScope::kFileSystemWrite, dir);
+    if (WriteSnapshot(env, filename.c_str(), options).IsNothing()) return;
+    if (String::NewFromUtf8(isolate, filename.c_str()).ToLocal(&filename_v)) {
       args.GetReturnValue().Set(filename_v);
     }
     return;
