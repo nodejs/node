@@ -252,7 +252,7 @@ The `websocketClient` object inherits from either
 or
 [tls.TLSSocket](https://nodejs.org/dist/latest-v20.x/docs/api/tls.html#class-tlstlssocket)
 with these additional object properties:
-
+* `close` {Function} A convenience method to initiate the closing process.
 * `ping` {Function} Performs an arbitrary connection test that a user may call
   at their liberty.
 * `websocket` {Object}
@@ -282,10 +282,12 @@ with these additional object properties:
   * `role` {string} Whether the socket is instantiated as a `'client'` or
     `'server'` connection.
   * `status` {string} Current transfer status of the socket.
-    * `'closed'` - Socket is not destroyed but is no longer receiving or
+    * `'CLOSED'` - Socket is not destroyed but is no longer receiving or
       transmitting.
-    * `'open'` - Socket is available to send and receive messages.
-    * `'pending'` - Socket can receive messages, but is halted from sending
+    * `'CLOSING'` - Socket has sent a *close* type control frame and is
+      awaiting a response to complete its closing handshake.
+    * `'OPEN'` - Socket is available to send and receive messages.
+    * `'PENDING'` - Socket can receive messages, but is halted from sending
       messages. This typically occurs because the socket is writing a message
       and others are stacked up in queue.
   * `subprotocol`: {string} Any sub-protocols defined by the client.
