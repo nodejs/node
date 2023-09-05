@@ -46,8 +46,7 @@ describe('Mock Timers Test Suite', () => {
         code: 'ERR_INVALID_ARG_VALUE',
       });
     });
-
-    it('should check that propertyDescriptor gets back after reseting timers', (t) => {
+    it('should check that propertyDescriptor gets back after resetting timers', (t) => {
       const getDescriptor = (ctx, fn) => Object.getOwnPropertyDescriptor(ctx, fn);
       const getCurrentTimersDescriptors = () => {
         const timers = [
@@ -71,26 +70,36 @@ describe('Mock Timers Test Suite', () => {
           nodeTimersPromises: nodeTimersPromisesDescriptors,
         };
       };
-      const before = getCurrentTimersDescriptors();
+
+      const originalDescriptors = getCurrentTimersDescriptors();
+
       t.mock.timers.enable();
       const during = getCurrentTimersDescriptors();
       t.mock.timers.reset();
       const after = getCurrentTimersDescriptors();
 
-      assert.deepStrictEqual(
-        before,
-        after,
-      );
+      for (const env in originalDescriptors) {
+        for (const prop in originalDescriptors[env]) {
+          const originalDescriptor = originalDescriptors[env][prop];
+          const afterDescriptor = after[env][prop];
 
-      assert.notDeepStrictEqual(
-        before,
-        during,
-      );
+          assert.deepStrictEqual(
+            originalDescriptor,
+            afterDescriptor,
+          );
 
-      assert.notDeepStrictEqual(
-        during,
-        after,
-      );
+          assert.notDeepStrictEqual(
+            originalDescriptor,
+            during[env][prop],
+          );
+
+          assert.notDeepStrictEqual(
+            during[env][prop],
+            after[env][prop],
+          );
+
+        }
+      }
     });
 
     it('should reset all timers when calling .reset function', (t) => {
