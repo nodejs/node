@@ -9,15 +9,15 @@
   "devDependencies": {
     "highlight.js": "^11.8.0",
     "js-yaml": "^4.1.0",
-    "rehype-raw": "^6.1.1",
-    "rehype-stringify": "^9.0.3",
+    "rehype-raw": "^7.0.0",
+    "rehype-stringify": "^10.0.0",
     "remark-frontmatter": "^4.0.1",
     "remark-gfm": "^3.0.1",
     "remark-html": "^15.0.2",
     "remark-parse": "^10.0.2",
     "remark-rehype": "^10.1.0",
     "to-vfile": "^8.0.0",
-    "unified": "^10.1.2",
+    "unified": "^11.0.2",
     "unist-util-select": "^5.0.0",
     "unist-util-visit": "^5.0.0"
   },
