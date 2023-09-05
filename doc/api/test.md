@@ -907,7 +907,8 @@ changes:
 * Returns: {TestsStream}
 
 ```mjs
-import { tap, run } from 'node:test/reporters';
+import { tap } from 'node:test/reporters';
+import { run } from 'node:test';
 import process from 'node:process';
 import path from 'path';
 
@@ -917,8 +918,8 @@ run({ files: [path.resolve('./tests/test.js')] })
 ```
 
 ```cjs
-const { tap, run } = require('node:test/reporters');
-const process = require('process');
+const { tap } = require('node:test/reporters');
+const { run } = require('node:test');
 const path = require('path');
 
 run({ files: [path.resolve('./tests/test.js')] })
