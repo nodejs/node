@@ -217,10 +217,10 @@ will be destroyed.
   * `callbackConnect` {Function} A callback to execute when a socket connects
     to the server, but before the handshake completes. This function provides a
     means to apply authentication or additional description before completing
-    the handshake and allowing messaging. Receives 3 arguments: `headerValues`
+    the handshake and allowing messaging. Receives 3 arguments: `connectOptions`
     {Object}, `socket` {websocketClient}, `ready` {Function}. The third
     argument must be called by the callbackConnect function in order for the
-    handshake to complete.
+    handshake to complete and a `connectOptions` object must be passed into it.
   * `callbackListener` {Function} A callback that executes once the server
     starts listening for incoming socket connections. Provides 1 argument:
     `server` {net.Server|tls.Server}.
@@ -240,6 +240,40 @@ will be destroyed.
     [tls.createServer](https://nodejs.org/dist/latest-v20.x/docs/api/tls.html#tlscreateserveroptions-secureconnectionlistener).
 
 ## Common Objects
+
+### connectOptions
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This object is used internally to extend a `Socket` object type into a
+`websocketClient` type based upon client options or headers in the handshake at
+the server. This is also passed into the `callbackConnect` function on the
+server to allow custom modification and authentication for a `websocketClient`
+socket before the handshake completes.
+
+* `callbackOpen` {Function} The callback to execute once the handshake
+  completes.
+* `extensions` {string} Value of the optional extensions HTTP header used in
+  the handshake process.
+* `masking` {boolean} Whether to forcefully impose message masking,
+  forcefully prevent message masking, or leave to the default. By default
+  all sockets with role *client* will perform message masking and all sockets
+  with role *server* will not.
+* `messageHandler` {Function} The function to process received messages. On
+  the client side this function is defined as an option passed into
+  `clientConnect`. On the server side it is also defined as an option passed
+  into the `server` method but can be redefined in the `callbackConnect`
+  callback per socket.
+* `proxy-authorization` {string} An optional value to define a security token
+  to proxies that require such.
+* `role` {string} A read only value of *client* or *server* that cannot be
+  customized or manually populated.
+* `subprotocol` {string} An subprotocol value passed into `clientConnect` or
+  received on the server as a header in the handshake.
+* `userAgent` {string} A user agent identifier populated by the client for the
+  server.
 
 ### websocketClient
 
