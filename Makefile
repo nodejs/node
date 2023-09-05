@@ -287,6 +287,7 @@ coverage-report-js:
 cctest: all
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
 	@out/$(BUILDTYPE)/embedtest "require('./test/embedding/test-embedding.js')"
+	@out/$(BUILDTYPE)/embedtest "throw new Error" > /dev/null 2>&1; test "$?" -eq 1
 
 .PHONY: list-gtests
 list-gtests:
