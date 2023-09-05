@@ -165,7 +165,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
           "  globalThis.require = publicRequire;"
           "} else globalThis.require = require;"
           "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
-          "require('vm').runInThisContext(process.argv[2]);");
+          "require('vm').runInThisContext(process.argv[1]);");
     }
 
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
