@@ -89,7 +89,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       snapshot_as_file = true;
     } else if (arg == "--embedder-snapshot-blob") {
       assert(i + 1 < args.size());
-      snapshot_blob_path = args[i + i];
+      snapshot_blob_path = args[i + 1];
       i++;
     } else {
       filtered_args.push_back(arg);
