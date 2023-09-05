@@ -6594,16 +6594,12 @@ added: REPLACEME
 ```c
 napi_status napi_create_platform(int argc,
                                     char** argv,
-                                    int exec_argc,
-                                    char** exec_argv,
                                     napi_error_message_handler err_handler,
                                     napi_platform* result);
 ```
 
 * `[in] argc`: CLI argument count, pass 0 for autofilling.
 * `[in] argv`: CLI arguments, pass NULL for autofilling.
-* `[in] exec_argc`: Node.js CLI options count.
-* `[in] exec_argv`: Node.js CLI options.
 * `[in] err_handler`: If different than NULL, will be called back with each
   error message. There can be multiple error messages but the API guarantees
   that no calls will be made after the `napi_create_platform` has returned.
@@ -6642,6 +6638,7 @@ added: REPLACEME
 napi_status napi_create_environment(napi_platform platform,
                                     napi_error_message_handler err_handler,
                                     const char* main_script,
+                                    int32_t api_version,
                                     napi_env* result);
 ```
 
@@ -6658,6 +6655,8 @@ napi_status napi_create_environment(napi_platform platform,
   the compiled binary.
   It can be used to redirect `process.stdin`/ `process.stdout` streams
   since Node.js might switch these file descriptors to non-blocking mode.
+* `[in] api_version`: Node-API version to conform to, pass `NAPI_VERSION`
+  for the latest available.
 * `[out] result`: A `napi_env` result.
 
 Initialize a new environment. A single platform can hold multiple Node.js

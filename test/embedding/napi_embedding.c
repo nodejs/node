@@ -23,7 +23,7 @@ const char* main_script =
 int main(int argc, char** argv) {
   napi_platform platform;
 
-  CHECK(napi_create_platform(argc, argv, 0, NULL, NULL, &platform),
+  CHECK(napi_create_platform(argc, argv, NULL, &platform),
         "Failed creating the platform");
 
   int exit_code = RunNodeInstance(platform);
@@ -240,8 +240,9 @@ int RunNodeInstance(napi_platform platform) {
   napi_env env;
   int exit_code;
 
-  CHECK(napi_create_environment(platform, NULL, main_script, &env),
-        "Failed running JS");
+  CHECK(
+      napi_create_environment(platform, NULL, main_script, NAPI_VERSION, &env),
+      "Failed running JS");
 
   if (callMe(env) != 0) exit_code = -1;
   if (waitMe(env) != 0) exit_code = -1;

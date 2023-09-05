@@ -263,21 +263,6 @@ inline v8impl::Persistent<v8::Value>* NodePersistentFromJsDeferred(
   return reinterpret_cast<v8impl::Persistent<v8::Value>*>(local);
 }
 
-struct PlatformWrapper {
-  explicit PlatformWrapper(int argc,
-                           char** argv,
-                           int exec_argc,
-                           char** exec_argv,
-                           int32_t _api_version)
-      : args(argv, argv + argc),
-        exec_args(exec_argv, exec_argv + exec_argc),
-        api_version(_api_version) {}
-  std::unique_ptr<node::MultiIsolatePlatform> platform;
-  std::vector<std::string> args;
-  std::vector<std::string> exec_args;
-  int32_t api_version;
-};
-
 class EmbeddedEnvironment : public node::EmbeddedEnvironment {
  public:
   explicit EmbeddedEnvironment(
@@ -988,49 +973,48 @@ napi_status NAPI_CDECL napi_get_last_error_info(
 }
 
 napi_status NAPI_CDECL
-napi_create_platform_version(int argc,
-                             char** argv,
-                             int exec_argc,
-                             char** exec_argv,
-                             napi_error_message_handler err_handler,
-                             napi_platform* result,
-                             int32_t api_version) {
+napi_create_platform(int argc,
+                     char** argv,
+                     napi_error_message_handler err_handler,
+                     napi_platform* result) {
   argv = uv_setup_args(argc, argv);
-  std::vector<std::string> errors_vec;
+  std::vector<std::string> args(argv, argv + argc);
+  if (args.size() < 1) args.push_back("libnode");
 
-  v8impl::PlatformWrapper* platform = new v8impl::PlatformWrapper(
-      argc, argv, exec_argc, exec_argv, api_version);
-  if (platform->args.size() < 1) platform->args.push_back("libnode");
+  std::unique_ptr<node::InitializationResult> node_platform =
+      node::InitializeOncePerProcess(
+          args,
+          {node::ProcessInitializationFlags::kNoInitializeV8,
+           node::ProcessInitializationFlags::kNoInitializeNodeV8Platform});
 
-  int exit_code = node::InitializeNodeWithArgs(
-      &platform->args, &platform->exec_args, &errors_vec);
-
-  for (const std::string& error : errors_vec) {
+  for (const std::string& error : node_platform->errors()) {
     if (err_handler != nullptr) {
       err_handler(error.c_str());
     } else {
       fprintf(stderr, "%s\n", error.c_str());
     }
   }
-
-  if (exit_code != 0) {
+  if (node_platform->early_return() != 0) {
     return napi_generic_failure;
   }
 
   auto thread_pool_size = node::per_process::cli_options->v8_thread_pool_size;
-  platform->platform = node::MultiIsolatePlatform::Create(thread_pool_size);
-  v8::V8::InitializePlatform(platform->platform.get());
+  std::unique_ptr<node::MultiIsolatePlatform> v8_platform =
+      node::MultiIsolatePlatform::Create(thread_pool_size);
+  v8::V8::InitializePlatform(v8_platform.get());
   v8::V8::Initialize();
-  *result = reinterpret_cast<napi_platform>(platform);
+  reinterpret_cast<node::InitializationResultImpl*>(node_platform.get())
+      ->platform_ = v8_platform.release();
+  *result = reinterpret_cast<napi_platform>(node_platform.release());
   return napi_ok;
 }
 
 napi_status NAPI_CDECL napi_destroy_platform(napi_platform platform) {
-  auto wrapper = reinterpret_cast<v8impl::PlatformWrapper*>(platform);
+  auto wrapper = reinterpret_cast<node::InitializationResult*>(platform);
   v8::V8::Dispose();
   v8::V8::DisposePlatform();
-
-  // The node::CommonEnvironmentSetup::Create uniq_ptr is destroyed here
+  node::TearDownOncePerProcess();
+  delete wrapper->platform();
   delete wrapper;
   return napi_ok;
 }
@@ -1039,12 +1023,13 @@ napi_status NAPI_CDECL
 napi_create_environment(napi_platform platform,
                         napi_error_message_handler err_handler,
                         const char* main_script,
+                        int32_t api_version,
                         napi_env* result) {
-  auto wrapper = reinterpret_cast<v8impl::PlatformWrapper*>(platform);
+  auto wrapper = reinterpret_cast<node::InitializationResult*>(platform);
   std::vector<std::string> errors_vec;
 
   auto setup = node::CommonEnvironmentSetup::Create(
-      wrapper->platform.get(), &errors_vec, wrapper->args, wrapper->exec_args);
+      wrapper->platform(), &errors_vec, wrapper->args(), wrapper->exec_args());
 
   for (const std::string& error : errors_vec) {
     if (err_handler != nullptr) {
@@ -1076,9 +1061,9 @@ napi_create_environment(napi_platform platform,
       new v8impl::EmbeddedEnvironment(std::move(setup), main_resource);
 
   std::string filename =
-      wrapper->args.size() > 1 ? wrapper->args[1] : "<internal>";
-  auto env__ = new node_napi_env__(
-      emb_env->setup()->context(), filename, wrapper->api_version);
+      wrapper->args().size() > 1 ? wrapper->args()[1] : "<internal>";
+  auto env__ =
+      new node_napi_env__(emb_env->setup()->context(), filename, api_version);
   emb_env->setup()->env()->set_embedded(emb_env);
   env__->node_env()->AddCleanupHook(
       [](void* arg) { static_cast<napi_env>(arg)->Unref(); },
@@ -1127,6 +1112,8 @@ napi_status NAPI_CDECL napi_destroy_environment(napi_env env, int* exit_code) {
   // This deletes the uniq_ptr to node::CommonEnvironmentSetup
   // and the v8::locker
   delete emb_env;
+
+  cppgc::ShutdownProcess();
 
   return napi_ok;
 }

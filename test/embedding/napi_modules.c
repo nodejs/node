@@ -18,11 +18,11 @@ int main(int argc, char* argv[]) {
     return -2;
   }
 
-  CHECK(napi_create_platform(0, NULL, 0, NULL, NULL, &platform),
+  CHECK(napi_create_platform(0, NULL, NULL, &platform),
         "Failed creating the platform");
 
   napi_env env;
-  CHECK(napi_create_environment(platform, NULL, NULL, &env),
+  CHECK(napi_create_environment(platform, NULL, NULL, NAPI_VERSION, &env),
         "Failed running JS");
 
   napi_handle_scope scope;

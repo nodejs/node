@@ -180,13 +180,13 @@ An example can be found [in the Node.js source tree][napi_embedding.c].
   napi_env env;
   const char *main_script = "console.log('hello world')";
 
-  if (napi_create_platform(0, NULL, 0, NULL, NULL, &platform) != napi_ok) {
+  if (napi_create_platform(0, NULL, NULL, &platform) != napi_ok) {
     fprintf(stderr, "Failed creating the platform\n");
     return -1;
   }
 
   if (napi_create_environment(platform, NULL, main_script,
-        (napi_stdio){NULL, NULL, NULL}, &env) != napi_ok) {
+        (napi_stdio){NULL, NULL, NULL}, NAPI_VERSION, &env) != napi_ok) {
     fprintf(stderr, "Failed running JS\n");
     return -1;
   }
