@@ -89,7 +89,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       snapshot_as_file = true;
     } else if (arg == "--embedder-snapshot-blob") {
       assert(i + 1 < args.size());
-      snapshot_blob_path = args[i + i];
+      snapshot_blob_path = args[i + 1];
       i++;
     } else {
       filtered_args.push_back(arg);
@@ -121,9 +121,10 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 
   if (is_building_snapshot) {
     // It contains at least the binary path, the code to snapshot,
-    // and --embedder-snapshot-create. Insert an anonymous filename
-    // as process.argv[1].
-    assert(filtered_args.size() >= 3);
+    // and --embedder-snapshot-create (which is filtered, so at least
+    // 2 arguments should remain after filtering).
+    assert(filtered_args.size() >= 2);
+    // Insert an anonymous filename as process.argv[1].
     filtered_args.insert(filtered_args.begin() + 1,
                          node::GetAnonymousMainPath());
   }
@@ -153,19 +154,26 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     Context::Scope context_scope(setup->context());
 
     MaybeLocal<Value> loadenv_ret;
-    if (snapshot) {
+    if (snapshot) {  // Deserializing snapshot
       loadenv_ret = node::LoadEnvironment(env, node::StartExecutionCallback{});
+    } else if (is_building_snapshot) {
+      // Environment created for snapshotting must set process.argv[1] to
+      // the name of the main script, which was inserted above.
+      loadenv_ret = node::LoadEnvironment(
+          env,
+          "const assert = require('assert');"
+          "assert(require('v8').startupSnapshot.isBuildingSnapshot());"
+          "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
+          "globalThis.require = require;"
+          "require('vm').runInThisContext(process.argv[2]);");
     } else {
       loadenv_ret = node::LoadEnvironment(
           env,
-          // Snapshots do not support userland require()s (yet)
-          "if (!require('v8').startupSnapshot.isBuildingSnapshot()) {"
-          "  const publicRequire ="
-          "    require('module').createRequire(process.cwd() + '/');"
-          "  globalThis.require = publicRequire;"
-          "} else globalThis.require = require;"
+          "const publicRequire = require('module').createRequire(process.cwd() "
+          "+ '/');"
+          "globalThis.require = publicRequire;"
           "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
-          "require('vm').runInThisContext(process.argv[2]);");
+          "require('vm').runInThisContext(process.argv[1]);");
     }
 
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
