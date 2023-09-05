@@ -84,8 +84,9 @@ if (common.isWindows) {
 }
 
 // Test that strings are interpreted as paths and not as URL
+// Can't use process.chdir in Workers
 // Please avoid testing fs.rmdir('file:') or using it as cleanup
-if (!common.isWindows) {
+if (common.isMainThread) {
   const oldCwd = process.cwd();
   process.chdir(tmpdir.path);
 
