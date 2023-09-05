@@ -1,3 +1,4 @@
+node 18 docs
 <!--
   NB(chrisdickinson): if you move this file, be sure to update
   tools/doc/html.mjs to point at the new location.
