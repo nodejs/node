@@ -1,5 +1,6 @@
 #include <js_native_api.h>
 #include "../common.h"
+#include "../entry_point.h"
 
 static bool exceptionWasPending = false;
 static int num = 0x23432;

@@ -1,4 +1,5 @@
 #include "../common.h"
+#include "../entry_point.h"
 #include "assert.h"
 #include "myobject.h"
 

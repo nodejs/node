@@ -1,6 +1,7 @@
 #include <js_native_api.h>
-#include "../common.h"
 #include <string.h>
+#include "../common.h"
+#include "../entry_point.h"
 #include "test_null.h"
 
 static int test_value = 3;

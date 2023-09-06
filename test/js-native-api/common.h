@@ -1,3 +1,6 @@
+#ifndef JS_NATIVE_API_COMMON_H_
+#define JS_NATIVE_API_COMMON_H_
+
 #include <js_native_api.h>
 
 // Empty value so that macros here are able to return NULL or void
@@ -76,11 +79,17 @@
 #define DECLARE_NODE_API_PROPERTY_VALUE(name, value)                     \
   { (name), NULL, NULL, NULL, NULL, (value), napi_default, NULL }
 
-void add_returned_status(napi_env env,
-                         const char* key,
-                         napi_value object,
-                         char* expected_message,
-                         napi_status expected_status,
-                         napi_status actual_status);
+static inline void add_returned_status(napi_env env,
+                                       const char* key,
+                                       napi_value object,
+                                       char* expected_message,
+                                       napi_status expected_status,
+                                       napi_status actual_status);
 
-void add_last_status(napi_env env, const char* key, napi_value return_value);
+static inline void add_last_status(napi_env env,
+                                   const char* key,
+                                   napi_value return_value);
+
+#include "common-inl.h"
+
+#endif  // JS_NATIVE_API_COMMON_H_

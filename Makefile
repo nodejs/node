@@ -1423,6 +1423,7 @@ FORMAT_CPP_FILES += $(LINT_CPP_FILES)
 # C source codes.
 FORMAT_CPP_FILES += $(wildcard \
 	benchmark/napi/*/*.c \
+	test/js-native-api/*.h \
 	test/js-native-api/*/*.c \
 	test/js-native-api/*/*.h \
 	test/node-api/*/*.c \
