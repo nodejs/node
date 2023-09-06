@@ -269,5 +269,4 @@ This value is not exported to the environment for child processes.
 * [npm install](/commands/npm-install)
 * [npm init](/commands/npm-init)
 * [npm config](/commands/npm-config)
-* [npm set-script](/commands/npm-set-script)
 * [workspaces](/using-npm/workspaces)

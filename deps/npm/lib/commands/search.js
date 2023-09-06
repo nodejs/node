@@ -68,6 +68,10 @@ class Search extends BaseCommand {
     let anyOutput = false
 
     class FilterStream extends Minipass {
+      constructor () {
+        super({ objectMode: true })
+      }
+
       write (pkg) {
         if (filter(pkg, opts.include, opts.exclude)) {
           super.write(pkg)

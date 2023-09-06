@@ -38,13 +38,22 @@ const defaults = [
 ]
 
 const strictDefaults = [
-  // these are forcibly included at all levels
+  // these are forcibly excluded
+  '/.git',
+]
+
+const allLevels = [
+  // these are included by default but can be excluded by package.json files array
   '!/readme{,.*[^~$]}',
   '!/copying{,.*[^~$]}',
   '!/license{,.*[^~$]}',
   '!/licence{,.*[^~$]}',
-  // these are forcibly excluded
-  '/.git',
+]
+
+const rootOnly = [
+  /^!.*readme/i,
+  /^!.*copying/i,
+  /^!.*licen[sc]e/i,
 ]
 
 const normalizePath = (path) => path.split('\\').join('/')
@@ -132,6 +141,7 @@ class PackWalker extends IgnoreWalker {
       // known required files for this directory
       this.injectRules(strictRules, [
         ...strictDefaults,
+        ...allLevels,
         ...this.requiredFiles.map((file) => `!${file}`),
       ])
     }
@@ -284,6 +294,7 @@ class PackWalker extends IgnoreWalker {
     const ignores = []
     const strict = [
       ...strictDefaults,
+      ...allLevels,
       '!/package.json',
       '/.git',
       '/node_modules',
@@ -304,6 +315,9 @@ class PackWalker extends IgnoreWalker {
           file = file.slice(0, -2)
         }
         const inverse = `!${file}`
+
+        this.excludeNonRoot(file)
+
         try {
           // if an entry in the files array is a specific file, then we need to include it as a
           // strict requirement for this package. if it's a directory or a pattern, it's a default
@@ -350,6 +364,20 @@ class PackWalker extends IgnoreWalker {
 
     // and now we add all of the strict rules to our synthetic file
     this.injectRules(strictRules, strict, callback)
+  }
+
+  // excludes non root files by checking if elements from the files array in
+  // package.json contain an ! and readme/license/licence/copying, and then
+  // removing readme/license/licence/copying accordingly from strict defaults
+  excludeNonRoot (file) {
+    // Find the pattern
+    const matchingPattern = rootOnly.find(regex => regex.test(file))
+
+    if (matchingPattern) {
+      // Find which index matches the pattern and remove it from allLevels
+      const indexToRemove = allLevels.findIndex(element => matchingPattern.test(element))
+      allLevels.splice(indexToRemove, 1)
+    }
   }
 
   // custom method: after we've finished gathering the files for the root package, we call this

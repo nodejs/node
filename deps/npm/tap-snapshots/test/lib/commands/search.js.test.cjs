@@ -24,6 +24,7 @@ NAME                      | DESCRIPTION          | AUTHOR          | DATE       
 @npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli [31mlibnpm[0m cli workspaces map-workspaces
 [31mlibnpm[0mversion             | library to do the…   | =nlf…           | 2020-11-04 | 1.0.7    |
 @types/[31mlibnpm[0msearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
+pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
 `
 
 exports[`test/lib/commands/search.js TAP search <name> --color > should have expected search results with color 1`] = `
@@ -41,6 +42,7 @@ NAME                      | DESCRIPTION          | AUTHOR          | DATE       
 @npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli [31mlibnpm[0m cli workspaces map-workspaces[31m[0m
 [31mlibnpm[0mversion             | library to do the…   | =nlf…           | 2020-11-04 | 1.0.7    | [31m[0m
 @types/[31mlibnpm[0msearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    | [31m[0m
+pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    | [31m[0m
 `
 
 exports[`test/lib/commands/search.js TAP search <name> --parseable > should have expected search results as parseable 1`] = `
@@ -57,6 +59,7 @@ libnpmfund	Programmatic API for npm fund	=nlf =ruyadorno =darcyclarke =isaacs	20
 @npmcli/map-workspaces	Retrieves a name:pathname Map for a given workspaces config	=nlf =ruyadorno =darcyclarke =isaacs	2020-09-30 	1.0.1	npm npmcli libnpm cli workspaces map-workspaces
 libnpmversion	library to do the things that 'npm version' does	=nlf =ruyadorno =darcyclarke =isaacs	2020-11-04 	1.0.7
 @types/libnpmsearch	TypeScript definitions for libnpmsearch	=types	2019-09-26 	2.0.1
+pkg-no-desc		=lukekarrys	2019-09-26 	1.0.0
 `
 
 exports[`test/lib/commands/search.js TAP search <name> > should have filtered expected search results 1`] = `
@@ -80,6 +83,7 @@ libnpmfund                | Programmatic API…    | =nlf…           | 2020-12
 @npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli libnpm cli workspaces map-workspaces
 libnpmversion             | library to do the…   | =nlf…           | 2020-11-04 | 1.0.7    |
 @types/libnpmsearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
+pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
 `
 
 exports[`test/lib/commands/search.js TAP search exclude forward slash > results should not have libnpmversion 1`] = `
@@ -96,6 +100,7 @@ libnpmpublish             | Programmatic API…    | =nlf…           | 2020-11
 libnpmfund                | Programmatic API…    | =nlf…           | 2020-12-08 | 1.0.2    | npm npmcli libnpm cli git fund gitfund
 @npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli libnpm cli workspaces map-workspaces
 @types/libnpmsearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
+pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
 `
 
 exports[`test/lib/commands/search.js TAP search exclude regex > results should not have libnpmversion 1`] = `
@@ -112,6 +117,7 @@ libnpmpublish             | Programmatic API…    | =nlf…           | 2020-11
 libnpmfund                | Programmatic API…    | =nlf…           | 2020-12-08 | 1.0.2    | npm npmcli libnpm cli git fund gitfund
 @npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli libnpm cli workspaces map-workspaces
 @types/libnpmsearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
+pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
 `
 
 exports[`test/lib/commands/search.js TAP search exclude string > results should not have libnpmversion 1`] = `
@@ -128,6 +134,7 @@ libnpmpublish             | Programmatic API…    | =nlf…           | 2020-11
 libnpmfund                | Programmatic API…    | =nlf…           | 2020-12-08 | 1.0.2    | npm npmcli libnpm cli git fund gitfund
 @npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli libnpm cli workspaces map-workspaces
 @types/libnpmsearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
+pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
 `
 
 exports[`test/lib/commands/search.js TAP search exclude username with upper case letters > results should not have nlf 1`] = `
@@ -135,4 +142,5 @@ NAME                      | DESCRIPTION          | AUTHOR          | DATE       
 @evocateur/libnpmaccess   | programmatic…        | =evocateur      | 2019-07-16 | 3.1.2    |
 @evocateur/libnpmpublish  | Programmatic API…    | =evocateur      | 2019-07-16 | 1.2.2    |
 @types/libnpmsearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
+pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
 `

@@ -143,7 +143,7 @@ function highlightSearchTerms (str, terms) {
 function normalizePackage (data, opts) {
   return {
     name: ansiTrim(data.name),
-    description: ansiTrim(data.description),
+    description: ansiTrim(data.description ?? ''),
     author: data.maintainers.map((m) => `=${ansiTrim(m.username)}`).join(' '),
     keywords: Array.isArray(data.keywords)
       ? data.keywords.map(ansiTrim).join(' ')
