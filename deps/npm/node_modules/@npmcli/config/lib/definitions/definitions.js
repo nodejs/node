@@ -64,7 +64,7 @@ const editor = process.env.EDITOR ||
 const shell = isWindows ? process.env.ComSpec || 'cmd'
   : process.env.SHELL || 'sh'
 
-const { tmpdir, networkInterfaces } = require('os')
+const { networkInterfaces } = require('os')
 const getLocalAddresses = () => {
   try {
     return Object.values(networkInterfaces()).map(
@@ -425,24 +425,6 @@ define('cert', {
     Example:
     //other-registry.tld/:keyfile=/path/to/key.pem
     //other-registry.tld/:certfile=/path/to/cert.crt
-  `,
-  flatten,
-})
-
-define('ci-name', {
-  default: ciInfo.name ? ciInfo.name.toLowerCase().split(' ').join('-') : null,
-  defaultDescription: `
-    The name of the current CI system, or \`null\` when not on a known CI
-    platform.
-  `,
-  type: [null, String],
-  deprecated: `
-    This config is deprecated and will not be changeable in future version of npm.
-  `,
-  description: `
-    The name of a continuous integration system.  If not set explicitly, npm
-    will detect the current CI environment using the
-    [\`ci-info\`](http://npm.im/ci-info) module.
   `,
   flatten,
 })
@@ -2127,24 +2109,6 @@ define('timing', {
   `,
 })
 
-define('tmp', {
-  default: tmpdir(),
-  defaultDescription: `
-    The value returned by the Node.js \`os.tmpdir()\` method
-    <https://nodejs.org/api/os.html#os_os_tmpdir>
-  `,
-  type: path,
-  deprecated: `
-    This setting is no longer used.  npm stores temporary files in a special
-    location in the cache, and they are managed by
-    [\`cacache\`](http://npm.im/cacache).
-  `,
-  description: `
-    Historically, the location where temporary files were stored.  No longer
-    relevant.
-  `,
-})
-
 define('umask', {
   default: 0,
   type: Umask,
@@ -2222,7 +2186,7 @@ define('user-agent', {
   `,
   flatten (key, obj, flatOptions) {
     const value = obj[key]
-    const ciName = obj['ci-name']
+    const ciName = ciInfo.name?.toLowerCase().split(' ').join('-') || null
     let inWorkspaces = false
     if (obj.workspaces || obj.workspace && obj.workspace.length) {
       inWorkspaces = true
