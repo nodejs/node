@@ -180,9 +180,9 @@ Object {
 
 exports[`test/lib/commands/doctor.js TAP bad proxy > output 1`] = `
 Check                               Value   Recommendation/Notes
-npm ping                            not ok  unsupported proxy protocol: 'ssh:'
-npm -v                              not ok  Error: unsupported proxy protocol: 'ssh:'
-node -v                             not ok  Error: unsupported proxy protocol: 'ssh:'
+npm ping                            not ok  Invalid protocol \`ssh:\` connecting to proxy \`npmjs.org\`
+npm -v                              not ok  Error: Invalid protocol \`ssh:\` connecting to proxy \`npmjs.org\`
+node -v                             not ok  Error: Invalid protocol \`ssh:\` connecting to proxy \`npmjs.org\`
 npm config get registry             ok      using default registry (https://registry.npmjs.org/)
 git executable in PATH              ok      /path/to/git
 global bin folder in PATH           ok      {CWD}/global/bin
