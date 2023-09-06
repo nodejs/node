@@ -65,6 +65,6 @@ assert.strictEqual(process.env.RETAIN_INNER_QUOTES_AS_BACKTICKS, '{"foo": "bar\'
 // Retains spaces in string
 assert.strictEqual(process.env.TRIM_SPACE_FROM_UNQUOTED, 'some spaced out string');
 // Parses email addresses completely
-assert.strictEqual(process.env.USERNAME, 'therealnerdybeast@example.tld');
+assert.strictEqual(process.env.EMAIL, 'therealnerdybeast@example.tld');
 // Parses keys and values surrounded by spaces
 assert.strictEqual(process.env.SPACED_KEY, 'parsed');
