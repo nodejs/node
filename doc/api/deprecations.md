@@ -585,6 +585,9 @@ The `REPLServer.prototype.convertToContext()` API has been removed.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49520
+    description: End-of-Life.
   - version:
     - v6.12.0
     - v4.8.6
@@ -595,9 +598,10 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The `node:sys` module is deprecated. Please use the [`util`][] module instead.
+The `node:sys` module has been removed. Please use the [`util`][]
+module instead.
 
 ### DEP0026: `util.print()`
 

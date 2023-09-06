@@ -81,7 +81,6 @@
       "stream": ["./lib/stream.js"],
       "stream/promises": ["./lib/stream/promises.js"],
       "string_decoder": ["./lib/string_decoder.js"],
-      "sys": ["./lib/sys.js"],
       "timers": ["./lib/timers.js"],
       "timers/promises": ["./lib/timers/promises.js"],
       "tls": ["./lib/tls.js"],
