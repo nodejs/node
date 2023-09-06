@@ -208,21 +208,24 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
 
   Local<Context> ctx;
   if (snapshot_data == nullptr) {
-    ctx = Context::New(isolate,
-                       nullptr,  // extensions
-                       object_template,
-                       {},  // global object
-                       {},  // deserialization callback
-                       queue);
+    ctx = Context::New(
+        isolate,
+        nullptr,  // extensions
+        object_template,
+        {},                                       // global object
+        v8::DeserializeInternalFieldsCallback(),  // deserialization callback
+        queue);
     if (ctx.IsEmpty() || InitializeBaseContextForSnapshot(ctx).IsNothing()) {
       return MaybeLocal<Context>();
     }
-  } else if (!Context::FromSnapshot(isolate,
-                                    SnapshotData::kNodeVMContextIndex,
-                                    {},       // deserialization callback
-                                    nullptr,  // extensions
-                                    {},       // global object
-                                    queue)
+  } else if (!Context::FromSnapshot(
+                  isolate,
+                  SnapshotData::kNodeVMContextIndex,
+                  v8::DeserializeInternalFieldsCallback(),  // deserialization
+                                                            // callback
+                  nullptr,                                  // extensions
+                  {},                                       // global object
+                  queue)
                   .ToLocal(&ctx)) {
     return MaybeLocal<Context>();
   }
