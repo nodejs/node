@@ -1,8 +1,8 @@
 const pinflight = require('promise-inflight')
 const spawn = require('./spawn.js')
-const LRU = require('lru-cache')
+const { LRUCache } = require('lru-cache')
 
-const revsCache = new LRU({
+const revsCache = new LRUCache({
   max: 100,
   ttl: 5 * 60 * 1000,
 })

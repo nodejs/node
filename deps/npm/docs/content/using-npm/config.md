@@ -1775,20 +1775,6 @@ registry-scoped "certfile" path like
 
 
 
-#### `ci-name`
-
-* Default: The name of the current CI system, or `null` when not on a known CI
-  platform.
-* Type: null or String
-* DEPRECATED: This config is deprecated and will not be changeable in future
-  version of npm.
-
-The name of a continuous integration system. If not set explicitly, npm will
-detect the current CI environment using the
-[`ci-info`](http://npm.im/ci-info) module.
-
-
-
 #### `dev`
 
 * Default: false
@@ -1946,20 +1932,6 @@ Alias for `--omit=dev`
 * DEPRECATED: Use the --package-lock setting instead.
 
 Alias for --package-lock
-
-
-
-#### `tmp`
-
-* Default: The value returned by the Node.js `os.tmpdir()` method
-  <https://nodejs.org/api/os.html#os_os_tmpdir>
-* Type: Path
-* DEPRECATED: This setting is no longer used. npm stores temporary files in a
-  special location in the cache, and they are managed by
-  [`cacache`](http://npm.im/cacache).
-
-Historically, the location where temporary files were stored. No longer
-relevant.
 
 
 

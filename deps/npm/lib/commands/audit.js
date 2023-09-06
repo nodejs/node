@@ -4,7 +4,7 @@ const localeCompare = require('@isaacs/string-locale-compare')('en')
 const npa = require('npm-package-arg')
 const pacote = require('pacote')
 const pMap = require('p-map')
-const { sigstore } = require('sigstore')
+const tufClient = require('@sigstore/tuf')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 const auditError = require('../utils/audit-error.js')
@@ -38,8 +38,8 @@ class VerifySignatures {
       throw new Error('found no installed dependencies to audit')
     }
 
-    const tuf = await sigstore.tuf.client({
-      tufCachePath: this.opts.tufCache,
+    const tuf = await tufClient.initTUF({
+      cachePath: this.opts.tufCache,
       retry: this.opts.retry,
       timeout: this.opts.timeout,
     })

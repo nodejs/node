@@ -30,7 +30,6 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "cafile": null,
   "call": "",
   "cert": null,
-  "ci-name": null,
   "cidr": null,
   "color": true,
   "commit-hooks": true,
@@ -147,7 +146,6 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "tag": "latest",
   "tag-version-prefix": "v",
   "timing": false,
-  "tmp": "{TMP}",
   "umask": 0,
   "unicode": false,
   "update-notifier": true,
@@ -161,8 +159,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "workspaces": null,
   "workspaces-update": true,
   "yes": null,
-  "npm-version": "{NPM-VERSION}",
-  "metrics-registry": "https://registry.npmjs.org/"
+  "npm-version": "{NPM-VERSION}"
 }
 `
 
@@ -187,7 +184,6 @@ cache-min = 0
 cafile = null
 call = ""
 cert = null
-ci-name = null
 cidr = null
 color = true
 commit-hooks = true
@@ -254,7 +250,6 @@ logs-max = 10
 ; long = false ; overridden by cli
 maxsockets = 15
 message = "%s"
-metrics-registry = "https://registry.npmjs.org/"
 node-options = null
 noproxy = [""]
 npm-version = "{NPM-VERSION}"
@@ -306,7 +301,6 @@ strict-ssl = true
 tag = "latest"
 tag-version-prefix = "v"
 timing = false
-tmp = "{TMP}"
 umask = 0
 unicode = false
 update-notifier = true

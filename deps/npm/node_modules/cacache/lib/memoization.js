@@ -1,8 +1,8 @@
 'use strict'
 
-const LRU = require('lru-cache')
+const { LRUCache } = require('lru-cache')
 
-const MEMOIZED = new LRU({
+const MEMOIZED = new LRUCache({
   max: 500,
   maxSize: 50 * 1024 * 1024, // 50MB
   ttl: 3 * 60 * 1000, // 3 minutes
