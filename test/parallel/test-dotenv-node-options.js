@@ -46,7 +46,7 @@ describe('.env supports NODE_OPTIONS', () => {
 
   it('TZ environment variable', { skip: !common.hasIntl || process.config.variables.icu_small }, async () => {
     const code = `
-      require('assert')(new Date().toString().includes('Hawaii'))
+      require('assert')(new Date().toString().includes('GMT-1000'))
     `.trim();
     // Some CI environments set TZ. Since an env file doesn't override existing
     // environment variables, we need to delete it and then pass the env object
