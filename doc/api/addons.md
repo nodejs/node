@@ -912,7 +912,8 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     const int argc = 1;
     Local<Value> argv[argc] = { args[0] };
     Local<Function> cons =
-        args.Data().As<Object>()->GetInternalField(0).As<Function>();
+        args.Data().As<Object>()->GetInternalField(0)
+            .As<Value>().As<Function>();
     Local<Object> result =
         cons->NewInstance(context, argc, argv).ToLocalChecked();
     args.GetReturnValue().Set(result);
