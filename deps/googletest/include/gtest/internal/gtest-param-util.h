@@ -584,7 +584,9 @@ class ParameterizedTestSuiteInfo : public ParameterizedTestSuiteInfoBase {
 
           GTEST_CHECK_(IsValidParamName(param_name))
               << "Parameterized test name '" << param_name
-              << "' is invalid, in " << file << " line " << line << std::endl;
+              << "' is invalid (contains spaces, dashes, underscores, or "
+                 "non-alphanumeric characters), in "
+              << file << " line " << line << "" << std::endl;
 
           GTEST_CHECK_(test_param_names.count(param_name) == 0)
               << "Duplicate parameterized test name '" << param_name << "', in "
