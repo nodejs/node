@@ -7,6 +7,9 @@
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49531
+    description: ES modules within `module` package can be extensionless.
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/44710
     description: Module customization hooks are executed off the main thread.
@@ -155,15 +158,6 @@ via the paths defined in [`"exports"`][].
 
 For details on these package resolution rules that apply to bare specifiers in
 the Node.js module resolution, see the [packages documentation](packages.md).
-
-### Mandatory file extensions
-
-A file extension must be provided when using the `import` keyword to resolve
-relative or absolute specifiers. Directory indexes (e.g. `'./startup/index.js'`)
-must also be fully specified.
-
-This behavior matches how `import` behaves in browser environments, assuming a
-typically configured server.
 
 ### URLs
 
@@ -1008,7 +1002,7 @@ _isImports_, _conditions_)
 > 5. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_url_).
 > 6. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
 > 7. If _pjson?.type_ exists and is _"module"_, then
->    1. If _url_ ends in _".js"_, then
+>    1. If _url_ ends in _".js"_ or lacks file extension, then
 >       1. Return _"module"_.
 >    2. Return **undefined**.
 > 8. Otherwise,
