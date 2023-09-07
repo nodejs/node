@@ -53,7 +53,7 @@ static const char* get_dir_func_name_by_type(uv_fs_type req_type) {
     FS_TYPE_TO_NAME(CLOSEDIR, "closedir")
 #undef FS_TYPE_TO_NAME
     default:
-      return "unknow";
+      return "unknown";
   }
 }
 
