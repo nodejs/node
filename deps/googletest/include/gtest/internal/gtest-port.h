@@ -208,6 +208,8 @@
 //   or
 //                                 UniversalPrinter<absl::optional>
 //                                 specializations. Always defined to 0 or 1.
+//   GTEST_INTERNAL_HAS_STD_SPAN - for enabling UniversalPrinter<std::span>
+//                                 specializations. Always defined to 0 or 1
 //   GTEST_INTERNAL_HAS_STRING_VIEW - for enabling Matcher<std::string_view> or
 //                                    Matcher<absl::string_view>
 //                                    specializations. Always defined to 0 or 1.
@@ -609,7 +611,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 // Determines whether clone(2) is supported.
 // Usually it will only be available on Linux, excluding
 // Linux on the Itanium architecture.
-// Also see http://linux.die.net/man/2/clone.
+// Also see https://linux.die.net/man/2/clone.
 #ifndef GTEST_HAS_CLONE
 // The user didn't tell us, so we need to figure it out.
 
@@ -2405,6 +2407,16 @@ inline ::std::nullopt_t Nullopt() { return ::std::nullopt; }
 
 #ifndef GTEST_INTERNAL_HAS_OPTIONAL
 #define GTEST_INTERNAL_HAS_OPTIONAL 0
+#endif
+
+#ifdef __has_include
+#if __has_include(<span>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#define GTEST_INTERNAL_HAS_STD_SPAN 1
+#endif  // __has_include(<span>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#endif  // __has_include
+
+#ifndef GTEST_INTERNAL_HAS_STD_SPAN
+#define GTEST_INTERNAL_HAS_STD_SPAN 0
 #endif
 
 #ifdef GTEST_HAS_ABSL
