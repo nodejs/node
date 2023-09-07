@@ -146,7 +146,11 @@
       selector.addEventListener('change', (e) => {
         const checked = e.target.checked;
 
-        localStorage.setItem(kFlavorPreference, checked);
+        if (checked) {
+          localStorage.setItem(kFlavorPreference, true);
+        } else {
+          localStorage.removeItem(kFlavorPreference);
+        }
 
         flavorSelectors.forEach((el) => {
           el.checked = checked;
