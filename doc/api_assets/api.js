@@ -138,12 +138,11 @@
 
   function setupFlavorSelectors() {
     const kFlavorPreference = 'customFlavor';
-    const vCommonJS = 'cjs';
     const flavorSetting = sessionStorage.getItem(kFlavorPreference);
     const flavorSelectors = document.querySelectorAll('.js-flavor-selector');
 
     flavorSelectors.forEach((selector) => {
-      selector.checked = flavorSetting !== vCommonJS;
+      selector.checked = flavorSetting === 'true'
       selector.addEventListener('change', (e) => {
         const checked = e.target.checked;
 
