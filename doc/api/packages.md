@@ -251,7 +251,7 @@ both CommonJS and ES modules in a single package please consult
 
 Existing packages introducing the [`"exports"`][] field will prevent consumers
 of the package from using any entry points that are not defined, including the
-[`package.json`][] (e.g. `require('your-package/package.json')`. **This will
+[`package.json`][] (e.g. `require('your-package/package.json')`). **This will
 likely be a breaking change.**
 
 To make the introduction of [`"exports"`][] non-breaking, ensure that every
