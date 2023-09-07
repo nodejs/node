@@ -136,6 +136,30 @@
     updateHashes();
   }
 
+  function setupFlavorSelectors() {
+    const kFlavorPreference = 'customFlavor';
+    const vCommonJS = 'cjs';
+    const flavorSetting = sessionStorage.getItem(kFlavorPreference);
+    const flavorSelectors = document.querySelectorAll('.js-flavor-selector');
+
+    flavorSelectors.forEach((selector) => {
+      selector.checked = flavorSetting !== vCommonJS;
+      selector.addEventListener('click', (e) => {
+        const checked = e.target.checked;
+
+        if (checked) {
+          sessionStorage.removeItem(kFlavorPreference);
+        } else {
+          sessionStorage.setItem(kFlavorPreference, vCommonJS);
+        }
+
+        flavorSelectors.forEach((el) => {
+          el.checked = checked;
+        });
+      });
+    });
+  }
+
   function setupCopyButton() {
     const buttons = document.querySelectorAll('.copy-button');
     buttons.forEach((button) => {
@@ -181,6 +205,8 @@
 
     // Make link to other versions of the doc open to the same hash target (if it exists).
     setupAltDocsLink();
+
+    setupFlavorSelectors();
 
     setupCopyButton();
   }
