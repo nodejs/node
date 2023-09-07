@@ -1586,7 +1586,7 @@ Enables timer mocking for the specified timers.
   The currently supported timer values are `'setInterval'`, `'setTimeout'`,
   and `'setImmediate'`.  If no value is provided, all timers (`'setInterval'`,
   `'clearInterval'`, `'setTimeout'`, `'clearTimeout'`, `'setImmediate'`,
-  and `'clearImmediate'`) will be mocked by default.
+  `'clearImmediate'` and `'process.nextTick'`) will be mocked by default.
 
 **Note:** When you enable mocking for a specific timer, its associated
 clear function will also be implicitly mocked.
@@ -1611,10 +1611,11 @@ and `clearInterval` functions from [node:timers](./timers.md),
 
 Alternatively, if you call `mock.timers.enable()` without any parameters:
 
-All timers (`'setInterval'`, `'clearInterval'`, `'setTimeout'`, and `'clearTimeout'`)
+All timers (`'setInterval'`, `'clearInterval'`, `'setTimeout'`,
+`'clearTimeout'` and `process.nextTick`)
 will be mocked. The `setInterval`, `clearInterval`, `setTimeout`, and `clearTimeout`
 functions from `node:timers`, `node:timers/promises`,
-and `globalThis` will be mocked.
+and `globalThis` as well as `nextTick` from `node:process` will be mocked.
 
 ### `timers.reset()`
 

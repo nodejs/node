@@ -6,6 +6,7 @@ const assert = require('node:assert');
 const { it, mock, describe } = require('node:test');
 const nodeTimers = require('node:timers');
 const nodeTimersPromises = require('node:timers/promises');
+const nodeProcess = require('node:process');
 
 describe('Mock Timers Test Suite', () => {
   describe('MockTimers API', () => {
@@ -64,10 +65,15 @@ describe('Mock Timers Test Suite', () => {
           .filter((fn) => !fn.includes('clear'))
           .map((fn) => getDescriptor(nodeTimersPromises, fn));
 
+        const nodeProcessNextTickDescriptor = getDescriptor(nodeProcess, 'nextTick');
+        const processNextTickDescriptor = getDescriptor(process, 'nextTick');
+
         return {
           global: globalTimersDescriptors,
           nodeTimers: nodeTimersDescriptors,
           nodeTimersPromises: nodeTimersPromisesDescriptors,
+          nodeProcess: nodeProcessNextTickDescriptor,
+          process: processNextTickDescriptor,
         };
       };
 
@@ -349,6 +355,65 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.tick(100);
 
         assert.deepStrictEqual(order, ['f1', 'f2']);
+      });
+    });
+
+    describe('process.nexTick Suite', () => {
+      it('should keep nextTick working if timers are disabled', (t, done) => {
+        const now = Date.now();
+        const timeout = 2;
+        const expected = () => now - timeout;
+        process.nextTick(common.mustCall(() => {
+          assert.strictEqual(now - timeout, expected());
+          done();
+        }));
+      });
+
+      it('should work with the same params as the original nextTick', (t) => {
+        t.mock.timers.enable(['nextTick']);
+        const fn = t.mock.fn();
+        const args = ['a', 'b', 'c'];
+        process.nextTick(fn, ...args);
+        t.mock.timers.tick(9999);
+
+        assert.strictEqual(fn.mock.callCount(), 1);
+        assert.deepStrictEqual(fn.mock.calls[0].arguments, args);
+      });
+
+      it('should advance in time and trigger timers when calling the .tick function', (t) => {
+        t.mock.timers.enable(['nextTick']);
+        process.nextTick(common.mustCall(1));
+        t.mock.timers.tick(0);
+      });
+
+      it('should execute in order if process.nextTick is called multiple times', (t) => {
+        t.mock.timers.enable(['nextTick']);
+        const order = [];
+        const fn1 = t.mock.fn(common.mustCall(() => order.push('f1'), 1));
+        const fn2 = t.mock.fn(common.mustCall(() => order.push('f2'), 1));
+
+        process.nextTick(fn1);
+        process.nextTick(fn2);
+
+        t.mock.timers.tick(0);
+
+        assert.deepStrictEqual(order, ['f1', 'f2']);
+      });
+
+      it('should execute nextTick first if setTimeout or setImmediate was also called', (t) => {
+        t.mock.timers.enable(['setImmediate', 'setTimeout', 'nextTick']);
+        const order = [];
+        const fn1 = t.mock.fn(common.mustCall(() => order.push('f1'), 1));
+        const fn2 = t.mock.fn(common.mustCall(() => order.push('f2'), 1));
+        const fn3 = t.mock.fn(common.mustCall(() => order.push('f3'), 1));
+
+        global.setTimeout(fn3, 0);
+        global.setImmediate(fn2);
+        process.nextTick(fn1);
+
+        t.mock.timers.tick(100);
+
+        assert.deepStrictEqual(order, ['f1', 'f2', 'f3']);
       });
     });
   });
@@ -868,6 +933,68 @@ describe('Mock Timers Test Suite', () => {
         const results = await Promise.race([p1, p2]);
 
         assert.strictEqual(results, 'fn1');
+      });
+    });
+  });
+
+
+  describe('node:process Suite', () => {
+    describe('nexTick', () => {
+      it('should keep nextTick working if timers are disabled', (t, done) => {
+        const now = Date.now();
+        const timeout = 2;
+        const expected = () => now - timeout;
+        nodeProcess.nextTick(common.mustCall(() => {
+          assert.strictEqual(now - timeout, expected());
+          done();
+        }));
+      });
+
+      it('should work with the same params as the original nextTick', (t) => {
+        t.mock.timers.enable(['nextTick']);
+        const fn = t.mock.fn();
+        const args = ['a', 'b', 'c'];
+        nodeProcess.nextTick(fn, ...args);
+        t.mock.timers.tick(9999);
+
+        assert.strictEqual(fn.mock.callCount(), 1);
+        assert.deepStrictEqual(fn.mock.calls[0].arguments, args);
+      });
+
+      it('should advance in time and trigger timers when calling the .tick function', (t) => {
+        t.mock.timers.enable(['nextTick']);
+        nodeProcess.nextTick(common.mustCall(1));
+        t.mock.timers.tick(0);
+      });
+
+      it('should execute in order if process.nextTick is called multiple times', (t) => {
+        t.mock.timers.enable(['nextTick']);
+        const order = [];
+        const fn1 = t.mock.fn(common.mustCall(() => order.push('f1'), 1));
+        const fn2 = t.mock.fn(common.mustCall(() => order.push('f2'), 1));
+
+        nodeProcess.nextTick(fn1);
+        nodeProcess.nextTick(fn2);
+
+        t.mock.timers.tick(0);
+
+        assert.deepStrictEqual(order, ['f1', 'f2']);
+      });
+
+      it('should execute nextTick first if setTimeout or setImmediate was also called', (t) => {
+        t.mock.timers.enable(['setImmediate', 'setTimeout', 'nextTick']);
+        const order = [];
+        const fn1 = t.mock.fn(common.mustCall(() => order.push('f1'), 1));
+        const fn2 = t.mock.fn(common.mustCall(() => order.push('f2'), 1));
+        const fn3 = t.mock.fn(common.mustCall(() => order.push('f3'), 1));
+
+        global.setTimeout(fn3, 0);
+        global.setImmediate(fn2);
+        nodeProcess.nextTick(fn1);
+
+        t.mock.timers.tick(100);
+
+        assert.deepStrictEqual(order, ['f1', 'f2', 'f3']);
       });
     });
   });
