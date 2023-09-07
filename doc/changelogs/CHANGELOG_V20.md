@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.6.1">20.6.1</a><br/>
 <a href="#20.6.0">20.6.0</a><br/>
 <a href="#20.5.1">20.5.1</a><br/>
 <a href="#20.5.0">20.5.0</a><br/>
@@ -42,6 +43,14 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.6.1"></a>
+
+## 2023-09-08, Version 20.6.1 (Current), @RafaelGSS
+
+### Commits
+
+* \[[`8acbe6d8e8`](https://github.com/nodejs/node/commit/8acbe6d8e8)] - **esm**: fix loading of CJS modules from ESM (Antoine du Hamel) [#49500](https://github.com/nodejs/node/pull/49500)
 
 <a id="20.6.0"></a>
 
