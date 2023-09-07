@@ -604,11 +604,10 @@ describe('Loader hooks', { concurrency: true }, () => {
         port1.on('message', (msg) => {
           console.log('message', msg);
         });
-        const result = register(
+        register(
           ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize-port.mjs'))},
           {data: port2, transferList: [port2]},
         );
-        console.log('register', result);
 
         const timeout = setTimeout(() => {}, 2**31 - 1); // to keep the process alive.
         await Promise.all([
@@ -621,8 +620,7 @@ describe('Loader hooks', { concurrency: true }, () => {
     ]);
 
     assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), [ 'register ok',
-                                                 'message initialize',
+    assert.deepStrictEqual(stdout.split('\n'), [ 'message initialize',
                                                  'message resolve node:os',
                                                  '' ]);
 
@@ -699,12 +697,12 @@ describe('Loader hooks', { concurrency: true }, () => {
       '--eval',
       `
         import {register} from 'node:module';
-        console.log('result', register(
+        register(
           ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'))}
-        ));
-        console.log('result', register(
+        );
+        register(
           ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'))}
-        ));
+        );
 
         await import('node:os');
       `,
@@ -712,9 +710,7 @@ describe('Loader hooks', { concurrency: true }, () => {
 
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout.split('\n'), [ 'hooks initialize 1',
-                                                 'result 1',
                                                  'hooks initialize 2',
-                                                 'result 2',
                                                  '' ]);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
@@ -761,4 +757,74 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
+
+  it('should `deregister` properly', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--input-type=module',
+      '--eval',
+      `
+        import {register, deregister} from 'node:module';
+        const id = register(
+          ${JSON.stringify(fixtures.fileURL('es-module-loaders/loader-resolve-passthru.mjs'))}
+        );
+
+        await import('node:os');
+        await import('node:os');
+
+        console.log('deregister ' + deregister(id));
+
+        await import('node:os');
+      `,
+    ]);
+
+    const lines = stdout.split('\n');
+
+    assert.strictEqual(lines.length, 4);
+    assert.deepStrictEqual(lines, [
+      'resolve passthru',
+      'resolve passthru',
+      'deregister true',
+      '',
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should provide state from `initialize`', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--input-type=module',
+      '--eval',
+      `
+        import {register} from 'node:module';
+        register(
+          ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-state.mjs'))}
+        );
+        register(
+          ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-state.mjs'))}
+        );
+
+        await import('node:os');
+        await import('node:os');
+      `,
+    ]);
+
+    const lines = stdout.split('\n');
+
+    assert.deepStrictEqual(lines, [
+      'resolve passthru 0',
+      'resolve passthru 0',
+      'resolve passthru 1',
+      'resolve passthru 1',
+      '',
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
 });
