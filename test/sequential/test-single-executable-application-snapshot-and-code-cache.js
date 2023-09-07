@@ -13,7 +13,9 @@ skipIfSingleExecutableIsNotSupported();
 
 const tmpdir = require('../common/tmpdir');
 const { copyFileSync, writeFileSync, existsSync } = require('fs');
-const { spawnSync } = require('child_process');
+const {
+  spawnSyncAndExitWithoutError
+} = require('../common/child_process');
 const { join } = require('path');
 const assert = require('assert');
 
@@ -43,21 +45,24 @@ const outputFile = join(tmpdir.path, process.platform === 'win32' ? 'sea.exe' : 
   }
   `);
 
-  let child = spawnSync(
+  spawnSyncAndExitWithoutError(
     process.execPath,
     ['--experimental-sea-config', 'sea-config.json'],
     {
       cwd: tmpdir.path
-    });
-  assert.match(
-    child.stderr.toString(),
-    /"useCodeCache" is redundant when "useSnapshot" is true/);
+    },
+    {
+      stderr: /"useCodeCache" is redundant when "useSnapshot" is true/
+    }
+  );
 
   assert(existsSync(seaPrepBlob));
 
   copyFileSync(process.execPath, outputFile);
   injectAndCodeSign(outputFile, seaPrepBlob);
 
-  child = spawnSync(outputFile);
-  assert.strictEqual(child.stdout.toString().trim(), 'Hello from snapshot');
+  spawnSyncAndExitWithoutError(outputFile, {
+    stdout: 'Hello from snapshot',
+    trim: true,
+  });
 }
