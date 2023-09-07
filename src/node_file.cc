@@ -457,8 +457,7 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
 
   Local<Value> close_resolver =
       object()->GetInternalField(FileHandle::kClosingPromiseSlot).As<Value>();
-  if (!close_resolver.IsEmpty() && !close_resolver->IsUndefined()) {
-    CHECK(close_resolver->IsPromise());
+  if (close_resolver->IsPromise()) {
     return close_resolver.As<Promise>();
   }
 
