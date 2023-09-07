@@ -89,6 +89,10 @@ bool StartsWith(const std::string& str, std::string_view prefix) {
   return str.compare(0, prefix_len, prefix) == 0;
 }
 
+bool FilenameIsConfigGypi(const std::string& path) {
+  return path == "config.gypi" || EndsWith(path, "/config.gypi");
+}
+
 typedef std::vector<std::string> FileList;
 typedef std::map<std::string, FileList> FileMap;
 
@@ -707,7 +711,7 @@ int JS2C(const FileList& js_files,
     }
   }
 
-  assert(config == "config.gypi");
+  assert(FilenameIsConfigGypi(config));
   // "config.gypi" -> config_raw.
   int r = AddGypi("config", config, &definitions);
   if (r != 0) {
@@ -789,10 +793,9 @@ int Main(int argc, char* argv[]) {
   // Should have exactly 3 types: `.js`, `.mjs` and `.gypi`.
   assert(file_map.size() == 3);
   auto gypi_it = file_map.find(".gypi");
-  std::string config = "config.gypi";
   // Currently config.gypi is the only `.gypi` file allowed
   if (gypi_it == file_map.end() || gypi_it->second.size() != 1 ||
-      gypi_it->second[0] != config) {
+      !FilenameIsConfigGypi(gypi_it->second[0])) {
     fprintf(
         stderr,
         "Arguments should contain one and only one .gypi file: config.gypi\n");
@@ -805,7 +808,7 @@ int Main(int argc, char* argv[]) {
   std::sort(js_it->second.begin(), js_it->second.end());
   std::sort(mjs_it->second.begin(), mjs_it->second.end());
 
-  return JS2C(js_it->second, mjs_it->second, config, output);
+  return JS2C(js_it->second, mjs_it->second, gypi_it->second[0], output);
 }
 }  // namespace js2c
 }  // namespace node
