@@ -1105,7 +1105,6 @@ returned object contains the following keys:
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`initialize`]: #initialize
 [`module`]: modules.md#the-module-object
-[`port.postMessage`]: worker_threads.md#portpostmessagevalue-transferlist
 [`port.ref()`]: worker_threads.md#portref
 [`port.unref()`]: worker_threads.md#portunref
 [`register`]: #moduleregisterspecifier-parenturl-options
