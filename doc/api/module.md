@@ -347,7 +347,7 @@ names and signatures, and they must be exported as named exports.
 
 ```mjs
 export async function initialize({ number, port }) {
-  // Receive data from `register`
+  // Receives data from `register`.
 }
 
 export async function resolve(specifier, context, nextResolve) {
