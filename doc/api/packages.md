@@ -393,8 +393,7 @@ and other JavaScript runtimes, using the extensionless style can result in
 bloated import map definitions. Explicit file extensions can avoid this issue by
 enabling the import map to utilize a [packages folder mapping][] to map multiple
 subpaths where possible instead of a separate map entry per package subpath
-export. This also mirrors the requirement of using [the full specifier path][]
-in relative and absolute import specifiers.
+export.
 
 ### Exports sugar
 
@@ -1352,4 +1351,3 @@ This field defines [subpath imports][] for the current package.
 [subpath imports]: #subpath-imports
 [supported package managers]: corepack.md#supported-package-managers
 [the dual CommonJS/ES module packages section]: #dual-commonjses-module-packages
-[the full specifier path]: esm.md#mandatory-file-extensions
