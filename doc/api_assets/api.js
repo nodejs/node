@@ -144,14 +144,10 @@
 
     flavorSelectors.forEach((selector) => {
       selector.checked = flavorSetting !== vCommonJS;
-      selector.addEventListener('click', (e) => {
+      selector.addEventListener('change', (e) => {
         const checked = e.target.checked;
 
-        if (checked) {
-          sessionStorage.removeItem(kFlavorPreference);
-        } else {
-          sessionStorage.setItem(kFlavorPreference, vCommonJS);
-        }
+        sessionStorage.setItem(kFlavorPreference, checked);
 
         flavorSelectors.forEach((el) => {
           el.checked = checked;
