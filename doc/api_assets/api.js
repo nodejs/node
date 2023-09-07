@@ -138,11 +138,11 @@
 
   function setupFlavorSelectors() {
     const kFlavorPreference = 'customFlavor';
-    const flavorSetting = localStorage.getItem(kFlavorPreference);
+    const flavorSetting = localStorage.getItem(kFlavorPreference) === 'true';
     const flavorSelectors = document.querySelectorAll('.js-flavor-selector');
 
     flavorSelectors.forEach((selector) => {
-      selector.checked = flavorSetting === 'true'
+      selector.checked = flavorSetting;
       selector.addEventListener('change', (e) => {
         const checked = e.target.checked;
 
