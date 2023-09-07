@@ -1,6 +1,7 @@
 import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
+import os from 'node:os';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
@@ -431,7 +432,17 @@ describe('Loader hooks', { concurrency: true }, () => {
         fixtures.path('empty.js'),
       ]);
 
-      assert.strictEqual(stderr.match(/`globalPreload` has been removed/g).length, 1);
+      assert.strictEqual(stderr.match(/`globalPreload` has been removed; use `initialize` instead/g).length, 1);
+    });
+
+    it('should not emit deprecation warning when initialize is supplied', async () => {
+      const { stderr } = await spawnPromisified(execPath, [
+        '--experimental-loader',
+        'data:text/javascript,export function globalPreload(){}export function initialize(){}',
+        fixtures.path('empty.js'),
+      ]);
+
+      assert.doesNotMatch(stderr, /`globalPreload` has been removed; use `initialize` instead/);
     });
   });
 

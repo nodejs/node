@@ -8,7 +8,6 @@ import { describe, it } from 'node:test';
 describe('ESM: nonexistent loader', () => {
   it('should throw', async () => {
     const { code, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
       '--experimental-loader',
       'i-dont-exist',
       fixtures.path('print-error-message.js'),
