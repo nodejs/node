@@ -466,14 +466,19 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
 namespace process {
 
 BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
-    : SnapshotableObject(realm, object, type_int) {
+    : SnapshotableObject(realm, object, type_int),
+      hrtime_buffer_(realm->isolate(), 3) {
   Isolate* isolate = realm->isolate();
   Local<Context> context = realm->context();
-  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, kBufferSize);
-  array_buffer_.Reset(isolate, ab);
-  object->Set(context, FIXED_ONE_BYTE_STRING(isolate, "hrtimeBuffer"), ab)
+
+  // The hrtime buffer is referenced from the binding data js object.
+  // Make the native handle weak to avoid keeping the realm alive.
+  object
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "hrtimeBuffer"),
+            hrtime_buffer_.GetJSArray())
       .ToChecked();
-  backing_store_ = ab->GetBackingStore();
+  hrtime_buffer_.MakeWeak();
 }
 
 v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
@@ -502,10 +507,6 @@ BindingData* BindingData::FromV8Value(Local<Value> value) {
       v8_object->GetAlignedPointerFromInternalField(BaseObject::kSlot));
 }
 
-void BindingData::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("array_buffer", array_buffer_);
-}
-
 // This is the legacy version of hrtime before BigInt was introduced in
 // JavaScript.
 // The value returned by uv_hrtime() is a 64-bit int representing nanoseconds,
@@ -517,20 +518,18 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 // The third entry contains the remaining nanosecond part of the value.
 void BindingData::NumberImpl(BindingData* receiver) {
   // Make sure we don't accidentally access buffers wiped for snapshot.
-  CHECK(!receiver->array_buffer_.IsEmpty());
+  CHECK(receiver->hrtime_buffer_.is_valid());
   uint64_t t = uv_hrtime();
-  uint32_t* fields = static_cast<uint32_t*>(receiver->backing_store_->Data());
-  fields[0] = (t / NANOS_PER_SEC) >> 32;
-  fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
-  fields[2] = t % NANOS_PER_SEC;
+  receiver->hrtime_buffer_[0] = (t / NANOS_PER_SEC) >> 32;
+  receiver->hrtime_buffer_[1] = (t / NANOS_PER_SEC) & 0xffffffff;
+  receiver->hrtime_buffer_[2] = t % NANOS_PER_SEC;
 }
 
 void BindingData::BigIntImpl(BindingData* receiver) {
   // Make sure we don't accidentally access buffers wiped for snapshot.
-  CHECK(!receiver->array_buffer_.IsEmpty());
+  CHECK(receiver->hrtime_buffer_.is_valid());
   uint64_t t = uv_hrtime();
-  uint64_t* fields = static_cast<uint64_t*>(receiver->backing_store_->Data());
-  fields[0] = t;
+  receiver->hrtime_buffer_[0] = t;
 }
 
 void BindingData::SlowBigInt(const FunctionCallbackInfo<Value>& args) {
@@ -545,7 +544,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
                                           v8::SnapshotCreator* creator) {
   // It's not worth keeping.
   // Release it, we will recreate it when the instance is dehydrated.
-  array_buffer_.Reset();
+  hrtime_buffer_.Release();
   // Return true because we need to maintain the reference to the binding from
   // JS land.
   return true;

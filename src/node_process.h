@@ -59,7 +59,7 @@ class BindingData : public SnapshotableObject {
 
   BindingData(Realm* realm, v8::Local<v8::Object> object);
 
-  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(BindingData)
   SET_SELF_SIZE(BindingData)
 
@@ -81,10 +81,8 @@ class BindingData : public SnapshotableObject {
   static void SlowBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
-  static constexpr size_t kBufferSize =
-      std::max(sizeof(uint64_t), sizeof(uint32_t) * 3);
-  v8::Global<v8::ArrayBuffer> array_buffer_;
-  std::shared_ptr<v8::BackingStore> backing_store_;
+  static constexpr size_t kHrTimeBufferCount = 3;
+  AliasedUint32Array hrtime_buffer_;
 
   // These need to be static so that we have their addresses available to
   // register as external references in the snapshot at environment creation

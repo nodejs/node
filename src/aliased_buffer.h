@@ -171,8 +171,9 @@ class AliasedBufferBase : public MemoryRetainer {
   inline const char* MemoryInfoName() const override;
   inline void MemoryInfo(node::MemoryTracker* tracker) const override;
 
- private:
   inline bool is_valid() const;
+
+ private:
   v8::Isolate* isolate_ = nullptr;
   size_t count_ = 0;
   size_t byte_offset_ = 0;
