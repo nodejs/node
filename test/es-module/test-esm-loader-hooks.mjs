@@ -1,7 +1,6 @@
 import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
-import os from 'node:os';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 

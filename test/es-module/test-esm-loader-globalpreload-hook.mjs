@@ -133,7 +133,11 @@ describe('globalPreload hook', () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      `data:text/javascript,export ${function globalPreload() { if (this != null) { throw new Error('hook function must not be bound to ESMLoader instance') }} }`,
+      `data:text/javascript,export ${function globalPreload() {
+        if (this != null) {
+          throw new Error('hook function must not be bound to ESMLoader instance');
+        }
+      }}`,
       fixtures.path('empty.js'),
     ]);
 
