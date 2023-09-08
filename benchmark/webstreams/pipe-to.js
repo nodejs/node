@@ -18,7 +18,7 @@ async function main({ n, highWaterMarkR, highWaterMarkW }) {
   const rs = new ReadableStream({
     highWaterMark: highWaterMarkR,
     pull: function(controller) {
-      if (i++ === n) {
+      if (i++ < n) {
         controller.enqueue(b);
       } else {
         controller.close();
