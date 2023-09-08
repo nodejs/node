@@ -142,7 +142,7 @@
       button.addEventListener('click', (el) => {
         const parentNode = el.target.parentNode;
 
-        const flavorToggle = parentNode.querySelector('.js-flavor-selector');
+        const flavorToggle = parentNode.querySelector('.js-flavor-toggle');
 
         let code = '';
 
