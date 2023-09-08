@@ -1054,30 +1054,41 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   STACK_OF(X509)* extra_certs_ptr = nullptr;
   if (d2i_PKCS12_bio(in.get(), &p12_ptr) &&
       (p12.reset(p12_ptr), true) &&  // Move ownership to the smart pointer.
-      PKCS12_parse(p12.get(), pass.data(),
-                   &pkey_ptr,
-                   &cert_ptr,
-                   &extra_certs_ptr) &&
-      (pkey.reset(pkey_ptr), cert.reset(cert_ptr),
-       extra_certs.reset(extra_certs_ptr), true) &&  // Move ownership.
-      SSL_CTX_use_certificate_chain(sc->ctx_.get(),
-                                    std::move(cert),
-                                    extra_certs.get(),
-                                    &sc->cert_,
-                                    &sc->issuer_) &&
-      SSL_CTX_use_PrivateKey(sc->ctx_.get(), pkey.get())) {
-    // Add CA certs too
-    for (int i = 0; i < sk_X509_num(extra_certs.get()); i++) {
-      X509* ca = sk_X509_value(extra_certs.get(), i);
-
-      if (cert_store == GetOrCreateRootCertStore()) {
-        cert_store = NewRootCertStore();
-        SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
-      }
-      X509_STORE_add_cert(cert_store, ca);
-      SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
+      PKCS12_parse(
+          p12.get(), pass.data(), &pkey_ptr, &cert_ptr, &extra_certs_ptr) &&
+      (pkey.reset(pkey_ptr),
+       cert.reset(cert_ptr),  // Move ownership.
+       extra_certs.reset(extra_certs_ptr),
+       true)) {
+    if (pkey.get() == nullptr) {
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Unable to load private key from PFX data");
     }
-    ret = true;
+
+    if (cert.get() == nullptr) {
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Unable to load certificate from PFX data");
+    }
+
+    if (SSL_CTX_use_certificate_chain(sc->ctx_.get(),
+                                      std::move(cert),
+                                      extra_certs.get(),
+                                      &sc->cert_,
+                                      &sc->issuer_) &&
+        SSL_CTX_use_PrivateKey(sc->ctx_.get(), pkey.get())) {
+      // Add CA certs too
+      for (int i = 0; i < sk_X509_num(extra_certs.get()); i++) {
+        X509* ca = sk_X509_value(extra_certs.get(), i);
+
+        if (cert_store == GetOrCreateRootCertStore()) {
+          cert_store = NewRootCertStore();
+          SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
+        }
+        X509_STORE_add_cert(cert_store, ca);
+        SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
+      }
+      ret = true;
+    }
   }
 
   if (!ret) {
