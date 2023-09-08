@@ -48,14 +48,19 @@ void Dotenv::SetEnvironment(node::Environment* env) {
   for (const auto& entry : store_) {
     auto key = entry.first;
     auto value = entry.second;
-    env->env_vars()->Set(
-        isolate,
-        v8::String::NewFromUtf8(
-            isolate, key.data(), NewStringType::kNormal, key.size())
-            .ToLocalChecked(),
-        v8::String::NewFromUtf8(
-            isolate, value.data(), NewStringType::kNormal, value.size())
-            .ToLocalChecked());
+
+    auto existing = env->env_vars()->Get(key.data());
+
+    if (existing.IsNothing()) {
+      env->env_vars()->Set(
+          isolate,
+          v8::String::NewFromUtf8(
+              isolate, key.data(), NewStringType::kNormal, key.size())
+              .ToLocalChecked(),
+          v8::String::NewFromUtf8(
+              isolate, value.data(), NewStringType::kNormal, value.size())
+              .ToLocalChecked());
+    }
   }
 }
 
