@@ -250,7 +250,7 @@ export function preprocessElements({ filename }) {
             const actualCharCount = Math.max(charCountFirstTwoLines, previousNode.charCountFirstTwoLines);
             (dynamicSizes[filename] ??= new Set()).add(actualCharCount);
             node.value = `<pre class="with-${actualCharCount}-chars">` +
-              '<input class="js-flavor-selector" type="checkbox"' +
+              '<input class="js-flavor-toggle" type="checkbox"' +
               // If CJS comes in second, ESM should display by default.
               (node.lang === 'cjs' ? ' checked' : '') +
               ' aria-label="Show modern ES modules syntax">' +
