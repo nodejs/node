@@ -72,6 +72,16 @@ export declare namespace Client {
     autoSelectFamily?: boolean;
     /** The amount of time in milliseconds to wait for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option. */
     autoSelectFamilyAttemptTimeout?: number; 
+    /** 
+     * @description Enables support for H2 if the server has assigned bigger priority to it through ALPN negotiation.
+     * @default false
+    */
+    allowH2?: boolean;
+    /** 
+     * @description Dictates the maximum number of concurrent streams for a single H2 session. It can be overriden by a SETTINGS remote frame.
+     * @default 100
+    */
+    maxConcurrentStreams?: number
   }
   export interface SocketInfo {
     localAddress?: string

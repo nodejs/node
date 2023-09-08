@@ -60,7 +60,13 @@ var require_symbols = __commonJS({
       kProxy: Symbol("proxy agent options"),
       kCounter: Symbol("socket request counter"),
       kInterceptors: Symbol("dispatch interceptors"),
-      kMaxResponseSize: Symbol("max response size")
+      kMaxResponseSize: Symbol("max response size"),
+      kHTTP2Session: Symbol("http2Session"),
+      kHTTP2SessionState: Symbol("http2Session state"),
+      kHTTP2BuildRequest: Symbol("http2 build request"),
+      kHTTP1BuildRequest: Symbol("http1 build request"),
+      kHTTP2CopyHeaders: Symbol("http2 copy headers"),
+      kHTTPConnVersion: Symbol("http connection version")
     };
   }
 });
@@ -439,6 +445,8 @@ var require_util = __commonJS({
       return m ? parseInt(m[1], 10) * 1e3 : null;
     }
     function parseHeaders(headers, obj = {}) {
+      if (!Array.isArray(headers))
+        return headers;
       for (let i = 0; i < headers.length; i += 2) {
         const key = headers[i].toString().toLowerCase();
         let val = obj[key];
@@ -535,13 +543,18 @@ var require_util = __commonJS({
         bytesRead: socket.bytesRead
       };
     }
+    async function* convertIterableToBuffer(iterable) {
+      for await (const chunk of iterable) {
+        yield Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      }
+    }
     var ReadableStream;
     function ReadableStreamFrom(iterable) {
       if (!ReadableStream) {
         ReadableStream = require("stream/web").ReadableStream;
       }
       if (ReadableStream.from) {
-        return ReadableStream.from(iterable);
+        return ReadableStream.from(convertIterableToBuffer(iterable));
       }
       let iterator;
       return new ReadableStream({
@@ -1139,9 +1152,22 @@ var require_util2 = __commonJS({
       const metadata = list.filter((item) => item.algo === strongest);
       for (const item of metadata) {
         const algorithm = item.algo;
-        const expectedValue = item.hash;
-        const actualValue = crypto.createHash(algorithm).update(bytes).digest("base64");
+        let expectedValue = item.hash;
+        if (expectedValue.endsWith("==")) {
+          expectedValue = expectedValue.slice(0, -2);
+        }
+        let actualValue = crypto.createHash(algorithm).update(bytes).digest("base64");
+        if (actualValue.endsWith("==")) {
+          actualValue = actualValue.slice(0, -2);
+        }
         if (actualValue === expectedValue) {
+          return true;
+        }
+        let actualBase64URL = crypto.createHash(algorithm).update(bytes).digest("base64url");
+        if (actualBase64URL.endsWith("==")) {
+          actualBase64URL = actualBase64URL.slice(0, -2);
+        }
+        if (actualBase64URL === expectedValue) {
           return true;
         }
       }
@@ -1250,9 +1276,9 @@ var require_util2 = __commonJS({
       }
       return { value: result, done: false };
     }
-    function fullyReadBody(body, processBody, processBodyError) {
-      const successSteps = (bytes) => queueMicrotask(() => processBody(bytes));
-      const errorSteps = (error) => queueMicrotask(() => processBodyError(error));
+    async function fullyReadBody(body, processBody, processBodyError) {
+      const successSteps = processBody;
+      const errorSteps = processBodyError;
       let reader;
       try {
         reader = body.stream.getReader();
@@ -1260,7 +1286,12 @@ var require_util2 = __commonJS({
         errorSteps(e);
         return;
       }
-      readAllBytes(reader, successSteps, errorSteps);
+      try {
+        const result = await readAllBytes(reader);
+        successSteps(result);
+      } catch (e) {
+        errorSteps(e);
+      }
     }
     var ReadableStream = globalThis.ReadableStream;
     function isReadableStreamLike(stream) {
@@ -1291,25 +1322,16 @@ var require_util2 = __commonJS({
       }
       return input;
     }
-    async function readAllBytes(reader, successSteps, failureSteps) {
+    async function readAllBytes(reader) {
       const bytes = [];
       let byteLength = 0;
       while (true) {
-        let done;
-        let chunk;
-        try {
-          ({ done, value: chunk } = await reader.read());
-        } catch (e) {
-          failureSteps(e);
-          return;
-        }
+        const { done, value: chunk } = await reader.read();
         if (done) {
-          successSteps(Buffer.concat(bytes, byteLength));
-          return;
+          return Buffer.concat(bytes, byteLength);
         }
         if (!isUint8Array(chunk)) {
-          failureSteps(new TypeError("Received non-Uint8Array chunk"));
-          return;
+          throw new TypeError("Received non-Uint8Array chunk");
         }
         bytes.push(chunk);
         byteLength += chunk.length;
@@ -6563,6 +6585,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             try {
               busboy = Busboy({
                 headers,
+                preservePath: true,
                 defParamCharset: "utf8"
               });
             } catch (err) {
@@ -6660,7 +6683,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         successSteps(new Uint8Array());
         return promise.promise;
       }
-      fullyReadBody(object[kState].body, successSteps, errorSteps);
+      await fullyReadBody(object[kState].body, successSteps, errorSteps);
       return promise.promise;
     }
     function bodyUnusable(body) {
@@ -6738,7 +6761,7 @@ var require_response = __commonJS({
         responseObject[kHeaders][kRealm] = relevantRealm;
         return responseObject;
       }
-      static json(data = void 0, init = {}) {
+      static json(data, init = {}) {
         webidl.argumentLengthCheck(arguments, 1, { header: "Response.json" });
         if (init !== null) {
           init = webidl.converters.ResponseInit(init);
@@ -6959,9 +6982,9 @@ var require_response = __commonJS({
         assert(false);
       }
     }
-    function makeAppropriateNetworkError(fetchParams) {
+    function makeAppropriateNetworkError(fetchParams, err = null) {
       assert(isCancelled(fetchParams));
-      return isAborted(fetchParams) ? makeNetworkError(new DOMException("The operation was aborted.", "AbortError")) : makeNetworkError("Request was cancelled.");
+      return isAborted(fetchParams) ? makeNetworkError(Object.assign(new DOMException("The operation was aborted.", "AbortError"), { cause: err })) : makeNetworkError(Object.assign(new DOMException("Request was cancelled."), { cause: err }));
     }
     function initializeResponse(response, init, body) {
       if (init.status !== null && (init.status < 200 || init.status > 599)) {
@@ -8140,6 +8163,7 @@ var require_request2 = __commonJS({
       NotSupportedError
     } = require_errors();
     var assert = require("assert");
+    var { kHTTP2BuildRequest, kHTTP2CopyHeaders, kHTTP1BuildRequest } = require_symbols();
     var util = require_util();
     var tokenRegExp = /^[\^_`a-zA-Z\-0-9!#$%&'*+.|~]+$/;
     var headerCharRegex = /[^\t\x20-\x7e\x80-\xff]/;
@@ -8174,7 +8198,8 @@ var require_request2 = __commonJS({
         headersTimeout,
         bodyTimeout,
         reset,
-        throwOnError
+        throwOnError,
+        expectContinue
       }, handler) {
         if (typeof path !== "string") {
           throw new InvalidArgumentError("path must be a string");
@@ -8199,6 +8224,9 @@ var require_request2 = __commonJS({
         }
         if (reset != null && typeof reset !== "boolean") {
           throw new InvalidArgumentError("invalid reset");
+        }
+        if (expectContinue != null && typeof expectContinue !== "boolean") {
+          throw new InvalidArgumentError("invalid expectContinue");
         }
         this.headersTimeout = headersTimeout;
         this.bodyTimeout = bodyTimeout;
@@ -8233,6 +8261,7 @@ var require_request2 = __commonJS({
         this.contentLength = null;
         this.contentType = null;
         this.headers = "";
+        this.expectContinue = expectContinue != null ? expectContinue : false;
         if (Array.isArray(headers)) {
           if (headers.length % 2 !== 0) {
             throw new InvalidArgumentError("headers array must be even");
@@ -8335,8 +8364,46 @@ var require_request2 = __commonJS({
         processHeader(this, key, value);
         return this;
       }
+      static [kHTTP1BuildRequest](origin, opts, handler) {
+        return new Request(origin, opts, handler);
+      }
+      static [kHTTP2BuildRequest](origin, opts, handler) {
+        const headers = opts.headers;
+        opts = { ...opts, headers: null };
+        const request = new Request(origin, opts, handler);
+        request.headers = {};
+        if (Array.isArray(headers)) {
+          if (headers.length % 2 !== 0) {
+            throw new InvalidArgumentError("headers array must be even");
+          }
+          for (let i = 0; i < headers.length; i += 2) {
+            processHeader(request, headers[i], headers[i + 1], true);
+          }
+        } else if (headers && typeof headers === "object") {
+          const keys = Object.keys(headers);
+          for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            processHeader(request, key, headers[key], true);
+          }
+        } else if (headers != null) {
+          throw new InvalidArgumentError("headers must be an object or an array");
+        }
+        return request;
+      }
+      static [kHTTP2CopyHeaders](raw) {
+        const rawHeaders = raw.split("\r\n");
+        const headers = {};
+        for (const header of rawHeaders) {
+          const [key, value] = header.split(": ");
+          if (headers[key])
+            headers[key] += `,${value}`;
+          else
+            headers[key] = value;
+        }
+        return headers;
+      }
     };
-    function processHeaderValue(key, val) {
+    function processHeaderValue(key, val, skipAppend) {
       if (val && typeof val === "object") {
         throw new InvalidArgumentError(`invalid ${key} header`);
       }
@@ -8344,10 +8411,10 @@ var require_request2 = __commonJS({
       if (headerCharRegex.exec(val) !== null) {
         throw new InvalidArgumentError(`invalid ${key} header`);
       }
-      return `${key}: ${val}\r
+      return skipAppend ? val : `${key}: ${val}\r
 `;
     }
-    function processHeader(request, key, val) {
+    function processHeader(request, key, val, skipAppend = false) {
       if (val && (typeof val === "object" && !Array.isArray(val))) {
         throw new InvalidArgumentError(`invalid ${key} header`);
       } else if (val === void 0) {
@@ -8386,10 +8453,20 @@ var require_request2 = __commonJS({
       } else {
         if (Array.isArray(val)) {
           for (let i = 0; i < val.length; i++) {
-            request.headers += processHeaderValue(key, val[i]);
+            if (skipAppend) {
+              if (request.headers[key])
+                request.headers[key] += `,${processHeaderValue(key, val[i], skipAppend)}`;
+              else
+                request.headers[key] = processHeaderValue(key, val[i], skipAppend);
+            } else {
+              request.headers += processHeaderValue(key, val[i]);
+            }
           }
         } else {
-          request.headers += processHeaderValue(key, val);
+          if (skipAppend)
+            request.headers[key] = processHeaderValue(key, val, skipAppend);
+          else
+            request.headers += processHeaderValue(key, val);
         }
       }
     }
@@ -8455,13 +8532,14 @@ var require_connect = __commonJS({
         }
       };
     }
-    function buildConnector({ maxCachedSessions, socketPath, timeout, ...opts }) {
+    function buildConnector({ allowH2, maxCachedSessions, socketPath, timeout, ...opts }) {
       if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
         throw new InvalidArgumentError("maxCachedSessions must be a positive integer or zero");
       }
       const options = { path: socketPath, ...opts };
       const sessionCache = new SessionCache(maxCachedSessions == null ? 100 : maxCachedSessions);
       timeout = timeout == null ? 1e4 : timeout;
+      allowH2 = allowH2 != null ? allowH2 : false;
       return function connect({ hostname, host, protocol, port, servername, localAddress, httpSocket }, callback) {
         let socket;
         if (protocol === "https:") {
@@ -8478,6 +8556,7 @@ var require_connect = __commonJS({
             servername,
             session,
             localAddress,
+            ALPNProtocols: allowH2 ? ["http/1.1", "h2"] : ["http/1.1"],
             socket: httpSocket,
             port: port || 443,
             host: hostname
@@ -9068,6 +9147,8 @@ var require_client = __commonJS({
     "use strict";
     var assert = require("assert");
     var net = require("net");
+    var http2 = require("http2");
+    var { pipeline } = require("stream");
     var util = require_util();
     var timers = require_timers();
     var Request = require_request2();
@@ -9129,8 +9210,26 @@ var require_client = __commonJS({
       kDispatch,
       kInterceptors,
       kLocalAddress,
-      kMaxResponseSize
+      kMaxResponseSize,
+      kHTTPConnVersion,
+      kHost,
+      kHTTP2Session,
+      kHTTP2SessionState,
+      kHTTP2BuildRequest,
+      kHTTP2CopyHeaders,
+      kHTTP1BuildRequest
     } = require_symbols();
+    var {
+      constants: {
+        HTTP2_HEADER_AUTHORITY,
+        HTTP2_HEADER_METHOD,
+        HTTP2_HEADER_PATH,
+        HTTP2_HEADER_CONTENT_LENGTH,
+        HTTP2_HEADER_EXPECT,
+        HTTP2_HEADER_STATUS
+      }
+    } = http2;
+    var h2ExperimentalWarned = false;
     var FastBuffer = Buffer[Symbol.species];
     var kClosedResolve = Symbol("kClosedResolve");
     var channels = {};
@@ -9172,7 +9271,9 @@ var require_client = __commonJS({
         localAddress,
         maxResponseSize,
         autoSelectFamily,
-        autoSelectFamilyAttemptTimeout
+        autoSelectFamilyAttemptTimeout,
+        allowH2,
+        maxConcurrentStreams
       } = {}) {
         super();
         if (keepAlive !== void 0) {
@@ -9232,10 +9333,17 @@ var require_client = __commonJS({
         if (autoSelectFamilyAttemptTimeout != null && (!Number.isInteger(autoSelectFamilyAttemptTimeout) || autoSelectFamilyAttemptTimeout < -1)) {
           throw new InvalidArgumentError("autoSelectFamilyAttemptTimeout must be a positive number");
         }
+        if (allowH2 != null && typeof allowH2 !== "boolean") {
+          throw new InvalidArgumentError("allowH2 must be a valid boolean value");
+        }
+        if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== "number" || maxConcurrentStreams < 1)) {
+          throw new InvalidArgumentError("maxConcurrentStreams must be a possitive integer, greater than 0");
+        }
         if (typeof connect2 !== "function") {
           connect2 = buildConnector({
             ...tls,
             maxCachedSessions,
+            allowH2,
             socketPath,
             timeout: connectTimeout,
             ...util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : void 0,
@@ -9265,6 +9373,13 @@ var require_client = __commonJS({
         this[kMaxRequests] = maxRequestsPerClient;
         this[kClosedResolve] = null;
         this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1;
+        this[kHTTPConnVersion] = "h1";
+        this[kHTTP2Session] = null;
+        this[kHTTP2SessionState] = !allowH2 ? null : {
+          openStreams: 0,
+          maxConcurrentStreams: maxConcurrentStreams != null ? maxConcurrentStreams : 100
+        };
+        this[kHost] = `${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ""}`;
         this[kQueue] = [];
         this[kRunningIdx] = 0;
         this[kPendingIdx] = 0;
@@ -9298,7 +9413,7 @@ var require_client = __commonJS({
       }
       [kDispatch](opts, handler) {
         const origin = opts.origin || this[kUrl].origin;
-        const request = new Request(origin, opts, handler);
+        const request = this[kHTTPConnVersion] === "h2" ? Request[kHTTP2BuildRequest](origin, opts, handler) : Request[kHTTP1BuildRequest](origin, opts, handler);
         this[kQueue].push(request);
         if (this[kResuming]) {
         } else if (util.bodyLength(request.body) == null && util.isIterable(request.body)) {
@@ -9335,6 +9450,11 @@ var require_client = __commonJS({
             }
             resolve();
           };
+          if (this[kHTTP2Session] != null) {
+            util.destroy(this[kHTTP2Session], err);
+            this[kHTTP2Session] = null;
+            this[kHTTP2SessionState] = null;
+          }
           if (!this[kSocket]) {
             queueMicrotask(callback);
           } else {
@@ -9344,6 +9464,44 @@ var require_client = __commonJS({
         });
       }
     };
+    function onHttp2SessionError(err) {
+      assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
+      this[kSocket][kError] = err;
+      onError(this[kClient], err);
+    }
+    function onHttp2FrameError(type, code, id) {
+      const err = new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`);
+      if (id === 0) {
+        this[kSocket][kError] = err;
+        onError(this[kClient], err);
+      }
+    }
+    function onHttp2SessionEnd() {
+      util.destroy(this, new SocketError("other side closed"));
+      util.destroy(this[kSocket], new SocketError("other side closed"));
+    }
+    function onHTTP2GoAway(code) {
+      const client = this[kClient];
+      const err = new InformationalError(`HTTP/2: "GOAWAY" frame received with code ${code}`);
+      client[kSocket] = null;
+      client[kHTTP2Session] = null;
+      if (client.destroyed) {
+        assert(this[kPending] === 0);
+        const requests = client[kQueue].splice(client[kRunningIdx]);
+        for (let i = 0; i < requests.length; i++) {
+          const request = requests[i];
+          errorRequest(this, request, err);
+        }
+      } else if (client[kRunning] > 0) {
+        const request = client[kQueue][client[kRunningIdx]];
+        client[kQueue][client[kRunningIdx]++] = null;
+        errorRequest(client, request, err);
+      }
+      client[kPendingIdx] = client[kRunningIdx];
+      assert(client[kRunning] === 0);
+      client.emit("disconnect", client[kUrl], [client], err);
+      resume(client);
+    }
     var constants = require_constants2();
     var createRedirectInterceptor = require_redirectInterceptor();
     var EMPTY_BUF = Buffer.alloc(0);
@@ -9783,11 +9941,13 @@ var require_client = __commonJS({
       parser.readMore();
     }
     function onSocketError(err) {
-      const { [kParser]: parser } = this;
+      const { [kClient]: client, [kParser]: parser } = this;
       assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
-      if (err.code === "ECONNRESET" && parser.statusCode && !parser.shouldKeepAlive) {
-        parser.onMessageComplete();
-        return;
+      if (client[kHTTPConnVersion] !== "h2") {
+        if (err.code === "ECONNRESET" && parser.statusCode && !parser.shouldKeepAlive) {
+          parser.onMessageComplete();
+          return;
+        }
       }
       this[kError] = err;
       onError(this[kClient], err);
@@ -9804,20 +9964,24 @@ var require_client = __commonJS({
       }
     }
     function onSocketEnd() {
-      const { [kParser]: parser } = this;
-      if (parser.statusCode && !parser.shouldKeepAlive) {
-        parser.onMessageComplete();
-        return;
+      const { [kParser]: parser, [kClient]: client } = this;
+      if (client[kHTTPConnVersion] !== "h2") {
+        if (parser.statusCode && !parser.shouldKeepAlive) {
+          parser.onMessageComplete();
+          return;
+        }
       }
       util.destroy(this, new SocketError("other side closed", util.getSocketInfo(this)));
     }
     function onSocketClose() {
-      const { [kClient]: client } = this;
-      if (!this[kError] && this[kParser].statusCode && !this[kParser].shouldKeepAlive) {
-        this[kParser].onMessageComplete();
+      const { [kClient]: client, [kParser]: parser } = this;
+      if (client[kHTTPConnVersion] === "h1" && parser) {
+        if (!this[kError] && parser.statusCode && !parser.shouldKeepAlive) {
+          parser.onMessageComplete();
+        }
+        this[kParser].destroy();
+        this[kParser] = null;
       }
-      this[kParser].destroy();
-      this[kParser] = null;
       const err = this[kError] || new SocketError("closed", util.getSocketInfo(this));
       client[kSocket] = null;
       if (client.destroyed) {
@@ -9884,21 +10048,46 @@ var require_client = __commonJS({
           }), new ClientDestroyedError());
           return;
         }
-        if (!llhttpInstance) {
-          llhttpInstance = await llhttpPromise;
-          llhttpPromise = null;
-        }
         client[kConnecting] = false;
         assert(socket);
-        socket[kNoRef] = false;
-        socket[kWriting] = false;
-        socket[kReset] = false;
-        socket[kBlocking] = false;
-        socket[kError] = null;
-        socket[kParser] = new Parser(client, socket, llhttpInstance);
-        socket[kClient] = client;
+        const isH2 = socket.alpnProtocol === "h2";
+        if (isH2) {
+          if (!h2ExperimentalWarned) {
+            h2ExperimentalWarned = true;
+            process.emitWarning("H2 support is experimental, expect them to change at any time.", {
+              code: "UNDICI-H2"
+            });
+          }
+          const session = http2.connect(client[kUrl], {
+            createConnection: () => socket,
+            peerMaxConcurrentStreams: client[kHTTP2SessionState].maxConcurrentStreams
+          });
+          client[kHTTPConnVersion] = "h2";
+          session[kClient] = client;
+          session[kSocket] = socket;
+          session.on("error", onHttp2SessionError);
+          session.on("frameError", onHttp2FrameError);
+          session.on("end", onHttp2SessionEnd);
+          session.on("goaway", onHTTP2GoAway);
+          session.on("close", onSocketClose);
+          session.unref();
+          client[kHTTP2Session] = session;
+          socket[kHTTP2Session] = session;
+        } else {
+          if (!llhttpInstance) {
+            llhttpInstance = await llhttpPromise;
+            llhttpPromise = null;
+          }
+          socket[kNoRef] = false;
+          socket[kWriting] = false;
+          socket[kReset] = false;
+          socket[kBlocking] = false;
+          socket[kParser] = new Parser(client, socket, llhttpInstance);
+        }
         socket[kCounter] = 0;
         socket[kMaxRequests] = client[kMaxRequests];
+        socket[kClient] = client;
+        socket[kError] = null;
         socket.on("error", onSocketError).on("readable", onSocketReadable).on("end", onSocketEnd).on("close", onSocketClose);
         client[kSocket] = socket;
         if (channels.connected.hasSubscribers) {
@@ -9977,7 +10166,7 @@ var require_client = __commonJS({
           return;
         }
         const socket = client[kSocket];
-        if (socket && !socket.destroyed) {
+        if (socket && !socket.destroyed && socket.alpnProtocol !== "h2") {
           if (client[kSize] === 0) {
             if (!socket[kNoRef] && socket.unref) {
               socket.unref();
@@ -10030,7 +10219,7 @@ var require_client = __commonJS({
         if (client[kConnecting]) {
           return;
         }
-        if (!socket) {
+        if (!socket && !client[kHTTP2Session]) {
           connect(client);
           return;
         }
@@ -10064,6 +10253,10 @@ var require_client = __commonJS({
       }
     }
     function write(client, request) {
+      if (client[kHTTPConnVersion] === "h2") {
+        writeH2(client, client[kHTTP2Session], request);
+        return;
+      }
       const { body, method, path, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -10175,8 +10368,201 @@ upgrade: ${upgrade}\r
       }
       return true;
     }
-    function writeStream({ body, client, request, socket, contentLength, header, expectsPayload }) {
+    function writeH2(client, session, request) {
+      const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      let headers;
+      if (typeof reqHeaders === "string")
+        headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
+      else
+        headers = reqHeaders;
+      if (upgrade) {
+        errorRequest(client, request, new Error("Upgrade not supported for H2"));
+        return false;
+      }
+      try {
+        request.onConnect((err) => {
+          if (request.aborted || request.completed) {
+            return;
+          }
+          errorRequest(client, request, err || new RequestAbortedError());
+        });
+      } catch (err) {
+        errorRequest(client, request, err);
+      }
+      if (request.aborted) {
+        return false;
+      }
+      let stream;
+      const h2State = client[kHTTP2SessionState];
+      headers[HTTP2_HEADER_AUTHORITY] = host || client[kHost];
+      headers[HTTP2_HEADER_PATH] = path;
+      if (method === "CONNECT") {
+        session.ref();
+        stream = session.request(headers, { endStream: false, signal });
+        if (stream.id && !stream.pending) {
+          request.onUpgrade(null, null, stream);
+          ++h2State.openStreams;
+        } else {
+          stream.once("ready", () => {
+            request.onUpgrade(null, null, stream);
+            ++h2State.openStreams;
+          });
+        }
+        stream.once("close", () => {
+          h2State.openStreams -= 1;
+          if (h2State.openStreams === 0)
+            session.unref();
+        });
+        return true;
+      } else {
+        headers[HTTP2_HEADER_METHOD] = method;
+      }
+      const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
+      if (body && typeof body.read === "function") {
+        body.read(0);
+      }
+      let contentLength = util.bodyLength(body);
+      if (contentLength == null) {
+        contentLength = request.contentLength;
+      }
+      if (contentLength === 0 || !expectsPayload) {
+        contentLength = null;
+      }
+      if (request.contentLength != null && request.contentLength !== contentLength) {
+        if (client[kStrictContentLength]) {
+          errorRequest(client, request, new RequestContentLengthMismatchError());
+          return false;
+        }
+        process.emitWarning(new RequestContentLengthMismatchError());
+      }
+      if (contentLength != null) {
+        assert(body, "no body must not have content length");
+        headers[HTTP2_HEADER_CONTENT_LENGTH] = `${contentLength}`;
+      }
+      session.ref();
+      if (expectContinue) {
+        headers[HTTP2_HEADER_EXPECT] = "100-continue";
+        stream = session.request(headers, { endStream: false, signal });
+        stream.once("continue", writeBodyH2);
+      } else {
+        stream = session.request(headers, { endStream: false, signal });
+        writeBodyH2();
+      }
+      ++h2State.openStreams;
+      stream.once("response", (headers2) => {
+        if (request.onHeaders(Number(headers2[HTTP2_HEADER_STATUS]), headers2, stream.resume.bind(stream), "") === false) {
+          stream.pause();
+        }
+      });
+      stream.once("end", () => {
+        request.onComplete([]);
+      });
+      stream.on("data", (chunk) => {
+        if (request.onData(chunk) === false)
+          stream.pause();
+      });
+      stream.once("close", () => {
+        h2State.openStreams -= 1;
+        if (h2State.openStreams === 0)
+          session.unref();
+      });
+      stream.once("error", function(err) {
+        if (client[kHTTP2Session] && !client[kHTTP2Session].destroyed && !this.closed && !this.destroyed) {
+          h2State.streams -= 1;
+          util.destroy(stream, err);
+        }
+      });
+      stream.once("frameError", (type, code) => {
+        const err = new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`);
+        errorRequest(client, request, err);
+        if (client[kHTTP2Session] && !client[kHTTP2Session].destroyed && !this.closed && !this.destroyed) {
+          h2State.streams -= 1;
+          util.destroy(stream, err);
+        }
+      });
+      return true;
+      function writeBodyH2() {
+        if (!body) {
+          request.onRequestSent();
+        } else if (util.isBuffer(body)) {
+          assert(contentLength === body.byteLength, "buffer body must have content length");
+          stream.cork();
+          stream.write(body);
+          stream.uncork();
+          request.onBodySent(body);
+          request.onRequestSent();
+        } else if (util.isBlobLike(body)) {
+          if (typeof body.stream === "function") {
+            writeIterable({
+              client,
+              request,
+              contentLength,
+              h2stream: stream,
+              expectsPayload,
+              body: body.stream(),
+              socket: client[kSocket],
+              header: ""
+            });
+          } else {
+            writeBlob({
+              body,
+              client,
+              request,
+              contentLength,
+              expectsPayload,
+              h2stream: stream,
+              header: "",
+              socket: client[kSocket]
+            });
+          }
+        } else if (util.isStream(body)) {
+          writeStream({
+            body,
+            client,
+            request,
+            contentLength,
+            expectsPayload,
+            socket: client[kSocket],
+            h2stream: stream,
+            header: ""
+          });
+        } else if (util.isIterable(body)) {
+          writeIterable({
+            body,
+            client,
+            request,
+            contentLength,
+            expectsPayload,
+            header: "",
+            h2stream: stream,
+            socket: client[kSocket]
+          });
+        } else {
+          assert(false);
+        }
+      }
+    }
+    function writeStream({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
       assert(contentLength !== 0 || client[kRunning] === 0, "stream body cannot be pipelined");
+      if (client[kHTTPConnVersion] === "h2") {
+        let onPipeData = function(chunk) {
+          request.onBodySent(chunk);
+        };
+        const pipe = pipeline(body, h2stream, (err) => {
+          if (err) {
+            util.destroy(body, err);
+            util.destroy(h2stream, err);
+          } else {
+            request.onRequestSent();
+          }
+        });
+        pipe.on("data", onPipeData);
+        pipe.once("end", () => {
+          pipe.removeListener("data", onPipeData);
+          util.destroy(pipe);
+        });
+        return;
+      }
       let finished = false;
       const writer = new AsyncWriter({ socket, request, contentLength, client, expectsPayload, header });
       const onData = function(chunk) {
@@ -10230,19 +10616,26 @@ upgrade: ${upgrade}\r
       }
       socket.on("drain", onDrain).on("error", onFinished);
     }
-    async function writeBlob({ body, client, request, socket, contentLength, header, expectsPayload }) {
+    async function writeBlob({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
       assert(contentLength === body.size, "blob body must have content length");
+      const isH2 = client[kHTTPConnVersion] === "h2";
       try {
         if (contentLength != null && contentLength !== body.size) {
           throw new RequestContentLengthMismatchError();
         }
         const buffer = Buffer.from(await body.arrayBuffer());
-        socket.cork();
-        socket.write(`${header}content-length: ${contentLength}\r
+        if (isH2) {
+          h2stream.cork();
+          h2stream.write(buffer);
+          h2stream.uncork();
+        } else {
+          socket.cork();
+          socket.write(`${header}content-length: ${contentLength}\r
 \r
 `, "latin1");
-        socket.write(buffer);
-        socket.uncork();
+          socket.write(buffer);
+          socket.uncork();
+        }
         request.onBodySent(buffer);
         request.onRequestSent();
         if (!expectsPayload) {
@@ -10250,10 +10643,10 @@ upgrade: ${upgrade}\r
         }
         resume(client);
       } catch (err) {
-        util.destroy(socket, err);
+        util.destroy(isH2 ? h2stream : socket, err);
       }
     }
-    async function writeIterable({ body, client, request, socket, contentLength, header, expectsPayload }) {
+    async function writeIterable({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
       assert(contentLength !== 0 || client[kRunning] === 0, "iterator body cannot be pipelined");
       let callback = null;
       function onDrain() {
@@ -10271,6 +10664,24 @@ upgrade: ${upgrade}\r
           callback = resolve;
         }
       });
+      if (client[kHTTPConnVersion] === "h2") {
+        h2stream.on("close", onDrain).on("drain", onDrain);
+        try {
+          for await (const chunk of body) {
+            if (socket[kError]) {
+              throw socket[kError];
+            }
+            if (!h2stream.write(chunk)) {
+              await waitForDrain();
+            }
+          }
+        } catch (err) {
+          h2stream.destroy(err);
+        } finally {
+          h2stream.off("close", onDrain).off("drain", onDrain);
+        }
+        return;
+      }
       socket.on("close", onDrain).on("drain", onDrain);
       const writer = new AsyncWriter({ socket, request, contentLength, client, expectsPayload, header });
       try {
@@ -11383,7 +11794,7 @@ var require_fetch = __commonJS({
       } catch (err) {
         if (err.name === "AbortError") {
           fetchParams.controller.connection.destroy();
-          return makeAppropriateNetworkError(fetchParams);
+          return makeAppropriateNetworkError(fetchParams, err);
         }
         return makeNetworkError(err);
       }
@@ -11498,15 +11909,28 @@ var require_fetch = __commonJS({
             let codings = [];
             let location = "";
             const headers = new Headers();
-            for (let n = 0; n < headersList.length; n += 2) {
-              const key = headersList[n + 0].toString("latin1");
-              const val = headersList[n + 1].toString("latin1");
-              if (key.toLowerCase() === "content-encoding") {
-                codings = val.toLowerCase().split(",").map((x) => x.trim()).reverse();
-              } else if (key.toLowerCase() === "location") {
-                location = val;
+            if (Array.isArray(headersList)) {
+              for (let n = 0; n < headersList.length; n += 2) {
+                const key = headersList[n + 0].toString("latin1");
+                const val = headersList[n + 1].toString("latin1");
+                if (key.toLowerCase() === "content-encoding") {
+                  codings = val.toLowerCase().split(",").map((x) => x.trim());
+                } else if (key.toLowerCase() === "location") {
+                  location = val;
+                }
+                headers.append(key, val);
               }
-              headers.append(key, val);
+            } else {
+              const keys = Object.keys(headersList);
+              for (const key of keys) {
+                const val = headersList[key];
+                if (key.toLowerCase() === "content-encoding") {
+                  codings = val.toLowerCase().split(",").map((x) => x.trim()).reverse();
+                } else if (key.toLowerCase() === "location") {
+                  location = val;
+                }
+                headers.append(key, val);
+              }
             }
             this.body = new Readable({ read: resume });
             const decoders = [];

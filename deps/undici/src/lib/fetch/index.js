@@ -1760,7 +1760,7 @@ async function httpNetworkFetch (
       fetchParams.controller.connection.destroy()
 
       // 2. Return the appropriate network error for fetchParams.
-      return makeAppropriateNetworkError(fetchParams)
+      return makeAppropriateNetworkError(fetchParams, err)
     }
 
     return makeNetworkError(err)
@@ -1979,19 +1979,37 @@ async function httpNetworkFetch (
           let location = ''
 
           const headers = new Headers()
-          for (let n = 0; n < headersList.length; n += 2) {
-            const key = headersList[n + 0].toString('latin1')
-            const val = headersList[n + 1].toString('latin1')
 
-            if (key.toLowerCase() === 'content-encoding') {
-              // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
-              // "All content-coding values are case-insensitive..."
-              codings = val.toLowerCase().split(',').map((x) => x.trim()).reverse()
-            } else if (key.toLowerCase() === 'location') {
-              location = val
+          // For H2, the headers are a plain JS object
+          // We distinguish between them and iterate accordingly
+          if (Array.isArray(headersList)) {
+            for (let n = 0; n < headersList.length; n += 2) {
+              const key = headersList[n + 0].toString('latin1')
+              const val = headersList[n + 1].toString('latin1')
+              if (key.toLowerCase() === 'content-encoding') {
+                // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+                // "All content-coding values are case-insensitive..."
+                codings = val.toLowerCase().split(',').map((x) => x.trim())
+              } else if (key.toLowerCase() === 'location') {
+                location = val
+              }
+
+              headers.append(key, val)
             }
+          } else {
+            const keys = Object.keys(headersList)
+            for (const key of keys) {
+              const val = headersList[key]
+              if (key.toLowerCase() === 'content-encoding') {
+                // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+                // "All content-coding values are case-insensitive..."
+                codings = val.toLowerCase().split(',').map((x) => x.trim()).reverse()
+              } else if (key.toLowerCase() === 'location') {
+                location = val
+              }
 
-            headers.append(key, val)
+              headers.append(key, val)
+            }
           }
 
           this.body = new Readable({ read: resume })
