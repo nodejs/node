@@ -136,14 +136,14 @@
     updateHashes();
   }
 
-  function setupFlavorSelectors() {
+  function setupFlavorToggles() {
     const kFlavorPreference = 'customFlavor';
     const flavorSetting = localStorage.getItem(kFlavorPreference) === 'true';
-    const flavorSelectors = document.querySelectorAll('.js-flavor-selector');
+    const flavorToggles = document.querySelectorAll('.js-flavor-toggle');
 
-    flavorSelectors.forEach((selector) => {
-      selector.checked = flavorSetting;
-      selector.addEventListener('change', (e) => {
+    flavorToggles.forEach((toggleElement) => {
+      toggleElement.checked = flavorSetting;
+      toggleElement.addEventListener('change', (e) => {
         const checked = e.target.checked;
 
         if (checked) {
@@ -152,7 +152,7 @@
           localStorage.removeItem(kFlavorPreference);
         }
 
-        flavorSelectors.forEach((el) => {
+        flavorToggles.forEach((el) => {
           el.checked = checked;
         });
       });
@@ -205,7 +205,7 @@
     // Make link to other versions of the doc open to the same hash target (if it exists).
     setupAltDocsLink();
 
-    setupFlavorSelectors();
+    setupFlavorToggles();
 
     setupCopyButton();
   }
