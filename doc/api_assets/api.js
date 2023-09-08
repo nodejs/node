@@ -165,12 +165,12 @@
       button.addEventListener('click', (el) => {
         const parentNode = el.target.parentNode;
 
-        const flavorSelector = parentNode.querySelector('.js-flavor-selector');
+        const flavorToggle = parentNode.querySelector('.js-flavor-toggle');
 
         let code = '';
 
-        if (flavorSelector) {
-          if (flavorSelector.checked) {
+        if (flavorToggle) {
+          if (flavorToggle.checked) {
             code = parentNode.querySelector('.mjs').textContent;
           } else {
             code = parentNode.querySelector('.cjs').textContent;
