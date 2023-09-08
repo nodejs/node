@@ -52,16 +52,22 @@ using v8::Value;
 ModuleWrap::ModuleWrap(Environment* env,
                        Local<Object> object,
                        Local<Module> module,
-                       Local<String> url)
-  : BaseObject(env, object),
-    module_(env->isolate(), module),
-    id_(env->get_next_module_id()) {
+                       Local<String> url,
+                       Local<Object> context_object,
+                       Local<Value> synthetic_evaluation_step)
+    : BaseObject(env, object),
+      module_(env->isolate(), module),
+      id_(env->get_next_module_id()) {
   env->id_to_module_map.emplace(id_, this);
 
-  Local<Value> undefined = Undefined(env->isolate());
   object->SetInternalField(kURLSlot, url);
-  object->SetInternalField(kSyntheticEvaluationStepsSlot, undefined);
-  object->SetInternalField(kContextObjectSlot, undefined);
+  object->SetInternalField(kSyntheticEvaluationStepsSlot,
+                           synthetic_evaluation_step);
+  object->SetInternalField(kContextObjectSlot, context_object);
+
+  if (!synthetic_evaluation_step->IsUndefined()) {
+    synthetic_ = true;
+  }
 }
 
 ModuleWrap::~ModuleWrap() {
@@ -79,7 +85,9 @@ ModuleWrap::~ModuleWrap() {
 
 Local<Context> ModuleWrap::context() const {
   Local<Value> obj = object()->GetInternalField(kContextObjectSlot).As<Value>();
-  if (obj.IsEmpty()) return {};
+  // If this fails, there is likely a bug e.g. ModuleWrap::context() is accessed
+  // before the ModuleWrap constructor completes.
+  CHECK(obj->IsObject());
   return obj.As<Object>()->GetCreationContext().ToLocalChecked();
 }
 
@@ -227,18 +235,16 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  ModuleWrap* obj = new ModuleWrap(env, that, module, url);
-
-  if (synthetic) {
-    obj->synthetic_ = true;
-    obj->object()->SetInternalField(kSyntheticEvaluationStepsSlot, args[3]);
-  }
-
   // Use the extras object as an object whose GetCreationContext() will be the
   // original `context`, since the `Context` itself strictly speaking cannot
   // be stored in an internal field.
-  obj->object()->SetInternalField(kContextObjectSlot,
-      context->GetExtrasBindingObject());
+  Local<Object> context_object = context->GetExtrasBindingObject();
+  Local<Value> synthetic_evaluation_step =
+      synthetic ? args[3] : Undefined(env->isolate()).As<v8::Value>();
+
+  ModuleWrap* obj = new ModuleWrap(
+      env, that, module, url, context_object, synthetic_evaluation_step);
+
   obj->contextify_context_ = contextify_context;
 
   env->hash_to_module_map.emplace(module->GetIdentityHash(), obj);
