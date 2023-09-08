@@ -138,11 +138,11 @@ const testData = [
   },
   {
     file: fixtures.path('document_with_esm_and_cjs_code_snippet.md'),
-    html: '<input class="js-flavor-selector" type="checkbox" checked',
+    html: '<input class="js-flavor-toggle" type="checkbox" checked',
   },
   {
     file: fixtures.path('document_with_cjs_and_esm_code_snippet.md'),
-    html: '<input class="js-flavor-selector" type="checkbox" aria-label',
+    html: '<input class="js-flavor-toggle" type="checkbox" aria-label',
   },
 ];
 
