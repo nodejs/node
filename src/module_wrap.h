@@ -72,7 +72,9 @@ class ModuleWrap : public BaseObject {
   ModuleWrap(Environment* env,
              v8::Local<v8::Object> object,
              v8::Local<v8::Module> module,
-             v8::Local<v8::String> url);
+             v8::Local<v8::String> url,
+             v8::Local<v8::Object> context_object,
+             v8::Local<v8::Value> synthetic_evaluation_step);
   ~ModuleWrap() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
