@@ -275,4 +275,11 @@ module.exports = [
     publisher: { username: 'types', email: 'ts-npm-types@microsoft.com' },
     maintainers: [{ username: 'types', email: 'ts-npm-types@microsoft.com' }],
   },
+  {
+    name: 'pkg-no-desc',
+    scope: 'unscoped',
+    version: '1.0.0',
+    date: '2019-09-26T22:24:28.713Z',
+    maintainers: [{ username: 'lukekarrys', email: 'lukekarrys' }],
+  },
 ]

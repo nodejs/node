@@ -257,40 +257,23 @@ function fromFile (res, where) {
     })
   }
 
-  // environment switch for testing
-  if (process.env.NPM_PACKAGE_ARG_8909_STRICT !== '1') {
-    // XXX backwards compatibility lack of compliance with 8909
-    // Remove when we want a breaking change to come into RFC compliance.
-    if (resolvedUrl.host && resolvedUrl.host !== 'localhost') {
-      const rawSpec = res.rawSpec.replace(/^file:\/\//, 'file:///')
-      resolvedUrl = new url.URL(rawSpec, `file://${path.resolve(where)}/`)
-      specUrl = new url.URL(rawSpec)
-      rawNoPrefix = rawSpec.replace(/^file:/, '')
-    }
-    // turn file:/../foo into file:../foo
-    // for 1, 2 or 3 leading slashes since we attempted
-    // in the previous step to make it a file protocol url with a leading slash
-    if (/^\/{1,3}\.\.?(\/|$)/.test(rawNoPrefix)) {
-      const rawSpec = res.rawSpec.replace(/^file:\/{1,3}/, 'file:')
-      resolvedUrl = new url.URL(rawSpec, `file://${path.resolve(where)}/`)
-      specUrl = new url.URL(rawSpec)
-      rawNoPrefix = rawSpec.replace(/^file:/, '')
-    }
-    // XXX end 8909 violation backwards compatibility section
-  }
-
-  // file:foo - relative url to ./foo
-  // file:/foo - absolute path /foo
-  // file:///foo - absolute path to /foo, no authority host
-  // file://localhost/foo - absolute path to /foo, on localhost
-  // file://foo - absolute path to / on foo host (error!)
+  // XXX backwards compatibility lack of compliance with RFC 8909
   if (resolvedUrl.host && resolvedUrl.host !== 'localhost') {
-    const msg = `Invalid file: URL, must be absolute if // present`
-    throw Object.assign(new Error(msg), {
-      raw: res.rawSpec,
-      parsed: resolvedUrl,
-    })
+    const rawSpec = res.rawSpec.replace(/^file:\/\//, 'file:///')
+    resolvedUrl = new url.URL(rawSpec, `file://${path.resolve(where)}/`)
+    specUrl = new url.URL(rawSpec)
+    rawNoPrefix = rawSpec.replace(/^file:/, '')
   }
+  // turn file:/../foo into file:../foo
+  // for 1, 2 or 3 leading slashes since we attempted
+  // in the previous step to make it a file protocol url with a leading slash
+  if (/^\/{1,3}\.\.?(\/|$)/.test(rawNoPrefix)) {
+    const rawSpec = res.rawSpec.replace(/^file:\/{1,3}/, 'file:')
+    resolvedUrl = new url.URL(rawSpec, `file://${path.resolve(where)}/`)
+    specUrl = new url.URL(rawSpec)
+    rawNoPrefix = rawSpec.replace(/^file:/, '')
+  }
+  // XXX end RFC 8909 violation backwards compatibility section
 
   // turn /C:/blah into just C:/blah on windows
   let specPath = decodeURIComponent(specUrl.pathname)

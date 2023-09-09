@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL" "1" "July 2023" "" ""
+.TH "NPM-INSTALL" "1" "September 2023" "" ""
 .SH "NAME"
 \fBnpm-install\fR - Install a package
 .SS "Synopsis"
@@ -585,6 +585,26 @@ Type: Boolean
 Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR.
 .P
 Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc.
+.SS "\fBcpu\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Override CPU architecture of native modules to install. Acceptable values are same as \fBcpu\fR field of package.json, which comes from \fBprocess.arch\fR.
+.SS "\fBos\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Override OS of native modules to install. Acceptable values are same as \fBos\fR field of package.json, which comes from \fBprocess.platform\fR.
 .SS "\fBworkspace\fR"
 .RS 0
 .IP \(bu 4

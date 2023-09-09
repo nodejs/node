@@ -211,8 +211,10 @@ issues should be reported. These are helpful for people who encounter
 issues with your package.</p>
 <p>It should look like this:</p>
 <pre><code class="language-json">{
-  "url" : "https://github.com/owner/project/issues",
-  "email" : "project@hostname.com"
+  "bugs": {
+    "url": "https://github.com/owner/project/issues",
+    "email": "project@hostname.com"
+  }
 }
 </code></pre>
 <p>You can specify either one or both values. If you want to provide only a
@@ -359,6 +361,7 @@ will be used instead.</p>
 <li><code>README</code></li>
 <li><code>LICENSE</code> / <code>LICENCE</code></li>
 <li>The file in the "main" field</li>
+<li>The file(s) in the "bin" field</li>
 </ul>
 <p><code>README</code> &amp; <code>LICENSE</code> can have any case and extension.</p>
 <p>Conversely, some files are always ignored:</p>
