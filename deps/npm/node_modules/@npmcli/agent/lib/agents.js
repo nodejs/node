@@ -7,7 +7,7 @@ const tls = require('tls')
 const { once } = require('events')
 const { createTimeout, abortRace, urlify, appendPort, cacheAgent } = require('./util')
 const { normalizeOptions, cacheOptions } = require('./options')
-const { getProxy, getProxyType, isSecureProxy, proxyCache } = require('./proxy.js')
+const { getProxy, getProxyType, proxyCache } = require('./proxy.js')
 const Errors = require('./errors.js')
 
 const createAgent = (base, name) => {
@@ -43,18 +43,16 @@ const createAgent = (base, name) => {
         return
       }
 
-      const secure = isSecureProxy(proxy)
-
       return cacheAgent({
         key: cacheOptions({
           ...options,
           ...this.#options,
-          secure,
+          secure: SECURE,
           timeouts: this.#timeouts,
           proxy,
         }),
         cache: proxyCache,
-        secure,
+        secure: SECURE,
         proxies: this.#proxy.proxies,
       }, proxy, this.#options)
     }
