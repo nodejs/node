@@ -97,7 +97,6 @@ added: REPLACEME
     [`initialize`][] hook.
   * `transferList` {Object\[]} [transferrable objects][] to be passed into the
     `initialize` hook.
-* Returns: {any} returns whatever was returned by the `initialize` hook.
 
 Register a module that exports [hooks][] that customize Node.js module
 resolution and loading behavior. See [Customization hooks][].
@@ -346,7 +345,7 @@ names and signatures, and they must be exported as named exports.
 
 ```mjs
 export async function initialize({ number, port }) {
-  // Receive data from `register`, return data to `register`.
+  // Receives data from `register`.
 }
 
 export async function resolve(specifier, context, nextResolve) {
@@ -384,20 +383,15 @@ added: REPLACEME
 > Stability: 1.1 - Active development
 
 * `data` {any} The data from `register(loader, import.meta.url, { data })`.
-* Returns: {any} The data to be returned to the caller of `register`.
 
 The `initialize` hook provides a way to define a custom function that runs in
 the hooks thread when the hooks module is initialized. Initialization happens
 when the hooks module is registered via [`register`][].
 
-This hook can send and receive data from a [`register`][] invocation, including
-ports and other transferrable objects. The return value of `initialize` must be
-either:
-
-* `undefined`,
-* something that can be posted as a message between threads (e.g. the input to
-  [`port.postMessage`][]),
-* a `Promise` resolving to one of the aforementioned values.
+This hook can receive data from a [`register`][] invocation, including
+ports and other transferrable objects. The return value of `initialize` can be a
+{Promise}, in which case it will be awaited before the main application thread
+execution resumes.
 
 Module customization code:
 
@@ -406,7 +400,6 @@ Module customization code:
 
 export async function initialize({ number, port }) {
   port.postMessage(`increment: ${number + 1}`);
-  return 'ok';
 }
 ```
 
@@ -426,13 +419,11 @@ port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
 
-const result = register('./path-to-my-hooks.js', {
+register('./path-to-my-hooks.js', {
   parentURL: import.meta.url,
   data: { number: 1, port: port2 },
   transferList: [port2],
 });
-
-assert.strictEqual(result, 'ok');
 ```
 
 ```cjs
@@ -450,13 +441,11 @@ port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
 
-const result = register('./path-to-my-hooks.js', {
+register('./path-to-my-hooks.js', {
   parentURL: pathToFileURL(__filename),
   data: { number: 1, port: port2 },
   transferList: [port2],
 });
-
-assert.strictEqual(result, 'ok');
 ```
 
 #### `resolve(specifier, context, nextResolve)`
@@ -1080,7 +1069,6 @@ returned object contains the following keys:
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`initialize`]: #initialize
 [`module`]: modules.md#the-module-object
-[`port.postMessage`]: worker_threads.md#portpostmessagevalue-transferlist
 [`port.ref()`]: worker_threads.md#portref
 [`port.unref()`]: worker_threads.md#portunref
 [`register`]: #moduleregisterspecifier-parenturl-options
