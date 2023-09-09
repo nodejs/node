@@ -345,6 +345,16 @@ Run git commit hooks when using the `npm version` command.
 
 
 
+#### `cpu`
+
+* Default: null
+* Type: null or String
+
+Override CPU architecture of native modules to install. Acceptable values
+are same as `cpu` field of package.json, which comes from `process.arch`.
+
+
+
 #### `depth`
 
 * Default: `Infinity` if `--all` is set, otherwise `1`
@@ -1035,6 +1045,16 @@ This option causes npm to create lock files without a `resolved` key for
 registry dependencies. Subsequent installs will need to resolve tarball
 endpoints with the configured registry, likely resulting in a longer install
 time.
+
+
+
+#### `os`
+
+* Default: null
+* Type: null or String
+
+Override OS of native modules to install. Acceptable values are same as `os`
+field of package.json, which comes from `process.platform`.
 
 
 
