@@ -3,7 +3,6 @@ let thePort = null;
 export async function initialize(port) {
   port.postMessage('initialize');
   thePort = port;
-  return 'ok';
 }
 
 export async function resolve(specifier, context, next) {

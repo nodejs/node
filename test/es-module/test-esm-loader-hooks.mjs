@@ -621,7 +621,7 @@ describe('Loader hooks', { concurrency: true }, () => {
     ]);
 
     assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), [ 'register ok',
+    assert.deepStrictEqual(stdout.split('\n'), [ 'register undefined',
                                                  'message initialize',
                                                  'message resolve node:os',
                                                  '' ]);
@@ -699,10 +699,10 @@ describe('Loader hooks', { concurrency: true }, () => {
       '--eval',
       `
         import {register} from 'node:module';
-        console.log('result', register(
+        console.log('result 1', register(
           ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'))}
         ));
-        console.log('result', register(
+        console.log('result 2', register(
           ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'))}
         ));
 
@@ -712,9 +712,9 @@ describe('Loader hooks', { concurrency: true }, () => {
 
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout.split('\n'), [ 'hooks initialize 1',
-                                                 'result 1',
+                                                 'result 1 undefined',
                                                  'hooks initialize 2',
-                                                 'result 2',
+                                                 'result 2 undefined',
                                                  '' ]);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
