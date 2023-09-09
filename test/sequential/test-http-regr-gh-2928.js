@@ -25,7 +25,7 @@ function execAndClose() {
   const parser = parsers.pop();
   parser.initialize(HTTPParser.RESPONSE, {});
 
-  const socket = net.connect(common.PORT);
+  const socket = net.connect(common.PORT, common.localhostIPv4);
   socket.on('error', (e) => {
     // If SmartOS and ECONNREFUSED, then retry. See
     // https://github.com/nodejs/node/issues/2663.
@@ -57,7 +57,7 @@ const server = net.createServer(function(c) {
   c.end('HTTP/1.1 200 OK\r\n\r\n', function() {
     c.destroySoon();
   });
-}).listen(common.PORT, execAndClose);
+}).listen(common.PORT, common.localhostIPv4, execAndClose);
 
 process.on('exit', function() {
   assert.strictEqual(gotResponses, COUNT);
