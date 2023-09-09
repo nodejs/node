@@ -115,6 +115,7 @@ class Config {
     this.defaults = defaults
 
     this.npmPath = npmPath
+    this.npmBin = join(this.npmPath, 'bin/npm-cli.js')
     this.argv = argv
     this.env = env
     this.execPath = execPath
@@ -231,6 +232,8 @@ class Config {
     for (const { data } of this.data.values()) {
       this.#flatten(data, this.#flatOptions)
     }
+    this.#flatOptions.nodeBin = this.execPath
+    this.#flatOptions.npmBin = this.npmBin
     process.emit('timeEnd', 'config:load:flatten')
 
     return this.#flatOptions

@@ -18,13 +18,6 @@ const flatten = (obj, flat = {}) => {
       flat[key] = val
     }
   }
-
-  // XXX make this the bin/npm-cli.js file explicitly instead
-  // otherwise using npm programmatically is a bit of a pain.
-  flat.npmBin = require.main ? require.main.filename
-    : /* istanbul ignore next - not configurable property */ undefined
-  flat.nodeBin = process.env.NODE || process.execPath
-
   return flat
 }
 
