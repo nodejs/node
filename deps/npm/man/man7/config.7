@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "August 2023" "" ""
+.TH "CONFIG" "7" "September 2023" "" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -350,6 +350,16 @@ Type: Boolean
 
 .P
 Run git commit hooks when using the \fBnpm version\fR command.
+.SS "\fBcpu\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Override CPU architecture of native modules to install. Acceptable values are same as \fBcpu\fR field of package.json, which comes from \fBprocess.arch\fR.
 .SS "\fBdepth\fR"
 .RS 0
 .IP \(bu 4
@@ -1038,6 +1048,16 @@ Type: Boolean
 
 .P
 This option causes npm to create lock files without a \fBresolved\fR key for registry dependencies. Subsequent installs will need to resolve tarball endpoints with the configured registry, likely resulting in a longer install time.
+.SS "\fBos\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Override OS of native modules to install. Acceptable values are same as \fBos\fR field of package.json, which comes from \fBprocess.platform\fR.
 .SS "\fBotp\fR"
 .RS 0
 .IP \(bu 4
