@@ -17,7 +17,7 @@
     "remark-parse": "^10.0.2",
     "remark-rehype": "^10.1.0",
     "to-vfile": "^8.0.0",
-    "unified": "^11.0.2",
+    "unified": "^11.0.3",
     "unist-util-select": "^5.0.0",
     "unist-util-visit": "^5.0.0"
   },
