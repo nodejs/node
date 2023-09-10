@@ -153,9 +153,6 @@ import('node:fs').then((esmFS) => {
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/49144
-    description: Removed `globalPreload`.
   - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/48842
     description: Added `initialize` hook to replace `globalPreload`.
