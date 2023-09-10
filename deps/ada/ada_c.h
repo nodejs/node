@@ -69,6 +69,7 @@ ada_string ada_get_pathname(ada_url result);
 ada_string ada_get_search(ada_url result);
 ada_string ada_get_protocol(ada_url result);
 uint8_t ada_get_host_type(ada_url result);
+uint8_t ada_get_scheme_type(ada_url result);
 
 // url_aggregator setters
 // if ada_is_valid(result)) is false, the setters have no effect
