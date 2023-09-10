@@ -2013,7 +2013,7 @@ added:
   - v17.4.0
   - v16.14.0
 changes:
-  - version: REPLACEME
+  - version: v20.7.0
     pr-url: https://github.com/nodejs/node/pull/49249
     description: added `highWaterMark` in options.
 -->
@@ -2066,7 +2066,7 @@ added:
   - v17.4.0
   - v16.14.0
 changes:
-  - version: REPLACEME
+  - version: v20.7.0
     pr-url: https://github.com/nodejs/node/pull/49249
     description: added `highWaterMark` in options.
 -->
