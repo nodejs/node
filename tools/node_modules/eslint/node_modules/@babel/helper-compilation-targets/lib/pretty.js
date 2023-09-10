@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.prettifyTargets = prettifyTargets;
 exports.prettifyVersion = prettifyVersion;
 var _semver = require("semver");
-var _targets = require("./targets");
+var _targets = require("./targets.js");
 function prettifyVersion(version) {
   if (typeof version !== "string") {
     return version;
