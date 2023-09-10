@@ -451,28 +451,29 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(signal, null);
   });
 
-  it('should invoke `initialize` correctly', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--experimental-loader',
-      fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'),
-      '--input-type=module',
-      '--eval',
-      'import os from "node:os";',
-    ]);
+  describe('`initialize`/`register`', () => {
+    it('should invoke `initialize` correctly', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'),
+        '--input-type=module',
+        '--eval',
+        'import os from "node:os";',
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), ['hooks initialize 1', '']);
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-  });
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n'), ['hooks initialize 1', '']);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
 
-  it('should allow communicating with loader via `register` ports', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--input-type=module',
-      '--eval',
-      `
+    it('should allow communicating with loader via `register` ports', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
         import {MessageChannel} from 'node:worker_threads';
         import {register} from 'node:module';
         import {once} from 'node:events';
@@ -493,25 +494,25 @@ describe('Loader hooks', { concurrency: true }, () => {
         ]);
         clearTimeout(timeout);
         port1.close();
-      `,
-    ]);
+        `,
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), [ 'register undefined',
-                                                 'message initialize',
-                                                 'message resolve node:os',
-                                                 '' ]);
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n'), [ 'register undefined',
+                                                   'message initialize',
+                                                   'message resolve node:os',
+                                                   '' ]);
 
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-  });
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
 
-  it('should have `register` work with cjs', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--input-type=commonjs',
-      '--eval',
-      `
+    it('should have `register` work with cjs', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=commonjs',
+        '--eval',
+        `
         'use strict';
         const {register} = require('node:module');
         register(
@@ -524,56 +525,54 @@ describe('Loader hooks', { concurrency: true }, () => {
         import('node:os').then((result) => {
           console.log(JSON.stringify(result));
         });
-      `,
-    ]);
+        `,
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n').sort(), ['hooks initialize 1', '{"default":"foo"}', ''].sort());
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n').sort(), ['hooks initialize 1', '{"default":"foo"}', ''].sort());
 
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-  });
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
 
-  it('`register` should work with `require`', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--require',
-      fixtures.path('es-module-loaders/register-loader.cjs'),
-      '--input-type=module',
-      '--eval',
-      'import "node:os";',
-    ]);
+    it('`register` should work with `require`', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--require',
+        fixtures.path('es-module-loaders/register-loader.cjs'),
+        '--input-type=module',
+        '--eval',
+        'import "node:os";',
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', 'resolve passthru', '']);
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-  });
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', 'resolve passthru', '']);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
 
-  it('`register` should work with `import`', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--import',
-      fixtures.fileURL('es-module-loaders/register-loader.mjs'),
-      '--input-type=module',
-      '--eval',
-      `
-        import 'node:os';
-      `,
-    ]);
+    it('`register` should work with `import`', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--import',
+        fixtures.fileURL('es-module-loaders/register-loader.mjs'),
+        '--input-type=module',
+        '--eval',
+        'import "node:os"',
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', '']);
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-  });
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', '']);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
 
-  it('should execute `initialize` in sequence', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--input-type=module',
-      '--eval',
-      `
+    it('should execute `initialize` in sequence', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
         import {register} from 'node:module';
         console.log('result 1', register(
           ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'))}
@@ -583,17 +582,86 @@ describe('Loader hooks', { concurrency: true }, () => {
         ));
 
         await import('node:os');
-      `,
-    ]);
+        `,
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), [ 'hooks initialize 1',
-                                                 'result 1 undefined',
-                                                 'hooks initialize 2',
-                                                 'result 2 undefined',
-                                                 '' ]);
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n'), [ 'hooks initialize 1',
+                                                   'result 1 undefined',
+                                                   'hooks initialize 2',
+                                                   'result 2 undefined',
+                                                   '' ]);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
+
+    it('should handle `initialize` returning never-settling promise', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
+        import {register} from 'node:module';
+        register('data:text/javascript,export function initialize(){return new Promise(()=>{})}');
+        `,
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 13);
+      assert.strictEqual(signal, null);
+    });
+
+    it('should handle `initialize` returning rejecting promise', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
+        import {register} from 'node:module';
+        register('data:text/javascript,export function initialize(){return Promise.reject()}');
+        `,
+      ]);
+
+      assert.match(stderr, /undefined\r?\n/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
+    });
+
+    it('should handle `initialize` throwing null', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
+        import {register} from 'node:module';
+        register('data:text/javascript,export function initialize(){throw null}');
+        `,
+      ]);
+
+      assert.match(stderr, /null\r?\n/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
+    });
+
+    it('should be fine to call `process.exit` from a initialize hook', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
+        import {register} from 'node:module';
+        register('data:text/javascript,export function initialize(){process.exit(42);}');
+        `,
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 42);
+      assert.strictEqual(signal, null);
+    });
   });
 
   it('should use CJS loader to respond to require.resolve calls by default', async () => {
