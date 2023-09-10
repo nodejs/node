@@ -6,7 +6,7 @@ const { isIPv6 } = require('net');
 const ips = [
   '::1',
   'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
-  '0.0.0.0'
+  '0.0.0.0',
 ];
 
 const bench = common.createBenchmark(main, {
