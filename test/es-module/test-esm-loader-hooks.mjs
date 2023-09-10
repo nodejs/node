@@ -434,7 +434,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       assert.strictEqual(stderr.match(/`globalPreload` has been removed; use `initialize` instead/g).length, 1);
     });
 
-    it('should not emit deprecation warning when initialize is supplied', async () => {
+    it('should not emit warning when initialize is supplied', async () => {
       const { stderr } = await spawnPromisified(execPath, [
         '--experimental-loader',
         'data:text/javascript,export function globalPreload(){}export function initialize(){}',
