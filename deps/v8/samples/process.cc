@@ -388,7 +388,7 @@ Local<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
 // Utility function that extracts the C++ map pointer from a wrapper
 // object.
 map<string, string>* JsHttpRequestProcessor::UnwrapMap(Local<Object> obj) {
-  Local<External> field = obj->GetInternalField(0).As<External>();
+  Local<External> field = obj->GetInternalField(0).As<Value>().As<External>();
   void* ptr = field->Value();
   return static_cast<map<string, string>*>(ptr);
 }
@@ -504,7 +504,7 @@ Local<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
  * wrapper object.
  */
 HttpRequest* JsHttpRequestProcessor::UnwrapRequest(Local<Object> obj) {
-  Local<External> field = obj->GetInternalField(0).As<External>();
+  Local<External> field = obj->GetInternalField(0).As<Value>().As<External>();
   void* ptr = field->Value();
   return static_cast<HttpRequest*>(ptr);
 }

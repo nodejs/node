@@ -61,12 +61,14 @@ class ValueSerializerTest : public TestWithIsolate {
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value"),
         [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
-          args.GetReturnValue().Set(args.Holder()->GetInternalField(0));
+          args.GetReturnValue().Set(
+              args.Holder()->GetInternalField(0).As<v8::Value>());
         });
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value2"),
         [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
-          args.GetReturnValue().Set(args.Holder()->GetInternalField(1));
+          args.GetReturnValue().Set(
+              args.Holder()->GetInternalField(1).As<v8::Value>());
         });
     for (Local<Context> context :
          {serialization_context_, deserialization_context_}) {
@@ -2897,6 +2899,7 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripUint32) {
       .WillRepeatedly(Invoke([this](Isolate*, Local<Object> object) {
         uint32_t value = 0;
         EXPECT_TRUE(object->GetInternalField(0)
+                        .As<v8::Value>()
                         ->Uint32Value(serialization_context())
                         .To(&value));
         WriteExampleHostObjectTag();
@@ -2928,9 +2931,11 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripUint64) {
       .WillRepeatedly(Invoke([this](Isolate*, Local<Object> object) {
         uint32_t value = 0, value2 = 0;
         EXPECT_TRUE(object->GetInternalField(0)
+                        .As<v8::Value>()
                         ->Uint32Value(serialization_context())
                         .To(&value));
         EXPECT_TRUE(object->GetInternalField(1)
+                        .As<v8::Value>()
                         ->Uint32Value(serialization_context())
                         .To(&value2));
         WriteExampleHostObjectTag();
@@ -2968,6 +2973,7 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripDouble) {
       .WillRepeatedly(Invoke([this](Isolate*, Local<Object> object) {
         double value = 0;
         EXPECT_TRUE(object->GetInternalField(0)
+                        .As<v8::Value>()
                         ->NumberValue(serialization_context())
                         .To(&value));
         WriteExampleHostObjectTag();
