@@ -593,6 +593,14 @@ added: v11.8.0
 
 Use the specified file as a security policy.
 
+### `--experimental-extensionless-modules`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable extensionless modules support.
+
 ### `--no-experimental-fetch`
 
 <!-- YAML
