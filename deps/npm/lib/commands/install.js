@@ -34,6 +34,8 @@ class Install extends ArboristWorkspaceCmd {
     'bin-links',
     'fund',
     'dry-run',
+    'cpu',
+    'os',
     ...super.params,
   ]
 

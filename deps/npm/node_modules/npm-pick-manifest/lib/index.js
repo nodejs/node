@@ -210,7 +210,7 @@ module.exports = (packument, wanted, opts = {}) => {
     code,
     type: npa.resolve(packument.name, wanted).type,
     wanted,
-    versions: Object.keys(packument.versions),
+    versions: Object.keys(packument.versions ?? {}),
     name,
     distTags: packument['dist-tags'],
     defaultTag,

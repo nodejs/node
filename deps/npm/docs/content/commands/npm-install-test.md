@@ -256,6 +256,26 @@ Note: This is NOT honored by other network related commands, eg `dist-tags`,
 
 
 
+#### `cpu`
+
+* Default: null
+* Type: null or String
+
+Override CPU architecture of native modules to install. Acceptable values
+are same as `cpu` field of package.json, which comes from `process.arch`.
+
+
+
+#### `os`
+
+* Default: null
+* Type: null or String
+
+Override OS of native modules to install. Acceptable values are same as `os`
+field of package.json, which comes from `process.platform`.
+
+
+
 #### `workspace`
 
 * Default:

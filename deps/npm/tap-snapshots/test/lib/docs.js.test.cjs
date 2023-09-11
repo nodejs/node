@@ -392,6 +392,16 @@ Run git commit hooks when using the \`npm version\` command.
 
 
 
+#### \`cpu\`
+
+* Default: null
+* Type: null or String
+
+Override CPU architecture of native modules to install. Acceptable values
+are same as \`cpu\` field of package.json, which comes from \`process.arch\`.
+
+
+
 #### \`depth\`
 
 * Default: \`Infinity\` if \`--all\` is set, otherwise \`1\`
@@ -1082,6 +1092,16 @@ This option causes npm to create lock files without a \`resolved\` key for
 registry dependencies. Subsequent installs will need to resolve tarball
 endpoints with the configured registry, likely resulting in a longer install
 time.
+
+
+
+#### \`os\`
+
+* Default: null
+* Type: null or String
+
+Override OS of native modules to install. Acceptable values are same as \`os\`
+field of package.json, which comes from \`process.platform\`.
 
 
 
@@ -1822,20 +1842,6 @@ registry-scoped "certfile" path like
 
 
 
-#### \`ci-name\`
-
-* Default: The name of the current CI system, or \`null\` when not on a known CI
-  platform.
-* Type: null or String
-* DEPRECATED: This config is deprecated and will not be changeable in future
-  version of npm.
-
-The name of a continuous integration system. If not set explicitly, npm will
-detect the current CI environment using the
-[\`ci-info\`](http://npm.im/ci-info) module.
-
-
-
 #### \`dev\`
 
 * Default: false
@@ -1995,20 +2001,6 @@ Alias for \`--omit=dev\`
 Alias for --package-lock
 
 
-
-#### \`tmp\`
-
-* Default: The value returned by the Node.js \`os.tmpdir()\` method
-  <https://nodejs.org/api/os.html#os_os_tmpdir>
-* Type: Path
-* DEPRECATED: This setting is no longer used. npm stores temporary files in a
-  special location in the cache, and they are managed by
-  [\`cacache\`](http://npm.im/cacache).
-
-Historically, the location where temporary files were stored. No longer
-relevant.
-
-
 `
 
 exports[`test/lib/docs.js TAP config > all keys 1`] = `
@@ -2031,10 +2023,11 @@ Array [
   "cafile",
   "call",
   "cert",
-  "ci-name",
   "cidr",
   "color",
   "commit-hooks",
+  "cpu",
+  "os",
   "depth",
   "description",
   "dev",
@@ -2148,7 +2141,6 @@ Array [
   "tag",
   "tag-version-prefix",
   "timing",
-  "tmp",
   "umask",
   "unicode",
   "update-notifier",
@@ -2186,10 +2178,11 @@ Array [
   "cafile",
   "call",
   "cert",
-  "ci-name",
   "cidr",
   "color",
   "commit-hooks",
+  "cpu",
+  "os",
   "depth",
   "description",
   "dev",
@@ -2314,7 +2307,6 @@ Array [
   "node-options",
   "prefix",
   "timing",
-  "tmp",
   "update-notifier",
   "usage",
   "userconfig",
@@ -2343,9 +2335,9 @@ Object {
   "call": "",
   "cert": null,
   "cidr": null,
-  "ciName": "{ci}",
   "color": false,
   "commitHooks": true,
+  "cpu": null,
   "defaultTag": "latest",
   "depth": null,
   "diff": Array [],
@@ -2367,7 +2359,6 @@ Object {
   "gitTagVersion": true,
   "global": false,
   "globalconfig": "{CWD}/global/etc/npmrc",
-  "hashAlgorithm": "sha1",
   "heading": "npm",
   "httpsProxy": null,
   "ifPresent": false,
@@ -2388,13 +2379,14 @@ Object {
   "nodeBin": "{NODE}",
   "nodeVersion": "2.2.2",
   "noProxy": "",
-  "npmBin": "{CWD}/{TESTDIR}/docs.js",
+  "npmBin": "{CWD}/other/bin/npm-cli.js",
   "npmCommand": "version",
   "npmVersion": "3.3.3",
   "npxCache": "{CWD}/cache/_npx",
   "offline": false,
   "omit": Array [],
   "omitLockfileRegistryResolved": false,
+  "os": null,
   "otp": null,
   "package": Array [],
   "packageLock": true,
@@ -3204,7 +3196,7 @@ Options:
 [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--package-lock-only]
 [--foreground-scripts] [--ignore-scripts] [--no-audit] [--no-bin-links]
-[--no-fund] [--dry-run]
+[--no-fund] [--dry-run] [--cpu <cpu>] [--os <os>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -3235,6 +3227,8 @@ aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 #### \`bin-links\`
 #### \`fund\`
 #### \`dry-run\`
+#### \`cpu\`
+#### \`os\`
 #### \`workspace\`
 #### \`workspaces\`
 #### \`include-workspace-root\`
@@ -3295,7 +3289,7 @@ Options:
 [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--package-lock-only]
 [--foreground-scripts] [--ignore-scripts] [--no-audit] [--no-bin-links]
-[--no-fund] [--dry-run]
+[--no-fund] [--dry-run] [--cpu <cpu>] [--os <os>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -3326,6 +3320,8 @@ alias: it
 #### \`bin-links\`
 #### \`fund\`
 #### \`dry-run\`
+#### \`cpu\`
+#### \`os\`
 #### \`workspace\`
 #### \`workspaces\`
 #### \`include-workspace-root\`
