@@ -136,6 +136,29 @@
     updateHashes();
   }
 
+  function setupFlavorToggles() {
+    const kFlavorPreference = 'customFlavor';
+    const flavorSetting = localStorage.getItem(kFlavorPreference) === 'true';
+    const flavorToggles = document.querySelectorAll('.js-flavor-toggle');
+
+    flavorToggles.forEach((toggleElement) => {
+      toggleElement.checked = flavorSetting;
+      toggleElement.addEventListener('change', (e) => {
+        const checked = e.target.checked;
+
+        if (checked) {
+          localStorage.setItem(kFlavorPreference, true);
+        } else {
+          localStorage.removeItem(kFlavorPreference);
+        }
+
+        flavorToggles.forEach((el) => {
+          el.checked = checked;
+        });
+      });
+    });
+  }
+
   function setupCopyButton() {
     const buttons = document.querySelectorAll('.copy-button');
     buttons.forEach((button) => {
@@ -181,6 +204,8 @@
 
     // Make link to other versions of the doc open to the same hash target (if it exists).
     setupAltDocsLink();
+
+    setupFlavorToggles();
 
     setupCopyButton();
   }

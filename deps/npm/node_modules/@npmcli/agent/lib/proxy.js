@@ -22,13 +22,6 @@ const PROXY_ENV = (() => {
 })()
 
 const SOCKS_PROTOCOLS = new Set(SocksProxyAgent.protocols)
-const SECURE_PROTOCOLS = new Set([...SocksProxyAgent.protocols, 'https'])
-
-const isSecureProxy = (url) => {
-  url = urlify(url)
-  const protocol = url.protocol.slice(0, -1)
-  return SECURE_PROTOCOLS.has(protocol)
-}
 
 const getProxyType = (url) => {
   url = urlify(url)
@@ -91,6 +84,5 @@ const getProxy = (url, {
 module.exports = {
   getProxyType,
   getProxy,
-  isSecureProxy,
   proxyCache: PROXY_CACHE,
 }

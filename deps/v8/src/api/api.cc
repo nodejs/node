@@ -6342,16 +6342,16 @@ static bool InternalFieldOK(i::Handle<i::JSReceiver> obj, int index,
       location, "Internal field out of bounds");
 }
 
-Local<Value> v8::Object::SlowGetInternalField(int index) {
+Local<Data> v8::Object::SlowGetInternalField(int index) {
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::GetInternalField()";
   if (!InternalFieldOK(obj, index, location)) return Local<Value>();
   i::Handle<i::Object> value(i::JSObject::cast(*obj).GetEmbedderField(index),
                              obj->GetIsolate());
-  return Utils::ToLocal(value);
+  return ToApiHandle<Data>(value);
 }
 
-void v8::Object::SetInternalField(int index, v8::Local<Value> value) {
+void v8::Object::SetInternalField(int index, v8::Local<Data> value) {
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::SetInternalField()";
   if (!InternalFieldOK(obj, index, location)) return;

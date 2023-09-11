@@ -1,5 +1,6 @@
 #include <js_native_api.h>
 #include "../common.h"
+#include "../entry_point.h"
 #include "test_null.h"
 
 static napi_value AsBool(napi_env env, napi_callback_info info) {

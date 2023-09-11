@@ -1,7 +1,6 @@
 import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
-import os from 'node:os';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
@@ -423,7 +422,7 @@ describe('Loader hooks', { concurrency: true }, () => {
   });
 
   describe('globalPreload', () => {
-    it('should emit deprecation warning', async () => {
+    it('should emit warning', async () => {
       const { stderr } = await spawnPromisified(execPath, [
         '--experimental-loader',
         'data:text/javascript,export function globalPreload(){}',
@@ -432,130 +431,17 @@ describe('Loader hooks', { concurrency: true }, () => {
         fixtures.path('empty.js'),
       ]);
 
-      assert.strictEqual(stderr.match(/`globalPreload` is an experimental feature/g).length, 1);
+      assert.strictEqual(stderr.match(/`globalPreload` has been removed; use `initialize` instead/g).length, 1);
     });
 
-    it('should not emit deprecation warning when initialize is supplied', async () => {
+    it('should not emit warning when initialize is supplied', async () => {
       const { stderr } = await spawnPromisified(execPath, [
         '--experimental-loader',
         'data:text/javascript,export function globalPreload(){}export function initialize(){}',
         fixtures.path('empty.js'),
       ]);
 
-      assert.doesNotMatch(stderr, /`globalPreload` is an experimental feature/);
-    });
-
-    it('should handle globalPreload returning undefined', async () => {
-      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-        '--no-warnings',
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){}',
-        fixtures.path('empty.js'),
-      ]);
-
-      assert.strictEqual(stderr, '');
-      assert.strictEqual(stdout, '');
-      assert.strictEqual(code, 0);
-      assert.strictEqual(signal, null);
-    });
-
-    it('should handle loading node:test', async () => {
-      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-        '--no-warnings',
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){return `getBuiltin("node:test")()`}',
-        fixtures.path('empty.js'),
-      ]);
-
-      assert.strictEqual(stderr, '');
-      assert.match(stdout, /\n# pass 1\r?\n/);
-      assert.strictEqual(code, 0);
-      assert.strictEqual(signal, null);
-    });
-
-    it('should handle loading node:os with node: prefix', async () => {
-      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-        '--no-warnings',
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){return `console.log(getBuiltin("node:os").arch())`}',
-        fixtures.path('empty.js'),
-      ]);
-
-      assert.strictEqual(stderr, '');
-      assert.strictEqual(stdout.trim(), os.arch());
-      assert.strictEqual(code, 0);
-      assert.strictEqual(signal, null);
-    });
-
-    // `os` is used here because it's simple and not mocked (the builtin module otherwise doesn't matter).
-    it('should handle loading builtin module without node: prefix', async () => {
-      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-        '--no-warnings',
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){return `console.log(getBuiltin("os").arch())`}',
-        fixtures.path('empty.js'),
-      ]);
-
-      assert.strictEqual(stderr, '');
-      assert.strictEqual(stdout.trim(), os.arch());
-      assert.strictEqual(code, 0);
-      assert.strictEqual(signal, null);
-    });
-
-    it('should throw when loading node:test without node: prefix', async () => {
-      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-        '--no-warnings',
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){return `getBuiltin("test")()`}',
-        fixtures.path('empty.js'),
-      ]);
-
-      assert.match(stderr, /ERR_UNKNOWN_BUILTIN_MODULE/);
-      assert.strictEqual(stdout, '');
-      assert.strictEqual(code, 1);
-      assert.strictEqual(signal, null);
-    });
-
-    it('should register globals set from globalPreload', async () => {
-      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-        '--no-warnings',
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){return "this.myGlobal=4"}',
-        '--print', 'myGlobal',
-      ]);
-
-      assert.strictEqual(stderr, '');
-      assert.strictEqual(stdout.trim(), '4');
-      assert.strictEqual(code, 0);
-      assert.strictEqual(signal, null);
-    });
-
-    it('should log console.log calls returned from globalPreload', async () => {
-      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-        '--no-warnings',
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){return `console.log("Hello from globalPreload")`}',
-        fixtures.path('empty.js'),
-      ]);
-
-      assert.strictEqual(stderr, '');
-      assert.strictEqual(stdout.trim(), 'Hello from globalPreload');
-      assert.strictEqual(code, 0);
-      assert.strictEqual(signal, null);
-    });
-
-    it('should crash if globalPreload returns code that throws', async () => {
-      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-        '--no-warnings',
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){return `throw new Error("error from globalPreload")`}',
-        fixtures.path('empty.js'),
-      ]);
-
-      assert.match(stderr, /error from globalPreload/);
-      assert.strictEqual(stdout, '');
-      assert.strictEqual(code, 1);
-      assert.strictEqual(signal, null);
+      assert.doesNotMatch(stderr, /`globalPreload` has been removed; use `initialize` instead/);
     });
   });
 
@@ -575,28 +461,29 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(signal, null);
   });
 
-  it('should invoke `initialize` correctly', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--experimental-loader',
-      fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'),
-      '--input-type=module',
-      '--eval',
-      'import os from "node:os";',
-    ]);
+  describe('`initialize`/`register`', () => {
+    it('should invoke `initialize` correctly', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'),
+        '--input-type=module',
+        '--eval',
+        'import os from "node:os";',
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), ['hooks initialize 1', '']);
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-  });
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n'), ['hooks initialize 1', '']);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
 
-  it('should allow communicating with loader via `register` ports', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--input-type=module',
-      '--eval',
-      `
+    it('should allow communicating with loader via `register` ports', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
         import {MessageChannel} from 'node:worker_threads';
         import {register} from 'node:module';
         import {once} from 'node:events';
@@ -617,25 +504,25 @@ describe('Loader hooks', { concurrency: true }, () => {
         ]);
         clearTimeout(timeout);
         port1.close();
-      `,
-    ]);
+        `,
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), [ 'register ok',
-                                                 'message initialize',
-                                                 'message resolve node:os',
-                                                 '' ]);
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n'), [ 'register undefined',
+                                                   'message initialize',
+                                                   'message resolve node:os',
+                                                   '' ]);
 
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-  });
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
 
-  it('should have `register` work with cjs', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--input-type=commonjs',
-      '--eval',
-      `
+    it('should have `register` work with cjs', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=commonjs',
+        '--eval',
+        `
         'use strict';
         const {register} = require('node:module');
         register(
@@ -648,76 +535,143 @@ describe('Loader hooks', { concurrency: true }, () => {
         import('node:os').then((result) => {
           console.log(JSON.stringify(result));
         });
-      `,
-    ]);
+        `,
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n').sort(), ['hooks initialize 1', '{"default":"foo"}', ''].sort());
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n').sort(), ['hooks initialize 1', '{"default":"foo"}', ''].sort());
 
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-  });
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
 
-  it('`register` should work with `require`', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--require',
-      fixtures.path('es-module-loaders/register-loader.cjs'),
-      '--input-type=module',
-      '--eval',
-      'import "node:os";',
-    ]);
+    it('`register` should work with `require`', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--require',
+        fixtures.path('es-module-loaders/register-loader.cjs'),
+        '--input-type=module',
+        '--eval',
+        'import "node:os";',
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', 'resolve passthru', '']);
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-  });
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', 'resolve passthru', '']);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
 
-  it('`register` should work with `import`', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--import',
-      fixtures.fileURL('es-module-loaders/register-loader.mjs'),
-      '--input-type=module',
-      '--eval',
-      `
-        import 'node:os';
-      `,
-    ]);
+    it('`register` should work with `import`', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--import',
+        fixtures.fileURL('es-module-loaders/register-loader.mjs'),
+        '--input-type=module',
+        '--eval',
+        'import "node:os"',
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', '']);
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-  });
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', '']);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
 
-  it('should execute `initialize` in sequence', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      '--input-type=module',
-      '--eval',
-      `
+    it('should execute `initialize` in sequence', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
         import {register} from 'node:module';
-        console.log('result', register(
+        console.log('result 1', register(
           ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'))}
         ));
-        console.log('result', register(
+        console.log('result 2', register(
           ${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-initialize.mjs'))}
         ));
 
         await import('node:os');
-      `,
-    ]);
+        `,
+      ]);
 
-    assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout.split('\n'), [ 'hooks initialize 1',
-                                                 'result 1',
-                                                 'hooks initialize 2',
-                                                 'result 2',
-                                                 '' ]);
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n'), [ 'hooks initialize 1',
+                                                   'result 1 undefined',
+                                                   'hooks initialize 2',
+                                                   'result 2 undefined',
+                                                   '' ]);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
+
+    it('should handle `initialize` returning never-settling promise', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
+        import {register} from 'node:module';
+        register('data:text/javascript,export function initialize(){return new Promise(()=>{})}');
+        `,
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 13);
+      assert.strictEqual(signal, null);
+    });
+
+    it('should handle `initialize` returning rejecting promise', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
+        import {register} from 'node:module';
+        register('data:text/javascript,export function initialize(){return Promise.reject()}');
+        `,
+      ]);
+
+      assert.match(stderr, /undefined\r?\n/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
+    });
+
+    it('should handle `initialize` throwing null', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
+        import {register} from 'node:module';
+        register('data:text/javascript,export function initialize(){throw null}');
+        `,
+      ]);
+
+      assert.match(stderr, /null\r?\n/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
+    });
+
+    it('should be fine to call `process.exit` from a initialize hook', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        `
+        import {register} from 'node:module';
+        register('data:text/javascript,export function initialize(){process.exit(42);}');
+        `,
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 42);
+      assert.strictEqual(signal, null);
+    });
   });
 
   it('should use CJS loader to respond to require.resolve calls by default', async () => {
