@@ -7,6 +7,21 @@ const vm = require('vm');
 const { promisify } = require('util');
 const { customPromisifyArgs } = require('internal/util');
 
+{
+  const warningHandler = common.mustNotCall();
+  process.on('warning', warningHandler);
+  function foo() {}
+  foo.constructor = (async () => {}).constructor;
+  promisify(foo);
+  process.off('warning', warningHandler);
+}
+
+common.expectWarning('Warning', 'Calling promisify on a function that returns a Promise is likely a mistake.');
+promisify(async (callback) => { callback(); })().then(common.mustCall(() => {
+  common.expectWarning('Warning', 'Calling promisify on a function that returns a Promise is likely a mistake.');
+  promisify(async () => {})().then(common.mustNotCall());
+}));
+
 const stat = promisify(fs.stat);
 
 {
