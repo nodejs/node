@@ -1,0 +1,137 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+type FrameType extends Smi constexpr 'StackFrame::Type';
+const STUB_FRAME: constexpr FrameType
+    generates 'StackFrame::STUB';
+const kFrameTypeCount:
+    constexpr int31 generates 'StackFrame::NUMBER_OF_TYPES';
+
+FromConstexpr<FrameType, constexpr FrameType>(t: constexpr FrameType):
+    FrameType {
+  // Note that althought FrameTypes sometimes masquerade as Smis (their
+  // LSB is a zero), they are not. For efficiency in storing them as a
+  // constant into a frame, they are simply the FrameType value shifted
+  // up by a single bit.
+  const i: constexpr uintptr = %RawConstexprCast<constexpr uintptr>(t)
+      << kSmiTagSize;
+  return %RawDownCast<FrameType>(BitcastWordToTaggedSigned(i));
+}
+Cast<FrameType>(o: Object): FrameType
+    labels CastError {
+  if (TaggedIsNotSmi(o)) goto CastError;
+  dcheck(
+      Convert<int32>(BitcastTaggedToWordForTagAndSmiBits(o)) <
+      Convert<int32>(kFrameTypeCount << kSmiTagSize));
+  return %RawDownCast<FrameType>(o);
+}
+
+type FrameBase extends RawPtr constexpr 'void*';
+type StandardFrame extends FrameBase constexpr 'void*';
+type StubFrame extends FrameBase constexpr 'void*';
+type FrameWithArguments = StandardFrame;
+type Frame = FrameWithArguments|StubFrame;
+
+extern macro LoadFramePointer(): Frame;
+extern macro LoadParentFramePointer(): Frame;
+
+// Load values from a specified frame by given offset in bytes.
+macro LoadObjectFromFrame(f: Frame, o: constexpr int32): Object {
+  return LoadBufferObject(f, o);
+}
+macro LoadPointerFromFrame(f: Frame, o: constexpr int32): RawPtr {
+  return LoadBufferPointer(f, o);
+}
+macro LoadIntptrFromFrame(f: Frame, o: constexpr int32): intptr {
+  return LoadBufferIntptr(f, o);
+}
+
+const kStandardFrameFunctionOffset: constexpr int31
+    generates 'StandardFrameConstants::kFunctionOffset';
+operator '.function' macro LoadFunctionFromFrame(f: Frame): JSFunction {
+  // TODO(danno): Use RawDownCast here in order to avoid passing the implicit
+  // context, since this accessor is used in legacy CSA code through
+  // LoadTargetFromFrame
+  const result: Object = LoadObjectFromFrame(f, kStandardFrameFunctionOffset);
+  return %RawDownCast<JSFunction>(result);
+}
+
+const kStandardFrameCallerFPOffset: constexpr int31
+    generates 'StandardFrameConstants::kCallerFPOffset';
+operator '.caller' macro LoadCallerFromFrame(f: Frame): Frame {
+  const result: RawPtr = LoadPointerFromFrame(f, kStandardFrameCallerFPOffset);
+  return %RawDownCast<Frame>(result);
+}
+
+const kStandardFrameArgCOffset: constexpr int31
+    generates 'StandardFrameConstants::kArgCOffset';
+const kJSArgcReceiverSlots: constexpr int31
+    generates 'kJSArgcReceiverSlots';
+
+operator '.argument_count' macro LoadArgCFromFrame(f: Frame): intptr {
+  return LoadIntptrFromFrame(f, kStandardFrameArgCOffset) -
+      kJSArgcReceiverSlots;
+}
+
+type ContextOrFrameType = Context|FrameType;
+Cast<ContextOrFrameType>(implicit context: Context)(o: Object):
+    ContextOrFrameType
+    labels CastError {
+  typeswitch (o) {
+    case (c: Context): {
+      return c;
+    }
+    case (t: FrameType): {
+      return t;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
+const kStandardFrameContextOrFrameTypeOffset: constexpr int31
+    generates 'StandardFrameConstants::kContextOrFrameTypeOffset';
+operator '.context_or_frame_type'
+macro LoadContextOrFrameTypeFromFrame(implicit context: Context)(f: Frame):
+    ContextOrFrameType {
+  return UnsafeCast<ContextOrFrameType>(
+      LoadObjectFromFrame(f, kStandardFrameContextOrFrameTypeOffset));
+}
+
+operator '==' macro FrameTypeEquals(f1: FrameType, f2: FrameType): bool {
+  return TaggedEqual(f1, f2);
+}
+
+macro Cast<A : type extends Frame>(implicit context: Context)(o: Frame):
+    A labels CastError;
+Cast<StandardFrame>(implicit context: Context)(f: Frame):
+    StandardFrame labels CastError {
+  const o: HeapObject =
+      Cast<HeapObject>(f.context_or_frame_type) otherwise CastError;
+  // StandardFrames (which include interpreted and JIT-compiled frames),
+  // unlike other frame types, don't have their own type marker stored in
+  // the frame, but rather have the function's context stored where the
+  // type marker is stored for other frame types. From Torque, it would
+  // be quite expensive to do the test required to distinguish interpreter
+  // frames from JITted ones (and other StandardFrame types), so
+  // StandardFrame is the level of granularity support when iterating the
+  // stack from generated code.
+  // See the descriptions and frame layouts in src/frame-constants.h.
+  if (IsContext(o)) {
+    return %RawDownCast<StandardFrame>(f);
+  }
+  goto CastError;
+}
+
+// Load target function from the current JS frame.
+// This is an alternative way of getting the target function in addition to
+// Parameter(Descriptor::kJSTarget). The latter should be used near the
+// beginning of builtin code while the target value is still in the register
+// and the former should be used in slow paths in order to reduce register
+// pressure on the fast path.
+@export
+macro LoadTargetFromFrame(): JSFunction {
+  return LoadFramePointer().function;
+}

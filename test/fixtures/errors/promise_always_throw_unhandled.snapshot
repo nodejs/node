@@ -1,0 +1,16 @@
+*promise_always_throw_unhandled.js:*
+  throw new Error('One');
+        ^
+
+Error: One
+    at *
+    at new Promise (<anonymous>)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+
+Node.js *

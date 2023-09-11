@@ -1,0 +1,35 @@
+Checks that we can update return value on pause
+
+Running test: testError
+Set return value not at return position
+{
+    error : {
+        code : -32000
+        message : Could not update return value at non-return position
+    }
+    id : <messageId>
+}
+
+Running test: testUndefined
+Break at return position..
+Update return value to 42..
+Dump actual return value
+{
+    result : {
+        description : 42
+        type : number
+        value : 42
+    }
+}
+
+Running test: testArrow
+Break at return position..
+Update return value to 239..
+Dump actual return value
+{
+    result : {
+        description : 239
+        type : number
+        value : 239
+    }
+}

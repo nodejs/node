@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://crbug.com/747207">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+
+<script>
+  function handleDown(node) {
+    var d2 = new Document();
+    d2.appendChild(node);
+  }
+</script>
+
+<!-- No crash should occur if a node is moved during mousedown. -->
+<div id='click' onmousedown='handleDown(this)'>Click me</div>
+
+<script>
+  const target = document.getElementById('click');
+  async_test(t => {
+    let actions = new test_driver.Actions()
+      .pointerMove(0, 0, {origin: target})
+      .pointerDown()
+      .pointerUp()
+      .send()
+      .then(t.step_func_done(() => {
+        assert_equals(null,document.getElementById('click'));
+      }))
+      .catch(e => t.step_func(() => assert_unreached('Error')));
+  },'Moving a node during mousedown should not crash');
+</script>

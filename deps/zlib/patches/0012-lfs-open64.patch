@@ -1,0 +1,40 @@
+From 6f21cb4b209d750486ede5472fdf7e35cf5ac3aa Mon Sep 17 00:00:00 2001
+From: Ramin Halavati <rhalavati@chromium.org>
+Date: Wed, 17 May 2023 15:21:43 +0200
+Subject: [PATCH] Add open64 for Large File System support to gzlib.
+
+---
+ third_party/zlib/gzlib.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/third_party/zlib/gzlib.c b/third_party/zlib/gzlib.c
+index 55da46a453fd1..bbdb797e8079d 100644
+--- a/third_party/zlib/gzlib.c
++++ b/third_party/zlib/gzlib.c
+@@ -7,11 +7,14 @@
+ 
+ #if defined(_WIN32) && !defined(__BORLANDC__)
+ #  define LSEEK _lseeki64
++#  define OPEN  open
+ #else
+ #if defined(_LARGEFILE64_SOURCE) && _LFS64_LARGEFILE-0
+ #  define LSEEK lseek64
++#  define OPEN  open64
+ #else
+ #  define LSEEK lseek
++#  define OPEN  open
+ #endif
+ #endif
+ 
+@@ -244,7 +247,7 @@ local gzFile gz_open(path, fd, mode)
+ #ifdef WIDECHAR
+         fd == -2 ? _wopen(path, oflag, 0666) :
+ #endif
+-        open((const char *)path, oflag, 0666));
++        OPEN((const char *)path, oflag, 0666));
+     if (state->fd == -1) {
+         free(state->path);
+         free(state);
+-- 
+2.40.1.606.ga4b1b128d6-goog
+

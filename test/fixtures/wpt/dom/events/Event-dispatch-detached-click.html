@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>Click event on an element not in the document</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+test(function() {
+  var EVENT = "click";
+  var TARGET = document.createElement("somerandomelement");
+  var t = async_test("Click event can be dispatched to an element that is not in the document.")
+  TARGET.addEventListener(EVENT, t.step_func(function(evt) {
+    assert_equals(evt.target, TARGET);
+    assert_equals(evt.srcElement, TARGET);
+    t.done();
+  }), true);
+  var e = document.createEvent("Event");
+  e.initEvent(EVENT, true, true);
+  TARGET.dispatchEvent(e);
+});
+</script>

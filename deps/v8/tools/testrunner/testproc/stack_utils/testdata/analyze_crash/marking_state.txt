@@ -1,0 +1,37 @@
+
+
+#
+# Fatal error in ../../src/heap/mark-compact.cc, line 285
+# Check failed: marking_state_->IsBlack(heap_object).
+#
+#
+#
+#FailureMessage Object: 0x7ffce64f0700
+==== C stack trace ===============================
+
+    /b/s/w/ir/out/build/libv8_libbase.so(v8::base::debug::StackTrace::StackTrace()+0x13) [0x7f644a73e4b3]
+    /b/s/w/ir/out/build/libv8_libplatform.so(+0x1bc5d) [0x7f644a6e2c5d]
+    /b/s/w/ir/out/build/libv8_libbase.so(V8_Fatal(char const*, int, char const*, ...)+0x153) [0x7f644a71e653]
+    /b/s/w/ir/out/build/libv8.so(+0x1b80d25) [0x7f6449080d25]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::CommonFrame::IterateExpressions(v8::internal::RootVisitor*) const+0x144) [0x7f6448eed414]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::JavaScriptFrame::Iterate(v8::internal::RootVisitor*) const+0x16) [0x7f6448efa386]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::Isolate::Iterate(v8::internal::RootVisitor*, v8::internal::ThreadLocalTop*)+0x249) [0x7f6448f072c9]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::Heap::IterateRoots(v8::internal::RootVisitor*, v8::base::EnumSet<v8::internal::SkipRoot, int>)+0x175) [0x7f6449021935]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::Heap::IterateRootsIncludingClients(v8::internal::RootVisitor*, v8::base::EnumSet<v8::internal::SkipRoot, int>)+0x42) [0x7f6449028362]
+    /b/s/w/ir/out/build/libv8.so(+0x1b64e35) [0x7f6449064e35]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::MarkCompactCollector::VerifyMarking()+0xaf) [0x7f6449061dbf]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::MarkCompactCollector::CollectGarbage()+0x27) [0x7f644905f487]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::Heap::MarkCompact()+0x2a1) [0x7f644901abb1]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::Heap::PerformGarbageCollection(v8::internal::GarbageCollector, v8::internal::GarbageCollectionReason, char const*, v8::GCCallbackFlags)+0x5b9) [0x7f6449017949]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::Heap::PerformSharedGarbageCollection(v8::internal::Isolate*, v8::internal::GarbageCollectionReason)+0x1a2) [0x7f644901c552]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::HeapAllocator::AllocateRawWithLightRetrySlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment)+0x49) [0x7f64490064e9]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::HeapAllocator::AllocateRawWithRetryOrFailSlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment)+0x21) [0x7f6449006621]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::HeapObject v8::internal::HeapAllocator::AllocateRawWith<(v8::internal::HeapAllocator::AllocationRetryMode)1>(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment)+0x73) [0x7f6448fb3fe3]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::FactoryBase<v8::internal::Factory>::AllocateRawArray(int, v8::internal::AllocationType)+0x1d) [0x7f6448f9d3bd]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::FactoryBase<v8::internal::Factory>::NewFixedArrayWithFiller(v8::internal::Handle<v8::internal::Map>, int, v8::internal::Handle<v8::internal::Oddball>, v8::internal::AllocationType)+0x40) [0x7f6448f9c720]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::FactoryBase<v8::internal::Factory>::NewFixedArray(int, v8::internal::AllocationType)+0x75) [0x7f6448f9c665]
+    /b/s/w/ir/out/build/libv8.so(+0x178c16f) [0x7f6448c8c16f]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::Builtin_SharedArrayConstructor(int, unsigned long*, v8::internal::Isolate*)+0xa4) [0x7f6448c8bbe4]
+    [0x7f63df9cf67f]
+Received signal 6
+Aborted (core dumped)

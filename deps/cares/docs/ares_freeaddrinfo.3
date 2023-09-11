@@ -1,0 +1,37 @@
+.\"
+.\" Copyright 1998 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_FREEADDRINFO 3 "31 October 2018"
+.SH NAME
+ares_freeaddrinfo \- Free addrinfo structure allocated by ares functions
+.SH SYNOPSIS
+.nf
+#include <ares.h>
+
+void ares_freeaddrinfo(struct ares_addrinfo *\fIai\fP)
+.fi
+.SH DESCRIPTION
+The
+.B ares_freeaddrinfo
+function frees a
+.B struct ares_addrinfo
+returned in \fIresult\fP of
+.B ares_addrinfo_callback
+.SH SEE ALSO
+.BR ares_getaddrinfo (3),
+.SH AUTHOR
+Christian Ammer
+.BR
+Andrew Selivanov <andrew.selivanov@gmail.com>

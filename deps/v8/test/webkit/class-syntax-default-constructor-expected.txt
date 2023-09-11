@@ -1,0 +1,18 @@
+Tests for ES6 class syntax default constructor
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS new A instanceof A is true
+PASS A() threw exception TypeError: Class constructor A cannot be invoked without 'new'.
+PASS A.prototype.constructor instanceof Function is true
+PASS A.prototype.constructor.name is "A"
+PASS new B instanceof A; new B instanceof A is true
+PASS B() threw exception TypeError: Class constructor B cannot be invoked without 'new'.
+PASS B.prototype.constructor.name is "B"
+PASS A !== B is true
+PASS A.prototype.constructor !== B.prototype.constructor is true
+PASS new (class extends (class { constructor(a, b) { return [a, b]; } }) {})(1, 2) is [1, 2]
+PASS successfullyParsed is true
+
+TEST COMPLETE

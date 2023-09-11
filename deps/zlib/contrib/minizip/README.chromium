@@ -1,0 +1,20 @@
+Name: ZIP file API for reading file entries in a ZIP archive
+Short Name: minizip
+URL: https://github.com/madler/zlib/tree/master/contrib/minizip
+Version: 1.2.12
+License: Zlib
+License File: //third_party/zlib/LICENSE
+Security Critical: yes
+Shipped: yes
+
+Description:
+Minizip provides API on top of zlib that can enumerate and extract ZIP archive
+files. See minizip.md for chromium build instructions.
+
+Local Modifications:
+- Add parsing of the 'Info-ZIP Unicode Path Extra Field' as described in
+  https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT section 4.6.9.
+  (see crrev.com/1002476)
+
+- Check for overly long filename, comment, or extra field in
+  zipOpenNewFileInZip4_64 (crbug.com/1470539).

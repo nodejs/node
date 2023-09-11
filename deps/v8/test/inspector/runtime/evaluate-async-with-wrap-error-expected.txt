@@ -1,0 +1,8 @@
+Test that Runtime.evaluate correctly process errors during wrapping async result.
+{
+    error : {
+        code : -32000
+        message : Object couldn't be returned by value
+    }
+    id : <messageId>
+}

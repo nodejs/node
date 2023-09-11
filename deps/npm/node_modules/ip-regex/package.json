@@ -1,0 +1,44 @@
+{
+	"name": "ip-regex",
+	"version": "4.3.0",
+	"description": "Regular expression for matching IP addresses (IPv4 & IPv6)",
+	"license": "MIT",
+	"repository": "sindresorhus/ip-regex",
+	"author": {
+		"name": "Sindre Sorhus",
+		"email": "sindresorhus@gmail.com",
+		"url": "sindresorhus.com"
+	},
+	"engines": {
+		"node": ">=8"
+	},
+	"scripts": {
+		"test": "xo && ava && tsd"
+	},
+	"files": [
+		"index.js",
+		"index.d.ts"
+	],
+	"keywords": [
+		"ip",
+		"ipv6",
+		"ipv4",
+		"regex",
+		"regexp",
+		"re",
+		"match",
+		"test",
+		"find",
+		"text",
+		"pattern",
+		"internet",
+		"protocol",
+		"address",
+		"validate"
+	],
+	"devDependencies": {
+		"ava": "^1.4.1",
+		"tsd": "^0.7.2",
+		"xo": "^0.24.0"
+	}
+}

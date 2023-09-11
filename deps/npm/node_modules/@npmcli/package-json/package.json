@@ -1,0 +1,66 @@
+{
+  "name": "@npmcli/package-json",
+  "version": "5.0.0",
+  "description": "Programmatic API to update package.json",
+  "main": "lib/index.js",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "scripts": {
+    "snap": "tap",
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint",
+    "postsnap": "npm run lintfix --",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "keywords": [
+    "npm",
+    "oss"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.18.0",
+    "read-package-json": "^6.0.4",
+    "read-package-json-fast": "^3.0.2",
+    "tap": "^16.0.1"
+  },
+  "dependencies": {
+    "@npmcli/git": "^5.0.0",
+    "glob": "^10.2.2",
+    "hosted-git-info": "^7.0.0",
+    "json-parse-even-better-errors": "^3.0.0",
+    "normalize-package-data": "^6.0.0",
+    "proc-log": "^3.0.0",
+    "semver": "^7.5.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/package-json.git"
+  },
+  "engines": {
+    "node": "^16.14.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.18.0",
+    "publish": "true",
+    "ciVersions": [
+      "16.14.0",
+      "16.x",
+      "18.0.0",
+      "18.x"
+    ]
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}
