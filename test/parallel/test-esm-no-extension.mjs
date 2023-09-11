@@ -1,3 +1,4 @@
+// Flags: --experimental-extensionless-modules
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { spawn } from 'node:child_process';
