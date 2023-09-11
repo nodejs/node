@@ -133,6 +133,7 @@ install. To avoid this problem, consider one of the following options:
 [`corepack disable`]: https://github.com/nodejs/corepack#corepack-disable--name
 [`corepack enable`]: https://github.com/nodejs/corepack#corepack-enable--name
 [`corepack install`]: https://github.com/nodejs/corepack#corepack-install--g--global---all--nameversion
+[`corepack pack`]: https://github.com/nodejs/corepack#corepack-pack---all--nameversion
 [`corepack use`]: https://github.com/nodejs/corepack#corepack-use-nameversion
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [pnpm]: https://pnpm.js.org
