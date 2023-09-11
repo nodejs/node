@@ -8,7 +8,10 @@ import assert from 'node:assert';
   const entry = fixtures.path(
     '/es-modules/package-type-module/extension.unknown'
   );
-  const child = spawn(process.execPath, [entry]);
+  const child = spawn(process.execPath, [
+    '--experimental-extensionless-modules',
+    entry,
+  ]);
   let stdout = '';
   let stderr = '';
   child.stderr.setEncoding('utf8');
@@ -30,7 +33,10 @@ import assert from 'node:assert';
   const entry = fixtures.path(
     '/es-modules/package-type-module/imports-unknownext.mjs'
   );
-  const child = spawn(process.execPath, [entry]);
+  const child = spawn(process.execPath, [
+    '--experimental-extensionless-modules',
+    entry,
+  ]);
   let stdout = '';
   let stderr = '';
   child.stderr.setEncoding('utf8');
@@ -50,7 +56,10 @@ import assert from 'node:assert';
 }
 {
   const entry = fixtures.path('/es-modules/package-type-module/noext-esm');
-  const child = spawn(process.execPath, [entry]);
+  const child = spawn(process.execPath, [
+    '--experimental-extensionless-modules',
+    entry,
+  ]);
   let stdout = '';
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', (data) => {
@@ -66,7 +75,10 @@ import assert from 'node:assert';
   const entry = fixtures.path(
     '/es-modules/package-type-module/imports-noext.mjs'
   );
-  const child = spawn(process.execPath, [entry]);
+  const child = spawn(process.execPath, [
+    '--experimental-extensionless-modules',
+    entry,
+  ]);
   let stdout = '';
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', (data) => {
