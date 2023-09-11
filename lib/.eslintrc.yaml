@@ -179,6 +179,10 @@ rules:
       message: Use `const { structuredClone } = require('internal/structured_clone');` instead of the global.
     - name: SubtleCrypto
       message: Use `const { SubtleCrypto } = require('internal/crypto/webcrypto');` instead of the global.
+  no-restricted-modules:
+    - error
+    - name: url
+      message: Require `internal/url` instead of `url`.
   # Custom rules in tools/eslint-rules
   node-core/avoid-prototype-pollution: error
   node-core/lowercase-name-for-primitive: error
