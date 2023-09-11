@@ -39,4 +39,4 @@ const server = net.createServer(function(socket) {
   socket.resume();
 });
 
-server.listen(common.PORT, common.mustCall(execAndClose));
+server.listen(common.PORT, common.localhostIPv4, common.mustCall(execAndClose));
