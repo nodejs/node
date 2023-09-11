@@ -3577,23 +3577,27 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
                                       .ToLocalChecked()
                                       ->ToObject(context)
                                       .ToLocalChecked();
-        v8::Local<v8::Object> b =
-            a->GetInternalField(0)->ToObject(context).ToLocalChecked();
-        v8::Local<v8::Object> c =
-            b->GetInternalField(0)->ToObject(context).ToLocalChecked();
+        v8::Local<v8::Object> b = a->GetInternalField(0)
+                                      .As<v8::Value>()
+                                      ->ToObject(context)
+                                      .ToLocalChecked();
+        v8::Local<v8::Object> c = b->GetInternalField(0)
+                                      .As<v8::Value>()
+                                      ->ToObject(context)
+                                      .ToLocalChecked();
 
         InternalFieldData* a1 = reinterpret_cast<InternalFieldData*>(
             a->GetAlignedPointerFromInternalField(1));
-        v8::Local<v8::Value> a2 = a->GetInternalField(2);
+        v8::Local<v8::Value> a2 = a->GetInternalField(2).As<v8::Value>();
 
         InternalFieldData* b1 = reinterpret_cast<InternalFieldData*>(
             b->GetAlignedPointerFromInternalField(1));
-        v8::Local<v8::Value> b2 = b->GetInternalField(2);
+        v8::Local<v8::Value> b2 = b->GetInternalField(2).As<v8::Value>();
 
-        v8::Local<v8::Value> c0 = c->GetInternalField(0);
+        v8::Local<v8::Value> c0 = c->GetInternalField(0).As<v8::Value>();
         InternalFieldData* c1 = reinterpret_cast<InternalFieldData*>(
             c->GetAlignedPointerFromInternalField(1));
-        v8::Local<v8::Value> c2 = c->GetInternalField(2);
+        v8::Local<v8::Value> c2 = c->GetInternalField(2).As<v8::Value>();
 
         CHECK(c0->IsUndefined());
 

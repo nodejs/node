@@ -44,9 +44,11 @@ template <typename T>
 static void CheckInternalFieldsAreZero(v8::Local<T> value) {
   CHECK_EQ(T::kInternalFieldCount, value->InternalFieldCount());
   for (int i = 0; i < value->InternalFieldCount(); i++) {
-    CHECK_EQ(0, value->GetInternalField(i)
-                    ->Int32Value(CcTest::isolate()->GetCurrentContext())
-                    .FromJust());
+    v8::Local<v8::Value> field =
+        value->GetInternalField(i).template As<v8::Value>();
+    CHECK_EQ(
+        0,
+        field->Int32Value(CcTest::isolate()->GetCurrentContext()).FromJust());
   }
 }
 

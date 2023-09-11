@@ -2874,6 +2874,43 @@ THREADED_TEST(FunctionPrototype) {
   CHECK_EQ(v8_run_int32value(script), 321);
 }
 
+bool internal_field_check_called = false;
+void OnInternalFieldCheck(const char* location, const char* message) {
+  internal_field_check_called = true;
+  exit(strcmp(location, "v8::Value::Cast") +
+       strcmp(message, "Data is not a Value"));
+}
+
+THREADED_TEST(InternalDataFields) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetInternalFieldCount(1);
+  Local<v8::Object> obj = templ->GetFunction(env.local())
+                              .ToLocalChecked()
+                              ->NewInstance(env.local())
+                              .ToLocalChecked();
+  CHECK_EQ(1, obj->InternalFieldCount());
+  Local<v8::Data> data = obj->GetInternalField(0);
+  CHECK(data->IsValue() && data.As<v8::Value>()->IsUndefined());
+  Local<v8::Private> sym = v8::Private::New(isolate, v8_str("Foo"));
+  obj->SetInternalField(0, sym);
+  Local<v8::Data> field = obj->GetInternalField(0);
+  CHECK(!field->IsValue());
+  CHECK(field->IsPrivate());
+  CHECK_EQ(sym, field);
+
+#ifdef V8_ENABLE_CHECKS
+  isolate->SetFatalErrorHandler(OnInternalFieldCheck);
+  USE(obj->GetInternalField(0).As<v8::Value>());
+  // If it's never called this would fail.
+  CHECK(internal_field_check_called);
+#endif
+}
+
 THREADED_TEST(InternalFields) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -2887,9 +2924,12 @@ THREADED_TEST(InternalFields) {
                               ->NewInstance(env.local())
                               .ToLocalChecked();
   CHECK_EQ(1, obj->InternalFieldCount());
-  CHECK(obj->GetInternalField(0)->IsUndefined());
+  CHECK(obj->GetInternalField(0).As<v8::Value>()->IsUndefined());
   obj->SetInternalField(0, v8_num(17));
-  CHECK_EQ(17, obj->GetInternalField(0)->Int32Value(env.local()).FromJust());
+  CHECK_EQ(17, obj->GetInternalField(0)
+                   .As<v8::Value>()
+                   ->Int32Value(env.local())
+                   .FromJust());
 }
 
 TEST(InternalFieldsSubclassing) {
@@ -2915,14 +2955,16 @@ TEST(InternalFieldsSubclassing) {
     CHECK_EQ(0, i_obj->map().GetInObjectProperties());
     // Check writing and reading internal fields.
     for (int j = 0; j < nof_embedder_fields; j++) {
-      CHECK(obj->GetInternalField(j)->IsUndefined());
+      CHECK(obj->GetInternalField(j).As<v8::Value>()->IsUndefined());
       int value = 17 + j;
       obj->SetInternalField(j, v8_num(value));
     }
     for (int j = 0; j < nof_embedder_fields; j++) {
       int value = 17 + j;
-      CHECK_EQ(value,
-               obj->GetInternalField(j)->Int32Value(env.local()).FromJust());
+      CHECK_EQ(value, obj->GetInternalField(j)
+                          .As<v8::Value>()
+                          ->Int32Value(env.local())
+                          .FromJust());
     }
     CHECK(env->Global()
               ->Set(env.local(), v8_str("BaseClass"), constructor)
@@ -3022,9 +3064,12 @@ THREADED_TEST(GlobalObjectInternalFields) {
   v8::Local<v8::Object> global_proxy = env->Global();
   v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
   CHECK_EQ(1, global->InternalFieldCount());
-  CHECK(global->GetInternalField(0)->IsUndefined());
+  CHECK(global->GetInternalField(0).As<v8::Value>()->IsUndefined());
   global->SetInternalField(0, v8_num(17));
-  CHECK_EQ(17, global->GetInternalField(0)->Int32Value(env.local()).FromJust());
+  CHECK_EQ(17, global->GetInternalField(0)
+                   .As<v8::Value>()
+                   ->Int32Value(env.local())
+                   .FromJust());
 }
 
 
@@ -7766,7 +7811,7 @@ void InternalFieldCallback(bool global_gc) {
                                 .ToLocalChecked();
     handle.Reset(isolate, obj);
     CHECK_EQ(2, obj->InternalFieldCount());
-    CHECK(obj->GetInternalField(0)->IsUndefined());
+    CHECK(obj->GetInternalField(0).As<v8::Value>()->IsUndefined());
     t1 = new Trivial(42);
     t2 = new Trivial2(103, 9);
 
@@ -29858,7 +29903,8 @@ class HiddenDataDelegate : public v8::Context::DeepFreezeDelegate {
       std::vector<v8::Local<v8::Object>>& children_out) override {
     int fields = obj->InternalFieldCount();
     for (int idx = 0; idx < fields; idx++) {
-      v8::Local<v8::Value> child_value = obj->GetInternalField(idx);
+      v8::Local<v8::Value> child_value =
+          obj->GetInternalField(idx).As<v8::Value>();
       if (child_value->IsExternal()) {
         if (!FreezeExternal(v8::Local<v8::External>::Cast(child_value),
                             children_out)) {
