@@ -25,7 +25,7 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
       stderr(output) {
         // stderr should have a syntax error message
         assert.match(output, syntaxErrorRE);
-  
+
         // stderr should include the filename
         assert(output.startsWith(file), `${output} starts with ${file}`);
       }
