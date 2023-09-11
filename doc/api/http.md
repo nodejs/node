@@ -772,6 +772,7 @@ server.listen(1337, '127.0.0.1', () => {
 
 ```cjs
 const http = require('node:http');
+const process = require('node:process');
 
 // Create an HTTP server
 const server = http.createServer((req, res) => {
