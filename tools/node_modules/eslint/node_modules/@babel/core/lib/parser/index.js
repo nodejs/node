@@ -18,7 +18,7 @@ function _codeFrame() {
   };
   return data;
 }
-var _missingPluginHelper = require("./util/missing-plugin-helper");
+var _missingPluginHelper = require("./util/missing-plugin-helper.js");
 function* parser(pluginPasses, {
   parserOpts,
   highlightCode = true,

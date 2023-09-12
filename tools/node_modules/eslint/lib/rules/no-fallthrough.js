@@ -17,6 +17,22 @@ const { directivesPattern } = require("../shared/directives");
 const DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/iu;
 
 /**
+ * Checks all segments in a set and returns true if any are reachable.
+ * @param {Set<CodePathSegment>} segments The segments to check.
+ * @returns {boolean} True if any segment is reachable; false otherwise.
+ */
+function isAnySegmentReachable(segments) {
+
+    for (const segment of segments) {
+        if (segment.reachable) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * Checks whether or not a given comment string is really a fallthrough comment and not an ESLint directive.
  * @param {string} comment The comment string to check.
  * @param {RegExp} fallthroughCommentPattern The regular expression used for checking for fallthrough comments.
@@ -49,15 +65,6 @@ function hasFallthroughComment(caseWhichFallsThrough, subsequentCase, context, f
     const comment = sourceCode.getCommentsBefore(subsequentCase).pop();
 
     return Boolean(comment && isFallThroughComment(comment.value, fallthroughCommentPattern));
-}
-
-/**
- * Checks whether or not a given code path segment is reachable.
- * @param {CodePathSegment} segment A CodePathSegment to check.
- * @returns {boolean} `true` if the segment is reachable.
- */
-function isReachable(segment) {
-    return segment.reachable;
 }
 
 /**
@@ -109,7 +116,8 @@ module.exports = {
 
     create(context) {
         const options = context.options[0] || {};
-        let currentCodePath = null;
+        const codePathSegments = [];
+        let currentCodePathSegments = new Set();
         const sourceCode = context.sourceCode;
         const allowEmptyCase = options.allowEmptyCase || false;
 
@@ -126,12 +134,32 @@ module.exports = {
             fallthroughCommentPattern = DEFAULT_FALLTHROUGH_COMMENT;
         }
         return {
-            onCodePathStart(codePath) {
-                currentCodePath = codePath;
+
+            onCodePathStart() {
+                codePathSegments.push(currentCodePathSegments);
+                currentCodePathSegments = new Set();
             },
+
             onCodePathEnd() {
-                currentCodePath = currentCodePath.upper;
+                currentCodePathSegments = codePathSegments.pop();
             },
+
+            onUnreachableCodePathSegmentStart(segment) {
+                currentCodePathSegments.add(segment);
+            },
+
+            onUnreachableCodePathSegmentEnd(segment) {
+                currentCodePathSegments.delete(segment);
+            },
+
+            onCodePathSegmentStart(segment) {
+                currentCodePathSegments.add(segment);
+            },
+
+            onCodePathSegmentEnd(segment) {
+                currentCodePathSegments.delete(segment);
+            },
+
 
             SwitchCase(node) {
 
@@ -157,7 +185,7 @@ module.exports = {
                  * `break`, `return`, or `throw` are unreachable.
                  * And allows empty cases and the last case.
                  */
-                if (currentCodePath.currentSegments.some(isReachable) &&
+                if (isAnySegmentReachable(currentCodePathSegments) &&
                     (node.consequent.length > 0 || (!allowEmptyCase && hasBlankLinesBetween(node, nextToken))) &&
                     node.parent.cases[node.parent.cases.length - 1] !== node) {
                     fallthroughCase = node;

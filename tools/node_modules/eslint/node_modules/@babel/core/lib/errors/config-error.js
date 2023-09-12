@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-var _rewriteStackTrace = require("./rewrite-stack-trace");
+var _rewriteStackTrace = require("./rewrite-stack-trace.js");
 class ConfigError extends Error {
   constructor(message, filename) {
     super(message);
