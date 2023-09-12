@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.validatePluginObject = validatePluginObject;
-var _optionAssertions = require("./option-assertions");
+var _optionAssertions = require("./option-assertions.js");
 const VALIDATORS = {
   name: _optionAssertions.assertString,
   manipulateOptions: _optionAssertions.assertFunction,

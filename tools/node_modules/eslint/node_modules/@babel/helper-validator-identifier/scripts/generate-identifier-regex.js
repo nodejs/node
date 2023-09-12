@@ -4,16 +4,18 @@
 // https://tc39.github.io/ecma262/#sec-conformance
 const version = "15.0.0";
 
-const start = require("@unicode/unicode-" +
-  version +
-  "/Binary_Property/ID_Start/code-points.js").filter(function (ch) {
+const start = require(
+  "@unicode/unicode-" + version + "/Binary_Property/ID_Start/code-points.js"
+).filter(function (ch) {
   return ch > 0x7f;
 });
 let last = -1;
 const cont = [0x200c, 0x200d].concat(
-  require("@unicode/unicode-" +
-    version +
-    "/Binary_Property/ID_Continue/code-points.js").filter(function (ch) {
+  require(
+    "@unicode/unicode-" +
+      version +
+      "/Binary_Property/ID_Continue/code-points.js"
+  ).filter(function (ch) {
     return ch > 0x7f && search(start, ch, last + 1) == -1;
   })
 );

@@ -16,12 +16,19 @@ const { upperCaseFirst } = require("../shared/string-utils");
 //------------------------------------------------------------------------------
 
 /**
- * Checks whether or not a given code path segment is unreachable.
- * @param {CodePathSegment} segment A CodePathSegment to check.
- * @returns {boolean} `true` if the segment is unreachable.
+ * Checks all segments in a set and returns true if all are unreachable.
+ * @param {Set<CodePathSegment>} segments The segments to check.
+ * @returns {boolean} True if all segments are unreachable; false otherwise.
  */
-function isUnreachable(segment) {
-    return !segment.reachable;
+function areAllSegmentsUnreachable(segments) {
+
+    for (const segment of segments) {
+        if (segment.reachable) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /**
@@ -88,7 +95,7 @@ module.exports = {
              * When unreachable, all paths are returned or thrown.
              */
             if (!funcInfo.hasReturnValue ||
-                funcInfo.codePath.currentSegments.every(isUnreachable) ||
+                areAllSegmentsUnreachable(funcInfo.currentSegments) ||
                 astUtils.isES5Constructor(node) ||
                 isClassConstructor(node)
             ) {
@@ -141,12 +148,30 @@ module.exports = {
                     hasReturn: false,
                     hasReturnValue: false,
                     messageId: "",
-                    node
+                    node,
+                    currentSegments: new Set()
                 };
             },
             onCodePathEnd() {
                 funcInfo = funcInfo.upper;
             },
+
+            onUnreachableCodePathSegmentStart(segment) {
+                funcInfo.currentSegments.add(segment);
+            },
+
+            onUnreachableCodePathSegmentEnd(segment) {
+                funcInfo.currentSegments.delete(segment);
+            },
+
+            onCodePathSegmentStart(segment) {
+                funcInfo.currentSegments.add(segment);
+            },
+
+            onCodePathSegmentEnd(segment) {
+                funcInfo.currentSegments.delete(segment);
+            },
+
 
             // Reports a given return statement if it's inconsistent.
             ReturnStatement(node) {

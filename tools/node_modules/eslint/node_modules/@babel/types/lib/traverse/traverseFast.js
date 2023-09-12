@@ -4,10 +4,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = traverseFast;
-var _definitions = require("../definitions");
+var _index = require("../definitions/index.js");
 function traverseFast(node, enter, opts) {
   if (!node) return;
-  const keys = _definitions.VISITOR_KEYS[node.type];
+  const keys = _index.VISITOR_KEYS[node.type];
   if (!keys) return;
   opts = opts || {};
   enter(node, opts);

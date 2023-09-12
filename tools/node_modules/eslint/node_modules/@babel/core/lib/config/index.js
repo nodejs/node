@@ -25,10 +25,10 @@ function _gensync() {
   };
   return data;
 }
-var _full = require("./full");
-var _partial = require("./partial");
-var _item = require("./item");
-var _rewriteStackTrace = require("../errors/rewrite-stack-trace");
+var _full = require("./full.js");
+var _partial = require("./partial.js");
+var _item = require("./item.js");
+var _rewriteStackTrace = require("../errors/rewrite-stack-trace.js");
 const loadPartialConfigRunner = _gensync()(_partial.loadPartialConfig);
 function loadPartialConfigAsync(...args) {
   return (0, _rewriteStackTrace.beginHiddenCallStack)(loadPartialConfigRunner.async)(...args);

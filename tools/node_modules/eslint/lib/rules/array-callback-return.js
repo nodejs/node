@@ -19,15 +19,6 @@ const TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/u;
 const TARGET_METHODS = /^(?:every|filter|find(?:Last)?(?:Index)?|flatMap|forEach|map|reduce(?:Right)?|some|sort|toSorted)$/u;
 
 /**
- * Checks a given code path segment is reachable.
- * @param {CodePathSegment} segment A segment to check.
- * @returns {boolean} `true` if the segment is reachable.
- */
-function isReachable(segment) {
-    return segment.reachable;
-}
-
-/**
  * Checks a given node is a member access which has the specified name's
  * property.
  * @param {ASTNode} node A node to check.
@@ -36,6 +27,22 @@ function isReachable(segment) {
  */
 function isTargetMethod(node) {
     return astUtils.isSpecificMemberAccess(node, null, TARGET_METHODS);
+}
+
+/**
+ * Checks all segments in a set and returns true if any are reachable.
+ * @param {Set<CodePathSegment>} segments The segments to check.
+ * @returns {boolean} True if any segment is reachable; false otherwise.
+ */
+function isAnySegmentReachable(segments) {
+
+    for (const segment of segments) {
+        if (segment.reachable) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -205,7 +212,7 @@ module.exports = {
                     messageId = "expectedNoReturnValue";
                 }
             } else {
-                if (node.body.type === "BlockStatement" && funcInfo.codePath.currentSegments.some(isReachable)) {
+                if (node.body.type === "BlockStatement" && isAnySegmentReachable(funcInfo.currentSegments)) {
                     messageId = funcInfo.hasReturn ? "expectedAtEnd" : "expectedInside";
                 }
             }
@@ -242,7 +249,8 @@ module.exports = {
                         methodName &&
                         !node.async &&
                         !node.generator,
-                    node
+                    node,
+                    currentSegments: new Set()
                 };
             },
 
@@ -250,6 +258,23 @@ module.exports = {
             onCodePathEnd() {
                 funcInfo = funcInfo.upper;
             },
+
+            onUnreachableCodePathSegmentStart(segment) {
+                funcInfo.currentSegments.add(segment);
+            },
+
+            onUnreachableCodePathSegmentEnd(segment) {
+                funcInfo.currentSegments.delete(segment);
+            },
+
+            onCodePathSegmentStart(segment) {
+                funcInfo.currentSegments.add(segment);
+            },
+
+            onCodePathSegmentEnd(segment) {
+                funcInfo.currentSegments.delete(segment);
+            },
+
 
             // Checks the return statement is valid.
             ReturnStatement(node) {

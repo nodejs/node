@@ -57,6 +57,22 @@ function isInFinally(node) {
     return false;
 }
 
+/**
+ * Checks all segments in a set and returns true if any are reachable.
+ * @param {Set<CodePathSegment>} segments The segments to check.
+ * @returns {boolean} True if any segment is reachable; false otherwise.
+ */
+function isAnySegmentReachable(segments) {
+
+    for (const segment of segments) {
+        if (segment.reachable) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -205,7 +221,6 @@ module.exports = {
          */
         function markReturnStatementsOnCurrentSegmentsAsUsed() {
             scopeInfo
-                .codePath
                 .currentSegments
                 .forEach(segment => markReturnStatementsOnSegmentAsUsed(segment, new Set()));
         }
@@ -222,7 +237,8 @@ module.exports = {
                     upper: scopeInfo,
                     uselessReturns: [],
                     traversedTryBlockStatements: [],
-                    codePath
+                    codePath,
+                    currentSegments: new Set()
                 };
             },
 
@@ -259,6 +275,9 @@ module.exports = {
              * NOTE: This event is notified for only reachable segments.
              */
             onCodePathSegmentStart(segment) {
+
+                scopeInfo.currentSegments.add(segment);
+
                 const info = {
                     uselessReturns: getUselessReturns([], segment.allPrevSegments),
                     returned: false
@@ -266,6 +285,18 @@ module.exports = {
 
                 // Stores the info.
                 segmentInfoMap.set(segment, info);
+            },
+
+            onUnreachableCodePathSegmentStart(segment) {
+                scopeInfo.currentSegments.add(segment);
+            },
+
+            onUnreachableCodePathSegmentEnd(segment) {
+                scopeInfo.currentSegments.delete(segment);
+            },
+
+            onCodePathSegmentEnd(segment) {
+                scopeInfo.currentSegments.delete(segment);
             },
 
             // Adds ReturnStatement node to check whether it's useless or not.
@@ -279,12 +310,12 @@ module.exports = {
                     isInFinally(node) ||
 
                     // Ignore `return` statements in unreachable places (https://github.com/eslint/eslint/issues/11647).
-                    !scopeInfo.codePath.currentSegments.some(s => s.reachable)
+                    !isAnySegmentReachable(scopeInfo.currentSegments)
                 ) {
                     return;
                 }
 
-                for (const segment of scopeInfo.codePath.currentSegments) {
+                for (const segment of scopeInfo.currentSegments) {
                     const info = segmentInfoMap.get(segment);
 
                     if (info) {

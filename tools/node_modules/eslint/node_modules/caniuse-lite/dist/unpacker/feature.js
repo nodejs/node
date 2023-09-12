@@ -27,7 +27,11 @@ function unpackSupport(cipher) {
 }
 
 function unpackFeature(packed) {
-  let unpacked = { status: statuses[packed.B], title: packed.C }
+  let unpacked = {
+    status: statuses[packed.B],
+    title: packed.C,
+    shown: packed.D
+  }
   unpacked.stats = Object.keys(packed.A).reduce((browserStats, key) => {
     let browser = packed.A[key]
     browserStats[browsers[key]] = Object.keys(browser).reduce(

@@ -5,8 +5,8 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.getInclusionReasons = getInclusionReasons;
 var _semver = require("semver");
-var _pretty = require("./pretty");
-var _utils = require("./utils");
+var _pretty = require("./pretty.js");
+var _utils = require("./utils.js");
 function getInclusionReasons(item, targetVersions, list) {
   const minVersions = list[item] || {};
   return Object.keys(targetVersions).reduce((result, env) => {

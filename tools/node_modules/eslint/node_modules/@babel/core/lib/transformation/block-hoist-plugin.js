@@ -11,7 +11,7 @@ function _traverse() {
   };
   return data;
 }
-var _plugin = require("../config/plugin");
+var _plugin = require("../config/plugin.js");
 let LOADED_PLUGIN;
 const blockHoistPlugin = {
   name: "internal.blockHoist",
