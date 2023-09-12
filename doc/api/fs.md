@@ -325,6 +325,7 @@ added: v16.11.0
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
+  * `highWaterMark` {number} **Default:** `16384`
 * Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
@@ -446,7 +447,7 @@ Reads data from the file and stores that in the given buffer.
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
 
-#### `filehandle.readableWebStream(options)`
+#### `filehandle.readableWebStream([options])`
 
 <!-- YAML
 added: v17.0.0
@@ -1001,7 +1002,8 @@ changes:
   * `errorOnExist` {boolean} when `force` is `false`, and the destination
     exists, throw an error. **Default:** `false`.
   * `filter` {Function} Function to filter copied files/directories. Return
-    `true` to copy the item, `false` to ignore it. Can also return a `Promise`
+    `true` to copy the item, `false` to ignore it. When ignoring a directory,
+    all of its contents will be skipped as well. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
@@ -1163,7 +1165,7 @@ makeDirectory().catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version:
@@ -2428,7 +2430,8 @@ changes:
   * `errorOnExist` {boolean} when `force` is `false`, and the destination
     exists, throw an error. **Default:** `false`.
   * `filter` {Function} Function to filter copied files/directories. Return
-    `true` to copy the item, `false` to ignore it. Can also return a `Promise`
+    `true` to copy the item, `false` to ignore it. When ignoring a directory,
+    all of its contents will be skipped as well. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
@@ -2638,6 +2641,7 @@ changes:
   * `start` {integer}
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
+  * `highWaterMark` {number} **Default:** `16384`
 * Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
@@ -3334,7 +3338,7 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: REPLACEME
+  - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version: v18.0.0
@@ -5442,7 +5446,8 @@ changes:
   * `errorOnExist` {boolean} when `force` is `false`, and the destination
     exists, throw an error. **Default:** `false`.
   * `filter` {Function} Function to filter copied files/directories. Return
-    `true` to copy the item, `false` to ignore it. **Default:** `undefined`
+    `true` to copy the item, `false` to ignore it. When ignoring a directory,
+    all of its contents will be skipped as well. **Default:** `undefined`
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
     * Returns: {boolean}
@@ -5736,7 +5741,7 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: REPLACEME
+  - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version:

@@ -66,7 +66,7 @@ function getHeapProfiles(dir) {
 // Test --diagnostic-dir changes the default for --cpu-prof
 {
   tmpdir.refresh();
-  const dir = path.join(tmpdir.path, 'prof');
+  const dir = tmpdir.resolve('prof');
   const output = spawnSync(process.execPath, [
     '--heap-prof',
     '--diagnostic-dir',
@@ -91,8 +91,8 @@ function getHeapProfiles(dir) {
 // Test --heap-prof-dir overwrites --diagnostic-dir
 {
   tmpdir.refresh();
-  const dir = path.join(tmpdir.path, 'diag');
-  const dir2 = path.join(tmpdir.path, 'prof');
+  const dir = tmpdir.resolve('diag');
+  const dir2 = tmpdir.resolve('prof');
   const output = spawnSync(process.execPath, [
     '--heap-prof',
     '--heap-prof-interval',

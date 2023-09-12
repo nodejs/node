@@ -182,3 +182,59 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   assert(result.stdout.toString().includes(report));
   assert.strictEqual(result.status, 0);
 });
+
+test('coverage reports on lines, functions, and branches', skipIfNoInspector, async (t) => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const child = spawnSync(process.execPath,
+                          ['--test', '--experimental-test-coverage', '--test-reporter',
+                           fixtures.fileURL('test-runner/custom_reporters/coverage.mjs'),
+                           fixture]);
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+  const coverage = JSON.parse(stdout);
+
+  await t.test('does not include node_modules', () => {
+    assert.strictEqual(coverage.summary.files.length, 3);
+    const files = ['coverage.js', 'invalid-tap.js', 'throw.js'];
+    coverage.summary.files.forEach((file, index) => {
+      assert.ok(file.path.endsWith(files[index]));
+    });
+  });
+
+  const file = coverage.summary.files[0];
+
+  await t.test('reports on function coverage', () => {
+    const uncalledFunction = file.functions.find((f) => f.name === 'uncalledTopLevelFunction');
+    assert.strictEqual(uncalledFunction.count, 0);
+    assert.strictEqual(uncalledFunction.line, 16);
+
+    const calledTwice = file.functions.find((f) => f.name === 'fnWithControlFlow');
+    assert.strictEqual(calledTwice.count, 2);
+    assert.strictEqual(calledTwice.line, 35);
+  });
+
+  await t.test('reports on branch coverage', () => {
+    const uncalledBranch = file.branches.find((b) => b.line === 6);
+    assert.strictEqual(uncalledBranch.count, 0);
+
+    const calledTwice = file.branches.find((b) => b.line === 35);
+    assert.strictEqual(calledTwice.count, 2);
+  });
+
+  await t.test('reports on line coverage', () => {
+    [
+      { line: 36, count: 2 },
+      { line: 37, count: 1 },
+      { line: 38, count: 1 },
+      { line: 39, count: 0 },
+      { line: 40, count: 1 },
+      { line: 41, count: 1 },
+      { line: 42, count: 1 },
+      { line: 43, count: 0 },
+      { line: 44, count: 0 },
+    ].forEach((line) => {
+      const testLine = file.lines.find((l) => l.line === line.line);
+      assert.strictEqual(testLine.count, line.count);
+    });
+  });
+});

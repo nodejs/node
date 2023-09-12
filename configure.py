@@ -609,6 +609,14 @@ parser.add_argument('--with-ltcg',
     default=None,
     help='Use Link Time Code Generation. This feature is only available on Windows.')
 
+parser.add_argument('--write-snapshot-as-array-literals',
+    action='store_true',
+    dest='write_snapshot_as_array_literals',
+    default=None,
+    help='Write the snapshot data as array literals for readability.'
+         'By default the snapshot data may be written as string literals on some '
+         'platforms to speed up compilation.')
+
 parser.add_argument('--without-node-snapshot',
     action='store_true',
     dest='without_node_snapshot',
@@ -1289,6 +1297,11 @@ def configure_node(o):
     # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
     o['variables']['node_use_node_code_cache'] = b(
       not cross_compiling and not options.shared)
+
+  if options.write_snapshot_as_array_literals is not None:
+     o['variables']['node_write_snapshot_as_array_literals'] = b(options.write_snapshot_as_array_literals)
+  else:
+     o['variables']['node_write_snapshot_as_array_literals'] = b(flavor != 'mac' and flavor != 'linux')
 
   if target_arch == 'arm':
     configure_arm(o)
@@ -2116,6 +2129,8 @@ else:
 
 if options.compile_commands_json:
   gyp_args += ['-f', 'compile_commands_json']
+  os.path.islink('./compile_commands.json') and os.unlink('./compile_commands.json')
+  os.symlink('./out/' + config['BUILDTYPE'] + '/compile_commands.json', './compile_commands.json')
 
 # override the variable `python` defined in common.gypi
 if bin_override is not None:

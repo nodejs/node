@@ -402,8 +402,8 @@ ByteSource ByteSource::FromEncodedString(Environment* env,
 
 ByteSource ByteSource::FromStringOrBuffer(Environment* env,
                                           Local<Value> value) {
-  return IsAnyByteSource(value) ? FromBuffer(value)
-                                : FromString(env, value.As<String>());
+  return IsAnyBufferSource(value) ? FromBuffer(value)
+                                  : FromString(env, value.As<String>());
 }
 
 ByteSource ByteSource::FromString(Environment* env, Local<String> str,
@@ -429,9 +429,9 @@ ByteSource ByteSource::FromSecretKeyBytes(
   // A key can be passed as a string, buffer or KeyObject with type 'secret'.
   // If it is a string, we need to convert it to a buffer. We are not doing that
   // in JS to avoid creating an unprotected copy on the heap.
-  return value->IsString() || IsAnyByteSource(value) ?
-           ByteSource::FromStringOrBuffer(env, value) :
-           ByteSource::FromSymmetricKeyObjectHandle(value);
+  return value->IsString() || IsAnyBufferSource(value)
+             ? ByteSource::FromStringOrBuffer(env, value)
+             : ByteSource::FromSymmetricKeyObjectHandle(value);
 }
 
 ByteSource ByteSource::NullTerminatedCopy(Environment* env,

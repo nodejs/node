@@ -10,6 +10,7 @@
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
     'node_shared%': 'false',
+    'node_write_snapshot_as_string_literals': 'true',
     'force_dynamic_crt%': 0,
     'ossfuzz' : 'false',
     'node_module_version%': '',
@@ -374,6 +375,38 @@
       'src/quic/tlscontext.h',
       'src/quic/tokens.h',
       'src/quic/transportparams.h',
+    ],
+    'node_cctest_sources': [
+      'src/node_snapshot_stub.cc',
+      'test/cctest/node_test_fixture.cc',
+      'test/cctest/node_test_fixture.h',
+      'test/cctest/test_aliased_buffer.cc',
+      'test/cctest/test_base64.cc',
+      'test/cctest/test_base_object_ptr.cc',
+      'test/cctest/test_cppgc.cc',
+      'test/cctest/test_node_postmortem_metadata.cc',
+      'test/cctest/test_environment.cc',
+      'test/cctest/test_linked_binding.cc',
+      'test/cctest/test_node_api.cc',
+      'test/cctest/test_per_process.cc',
+      'test/cctest/test_platform.cc',
+      'test/cctest/test_report.cc',
+      'test/cctest/test_json_utils.cc',
+      'test/cctest/test_sockaddr.cc',
+      'test/cctest/test_traced_value.cc',
+      'test/cctest/test_util.cc',
+      'test/cctest/test_dataqueue.cc',
+    ],
+    'node_cctest_openssl_sources': [
+      'test/cctest/test_crypto_clienthello.cc',
+      'test/cctest/test_node_crypto.cc',
+      'test/cctest/test_node_crypto_env.cc',
+      'test/cctest/test_quic_cid.cc',
+      'test/cctest/test_quic_tokens.cc',
+    ],
+    'node_cctest_inspector_sources': [
+      'test/cctest/test_inspector_socket.cc',
+      'test/cctest/test_inspector_socket_server.cc',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
@@ -1038,49 +1071,20 @@
         'NODE_WANT_INTERNALS=1',
       ],
 
-      'sources': [
-        'src/node_snapshot_stub.cc',
-        'test/cctest/node_test_fixture.cc',
-        'test/cctest/node_test_fixture.h',
-        'test/cctest/test_aliased_buffer.cc',
-        'test/cctest/test_base64.cc',
-        'test/cctest/test_base_object_ptr.cc',
-        'test/cctest/test_cppgc.cc',
-        'test/cctest/test_node_postmortem_metadata.cc',
-        'test/cctest/test_environment.cc',
-        'test/cctest/test_linked_binding.cc',
-        'test/cctest/test_node_api.cc',
-        'test/cctest/test_per_process.cc',
-        'test/cctest/test_platform.cc',
-        'test/cctest/test_report.cc',
-        'test/cctest/test_json_utils.cc',
-        'test/cctest/test_sockaddr.cc',
-        'test/cctest/test_traced_value.cc',
-        'test/cctest/test_util.cc',
-        'test/cctest/test_dataqueue.cc',
-      ],
+      'sources': [ '<@(node_cctest_sources)' ],
 
       'conditions': [
         [ 'node_use_openssl=="true"', {
           'defines': [
             'HAVE_OPENSSL=1',
           ],
-          'sources': [
-            'test/cctest/test_crypto_clienthello.cc',
-            'test/cctest/test_node_crypto.cc',
-            'test/cctest/test_node_crypto_env.cc',
-            'test/cctest/test_quic_cid.cc',
-            'test/cctest/test_quic_tokens.cc',
-          ]
+          'sources': [ '<@(node_cctest_openssl_sources)' ],
         }],
         ['v8_enable_inspector==1', {
-          'sources': [
-            'test/cctest/test_inspector_socket.cc',
-            'test/cctest/test_inspector_socket_server.cc'
-          ],
           'defines': [
             'HAVE_INSPECTOR=1',
           ],
+          'sources': [ '<@(node_cctest_inspector_sources)' ],
         }, {
            'defines': [
              'HAVE_INSPECTOR=0',
@@ -1255,8 +1259,8 @@
       ],
 
       'conditions': [
-        ['OS in "linux mac"', {
-          'defines': [ 'NODE_MKSNAPSHOT_USE_STRING_LITERALS=1' ],
+        ['node_write_snapshot_as_array_literals=="true"', {
+          'defines': [ 'NODE_MKSNAPSHOT_USE_ARRAY_LITERALS=1' ],
         }],
         [ 'node_use_openssl=="true"', {
           'defines': [

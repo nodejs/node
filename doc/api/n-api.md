@@ -346,7 +346,7 @@ napi_value create_addon(napi_env env);
 // addon.c
 #include "addon.h"
 
-#define NAPI_CALL(env, call)                                      \
+#define NODE_API_CALL(env, call)                                  \
   do {                                                            \
     napi_status status = (call);                                  \
     if (status != napi_ok) {                                      \
@@ -355,13 +355,14 @@ napi_value create_addon(napi_env env);
       const char* err_message = error_info->error_message;        \
       bool is_pending;                                            \
       napi_is_exception_pending((env), &is_pending);              \
+      /* If an exception is already pending, don't rethrow it */  \
       if (!is_pending) {                                          \
         const char* message = (err_message == NULL)               \
             ? "empty error message"                               \
             : err_message;                                        \
         napi_throw_error((env), NULL, message);                   \
-        return NULL;                                              \
       }                                                           \
+      return NULL;                                                \
     }                                                             \
   } while(0)
 
@@ -373,20 +374,20 @@ DoSomethingUseful(napi_env env, napi_callback_info info) {
 
 napi_value create_addon(napi_env env) {
   napi_value result;
-  NAPI_CALL(env, napi_create_object(env, &result));
+  NODE_API_CALL(env, napi_create_object(env, &result));
 
   napi_value exported_function;
-  NAPI_CALL(env, napi_create_function(env,
-                                      "doSomethingUseful",
-                                      NAPI_AUTO_LENGTH,
-                                      DoSomethingUseful,
-                                      NULL,
-                                      &exported_function));
+  NODE_API_CALL(env, napi_create_function(env,
+                                          "doSomethingUseful",
+                                          NAPI_AUTO_LENGTH,
+                                          DoSomethingUseful,
+                                          NULL,
+                                          &exported_function));
 
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         result,
-                                         "doSomethingUseful",
-                                         exported_function));
+  NODE_API_CALL(env, napi_set_named_property(env,
+                                             result,
+                                             "doSomethingUseful",
+                                             exported_function));
 
   return result;
 }
@@ -3070,12 +3071,17 @@ napi_status napi_get_buffer_info(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] value`: `napi_value` representing the `node::Buffer` being queried.
-* `[out] data`: The underlying data buffer of the `node::Buffer`.
-  If length is `0`, this may be `NULL` or any other pointer value.
+* `[in] value`: `napi_value` representing the `node::Buffer` or `Uint8Array`
+  being queried.
+* `[out] data`: The underlying data buffer of the `node::Buffer` or
+  `Uint8Array`. If length is `0`, this may be `NULL` or any other pointer value.
 * `[out] length`: Length in bytes of the underlying data buffer.
 
 Returns `napi_ok` if the API succeeded.
+
+This method returns the identical `data` and `byte_length` as
+[`napi_get_typedarray_info`][]. And `napi_get_typedarray_info` accepts a
+`node::Buffer` (a Uint8Array) as the value too.
 
 This API is used to retrieve the underlying data buffer of a `node::Buffer`
 and its length.
@@ -3827,12 +3833,14 @@ napi_status napi_is_buffer(napi_env env, napi_value value, bool* result)
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: The JavaScript value to check.
-* `[out] result`: Whether the given `napi_value` represents a `node::Buffer`
-  object.
+* `[out] result`: Whether the given `napi_value` represents a `node::Buffer` or
+  `Uint8Array` object.
 
 Returns `napi_ok` if the API succeeded.
 
-This API checks if the `Object` passed in is a buffer.
+This API checks if the `Object` passed in is a buffer or Uint8Array.
+[`napi_is_typedarray`][] should be preferred if the caller needs to check if the
+value is a Uint8Array.
 
 ### `napi_is_date`
 
@@ -6502,11 +6510,13 @@ the add-on's file name during loading.
 [`napi_get_last_error_info`]: #napi_get_last_error_info
 [`napi_get_property`]: #napi_get_property
 [`napi_get_reference_value`]: #napi_get_reference_value
+[`napi_get_typedarray_info`]: #napi_get_typedarray_info
 [`napi_get_value_external`]: #napi_get_value_external
 [`napi_has_property`]: #napi_has_property
 [`napi_instanceof`]: #napi_instanceof
 [`napi_is_error`]: #napi_is_error
 [`napi_is_exception_pending`]: #napi_is_exception_pending
+[`napi_is_typedarray`]: #napi_is_typedarray
 [`napi_make_callback`]: #napi_make_callback
 [`napi_open_callback_scope`]: #napi_open_callback_scope
 [`napi_open_escapable_handle_scope`]: #napi_open_escapable_handle_scope

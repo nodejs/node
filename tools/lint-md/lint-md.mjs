@@ -1,11 +1,10 @@
 import fs from 'fs';
-import path$1 from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
-import proc from 'process';
-import fs$1 from 'node:fs';
-import path$2 from 'node:path';
+import path$2 from 'path';
+import { pathToFileURL } from 'url';
+import path$1 from 'node:path';
 import process$1 from 'node:process';
-import { fileURLToPath as fileURLToPath$1 } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import fs$1 from 'node:fs';
 import os from 'node:os';
 import tty from 'node:tty';
 
@@ -20,18 +19,6 @@ var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof win
 function getDefaultExportFromCjs (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
-
-/*!
- * Determine if an object is a Buffer
- *
- * @author   Feross Aboukhadijeh <https://feross.org>
- * @license  MIT
- */
-var isBuffer = function isBuffer (obj) {
-  return obj != null && obj.constructor != null &&
-    typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
-};
-var isBuffer$1 = getDefaultExportFromCjs(isBuffer);
 
 var hasOwn = Object.prototype.hasOwnProperty;
 var toStr = Object.prototype.toString;
@@ -206,83 +193,111 @@ function wrap(middleware, callback) {
   }
 }
 
-function stringifyPosition$1(value) {
+function stringifyPosition$3(value) {
   if (!value || typeof value !== 'object') {
     return ''
   }
   if ('position' in value || 'type' in value) {
-    return position$1(value.position)
+    return position$3(value.position)
   }
   if ('start' in value || 'end' in value) {
-    return position$1(value)
+    return position$3(value)
   }
   if ('line' in value || 'column' in value) {
-    return point$3(value)
+    return point$5(value)
   }
   return ''
 }
-function point$3(point) {
-  return index$1(point && point.line) + ':' + index$1(point && point.column)
+function point$5(point) {
+  return index$3(point && point.line) + ':' + index$3(point && point.column)
 }
-function position$1(pos) {
-  return point$3(pos && pos.start) + '-' + point$3(pos && pos.end)
+function position$3(pos) {
+  return point$5(pos && pos.start) + '-' + point$5(pos && pos.end)
 }
-function index$1(value) {
+function index$3(value) {
   return value && typeof value === 'number' ? value : 1
 }
 
 let VFileMessage$1 = class VFileMessage extends Error {
-  constructor(reason, place, origin) {
-    const parts = [null, null];
-    let position = {
-      start: {line: null, column: null},
-      end: {line: null, column: null}
-    };
+  constructor(causeOrReason, optionsOrParentOrPlace, origin) {
     super();
-    if (typeof place === 'string') {
-      origin = place;
-      place = undefined;
+    if (typeof optionsOrParentOrPlace === 'string') {
+      origin = optionsOrParentOrPlace;
+      optionsOrParentOrPlace = undefined;
     }
-    if (typeof origin === 'string') {
+    let reason = '';
+    let options = {};
+    let legacyCause = false;
+    if (optionsOrParentOrPlace) {
+      if (
+        'line' in optionsOrParentOrPlace &&
+        'column' in optionsOrParentOrPlace
+      ) {
+        options = {place: optionsOrParentOrPlace};
+      }
+      else if (
+        'start' in optionsOrParentOrPlace &&
+        'end' in optionsOrParentOrPlace
+      ) {
+        options = {place: optionsOrParentOrPlace};
+      }
+      else if ('type' in optionsOrParentOrPlace) {
+        options = {
+          ancestors: [optionsOrParentOrPlace],
+          place: optionsOrParentOrPlace.position
+        };
+      }
+      else {
+        options = {...optionsOrParentOrPlace};
+      }
+    }
+    if (typeof causeOrReason === 'string') {
+      reason = causeOrReason;
+    }
+    else if (!options.cause && causeOrReason) {
+      legacyCause = true;
+      reason = causeOrReason.message;
+      options.cause = causeOrReason;
+    }
+    if (!options.ruleId && !options.source && typeof origin === 'string') {
       const index = origin.indexOf(':');
       if (index === -1) {
-        parts[1] = origin;
+        options.ruleId = origin;
       } else {
-        parts[0] = origin.slice(0, index);
-        parts[1] = origin.slice(index + 1);
+        options.source = origin.slice(0, index);
+        options.ruleId = origin.slice(index + 1);
       }
     }
-    if (place) {
-      if ('type' in place || 'position' in place) {
-        if (place.position) {
-          position = place.position;
-        }
-      }
-      else if ('start' in place || 'end' in place) {
-        position = place;
-      }
-      else if ('line' in place || 'column' in place) {
-        position.start = place;
+    if (!options.place && options.ancestors && options.ancestors) {
+      const parent = options.ancestors[options.ancestors.length - 1];
+      if (parent) {
+        options.place = parent.position;
       }
     }
-    this.name = stringifyPosition$1(place) || '1:1';
-    this.message = typeof reason === 'object' ? reason.message : reason;
-    this.stack = '';
-    if (typeof reason === 'object' && reason.stack) {
-      this.stack = reason.stack;
-    }
-    this.reason = this.message;
-    this.fatal;
-    this.line = position.start.line;
-    this.column = position.start.column;
-    this.position = position;
-    this.source = parts[0];
-    this.ruleId = parts[1];
+    const start =
+      options.place && 'start' in options.place
+        ? options.place.start
+        : options.place;
+    this.ancestors = options.ancestors || undefined;
+    this.cause = options.cause || undefined;
+    this.column = start ? start.column : undefined;
+    this.fatal = undefined;
     this.file;
+    this.message = reason;
+    this.line = start ? start.line : undefined;
+    this.name = stringifyPosition$3(options.place) || '1:1';
+    this.place = options.place || undefined;
+    this.reason = this.message;
+    this.ruleId = options.ruleId || undefined;
+    this.source = options.source || undefined;
+    this.stack =
+      legacyCause && options.cause && typeof options.cause.stack === 'string'
+        ? options.cause.stack
+        : '';
     this.actual;
     this.expected;
-    this.url;
     this.note;
+    this.url;
   }
 };
 VFileMessage$1.prototype.file = '';
@@ -290,43 +305,55 @@ VFileMessage$1.prototype.name = '';
 VFileMessage$1.prototype.reason = '';
 VFileMessage$1.prototype.message = '';
 VFileMessage$1.prototype.stack = '';
-VFileMessage$1.prototype.fatal = null;
-VFileMessage$1.prototype.column = null;
-VFileMessage$1.prototype.line = null;
-VFileMessage$1.prototype.source = null;
-VFileMessage$1.prototype.ruleId = null;
-VFileMessage$1.prototype.position = null;
+VFileMessage$1.prototype.column = undefined;
+VFileMessage$1.prototype.line = undefined;
+VFileMessage$1.prototype.ancestors = undefined;
+VFileMessage$1.prototype.cause = undefined;
+VFileMessage$1.prototype.fatal = undefined;
+VFileMessage$1.prototype.place = undefined;
+VFileMessage$1.prototype.ruleId = undefined;
+VFileMessage$1.prototype.source = undefined;
 
 function isUrl$1(fileUrlOrPath) {
-  return (
+  return Boolean(
     fileUrlOrPath !== null &&
-    typeof fileUrlOrPath === 'object' &&
-    fileUrlOrPath.href &&
-    fileUrlOrPath.origin
+      typeof fileUrlOrPath === 'object' &&
+      'href' in fileUrlOrPath &&
+      fileUrlOrPath.href &&
+      'protocol' in fileUrlOrPath &&
+      fileUrlOrPath.protocol &&
+      fileUrlOrPath.auth === undefined
   )
 }
 
-const order$1 = ['history', 'path', 'basename', 'stem', 'extname', 'dirname'];
+const order$1 =  ([
+  'history',
+  'path',
+  'basename',
+  'stem',
+  'extname',
+  'dirname'
+]);
 let VFile$1 = class VFile {
   constructor(value) {
     let options;
     if (!value) {
       options = {};
-    } else if (typeof value === 'string' || buffer(value)) {
-      options = {value};
     } else if (isUrl$1(value)) {
       options = {path: value};
+    } else if (typeof value === 'string' || isUint8Array$3(value)) {
+      options = {value};
     } else {
       options = value;
     }
+    this.cwd = process$1.cwd();
     this.data = {};
-    this.messages = [];
     this.history = [];
-    this.cwd = proc.cwd();
+    this.messages = [];
     this.value;
-    this.stored;
-    this.result;
     this.map;
+    this.result;
+    this.stored;
     let index = -1;
     while (++index < order$1.length) {
       const prop = order$1[index];
@@ -345,6 +372,37 @@ let VFile$1 = class VFile {
       }
     }
   }
+  get basename() {
+    return typeof this.path === 'string' ? path$1.basename(this.path) : undefined
+  }
+  set basename(basename) {
+    assertNonEmpty$1(basename, 'basename');
+    assertPart$1(basename, 'basename');
+    this.path = path$1.join(this.dirname || '', basename);
+  }
+  get dirname() {
+    return typeof this.path === 'string' ? path$1.dirname(this.path) : undefined
+  }
+  set dirname(dirname) {
+    assertPath$1(this.basename, 'dirname');
+    this.path = path$1.join(dirname || '', this.basename);
+  }
+  get extname() {
+    return typeof this.path === 'string' ? path$1.extname(this.path) : undefined
+  }
+  set extname(extname) {
+    assertPart$1(extname, 'extname');
+    assertPath$1(this.dirname, 'extname');
+    if (extname) {
+      if (extname.codePointAt(0) !== 46 ) {
+        throw new Error('`extname` must start with `.`')
+      }
+      if (extname.includes('.', 1)) {
+        throw new Error('`extname` cannot contain multiple dots')
+      }
+    }
+    this.path = path$1.join(this.dirname, this.stem + (extname || ''));
+  }
   get path() {
     return this.history[this.history.length - 1]
   }
@@ -357,37 +415,6 @@ let VFile$1 = class VFile {
       this.history.push(path);
     }
   }
-  get dirname() {
-    return typeof this.path === 'string' ? path$1.dirname(this.path) : undefined
-  }
-  set dirname(dirname) {
-    assertPath$1(this.basename, 'dirname');
-    this.path = path$1.join(dirname || '', this.basename);
-  }
-  get basename() {
-    return typeof this.path === 'string' ? path$1.basename(this.path) : undefined
-  }
-  set basename(basename) {
-    assertNonEmpty$1(basename, 'basename');
-    assertPart$1(basename, 'basename');
-    this.path = path$1.join(this.dirname || '', basename);
-  }
-  get extname() {
-    return typeof this.path === 'string' ? path$1.extname(this.path) : undefined
-  }
-  set extname(extname) {
-    assertPart$1(extname, 'extname');
-    assertPath$1(this.dirname, 'extname');
-    if (extname) {
-      if (extname.charCodeAt(0) !== 46 ) {
-        throw new Error('`extname` must start with `.`')
-      }
-      if (extname.includes('.', 1)) {
-        throw new Error('`extname` cannot contain multiple dots')
-      }
-    }
-    this.path = path$1.join(this.dirname, this.stem + (extname || ''));
-  }
   get stem() {
     return typeof this.path === 'string'
       ? path$1.basename(this.path, this.extname)
@@ -398,11 +425,22 @@ let VFile$1 = class VFile {
     assertPart$1(stem, 'stem');
     this.path = path$1.join(this.dirname || '', stem + (this.extname || ''));
   }
-  toString(encoding) {
-    return (this.value || '').toString(encoding || undefined)
+  fail(causeOrReason, optionsOrParentOrPlace, origin) {
+    const message = this.message(causeOrReason, optionsOrParentOrPlace, origin);
+    message.fatal = true;
+    throw message
   }
-  message(reason, place, origin) {
-    const message = new VFileMessage$1(reason, place, origin);
+  info(causeOrReason, optionsOrParentOrPlace, origin) {
+    const message = this.message(causeOrReason, optionsOrParentOrPlace, origin);
+    message.fatal = undefined;
+    return message
+  }
+  message(causeOrReason, optionsOrParentOrPlace, origin) {
+    const message = new VFileMessage$1(
+      causeOrReason,
+      optionsOrParentOrPlace,
+      origin
+    );
     if (this.path) {
       message.name = this.path + ':' + message.name;
       message.file = this.path;
@@ -411,15 +449,15 @@ let VFile$1 = class VFile {
     this.messages.push(message);
     return message
   }
-  info(reason, place, origin) {
-    const message = this.message(reason, place, origin);
-    message.fatal = null;
-    return message
-  }
-  fail(reason, place, origin) {
-    const message = this.message(reason, place, origin);
-    message.fatal = true;
-    throw message
+  toString(encoding) {
+    if (this.value === undefined) {
+      return ''
+    }
+    if (typeof this.value === 'string') {
+      return this.value
+    }
+    const decoder = new TextDecoder(encoding || undefined);
+    return decoder.decode(this.value)
   }
 };
 function assertPart$1(part, name) {
@@ -439,82 +477,218 @@ function assertPath$1(path, name) {
     throw new Error('Setting `' + name + '` requires `path` to be set too')
   }
 }
-function buffer(value) {
-  return isBuffer$1(value)
+function isUint8Array$3(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'byteLength' in value &&
+      'byteOffset' in value
+  )
 }
 
-const unified = base().freeze();
+const CallableInstance =
+  (
+    (
+      function (property) {
+        const self = this;
+        const constr = self.constructor;
+        const proto =  (
+          constr.prototype
+        );
+        const func = proto[property];
+        const apply = function () {
+          return func.apply(apply, arguments)
+        };
+        Object.setPrototypeOf(apply, proto);
+        const names = Object.getOwnPropertyNames(func);
+        for (const p of names) {
+          const descriptor = Object.getOwnPropertyDescriptor(func, p);
+          if (descriptor) Object.defineProperty(apply, p, descriptor);
+        }
+        return apply
+      }
+    )
+  );
+
 const own$6 = {}.hasOwnProperty;
-function base() {
-  const transformers = trough();
-  const attachers = [];
-  let namespace = {};
-  let frozen;
-  let freezeIndex = -1;
-  processor.data = data;
-  processor.Parser = undefined;
-  processor.Compiler = undefined;
-  processor.freeze = freeze;
-  processor.attachers = attachers;
-  processor.use = use;
-  processor.parse = parse;
-  processor.stringify = stringify;
-  processor.run = run;
-  processor.runSync = runSync;
-  processor.process = process;
-  processor.processSync = processSync;
-  return processor
-  function processor() {
-    const destination = base();
+class Processor extends CallableInstance {
+  constructor() {
+    super('copy');
+    this.Compiler = undefined;
+    this.Parser = undefined;
+    this.attachers = [];
+    this.compiler = undefined;
+    this.freezeIndex = -1;
+    this.frozen = undefined;
+    this.namespace = {};
+    this.parser = undefined;
+    this.transformers = trough();
+  }
+  copy() {
+    const destination =
+       (
+        new Processor()
+      );
     let index = -1;
-    while (++index < attachers.length) {
-      destination.use(...attachers[index]);
+    while (++index < this.attachers.length) {
+      const attacher = this.attachers[index];
+      destination.use(...attacher);
     }
-    destination.data(extend$2(true, {}, namespace));
+    destination.data(extend$2(true, {}, this.namespace));
     return destination
   }
-  function data(key, value) {
+  data(key, value) {
     if (typeof key === 'string') {
       if (arguments.length === 2) {
-        assertUnfrozen('data', frozen);
-        namespace[key] = value;
-        return processor
+        assertUnfrozen('data', this.frozen);
+        this.namespace[key] = value;
+        return this
       }
-      return (own$6.call(namespace, key) && namespace[key]) || null
+      return (own$6.call(this.namespace, key) && this.namespace[key]) || undefined
     }
     if (key) {
-      assertUnfrozen('data', frozen);
-      namespace = key;
-      return processor
+      assertUnfrozen('data', this.frozen);
+      this.namespace = key;
+      return this
     }
-    return namespace
+    return this.namespace
   }
-  function freeze() {
-    if (frozen) {
-      return processor
+  freeze() {
+    if (this.frozen) {
+      return this
     }
-    while (++freezeIndex < attachers.length) {
-      const [attacher, ...options] = attachers[freezeIndex];
+    const self =  ( (this));
+    while (++this.freezeIndex < this.attachers.length) {
+      const [attacher, ...options] = this.attachers[this.freezeIndex];
       if (options[0] === false) {
         continue
       }
       if (options[0] === true) {
         options[0] = undefined;
       }
-      const transformer = attacher.call(processor, ...options);
+      const transformer = attacher.call(self, ...options);
       if (typeof transformer === 'function') {
-        transformers.use(transformer);
+        this.transformers.use(transformer);
       }
     }
-    frozen = true;
-    freezeIndex = Number.POSITIVE_INFINITY;
-    return processor
+    this.frozen = true;
+    this.freezeIndex = Number.POSITIVE_INFINITY;
+    return this
   }
-  function use(value, ...options) {
-    let settings;
-    assertUnfrozen('use', frozen);
+  parse(file) {
+    this.freeze();
+    const realFile = vfile(file);
+    const parser = this.parser || this.Parser;
+    assertParser('parse', parser);
+    return parser(String(realFile), realFile)
+  }
+  process(file, done) {
+    const self = this;
+    this.freeze();
+    assertParser('process', this.parser || this.Parser);
+    assertCompiler('process', this.compiler || this.Compiler);
+    return done ? executor(undefined, done) : new Promise(executor)
+    function executor(resolve, reject) {
+      const realFile = vfile(file);
+      const parseTree =
+         (
+           (self.parse(realFile))
+        );
+      self.run(parseTree, realFile, function (error, tree, file) {
+        if (error || !tree || !file) {
+          return realDone(error)
+        }
+        const compileTree =
+           (
+             (tree)
+          );
+        const compileResult = self.stringify(compileTree, file);
+        if (looksLikeAValue(compileResult)) {
+          file.value = compileResult;
+        } else {
+          file.result = compileResult;
+        }
+        realDone(error,  (file));
+      });
+      function realDone(error, file) {
+        if (error || !file) {
+          reject(error);
+        } else if (resolve) {
+          resolve(file);
+        } else {
+          done(undefined, file);
+        }
+      }
+    }
+  }
+  processSync(file) {
+    let complete = false;
+    let result;
+    this.freeze();
+    assertParser('processSync', this.parser || this.Parser);
+    assertCompiler('processSync', this.compiler || this.Compiler);
+    this.process(file, realDone);
+    assertDone('processSync', 'process', complete);
+    return result
+    function realDone(error, file) {
+      complete = true;
+      bail(error);
+      result = file;
+    }
+  }
+  run(tree, file, done) {
+    assertNode(tree);
+    this.freeze();
+    const transformers = this.transformers;
+    if (!done && typeof file === 'function') {
+      done = file;
+      file = undefined;
+    }
+    return done ? executor(undefined, done) : new Promise(executor)
+    function executor(resolve, reject) {
+      const realFile = vfile(file);
+      transformers.run(tree, realFile, realDone);
+      function realDone(error, outputTree, file) {
+        const resultingTree =
+           (
+            outputTree || tree
+          );
+        if (error) {
+          reject(error);
+        } else if (resolve) {
+          resolve(resultingTree);
+        } else {
+          done(undefined, resultingTree, file);
+        }
+      }
+    }
+  }
+  runSync(tree, file) {
+    let complete = false;
+    let result;
+    this.run(tree, file, realDone);
+    assertDone('runSync', 'run', complete);
+    return result
+    function realDone(error, tree) {
+      bail(error);
+      result = tree;
+      complete = true;
+    }
+  }
+  stringify(tree, file) {
+    this.freeze();
+    const realFile = vfile(file);
+    const compiler = this.compiler || this.Compiler;
+    assertCompiler('stringify', compiler);
+    assertNode(tree);
+    return compiler(tree, realFile)
+  }
+  use(value, ...parameters) {
+    const attachers = this.attachers;
+    const namespace = this.namespace;
+    assertUnfrozen('use', this.frozen);
     if (value === null || value === undefined) ; else if (typeof value === 'function') {
-      addPlugin(value, ...options);
+      addPlugin(value, parameters);
     } else if (typeof value === 'object') {
       if (Array.isArray(value)) {
         addList(value);
@@ -524,17 +698,15 @@ function base() {
     } else {
       throw new TypeError('Expected usable value, not `' + value + '`')
     }
-    if (settings) {
-      namespace.settings = Object.assign(namespace.settings || {}, settings);
-    }
-    return processor
+    return this
     function add(value) {
       if (typeof value === 'function') {
-        addPlugin(value);
+        addPlugin(value, []);
       } else if (typeof value === 'object') {
         if (Array.isArray(value)) {
-          const [plugin, ...options] = value;
-          addPlugin(plugin, ...options);
+          const [plugin, ...parameters] =
+             (value);
+          addPlugin(plugin, parameters);
         } else {
           addPreset(value);
         }
@@ -543,9 +715,14 @@ function base() {
       }
     }
     function addPreset(result) {
+      if (!('plugins' in result) && !('settings' in result)) {
+        throw new Error(
+          'Expected usable value but received an empty preset, which is probably a mistake: presets typically come with `plugins` and sometimes with `settings`, but this has neither'
+        )
+      }
       addList(result.plugins);
       if (result.settings) {
-        settings = Object.assign(settings || {}, result.settings);
+        namespace.settings = extend$2(true, namespace.settings, result.settings);
       }
     }
     function addList(plugins) {
@@ -559,156 +736,38 @@ function base() {
         throw new TypeError('Expected a list of plugins, not `' + plugins + '`')
       }
     }
-    function addPlugin(plugin, value) {
+    function addPlugin(plugin, parameters) {
       let index = -1;
-      let entry;
+      let entryIndex = -1;
       while (++index < attachers.length) {
         if (attachers[index][0] === plugin) {
-          entry = attachers[index];
+          entryIndex = index;
           break
         }
       }
-      if (entry) {
-        if (isPlainObject(entry[1]) && isPlainObject(value)) {
-          value = extend$2(true, entry[1], value);
+      if (entryIndex === -1) {
+        attachers.push([plugin, ...parameters]);
+      }
+      else if (parameters.length > 0) {
+        let [primary, ...rest] = parameters;
+        const currentPrimary = attachers[entryIndex][1];
+        if (isPlainObject(currentPrimary) && isPlainObject(primary)) {
+          primary = extend$2(true, currentPrimary, primary);
         }
-        entry[1] = value;
-      } else {
-        attachers.push([...arguments]);
+        attachers[entryIndex] = [plugin, primary, ...rest];
       }
     }
   }
-  function parse(doc) {
-    processor.freeze();
-    const file = vfile(doc);
-    const Parser = processor.Parser;
-    assertParser('parse', Parser);
-    if (newable(Parser, 'parse')) {
-      return new Parser(String(file), file).parse()
-    }
-    return Parser(String(file), file)
-  }
-  function stringify(node, doc) {
-    processor.freeze();
-    const file = vfile(doc);
-    const Compiler = processor.Compiler;
-    assertCompiler('stringify', Compiler);
-    assertNode(node);
-    if (newable(Compiler, 'compile')) {
-      return new Compiler(node, file).compile()
-    }
-    return Compiler(node, file)
-  }
-  function run(node, doc, callback) {
-    assertNode(node);
-    processor.freeze();
-    if (!callback && typeof doc === 'function') {
-      callback = doc;
-      doc = undefined;
-    }
-    if (!callback) {
-      return new Promise(executor)
-    }
-    executor(null, callback);
-    function executor(resolve, reject) {
-      transformers.run(node, vfile(doc), done);
-      function done(error, tree, file) {
-        tree = tree || node;
-        if (error) {
-          reject(error);
-        } else if (resolve) {
-          resolve(tree);
-        } else {
-          callback(null, tree, file);
-        }
-      }
-    }
-  }
-  function runSync(node, file) {
-    let result;
-    let complete;
-    processor.run(node, file, done);
-    assertDone('runSync', 'run', complete);
-    return result
-    function done(error, tree) {
-      bail(error);
-      result = tree;
-      complete = true;
-    }
-  }
-  function process(doc, callback) {
-    processor.freeze();
-    assertParser('process', processor.Parser);
-    assertCompiler('process', processor.Compiler);
-    if (!callback) {
-      return new Promise(executor)
-    }
-    executor(null, callback);
-    function executor(resolve, reject) {
-      const file = vfile(doc);
-      processor.run(processor.parse(file), file, (error, tree, file) => {
-        if (error || !tree || !file) {
-          done(error);
-        } else {
-          const result = processor.stringify(tree, file);
-          if (result === undefined || result === null) ; else if (looksLikeAVFileValue(result)) {
-            file.value = result;
-          } else {
-            file.result = result;
-          }
-          done(error, file);
-        }
-      });
-      function done(error, file) {
-        if (error || !file) {
-          reject(error);
-        } else if (resolve) {
-          resolve(file);
-        } else {
-          callback(null, file);
-        }
-      }
-    }
-  }
-  function processSync(doc) {
-    let complete;
-    processor.freeze();
-    assertParser('processSync', processor.Parser);
-    assertCompiler('processSync', processor.Compiler);
-    const file = vfile(doc);
-    processor.process(file, done);
-    assertDone('processSync', 'process', complete);
-    return file
-    function done(error) {
-      complete = true;
-      bail(error);
-    }
-  }
 }
-function newable(value, name) {
-  return (
-    typeof value === 'function' &&
-    value.prototype &&
-    (keys(value.prototype) || name in value.prototype)
-  )
-}
-function keys(value) {
-  let key;
-  for (key in value) {
-    if (own$6.call(value, key)) {
-      return true
-    }
-  }
-  return false
-}
+const unified = new Processor().freeze();
 function assertParser(name, value) {
   if (typeof value !== 'function') {
-    throw new TypeError('Cannot `' + name + '` without `Parser`')
+    throw new TypeError('Cannot `' + name + '` without `parser`')
   }
 }
 function assertCompiler(name, value) {
   if (typeof value !== 'function') {
-    throw new TypeError('Cannot `' + name + '` without `Compiler`')
+    throw new TypeError('Cannot `' + name + '` without `compiler`')
   }
 }
 function assertUnfrozen(name, frozen) {
@@ -743,8 +802,16 @@ function looksLikeAVFile$1(value) {
       'messages' in value
   )
 }
-function looksLikeAVFileValue(value) {
-  return typeof value === 'string' || isBuffer$1(value)
+function looksLikeAValue(value) {
+  return typeof value === 'string' || isUint8Array$2(value)
+}
+function isUint8Array$2(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'byteLength' in value &&
+      'byteOffset' in value
+  )
 }
 
 const emptyOptions = {};
@@ -7123,6 +7190,31 @@ function decode($0, $1, $2) {
   return decodeNamedCharacterReference($2) || $0
 }
 
+function stringifyPosition$2(value) {
+  if (!value || typeof value !== 'object') {
+    return ''
+  }
+  if ('position' in value || 'type' in value) {
+    return position$2(value.position)
+  }
+  if ('start' in value || 'end' in value) {
+    return position$2(value)
+  }
+  if ('line' in value || 'column' in value) {
+    return point$4(value)
+  }
+  return ''
+}
+function point$4(point) {
+  return index$2(point && point.line) + ':' + index$2(point && point.column)
+}
+function position$2(pos) {
+  return point$4(pos && pos.start) + '-' + point$4(pos && pos.end)
+}
+function index$2(value) {
+  return value && typeof value === 'number' ? value : 1
+}
+
 const own$4 = {}.hasOwnProperty;
 const fromMarkdown =
   function (value, encoding, options) {
@@ -7289,7 +7381,7 @@ function compiler(options) {
       handler.call(context, undefined, tail[0]);
     }
     tree.position = {
-      start: point$2(
+      start: point$3(
         events.length > 0
           ? events[0][1].start
           : {
@@ -7298,7 +7390,7 @@ function compiler(options) {
               offset: 0
             }
       ),
-      end: point$2(
+      end: point$3(
         events.length > 0
           ? events[events.length - 2][1].end
           : {
@@ -7448,7 +7540,7 @@ function compiler(options) {
     this.stack.push(node);
     this.tokenStack.push([token, errorHandler]);
     node.position = {
-      start: point$2(token.start)
+      start: point$3(token.start)
     };
     return node
   }
@@ -7467,7 +7559,7 @@ function compiler(options) {
         'Cannot close `' +
           token.type +
           '` (' +
-          stringifyPosition$1({
+          stringifyPosition$2({
             start: token.start,
             end: token.end
           }) +
@@ -7481,7 +7573,7 @@ function compiler(options) {
         handler.call(this, token, open[0]);
       }
     }
-    node.position.end = point$2(token.end);
+    node.position.end = point$3(token.end);
     return node
   }
   function resume() {
@@ -7564,7 +7656,7 @@ function compiler(options) {
     if (!tail || tail.type !== 'text') {
       tail = text();
       tail.position = {
-        start: point$2(token.start)
+        start: point$3(token.start)
       };
       node.children.push(tail);
     }
@@ -7573,13 +7665,13 @@ function compiler(options) {
   function onexitdata(token) {
     const tail = this.stack.pop();
     tail.value += this.sliceSerialize(token);
-    tail.position.end = point$2(token.end);
+    tail.position.end = point$3(token.end);
   }
   function onexitlineending(token) {
     const context = this.stack[this.stack.length - 1];
     if (getData('atHardBreak')) {
       const tail = context.children[context.children.length - 1];
-      tail.position.end = point$2(token.end);
+      tail.position.end = point$3(token.end);
       setData('atHardBreak');
       return
     }
@@ -7699,7 +7791,7 @@ function compiler(options) {
     }
     const tail = this.stack.pop();
     tail.value += value;
-    tail.position.end = point$2(token.end);
+    tail.position.end = point$3(token.end);
   }
   function onexitautolinkprotocol(token) {
     onexitdata.call(this, token);
@@ -7821,7 +7913,7 @@ function compiler(options) {
     }
   }
 }
-function point$2(d) {
+function point$3(d) {
   return {
     line: d.line,
     column: d.column,
@@ -7868,14 +7960,14 @@ function defaultOnError(left, right) {
       'Cannot close `' +
         left.type +
         '` (' +
-        stringifyPosition$1({
+        stringifyPosition$2({
           start: left.start,
           end: left.end
         }) +
         '): a different token (`' +
         right.type +
         '`, ' +
-        stringifyPosition$1({
+        stringifyPosition$2({
           start: right.start,
           end: right.end
         }) +
@@ -7886,7 +7978,7 @@ function defaultOnError(left, right) {
       'Cannot close document, a token (`' +
         right.type +
         '`, ' +
-        stringifyPosition$1({
+        stringifyPosition$2({
           start: right.start,
           end: right.end
         }) +
@@ -12767,9 +12859,9 @@ const remarkLintListItemBulletIndent = lintRule(
 );
 var remarkLintListItemBulletIndent$1 = remarkLintListItemBulletIndent;
 
-const pointStart = point$1('start');
-const pointEnd = point$1('end');
-function point$1(type) {
+const pointStart = point$2('start');
+const pointEnd = point$2('end');
+function point$2(type) {
   return point
   function point(node) {
     const point = (node && node.position && node.position[type]) || {};
@@ -13396,7 +13488,7 @@ const remarkLintNoDuplicateDefinitions = lintRule(
             node
           );
         }
-        map[identifier] = stringifyPosition$1(pointStart(node));
+        map[identifier] = stringifyPosition$2(pointStart(node));
       }
     });
   }
@@ -15965,7 +16057,7 @@ const remarkLintNoMultipleToplevelHeadings = lintRule(
             node
           );
         } else {
-          duplicate = stringifyPosition$1(pointStart(node));
+          duplicate = stringifyPosition$2(pointStart(node));
         }
       }
     });
@@ -16662,7 +16754,7 @@ function* getLinksRecursively(node) {
   }
 }
 function validateLinks(tree, vfile) {
-  const currentFileURL = pathToFileURL(path$1.join(vfile.cwd, vfile.path));
+  const currentFileURL = pathToFileURL(path$2.join(vfile.cwd, vfile.path));
   let previousDefinitionLabel;
   for (const node of getLinksRecursively(tree)) {
     if (node.url[0] !== "#") {
@@ -21053,28 +21145,28 @@ const settings = {
 };
 const remarkPresetLintNode = { plugins, settings };
 
-function stringifyPosition(value) {
+function stringifyPosition$1(value) {
   if (!value || typeof value !== 'object') {
     return ''
   }
   if ('position' in value || 'type' in value) {
-    return position(value.position)
+    return position$1(value.position)
   }
   if ('start' in value || 'end' in value) {
-    return position(value)
+    return position$1(value)
   }
   if ('line' in value || 'column' in value) {
-    return point(value)
+    return point$1(value)
   }
   return ''
 }
-function point(point) {
-  return index(point && point.line) + ':' + index(point && point.column)
+function point$1(point) {
+  return index$1(point && point.line) + ':' + index$1(point && point.column)
 }
-function position(pos) {
-  return point(pos && pos.start) + '-' + point(pos && pos.end)
+function position$1(pos) {
+  return point$1(pos && pos.start) + '-' + point$1(pos && pos.end)
 }
-function index(value) {
+function index$1(value) {
   return value && typeof value === 'number' ? value : 1
 }
 
@@ -21145,7 +21237,7 @@ class VFileMessage extends Error {
     this.file;
     this.message = reason;
     this.line = start ? start.line : undefined;
-    this.name = stringifyPosition(options.place) || '1:1';
+    this.name = stringifyPosition$1(options.place) || '1:1';
     this.place = options.place || undefined;
     this.reason = this.message;
     this.ruleId = options.ruleId || undefined;
@@ -21233,22 +21325,22 @@ class VFile {
     }
   }
   get basename() {
-    return typeof this.path === 'string' ? path$2.basename(this.path) : undefined
+    return typeof this.path === 'string' ? path$1.basename(this.path) : undefined
   }
   set basename(basename) {
     assertNonEmpty(basename, 'basename');
     assertPart(basename, 'basename');
-    this.path = path$2.join(this.dirname || '', basename);
+    this.path = path$1.join(this.dirname || '', basename);
   }
   get dirname() {
-    return typeof this.path === 'string' ? path$2.dirname(this.path) : undefined
+    return typeof this.path === 'string' ? path$1.dirname(this.path) : undefined
   }
   set dirname(dirname) {
     assertPath(this.basename, 'dirname');
-    this.path = path$2.join(dirname || '', this.basename);
+    this.path = path$1.join(dirname || '', this.basename);
   }
   get extname() {
-    return typeof this.path === 'string' ? path$2.extname(this.path) : undefined
+    return typeof this.path === 'string' ? path$1.extname(this.path) : undefined
   }
   set extname(extname) {
     assertPart(extname, 'extname');
@@ -21261,14 +21353,14 @@ class VFile {
         throw new Error('`extname` cannot contain multiple dots')
       }
     }
-    this.path = path$2.join(this.dirname, this.stem + (extname || ''));
+    this.path = path$1.join(this.dirname, this.stem + (extname || ''));
   }
   get path() {
     return this.history[this.history.length - 1]
   }
   set path(path) {
     if (isUrl(path)) {
-      path = fileURLToPath$1(path);
+      path = fileURLToPath(path);
     }
     assertNonEmpty(path, 'path');
     if (this.path !== path) {
@@ -21277,13 +21369,13 @@ class VFile {
   }
   get stem() {
     return typeof this.path === 'string'
-      ? path$2.basename(this.path, this.extname)
+      ? path$1.basename(this.path, this.extname)
       : undefined
   }
   set stem(stem) {
     assertNonEmpty(stem, 'stem');
     assertPart(stem, 'stem');
-    this.path = path$2.join(this.dirname || '', stem + (this.extname || ''));
+    this.path = path$1.join(this.dirname || '', stem + (this.extname || ''));
   }
   fail(causeOrReason, optionsOrParentOrPlace, origin) {
     const message = this.message(causeOrReason, optionsOrParentOrPlace, origin);
@@ -21321,9 +21413,9 @@ class VFile {
   }
 }
 function assertPart(part, name) {
-  if (part && part.includes(path$2.sep)) {
+  if (part && part.includes(path$1.sep)) {
     throw new Error(
-      '`' + name + '` cannot be a path: did not expect `' + path$2.sep + '`'
+      '`' + name + '` cannot be a path: did not expect `' + path$1.sep + '`'
     )
   }
 }
@@ -21362,7 +21454,7 @@ function read(description, options, callback) {
   function executor(resolve, reject) {
     let fp;
     try {
-      fp = path$2.resolve(file.cwd, file.path);
+      fp = path$1.resolve(file.cwd, file.path);
     } catch (error) {
       const exception =  (error);
       return reject(exception)
@@ -21778,6 +21870,31 @@ function stringWidth(string, options) {
 	return width;
 }
 
+function stringifyPosition(value) {
+  if (!value || typeof value !== 'object') {
+    return ''
+  }
+  if ('position' in value || 'type' in value) {
+    return position(value.position)
+  }
+  if ('start' in value || 'end' in value) {
+    return position(value)
+  }
+  if ('line' in value || 'column' in value) {
+    return point(value)
+  }
+  return ''
+}
+function point(point) {
+  return index(point && point.line) + ':' + index(point && point.column)
+}
+function position(pos) {
+  return point(pos && pos.start) + '-' + point(pos && pos.end)
+}
+function index(value) {
+  return value && typeof value === 'number' ? value : 1
+}
+
 function compareFile(a, b) {
   return compareString(a, b, 'path')
 }
@@ -22035,7 +22152,7 @@ function createAncestorsLines(state, ancestors) {
         typeof value.name === 'string'
         ? value.name
         : undefined;
-    const position = stringifyPosition$1(node.position);
+    const position = stringifyPosition(node.position);
     lines.push(
       '    at ' +
         state.yellow +
@@ -22075,9 +22192,24 @@ function createByline(state, stats) {
 }
 function createCauseLines(state, cause) {
   const lines = ['  ' + state.bold + '[cause]' + state.normalIntensity + ':'];
-  const stackLines = (cause.stack || cause.message).split(eol);
-  stackLines[0] = '    ' + stackLines[0];
-  lines.push(...stackLines);
+  let foundReasonableCause = false;
+  if (cause !== null && typeof cause === 'object') {
+    const stackValue =
+      ('stack' in cause ? String(cause.stack) : undefined) ||
+      ('message' in cause ? String(cause.message) : undefined);
+    if (typeof stackValue === 'string') {
+      foundReasonableCause = true;
+      const stackLines = stackValue.split(eol);
+      stackLines[0] = '    ' + stackLines[0];
+      lines.push(...stackLines);
+      if ('cause' in cause && cause.cause) {
+        lines.push(...createCauseLines(state, cause.cause));
+      }
+    }
+  }
+  if (!foundReasonableCause) {
+    lines.push('    ' + cause);
+  }
   return lines
 }
 function createFileLine(state, file) {
@@ -22125,7 +22257,7 @@ function createMessageLine(state, message) {
   }
   const place = message.place || message.position;
   const row = [
-    stringifyPosition$1(place),
+    stringifyPosition(place),
     (label === 'error' ? state.red : state.yellow) + label + state.defaultColor,
     formatReason(state, reason),
     message.ruleId || '',

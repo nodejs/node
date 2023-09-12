@@ -8,34 +8,34 @@ namespace node {
 using v8::NewStringType;
 using v8::String;
 
-std::optional<std::string> Dotenv::GetPathFromArgs(
+std::vector<std::string> Dotenv::GetPathFromArgs(
     const std::vector<std::string>& args) {
-  std::string_view flag = "--env-file";
-  // Match the last `--env-file`
-  // This is required to imitate the default behavior of Node.js CLI argument
-  // matching.
-  auto path =
-      std::find_if(args.rbegin(), args.rend(), [&flag](const std::string& arg) {
-        return strncmp(arg.c_str(), flag.data(), flag.size()) == 0;
-      });
+  const auto find_match = [](const std::string& arg) {
+    const std::string_view flag = "--env-file";
+    return strncmp(arg.c_str(), flag.data(), flag.size()) == 0;
+  };
+  std::vector<std::string> paths;
+  auto path = std::find_if(args.begin(), args.end(), find_match);
 
-  if (path == args.rend()) {
-    return std::nullopt;
+  while (path != args.end()) {
+    auto equal_char = path->find('=');
+
+    if (equal_char != std::string::npos) {
+      paths.push_back(path->substr(equal_char + 1));
+    } else {
+      auto next_path = std::next(path);
+
+      if (next_path == args.end()) {
+        return paths;
+      }
+
+      paths.push_back(*next_path);
+    }
+
+    path = std::find_if(++path, args.end(), find_match);
   }
 
-  auto equal_char = path->find('=');
-
-  if (equal_char != std::string::npos) {
-    return path->substr(equal_char + 1);
-  }
-
-  auto next_arg = std::prev(path);
-
-  if (next_arg == args.rend()) {
-    return std::nullopt;
-  }
-
-  return *next_arg;
+  return paths;
 }
 
 void Dotenv::SetEnvironment(node::Environment* env) {
@@ -48,14 +48,19 @@ void Dotenv::SetEnvironment(node::Environment* env) {
   for (const auto& entry : store_) {
     auto key = entry.first;
     auto value = entry.second;
-    env->env_vars()->Set(
-        isolate,
-        v8::String::NewFromUtf8(
-            isolate, key.data(), NewStringType::kNormal, key.size())
-            .ToLocalChecked(),
-        v8::String::NewFromUtf8(
-            isolate, value.data(), NewStringType::kNormal, value.size())
-            .ToLocalChecked());
+
+    auto existing = env->env_vars()->Get(key.data());
+
+    if (existing.IsNothing()) {
+      env->env_vars()->Set(
+          isolate,
+          v8::String::NewFromUtf8(
+              isolate, key.data(), NewStringType::kNormal, key.size())
+              .ToLocalChecked(),
+          v8::String::NewFromUtf8(
+              isolate, value.data(), NewStringType::kNormal, value.size())
+              .ToLocalChecked());
+    }
   }
 }
 
@@ -158,7 +163,7 @@ void Dotenv::ParseLine(const std::string_view line) {
       value.erase(value.size() - 1);
   }
 
-  store_.emplace(key, value);
+  store_.insert_or_assign(std::string(key), value);
 }
 
 }  // namespace node

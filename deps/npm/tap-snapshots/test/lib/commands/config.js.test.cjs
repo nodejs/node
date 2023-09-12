@@ -30,10 +30,11 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "cafile": null,
   "call": "",
   "cert": null,
-  "ci-name": null,
   "cidr": null,
   "color": true,
   "commit-hooks": true,
+  "cpu": null,
+  "os": null,
   "depth": null,
   "description": true,
   "dev": false,
@@ -147,7 +148,6 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "tag": "latest",
   "tag-version-prefix": "v",
   "timing": false,
-  "tmp": "{TMP}",
   "umask": 0,
   "unicode": false,
   "update-notifier": true,
@@ -161,8 +161,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "workspaces": null,
   "workspaces-update": true,
   "yes": null,
-  "npm-version": "{NPM-VERSION}",
-  "metrics-registry": "https://registry.npmjs.org/"
+  "npm-version": "{NPM-VERSION}"
 }
 `
 
@@ -187,10 +186,10 @@ cache-min = 0
 cafile = null
 call = ""
 cert = null
-ci-name = null
 cidr = null
 color = true
 commit-hooks = true
+cpu = null
 depth = null
 description = true
 dev = false
@@ -254,7 +253,6 @@ logs-max = 10
 ; long = false ; overridden by cli
 maxsockets = 15
 message = "%s"
-metrics-registry = "https://registry.npmjs.org/"
 node-options = null
 noproxy = [""]
 npm-version = "{NPM-VERSION}"
@@ -263,6 +261,7 @@ omit = []
 omit-lockfile-registry-resolved = false
 only = null
 optional = null
+os = null
 otp = null
 pack-destination = "."
 package = []
@@ -306,7 +305,6 @@ strict-ssl = true
 tag = "latest"
 tag-version-prefix = "v"
 timing = false
-tmp = "{TMP}"
 umask = 0
 unicode = false
 update-notifier = true

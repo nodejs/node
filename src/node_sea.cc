@@ -411,7 +411,7 @@ ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
 
 std::optional<std::string> GenerateCodeCache(std::string_view main_path,
                                              std::string_view main_script) {
-  RAIIIsolate raii_isolate;
+  RAIIIsolate raii_isolate(SnapshotBuilder::GetEmbeddedSnapshotData());
   Isolate* isolate = raii_isolate.get();
 
   HandleScope handle_scope(isolate);
@@ -489,14 +489,19 @@ ExitCode GenerateSingleExecutableBlob(
   std::optional<std::string_view> optional_sv_code_cache;
   std::string code_cache;
   if (static_cast<bool>(config.flags & SeaFlags::kUseCodeCache)) {
-    std::optional<std::string> optional_code_cache =
-        GenerateCodeCache(config.main_path, main_script);
-    if (!optional_code_cache.has_value()) {
-      FPrintF(stderr, "Cannot generate V8 code cache\n");
-      return ExitCode::kGenericUserError;
+    if (builds_snapshot_from_main) {
+      FPrintF(stderr,
+              "\"useCodeCache\" is redundant when \"useSnapshot\" is true\n");
+    } else {
+      std::optional<std::string> optional_code_cache =
+          GenerateCodeCache(config.main_path, main_script);
+      if (!optional_code_cache.has_value()) {
+        FPrintF(stderr, "Cannot generate V8 code cache\n");
+        return ExitCode::kGenericUserError;
+      }
+      code_cache = optional_code_cache.value();
+      optional_sv_code_cache = code_cache;
     }
-    code_cache = optional_code_cache.value();
-    optional_sv_code_cache = code_cache;
   }
 
   SeaResource sea{

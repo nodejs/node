@@ -4,6 +4,7 @@
 #define NAPI_EXPERIMENTAL
 #include <js_native_api.h>
 #include "../common.h"
+#include "../entry_point.h"
 #include "test_null.h"
 
 enum length_type { actual_length, auto_length };

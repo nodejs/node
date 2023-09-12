@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Slack Notification
-        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
+        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8  # 2.2.1
         env:
           SLACK_COLOR: '#DE512A'
           SLACK_ICON: https://github.com/nodejs.png?size=48
@@ -34,7 +34,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744  # v3.6.0
         with:
           persist-credentials: false
       - name: Check commit message
@@ -56,7 +56,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Slack Notification
         if: ${{ env.INVALID_COMMIT_MESSAGE }}
-        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
+        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8  # 2.2.1
         env:
           SLACK_COLOR: '#DE512A'
           SLACK_ICON: https://github.com/nodejs.png?size=48

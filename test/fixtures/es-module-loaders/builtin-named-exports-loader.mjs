@@ -1,17 +1,10 @@
-import module from 'module';
+import module from 'node:module';
 import { readFileSync } from 'node:fs';
 
-const GET_BUILTIN = `$__get_builtin_hole_${Date.now()}`;
-
-export function globalPreload() {
-  return `Object.defineProperty(globalThis, ${JSON.stringify(GET_BUILTIN)}, {
-  value: (builtinName) => {
-    return getBuiltin(builtinName);
-  },
-  enumerable: false,
-  configurable: false,
-});
-`;
+/** @type {string} */
+let GET_BUILTIN;
+export function initialize(data) {
+  GET_BUILTIN = data.GET_BUILTIN;
 }
 
 export async function resolve(specifier, context, next) {
@@ -56,7 +49,7 @@ const $builtinInstance = ${GET_BUILTIN}(${JSON.stringify(builtinName)});
 module.exports = $builtinInstance;
 module.exports.__fromLoader = true;
 
-// We need this for CJS-module-lexer can parse the exported names. 
+// We need this for CJS-module-lexer can parse the exported names.
 ${
   builtinExports
     .map(name => `exports.${name} = $builtinInstance.${name};`)

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.20.0](https://github.com/nodejs/corepack/compare/v0.19.0...v0.20.0) (2023-08-29)
+
+
+### Features
+
+* refactor the CLI interface ([#291](https://github.com/nodejs/corepack/issues/291)) ([fe3e5cd](https://github.com/nodejs/corepack/commit/fe3e5cd86c45db0d87c7fdea87d57d59b0bdcb78))
+* update package manager versions ([#292](https://github.com/nodejs/corepack/issues/292)) ([be9c286](https://github.com/nodejs/corepack/commit/be9c286846443ff03081e736fdf4a0ff031fbd38))
+
 ## [0.19.0](https://github.com/nodejs/corepack/compare/v0.18.1...v0.19.0) (2023-06-24)
 
 

@@ -4,12 +4,9 @@ import tmpdir from '../common/tmpdir.js';
 import assert from 'node:assert';
 import fs from 'node:fs/promises';
 import { execPath } from 'node:process';
-import { pathToFileURL } from 'node:url';
 
 tmpdir.refresh();
-const tmpDir = pathToFileURL(tmpdir.path);
-
-const target = new URL(`./${Math.random()}.mjs`, tmpDir);
+const target = tmpdir.fileURL(`${Math.random()}.mjs`);
 
 await assert.rejects(import(target), { code: 'ERR_MODULE_NOT_FOUND' });
 

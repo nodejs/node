@@ -16,7 +16,9 @@ const
     equal = require("fast-deep-equal"),
     Traverser = require("../shared/traverser"),
     { getRuleOptionsSchema } = require("../config/flat-config-helpers"),
-    { Linter, SourceCodeFixer, interpolate } = require("../linter");
+    { Linter, SourceCodeFixer, interpolate } = require("../linter"),
+    CodePath = require("../linter/code-path-analysis/code-path");
+
 const { FlatConfigArray } = require("../config/flat-config-array");
 const { defaultConfig } = require("../config/default-config");
 
@@ -32,6 +34,7 @@ const { ConfigArraySymbol } = require("@humanwhocodes/config-array");
 
 /** @typedef {import("../shared/types").Parser} Parser */
 /** @typedef {import("../shared/types").LanguageOptions} LanguageOptions */
+/** @typedef {import("../shared/types").Rule} Rule */
 
 
 /**
@@ -273,6 +276,21 @@ function getCommentsDeprecation() {
     );
 }
 
+/**
+ * Emit a deprecation warning if rule uses CodePath#currentSegments.
+ * @param {string} ruleName Name of the rule.
+ * @returns {void}
+ */
+function emitCodePathCurrentSegmentsWarning(ruleName) {
+    if (!emitCodePathCurrentSegmentsWarning[`warned-${ruleName}`]) {
+        emitCodePathCurrentSegmentsWarning[`warned-${ruleName}`] = true;
+        process.emitWarning(
+            `"${ruleName}" rule uses CodePath#currentSegments and will stop working in ESLint v9. Please read the documentation for how to update your code: https://eslint.org/docs/latest/extend/code-path-analysis#usage-examples`,
+            "DeprecationWarning"
+        );
+    }
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -446,7 +464,7 @@ class FlatRuleTester {
     /**
      * Adds a new rule test to execute.
      * @param {string} ruleName The name of the rule to run.
-     * @param {Function} rule The rule to test.
+     * @param {Function | Rule} rule The rule to test.
      * @param {{
      *   valid: (ValidTestCase | string)[],
      *   invalid: InvalidTestCase[]
@@ -663,6 +681,7 @@ class FlatRuleTester {
 
             // Verify the code.
             const { getComments } = SourceCode.prototype;
+            const originalCurrentSegments = Object.getOwnPropertyDescriptor(CodePath.prototype, "currentSegments");
             let messages;
 
             // check for validation errors
@@ -676,10 +695,19 @@ class FlatRuleTester {
 
             try {
                 SourceCode.prototype.getComments = getCommentsDeprecation;
+                Object.defineProperty(CodePath.prototype, "currentSegments", {
+                    get() {
+                        emitCodePathCurrentSegmentsWarning(ruleName);
+                        return originalCurrentSegments.get.call(this);
+                    }
+                });
+
                 messages = linter.verify(code, configs, filename);
             } finally {
                 SourceCode.prototype.getComments = getComments;
+                Object.defineProperty(CodePath.prototype, "currentSegments", originalCurrentSegments);
             }
+
 
             const fatalErrorMessage = messages.find(m => m.fatal);
 
@@ -1011,29 +1039,35 @@ class FlatRuleTester {
         /*
          * This creates a mocha test suite and pipes all supplied info through
          * one of the templates above.
+         * The test suites for valid/invalid are created conditionally as
+         * test runners (eg. vitest) fail for empty test suites.
          */
         this.constructor.describe(ruleName, () => {
-            this.constructor.describe("valid", () => {
-                test.valid.forEach(valid => {
-                    this.constructor[valid.only ? "itOnly" : "it"](
-                        sanitize(typeof valid === "object" ? valid.name || valid.code : valid),
-                        () => {
-                            testValidTemplate(valid);
-                        }
-                    );
+            if (test.valid.length > 0) {
+                this.constructor.describe("valid", () => {
+                    test.valid.forEach(valid => {
+                        this.constructor[valid.only ? "itOnly" : "it"](
+                            sanitize(typeof valid === "object" ? valid.name || valid.code : valid),
+                            () => {
+                                testValidTemplate(valid);
+                            }
+                        );
+                    });
                 });
-            });
+            }
 
-            this.constructor.describe("invalid", () => {
-                test.invalid.forEach(invalid => {
-                    this.constructor[invalid.only ? "itOnly" : "it"](
-                        sanitize(invalid.name || invalid.code),
-                        () => {
-                            testInvalidTemplate(invalid);
-                        }
-                    );
+            if (test.invalid.length > 0) {
+                this.constructor.describe("invalid", () => {
+                    test.invalid.forEach(invalid => {
+                        this.constructor[invalid.only ? "itOnly" : "it"](
+                            sanitize(invalid.name || invalid.code),
+                            () => {
+                                testInvalidTemplate(invalid);
+                            }
+                        );
+                    });
                 });
-            });
+            }
         });
     }
 }

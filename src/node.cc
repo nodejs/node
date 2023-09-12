@@ -838,16 +838,24 @@ static ExitCode InitializeNodeWithArgsInternal(
   V8::SetFlagsFromString(NODE_V8_OPTIONS, sizeof(NODE_V8_OPTIONS) - 1);
 #endif
 
+  // Specify this explicitly to avoid being affected by V8 changes to the
+  // default value.
+  V8::SetFlagsFromString("--rehash-snapshot");
+
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
   std::string node_options;
-  auto file_path = node::Dotenv::GetPathFromArgs(*argv);
+  auto file_paths = node::Dotenv::GetPathFromArgs(*argv);
 
-  if (file_path.has_value()) {
-    auto cwd = Environment::GetCwd(Environment::GetExecPath(*argv));
-    std::string path = cwd + kPathSeparator + file_path.value();
+  if (!file_paths.empty()) {
     CHECK(!per_process::v8_initialized);
-    per_process::dotenv_file.ParsePath(path);
+    auto cwd = Environment::GetCwd(Environment::GetExecPath(*argv));
+
+    for (const auto& file_path : file_paths) {
+      std::string path = cwd + kPathSeparator + file_path;
+      per_process::dotenv_file.ParsePath(path);
+    }
+
     per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);
   }
 

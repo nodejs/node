@@ -4,9 +4,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 while (true) {
-  const file = await fs.readFile(path.resolve(tmpdir.path, 'test-runner-concurrency'), 'utf8');
+  const file = await fs.readFile(tmpdir.resolve('test-runner-concurrency'), 'utf8');
   if (file === 'a.mjs') {
-    await fs.writeFile(path.resolve(tmpdir.path, 'test-runner-concurrency'), 'b.mjs');
+    await fs.writeFile(tmpdir.resolve('test-runner-concurrency'), 'b.mjs');
     break;
   }
   await setTimeout(10);

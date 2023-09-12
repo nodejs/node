@@ -156,7 +156,7 @@ static const char* get_fs_func_name_by_type(uv_fs_type req_type) {
     FS_TYPE_TO_NAME(LUTIME, "lutime")
 #undef FS_TYPE_TO_NAME
     default:
-      return "unknow";
+      return "unknown";
   }
 }
 
@@ -457,8 +457,7 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
 
   Local<Value> close_resolver =
       object()->GetInternalField(FileHandle::kClosingPromiseSlot).As<Value>();
-  if (!close_resolver.IsEmpty() && !close_resolver->IsUndefined()) {
-    CHECK(close_resolver->IsPromise());
+  if (close_resolver->IsPromise()) {
     return close_resolver.As<Promise>();
   }
 

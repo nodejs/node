@@ -28,8 +28,8 @@ absolute path, it's resolved as a relative path from the current working
 directory. That path is then resolved by [CommonJS][] module loader. If no
 corresponding file is found, an error is thrown.
 
-If a file is found, its path will be passed to the [ECMAScript module loader][]
-under any of the following conditions:
+If a file is found, its path will be passed to the
+[ES module loader][Modules loaders] under any of the following conditions:
 
 * The program was started with a command-line flag that forces the entry
   point to be loaded with ECMAScript module loader.
@@ -43,9 +43,9 @@ Otherwise, the file is loaded using the CommonJS module loader. See
 
 ### ECMAScript modules loader entry point caveat
 
-When loading [ECMAScript module loader][] loads the program entry point, the `node`
-command will only accept as input only files with `.js`, `.mjs`, or `.cjs`
-extensions; and with `.wasm` extensions when
+When loading, the [ES module loader][Modules loaders] loads the program
+entry point, the `node` command will accept as input only files with `.js`,
+`.mjs`, or `.cjs` extensions; and with `.wasm` extensions when
 [`--experimental-wasm-modules`][] is enabled.
 
 ## Options
@@ -527,7 +527,7 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: REPLACEME
+  - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: synchronous import.meta.resolve made available by default, with
                  the flag retained for enabling the experimental second argument
@@ -550,7 +550,11 @@ changes:
                  `--experimental-loader`.
 -->
 
-Specify the `module` of a custom experimental [ECMAScript module loader][].
+> This flag is discouraged and may be removed in a future version of Node.js.
+> Please use
+> [`--import` with `register()`][module customization hooks: enabling] instead.
+
+Specify the `module` containing exported [module customization hooks][].
 `module` may be any string accepted as an [`import` specifier][].
 
 ### `--experimental-network-imports`
@@ -1003,7 +1007,7 @@ disappear in a non-semver-major release.
 > Stability: 1.1 - Active development
 
 <!-- YAML
-added: REPLACEME
+added: v20.6.0
 -->
 
 Loads environment variables from a file relative to the current directory,
@@ -1011,6 +1015,13 @@ making them available to applications on `process.env`. The [environment
 variables which configure Node.js][environment_variables], such as `NODE_OPTIONS`,
 are parsed and applied. If the same variable is defined in the environment and
 in the file, the value from the environment takes precedence.
+
+You can pass multiple `--env-file` arguments. Subsequent files override
+pre-existing variables defined in previous files.
+
+```bash
+node --env-file=.env --env-file=.development.env index.js
+```
 
 The format of the file should be one line per key-value pair of environment
 variable name and value separated by `=`:
@@ -2644,9 +2655,10 @@ done
 [CommonJS module]: modules.md
 [CustomEvent Web API]: https://dom.spec.whatwg.org/#customevent
 [ECMAScript module]: esm.md#modules-ecmascript-modules
-[ECMAScript module loader]: esm.md#loaders
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [File System Permissions]: permissions.md#file-system-permissions
+[Module customization hooks]: module.md#customization-hooks
+[Module customization hooks: enabling]: module.md#enabling
 [Modules loaders]: packages.md#modules-loaders
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html

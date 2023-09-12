@@ -971,7 +971,7 @@ void SetConstructorFunction(v8::Isolate* isolate,
 // Simple RAII class to spin up a v8::Isolate instance.
 class RAIIIsolate {
  public:
-  RAIIIsolate();
+  explicit RAIIIsolate(const SnapshotData* data = nullptr);
   ~RAIIIsolate();
 
   v8::Isolate* get() const { return isolate_; }

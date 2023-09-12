@@ -387,8 +387,6 @@ For information about the governance of the Node.js project, see
   **Keyhan Vakil** <<kvakil@sylph.kvakil.me>>
 * [legendecas](https://github.com/legendecas) -
   **Chengzhong Wu** <<legendecas@gmail.com>> (he/him)
-* [Leko](https://github.com/Leko) -
-  **Shingo Inoue** <<leko.noor@gmail.com>> (he/him)
 * [linkgoron](https://github.com/linkgoron) -
   **Nitzan Uziely** <<linkgoron@gmail.com>>
 * [LiviaMedeiros](https://github.com/LiviaMedeiros) -
@@ -585,6 +583,8 @@ For information about the governance of the Node.js project, see
   **Kunal Pathak** <<kunal.pathak@microsoft.com>>
 * [lance](https://github.com/lance) -
   **Lance Ball** <<lball@redhat.com>> (he/him)
+* [Leko](https://github.com/Leko) -
+  **Shingo Inoue** <<leko.noor@gmail.com>> (he/him)
 * [lucamaraschi](https://github.com/lucamaraschi) -
   **Luca Maraschi** <<luca.maraschi@gmail.com>> (he/him)
 * [lundibundi](https://github.com/lundibundi) -
@@ -757,6 +757,8 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
   `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`
 * **Ruy Adorno** <<ruyadorno@hotmail.com>>
   `108F52B48DB57BB0CC439B2997B01419BD92F80A`
+* **Ulises Gascón** <<ulisesgascongonzalez@gmail.com>>
+  `A363A499291CBBC940DD62E41F10027AF002F8B0`
 
 To import the full set of trusted release keys (including subkeys possibly used
 to sign releases):
@@ -771,6 +773,7 @@ gpg --keyserver hkps://keys.openpgp.org --recv-keys C4F0DFFF4E8C1A8236409D08E73B
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4
 gpg --keyserver hkps://keys.openpgp.org --recv-keys C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 108F52B48DB57BB0CC439B2997B01419BD92F80A
+gpg --keyserver hkps://keys.openpgp.org --recv-keys A363A499291CBBC940DD62E41F10027AF002F8B0
 ```
 
 See [Verifying binaries](#verifying-binaries) for how to use these keys to

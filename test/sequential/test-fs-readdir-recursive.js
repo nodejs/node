@@ -9,7 +9,7 @@ const tmpdir = require('../common/tmpdir');
 const readdirDir = tmpdir.path;
 
 const fileStructure = [
-  [ 'a', [ 'foo', 'bar' ] ],
+  [ 'a', [ 'a', 'foo', 'bar' ] ],
   [ 'b', [ 'foo', 'bar' ] ],
   [ 'c', [ 'foo', 'bar' ] ],
   [ 'd', [ 'foo', 'bar' ] ],

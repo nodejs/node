@@ -10,7 +10,7 @@ const tmpdir = require('../common/tmpdir');
 const testDir = tmpdir.path;
 
 const fileStructure = [
-  [ 'a', [ 'foo', 'bar' ] ],
+  [ 'a', [ 'a', 'foo', 'bar' ] ],
   [ 'b', [ 'foo', 'bar' ] ],
   [ 'c', [ 'foo', 'bar' ] ],
   [ 'd', [ 'foo', 'bar' ] ],
@@ -91,7 +91,7 @@ fs.symlinkSync(symlinkTargetFile, pathModule.join(symlinksRootPath, 'symlink-src
 fs.symlinkSync(symlinkTargetDir, pathModule.join(symlinksRootPath, 'symlink-src-dir'));
 
 const expected = [
-  'a', 'a/bar', 'a/foo', 'aa', 'aa/bar', 'aa/foo',
+  'a', 'a/a', 'a/bar', 'a/foo', 'aa', 'aa/bar', 'aa/foo',
   'abc', 'abc/def', 'abc/def/bar', 'abc/def/foo', 'abc/ghi', 'abc/ghi/bar', 'abc/ghi/foo',
   'b', 'b/bar', 'b/foo', 'bb', 'bb/bar', 'bb/foo',
   'c', 'c/bar', 'c/foo', 'cc', 'cc/bar', 'cc/foo',
@@ -128,15 +128,18 @@ for (let i = 0; i < expected.length; i++) {
 }
 
 function getDirentPath(dirent) {
-  return pathModule.relative(testDir, dirent.path);
+  return pathModule.relative(testDir, pathModule.join(dirent.path, dirent.name));
 }
 
 function assertDirents(dirents) {
   dirents.sort((a, b) => (getDirentPath(a) < getDirentPath(b) ? -1 : 1));
-  for (const [i, dirent] of dirents.entries()) {
-    assert(dirent instanceof fs.Dirent);
-    assert.strictEqual(getDirentPath(dirent), expected[i]);
-  }
+  assert.deepStrictEqual(
+    dirents.map((dirent) => {
+      assert(dirent instanceof fs.Dirent);
+      return getDirentPath(dirent);
+    }),
+    expected
+  );
 }
 
 function processDirSync(dir) {
