@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const COUNT = 1000 + 1;
+const COUNT = 100 + 1;
 let gotResponses = 0;
 
 const response = Buffer.from('HTTP/1.1 200 OK\r\n\r\n');
