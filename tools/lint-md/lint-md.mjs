@@ -8,214 +8,102 @@ import fs$1 from 'node:fs';
 import os from 'node:os';
 import tty from 'node:tty';
 
-const VOID       = -1;
-const PRIMITIVE  = 0;
-const ARRAY      = 1;
-const OBJECT     = 2;
-const DATE       = 3;
-const REGEXP     = 4;
-const MAP        = 5;
-const SET        = 6;
-const ERROR      = 7;
-const BIGINT     = 8;
-
-const env$1 = typeof self === 'object' ? self : globalThis;
-const deserializer = ($, _) => {
-  const as = (out, index) => {
-    $.set(index, out);
-    return out;
-  };
-  const unpair = index => {
-    if ($.has(index))
-      return $.get(index);
-    const [type, value] = _[index];
-    switch (type) {
-      case PRIMITIVE:
-      case VOID:
-        return as(value, index);
-      case ARRAY: {
-        const arr = as([], index);
-        for (const index of value)
-          arr.push(unpair(index));
-        return arr;
-      }
-      case OBJECT: {
-        const object = as({}, index);
-        for (const [key, index] of value)
-          object[unpair(key)] = unpair(index);
-        return object;
-      }
-      case DATE:
-        return as(new Date(value), index);
-      case REGEXP: {
-        const {source, flags} = value;
-        return as(new RegExp(source, flags), index);
-      }
-      case MAP: {
-        const map = as(new Map, index);
-        for (const [key, index] of value)
-          map.set(unpair(key), unpair(index));
-        return map;
-      }
-      case SET: {
-        const set = as(new Set, index);
-        for (const index of value)
-          set.add(unpair(index));
-        return set;
-      }
-      case ERROR: {
-        const {name, message} = value;
-        return as(new env$1[name](message), index);
-      }
-      case BIGINT:
-        return as(BigInt(value), index);
-      case 'BigInt':
-        return as(Object(BigInt(value)), index);
-    }
-    return as(new env$1[type](value), index);
-  };
-  return unpair;
-};
-const deserialize = serialized => deserializer(new Map, serialized)(0);
-
-const EMPTY = '';
-const {toString: toString$1} = {};
-const {keys} = Object;
-const typeOf = value => {
-  const type = typeof value;
-  if (type !== 'object' || !value)
-    return [PRIMITIVE, type];
-  const asString = toString$1.call(value).slice(8, -1);
-  switch (asString) {
-    case 'Array':
-      return [ARRAY, EMPTY];
-    case 'Object':
-      return [OBJECT, EMPTY];
-    case 'Date':
-      return [DATE, EMPTY];
-    case 'RegExp':
-      return [REGEXP, EMPTY];
-    case 'Map':
-      return [MAP, EMPTY];
-    case 'Set':
-      return [SET, EMPTY];
-  }
-  if (asString.includes('Array'))
-    return [ARRAY, asString];
-  if (asString.includes('Error'))
-    return [ERROR, asString];
-  return [OBJECT, asString];
-};
-const shouldSkip = ([TYPE, type]) => (
-  TYPE === PRIMITIVE &&
-  (type === 'function' || type === 'symbol')
-);
-const serializer = (strict, json, $, _) => {
-  const as = (out, value) => {
-    const index = _.push(out) - 1;
-    $.set(value, index);
-    return index;
-  };
-  const pair = value => {
-    if ($.has(value))
-      return $.get(value);
-    let [TYPE, type] = typeOf(value);
-    switch (TYPE) {
-      case PRIMITIVE: {
-        let entry = value;
-        switch (type) {
-          case 'bigint':
-            TYPE = BIGINT;
-            entry = value.toString();
-            break;
-          case 'function':
-          case 'symbol':
-            if (strict)
-              throw new TypeError('unable to serialize ' + type);
-            entry = null;
-            break;
-          case 'undefined':
-            return as([VOID], value);
-        }
-        return as([TYPE, entry], value);
-      }
-      case ARRAY: {
-        if (type)
-          return as([type, [...value]], value);
-        const arr = [];
-        const index = as([TYPE, arr], value);
-        for (const entry of value)
-          arr.push(pair(entry));
-        return index;
-      }
-      case OBJECT: {
-        if (type) {
-          switch (type) {
-            case 'BigInt':
-              return as([type, value.toString()], value);
-            case 'Boolean':
-            case 'Number':
-            case 'String':
-              return as([type, value.valueOf()], value);
-          }
-        }
-        if (json && ('toJSON' in value))
-          return pair(value.toJSON());
-        const entries = [];
-        const index = as([TYPE, entries], value);
-        for (const key of keys(value)) {
-          if (strict || !shouldSkip(typeOf(value[key])))
-            entries.push([pair(key), pair(value[key])]);
-        }
-        return index;
-      }
-      case DATE:
-        return as([TYPE, value.toISOString()], value);
-      case REGEXP: {
-        const {source, flags} = value;
-        return as([TYPE, {source, flags}], value);
-      }
-      case MAP: {
-        const entries = [];
-        const index = as([TYPE, entries], value);
-        for (const [key, entry] of value) {
-          if (strict || !(shouldSkip(typeOf(key)) || shouldSkip(typeOf(entry))))
-            entries.push([pair(key), pair(entry)]);
-        }
-        return index;
-      }
-      case SET: {
-        const entries = [];
-        const index = as([TYPE, entries], value);
-        for (const entry of value) {
-          if (strict || !shouldSkip(typeOf(entry)))
-            entries.push(pair(entry));
-        }
-        return index;
-      }
-    }
-    const {message} = value;
-    return as([TYPE, {name: type, message}], value);
-  };
-  return pair;
-};
- const serialize$1 = (value, {json, lossy} = {}) => {
-  const _ = [];
-  return serializer(!(json || lossy), !!json, new Map, _)(value), _;
-};
-
-var structuredClone$1 = typeof structuredClone === "function" ?
-  (any, options) => (
-    options && ('json' in options || 'lossy' in options) ?
-      deserialize(serialize$1(any, options)) : structuredClone(any)
-  ) :
-  (any, options) => deserialize(serialize$1(any, options));
-
 function bail(error) {
   if (error) {
     throw error
   }
 }
+
+var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+
+function getDefaultExportFromCjs (x) {
+	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
+}
+
+var hasOwn = Object.prototype.hasOwnProperty;
+var toStr = Object.prototype.toString;
+var defineProperty = Object.defineProperty;
+var gOPD = Object.getOwnPropertyDescriptor;
+var isArray = function isArray(arr) {
+	if (typeof Array.isArray === 'function') {
+		return Array.isArray(arr);
+	}
+	return toStr.call(arr) === '[object Array]';
+};
+var isPlainObject$1 = function isPlainObject(obj) {
+	if (!obj || toStr.call(obj) !== '[object Object]') {
+		return false;
+	}
+	var hasOwnConstructor = hasOwn.call(obj, 'constructor');
+	var hasIsPrototypeOf = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, 'isPrototypeOf');
+	if (obj.constructor && !hasOwnConstructor && !hasIsPrototypeOf) {
+		return false;
+	}
+	var key;
+	for (key in obj) {  }
+	return typeof key === 'undefined' || hasOwn.call(obj, key);
+};
+var setProperty = function setProperty(target, options) {
+	if (defineProperty && options.name === '__proto__') {
+		defineProperty(target, options.name, {
+			enumerable: true,
+			configurable: true,
+			value: options.newValue,
+			writable: true
+		});
+	} else {
+		target[options.name] = options.newValue;
+	}
+};
+var getProperty = function getProperty(obj, name) {
+	if (name === '__proto__') {
+		if (!hasOwn.call(obj, name)) {
+			return void 0;
+		} else if (gOPD) {
+			return gOPD(obj, name).value;
+		}
+	}
+	return obj[name];
+};
+var extend$1 = function extend() {
+	var options, name, src, copy, copyIsArray, clone;
+	var target = arguments[0];
+	var i = 1;
+	var length = arguments.length;
+	var deep = false;
+	if (typeof target === 'boolean') {
+		deep = target;
+		target = arguments[1] || {};
+		i = 2;
+	}
+	if (target == null || (typeof target !== 'object' && typeof target !== 'function')) {
+		target = {};
+	}
+	for (; i < length; ++i) {
+		options = arguments[i];
+		if (options != null) {
+			for (name in options) {
+				src = getProperty(target, name);
+				copy = getProperty(options, name);
+				if (target !== copy) {
+					if (deep && copy && (isPlainObject$1(copy) || (copyIsArray = isArray(copy)))) {
+						if (copyIsArray) {
+							copyIsArray = false;
+							clone = src && isArray(src) ? src : [];
+						} else {
+							clone = src && isPlainObject$1(src) ? src : {};
+						}
+						setProperty(target, { name: name, newValue: extend(deep, clone, copy) });
+					} else if (typeof copy !== 'undefined') {
+						setProperty(target, { name: name, newValue: copy });
+					}
+				}
+			}
+		}
+	}
+	return target;
+};
+var extend$2 = getDefaultExportFromCjs(extend$1);
 
 function isPlainObject(value) {
 	if (typeof value !== 'object' || value === null) {
@@ -646,7 +534,7 @@ class Processor extends CallableInstance {
       const attacher = this.attachers[index];
       destination.use(...attacher);
     }
-    destination.data(structuredClone$1(this.namespace));
+    destination.data(extend$2(true, {}, this.namespace));
     return destination
   }
   data(key, value) {
@@ -834,10 +722,7 @@ class Processor extends CallableInstance {
       }
       addList(result.plugins);
       if (result.settings) {
-        namespace.settings = {
-          ...namespace.settings,
-          ...structuredClone$1(result.settings)
-        };
+        namespace.settings = extend$2(true, namespace.settings, result.settings);
       }
     }
     function addList(plugins) {
@@ -867,7 +752,7 @@ class Processor extends CallableInstance {
         let [primary, ...rest] = parameters;
         const currentPrimary = attachers[entryIndex][1];
         if (isPlainObject(currentPrimary) && isPlainObject(primary)) {
-          primary = structuredClone$1({...currentPrimary, ...primary});
+          primary = extend$2(true, currentPrimary, primary);
         }
         attachers[entryIndex] = [plugin, primary, ...rest];
       }
@@ -12545,12 +12430,6 @@ const remarkLintFinalNewline = lintRule(
   }
 );
 var remarkLintFinalNewline$1 = remarkLintFinalNewline;
-
-var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
-
-function getDefaultExportFromCjs (x) {
-	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
-}
 
 function commonjsRequire(path) {
 	throw new Error('Could not dynamically require "' + path + '". Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option of @rollup/plugin-commonjs appropriately for this require call to work.');
