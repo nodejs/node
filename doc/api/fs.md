@@ -3503,8 +3503,8 @@ changes:
 
 * `fd` {integer}
 * `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
-  written to.
-* `offset` {integer} The position in `buffer` to write the data to.
+  read from.
+* `offset` {integer} The position in `buffer` to read the data from.
 * `length` {integer} The number of bytes to read.
 * `position` {integer|bigint|null} Specifies where to begin reading from in the
   file. If `position` is `null` or `-1 `, data will be read from the current
@@ -3565,7 +3565,7 @@ added:
 
 * `fd` {integer}
 * `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
-  written to.
+  read from.
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
