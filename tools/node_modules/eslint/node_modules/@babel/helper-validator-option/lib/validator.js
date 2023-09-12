@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.OptionValidator = void 0;
-var _findSuggestion = require("./find-suggestion");
+var _findSuggestion = require("./find-suggestion.js");
 class OptionValidator {
   constructor(descriptor) {
     this.descriptor = descriptor;

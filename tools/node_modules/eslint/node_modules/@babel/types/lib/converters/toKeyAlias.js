@@ -4,16 +4,16 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = toKeyAlias;
-var _generated = require("../validators/generated");
-var _cloneNode = require("../clone/cloneNode");
-var _removePropertiesDeep = require("../modifications/removePropertiesDeep");
+var _index = require("../validators/generated/index.js");
+var _cloneNode = require("../clone/cloneNode.js");
+var _removePropertiesDeep = require("../modifications/removePropertiesDeep.js");
 function toKeyAlias(node, key = node.key) {
   let alias;
   if (node.kind === "method") {
     return toKeyAlias.increment() + "";
-  } else if ((0, _generated.isIdentifier)(key)) {
+  } else if ((0, _index.isIdentifier)(key)) {
     alias = key.name;
-  } else if ((0, _generated.isStringLiteral)(key)) {
+  } else if ((0, _index.isStringLiteral)(key)) {
     alias = JSON.stringify(key.value);
   } else {
     alias = JSON.stringify((0, _removePropertiesDeep.default)((0, _cloneNode.default)(key)));
