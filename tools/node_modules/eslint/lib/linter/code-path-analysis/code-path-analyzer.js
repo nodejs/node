@@ -192,15 +192,18 @@ function forwardCurrentToHead(analyzer, node) {
         headSegment = headSegments[i];
 
         if (currentSegment !== headSegment && currentSegment) {
-            debug.dump(`onCodePathSegmentEnd ${currentSegment.id}`);
 
-            if (currentSegment.reachable) {
-                analyzer.emitter.emit(
-                    "onCodePathSegmentEnd",
-                    currentSegment,
-                    node
-                );
-            }
+            const eventName = currentSegment.reachable
+                ? "onCodePathSegmentEnd"
+                : "onUnreachableCodePathSegmentEnd";
+
+            debug.dump(`${eventName} ${currentSegment.id}`);
+
+            analyzer.emitter.emit(
+                eventName,
+                currentSegment,
+                node
+            );
         }
     }
 
@@ -213,16 +216,19 @@ function forwardCurrentToHead(analyzer, node) {
         headSegment = headSegments[i];
 
         if (currentSegment !== headSegment && headSegment) {
-            debug.dump(`onCodePathSegmentStart ${headSegment.id}`);
+
+            const eventName = headSegment.reachable
+                ? "onCodePathSegmentStart"
+                : "onUnreachableCodePathSegmentStart";
+
+            debug.dump(`${eventName} ${headSegment.id}`);
 
             CodePathSegment.markUsed(headSegment);
-            if (headSegment.reachable) {
-                analyzer.emitter.emit(
-                    "onCodePathSegmentStart",
-                    headSegment,
-                    node
-                );
-            }
+            analyzer.emitter.emit(
+                eventName,
+                headSegment,
+                node
+            );
         }
     }
 
@@ -241,15 +247,17 @@ function leaveFromCurrentSegment(analyzer, node) {
 
     for (let i = 0; i < currentSegments.length; ++i) {
         const currentSegment = currentSegments[i];
+        const eventName = currentSegment.reachable
+            ? "onCodePathSegmentEnd"
+            : "onUnreachableCodePathSegmentEnd";
 
-        debug.dump(`onCodePathSegmentEnd ${currentSegment.id}`);
-        if (currentSegment.reachable) {
-            analyzer.emitter.emit(
-                "onCodePathSegmentEnd",
-                currentSegment,
-                node
-            );
-        }
+        debug.dump(`${eventName} ${currentSegment.id}`);
+
+        analyzer.emitter.emit(
+            eventName,
+            currentSegment,
+            node
+        );
     }
 
     state.currentSegments = [];

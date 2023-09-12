@@ -4,13 +4,13 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = matchesPattern;
-var _generated = require("./generated");
+var _index = require("./generated/index.js");
 function matchesPattern(member, match, allowPartial) {
-  if (!(0, _generated.isMemberExpression)(member)) return false;
+  if (!(0, _index.isMemberExpression)(member)) return false;
   const parts = Array.isArray(match) ? match : match.split(".");
   const nodes = [];
   let node;
-  for (node = member; (0, _generated.isMemberExpression)(node); node = node.object) {
+  for (node = member; (0, _index.isMemberExpression)(node); node = node.object) {
     nodes.push(node.property);
   }
   nodes.push(node);
@@ -19,11 +19,11 @@ function matchesPattern(member, match, allowPartial) {
   for (let i = 0, j = nodes.length - 1; i < parts.length; i++, j--) {
     const node = nodes[j];
     let value;
-    if ((0, _generated.isIdentifier)(node)) {
+    if ((0, _index.isIdentifier)(node)) {
       value = node.name;
-    } else if ((0, _generated.isStringLiteral)(node)) {
+    } else if ((0, _index.isStringLiteral)(node)) {
       value = node.value;
-    } else if ((0, _generated.isThisExpression)(node)) {
+    } else if ((0, _index.isThisExpression)(node)) {
       value = "this";
     } else {
       return false;

@@ -16,7 +16,9 @@ const
     equal = require("fast-deep-equal"),
     Traverser = require("../shared/traverser"),
     { getRuleOptionsSchema } = require("../config/flat-config-helpers"),
-    { Linter, SourceCodeFixer, interpolate } = require("../linter");
+    { Linter, SourceCodeFixer, interpolate } = require("../linter"),
+    CodePath = require("../linter/code-path-analysis/code-path");
+
 const { FlatConfigArray } = require("../config/flat-config-array");
 const { defaultConfig } = require("../config/default-config");
 
@@ -272,6 +274,21 @@ function getCommentsDeprecation() {
     throw new Error(
         "`SourceCode#getComments()` is deprecated and will be removed in a future major version. Use `getCommentsBefore()`, `getCommentsAfter()`, and `getCommentsInside()` instead."
     );
+}
+
+/**
+ * Emit a deprecation warning if rule uses CodePath#currentSegments.
+ * @param {string} ruleName Name of the rule.
+ * @returns {void}
+ */
+function emitCodePathCurrentSegmentsWarning(ruleName) {
+    if (!emitCodePathCurrentSegmentsWarning[`warned-${ruleName}`]) {
+        emitCodePathCurrentSegmentsWarning[`warned-${ruleName}`] = true;
+        process.emitWarning(
+            `"${ruleName}" rule uses CodePath#currentSegments and will stop working in ESLint v9. Please read the documentation for how to update your code: https://eslint.org/docs/latest/extend/code-path-analysis#usage-examples`,
+            "DeprecationWarning"
+        );
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -664,6 +681,7 @@ class FlatRuleTester {
 
             // Verify the code.
             const { getComments } = SourceCode.prototype;
+            const originalCurrentSegments = Object.getOwnPropertyDescriptor(CodePath.prototype, "currentSegments");
             let messages;
 
             // check for validation errors
@@ -677,10 +695,19 @@ class FlatRuleTester {
 
             try {
                 SourceCode.prototype.getComments = getCommentsDeprecation;
+                Object.defineProperty(CodePath.prototype, "currentSegments", {
+                    get() {
+                        emitCodePathCurrentSegmentsWarning(ruleName);
+                        return originalCurrentSegments.get.call(this);
+                    }
+                });
+
                 messages = linter.verify(code, configs, filename);
             } finally {
                 SourceCode.prototype.getComments = getComments;
+                Object.defineProperty(CodePath.prototype, "currentSegments", originalCurrentSegments);
             }
+
 
             const fatalErrorMessage = messages.find(m => m.fatal);
 
