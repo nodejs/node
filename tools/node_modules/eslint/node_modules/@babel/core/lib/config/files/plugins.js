@@ -20,8 +20,8 @@ function _path() {
   };
   return data;
 }
-var _async = require("../../gensync-utils/async");
-var _moduleTypes = require("./module-types");
+var _async = require("../../gensync-utils/async.js");
+var _moduleTypes = require("./module-types.js");
 function _url() {
   const data = require("url");
   _url = function () {
@@ -29,7 +29,7 @@ function _url() {
   };
   return data;
 }
-var _importMetaResolve = require("./import-meta-resolve");
+var _importMetaResolve = require("../../vendor/import-meta-resolve.js");
 const debug = _debug()("babel:config:loading:files:plugins");
 const EXACT_RE = /^module:/;
 const BABEL_PLUGIN_PREFIX_RE = /^(?!@|module:|[^/]+\/|babel-plugin-)/;
@@ -134,7 +134,7 @@ function tryImportMetaResolve(id, options) {
   try {
     return {
       error: null,
-      value: (0, _importMetaResolve.default)(id, options)
+      value: (0, _importMetaResolve.resolve)(id, options)
     };
   } catch (error) {
     return {

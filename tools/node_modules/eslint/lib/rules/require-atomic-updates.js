@@ -213,7 +213,8 @@ module.exports = {
                 stack = {
                     upper: stack,
                     codePath,
-                    referenceMap: shouldVerify ? createReferenceMap(scope) : null
+                    referenceMap: shouldVerify ? createReferenceMap(scope) : null,
+                    currentSegments: new Set()
                 };
             },
             onCodePathEnd() {
@@ -223,11 +224,25 @@ module.exports = {
             // Initialize the segment information.
             onCodePathSegmentStart(segment) {
                 segmentInfo.initialize(segment);
+                stack.currentSegments.add(segment);
             },
+
+            onUnreachableCodePathSegmentStart(segment) {
+                stack.currentSegments.add(segment);
+            },
+
+            onUnreachableCodePathSegmentEnd(segment) {
+                stack.currentSegments.delete(segment);
+            },
+
+            onCodePathSegmentEnd(segment) {
+                stack.currentSegments.delete(segment);
+            },
+
 
             // Handle references to prepare verification.
             Identifier(node) {
-                const { codePath, referenceMap } = stack;
+                const { referenceMap } = stack;
                 const reference = referenceMap && referenceMap.get(node);
 
                 // Ignore if this is not a valid variable reference.
@@ -240,7 +255,7 @@ module.exports = {
 
                 // Add a fresh read variable.
                 if (reference.isRead() && !(writeExpr && writeExpr.parent.operator === "=")) {
-                    segmentInfo.markAsRead(codePath.currentSegments, variable);
+                    segmentInfo.markAsRead(stack.currentSegments, variable);
                 }
 
                 /*
@@ -267,16 +282,15 @@ module.exports = {
              * If the reference exists in `outdatedReadVariables` list, report it.
              */
             ":expression:exit"(node) {
-                const { codePath, referenceMap } = stack;
 
                 // referenceMap exists if this is in a resumable function scope.
-                if (!referenceMap) {
+                if (!stack.referenceMap) {
                     return;
                 }
 
                 // Mark the read variables on this code path as outdated.
                 if (node.type === "AwaitExpression" || node.type === "YieldExpression") {
-                    segmentInfo.makeOutdated(codePath.currentSegments);
+                    segmentInfo.makeOutdated(stack.currentSegments);
                 }
 
                 // Verify.
@@ -288,7 +302,7 @@ module.exports = {
                     for (const reference of references) {
                         const variable = reference.resolved;
 
-                        if (segmentInfo.isOutdated(codePath.currentSegments, variable)) {
+                        if (segmentInfo.isOutdated(stack.currentSegments, variable)) {
                             if (node.parent.left === reference.identifier) {
                                 context.report({
                                     node: node.parent,

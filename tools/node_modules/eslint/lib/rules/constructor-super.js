@@ -10,12 +10,19 @@
 //------------------------------------------------------------------------------
 
 /**
- * Checks whether a given code path segment is reachable or not.
- * @param {CodePathSegment} segment A code path segment to check.
- * @returns {boolean} `true` if the segment is reachable.
+ * Checks all segments in a set and returns true if any are reachable.
+ * @param {Set<CodePathSegment>} segments The segments to check.
+ * @returns {boolean} True if any segment is reachable; false otherwise.
  */
-function isReachable(segment) {
-    return segment.reachable;
+function isAnySegmentReachable(segments) {
+
+    for (const segment of segments) {
+        if (segment.reachable) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -210,7 +217,8 @@ module.exports = {
                         isConstructor: true,
                         hasExtends: Boolean(superClass),
                         superIsConstructor: isPossibleConstructor(superClass),
-                        codePath
+                        codePath,
+                        currentSegments: new Set()
                     };
                 } else {
                     funcInfo = {
@@ -218,7 +226,8 @@ module.exports = {
                         isConstructor: false,
                         hasExtends: false,
                         superIsConstructor: false,
-                        codePath
+                        codePath,
+                        currentSegments: new Set()
                     };
                 }
             },
@@ -261,6 +270,9 @@ module.exports = {
              * @returns {void}
              */
             onCodePathSegmentStart(segment) {
+
+                funcInfo.currentSegments.add(segment);
+
                 if (!(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends)) {
                     return;
                 }
@@ -280,6 +292,19 @@ module.exports = {
                     info.calledInEveryPaths = prevSegments.every(isCalledInEveryPath);
                 }
             },
+
+            onUnreachableCodePathSegmentStart(segment) {
+                funcInfo.currentSegments.add(segment);
+            },
+
+            onUnreachableCodePathSegmentEnd(segment) {
+                funcInfo.currentSegments.delete(segment);
+            },
+
+            onCodePathSegmentEnd(segment) {
+                funcInfo.currentSegments.delete(segment);
+            },
+
 
             /**
              * Update information of the code path segment when a code path was
@@ -344,12 +369,11 @@ module.exports = {
 
                 // Reports if needed.
                 if (funcInfo.hasExtends) {
-                    const segments = funcInfo.codePath.currentSegments;
+                    const segments = funcInfo.currentSegments;
                     let duplicate = false;
                     let info = null;
 
-                    for (let i = 0; i < segments.length; ++i) {
-                        const segment = segments[i];
+                    for (const segment of segments) {
 
                         if (segment.reachable) {
                             info = segInfoMap[segment.id];
@@ -374,7 +398,7 @@ module.exports = {
                             info.validNodes.push(node);
                         }
                     }
-                } else if (funcInfo.codePath.currentSegments.some(isReachable)) {
+                } else if (isAnySegmentReachable(funcInfo.currentSegments)) {
                     context.report({
                         messageId: "unexpected",
                         node
@@ -398,10 +422,9 @@ module.exports = {
                 }
 
                 // Returning argument is a substitute of 'super()'.
-                const segments = funcInfo.codePath.currentSegments;
+                const segments = funcInfo.currentSegments;
 
-                for (let i = 0; i < segments.length; ++i) {
-                    const segment = segments[i];
+                for (const segment of segments) {
 
                     if (segment.reachable) {
                         const info = segInfoMap[segment.id];
