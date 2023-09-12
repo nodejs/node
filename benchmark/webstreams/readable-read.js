@@ -11,7 +11,7 @@ async function main({ n, type }) {
   switch (type) {
     case 'normal': {
       const rs = new ReadableStream({
-        pull: function (controller) {
+        pull: function(controller) {
           controller.enqueue('a');
         },
       });
@@ -30,7 +30,7 @@ async function main({ n, type }) {
       const encode = new TextEncoder();
       const rs = new ReadableStream({
         type: 'bytes',
-        pull: function (controller) {
+        pull: function(controller) {
           controller.enqueue(encode.encode('a'));
         },
       });
