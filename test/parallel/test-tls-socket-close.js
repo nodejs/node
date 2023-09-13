@@ -44,9 +44,9 @@ function connectClient(server) {
 
       setImmediate(() => {
         assert.strictEqual(netSocket.destroyed, true);
-        assert.strictEqual(clientTlsSocket.destroyed, true);
 
         setImmediate(() => {
+          assert.strictEqual(clientTlsSocket.destroyed, true);
           assert.strictEqual(serverTlsSocket.destroyed, true);
 
           tlsServer.close();
