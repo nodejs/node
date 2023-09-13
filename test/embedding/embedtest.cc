@@ -121,9 +121,10 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 
   if (is_building_snapshot) {
     // It contains at least the binary path, the code to snapshot,
-    // and --embedder-snapshot-create. Insert an anonymous filename
-    // as process.argv[1].
+    // and --embedder-snapshot-create (which is filtered, so at least
+    // 2 arguments should remain after filtering).
     assert(filtered_args.size() >= 2);
+    // Insert an anonymous filename as process.argv[1].
     filtered_args.insert(filtered_args.begin() + 1,
                          node::GetAnonymousMainPath());
   }
