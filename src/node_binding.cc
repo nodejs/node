@@ -325,16 +325,12 @@ static struct global_handle_map_t {
 } global_handle_map;
 
 DLib::DLib(const char* filename, int flags)
-    : filename_(filename), flags_(flags), handle_(nullptr), is_self_(false) {}
-DLib::DLib(int flags) : flags_(flags), handle_(nullptr), is_self_(true) {}
+    : filename_(filename), flags_(flags), handle_(nullptr) {}
 
 #ifdef __POSIX__
 bool DLib::Open() {
-  if (is_self_) {
-    handle_ = RTLD_DEFAULT;
-    return true;
-  }
-  handle_ = dlopen(filename_.c_str(), flags_);
+  const char* filename = filename_.length() == 0 ? nullptr : filename_.c_str();
+  handle_ = dlopen(filename, flags_);
   if (handle_ != nullptr) return true;
   errmsg_ = dlerror();
   return false;
@@ -365,7 +361,7 @@ void* DLib::GetSymbolAddress(const char* name) {
 }
 #else   // !__POSIX__
 bool DLib::Open() {
-  if (is_self_) return true;
+  const char* filename = filename_.length() == 0 ? nullptr : filename_.c_str();
   int ret = uv_dlopen(filename_.c_str(), &lib_);
   if (ret == 0) {
     handle_ = static_cast<void*>(lib_.handle);

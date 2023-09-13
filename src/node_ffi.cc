@@ -46,11 +46,7 @@ void GetLibrary(const FunctionCallbackInfo<Value>& args) {
   if (libraries[fname] != nullptr) {
     lib = libraries[fname];
   } else {
-    if (fname.empty()) {
-      lib = new binding::DLib(binding::DLib::kDefaultFlags);
-    } else {
-      lib = new binding::DLib(fname.c_str(), binding::DLib::kDefaultFlags);
-    }
+    lib = new binding::DLib(fname.c_str(), binding::DLib::kDefaultFlags);
     if (!lib->Open()) return;
     libraries[fname] = lib;
   }
@@ -150,7 +146,7 @@ void MakeCall(const FunctionCallbackInfo<Value>& args) {
       Realm::GetBindingData<FfiBindingData>(args)->call_buffer);
   FfiSignature* sig = *reinterpret_cast<FfiSignature**>(call_buffer);
   char* rvalue = call_buffer + sizeof(char*);
-  char** avalues = reinterpret_cast<char**>(rvalue + sizeof(char*));
+  char** avalues = reinterpret_cast<char**>(rvalue + 2 * sizeof(char*));
   ffi_call(&sig->cif_,
            sig->fn_,
            reinterpret_cast<void*>(rvalue),

@@ -103,7 +103,6 @@ class DLib {
 #endif
 
   DLib(const char* filename, int flags);
-  explicit DLib(int flags);
 
   bool Open();
   void Close();
@@ -119,7 +118,6 @@ class DLib {
   uv_lib_t lib_;
 #endif
   bool has_entry_in_global_handle_map_ = false;
-  bool is_self_;
 
   DLib(const DLib&) = delete;
   DLib& operator=(const DLib&) = delete;
