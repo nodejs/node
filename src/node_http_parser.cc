@@ -91,11 +91,11 @@ const uint32_t kLenientOptionalLFAfterCR = 1 << 6;
 const uint32_t kLenientOptionalCRLFAfterChunk = 1 << 7;
 const uint32_t kLenientOptionalCRBeforeLF = 1 << 8;
 const uint32_t kLenientSpacesAfterChunkSize = 1 << 9;
-const uint32_t kLenientAll = kLenientHeaders | kLenientChunkedLength |
-  kLenientKeepAlive | kLenientTransferEncoding | kLenientVersion |
-  kLenientDataAfterClose | kLenientOptionalLFAfterCR |
-  kLenientOptionalCRLFAfterChunk | kLenientOptionalCRBeforeLF |
-  kLenientSpacesAfterChunkSize;
+const uint32_t kLenientAll =
+    kLenientHeaders | kLenientChunkedLength | kLenientKeepAlive |
+    kLenientTransferEncoding | kLenientVersion | kLenientDataAfterClose |
+    kLenientOptionalLFAfterCR | kLenientOptionalCRLFAfterChunk |
+    kLenientOptionalCRBeforeLF | kLenientSpacesAfterChunkSize;
 
 inline bool IsOWS(char c) {
   return c == ' ' || c == '\t';
@@ -1274,20 +1274,15 @@ void InitializeHttpParser(Local<Object> target,
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientDataAfterClose"),
          Integer::NewFromUnsigned(env->isolate(), kLenientDataAfterClose));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientOptionalLFAfterCR"),
-         Integer::NewFromUnsigned(env->isolate(),
-                kLenientOptionalLFAfterCR));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(),
-         "kLenientOptionalCRLFAfterChunk"),
-         Integer::NewFromUnsigned(env->isolate(),
-                kLenientOptionalCRLFAfterChunk));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(),
-         "kLenientOptionalCRBeforeLF"),
-         Integer::NewFromUnsigned(env->isolate(),
-                kLenientOptionalCRBeforeLF));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(),
-         "kLenientSpacesAfterChunkSize"),
-         Integer::NewFromUnsigned(env->isolate(),
-                kLenientSpacesAfterChunkSize));
+         Integer::NewFromUnsigned(env->isolate(), kLenientOptionalLFAfterCR));
+  t->Set(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientOptionalCRLFAfterChunk"),
+      Integer::NewFromUnsigned(env->isolate(), kLenientOptionalCRLFAfterChunk));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientOptionalCRBeforeLF"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientOptionalCRBeforeLF));
+  t->Set(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientSpacesAfterChunkSize"),
+      Integer::NewFromUnsigned(env->isolate(), kLenientSpacesAfterChunkSize));
 
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientAll"),
          Integer::NewFromUnsigned(env->isolate(), kLenientAll));
