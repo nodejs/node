@@ -5,7 +5,6 @@
 #ifndef V8_INSPECTOR_V8_STRING_CONVERSIONS_H_
 #define V8_INSPECTOR_V8_STRING_CONVERSIONS_H_
 
-#include <uchar.h>
 
 #include <cstdint>
 #include <string>
