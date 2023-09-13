@@ -49,9 +49,8 @@ else
   # Submit the package for notarization
   notarization_output=$(
     xcrun notarytool submit "node-$pkgid.pkg" \
-      --apple-id "@env:NOTARIZATION_APPLE_ID" \
+      --apple-id "@env:NOTARIZATION_ID" \
       --password "@env:NOTARIZATION_PASSWORD" \
-      --team-id "@env:NOTARIZATION_TEAM_ID" \
       --wait 2>&1
   )
 
