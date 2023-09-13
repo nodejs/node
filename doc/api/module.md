@@ -86,7 +86,7 @@ isBuiltin('wss'); // false
 added: v20.6.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 * `specifier` {string} Customization hooks to be registered; this should be the
   same string that would be passed to `import()`, except that if it is relative,
@@ -166,7 +166,7 @@ changes:
                  `globalPreload`; added `load` hook and `getGlobalPreload` hook.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 <!-- type=misc -->
 
@@ -385,7 +385,7 @@ asynchronous operations (like `console.log`) to complete.
 added: v20.6.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 * `data` {any} The data from `register(loader, import.meta.url, { data })`.
 
