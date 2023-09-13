@@ -95,7 +95,7 @@
 #if defined(NODE_EMBEDDER_MODULE_VERSION)
 #define NODE_MODULE_VERSION NODE_EMBEDDER_MODULE_VERSION
 #else
-#define NODE_MODULE_VERSION 115
+#define NODE_MODULE_VERSION 120
 #endif
 
 // The NAPI_VERSION supported by the runtime. This is the inclusive range of
