@@ -3,6 +3,7 @@
 BUILDTYPE ?= Release
 PYTHON ?= python3
 DESTDIR ?=
+DEBUG_ONLY ?= 0
 SIGN ?=
 PREFIX ?= /usr/local
 FLAKY_TESTS ?= run
@@ -77,9 +78,16 @@ EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
 NODE_EXE = node$(EXEEXT)
-NODE ?= ./$(NODE_EXE)
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
+
+ifeq ($(DEBUG_ONLY),1)
+NODE_BUILD_EXE = $(NODE_G_EXE)
+NODE ?= ./$(NODE_G_EXE)
+else
+NODE_BUILD_EXE = $(NODE_EXE)
+NODE ?= ./$(NODE_EXE)
+endif
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -104,12 +112,21 @@ available-node = \
 
 .PHONY: all
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
-# just the debug build, run `make -C out BUILDTYPE=Debug` instead.
+# just the debug build, run with DEBUG_ONLY=1 in addition to BUILDTYPE=Debug.
+
 ifeq ($(BUILDTYPE),Release)
 all: $(NODE_EXE) ## Default target, builds node in out/Release/node.
 else
+ifeq ($(DEBUG_ONLY),1)
+all: $(NODE_G_EXE)
+else
 all: $(NODE_EXE) $(NODE_G_EXE)
 endif
+endif
+
+# The .PHONY is needed to ensure that we recursively use the out/Makefile
+# to check for changes.
+.PHONY: $(NODE_EXE) $(NODE_G_EXE)
 
 .PHONY: help
 # To add a target to the help, add a double comment (##) on the target line.
@@ -118,22 +135,22 @@ help: ## Print help for targets with comments.
 	@grep -E '^[[:alnum:]._-]+:.*?## .*$$' Makefile | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-# The .PHONY is needed to ensure that we recursively use the out/Makefile
-# to check for changes.
-.PHONY: $(NODE_EXE) $(NODE_G_EXE)
-
 # The -r/-L check stops it recreating the link if it is already in place,
 # otherwise $(NODE_EXE) being a .PHONY target means it is always re-run.
 # Without the check there is a race condition between the link being deleted
 # and recreated which can break the addons build when running test-ci
 # See comments on the build-addons target for some more info
 ifeq ($(BUILD_WITH), make)
-$(NODE_EXE): build_type:=Release
-$(NODE_G_EXE): build_type:=Debug
-$(NODE_EXE) $(NODE_G_EXE): config.gypi out/Makefile
-	$(MAKE) -C out BUILDTYPE=${build_type} V=$(V)
-	if [ ! -r $@ ] || [ ! -L $@ ]; then \
-	  ln -fs out/${build_type}/$(NODE_EXE) $@; fi
+$(NODE_EXE): config.gypi out/Makefile
+	@echo "Building release build..."
+	$(MAKE) -C out BUILDTYPE=Release V=$(V)
+	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
+
+$(NODE_G_EXE): config.gypi out/Makefile
+	@echo "Building debug build..."
+	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
+	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
+
 else
 ifeq ($(BUILD_WITH), ninja)
 NINJA ?= ninja
@@ -146,10 +163,12 @@ else
 	NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
 endif
 $(NODE_EXE): config.gypi out/Release/build.ninja
+	@echo "Building release build..."
 	$(NINJA) -C out/Release $(NINJA_ARGS)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
 $(NODE_G_EXE): config.gypi out/Debug/build.ninja
+	@echo "Building debug build..."
 	$(NINJA) -C out/Debug $(NINJA_ARGS)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 else
@@ -400,7 +419,7 @@ env npm_config_loglevel=$(LOGLEVEL) npm_config_nodedir="$$PWD" \
 touch $2
 endef
 
-# Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
+# Implicitly depends on $(NODE_BUILD_EXE), see the build-addons rule for rationale.
 # Depends on node-gyp package.json so that build-addons is (re)executed when
 # node-gyp is updated as part of an npm update.
 test/addons/.buildstamp: $(ADDONS_PREREQS) \
@@ -409,13 +428,13 @@ test/addons/.buildstamp: $(ADDONS_PREREQS) \
 	@$(call run_build_addons,"$$PWD/test/addons",$@)
 
 .PHONY: build-addons
-# .buildstamp needs $(NODE_EXE) but cannot depend on it
+# .buildstamp needs $(NODE_BUILD_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
 # .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp update.
-build-addons: | $(NODE_EXE) test/addons/.buildstamp
+build-addons: | $(NODE_BUILD_EXE) test/addons/.buildstamp
 
 JS_NATIVE_API_BINDING_GYPS := \
 	$(filter-out test/js-native-api/??_*/binding.gyp, \
@@ -426,7 +445,7 @@ JS_NATIVE_API_BINDING_SOURCES := \
 	$(filter-out test/js-native-api/??_*/*.cc, $(wildcard test/js-native-api/*/*.cc)) \
 	$(filter-out test/js-native-api/??_*/*.h, $(wildcard test/js-native-api/*/*.h))
 
-# Implicitly depends on $(NODE_EXE), see the build-js-native-api-tests rule for rationale.
+# Implicitly depends on $(NODE_BUILD_EXE), see the build-js-native-api-tests rule for rationale.
 test/js-native-api/.buildstamp: $(ADDONS_PREREQS) \
 	$(JS_NATIVE_API_BINDING_GYPS) $(JS_NATIVE_API_BINDING_SOURCES) \
 	src/node_api.h src/node_api_types.h src/js_native_api.h \
@@ -434,13 +453,13 @@ test/js-native-api/.buildstamp: $(ADDONS_PREREQS) \
 	@$(call run_build_addons,"$$PWD/test/js-native-api",$@)
 
 .PHONY: build-js-native-api-tests
-# .buildstamp needs $(NODE_EXE) but cannot depend on it
+# .buildstamp needs $(NODE_BUILD_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
 # .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
-build-js-native-api-tests: | $(NODE_EXE) test/js-native-api/.buildstamp
+build-js-native-api-tests: | $(NODE_BUILD_EXE) test/js-native-api/.buildstamp
 
 NODE_API_BINDING_GYPS := \
 	$(filter-out test/node-api/??_*/binding.gyp, \
@@ -451,7 +470,7 @@ NODE_API_BINDING_SOURCES := \
 	$(filter-out test/node-api/??_*/*.cc, $(wildcard test/node-api/*/*.cc)) \
 	$(filter-out test/node-api/??_*/*.h, $(wildcard test/node-api/*/*.h))
 
-# Implicitly depends on $(NODE_EXE), see the build-node-api-tests rule for rationale.
+# Implicitly depends on $(NODE_BUILD_EXE), see the build-node-api-tests rule for rationale.
 test/node-api/.buildstamp: $(ADDONS_PREREQS) \
 	$(NODE_API_BINDING_GYPS) $(NODE_API_BINDING_SOURCES) \
 	src/node_api.h src/node_api_types.h src/js_native_api.h \
@@ -459,13 +478,13 @@ test/node-api/.buildstamp: $(ADDONS_PREREQS) \
 	@$(call run_build_addons,"$$PWD/test/node-api",$@)
 
 .PHONY: build-node-api-tests
-# .buildstamp needs $(NODE_EXE) but cannot depend on it
+# .buildstamp needs $(NODE_BUILD_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
 # .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
-build-node-api-tests: | $(NODE_EXE) test/node-api/.buildstamp
+build-node-api-tests: | $(NODE_BUILD_EXE) test/node-api/.buildstamp
 
 BENCHMARK_NAPI_BINDING_GYPS := $(wildcard benchmark/napi/*/binding.gyp)
 
@@ -536,8 +555,8 @@ test-ci-js: | clear-stalled
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
 	$(info Clean up any leftover processes, error if found.)
-	ps awwx | grep Release/node | grep -v grep | cat
-	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
+	ps awwx | grep $(BUILDTYPE)/node | grep -v grep | cat
+	@PS_OUT=`ps awwx | grep $(BUILDTYPE)/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
 		echo $${PS_OUT} | xargs kill -9; exit 1; \
 	fi
@@ -546,14 +565,14 @@ test-ci-js: | clear-stalled
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info
 test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests doc-only
-	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
+	out/$(BUILDTYPE)/cctest --gtest_output=xml:out/junit/cctest.xml
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
-	out/Release/embedtest 'require("./test/embedding/test-embedding.js")'
+	out/$(BUILDTYPE)/embedtest 'require("./test/embedding/test-embedding.js")'
 	$(info Clean up any leftover processes, error if found.)
-	ps awwx | grep Release/node | grep -v grep | cat
-	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
+	ps awwx | grep $(BUILDTYPE)/node | grep -v grep | cat
+	@PS_OUT=`ps awwx | grep $(BUILDTYPE)/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
 		echo $${PS_OUT} | xargs kill -9; exit 1; \
 	fi
@@ -626,11 +645,11 @@ test-known-issues: all
 
 # Related CI job: node-test-npm
 .PHONY: test-npm
-test-npm: $(NODE_EXE) ## Run the npm test suite on deps/npm.
+test-npm: $(NODE_BUILD_EXE) ## Run the npm test suite on deps/npm.
 	$(NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test
 
 .PHONY: test-npm-publish
-test-npm-publish: $(NODE_EXE)
+test-npm-publish: $(NODE_BUILD_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
 
 .PHONY: test-js-native-api
@@ -742,7 +761,7 @@ doc-only: tools/doc/node_modules \
 	fi
 
 .PHONY: doc
-doc: $(NODE_EXE) doc-only
+doc: $(NODE_BUILD_EXE) doc-only
 
 out/doc:
 	mkdir -p $@
@@ -1293,7 +1312,7 @@ bench bench-all: bench-addons-build
 
 # Build required addons for benchmark before running it.
 .PHONY: bench-addons-build
-bench-addons-build: | $(NODE_EXE) benchmark/napi/.buildstamp
+bench-addons-build: | $(NODE_BUILD_EXE) benchmark/napi/.buildstamp
 
 .PHONY: bench-addons-clean
 .NOTPARALLEL: bench-addons-clean
