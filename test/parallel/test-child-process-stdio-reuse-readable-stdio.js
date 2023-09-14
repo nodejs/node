@@ -1,5 +1,11 @@
 'use strict';
 const common = require('../common');
+
+if (common.isWindows) {
+  // https://github.com/nodejs/node/issues/48300
+  common.skip('Does not work with cygwin quirks on Windows');
+}
+
 const assert = require('assert');
 const { spawn } = require('child_process');
 
