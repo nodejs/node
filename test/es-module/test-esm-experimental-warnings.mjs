@@ -35,7 +35,7 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
     ) {
       it(`should print for ${experiment.toString().replaceAll('/', '')}`, async () => {
         const { code, signal, stderr } = await spawnPromisified(execPath, [
-          arg,
+          ...args,
           '--input-type=module',
           '--eval',
           `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
