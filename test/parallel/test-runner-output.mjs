@@ -2,6 +2,7 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
+import { hostname } from 'node:os';
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
@@ -22,6 +23,15 @@ function replaceSpecDuration(str) {
     .replaceAll(/\(0(\r?\n)ms\)/g, '(ZEROms)')
     .replaceAll(/[0-9.]+ms/g, '*ms')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
+    .replace(stackTraceBasePath, '$3');
+}
+
+function replaceJunitDuration(str) {
+  return str
+    .replaceAll(/time="0"/g, 'time="ZERO"')
+    .replaceAll(/time="[0-9.]+"/g, 'time="*"')
+    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
+    .replaceAll(hostname(), 'HOSTNAME')
     .replace(stackTraceBasePath, '$3');
 }
 
@@ -47,6 +57,11 @@ const specTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
 );
+const junitTransform = snapshot.transform(
+  replaceJunitDuration,
+  snapshot.replaceWindowsLineEndings,
+  snapshot.replaceStackTrace,
+);
 
 const tests = [
   { name: 'test-runner/output/abort.js' },
@@ -64,6 +79,7 @@ const tests = [
   { name: 'test-runner/output/no_tests.js' },
   { name: 'test-runner/output/only_tests.js' },
   { name: 'test-runner/output/dot_reporter.js' },
+  { name: 'test-runner/output/junit_reporter.js', transform: junitTransform },
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter_cli.js', transform: specTransform },
