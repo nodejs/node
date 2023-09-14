@@ -53,11 +53,12 @@ else
 
   # Submit the package for notarization
   notarization_output=$(
-    xcrun notarytool submit "node-$pkgid.pkg" \
+    xcrun notarytool submit \
       --apple-id "@env:NOTARIZATION_ID" \
       --password "@env:NOTARIZATION_PASSWORD" \
       --team-id "@env:NOTARIZATION_TEAM_ID" \
-      --wait 2>&1
+      --wait \
+      "node-$pkgid.pkg" 2>&1
   )
 
   if [ $? -eq 0 ]; then
