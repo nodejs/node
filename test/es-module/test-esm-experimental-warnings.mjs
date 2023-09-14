@@ -24,7 +24,7 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
 
   describe('experimental warnings for enabled experimental feature', () => {
     for (
-      const [experiment, arg] of [
+      const [experiment, ...args] of [
         [
           /`--experimental-loader` may be removed in the future/,
           '--experimental-loader',
