@@ -188,7 +188,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     } else if (force_repl) {
       errors->push_back("either --watch or --interactive "
                         "can be used, not both");
-    } else if (argv->size() < 1 || (*argv)[1].empty()) {
+    } else if (!test_runner && (argv->size() < 1 || (*argv)[1].empty())) {
       errors->push_back("--watch requires specifying a file");
     }
 
