@@ -3388,7 +3388,7 @@ Consider using alternatives such as the [`mock`][] helper function.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/49647
     description: Documentation-only deprecation.
 -->
 
