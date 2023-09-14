@@ -45,7 +45,7 @@ if [ "$xcode_version_result" -lt "$xcode_version_threshold" ]; then
 else
   echo "Notarization process is done with Notarytool."
 
-  if ! command -v notarytool > /dev/null
+  if ! command -v xcrun notarytool > /dev/null
   then
       echo "Notarytool is not present in the system. Notarization has failed."
       exit 1
