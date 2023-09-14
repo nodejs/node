@@ -1,5 +1,4 @@
 #include "node_binding.h"
-#include <dlfcn.h>
 #include <atomic>
 #include "env-inl.h"
 #include "node_builtins.h"

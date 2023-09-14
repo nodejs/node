@@ -2716,6 +2716,7 @@ done
 [Web Crypto API]: webcrypto.md
 [`"type"`]: packages.md#type
 [`--allow-child-process`]: #--allow-child-process
+[`--allow-ffi`]: #--allow-ffi
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
 [`--allow-worker`]: #--allow-worker
