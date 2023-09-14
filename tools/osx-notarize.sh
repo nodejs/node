@@ -56,6 +56,7 @@ else
     xcrun notarytool submit "node-$pkgid.pkg" \
       --apple-id "@env:NOTARIZATION_ID" \
       --password "@env:NOTARIZATION_PASSWORD" \
+      --team-id "@env:NOTARIZATION_TEAM_ID" \
       --wait 2>&1
   )
 
