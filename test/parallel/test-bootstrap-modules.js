@@ -95,12 +95,7 @@ const expectedModules = new Set([
   'NativeModule internal/process/pre_execution',
 ]);
 
-if (common.isMainThread) {
-  [
-    'NativeModule internal/idna',
-    'NativeModule url',
-  ].forEach(expectedModules.add.bind(expectedModules));
-} else {
+if (!common.isMainThread) {
   [
     'NativeModule diagnostics_channel',
     'NativeModule internal/abort_controller',
