@@ -3,11 +3,13 @@
 # Notarize a generated node-<version>.pkg file as an Apple requirement for installation on macOS Catalina and later, as validated by Gatekeeper.
 # Uses gon (Xcode version < 13.0) or notarytool (Xcode >= 13.0).
 
-set -e
-
-function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
+version() {
+  echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }' || echo "0"
+}
 
 xcode_version=$(xcodebuild -version | awk '/Xcode/ {print $2}')
+xcode_version_result=$(version "$xcode_version")
+xcode_version_threshold=$(version "13.0")
 pkgid="$1"
 
 if [ -z "$pkgid" ]; then
@@ -21,7 +23,7 @@ if [ -z "$NOTARIZATION_ID" ]; then
   exit 0
 fi
 
-if [ $(version $VAR) -lt $(version "13.0") ]; then
+if [ "$xcode_version_result" -lt "$xcode_version_threshold" ]; then
   echo "Notarization process is done with gon."
   set -x
 
@@ -43,9 +45,10 @@ if [ $(version $VAR) -lt $(version "13.0") ]; then
 else
   echo "Notarization process is done with Notarytool."
 
-  if ! command -v xcrun >/dev/null || ! xcrun --find notarytool >/dev/null; then
-    echo "Notarytool is not present in the system. Notarization has failed."
-    exit 1
+  if ! command -v notarytool > /dev/null
+  then
+      echo "Notarytool is not present in the system. Notarization has failed."
+      exit 1
   fi
 
   # Submit the package for notarization
