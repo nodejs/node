@@ -27,7 +27,8 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
       const [experiment, arg] of [
         [
           /`--experimental-loader` may be removed in the future/,
-          `--experimental-loader=${fileURL('es-module-loaders', 'hooks-custom.mjs')}`
+          '--experimental-loader',
+          fileURL('es-module-loaders', 'hooks-custom.mjs'),
         ],
         [/Network Imports/, '--experimental-network-imports'],
       ]
