@@ -6,7 +6,7 @@ Select a Node.js version below to view the changelog history:
 * [Node.js 19](doc/changelogs/CHANGELOG_V19.md) End-of-Life
 * [Node.js 18](doc/changelogs/CHANGELOG_V18.md) **Long Term Support**
 * [Node.js 17](doc/changelogs/CHANGELOG_V17.md) End-of-Life
-* [Node.js 16](doc/changelogs/CHANGELOG_V16.md) **Long Term Support**
+* [Node.js 16](doc/changelogs/CHANGELOG_V16.md) End-of-Life
 * [Node.js 15](doc/changelogs/CHANGELOG_V15.md) End-of-Life
 * [Node.js 14](doc/changelogs/CHANGELOG_V14.md) End-of-Life
 * [Node.js 13](doc/changelogs/CHANGELOG_V13.md) End-of-Life
@@ -31,7 +31,6 @@ release.
 <tr>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V20.md">20</a> (Current)</th>
   <th title="LTS Until 2025-04"><a href="doc/changelogs/CHANGELOG_V18.md">18</a> (LTS)</th>
-  <th title="LTS Until 2023-09"><a href="doc/changelogs/CHANGELOG_V16.md">16</a> (LTS)</th>
 </tr>
 <tr>
   <td valign="top">
@@ -72,45 +71,6 @@ release.
 <a href="doc/changelogs/CHANGELOG_V18.md#18.1.0">18.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.0.0">18.0.0</a><br/>
   </td>
-  <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V16.md#16.20.2">16.20.2</a></b><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.20.1">16.20.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.20.0">16.20.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.19.1">16.19.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.19.0">16.19.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.18.1">16.18.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.18.0">16.18.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.17.1">16.17.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.17.0">16.17.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.16.0">16.16.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.15.1">16.15.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.15.0">16.15.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.14.2">16.14.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.14.1">16.14.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.14.0">16.14.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.13.2">16.13.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.13.1">16.13.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.13.0">16.13.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.12.0">16.12.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.11.1">16.11.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.11.0">16.11.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.10.0">16.10.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.9.1">16.9.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.9.0">16.9.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.8.0">16.8.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.7.0">16.7.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.6.2">16.6.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.6.1">16.6.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.6.0">16.6.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.5.0">16.5.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.4.2">16.4.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.4.1">16.4.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.4.0">16.4.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.3.0">16.3.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.2.0">16.2.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.1.0">16.1.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V16.md#16.0.0">16.0.0</a><br/>
-    </td>
 </tr>
 </table>
 
