@@ -560,6 +560,23 @@ changes:
 
 A browser-compatible implementation of {Headers}.
 
+## `localStorage`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`localStorage`][]. Data is stored
+unencrypted in the current working directory, with a storage quota of 10 MB.
+The filename of the persisted storage is the basename of the main entrypoint,
+`process.argv[1]`, followed by a dot (`.`), a hash of the entrypoint's absolute
+path and a `.localstorage` extension. If Node.js is run without a file as the
+entrypoint, such as when running the REPL, then the executable's basename is
+used. Any modification of this data outside of the Web Storage API is not
+supported. Enable this API with the [`--experimental-webstorage`][] CLI flag.
+
 ## `MessageChannel`
 
 <!-- YAML
@@ -855,6 +872,19 @@ changes:
 
 A browser-compatible implementation of {Request}.
 
+## `sessionStorage`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`sessionStorage`][]. Data is stored in
+memory, with a storage quota of 10 MB. Any modification of this data outside of
+the Web Storage API is not supported. Enable this API with the
+[`--experimental-webstorage`][] CLI flag.
+
 ## `setImmediate(callback[, ...args])`
 
 <!-- YAML
@@ -884,6 +914,17 @@ added: v0.0.1
 <!-- type=global -->
 
 [`setTimeout`][] is described in the [timers][] section.
+
+## Class: `Storage`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`Storage`][]. Enable this API with the
+[`--experimental-webstorage`][] CLI flag.
 
 ## `structuredClone(value[, options])`
 
@@ -1064,6 +1105,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [Web Crypto API]: webcrypto.md
 [`--experimental-websocket`]: cli.md#--experimental-websocket
+[`--experimental-webstorage`]: cli.md#--experimental-webstorage
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
 [`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
@@ -1089,6 +1131,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`ReadableStreamDefaultController`]: webstreams.md#class-readablestreamdefaultcontroller
 [`ReadableStreamDefaultReader`]: webstreams.md#class-readablestreamdefaultreader
 [`ReadableStream`]: webstreams.md#class-readablestream
+[`Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Storage
 [`TextDecoderStream`]: webstreams.md#class-textdecoderstream
 [`TextDecoder`]: util.md#class-utiltextdecoder
 [`TextEncoderStream`]: webstreams.md#class-textencoderstream
@@ -1113,11 +1156,13 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`exports`]: modules.md#exports
 [`fetch()`]: https://developer.mozilla.org/en-US/docs/Web/API/fetch
 [`globalThis`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+[`localStorage`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
 [`module`]: modules.md#module
 [`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
 [`process.nextTick()`]: process.md#processnexttickcallback-args
 [`process` object]: process.md#process
 [`require()`]: modules.md#requireid
+[`sessionStorage`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage
 [`setImmediate`]: timers.md#setimmediatecallback-args
 [`setInterval`]: timers.md#setintervalcallback-delay-args
 [`setTimeout`]: timers.md#settimeoutcallback-delay-args

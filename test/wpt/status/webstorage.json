@@ -1,0 +1,41 @@
+{
+  "event_constructor.window.js": {
+    "skip": "StorageEvent is currently unimplemented."
+  },
+  "event_initstorageevent.window.js": {
+    "skip": "StorageEvent is currently unimplemented."
+  },
+  "localstorage-cross-origin-iframe.tentative.https.window.js": {
+    "skip": "iframes are not supported in Node.js."
+  },
+  "storage_local_window_open.window.js": {
+    "skip": "window.open() is not supported in Node.js."
+  },
+  "storage_session_window_noopener.window.js": {
+    "skip": "window.open() is not supported in Node.js."
+  },
+  "storage_session_window_open.window.js": {
+    "skip": "window.open() is not supported in Node.js."
+  },
+  "storage_session_window_reopen.window.js": {
+    "skip": "window.open() is not supported in Node.js."
+  },
+  "storage_setitem.window.js": {
+    "fail": {
+      "expected": [
+        "localStorage[] = \"\ud800\"",
+        "localStorage[] = \"\udbff\"",
+        "localStorage[] = \"\udc00\"",
+        "localStorage[] = \"\udfff\"",
+        "localStorage[] = \"\ud83ca\"",
+        "localStorage[] = \"a\udf4d\"",
+        "sessionStorage[] = \"\ud800\"",
+        "sessionStorage[] = \"\udbff\"",
+        "sessionStorage[] = \"\udc00\"",
+        "sessionStorage[] = \"\udfff\"",
+        "sessionStorage[] = \"\ud83ca\"",
+        "sessionStorage[] = \"a\udf4d\""
+      ]
+    }
+  }
+}

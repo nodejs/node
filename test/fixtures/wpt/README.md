@@ -34,6 +34,7 @@ Last update:
 - WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/d4e14d714c/WebCryptoAPI
 - webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/a370aad338/webidl/ecmascript-binding/es-exceptions
 - webmessaging/broadcastchannel: https://github.com/web-platform-tests/wpt/tree/e97fac4791/webmessaging/broadcastchannel
+- webstorage: https://github.com/web-platform-tests/wpt/tree/9dafa89214/webstorage
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-wpt

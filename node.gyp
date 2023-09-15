@@ -140,6 +140,7 @@
       'src/node_wasi.cc',
       'src/node_wasm_web_api.cc',
       'src/node_watchdog.cc',
+      'src/node_webstorage.cc',
       'src/node_worker.cc',
       'src/node_zlib.cc',
       'src/permission/child_process_permission.cc',
@@ -261,6 +262,7 @@
       'src/node_v8_platform-inl.h',
       'src/node_wasi.h',
       'src/node_watchdog.h',
+      'src/node_webstorage.h',
       'src/node_worker.h',
       'src/permission/child_process_permission.h',
       'src/permission/fs_permission.h',
@@ -520,6 +522,7 @@
       'dependencies': [
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/sqlite3/sqlite3.gyp:sqlite3',
       ],
 
       'msvs_settings': {
@@ -816,6 +819,7 @@
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/sqlite3/sqlite3.gyp:sqlite3',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
         'node_js2c#host',
@@ -1000,6 +1004,7 @@
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/sqlite3/sqlite3.gyp:sqlite3',
       ],
       'includes': [
         'node.gypi'
@@ -1011,6 +1016,7 @@
         'deps/cares/include',
         'deps/uv/include',
         'deps/uvwasi/include',
+        'deps/sqlite3',
         'test/cctest',
       ],
       'defines': [
@@ -1047,6 +1053,7 @@
         'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/sqlite3/sqlite3.gyp:sqlite3',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
       ],
@@ -1062,6 +1069,7 @@
         'deps/cares/include',
         'deps/uv/include',
         'deps/uvwasi/include',
+        'deps/sqlite3',
         'test/cctest',
       ],
 
@@ -1124,6 +1132,7 @@
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/sqlite3/sqlite3.gyp:sqlite3',
         'deps/ada/ada.gyp:ada',
       ],
 
@@ -1138,6 +1147,7 @@
         'deps/cares/include',
         'deps/uv/include',
         'deps/uvwasi/include',
+        'deps/sqlite3',
         'test/embedding',
       ],
 
@@ -1235,6 +1245,7 @@
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/sqlite3/sqlite3.gyp:sqlite3',
         'deps/ada/ada.gyp:ada',
       ],
 
@@ -1249,6 +1260,7 @@
         'deps/cares/include',
         'deps/uv/include',
         'deps/uvwasi/include',
+        'deps/sqlite3',
       ],
 
       'defines': [ 'NODE_WANT_INTERNALS=1' ],

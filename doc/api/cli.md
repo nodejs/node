@@ -779,6 +779,14 @@ added: REPLACEME
 
 Enable experimental [`WebSocket`][] support.
 
+### `--experimental-webstorage`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental [`Web Storage`][] support.
+
 ### `--force-context-aware`
 
 <!-- YAML
@@ -2768,6 +2776,7 @@ done
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
+[`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 [`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
