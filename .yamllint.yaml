@@ -31,8 +31,6 @@ rules:
 
   line-length: disable
 
-  new-lines: disable
-
   quoted-strings:
     quote-type: single
     required: only-when-needed
