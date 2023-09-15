@@ -29,6 +29,7 @@ This a list of all the dependencies:
 * [postject][]
 * [simdjson][]
 * [simdutf][]
+* [sqlite][]
 * [undici][]
 * [uvwasi][]
 * [V8][]
@@ -290,6 +291,11 @@ a C++ library for fast JSON parsing.
 The [simdutf](https://github.com/simdutf/simdutf) dependency is
 a C++ library for fast UTF-8 decoding and encoding.
 
+### sqlite
+
+The [sqlite](https://github.com/sqlite/sqlite) dependency is
+an embedded SQL database engine written in C.
+
 ### undici
 
 The [undici](https://github.com/nodejs/undici) dependency is an HTTP/1.1 client,
@@ -345,6 +351,7 @@ performance improvements not currently available in standard zlib.
 [postject]: #postject
 [simdjson]: #simdjson
 [simdutf]: #simdutf
+[sqlite]: #sqlite
 [undici]: #undici
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uvwasi]: #uvwasi

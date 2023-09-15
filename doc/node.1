@@ -200,6 +200,9 @@ Enable experimental support for the EventSource Web API.
 .It Fl -no-experimental-websocket
 Disable experimental support for the WebSocket API.
 .
+.It Fl -experimental-webstorage
+Enable experimental support for the Web Storage API.
+.
 .It Fl -no-experimental-repl-await
 Disable top-level await keyword support in REPL.
 .
@@ -312,6 +315,9 @@ other platforms, but the performance impact may be severe.
 .Pp
 This flag is inherited from V8 and is subject to change upstream. It may
 disappear in a non-semver-major release.
+.
+.It Fl -localstorage-file Ns = Ns Ar file
+The file used to store localStorage data.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.

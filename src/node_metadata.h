@@ -48,6 +48,7 @@ namespace node {
   V(acorn)                                                                     \
   V(simdjson)                                                                  \
   V(simdutf)                                                                   \
+  V(sqlite)                                                                    \
   V(ada)                                                                       \
   NODE_VERSIONS_KEY_UNDICI(V)                                                  \
   V(cjs_module_lexer)                                                          \

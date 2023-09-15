@@ -85,6 +85,7 @@
   V(wasi)                                                                      \
   V(wasm_web_api)                                                              \
   V(watchdog)                                                                  \
+  V(webstorage)                                                                \
   V(worker)                                                                    \
   V(zlib)
 
