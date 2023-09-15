@@ -54,20 +54,21 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#include <unicode/utypes.h>
 #include <unicode/putil.h>
+#include <unicode/timezone.h>
 #include <unicode/uchar.h>
 #include <unicode/uclean.h>
+#include <unicode/ucnv.h>
 #include <unicode/udata.h>
 #include <unicode/uidna.h>
-#include <unicode/ucnv.h>
-#include <unicode/utf8.h>
-#include <unicode/utf16.h>
-#include <unicode/timezone.h>
 #include <unicode/ulocdata.h>
+#include <unicode/urename.h>
+#include <unicode/ustring.h>
+#include <unicode/utf16.h>
+#include <unicode/utf8.h>
+#include <unicode/utypes.h>
 #include <unicode/uvernum.h>
 #include <unicode/uversion.h>
-#include <unicode/ustring.h>
 
 #ifdef NODE_HAVE_SMALL_ICU
 /* if this is defined, we have a 'secondary' entry point.
@@ -569,8 +570,7 @@ ConverterObject::ConverterObject(
   }
 }
 
-
-bool InitializeICUDirectory(const std::string& path) {
+bool InitializeICUDirectory(const std::string& path, std::string* error) {
   UErrorCode status = U_ZERO_ERROR;
   if (path.empty()) {
 #ifdef NODE_HAVE_SMALL_ICU
@@ -583,7 +583,12 @@ bool InitializeICUDirectory(const std::string& path) {
     u_setDataDirectory(path.c_str());
     u_init(&status);
   }
-  return status == U_ZERO_ERROR;
+  if (status == U_ZERO_ERROR) {
+    return true;
+  }
+
+  *error = u_errorName(status);
+  return false;
 }
 
 void SetDefaultTimeZone(const char* tzid) {
