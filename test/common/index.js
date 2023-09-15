@@ -376,6 +376,14 @@ if (global.ReadableStream) {
   );
 }
 
+if (global.Storage) {
+  knownGlobals.push(
+    global.localStorage,
+    global.sessionStorage,
+    global.Storage,
+  );
+}
+
 function allowGlobals(...allowlist) {
   knownGlobals = knownGlobals.concat(allowlist);
 }

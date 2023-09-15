@@ -38,6 +38,7 @@ on:
           - root-certificates
           - simdjson
           - simdutf
+          - sqlite
           - undici
           - uvwasi
           - zlib
@@ -269,6 +270,14 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-simdutf.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: sqlite
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-sqlite.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
