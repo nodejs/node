@@ -113,27 +113,47 @@ This mode provides a balance between features and binary size.
 
 If the `small-icu` option is used, one can still provide additional locale data
 at runtime so that the JS methods would work for all ICU locales. Assuming the
-data file is stored at `/some/directory`, it can be made available to ICU
-through either:
+data file is stored at `/runtime/directory/with/dat/file`, it can be made
+available to ICU through either:
+
+* The `--with-icu-default-data-dir` configure option:
+
+  ```bash
+  ./configure --with-icu-default-data-dir=/runtime/directory/with/dat/file --with-intl=small-icu
+  ```
+
+  This only embeds the default data directory path into the binary.
+  The actual data file is going to be loaded at runtime from this directory
+  path.
 
 * The [`NODE_ICU_DATA`][] environment variable:
 
   ```bash
-  env NODE_ICU_DATA=/some/directory node
+  env NODE_ICU_DATA=/runtime/directory/with/dat/file node
   ```
 
 * The [`--icu-data-dir`][] CLI parameter:
 
   ```bash
-  node --icu-data-dir=/some/directory
+  node --icu-data-dir=/runtime/directory/with/dat/file
   ```
 
-(If both are specified, the `--icu-data-dir` CLI parameter takes precedence.)
+When more than one of them is specified, the `--icu-data-dir` CLI parameter has
+the highest precedence, then the `NODE_ICU_DATA`  environment variable, then
+the `--with-icu-default-data-dir` configure option.
 
 ICU is able to automatically find and load a variety of data formats, but the
 data must be appropriate for the ICU version, and the file correctly named.
-The most common name for the data file is `icudt6X[bl].dat`, where `6X` denotes
+The most common name for the data file is `icudtX[bl].dat`, where `X` denotes
 the intended ICU version, and `b` or `l` indicates the system's endianness.
+Node.js would fail to load if the expected data file cannot be read from the
+specified directory. The name of the data file corresponding to the current
+Node.js version can be computed with:
+
+```js
+`icudt${process.versions.icu.split('.')[0]}${os.endianness()[0].toLowerCase()}.dat`;
+```
+
 Check ["ICU Data"][] article in the ICU User Guide for other supported formats
 and more details on ICU data in general.
 
