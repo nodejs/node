@@ -145,7 +145,8 @@ class SnapshotDeserializer : public BlobDeserializer<SnapshotDeserializer> {
  public:
   explicit SnapshotDeserializer(std::string_view v)
       : BlobDeserializer<SnapshotDeserializer>(
-            per_process::enabled_debug_list.enabled(DebugCategory::SNAPSHOT_SERDES),
+            per_process::enabled_debug_list.enabled(
+                DebugCategory::SNAPSHOT_SERDES),
             v) {}
 
   template <typename T,
