@@ -31,7 +31,7 @@ describe('CJS ↔︎ ESM interop warnings', { concurrency: true }, () => {
     );
     assert.ok(
       stderr.replaceAll('\r', '').includes(
-        `Instead rename ${basename} to end in .cjs, change the requiring ` +
+        `Instead either rename ${basename} to end in .cjs, change the requiring ` +
         'code to use dynamic import() which is available in all CommonJS ' +
         `modules, or change "type": "module" to "type": "commonjs" in ${pjson} to ` +
         'treat all .js files as CommonJS (using .mjs for all ES modules ' +
