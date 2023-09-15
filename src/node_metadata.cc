@@ -10,6 +10,7 @@
 #include "node.h"
 #include "simdjson.h"
 #include "simdutf.h"
+#include "sqlite3.h"
 #include "undici_version.h"
 #include "util.h"
 #include "uv.h"
@@ -131,6 +132,7 @@ Metadata::Versions::Versions() {
 
   simdjson = SIMDJSON_VERSION;
   simdutf = SIMDUTF_VERSION;
+  sqlite = SQLITE_VERSION;
   ada = ADA_VERSION;
 }
 
