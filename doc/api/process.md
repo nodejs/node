@@ -3970,6 +3970,7 @@ Will generate an object similar to:
   openssl: '3.0.13+quic',
   simdjson: '3.8.0',
   simdutf: '5.2.4',
+  sqlite: '3.46.0',
   tz: '2024a',
   undici: '6.13.0',
   unicode: '15.1',

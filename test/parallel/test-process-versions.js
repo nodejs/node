@@ -20,6 +20,7 @@ const expected_keys = [
   'acorn',
   'simdjson',
   'simdutf',
+  'sqlite',
   'ada',
   'cjs_module_lexer',
   'base64',
