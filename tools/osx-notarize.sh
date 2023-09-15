@@ -23,6 +23,16 @@ if [ -z "$NOTARIZATION_ID" ]; then
   exit 0
 fi
 
+if [ -z "$NOTARIZATION_PASSWORD" ]; then
+  echo "No NOTARIZATION_PASSWORD environment variable. Skipping notarization."
+  exit 0
+fi
+
+if [ -z "$NOTARIZATION_TEAM_ID" ]; then
+  echo "No NOTARIZATION_TEAM_ID environment variable. Skipping notarization."
+  exit 0
+fi
+
 if [ "$xcode_version_result" -lt "$xcode_version_threshold" ]; then
   echo "Notarization process is done with gon."
   set -x
@@ -54,9 +64,9 @@ else
   # Submit the package for notarization
   notarization_output=$(
     xcrun notarytool submit \
-      --apple-id "@env:NOTARIZATION_ID" \
-      --password "@env:NOTARIZATION_PASSWORD" \
-      --team-id "@env:NOTARIZATION_TEAM_ID" \
+      --apple-id "$NOTARIZATION_ID" \
+      --password "$NOTARIZATION_PASSWORD" \
+      --team-id "$NOTARIZATION_TEAM_ID" \
       --wait \
       "node-$pkgid.pkg" 2>&1
   )
