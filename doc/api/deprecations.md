@@ -3383,6 +3383,20 @@ In a future version of Node.js, [`assert.CallTracker`][],
 will be removed.
 Consider using alternatives such as the [`mock`][] helper function.
 
+### DEP0174: calling `promisify` on a function that returns a `Promise`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49647
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Calling [`util.promisify`][] on a function that returns a <Promise> will ignore
+the result of said promise, which can lead to unhandled promise rejections.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3523,6 +3537,7 @@ Consider using alternatives such as the [`mock`][] helper function.
 [`util.isSymbol()`]: util.md#utilissymbolobject
 [`util.isUndefined()`]: util.md#utilisundefinedobject
 [`util.log()`]: util.md#utillogstring
+[`util.promisify`]: util.md#utilpromisifyoriginal
 [`util.types`]: util.md#utiltypes
 [`util`]: util.md
 [`worker.exitedAfterDisconnect`]: cluster.md#workerexitedafterdisconnect
