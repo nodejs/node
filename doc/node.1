@@ -178,6 +178,11 @@ Use this flag to enable ShadowRealm support.
 .It Fl -experimental-test-coverage
 Enable code coverage in the test runner.
 .
+.It Fl -experimental-type Ns = Ns Ar type
+Interpret as either ES modules or CommonJS modules input via --eval, --print or STDIN;
+.js or extensionless files with no sibling or parent package.json;
+.js or extensionless files whose nearest parent package.json lacks a "type" field, unless under node_modules.
+.
 .It Fl -experimental-websocket
 Enable experimental support for the WebSocket API.
 .

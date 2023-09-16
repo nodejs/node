@@ -646,6 +646,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvvar);
+  AddOption("--experimental-type",
+            "set module system to use by default",
+            &EnvironmentOptions::module_type,
+            kAllowedInEnvvar);
   AddOption("--extra-info-on-fatal-exception",
             "hide extra information on fatal exception that causes exit",
             &EnvironmentOptions::extra_info_on_fatal_exception,
