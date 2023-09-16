@@ -62,11 +62,11 @@ const http = require('http');
 
   server.listen(0, () => {
     const req = http.request({
+      method: 'POST',
       port: server.address().port,
       agent: new http.Agent()
     });
 
-    req.write('asd');
     req.on('response', (res) => {
       const buf = [];
       res.on('data', (data) => buf.push(data));
@@ -78,6 +78,8 @@ const http = require('http');
         server.close();
       }));
     });
+
+    req.end('asd');
   });
 }
 
@@ -97,11 +99,10 @@ const http = require('http');
 
   server.listen(0, () => {
     const req = http.request({
+      method: 'POST',
       port: server.address().port,
       agent: new http.Agent()
     });
-
-    req.write('asd');
     req.on('response', (res) => {
       const buf = [];
       res.on('data', (data) => buf.push(data));
@@ -113,5 +114,7 @@ const http = require('http');
         server.close();
       }));
     });
+
+    req.end('asd');
   });
 }

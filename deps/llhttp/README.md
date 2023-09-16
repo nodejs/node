@@ -61,33 +61,41 @@ checks could be performed to get even stricter verification of the llhttp.
 ## Usage
 
 ```C
+#include "stdio.h"
 #include "llhttp.h"
+#include "string.h"
 
-llhttp_t parser;
-llhttp_settings_t settings;
+int handle_on_message_complete(llhttp_t* parser) {
+	fprintf(stdout, "Message completed!\n");
+	return 0;
+}
 
-/* Initialize user callbacks and settings */
-llhttp_settings_init(&settings);
+int main() {
+	llhttp_t parser;
+	llhttp_settings_t settings;
 
-/* Set user callback */
-settings.on_message_complete = handle_on_message_complete;
+	/*Initialize user callbacks and settings */
+	llhttp_settings_init(&settings);
 
-/* Initialize the parser in HTTP_BOTH mode, meaning that it will select between
- * HTTP_REQUEST and HTTP_RESPONSE parsing automatically while reading the first
- * input.
- */
-llhttp_init(&parser, HTTP_BOTH, &settings);
+	/*Set user callback */
+	settings.on_message_complete = handle_on_message_complete;
 
-/* Parse request! */
-const char* request = "GET / HTTP/1.1\r\n\r\n";
-int request_len = strlen(request);
+	/*Initialize the parser in HTTP_BOTH mode, meaning that it will select between
+	*HTTP_REQUEST and HTTP_RESPONSE parsing automatically while reading the first
+	*input.
+	*/
+	llhttp_init(&parser, HTTP_BOTH, &settings);
 
-enum llhttp_errno err = llhttp_execute(&parser, request, request_len);
-if (err == HPE_OK) {
-  /* Successfully parsed! */
-} else {
-  fprintf(stderr, "Parse error: %s %s\n", llhttp_errno_name(err),
-          parser.reason);
+	/*Parse request! */
+	const char* request = "GET / HTTP/1.1\r\n\r\n";
+	int request_len = strlen(request);
+
+	enum llhttp_errno err = llhttp_execute(&parser, request, request_len);
+	if (err == HPE_OK) {
+		fprintf(stdout, "Successfully parsed!\n");
+	} else {
+		fprintf(stderr, "Parse error: %s %s\n", llhttp_errno_name(err), parser.reason);
+	}
 }
 ```
 For more information on API usage, please refer to [src/native/api.h](https://github.com/nodejs/llhttp/blob/main/src/native/api.h).
@@ -279,7 +287,7 @@ protocol support to highly non-compliant clients/server.
 No `HPE_INVALID_HEADER_TOKEN` will be raised for incorrect header values when
 lenient parsing is "on".
 
-**USE AT YOUR OWN RISK!**
+**Enabling this flag can pose a security issue since you will be exposed to request smuggling attacks. USE WITH CAUTION!**
 
 ### `void llhttp_set_lenient_chunked_length(llhttp_t* parser, int enabled)`
 
@@ -292,23 +300,22 @@ conjunction with `Content-Length`.
 This error is important to prevent HTTP request smuggling, but may be less desirable
 for small number of cases involving legacy servers.
 
-**USE AT YOUR OWN RISK!**
+**Enabling this flag can pose a security issue since you will be exposed to request smuggling attacks. USE WITH CAUTION!**
 
 ### `void llhttp_set_lenient_keep_alive(llhttp_t* parser, int enabled)`
 
 Enables/disables lenient handling of `Connection: close` and HTTP/1.0
 requests responses.
 
-Normally `llhttp` would error on (in strict mode) or discard (in loose mode)
-the HTTP request/response after the request/response with `Connection: close`
-and `Content-Length`. 
+Normally `llhttp` would error the HTTP request/response 
+after the request/response with `Connection: close` and `Content-Length`. 
 
 This is important to prevent cache poisoning attacks,
 but might interact badly with outdated and insecure clients. 
 
 With this flag the extra request/response will be parsed normally.
 
-**USE AT YOUR OWN RISK!**
+**Enabling this flag can pose a security issue since you will be exposed to poisoning attacks. USE WITH CAUTION!**
 
 ### `void llhttp_set_lenient_transfer_encoding(llhttp_t* parser, int enabled)`
 
@@ -323,7 +330,67 @@ avoid request smuggling.
 
 With this flag the extra value will be parsed normally.
 
-**USE AT YOUR OWN RISK!**
+**Enabling this flag can pose a security issue since you will be exposed to request smuggling attacks. USE WITH CAUTION!**
+
+### `void llhttp_set_lenient_version(llhttp_t* parser, int enabled)`
+
+Enables/disables lenient handling of HTTP version.
+
+Normally `llhttp` would error when the HTTP version in the request or status line
+is not `0.9`, `1.0`, `1.1` or `2.0`.
+With this flag the extra value will be parsed normally.
+
+**Enabling this flag can pose a security issue since you will allow unsupported HTTP versions. USE WITH CAUTION!**
+
+### `void llhttp_set_lenient_data_after_close(llhttp_t* parser, int enabled)`
+
+Enables/disables lenient handling of additional data received after a message ends
+and keep-alive is disabled.
+
+Normally `llhttp` would error when additional unexpected data is received if the message
+contains the `Connection` header with `close` value.
+With this flag the extra data will discarded without throwing an error.
+
+**Enabling this flag can pose a security issue since you will be exposed to poisoning attacks. USE WITH CAUTION!**
+
+### `void llhttp_set_lenient_optional_lf_after_cr(llhttp_t* parser, int enabled)`
+
+Enables/disables lenient handling of incomplete CRLF sequences.
+
+Normally `llhttp` would error when a CR is not followed by LF when terminating the
+request line, the status line, the headers or a chunk header.
+With this flag only a CR is required to terminate such sections.
+
+**Enabling this flag can pose a security issue since you will be exposed to request smuggling attacks. USE WITH CAUTION!**
+
+### `void llhttp_set_lenient_optional_cr_before_lf(llhttp_t* parser, int enabled)`
+
+Enables/disables lenient handling of line separators.
+
+Normally `llhttp` would error when a LF is not preceded by CR when terminating the
+request line, the status line, the headers, a chunk header or a chunk data.
+With this flag only a LF is required to terminate such sections.
+
+**Enabling this flag can pose a security issue since you will be exposed to request smuggling attacks. USE WITH CAUTION!**
+
+### `void llhttp_set_lenient_optional_crlf_after_chunk(llhttp_t* parser, int enabled)`
+
+Enables/disables lenient handling of chunks not separated via CRLF.
+
+Normally `llhttp` would error when after a chunk data a CRLF is missing before
+starting a new chunk.
+With this flag the new chunk can start immediately after the previous one.
+
+**Enabling this flag can pose a security issue since you will be exposed to request smuggling attacks. USE WITH CAUTION!**
+
+### `void llhttp_set_lenient_spaces_after_chunk_size(llhttp_t* parser, int enabled)`
+
+Enables/disables lenient handling of spaces after chunk size.
+
+Normally `llhttp` would error when after a chunk size is followed by one or more spaces are present instead of a CRLF or `;`.
+With this flag this check is disabled.
+
+**Enabling this flag can pose a security issue since you will be exposed to request smuggling attacks. USE WITH CAUTION!**
 
 ## Build Instructions
 

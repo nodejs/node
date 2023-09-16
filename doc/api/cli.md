@@ -1362,10 +1362,23 @@ added:
  - v10.19.0
 -->
 
-Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
-interoperability with non-conformant HTTP implementations. It may also allow
-request smuggling and other HTTP attacks that rely on invalid headers being
-accepted. Avoid using this option.
+Enable leniency flags on the HTTP parser. This may allow
+interoperability with non-conformant HTTP implementations.
+
+When enabled, the parser will accept the following:
+
+* Invalid HTTP headers values.
+* Invalid HTTP versions.
+* Allow message containing both `Transfer-Encoding`
+  and `Content-Length` headers.
+* Allow extra data after message when `Connection: close` is present.
+* Allow extra trasfer encodings after `chunked` has been provided.
+* Allow `\n` to be used as token separator instead of `\r\n`.
+* Allow `\r\n` not to be provided after a chunk.
+* Allow spaces to be present after a chunk size and before `\r\n`.
+
+All the above will expose your application to request smuggling
+or poisoning attack. Avoid using this option.
 
 ### `--inspect[=[host:]port]`
 

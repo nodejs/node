@@ -81,7 +81,7 @@ server.listen(0, function() {
     console.log('server.close() called');
   });
 
-  client.stdin.write('GET /\n\n');
+  client.stdin.write('GET /\r\n\r\n');
 
   client.on('error', function(error) {
     throw error;

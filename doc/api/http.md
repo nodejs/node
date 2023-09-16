@@ -3524,9 +3524,9 @@ changes:
     `readableHighWaterMark` and `writableHighWaterMark`. This affects
     `highWaterMark` property of both `IncomingMessage` and `ServerResponse`.
     **Default:** See [`stream.getDefaultHighWaterMark()`][].
-  * `insecureHTTPParser` {boolean} Use an insecure HTTP parser that accepts
-    invalid HTTP headers when `true`. Using the insecure parser should be
-    avoided. See [`--insecure-http-parser`][] for more information.
+  * `insecureHTTPParser` {boolean} If set to `true`, it will use a HTTP parser
+    with leniency flags enabled. Using the insecure parser should be avoided.
+    See [`--insecure-http-parser`][] for more information.
     **Default:** `false`.
   * `IncomingMessage` {http.IncomingMessage} Specifies the `IncomingMessage`
     class to be used. Useful for extending the original `IncomingMessage`.
@@ -3822,9 +3822,9 @@ changes:
     request to. **Default:** `'localhost'`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` will be used if both `host` and `hostname` are specified.
-  * `insecureHTTPParser` {boolean} Use an insecure HTTP parser that accepts
-    invalid HTTP headers when `true`. Using the insecure parser should be
-    avoided. See [`--insecure-http-parser`][] for more information.
+  * `insecureHTTPParser` {boolean} If set to `true`, it will use a HTTP parser
+    with leniency flags enabled. Using the insecure parser should be avoided.
+    See [`--insecure-http-parser`][] for more information.
     **Default:** `false`
   * `joinDuplicateHeaders` {boolean} It joins the field line values of
     multiple headers in a request with `, ` instead of discarding
