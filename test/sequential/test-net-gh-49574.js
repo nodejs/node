@@ -13,7 +13,7 @@ function execAndClose() {
   process.stdout.write('.');
 
   const chunks = [];
-  const socket = net.connect(common.PORT);
+  const socket = net.connect(common.PORT, common.localhostIPv4);
 
   socket.on('end', socket.end);
   socket.on('connect', function() {
