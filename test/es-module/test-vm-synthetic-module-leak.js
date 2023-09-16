@@ -4,20 +4,15 @@
 // This tests that vm.SyntheticModule does not leak.
 // See https://github.com/nodejs/node/issues/44211
 require('../common');
+const { checkIfCollectable } = require('../common/gc');
 const vm = require('vm');
 
-let count = 0;
-async function createModule() {
-  // Try to reach the maximum old space size.
+async function createSyntheticModule() {
   const m = new vm.SyntheticModule(['bar'], () => {
     m.setExport('bar', new Array(512).fill('----'));
   });
   await m.link(() => {});
   await m.evaluate();
-  if (count++ < 4 * 1024) {
-    setTimeout(createModule, 1);
-  }
   return m;
 }
-
-createModule();
+checkIfCollectable(createSyntheticModule, 4096);
