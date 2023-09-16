@@ -16,9 +16,17 @@ const { customPromisifyArgs } = require('internal/util');
   process.off('warning', warningHandler);
 }
 
-common.expectWarning('Warning', 'Calling promisify on a function that returns a Promise is likely a mistake.');
+common.expectWarning(
+  'DeprecationWarning',
+  'Calling promisify on a function that returns a Promise is likely a mistake.',
+  'DEP0174');
 promisify(async (callback) => { callback(); })().then(common.mustCall(() => {
-  common.expectWarning('Warning', 'Calling promisify on a function that returns a Promise is likely a mistake.');
+  // We must add the second `expectWarning` call in the `.then` handler, when
+  // the first warning has already been triggered.
+  common.expectWarning(
+    'DeprecationWarning',
+    'Calling promisify on a function that returns a Promise is likely a mistake.',
+    'DEP0174');
   promisify(async () => {})().then(common.mustNotCall());
 }));
 
