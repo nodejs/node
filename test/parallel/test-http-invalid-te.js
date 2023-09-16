@@ -27,7 +27,7 @@ I AM A SMUGGLED REQUEST!!!
 const server = http.createServer(common.mustNotCall());
 
 server.on('clientError', common.mustCall((err) => {
-  assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
+  assert.strictEqual(err.code, 'HPE_INVALID_TRANSFER_ENCODING');
   server.close();
 }));
 
