@@ -102,14 +102,6 @@ class BindingData : public SnapshotableObject {
 
   static FilePathIsFileReturnType FilePathIsFile(Environment* env,
                                                  const std::string& file_path);
-
-  static const std::array<std::string, 10> legacy_main_extensions;
-  // define the final index of the algorithm resolution
-  // when packageConfig.main is defined.
-  static const uint8_t legacy_main_extensions_with_main_end = 7;
-  // define the final index of the algorithm resolution
-  // when packageConfig.main is NOT defined
-  static const uint8_t legacy_main_extensions_package_fallback_end = 10;
 };
 
 // structure used to store state during a complex operation, e.g., mkdirp.
