@@ -317,7 +317,7 @@ against FIPS-compatible OpenSSL.)
 ### `--enable-network-family-autoselection`
 
 <!-- YAML
-added: REPLACEME
+added: v18.18.0
 -->
 
 Enables the family autoselection algorithm unless connection options explicitly
@@ -683,7 +683,7 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 ### `--import=module`
 
 <!-- YAML
-added: REPLACEME
+added: v18.18.0
 -->
 
 > Stability: 1 - Experimental

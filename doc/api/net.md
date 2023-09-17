@@ -358,7 +358,7 @@ was not open when it was closed.
 ### `server[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -792,7 +792,7 @@ socket as reported by the operating system:
 ### `socket.autoSelectFamilyAttemptedAddresses`
 
 <!-- YAML
-added: REPLACEME
+added: v18.18.0
 -->
 
 * {string\[]}
@@ -879,7 +879,7 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.18.0
     pr-url: https://github.com/nodejs/node/pull/45777
     description: The default value for autoSelectFamily option can be changed
                  at runtime using `setDefaultAutoSelectFamily` or via the
@@ -1654,7 +1654,7 @@ Sets the default value of the `autoSelectFamily` option of [`socket.connect(opt
 ## `net.getDefaultAutoSelectFamilyAttemptTimeout()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.18.0
 -->
 
 Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
@@ -1664,7 +1664,7 @@ Gets the current default value of the `autoSelectFamilyAttemptTimeout` option o
 ## `net.setDefaultAutoSelectFamilyAttemptTimeout(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.18.0
 -->
 
 Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].

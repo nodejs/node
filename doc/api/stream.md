@@ -1905,7 +1905,7 @@ has less then 64 KiB of data because no `highWaterMark` option is provided to
 ##### `readable[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.18.0
 -->
 
 > Stability: 1 - Experimental

@@ -2890,7 +2890,7 @@ The JavaScript `string` type is described in
 #### `node_api_create_external_string_latin1`
 
 <!-- YAML
-added: REPLACEME
+added: v18.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -2968,7 +2968,7 @@ The JavaScript `string` type is described in
 #### `node_api_create_external_string_utf16`
 
 <!-- YAML
-added: REPLACEME
+added: v18.18.0
 -->
 
 > Stability: 1 - Experimental

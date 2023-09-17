@@ -863,7 +863,7 @@ Append a new name-value pair to the query string.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.18.0
     pr-url: https://github.com/nodejs/node/pull/47885
     description: Add support for optional `value` argument.
 -->
@@ -933,7 +933,7 @@ no such pairs, an empty array is returned.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.18.0
     pr-url: https://github.com/nodejs/node/pull/47885
     description: Add support for optional `value` argument.
 -->
