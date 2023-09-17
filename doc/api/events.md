@@ -1806,7 +1806,9 @@ setMaxListeners(5, target, emitter);
 ## `events.addAbortListener(signal, listener)`
 
 <!-- YAML
-added: v20.5.0
+added:
+ - v20.5.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental

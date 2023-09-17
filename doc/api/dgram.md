@@ -375,7 +375,9 @@ provided, it is added as a listener for the [`'close'`][] event.
 ### `socket[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: v20.5.0
+added:
+ - v20.5.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental
