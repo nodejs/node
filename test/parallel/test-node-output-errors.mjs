@@ -11,12 +11,13 @@ const skipForceColors =
   (common.isWindows && (Number(os.release().split('.')[0]) !== 10 || Number(os.release().split('.')[2]) < 14393)); // See https://github.com/nodejs/node/pull/33132
 
 
-function replaceNodeVersion(str) {
-  return str.replaceAll(process.version, '*');
-}
-
 function replaceStackTrace(str) {
   return snapshot.replaceStackTrace(str, '$1at *$7\n');
+}
+
+function replaceForceColorsStackTrace(str) {
+  // eslint-disable-next-line no-control-regex
+  return str.replaceAll(/(\[90m\W+)at .*node:.*/g, '$1at *[39m');
 }
 
 describe('errors output', { concurrency: true }, () => {
@@ -35,9 +36,12 @@ describe('errors output', { concurrency: true }, () => {
   }
   const common = snapshot
     .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths);
-  const defaultTransform = snapshot.transform(common, normalize, replaceNodeVersion);
-  const errTransform = snapshot.transform(common, normalizeNoNumbers, replaceNodeVersion);
-  const promiseTransform = snapshot.transform(common, replaceStackTrace, normalizeNoNumbers, replaceNodeVersion);
+  const defaultTransform = snapshot.transform(common, normalize, snapshot.replaceNodeVersion);
+  const errTransform = snapshot.transform(common, normalizeNoNumbers, snapshot.replaceNodeVersion);
+  const promiseTransform = snapshot.transform(common, replaceStackTrace,
+                                              normalizeNoNumbers, snapshot.replaceNodeVersion);
+  const forceColorsTransform = snapshot.transform(common, normalize,
+                                                  replaceForceColorsStackTrace, snapshot.replaceNodeVersion);
 
   const tests = [
     { name: 'errors/async_error_eval_cjs.js' },
@@ -57,7 +61,8 @@ describe('errors output', { concurrency: true }, () => {
     { name: 'errors/throw_in_line_with_tabs.js', transform: errTransform },
     { name: 'errors/throw_non_error.js', transform: errTransform },
     { name: 'errors/promise_always_throw_unhandled.js', transform: promiseTransform },
-    { skip: skipForceColors, name: 'errors/force_colors.js', env: { FORCE_COLOR: 1 } },
+    { skip: skipForceColors, name: 'errors/force_colors.js',
+      transform: forceColorsTransform, env: { FORCE_COLOR: 1 } },
   ];
   for (const { name, transform = defaultTransform, env, skip = false } of tests) {
     it(name, { skip }, async () => {
