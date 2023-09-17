@@ -8,6 +8,10 @@ const assert = require('node:assert/strict');
 const stackFramesRegexp = /(?<=\n)(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
 const windowNewlineRegexp = /\r/g;
 
+function replaceNodeVersion(str) {
+  return str.replaceAll(process.version, '*');
+}
+
 function replaceStackTrace(str, replacement = '$1*$7$8\n') {
   return str.replace(stackFramesRegexp, replacement);
 }
@@ -69,6 +73,7 @@ async function spawnAndAssert(filename, transform = (x) => x, { tty = false, ...
 module.exports = {
   assertSnapshot,
   getSnapshotPath,
+  replaceNodeVersion,
   replaceStackTrace,
   replaceWindowsLineEndings,
   replaceWindowsPaths,
