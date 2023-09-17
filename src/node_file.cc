@@ -996,6 +996,31 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void AccessSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
+  CHECK(args[1]->IsInt32());
+  int mode = args[1].As<Int32>()->Value();
+
+  BufferValue path(isolate, args[0]);
+  CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  uv_fs_t req;
+  FS_SYNC_TRACE_BEGIN(access);
+  int err = uv_fs_access(nullptr, &req, *path, mode, nullptr);
+  uv_fs_req_cleanup(&req);
+  FS_SYNC_TRACE_END(access);
+
+  if (err) {
+    return env->ThrowUVException(err, "access", nullptr, path.out());
+  }
+}
 
 void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1021,6 +1046,54 @@ void Close(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void CloseSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsInt32());
+
+  int fd = args[0].As<Int32>()->Value();
+  env->RemoveUnmanagedFd(fd);
+
+  uv_fs_t req;
+  FS_SYNC_TRACE_BEGIN(close);
+  int err = uv_fs_close(nullptr, &req, fd, nullptr);
+  FS_SYNC_TRACE_END(close);
+  uv_fs_req_cleanup(&req);
+
+  if (err < 0) {
+    return env->ThrowUVException(err, "close");
+  }
+}
+
+static void ExistsSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  CHECK_GE(args.Length(), 1);
+
+  BufferValue path(isolate, args[0]);
+  CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(access);
+  int err = uv_fs_access(nullptr, &req, path.out(), 0, nullptr);
+  FS_SYNC_TRACE_END(access);
+
+#ifdef _WIN32
+  // In case of an invalid symlink, `uv_fs_access` on win32
+  // will **not** return an error and is therefore not enough.
+  // Double check with `uv_fs_stat()`.
+  if (err == 0) {
+    FS_SYNC_TRACE_BEGIN(stat);
+    err = uv_fs_stat(nullptr, &req, path.out(), nullptr);
+    FS_SYNC_TRACE_END(stat);
+  }
+#endif  // _WIN32
+
+  args.GetReturnValue().Set(err == 0);
+}
 
 // Used to speed up module loading. Returns an array [string, boolean]
 static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
@@ -1142,6 +1215,41 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void StatSync(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
+  Environment* env = realm->env();
+
+  CHECK_GE(args.Length(), 3);
+
+  BufferValue path(realm->isolate(), args[0]);
+  bool use_bigint = args[1]->IsTrue();
+  bool do_not_throw_if_no_entry = args[2]->IsFalse();
+  CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  env->PrintSyncTrace();
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+
+  FS_SYNC_TRACE_BEGIN(stat);
+  int err = uv_fs_stat(nullptr, &req, *path, nullptr);
+  FS_SYNC_TRACE_END(stat);
+
+  if (err < 0) {
+    if (err == UV_ENOENT && do_not_throw_if_no_entry) {
+      return;
+    }
+    return env->ThrowUVException(err, "stat", nullptr, path.out());
+  }
+
+  Local<Value> arr = FillGlobalStatsArray(
+      binding_data, use_bigint, static_cast<const uv_stat_t*>(req.ptr));
+  args.GetReturnValue().Set(arr);
+}
+
 static void LStat(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
@@ -1253,6 +1361,34 @@ static void StatFs(const FunctionCallbackInfo<Value>& args) {
         static_cast<const uv_statfs_t*>(req_wrap_sync.req.ptr));
     args.GetReturnValue().Set(arr);
   }
+}
+
+static void StatFsSync(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
+  Environment* env = realm->env();
+
+  CHECK_GE(args.Length(), 2);
+
+  BufferValue path(realm->isolate(), args[0]);
+  bool use_bigint = args[1]->IsTrue();
+
+  CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(statfs);
+  int err = uv_fs_statfs(nullptr, &req, *path, nullptr);
+  FS_SYNC_TRACE_END(statfs);
+  if (err < 0) {
+    return env->ThrowUVException(err, "statfs", *path, nullptr);
+  }
+
+  Local<Value> arr = FillGlobalStatFsArray(
+      binding_data, use_bigint, static_cast<const uv_statfs_t*>(req.ptr));
+  args.GetReturnValue().Set(arr);
 }
 
 static void Symlink(const FunctionCallbackInfo<Value>& args) {
@@ -1964,74 +2100,6 @@ static inline Maybe<void> CheckOpenPermissions(Environment* env,
   return JustVoid();
 }
 
-static void ReadFileSync(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  auto isolate = env->isolate();
-
-  CHECK_GE(args.Length(), 2);
-
-  BufferValue path(env->isolate(), args[0]);
-  CHECK_NOT_NULL(*path);
-
-  CHECK(args[1]->IsInt32());
-  const int flags = args[1].As<Int32>()->Value();
-
-  if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
-
-  uv_fs_t req;
-  auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-
-  FS_SYNC_TRACE_BEGIN(open);
-  uv_file file = uv_fs_open(nullptr, &req, *path, flags, 438, nullptr);
-  FS_SYNC_TRACE_END(open);
-  if (req.result < 0) {
-    // req will be cleaned up by scope leave.
-    Local<Value> out[] = {
-        Integer::New(isolate, req.result),       // errno
-        FIXED_ONE_BYTE_STRING(isolate, "open"),  // syscall
-    };
-    return args.GetReturnValue().Set(Array::New(isolate, out, arraysize(out)));
-  }
-  uv_fs_req_cleanup(&req);
-
-  auto defer_close = OnScopeLeave([file]() {
-    uv_fs_t close_req;
-    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
-    uv_fs_req_cleanup(&close_req);
-  });
-
-  std::string result{};
-  char buffer[8192];
-  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
-
-  FS_SYNC_TRACE_BEGIN(read);
-  while (true) {
-    auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
-    if (req.result < 0) {
-      FS_SYNC_TRACE_END(read);
-      // req will be cleaned up by scope leave.
-      Local<Value> out[] = {
-          Integer::New(isolate, req.result),       // errno
-          FIXED_ONE_BYTE_STRING(isolate, "read"),  // syscall
-      };
-      return args.GetReturnValue().Set(
-          Array::New(isolate, out, arraysize(out)));
-    }
-    uv_fs_req_cleanup(&req);
-    if (r <= 0) {
-      break;
-    }
-    result.append(buf.base, r);
-  }
-  FS_SYNC_TRACE_END(read);
-
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                result.data(),
-                                                v8::NewStringType::kNormal,
-                                                result.size())
-                                .ToLocalChecked());
-}
-
 static void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -2066,6 +2134,35 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
     if (result >= 0) env->AddUnmanagedFd(result);
     args.GetReturnValue().Set(result);
   }
+}
+
+static void OpenSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+
+  CHECK(args[1]->IsInt32());
+  const int flags = args[1].As<Int32>()->Value();
+
+  CHECK(args[2]->IsInt32());
+  const int mode = args[2].As<Int32>()->Value();
+
+  if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(open);
+  int err = uv_fs_open(nullptr, &req, *path, flags, mode, nullptr);
+  FS_SYNC_TRACE_END(open);
+  if (err < 0) {
+    return env->ThrowUVException(err, "open", nullptr, path.out());
+  }
+  env->AddUnmanagedFd(err);
+  args.GetReturnValue().Set(err);
 }
 
 static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
@@ -2150,6 +2247,38 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void CopyFileSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  BufferValue src(isolate, args[0]);
+  CHECK_NOT_NULL(*src);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, src.ToStringView());
+
+  BufferValue dest(isolate, args[1]);
+  CHECK_NOT_NULL(*dest);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
+
+  CHECK(args[2]->IsInt32());
+  const int flags = args[2].As<Int32>()->Value();
+
+  uv_fs_t req;
+  FS_SYNC_TRACE_BEGIN(copyfile);
+  int err =
+      uv_fs_copyfile(nullptr, &req, src.out(), dest.out(), flags, nullptr);
+  uv_fs_req_cleanup(&req);
+  FS_SYNC_TRACE_END(copyfile);
+
+  if (err) {
+    return env->ThrowUVException(
+        err, "copyfile", nullptr, src.out(), dest.out());
+  }
+}
 
 // Wrapper for write(2).
 //
@@ -2412,6 +2541,58 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  auto isolate = env->isolate();
+
+  CHECK_GE(args.Length(), 2);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+
+  CHECK(args[1]->IsInt32());
+  const int flags = args[1].As<Int32>()->Value();
+
+  if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
+
+  uv_fs_t req;
+  auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+
+  FS_SYNC_TRACE_BEGIN(open);
+  uv_file file = uv_fs_open(nullptr, &req, *path, flags, 438, nullptr);
+  FS_SYNC_TRACE_END(open);
+  if (req.result < 0) {
+    // req will be cleaned up by scope leave.
+    return env->ThrowUVException(req.result, "open", nullptr, path.out());
+  }
+
+  auto defer_close = OnScopeLeave([file]() {
+    uv_fs_t close_req;
+    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
+    uv_fs_req_cleanup(&close_req);
+  });
+  std::string result{};
+  char buffer[8192];
+  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
+
+  FS_SYNC_TRACE_BEGIN(read);
+  while (true) {
+    auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
+    if (req.result < 0) {
+      FS_SYNC_TRACE_END(read);
+      // req will be cleaned up by scope leave.
+      return env->ThrowUVException(req.result, "read", nullptr, path.out());
+    }
+    if (r <= 0) {
+      break;
+    }
+    result.append(buf.base, r);
+  }
+  FS_SYNC_TRACE_END(read);
+
+  args.GetReturnValue().Set(
+      ToV8Value(env->context(), result, isolate).ToLocalChecked());
+}
 
 // Wrapper for readv(2).
 //
@@ -2523,7 +2704,6 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_END(fchmod);
   }
 }
-
 
 /* fs.chown(path, uid, gid);
  * Wrapper for chown(1) / EIO_CHOWN
@@ -3171,10 +3351,15 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   Isolate* isolate = isolate_data->isolate();
 
   SetMethod(isolate, target, "access", Access);
+  SetMethodNoSideEffect(isolate, target, "accessSync", AccessSync);
   SetMethod(isolate, target, "close", Close);
+  SetMethod(isolate, target, "closeSync", CloseSync);
+  SetMethodNoSideEffect(isolate, target, "existsSync", ExistsSync);
   SetMethod(isolate, target, "open", Open);
+  SetMethod(isolate, target, "openSync", OpenSync);
   SetMethod(isolate, target, "openFileHandle", OpenFileHandle);
   SetMethod(isolate, target, "read", Read);
+  SetMethodNoSideEffect(isolate, target, "readFileUtf8", ReadFileUtf8);
   SetMethod(isolate, target, "readBuffers", ReadBuffers);
   SetMethod(isolate, target, "fdatasync", Fdatasync);
   SetMethod(isolate, target, "fsync", Fsync);
@@ -3186,10 +3371,11 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "internalModuleReadJSON", InternalModuleReadJSON);
   SetMethod(isolate, target, "internalModuleStat", InternalModuleStat);
   SetMethod(isolate, target, "stat", Stat);
+  SetMethod(isolate, target, "statSync", StatSync);
   SetMethod(isolate, target, "lstat", LStat);
   SetMethod(isolate, target, "fstat", FStat);
-  SetMethodNoSideEffect(isolate, target, "readFileSync", ReadFileSync);
   SetMethod(isolate, target, "statfs", StatFs);
+  SetMethod(isolate, target, "statfsSync", StatFsSync);
   SetMethod(isolate, target, "link", Link);
   SetMethod(isolate, target, "symlink", Symlink);
   SetMethod(isolate, target, "readlink", ReadLink);
@@ -3199,6 +3385,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "writeString", WriteString);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
+  SetMethodNoSideEffect(isolate, target, "copyFileSync", CopyFileSync);
 
   SetMethod(isolate, target, "chmod", Chmod);
   SetMethod(isolate, target, "fchmod", FChmod);
@@ -3286,13 +3473,18 @@ BindingData* FSReqBase::binding_data() {
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Access);
+  registry->Register(AccessSync);
   StatWatcher::RegisterExternalReferences(registry);
   BindingData::RegisterExternalReferences(registry);
 
   registry->Register(Close);
+  registry->Register(CloseSync);
+  registry->Register(ExistsSync);
   registry->Register(Open);
+  registry->Register(OpenSync);
   registry->Register(OpenFileHandle);
   registry->Register(Read);
+  registry->Register(ReadFileUtf8);
   registry->Register(ReadBuffers);
   registry->Register(Fdatasync);
   registry->Register(Fsync);
@@ -3304,10 +3496,11 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(InternalModuleReadJSON);
   registry->Register(InternalModuleStat);
   registry->Register(Stat);
+  registry->Register(StatSync);
   registry->Register(LStat);
   registry->Register(FStat);
-  registry->Register(ReadFileSync);
   registry->Register(StatFs);
+  registry->Register(StatFsSync);
   registry->Register(Link);
   registry->Register(Symlink);
   registry->Register(ReadLink);
@@ -3317,6 +3510,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WriteString);
   registry->Register(RealPath);
   registry->Register(CopyFile);
+  registry->Register(CopyFileSync);
 
   registry->Register(Chmod);
   registry->Register(FChmod);
