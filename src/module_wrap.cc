@@ -577,8 +577,6 @@ static MaybeLocal<Promise> ImportModuleDynamically(
     return handle_scope.Escape(resolver->GetPromise());
   }
 
-  Local<Value> object;
-
   Local<Symbol> id =
       options->Get(context, HostDefinedOptions::kID).As<Symbol>();
 
