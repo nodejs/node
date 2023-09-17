@@ -517,6 +517,37 @@ describe('Loader hooks', { concurrency: true }, () => {
       assert.strictEqual(signal, null);
     });
 
+    it('should have `register` accept URL objects as `parentURL`', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--import',
+        `data:text/javascript,${encodeURIComponent(
+          'import{ register } from "node:module";' +
+          'import { pathToFileURL } from "node:url";' +
+          'register("./hooks-initialize.mjs", pathToFileURL("./"));'
+        )}`,
+        '--input-type=module',
+        '--eval',
+        `
+        import {register} from 'node:module';
+        register(
+          ${JSON.stringify(fixtures.fileURL('es-module-loaders/loader-load-foo-or-42.mjs'))},
+          new URL('data:'),
+        );
+
+        import('node:os').then((result) => {
+          console.log(JSON.stringify(result));
+        });
+        `,
+      ], { cwd: fixtures.fileURL('es-module-loaders/') });
+
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout.split('\n').sort(), ['hooks initialize 1', '{"default":"foo"}', ''].sort());
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
+
     it('should have `register` work with cjs', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
