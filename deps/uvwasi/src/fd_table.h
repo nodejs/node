@@ -11,6 +11,7 @@ struct uvwasi_options_s;
 struct uvwasi_fd_wrap_t {
   uvwasi_fd_t id;
   uv_file fd;
+  uv_tcp_t* sock;
   char* path;
   char* real_path;
   char* normalized_path;
@@ -35,6 +36,7 @@ void uvwasi_fd_table_free(struct uvwasi_s* uvwasi,
 uvwasi_errno_t uvwasi_fd_table_insert(struct uvwasi_s* uvwasi,
                                       struct uvwasi_fd_table_t* table,
                                       uv_file fd,
+                                      uv_tcp_t* sock,
                                       const char* mapped_path,
                                       const char* real_path,
                                       uvwasi_filetype_t type,
@@ -47,6 +49,9 @@ uvwasi_errno_t uvwasi_fd_table_insert_preopen(struct uvwasi_s* uvwasi,
                                               const uv_file fd,
                                               const char* path,
                                               const char* real_path);
+uvwasi_errno_t uvwasi_fd_table_insert_preopen_socket(struct uvwasi_s* uvwasi,
+                                              struct uvwasi_fd_table_t* table,
+                                              uv_tcp_t* sock);
 uvwasi_errno_t uvwasi_fd_table_get(struct uvwasi_fd_table_t* table,
                                    const uvwasi_fd_t id,
                                    struct uvwasi_fd_wrap_t** wrap,
