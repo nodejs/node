@@ -82,14 +82,18 @@ isBuiltin('wss'); // false
 
 <!-- YAML
 added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49655
+    description: Add support for WHATWG URL instances.
 -->
 
 > Stability: 1.1 - Active development
 
-* `specifier` {string} Customization hooks to be registered; this should be the
-  same string that would be passed to `import()`, except that if it is relative,
-  it is resolved relative to `parentURL`.
-* `parentURL` {string} If you want to resolve `specifier` relative to a base
+* `specifier` {string|URL} Customization hooks to be registered; this should be
+  the same string that would be passed to `import()`, except that if it is
+  relative, it is resolved relative to `parentURL`.
+* `parentURL` {string|URL} If you want to resolve `specifier` relative to a base
   URL, such as `import.meta.url`, you can pass that URL here. **Default:**
   `'data:'`
 * `options` {Object}
