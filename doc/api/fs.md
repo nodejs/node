@@ -823,7 +823,9 @@ the end of the file.
 #### `filehandle[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: v20.4.0
+added:
+ - v20.4.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental

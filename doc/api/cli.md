@@ -492,6 +492,15 @@ added: v6.0.0
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
 
+### `--enable-network-family-autoselection`
+
+<!-- YAML
+added: v18.18.0
+-->
+
+Enables the family autoselection algorithm unless connection options explicitly
+disables it.
+
 ### `--enable-source-maps`
 
 <!-- YAML
@@ -924,7 +933,9 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 ### `--import=module`
 
 <!-- YAML
-added: v19.0.0
+added:
+ - v19.0.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental
