@@ -143,11 +143,9 @@ int nghttp2_frame_pack_headers(nghttp2_bufs *bufs, nghttp2_headers *frame,
  * Unpacks HEADERS frame byte sequence into |frame|.  This function
  * only unapcks bytes that come before name/value header block and
  * after possible Pad Length field.
- *
- * This function always succeeds and returns 0.
  */
-int nghttp2_frame_unpack_headers_payload(nghttp2_headers *frame,
-                                         const uint8_t *payload);
+void nghttp2_frame_unpack_headers_payload(nghttp2_headers *frame,
+                                          const uint8_t *payload);
 
 /*
  * Packs PRIORITY frame |frame| in wire format and store it in
@@ -155,10 +153,8 @@ int nghttp2_frame_unpack_headers_payload(nghttp2_headers *frame,
  *
  * The caller must make sure that nghttp2_bufs_reset(bufs) is called
  * before calling this function.
- *
- * This function always succeeds and returns 0.
  */
-int nghttp2_frame_pack_priority(nghttp2_bufs *bufs, nghttp2_priority *frame);
+void nghttp2_frame_pack_priority(nghttp2_bufs *bufs, nghttp2_priority *frame);
 
 /*
  * Unpacks PRIORITY wire format into |frame|.
@@ -172,11 +168,9 @@ void nghttp2_frame_unpack_priority_payload(nghttp2_priority *frame,
  *
  * The caller must make sure that nghttp2_bufs_reset(bufs) is called
  * before calling this function.
- *
- * This function always succeeds and returns 0.
  */
-int nghttp2_frame_pack_rst_stream(nghttp2_bufs *bufs,
-                                  nghttp2_rst_stream *frame);
+void nghttp2_frame_pack_rst_stream(nghttp2_bufs *bufs,
+                                   nghttp2_rst_stream *frame);
 
 /*
  * Unpacks RST_STREAM frame byte sequence into |frame|.
@@ -265,15 +259,9 @@ int nghttp2_frame_pack_push_promise(nghttp2_bufs *bufs,
  * Unpacks PUSH_PROMISE frame byte sequence into |frame|.  This
  * function only unapcks bytes that come before name/value header
  * block and after possible Pad Length field.
- *
- * This function returns 0 if it succeeds or one of the following
- * negative error codes:
- *
- * NGHTTP2_ERR_PROTO
- *     TODO END_HEADERS flag is not set
  */
-int nghttp2_frame_unpack_push_promise_payload(nghttp2_push_promise *frame,
-                                              const uint8_t *payload);
+void nghttp2_frame_unpack_push_promise_payload(nghttp2_push_promise *frame,
+                                               const uint8_t *payload);
 
 /*
  * Packs PING frame |frame| in wire format and store it in
@@ -281,10 +269,8 @@ int nghttp2_frame_unpack_push_promise_payload(nghttp2_push_promise *frame,
  *
  * The caller must make sure that nghttp2_bufs_reset(bufs) is called
  * before calling this function.
- *
- * This function always succeeds and returns 0.
  */
-int nghttp2_frame_pack_ping(nghttp2_bufs *bufs, nghttp2_ping *frame);
+void nghttp2_frame_pack_ping(nghttp2_bufs *bufs, nghttp2_ping *frame);
 
 /*
  * Unpacks PING wire format into |frame|.
@@ -343,11 +329,9 @@ int nghttp2_frame_unpack_goaway_payload2(nghttp2_goaway *frame,
  *
  * The caller must make sure that nghttp2_bufs_reset(bufs) is called
  * before calling this function.
- *
- * This function always succeeds and returns 0.
  */
-int nghttp2_frame_pack_window_update(nghttp2_bufs *bufs,
-                                     nghttp2_window_update *frame);
+void nghttp2_frame_pack_window_update(nghttp2_bufs *bufs,
+                                      nghttp2_window_update *frame);
 
 /*
  * Unpacks WINDOW_UPDATE frame byte sequence into |frame|.
@@ -361,17 +345,13 @@ void nghttp2_frame_unpack_window_update_payload(nghttp2_window_update *frame,
  *
  * The caller must make sure that nghttp2_bufs_reset(bufs) is called
  * before calling this function.
- *
- * This function always succeeds and returns 0.
  */
-int nghttp2_frame_pack_altsvc(nghttp2_bufs *bufs, nghttp2_extension *ext);
+void nghttp2_frame_pack_altsvc(nghttp2_bufs *bufs, nghttp2_extension *ext);
 
 /*
  * Unpacks ALTSVC wire format into |frame|.  The |payload| of
  * |payloadlen| bytes contains frame payload.  This function assumes
  * that frame->payload points to the nghttp2_ext_altsvc object.
- *
- * This function always succeeds and returns 0.
  */
 void nghttp2_frame_unpack_altsvc_payload(nghttp2_extension *frame,
                                          size_t origin_len, uint8_t *payload,
@@ -431,19 +411,15 @@ int nghttp2_frame_unpack_origin_payload(nghttp2_extension *frame,
  *
  * The caller must make sure that nghttp2_bufs_reset(bufs) is called
  * before calling this function.
- *
- * This function always succeeds and returns 0.
  */
-int nghttp2_frame_pack_priority_update(nghttp2_bufs *bufs,
-                                       nghttp2_extension *ext);
+void nghttp2_frame_pack_priority_update(nghttp2_bufs *bufs,
+                                        nghttp2_extension *ext);
 
 /*
  * Unpacks PRIORITY_UPDATE wire format into |frame|.  The |payload| of
  * |payloadlen| bytes contains frame payload.  This function assumes
  * that frame->payload points to the nghttp2_ext_priority_update
  * object.
- *
- * This function always succeeds and returns 0.
  */
 void nghttp2_frame_unpack_priority_update_payload(nghttp2_extension *frame,
                                                   uint8_t *payload,
@@ -654,16 +630,8 @@ int nghttp2_iv_check(const nghttp2_settings_entry *iv, size_t niv);
  * |padlen| including Pad Length field.  The |hd| is the frame header
  * for the serialized data.  This function fills zeros padding region
  * unless framehd_only is nonzero.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGHTTP2_ERR_NOMEM
- *     Out of memory.
- * NGHTTP2_ERR_FRAME_SIZE_ERROR
- *     The length of the resulting frame is too large.
  */
-int nghttp2_frame_add_pad(nghttp2_bufs *bufs, nghttp2_frame_hd *hd,
-                          size_t padlen, int framehd_only);
+void nghttp2_frame_add_pad(nghttp2_bufs *bufs, nghttp2_frame_hd *hd,
+                           size_t padlen, int framehd_only);
 
 #endif /* NGHTTP2_FRAME_H */
