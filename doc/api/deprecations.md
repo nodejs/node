@@ -3577,12 +3577,15 @@ The [`util.toUSVString()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49686
+    description: Runtime deprecation.
   - version: v20.8.0
     pr-url: https://github.com/nodejs/node/pull/49683
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 `F_OK`, `R_OK`, `W_OK` and `X_OK` getters exposed directly on `node:fs` are
 deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
