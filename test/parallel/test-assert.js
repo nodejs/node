@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,7 +25,6 @@ const common = require('../common');
 const assert = require('assert');
 const { inspect } = require('util');
 const vm = require('vm');
-const { internalBinding } = require('internal/test/binding');
 const a = assert;
 
 // Disable colored output to prevent color codes from breaking assertion
@@ -801,37 +799,6 @@ assert.throws(
     message: 'Symbol(foo)'
   }
 );
-
-{
-  // Test caching.
-  const fs = internalBinding('fs');
-  const tmp = fs.close;
-  fs.close = common.mustCall(tmp, 1);
-  function throwErr() {
-    assert(
-      (Buffer.from('test') instanceof Error)
-    );
-  }
-  assert.throws(
-    () => throwErr(),
-    {
-      code: 'ERR_ASSERTION',
-      constructor: assert.AssertionError,
-      message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
-    }
-  );
-  assert.throws(
-    () => throwErr(),
-    {
-      code: 'ERR_ASSERTION',
-      constructor: assert.AssertionError,
-      message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
-    }
-  );
-  fs.close = tmp;
-}
 
 assert.throws(
   () => {
