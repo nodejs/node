@@ -27,7 +27,7 @@ fs.mkdirSync(subdir);
     file,
   ], {
     cwd: tmpdir.path,
-    encoding: `utf8`
+    encoding: 'utf8'
   });
 
   assert.strictEqual(child.status, 0);
@@ -41,7 +41,7 @@ fs.mkdirSync(subdir);
     file,
   ], {
     cwd: subdir,
-    encoding: `utf8`
+    encoding: 'utf8'
   });
 
   assert.strictEqual(child.status, 0);
