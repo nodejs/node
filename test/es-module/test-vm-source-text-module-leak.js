@@ -18,4 +18,4 @@ async function createSourceTextModule() {
   return m;
 }
 
-checkIfCollectable(createSourceTextModule, 4096);
+checkIfCollectable(createSourceTextModule, 4096, 1024);
