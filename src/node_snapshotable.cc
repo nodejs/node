@@ -145,7 +145,8 @@ class SnapshotDeserializer : public BlobDeserializer<SnapshotDeserializer> {
  public:
   explicit SnapshotDeserializer(std::string_view v)
       : BlobDeserializer<SnapshotDeserializer>(
-            per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT),
+            per_process::enabled_debug_list.enabled(
+                DebugCategory::SNAPSHOT_SERDES),
             v) {}
 
   template <typename T,
@@ -159,7 +160,7 @@ class SnapshotSerializer : public BlobSerializer<SnapshotSerializer> {
   SnapshotSerializer()
       : BlobSerializer<SnapshotSerializer>(
             per_process::enabled_debug_list.enabled(
-                DebugCategory::MKSNAPSHOT)) {
+                DebugCategory::SNAPSHOT_SERDES)) {
     // Currently the snapshot blob built with an empty script is around 4MB.
     // So use that as the default sink size.
     sink.reserve(4 * 1024 * 1024);
