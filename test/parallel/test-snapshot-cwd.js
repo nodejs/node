@@ -8,7 +8,6 @@ const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
-const path = require('path');
 
 tmpdir.refresh();
 const blobPath = tmpdir.resolve('snapshot.blob');
