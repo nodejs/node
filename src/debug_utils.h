@@ -51,6 +51,7 @@ void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
   V(SEA)                                                                       \
   V(WASI)                                                                      \
   V(MKSNAPSHOT)                                                                \
+  V(SNAPSHOT_SERDES)                                                           \
   V(PERMISSION_MODEL)
 
 enum class DebugCategory : unsigned int {
