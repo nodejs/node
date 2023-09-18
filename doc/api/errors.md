@@ -2921,7 +2921,19 @@ extension.
 
 > Stability: 1 - Experimental
 
-An attempt was made to load a module with an unknown or unsupported format.
+An attempt was made to load a module with an unknown format.
+
+<a id="ERR_UNSUPPORTED_MODULE_FORMAT"></a>
+
+### `ERR_UNSUPPORTED_MODULE_FORMAT`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+An attempt was made to load a module with an unsupported format.
 
 <a id="ERR_UNKNOWN_SIGNAL"></a>
 

@@ -1,0 +1,4 @@
+{
+  "name": "web-loader",
+  "main": "./index.mjs"
+}
