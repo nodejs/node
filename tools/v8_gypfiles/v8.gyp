@@ -1405,6 +1405,10 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
+        }],
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
@@ -1453,6 +1457,10 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
+        }],
       ],
     },  # mksnapshot
     {
@@ -1469,6 +1477,10 @@
         # Avoid excessive LTO
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
+        }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
         }],
       ],
       'defines!': [
@@ -1508,6 +1520,10 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
+        }],
       ],
       'dependencies': [
         'torque_base',
@@ -1543,6 +1559,10 @@
         # Avoid excessive LTO
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
+        }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
         }],
       ],
       'sources': [
