@@ -1161,6 +1161,10 @@
         [ 'OS!="linux" or ossfuzz!="true"', {
           'type': 'none',
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
     }, # fuzz_url
     { # fuzz_env
