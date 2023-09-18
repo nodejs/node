@@ -3388,11 +3388,14 @@ Consider using alternatives such as the [`mock`][] helper function.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49609
+    description: Runtime deprecation.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/49647
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Calling [`util.promisify`][] on a function that returns a <Promise> will ignore
 the result of said promise, which can lead to unhandled promise rejections.
