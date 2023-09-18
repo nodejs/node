@@ -44,6 +44,6 @@ fs.mkdirSync(subdir);
   }, {
     status: 0,
     trim: true,
-    stdout: subdir
+    stdout: subdir,
   });
 }
