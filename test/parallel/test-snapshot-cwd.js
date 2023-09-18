@@ -14,7 +14,7 @@ tmpdir.refresh();
 const blobPath = tmpdir.resolve('snapshot.blob');
 const file = fixtures.path('snapshot', 'cwd.js');
 
-const subdir = path.join(tmpdir.path, 'foo');
+const subdir = tmpdir.resolve('foo');
 fs.mkdirSync(subdir);
 
 {
