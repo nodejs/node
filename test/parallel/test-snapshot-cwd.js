@@ -4,8 +4,7 @@
 // the snapshot is launched with -p and -e
 
 require('../common');
-const assert = require('assert');
-const { spawnSync } = require('child_process');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
@@ -20,7 +19,7 @@ fs.mkdirSync(subdir);
 
 {
   // Create the snapshot.
-  const child = spawnSync(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     '--build-snapshot',
@@ -28,22 +27,22 @@ fs.mkdirSync(subdir);
   ], {
     cwd: tmpdir.path,
     encoding: 'utf8'
+  }, {
+    status: 0,
   });
-
-  assert.strictEqual(child.status, 0);
 }
 
 {
   // Check a custom works.
-  const child = spawnSync(process.execPath, [
+  const child = spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     file,
   ], {
     cwd: subdir,
     encoding: 'utf8'
+  }, {
+    status: 0,
+    stdout: `${subdir}\n`
   });
-
-  assert.strictEqual(child.status, 0);
-  assert.strictEqual(child.stdout, `${subdir}\n`);
 }
