@@ -33,7 +33,6 @@ fs.mkdirSync(subdir);
 }
 
 {
-  // Check a custom works.
   spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
