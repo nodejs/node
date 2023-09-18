@@ -9,10 +9,8 @@ const fixtures = dirname.slice(0, dirname.lastIndexOf('/', dirname.length - 2) +
 
 assert.strictEqual(import.meta.resolve('./test-esm-import-meta.mjs'),
                    dirname + 'test-esm-import-meta.mjs');
-const notFound = import.meta.resolve('./notfound.mjs');
-assert.strictEqual(new URL(notFound).href, new URL('./notfound.mjs', import.meta.url).href);
-const noExtension = import.meta.resolve('./asset');
-assert.strictEqual(new URL(noExtension).href, new URL('./asset', import.meta.url).href);
+assert.strictEqual(import.meta.resolve('./notfound.mjs'), new URL('./notfound.mjs', import.meta.url).href);
+assert.strictEqual(import.meta.resolve('./asset'), new URL('./asset', import.meta.url).href);
 try {
   import.meta.resolve('does-not-exist');
   assert.fail();
