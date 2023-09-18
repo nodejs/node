@@ -34,7 +34,7 @@ fs.mkdirSync(subdir);
 
 {
   // Check a custom works.
-  const child = spawnSyncAndExitWithoutError(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     file,
@@ -43,6 +43,7 @@ fs.mkdirSync(subdir);
     encoding: 'utf8'
   }, {
     status: 0,
-    stdout: `${subdir}\n`
+    trim: true,
+    stdout: subdir
   });
 }
