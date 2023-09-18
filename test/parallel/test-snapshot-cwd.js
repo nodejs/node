@@ -1,7 +1,7 @@
 'use strict';
 
-// This tests that user land snapshots works when the instance restored from
-// the snapshot is launched with -p and -e
+// This tests that process.cwd() is accurate when
+// restoring state from a snapshot
 
 require('../common');
 const { spawnSyncAndExitWithoutError } = require('../common/child_process');
