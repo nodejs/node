@@ -75,4 +75,4 @@ echo ""
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need
 # to add it to $GITHUB_ENV variable
-finalize_version_update "acorn" "$NEW_VERSION"
+finalize_version_update "uvwasi" "$NEW_VERSION"
