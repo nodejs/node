@@ -3587,6 +3587,8 @@ added: REPLACEME
     files are filtered. **Default:** filters all dot files.
   * `log` {Function|null} called when sending a response to the client.
     **Default:** `console.log`.
+      * `statusCode` {integer} The status code that is sent to the client.
+      * `url` {string} the (origin-relative) URL that was requested.
   * `onStart` {Function} called the server starts listening to requests.
     **Default:** logs the URL to the console.
 
@@ -3598,10 +3600,10 @@ When specifying a `host` other than `localhost`, you are exposing your local
 file system to all the machines that can connect to your computer.
 
 If specified and not `null`, `filter` will be called with two arguments: the
-first one if the request URL string (the URL that is present in the actual HTTP
+first one is the request URL string (the URL that is present in the actual HTTP
 request), and the second one is the `file:` `URL` that was generated from the
 base directory and the request URL. If the function returns a falsy value, the
-request will be blocked.
+server will respond with a 403 HTTP error.
 
 If `port` is omitted or is 0, the operating system will assign an arbitrary
 unused port, which it's output will be the standard output.
