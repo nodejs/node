@@ -178,10 +178,6 @@ Implements [fetch](https://fetch.spec.whatwg.org/#fetch-method).
 
 Only supported on Node 16.8+.
 
-This is [experimental](https://nodejs.org/api/documentation.html#documentation_stability_index) and is not yet fully compliant with the Fetch Standard.
-We plan to ship breaking changes to this feature until it is out of experimental.
-Help us improve the test coverage by following instructions at [nodejs/undici/#951](https://github.com/nodejs/undici/issues/951).
-
 Basic usage example:
 
 ```js
@@ -234,8 +230,14 @@ const data = {
   },
 }
 
-await fetch('https://example.com', { body: data, method: 'POST' })
+await fetch('https://example.com', { body: data, method: 'POST', duplex: 'half' })
 ```
+
+#### `request.duplex`
+
+- half
+
+In this implementation of fetch, `request.duplex` must be set if `request.body` is `ReadableStream` or `Async Iterables`. And fetch requests are currently always be full duplex. More detail refer to [Fetch Standard.](https://fetch.spec.whatwg.org/#dom-requestinit-duplex)
 
 #### `response.body`
 
@@ -402,6 +404,18 @@ when invoked with a `manual` redirect. This aligns `fetch()` with the other
 implementations in Deno and Cloudflare Workers.
 
 Refs: https://fetch.spec.whatwg.org/#atomic-http-redirect-handling
+
+## Workarounds
+
+### Network address family autoselection.
+
+If you experience problem when connecting to a remote server that is resolved by your DNS servers to a IPv6 (AAAA record)
+first, there are chances that your local router or ISP might have problem connecting to IPv6 networks. In that case
+undici will throw an error with code `UND_ERR_CONNECT_TIMEOUT`. 
+
+If the target server resolves to both a IPv6 and IPv4 (A records) address and you are using a compatible Node version 
+(18.3.0 and above), you can fix the problem by providing the `autoSelectFamily` option (support by both `undici.request`
+and `undici.Agent`) which will enable the family autoselection algorithm when establishing the connection.
 
 ## Collaborators
 

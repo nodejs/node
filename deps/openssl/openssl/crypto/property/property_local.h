@@ -52,4 +52,4 @@ int ossl_property_has_optional(const OSSL_PROPERTY_LIST *query);
 /* Property definition cache functions */
 OSSL_PROPERTY_LIST *ossl_prop_defn_get(OSSL_LIB_CTX *ctx, const char *prop);
 int ossl_prop_defn_set(OSSL_LIB_CTX *ctx, const char *prop,
-                       OSSL_PROPERTY_LIST *pl);
+                       OSSL_PROPERTY_LIST **pl);

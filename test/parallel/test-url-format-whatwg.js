@@ -140,3 +140,8 @@ assert.strictEqual(
   url.format(new URL('http://user:pass@xn--0zwm56d.com:8080/path'), { unicode: true }),
   'http://user:pass@测试.com:8080/path'
 );
+
+assert.strictEqual(
+  url.format(new URL('tel:123')),
+  url.format(new URL('tel:123'), { unicode: true })
+);

@@ -66,7 +66,6 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   t->InstanceTemplate()->SetInternalFieldCount(ECDH::kInternalFieldCount);
 
@@ -131,8 +130,6 @@ void ECDH::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("key", key_ ? kSizeOf_EC_KEY : 0);
 }
 
-ECDH::~ECDH() {}
-
 void ECDH::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -196,7 +193,7 @@ ECPointPointer ECDH::BufferToPoint(Environment* env,
 void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(IsAnyByteSource(args[0]));
+  CHECK(IsAnyBufferSource(args[0]));
 
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
@@ -350,7 +347,7 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
-  CHECK(IsAnyByteSource(args[0]));
+  CHECK(IsAnyBufferSource(args[0]));
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -396,7 +393,7 @@ void ECDH::ConvertKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK_EQ(args.Length(), 3);
-  CHECK(IsAnyByteSource(args[0]));
+  CHECK(IsAnyBufferSource(args[0]));
 
   ArrayBufferOrViewContents<char> args0(args[0]);
   if (UNLIKELY(!args0.CheckSizeInt32()))
@@ -703,10 +700,51 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
       if (key_data->GetKeyType() != kKeyTypePrivate)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
       return PKEY_PKCS8_Export(key_data.get(), out);
-    case kWebCryptoKeyFormatSPKI:
+    case kWebCryptoKeyFormatSPKI: {
       if (key_data->GetKeyType() != kKeyTypePublic)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_SPKI_Export(key_data.get(), out);
+
+      ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
+      if (EVP_PKEY_id(m_pkey.get()) != EVP_PKEY_EC) {
+        return PKEY_SPKI_Export(key_data.get(), out);
+      } else {
+        // Ensure exported key is in uncompressed point format.
+        // The temporary EC key is so we can have i2d_PUBKEY_bio() write out
+        // the header but it is a somewhat silly hoop to jump through because
+        // the header is for all practical purposes a static 26 byte sequence
+        // where only the second byte changes.
+        Mutex::ScopedLock lock(*m_pkey.mutex());
+        const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
+        const EC_GROUP* group = EC_KEY_get0_group(ec_key);
+        const EC_POINT* point = EC_KEY_get0_public_key(ec_key);
+        const point_conversion_form_t form = POINT_CONVERSION_UNCOMPRESSED;
+        const size_t need =
+            EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
+        if (need == 0) return WebCryptoKeyExportStatus::FAILED;
+        ByteSource::Builder data(need);
+        const size_t have = EC_POINT_point2oct(
+            group, point, form, data.data<unsigned char>(), need, nullptr);
+        if (have == 0) return WebCryptoKeyExportStatus::FAILED;
+        ECKeyPointer ec(EC_KEY_new());
+        CHECK_EQ(1, EC_KEY_set_group(ec.get(), group));
+        ECPointPointer uncompressed(EC_POINT_new(group));
+        CHECK_EQ(1,
+                 EC_POINT_oct2point(group,
+                                    uncompressed.get(),
+                                    data.data<unsigned char>(),
+                                    data.size(),
+                                    nullptr));
+        CHECK_EQ(1, EC_KEY_set_public_key(ec.get(), uncompressed.get()));
+        EVPKeyPointer pkey(EVP_PKEY_new());
+        CHECK_EQ(1, EVP_PKEY_set1_EC_KEY(pkey.get(), ec.get()));
+        BIOPointer bio(BIO_new(BIO_s_mem()));
+        CHECK(bio);
+        if (!i2d_PUBKEY_bio(bio.get(), pkey.get()))
+          return WebCryptoKeyExportStatus::FAILED;
+        *out = ByteSource::FromBIO(bio);
+        return WebCryptoKeyExportStatus::OK;
+      }
+    }
     default:
       UNREACHABLE();
   }

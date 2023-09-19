@@ -115,7 +115,7 @@ module.exports = function() {
 
   const failing = [];
   kKeyLengths.forEach((keyLength) => {
-    [24, 48, 72, 95, 129, 256].forEach((badTagLength) => {
+    [24, 48, 72, 95, 129].forEach((badTagLength) => {
       failing.push({
         keyBuffer: kKeyBytes[keyLength],
         algorithm: {

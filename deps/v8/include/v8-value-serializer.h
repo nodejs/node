@@ -76,6 +76,20 @@ class V8_EXPORT ValueSerializer {
     virtual void ThrowDataCloneError(Local<String> message) = 0;
 
     /**
+     * The embedder overrides this method to enable custom host object filter
+     * with Delegate::IsHostObject.
+     *
+     * This method is called at most once per serializer.
+     */
+    virtual bool HasCustomHostObject(Isolate* isolate);
+
+    /**
+     * The embedder overrides this method to determine if an JS object is a
+     * host object and needs to be serialized by the host.
+     */
+    virtual Maybe<bool> IsHostObject(Isolate* isolate, Local<Object> object);
+
+    /**
      * The embedder overrides this method to write some kind of host object, if
      * possible. If not, a suitable exception should be thrown and
      * Nothing<bool>() returned.

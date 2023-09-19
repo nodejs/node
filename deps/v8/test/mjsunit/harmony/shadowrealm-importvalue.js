@@ -52,14 +52,22 @@ globalThis.foobar = 'outer-scope';
   const promise = shadowRealm.importValue('./shadowrealm-skip-not-found.mjs', 'foo');
   // Promise is created in caller realm.
   assertInstanceof(promise, Promise);
-  assertThrowsAsync(promise, TypeError, 'Cannot import in the ShadowRealm');
+  assertThrowsAsync(promise, TypeError, /Cannot import in ShadowRealm \(Error: .+shadowrealm-skip-not-found\.mjs\)/);
 }
 
 {
   const promise = shadowRealm.importValue('./shadowrealm-skip-2-throw.mjs', 'foo');
   // Promise is created in caller realm.
   assertInstanceof(promise, Promise);
-  assertThrowsAsync(promise, TypeError, 'Cannot import in the ShadowRealm');
+  assertThrowsAsync(promise, TypeError, 'Cannot import in ShadowRealm (Error: foobar)');
+}
+
+// no-side-effects inspection on thrown error
+{
+  const promise = shadowRealm.importValue('./shadowrealm-skip-3-throw-object.mjs', 'foo');
+  // Promise is created in caller realm.
+  assertInstanceof(promise, Promise);
+  assertThrowsAsync(promise, TypeError, 'Cannot import in ShadowRealm ([object Object])');
 }
 
 // Invalid args

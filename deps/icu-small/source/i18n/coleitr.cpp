@@ -54,7 +54,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(CollationElementIterator)
 
 CollationElementIterator::CollationElementIterator(
                                          const CollationElementIterator& other) 
-        : UObject(other), iter_(NULL), rbc_(NULL), otherHalf_(0), dir_(0), offsets_(NULL) {
+        : UObject(other), iter_(nullptr), rbc_(nullptr), otherHalf_(0), dir_(0), offsets_(nullptr) {
     *this = other;
 }
 
@@ -82,7 +82,7 @@ UBool ceNeedsTwoParts(int64_t ce) {
 
 int32_t CollationElementIterator::getOffset() const
 {
-    if (dir_ < 0 && offsets_ != NULL && !offsets_->isEmpty()) {
+    if (dir_ < 0 && offsets_ != nullptr && !offsets_->isEmpty()) {
         // CollationIterator::previousCE() decrements the CEs length
         // while it pops CEs from its internal buffer.
         int32_t i = iter_->getCEsLength();
@@ -185,9 +185,9 @@ int32_t CollationElementIterator::previous(UErrorCode& status)
         status = U_INVALID_STATE_ERROR;
         return NULLORDER;
     }
-    if (offsets_ == NULL) {
+    if (offsets_ == nullptr) {
         offsets_ = new UVector32(status);
-        if (offsets_ == NULL) {
+        if (offsets_ == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return NULLORDER;
         }
@@ -234,7 +234,7 @@ void CollationElementIterator::setOffset(int32_t newOffset,
     if (0 < newOffset && newOffset < string_.length()) {
         int32_t offset = newOffset;
         do {
-            UChar c = string_.charAt(offset);
+            char16_t c = string_.charAt(offset);
             if (!rbc_->isUnsafe(c) ||
                     (U16_IS_LEAD(c) && !rbc_->isUnsafe(string_.char32At(offset)))) {
                 break;
@@ -278,7 +278,7 @@ void CollationElementIterator::setText(const UnicodeString& source,
     }
 
     string_ = source;
-    const UChar *s = string_.getBuffer();
+    const char16_t *s = string_.getBuffer();
     CollationIterator *newIter;
     UBool numeric = rbc_->settings->isNumeric();
     if (rbc_->settings->dontCheckFCD()) {
@@ -286,7 +286,7 @@ void CollationElementIterator::setText(const UnicodeString& source,
     } else {
         newIter = new FCDUTF16CollationIterator(rbc_->data, numeric, s, s, s + string_.length());
     }
-    if (newIter == NULL) {
+    if (newIter == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -331,7 +331,7 @@ CollationElementIterator::CollationElementIterator(
                                                const UnicodeString &source,
                                                const RuleBasedCollator *coll,
                                                UErrorCode &status)
-        : iter_(NULL), rbc_(coll), otherHalf_(0), dir_(0), offsets_(NULL) {
+        : iter_(nullptr), rbc_(coll), otherHalf_(0), dir_(0), offsets_(nullptr) {
     setText(source, status);
 }
 
@@ -343,7 +343,7 @@ CollationElementIterator::CollationElementIterator(
                                            const CharacterIterator &source,
                                            const RuleBasedCollator *coll,
                                            UErrorCode &status)
-        : iter_(NULL), rbc_(coll), otherHalf_(0), dir_(0), offsets_(NULL) {
+        : iter_(nullptr), rbc_(coll), otherHalf_(0), dir_(0), offsets_(nullptr) {
     // We only call source.getText() which should be const anyway.
     setText(const_cast<CharacterIterator &>(source), status);
 }
@@ -360,18 +360,18 @@ const CollationElementIterator& CollationElementIterator::operator=(
     CollationIterator *newIter;
     const FCDUTF16CollationIterator *otherFCDIter =
             dynamic_cast<const FCDUTF16CollationIterator *>(other.iter_);
-    if(otherFCDIter != NULL) {
+    if(otherFCDIter != nullptr) {
         newIter = new FCDUTF16CollationIterator(*otherFCDIter, string_.getBuffer());
     } else {
         const UTF16CollationIterator *otherIter =
                 dynamic_cast<const UTF16CollationIterator *>(other.iter_);
-        if(otherIter != NULL) {
+        if(otherIter != nullptr) {
             newIter = new UTF16CollationIterator(*otherIter, string_.getBuffer());
         } else {
-            newIter = NULL;
+            newIter = nullptr;
         }
     }
-    if(newIter != NULL) {
+    if(newIter != nullptr) {
         delete iter_;
         iter_ = newIter;
         rbc_ = other.rbc_;
@@ -380,12 +380,12 @@ const CollationElementIterator& CollationElementIterator::operator=(
 
         string_ = other.string_;
     }
-    if(other.dir_ < 0 && other.offsets_ != NULL && !other.offsets_->isEmpty()) {
+    if(other.dir_ < 0 && other.offsets_ != nullptr && !other.offsets_->isEmpty()) {
         UErrorCode errorCode = U_ZERO_ERROR;
-        if(offsets_ == NULL) {
+        if(offsets_ == nullptr) {
             offsets_ = new UVector32(other.offsets_->size(), errorCode);
         }
-        if(offsets_ != NULL) {
+        if(offsets_ != nullptr) {
             offsets_->assign(*other.offsets_, errorCode);
         }
     }
@@ -435,15 +435,15 @@ MaxExpSink::~MaxExpSink() {}
 
 UHashtable *
 CollationElementIterator::computeMaxExpansions(const CollationData *data, UErrorCode &errorCode) {
-    if (U_FAILURE(errorCode)) { return NULL; }
+    if (U_FAILURE(errorCode)) { return nullptr; }
     UHashtable *maxExpansions = uhash_open(uhash_hashLong, uhash_compareLong,
                                            uhash_compareLong, &errorCode);
-    if (U_FAILURE(errorCode)) { return NULL; }
+    if (U_FAILURE(errorCode)) { return nullptr; }
     MaxExpSink sink(maxExpansions, errorCode);
-    ContractionsAndExpansions(NULL, NULL, &sink, true).forData(data, errorCode);
+    ContractionsAndExpansions(nullptr, nullptr, &sink, true).forData(data, errorCode);
     if (U_FAILURE(errorCode)) {
         uhash_close(maxExpansions);
-        return NULL;
+        return nullptr;
     }
     return maxExpansions;
 }
@@ -457,7 +457,7 @@ int32_t
 CollationElementIterator::getMaxExpansion(const UHashtable *maxExpansions, int32_t order) {
     if (order == 0) { return 1; }
     int32_t max;
-    if(maxExpansions != NULL && (max = uhash_igeti(maxExpansions, order)) != 0) {
+    if(maxExpansions != nullptr && (max = uhash_igeti(maxExpansions, order)) != 0) {
         return max;
     }
     if ((order & 0xc0) == 0xc0) {

@@ -116,13 +116,13 @@ provider-base
 =head1 DESCRIPTION
 
 All "functions" mentioned here are passed as function pointers between
-F<libcrypto> and the provider in B<OSSL_DISPATCH> arrays, in the call
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays, in the call
 of the provider initialization function.  See L<provider(7)/Provider>
 for a description of the initialization function. They are known as "upcalls".
 
 All these "functions" have a corresponding function type definition
 named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
-function pointer from a B<OSSL_DISPATCH> element named
+function pointer from a L<OSSL_DISPATCH(3)> element named
 B<OSSL_FUNC_{name}>.
 For example, the "function" core_gettable_params() has these:
 
@@ -131,10 +131,10 @@ For example, the "function" core_gettable_params() has these:
  static ossl_inline OSSL_NAME_core_gettable_params_fn
      OSSL_FUNC_core_gettable_params(const OSSL_DISPATCH *opf);
 
-B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
 macros in L<openssl-core_dispatch.h(7)>, as follows:
 
-For I<in> (the B<OSSL_DISPATCH> array passed from F<libcrypto> to the
+For I<in> (the L<OSSL_DISPATCH(3)> array passed from F<libcrypto> to the
 provider):
 
  core_gettable_params           OSSL_FUNC_CORE_GETTABLE_PARAMS
@@ -182,7 +182,7 @@ provider):
  provider_up_ref                OSSL_FUNC_PROVIDER_UP_REF
  provider_free                  OSSL_FUNC_PROVIDER_FREE
 
-For I<*out> (the B<OSSL_DISPATCH> array passed from the provider to
+For I<*out> (the L<OSSL_DISPATCH(3)> array passed from the provider to
 F<libcrypto>):
 
  provider_teardown              OSSL_FUNC_PROVIDER_TEARDOWN
@@ -197,7 +197,7 @@ F<libcrypto>):
 =head2 Core functions
 
 core_gettable_params() returns a constant array of descriptor
-B<OSSL_PARAM>, for parameters that core_get_params() can handle.
+L<OSSL_PARAM(3)>, for parameters that core_get_params() can handle.
 
 core_get_params() retrieves parameters from the core for the given I<handle>.
 See L</Core parameters> below for a description of currently known
@@ -290,7 +290,7 @@ BIO_new_file(), BIO_new_mem_buf(), BIO_read_ex(), BIO_write_ex(), BIO_up_ref(),
 BIO_free(), BIO_vprintf(), BIO_vsnprintf(), BIO_gets(), BIO_puts(),
 BIO_ctrl(), OPENSSL_cleanse() and
 OPENSSL_hexstr2buf() correspond exactly to the public functions with
-the same name.  As a matter of fact, the pointers in the B<OSSL_DISPATCH>
+the same name.  As a matter of fact, the pointers in the L<OSSL_DISPATCH(3)>
 array are typically direct pointers to those public functions. Note that the BIO
 functions take an B<OSSL_CORE_BIO> type rather than the standard B<BIO>
 type. This is to ensure that a provider does not mix BIOs from the core
@@ -312,7 +312,7 @@ get_nonce() retrieves a nonce using the passed I<salt> parameter
 of length I<salt_len> and operating system specific information.
 The I<salt> should contain uniquely identifying information and this is
 included, in an unspecified manner, as part of the output.
-The output is stored in a buffer which contrains at least I<min_len> and at
+The output is stored in a buffer which contains at least I<min_len> and at
 most I<max_len> bytes.  The buffer address is stored in I<*pout> and the
 buffer length returned to the caller.  On error, zero is returned.
 
@@ -372,13 +372,13 @@ from the core's provider store.
 It must free the passed I<provctx>.
 
 provider_gettable_params() should return a constant array of
-descriptor B<OSSL_PARAM>, for parameters that provider_get_params()
+descriptor L<OSSL_PARAM(3)>, for parameters that provider_get_params()
 can handle.
 
-provider_get_params() should process the B<OSSL_PARAM> array
+provider_get_params() should process the L<OSSL_PARAM(3)> array
 I<params>, setting the values of the parameters it understands.
 
-provider_query_operation() should return a constant B<OSSL_ALGORITHM>
+provider_query_operation() should return a constant L<OSSL_ALGORITHM(3)>
 that corresponds to the given I<operation_id>.
 It should indicate if the core may store a reference to this array by
 setting I<*no_store> to 0 (core may store a reference) or 1 (core may
@@ -389,13 +389,13 @@ provider_query_operation() is no longer directly required and that the function
 pointers have been copied.  The I<operation_id> should match that passed to
 provider_query_operation() and I<algs> should be its return value.
 
-provider_get_reason_strings() should return a constant B<OSSL_ITEM>
+provider_get_reason_strings() should return a constant L<OSSL_ITEM(3)>
 array that provides reason strings for reason codes the provider may
 use when reporting errors using core_put_error().
 
 The provider_get_capabilities() function should call the callback I<cb> passing
-it a set of B<OSSL_PARAM>s and the caller supplied argument I<arg>. The
-B<OSSL_PARAM>s should provide details about the capability with the name given
+it a set of L<OSSL_PARAM(3)>s and the caller supplied argument I<arg>. The
+L<OSSL_PARAM(3)>s should provide details about the capability with the name given
 in the I<capability> argument relevant for the provider context I<provctx>. If a
 provider supports multiple capabilities with the given name then it may call the
 callback multiple times (one for each capability). Capabilities can be useful for
@@ -779,7 +779,7 @@ This relies on a few things existing in F<openssl/core_dispatch.h>:
 
  #define OSSL_FUNC_BAR_FREECTX     2
  typedef void (OSSL_FUNC_bar_freectx_fn)(void *ctx);
- static ossl_inline OSSL_FUNC_bar_newctx(const OSSL_DISPATCH *opf)
+ static ossl_inline OSSL_FUNC_bar_freectx(const OSSL_DISPATCH *opf)
  { return (OSSL_FUNC_bar_freectx_fn *)opf->function; }
 
  #define OSSL_FUNC_BAR_INIT        3
@@ -809,7 +809,7 @@ introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

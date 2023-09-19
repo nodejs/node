@@ -118,13 +118,6 @@
 }],  # variant in [nooptimization, stress, stress_js_bg_compile_wasm_code_gc] and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
-['gcov_coverage', {
-  # Tests taking too long or getting too large call stacks.
-  'fast/js/excessive-comma-usage': [SKIP],
-  'run-json-stringify': [SKIP],
-}],  # 'gcov_coverage'
-
-##############################################################################
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps

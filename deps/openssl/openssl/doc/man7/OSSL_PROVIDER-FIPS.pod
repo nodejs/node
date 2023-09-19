@@ -88,7 +88,7 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item TLS13-KDF, see L<EVP_KDF-TLS13_KDF(7)>
 
-=item SSKDF, see L<EVP_KDF-SSKDF(7)>
+=item SSKDF, see L<EVP_KDF-SS(7)>
 
 =item PBKDF2, see L<EVP_KDF-PBKDF2(7)>
 
@@ -96,7 +96,7 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item TLS1-PRF, see L<EVP_KDF-TLS1_PRF(7)>
 
-=item KBKDF, see L<EVP_KDF-KBKDF(7)>
+=item KBKDF, see L<EVP_KDF-KB(7)>
 
 =item X942KDF-ASN1, see L<EVP_KDF-X942-ASN1(7)>
 
@@ -124,8 +124,6 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =over 4
 
-=item DSA, see L<EVP_KEYEXCH-DSA(7)>
-
 =item RSA, see L<EVP_SIGNATURE-RSA(7)>
 
 =item X25519, see L<EVP_SIGNATURE-ED25519(7)>
@@ -142,7 +140,7 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =over 4
 
-=item RSA, see L<EVP_KEYEXCH-RSA(7)>
+=item RSA, see L<EVP_ASYM_CIPHER-RSA(7)>
 
 =back
 
@@ -171,6 +169,22 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 =item X25519, see L<EVP_KEYMGMT-X25519(7)>
 
 =item X448, see L<EVP_KEYMGMT-X448(7)>
+
+=back
+
+=head2 Random Number Generation
+
+=over 4
+
+=item CTR-DRBG, see L<EVP_RAND-CTR-DRBG(7)>
+
+=item HASH-DRBG, see L<EVP_RAND-HASH-DRBG(7)>
+
+=item HMAC-DRBG, see L<EVP_RAND-HMAC-DRBG(7)>
+
+=item TEST-RAND, see L<EVP_RAND-TEST-RAND(7)>
+
+TEST-RAND is an unapproved algorithm.
 
 =back
 
@@ -394,6 +408,19 @@ A simple self test callback is shown below for illustrative purposes.
     return ret;
   }
 
+=head1 NOTES
+
+Some released versions of OpenSSL do not include a validated
+FIPS provider.  To determine which versions have undergone
+the validation process, please refer to the
+L<OpenSSL Downloads page|https://www.openssl.org/source/>.  If you
+require FIPS-approved functionality, it is essential to build your FIPS
+provider using one of the validated versions listed there.  Normally,
+it is possible to utilize a FIPS provider constructed from one of the
+validated versions alongside F<libcrypto> and F<libssl> compiled from any
+release within the same major release series.  This flexibility enables
+you to address bug fixes and CVEs that fall outside the FIPS boundary.
+
 =head1 SEE ALSO
 
 L<openssl-fipsinstall(1)>,
@@ -403,15 +430,16 @@ L<OSSL_SELF_TEST_new(3)>,
 L<OSSL_PARAM(3)>,
 L<openssl-core.h(7)>,
 L<openssl-core_dispatch.h(7)>,
-L<provider(7)>
+L<provider(7)>,
+L<https://www.openssl.org/source/>
 
 =head1 HISTORY
 
-The type and functions described here were added in OpenSSL 3.0.
+This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

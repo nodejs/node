@@ -1,0 +1,10 @@
+{
+  "resources": {
+    "./app.js": {
+      "integrity": true,
+      "dependencies": {
+        "assert": true
+      }
+    }
+  }
+}

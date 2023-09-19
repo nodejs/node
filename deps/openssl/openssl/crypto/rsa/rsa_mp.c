@@ -21,7 +21,7 @@ void ossl_rsa_multip_info_free_ex(RSA_PRIME_INFO *pinfo)
 
 void ossl_rsa_multip_info_free(RSA_PRIME_INFO *pinfo)
 {
-    /* free a RSA_PRIME_INFO structure */
+    /* free an RSA_PRIME_INFO structure */
     BN_clear_free(pinfo->r);
     BN_clear_free(pinfo->d);
     BN_clear_free(pinfo->t);
@@ -32,7 +32,7 @@ RSA_PRIME_INFO *ossl_rsa_multip_info_new(void)
 {
     RSA_PRIME_INFO *pinfo;
 
-    /* create a RSA_PRIME_INFO structure */
+    /* create an RSA_PRIME_INFO structure */
     if ((pinfo = OPENSSL_zalloc(sizeof(RSA_PRIME_INFO))) == NULL) {
         ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
         return NULL;

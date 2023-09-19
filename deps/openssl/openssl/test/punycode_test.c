@@ -154,7 +154,7 @@ static int test_punycode(int n)
     if (!TEST_true(ossl_punycode_decode(tc->encoded, strlen(tc->encoded),
                                         buffer, &bsize)))
         return 0;
-    for (i = 0; i < sizeof(tc->raw); i++)
+    for (i = 0; i < OSSL_NELEM(tc->raw); i++)
         if (tc->raw[i] == 0)
             break;
     if (!TEST_mem_eq(buffer, bsize * sizeof(*buffer),

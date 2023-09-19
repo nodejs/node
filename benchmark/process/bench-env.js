@@ -4,7 +4,7 @@ const common = require('../common');
 
 const bench = common.createBenchmark(main, {
   n: [1e6],
-  operation: ['get', 'set', 'enumerate', 'query', 'delete']
+  operation: ['get', 'set', 'enumerate', 'query', 'delete'],
 });
 
 

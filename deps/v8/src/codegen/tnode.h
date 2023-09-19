@@ -269,8 +269,9 @@ using BuiltinPtr = Smi;
 template <class T, class U>
 struct is_subtype {
   static const bool value =
-      std::is_base_of<U, T>::value || (std::is_same<U, MaybeObject>::value &&
-                                       std::is_convertible<T, Object>::value);
+      std::disjunction<std::is_base_of<U, T>,
+                       std::conjunction<std::is_same<U, MaybeObject>,
+                                        std::is_convertible<T, Object>>>::value;
 };
 template <class T1, class T2, class U>
 struct is_subtype<UnionT<T1, T2>, U> {

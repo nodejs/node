@@ -1,5 +1,105 @@
 # Changelog
 
+## [0.20.0](https://github.com/nodejs/corepack/compare/v0.19.0...v0.20.0) (2023-08-29)
+
+
+### Features
+
+* refactor the CLI interface ([#291](https://github.com/nodejs/corepack/issues/291)) ([fe3e5cd](https://github.com/nodejs/corepack/commit/fe3e5cd86c45db0d87c7fdea87d57d59b0bdcb78))
+* update package manager versions ([#292](https://github.com/nodejs/corepack/issues/292)) ([be9c286](https://github.com/nodejs/corepack/commit/be9c286846443ff03081e736fdf4a0ff031fbd38))
+
+## [0.19.0](https://github.com/nodejs/corepack/compare/v0.18.1...v0.19.0) (2023-06-24)
+
+
+### Features
+
+* support ESM ([#270](https://github.com/nodejs/corepack/issues/270)) ([be2489c](https://github.com/nodejs/corepack/commit/be2489cd0aaabf26a019e1c089a3c8bcc329e94a))
+* update package manager versions ([#280](https://github.com/nodejs/corepack/issues/280)) ([4188f2b](https://github.com/nodejs/corepack/commit/4188f2b4671228339fe16f9f566e7bac0c2c4f6d))
+
+## [0.18.1](https://github.com/nodejs/corepack/compare/v0.18.0...v0.18.1) (2023-06-13)
+
+
+### Features
+
+* update package manager versions ([#272](https://github.com/nodejs/corepack/issues/272)) ([5345774](https://github.com/nodejs/corepack/commit/53457747a26a5de3debbd0d9282b338186bbd7c3))
+
+
+### Bug Fixes
+
+* disable `v8-compile-cache` when using `npm@&gt;=9.7.0` ([#276](https://github.com/nodejs/corepack/issues/276)) ([2f3678c](https://github.com/nodejs/corepack/commit/2f3678cd7915978f4e2ce7a32cbe5db58e9d0b8d))
+* don't override `process.exitCode` ([#268](https://github.com/nodejs/corepack/issues/268)) ([17d1f3d](https://github.com/nodejs/corepack/commit/17d1f3dd41ef6127228d427fd5cca373d6c97f0f))
+
+## [0.18.0](https://github.com/nodejs/corepack/compare/v0.17.2...v0.18.0) (2023-05-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove support for Node.js 14.x
+
+### Features
+
+* update package manager versions ([#256](https://github.com/nodejs/corepack/issues/256)) ([7b61ff6](https://github.com/nodejs/corepack/commit/7b61ff6bc797ec4ed50c2ba1e1f1689264cbf4fc))
+
+
+### Bug Fixes
+
+* **doc:** add a note about troubleshooting network errors ([#259](https://github.com/nodejs/corepack/issues/259)) ([aa3cbdb](https://github.com/nodejs/corepack/commit/aa3cbdb54fb21b8e0adde96dc781cdf750932843))
+
+
+### Miscellaneous Chores
+
+* update supported Node.js versions ([#258](https://github.com/nodejs/corepack/issues/258)) ([74f679d](https://github.com/nodejs/corepack/commit/74f679d8a72cc10a3720fc679b95e9bd086d95be))
+
+## [0.17.2](https://github.com/nodejs/corepack/compare/v0.17.1...v0.17.2) (2023-04-07)
+
+
+### Features
+
+* update package manager versions ([#249](https://github.com/nodejs/corepack/issues/249)) ([2507e9b](https://github.com/nodejs/corepack/commit/2507e9b317eacdeb939aee086de5711218ebd794))
+
+## [0.17.1](https://github.com/nodejs/corepack/compare/v0.17.0...v0.17.1) (2023-03-17)
+
+
+### Features
+
+* update package manager versions ([#245](https://github.com/nodejs/corepack/issues/245)) ([673f3b7](https://github.com/nodejs/corepack/commit/673f3b7f18421a49da1e2c55656666a74ce94474))
+
+## [0.17.0](https://github.com/nodejs/corepack/compare/v0.16.0...v0.17.0) (2023-02-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* add `"exports"` to the `package.json` ([#239](https://github.com/nodejs/corepack/issues/239))
+
+### Features
+
+* update package manager versions ([#242](https://github.com/nodejs/corepack/issues/242)) ([5141639](https://github.com/nodejs/corepack/commit/5141639af8198a343105be1e98a74f7c9e152472))
+
+
+### Bug Fixes
+
+* add `"exports"` to the `package.json` ([#239](https://github.com/nodejs/corepack/issues/239)) ([8e12d08](https://github.com/nodejs/corepack/commit/8e12d088dec171c03e90f623895a1fbf867130e6))
+
+## [0.16.0](https://github.com/nodejs/corepack/compare/v0.15.3...v0.16.0) (2023-02-17)
+
+
+### Features
+
+* update package manager versions ([#228](https://github.com/nodejs/corepack/issues/228)) ([bb000f9](https://github.com/nodejs/corepack/commit/bb000f9c10a1fbd85f2c15a90218d90b42473130))
+* build: migrate to ESBuild ([#229](https://github.com/nodejs/corepack/pull/229)) ([15ceb83](https://github.com/nodejs/corepack/commit/15ceb832a34a223efbe3d3f9cb792d9101a7022a))
+
+
+### Bug Fixes
+
+* npm registry override ([#219](https://github.com/nodejs/corepack/issues/219)) ([1b35362](https://github.com/nodejs/corepack/commit/1b353624e644874d9ef6c9acaf6d1254bff3015a))
+
+## [0.15.3](https://github.com/nodejs/corepack/compare/v0.15.2...v0.15.3) (2022-12-30)
+
+
+### Features
+
+* update package manager versions ([#215](https://github.com/nodejs/corepack/issues/215)) ([f84cfcb](https://github.com/nodejs/corepack/commit/f84cfcb00ffb985d44b6aa0b563b2b4056a8f0d0))
+
 ## [0.15.2](https://github.com/nodejs/corepack/compare/v0.15.1...v0.15.2) (2022-11-25)
 
 

@@ -14,8 +14,6 @@ npm owner ls <package-spec>
 alias: author
 ```
 
-Note: This command is unaware of workspaces.
-
 ### Description
 
 Manage ownership of published packages.
@@ -32,8 +30,8 @@ or you can't.  Future versions may contain more fine-grained access levels, but
 that is not implemented at this time.
 
 If you have two-factor authentication enabled with `auth-and-writes` (see
-[`npm-profile`](/commands/npm-profile)) then you'll need to include an otp
-on the command line when changing ownership with `--otp`.
+[`npm-profile`](/commands/npm-profile)) then you'll need to go through a second factor
+flow when changing ownership or include an otp on the command line with `--otp`.
 
 ### Configuration
 
@@ -43,6 +41,8 @@ on the command line when changing ownership with `--otp`.
 * Type: URL
 
 The base URL of the npm registry.
+
+
 
 #### `otp`
 
@@ -54,6 +54,8 @@ when publishing or changing package permissions with `npm access`.
 
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
+
+
 
 #### `workspace`
 

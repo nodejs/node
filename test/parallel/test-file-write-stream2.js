@@ -23,13 +23,12 @@
 require('../common');
 const assert = require('assert');
 
-const path = require('path');
 const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 
 
-const filepath = path.join(tmpdir.path, 'write.txt');
+const filepath = tmpdir.resolve('write.txt');
 
 const EXPECTED = '012345678910';
 

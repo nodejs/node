@@ -217,11 +217,11 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnConstruction) {
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
     SimulateIncrementalMarking();
     MarkingState state(i_isolate());
-    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ASSERT_TRUE(state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
     auto ref =
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
     USE(ref);
-    EXPECT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_TRUE(state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
@@ -238,9 +238,10 @@ TEST_F(TracedReferenceTest, WriteBarrierForOnHeapReset) {
     auto ref = std::make_unique<v8::TracedReference<v8::Object>>();
     SimulateIncrementalMarking();
     MarkingState state(i_isolate());
-    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ASSERT_TRUE(state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref->Reset(v8_isolate(), local);
-    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(
+        state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
@@ -257,9 +258,10 @@ TEST_F(TracedReferenceTest, WriteBarrierForOnStackReset) {
     v8::TracedReference<v8::Object> ref;
     SimulateIncrementalMarking();
     MarkingState state(i_isolate());
-    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ASSERT_TRUE(state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref.Reset(v8_isolate(), local);
-    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(
+        state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
@@ -278,10 +280,11 @@ TEST_F(TracedReferenceTest, WriteBarrierOnHeapCopy) {
     auto ref_to = std::make_unique<v8::TracedReference<v8::Object>>();
     SimulateIncrementalMarking();
     MarkingState state(i_isolate());
-    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ASSERT_TRUE(state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
     *ref_to = *ref_from;
     EXPECT_TRUE(!ref_from->IsEmpty());
-    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(
+        state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
@@ -300,10 +303,11 @@ TEST_F(TracedReferenceTest, WriteBarrierForOnStackCopy) {
     v8::TracedReference<v8::Object> ref_to;
     SimulateIncrementalMarking();
     MarkingState state(i_isolate());
-    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ASSERT_TRUE(state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref_to = *ref_from;
     EXPECT_TRUE(!ref_from->IsEmpty());
-    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(
+        state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
@@ -322,10 +326,11 @@ TEST_F(TracedReferenceTest, WriteBarrierForOnHeapMove) {
     auto ref_to = std::make_unique<v8::TracedReference<v8::Object>>();
     SimulateIncrementalMarking();
     MarkingState state(i_isolate());
-    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ASSERT_TRUE(state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
     *ref_to = std::move(*ref_from);
     ASSERT_TRUE(ref_from->IsEmpty());
-    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(
+        state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
@@ -344,10 +349,11 @@ TEST_F(TracedReferenceTest, WriteBarrierForOnStackMove) {
     v8::TracedReference<v8::Object> ref_to;
     SimulateIncrementalMarking();
     MarkingState state(i_isolate());
-    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ASSERT_TRUE(state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref_to = std::move(*ref_from);
     ASSERT_TRUE(ref_from->IsEmpty());
-    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(
+        state.IsUnmarked(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 

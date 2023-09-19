@@ -67,7 +67,7 @@ _set_addRange(USet *set, UChar32 start, UChar32 end) {
 }
 
 void U_CALLCONV
-_set_addString(USet *set, const UChar *str, int32_t length) {
+_set_addString(USet *set, const char16_t *str, int32_t length) {
     ((UnicodeSet *)set)->add(icu::UnicodeString((UBool)(length<0), str, length));
 }
 
@@ -377,22 +377,30 @@ UCPMap *makeMap(UProperty property, UErrorCode &errorCode) {
 
 }  // namespace
 
-U_NAMESPACE_USE
+U_NAMESPACE_BEGIN
 
-U_CAPI const USet * U_EXPORT2
-u_getBinaryPropertySet(UProperty property, UErrorCode *pErrorCode) {
-    if (U_FAILURE(*pErrorCode)) { return nullptr; }
+const UnicodeSet *CharacterProperties::getBinaryPropertySet(UProperty property, UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode)) { return nullptr; }
     if (property < 0 || UCHAR_BINARY_LIMIT <= property) {
-        *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
         return nullptr;
     }
     Mutex m(&cpMutex);
     UnicodeSet *set = sets[property];
     if (set == nullptr) {
-        sets[property] = set = makeSet(property, *pErrorCode);
+        sets[property] = set = makeSet(property, errorCode);
     }
-    if (U_FAILURE(*pErrorCode)) { return nullptr; }
-    return set->toUSet();
+    return set;
+}
+
+U_NAMESPACE_END
+
+U_NAMESPACE_USE
+
+U_CAPI const USet * U_EXPORT2
+u_getBinaryPropertySet(UProperty property, UErrorCode *pErrorCode) {
+    const UnicodeSet *set = CharacterProperties::getBinaryPropertySet(property, *pErrorCode);
+    return U_SUCCESS(*pErrorCode) ? set->toUSet() : nullptr;
 }
 
 U_CAPI const UCPMap * U_EXPORT2

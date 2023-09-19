@@ -62,7 +62,7 @@ OCSP_request_sign() and OCSP_request_add1_cert() return 1 for success and 0
 for failure.
 
 OCSP_request_onereq_count() returns the total number of B<OCSP_ONEREQ>
-structures in B<req>.
+structures in B<req> and -1 on error.
 
 OCSP_request_onereq_get0() returns a pointer to an B<OCSP_ONEREQ> structure
 or B<NULL> if the index value is out or range.

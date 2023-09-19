@@ -6,6 +6,7 @@
 #define V8_SANDBOX_EXTERNAL_POINTER_TABLE_INL_H_
 
 #include "src/base/atomicops.h"
+#include "src/common/assert-scope.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/utils/allocation.h"
@@ -74,6 +75,13 @@ bool ExternalPointerTable::TryAllocateEntryFromFreelist(Freelist freelist) {
 ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
     Isolate* isolate, Address initial_value, ExternalPointerTag tag) {
   DCHECK(is_initialized());
+
+  // We currently don't want entry allocation to trigger garbage collection as
+  // this may cause seemingly harmless pointer field assignments to trigger
+  // garbage collection. This is especially true for lazily-initialized
+  // external pointer slots which will typically only allocate the external
+  // pointer table entry when the pointer is first set to a non-null value.
+  DisallowGarbageCollection no_gc;
 
   Freelist freelist;
   bool success = false;
@@ -151,7 +159,9 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
   // values would not be the same. This scenario is unproblematic though as the
   // new entry will already be marked as alive as it has just been allocated.
   DCHECK(handle == kNullExternalPointerHandle ||
-         handle == *reinterpret_cast<ExternalPointerHandle*>(handle_location));
+         handle ==
+             base::AsAtomic32::Acquire_Load(
+                 reinterpret_cast<ExternalPointerHandle*>(handle_location)));
 
   uint32_t index = HandleToIndex(handle);
 
@@ -168,9 +178,12 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
     if (new_handle) {
       DCHECK_LT(HandleToIndex(new_handle), current_start_of_evacuation_area);
       uint32_t index = HandleToIndex(new_handle);
-      // No need for an atomic store as the entry will only be accessed during
-      // sweeping.
-      Store(index, Entry::MakeEvacuationEntry(handle_location));
+      // Even though the new entry will only be accessed during sweeping, this
+      // still needs to be an atomic write as another thread may attempt (and
+      // fail) to allocate the same table entry, thereby causing a read from
+      // this memory location. Without an atomic store here, TSan would then
+      // complain about a data race.
+      RelaxedStore(index, Entry::MakeEvacuationEntry(handle_location));
 #ifdef DEBUG
       // Mark the handle as visited in debug builds to detect double
       // initialization of external pointer fields.

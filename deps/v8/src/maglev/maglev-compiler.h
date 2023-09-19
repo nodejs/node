@@ -24,12 +24,12 @@ class Graph;
 class MaglevCompiler : public AllStatic {
  public:
   // May be called from any thread.
-  static void Compile(LocalIsolate* local_isolate,
+  static bool Compile(LocalIsolate* local_isolate,
                       MaglevCompilationInfo* compilation_info);
 
   // Called on the main thread after Compile has completed.
   // TODO(v8:7700): Move this to a different class?
-  static MaybeHandle<CodeT> GenerateCode(
+  static MaybeHandle<Code> GenerateCode(
       Isolate* isolate, MaglevCompilationInfo* compilation_info);
 };
 

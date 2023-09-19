@@ -80,14 +80,14 @@ for (const [encoding, signatures] of Object.entries(vectors)) {
     );
 
     // webcrypto
-    crypto.webcrypto.subtle.importKey(
+    globalThis.crypto.subtle.importKey(
       'spki',
       keyPair.publicKey,
       { name: 'ECDSA', namedCurve: 'P-256' },
       false,
       ['verify'],
     ).then((publicKey) => {
-      return crypto.webcrypto.subtle.verify(
+      return globalThis.crypto.subtle.verify(
         { name: 'ECDSA', hash: 'SHA-256' },
         publicKey,
         signature,

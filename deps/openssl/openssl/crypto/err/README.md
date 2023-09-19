@@ -42,3 +42,14 @@ The generated C error code file `xxx_err.c` will load the header
 files `stdio.h`, `openssl/err.h` and `openssl/xxx.h` so the
 header file must load any additional header files containing any
 definitions it uses.
+
+Adding new error codes
+======================
+
+Instead of manually adding error codes into `crypto/err/openssl.txt`,
+it is recommended to leverage `make update` for error code generation.
+The target will process relevant sources and generate error codes for
+any *used* error codes.
+
+If an error code is added manually into `crypto/err/openssl.txt`,
+subsequent `make update` has no effect.

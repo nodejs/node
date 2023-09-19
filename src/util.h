@@ -38,10 +38,10 @@
 #include <array>
 #include <limits>
 #include <memory>
+#include <set>
 #include <string>
 #include <string_view>
 #include <type_traits>
-#include <set>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -298,6 +298,9 @@ class KVStore {
   virtual std::shared_ptr<KVStore> Clone(v8::Isolate* isolate) const;
   virtual v8::Maybe<bool> AssignFromObject(v8::Local<v8::Context> context,
                                            v8::Local<v8::Object> entries);
+  v8::Maybe<bool> AssignToObject(v8::Isolate* isolate,
+                                 v8::Local<v8::Context> context,
+                                 v8::Local<v8::Object> object);
 
   static std::shared_ptr<KVStore> CreateMapKVStore();
 };
@@ -409,19 +412,7 @@ class MaybeStackBuffer {
   // This method can be called multiple times throughout the lifetime of the
   // buffer, but once this has been called Invalidate() cannot be used.
   // Content of the buffer in the range [0, length()) is preserved.
-  void AllocateSufficientStorage(size_t storage) {
-    CHECK(!IsInvalidated());
-    if (storage > capacity()) {
-      bool was_allocated = IsAllocated();
-      T* allocated_ptr = was_allocated ? buf_ : nullptr;
-      buf_ = Realloc(allocated_ptr, storage);
-      capacity_ = storage;
-      if (!was_allocated && length_ > 0)
-        memcpy(buf_, buf_st_, length_ * sizeof(buf_[0]));
-    }
-
-    length_ = storage;
-  }
+  void AllocateSufficientStorage(size_t storage);
 
   void SetLength(size_t length) {
     // capacity() returns how much memory is actually available.
@@ -483,6 +474,11 @@ class MaybeStackBuffer {
       free(buf_);
   }
 
+  inline std::basic_string<T> ToString() const { return {out(), length()}; }
+  inline std::basic_string_view<T> ToStringView() const {
+    return {out(), length()};
+  }
+
  private:
   size_t length_;
   // capacity of the malloc'ed buf_
@@ -508,6 +504,7 @@ class ArrayBufferViewContents {
   inline void Read(v8::Local<v8::ArrayBufferView> abv);
   inline void ReadValue(v8::Local<v8::Value> buf);
 
+  inline bool WasDetached() const { return was_detached_; }
   inline const T* data() const { return data_; }
   inline size_t length() const { return length_; }
 
@@ -522,6 +519,7 @@ class ArrayBufferViewContents {
   T stack_storage_[kStackStorageSize];
   T* data_ = nullptr;
   size_t length_ = 0;
+  bool was_detached_ = false;
 };
 
 class Utf8Value : public MaybeStackBuffer<char> {
@@ -529,10 +527,12 @@ class Utf8Value : public MaybeStackBuffer<char> {
   explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
   inline std::string ToString() const { return std::string(out(), length()); }
-
-  inline bool operator==(const char* a) const {
-    return strcmp(out(), a) == 0;
+  inline std::string_view ToStringView() const {
+    return std::string_view(out(), length());
   }
+
+  inline bool operator==(const char* a) const { return strcmp(out(), a) == 0; }
+  inline bool operator!=(const char* a) const { return !(*this == a); }
 };
 
 class TwoByteValue : public MaybeStackBuffer<uint16_t> {
@@ -545,6 +545,9 @@ class BufferValue : public MaybeStackBuffer<char> {
   explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
   inline std::string ToString() const { return std::string(out(), length()); }
+  inline std::string_view ToStringView() const {
+    return std::string_view(out(), length());
+  }
 };
 
 #define SPREAD_BUFFER_ARG(val, name)                                           \
@@ -574,12 +577,6 @@ struct OnScopeLeaveImpl {
     : fn_(std::move(other.fn_)), active_(other.active_) {
     other.active_ = false;
   }
-  OnScopeLeaveImpl& operator=(OnScopeLeaveImpl&& other) {
-    if (this == &other) return *this;
-    this->~OnScopeLeave();
-    new (this)OnScopeLeaveImpl(std::move(other));
-    return *this;
-  }
 };
 
 // Run a function when exiting the current scope. Used like this:
@@ -604,7 +601,7 @@ struct MallocedBuffer {
   }
 
   void Truncate(size_t new_size) {
-    CHECK(new_size <= size);
+    CHECK_LE(new_size, size);
     size = new_size;
   }
 
@@ -613,7 +610,7 @@ struct MallocedBuffer {
     data = UncheckedRealloc(data, new_size);
   }
 
-  inline bool is_empty() const { return data == nullptr; }
+  bool is_empty() const { return data == nullptr; }
 
   MallocedBuffer() : data(nullptr), size(0) {}
   explicit MallocedBuffer(size_t size) : data(Malloc<T>(size)), size(size) {}
@@ -682,9 +679,8 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
-std::vector<std::string> SplitString(const std::string& in,
-                                     char delim,
-                                     bool skipEmpty = true);
+std::vector<std::string_view> SplitString(const std::string_view in,
+                                          const std::string_view delim);
 
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            std::string_view str,
@@ -835,20 +831,20 @@ class PersistentToLocal {
 // computations.
 class FastStringKey {
  public:
-  constexpr explicit FastStringKey(const char* name);
+  constexpr explicit FastStringKey(std::string_view name);
 
   struct Hash {
     constexpr size_t operator()(const FastStringKey& key) const;
   };
   constexpr bool operator==(const FastStringKey& other) const;
 
-  constexpr const char* c_str() const;
+  constexpr std::string_view as_string_view() const;
 
  private:
-  static constexpr size_t HashImpl(const char* str);
+  static constexpr size_t HashImpl(std::string_view str);
 
-  const char* name_;
-  size_t cached_hash_;
+  const std::string_view name_;
+  const size_t cached_hash_;
 };
 
 // Like std::static_pointer_cast but for unique_ptr with the default deleter.
@@ -862,6 +858,8 @@ std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
 // Returns a non-zero code if it fails to open or read the file,
 // aborts if it fails to close the file.
 int ReadFileSync(std::string* result, const char* path);
+// Reads all contents of a FILE*, aborts if it fails.
+std::vector<char> ReadFileSync(FILE* fp);
 
 v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
     v8::Isolate* isolate,
@@ -874,34 +872,68 @@ v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
 // Convenience methods for NewFunctionTemplate().
 void SetMethod(v8::Local<v8::Context> context,
                v8::Local<v8::Object> that,
-               const char* name,
+               const std::string_view name,
+               v8::FunctionCallback callback);
+// Similar to SetProtoMethod but without receiver signature checks.
+void SetMethod(v8::Isolate* isolate,
+               v8::Local<v8::Template> that,
+               const std::string_view name,
                v8::FunctionCallback callback);
 
-void SetFastMethod(v8::Local<v8::Context> context,
-                   v8::Local<v8::Object> that,
-                   const char* name,
+void SetFastMethod(v8::Isolate* isolate,
+                   v8::Local<v8::Template> that,
+                   const std::string_view name,
                    v8::FunctionCallback slow_callback,
                    const v8::CFunction* c_function);
-
+void SetFastMethod(v8::Local<v8::Context> context,
+                   v8::Local<v8::Object> that,
+                   const std::string_view name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::CFunction* c_function);
+void SetFastMethod(v8::Isolate* isolate,
+                   v8::Local<v8::Template> that,
+                   const std::string_view name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::MemorySpan<const v8::CFunction>& methods);
+void SetFastMethodNoSideEffect(v8::Isolate* isolate,
+                               v8::Local<v8::Template> that,
+                               const std::string_view name,
+                               v8::FunctionCallback slow_callback,
+                               const v8::CFunction* c_function);
+void SetFastMethodNoSideEffect(v8::Local<v8::Context> context,
+                               v8::Local<v8::Object> that,
+                               const std::string_view name,
+                               v8::FunctionCallback slow_callback,
+                               const v8::CFunction* c_function);
+void SetFastMethodNoSideEffect(
+    v8::Isolate* isolate,
+    v8::Local<v8::Template> that,
+    const std::string_view name,
+    v8::FunctionCallback slow_callback,
+    const v8::MemorySpan<const v8::CFunction>& methods);
 void SetProtoMethod(v8::Isolate* isolate,
                     v8::Local<v8::FunctionTemplate> that,
-                    const char* name,
+                    const std::string_view name,
                     v8::FunctionCallback callback);
 
 void SetInstanceMethod(v8::Isolate* isolate,
                        v8::Local<v8::FunctionTemplate> that,
-                       const char* name,
+                       const std::string_view name,
                        v8::FunctionCallback callback);
 
 // Safe variants denote the function has no side effects.
 void SetMethodNoSideEffect(v8::Local<v8::Context> context,
                            v8::Local<v8::Object> that,
-                           const char* name,
+                           const std::string_view name,
                            v8::FunctionCallback callback);
 void SetProtoMethodNoSideEffect(v8::Isolate* isolate,
                                 v8::Local<v8::FunctionTemplate> that,
-                                const char* name,
+                                const std::string_view name,
                                 v8::FunctionCallback callback);
+void SetMethodNoSideEffect(v8::Isolate* isolate,
+                           v8::Local<v8::Template> that,
+                           const std::string_view name,
+                           v8::FunctionCallback callback);
 
 enum class SetConstructorFunctionFlag {
   NONE,
@@ -921,6 +953,33 @@ void SetConstructorFunction(v8::Local<v8::Context> context,
                             v8::Local<v8::FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag =
                                 SetConstructorFunctionFlag::SET_CLASS_NAME);
+
+void SetConstructorFunction(v8::Isolate* isolate,
+                            v8::Local<v8::Template> that,
+                            const char* name,
+                            v8::Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag =
+                                SetConstructorFunctionFlag::SET_CLASS_NAME);
+
+void SetConstructorFunction(v8::Isolate* isolate,
+                            v8::Local<v8::Template> that,
+                            v8::Local<v8::String> name,
+                            v8::Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag =
+                                SetConstructorFunctionFlag::SET_CLASS_NAME);
+
+// Simple RAII class to spin up a v8::Isolate instance.
+class RAIIIsolate {
+ public:
+  explicit RAIIIsolate(const SnapshotData* data = nullptr);
+  ~RAIIIsolate();
+
+  v8::Isolate* get() const { return isolate_; }
+
+ private:
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
+  v8::Isolate* isolate_;
+};
 
 }  // namespace node
 

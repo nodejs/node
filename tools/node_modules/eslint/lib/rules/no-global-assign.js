@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow assignments to native objects or read-only global variables",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-global-assign"
+            url: "https://eslint.org/docs/latest/rules/no-global-assign"
         },
 
         schema: [
@@ -41,6 +41,7 @@ module.exports = {
 
     create(context) {
         const config = context.options[0];
+        const sourceCode = context.sourceCode;
         const exceptions = (config && config.exceptions) || [];
 
         /**
@@ -84,8 +85,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                const globalScope = context.getScope();
+            Program(node) {
+                const globalScope = sourceCode.getScope(node);
 
                 globalScope.variables.forEach(checkVariable);
             }

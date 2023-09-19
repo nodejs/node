@@ -1,9 +1,9 @@
-import Pool = require('./pool')
-import MockAgent = require('./mock-agent')
+import Pool from './pool'
+import MockAgent from './mock-agent'
 import { Interceptable, MockInterceptor } from './mock-interceptor'
-import Dispatcher = require('./dispatcher')
+import Dispatcher from './dispatcher'
 
-export = MockPool
+export default MockPool
 
 /** MockPool extends the Pool API and allows one to mock requests. */
 declare class MockPool extends Pool implements Interceptable {

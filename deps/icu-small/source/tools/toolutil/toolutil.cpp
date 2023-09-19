@@ -121,8 +121,8 @@ getLongPathname(const char *pathname) {
 
 U_CAPI const char * U_EXPORT2
 findDirname(const char *path, char *buffer, int32_t bufLen, UErrorCode* status) {
-  if(U_FAILURE(*status)) return NULL;
-  const char *resultPtr = NULL;
+  if(U_FAILURE(*status)) return nullptr;
+  const char *resultPtr = nullptr;
   int32_t resultLen = 0;
 
   const char *basename=uprv_strrchr(path, U_FILE_SEP_CHAR);
@@ -150,7 +150,7 @@ findDirname(const char *path, char *buffer, int32_t bufLen, UErrorCode* status) 
     return buffer;
   } else {
     *status = U_BUFFER_OVERFLOW_ERROR;
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -167,7 +167,7 @@ findBasename(const char *filename) {
     }
 #endif
 
-    if(basename!=NULL) {
+    if(basename!=nullptr) {
         return basename+1;
     } else {
         return filename;
@@ -279,7 +279,7 @@ utm_open(const char *name, int32_t initialCapacity, int32_t maxCapacity, int32_t
     }
 
     mem=(UToolMemory *)uprv_malloc(sizeof(UToolMemory)+initialCapacity*size);
-    if(mem==NULL) {
+    if(mem==nullptr) {
         fprintf(stderr, "error: %s - out of memory\n", name);
         exit(U_MEMORY_ALLOCATION_ERROR);
     }
@@ -295,7 +295,7 @@ utm_open(const char *name, int32_t initialCapacity, int32_t maxCapacity, int32_t
 
 U_CAPI void U_EXPORT2
 utm_close(UToolMemory *mem) {
-    if(mem!=NULL) {
+    if(mem!=nullptr) {
         if(mem->array!=mem->staticArray) {
             uprv_free(mem->array);
         }
@@ -337,14 +337,14 @@ utm_hasCapacity(UToolMemory *mem, int32_t capacity) {
 
         if(mem->array==mem->staticArray) {
             mem->array=uprv_malloc(newCapacity*mem->size);
-            if(mem->array!=NULL) {
+            if(mem->array!=nullptr) {
                 uprv_memcpy(mem->array, mem->staticArray, (size_t)mem->idx*mem->size);
             }
         } else {
             mem->array=uprv_realloc(mem->array, newCapacity*mem->size);
         }
 
-        if(mem->array==NULL) {
+        if(mem->array==nullptr) {
             fprintf(stderr, "error: %s - out of memory\n", mem->name);
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
@@ -356,7 +356,7 @@ utm_hasCapacity(UToolMemory *mem, int32_t capacity) {
 
 U_CAPI void * U_EXPORT2
 utm_alloc(UToolMemory *mem) {
-    char *p=NULL;
+    char *p=nullptr;
     int32_t oldIndex=mem->idx;
     int32_t newIndex=oldIndex+1;
     if(utm_hasCapacity(mem, newIndex)) {
@@ -369,7 +369,7 @@ utm_alloc(UToolMemory *mem) {
 
 U_CAPI void * U_EXPORT2
 utm_allocN(UToolMemory *mem, int32_t n) {
-    char *p=NULL;
+    char *p=nullptr;
     int32_t oldIndex=mem->idx;
     int32_t newIndex=oldIndex+n;
     if(utm_hasCapacity(mem, newIndex)) {

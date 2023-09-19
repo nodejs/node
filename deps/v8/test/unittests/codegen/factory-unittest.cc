@@ -35,7 +35,8 @@ TEST_F(FactoryCodeBuilderTest, Factory_CodeBuilder) {
   Handle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION).Build();
 
-  CHECK(i_isolate()->heap()->InSpace(*code, CODE_LO_SPACE));
+  CHECK(
+      i_isolate()->heap()->InSpace(code->instruction_stream(), CODE_LO_SPACE));
 #if VERIFY_HEAP
   code->ObjectVerify(i_isolate());
 #endif

@@ -10,9 +10,6 @@ idl_test(
   ['dom', 'html', 'url'],
   idl_array => {
     idl_array.add_objects({
-      Blob: ['new Blob(["TEST"])'],
-      File: ['new File(["myFileBits"], "myFileName")'],
-      FileReader: ['new FileReader()'],
       FileReaderSync: ['new FileReaderSync()']
     });
   }

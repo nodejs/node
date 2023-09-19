@@ -560,7 +560,7 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
       // feedback allocation we may miss counting functions if the feedback
       // vector wasn't allocated yet and the function's interrupt budget wasn't
       // updated (i.e. it didn't execute return / jump).
-      for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+      for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
         SharedFunctionInfo shared = it.frame()->function().shared();
         if (counter_map->Get(shared) != 0) continue;
         counter_map->Add(shared, 1);
@@ -621,6 +621,10 @@ std::unique_ptr<Coverage> Coverage::CollectBestEffort(Isolate* isolate) {
 
 std::unique_ptr<Coverage> Coverage::Collect(
     Isolate* isolate, v8::debug::CoverageMode collectionMode) {
+  // Unsupported if jitless mode is enabled at build-time since related
+  // optimizations deactivate invocation count updates.
+  CHECK(!V8_JITLESS_BOOL);
+
   // Collect call counts for all functions.
   SharedToCounterMap counter_map;
   CollectAndMaybeResetCounts(isolate, &counter_map, collectionMode);
@@ -709,7 +713,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
         }
       }
 
-      Handle<String> name = SharedFunctionInfo::DebugName(info);
+      Handle<String> name = SharedFunctionInfo::DebugName(isolate, info);
       CoverageFunction function(start, end, count, name);
 
       if (IsBlockMode(collectionMode) && info->HasCoverageInfo()) {

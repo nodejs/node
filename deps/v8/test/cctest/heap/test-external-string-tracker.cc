@@ -75,6 +75,8 @@ TEST(ExternalString_ExternalBackingStoreSizeDecreases) {
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
 
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+
   const size_t backing_store_before =
       heap->old_space()->ExternalBackingStoreBytes(type);
 
@@ -103,6 +105,8 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
+
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   const size_t backing_store_before =
       heap->old_space()->ExternalBackingStoreBytes(type);
@@ -139,6 +143,8 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
   size_t old_backing_store_before = 0, new_backing_store_before = 0;
 
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+
   {
     v8::HandleScope handle_scope(isolate);
 
@@ -166,9 +172,9 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
   }
 
   heap::GcAndSweep(heap, OLD_SPACE);
-
-  CHECK_EQ(0, heap->old_space()->ExternalBackingStoreBytes(type) -
-                  old_backing_store_before);
+  const size_t backing_store_after =
+      heap->old_space()->ExternalBackingStoreBytes(type);
+  CHECK_EQ(0, backing_store_after - old_backing_store_before);
 }
 
 TEST(ExternalString_PromotedThinString) {

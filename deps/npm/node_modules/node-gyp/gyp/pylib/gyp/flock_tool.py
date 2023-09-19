@@ -41,7 +41,7 @@ class FlockTool:
         # with EBADF, that's why we use this F_SETLK
         # hack instead.
         fd = os.open(lockfile, os.O_WRONLY | os.O_NOCTTY | os.O_CREAT, 0o666)
-        if sys.platform.startswith("aix"):
+        if sys.platform.startswith("aix") or sys.platform == "os400":
             # Python on AIX is compiled with LARGEFILE support, which changes the
             # struct size.
             op = struct.pack("hhIllqq", fcntl.F_WRLCK, 0, 0, 0, 0, 0, 0)

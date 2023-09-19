@@ -1,18 +1,24 @@
-// don't expand so that we only assemble the set of defaults when needed
-const configDefs = require('../utils/config/index.js')
-
-const mkdirp = require('mkdirp-infer-owner')
+const { mkdir, readFile, writeFile } = require('fs/promises')
 const { dirname, resolve } = require('path')
-const { promisify } = require('util')
-const fs = require('fs')
-const readFile = promisify(fs.readFile)
-const writeFile = promisify(fs.writeFile)
 const { spawn } = require('child_process')
 const { EOL } = require('os')
 const ini = require('ini')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
-const rpj = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
+const { defaults, definitions } = require('@npmcli/config/lib/definitions')
 const log = require('../utils/log-shim.js')
+
+// These are the configs that we can nerf-dart. Not all of them currently even
+// *have* config definitions so we have to explicitly validate them here
+const nerfDarts = [
+  '_auth',
+  '_authToken',
+  'username',
+  '_password',
+  'email',
+  'certfile',
+  'keyfile',
+]
 
 // take an array of `[key, value, k2=v2, k3, v3, ...]` and turn into
 // { key: value, k2: v2, k3: v3 }
@@ -51,6 +57,7 @@ class Config extends BaseCommand {
     'delete <key> [<key> ...]',
     'list [--json]',
     'edit',
+    'fix',
   ]
 
   static params = [
@@ -63,14 +70,16 @@ class Config extends BaseCommand {
 
   static ignoreImplicitWorkspace = false
 
-  async completion (opts) {
+  static skipConfigValidation = true
+
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv[1] !== 'config') {
       argv.unshift('config')
     }
 
     if (argv.length === 2) {
-      const cmds = ['get', 'set', 'delete', 'ls', 'rm', 'edit']
+      const cmds = ['get', 'set', 'delete', 'ls', 'rm', 'edit', 'fix']
       if (opts.partialWord !== 'l') {
         cmds.push('list')
       }
@@ -91,18 +100,14 @@ class Config extends BaseCommand {
       case 'get':
       case 'delete':
       case 'rm':
-        return Object.keys(configDefs.definitions)
+        return Object.keys(definitions)
       case 'edit':
       case 'list':
       case 'ls':
+      case 'fix':
       default:
         return []
     }
-  }
-
-  async execWorkspaces (args, filters) {
-    log.warn('config', 'This command does not support workspaces.')
-    return this.exec(args)
   }
 
   async exec ([action, ...args]) {
@@ -127,6 +132,9 @@ class Config extends BaseCommand {
         case 'edit':
           await this.edit()
           break
+        case 'fix':
+          await this.fix()
+          break
         default:
           throw this.usageError()
       }
@@ -143,7 +151,23 @@ class Config extends BaseCommand {
     const where = this.npm.flatOptions.location
     for (const [key, val] of Object.entries(keyValues(args))) {
       log.info('config', 'set %j %j', key, val)
-      this.npm.config.set(key, val || '', where)
+      const baseKey = key.split(':').pop()
+      if (!this.npm.config.definitions[baseKey] && !nerfDarts.includes(baseKey)) {
+        throw new Error(`\`${baseKey}\` is not a valid npm option`)
+      }
+      const deprecated = this.npm.config.definitions[baseKey]?.deprecated
+      if (deprecated) {
+        throw new Error(
+          `The \`${baseKey}\` option is deprecated, and can not be set in this way${deprecated}`
+        )
+      }
+
+      if (val === '') {
+        this.npm.config.delete(key, where)
+      } else {
+        this.npm.config.set(key, val, where)
+      }
+
       if (!this.npm.config.validate(where)) {
         log.warn('config', 'omitting invalid config values')
       }
@@ -160,7 +184,7 @@ class Config extends BaseCommand {
     const out = []
     for (const key of keys) {
       if (!publicVar(key)) {
-        throw new Error(`The ${key} option is protected, and cannot be retrieved in this way`)
+        throw new Error(`The ${key} option is protected, and can not be retrieved in this way`)
       }
 
       const pref = keys.length > 1 ? `${key}=` : ''
@@ -193,7 +217,7 @@ class Config extends BaseCommand {
     const data = (
       await readFile(file, 'utf8').catch(() => '')
     ).replace(/\r\n/g, '\n')
-    const entries = Object.entries(configDefs.defaults)
+    const entries = Object.entries(defaults)
     const defData = entries.reduce((str, [key, val]) => {
       const obj = { [key]: val }
       const i = ini.stringify(obj)
@@ -224,18 +248,61 @@ ${data.split('\n').sort(localeCompare).join('\n').trim()}
 
 ${defData}
 `.split('\n').join(EOL)
-    await mkdirp(dirname(file))
+    await mkdir(dirname(file), { recursive: true })
     await writeFile(file, tmpData, 'utf8')
-    await new Promise((resolve, reject) => {
+    await new Promise((res, rej) => {
       const [bin, ...args] = e.split(/\s+/)
       const editor = spawn(bin, [...args, file], { stdio: 'inherit' })
       editor.on('exit', (code) => {
         if (code) {
-          return reject(new Error(`editor process exited with code: ${code}`))
+          return rej(new Error(`editor process exited with code: ${code}`))
         }
-        return resolve()
+        return res()
       })
     })
+  }
+
+  async fix () {
+    let problems
+
+    try {
+      this.npm.config.validate()
+      return // if validate doesn't throw we have nothing to do
+    } catch (err) {
+      // coverage skipped because we don't need to test rethrowing errors
+      // istanbul ignore next
+      if (err.code !== 'ERR_INVALID_AUTH') {
+        throw err
+      }
+
+      problems = err.problems
+    }
+
+    if (!this.npm.config.isDefault('location')) {
+      problems = problems.filter((problem) => {
+        return problem.where === this.npm.config.get('location')
+      })
+    }
+
+    this.npm.config.repair(problems)
+    const locations = []
+
+    this.npm.output('The following configuration problems have been repaired:\n')
+    const summary = problems.map(({ action, from, to, key, where }) => {
+      // coverage disabled for else branch because it is intentionally omitted
+      // istanbul ignore else
+      if (action === 'rename') {
+        // we keep track of which configs were modified here so we know what to save later
+        locations.push(where)
+        return `~ \`${from}\` renamed to \`${to}\` in ${where} config`
+      } else if (action === 'delete') {
+        locations.push(where)
+        return `- \`${key}\` deleted from ${where} config`
+      }
+    }).join('\n')
+    this.npm.output(summary)
+
+    return await Promise.all(locations.map((location) => this.npm.config.save(location)))
   }
 
   async list () {
@@ -277,15 +344,15 @@ ${defData}
     }
 
     if (!this.npm.global) {
-      const pkgPath = resolve(this.npm.prefix, 'package.json')
-      const pkg = await rpj(pkgPath).catch(() => ({}))
+      const { content } = await pkgJson.normalize(this.npm.prefix).catch(() => ({ content: {} }))
 
-      if (pkg.publishConfig) {
+      if (content.publishConfig) {
+        const pkgPath = resolve(this.npm.prefix, 'package.json')
         msg.push(`; "publishConfig" from ${pkgPath}`)
         msg.push('; This set of config values will be used at publish-time.', '')
-        const pkgKeys = Object.keys(pkg.publishConfig).sort(localeCompare)
+        const pkgKeys = Object.keys(content.publishConfig).sort(localeCompare)
         for (const k of pkgKeys) {
-          const v = publicVar(k) ? JSON.stringify(pkg.publishConfig[k]) : '(protected)'
+          const v = publicVar(k) ? JSON.stringify(content.publishConfig[k]) : '(protected)'
           msg.push(`${k} = ${v}`)
         }
         msg.push('')

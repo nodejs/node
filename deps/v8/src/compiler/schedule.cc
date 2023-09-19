@@ -460,22 +460,14 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
   for (BasicBlock* block :
        ((s.RpoBlockCount() == 0) ? *s.all_blocks() : *s.rpo_order())) {
     if (block == nullptr) continue;
-    if (block->rpo_number() == -1) {
-      os << "--- BLOCK id:" << block->id();
-    } else {
-      os << "--- BLOCK B" << block->rpo_number();
-    }
+    os << "--- BLOCK B" << block->rpo_number() << " id" << block->id();
     if (block->deferred()) os << " (deferred)";
     if (block->PredecessorCount() != 0) os << " <- ";
     bool comma = false;
     for (BasicBlock const* predecessor : block->predecessors()) {
       if (comma) os << ", ";
       comma = true;
-      if (predecessor->rpo_number() == -1) {
-        os << "id:" << predecessor->id();
-      } else {
-        os << "B" << predecessor->rpo_number();
-      }
+      os << "B" << predecessor->rpo_number();
     }
     os << " ---\n";
     for (Node* node : *block) {
@@ -498,11 +490,7 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
       for (BasicBlock const* successor : block->successors()) {
         if (comma) os << ", ";
         comma = true;
-        if (successor->rpo_number() == -1) {
-          os << "id:" << successor->id();
-        } else {
-          os << "B" << successor->rpo_number();
-        }
+        os << "B" << successor->rpo_number();
       }
       os << "\n";
     }

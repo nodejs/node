@@ -98,7 +98,7 @@ module.exports = {
         docs: {
             description: "Disallow specified modules when loaded by `import`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-restricted-imports"
+            url: "https://eslint.org/docs/latest/rules/no-restricted-imports"
         },
 
         messages: {
@@ -147,7 +147,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const options = Array.isArray(context.options) ? context.options : [];
         const isPathAndPatternsObject =
             typeof options[0] === "object" &&

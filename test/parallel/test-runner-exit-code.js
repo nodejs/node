@@ -20,8 +20,7 @@ async function runAndKill(file) {
   });
   const [code, signal] = await once(child, 'exit');
   await finished(child.stdout);
-  assert.match(stdout, /not ok 1/);
-  assert.match(stdout, /# cancelled 1\n/);
+  assert(stdout.startsWith('TAP version 13\n'));
   assert.strictEqual(signal, null);
   assert.strictEqual(code, 1);
 }
@@ -44,9 +43,25 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
 
-  child = spawnSync(process.execPath, ['--test', fixtures.path('test-runner', 'subdir', 'subdir_test.js')]);
+  child = spawnSync(process.execPath, [
+    '--test',
+    fixtures.path('test-runner', 'default-behavior', 'subdir', 'subdir_test.js'),
+  ]);
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
+
+
+  child = spawnSync(process.execPath, [
+    '--test',
+    fixtures.path('test-runner', 'todo_exit_code.js'),
+  ]);
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  const stdout = child.stdout.toString();
+  assert.match(stdout, /# tests 3/);
+  assert.match(stdout, /# pass 0/);
+  assert.match(stdout, /# fail 0/);
+  assert.match(stdout, /# todo 3/);
 
   child = spawnSync(process.execPath, [__filename, 'child', 'fail']);
   assert.strictEqual(child.status, 1);

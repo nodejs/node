@@ -52,6 +52,7 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
                               GCInfoIndex gcinfo, CustomSpaceIndex space_index);
 
   void ResetLinearAllocationBuffers();
+  void MarkAllPagesAsYoung();
 
  private:
   bool in_disallow_gc_scope() const;
@@ -61,11 +62,21 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   inline static RawHeap::RegularSpaceType GetInitialSpaceIndexForSize(
       size_t size);
 
-  inline void* AllocateObjectOnSpace(NormalPageSpace& space, size_t size,
-                                     GCInfoIndex gcinfo);
-  inline void* AllocateObjectOnSpace(NormalPageSpace& space, size_t size,
-                                     AlignVal alignment, GCInfoIndex gcinfo);
-  void* OutOfLineAllocate(NormalPageSpace&, size_t, AlignVal, GCInfoIndex);
+  inline void* AllocateObjectOnSpace(NormalPageSpace&, size_t, GCInfoIndex);
+  inline void* AllocateObjectOnSpace(NormalPageSpace&, size_t, AlignVal,
+                                     GCInfoIndex);
+  inline void* OutOfLineAllocate(NormalPageSpace&, size_t, AlignVal,
+                                 GCInfoIndex);
+
+  // Called from the fast path LAB allocation when the LAB capacity cannot fit
+  // the allocation or a large object is requested. Use out parameter as
+  // `V8_PRESERVE_MOST` cannot handle non-void return values.
+  //
+  // Prefer using `OutOfLineAllocate()`.
+  void V8_PRESERVE_MOST OutOfLineAllocateGCSafePoint(NormalPageSpace&, size_t,
+                                                     AlignVal, GCInfoIndex,
+                                                     void**);
+  // Raw allocation, does not emit safepoint for conservative GC.
   void* OutOfLineAllocateImpl(NormalPageSpace&, size_t, AlignVal, GCInfoIndex);
 
   bool TryRefillLinearAllocationBuffer(NormalPageSpace&, size_t);
@@ -135,6 +146,14 @@ RawHeap::RegularSpaceType ObjectAllocator::GetInitialSpaceIndexForSize(
   return RawHeap::RegularSpaceType::kNormal4;
 }
 
+void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace& space, size_t size,
+                                         AlignVal alignment,
+                                         GCInfoIndex gcinfo) {
+  void* object;
+  OutOfLineAllocateGCSafePoint(space, size, alignment, gcinfo, &object);
+  return object;
+}
+
 void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
                                              size_t size, AlignVal alignment,
                                              GCInfoIndex gcinfo) {
@@ -174,13 +193,13 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
         .SetBit<AccessMode::kAtomic>(reinterpret_cast<ConstAddress>(&filler));
     lab_allocation_will_succeed = true;
   }
-  if (lab_allocation_will_succeed) {
-    void* object = AllocateObjectOnSpace(space, size, gcinfo);
-    DCHECK_NOT_NULL(object);
-    DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(object) & kAlignmentMask);
-    return object;
+  if (V8_UNLIKELY(!lab_allocation_will_succeed)) {
+    return OutOfLineAllocate(space, size, alignment, gcinfo);
   }
-  return OutOfLineAllocate(space, size, alignment, gcinfo);
+  void* object = AllocateObjectOnSpace(space, size, gcinfo);
+  DCHECK_NOT_NULL(object);
+  DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(object) & kAlignmentMask);
+  return object;
 }
 
 void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
@@ -189,7 +208,7 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
 
   NormalPageSpace::LinearAllocationBuffer& current_lab =
       space.linear_allocation_buffer();
-  if (current_lab.size() < size) {
+  if (V8_UNLIKELY(current_lab.size() < size)) {
     return OutOfLineAllocate(
         space, size, static_cast<AlignVal>(kAllocationGranularity), gcinfo);
   }

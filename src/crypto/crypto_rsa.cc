@@ -321,7 +321,7 @@ Maybe<bool> RSACipherTraits::AdditionalConfig(
         return Nothing<bool>();
       }
 
-      if (IsAnyByteSource(args[offset + 2])) {
+      if (IsAnyBufferSource(args[offset + 2])) {
         ArrayBufferOrViewContents<char> label(args[offset + 2]);
         if (UNLIKELY(!label.CheckSizeInt32())) {
           THROW_ERR_OUT_OF_RANGE(env, "label is too big");
@@ -529,7 +529,7 @@ Maybe<bool> GetRsaKeyDetail(
 
   RSA_get0_key(rsa, &n, &e, nullptr);
 
-  size_t modulus_length = BN_num_bytes(n) * CHAR_BIT;
+  size_t modulus_length = BN_num_bits(n);
 
   if (target
           ->Set(

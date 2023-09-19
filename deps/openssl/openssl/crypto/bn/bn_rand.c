@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -320,7 +320,9 @@ int BN_generate_dsa_nonce(BIGNUM *out, const BIGNUM *range,
  err:
     EVP_MD_CTX_free(mdctx);
     EVP_MD_free(md);
-    OPENSSL_free(k_bytes);
+    OPENSSL_clear_free(k_bytes, num_k_bytes);
+    OPENSSL_cleanse(digest, sizeof(digest));
+    OPENSSL_cleanse(random_bytes, sizeof(random_bytes));
     OPENSSL_cleanse(private_bytes, sizeof(private_bytes));
     return ret;
 }

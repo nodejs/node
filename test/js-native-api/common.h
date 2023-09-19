@@ -1,3 +1,6 @@
+#ifndef JS_NATIVE_API_COMMON_H_
+#define JS_NATIVE_API_COMMON_H_
+
 #include <js_native_api.h>
 
 // Empty value so that macros here are able to return NULL or void
@@ -56,6 +59,17 @@
 #define NODE_API_CALL_RETURN_VOID(env, the_call)                         \
   NODE_API_CALL_BASE(env, the_call, NODE_API_RETVAL_NOTHING)
 
+#define NODE_API_CHECK_STATUS(the_call)                                   \
+  do {                                                                         \
+    napi_status status = (the_call);                                           \
+    if (status != napi_ok) {                                                   \
+      return status;                                                           \
+    }                                                                          \
+  } while (0)
+
+#define NODE_API_ASSERT_STATUS(env, assertion, message)                        \
+  NODE_API_ASSERT_BASE(env, assertion, message, napi_generic_failure)
+
 #define DECLARE_NODE_API_PROPERTY(name, func)                            \
   { (name), NULL, (func), NULL, NULL, NULL, napi_default, NULL }
 
@@ -65,11 +79,17 @@
 #define DECLARE_NODE_API_PROPERTY_VALUE(name, value)                     \
   { (name), NULL, NULL, NULL, NULL, (value), napi_default, NULL }
 
-void add_returned_status(napi_env env,
-                         const char* key,
-                         napi_value object,
-                         char* expected_message,
-                         napi_status expected_status,
-                         napi_status actual_status);
+static inline void add_returned_status(napi_env env,
+                                       const char* key,
+                                       napi_value object,
+                                       char* expected_message,
+                                       napi_status expected_status,
+                                       napi_status actual_status);
 
-void add_last_status(napi_env env, const char* key, napi_value return_value);
+static inline void add_last_status(napi_env env,
+                                   const char* key,
+                                   napi_value return_value);
+
+#include "common-inl.h"
+
+#endif  // JS_NATIVE_API_COMMON_H_

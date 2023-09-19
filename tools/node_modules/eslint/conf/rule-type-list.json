@@ -6,12 +6,12 @@
     ],
     "deprecated": {
         "name": "Deprecated",
-        "description": "These rules have been deprecated in accordance with the <a href=\"/docs/user-guide/rule-deprecation\">deprecation policy</a>, and replaced by newer rules:",
+        "description": "These rules have been deprecated in accordance with the <a href=\"{{ '/use/rule-deprecation' | url }}\">deprecation policy</a>, and replaced by newer rules:",
         "rules": []
     },
     "removed": {
         "name": "Removed",
-        "description": "These rules from older versions of ESLint (before the <a href=\"/docs/user-guide/rule-deprecation\">deprecation policy</a> existed) have been replaced by newer rules:",
+        "description": "These rules from older versions of ESLint (before the <a href=\"{{ '/use/rule-deprecation' | url }}\">deprecation policy</a> existed) have been replaced by newer rules:",
         "rules": [
             { "removed": "generator-star", "replacedBy": ["generator-star-spacing"] },
             { "removed": "global-strict", "replacedBy": ["strict"] },

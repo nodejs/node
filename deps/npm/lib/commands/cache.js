@@ -1,8 +1,7 @@
 const cacache = require('cacache')
-const { promisify } = require('util')
 const pacote = require('pacote')
-const path = require('path')
-const rimraf = promisify(require('rimraf'))
+const fs = require('fs/promises')
+const { join } = require('path')
 const semver = require('semver')
 const BaseCommand = require('../base-command.js')
 const npa = require('npm-package-arg')
@@ -74,12 +73,10 @@ class Cache extends BaseCommand {
     'verify',
   ]
 
-  static ignoreImplicitWorkspace = true
-
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
-      return ['add', 'clean', 'verify', 'ls', 'delete']
+      return ['add', 'clean', 'verify', 'ls']
     }
 
     // TODO - eventually...
@@ -88,7 +85,6 @@ class Cache extends BaseCommand {
       case 'clean':
       case 'add':
       case 'ls':
-      case 'delete':
         return []
     }
   }
@@ -111,7 +107,7 @@ class Cache extends BaseCommand {
 
   // npm cache clean [pkg]*
   async clean (args) {
-    const cachePath = path.join(this.npm.cache, '_cacache')
+    const cachePath = join(this.npm.cache, '_cacache')
     if (args.length === 0) {
       if (!this.npm.config.get('force')) {
         throw new Error(`As of npm@5, the npm cache self-heals from corruption issues
@@ -129,7 +125,7 @@ class Cache extends BaseCommand {
   If you're sure you want to delete the entire cache, rerun this command
   with --force.`)
       }
-      return rimraf(cachePath)
+      return fs.rm(cachePath, { recursive: true, force: true })
     }
     for (const key of args) {
       let entry
@@ -164,12 +160,12 @@ class Cache extends BaseCommand {
       return pacote.tarball.stream(spec, stream => {
         stream.resume()
         return stream.promise()
-      }, this.npm.flatOptions)
+      }, { ...this.npm.flatOptions })
     }))
   }
 
   async verify () {
-    const cache = path.join(this.npm.cache, '_cacache')
+    const cache = join(this.npm.cache, '_cacache')
     const prefix = cache.indexOf(process.env.HOME) === 0
       ? `~${cache.slice(process.env.HOME.length)}`
       : cache
@@ -192,7 +188,7 @@ class Cache extends BaseCommand {
 
   // npm cache ls [--package <spec> ...]
   async ls (specs) {
-    const cachePath = path.join(this.npm.cache, '_cacache')
+    const cachePath = join(this.npm.cache, '_cacache')
     const cacheKeys = Object.keys(await cacache.ls(cachePath))
     if (specs.length > 0) {
       // get results for each package spec specified

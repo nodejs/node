@@ -45,18 +45,18 @@ U_CAPI UBool U_EXPORT2
 isFileModTimeLater(const char *filePath, const char *checkAgainst, UBool isDir) {
     UBool isLatest = true;
 
-    if (filePath == NULL || checkAgainst == NULL) {
+    if (filePath == nullptr || checkAgainst == nullptr) {
         return false;
     }
 
     if (isDir == true) {
 #if U_HAVE_DIRENT_H
-        DIR *pDir = NULL;
-        if ((pDir= opendir(checkAgainst)) != NULL) {
-            DIR *subDirp = NULL;
-            DIRENT *dirEntry = NULL;
+        DIR *pDir = nullptr;
+        if ((pDir= opendir(checkAgainst)) != nullptr) {
+            DIR *subDirp = nullptr;
+            DIRENT *dirEntry = nullptr;
 
-            while ((dirEntry = readdir(pDir)) != NULL) {
+            while ((dirEntry = readdir(pDir)) != nullptr) {
                 if (uprv_strcmp(dirEntry->d_name, SKIP1) != 0 && uprv_strcmp(dirEntry->d_name, SKIP2) != 0) {
                     UErrorCode status = U_ZERO_ERROR;
                     icu::CharString newpath(checkAgainst, -1, status);
@@ -67,7 +67,7 @@ isFileModTimeLater(const char *filePath, const char *checkAgainst, UBool isDir) 
                         return false;
                     }
 
-                    if ((subDirp = opendir(newpath.data())) != NULL) {
+                    if ((subDirp = opendir(newpath.data())) != nullptr) {
                         /* If this new path is a directory, make a recursive call with the newpath. */
                         closedir(subDirp);
                         isLatest = isFileModTimeLater(filePath, newpath.data(), isDir);

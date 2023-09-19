@@ -5,7 +5,7 @@ const zlib = require('zlib');
 const bench = common.createBenchmark(main, {
   inputLen: [16 * 1024 * 1024],
   chunkLen: [1024],
-  n: [1e2]
+  n: [1e2],
 });
 
 function main({ n, inputLen, chunkLen }) {

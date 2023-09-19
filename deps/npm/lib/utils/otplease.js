@@ -35,10 +35,10 @@ async function otplease (npm, opts, fn) {
 }
 
 function isWebOTP (err) {
-  if (!err.code === 'EOTP' || !err.body) {
-    return false
+  if (err.code === 'EOTP' && err.body) {
+    return err.body.authUrl && err.body.doneUrl
   }
-  return err.body.authUrl && err.body.doneUrl
+  return false
 }
 
 function isClassicOTP (err) {

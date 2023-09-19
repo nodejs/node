@@ -98,7 +98,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseDataAndJob)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterpreterData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
-NEVER_READ_ONLY_SPACE_IMPL(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, function_data, Object,
@@ -193,14 +192,13 @@ bool SharedFunctionInfo::needs_script_context() const {
   return is_script() && scope_info(kAcquireLoad).ContextLocalCount() > 0;
 }
 
-template <typename IsolateT>
-AbstractCode SharedFunctionInfo::abstract_code(IsolateT* isolate) {
+AbstractCode SharedFunctionInfo::abstract_code(Isolate* isolate) {
   // TODO(v8:11429): Decide if this return bytecode or baseline code, when the
   // latter is present.
   if (HasBytecodeArray(isolate)) {
     return AbstractCode::cast(GetBytecodeArray(isolate));
   } else {
-    return ToAbstractCode(GetCode());
+    return AbstractCode::cast(GetCode(isolate));
   }
 }
 
@@ -227,7 +225,7 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
     IsolateT* isolate) const {
   if (!script().IsScript()) return kHasNoScript;
 
-  if (GetIsolate()->is_precise_binary_code_coverage() &&
+  if (isolate->is_precise_binary_code_coverage() &&
       !has_reported_binary_coverage()) {
     // We may miss invocations if this function is inlined.
     return kNeedsBinaryCoverage;
@@ -383,8 +381,9 @@ void SharedFunctionInfo::set_function_map_index(int index) {
 }
 
 void SharedFunctionInfo::clear_padding() {
-  memset(reinterpret_cast<void*>(this->address() + kSize), 0,
-         kAlignedSize - kSize);
+#if V8_SFI_NEEDS_PADDING
+  set_optional_padding(0);
+#endif  // V8_SFI_NEEDS_PADDING
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
@@ -559,14 +558,13 @@ DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
       HeapObject::cast(data).map(cage_base).instance_type();
   return InstanceTypeChecker::IsBytecodeArray(instance_type) ||
          InstanceTypeChecker::IsInterpreterData(instance_type) ||
-         InstanceTypeChecker::IsCodeT(instance_type);
+         InstanceTypeChecker::IsCode(instance_type);
 }
 
 template <typename IsolateT>
 BytecodeArray SharedFunctionInfo::GetBytecodeArray(IsolateT* isolate) const {
-  // TODO(ishell): access shared_function_info_access() via IsolateT.
   SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
-      GetIsolate()->shared_function_info_access(), isolate);
+      isolate->shared_function_info_access(), isolate);
 
   DCHECK(HasBytecodeArray());
   if (HasDebugInfo() && GetDebugInfo().HasInstrumentedBytecodeArray()) {
@@ -578,8 +576,8 @@ BytecodeArray SharedFunctionInfo::GetBytecodeArray(IsolateT* isolate) const {
 
 BytecodeArray SharedFunctionInfo::GetActiveBytecodeArray() const {
   Object data = function_data(kAcquireLoad);
-  if (data.IsCodeT()) {
-    CodeT baseline_code = CodeT::cast(data);
+  if (data.IsCode()) {
+    Code baseline_code = Code::cast(data);
     data = baseline_code.bytecode_or_interpreter_data();
   }
   if (data.IsBytecodeArray()) {
@@ -623,8 +621,8 @@ bool SharedFunctionInfo::ShouldFlushCode(
   // check if it is old. Note, this is done this way since this function can be
   // called by the concurrent marker.
   Object data = function_data(kAcquireLoad);
-  if (data.IsCodeT()) {
-    CodeT baseline_code = CodeT::cast(data);
+  if (data.IsCode()) {
+    Code baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
     // If baseline code flushing isn't enabled and we have baseline data on SFI
     // we cannot flush baseline / bytecode.
@@ -644,15 +642,15 @@ bool SharedFunctionInfo::ShouldFlushCode(
   return bytecode.IsOld();
 }
 
-DEF_GETTER(SharedFunctionInfo, InterpreterTrampoline, CodeT) {
+DEF_GETTER(SharedFunctionInfo, InterpreterTrampoline, Code) {
   DCHECK(HasInterpreterData(cage_base));
   return interpreter_data(cage_base).interpreter_trampoline(cage_base);
 }
 
 DEF_GETTER(SharedFunctionInfo, HasInterpreterData, bool) {
   Object data = function_data(cage_base, kAcquireLoad);
-  if (data.IsCodeT(cage_base)) {
-    CodeT baseline_code = CodeT::cast(data);
+  if (data.IsCode(cage_base)) {
+    Code baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
     data = baseline_code.bytecode_or_interpreter_data(cage_base);
   }
@@ -662,8 +660,8 @@ DEF_GETTER(SharedFunctionInfo, HasInterpreterData, bool) {
 DEF_GETTER(SharedFunctionInfo, interpreter_data, InterpreterData) {
   DCHECK(HasInterpreterData(cage_base));
   Object data = function_data(cage_base, kAcquireLoad);
-  if (data.IsCodeT(cage_base)) {
-    CodeT baseline_code = CodeT::cast(data);
+  if (data.IsCode(cage_base)) {
+    Code baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
     data = baseline_code.bytecode_or_interpreter_data(cage_base);
   }
@@ -679,19 +677,19 @@ void SharedFunctionInfo::set_interpreter_data(
 
 DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
   Object data = function_data(cage_base, kAcquireLoad);
-  if (data.IsCodeT(cage_base)) {
-    DCHECK_EQ(CodeT::cast(data).kind(), CodeKind::BASELINE);
+  if (data.IsCode(cage_base)) {
+    DCHECK_EQ(Code::cast(data).kind(), CodeKind::BASELINE);
     return true;
   }
   return false;
 }
 
-DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, CodeT) {
+DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, Code) {
   DCHECK(HasBaselineCode(cage_base));
-  return CodeT::cast(function_data(cage_base, kAcquireLoad));
+  return Code::cast(function_data(cage_base, kAcquireLoad));
 }
 
-void SharedFunctionInfo::set_baseline_code(CodeT baseline_code,
+void SharedFunctionInfo::set_baseline_code(Code baseline_code,
                                            ReleaseStoreTag tag,
                                            WriteBarrierMode mode) {
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
@@ -755,6 +753,15 @@ const wasm::FunctionSig* SharedFunctionInfo::wasm_function_signature() const {
   DCHECK_LT(function_data.function_index(), module->functions.size());
   return module->functions[function_data.function_index()].sig;
 }
+
+int SharedFunctionInfo::wasm_function_index() const {
+  if (!HasWasmExportedFunctionData()) return -1;
+  const WasmExportedFunctionData& function_data = wasm_exported_function_data();
+  DCHECK_GE(function_data.function_index(), 0);
+  DCHECK_LT(function_data.function_index(), wasm_module()->functions.size());
+  return function_data.function_index();
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool SharedFunctionInfo::HasBuiltinId() const {

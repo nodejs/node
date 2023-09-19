@@ -7,22 +7,25 @@ import os
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
-proposal_flags = [{
-                    'name': 'js-types',
-                    'flags': ['--experimental-wasm-type-reflection',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'tail-call',
-                    'flags': ['--experimental-wasm-return-call',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'memory64',
-                    'flags': ['--experimental-wasm-memory64',
-                              '--wasm-staging']
-                  },
-                  ]
+proposal_flags = [
+    {
+        'name': 'js-types',
+        'flags': ['--experimental-wasm-type-reflection', '--wasm-staging']
+    },
+    {
+        'name': 'tail-call',
+        'flags': ['--experimental-wasm-return-call', '--wasm-staging']
+    },
+    {
+        'name': 'memory64',
+        'flags': ['--experimental-wasm-memory64', '--wasm-staging']
+    },
+    {
+        'name': 'extended-const',
+        'flags': ['--experimental-wasm-extended-const', '--wasm-staging']
+    },
+]
+
 
 class TestLoader(testsuite.JSTestLoader):
   pass

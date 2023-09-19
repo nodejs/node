@@ -36,7 +36,11 @@ const {
   isAborted,
   isErrorLike,
   fullyReadBody,
-  readableStreamClose
+  readableStreamClose,
+  isomorphicEncode,
+  urlIsLocal,
+  urlIsHttpHttpsScheme,
+  urlHasHttpsScheme
 } = require('./util')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const assert = require('assert')
@@ -52,19 +56,16 @@ const {
 const { kHeadersList } = require('../core/symbols')
 const EE = require('events')
 const { Readable, pipeline } = require('stream')
-const { isErrored, isReadable } = require('../core/util')
+const { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor } = require('../core/util')
 const { dataURLProcessor, serializeAMimeType } = require('./dataURL')
 const { TransformStream } = require('stream/web')
-const { getGlobalDispatcher } = require('../../index')
+const { getGlobalDispatcher } = require('../global')
+const { webidl } = require('./webidl')
+const { STATUS_CODES } = require('http')
 
 /** @type {import('buffer').resolveObjectURL} */
 let resolveObjectURL
-/** @type {globalThis['ReadableStream']} */
-let ReadableStream
-
-const nodeVersion = process.versions.node.split('.')
-const nodeMajor = Number(nodeVersion[0])
-const nodeMinor = Number(nodeVersion[1])
+let ReadableStream = globalThis.ReadableStream
 
 class Fetch extends EE {
   constructor (dispatcher) {
@@ -121,11 +122,7 @@ class Fetch extends EE {
 
 // https://fetch.spec.whatwg.org/#fetch-method
 async function fetch (input, init = {}) {
-  if (arguments.length < 1) {
-    throw new TypeError(
-      `Failed to execute 'fetch' on 'Window': 1 argument required, but only ${arguments.length} present.`
-    )
-  }
+  webidl.argumentLengthCheck(arguments, 1, { header: 'globalThis.fetch' })
 
   // 1. Let p be a new promise.
   const p = createDeferredPromise()
@@ -177,22 +174,22 @@ async function fetch (input, init = {}) {
   let controller = null
 
   // 11. Add the following abort steps to requestObject’s signal:
-  requestObject.signal.addEventListener(
-    'abort',
+  addAbortListener(
+    requestObject.signal,
     () => {
       // 1. Set locallyAborted to true.
       locallyAborted = true
 
-      // 2. Abort the fetch() call with p, request, responseObject,
+      // 2. Assert: controller is non-null.
+      assert(controller != null)
+
+      // 3. Abort controller with requestObject’s signal’s abort reason.
+      controller.abort(requestObject.signal.reason)
+
+      // 4. Abort the fetch() call with p, request, responseObject,
       //    and requestObject’s signal’s abort reason.
       abortFetch(p, request, responseObject, requestObject.signal.reason)
-
-      // 3. If controller is not null, then abort controller.
-      if (controller != null) {
-        controller.abort()
-      }
-    },
-    { once: true }
+    }
   )
 
   // 12. Let handleFetchDone given response response be to finalize and
@@ -278,7 +275,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
   let cacheState = response.cacheState
 
   // 6. If originalURL’s scheme is not an HTTP(S) scheme, then return.
-  if (!/^https?:/.test(originalURL.protocol)) {
+  if (!urlIsHttpHttpsScheme(originalURL)) {
     return
   }
 
@@ -303,7 +300,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
   // capability.
   // TODO: given global’s relevant settings object’s cross-origin isolated
   // capability?
-  response.timingInfo.endTime = coarsenedSharedCurrentTime()
+  timingInfo.endTime = coarsenedSharedCurrentTime()
 
   // 10. Set response’s timing info to timingInfo.
   response.timingInfo = timingInfo
@@ -321,8 +318,8 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
 
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
 function markResourceTiming (timingInfo, originalURL, initiatorType, globalThis, cacheState) {
-  if (nodeMajor >= 18 && nodeMinor >= 2) {
-    performance.markResourceTiming(timingInfo, originalURL, initiatorType, globalThis, cacheState)
+  if (nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 2)) {
+    performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis, cacheState)
   }
 }
 
@@ -477,7 +474,7 @@ function fetching ({
   }
 
   // 12. If request’s header list does not contain `Accept`, then:
-  if (!request.headersList.has('accept')) {
+  if (!request.headersList.contains('accept')) {
     // 1. Let value be `*/*`.
     const value = '*/*'
 
@@ -500,7 +497,7 @@ function fetching ({
   // 13. If request’s header list does not contain `Accept-Language`, then
   // user agents should append `Accept-Language`/an appropriate value to
   // request’s header list.
-  if (!request.headersList.has('accept-language')) {
+  if (!request.headersList.contains('accept-language')) {
     request.headersList.append('accept-language', '*')
   }
 
@@ -536,10 +533,7 @@ async function mainFetch (fetchParams, recursive = false) {
 
   // 3. If request’s local-URLs-only flag is set and request’s current URL is
   // not local, then set response to a network error.
-  if (
-    request.localURLsOnly &&
-    !/^(about|blob|data):/.test(requestCurrentURL(request).protocol)
-  ) {
+  if (request.localURLsOnly && !urlIsLocal(requestCurrentURL(request))) {
     response = makeNetworkError('local URLs only')
   }
 
@@ -629,7 +623,7 @@ async function mainFetch (fetchParams, recursive = false) {
       }
 
       // request’s current URL’s scheme is not an HTTP(S) scheme
-      if (!/^https?:/.test(requestCurrentURL(request).protocol)) {
+      if (!urlIsHttpHttpsScheme(requestCurrentURL(request))) {
         // Return a network error.
         return makeNetworkError('URL scheme must be a HTTP(S) scheme')
       }
@@ -723,7 +717,7 @@ async function mainFetch (fetchParams, recursive = false) {
     response.type === 'opaque' &&
     internalResponse.status === 206 &&
     internalResponse.rangeRequested &&
-    !request.headers.has('range')
+    !request.headers.contains('range')
   ) {
     response = internalResponse = makeNetworkError()
   }
@@ -783,8 +777,11 @@ async function mainFetch (fetchParams, recursive = false) {
 // https://fetch.spec.whatwg.org/#concept-scheme-fetch
 // given a fetch params fetchParams
 async function schemeFetch (fetchParams) {
+  // Note: since the connection is destroyed on redirect, which sets fetchParams to a
+  // cancelled state, we do not want this condition to trigger *unless* there have been
+  // no redirects. See https://github.com/nodejs/undici/issues/1776
   // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
-  if (isCancelled(fetchParams)) {
+  if (isCancelled(fetchParams) && fetchParams.request.redirectCount === 0) {
     return makeAppropriateNetworkError(fetchParams)
   }
 
@@ -832,7 +829,7 @@ async function schemeFetch (fetchParams) {
       const body = bodyWithType[0]
 
       // 5. Let length be body’s length, serialized and isomorphic encoded.
-      const length = `${body.length}`
+      const length = isomorphicEncode(`${body.length}`)
 
       // 6. Let type be bodyWithType’s type if it is non-null; otherwise the empty byte sequence.
       const type = bodyWithType[1] ?? ''
@@ -842,8 +839,8 @@ async function schemeFetch (fetchParams) {
       const response = makeResponse({
         statusText: 'OK',
         headersList: [
-          ['content-length', length],
-          ['content-type', type]
+          ['content-length', { name: 'Content-Length', value: length }],
+          ['content-type', { name: 'Content-Type', value: type }]
         ]
       })
 
@@ -872,7 +869,7 @@ async function schemeFetch (fetchParams) {
       return makeResponse({
         statusText: 'OK',
         headersList: [
-          ['content-type', mimeType]
+          ['content-type', { name: 'Content-Type', value: mimeType }]
         ],
         body: safelyExtractBody(dataURLStruct.body)[0]
       })
@@ -1133,16 +1130,16 @@ async function httpRedirectFetch (fetchParams, response) {
 
   // 6. If locationURL’s scheme is not an HTTP(S) scheme, then return a network
   // error.
-  if (!/^https?:/.test(locationURL.protocol)) {
+  if (!urlIsHttpHttpsScheme(locationURL)) {
     return makeNetworkError('URL scheme must be a HTTP(S) scheme')
   }
 
-  // 7. If request’s redirect count is twenty, return a network error.
+  // 7. If request’s redirect count is 20, then return a network error.
   if (request.redirectCount === 20) {
     return makeNetworkError('redirect count exceeded')
   }
 
-  // 8. Increase request’s redirect count by one.
+  // 8. Increase request’s redirect count by 1.
   request.redirectCount += 1
 
   // 9. If request’s mode is "cors", locationURL includes credentials, and
@@ -1197,36 +1194,44 @@ async function httpRedirectFetch (fetchParams, response) {
     }
   }
 
-  // 13. If request’s body is non-null, then set request’s body to the first return
+  // 13. If request’s current URL’s origin is not same origin with locationURL’s
+  //     origin, then for each headerName of CORS non-wildcard request-header name,
+  //     delete headerName from request’s header list.
+  if (!sameOrigin(requestCurrentURL(request), locationURL)) {
+    // https://fetch.spec.whatwg.org/#cors-non-wildcard-request-header-name
+    request.headersList.delete('authorization')
+  }
+
+  // 14. If request’s body is non-null, then set request’s body to the first return
   // value of safely extracting request’s body’s source.
   if (request.body != null) {
-    assert(request.body.source)
+    assert(request.body.source != null)
     request.body = safelyExtractBody(request.body.source)[0]
   }
 
-  // 14. Let timingInfo be fetchParams’s timing info.
+  // 15. Let timingInfo be fetchParams’s timing info.
   const timingInfo = fetchParams.timingInfo
 
-  // 15. Set timingInfo’s redirect end time and post-redirect start time to the
+  // 16. Set timingInfo’s redirect end time and post-redirect start time to the
   // coarsened shared current time given fetchParams’s cross-origin isolated
   // capability.
   timingInfo.redirectEndTime = timingInfo.postRedirectStartTime =
     coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
 
-  // 16. If timingInfo’s redirect start time is 0, then set timingInfo’s
+  // 17. If timingInfo’s redirect start time is 0, then set timingInfo’s
   //  redirect start time to timingInfo’s start time.
   if (timingInfo.redirectStartTime === 0) {
     timingInfo.redirectStartTime = timingInfo.startTime
   }
 
-  // 17. Append locationURL to request’s URL list.
+  // 18. Append locationURL to request’s URL list.
   request.urlList.push(locationURL)
 
-  // 18. Invoke set request’s referrer policy on redirect on request and
+  // 19. Invoke set request’s referrer policy on redirect on request and
   // actualResponse.
   setRequestReferrerPolicyOnRedirect(request, actualResponse)
 
-  // 19. Return the result of running main fetch given fetchParams and true.
+  // 20. Return the result of running main fetch given fetchParams and true.
   return mainFetch(fetchParams, true)
 }
 
@@ -1303,8 +1308,7 @@ async function httpNetworkOrCacheFetch (
   //    7. If contentLength is non-null, then set contentLengthHeaderValue to
   //    contentLength, serialized and isomorphic encoded.
   if (contentLength != null) {
-    // TODO: isomorphic encoded
-    contentLengthHeaderValue = String(contentLength)
+    contentLengthHeaderValue = isomorphicEncode(`${contentLength}`)
   }
 
   //    8. If contentLengthHeaderValue is non-null, then append
@@ -1327,8 +1331,7 @@ async function httpNetworkOrCacheFetch (
   //    `Referer`/httpRequest’s referrer, serialized and isomorphic encoded,
   //     to httpRequest’s header list.
   if (httpRequest.referrer instanceof URL) {
-    // TODO: isomorphic encoded
-    httpRequest.headersList.append('referer', httpRequest.referrer.href)
+    httpRequest.headersList.append('referer', isomorphicEncode(httpRequest.referrer.href))
   }
 
   //    12. Append a request `Origin` header for httpRequest.
@@ -1340,7 +1343,7 @@ async function httpNetworkOrCacheFetch (
   //    14. If httpRequest’s header list does not contain `User-Agent`, then
   //    user agents should append `User-Agent`/default `User-Agent` value to
   //    httpRequest’s header list.
-  if (!httpRequest.headersList.has('user-agent')) {
+  if (!httpRequest.headersList.contains('user-agent')) {
     httpRequest.headersList.append('user-agent', 'undici')
   }
 
@@ -1350,11 +1353,11 @@ async function httpNetworkOrCacheFetch (
   //    httpRequest’s cache mode to "no-store".
   if (
     httpRequest.cache === 'default' &&
-    (httpRequest.headersList.has('if-modified-since') ||
-      httpRequest.headersList.has('if-none-match') ||
-      httpRequest.headersList.has('if-unmodified-since') ||
-      httpRequest.headersList.has('if-match') ||
-      httpRequest.headersList.has('if-range'))
+    (httpRequest.headersList.contains('if-modified-since') ||
+      httpRequest.headersList.contains('if-none-match') ||
+      httpRequest.headersList.contains('if-unmodified-since') ||
+      httpRequest.headersList.contains('if-match') ||
+      httpRequest.headersList.contains('if-range'))
   ) {
     httpRequest.cache = 'no-store'
   }
@@ -1366,7 +1369,7 @@ async function httpNetworkOrCacheFetch (
   if (
     httpRequest.cache === 'no-cache' &&
     !httpRequest.preventNoCacheCacheControlHeaderModification &&
-    !httpRequest.headersList.has('cache-control')
+    !httpRequest.headersList.contains('cache-control')
   ) {
     httpRequest.headersList.append('cache-control', 'max-age=0')
   }
@@ -1375,28 +1378,28 @@ async function httpNetworkOrCacheFetch (
   if (httpRequest.cache === 'no-store' || httpRequest.cache === 'reload') {
     // 1. If httpRequest’s header list does not contain `Pragma`, then append
     // `Pragma`/`no-cache` to httpRequest’s header list.
-    if (!httpRequest.headersList.has('pragma')) {
+    if (!httpRequest.headersList.contains('pragma')) {
       httpRequest.headersList.append('pragma', 'no-cache')
     }
 
     // 2. If httpRequest’s header list does not contain `Cache-Control`,
     // then append `Cache-Control`/`no-cache` to httpRequest’s header list.
-    if (!httpRequest.headersList.has('cache-control')) {
+    if (!httpRequest.headersList.contains('cache-control')) {
       httpRequest.headersList.append('cache-control', 'no-cache')
     }
   }
 
   //    18. If httpRequest’s header list contains `Range`, then append
   //    `Accept-Encoding`/`identity` to httpRequest’s header list.
-  if (httpRequest.headersList.has('range')) {
+  if (httpRequest.headersList.contains('range')) {
     httpRequest.headersList.append('accept-encoding', 'identity')
   }
 
   //    19. Modify httpRequest’s header list per HTTP. Do not append a given
   //    header if httpRequest’s header list contains that header’s name.
   //    TODO: https://github.com/whatwg/fetch/issues/1285#issuecomment-896560129
-  if (!httpRequest.headersList.has('accept-encoding')) {
-    if (/^https:/.test(requestCurrentURL(httpRequest).protocol)) {
+  if (!httpRequest.headersList.contains('accept-encoding')) {
+    if (urlHasHttpsScheme(requestCurrentURL(httpRequest))) {
       httpRequest.headersList.append('accept-encoding', 'br, gzip, deflate')
     } else {
       httpRequest.headersList.append('accept-encoding', 'gzip, deflate')
@@ -1484,7 +1487,7 @@ async function httpNetworkOrCacheFetch (
 
   // 12. If httpRequest’s header list contains `Range`, then set response’s
   // range-requested flag.
-  if (httpRequest.headersList.has('range')) {
+  if (httpRequest.headersList.contains('range')) {
     response.rangeRequested = true
   }
 
@@ -1739,12 +1742,17 @@ async function httpNetworkFetch (
   }
 
   try {
-    const { body, status, statusText, headersList } = await dispatch({ body: requestBody })
+    // socket is only provided for websockets
+    const { body, status, statusText, headersList, socket } = await dispatch({ body: requestBody })
 
-    const iterator = body[Symbol.asyncIterator]()
-    fetchParams.controller.next = () => iterator.next()
+    if (socket) {
+      response = makeResponse({ status, statusText, headersList, socket })
+    } else {
+      const iterator = body[Symbol.asyncIterator]()
+      fetchParams.controller.next = () => iterator.next()
 
-    response = makeResponse({ status, statusText, headersList })
+      response = makeResponse({ status, statusText, headersList })
+    }
   } catch (err) {
     // 10. If aborted, then:
     if (err.name === 'AbortError') {
@@ -1837,6 +1845,7 @@ async function httpNetworkFetch (
       // 4. Set bytes to the result of handling content codings given
       // codings and bytes.
       let bytes
+      let isFailure
       try {
         const { done, value } = await fetchParams.controller.next()
 
@@ -1851,6 +1860,10 @@ async function httpNetworkFetch (
           bytes = undefined
         } else {
           bytes = err
+
+          // err may be propagated from the result of calling readablestream.cancel,
+          // which might not be an error. https://github.com/nodejs/undici/issues/2009
+          isFailure = true
         }
       }
 
@@ -1870,7 +1883,7 @@ async function httpNetworkFetch (
       timingInfo.decodedBodySize += bytes?.byteLength ?? 0
 
       // 6. If bytes is failure, then terminate fetchParams’s controller.
-      if (isErrorLike(bytes)) {
+      if (isFailure) {
         fetchParams.controller.terminate(bytes)
         return
       }
@@ -1928,16 +1941,18 @@ async function httpNetworkFetch (
 
   async function dispatch ({ body }) {
     const url = requestCurrentURL(request)
-    return new Promise((resolve, reject) => fetchParams.controller.dispatcher.dispatch(
+    /** @type {import('../..').Agent} */
+    const agent = fetchParams.controller.dispatcher
+
+    return new Promise((resolve, reject) => agent.dispatch(
       {
         path: url.pathname + url.search,
         origin: url.origin,
         method: request.method,
         body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
-        headers: [...request.headersList].flat(),
+        headers: request.headersList.entries,
         maxRedirections: 0,
-        bodyTimeout: 300_000,
-        headersTimeout: 300_000
+        upgrade: request.mode === 'websocket' ? 'websocket' : undefined
       },
       {
         body: null,
@@ -1969,7 +1984,9 @@ async function httpNetworkFetch (
             const val = headersList[n + 1].toString('latin1')
 
             if (key.toLowerCase() === 'content-encoding') {
-              codings = val.split(',').map((x) => x.trim())
+              // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+              // "All content-coding values are case-insensitive..."
+              codings = val.toLowerCase().split(',').map((x) => x.trim()).reverse()
             } else if (key.toLowerCase() === 'location') {
               location = val
             }
@@ -1988,9 +2005,17 @@ async function httpNetworkFetch (
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
           if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
             for (const coding of codings) {
-              if (/(x-)?gzip/.test(coding)) {
-                decoders.push(zlib.createGunzip())
-              } else if (/(x-)?deflate/.test(coding)) {
+              // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2
+              if (coding === 'x-gzip' || coding === 'gzip') {
+                decoders.push(zlib.createGunzip({
+                  // Be less strict when decoding compressed responses, since sometimes
+                  // servers send slightly invalid responses that are still accepted
+                  // by common browsers.
+                  // Always using Z_SYNC_FLUSH is what cURL does.
+                  flush: zlib.constants.Z_SYNC_FLUSH,
+                  finishFlush: zlib.constants.Z_SYNC_FLUSH
+                }))
+              } else if (coding === 'deflate') {
                 decoders.push(zlib.createInflate())
               } else if (coding === 'br') {
                 decoders.push(zlib.createBrotliDecompress())
@@ -2056,6 +2081,30 @@ async function httpNetworkFetch (
           fetchParams.controller.terminate(error)
 
           reject(error)
+        },
+
+        onUpgrade (status, headersList, socket) {
+          if (status !== 101) {
+            return
+          }
+
+          const headers = new Headers()
+
+          for (let n = 0; n < headersList.length; n += 2) {
+            const key = headersList[n + 0].toString('latin1')
+            const val = headersList[n + 1].toString('latin1')
+
+            headers.append(key, val)
+          }
+
+          resolve({
+            status,
+            statusText: STATUS_CODES[status],
+            headersList: headers[kHeadersList],
+            socket
+          })
+
+          return true
         }
       }
     ))

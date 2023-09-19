@@ -159,7 +159,11 @@ class WasmGraphAssembler : public GraphAssembler {
                                        value);
   }
 
-  Node* IsI31(Node* object);
+  Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
+                                           ExternalPointerTag tag,
+                                           Node* isolate_root);
+
+  Node* IsSmi(Node* object);
 
   // Maps and their contents.
 
@@ -211,6 +215,9 @@ class WasmGraphAssembler : public GraphAssembler {
         ObjectAccess(MachineType::AnyTagged(), kFullWriteBarrier));
   }
 
+  Node* LoadWeakArrayListElement(Node* fixed_array, Node* index_intptr,
+                                 MachineType type = MachineType::AnyTagged());
+
   // Functions, SharedFunctionInfos, FunctionData.
 
   Node* LoadSharedFunctionInfo(Node* js_function);
@@ -231,11 +238,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* FieldOffset(const wasm::StructType* type, uint32_t field_index);
 
-  Node* StoreStructField(Node* struct_object, const wasm::StructType* type,
-                         uint32_t field_index, Node* value);
   Node* WasmArrayElementOffset(Node* index, wasm::ValueType element_type);
-
-  Node* LoadWasmArrayLength(Node* array);
 
   Node* IsDataRefMap(Node* map);
 
@@ -243,17 +246,37 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* WasmTypeCast(Node* object, Node* rtt, WasmTypeCheckConfig config);
 
-  Node* Null();
+  Node* Null(wasm::ValueType type);
 
-  Node* IsNull(Node* object);
+  Node* IsNull(Node* object, wasm::ValueType type);
 
-  Node* IsNotNull(Node* object);
+  Node* IsNotNull(Node* object, wasm::ValueType type);
 
-  Node* AssertNotNull(Node* object);
+  Node* AssertNotNull(Node* object, wasm::ValueType type, TrapId trap_id);
 
   Node* WasmExternInternalize(Node* object);
 
   Node* WasmExternExternalize(Node* object);
+
+  Node* StructGet(Node* object, const wasm::StructType* type, int field_index,
+                  bool is_signed, CheckForNull null_check);
+
+  void StructSet(Node* object, Node* value, const wasm::StructType* type,
+                 int field_index, CheckForNull null_check);
+
+  Node* ArrayGet(Node* array, Node* index, const wasm::ArrayType* type,
+                 bool is_signed);
+
+  void ArraySet(Node* array, Node* index, Node* value,
+                const wasm::ArrayType* type);
+
+  Node* ArrayLength(Node* array, CheckForNull null_check);
+
+  void ArrayInitializeLength(Node* array, Node* length);
+
+  Node* StringAsWtf16(Node* string);
+
+  Node* StringPrepareForGetCodeunit(Node* string);
 
   // Generic helpers.
 
@@ -267,6 +290,10 @@ class WasmGraphAssembler : public GraphAssembler {
   void TrapUnless(Node* condition, TrapId reason) {
     AddNode(graph()->NewNode(mcgraph()->common()->TrapUnless(reason), condition,
                              effect(), control()));
+  }
+
+  Node* LoadRootRegister() {
+    return AddNode(graph()->NewNode(mcgraph()->machine()->LoadRootRegister()));
   }
 
   SimplifiedOperatorBuilder* simplified() override { return &simplified_; }

@@ -5,7 +5,6 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const exec = require('child_process').exec;
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
@@ -617,9 +616,9 @@ assert.throws(
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
 
-  const sigfile = path.join(tmpdir.path, 's5.sig');
+  const sigfile = tmpdir.resolve('s5.sig');
   fs.writeFileSync(sigfile, s5);
-  const msgfile = path.join(tmpdir.path, 's5.msg');
+  const msgfile = tmpdir.resolve('s5.msg');
   fs.writeFileSync(msgfile, msg);
 
   const cmd =

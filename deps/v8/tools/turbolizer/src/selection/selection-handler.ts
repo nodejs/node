@@ -17,16 +17,18 @@ export interface HistoryHandler {
 }
 
 export interface NodeSelectionHandler {
-  select(nodes: Iterable<TurboshaftGraphNode | GraphNode | string | number>, selected: boolean):
-    void;
+  select(nodes: Iterable<TurboshaftGraphNode | GraphNode | string | number>, selected: boolean,
+         scrollIntoView: boolean): void;
   clear(): void;
   brokeredNodeSelect(nodeIds: Set<string>, selected: boolean): void;
+  brokeredClear(): void;
 }
 
 export interface BlockSelectionHandler {
-  select(blocks: Iterable<TurboshaftGraphBlock | string | number>, selected: boolean): void;
+  select(blocks: Iterable<TurboshaftGraphBlock | number>, selected: boolean,
+         scrollIntoView: boolean): void;
   clear(): void;
-  brokeredBlockSelect(blockIds: Array<string>, selected: boolean): void;
+  brokeredBlockSelect(blockIds: Array<number>, selected: boolean): void;
 }
 
 export interface InstructionSelectionHandler {
@@ -50,7 +52,7 @@ export interface BytecodeOffsetSelectionHandler {
 
 export interface RegisterAllocationSelectionHandler {
   // These are called instructionIds since the class of the divs is "instruction-id"
-  select(instructionIds: Array<number>, selected: boolean): void;
+  select(instructionIds: Array<number>, selected: boolean, scrollIntoView: boolean): void;
   clear(): void;
   brokeredRegisterAllocationSelect(instructionsOffsets: Array<[number, number]>, selected: boolean):
     void;

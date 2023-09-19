@@ -1,7 +1,7 @@
 import { Readable } from "stream";
 import { Blob } from 'buffer'
 
-export = BodyReadable
+export default BodyReadable
 
 declare class BodyReadable extends Readable {
   constructor(
@@ -18,7 +18,7 @@ declare class BodyReadable extends Readable {
   /** Consumes and returns the body as a JavaScript Object
    *  https://fetch.spec.whatwg.org/#dom-body-json
    */
-  json(): Promise<any>
+  json(): Promise<unknown>
 
   /** Consumes and returns the body as a Blob
    *  https://fetch.spec.whatwg.org/#dom-body-blob

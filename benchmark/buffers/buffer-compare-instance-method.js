@@ -4,7 +4,7 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   size: [16, 512, 4096, 16386],
   args: [1, 2, 5],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, size, args }) {

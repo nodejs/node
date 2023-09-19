@@ -26,6 +26,8 @@ export class SequenceView extends TextView {
   showRangeView: boolean;
   phaseSelectEl: HTMLSelectElement;
   toggleRangeViewEl: HTMLElement;
+  firstInstrInput: HTMLInputElement;
+  lastInstrInput: HTMLInputElement;
 
   constructor(parent: HTMLElement, broker: SelectionBroker) {
     super(parent, broker);
@@ -45,13 +47,15 @@ export class SequenceView extends TextView {
   }
 
   public detachSelection(): SelectionStorage {
-    return new SelectionStorage(this.nodeSelection.detachSelection(),
-      this.blockSelection.detachSelection());
+    return new SelectionStorage(this.nodeSelections.current.detachSelection(),
+                                this.blockSelections.current.detachSelection(),
+                                this.instructionSelections.current.detachSelection());
   }
 
   public adaptSelection(selection: SelectionStorage): SelectionStorage {
     for (const key of selection.nodes.keys()) selection.adaptedNodes.add(key);
     for (const key of selection.blocks.keys()) selection.adaptedBocks.add(key);
+    for (const key of selection.instructions.keys()) selection.adaptedInstructions.add(Number(key));
     return selection;
   }
 
@@ -112,15 +116,19 @@ export class SequenceView extends TextView {
         select.push(item);
       }
     }
-    this.nodeSelectionHandler.select(select, true);
+    this.nodeSelectionHandler.select(select, true, false);
   }
 
   private attachSelection(adaptedSelection: SelectionStorage): void {
     if (!(adaptedSelection instanceof SelectionStorage)) return;
-    this.nodeSelectionHandler.clear();
     this.blockSelectionHandler.clear();
-    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true);
-    this.blockSelectionHandler.select(adaptedSelection.adaptedBocks, true);
+    this.nodeSelectionHandler.clear();
+    this.registerAllocationSelectionHandler.clear();
+    this.blockSelectionHandler.select(
+                Array.from(adaptedSelection.adaptedBocks).map(block => Number(block)), true, true);
+    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true, true);
+    this.registerAllocationSelectionHandler.select(Array.from(adaptedSelection.adaptedInstructions),
+                                                   true, true);
   }
 
   private addBlocks(blocks: Array<SequenceBlock>): void {
@@ -135,6 +143,9 @@ export class SequenceView extends TextView {
     sequenceBlock.classList.toggle("deferred", block.deferred);
 
     const blockIdEl = createElement("div", "block-id com clickable", String(block.id));
+    // Select just the block id when any of the block's instructions or positions
+    // are selected.
+    this.addHtmlElementForBlockId(this.getSubId(block.id), blockIdEl);
     blockIdEl.onclick = this.mkBlockLinkHandler(block.id);
     sequenceBlock.appendChild(blockIdEl);
 
@@ -225,7 +236,10 @@ export class SequenceView extends TextView {
     const instId = createElement("div", "instruction-id", String(instruction.id));
     const offsets = this.sourceResolver.instructionsPhase.instructionToPcOffsets(instruction.id);
     instId.classList.add("clickable");
+    // Select instruction id for both when the instruction is selected and when any of its
+    // positions are selected.
     this.addHtmlElementForInstructionId(instruction.id, instId);
+    this.addHtmlElementForInstructionId(this.getSubId(instruction.id), instId);
     instId.onclick = this.mkInstructionLinkHandler(instruction.id);
     instId.dataset.instructionId = String(instruction.id);
     if (offsets) {
@@ -307,19 +321,12 @@ export class SequenceView extends TextView {
   private addRangeView(): void {
     if (this.sequence.registerAllocation) {
       if (!this.rangeView) {
-        this.rangeView = new RangeView(this);
+        this.rangeView = new RangeView(this, parseInt(this.firstInstrInput.value, 10),
+                                       parseInt(this.lastInstrInput.value, 10));
       }
       const source = this.sequence.registerAllocation;
       if (source.fixedLiveRanges.length == 0 && source.liveRanges.length == 0) {
         this.preventRangeView("No live ranges to show");
-      } else if (this.numInstructions >= 249) {
-        // This is due to the css grid-column being limited to 1000 columns.
-        // Performance issues would otherwise impose some limit.
-        // TODO(george.wort@arm.com): Allow the user to specify an instruction range
-        //                            to display that spans less than 249 instructions.
-        this.preventRangeView(
-          "Live range display is only supported for sequences with less than 249 instructions"
-        );
       }
       if (this.showRangeView) {
         this.rangeView.initializeContent(this.sequence.blocks);
@@ -362,8 +369,37 @@ export class SequenceView extends TextView {
     };
   }
 
+  private elementForRangeViewInputElement(form: HTMLElement, text: string): HTMLInputElement {
+    const instrInputEl = createElement("input", "instruction-range-input") as HTMLInputElement;
+    instrInputEl.type = "text";
+    instrInputEl.title = text;
+    instrInputEl.placeholder = text;
+    instrInputEl.alt = text;
+    form.appendChild(instrInputEl);
+    return instrInputEl;
+  }
+
   private elementForToggleRangeView(): HTMLElement {
-    const toggleRangeViewEl = createElement("label", "", "show live ranges");
+    const toggleRangeViewEl = createElement("label", "", "show live ranges from ");
+
+    const form = createElement("form", "range-toggle-form");
+    toggleRangeViewEl.appendChild(form);
+
+    this.firstInstrInput = this.elementForRangeViewInputElement(form, "first instruction");
+    form.appendChild(createElement("span", "", " to "));
+    this.lastInstrInput = this.elementForRangeViewInputElement(form, "last instruction");
+
+    const submit = createElement("input", "instruction-range-submit") as HTMLInputElement;
+    submit.type = "submit";
+    submit.value = "Refresh Ranges";
+    submit.onclick = (e: MouseEvent) => {
+      e.preventDefault();
+      // Single click if not shown, double click to refresh if shown.
+      this.toggleRangeViewEl.click();
+      if (!this.showRangeView) this.toggleRangeViewEl.click();
+    };
+    form.appendChild(submit);
+
     const toggleRangesInput = createElement("input", "range-toggle-show") as HTMLInputElement;
     toggleRangesInput.setAttribute("type", "checkbox");
     toggleRangesInput.oninput = () => this.toggleRangeView(toggleRangesInput);
@@ -375,6 +411,15 @@ export class SequenceView extends TextView {
     toggleRangesInput.disabled = true;
     this.showRangeView = toggleRangesInput.checked;
     if (this.showRangeView) {
+      const firstInstr = parseInt(this.firstInstrInput.value, 10);
+      const lastInstr = parseInt(this.lastInstrInput.value, 10);
+      if (this.rangeView.instructionRangeHandler.isNewRangeViewRequired(firstInstr, lastInstr)) {
+        // Remove current RangeView's selection nodes and blocks from SelectionHandlers.
+        this.removeHtmlElementFromAllMapsIf((e: HTMLElement) =>
+                                             e.closest("#ranges-content") != null);
+        this.rangeView = new RangeView(this, firstInstr, lastInstr);
+        this.addRangeView();
+      }
       this.rangeView.initializeContent(this.sequence.blocks);
       this.rangeView.show();
     } else {

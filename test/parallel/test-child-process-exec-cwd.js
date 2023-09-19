@@ -35,5 +35,5 @@ if (common.isWindows) {
 }
 
 exec(pwdcommand, { cwd: dir }, common.mustSucceed((stdout, stderr) => {
-  assert(stdout.startsWith(dir));
+  assert(stdout.toLowerCase().startsWith(dir));
 }));

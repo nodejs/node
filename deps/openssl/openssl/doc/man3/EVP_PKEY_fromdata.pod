@@ -48,10 +48,9 @@ and L<B<EVP_PKEY-ED25519>(7)|EVP_PKEY-ED25519(7)/Common X25519, X448, ED25519 an
 =for comment the awful list of links above is made this way so we get nice
 rendering as a man-page while still getting proper links in HTML
 
-EVP_PKEY_fromdata_settable() gets a constant B<OSSL_PARAM> array that describes
+EVP_PKEY_fromdata_settable() gets a constant L<OSSL_PARAM(3)> array that describes
 the settable parameters that can be used with EVP_PKEY_fromdata().
 I<selection> is described in L</Selections>.
-See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM> as parameter descriptor.
 
 Parameters in the I<params> array that are not among the settable parameters
 for the given I<selection> are ignored.

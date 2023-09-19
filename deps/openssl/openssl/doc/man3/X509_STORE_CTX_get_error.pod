@@ -49,8 +49,10 @@ X509_STORE_CTX_set_error_depth() sets the error I<depth>.
 This can be used in combination with X509_STORE_CTX_set_error() to set the
 depth at which an error condition was detected.
 
-X509_STORE_CTX_get_current_cert() returns the certificate in I<ctx> which
-caused the error or NULL if no certificate is relevant.
+X509_STORE_CTX_get_current_cert() returns the current certificate in
+I<ctx>. If an error occurred, the current certificate will be the one
+that is most closely related to the error, or possibly NULL if no such
+certificate is relevant.
 
 X509_STORE_CTX_set_current_cert() sets the certificate I<x> in I<ctx> which
 caused the error.
@@ -218,16 +220,16 @@ The certificate chain length is greater than the supplied maximum depth.
 
 The certificate has been revoked.
 
-=item B<X509_V_ERR_INVALID_CA: invalid CA certificate>
+=item B<X509_V_ERR_NO_ISSUER_PUBLIC_KEY:
+ issuer certificate doesn't have a public key>
 
-A CA certificate is invalid. Either it is not a CA or its extensions are not
-consistent with the supplied purpose.
+The issuer certificate does not have a public key.
 
 =item B<X509_V_ERR_PATH_LENGTH_EXCEEDED: path length constraint exceeded>
 
 The basicConstraints path-length parameter has been exceeded.
 
-=item B<X509_V_ERR_INVALID_PURPOSE: unsupported certificate purpose>
+=item B<X509_V_ERR_INVALID_PURPOSE: unsuitable certificate purpose>
 
 The target certificate cannot be used for the specified purpose.
 
@@ -264,6 +266,44 @@ key usage does not include certificate signing>
 The current candidate issuer certificate was rejected because its C<keyUsage>
 extension does not permit certificate signing.
 
+=item B<X509_V_ERR_UNABLE_TO_GET_CRL_ISSUER:
+unable to get CRL issuer certificate>
+
+Unable to get CRL issuer certificate.
+
+=item B<X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION: unhandled critical extension>
+
+Unhandled critical extension.
+
+=item B<X509_V_ERR_KEYUSAGE_NO_CRL_SIGN: key usage does not include CRL signing>
+
+Key usage does not include CRL signing.
+
+=item B<X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION: unhandled critical CRL extension>
+
+Unhandled critical CRL extension.
+
+=item B<X509_V_ERR_INVALID_NON_CA: invalid non-CA certificate (has CA markings)>
+
+Invalid non-CA certificate has CA markings.
+
+=item B<X509_V_ERR_PROXY_PATH_LENGTH_EXCEEDED:
+proxy path length constraint exceeded>
+
+Proxy path length constraint exceeded.
+
+=item B<X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE:
+key usage does not include digital signature>
+
+Key usage does not include digital signature, and therefore cannot sign
+certificates.
+
+=item B<X509_V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED:
+ proxy certificates not allowed, please set the appropriate flag>
+
+Proxy certificates not allowed unless the B<X509_V_FLAG_ALLOW_PROXY_CERTS> flag
+is set.
+
 =item B<X509_V_ERR_INVALID_EXTENSION:
 invalid or inconsistent certificate extension>
 
@@ -286,9 +326,13 @@ present.
 
 The only CRLs that could be found did not match the scope of the certificate.
 
-=item B<X509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE: Unsupported extension feature>
+=item B<X509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE: unsupported extension feature>
 
 Some feature of a certificate extension is not supported. Unused.
+
+=item B<X509_V_ERR_UNNESTED_RESOURCE: RFC 3779 resource not subset of parent's resources>
+
+See RFC 3779 for details.
 
 =item B<X509_V_ERR_PERMITTED_VIOLATION: permitted subtree violation>
 
@@ -304,6 +348,11 @@ name constraints minimum and maximum not supported>
 A certificate name constraints extension included a minimum or maximum field:
 this is not supported.
 
+=item B<X509_V_ERR_APPLICATION_VERIFICATION: application verification failure>
+
+An application specific error. This will never be returned unless explicitly
+set by an application callback.
+
 =item B<X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE:
 unsupported name constraint type>
 
@@ -317,57 +366,14 @@ The format of the name constraint is not recognised: for example an email
 address format of a form not mentioned in RFC3280. This could be caused by
 a garbage extension or some new feature not currently supported.
 
+=item B<X509_V_ERR_UNSUPPORTED_NAME_SYNTAX: unsupported or invalid name syntax>
+
+Unsupported or invalid name syntax.
+
 =item B<X509_V_ERR_CRL_PATH_VALIDATION_ERROR: CRL path validation error>
 
 An error occurred when attempting to verify the CRL path. This error can only
 happen if extended CRL checking is enabled.
-
-=item B<X509_V_ERR_APPLICATION_VERIFICATION: application verification failure>
-
-An application specific error. This will never be returned unless explicitly
-set by an application callback.
-
-=item B<X509_V_ERR_UNABLE_TO_GET_CRL_ISSUER: unable to get CRL issuer certificate>
-
-Unable to get CRL issuer certificate.
-
-=item B<X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION: unhandled critical extension>
-
-Unhandled critical extension.
-
-=item B<X509_V_ERR_KEYUSAGE_NO_CRL_SIGN: key usage does not include CRL signing>
-
-Key usage does not include CRL signing.
-
-=item B<X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION: unhandled critical CRL extension>
-
-Unhandled critical CRL extension.
-
-=item B<X509_V_ERR_INVALID_NON_CA: invalid non-CA certificate (has CA markings)>
-
-Invalid non-CA certificate has CA markings.
-
-=item B<X509_V_ERR_PROXY_PATH_LENGTH_EXCEEDED: proxy path length constraint exceeded>
-
-Proxy path length constraint exceeded.
-
-=item B<X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE: key usage does not include digital signature>
-
-Key usage does not include digital signature, and therefore cannot sign
-certificates.
-
-=item B<X509_V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED: proxy certificates not allowed, please set the appropriate flag>
-
-Proxy certificates not allowed unless the B<X509_V_FLAG_ALLOW_PROXY_CERTS> flag
-is set.
-
-=item B<X509_V_ERR_UNNESTED_RESOURCE: RFC 3779 resource not subset of parent's resources>
-
-See RFC 3779 for details.
-
-=item B<X509_V_ERR_UNSUPPORTED_NAME_SYNTAX: unsupported or invalid name syntax>
-
-Unsupported or invalid name syntax.
 
 =item B<X509_V_ERR_PATH_LOOP: path loop>
 
@@ -432,14 +438,27 @@ Returned by the verify callback to indicate OCSP verification failed.
 Returned by the verify callback to indicate that the certificate is not
 recognized by the OCSP responder.
 
-=item B<X509_V_ERR_NO_ISSUER_PUBLIC_KEY: issuer certificate doesn't have a public key>
+=item B<X509_V_ERR_UNSUPPORTED_SIGNATURE_ALGORITHM:
+unsupported signature algorithm>
 
-The issuer certificate does not have a public key.
+Cannot find certificate signature algorithm.
 
-=item B<X509_V_ERR_SIGNATURE_ALGORITHM_MISMATCH: subject signature algorithm and issuer public key algorithm mismatch>
+=item B<X509_V_ERR_SIGNATURE_ALGORITHM_MISMATCH:
+subject signature algorithm and issuer public key algorithm mismatch>
 
 The issuer's public key is not of the type required by the signature in
 the subject's certificate.
+
+=item B<X509_V_ERR_SIGNATURE_ALGORITHM_INCONSISTENCY:
+cert info signature and signature algorithm mismatch>
+
+The algorithm given in the certificate info is inconsistent
+ with the one used for the certificate signature.
+
+=item B<X509_V_ERR_INVALID_CA: invalid CA certificate>
+
+A CA certificate is invalid. Either it is not a CA or its extensions are not
+consistent with the supplied purpose.
 
 =back
 
@@ -471,7 +490,7 @@ L<X509_free(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

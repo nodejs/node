@@ -1,4 +1,4 @@
-function overrideResolves (resolved, opts = {}) {
+function overrideResolves (resolved, opts) {
   const { omitLockfileRegistryResolved = false } = opts
 
   if (omitLockfileRegistryResolved) {

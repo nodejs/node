@@ -1,4 +1,4 @@
-import Dispatcher = require("./dispatcher");
+import Dispatcher from "./dispatcher";
 
 export {
   getGlobalDispatcher,

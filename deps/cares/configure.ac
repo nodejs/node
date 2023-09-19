@@ -1,9 +1,9 @@
 AC_PREREQ([2.60])
 
-AC_INIT([c-ares], [1.18.1],
+AC_INIT([c-ares], [1.19.1],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="7:1:5"
+CARES_VERSION_INFO="8:1:6"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -493,7 +493,7 @@ dnl Back to "normal" configuring
 dnl **********************************************************************
 
 dnl Checks for header files.
-STDC_HEADERS
+AC_HEADER_STDC
 
 AC_PROG_EGREP
 
@@ -683,6 +683,7 @@ CARES_CHECK_FUNC_STRNCASECMP
 CARES_CHECK_FUNC_STRNCMPI
 CARES_CHECK_FUNC_STRNICMP
 CARES_CHECK_FUNC_WRITEV
+CARES_CHECK_FUNC_ARC4RANDOM_BUF
 
 
 dnl check for AF_INET6
@@ -896,17 +897,7 @@ AC_ARG_WITH(random,
 AS_HELP_STRING([--with-random=FILE],
                [read randomness from FILE (default=/dev/urandom)]),
     [ CARES_RANDOM_FILE="$withval" ],
-    [
-        dnl Check for random device.  If we're cross compiling, we can't
-        dnl check, and it's better to assume it doesn't exist than it is
-        dnl to fail on AC_CHECK_FILE or later.
-        if test "$cross_compiling" = "no"; then
-          AC_CHECK_FILE("/dev/urandom", [ CARES_RANDOM_FILE="/dev/urandom"] )
-        else
-          AC_MSG_WARN([cannot check for /dev/urandom while cross compiling; assuming none])
-        fi
-
-    ]
+    [ CARES_RANDOM_FILE="/dev/urandom" ]
 )
 if test -n "$CARES_RANDOM_FILE" && test X"$CARES_RANDOM_FILE" != Xno ; then
         AC_SUBST(CARES_RANDOM_FILE)

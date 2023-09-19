@@ -52,6 +52,7 @@
 * [Readline](readline.md)
 * [REPL](repl.md)
 * [Report](report.md)
+* [Single executable applications](single-executable-applications.md)
 * [Stream](stream.md)
 * [String decoder](string_decoder.md)
 * [Test runner](test.md)

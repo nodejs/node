@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -112,7 +112,7 @@ OSSL_CMP_CTX *OSSL_CMP_CTX_new(OSSL_LIB_CTX *libctx, const char *propq)
 
     ctx->log_verbosity = OSSL_CMP_LOG_INFO;
 
-    ctx->status = -1;
+    ctx->status = OSSL_CMP_PKISTATUS_unspecified;
     ctx->failInfoCode = -1;
 
     ctx->keep_alive = 1;
@@ -142,6 +142,13 @@ OSSL_CMP_CTX *OSSL_CMP_CTX_new(OSSL_LIB_CTX *libctx, const char *propq)
     return NULL;
 }
 
+#define OSSL_CMP_ITAVs_free(itavs) \
+    sk_OSSL_CMP_ITAV_pop_free(itavs, OSSL_CMP_ITAV_free);
+#define X509_EXTENSIONS_free(exts) \
+    sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free)
+#define OSSL_CMP_PKIFREETEXT_free(text) \
+    sk_ASN1_UTF8STRING_pop_free(text, ASN1_UTF8STRING_free)
+
 /* Prepare the OSSL_CMP_CTX for next use, partly re-initializing OSSL_CMP_CTX */
 int OSSL_CMP_CTX_reinit(OSSL_CMP_CTX *ctx)
 {
@@ -155,8 +162,11 @@ int OSSL_CMP_CTX_reinit(OSSL_CMP_CTX *ctx)
         ossl_cmp_debug(ctx, "disconnected from CMP server");
         ctx->http_ctx = NULL;
     }
-    ctx->status = -1;
+    ctx->status = OSSL_CMP_PKISTATUS_unspecified;
     ctx->failInfoCode = -1;
+
+    OSSL_CMP_ITAVs_free(ctx->genm_ITAVs);
+    ctx->genm_ITAVs = NULL;
 
     return ossl_cmp_ctx_set0_statusString(ctx, NULL)
         && ossl_cmp_ctx_set0_newCert(ctx, NULL)
@@ -447,8 +457,8 @@ int OSSL_CMP_CTX_set1_referenceValue(OSSL_CMP_CTX *ctx,
 }
 
 /* Set or clear the password to be used for protecting messages with PBMAC */
-int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx, const unsigned char *sec,
-                                  const int len)
+int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx,
+                                  const unsigned char *sec, int len)
 {
     ASN1_OCTET_STRING *secretValue = NULL;
     if (ctx == NULL) {
@@ -562,6 +572,17 @@ int OSSL_CMP_CTX_push0_geninfo_ITAV(OSSL_CMP_CTX *ctx, OSSL_CMP_ITAV *itav)
     return OSSL_CMP_ITAV_push0_stack_item(&ctx->geninfo_ITAVs, itav);
 }
 
+int OSSL_CMP_CTX_reset_geninfo_ITAVs(OSSL_CMP_CTX *ctx)
+{
+    if (ctx == NULL) {
+        ERR_raise(ERR_LIB_CMP, CMP_R_NULL_ARGUMENT);
+        return 0;
+    }
+    OSSL_CMP_ITAVs_free(ctx->geninfo_ITAVs);
+    ctx->geninfo_ITAVs = NULL;
+    return 1;
+}
+
 /* Add an itav for the body of outgoing general messages */
 int OSSL_CMP_CTX_push0_genm_ITAV(OSSL_CMP_CTX *ctx, OSSL_CMP_ITAV *itav)
 {
@@ -648,13 +669,13 @@ int OSSL_CMP_CTX_set1_##FIELD(OSSL_CMP_CTX *ctx, TYPE *val) \
  */
 DEFINE_OSSL_CMP_CTX_set1_up_ref(srvCert, X509)
 
-/* Set the X509 name of the recipient. Set in the PKIHeader */
+/* Set the X509 name of the recipient to be placed in the PKIHeader */
 DEFINE_OSSL_CMP_CTX_set1(recipient, X509_NAME)
 
 /* Store the X509 name of the expected sender in the PKIHeader of responses */
 DEFINE_OSSL_CMP_CTX_set1(expected_sender, X509_NAME)
 
-/* Set the X509 name of the issuer. Set in the PKIHeader */
+/* Set the X509 name of the issuer to be placed in the certTemplate */
 DEFINE_OSSL_CMP_CTX_set1(issuer, X509_NAME)
 
 /*
@@ -813,6 +834,7 @@ int OSSL_CMP_CTX_set0_newPkey(OSSL_CMP_CTX *ctx, int priv, EVP_PKEY *pkey)
 }
 
 /* Get the private/public key to use for cert enrollment, or NULL on error */
+/* In case |priv| == 0, better use ossl_cmp_ctx_get0_newPubkey() below */
 EVP_PKEY *OSSL_CMP_CTX_get0_newPkey(const OSSL_CMP_CTX *ctx, int priv)
 {
     if (ctx == NULL) {
@@ -825,6 +847,21 @@ EVP_PKEY *OSSL_CMP_CTX_get0_newPkey(const OSSL_CMP_CTX *ctx, int priv)
     if (ctx->p10CSR != NULL)
         return priv ? NULL : X509_REQ_get0_pubkey(ctx->p10CSR);
     return ctx->pkey; /* may be NULL */
+}
+
+EVP_PKEY *ossl_cmp_ctx_get0_newPubkey(const OSSL_CMP_CTX *ctx)
+{
+    if (!ossl_assert(ctx != NULL))
+        return NULL;
+    if (ctx->newPkey != NULL)
+        return ctx->newPkey;
+    if (ctx->p10CSR != NULL)
+        return X509_REQ_get0_pubkey(ctx->p10CSR);
+    if (ctx->oldCert != NULL)
+        return X509_get0_pubkey(ctx->oldCert);
+    if (ctx->cert != NULL)
+        return X509_get0_pubkey(ctx->cert);
+    return ctx->pkey;
 }
 
 /* Set the given transactionID to the context */

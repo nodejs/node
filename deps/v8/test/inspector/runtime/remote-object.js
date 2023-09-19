@@ -235,7 +235,13 @@ InspectorTest.runAsyncTestSuite([
       expression: '/\w+/y'
     })).result);
     InspectorTest.logMessage((await evaluate({
+      expression: '/\w+/v'
+    })).result);
+    InspectorTest.logMessage((await evaluate({
       expression: '/\w+/dgimsuy'
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: '/\w+/dgimsvy'
     })).result);
     InspectorTest.logMessage((await evaluate({
       expression: `new RegExp('\\w+', 'g')`,
@@ -245,6 +251,11 @@ InspectorTest.runAsyncTestSuite([
     })).result);
     InspectorTest.logMessage((await evaluate({
       expression: `var re = /./dgimsuy;
+        re.toString = () => 'foo';
+        re`
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: `var re = /./dgimsvy;
         re.toString = () => 'foo';
         re`
     })).result);
@@ -488,6 +499,14 @@ InspectorTest.runAsyncTestSuite([
     })).result);
     InspectorTest.logMessage((await evaluate({
       expression: '({e: new Proxy({a: 1}, {b: 2})})',
+      generatePreview: true
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: 'new Proxy([1, 2], {})',
+      generatePreview: true
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: 'revocable = Proxy.revocable({}, {}); revocable.revoke(); revocable.proxy',
       generatePreview: true
     })).result);
   },

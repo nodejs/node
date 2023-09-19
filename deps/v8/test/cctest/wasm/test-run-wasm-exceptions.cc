@@ -21,11 +21,11 @@ WASM_EXEC_TEST(TryCatchThrow) {
   constexpr uint32_t kResult1 = 42;
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_T(kWasmI32,
-                            WASM_STMTS(WASM_I32V(kResult1),
-                                       WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                               WASM_THROW(except))),
-                            WASM_STMTS(WASM_I32V(kResult0)), except));
+  r.Build({WASM_TRY_CATCH_T(
+      kWasmI32,
+      WASM_STMTS(WASM_I32V(kResult1),
+                 WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except))),
+      WASM_STMTS(WASM_I32V(kResult0)), except)});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -45,12 +45,12 @@ WASM_EXEC_TEST(TryCatchThrowWithValue) {
   constexpr uint32_t kResult1 = 42;
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_T(
-               kWasmI32,
-               WASM_STMTS(WASM_I32V(kResult1),
-                          WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                  WASM_I32V(kResult0), WASM_THROW(except))),
-               WASM_STMTS(kExprNop), except));
+  r.Build({WASM_TRY_CATCH_T(
+      kWasmI32,
+      WASM_STMTS(WASM_I32V(kResult1),
+                 WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_I32V(kResult0),
+                         WASM_THROW(except))),
+      WASM_STMTS(kExprNop), except)});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -72,14 +72,14 @@ WASM_EXEC_TEST(TryMultiCatchThrow) {
   constexpr uint32_t kResult2 = 51;
 
   // Build the main test function.
-  BUILD(
-      r, kExprTry, static_cast<byte>((kWasmI32).value_type_code()),
-      WASM_STMTS(WASM_I32V(kResult2),
-                 WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except1)),
-                 WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_I32V(1)),
-                         WASM_THROW(except2))),
-      kExprCatch, except1, WASM_STMTS(WASM_I32V(kResult0)), kExprCatch, except2,
-      WASM_STMTS(WASM_I32V(kResult1)), kExprEnd);
+  r.Build(
+      {kExprTry, static_cast<byte>((kWasmI32).value_type_code()),
+       WASM_STMTS(WASM_I32V(kResult2),
+                  WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except1)),
+                  WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_I32V(1)),
+                          WASM_THROW(except2))),
+       kExprCatch, except1, WASM_STMTS(WASM_I32V(kResult0)), kExprCatch,
+       except2, WASM_STMTS(WASM_I32V(kResult1)), kExprEnd});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -101,10 +101,11 @@ WASM_EXEC_TEST(TryCatchAllThrow) {
   constexpr uint32_t kResult1 = 42;
 
   // Build the main test function.
-  BUILD(r, kExprTry, static_cast<byte>((kWasmI32).value_type_code()),
-        WASM_STMTS(WASM_I32V(kResult1), WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                                WASM_THROW(except))),
-        kExprCatchAll, WASM_I32V(kResult0), kExprEnd);
+  r.Build(
+      {kExprTry, static_cast<byte>((kWasmI32).value_type_code()),
+       WASM_STMTS(WASM_I32V(kResult1),
+                  WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except))),
+       kExprCatchAll, WASM_I32V(kResult0), kExprEnd});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -126,14 +127,14 @@ WASM_EXEC_TEST(TryCatchCatchAllThrow) {
   constexpr uint32_t kResult2 = 51;
 
   // Build the main test function.
-  BUILD(
-      r, kExprTry, static_cast<byte>((kWasmI32).value_type_code()),
-      WASM_STMTS(WASM_I32V(kResult2),
-                 WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except1)),
-                 WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_I32V(1)),
-                         WASM_THROW(except2))),
-      kExprCatch, except1, WASM_I32V(kResult0), kExprCatchAll,
-      WASM_I32V(kResult1), kExprEnd);
+  r.Build(
+      {kExprTry, static_cast<byte>((kWasmI32).value_type_code()),
+       WASM_STMTS(WASM_I32V(kResult2),
+                  WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except1)),
+                  WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_I32V(1)),
+                          WASM_THROW(except2))),
+       kExprCatch, except1, WASM_I32V(kResult0), kExprCatchAll,
+       WASM_I32V(kResult1), kExprEnd});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -157,15 +158,14 @@ WASM_EXEC_TEST(TryImplicitRethrow) {
   constexpr uint32_t kResult2 = 51;
 
   // Build the main test function.
-  BUILD(r,
-        WASM_TRY_CATCH_T(
-            kWasmI32,
-            WASM_TRY_CATCH_T(kWasmI32,
-                             WASM_STMTS(WASM_I32V(kResult1),
-                                        WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                                WASM_THROW(except2))),
-                             WASM_STMTS(WASM_I32V(kResult2)), except1),
-            WASM_I32V(kResult0), except2));
+  r.Build({WASM_TRY_CATCH_T(
+      kWasmI32,
+      WASM_TRY_CATCH_T(kWasmI32,
+                       WASM_STMTS(WASM_I32V(kResult1),
+                                  WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                                          WASM_THROW(except2))),
+                       WASM_STMTS(WASM_I32V(kResult2)), except1),
+      WASM_I32V(kResult0), except2)});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -185,15 +185,14 @@ WASM_EXEC_TEST(TryDelegate) {
   constexpr uint32_t kResult1 = 42;
 
   // Build the main test function.
-  BUILD(r,
-        WASM_TRY_CATCH_T(kWasmI32,
-                         WASM_TRY_DELEGATE_T(
-                             kWasmI32,
-                             WASM_STMTS(WASM_I32V(kResult1),
-                                        WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                                WASM_THROW(except))),
-                             0),
-                         WASM_I32V(kResult0), except));
+  r.Build({WASM_TRY_CATCH_T(
+      kWasmI32,
+      WASM_TRY_DELEGATE_T(kWasmI32,
+                          WASM_STMTS(WASM_I32V(kResult1),
+                                     WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                                             WASM_THROW(except))),
+                          0),
+      WASM_I32V(kResult0), except)});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -209,11 +208,10 @@ WASM_EXEC_TEST(TestCatchlessTry) {
   TestSignatures sigs;
   WasmRunner<uint32_t> r(execution_tier);
   byte except = r.builder().AddException(sigs.v_i());
-  BUILD(r,
-        WASM_TRY_CATCH_T(
-            kWasmI32,
-            WASM_TRY_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
-            WASM_NOP, except));
+  r.Build({WASM_TRY_CATCH_T(
+      kWasmI32,
+      WASM_TRY_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
+      WASM_NOP, except)});
   if (execution_tier != TestExecutionTier::kInterpreter) {
     r.CheckCallViaJS(0);
   } else {
@@ -231,19 +229,18 @@ WASM_EXEC_TEST(TryCatchRethrow) {
   constexpr uint32_t kUnreachable = 51;
 
   // Build the main test function.
-  BUILD(r,
-        WASM_TRY_CATCH_CATCH_T(
-            kWasmI32,
-            WASM_TRY_CATCH_T(
-                kWasmI32, WASM_THROW(except2),
-                WASM_TRY_CATCH_T(
-                    kWasmI32, WASM_THROW(except1),
-                    WASM_STMTS(WASM_I32V(kUnreachable),
-                               WASM_IF_ELSE(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                            WASM_RETHROW(1), WASM_RETHROW(2))),
-                    except1),
-                except2),
-            except1, WASM_I32V(kResult0), except2, WASM_I32V(kResult1)));
+  r.Build({WASM_TRY_CATCH_CATCH_T(
+      kWasmI32,
+      WASM_TRY_CATCH_T(
+          kWasmI32, WASM_THROW(except2),
+          WASM_TRY_CATCH_T(
+              kWasmI32, WASM_THROW(except1),
+              WASM_STMTS(WASM_I32V(kUnreachable),
+                         WASM_IF_ELSE(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                                      WASM_RETHROW(1), WASM_RETHROW(2))),
+              except1),
+          except2),
+      except1, WASM_I32V(kResult0), except2, WASM_I32V(kResult1))});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -263,15 +260,14 @@ WASM_EXEC_TEST(TryDelegateToCaller) {
   constexpr uint32_t kResult1 = 42;
 
   // Build the main test function.
-  BUILD(r,
-        WASM_TRY_CATCH_T(kWasmI32,
-                         WASM_TRY_DELEGATE_T(
-                             kWasmI32,
-                             WASM_STMTS(WASM_I32V(kResult1),
-                                        WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                                WASM_THROW(except))),
-                             1),
-                         WASM_I32V(kResult0), except));
+  r.Build({WASM_TRY_CATCH_T(
+      kWasmI32,
+      WASM_TRY_DELEGATE_T(kWasmI32,
+                          WASM_STMTS(WASM_I32V(kResult1),
+                                     WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                                             WASM_THROW(except))),
+                          1),
+      WASM_I32V(kResult0), except)});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -294,18 +290,18 @@ WASM_EXEC_TEST(TryCatchCallDirect) {
 
   // Build a throwing helper function.
   WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
-  BUILD(throw_func, WASM_THROW(except));
+  throw_func.Build({WASM_THROW(except)});
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_T(
-               kWasmI32,
-               WASM_STMTS(WASM_I32V(kResult1),
-                          WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                  WASM_STMTS(WASM_CALL_FUNCTION(
-                                                 throw_func.function_index(),
-                                                 WASM_I32V(7), WASM_I32V(9)),
-                                             WASM_DROP))),
-               WASM_STMTS(WASM_I32V(kResult0)), except));
+  r.Build({WASM_TRY_CATCH_T(
+      kWasmI32,
+      WASM_STMTS(
+          WASM_I32V(kResult1),
+          WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                  WASM_STMTS(WASM_CALL_FUNCTION(throw_func.function_index(),
+                                                WASM_I32V(7), WASM_I32V(9)),
+                             WASM_DROP))),
+      WASM_STMTS(WASM_I32V(kResult0)), except)});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -326,18 +322,18 @@ WASM_EXEC_TEST(TryCatchAllCallDirect) {
 
   // Build a throwing helper function.
   WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
-  BUILD(throw_func, WASM_THROW(except));
+  throw_func.Build({WASM_THROW(except)});
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_ALL_T(
-               kWasmI32,
-               WASM_STMTS(WASM_I32V(kResult1),
-                          WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                  WASM_STMTS(WASM_CALL_FUNCTION(
-                                                 throw_func.function_index(),
-                                                 WASM_I32V(7), WASM_I32V(9)),
-                                             WASM_DROP))),
-               WASM_STMTS(WASM_I32V(kResult0))));
+  r.Build({WASM_TRY_CATCH_ALL_T(
+      kWasmI32,
+      WASM_STMTS(
+          WASM_I32V(kResult1),
+          WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                  WASM_STMTS(WASM_CALL_FUNCTION(throw_func.function_index(),
+                                                WASM_I32V(7), WASM_I32V(9)),
+                             WASM_DROP))),
+      WASM_STMTS(WASM_I32V(kResult0)))});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -358,7 +354,7 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
 
   // Build a throwing helper function.
   WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
-  BUILD(throw_func, WASM_THROW(except));
+  throw_func.Build({WASM_THROW(except)});
 
   // Add an indirect function table.
   uint16_t indirect_function_table[] = {
@@ -367,16 +363,15 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
                                        arraysize(indirect_function_table));
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_T(
-               kWasmI32,
-               WASM_STMTS(
-                   WASM_I32V(kResult1),
-                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                           WASM_STMTS(WASM_CALL_INDIRECT(
-                                          throw_func.sig_index(), WASM_I32V(7),
-                                          WASM_I32V(9), WASM_LOCAL_GET(0)),
-                                      WASM_DROP))),
-               WASM_I32V(kResult0), except));
+  r.Build({WASM_TRY_CATCH_T(
+      kWasmI32,
+      WASM_STMTS(WASM_I32V(kResult1),
+                 WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                         WASM_STMTS(WASM_CALL_INDIRECT(
+                                        throw_func.sig_index(), WASM_I32V(7),
+                                        WASM_I32V(9), WASM_LOCAL_GET(0)),
+                                    WASM_DROP))),
+      WASM_I32V(kResult0), except)});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -397,7 +392,7 @@ WASM_EXEC_TEST(TryCatchAllCallIndirect) {
 
   // Build a throwing helper function.
   WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
-  BUILD(throw_func, WASM_THROW(except));
+  throw_func.Build({WASM_THROW(except)});
 
   // Add an indirect function table.
   uint16_t indirect_function_table[] = {
@@ -406,16 +401,15 @@ WASM_EXEC_TEST(TryCatchAllCallIndirect) {
                                        arraysize(indirect_function_table));
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_ALL_T(
-               kWasmI32,
-               WASM_STMTS(
-                   WASM_I32V(kResult1),
-                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                           WASM_STMTS(WASM_CALL_INDIRECT(
-                                          throw_func.sig_index(), WASM_I32V(7),
-                                          WASM_I32V(9), WASM_LOCAL_GET(0)),
-                                      WASM_DROP))),
-               WASM_I32V(kResult0)));
+  r.Build({WASM_TRY_CATCH_ALL_T(
+      kWasmI32,
+      WASM_STMTS(WASM_I32V(kResult1),
+                 WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                         WASM_STMTS(WASM_CALL_INDIRECT(
+                                        throw_func.sig_index(), WASM_I32V(7),
+                                        WASM_I32V(9), WASM_LOCAL_GET(0)),
+                                    WASM_DROP))),
+      WASM_I32V(kResult0))});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -435,21 +429,20 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.i_ii(), js_function};
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, &import);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, &import);
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kJSFunc = 0;
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_ALL_T(
-               kWasmI32,
-               WASM_STMTS(
-                   WASM_I32V(kResult1),
-                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                           WASM_STMTS(WASM_CALL_FUNCTION(kJSFunc, WASM_I32V(7),
-                                                         WASM_I32V(9)),
-                                      WASM_DROP))),
-               WASM_I32V(kResult0)));
+  r.Build({WASM_TRY_CATCH_ALL_T(
+      kWasmI32,
+      WASM_STMTS(WASM_I32V(kResult1),
+                 WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                         WASM_STMTS(WASM_CALL_FUNCTION(kJSFunc, WASM_I32V(7),
+                                                       WASM_I32V(9)),
+                                    WASM_DROP))),
+      WASM_I32V(kResult0))});
 
   // Need to call through JS to allow for creation of stack traces.
   r.CheckCallViaJS(kResult0, 0);
@@ -464,21 +457,20 @@ WASM_COMPILED_EXEC_TEST(TryCatchAllCallExternal) {
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.i_ii(), js_function};
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, &import);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, &import);
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kJSFunc = 0;
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_ALL_T(
-               kWasmI32,
-               WASM_STMTS(
-                   WASM_I32V(kResult1),
-                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                           WASM_STMTS(WASM_CALL_FUNCTION(kJSFunc, WASM_I32V(7),
-                                                         WASM_I32V(9)),
-                                      WASM_DROP))),
-               WASM_I32V(kResult0)));
+  r.Build({WASM_TRY_CATCH_ALL_T(
+      kWasmI32,
+      WASM_STMTS(WASM_I32V(kResult1),
+                 WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                         WASM_STMTS(WASM_CALL_FUNCTION(kJSFunc, WASM_I32V(7),
+                                                       WASM_I32V(9)),
+                                    WASM_DROP))),
+      WASM_I32V(kResult0))});
 
   // Need to call through JS to allow for creation of stack traces.
   r.CheckCallViaJS(kResult0, 0);
@@ -490,7 +482,7 @@ namespace {
 void TestTrapNotCaught(byte* code, size_t code_size,
                        TestExecutionTier execution_tier) {
   TestSignatures sigs;
-  WasmRunner<uint32_t> r(execution_tier, nullptr, "main",
+  WasmRunner<uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
                          kRuntimeExceptionSupport);
   r.builder().AddMemory(kWasmPageSize);
   constexpr uint32_t kResultSuccess = 23;
@@ -502,16 +494,16 @@ void TestTrapNotCaught(byte* code, size_t code_size,
 
   // Build a trapping helper function.
   WasmFunctionCompiler& trap_func = r.NewFunction(sigs.i_ii());
-  trap_func.Build(code, code + code_size);
+  trap_func.Build(base::VectorOf(code, code_size));
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_ALL_T(
-               kWasmI32,
-               WASM_STMTS(WASM_I32V(kResultSuccess),
-                          WASM_CALL_FUNCTION(trap_func.function_index(),
-                                             WASM_I32V(7), WASM_I32V(9)),
-                          WASM_DROP),
-               WASM_STMTS(WASM_I32V(kResultCaught))));
+  r.Build({WASM_TRY_CATCH_ALL_T(
+      kWasmI32,
+      WASM_STMTS(WASM_I32V(kResultSuccess),
+                 WASM_CALL_FUNCTION(trap_func.function_index(), WASM_I32V(7),
+                                    WASM_I32V(9)),
+                 WASM_DROP),
+      WASM_STMTS(WASM_I32V(kResultCaught)))});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -585,23 +577,21 @@ UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
   IsolateScope isolate_scope;
   LocalContext context(isolate_scope.isolate());
 
-  WasmRunner<uint32_t> r(execution_tier, nullptr, "main",
+  WasmRunner<uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
                          kRuntimeExceptionSupport, kMemory32,
                          isolate_scope.i_isolate());
 
   // Build a function that calls itself until stack overflow.
   WasmFunctionCompiler& stack_overflow = r.NewFunction(sigs.v_v());
-  byte stack_overflow_code[] = {
-      kExprCallFunction, static_cast<byte>(stack_overflow.function_index())};
-  stack_overflow.Build(stack_overflow_code,
-                       stack_overflow_code + arraysize(stack_overflow_code));
+  stack_overflow.Build(
+      {kExprCallFunction, static_cast<byte>(stack_overflow.function_index())});
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_ALL_T(
-               kWasmI32,
-               WASM_STMTS(WASM_I32V(1), kExprCallFunction,
-                          static_cast<byte>(stack_overflow.function_index())),
-               WASM_STMTS(WASM_I32V(1))));
+  r.Build({WASM_TRY_CATCH_ALL_T(
+      kWasmI32,
+      WASM_STMTS(WASM_I32V(1), kExprCallFunction,
+                 static_cast<byte>(stack_overflow.function_index())),
+      WASM_STMTS(WASM_I32V(1)))});
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -617,11 +607,11 @@ TEST(Regress1180457) {
   WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kUnreachable = 42;
-  BUILD(r, WASM_TRY_CATCH_ALL_T(
-               kWasmI32,
-               WASM_TRY_DELEGATE_T(
-                   kWasmI32, WASM_STMTS(WASM_I32V(kResult0), WASM_BR(0)), 0),
-               WASM_I32V(kUnreachable)));
+  r.Build({WASM_TRY_CATCH_ALL_T(
+      kWasmI32,
+      WASM_TRY_DELEGATE_T(kWasmI32, WASM_STMTS(WASM_I32V(kResult0), WASM_BR(0)),
+                          0),
+      WASM_I32V(kUnreachable))});
 
   CHECK_EQ(kResult0, r.CallInterpreter());
 }
@@ -631,8 +621,8 @@ TEST(Regress1187896) {
   WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
   byte try_sig = r.builder().AddSignature(sigs.v_i());
   constexpr uint32_t kResult = 23;
-  BUILD(r, kExprI32Const, 0, kExprTry, try_sig, kExprDrop, kExprCatchAll,
-        kExprNop, kExprEnd, kExprI32Const, kResult);
+  r.Build({kExprI32Const, 0, kExprTry, try_sig, kExprDrop, kExprCatchAll,
+           kExprNop, kExprEnd, kExprI32Const, kResult});
   CHECK_EQ(kResult, r.CallInterpreter());
 }
 
@@ -640,8 +630,8 @@ TEST(Regress1190291) {
   TestSignatures sigs;
   WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
   byte try_sig = r.builder().AddSignature(sigs.v_i());
-  BUILD(r, kExprUnreachable, kExprTry, try_sig, kExprCatchAll, kExprEnd,
-        kExprI32Const, 0);
+  r.Build({kExprUnreachable, kExprTry, try_sig, kExprCatchAll, kExprEnd,
+           kExprI32Const, 0});
   r.CallInterpreter();
 }
 
@@ -649,16 +639,15 @@ TEST(Regress1186795) {
   TestSignatures sigs;
   WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
   byte except = r.builder().AddException(sigs.v_i());
-  BUILD(r,
-        WASM_TRY_CATCH_T(
-            kWasmI32,
-            WASM_STMTS(WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
-                       WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
-                       WASM_TRY_T(kWasmI32,
-                                  WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
-                       WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP,
-                       WASM_DROP, WASM_DROP),
-            WASM_NOP, except));
+  r.Build({WASM_TRY_CATCH_T(
+      kWasmI32,
+      WASM_STMTS(
+          WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
+          WASM_I32V(0), WASM_I32V(0),
+          WASM_TRY_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
+          WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP,
+          WASM_DROP),
+      WASM_NOP, except)});
   CHECK_EQ(0, r.CallInterpreter());
 }
 
@@ -667,9 +656,9 @@ TEST(Regress1197408) {
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
       TestExecutionTier::kInterpreter);
   byte sig_id = r.builder().AddSignature(sigs.i_iii());
-  BUILD(r, WASM_STMTS(WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), kExprTry,
+  r.Build({WASM_STMTS(WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), kExprTry,
                       sig_id, kExprTry, sig_id, kExprCallFunction, 0,
-                      kExprDelegate, 0, kExprDelegate, 0));
+                      kExprDelegate, 0, kExprDelegate, 0)});
   CHECK_EQ(0, r.CallInterpreter(0, 0, 0));
 }
 
@@ -677,16 +666,16 @@ TEST(Regress1212396) {
   TestSignatures sigs;
   WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
   byte except = r.builder().AddException(sigs.v_v());
-  BUILD(r, kExprTry, kVoidCode, kExprTry, kVoidCode, kExprI32Const, 0,
-        kExprThrow, except, kExprDelegate, 0, kExprCatch, except, kExprEnd,
-        kExprI32Const, 42);
+  r.Build({kExprTry, kVoidCode, kExprTry, kVoidCode, kExprI32Const, 0,
+           kExprThrow, except, kExprDelegate, 0, kExprCatch, except, kExprEnd,
+           kExprI32Const, 42});
   CHECK_EQ(42, r.CallInterpreter());
 }
 
 TEST(Regress1219746) {
   TestSignatures sigs;
   WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
-  BUILD(r, kExprTry, kVoidCode, kExprI32Const, 0, kExprEnd);
+  r.Build({kExprTry, kVoidCode, kExprI32Const, 0, kExprEnd});
   CHECK_EQ(0, r.CallInterpreter());
 }
 

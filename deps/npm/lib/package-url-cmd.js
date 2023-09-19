@@ -8,7 +8,6 @@ const log = require('./utils/log-shim')
 
 const BaseCommand = require('./base-command.js')
 class PackageUrlCommand extends BaseCommand {
-  static ignoreImplicitWorkspace = false
   static params = [
     'browser',
     'registry',
@@ -17,6 +16,8 @@ class PackageUrlCommand extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static workspaces = true
+  static ignoreImplicitWorkspace = false
   static usage = ['[<pkgname> [<pkgname> ...]]']
 
   async exec (args) {
@@ -39,11 +40,11 @@ class PackageUrlCommand extends BaseCommand {
     }
   }
 
-  async execWorkspaces (args, filters) {
+  async execWorkspaces (args) {
     if (args && args.length) {
       return this.exec(args)
     }
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
     return this.exec(this.workspacePaths)
   }
 

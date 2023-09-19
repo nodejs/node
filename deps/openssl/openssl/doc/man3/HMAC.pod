@@ -71,6 +71,9 @@ I<evp_md> is a message digest such as EVP_sha1(), EVP_ripemd160() etc.
 HMAC does not support variable output length digests such as EVP_shake128() and
 EVP_shake256().
 
+HMAC() uses the default B<OSSL_LIB_CTX>.
+Use L<EVP_Q_mac(3)> instead if a library context is required.
+
 All of the functions described below are deprecated.
 Applications should instead use L<EVP_MAC_CTX_new(3)>, L<EVP_MAC_CTX_free(3)>,
 L<EVP_MAC_init(3)>, L<EVP_MAC_update(3)> and L<EVP_MAC_final(3)>

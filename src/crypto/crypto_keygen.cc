@@ -16,7 +16,6 @@ using v8::Int32;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
-using v8::Nothing;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
@@ -62,23 +61,15 @@ Maybe<bool> SecretKeyGenTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     SecretKeyGenConfig* params) {
-  Environment* env = Environment::GetCurrent(args);
   CHECK(args[*offset]->IsUint32());
-  params->length = args[*offset].As<Uint32>()->Value() / CHAR_BIT;
-  if (params->length > INT_MAX) {
-    THROW_ERR_OUT_OF_RANGE(env,
-                           "length must be less than or equal to %u bits",
-                           static_cast<uint64_t>(INT_MAX) * CHAR_BIT);
-    return Nothing<bool>();
-  }
+  uint32_t bits = args[*offset].As<Uint32>()->Value();
+  params->length = bits / CHAR_BIT;
   *offset += 1;
   return Just(true);
 }
 
-KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(
-    Environment* env,
-    SecretKeyGenConfig* params) {
-  CHECK_LE(params->length, INT_MAX);
+KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
+                                             SecretKeyGenConfig* params) {
   ByteSource::Builder bytes(params->length);
   if (CSPRNG(bytes.data<unsigned char>(), params->length).is_err())
     return KeyGenJobStatus::FAILED;

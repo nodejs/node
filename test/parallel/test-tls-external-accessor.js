@@ -10,13 +10,13 @@ const tls = require('tls');
 // Ensure accessing ._external doesn't hit an assert in the accessor method.
 {
   const pctx = tls.createSecureContext().context;
-  const cctx = Object.create(pctx);
+  const cctx = { __proto__: pctx };
   assert.throws(() => cctx._external, TypeError);
   pctx._external; // eslint-disable-line no-unused-expressions
 }
 {
   const pctx = tls.createSecurePair().credentials.context;
-  const cctx = Object.create(pctx);
+  const cctx = { __proto__: pctx };
   assert.throws(() => cctx._external, TypeError);
   pctx._external; // eslint-disable-line no-unused-expressions
 }

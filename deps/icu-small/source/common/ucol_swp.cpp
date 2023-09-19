@@ -33,13 +33,13 @@
 U_CAPI UBool U_EXPORT2
 ucol_looksLikeCollationBinary(const UDataSwapper *ds,
                               const void *inData, int32_t length) {
-    if(ds==NULL || inData==NULL || length<-1) {
+    if(ds==nullptr || inData==nullptr || length<-1) {
         return false;
     }
 
     // First check for format version 4+ which has a standard data header.
     UErrorCode errorCode=U_ZERO_ERROR;
-    (void)udata_swapDataHeader(ds, inData, -1, NULL, &errorCode);
+    (void)udata_swapDataHeader(ds, inData, -1, nullptr, &errorCode);
     if(U_SUCCESS(errorCode)) {
         const UDataInfo &info=*(const UDataInfo *)((const char *)inData+4);
         if(info.dataFormat[0]==0x55 &&   // dataFormat="UCol"
@@ -103,7 +103,7 @@ swapFormatVersion3(const UDataSwapper *ds,
     if(U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<-1 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<-1 || (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -204,7 +204,7 @@ swapFormatVersion3(const UDataSwapper *ds,
 
         /* swap the contractions */
         if(header.contractionSize!=0) {
-            /* contractionIndex: UChar[] */
+            /* contractionIndex: char16_t[] */
             ds->swapArray16(ds, inBytes+header.contractionIndex, header.contractionSize*2,
                                outBytes+header.contractionIndex, pErrorCode);
 
@@ -336,7 +336,7 @@ swapFormatVersion4(const UDataSwapper *ds,
     for(int32_t i=indexesLength; i<=IX_TOTAL_SIZE; ++i) {
         indexes[i]=-1;
     }
-    inIndexes=NULL;  // Make sure we do not accidentally use these instead of indexes[].
+    inIndexes=nullptr;  // Make sure we do not accidentally use these instead of indexes[].
 
     // Get the total length of the data.
     int32_t size;
@@ -506,7 +506,7 @@ ucol_swap(const UDataSwapper *ds,
 
     inData=(const char *)inData+headerSize;
     if(length>=0) { length-=headerSize; }
-    outData=(char *)outData+headerSize;
+    outData=(outData == nullptr) ? nullptr : (char *)outData+headerSize;
     int32_t collationSize;
     if(info.formatVersion[0]>=4) {
         collationSize=swapFormatVersion4(ds, inData, length, outData, *pErrorCode);
@@ -537,7 +537,7 @@ ucol_swapInverseUCA(const UDataSwapper *ds,
 
     /* udata_swapDataHeader checks the arguments */
     headerSize=udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 

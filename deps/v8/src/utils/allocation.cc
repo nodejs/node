@@ -164,9 +164,9 @@ void* GetRandomMmapAddr() {
 void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
                     size_t alignment, PageAllocator::Permission access) {
   DCHECK_NOT_NULL(page_allocator);
-  DCHECK_EQ(hint, AlignedAddress(hint, alignment));
+  DCHECK(IsAligned(reinterpret_cast<Address>(hint), alignment));
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
-  if (v8_flags.randomize_all_allocations) {
+  if (!hint && v8_flags.randomize_all_allocations) {
     hint = AlignedAddress(page_allocator->GetRandomMmapAddr(), alignment);
   }
   void* result = nullptr;
@@ -240,7 +240,6 @@ bool VirtualMemory::SetPermissions(Address address, size_t size,
   CHECK(InVM(address, size));
   bool result = page_allocator_->SetPermissions(
       reinterpret_cast<void*>(address), size, access);
-  DCHECK(result);
   return result;
 }
 
@@ -249,7 +248,6 @@ bool VirtualMemory::RecommitPages(Address address, size_t size,
   CHECK(InVM(address, size));
   bool result = page_allocator_->RecommitPages(reinterpret_cast<void*>(address),
                                                size, access);
-  DCHECK(result);
   return result;
 }
 
@@ -312,20 +310,14 @@ VirtualMemoryCage::VirtualMemoryCage(VirtualMemoryCage&& other) V8_NOEXCEPT {
 
 VirtualMemoryCage& VirtualMemoryCage::operator=(VirtualMemoryCage&& other)
     V8_NOEXCEPT {
+  base_ = other.base_;
+  size_ = other.size_;
   page_allocator_ = std::move(other.page_allocator_);
   reservation_ = std::move(other.reservation_);
+  other.base_ = kNullAddress;
+  other.size_ = 0;
   return *this;
 }
-
-namespace {
-inline Address VirtualMemoryCageStart(
-    Address reservation_start,
-    const VirtualMemoryCage::ReservationParams& params) {
-  return RoundUp(reservation_start + params.base_bias_size,
-                 params.base_alignment) -
-         params.base_bias_size;
-}
-}  // namespace
 
 bool VirtualMemoryCage::InitReservation(
     const ReservationParams& params, base::AddressRegion existing_reservation) {
@@ -334,9 +326,7 @@ bool VirtualMemoryCage::InitReservation(
   const size_t allocate_page_size = params.page_allocator->AllocatePageSize();
   CHECK(IsAligned(params.reservation_size, allocate_page_size));
   CHECK(params.base_alignment == ReservationParams::kAnyBaseAlignment ||
-        (IsAligned(params.base_alignment, allocate_page_size) &&
-         IsAligned(params.base_bias_size, allocate_page_size)));
-  CHECK_LE(params.base_bias_size, params.reservation_size);
+        IsAligned(params.base_alignment, allocate_page_size));
 
   if (!existing_reservation.is_empty()) {
     CHECK_EQ(existing_reservation.size(), params.reservation_size);
@@ -345,101 +335,28 @@ bool VirtualMemoryCage::InitReservation(
     reservation_ =
         VirtualMemory(params.page_allocator, existing_reservation.begin(),
                       existing_reservation.size());
-    base_ = reservation_.address() + params.base_bias_size;
-  } else if (params.base_alignment == ReservationParams::kAnyBaseAlignment ||
-             params.base_bias_size == 0) {
-    // When the base doesn't need to be aligned or when the requested
-    // base_bias_size is zero, the virtual memory reservation fails only
-    // due to OOM.
-    Address hint =
-        RoundDown(params.requested_start_hint,
-                  RoundUp(params.base_alignment, allocate_page_size));
+    base_ = reservation_.address();
+  } else {
+    Address hint = params.requested_start_hint;
+    // Require the hint to be properly aligned because here it's not clear
+    // anymore whether it should be rounded up or down.
+    CHECK(IsAligned(hint, params.base_alignment));
     VirtualMemory reservation(params.page_allocator, params.reservation_size,
                               reinterpret_cast<void*>(hint),
                               params.base_alignment, params.jit);
+    // The virtual memory reservation fails only due to OOM.
     if (!reservation.IsReserved()) return false;
 
     reservation_ = std::move(reservation);
-    base_ = reservation_.address() + params.base_bias_size;
+    base_ = reservation_.address();
     CHECK_EQ(reservation_.size(), params.reservation_size);
-  } else {
-    // Otherwise, we need to try harder by first overreserving in hopes of
-    // finding a correctly aligned address within the larger reservation.
-    size_t bias_size = RoundUp(params.base_bias_size, allocate_page_size);
-    Address hint =
-        RoundDown(params.requested_start_hint + bias_size,
-                  RoundUp(params.base_alignment, allocate_page_size)) -
-        bias_size;
-    // Alignments requring overreserving more than twice the requested size
-    // are not supported (they are too expensive and shouldn't be necessary
-    // in the first place).
-    DCHECK_LE(params.base_alignment, params.reservation_size);
-    const int kMaxAttempts = 4;
-    for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
-      // Reserve a region of twice the size so that there is an aligned address
-      // within it that's usable as the cage base.
-      VirtualMemory padded_reservation(
-          params.page_allocator, params.reservation_size * 2,
-          reinterpret_cast<void*>(hint), 1, params.jit);
-      if (!padded_reservation.IsReserved()) return false;
-
-      // Find properly aligned sub-region inside the reservation.
-      Address address =
-          VirtualMemoryCageStart(padded_reservation.address(), params);
-      CHECK(padded_reservation.InVM(address, params.reservation_size));
-
-#if defined(V8_OS_FUCHSIA)
-      // Fuchsia does not respect given hints so as a workaround we will use
-      // overreserved address space region instead of trying to re-reserve
-      // a subregion.
-      bool overreserve = true;
-#else
-      // For the last attempt use the overreserved region to avoid an OOM crash.
-      // This case can happen if there are many isolates being created in
-      // parallel that race for reserving the regions.
-      bool overreserve = (attempt == kMaxAttempts - 1);
-#endif
-
-      if (overreserve) {
-        if (padded_reservation.InVM(address, params.reservation_size)) {
-          reservation_ = std::move(padded_reservation);
-          base_ = address + params.base_bias_size;
-          break;
-        }
-      } else {
-        // Now free the padded reservation and immediately try to reserve an
-        // exact region at aligned address. We have to do this dancing because
-        // the reservation address requirement is more complex than just a
-        // certain alignment and not all operating systems support freeing parts
-        // of reserved address space regions.
-        padded_reservation.Free();
-
-        VirtualMemory reservation(
-            params.page_allocator, params.reservation_size,
-            reinterpret_cast<void*>(address), 1, params.jit);
-        if (!reservation.IsReserved()) return false;
-
-        // The reservation could still be somewhere else but we can accept it
-        // if it has the required alignment.
-        Address start_address =
-            VirtualMemoryCageStart(reservation.address(), params);
-        if (reservation.address() == start_address) {
-          reservation_ = std::move(reservation);
-          base_ = start_address + params.base_bias_size;
-          CHECK_EQ(reservation_.size(), params.reservation_size);
-          break;
-        }
-      }
-    }
   }
   CHECK_NE(base_, kNullAddress);
   CHECK(IsAligned(base_, params.base_alignment));
 
   const Address allocatable_base = RoundUp(base_, params.page_size);
-  const size_t allocatable_size =
-      RoundDown(params.reservation_size - (allocatable_base - base_) -
-                    params.base_bias_size,
-                params.page_size);
+  const size_t allocatable_size = RoundDown(
+      params.reservation_size - (allocatable_base - base_), params.page_size);
   size_ = allocatable_base + allocatable_size - base_;
 
   const base::PageFreeingMode page_freeing_mode =

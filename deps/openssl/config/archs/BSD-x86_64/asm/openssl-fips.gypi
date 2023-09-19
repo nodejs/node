@@ -310,13 +310,6 @@
       './config/archs/BSD-x86_64/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/BSD-x86_64/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/BSD-x86_64/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/BSD-x86_64/asm/crypto/bn/rsaz-avx2.s',
-      './config/archs/BSD-x86_64/asm/crypto/bn/rsaz-avx512.s',
-      './config/archs/BSD-x86_64/asm/crypto/bn/rsaz-x86_64.s',
-      './config/archs/BSD-x86_64/asm/crypto/bn/x86_64-gf2m.s',
-      './config/archs/BSD-x86_64/asm/crypto/bn/x86_64-mont.s',
-      './config/archs/BSD-x86_64/asm/crypto/bn/x86_64-mont5.s',
-      './config/archs/BSD-x86_64/asm/crypto/md5/md5-x86_64.s',
       './config/archs/BSD-x86_64/asm/providers/legacy.ld',
       './config/archs/BSD-x86_64/asm/providers/fips.ld',
 

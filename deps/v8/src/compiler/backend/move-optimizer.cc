@@ -500,9 +500,35 @@ bool IsSlot(const InstructionOperand& op) {
   return op.IsStackSlot() || op.IsFPStackSlot();
 }
 
+bool Is64BitsWide(const InstructionOperand& op) {
+  MachineRepresentation rep = LocationOperand::cast(&op)->representation();
+#if V8_COMPRESS_POINTERS
+  // We can't use {ElementSizeInBytes} because it's made for on-heap object
+  // slots and assumes that kTagged == kCompressed, whereas for the purpose
+  // here we specifically need to distinguish those cases.
+  return (rep == MachineRepresentation::kTagged ||
+          rep == MachineRepresentation::kTaggedPointer ||
+          rep == MachineRepresentation::kWord64);
+#else
+  return rep == MachineRepresentation::kWord64;
+#endif
+}
+
 bool LoadCompare(const MoveOperands* a, const MoveOperands* b) {
   if (!a->source().EqualsCanonicalized(b->source())) {
     return a->source().CompareCanonicalized(b->source());
+  }
+  // The replacements below are only safe if wider values are preferred.
+  // In particular, replacing an uncompressed pointer with a compressed
+  // pointer is disallowed.
+  if (a->destination().IsLocationOperand() &&
+      b->destination().IsLocationOperand()) {
+    if (Is64BitsWide(a->destination()) && !Is64BitsWide(b->destination())) {
+      return true;
+    }
+    if (!Is64BitsWide(a->destination()) && Is64BitsWide(b->destination())) {
+      return false;
+    }
   }
   if (IsSlot(a->destination()) && !IsSlot(b->destination())) return false;
   if (!IsSlot(a->destination()) && IsSlot(b->destination())) return true;
@@ -538,8 +564,13 @@ void MoveOptimizer::FinalizeMoves(Instruction* instr) {
       group_begin = load;
       continue;
     }
-    // Nothing to be gained from splitting here.
-    if (IsSlot(group_begin->destination())) continue;
+    // Nothing to be gained from splitting here. However, due to the sorting
+    // scheme, there could be optimizable groups of loads later in the group,
+    // so bump the {group_begin} along.
+    if (IsSlot(group_begin->destination())) {
+      group_begin = load;
+      continue;
+    }
     // Insert new move into slot 1.
     ParallelMove* slot_1 = instr->GetOrCreateParallelMove(
         static_cast<Instruction::GapPosition>(1), code_zone());

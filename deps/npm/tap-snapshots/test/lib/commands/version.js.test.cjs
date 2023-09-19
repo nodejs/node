@@ -9,7 +9,7 @@ exports[`test/lib/commands/version.js TAP empty versions workspaces with one arg
 {
   "name": "workspaces-test",
   "version": "1.0.0",
-  "lockfileVersion": 2,
+  "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
@@ -34,14 +34,6 @@ exports[`test/lib/commands/version.js TAP empty versions workspaces with one arg
     "workspace-b": {
       "version": "2.0.0"
     }
-  },
-  "dependencies": {
-    "workspace-a": {
-      "version": "file:workspace-a"
-    },
-    "workspace-b": {
-      "version": "file:workspace-b"
-    }
   }
 }
 
@@ -51,7 +43,7 @@ exports[`test/lib/commands/version.js TAP empty versions workspaces with one arg
 {
   "name": "workspaces-test",
   "version": "1.0.0",
-  "lockfileVersion": 2,
+  "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
@@ -79,14 +71,6 @@ exports[`test/lib/commands/version.js TAP empty versions workspaces with one arg
     },
     "workspace-b": {
       "version": "2.0.0"
-    }
-  },
-  "dependencies": {
-    "workspace-a": {
-      "version": "file:workspace-a"
-    },
-    "workspace-b": {
-      "version": "file:workspace-b"
     }
   }
 }

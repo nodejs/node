@@ -7,7 +7,7 @@ const assert = require('assert');
 const util = require('util');
 const { Worker } = require('worker_threads');
 
-let numWorkers = +process.env.JOBS || require('os').cpus().length;
+let numWorkers = +process.env.JOBS || require('os').availableParallelism();
 if (numWorkers > 20) {
   // Cap the number of workers at 20 (as an even divisor of 60 used as
   // the total number of workers started) otherwise the test fails on

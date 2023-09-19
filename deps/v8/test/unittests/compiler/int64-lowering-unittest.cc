@@ -15,10 +15,13 @@
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/wasm/value-type.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
+
+#if V8_TARGET_ARCH_32_BIT
 
 using testing::AllOf;
 using testing::Capture;
@@ -50,13 +53,11 @@ class Int64LoweringTest : public GraphTest {
     NodeProperties::MergeControlToEnd(graph(), common(), ret);
 
     Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(),
-                           nullptr, signature);
+                           signature);
     lowering.LowerGraph();
   }
 
-  void LowerGraphWithSpecialCase(
-      Node* node, std::unique_ptr<Int64LoweringSpecialCase> special_case,
-      MachineRepresentation rep) {
+  void LowerGraphWithSpecialCase(Node* node, MachineRepresentation rep) {
     Node* zero = graph()->NewNode(common()->Int32Constant(0));
     Node* ret = graph()->NewNode(common()->Return(), zero, node,
                                  graph()->start(), graph()->start());
@@ -69,8 +70,7 @@ class Int64LoweringTest : public GraphTest {
     sig_builder.AddReturn(rep);
 
     Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(),
-                           nullptr, sig_builder.Build(),
-                           std::move(special_case));
+                           sig_builder.Build());
     lowering.LowerGraph();
   }
 
@@ -287,7 +287,7 @@ TEST_F(Int64LoweringTest, Int64LoadImmutable) {
   NodeProperties::MergeControlToEnd(graph(), common(), ret);                 \
                                                                              \
   Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(), \
-                         nullptr, sig_builder.Build());                      \
+                         sig_builder.Build());                               \
   lowering.LowerGraph();                                                     \
                                                                              \
   STORE_VERIFY(kStore, kRep32)
@@ -321,7 +321,7 @@ TEST_F(Int64LoweringTest, Int32Store) {
   NodeProperties::MergeControlToEnd(graph(), common(), ret);
 
   Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(),
-                         nullptr, sig_builder.Build());
+                         sig_builder.Build());
   lowering.LowerGraph();
 
   EXPECT_THAT(
@@ -430,8 +430,6 @@ TEST_F(Int64LoweringTest, ParameterWithJSClosureParam) {
 // two assumptions:
 // - Pointers are 32 bit and therefore pointers do not get lowered.
 // - 64-bit rol/ror/clz/ctz instructions have a control input.
-// TODO(wasm): We can find an alternative to re-activate these tests.
-#if V8_TARGET_ARCH_32_BIT
 TEST_F(Int64LoweringTest, CallI64Return) {
   int32_t function = 0x9999;
   Node* context_address = Int32Constant(0);
@@ -660,7 +658,6 @@ TEST_F(Int64LoweringTest, I64Ror_43) {
                                        IsInt32Constant(21))),
                 start(), start()));
 }
-#endif
 
 TEST_F(Int64LoweringTest, Int64Sub) {
   LowerGraph(graph()->NewNode(machine()->Int64Sub(), Int64Constant(value(0)),
@@ -1035,37 +1032,20 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseBigIntToI64) {
   Node* target = Int32Constant(1);
   Node* context = Int32Constant(2);
   Node* bigint = Int32Constant(4);
+  WasmCallDescriptors* descriptors = wasm::GetWasmEngine()->call_descriptors();
 
   CallDescriptor* bigint_to_i64_call_descriptor =
-      Linkage::GetStubCallDescriptor(
-          zone(),                                           // zone
-          BigIntToI64Descriptor(),                          // descriptor
-          BigIntToI64Descriptor::GetStackParameterCount(),  // stack parameter
-                                                            // count
-          CallDescriptor::kNoFlags,                         // flags
-          Operator::kNoProperties,                          // properties
-          StubCallMode::kCallCodeObject);                   // stub call mode
+      descriptors->GetBigIntToI64Descriptor(StubCallMode::kCallBuiltinPointer,
+                                            false);
 
   CallDescriptor* bigint_to_i32_pair_call_descriptor =
-      Linkage::GetStubCallDescriptor(
-          zone(),                       // zone
-          BigIntToI32PairDescriptor(),  // descriptor
-          BigIntToI32PairDescriptor::
-              GetStackParameterCount(),    // stack parameter count
-          CallDescriptor::kNoFlags,        // flags
-          Operator::kNoProperties,         // properties
-          StubCallMode::kCallCodeObject);  // stub call mode
-
-  auto lowering_special_case = std::make_unique<Int64LoweringSpecialCase>();
-  lowering_special_case->replacements.insert(
-      {bigint_to_i64_call_descriptor, bigint_to_i32_pair_call_descriptor});
+      descriptors->GetLoweredCallDescriptor(bigint_to_i64_call_descriptor);
 
   Node* call_node =
       graph()->NewNode(common()->Call(bigint_to_i64_call_descriptor), target,
                        bigint, context, start(), start());
 
-  LowerGraphWithSpecialCase(call_node, std::move(lowering_special_case),
-                            MachineRepresentation::kWord64);
+  LowerGraphWithSpecialCase(call_node, MachineRepresentation::kWord64);
 
   Capture<Node*> call;
   Matcher<Node*> call_matcher =
@@ -1081,36 +1061,18 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseBigIntToI64) {
 TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseI64ToBigInt) {
   Node* target = Int32Constant(1);
   Node* i64 = Int64Constant(value(0));
+  WasmCallDescriptors* descriptors = wasm::GetWasmEngine()->call_descriptors();
 
   CallDescriptor* i64_to_bigint_call_descriptor =
-      Linkage::GetStubCallDescriptor(
-          zone(),                                           // zone
-          I64ToBigIntDescriptor(),                          // descriptor
-          I64ToBigIntDescriptor::GetStackParameterCount(),  // stack parameter
-                                                            // count
-          CallDescriptor::kNoFlags,                         // flags
-          Operator::kNoProperties,                          // properties
-          StubCallMode::kCallCodeObject);                   // stub call mode
+      descriptors->GetI64ToBigIntDescriptor(StubCallMode::kCallBuiltinPointer);
 
   CallDescriptor* i32_pair_to_bigint_call_descriptor =
-      Linkage::GetStubCallDescriptor(
-          zone(),                       // zone
-          I32PairToBigIntDescriptor(),  // descriptor
-          I32PairToBigIntDescriptor::
-              GetStackParameterCount(),    // stack parameter count
-          CallDescriptor::kNoFlags,        // flags
-          Operator::kNoProperties,         // properties
-          StubCallMode::kCallCodeObject);  // stub call mode
-
-  auto lowering_special_case = std::make_unique<Int64LoweringSpecialCase>();
-  lowering_special_case->replacements.insert(
-      {i64_to_bigint_call_descriptor, i32_pair_to_bigint_call_descriptor});
+      descriptors->GetLoweredCallDescriptor(i64_to_bigint_call_descriptor);
 
   Node* call = graph()->NewNode(common()->Call(i64_to_bigint_call_descriptor),
                                 target, i64, start(), start());
 
-  LowerGraphWithSpecialCase(call, std::move(lowering_special_case),
-                            MachineRepresentation::kTaggedPointer);
+  LowerGraphWithSpecialCase(call, MachineRepresentation::kTaggedPointer);
 
   EXPECT_THAT(
       graph()->end()->InputAt(1),
@@ -1123,3 +1085,5 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseI64ToBigInt) {
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TARGET_ARCH_32_BIT

@@ -4,6 +4,7 @@
 
 import * as C from "../common/constants";
 import { interpolate, storageGetItem, storageSetItem } from "../common/util";
+import { ViewElements } from "../common/view-elements";
 import { SelectionBroker } from "../selection/selection-broker";
 import { TextView } from "./text-view";
 import { SelectionMap } from "../selection/selection-map";
@@ -56,8 +57,9 @@ export class DisassemblyView extends TextView {
   }
 
   public updateSelection(scrollIntoView: boolean = false): void {
-    super.updateSelection(scrollIntoView);
-    const selectedKeys = this.nodeSelection.selectedKeys();
+    if (this.divNode.parentNode == null) return;
+    super.updateSelection(scrollIntoView, this.divNode.parentNode as HTMLElement);
+    const selectedKeys = this.nodeSelections.current.selectedKeys();
     const keyPcOffsets: Array<TurbolizerInstructionStartInfo | string> = [
       ...this.sourceResolver.instructionsPhase.nodesToKeyPcOffsets(selectedKeys)
     ];
@@ -66,12 +68,15 @@ export class DisassemblyView extends TextView {
         keyPcOffsets.push(key);
       }
     }
+    const mkVisible = new ViewElements(this.divNode.parentElement);
     for (const keyPcOffset of keyPcOffsets) {
       const elementsToSelect = this.divNode.querySelectorAll(`[data-pc-offset='${keyPcOffset}']`);
       for (const el of elementsToSelect) {
+        mkVisible.consider(el as HTMLElement, true);
         el.classList.toggle("selected", true);
       }
     }
+    mkVisible.apply(scrollIntoView);
   }
 
   public processLine(line: string): Array<HTMLSpanElement> {
@@ -189,7 +194,7 @@ export class DisassemblyView extends TextView {
       select: function (instructionIds: Array<string>, selected: boolean) {
         view.offsetSelection.select(instructionIds, selected);
         view.updateSelection();
-        broker.broadcastBlockSelect(this, instructionIds, selected);
+        broker.broadcastInstructionSelect(this, instructionIds.map(id => Number(id)), selected);
       },
       clear: function () {
         view.offsetSelection.clear();
@@ -225,9 +230,18 @@ export class DisassemblyView extends TextView {
       if (nodes.length > 0) {
         e.stopPropagation();
         if (!e.shiftKey) this.nodeSelectionHandler.clear();
-        this.nodeSelectionHandler.select(nodes, true);
+        this.nodeSelectionHandler.select(nodes, true, false);
       } else {
-        this.updateSelection();
+        const instructions = this.sourceResolver.instructionsPhase.instructionsForPCOffset(offset);
+        if (instructions.length > 0) {
+          e.stopPropagation();
+          if (!e.shiftKey) this.instructionSelectionHandler.clear();
+          this.instructionSelectionHandler
+              .brokeredInstructionSelect(instructions.map(instr => [instr, instr]), true);
+          this.broker.broadcastInstructionSelect(this, instructions, true);
+        } else {
+          this.updateSelection();
+        }
       }
     }
     return undefined;
@@ -238,8 +252,8 @@ export class DisassemblyView extends TextView {
     const blockId = spanBlockElement.dataset.blockId;
     if (blockId !== undefined) {
       const blockIds = blockId.split(",");
-      if (!e.shiftKey) this.nodeSelectionHandler.clear();
-      this.blockSelectionHandler.select(blockIds, true);
+      if (!e.shiftKey) this.blockSelectionHandler.clear();
+      this.blockSelectionHandler.select(blockIds.map(id => Number(id)), true, false);
     }
   }
 

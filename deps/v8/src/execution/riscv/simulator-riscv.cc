@@ -3208,6 +3208,31 @@ void Simulator::SoftwareInterrupt() {
     if (code != -1 && static_cast<uint32_t>(code) <= kMaxStopCode) {
       if (IsWatchpoint(code)) {
         PrintWatchpoint(code);
+      } else if (IsTracepoint(code)) {
+        if (!v8_flags.debug_sim) {
+          PrintF("Add --debug-sim when tracepoint instruction is used.\n");
+          abort();
+        }
+        printf("%d %d %d %d\n", code, code & LOG_TRACE, code & LOG_REGS,
+               code & kDebuggerTracingDirectivesMask);
+        switch (code & kDebuggerTracingDirectivesMask) {
+          case TRACE_ENABLE:
+            if (code & LOG_TRACE) {
+              v8_flags.trace_sim = true;
+            }
+            if (code & LOG_REGS) {
+              RiscvDebugger dbg(this);
+              dbg.PrintAllRegs();
+            }
+            break;
+          case TRACE_DISABLE:
+            if (code & LOG_TRACE) {
+              v8_flags.trace_sim = false;
+            }
+            break;
+          default:
+            UNREACHABLE();
+        }
       } else {
         IncreaseStopCounter(code);
         HandleStop(code);
@@ -3225,6 +3250,10 @@ void Simulator::SoftwareInterrupt() {
 // Stop helper functions.
 bool Simulator::IsWatchpoint(reg_t code) {
   return (code <= kMaxWatchpointCode);
+}
+
+bool Simulator::IsTracepoint(reg_t code) {
+  return (code <= kMaxTracepointCode && code > kMaxWatchpointCode);
 }
 
 void Simulator::PrintWatchpoint(reg_t code) {
@@ -3636,14 +3665,14 @@ I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
                      // so use its float representation directly
           : static_cast<float>(static_cast<uint64_t>(max_i) + 1);
   if (rounded >= max_i_plus_1) {
-    set_fflags(kOverflow | kInvalidOperation);
+    set_fflags(kFPUOverflow | kInvalidOperation);
     return max_i;
   }
 
   // Since min_i (either 0 for unsigned, or for signed) is represented
   // precisely in floating-point,  comparing rounded directly against min_i
   if (rounded <= min_i) {
-    if (rounded < min_i) set_fflags(kOverflow | kInvalidOperation);
+    if (rounded < min_i) set_fflags(kFPUOverflow | kInvalidOperation);
     return min_i;
   }
 
@@ -4105,7 +4134,7 @@ void Simulator::DecodeRVRFPType() {
         case 0b000: {
           if (instr_.Rs2Value() == 0b00000) {
             // RO_FMV_X_W
-            set_rd(sext_xlen(get_fpu_register_word(rs1_reg())));
+            set_rd(sext32(get_fpu_register_word(rs1_reg())));
           } else {
             UNSUPPORTED();
           }
@@ -6288,6 +6317,7 @@ void Simulator::DecodeRvvMVX() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVX);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VRXUNARY0:
+      // vmv.s.x
       if (instr_.Vs2Value() == 0x0) {
         if (rvv_vl() > 0 && rvv_vstart() < rvv_vl()) {
           switch (rvv_vsew()) {
@@ -6310,7 +6340,6 @@ void Simulator::DecodeRvvMVX() {
             default:
               UNREACHABLE();
           }
-          // set_rvv_vl(0);
         }
         set_rvv_vstart(0);
         rvv_trace_vd();
@@ -6607,7 +6636,6 @@ void Simulator::DecodeRvvFVV() {
           break;
         default:
           UNSUPPORTED_RISCV();
-          break;
       }
       break;
     case RO_V_VFUNARY1:
@@ -6958,7 +6986,6 @@ void Simulator::DecodeRvvFVV() {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 
@@ -6990,6 +7017,48 @@ void Simulator::DecodeRvvFVF() {
           {
             vd = fs1;
             USE(vs2);
+          })
+      break;
+    case RO_V_VFADD_VF:
+      RVV_VI_VFP_VF_LOOP(
+          { UNIMPLEMENTED(); },
+          {
+            auto fn = [this](float frs1, float frs2) {
+              if (is_invalid_fadd(frs1, frs2)) {
+                this->set_fflags(kInvalidOperation);
+                return std::numeric_limits<float>::quiet_NaN();
+              } else {
+                return frs1 + frs2;
+              }
+            };
+            auto alu_out = fn(fs1, vs2);
+            // if any input or result is NaN, the result is quiet_NaN
+            if (std::isnan(alu_out) || std::isnan(fs1) || std::isnan(vs2)) {
+              // signaling_nan sets kInvalidOperation bit
+              if (isSnan(alu_out) || isSnan(fs1) || isSnan(vs2))
+                set_fflags(kInvalidOperation);
+              alu_out = std::numeric_limits<float>::quiet_NaN();
+            }
+            vd = alu_out;
+          },
+          {
+            auto fn = [this](double frs1, double frs2) {
+              if (is_invalid_fadd(frs1, frs2)) {
+                this->set_fflags(kInvalidOperation);
+                return std::numeric_limits<double>::quiet_NaN();
+              } else {
+                return frs1 + frs2;
+              }
+            };
+            auto alu_out = fn(fs1, vs2);
+            // if any input or result is NaN, the result is quiet_NaN
+            if (std::isnan(alu_out) || std::isnan(fs1) || std::isnan(vs2)) {
+              // signaling_nan sets kInvalidOperation bit
+              if (isSnan(alu_out) || isSnan(fs1) || isSnan(vs2))
+                set_fflags(kInvalidOperation);
+              alu_out = std::numeric_limits<double>::quiet_NaN();
+            }
+            vd = alu_out;
           })
       break;
     case RO_V_VFWADD_VF:
@@ -7087,7 +7156,6 @@ void Simulator::DecodeRvvFVF() {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 void Simulator::DecodeVType() {
@@ -7185,7 +7253,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
 
   v8::base::EmbeddedVector<char, 256> buffer;
 
-  if (v8_flags.trace_sim) {
+  if (v8_flags.trace_sim || v8_flags.debug_sim) {
     SNPrintF(trace_buf_, " ");
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
@@ -7195,7 +7263,6 @@ void Simulator::InstructionDecode(Instruction* instr) {
     // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
     //        reinterpret_cast<intptr_t>(instr), buffer.begin());
   }
-
   instr_ = instr;
   switch (instr_.InstructionType()) {
     case Instruction::kRType:

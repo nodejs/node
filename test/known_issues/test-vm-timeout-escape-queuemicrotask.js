@@ -33,11 +33,11 @@ assert.throws(() => {
     {
       hrtime,
       queueMicrotask,
-      loop
+      loop,
     },
-    { timeout, microtaskMode: 'afterScriptRun' }
+    { timeout, microtaskMode: 'afterScriptRun' },
   );
 }, {
   code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
-  message: `Script execution timed out after ${timeout}ms`
+  message: `Script execution timed out after ${timeout}ms`,
 });

@@ -107,10 +107,18 @@ StatsCollector::Event::Event() {
   epoch = epoch_counter.fetch_add(1);
 }
 
+void StatsCollector::NotifyUnmarkingStarted(CollectionType collection_type) {
+  DCHECK_EQ(GarbageCollectionState::kNotRunning, gc_state_);
+  DCHECK_EQ(CollectionType::kMajor, collection_type);
+  gc_state_ = GarbageCollectionState::kUnmarking;
+}
+
 void StatsCollector::NotifyMarkingStarted(CollectionType collection_type,
                                           MarkingType marking_type,
                                           IsForcedGC is_forced_gc) {
-  DCHECK_EQ(GarbageCollectionState::kNotRunning, gc_state_);
+  DCHECK_IMPLIES(gc_state_ != GarbageCollectionState::kNotRunning,
+                 (gc_state_ == GarbageCollectionState::kUnmarking &&
+                  collection_type == CollectionType::kMajor));
   current_.collection_type = collection_type;
   current_.is_forced_gc = is_forced_gc;
   current_.marking_type = marking_type;

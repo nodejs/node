@@ -4,14 +4,13 @@
 const common = require('../common');
 
 const assert = require('assert');
-const path = require('path');
 const { writeFile, readFile } = require('fs').promises;
 const tmpdir = require('../common/tmpdir');
 const { internalBinding } = require('internal/test/binding');
 const fsBinding = internalBinding('fs');
 tmpdir.refresh();
 
-const fn = path.join(tmpdir.path, 'large-file');
+const fn = tmpdir.resolve('large-file');
 
 // Creating large buffer with random content
 const largeBuffer = Buffer.from(
@@ -64,7 +63,7 @@ async function validateWrongSignalParam() {
   // is passed, ERR_INVALID_ARG_TYPE is thrown
 
   await assert.rejects(async () => {
-    const callback = common.mustNotCall(() => {});
+    const callback = common.mustNotCall();
     await readFile(fn, { signal: 'hello' }, callback);
   }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
 

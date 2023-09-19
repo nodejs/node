@@ -632,7 +632,8 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
     // scope and we terminate the iteration there anyway.
     do {
       Variable* var = query_scope->LookupInScopeOrScopeInfo(name, query_scope);
-      if (var != nullptr && IsLexicalVariableMode(var->mode())) {
+      if (var != nullptr && IsLexicalVariableMode(var->mode()) &&
+          !var->is_sloppy_block_function()) {
         should_hoist = false;
         break;
       }
@@ -649,6 +650,19 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       auto declaration = factory->NewVariableDeclaration(pos);
       // Based on the preceding checks, it doesn't matter what we pass as
       // sloppy_mode_block_scope_function_redefinition.
+      //
+      // This synthesized var for Annex B functions-in-block (FiB) may be
+      // declared multiple times for the same var scope, such as in the case of
+      // shadowed functions-in-block like the following:
+      //
+      // {
+      //    function f() {}
+      //    { function f() {} }
+      // }
+      //
+      // Redeclarations for vars do not create new bindings, but the
+      // redeclarations' initializers are still run. That is, shadowed FiB will
+      // result in multiple assignments to the same synthesized var.
       Variable* var = DeclareVariable(
           declaration, name, pos, VariableMode::kVar, NORMAL_VARIABLE,
           Variable::DefaultInitializationFlag(VariableMode::kVar), &was_added,
@@ -885,9 +899,8 @@ void DeclarationScope::AddLocal(Variable* var) {
 }
 
 void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
-  DCHECK(!IsCleared());
-  DCHECK_EQ(new_parent, outer_scope_and_calls_eval_.GetPointer()->inner_scope_);
-  DCHECK_EQ(new_parent->outer_scope_, outer_scope_and_calls_eval_.GetPointer());
+  DCHECK_EQ(new_parent, outer_scope_->inner_scope_);
+  DCHECK_EQ(new_parent->outer_scope_, outer_scope_);
   DCHECK_EQ(new_parent, new_parent->GetClosureScope());
   DCHECK_NULL(new_parent->inner_scope_);
   DCHECK(new_parent->unresolved_list_.is_empty());
@@ -912,12 +925,11 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
     new_parent->sibling_ = top_inner_scope_;
   }
 
-  Scope* outer_scope = outer_scope_and_calls_eval_.GetPointer();
-  new_parent->unresolved_list_.MoveTail(&outer_scope->unresolved_list_,
+  new_parent->unresolved_list_.MoveTail(&outer_scope_->unresolved_list_,
                                         top_unresolved_);
 
   // Move temporaries allocated for complex parameter initializers.
-  DeclarationScope* outer_closure = outer_scope->GetClosureScope();
+  DeclarationScope* outer_closure = outer_scope_->GetClosureScope();
   for (auto it = top_local_; it != outer_closure->locals()->end(); ++it) {
     Variable* local = *it;
     DCHECK_EQ(VariableMode::kTemporary, local->mode());
@@ -929,16 +941,11 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   outer_closure->locals_.Rewind(top_local_);
 
   // Move eval calls since Snapshot's creation into new_parent.
-  if (outer_scope_and_calls_eval_->calls_eval_) {
-    new_parent->RecordDeclarationScopeEvalCall();
-    new_parent->inner_scope_calls_eval_ = true;
+  if (outer_scope_->calls_eval_) {
+    new_parent->RecordEvalCall();
+    outer_scope_->calls_eval_ = false;
+    declaration_scope_->sloppy_eval_can_extend_vars_ = false;
   }
-
-  // We are in the arrow function case. The calls eval we may have recorded
-  // is intended for the inner scope and we should simply restore the
-  // original "calls eval" flag of the outer scope.
-  RestoreEvalFlag();
-  Clear();
 }
 
 void Scope::ReplaceOuterScope(Scope* outer) {
@@ -1270,8 +1277,9 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
     if (decl->IsVariableDeclaration() &&
         decl->AsVariableDeclaration()->AsNested() != nullptr) {
       Scope* current = decl->AsVariableDeclaration()->AsNested()->scope();
-      DCHECK(decl->var()->mode() == VariableMode::kVar ||
-             decl->var()->mode() == VariableMode::kDynamic);
+      if (decl->var()->mode() != VariableMode::kVar &&
+          decl->var()->mode() != VariableMode::kDynamic)
+        continue;
       // Iterate through all scopes until the declaration scope.
       do {
         // There is a conflict if there exists a non-VAR binding.
@@ -1803,6 +1811,8 @@ const char* Header(ScopeType scope_type, FunctionKind function_kind,
     case CLASS_SCOPE:
       return "class";
     case WITH_SCOPE: return "with";
+    case SHADOW_REALM_SCOPE:
+      return "shadowrealm";
   }
   UNREACHABLE();
 }
@@ -2063,6 +2073,15 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Allocate it by giving it a dynamic lookup.
   var->AllocateTo(VariableLocation::LOOKUP, -1);
   return var;
+}
+
+void Scope::ForceDynamicLookup(VariableProxy* proxy) {
+  // At the moment this is only used for looking up private names dynamically
+  // in debug-evaluate from top-level scope.
+  DCHECK(proxy->IsPrivateName());
+  DCHECK(is_script_scope() || is_module_scope() || is_eval_scope());
+  Variable* dynamic = NonLocal(proxy->raw_name(), VariableMode::kDynamic);
+  proxy->BindTo(dynamic);
 }
 
 // static
@@ -2576,6 +2595,9 @@ void Scope::AllocateVariablesRecursively() {
   this->ForEach([](Scope* scope) -> Iteration {
     DCHECK(!scope->already_resolved_);
     if (WasLazilyParsed(scope)) return Iteration::kContinue;
+    if (scope->sloppy_eval_can_extend_vars_) {
+      scope->num_heap_slots_ = Context::MIN_CONTEXT_EXTENDED_SLOTS;
+    }
     DCHECK_EQ(scope->ContextHeaderLength(), scope->num_heap_slots_);
 
     // Allocate variables for this scope.
@@ -3113,6 +3135,13 @@ void PrivateNameScopeIterator::AddUnresolvedPrivateName(VariableProxy* proxy) {
   // be new.
   DCHECK(!proxy->is_resolved());
   DCHECK(proxy->IsPrivateName());
+
+  // Use dynamic lookup for top-level scopes in debug-evaluate.
+  if (Done()) {
+    start_scope_->ForceDynamicLookup(proxy);
+    return;
+  }
+
   GetScope()->EnsureRareData()->unresolved_private_names.Add(proxy);
   // Any closure scope that contain uses of private names that skips over a
   // class scope due to heritage expressions need private name context chain

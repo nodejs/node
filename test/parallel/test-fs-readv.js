@@ -2,7 +2,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
@@ -11,7 +10,7 @@ tmpdir.refresh();
 const expected = 'ümlaut. Лорем 運務ホソモ指及 आपको करने विकास 紙読決多密所 أضف';
 
 let cnt = 0;
-const getFileName = () => path.join(tmpdir.path, `readv_${++cnt}.txt`);
+const getFileName = () => tmpdir.resolve(`readv_${++cnt}.txt`);
 const exptectedBuff = Buffer.from(expected);
 
 const allocateEmptyBuffers = (combinedLength) => {

@@ -42,7 +42,7 @@ group("gn_all") {
       "benchmarks/cpp:gn_all",
       "cctest:cctest",
       "unittests:generate-bytecode-expectations",
-      "unittests:unittests",
+      "unittests:v8_unittests",
     ]
   }
 }
@@ -72,6 +72,20 @@ group("v8_perf") {
   ]
 }
 
+group("d8_pgo") {
+  testonly = true
+
+  data_deps = [
+    "..:d8",
+    "..:v8_python_base",
+  ]
+
+  data = [
+    "../tools/builtins-pgo/profile_only.py",
+    "../tools/builtins-pgo/get_hints.py",
+  ]
+}
+
 group("v8_bot_default") {
   testonly = true
 
@@ -84,7 +98,7 @@ group("v8_bot_default") {
     "message:v8_message",
     "mjsunit:v8_mjsunit",
     "mkgrokdump:mkgrokdump",
-    "unittests:unittests",
+    "unittests:v8_unittests",
     "webkit:v8_webkit",
   ]
 
@@ -109,7 +123,7 @@ group("v8_default") {
     "message:v8_message",
     "mjsunit:v8_mjsunit",
     "mkgrokdump:mkgrokdump",
-    "unittests:unittests",
+    "unittests:v8_unittests",
   ]
 
   if (v8_enable_webassembly) {

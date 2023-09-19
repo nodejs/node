@@ -1424,7 +1424,9 @@ bool TopTierRegisterAllocationData::ExistsUseWithoutDefinition() {
     PrintF("Register allocator error: live v%d reached first block.\n",
            operand_index);
     LiveRange* range = GetOrCreateLiveRangeFor(operand_index);
-    PrintF("  (first use is at %d)\n", range->first_pos()->pos().value());
+    PrintF("  (first use is at position %d in instruction %d)\n",
+           range->first_pos()->pos().value(),
+           range->first_pos()->pos().ToInstructionIndex());
     if (debug_name() == nullptr) {
       PrintF("\n");
     } else {
@@ -2606,6 +2608,8 @@ void LiveRangeBuilder::Verify() const {
       for (const UseInterval* i = first->next(); i != nullptr; i = i->next()) {
         // Except for the first interval, the other intevals must start at
         // a block boundary, otherwise data wouldn't flow to them.
+        // You might trigger this CHECK if your SSA is not valid. For instance,
+        // if the inputs of a Phi node are in the wrong order.
         CHECK(IntervalStartsAtBlockBoundary(i));
         // The last instruction of the predecessors of the block the interval
         // starts must be covered by the range.

@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow variable redeclaration",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-redeclare"
+            url: "https://eslint.org/docs/latest/rules/no-redeclare"
         },
 
         messages: {
@@ -50,7 +50,7 @@ module.exports = {
                 context.options[0].builtinGlobals
             )
         };
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Iterate declarations of a given variable.
@@ -129,7 +129,7 @@ module.exports = {
          * @private
          */
         function checkForBlock(node) {
-            const scope = context.getScope();
+            const scope = sourceCode.getScope(node);
 
             /*
              * In ES5, some node type such as `BlockStatement` doesn't have that scope.
@@ -141,8 +141,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
 
                 findVariablesInScope(scope);
 

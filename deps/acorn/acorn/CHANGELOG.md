@@ -1,3 +1,31 @@
+## 8.10.0 (2023-07-05)
+
+### New features
+
+Add a `checkPrivateFields` option that disables strict checking of private property use.
+
+## 8.9.0 (2023-06-16)
+
+### Bug fixes
+
+Forbid dynamic import after `new`, even when part of a member expression.
+
+### New features
+
+Add Unicode properties for ES2023.
+
+Add support for the `v` flag to regular expressions.
+
+## 8.8.2 (2023-01-23)
+
+### Bug fixes
+
+Fix a bug that caused `allowHashBang` to be set to false when not provided, even with `ecmaVersion >= 14`.
+
+Fix an exception when passing no option object to `parse` or `new Parser`.
+
+Fix incorrect parse error on `if (0) let\n[astral identifier char]`.
+
 ## 8.8.1 (2022-10-24)
 
 ### Bug fixes

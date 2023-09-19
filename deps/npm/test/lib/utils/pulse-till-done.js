@@ -1,8 +1,9 @@
 const t = require('tap')
+const tmock = require('../../fixtures/tmock')
 
 let pulseStarted = null
 
-const pulseTillDone = t.mock('../../../lib/utils/pulse-till-done.js', {
+const pulseTillDone = tmock(t, '{LIB}/utils/pulse-till-done.js', {
   npmlog: {
     gauge: {
       pulse: () => {

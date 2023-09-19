@@ -3,9 +3,8 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
-const tempFile = path.join(tmpdir.path, 'fs-non-number-arguments-throw');
+const tempFile = tmpdir.resolve('fs-non-number-arguments-throw');
 
 tmpdir.refresh();
 fs.writeFileSync(tempFile, 'abc\ndef');

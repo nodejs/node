@@ -98,7 +98,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // returning the previous value. The same tag is applied both to decode the
   // previous value and encode the given value.
   //
-  // This method is atomic and can call be called from background threads.
+  // This method is atomic and can be called from background threads.
   inline Address Exchange(ExternalPointerHandle handle, Address value,
                           ExternalPointerTag tag);
 

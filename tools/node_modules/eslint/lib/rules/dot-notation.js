@@ -28,7 +28,7 @@ module.exports = {
         docs: {
             description: "Enforce dot notation whenever possible",
             recommended: false,
-            url: "https://eslint.org/docs/rules/dot-notation"
+            url: "https://eslint.org/docs/latest/rules/dot-notation"
         },
 
         schema: [
@@ -59,7 +59,7 @@ module.exports = {
     create(context) {
         const options = context.options[0] || {};
         const allowKeywords = options.allowKeywords === void 0 || options.allowKeywords;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         let allowPattern;
 
@@ -133,8 +133,7 @@ module.exports = {
                 }
                 if (
                     node.computed &&
-                    node.property.type === "TemplateLiteral" &&
-                    node.property.expressions.length === 0
+                    astUtils.isStaticTemplateLiteral(node.property)
                 ) {
                     checkComputedProperty(node, node.property.quasis[0].value.cooked);
                 }

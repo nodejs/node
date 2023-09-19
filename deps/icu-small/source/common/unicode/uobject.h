@@ -32,21 +32,21 @@
 
 /**
  * \def U_NO_THROW
- *         Since ICU 64, use U_NOEXCEPT instead.
+ *         Since ICU 64, use noexcept instead.
  *
  *         Previously, define this to define the throw() specification so
  *                 certain functions do not throw any exceptions
  *
  *         UMemory operator new methods should have the throw() specification 
- *         appended to them, so that the compiler adds the additional NULL check 
- *         before calling constructors. Without, if <code>operator new</code> returns NULL the 
+ *         appended to them, so that the compiler adds the additional nullptr check 
+ *         before calling constructors. Without, if <code>operator new</code> returns nullptr the
  *         constructor is still called, and if the constructor references member 
  *         data, (which it typically does), the result is a segmentation violation.
  *
- * @stable ICU 4.2. Since ICU 64, Use U_NOEXCEPT instead. See ICU-20422.
+ * @stable ICU 4.2. Since ICU 64, Use noexcept instead. See ICU-20422.
  */
 #ifndef U_NO_THROW
-#define U_NO_THROW U_NOEXCEPT
+#define U_NO_THROW noexcept
 #endif
 
 /*===========================================================================*/
@@ -131,14 +131,14 @@ public:
      * for ICU4C C++ classes
      * @stable ICU 2.4
      */
-    static void * U_EXPORT2 operator new(size_t size) U_NOEXCEPT;
+    static void * U_EXPORT2 operator new(size_t size) noexcept;
 
     /**
      * Override for ICU4C C++ memory management.
      * See new().
      * @stable ICU 2.4
      */
-    static void * U_EXPORT2 operator new[](size_t size) U_NOEXCEPT;
+    static void * U_EXPORT2 operator new[](size_t size) noexcept;
 
     /**
      * Override for ICU4C C++ memory management.
@@ -148,14 +148,14 @@ public:
      * for ICU4C C++ classes
      * @stable ICU 2.4
      */
-    static void U_EXPORT2 operator delete(void *p) U_NOEXCEPT;
+    static void U_EXPORT2 operator delete(void *p) noexcept;
 
     /**
      * Override for ICU4C C++ memory management.
      * See delete().
      * @stable ICU 2.4
      */
-    static void U_EXPORT2 operator delete[](void *p) U_NOEXCEPT;
+    static void U_EXPORT2 operator delete[](void *p) noexcept;
 
 #if U_HAVE_PLACEMENT_NEW
     /**
@@ -163,14 +163,14 @@ public:
      * See new().
      * @stable ICU 2.6
      */
-    static inline void * U_EXPORT2 operator new(size_t, void *ptr) U_NOEXCEPT { return ptr; }
+    static inline void * U_EXPORT2 operator new(size_t, void *ptr) noexcept { return ptr; }
 
     /**
      * Override for ICU4C C++ memory management for STL.
      * See delete().
      * @stable ICU 2.6
      */
-    static inline void U_EXPORT2 operator delete(void *, void *) U_NOEXCEPT {}
+    static inline void U_EXPORT2 operator delete(void *, void *) noexcept {}
 #endif /* U_HAVE_PLACEMENT_NEW */
 #if U_HAVE_DEBUG_LOCATION_NEW
     /**
@@ -180,7 +180,7 @@ public:
       * @param file   The file where the allocation was requested
       * @param line   The line where the allocation was requested 
       */ 
-    static void * U_EXPORT2 operator new(size_t size, const char* file, int line) U_NOEXCEPT;
+    static void * U_EXPORT2 operator new(size_t size, const char* file, int line) noexcept;
     /**
       * This method provides a matching delete for the MFC debug new
       * 
@@ -188,7 +188,7 @@ public:
       * @param file   The file where the allocation was requested
       * @param line   The line where the allocation was requested 
       */ 
-    static void U_EXPORT2 operator delete(void* p, const char* file, int line) U_NOEXCEPT;
+    static void U_EXPORT2 operator delete(void* p, const char* file, int line) noexcept;
 #endif /* U_HAVE_DEBUG_LOCATION_NEW */
 #endif /* U_OVERRIDE_CXX_ALLOCATION */
 

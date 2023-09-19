@@ -3,9 +3,9 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  n: [100000]
+  n: [100000],
 }, {
-  flags: ['--expose-internals']
+  flags: ['--expose-internals'],
 });
 
 function main({ n }) {

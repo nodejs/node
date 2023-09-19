@@ -34,7 +34,7 @@ provider-decoder - The OSSL_DECODER library E<lt>-E<gt> provider functions
                               OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg);
 
  /* Functions to export a decoded object */
- void *OSSL_FUNC_decoder_export_object(void *ctx,
+ int OSSL_FUNC_decoder_export_object(void *ctx,
                                        const void *objref, size_t objref_sz,
                                        OSSL_CALLBACK *export_cb,
                                        void *export_cbarg);
@@ -50,7 +50,7 @@ object reference or intermediate decoded data from an encoded form
 read from the given B<OSSL_CORE_BIO>. If the caller wants to decode
 data from memory, it should provide a L<BIO_s_mem(3)> B<BIO>. The decoded
 data or object reference is passed along with eventual metadata
-to the I<metadata_cb> as B<OSSL_PARAM> parameters.
+to the I<metadata_cb> as L<OSSL_PARAM(3)> parameters.
 
 The decoder doesn't need to know more about the B<OSSL_CORE_BIO>
 pointer than being able to pass it to the appropriate BIO upcalls (see
@@ -67,14 +67,14 @@ that object into a different provider the OSSL_FUNC_decoder_export_object()
 can be called as the final step of the decoding process.
 
 All "functions" mentioned here are passed as function pointers between
-F<libcrypto> and the provider in B<OSSL_DISPATCH> arrays via
-B<OSSL_ALGORITHM> arrays that are returned by the provider's
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays via
+L<OSSL_ALGORITHM(3)> arrays that are returned by the provider's
 provider_query_operation() function
 (see L<provider-base(7)/Provider Functions>).
 
 All these "functions" have a corresponding function type definition
 named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
-function pointer from an B<OSSL_DISPATCH> element named
+function pointer from an L<OSSL_DISPATCH(3)> element named
 B<OSSL_FUNC_{name}>.
 For example, the "function" OSSL_FUNC_decoder_decode() has these:
 
@@ -83,10 +83,10 @@ For example, the "function" OSSL_FUNC_decoder_decode() has these:
                                    int selection,
                                    OSSL_CALLBACK *data_cb, void *data_cbarg,
                                    OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg);
- static ossl_inline OSSL_FUNC_decoder_decode_fn
+ static ossl_inline OSSL_FUNC_decoder_decode_fn*
      OSSL_FUNC_decoder_decode(const OSSL_DISPATCH *opf);
 
-B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
 macros in L<openssl-core_dispatch.h(7)>, as follows:
 
  OSSL_FUNC_decoder_get_params          OSSL_FUNC_DECODER_GET_PARAMS
@@ -202,7 +202,7 @@ from I<params> that it recognises.  Unrecognised parameters should be
 ignored.
 Passing NULL for I<params> should return true.
 
-OSSL_FUNC_decoder_settable_ctx_params() returns a constant B<OSSL_PARAM>
+OSSL_FUNC_decoder_settable_ctx_params() returns a constant L<OSSL_PARAM(3)>
 array describing the parameters that OSSL_FUNC_decoder_set_ctx_params()
 can handle.
 
@@ -217,18 +217,18 @@ exporting the object into that foreign provider if the foreign provider
 supports the type of the object and provides an import function.
 
 OSSL_FUNC_decoder_export_object() should export the object of size I<objref_sz>
-referenced by I<objref> as an B<OSSL_PARAM> array and pass that into the
+referenced by I<objref> as an L<OSSL_PARAM(3)> array and pass that into the
 I<export_cb> as well as the given I<export_cbarg>.
 
 =head2 Decoding functions
 
 OSSL_FUNC_decoder_decode() should decode the data as read from
 the B<OSSL_CORE_BIO> I<in> to produce decoded data or an object to be
-passed as reference in an B<OSSL_PARAM> array along with possible other
-metadata that was decoded from the input. This B<OSSL_PARAM> array is
+passed as reference in an L<OSSL_PARAM(3)> array along with possible other
+metadata that was decoded from the input. This L<OSSL_PARAM(3)> array is
 then passed to the I<data_cb> callback.  The I<selection> bits,
 if relevant, should determine what the input data should contain.
-The decoding functions also take an B<OSSL_PASSPHRASE_CALLBACK> function
+The decoding functions also take an L<OSSL_PASSPHRASE_CALLBACK(3)> function
 pointer along with a pointer to application data I<cbarg>, which should be
 used when a pass phrase prompt is needed.
 
@@ -284,7 +284,7 @@ OSSL_FUNC_decoder_set_ctx_params() returns 1, unless a recognised
 parameter was invalid or caused an error, for which 0 is returned.
 
 OSSL_FUNC_decoder_settable_ctx_params() returns a pointer to an array of
-constant B<OSSL_PARAM> elements.
+constant L<OSSL_PARAM(3)> elements.
 
 OSSL_FUNC_decoder_does_selection() returns 1 if the decoder implementation
 supports any of the I<selection> bits, otherwise 0.
@@ -302,7 +302,7 @@ The DECODER interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

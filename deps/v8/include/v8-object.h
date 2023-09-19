@@ -474,11 +474,20 @@ class V8_EXPORT Object : public Value {
     return object->InternalFieldCount();
   }
 
-  /** Gets the value from an internal field. */
-  V8_INLINE Local<Value> GetInternalField(int index);
+  /**
+   * Gets the data from an internal field.
+   * To cast the return value into v8::Value subtypes, it needs to be
+   * casted to a v8::Value first. For example, to cast it into v8::External:
+   *
+   * object->GetInternalField(index).As<v8::Value>().As<v8::External>();
+   *
+   * The embedder should make sure that the internal field being retrieved
+   * using this method has already been set with SetInternalField() before.
+   **/
+  V8_INLINE Local<Data> GetInternalField(int index);
 
-  /** Sets the value in an internal field. */
-  void SetInternalField(int index, Local<Value> value);
+  /** Sets the data in an internal field. */
+  void SetInternalField(int index, Local<Data> data);
 
   /**
    * Gets a 2-byte-aligned native pointer from an internal field. This field
@@ -608,6 +617,19 @@ class V8_EXPORT Object : public Value {
   }
 
   /**
+   * Gets the context in which the object was created (see GetCreationContext())
+   * and if it's available reads respective embedder field value.
+   * If the context can't be obtained nullptr is returned.
+   * Basically it's a shortcut for
+   *   obj->GetCreationContext().GetAlignedPointerFromEmbedderData(index)
+   * which doesn't create a handle for Context object on the way and doesn't
+   * try to expand the embedder data attached to the context.
+   * In case the Local<Context> is already available because of other reasons,
+   * it's fine to keep using Context::GetAlignedPointerFromEmbedderData().
+   */
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(int index);
+
+  /**
    * Checks whether a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    * When an Object is callable this method returns true.
@@ -697,17 +719,17 @@ class V8_EXPORT Object : public Value {
  private:
   Object();
   static void CheckCast(Value* obj);
-  Local<Value> SlowGetInternalField(int index);
+  Local<Data> SlowGetInternalField(int index);
   void* SlowGetAlignedPointerFromInternalField(int index);
 };
 
 // --- Implementation ---
 
-Local<Value> Object::GetInternalField(int index) {
+Local<Data> Object::GetInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<A*>(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   int instance_type = I::GetInstanceType(obj);
@@ -717,12 +739,17 @@ Local<Value> Object::GetInternalField(int index) {
 #ifdef V8_COMPRESS_POINTERS
     // We read the full pointer value and then decompress it in order to avoid
     // dealing with potential endiannes issues.
-    value = I::DecompressTaggedAnyField(obj, static_cast<uint32_t>(value));
+    value = I::DecompressTaggedField(obj, static_cast<uint32_t>(value));
 #endif
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return Local<Data>(reinterpret_cast<Data*>(value));
+#else
     internal::Isolate* isolate =
         internal::IsolateFromNeverReadOnlySpaceObject(obj);
     A* result = HandleScope::CreateHandle(isolate, value);
-    return Local<Value>(reinterpret_cast<Value*>(result));
+    return Local<Data>(reinterpret_cast<Data*>(result));
+#endif
   }
 #endif
   return SlowGetInternalField(index);
@@ -732,7 +759,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<A*>(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);

@@ -648,7 +648,7 @@ X509
     cikeysize = EVP_CIPHER_get_key_length(cipher);
     /* first the symmetric key needs to be decrypted */
     pkctx = EVP_PKEY_CTX_new_from_pkey(libctx, pkey, propq);
-    if (pkctx != NULL && EVP_PKEY_decrypt_init(pkctx)) {
+    if (pkctx != NULL && EVP_PKEY_decrypt_init(pkctx) > 0) {
         ASN1_BIT_STRING *encKey = ecert->encSymmKey;
         size_t failure;
         int retval;

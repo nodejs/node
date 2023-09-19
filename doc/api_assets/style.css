@@ -436,7 +436,7 @@ dd + dt.pre {
 
 #apicontent section {
   content-visibility: auto;
-  contain-intrinsic-size: 1px 5000px;
+  contain-intrinsic-size: 1px auto 5000px;
 }
 
 #apicontent .line {
@@ -950,7 +950,7 @@ kbd {
   display: block;
 }
 
-.js-flavor-selector {
+.js-flavor-toggle {
   -webkit-appearance: none;
   appearance: none;
   float: right;
@@ -963,18 +963,45 @@ kbd {
   cursor: pointer;
   margin: 0;
 }
-.js-flavor-selector:checked {
+.js-flavor-toggle:checked {
   background-image: url(./js-flavor-esm.svg);
 }
-.js-flavor-selector:not(:checked) ~ .mjs,
-.js-flavor-selector:checked ~ .cjs {
+.js-flavor-toggle:not(:checked) ~ .mjs,
+.js-flavor-toggle:checked ~ .cjs {
   display: none;
 }
-.dark-mode .js-flavor-selector {
+.dark-mode .js-flavor-toggle {
   filter: invert(1);
 }
+
+.copy-button {
+  float: right;
+  
+  outline: none;
+  font-size: 10px;
+  color: #fff;
+  background-color: var(--green1);
+  line-height: 1;
+  border-radius: 500px;
+  border: 1px solid transparent;
+  letter-spacing: 2px;
+  min-width: 7.5rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 0 .5rem;
+  margin-right: .2rem;
+  height: 1.5rem;
+  transition-property: background-color,border-color,color,box-shadow,filter;
+  transition-duration: .3s;
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  background-color: var(--green2);
+}
+
 @supports (aspect-ratio: 1 / 1) {
-  .js-flavor-selector {
+  .js-flavor-toggle {
     height: 1.5em;
     width: auto;
     aspect-ratio: 2719 / 384;
@@ -1031,24 +1058,24 @@ kbd {
   #apicontent {
     overflow: hidden;
   }
-  .js-flavor-selector {
+  .js-flavor-toggle {
     display: none;
   }
-  .js-flavor-selector + * {
+  .js-flavor-toggle + * {
     margin-bottom: 2rem;
     padding-bottom: 2rem;
     border-bottom: 1px solid var(--color-text-primary);
   }
-  .js-flavor-selector ~ * {
+  .js-flavor-toggle ~ * {
     display: block !important;
     background-position: top right;
     background-size: 142px 20px;
     background-repeat: no-repeat;
   }
-  .js-flavor-selector ~ .cjs {
+  .js-flavor-toggle ~ .cjs {
     background-image: url(./js-flavor-cjs.svg);
   }
-  .js-flavor-selector ~ .mjs {
+  .js-flavor-toggle ~ .mjs {
     background-image: url(./js-flavor-esm.svg);
   }
 }

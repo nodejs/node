@@ -31,11 +31,12 @@ maintainers.
 Here is the security disclosure policy for Node.js
 
 * The security report is received and is assigned a primary handler. This
-  person will coordinate the fix and release process. The problem is confirmed
-  and a list of all affected versions is determined. Code is audited to find
-  any potential similar problems. Fixes are prepared for all releases which are
-  still under maintenance. These fixes are not committed to the public
-  repository but rather held locally pending the announcement.
+  person will coordinate the fix and release process. The problem is validated
+  against all supported Node.js versions. Once confirmed, a list of all affected
+  versions is determined. Code is audited to find any potential similar
+  problems. Fixes are prepared for all supported releases.
+  These fixes are not committed to the public repository but rather held locally
+  pending the announcement.
 
 * A suggested embargo date for this vulnerability is chosen and a CVE (Common
   Vulnerabilities and Exposures (CVE®)) is requested for the vulnerability.
@@ -82,14 +83,22 @@ Vulnerabilities related to this case may be fixed by a documentation update.
 
 **Node.js does NOT trust**:
 
-1. The data from network connections that are created through the use of Node.js
-   APIs and which is transformed/validated by Node.js before being passed to the
-   application. This includes:
-   * HTTP APIs (all flavors) client and server APIs.
+1. Data received from the remote end of inbound network connections
+   that are accepted through the use of Node.js APIs and
+   which is transformed/validated by Node.js before being passed
+   to the application. This includes:
+   * HTTP APIs (all flavors) server APIs.
+2. The data received from the remote end of outbound network connections
+   that are created through the use of Node.js APIs and
+   which is transformed/validated by Node.js before being passed
+   to the application EXCEPT in respect to payload length. Node.js trusts
+   that applications make connections/requests which will avoid payload
+   sizes that will result in a Denial of Service.
+   * HTTP APIs (all flavors) client APIs.
    * DNS APIs.
-2. Consumers of data protected through the use of Node.js APIs (for example
+3. Consumers of data protected through the use of Node.js APIs (for example
    people who have access to data encrypted through the Node.js crypto APIs).
-3. The file content or other I/O that is opened for reading or writing by the
+4. The file content or other I/O that is opened for reading or writing by the
    use of Node.js APIs (ex: stdin, stdout, stderr).
 
 In other words, if the data passing through Node.js to/from the application
@@ -108,7 +117,8 @@ lead to a loss of confidentiality, integrity, or availability.
    npm registry.
    The code run inherits all the privileges of the execution user.
 4. Inputs provided to it by the code it is asked to run, as it is the
-   responsibility of the application to perform the required input validations.
+   responsibility of the application to perform the required input validations,
+   e.g. the input to `JSON.parse()`.
 5. Any connection used for inspector (debugger protocol) regardless of being
    opened by command line options or Node.js APIs, and regardless of the remote
    end being on the local machine or remote.
@@ -116,7 +126,8 @@ lead to a loss of confidentiality, integrity, or availability.
    See <https://nodejs.org/api/modules.html#all-together>.
 
 Any unexpected behavior from the data manipulation from Node.js Internal
-functions are considered a vulnerability.
+functions may be considered a vulnerability if they are exploitable via
+untrusted resources.
 
 In addition to addressing vulnerabilities based on the above, the project works
 to avoid APIs and internal implementations that make it "easy" for application
@@ -128,12 +139,12 @@ We often choose to work to improve our APIs based on those reports and issue
 fixes either in regular or security releases depending on how much of a risk to
 the community they pose.
 
-### Examples of vulneratibities
+### Examples of vulnerabilities
 
 #### Improper Certificate Validation (CWE-295)
 
 * Node.js provides APIs to validate handling of Subject Alternative Names (SANs)
-  in certficates used to connect to a TLS/SSL endpoint. If certificates can be
+  in certificates used to connect to a TLS/SSL endpoint. If certificates can be
   crafted which result in incorrect validation by the Node.js APIs that is
   considered a vulnerability.
 
@@ -156,7 +167,7 @@ the community they pose.
   and modification of that configuration can affect the confidentiality of
   data protected using the Node.js APIs this is considered a vulnerability.
 
-### Examples of non-vulneratibities
+### Examples of non-vulnerabilities
 
 #### Malicious Third-Party Modules (CWE-1357)
 
@@ -180,6 +191,19 @@ the community they pose.
 * If Node.js automatically loads a configuration file which is documented
   no scenario that requires modification of that configuration file is
   considered a vulnerability.
+
+#### Uncontrolled Resource Consumption (CWE-400) on outbound connections
+
+* If Node.js is asked to connect to a remote site and return an
+  artifact, it is not considered a vulnerability if the size of
+  that artifact is large enough to impact performance or
+  cause the runtime to run out of resources.
+
+## Assessing experimental features reports
+
+Experimental features are eligible to reports as any other stable feature of
+Node.js. They will also be susceptible to receiving the same severity score
+as any other stable feature.
 
 ## Receiving security updates
 

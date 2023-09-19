@@ -107,7 +107,7 @@ module.exports = {
         docs: {
             description: "Enforce or disallow capitalization of the first letter of a comment",
             recommended: false,
-            url: "https://eslint.org/docs/rules/capitalized-comments"
+            url: "https://eslint.org/docs/latest/rules/capitalized-comments"
         },
 
         fixable: "code",
@@ -139,7 +139,7 @@ module.exports = {
 
         const capitalize = context.options[0] || "always",
             normalizedOptions = getAllNormalizedOptions(context.options[1]),
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         createRegExpForIgnorePatterns(normalizedOptions);
 

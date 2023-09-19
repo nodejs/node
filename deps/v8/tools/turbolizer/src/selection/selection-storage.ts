@@ -5,14 +5,19 @@
 export class SelectionStorage {
   nodes: Map<string, any>;
   blocks: Map<string, any>;
+  instructions: Map<string, any>;
   adaptedNodes: Set<string>;
   adaptedBocks: Set<string>;
+  adaptedInstructions: Set<number>;
 
-  constructor(nodes?: Map<string, any>, blocks?: Map<string, any>) {
+  constructor(nodes?: Map<string, any>, blocks?: Map<string, any>,
+              instructions?: Map<string, any>) {
     this.nodes = nodes ?? new Map<string, any>();
     this.blocks = blocks ?? new Map<string, any>();
+    this.instructions = instructions ?? new Map<string, any>();
     this.adaptedNodes = new Set<string>();
     this.adaptedBocks = new Set<string>();
+    this.adaptedInstructions = new Set<number>();
   }
 
   public adaptNode(nodeKey: string): void {
@@ -23,7 +28,12 @@ export class SelectionStorage {
     this.adaptedBocks.add(blockKey);
   }
 
+  public adaptInstruction(instrId: number): void {
+    this.adaptedInstructions.add(instrId);
+  }
+
   public isAdapted(): boolean {
-    return this.adaptedNodes.size != 0 || this.adaptedBocks.size != 0;
+    return this.adaptedNodes.size != 0 || this.adaptedBocks.size != 0
+                                       || this.adaptedInstructions.size != 0;
   }
 }

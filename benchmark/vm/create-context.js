@@ -3,7 +3,7 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  n: [100]
+  n: [100],
 });
 
 const vm = require('vm');

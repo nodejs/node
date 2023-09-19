@@ -71,10 +71,7 @@ void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
 }
 
 void AllocationCounter::AdvanceAllocationObservers(size_t allocated) {
-  if (!IsActive()) {
-    return;
-  }
-
+  if (observers_.empty()) return;
   DCHECK(!step_in_progress_);
   DCHECK_LT(allocated, next_counter_ - current_counter_);
   current_counter_ += allocated;
@@ -83,10 +80,7 @@ void AllocationCounter::AdvanceAllocationObservers(size_t allocated) {
 void AllocationCounter::InvokeAllocationObservers(Address soon_object,
                                                   size_t object_size,
                                                   size_t aligned_object_size) {
-  if (!IsActive()) {
-    return;
-  }
-
+  if (observers_.empty()) return;
   DCHECK(!step_in_progress_);
   DCHECK_GE(aligned_object_size, next_counter_ - current_counter_);
   DCHECK(soon_object);
@@ -98,6 +92,7 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
   DCHECK(pending_removed_.empty());
 
   for (AllocationObserverCounter& aoc : observers_) {
+    DCHECK_LT(current_counter_, aoc.next_counter_);
     if (aoc.next_counter_ - current_counter_ <= aligned_object_size) {
       {
         DisallowGarbageCollection no_gc;
@@ -121,6 +116,7 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
 
   // Now process newly added allocation observers.
   for (AllocationObserverCounter& aoc : pending_added_) {
+    DCHECK_EQ(0, aoc.next_counter_);
     size_t observer_step_size = aoc.observer_->GetNextStepSize();
     aoc.prev_counter_ = current_counter_;
     aoc.next_counter_ =
@@ -163,13 +159,15 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
 PauseAllocationObserversScope::PauseAllocationObserversScope(Heap* heap)
     : heap_(heap) {
   DCHECK_EQ(heap->gc_state(), Heap::NOT_IN_GC);
-
   for (SpaceIterator it(heap_); it.HasNext();) {
     it.Next()->PauseAllocationObservers();
   }
+
+  heap_->pause_allocation_observers_depth_++;
 }
 
 PauseAllocationObserversScope::~PauseAllocationObserversScope() {
+  heap_->pause_allocation_observers_depth_--;
   for (SpaceIterator it(heap_); it.HasNext();) {
     it.Next()->ResumeAllocationObservers();
   }

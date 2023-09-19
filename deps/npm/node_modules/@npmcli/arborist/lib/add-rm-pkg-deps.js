@@ -35,8 +35,8 @@ const add = ({ pkg, add, saveBundle, saveType }) => {
     const depType = saveTypeMap.get(addSaveType)
 
     pkg[depType] = pkg[depType] || {}
-    if (rawSpec !== '' || pkg[depType][name] === undefined) {
-      pkg[depType][name] = rawSpec || '*'
+    if (rawSpec !== '*' || pkg[depType][name] === undefined) {
+      pkg[depType][name] = rawSpec
     }
     if (addSaveType === 'optional') {
       // Affordance for previous npm versions that require this behaviour

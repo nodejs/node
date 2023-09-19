@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -509,8 +509,11 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_dup(const EVP_PKEY_CTX *pctx)
         if (pctx->op.kex.algctx != NULL) {
             if (!ossl_assert(pctx->op.kex.exchange != NULL))
                 goto err;
-            rctx->op.kex.algctx
-                = pctx->op.kex.exchange->dupctx(pctx->op.kex.algctx);
+
+            if (pctx->op.kex.exchange->dupctx != NULL)
+                rctx->op.kex.algctx
+                    = pctx->op.kex.exchange->dupctx(pctx->op.kex.algctx);
+
             if (rctx->op.kex.algctx == NULL) {
                 EVP_KEYEXCH_free(rctx->op.kex.exchange);
                 rctx->op.kex.exchange = NULL;
@@ -527,8 +530,11 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_dup(const EVP_PKEY_CTX *pctx)
         if (pctx->op.sig.algctx != NULL) {
             if (!ossl_assert(pctx->op.sig.signature != NULL))
                 goto err;
-            rctx->op.sig.algctx
-                = pctx->op.sig.signature->dupctx(pctx->op.sig.algctx);
+
+            if (pctx->op.sig.signature->dupctx != NULL)
+                rctx->op.sig.algctx
+                    = pctx->op.sig.signature->dupctx(pctx->op.sig.algctx);
+
             if (rctx->op.sig.algctx == NULL) {
                 EVP_SIGNATURE_free(rctx->op.sig.signature);
                 rctx->op.sig.signature = NULL;
@@ -545,8 +551,11 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_dup(const EVP_PKEY_CTX *pctx)
         if (pctx->op.ciph.algctx != NULL) {
             if (!ossl_assert(pctx->op.ciph.cipher != NULL))
                 goto err;
-            rctx->op.ciph.algctx
-                = pctx->op.ciph.cipher->dupctx(pctx->op.ciph.algctx);
+
+            if (pctx->op.ciph.cipher->dupctx != NULL)
+                rctx->op.ciph.algctx
+                    = pctx->op.ciph.cipher->dupctx(pctx->op.ciph.algctx);
+
             if (rctx->op.ciph.algctx == NULL) {
                 EVP_ASYM_CIPHER_free(rctx->op.ciph.cipher);
                 rctx->op.ciph.cipher = NULL;
@@ -563,8 +572,11 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_dup(const EVP_PKEY_CTX *pctx)
         if (pctx->op.encap.algctx != NULL) {
             if (!ossl_assert(pctx->op.encap.kem != NULL))
                 goto err;
-            rctx->op.encap.algctx
-                = pctx->op.encap.kem->dupctx(pctx->op.encap.algctx);
+
+            if (pctx->op.encap.kem->dupctx != NULL)
+                rctx->op.encap.algctx
+                    = pctx->op.encap.kem->dupctx(pctx->op.encap.algctx);
+
             if (rctx->op.encap.algctx == NULL) {
                 EVP_KEM_free(rctx->op.encap.kem);
                 rctx->op.encap.kem = NULL;

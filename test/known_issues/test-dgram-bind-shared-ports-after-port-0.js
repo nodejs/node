@@ -51,6 +51,6 @@ if (cluster.isPrimary) {
   socket1.on('error', PRT1 === 0 ? () => {} : assert.fail);
   socket1.bind(
     { address: common.localhostIPv4, port: PRT1, exclusive: false },
-    () => process.send({ message: 'success', port1: socket1.address().port })
+    () => process.send({ message: 'success', port1: socket1.address().port }),
   );
 }

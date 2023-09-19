@@ -84,7 +84,7 @@ HeapObjectReference HeapObjectReference::ClearedValue(
 #ifdef V8_COMPRESS_POINTERS
   // This is necessary to make pointer decompression computation also
   // suitable for cleared weak references.
-  Address raw_value = V8HeapCompressionScheme::DecompressTaggedPointer(
+  Address raw_value = V8HeapCompressionScheme::DecompressTagged(
       cage_base, kClearedWeakHeapObjectLower32);
 #else
   Address raw_value = kClearedWeakHeapObjectLower32;

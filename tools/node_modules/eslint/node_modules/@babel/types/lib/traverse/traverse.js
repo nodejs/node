@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = traverse;
-var _definitions = require("../definitions");
+var _index = require("../definitions/index.js");
 function traverse(node, handlers, state) {
   if (typeof handlers === "function") {
     handlers = {
@@ -18,7 +18,7 @@ function traverse(node, handlers, state) {
   traverseSimpleImpl(node, enter, exit, state, []);
 }
 function traverseSimpleImpl(node, enter, exit, state, ancestors) {
-  const keys = _definitions.VISITOR_KEYS[node.type];
+  const keys = _index.VISITOR_KEYS[node.type];
   if (!keys) return;
   if (enter) enter(node, ancestors, state);
   for (const key of keys) {

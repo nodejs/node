@@ -59,3 +59,21 @@ const http = require('http');
     }));
   }));
 }
+
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.writeHead(200, undefined, [ 'foo', 'bar' ]);
+    res.end();
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    http.get({ port: server.address().port }, common.mustCall((res) => {
+      assert.strictEqual(res.statusMessage, 'OK');
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.headers.foo, 'bar');
+      res.resume().on('end', common.mustCall(() => {
+        server.close();
+      }));
+    }));
+  }));
+}

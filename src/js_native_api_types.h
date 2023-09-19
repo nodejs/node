@@ -99,7 +99,8 @@ typedef enum {
   napi_arraybuffer_expected,
   napi_detachable_arraybuffer_expected,
   napi_would_deadlock,  // unused
-  napi_no_external_buffers_allowed
+  napi_no_external_buffers_allowed,
+  napi_cannot_run_js,
 } napi_status;
 // Note: when adding a new enum value to `napi_status`, please also update
 //   * `const int last_status` in the definition of `napi_get_last_error_info()'

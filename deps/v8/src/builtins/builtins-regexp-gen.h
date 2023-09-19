@@ -21,8 +21,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<Smi> SmiZero();
   TNode<IntPtrT> IntPtrZero();
 
-  TNode<RawPtrT> LoadCodeObjectEntry(TNode<CodeT> code);
-
   // Allocate either a JSRegExpResult or a JSRegExpResultWithIndices (depending
   // on has_indices) with the given length (the number of captures, including
   // the match itself), index (the index where the match starts), and input

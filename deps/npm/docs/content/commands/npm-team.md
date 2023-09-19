@@ -28,7 +28,8 @@ as `@org:newteam` in these commands.
 
 If you have two-factor authentication enabled in `auth-and-writes` mode, then
 you can provide a code from your authenticator with `[--otp <otpcode>]`.
-If you don't include this then you will be prompted.
+If you don't include this then you will be taken through a second factor flow based
+on your `authtype`.
 
 * create / destroy:
   Create a new team, or destroy an existing one. Note: You cannot remove the
@@ -108,6 +109,8 @@ use the `npm access` command to grant or revoke the appropriate permissions.
 
 The base URL of the npm registry.
 
+
+
 #### `otp`
 
 * Default: null
@@ -119,6 +122,8 @@ when publishing or changing package permissions with `npm access`.
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
 
+
+
 #### `parseable`
 
 * Default: false
@@ -126,6 +131,8 @@ password, npm will prompt on the command line for one.
 
 Output parseable results from commands that write to standard output. For
 `npm search`, this will be tab-separated table format.
+
+
 
 #### `json`
 
@@ -138,6 +145,8 @@ Whether or not to output JSON data, rather than the normal output.
   saving them to your `package.json`.
 
 Not supported by all npm commands.
+
+
 
 ### See Also
 

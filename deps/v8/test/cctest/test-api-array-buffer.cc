@@ -6,6 +6,7 @@
 #include "src/base/strings.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "test/cctest/test-api.h"
+#include "test/common/flag-utils.h"
 
 using ::v8::Array;
 using ::v8::Context;
@@ -448,9 +449,27 @@ THREADED_TEST(ArrayBuffer_NewBackingStore) {
   std::shared_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewBackingStore(isolate, 100);
   CHECK(!backing_store->IsShared());
+  CHECK(!backing_store->IsResizableByUserJavaScript());
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, backing_store);
   CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
   CHECK_EQ(backing_store->Data(), ab->Data());
+}
+
+THREADED_TEST(ArrayBuffer_NewResizableBackingStore) {
+  FLAG_SCOPE(harmony_rab_gsab);
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  std::shared_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewResizableBackingStore(32, 1024);
+  CHECK(!backing_store->IsShared());
+  CHECK(backing_store->IsResizableByUserJavaScript());
+  CHECK_EQ(1024, backing_store->MaxByteLength());
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, backing_store);
+  CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
+  CHECK_EQ(backing_store->Data(), ab->Data());
+  CHECK_EQ(backing_store->MaxByteLength(), ab->MaxByteLength());
 }
 
 THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
@@ -460,6 +479,7 @@ THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
   std::shared_ptr<v8::BackingStore> backing_store =
       v8::SharedArrayBuffer::NewBackingStore(isolate, 100);
   CHECK(backing_store->IsShared());
+  CHECK(!backing_store->IsResizableByUserJavaScript());
   Local<v8::SharedArrayBuffer> ab =
       v8::SharedArrayBuffer::New(isolate, backing_store);
   CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
@@ -809,4 +829,49 @@ TEST(BackingStore_ReallocateShared) {
   std::unique_ptr<v8::BackingStore> new_backing_store =
       v8::BackingStore::Reallocate(isolate, std::move(backing_store), 10);
   CHECK(new_backing_store->IsShared());
+}
+
+TEST(ArrayBuffer_Resizable) {
+  FLAG_SCOPE(harmony_rab_gsab);
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  const char rab_source[] = "new ArrayBuffer(32, { maxByteLength: 1024 });";
+  v8::Local<v8::ArrayBuffer> rab = CompileRun(rab_source).As<v8::ArrayBuffer>();
+  CHECK(rab->GetBackingStore()->IsResizableByUserJavaScript());
+  CHECK_EQ(32, rab->ByteLength());
+  CHECK_EQ(1024, rab->MaxByteLength());
+
+  const char gsab_source[] =
+      "new SharedArrayBuffer(32, { maxByteLength: 1024 });";
+  v8::Local<v8::SharedArrayBuffer> gsab =
+      CompileRun(gsab_source).As<v8::SharedArrayBuffer>();
+  CHECK(gsab->GetBackingStore()->IsResizableByUserJavaScript());
+  CHECK_EQ(32, gsab->ByteLength());
+  CHECK_EQ(1024, gsab->MaxByteLength());
+  CHECK_EQ(gsab->MaxByteLength(), gsab->GetBackingStore()->MaxByteLength());
+}
+
+TEST(ArrayBuffer_FixedLength) {
+  FLAG_SCOPE(harmony_rab_gsab);
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  // Fixed-length ArrayBuffers' byte length are equal to their max byte length.
+  v8::Local<v8::ArrayBuffer> ab =
+      CompileRun("new ArrayBuffer(32);").As<v8::ArrayBuffer>();
+  CHECK(!ab->GetBackingStore()->IsResizableByUserJavaScript());
+  CHECK_EQ(32, ab->ByteLength());
+  CHECK_EQ(32, ab->MaxByteLength());
+  CHECK_EQ(ab->MaxByteLength(), ab->GetBackingStore()->MaxByteLength());
+  v8::Local<v8::SharedArrayBuffer> sab =
+      CompileRun("new SharedArrayBuffer(32);").As<v8::SharedArrayBuffer>();
+  CHECK(!sab->GetBackingStore()->IsResizableByUserJavaScript());
+  CHECK_EQ(32, sab->ByteLength());
+  CHECK_EQ(32, sab->MaxByteLength());
+  CHECK_EQ(sab->MaxByteLength(), sab->GetBackingStore()->MaxByteLength());
 }

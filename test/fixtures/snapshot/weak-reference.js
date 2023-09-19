@@ -1,7 +1,6 @@
 'use strict';
 
-const { internalBinding } = require('internal/test/binding');
-const { WeakReference } = internalBinding('util');
+const { WeakReference } = require('internal/util');
 const {
   setDeserializeMainFunction
 } = require('v8').startupSnapshot

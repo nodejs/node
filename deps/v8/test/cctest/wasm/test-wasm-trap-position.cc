@@ -68,10 +68,11 @@ void CheckExceptionInfos(v8::internal::Isolate* isolate, Handle<Object> exc,
 // Trigger a trap for executing unreachable.
 WASM_COMPILED_EXEC_TEST(Unreachable) {
   // Create a WasmRunner with stack checks and traps enabled.
-  WasmRunner<void> r(execution_tier, nullptr, "main", kRuntimeExceptionSupport);
+  WasmRunner<void> r(execution_tier, kWasmOrigin, nullptr, "main",
+                     kRuntimeExceptionSupport);
   TestSignatures sigs;
 
-  BUILD(r, WASM_UNREACHABLE);
+  r.Build({WASM_UNREACHABLE});
   uint32_t wasm_index = r.function()->func_index;
 
   Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
@@ -101,19 +102,20 @@ WASM_COMPILED_EXEC_TEST(Unreachable) {
 
 // Trigger a trap for loading from out-of-bounds.
 WASM_COMPILED_EXEC_TEST(IllegalLoad) {
-  WasmRunner<void> r(execution_tier, nullptr, "main", kRuntimeExceptionSupport);
+  WasmRunner<void> r(execution_tier, kWasmOrigin, nullptr, "main",
+                     kRuntimeExceptionSupport);
   TestSignatures sigs;
 
   r.builder().AddMemory(0L);
 
-  BUILD(r, WASM_IF(WASM_ONE, WASM_SEQ(WASM_LOAD_MEM(MachineType::Int32(),
-                                                    WASM_I32V_1(-3)),
-                                      WASM_DROP)));
+  r.Build({WASM_IF(
+      WASM_ONE, WASM_SEQ(WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(-3)),
+                         WASM_DROP))});
   uint32_t wasm_index_1 = r.function()->func_index;
 
   WasmFunctionCompiler& f2 = r.NewFunction<void>("call_main");
   // Insert a NOP such that the position of the call is not one.
-  BUILD(f2, WASM_NOP, WASM_CALL_FUNCTION0(wasm_index_1));
+  f2.Build({WASM_NOP, WASM_CALL_FUNCTION0(wasm_index_1)});
   uint32_t wasm_index_2 = f2.function_index();
 
   Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);

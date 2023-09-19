@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Enforce newlines between operands of ternary expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/multiline-ternary"
+            url: "https://eslint.org/docs/latest/rules/multiline-ternary"
         },
 
         schema: [
@@ -39,7 +39,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const option = context.options[0];
         const multiline = option !== "never";
         const allowSingleLine = option === "always-multiline";
@@ -73,7 +73,7 @@ module.exports = {
                                 end: lastTokenOfTest.loc.end
                             },
                             messageId: "unexpectedTestCons",
-                            fix: fixer => {
+                            fix(fixer) {
                                 if (hasComments) {
                                     return null;
                                 }
@@ -101,7 +101,7 @@ module.exports = {
                                 end: lastTokenOfConsequent.loc.end
                             },
                             messageId: "unexpectedConsAlt",
-                            fix: fixer => {
+                            fix(fixer) {
                                 if (hasComments) {
                                     return null;
                                 }

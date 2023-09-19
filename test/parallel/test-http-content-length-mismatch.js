@@ -57,7 +57,7 @@ function shouldThrowOnFewerBytes() {
     res.write('a');
     res.statusCode = 200;
     assert.throws(() => {
-      res.end();
+      res.end('aaa');
     }, {
       code: 'ERR_HTTP_CONTENT_LENGTH_MISMATCH'
     });

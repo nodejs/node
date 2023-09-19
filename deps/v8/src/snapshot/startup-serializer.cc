@@ -5,7 +5,7 @@
 #include "src/snapshot/startup-serializer.h"
 
 #include "src/execution/v8threads.h"
-#include "src/handles/global-handles.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/contexts.h"
@@ -85,16 +85,11 @@ StartupSerializer::~StartupSerializer() {
 #ifdef DEBUG
 namespace {
 
-bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
-  if (!obj.IsCode()) return false;
-
-  Code code = Code::cast(obj);
-  if (code.kind() == CodeKind::REGEXP) return false;
-  if (!code.is_builtin()) return true;
-  if (code.is_off_heap_trampoline()) return false;
-
-  // An on-heap builtin.
-  return true;
+bool IsUnexpectedInstructionStreamObject(Isolate* isolate, HeapObject obj) {
+  if (!obj.IsInstructionStream()) return false;
+  // TODO(jgruber): Is REGEXP code still fully supported?
+  return InstructionStream::cast(obj).code(kAcquireLoad).kind() !=
+         CodeKind::REGEXP;
 }
 
 }  // namespace
@@ -114,7 +109,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   {
     DisallowGarbageCollection no_gc;
     HeapObject raw = *obj;
-    DCHECK(!IsUnexpectedCodeObject(isolate(), raw));
+    DCHECK(!IsUnexpectedInstructionStreamObject(isolate(), raw));
     if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }

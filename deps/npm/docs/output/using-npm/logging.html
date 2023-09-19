@@ -149,8 +149,9 @@ npm command-line interface
 <p>The <code>npm</code> CLI has various mechanisms for showing different levels of information back to end-users for certain commands, configurations &amp; environments.</p>
 <h3 id="setting-log-file-location">Setting Log File Location</h3>
 <p>All logs are written to a debug log, with the path to that file printed if the execution of a command fails.</p>
-<p>The default location of the logs directory is a directory named <code>_logs</code> inside the npm cache. This can be changed
-with the <code>logs-dir</code> config option.</p>
+<p>The default location of the logs directory is a directory named <code>_logs</code> inside the npm cache. This can be changed with the <code>logs-dir</code> config option.</p>
+<p>For example, if you wanted to write all your logs to the current working directory, you could run: <code>npm install --logs-dir=.</code>.  This is especially helpful in debugging a specific <code>npm</code> issue as you can run
+a command multiple times with different config values and then diff all the log files.</p>
 <p>Log files will be removed from the <code>logs-dir</code> when the number of log files exceeds <code>logs-max</code>, with the oldest logs being deleted first.</p>
 <p>To turn off logs completely set <code>--logs-max=0</code>.</p>
 <h3 id="setting-log-levels">Setting Log Levels</h3>
@@ -163,7 +164,6 @@ with the <code>logs-dir</code> config option.</p>
 <li><code>"warn"</code></li>
 <li><code>"notice"</code></li>
 <li><code>"http"</code></li>
-<li><code>"timing"</code></li>
 <li><code>"info"</code></li>
 <li><code>"verbose"</code></li>
 <li><code>"silly"</code></li>
@@ -184,12 +184,19 @@ with the <code>logs-dir</code> config option.</p>
 <h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
 <p>The <code>npm</code> CLI began hiding the output of lifecycle scripts for <code>npm install</code> as of <code>v7</code>. Notably, this means you will not see logs/output from packages that may be using "install scripts" to display information back to you or from your own project's scripts defined in <code>package.json</code>. If you'd like to change this behavior &amp; log this output you can set <code>foreground-scripts</code> to <code>true</code>.</p>
 <h3 id="timing-information">Timing Information</h3>
-<p>The <code>--timing</code> config can be set which does two things:</p>
+<p>The <a href="../using-npm/config#timing.html"><code>--timing</code> config</a> can be set which does a few
+things:</p>
 <ol>
 <li>Always shows the full path to the debug log regardless of command exit status</li>
-<li>Write timing information to a timing file in the cache or <code>logs-dir</code></li>
+<li>Write timing information to a process specific timing file in the cache or <code>logs-dir</code></li>
+<li>Output timing information to the terminal</li>
 </ol>
-<p>This file is a newline delimited list of JSON  objects that can be inspected to see timing data for each task in a <code>npm</code> CLI run.</p>
+<p>This file contains a <code>timers</code> object where the keys are an identifier for the
+portion of the process being timed and the value is the number of milliseconds it took to complete.</p>
+<p>Sometimes it is helpful to get timing information without outputting anything to the terminal. For
+example, the performance might be affected by writing to the terminal. In this case you can use
+<code>--timing --silent</code> which will still write the timing file, but not output anything to the terminal
+while running.</p>
 <h3 id="registry-response-headers">Registry Response Headers</h3>
 <h4 id="npm-notice"><code>npm-notice</code></h4>
 <p>The <code>npm</code> CLI reads from &amp; logs any <code>npm-notice</code> headers that are returned from the configured registry. This mechanism can be used by third-party registries to provide useful information when network-dependent requests occur.</p>
@@ -204,8 +211,7 @@ with the <code>logs-dir</code> config option.</p>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../using-npm/config.html">config</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/logging.md">

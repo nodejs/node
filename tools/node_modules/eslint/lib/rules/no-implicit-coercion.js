@@ -193,7 +193,7 @@ module.exports = {
         docs: {
             description: "Disallow shorthand type conversions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-implicit-coercion"
+            url: "https://eslint.org/docs/latest/rules/no-implicit-coercion"
         },
 
         fixable: "code",
@@ -235,7 +235,7 @@ module.exports = {
 
     create(context) {
         const options = parseOptions(context.options[0] || {});
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports an error and autofixes the node

@@ -90,6 +90,7 @@ X509_VERIFY_PARAM_clear_flags() clears the flags B<flags> in B<param>.
 X509_VERIFY_PARAM_set_purpose() sets the verification purpose in B<param>
 to B<purpose>. This determines the acceptable purpose of the certificate
 chain, for example B<X509_PURPOSE_SSL_CLIENT>.
+The purpose requirement is cleared if B<purpose> is 0.
 
 X509_VERIFY_PARAM_set_trust() sets the trust setting in B<param> to
 B<trust>.
@@ -97,8 +98,9 @@ B<trust>.
 X509_VERIFY_PARAM_set_time() sets the verification time in B<param> to
 B<t>. Normally the current time is used.
 
-X509_VERIFY_PARAM_add0_policy() enables policy checking (it is disabled
-by default) and adds B<policy> to the acceptable policy set.
+X509_VERIFY_PARAM_add0_policy() adds B<policy> to the acceptable policy set.
+Contrary to preexisting documentation of this function it does not enable
+policy checking.
 
 X509_VERIFY_PARAM_set1_policies() enables policy checking (it is disabled
 by default) and sets the acceptable policy set to B<policies>. Any existing
@@ -221,7 +223,7 @@ X509_VERIFY_PARAM_set1_ip_asc() return 1 for success and 0 for
 failure.
 
 X509_VERIFY_PARAM_get0_host(), X509_VERIFY_PARAM_get0_email(), and
-X509_VERIFY_PARAM_get1_ip_asc(), return the string pointers pecified above
+X509_VERIFY_PARAM_get1_ip_asc(), return the string pointer specified above
 or NULL if the respective value has not been set or on error.
 
 X509_VERIFY_PARAM_get_flags() returns the current verification flags.
@@ -399,9 +401,13 @@ The X509_VERIFY_PARAM_get_hostflags() function was added in OpenSSL 1.1.0i.
 The X509_VERIFY_PARAM_get0_host(), X509_VERIFY_PARAM_get0_email(),
 and X509_VERIFY_PARAM_get1_ip_asc() functions were added in OpenSSL 3.0.
 
+The function X509_VERIFY_PARAM_add0_policy() was historically documented as
+enabling policy checking however the implementation has never done this.
+The documentation was changed to align with the implementation.
+
 =head1 COPYRIGHT
 
-Copyright 2009-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

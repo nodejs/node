@@ -17,7 +17,7 @@ class EntryFrameConstants : public AllStatic {
  public:
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
-  static constexpr int kCallerFPOffset = -6 * kSystemPointerSize;
+  static constexpr int kNextExitFrameFPOffset = -6 * kSystemPointerSize;
 
   // EntryFrame is used by JSEntry, JSConstructEntry and JSRunMicrotasksEntry.
   // All of them take |root_register_value| as the first parameter.

@@ -257,10 +257,8 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
     out << "    ;; external reference (" << reference_name << ")";
   } else if (RelocInfo::IsCodeTargetMode(rmode)) {
     out << "    ;; code:";
-    CodeT code =
-        isolate->heap()
-            ->GcSafeFindCodeForInnerPointer(relocinfo->target_address())
-            .ToCodeT();
+    Code code =
+        isolate->heap()->FindCodeForInnerPointer(relocinfo->target_address());
     CodeKind kind = code.kind();
     if (code.is_builtin()) {
       out << " Builtin::" << Builtins::name(code.builtin_id());
@@ -378,21 +376,21 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 
     // Print all the reloc info for this instruction which are not comments.
     for (size_t i = 0; i < pcs.size(); i++) {
-      // Put together the reloc info
+      // Put together the reloc info.
       const CodeReference& host = code;
       Address constant_pool =
           host.is_null() ? kNullAddress : host.constant_pool();
-      Code code_pointer;
+      Handle<Code> code_handle;
       if (host.is_code()) {
-        code_pointer = *host.as_code();
+        code_handle = host.as_code();
+
+        RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], *code_handle,
+                            code_handle->instruction_stream(), constant_pool);
+
+        bool first_reloc_info = (i == 0);
+        PrintRelocInfo(out, isolate, ref_encoder, os, code, &relocinfo,
+                       first_reloc_info);
       }
-
-      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], code_pointer,
-                          constant_pool);
-
-      bool first_reloc_info = (i == 0);
-      PrintRelocInfo(out, isolate, ref_encoder, os, code, &relocinfo,
-                     first_reloc_info);
     }
 
     // If this is a constant pool load and we haven't found any RelocInfo
@@ -404,7 +402,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // by IsInConstantPool() below.
     if (pcs.empty() && !code.is_null() && !decoding_constant_pool) {
       RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc),
-                            RelocInfo::NO_INFO, 0, Code());
+                            RelocInfo::NO_INFO, 0, Code(), InstructionStream());
       if (dummy_rinfo.IsInConstantPool()) {
         Address constant_pool_entry_address =
             dummy_rinfo.constant_pool_entry_address();

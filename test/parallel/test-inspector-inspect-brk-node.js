@@ -16,7 +16,7 @@ async function runTest() {
   await session.waitForNotification((notification) => {
     // The main assertion here is that we do hit the loader script first.
     return notification.method === 'Debugger.scriptParsed' &&
-           notification.params.url === 'node:internal/bootstrap/loaders';
+           notification.params.url === 'node:internal/bootstrap/realm';
   });
 
   await session.waitForNotification('Debugger.paused');

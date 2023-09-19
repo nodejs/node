@@ -15,7 +15,7 @@ const delimiter = '-'; // '\x2D'
 
 /** Regular expressions */
 const regexPunycode = /^xn--/;
-const regexNonASCII = /[^\0-\x7E]/; // non-ASCII chars
+const regexNonASCII = /[^\0-\x7F]/; // Note: U+007F DEL is excluded too.
 const regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g; // RFC 3490 separators
 
 /** Error messages */
@@ -50,11 +50,11 @@ function error(type) {
  * item.
  * @returns {Array} A new array of values returned by the callback function.
  */
-function map(array, fn) {
+function map(array, callback) {
 	const result = [];
 	let length = array.length;
 	while (length--) {
-		result[length] = fn(array[length]);
+		result[length] = callback(array[length]);
 	}
 	return result;
 }
@@ -66,22 +66,22 @@ function map(array, fn) {
  * @param {String} domain The domain name or email address.
  * @param {Function} callback The function that gets called for every
  * character.
- * @returns {Array} A new string of characters returned by the callback
+ * @returns {String} A new string of characters returned by the callback
  * function.
  */
-function mapDomain(string, fn) {
-	const parts = string.split('@');
+function mapDomain(domain, callback) {
+	const parts = domain.split('@');
 	let result = '';
 	if (parts.length > 1) {
 		// In email addresses, only the domain name should be punycoded. Leave
 		// the local part (i.e. everything up to `@`) intact.
 		result = parts[0] + '@';
-		string = parts[1];
+		domain = parts[1];
 	}
 	// Avoid `split(regex)` for IE8 compatibility. See #17.
-	string = string.replace(regexSeparators, '\x2E');
-	const labels = string.split('.');
-	const encoded = map(labels, fn).join('.');
+	domain = domain.replace(regexSeparators, '\x2E');
+	const labels = domain.split('.');
+	const encoded = map(labels, callback).join('.');
 	return result + encoded;
 }
 
@@ -130,7 +130,7 @@ function ucs2decode(string) {
  * @param {Array} codePoints The array of numeric code points.
  * @returns {String} The new Unicode string (UCS-2).
  */
-const ucs2encode = array => String.fromCodePoint(...array);
+const ucs2encode = codePoints => String.fromCodePoint(...codePoints);
 
 /**
  * Converts a basic code point into a digit/integer.
@@ -142,13 +142,13 @@ const ucs2encode = array => String.fromCodePoint(...array);
  * the code point does not represent a value.
  */
 const basicToDigit = function(codePoint) {
-	if (codePoint - 0x30 < 0x0A) {
-		return codePoint - 0x16;
+	if (codePoint >= 0x30 && codePoint < 0x3A) {
+		return 26 + (codePoint - 0x30);
 	}
-	if (codePoint - 0x41 < 0x1A) {
+	if (codePoint >= 0x41 && codePoint < 0x5B) {
 		return codePoint - 0x41;
 	}
-	if (codePoint - 0x61 < 0x1A) {
+	if (codePoint >= 0x61 && codePoint < 0x7B) {
 		return codePoint - 0x61;
 	}
 	return base;
@@ -228,7 +228,7 @@ const decode = function(input) {
 		// which gets added to `i`. The overflow checking is easier
 		// if we increase `i` as we go, then subtract off its starting
 		// value at the end to obtain `delta`.
-		let oldi = i;
+		const oldi = i;
 		for (let w = 1, k = base; /* no condition */; k += base) {
 
 			if (index >= inputLength) {
@@ -237,7 +237,10 @@ const decode = function(input) {
 
 			const digit = basicToDigit(input.charCodeAt(index++));
 
-			if (digit >= base || digit > floor((maxInt - i) / w)) {
+			if (digit >= base) {
+				error('invalid-input');
+			}
+			if (digit > floor((maxInt - i) / w)) {
 				error('overflow');
 			}
 
@@ -291,7 +294,7 @@ const encode = function(input) {
 	input = ucs2decode(input);
 
 	// Cache the length.
-	let inputLength = input.length;
+	const inputLength = input.length;
 
 	// Initialize the state.
 	let n = initialN;
@@ -305,7 +308,7 @@ const encode = function(input) {
 		}
 	}
 
-	let basicLength = output.length;
+	const basicLength = output.length;
 	let handledCPCount = basicLength;
 
 	// `handledCPCount` is the number of code points that have been handled;
@@ -342,7 +345,7 @@ const encode = function(input) {
 			if (currentValue < n && ++delta > maxInt) {
 				error('overflow');
 			}
-			if (currentValue == n) {
+			if (currentValue === n) {
 				// Represent delta as a generalized variable-length integer.
 				let q = delta;
 				for (let k = base; /* no condition */; k += base) {
@@ -359,7 +362,7 @@ const encode = function(input) {
 				}
 
 				output.push(stringFromCharCode(digitToBasic(q, 0)));
-				bias = adapt(delta, handledCPCountPlusOne, handledCPCount == basicLength);
+				bias = adapt(delta, handledCPCountPlusOne, handledCPCount === basicLength);
 				delta = 0;
 				++handledCPCount;
 			}

@@ -153,7 +153,7 @@ module.exports = {
         docs: {
             description: "Require using arrow functions for callbacks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-arrow-callback"
+            url: "https://eslint.org/docs/latest/rules/prefer-arrow-callback"
         },
 
         schema: [
@@ -185,7 +185,7 @@ module.exports = {
 
         const allowUnboundThis = options.allowUnboundThis !== false; // default to true
         const allowNamedFunctions = options.allowNamedFunctions;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /*
          * {Array<{this: boolean, super: boolean, meta: boolean}>}
@@ -263,14 +263,14 @@ module.exports = {
                 }
 
                 // Skip recursive functions.
-                const nameVar = context.getDeclaredVariables(node)[0];
+                const nameVar = sourceCode.getDeclaredVariables(node)[0];
 
                 if (isFunctionName(nameVar) && nameVar.references.length > 0) {
                     return;
                 }
 
                 // Skip if it's using arguments.
-                const variable = getVariableOfArguments(context.getScope());
+                const variable = getVariableOfArguments(sourceCode.getScope(node));
 
                 if (variable && variable.references.length > 0) {
                     return;
@@ -335,6 +335,7 @@ module.exports = {
                             // Convert the function expression to an arrow function.
                             const functionToken = sourceCode.getFirstToken(node, node.async ? 1 : 0);
                             const leftParenToken = sourceCode.getTokenAfter(functionToken, astUtils.isOpeningParenToken);
+                            const tokenBeforeBody = sourceCode.getTokenBefore(node.body);
 
                             if (sourceCode.commentsExistBetween(functionToken, leftParenToken)) {
 
@@ -348,7 +349,7 @@ module.exports = {
                                 // Remove extra tokens and spaces.
                                 yield fixer.removeRange([functionToken.range[0], leftParenToken.range[0]]);
                             }
-                            yield fixer.insertTextBefore(node.body, "=> ");
+                            yield fixer.insertTextAfter(tokenBeforeBody, " =>");
 
                             // Get the node that will become the new arrow function.
                             let replacedNode = callbackInfo.isLexicalThis ? node.parent.parent : node;

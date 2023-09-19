@@ -18,6 +18,7 @@ class Pack extends BaseCommand {
   ]
 
   static usage = ['<package-spec>']
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   async exec (args) {
@@ -64,7 +65,7 @@ class Pack extends BaseCommand {
     }
   }
 
-  async execWorkspaces (args, filters) {
+  async execWorkspaces (args) {
     // If they either ask for nothing, or explicitly include '.' in the args,
     // we effectively translate that into each workspace requested
 
@@ -75,7 +76,7 @@ class Pack extends BaseCommand {
       return this.exec(args)
     }
 
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
     return this.exec([...this.workspacePaths, ...args.filter(a => a !== '.')])
   }
 }

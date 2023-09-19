@@ -20,7 +20,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "also": null,
   "audit": true,
   "audit-level": null,
-  "auth-type": "legacy",
+  "auth-type": "web",
   "before": null,
   "bin-links": true,
   "browser": null,
@@ -30,10 +30,11 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "cafile": null,
   "call": "",
   "cert": null,
-  "ci-name": null,
   "cidr": null,
   "color": true,
   "commit-hooks": true,
+  "cpu": null,
+  "os": null,
   "depth": null,
   "description": true,
   "dev": false,
@@ -60,8 +61,8 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "git": "git",
   "git-tag-version": true,
   "global": false,
-  "global-style": false,
   "globalconfig": "{GLOBALPREFIX}/npmrc",
+  "global-style": false,
   "heading": "npm",
   "https-proxy": null,
   "if-present": false,
@@ -82,6 +83,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "init.module": "{HOME}/.npm-init.js",
   "init.version": "1.0.0",
   "install-links": false,
+  "install-strategy": "hoisted",
   "key": null,
   "legacy-bundling": false,
   "legacy-peer-deps": false,
@@ -96,11 +98,9 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "maxsockets": 15,
   "message": "%s",
   "node-options": null,
-  "node-version": "{NODE-VERSION}",
   "noproxy": [
     ""
   ],
-  "npm-version": "{NPM-VERSION}",
   "offline": false,
   "omit": [],
   "omit-lockfile-registry-resolved": false,
@@ -112,11 +112,14 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "package-lock-only": false,
   "pack-destination": ".",
   "parseable": false,
+  "prefer-dedupe": false,
   "prefer-offline": false,
   "prefer-online": false,
   "preid": "",
   "production": null,
   "progress": true,
+  "provenance": false,
+  "provenance-file": null,
   "proxy": null,
   "read-only": false,
   "rebuild-bundle": true,
@@ -140,14 +143,11 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "shrinkwrap": true,
   "sign-git-commit": false,
   "sign-git-tag": false,
-  "sso-poll-frequency": 500,
-  "sso-type": "oauth",
   "strict-peer-deps": false,
   "strict-ssl": true,
   "tag": "latest",
   "tag-version-prefix": "v",
   "timing": false,
-  "tmp": "{TMP}",
   "umask": 0,
   "unicode": false,
   "update-notifier": true,
@@ -161,7 +161,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "workspaces": null,
   "workspaces-update": true,
   "yes": null,
-  "metrics-registry": "https://registry.npmjs.org/"
+  "npm-version": "{NPM-VERSION}"
 }
 `
 
@@ -175,7 +175,7 @@ allow-same-version = false
 also = null
 audit = true
 audit-level = null
-auth-type = "legacy"
+auth-type = "web"
 before = null
 bin-links = true
 browser = null
@@ -186,10 +186,10 @@ cache-min = 0
 cafile = null
 call = ""
 cert = null
-ci-name = null
 cidr = null
 color = true
 commit-hooks = true
+cpu = null
 depth = null
 description = true
 dev = false
@@ -238,6 +238,7 @@ init.license = "ISC"
 init.module = "{HOME}/.npm-init.js"
 init.version = "1.0.0"
 install-links = false
+install-strategy = "hoisted"
 json = false
 key = null
 legacy-bundling = false
@@ -252,9 +253,7 @@ logs-max = 10
 ; long = false ; overridden by cli
 maxsockets = 15
 message = "%s"
-metrics-registry = "https://registry.npmjs.org/"
 node-options = null
-node-version = "{NODE-VERSION}"
 noproxy = [""]
 npm-version = "{NPM-VERSION}"
 offline = false
@@ -262,18 +261,22 @@ omit = []
 omit-lockfile-registry-resolved = false
 only = null
 optional = null
+os = null
 otp = null
 pack-destination = "."
 package = []
 package-lock = true
 package-lock-only = false
 parseable = false
+prefer-dedupe = false
 prefer-offline = false
 prefer-online = false
 ; prefix = "{REALGLOBALREFIX}" ; overridden by cli
 preid = ""
 production = null
 progress = true
+provenance = false
+provenance-file = null
 proxy = null
 read-only = false
 rebuild-bundle = true
@@ -297,14 +300,11 @@ shell = "{SHELL}"
 shrinkwrap = true
 sign-git-commit = false
 sign-git-tag = false
-sso-poll-frequency = 500
-sso-type = "oauth"
 strict-peer-deps = false
 strict-ssl = true
 tag = "latest"
 tag-version-prefix = "v"
 timing = false
-tmp = "{TMP}"
 umask = 0
 unicode = false
 update-notifier = true
@@ -341,6 +341,18 @@ userconfig = "{HOME}/.npmrc"
 `
 
 exports[`test/lib/commands/config.js TAP config list > output matches snapshot 1`] = `
+; "global" config from {GLOBALPREFIX}/npmrc
+
+globalloaded = "yes"
+
+; "user" config from {HOME}/.npmrc
+
+userloaded = "yes"
+
+; "project" config from {LOCALPREFIX}/.npmrc
+
+projectloaded = "yes"
+
 ; "cli" config from command line options
 
 cache = "{NPMDIR}/test/lib/commands/tap-testdir-config-config-list-sandbox/cache"
@@ -383,6 +395,7 @@ global-prefix = "{LOCALPREFIX}"
 globalconfig = "{GLOBALPREFIX}/npmrc"
 init-module = "{HOME}/.npm-init.js"
 local-prefix = "{LOCALPREFIX}"
+npm-version = "{NPM-VERSION}"
 ; prefix = "{LOCALPREFIX}" ; overridden by cli
 user-agent = "npm/{NPM-VERSION} node/{NODE-VERSION} {PLATFORM} {ARCH} workspaces/false"
 ; userconfig = "{HOME}/.npmrc" ; overridden by cli

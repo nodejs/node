@@ -5,11 +5,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <iostream>
-#include <unicode/localpointer.h>
-#include <unicode/umachine.h>
-#include <unicode/unistr.h>
-#include <unicode/urename.h>
-#include <unicode/uset.h>
+#include "unicode/localpointer.h"
+#include "unicode/umachine.h"
+#include "unicode/unistr.h"
+#include "unicode/urename.h"
+#include "unicode/uset.h"
 #include <vector>
 #include <algorithm>
 #include "toolutil.h"
@@ -131,6 +131,29 @@ private:
 
 PropertyValueNameGetter::~PropertyValueNameGetter() {}
 
+// Dump an aliases = [...] key for properties with aliases
+void dumpPropertyAliases(UProperty uproperty, FILE* f) {
+    int i = U_LONG_PROPERTY_NAME + 1;
+
+    while(true) {
+        // The API works by having extra names after U_LONG_PROPERTY_NAME, sequentially,
+        // and returning null after that
+        const char* alias = u_getPropertyName(uproperty, (UPropertyNameChoice) i);
+        if (!alias) {
+            break;
+        }
+        if (i == U_LONG_PROPERTY_NAME + 1) {
+            fprintf(f, "aliases = [\"%s\"", alias);
+        } else {
+            fprintf(f, ", \"%s\"", alias);
+        }
+        i++;
+    }
+    if (i != U_LONG_PROPERTY_NAME + 1) {
+        fprintf(f, "]\n");
+    }
+}
+
 void dumpBinaryProperty(UProperty uproperty, FILE* f) {
     IcuToolErrorCode status("icuexportdata: dumpBinaryProperty");
     const char* fullPropName = u_getPropertyName(uproperty, U_LONG_PROPERTY_NAME);
@@ -141,7 +164,47 @@ void dumpBinaryProperty(UProperty uproperty, FILE* f) {
     fputs("[[binary_property]]\n", f);
     fprintf(f, "long_name = \"%s\"\n", fullPropName);
     if (shortPropName) fprintf(f, "short_name = \"%s\"\n", shortPropName);
+    fprintf(f, "uproperty_discr = 0x%X\n", uproperty);
+    dumpPropertyAliases(uproperty, f);
     usrc_writeUnicodeSet(f, uset, UPRV_TARGET_SYNTAX_TOML);
+}
+
+// If the value exists, dump an indented entry of the format
+// `"  {discr = <discriminant>, long = <longname>, short = <shortname>, aliases = [<aliases>]},"`
+void dumpValueEntry(UProperty uproperty, int v, bool is_mask, FILE* f) {
+    const char* fullValueName = u_getPropertyValueName(uproperty, v, U_LONG_PROPERTY_NAME);
+    const char* shortValueName = u_getPropertyValueName(uproperty, v, U_SHORT_PROPERTY_NAME);
+    if (!fullValueName) {
+        return;
+    }
+    if (is_mask) {
+        fprintf(f, "  {discr = 0x%X", v);
+    } else {
+        fprintf(f, "  {discr = %i", v);
+    }
+    fprintf(f, ", long = \"%s\"", fullValueName);
+    if (shortValueName) {
+        fprintf(f, ", short = \"%s\"", shortValueName);
+    }
+    int i = U_LONG_PROPERTY_NAME + 1;
+    while(true) {
+        // The API works by having extra names after U_LONG_PROPERTY_NAME, sequentially,
+        // and returning null after that
+        const char* alias = u_getPropertyValueName(uproperty, v, (UPropertyNameChoice) i);
+        if (!alias) {
+            break;
+        }
+        if (i == U_LONG_PROPERTY_NAME + 1) {
+            fprintf(f, ", aliases = [\"%s\"", alias);
+        } else {
+            fprintf(f, ", \"%s\"", alias);
+        }
+        i++;
+    }
+    if (i != U_LONG_PROPERTY_NAME + 1) {
+        fprintf(f, "]");
+    }
+    fprintf(f, "},\n");
 }
 
 void dumpEnumeratedProperty(UProperty uproperty, FILE* f) {
@@ -154,13 +217,25 @@ void dumpEnumeratedProperty(UProperty uproperty, FILE* f) {
     fputs("[[enum_property]]\n", f);
     fprintf(f, "long_name = \"%s\"\n", fullPropName);
     if (shortPropName) fprintf(f, "short_name = \"%s\"\n", shortPropName);
+    fprintf(f, "uproperty_discr = 0x%X\n", uproperty);
+    dumpPropertyAliases(uproperty, f);
+
+    int32_t minValue = u_getIntPropertyMinValue(uproperty);
+    U_ASSERT(minValue >= 0);
+    int32_t maxValue = u_getIntPropertyMaxValue(uproperty);
+    U_ASSERT(maxValue >= 0);
+
+    fprintf(f, "values = [\n");
+    for (int v = minValue; v <= maxValue; v++) {
+        dumpValueEntry(uproperty, v, false, f);
+    }
+    fprintf(f, "]\n");
+
     PropertyValueNameGetter valueNameGetter(uproperty);
     usrc_writeUCPMap(f, umap, &valueNameGetter, UPRV_TARGET_SYNTAX_TOML);
     fputs("\n", f);
 
-    U_ASSERT(u_getIntPropertyMinValue(uproperty) >= 0);
-    int32_t maxValue = u_getIntPropertyMaxValue(uproperty);
-    U_ASSERT(maxValue >= 0);
+
     UCPTrieValueWidth width = UCPTRIE_VALUE_BITS_32;
     if (maxValue <= 0xff) {
         width = UCPTRIE_VALUE_BITS_8;
@@ -179,6 +254,106 @@ void dumpEnumeratedProperty(UProperty uproperty, FILE* f) {
     usrc_writeUCPTrie(f, shortPropName, utrie.getAlias(), UPRV_TARGET_SYNTAX_TOML);
 }
 
+/*
+* Export Bidi_Mirroring_Glyph values (code points) in a similar way to how enumerated
+* properties are dumped to file.
+* Note: the data will store 0 for code points without a value defined for
+* Bidi_Mirroring_Glyph.
+*/
+void dumpBidiMirroringGlyph(FILE* f) {
+    UProperty uproperty = UCHAR_BIDI_MIRRORING_GLYPH;
+    IcuToolErrorCode status("icuexportdata: dumpBidiMirroringGlyph");
+    const char* fullPropName = u_getPropertyName(uproperty, U_LONG_PROPERTY_NAME);
+    const char* shortPropName = u_getPropertyName(uproperty, U_SHORT_PROPERTY_NAME);
+    handleError(status, fullPropName);
+
+    // Store 21-bit code point as is
+    UCPTrieValueWidth width = UCPTRIE_VALUE_BITS_32;
+
+    // note: unlike dumpEnumeratedProperty, which can get inversion map data using
+    // u_getIntPropertyMap(uproperty), the only reliable way to get Bidi_Mirroring_Glyph
+    // is to use u_charMirror(cp) over the code point space.
+    LocalUMutableCPTriePointer builder(umutablecptrie_open(0, 0, status));
+    for(UChar32 c = UCHAR_MIN_VALUE; c <= UCHAR_MAX_VALUE; c++) {
+        UChar32 mirroringGlyph = u_charMirror(c);
+        // The trie builder code throws an error when it cannot compress the data sufficiently.
+        // Therefore, when the value is undefined for a code point, keep a 0 in the trie
+        // instead of the ICU API behavior of returning the code point value. Using 0
+        // results in a relatively significant space savings by not including redundant data.
+        if (c != mirroringGlyph) {
+            umutablecptrie_set(builder.getAlias(), c, mirroringGlyph, status);
+        }
+    }
+
+    LocalUCPTriePointer utrie(umutablecptrie_buildImmutable(
+        builder.getAlias(),
+        trieType,
+        width,
+        status));
+    handleError(status, fullPropName);
+
+    // currently a trie and inversion map are the same (as relied upon in characterproperties.cpp)
+    const UCPMap* umap = reinterpret_cast<UCPMap *>(utrie.getAlias());
+
+    fputs("[[enum_property]]\n", f);
+    fprintf(f, "long_name = \"%s\"\n", fullPropName);
+    if (shortPropName) {
+        fprintf(f, "short_name = \"%s\"\n", shortPropName);
+    }
+    fprintf(f, "uproperty_discr = 0x%X\n", uproperty);
+    dumpPropertyAliases(uproperty, f);
+
+    usrc_writeUCPMap(f, umap, nullptr, UPRV_TARGET_SYNTAX_TOML);
+    fputs("\n", f);
+
+    fputs("[enum_property.code_point_trie]\n", f);
+    usrc_writeUCPTrie(f, shortPropName, utrie.getAlias(), UPRV_TARGET_SYNTAX_TOML);
+}
+
+// After printing property value `v`, print `mask` if and only if `mask` comes immediately
+// after the property in the listing
+void maybeDumpMaskValue(UProperty uproperty, uint32_t v, uint32_t mask, FILE* f) {
+    if (U_MASK(v) < mask && U_MASK(v + 1) > mask)
+        dumpValueEntry(uproperty, mask, true, f);
+}
+
+void dumpGeneralCategoryMask(FILE* f) {
+    IcuToolErrorCode status("icuexportdata: dumpGeneralCategoryMask");
+    UProperty uproperty = UCHAR_GENERAL_CATEGORY_MASK;
+
+    fputs("[[mask_property]]\n", f);
+    const char* fullPropName = u_getPropertyName(uproperty, U_LONG_PROPERTY_NAME);
+    const char* shortPropName = u_getPropertyName(uproperty, U_SHORT_PROPERTY_NAME);
+    fprintf(f, "long_name = \"%s\"\n", fullPropName);
+    if (shortPropName) fprintf(f, "short_name = \"%s\"\n", shortPropName);
+    fprintf(f, "uproperty_discr = 0x%X\n", uproperty);
+    dumpPropertyAliases(uproperty, f);
+
+
+    fprintf(f, "mask_for = \"General_Category\"\n");
+    uint32_t minValue = u_getIntPropertyMinValue(UCHAR_GENERAL_CATEGORY);
+    U_ASSERT(minValue >= 0);
+    uint32_t maxValue = u_getIntPropertyMaxValue(UCHAR_GENERAL_CATEGORY);
+    U_ASSERT(maxValue >= 0);
+
+    fprintf(f, "values = [\n");
+    for (uint32_t v = minValue; v <= maxValue; v++) {
+        dumpValueEntry(uproperty, U_MASK(v), true, f);
+
+        // We want to dump these masks "in order", which means they
+        // should come immediately after every property they contain
+        maybeDumpMaskValue(uproperty, v, U_GC_L_MASK, f);
+        maybeDumpMaskValue(uproperty, v, U_GC_LC_MASK, f);
+        maybeDumpMaskValue(uproperty, v, U_GC_M_MASK, f);
+        maybeDumpMaskValue(uproperty, v, U_GC_N_MASK, f);
+        maybeDumpMaskValue(uproperty, v, U_GC_Z_MASK, f);
+        maybeDumpMaskValue(uproperty, v, U_GC_C_MASK, f);
+        maybeDumpMaskValue(uproperty, v, U_GC_P_MASK, f);
+        maybeDumpMaskValue(uproperty, v, U_GC_S_MASK, f);
+    }
+    fprintf(f, "]\n");
+}
+
 void dumpScriptExtensions(FILE* f) {
     IcuToolErrorCode status("icuexportdata: dumpScriptExtensions");
 
@@ -187,6 +362,8 @@ void dumpScriptExtensions(FILE* f) {
     const char* scxShortPropName = u_getPropertyName(UCHAR_SCRIPT_EXTENSIONS, U_SHORT_PROPERTY_NAME);
     fprintf(f, "long_name = \"%s\"\n", scxFullPropName);
     if (scxShortPropName) fprintf(f, "short_name = \"%s\"\n", scxShortPropName);
+    fprintf(f, "uproperty_discr = 0x%X\n", UCHAR_SCRIPT_EXTENSIONS);
+    dumpPropertyAliases(UCHAR_SCRIPT_EXTENSIONS, f);
 
     // We want to use 16 bits for our exported trie of sc/scx data because we
     // need 12 bits to match the 12 bits of data stored for sc/scx in the trie
@@ -475,7 +652,6 @@ void writeDecompositionData(const char* basename, uint32_t baseSize16, uint32_t 
             status.set(U_INTERNAL_PROGRAM_ERROR);
             handleError(status, basename);
         }
-        uset_close(halfWidthCheck);
 
         uset_close(iotaSubscript);
         uset_close(halfWidthVoicing);
@@ -533,6 +709,34 @@ UBool permissibleBmpPair(UBool knownToRoundTrip, UChar32 c, UChar32 second) {
     return false;
 }
 
+
+// Find the slice `needle` within `storage` and return its index, failing which,
+// append all elements of `needle` to `storage` and return the index of it at the end.
+template<typename T>
+size_t findOrAppend(std::vector<T>& storage, const UChar32* needle, size_t needleLen) {
+    // Last index where we might find the start of the complete needle.
+    // bounds check is `i + needleLen <= storage.size()` since the inner
+    // loop will range from `i` to `i + needleLen - 1` (the `-1` is why we use `<=`)
+    for (size_t i = 0; i + needleLen <= storage.size(); i++) {
+        for (size_t j = 0;; j++) {
+            if (j == needleLen) {
+                return i;  // found a match
+            }
+            if (storage[i + j] != uint32_t(needle[j])) {
+                break;
+            }
+        }
+    }
+    // We didn't find anything. Append, keeping the append index in mind.
+    size_t index = storage.size();
+    for(size_t i = 0; i < needleLen; i++) {
+        storage.push_back(T(needle[i]));
+    }
+
+    return index;
+}
+
+
 // Computes data for canonical decompositions
 void computeDecompositions(const char* basename,
                            const USet* backwardCombiningStarters,
@@ -547,14 +751,14 @@ void computeDecompositions(const char* basename,
     const Normalizer2* mainNormalizer;
     const Normalizer2* nfdNormalizer = Normalizer2::getNFDInstance(status);
     const Normalizer2* nfcNormalizer = Normalizer2::getNFCInstance(status);
-    FILE* f = NULL;
+    FILE* f = nullptr;
     std::vector<uint32_t> nonRecursive32;
     LocalUMutableCPTriePointer nonRecursiveBuilder(umutablecptrie_open(0, 0, status));
 
     if (uprv_strcmp(basename, "nfkd") == 0) {
         mainNormalizer = Normalizer2::getNFKDInstance(status);
     } else if (uprv_strcmp(basename, "uts46d") == 0) {
-        mainNormalizer = Normalizer2::getInstance(NULL, "uts46", UNORM2_COMPOSE, status);
+        mainNormalizer = Normalizer2::getInstance(nullptr, "uts46", UNORM2_COMPOSE, status);
     } else {
         mainNormalizer = nfdNormalizer;
         f = prepareOutputFile("decompositionex");
@@ -850,49 +1054,11 @@ void computeDecompositions(const char* basename,
                 handleError(status, basename);
             }
             size_t index = 0;
-            bool writeToStorage = false;
-            // Sadly, C++ lacks break and continue by label, so using goto in the
-            // inner loops to break or continue the outer loop.
             if (!supplementary) {
-                outer16: for (;;) {
-                    if (index == storage16.size()) {
-                        writeToStorage = true;
-                        break;
-                    }
-                    if (storage16[index] == utf32[0]) {
-                        for (int32_t i = 1; i < len; ++i) {
-                            if (storage16[index + i] != uint32_t(utf32[i])) {
-                                ++index;
-                                // continue outer
-                                goto outer16;
-                            }
-                        }
-                        // break outer
-                        goto after;
-                    }
-                    ++index;
-                }
+                index = findOrAppend(storage16, utf32, len);
             } else {
-                outer32: for (;;) {
-                    if (index == storage32.size()) {
-                        writeToStorage = true;
-                        break;
-                    }
-                    if (storage32[index] == uint32_t(utf32[0])) {
-                        for (int32_t i = 1; i < len; ++i) {
-                            if (storage32[index + i] != uint32_t(utf32[i])) {
-                                ++index;
-                                // continue outer
-                                goto outer32;
-                            }
-                        }
-                        // break outer
-                        goto after;
-                    }
-                    ++index;
-                }
+                index = findOrAppend(storage32, utf32, len);
             }
-            after:
             if (index > 0xFFF) {
                 status.set(U_INTERNAL_PROGRAM_ERROR);
                 handleError(status, basename);
@@ -904,18 +1070,6 @@ void computeDecompositions(const char* basename,
                 status.set(U_INTERNAL_PROGRAM_ERROR);
                 handleError(status, basename);
             }
-            if (writeToStorage) {
-                if (!supplementary) {
-                    for (int32_t i = 0; i < len; ++i) {
-                        storage16.push_back(uint16_t(utf32[i]));
-                    }
-                } else {
-                    for (int32_t i = 0; i < len; ++i) {
-                        storage32.push_back(uint32_t(utf32[i]));
-                    }
-                }
-            }
-
             uint32_t nonRoundTripMarker = 0;
             if (!nonNfdOrRoundTrips) {
                 nonRoundTripMarker = (NON_ROUND_TRIP_MARKER << 16);
@@ -1012,6 +1166,12 @@ int exportUprops(int argc, char* argv[]) {
                 i = UCHAR_INT_START;
             }
             if (i == UCHAR_INT_LIMIT) {
+                i = UCHAR_GENERAL_CATEGORY_MASK;
+            }
+            if (i == UCHAR_GENERAL_CATEGORY_MASK + 1) {
+                i = UCHAR_BIDI_MIRRORING_GLYPH;
+            }
+            if (i == UCHAR_BIDI_MIRRORING_GLYPH + 1) {
                 i = UCHAR_SCRIPT_EXTENSIONS;
             }
             if (i == UCHAR_SCRIPT_EXTENSIONS + 1) {
@@ -1019,13 +1179,13 @@ int exportUprops(int argc, char* argv[]) {
             }
             UProperty uprop = static_cast<UProperty>(i);
             const char* propName = u_getPropertyName(uprop, U_SHORT_PROPERTY_NAME);
-            if (propName == NULL) {
+            if (propName == nullptr) {
                 propName = u_getPropertyName(uprop, U_LONG_PROPERTY_NAME);
-                if (propName != NULL && VERBOSE) {
+                if (propName != nullptr && VERBOSE) {
                     std::cerr << "Note: falling back to long name for: " << propName << std::endl;
                 }
             }
-            if (propName != NULL) {
+            if (propName != nullptr) {
                 propNames.push_back(propName);
             } else {
                 std::cerr << "Warning: Could not find name for: " << uprop << std::endl;
@@ -1095,6 +1255,10 @@ int exportUprops(int argc, char* argv[]) {
             dumpBinaryProperty(propEnum, f);
         } else if (UCHAR_INT_START <= propEnum && propEnum <= UCHAR_INT_LIMIT) {
             dumpEnumeratedProperty(propEnum, f);
+        } else if (propEnum == UCHAR_GENERAL_CATEGORY_MASK) {
+            dumpGeneralCategoryMask(f);
+        } else if (propEnum == UCHAR_BIDI_MIRRORING_GLYPH) {
+            dumpBidiMirroringGlyph(f);
         } else if (propEnum == UCHAR_SCRIPT_EXTENSIONS) {
             dumpScriptExtensions(f);
         } else {
@@ -1149,7 +1313,7 @@ int exportCase(int argc, char* argv[]) {
     const UTrie2* caseTrie = &caseProps->trie;
 
     AddRangeHelper helper = { builder.getAlias() };
-    utrie2_enum(caseTrie, NULL, addRangeToUCPTrie, &helper);
+    utrie2_enum(caseTrie, nullptr, addRangeToUCPTrie, &helper);
 
     UCPTrieValueWidth width = UCPTRIE_VALUE_BITS_16;
     LocalUCPTriePointer utrie(umutablecptrie_buildImmutable(

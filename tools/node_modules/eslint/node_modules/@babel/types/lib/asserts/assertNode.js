@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = assertNode;
-var _isNode = require("../validators/isNode");
+var _isNode = require("../validators/isNode.js");
 function assertNode(node) {
   if (!(0, _isNode.default)(node)) {
     var _node$type;

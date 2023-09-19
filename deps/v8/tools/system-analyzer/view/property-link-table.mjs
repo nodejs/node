@@ -121,8 +121,8 @@ DOM.defineCustomElement('view/property-link-table',
       showSourcePositionButton.data = this._object;
       showSourcePositionButton.title = 'Open the source position';
     }
-    let showRelatedButton = footer.appendChild(
-        DOM.button('🕸 Related', this._showRelatedHandler));
+    let showRelatedButton =
+        footer.appendChild(DOM.button('🕸 Related', this._showRelatedHandler));
     showRelatedButton.data = this._object;
     showRelatedButton.title = 'Show all related events in all panels';
     this._fragment.appendChild(footer);

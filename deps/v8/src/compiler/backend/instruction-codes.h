@@ -263,7 +263,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 enum MemoryAccessMode {
   kMemoryAccessDirect = 0,
-  kMemoryAccessProtected = 1,
+  kMemoryAccessProtectedMemOutOfBounds = 1,
+  kMemoryAccessProtectedNullDereference = 2,
 };
 
 enum class AtomicWidth { kWord32, kWord64 };
@@ -278,36 +279,89 @@ inline size_t AtomicWidthSize(AtomicWidth width) {
   UNREACHABLE();
 }
 
-// The InstructionCode is an opaque, target-specific integer that encodes
-// what code to emit for an instruction in the code generator. It is not
-// interesting to the register allocator, as the inputs and flags on the
-// instructions specify everything of interest.
+// The InstructionCode is an opaque, target-specific integer that encodes what
+// code to emit for an instruction in the code generator. It is not interesting
+// to the register allocator, as the inputs and flags on the instructions
+// specify everything of interest.
 using InstructionCode = uint32_t;
 
 // Helpers for encoding / decoding InstructionCode into the fields needed
-// for code generation. We encode the instruction, addressing mode, and flags
-// continuation into a single InstructionCode which is stored as part of
-// the instruction.
+// for code generation. We encode the instruction, addressing mode, flags, and
+// other information into a single InstructionCode which is stored as part of
+// the instruction. Some fields in the layout of InstructionCode overlap as
+// follows:
+//                              ArchOpcodeField
+//                              AddressingModeField
+//                              FlagsModeField
+//                              FlagsConditionField
+// AtomicWidthField                 | RecordWriteModeField | LaneSizeField
+// AtomicMemoryOrderField           |                      | VectorLengthField
+// AtomicStoreRecordWriteModeField  |                      |
+//                              AccessModeField
+//
+// or,
+//
+//                              ArchOpcodeField
+//                              AddressingModeField
+//                              FlagsModeField
+//                              FlagsConditionField
+// DeoptImmedArgsCountField    | ParamField   | MiscField
+// DeoptFrameStateOffsetField  | FPParamField |
+//
+// Notably, AccessModeField can follow any of several sequences of fields.
+
 using ArchOpcodeField = base::BitField<ArchOpcode, 0, 9>;
 static_assert(ArchOpcodeField::is_valid(kLastArchOpcode),
               "All opcodes must fit in the 9-bit ArchOpcodeField.");
-using AddressingModeField = base::BitField<AddressingMode, 9, 5>;
+using AddressingModeField = ArchOpcodeField::Next<AddressingMode, 5>;
 static_assert(
     AddressingModeField::is_valid(kLastAddressingMode),
     "All addressing modes must fit in the 5-bit AddressingModeField.");
-using FlagsModeField = base::BitField<FlagsMode, 14, 3>;
-using FlagsConditionField = base::BitField<FlagsCondition, 17, 5>;
-using MiscField = base::BitField<int, 22, 10>;
+using FlagsModeField = AddressingModeField::Next<FlagsMode, 3>;
+using FlagsConditionField = FlagsModeField::Next<FlagsCondition, 5>;
 
-// {MiscField} is used for a variety of things, depending on the opcode.
-// TODO(turbofan): There should be an abstraction that ensures safe encoding and
-// decoding. {HasMemoryAccessMode} and its uses are a small step in that
-// direction.
+// AtomicWidthField is used for the various Atomic opcodes. Only used on 64bit
+// architectures. All atomic instructions on 32bit architectures are assumed to
+// be 32bit wide.
+using AtomicWidthField = FlagsConditionField::Next<AtomicWidth, 2>;
+// AtomicMemoryOrderField is used for the various Atomic opcodes. This field is
+// not used on all architectures. It is used on architectures where the codegen
+// for kSeqCst and kAcqRel differ only by emitting fences.
+using AtomicMemoryOrderField = AtomicWidthField::Next<AtomicMemoryOrder, 2>;
+using AtomicStoreRecordWriteModeField =
+    AtomicMemoryOrderField::Next<RecordWriteMode, 4>;
+
+// Write modes for writes with barrier.
+using RecordWriteModeField = FlagsConditionField::Next<RecordWriteMode, 2>;
 
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.
-using LaneSizeField = base::BitField<int, 22, 8>;
-using AccessModeField = base::BitField<MemoryAccessMode, 30, 1>;
+#ifdef V8_TARGET_ARCH_X64
+enum LaneSize { kL8 = 0, kL16 = 1, kL32 = 2, kL64 = 3 };
+enum VectorLength { kV128 = 0, kV256 = 1, kV512 = 3 };
+using LaneSizeField = FlagsConditionField::Next<LaneSize, 2>;
+using VectorLengthField = LaneSizeField::Next<VectorLength, 2>;
+#else
+using LaneSizeField = FlagsConditionField::Next<int, 8>;
+#endif  // V8_TARGET_ARCH_X64
+
+// Denotes whether the instruction needs to emit an accompanying landing pad for
+// the trap handler.
+using AccessModeField =
+    AtomicStoreRecordWriteModeField::Next<MemoryAccessMode, 2>;
+
+// Since AccessModeField is defined in terms of atomics, this assert ensures it
+// does not overlap with other fields it is used with.
+static_assert(AtomicStoreRecordWriteModeField::kLastUsedBit >=
+              RecordWriteModeField::kLastUsedBit);
+#ifdef V8_TARGET_ARCH_X64
+static_assert(AtomicStoreRecordWriteModeField::kLastUsedBit >=
+              VectorLengthField::kLastUsedBit);
+#else
+static_assert(AtomicStoreRecordWriteModeField::kLastUsedBit >=
+              LaneSizeField::kLastUsedBit);
+#endif
+
 // TODO(turbofan): {HasMemoryAccessMode} is currently only used to guard
 // decoding (in CodeGenerator and InstructionScheduler). Encoding (in
 // InstructionSelector) is not yet guarded. There are in fact instructions for
@@ -332,28 +386,21 @@ inline bool HasMemoryAccessMode(ArchOpcode opcode) {
 #endif
 }
 
-using DeoptImmedArgsCountField = base::BitField<int, 22, 2>;
-using DeoptFrameStateOffsetField = base::BitField<int, 24, 8>;
+using DeoptImmedArgsCountField = FlagsConditionField::Next<int, 2>;
+using DeoptFrameStateOffsetField = DeoptImmedArgsCountField::Next<int, 8>;
 
-// AtomicWidthField overlaps with MiscField and is used for the various Atomic
-// opcodes. Only used on 64bit architectures. All atomic instructions on 32bit
-// architectures are assumed to be 32bit wide.
-using AtomicWidthField = base::BitField<AtomicWidth, 22, 2>;
+// ParamField and FPParamField represent the general purpose and floating point
+// parameter counts of a direct call into C and are given 5 bits each, which
+// allow storing a number up to the current maximum parameter count, which is 20
+// (see kMaxCParameters defined in macro-assembler.h).
+using ParamField = FlagsConditionField::Next<int, 5>;
+using FPParamField = ParamField::Next<int, 5>;
 
-// AtomicMemoryOrderField overlaps with MiscField and is used for the various
-// Atomic opcodes. This field is not used on all architectures. It is used on
-// architectures where the codegen for kSeqCst and kAcqRel differ only by
-// emitting fences.
-using AtomicMemoryOrderField = base::BitField<AtomicMemoryOrder, 24, 2>;
-using AtomicStoreRecordWriteModeField = base::BitField<RecordWriteMode, 26, 4>;
-
-// ParamField and FPParamField overlap with MiscField, as the latter is never
-// used for Call instructions. These 2 fields represent the general purpose
-// and floating point parameter counts of a direct call into C and are given 5
-// bits each, which allow storing a number up to the current maximum parameter
-// count, which is 20 (see kMaxCParameters defined in macro-assembler.h).
-using ParamField = base::BitField<int, 22, 5>;
-using FPParamField = base::BitField<int, 27, 5>;
+// {MiscField} is used for a variety of things, depending on the opcode.
+// TODO(turbofan): There should be an abstraction that ensures safe encoding and
+// decoding. {HasMemoryAccessMode} and its uses are a small step in that
+// direction.
+using MiscField = FlagsConditionField::Next<int, 10>;
 
 // This static assertion serves as an early warning if we are about to exhaust
 // the available opcode space. If we are about to exhaust it, we should start

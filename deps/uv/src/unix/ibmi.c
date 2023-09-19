@@ -249,6 +249,11 @@ uint64_t uv_get_constrained_memory(void) {
 }
 
 
+uint64_t uv_get_available_memory(void) {
+  return uv_get_free_memory();
+}
+
+
 void uv_loadavg(double avg[3]) {
   SSTS0200 rcvr;
 

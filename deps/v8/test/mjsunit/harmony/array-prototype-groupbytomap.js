@@ -147,7 +147,7 @@ var groupToMap = () => {
 }
 
 assertEquals(groupToMap(), [
-  [undefined, [,]],
+  [undefined, [undefined]],
 ]);
 array.__proto__.push(6);
 assertEquals(groupToMap(), [

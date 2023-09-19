@@ -5,6 +5,7 @@
 OSSL_CMP_MSG_get0_header,
 OSSL_CMP_MSG_get_bodytype,
 OSSL_CMP_MSG_update_transactionID,
+OSSL_CMP_MSG_update_recipNonce,
 OSSL_CMP_CTX_setup_CRM,
 OSSL_CMP_MSG_read,
 OSSL_CMP_MSG_write,
@@ -19,6 +20,7 @@ i2d_OSSL_CMP_MSG_bio
   OSSL_CMP_PKIHEADER *OSSL_CMP_MSG_get0_header(const OSSL_CMP_MSG *msg);
   int OSSL_CMP_MSG_get_bodytype(const OSSL_CMP_MSG *msg);
   int OSSL_CMP_MSG_update_transactionID(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg);
+  int OSSL_CMP_MSG_update_recipNonce(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg);
   OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid);
   OSSL_CMP_MSG *OSSL_CMP_MSG_read(const char *file, OSSL_LIB_CTX *libctx, const char *propq);
   int OSSL_CMP_MSG_write(const char *file, const OSSL_CMP_MSG *msg);
@@ -33,7 +35,12 @@ OSSL_CMP_MSG_get_bodytype() returns the body type of the given CMP message.
 
 OSSL_CMP_MSG_update_transactionID() updates the transactionID field
 in the header of the given message according to the CMP_CTX.
-This requires re-protecting the message (if it was protected).
+If I<ctx> does not contain a transaction ID, a fresh one is created before.
+The message gets re-protected (if protecting requests is required).
+
+OSSL_CMP_MSG_update_recipNonce() updates the recipNonce field
+in the header of the given message according to the CMP_CTX.
+The message gets re-protected (if protecting requests is required).
 
 OSSL_CMP_CTX_setup_CRM() creates a CRMF certificate request message
 from various information provided in the CMP context argument I<ctx>
@@ -65,7 +72,8 @@ The public key included is the first available value of these:
 
 =item the public key of any PKCS#10 CSR given in I<ctx>,
 
-=item the public key of any reference certificate given in I<ctx>,
+=item the public key of any reference certificate given in I<ctx>
+(see L<OSSL_CMP_CTX_set1_oldCert(3)>),
 
 =item the public key derived from any client's private key
 set via L<OSSL_CMP_CTX_set1_pkey(3)>.
@@ -118,10 +126,12 @@ d2i_OSSL_CMP_MSG_bio() returns the parsed message or NULL on error.
 OSSL_CMP_MSG_read() and d2i_OSSL_CMP_MSG_bio()
 return the parsed CMP message or NULL on error.
 
-OSSL_CMP_MSG_write() and i2d_OSSL_CMP_MSG_bio() return
-the number of bytes successfully encoded or a negative value if an error occurs.
+OSSL_CMP_MSG_write() returns the number of bytes successfully encoded or a
+negative value if an error occurs.
 
-OSSL_CMP_MSG_update_transactionID() returns 1 on success, 0 on error.
+i2d_OSSL_CMP_MSG_bio(), OSSL_CMP_MSG_update_transactionID(),
+and OSSL_CMP_MSG_update_recipNonce()
+return 1 on success, 0 on error.
 
 =head1 SEE ALSO
 
@@ -134,9 +144,11 @@ L<OSSL_CMP_CTX_push1_subjectAltName(3)>, L<OSSL_CMP_CTX_push0_policy(3)>
 
 The OpenSSL CMP support was added in OpenSSL 3.0.
 
+OSSL_CMP_MSG_update_recipNonce() was added in OpenSSL 3.0.9.
+
 =head1 COPYRIGHT
 
-Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

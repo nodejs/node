@@ -26,7 +26,7 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
 // The Google C++ Testing and Mocking Framework (Google Test)
 //
 // This header file declares the String class and functions used internally by
@@ -36,18 +36,22 @@
 // This header file is #included by gtest-internal.h.
 // It should not be #included by other files.
 
-// GOOGLETEST_CM0001 DO NOT DELETE
+// IWYU pragma: private, include "gtest/gtest.h"
+// IWYU pragma: friend gtest/.*
+// IWYU pragma: friend gmock/.*
 
 #ifndef GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_STRING_H_
 #define GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_STRING_H_
 
 #ifdef __BORLANDC__
 // string.h is not guaranteed to provide strcpy on C++ Builder.
-# include <mem.h>
+#include <mem.h>
 #endif
 
 #include <string.h>
+
 #include <cstdint>
+#include <sstream>
 #include <string>
 
 #include "gtest/internal/gtest-port.h"
@@ -69,7 +73,7 @@ class GTEST_API_ String {
   // memory using malloc().
   static const char* CloneCString(const char* c_str);
 
-#if GTEST_OS_WINDOWS_MOBILE
+#ifdef GTEST_OS_WINDOWS_MOBILE
   // Windows CE does not have the 'ANSI' versions of Win32 APIs. To be
   // able to pass strings to Win32 APIs on CE we need to convert them
   // to 'Unicode', UTF-16.
@@ -123,8 +127,7 @@ class GTEST_API_ String {
   // Unlike strcasecmp(), this function can handle NULL argument(s).
   // A NULL C string is considered different to any non-NULL C string,
   // including the empty string.
-  static bool CaseInsensitiveCStringEquals(const char* lhs,
-                                           const char* rhs);
+  static bool CaseInsensitiveCStringEquals(const char* lhs, const char* rhs);
 
   // Compares two wide C strings, ignoring case.  Returns true if and only if
   // they have the same content.
@@ -143,8 +146,8 @@ class GTEST_API_ String {
 
   // Returns true if and only if the given string ends with the given suffix,
   // ignoring case. Any string is considered to end with an empty suffix.
-  static bool EndsWithCaseInsensitive(
-      const std::string& str, const std::string& suffix);
+  static bool EndsWithCaseInsensitive(const std::string& str,
+                                      const std::string& suffix);
 
   // Formats an int value as "%02d".
   static std::string FormatIntWidth2(int value);  // "%02d" for width == 2
@@ -163,7 +166,7 @@ class GTEST_API_ String {
 
  private:
   String();  // Not meant to be instantiated.
-};  // class String
+};           // class String
 
 // Gets the content of the stringstream's buffer as an std::string.  Each '\0'
 // character in the buffer is replaced with "\\0".

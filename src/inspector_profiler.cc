@@ -422,7 +422,8 @@ void StartProfilers(Environment* env) {
   Local<String> coverage_str = env->env_vars()->Get(
       isolate, FIXED_ONE_BYTE_STRING(isolate, "NODE_V8_COVERAGE"))
       .FromMaybe(Local<String>());
-  if (!coverage_str.IsEmpty() && coverage_str->Length() > 0) {
+  if ((!coverage_str.IsEmpty() && coverage_str->Length() > 0) ||
+      env->options()->test_runner_coverage) {
     CHECK_NULL(env->coverage_connection());
     env->set_coverage_connection(std::make_unique<V8CoverageConnection>(env));
     env->coverage_connection()->Start();
@@ -430,7 +431,8 @@ void StartProfilers(Environment* env) {
   if (env->options()->cpu_prof) {
     const std::string& dir = env->options()->cpu_prof_dir;
     env->set_cpu_prof_interval(env->options()->cpu_prof_interval);
-    env->set_cpu_prof_dir(dir.empty() ? env->GetCwd() : dir);
+    env->set_cpu_prof_dir(dir.empty() ? Environment::GetCwd(env->exec_path())
+                                      : dir);
     if (env->options()->cpu_prof_name.empty()) {
       DiagnosticFilename filename(env, "CPU", "cpuprofile");
       env->set_cpu_prof_name(*filename);
@@ -445,7 +447,8 @@ void StartProfilers(Environment* env) {
   if (env->options()->heap_prof) {
     const std::string& dir = env->options()->heap_prof_dir;
     env->set_heap_prof_interval(env->options()->heap_prof_interval);
-    env->set_heap_prof_dir(dir.empty() ? env->GetCwd() : dir);
+    env->set_heap_prof_dir(dir.empty() ? Environment::GetCwd(env->exec_path())
+                                       : dir);
     if (env->options()->heap_prof_name.empty()) {
       DiagnosticFilename filename(env, "Heap", "heapprofile");
       env->set_heap_prof_name(*filename);

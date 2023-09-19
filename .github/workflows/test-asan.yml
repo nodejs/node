@@ -45,12 +45,13 @@ jobs:
       CXX: clang++
       LINK: clang++
       CONFIG_FLAGS: --enable-asan
+      ASAN: true
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744  # v3.6.0
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -58,4 +59,4 @@ jobs:
       - name: Build
         run: make build-ci -j2 V=1
       - name: Test
-        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions -t 300 --measure-flakiness 9"
+        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=spec' --node-args='--test-reporter-destination=stdout' -t 300 --measure-flakiness 9"

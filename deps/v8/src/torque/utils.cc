@@ -14,11 +14,11 @@
 #include "src/torque/declarable.h"
 #include "src/torque/utils.h"
 
+EXPORT_CONTEXTUAL_VARIABLE(v8::internal::torque::TorqueMessages)
+
 namespace v8 {
 namespace internal {
 namespace torque {
-
-DEFINE_CONTEXTUAL_VARIABLE(TorqueMessages)
 
 std::string StringLiteralUnquote(const std::string& s) {
   DCHECK(('"' == s.front() && '"' == s.back()) ||

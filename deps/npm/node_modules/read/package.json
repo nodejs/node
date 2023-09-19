@@ -1,27 +1,52 @@
 {
   "name": "read",
-  "version": "1.0.7",
+  "version": "2.1.0",
   "main": "lib/read.js",
   "dependencies": {
-    "mute-stream": "~0.0.4"
+    "mute-stream": "~1.0.0"
   },
   "devDependencies": {
-    "tap": "^1.2.0"
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.13.0",
+    "tap": "^16.3.0"
   },
   "engines": {
-    "node": ">=0.8"
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
   },
-  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
+  "author": "GitHub Inc.",
   "description": "read(1) for node programs",
   "repository": {
     "type": "git",
-    "url": "git://github.com/isaacs/read.git"
+    "url": "https://github.com/npm/read.git"
   },
   "license": "ISC",
   "scripts": {
-    "test": "tap test/*.js"
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint"
   },
   "files": [
-    "lib/read.js"
-  ]
+    "bin/",
+    "lib/"
+  ],
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.13.0",
+    "publish": "true"
+  },
+  "tap": {
+    "statements": 77,
+    "branches": 75,
+    "functions": 57,
+    "lines": 78,
+    "test-ignore": "fixtures/",
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
 }

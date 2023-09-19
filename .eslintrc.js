@@ -53,10 +53,10 @@ module.exports = {
   overrides: [
     {
       files: [
-        'test/es-module/test-esm-type-flag.js',
-        'test/es-module/test-esm-type-flag-alias.js',
         '*.mjs',
         'test/es-module/test-esm-example-loader.js',
+        'test/es-module/test-esm-type-flag.js',
+        'test/es-module/test-esm-type-flag-alias.js',
       ],
       parserOptions: { sourceType: 'module' },
     },
@@ -68,7 +68,7 @@ module.exports = {
       files: ['**/*.md/*.cjs', '**/*.md/*.js'],
       parserOptions: {
         sourceType: 'script',
-        ecmaFeatures: { impliedStrict: true }
+        ecmaFeatures: { impliedStrict: true },
       },
       rules: { strict: 'off' },
     },
@@ -103,13 +103,29 @@ module.exports = {
         },
         {
           name: 'Buffer',
-          message: 'Import Buffer instead of using the global'
+          message: 'Import Buffer instead of using the global',
         },
         {
           name: 'process',
-          message: 'Import process instead of using the global'
+          message: 'Import process instead of using the global',
         },
       ] },
+    },
+    {
+      files: [
+        'lib/internal/modules/**/*.js',
+      ],
+      rules: {
+        'curly': 'error',
+      },
+    },
+    {
+      files: [
+        'lib/internal/test_runner/**/*.js',
+      ],
+      rules: {
+        'node-core/set-proto-to-null-in-object': 'error',
+      },
     },
   ],
   rules: {
@@ -134,13 +150,7 @@ module.exports = {
         ignorePattern: '.*',
       },
     }],
-    'comma-dangle': ['error', {
-      arrays: 'always-multiline',
-      exports: 'only-multiline',
-      functions: 'only-multiline',
-      imports: 'only-multiline',
-      objects: 'only-multiline',
-    }],
+    'comma-dangle': ['error', 'always-multiline'],
     'comma-spacing': 'error',
     'comma-style': 'error',
     'computed-property-spacing': 'error',
@@ -239,6 +249,12 @@ module.exports = {
         selector: "CallExpression[callee.name='isNaN']",
         message: 'Use Number.isNaN() instead of the global isNaN() function.',
       },
+      {
+        // TODO(@panva): move this to no-restricted-properties
+        // when https://github.com/eslint/eslint/issues/16412 is fixed
+        selector: "Identifier[name='webcrypto']",
+        message: 'Use `globalThis.crypto`.',
+      },
     ],
     'no-return-await': 'error',
     'no-self-compare': 'error',
@@ -306,6 +322,7 @@ module.exports = {
     'jsdoc/newline-after-description': 'off',
     'jsdoc/require-returns-description': 'off',
     'jsdoc/valid-types': 'off',
+    'jsdoc/no-defaults': 'off',
     'jsdoc/no-undefined-types': 'off',
     'jsdoc/require-param': 'off',
     'jsdoc/check-tag-names': 'off',
@@ -314,6 +331,7 @@ module.exports = {
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
     'node-core/no-duplicate-requires': 'error',
+    'node-core/prefer-proto': 'error',
   },
   globals: {
     ByteLengthQueuingStrategy: 'readable',
@@ -326,6 +344,7 @@ module.exports = {
     DecompressionStream: 'readable',
     fetch: 'readable',
     FormData: 'readable',
+    navigator: 'readable',
     ReadableStream: 'readable',
     ReadableStreamDefaultReader: 'readable',
     ReadableStreamBYOBReader: 'readable',

@@ -1,11 +1,10 @@
 const util = require('util')
-const _data = Symbol('data')
 const _delete = Symbol('delete')
 const _append = Symbol('append')
 
 const sqBracketsMatcher = str => str.match(/(.+)\[([^\]]+)\]\.?(.*)$/)
 
-// replaces any occurence of an empty-brackets (e.g: []) with a special
+// replaces any occurrence of an empty-brackets (e.g: []) with a special
 // Symbol(append) to represent it, this is going to be useful for the setter
 // method that will push values to the end of the array when finding these
 const replaceAppendSymbols = str => {
@@ -30,7 +29,7 @@ const parseKeys = key => {
       const preSqBracketPortion = index[1]
 
       // we want to have a `new String` wrapper here in order to differentiate
-      // between multiple occurences of the same string, e.g:
+      // between multiple occurrences of the same string, e.g:
       // foo.bar[foo.bar] should split into { foo: { bar: { 'foo.bar': {} } }
       /* eslint-disable-next-line no-new-wrappers */
       const foundKey = new String(index[2])
@@ -42,7 +41,7 @@ const parseKeys = key => {
       sqBracketItems.add(foundKey)
 
       // returns an array that contains either dot-separate items (that will
-      // be splitted appart during the next step OR the fully parsed keys
+      // be split apart during the next step OR the fully parsed keys
       // read from square brackets, e.g:
       // foo.bar[1.0.0].a.b -> ['foo.bar', '1.0.0', 'a.b']
       return [
@@ -143,7 +142,7 @@ const setter = ({ data, key, value, force }) => {
   const keys = parseKeys(key)
   const setKeys = (_data, _key) => {
     // handles array indexes, converting valid integers to numbers,
-    // note that occurences of Symbol(append) will throw,
+    // note that occurrences of Symbol(append) will throw,
     // so we just ignore these for now
     let maybeIndex = Number.NaN
     try {
@@ -236,6 +235,8 @@ const setter = ({ data, key, value, force }) => {
 }
 
 class Queryable {
+  #data = null
+
   constructor (obj) {
     if (!obj || typeof obj !== 'object') {
       throw Object.assign(new Error('Queryable needs an object to query properties from.'), {
@@ -243,7 +244,7 @@ class Queryable {
       })
     }
 
-    this[_data] = obj
+    this.#data = obj
   }
 
   query (queries) {
@@ -251,12 +252,12 @@ class Queryable {
     // with the legacy API lib/view.js is consuming, if at some point
     // we refactor that command then we can revisit making this nicer
     if (queries === '') {
-      return { '': this[_data] }
+      return { '': this.#data }
     }
 
     const q = query =>
       getter({
-        data: this[_data],
+        data: this.#data,
         key: query,
       })
 
@@ -283,7 +284,7 @@ class Queryable {
   // and assigns `value` to the last property of the query chain
   set (query, value, { force } = {}) {
     setter({
-      data: this[_data],
+      data: this.#data,
       key: query,
       value,
       force,
@@ -293,14 +294,14 @@ class Queryable {
   // deletes the value of the property found at `query`
   delete (query) {
     setter({
-      data: this[_data],
+      data: this.#data,
       key: query,
       value: _delete,
     })
   }
 
   toJSON () {
-    return this[_data]
+    return this.#data
   }
 
   [util.inspect.custom] () {

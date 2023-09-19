@@ -127,6 +127,8 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
     return IsAbstractName(CONSTEXPR_BOOL_TYPE_STRING);
   }
   bool IsVoidOrNever() const { return IsVoid() || IsNever(); }
+  bool IsFloat32() const { return IsAbstractName(FLOAT32_TYPE_STRING); }
+  bool IsFloat64() const { return IsAbstractName(FLOAT64_TYPE_STRING); }
   std::string GetGeneratedTypeName() const;
   std::string GetGeneratedTNodeTypeName() const;
   virtual bool IsConstexpr() const {

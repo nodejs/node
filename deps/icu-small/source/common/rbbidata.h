@@ -85,7 +85,7 @@ struct RBBIDataHeader {
     uint32_t         fTrie;           /*  Offset to Trie data for character categories */
     uint32_t         fTrieLen;
     uint32_t         fRuleSource;     /*  Offset to the source for for the break */
-    uint32_t         fRuleSourceLen;  /*    rules.  Stored UChar *. */
+    uint32_t         fRuleSourceLen;  /*    rules.  Stored char16_t *. */
     uint32_t         fStatusTable;    /* Offset to the table of rule status values */
     uint32_t         fStatusTableLen;
 
@@ -205,7 +205,7 @@ private:
 
 U_NAMESPACE_END
 
-U_CFUNC UBool rbbi_cleanup(void);
+U_CFUNC UBool rbbi_cleanup();
 
 #endif /* C++ */
 

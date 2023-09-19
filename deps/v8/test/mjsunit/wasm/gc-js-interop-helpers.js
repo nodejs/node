@@ -8,7 +8,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 function CreateWasmObjects() {
   let builder = new WasmModuleBuilder();
-  builder.setSingletonRecGroups();
   let struct_type = builder.addStruct([makeField(kWasmI32, true)]);
   let array_type = builder.addArray(kWasmI32, true);
   builder.addFunction('MakeStruct', makeSig([], [kWasmExternRef]))

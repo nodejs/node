@@ -12,6 +12,7 @@ npm config get [<key> [<key> ...]]
 npm config delete <key> [<key> ...]
 npm config list [--json]
 npm config edit
+npm config fix
 
 alias: c
 ```
@@ -26,7 +27,7 @@ variables, `npmrc` files, and in some cases, the `package.json` file.
 See [npmrc](/configuring-npm/npmrc) for more information about the npmrc
 files.
 
-See [config(7)](/using-npm/config) for a more thorough explanation of the
+See [config](/using-npm/config) for a more thorough explanation of the
 mechanisms involved, and a full list of config options available.
 
 The `npm config` command can be used to update and edit the contents
@@ -45,7 +46,7 @@ npm set key=value [key=value...]
 
 Sets each of the config keys to the value provided.
 
-If value is omitted, then it sets it to an empty string.
+If value is omitted, the key will be removed from your config file entirely.
 
 Note: for backwards compatibility, `npm config set key value` is supported
 as an alias for `npm config set key=value`.
@@ -91,6 +92,16 @@ npm config edit
 Opens the config file in an editor.  Use the `--global` flag to edit the
 global config.
 
+#### fix
+
+```bash
+npm config fix
+```
+
+Attempts to repair invalid configuration items.  Usually this means
+attaching authentication config (i.e. `_auth`, `_authToken`) to the
+configured `registry`.
+
 ### Configuration
 
 #### `json`
@@ -104,6 +115,8 @@ Whether or not to output JSON data, rather than the normal output.
   saving them to your `package.json`.
 
 Not supported by all npm commands.
+
+
 
 #### `global`
 
@@ -119,13 +132,17 @@ folder instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
+
+
 #### `editor`
 
-* Default: The EDITOR or VISUAL environment variables, or 'notepad.exe' on
-  Windows, or 'vim' on Unix systems
+* Default: The EDITOR or VISUAL environment variables, or
+  '%SYSTEMROOT%\notepad.exe' on Windows, or 'vi' on Unix systems
 * Type: String
 
 The command to run for `npm edit` and `npm config edit`.
+
+
 
 #### `location`
 
@@ -144,12 +161,16 @@ instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
+
+
 #### `long`
 
 * Default: false
 * Type: Boolean
 
 Show extended information in `ls`, `search`, and `help-search`.
+
+
 
 ### See Also
 

@@ -18,56 +18,56 @@ const {
 
 throws(() => exec(`${process.execPath} ${__filename} AAA BBB\0XXX CCC`, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'command' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => exec('BBB\0XXX AAA CCC', mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'command' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execSync(`${process.execPath} ${__filename} AAA BBB\0XXX CCC`), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'command' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execSync('BBB\0XXX AAA CCC'), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'command' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 // Tests for the 'file' argument
 
 throws(() => spawn('BBB\0XXX'), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'file' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFile('BBB\0XXX', mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'file' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFileSync('BBB\0XXX'), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'file' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawn('BBB\0XXX'), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'file' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawnSync('BBB\0XXX'), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'file' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 // Tests for the 'modulePath' argument
 
 throws(() => fork('BBB\0XXX'), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'modulePath' must be a string or Uint8Array without null bytes/
+  name: 'TypeError',
 });
 
 // Tests for the 'args' argument
@@ -77,123 +77,123 @@ throws(() => fork('BBB\0XXX'), {
 
 throws(() => execFile(process.execPath, [__filename, 'AAA', 'BBB\0XXX', 'CCC'], mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'args\[2\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFileSync(process.execPath, [__filename, 'AAA', 'BBB\0XXX', 'CCC']), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'args\[2\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => fork(__filename, ['AAA', 'BBB\0XXX', 'CCC']), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'args\[2\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawn(process.execPath, [__filename, 'AAA', 'BBB\0XXX', 'CCC']), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'args\[2\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawnSync(process.execPath, [__filename, 'AAA', 'BBB\0XXX', 'CCC']), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'args\[2\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 // Tests for the 'options.cwd' argument
 
 throws(() => exec(process.execPath, { cwd: 'BBB\0XXX' }, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.cwd' must be a string or Uint8Array without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFile(process.execPath, { cwd: 'BBB\0XXX' }, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.cwd' must be a string or Uint8Array without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFileSync(process.execPath, { cwd: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.cwd' must be a string or Uint8Array without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execSync(process.execPath, { cwd: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.cwd' must be a string or Uint8Array without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => fork(__filename, { cwd: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.cwd' must be a string or Uint8Array without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawn(process.execPath, { cwd: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.cwd' must be a string or Uint8Array without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawnSync(process.execPath, { cwd: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.cwd' must be a string or Uint8Array without null bytes/
+  name: 'TypeError',
 });
 
 // Tests for the 'options.argv0' argument
 
 throws(() => exec(process.execPath, { argv0: 'BBB\0XXX' }, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.argv0' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFile(process.execPath, { argv0: 'BBB\0XXX' }, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.argv0' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFileSync(process.execPath, { argv0: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.argv0' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execSync(process.execPath, { argv0: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.argv0' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => fork(__filename, { argv0: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.argv0' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawn(process.execPath, { argv0: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.argv0' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawnSync(process.execPath, { argv0: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.argv0' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 // Tests for the 'options.shell' argument
 
 throws(() => exec(process.execPath, { shell: 'BBB\0XXX' }, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.shell' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFile(process.execPath, { shell: 'BBB\0XXX' }, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.shell' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFileSync(process.execPath, { shell: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.shell' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execSync(process.execPath, { shell: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.shell' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 // Not testing fork() because it doesn't accept the shell option (internally it
@@ -201,94 +201,94 @@ throws(() => execSync(process.execPath, { shell: 'BBB\0XXX' }), {
 
 throws(() => spawn(process.execPath, { shell: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.shell' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawnSync(process.execPath, { shell: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.shell' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 // Tests for the 'options.env' argument
 
 throws(() => exec(process.execPath, { env: { 'AAA': 'BBB\0XXX' } }, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['AAA'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => exec(process.execPath, { env: { 'BBB\0XXX': 'AAA' } }, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['BBB\0XXX'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFile(process.execPath, { env: { 'AAA': 'BBB\0XXX' } }, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['AAA'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFile(process.execPath, { env: { 'BBB\0XXX': 'AAA' } }, mustNotCall()), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['BBB\0XXX'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFileSync(process.execPath, { env: { 'AAA': 'BBB\0XXX' } }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['AAA'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execFileSync(process.execPath, { env: { 'BBB\0XXX': 'AAA' } }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['BBB\0XXX'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execSync(process.execPath, { env: { 'AAA': 'BBB\0XXX' } }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['AAA'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => execSync(process.execPath, { env: { 'BBB\0XXX': 'AAA' } }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['BBB\0XXX'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => fork(__filename, { env: { 'AAA': 'BBB\0XXX' } }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['AAA'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => fork(__filename, { env: { 'BBB\0XXX': 'AAA' } }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['BBB\0XXX'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawn(process.execPath, { env: { 'AAA': 'BBB\0XXX' } }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['AAA'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawn(process.execPath, { env: { 'BBB\0XXX': 'AAA' } }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['BBB\0XXX'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawnSync(process.execPath, { env: { 'AAA': 'BBB\0XXX' } }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['AAA'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 throws(() => spawnSync(process.execPath, { env: { 'BBB\0XXX': 'AAA' } }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.env\['BBB\0XXX'\]' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 // Tests for the 'options.execPath' argument
 throws(() => fork(__filename, { execPath: 'BBB\0XXX' }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.execPath' must be a string without null bytes/
+  name: 'TypeError',
 });
 
 // Tests for the 'options.execArgv' argument
 throws(() => fork(__filename, { execArgv: ['AAA', 'BBB\0XXX', 'CCC'] }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.execArgv\[1\]' must be a string without null bytes/
+  name: 'TypeError',
 });

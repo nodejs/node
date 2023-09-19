@@ -65,6 +65,9 @@ class Vuln {
     // - {name, version, isSemVerMajor} fix requires -f, is semver major
     // - {name, version} fix requires -f, not semver major
     // - true: fix does not require -f
+    // TODO: duped entries may require different fixes but the current
+    // structure does not support this, so the case were a top level fix
+    // corrects a duped entry may mean you have to run fix more than once
     for (const v of this.via) {
       // don't blow up on loops
       if (v.fixAvailable === f) {

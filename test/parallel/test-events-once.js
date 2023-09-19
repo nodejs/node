@@ -150,6 +150,13 @@ async function onceWithEventTargetError() {
   strictEqual(err, error);
 }
 
+async function onceWithInvalidEventEmmiter() {
+  const ac = new AbortController();
+  return rejects(once(ac, 'myevent'), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+}
+
 async function prioritizesEventEmitter() {
   const ee = new EventEmitter();
   ee.addEventListener = fail;
@@ -226,6 +233,18 @@ async function eventTargetAbortSignalBefore() {
   });
 }
 
+async function eventTargetAbortSignalBeforeEvenWhenSignalPropagationStopped() {
+  const et = new EventTarget();
+  const ac = new AbortController();
+  const { signal } = ac;
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation(), { once: true });
+
+  process.nextTick(() => ac.abort());
+  return rejects(once(et, 'foo', { signal }), {
+    name: 'AbortError',
+  });
+}
+
 async function eventTargetAbortSignalAfter() {
   const et = new EventTarget();
   const ac = new AbortController();
@@ -256,12 +275,14 @@ Promise.all([
   onceError(),
   onceWithEventTarget(),
   onceWithEventTargetError(),
+  onceWithInvalidEventEmmiter(),
   prioritizesEventEmitter(),
   abortSignalBefore(),
   abortSignalAfter(),
   abortSignalAfterEvent(),
   abortSignalRemoveListener(),
   eventTargetAbortSignalBefore(),
+  eventTargetAbortSignalBeforeEvenWhenSignalPropagationStopped(),
   eventTargetAbortSignalAfter(),
   eventTargetAbortSignalAfterEvent(),
 ]).then(common.mustCall());

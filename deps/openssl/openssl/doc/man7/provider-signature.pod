@@ -93,14 +93,14 @@ and L<EVP_PKEY_verify_recover(3)> (as well
 as other related functions).
 
 All "functions" mentioned here are passed as function pointers between
-F<libcrypto> and the provider in B<OSSL_DISPATCH> arrays via
-B<OSSL_ALGORITHM> arrays that are returned by the provider's
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays via
+L<OSSL_ALGORITHM(3)> arrays that are returned by the provider's
 provider_query_operation() function
 (see L<provider-base(7)/Provider Functions>).
 
 All these "functions" have a corresponding function type definition
 named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
-function pointer from an B<OSSL_DISPATCH> element named
+function pointer from an L<OSSL_DISPATCH(3)> element named
 B<OSSL_FUNC_{name}>.
 For example, the "function" OSSL_FUNC_signature_newctx() has these:
 
@@ -108,7 +108,7 @@ For example, the "function" OSSL_FUNC_signature_newctx() has these:
  static ossl_inline OSSL_FUNC_signature_newctx_fn
      OSSL_FUNC_signature_newctx(const OSSL_DISPATCH *opf);
 
-B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
 macros in L<openssl-core_dispatch.h(7)>, as follows:
 
  OSSL_FUNC_signature_newctx                 OSSL_FUNC_SIGNATURE_NEWCTX
@@ -155,7 +155,7 @@ set of "signature" functions, i.e. at least one of:
 
 =item OSSL_FUNC_signature_verify_init and OSSL_FUNC_signature_verify
 
-=item OSSL_FUNC_signature_verify_recover_init and OSSL_FUNC_signature_verify_init
+=item OSSL_FUNC_signature_verify_recover_init and OSSL_FUNC_signature_verify_recover
 
 =item OSSL_FUNC_signature_digest_sign_init, OSSL_FUNC_signature_digest_sign_update and OSSL_FUNC_signature_digest_sign_final
 
@@ -379,10 +379,9 @@ supply known values that either pass or fail.
 =back
 
 OSSL_FUNC_signature_gettable_ctx_params() and OSSL_FUNC_signature_settable_ctx_params() get a
-constant B<OSSL_PARAM> array that describes the gettable and settable parameters,
+constant L<OSSL_PARAM(3)> array that describes the gettable and settable parameters,
 i.e. parameters that can be used with OSSL_FUNC_signature_get_ctx_params() and
 OSSL_FUNC_signature_set_ctx_params() respectively.
-See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM> as parameter descriptor.
 
 =head2 MD parameters
 
@@ -404,20 +403,19 @@ as those for built-in digest algorithms. See
 L<provider-digest(7)/Digest Parameters> for further information.
 
 OSSL_FUNC_signature_gettable_md_ctx_params() and OSSL_FUNC_signature_settable_md_ctx_params()
-get a constant B<OSSL_PARAM> array that describes the gettable and settable
+get a constant L<OSSL_PARAM(3)> array that describes the gettable and settable
 digest parameters, i.e. parameters that can be used with
 OSSL_FUNC_signature_get_md_ctx_params() and OSSL_FUNC_signature_set_md_ctx_params()
-respectively. See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM> as parameter
-descriptor.
+respectively.
 
 =head1 RETURN VALUES
 
 OSSL_FUNC_signature_newctx() and OSSL_FUNC_signature_dupctx() should return the newly created
-provider side signature, or NULL on failure.
+provider side signature context, or NULL on failure.
 
 OSSL_FUNC_signature_gettable_ctx_params(), OSSL_FUNC_signature_settable_ctx_params(),
 OSSL_FUNC_signature_gettable_md_ctx_params() and OSSL_FUNC_signature_settable_md_ctx_params(),
-return the gettable or settable parameters in a constant B<OSSL_PARAM> array.
+return the gettable or settable parameters in a constant L<OSSL_PARAM(3)> array.
 
 All other functions should return 1 for success or 0 on error.
 
@@ -431,7 +429,7 @@ The provider SIGNATURE interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

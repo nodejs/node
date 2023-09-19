@@ -130,13 +130,22 @@ module.exports = cls => class Builder extends cls {
   [_retrieveNodesByType] (nodes) {
     const depNodes = new Set()
     const linkNodes = new Set()
+    const storeNodes = new Set()
 
     for (const node of nodes) {
-      if (node.isLink) {
+      if (node.isStoreLink) {
+        storeNodes.add(node)
+      } else if (node.isLink) {
         linkNodes.add(node)
       } else {
         depNodes.add(node)
       }
+    }
+    // Make sure that store linked nodes are processed last.
+    // We can't process store links separately or else lifecycle scripts on
+    // standard nodes might not have bin links yet.
+    for (const node of storeNodes) {
+      depNodes.add(node)
     }
 
     // deduplicates link nodes and their targets, avoids
@@ -321,10 +330,12 @@ module.exports = cls => class Builder extends cls {
         devOptional,
         package: pkg,
         location,
+        isStoreLink,
       } = node.target
 
       // skip any that we know we'll be deleting
-      if (this[_trashList].has(path)) {
+      // or storeLinks
+      if (this[_trashList].has(path) || isStoreLink) {
         return
       }
 
@@ -345,7 +356,6 @@ module.exports = cls => class Builder extends cls {
         event,
         path,
         pkg,
-        stdioString: true,
         stdio,
         env,
         scriptShell: this[_scriptShell],

@@ -17,7 +17,7 @@ class LazyBuiltinsAssembler : public CodeStubAssembler {
   explicit LazyBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void GenerateTailCallToJSCode(TNode<CodeT> code, TNode<JSFunction> function);
+  void GenerateTailCallToJSCode(TNode<Code> code, TNode<JSFunction> function);
 
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       TNode<JSFunction> function);

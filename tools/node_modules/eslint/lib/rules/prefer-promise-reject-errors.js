@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Require using Error objects as Promise rejection reasons",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-promise-reject-errors"
+            url: "https://eslint.org/docs/latest/rules/prefer-promise-reject-errors"
         },
 
         fixable: null,
@@ -41,6 +41,7 @@ module.exports = {
     create(context) {
 
         const ALLOW_EMPTY_REJECT = context.options.length && context.options[0].allowEmptyReject;
+        const sourceCode = context.sourceCode;
 
         //----------------------------------------------------------------------
         // Helpers
@@ -100,7 +101,7 @@ module.exports = {
                     node.arguments.length && astUtils.isFunction(node.arguments[0]) &&
                     node.arguments[0].params.length > 1 && node.arguments[0].params[1].type === "Identifier"
                 ) {
-                    context.getDeclaredVariables(node.arguments[0])
+                    sourceCode.getDeclaredVariables(node.arguments[0])
 
                         /*
                          * Find the first variable that matches the second parameter's name.

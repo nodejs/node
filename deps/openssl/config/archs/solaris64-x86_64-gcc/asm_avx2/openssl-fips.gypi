@@ -310,13 +310,6 @@
       './config/archs/solaris64-x86_64-gcc/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/solaris64-x86_64-gcc/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/solaris64-x86_64-gcc/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/bn/rsaz-avx2.s',
-      './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/bn/rsaz-avx512.s',
-      './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/bn/rsaz-x86_64.s',
-      './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/bn/x86_64-gf2m.s',
-      './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/bn/x86_64-mont.s',
-      './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/bn/x86_64-mont5.s',
-      './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/md5/md5-x86_64.s',
       './config/archs/solaris64-x86_64-gcc/asm_avx2/providers/legacy.ld',
       './config/archs/solaris64-x86_64-gcc/asm_avx2/providers/fips.ld',
 

@@ -28,7 +28,7 @@ template <typename Signature>
 GeneratedCode<Signature> AssembleCode(
     Isolate* isolate, std::function<void(MacroAssembler&)> assemble) {
   return GeneratedCode<Signature>::FromCode(
-      *AssembleCodeImpl(isolate, assemble));
+      isolate, *AssembleCodeImpl(isolate, assemble));
 }
 
 }  // namespace internal

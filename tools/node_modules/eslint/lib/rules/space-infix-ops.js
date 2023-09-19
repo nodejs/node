@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Require spacing around infix operators",
             recommended: false,
-            url: "https://eslint.org/docs/rules/space-infix-ops"
+            url: "https://eslint.org/docs/latest/rules/space-infix-ops"
         },
 
         fixable: "whitespace",
@@ -43,7 +43,7 @@ module.exports = {
 
     create(context) {
         const int32Hint = context.options[0] ? context.options[0].int32Hint === true : false;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Returns the first token which violates the rule

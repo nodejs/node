@@ -45,24 +45,26 @@ assert.strictEqual(
   search: '?que=ry',
   searchParams: URLSearchParams { 'que' => 'ry' },
   hash: '#hash',
-  cannotBeBase: false,
-  special: true,
   [Symbol(context)]: URLContext {
-    flags: 2032,
-    scheme: 'https:',
-    username: 'username',
-    password: 'password',
-    host: 'host.name',
+    href: 'https://username:password@host.name:8080/path/name/?que=ry#hash',
+    protocol_end: 6,
+    username_end: 16,
+    host_start: 25,
+    host_end: 35,
+    pathname_start: 40,
+    search_start: 51,
+    hash_start: 58,
     port: 8080,
-    path: [ 'path', 'name', '', [length]: 3 ],
-    query: 'que=ry',
-    fragment: 'hash'
+    scheme_type: 2,
+    [hasPort]: [Getter],
+    [hasSearch]: [Getter],
+    [hasHash]: [Getter]
   }
 }`);
 
 assert.strictEqual(
   util.inspect({ a: url }, { depth: 0 }),
-  '{ a: [URL] }');
+  '{ a: URL {} }');
 
 class MyURL extends URL {}
 assert(util.inspect(new MyURL(url.href)).startsWith('MyURL {'));

@@ -57,6 +57,22 @@ function isInFinally(node) {
     return false;
 }
 
+/**
+ * Checks all segments in a set and returns true if any are reachable.
+ * @param {Set<CodePathSegment>} segments The segments to check.
+ * @returns {boolean} True if any segment is reachable; false otherwise.
+ */
+function isAnySegmentReachable(segments) {
+
+    for (const segment of segments) {
+        if (segment.reachable) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -69,7 +85,7 @@ module.exports = {
         docs: {
             description: "Disallow redundant return statements",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-useless-return"
+            url: "https://eslint.org/docs/latest/rules/no-useless-return"
         },
 
         fixable: "code",
@@ -82,8 +98,7 @@ module.exports = {
 
     create(context) {
         const segmentInfoMap = new WeakMap();
-        const usedUnreachableSegments = new WeakSet();
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         let scopeInfo = null;
 
         /**
@@ -152,24 +167,44 @@ module.exports = {
          * This behavior would simulate code paths for the case that the return
          * statement does not exist.
          * @param {CodePathSegment} segment The segment to get return statements.
+         * @param {Set<CodePathSegment>} usedUnreachableSegments A set of segments that have already been traversed in this call.
          * @returns {void}
          */
-        function markReturnStatementsOnSegmentAsUsed(segment) {
+        function markReturnStatementsOnSegmentAsUsed(segment, usedUnreachableSegments) {
             if (!segment.reachable) {
                 usedUnreachableSegments.add(segment);
                 segment.allPrevSegments
                     .filter(isReturned)
                     .filter(prevSegment => !usedUnreachableSegments.has(prevSegment))
-                    .forEach(markReturnStatementsOnSegmentAsUsed);
+                    .forEach(prevSegment => markReturnStatementsOnSegmentAsUsed(prevSegment, usedUnreachableSegments));
                 return;
             }
 
             const info = segmentInfoMap.get(segment);
 
-            for (const node of info.uselessReturns) {
+            info.uselessReturns = info.uselessReturns.filter(node => {
+                if (scopeInfo.traversedTryBlockStatements && scopeInfo.traversedTryBlockStatements.length > 0) {
+                    const returnInitialRange = node.range[0];
+                    const returnFinalRange = node.range[1];
+
+                    const areBlocksInRange = scopeInfo.traversedTryBlockStatements.some(tryBlockStatement => {
+                        const blockInitialRange = tryBlockStatement.range[0];
+                        const blockFinalRange = tryBlockStatement.range[1];
+
+                        return (
+                            returnInitialRange >= blockInitialRange &&
+                            returnFinalRange <= blockFinalRange
+                        );
+                    });
+
+                    if (areBlocksInRange) {
+                        return true;
+                    }
+                }
+
                 remove(scopeInfo.uselessReturns, node);
-            }
-            info.uselessReturns = [];
+                return false;
+            });
         }
 
         /**
@@ -186,9 +221,8 @@ module.exports = {
          */
         function markReturnStatementsOnCurrentSegmentsAsUsed() {
             scopeInfo
-                .codePath
                 .currentSegments
-                .forEach(markReturnStatementsOnSegmentAsUsed);
+                .forEach(segment => markReturnStatementsOnSegmentAsUsed(segment, new Set()));
         }
 
         //----------------------------------------------------------------------
@@ -197,12 +231,14 @@ module.exports = {
 
         return {
 
-            // Makes and pushs a new scope information.
+            // Makes and pushes a new scope information.
             onCodePathStart(codePath) {
                 scopeInfo = {
                     upper: scopeInfo,
                     uselessReturns: [],
-                    codePath
+                    traversedTryBlockStatements: [],
+                    codePath,
+                    currentSegments: new Set()
                 };
             },
 
@@ -239,6 +275,9 @@ module.exports = {
              * NOTE: This event is notified for only reachable segments.
              */
             onCodePathSegmentStart(segment) {
+
+                scopeInfo.currentSegments.add(segment);
+
                 const info = {
                     uselessReturns: getUselessReturns([], segment.allPrevSegments),
                     returned: false
@@ -246,6 +285,18 @@ module.exports = {
 
                 // Stores the info.
                 segmentInfoMap.set(segment, info);
+            },
+
+            onUnreachableCodePathSegmentStart(segment) {
+                scopeInfo.currentSegments.add(segment);
+            },
+
+            onUnreachableCodePathSegmentEnd(segment) {
+                scopeInfo.currentSegments.delete(segment);
+            },
+
+            onCodePathSegmentEnd(segment) {
+                scopeInfo.currentSegments.delete(segment);
             },
 
             // Adds ReturnStatement node to check whether it's useless or not.
@@ -259,12 +310,12 @@ module.exports = {
                     isInFinally(node) ||
 
                     // Ignore `return` statements in unreachable places (https://github.com/eslint/eslint/issues/11647).
-                    !scopeInfo.codePath.currentSegments.some(s => s.reachable)
+                    !isAnySegmentReachable(scopeInfo.currentSegments)
                 ) {
                     return;
                 }
 
-                for (const segment of scopeInfo.codePath.currentSegments) {
+                for (const segment of scopeInfo.currentSegments) {
                     const info = segmentInfoMap.get(segment);
 
                     if (info) {
@@ -273,6 +324,14 @@ module.exports = {
                     }
                 }
                 scopeInfo.uselessReturns.push(node);
+            },
+
+            "TryStatement > BlockStatement.block:exit"(node) {
+                scopeInfo.traversedTryBlockStatements.push(node);
+            },
+
+            "TryStatement:exit"() {
+                scopeInfo.traversedTryBlockStatements.pop();
             },
 
             /*

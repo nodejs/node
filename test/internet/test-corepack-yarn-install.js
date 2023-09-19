@@ -11,11 +11,11 @@ const fixtures = require('../common/fixtures');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
-const npmSandbox = path.join(tmpdir.path, 'npm-sandbox');
+const npmSandbox = tmpdir.resolve('npm-sandbox');
 fs.mkdirSync(npmSandbox);
-const homeDir = path.join(tmpdir.path, 'home');
+const homeDir = tmpdir.resolve('home');
 fs.mkdirSync(homeDir);
-const installDir = path.join(tmpdir.path, 'install-dir');
+const installDir = tmpdir.resolve('install-dir');
 fs.mkdirSync(installDir);
 
 const corepackYarnPath = path.join(
@@ -25,13 +25,13 @@ const corepackYarnPath = path.join(
   'deps',
   'corepack',
   'dist',
-  'yarn.js'
+  'yarn.js',
 );
 
 const pkgContent = JSON.stringify({
   dependencies: {
-    'package-name': fixtures.path('packages/main')
-  }
+    'package-name': fixtures.path('packages/main'),
+  },
 });
 
 const pkgPath = path.join(installDir, 'package.json');
@@ -46,7 +46,7 @@ const env = { ...process.env,
 
 exec(`${process.execPath} ${corepackYarnPath} install`, {
   cwd: installDir,
-  env: env
+  env: env,
 }, common.mustCall(handleExit));
 
 function handleExit(error, stdout, stderr) {

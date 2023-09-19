@@ -17,8 +17,8 @@ validateSnapshotNodes('Node / Environment', [{
   children: [
     { node_name: 'Node / CleanupQueue', edge_name: 'cleanup_queue' },
     { node_name: 'Node / IsolateData', edge_name: 'isolate_data' },
-    { node_name: 'Node / Realm', edge_name: 'principal_realm' },
-  ]
+    { node_name: 'Node / PrincipalRealm', edge_name: 'principal_realm' },
+  ],
 }]);
 
 validateSnapshotNodes('Node / CleanupQueue', [
@@ -28,14 +28,14 @@ validateSnapshotNodes('Node / CleanupQueue', [
   {
     children: [
       { node_name: 'Node / ContextifyScript' },
-    ]
+    ],
   },
 ]);
 
-validateSnapshotNodes('Node / Realm', [{
+validateSnapshotNodes('Node / PrincipalRealm', [{
   children: [
     { node_name: 'process', edge_name: 'process_object' },
-  ]
+  ],
 }]);
 
 console.log(context);  // Make sure it's not GC'ed

@@ -20,8 +20,6 @@ assert.throws(() => new http.Agent({
   }), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "maxTotalSockets" is out of range. ' +
-      `It must be > 0. Received ${item}`,
   });
 });
 

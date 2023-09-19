@@ -4,15 +4,13 @@ const common = require('../common');
 const assert = require('assert');
 const timers = require('timers');
 const { promisify } = require('util');
-const child_process = require('child_process');
 
-// TODO(benjamingr) - refactor to use getEventListeners when #35991 lands
+const { getEventListeners } = require('events');
 const { NodeEventTarget } = require('internal/event_target');
 
 const timerPromises = require('timers/promises');
 
 const setPromiseTimeout = promisify(timers.setTimeout);
-const exec = promisify(child_process.exec);
 
 const { setInterval } = timerPromises;
 
@@ -122,10 +120,10 @@ process.on('multipleResolves', common.mustNotCall());
   signal.aborted = false;
   const iterator = setInterval(1, undefined, { signal });
   iterator.next().then(common.mustCall(() => {
-    assert.strictEqual(signal.listenerCount('abort'), 1);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
     iterator.return();
   })).finally(common.mustCall(() => {
-    assert.strictEqual(signal.listenerCount('abort'), 0);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
   }));
 }
 
@@ -139,7 +137,7 @@ process.on('multipleResolves', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
     for await (const _ of iterator) {
       if (i === 0) {
-        assert.strictEqual(signal.listenerCount('abort'), 1);
+        assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
       }
       i++;
       if (i === 2) {
@@ -147,18 +145,18 @@ process.on('multipleResolves', common.mustNotCall());
       }
     }
     assert.strictEqual(i, 2);
-    assert.strictEqual(signal.listenerCount('abort'), 0);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
   }
 
   tryBreak().then(common.mustCall());
 }
 
 {
-  exec(`${process.execPath} -pe "const assert = require('assert');` +
+  common.spawnPromisified(process.execPath, ['-pe', "const assert = require('assert');" +
     'const interval = require(\'timers/promises\')' +
     '.setInterval(1000, null, { ref: false });' +
     'interval[Symbol.asyncIterator]().next()' +
-    '.then(assert.fail)"').then(common.mustCall(({ stderr }) => {
+    '.then(assert.fail)']).then(common.mustCall(({ stderr }) => {
     assert.strictEqual(stderr, '');
   }));
 }

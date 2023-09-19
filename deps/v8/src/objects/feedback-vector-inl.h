@@ -38,21 +38,18 @@ INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
                 kCreateClosureSlotCountOffset)
 
-RELEASE_ACQUIRE_WEAK_ACCESSORS(FeedbackVector, maybe_optimized_code,
-                               kMaybeOptimizedCodeOffset)
-
 int32_t FeedbackMetadata::slot_count(AcquireLoadTag) const {
   return ACQUIRE_READ_INT32_FIELD(*this, kSlotCountOffset);
 }
 
 int32_t FeedbackMetadata::get(int index) const {
-  DCHECK(index >= 0 && index < length());
+  CHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = kHeaderSize + index * kInt32Size;
   return ReadField<int32_t>(offset);
 }
 
 void FeedbackMetadata::set(int index, int32_t value) {
-  DCHECK(index >= 0 && index < length());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = kHeaderSize + index * kInt32Size;
   WriteField<int32_t>(offset, value);
 }
@@ -148,13 +145,13 @@ void FeedbackVector::set_maybe_has_optimized_osr_code(bool value) {
   set_osr_state(MaybeHasOptimizedOsrCodeBit::update(osr_state(), value));
 }
 
-CodeT FeedbackVector::optimized_code() const {
-  MaybeObject slot = maybe_optimized_code(kAcquireLoad);
+Code FeedbackVector::optimized_code() const {
+  MaybeObject slot = maybe_optimized_code();
   DCHECK(slot->IsWeakOrCleared());
   HeapObject heap_object;
-  CodeT code;
+  Code code;
   if (slot->GetHeapObject(&heap_object)) {
-    code = CodeT::cast(heap_object);
+    code = Code::cast(heap_object);
   }
   // It is possible that the maybe_optimized_code slot is cleared but the flags
   // haven't been updated yet. We update them when we execute the function next
@@ -202,20 +199,20 @@ void FeedbackVector::set_log_next_execution(bool value) {
   set_flags(LogNextExecutionBit::update(flags(), value));
 }
 
-base::Optional<CodeT> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
-                                                          FeedbackSlot slot) {
+base::Optional<Code> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
+                                                         FeedbackSlot slot) {
   MaybeObject maybe_code = Get(isolate, slot);
   if (maybe_code->IsCleared()) return {};
 
-  CodeT codet = CodeT::cast(maybe_code->GetHeapObject());
-  if (codet.marked_for_deoptimization()) {
+  Code code = Code::cast(maybe_code->GetHeapObject());
+  if (code.marked_for_deoptimization()) {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
     Set(slot, HeapObjectReference::ClearedValue(isolate));
     return {};
   }
 
-  return codet;
+  return code;
 }
 
 // Conversion from an integer index to either a slot or an ic slot.
@@ -360,7 +357,9 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
     return CompareOperationHint::kReceiverOrNullOrUndefined;
   }
 
-  if (Is<CompareOperationFeedback::kBigInt>(type_feedback)) {
+  if (Is<CompareOperationFeedback::kBigInt64>(type_feedback)) {
+    return CompareOperationHint::kBigInt64;
+  } else if (Is<CompareOperationFeedback::kBigInt>(type_feedback)) {
     return CompareOperationHint::kBigInt;
   }
 

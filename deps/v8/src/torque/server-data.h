@@ -36,7 +36,7 @@ using SymbolsMap = std::map<SourceId, Symbols>;
 // This contextual class holds all the necessary data to answer incoming
 // LSP requests. It is reset for each compilation step and all information
 // is calculated eagerly during compilation.
-class LanguageServerData : public ContextualClass<LanguageServerData> {
+class LanguageServerData : public base::ContextualClass<LanguageServerData> {
  public:
   LanguageServerData() = default;
 

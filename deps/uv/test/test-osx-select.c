@@ -79,7 +79,7 @@ TEST_IMPL(osx_select) {
 
   ASSERT(read_count == 3);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -133,7 +133,7 @@ TEST_IMPL(osx_select_many_fds) {
 
   ASSERT(read_count == 3);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 

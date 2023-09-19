@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
   mode: ['sync', 'async-sequential', 'async-parallel'],
   min: [-(2 ** 47) + 1, -10_000, -100],
   max: [100, 10_000, 2 ** 47],
-  n: [1e3, 1e5]
+  n: [1e3, 1e5],
 });
 
 function main({ mode, min, max, n }) {

@@ -119,6 +119,11 @@ struct Slice<T: type, Reference: type> {
     return this.TryAtIndex(i) otherwise unreachable;
   }
 
+  macro AtIndex(index: uint32): Reference {
+    const i: intptr = Convert<intptr>(index);
+    return this.TryAtIndex(i) otherwise unreachable;
+  }
+
   macro Iterator(): SliceIterator<T, Reference> {
     const end = this.offset + TimesSizeOf<T>(this.length);
     return SliceIterator<T, Reference>{
@@ -262,17 +267,23 @@ extern macro Allocate(
 const kAllocateBaseFlags: constexpr AllocationFlag =
     AllocationFlag::kAllowLargeObjectAllocation;
 macro AllocateFromNew(
-    sizeInBytes: intptr, map: Map, pretenured: bool): UninitializedHeapObject {
+    sizeInBytes: intptr, map: Map, pretenured: bool,
+    clearPadding: bool): UninitializedHeapObject {
   dcheck(ValidAllocationSize(sizeInBytes, map));
+  let res: UninitializedHeapObject;
   if (pretenured) {
-    return Allocate(
+    res = Allocate(
         sizeInBytes,
         %RawConstexprCast<constexpr AllocationFlag>(
             %RawConstexprCast<constexpr int32>(kAllocateBaseFlags) |
             %RawConstexprCast<constexpr int32>(AllocationFlag::kPretenured)));
   } else {
-    return Allocate(sizeInBytes, kAllocateBaseFlags);
+    res = Allocate(sizeInBytes, kAllocateBaseFlags);
   }
+  if (clearPadding) {
+    *unsafe::NewReference<Zero>(res, sizeInBytes - kObjectAlignment) = kZero;
+  }
+  return res;
 }
 
 macro InitializeFieldsFromIterator<T: type, Iterator: type>(

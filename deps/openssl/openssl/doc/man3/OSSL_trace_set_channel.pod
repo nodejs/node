@@ -42,11 +42,13 @@ respectively.
 
 OSSL_trace_set_channel() is used to enable the given trace C<category>
 by attaching the B<BIO> I<bio> object as (simple) trace channel.
+On success the ownership of the BIO is transferred to the channel,
+so the caller must not free it directly.
 
 OSSL_trace_set_prefix() and OSSL_trace_set_suffix() can be used to add
 an extra line for each channel, to be output before and after group of
 tracing output.
-What constitues an output group is decided by the code that produces
+What constitutes an output group is decided by the code that produces
 the output.
 The lines given here are considered immutable; for more dynamic
 tracing prefixes, consider setting a callback with
@@ -320,7 +322,7 @@ in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

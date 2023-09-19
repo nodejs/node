@@ -16,5 +16,8 @@
   },
   "status.any.js": {
     "skip": "WPTRunner does not support fetch()"
+  },
+  "instantiateStreaming-bad-imports.any.js": {
+    "skip": "Flaky on ARM with V8 >= 11.2"
   }
 }

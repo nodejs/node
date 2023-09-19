@@ -59,9 +59,9 @@ get32(const UNewTrie2 *trie, UChar32 c, UBool fromLSCP) {
 
 U_CAPI uint32_t U_EXPORT2
 utrie2_get32(const UTrie2 *trie, UChar32 c) {
-    if(trie->data16!=NULL) {
+    if(trie->data16!=nullptr) {
         return UTRIE2_GET16(trie, c);
-    } else if(trie->data32!=NULL) {
+    } else if(trie->data32!=nullptr) {
         return UTRIE2_GET32(trie, c);
     } else if((uint32_t)c>0x10ffff) {
         return trie->errorValue;
@@ -75,9 +75,9 @@ utrie2_get32FromLeadSurrogateCodeUnit(const UTrie2 *trie, UChar32 c) {
     if(!U_IS_LEAD(c)) {
         return trie->errorValue;
     }
-    if(trie->data16!=NULL) {
+    if(trie->data16!=nullptr) {
         return UTRIE2_GET16_FROM_U16_SINGLE_LEAD(trie, c);
-    } else if(trie->data32!=NULL) {
+    } else if(trie->data32!=nullptr) {
         return UTRIE2_GET32_FROM_U16_SINGLE_LEAD(trie, c);
     } else {
         return get32(trie->newTrie, c, false);
@@ -89,7 +89,7 @@ u8Index(const UTrie2 *trie, UChar32 c, int32_t i) {
     int32_t idx=
         _UTRIE2_INDEX_FROM_CP(
             trie,
-            trie->data32==NULL ? trie->indexLength : 0,
+            trie->data32==nullptr ? trie->indexLength : 0,
             c);
     return (idx<<3)|i;
 }
@@ -193,7 +193,7 @@ utrie2_openFromSerialized(UTrie2ValueBits valueBits,
 
     /* allocate the trie */
     trie=(UTrie2 *)uprv_malloc(sizeof(UTrie2));
-    if(trie==NULL) {
+    if(trie==nullptr) {
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
         return 0;
     }
@@ -214,12 +214,12 @@ utrie2_openFromSerialized(UTrie2ValueBits valueBits,
     switch(valueBits) {
     case UTRIE2_16_VALUE_BITS:
         trie->data16=p16;
-        trie->data32=NULL;
+        trie->data32=nullptr;
         trie->initialValue=trie->index[trie->dataNullOffset];
         trie->errorValue=trie->data16[UTRIE2_BAD_UTF8_DATA_OFFSET];
         break;
     case UTRIE2_32_VALUE_BITS:
-        trie->data16=NULL;
+        trie->data16=nullptr;
         trie->data32=(const uint32_t *)p16;
         trie->initialValue=trie->data32[trie->dataNullOffset];
         trie->errorValue=trie->data32[UTRIE2_BAD_UTF8_DATA_OFFSET];
@@ -229,7 +229,7 @@ utrie2_openFromSerialized(UTrie2ValueBits valueBits,
         return 0;
     }
 
-    if(pActualLength!=NULL) {
+    if(pActualLength!=nullptr) {
         *pActualLength=actualLength;
     }
     return trie;
@@ -267,13 +267,13 @@ utrie2_openDummy(UTrie2ValueBits valueBits,
 
     /* allocate the trie */
     trie=(UTrie2 *)uprv_malloc(sizeof(UTrie2));
-    if(trie==NULL) {
+    if(trie==nullptr) {
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
         return 0;
     }
     uprv_memset(trie, 0, sizeof(UTrie2));
     trie->memory=uprv_malloc(length);
-    if(trie->memory==NULL) {
+    if(trie->memory==nullptr) {
         uprv_free(trie);
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
         return 0;
@@ -334,7 +334,7 @@ utrie2_openDummy(UTrie2ValueBits valueBits,
     case UTRIE2_16_VALUE_BITS:
         /* write 16-bit data values */
         trie->data16=dest16;
-        trie->data32=NULL;
+        trie->data32=nullptr;
         for(i=0; i<0x80; ++i) {
             *dest16++=(uint16_t)initialValue;
         }
@@ -349,7 +349,7 @@ utrie2_openDummy(UTrie2ValueBits valueBits,
     case UTRIE2_32_VALUE_BITS:
         /* write 32-bit data values */
         p=(uint32_t *)dest16;
-        trie->data16=NULL;
+        trie->data16=nullptr;
         trie->data32=p;
         for(i=0; i<0x80; ++i) {
             *p++=initialValue;
@@ -372,11 +372,11 @@ utrie2_openDummy(UTrie2ValueBits valueBits,
 
 U_CAPI void U_EXPORT2
 utrie2_close(UTrie2 *trie) {
-    if(trie!=NULL) {
+    if(trie!=nullptr) {
         if(trie->isMemoryOwned) {
             uprv_free(trie->memory);
         }
-        if(trie->newTrie!=NULL) {
+        if(trie->newTrie!=nullptr) {
             uprv_free(trie->newTrie->data);
 #ifdef UCPTRIE_DEBUG
             umutablecptrie_close(trie->newTrie->t3);
@@ -389,7 +389,7 @@ utrie2_close(UTrie2 *trie) {
 
 U_CAPI UBool U_EXPORT2
 utrie2_isFrozen(const UTrie2 *trie) {
-    return (UBool)(trie->newTrie==NULL);
+    return (UBool)(trie->newTrie==nullptr);
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -401,8 +401,8 @@ utrie2_serialize(const UTrie2 *trie,
         return 0;
     }
 
-    if( trie==NULL || trie->memory==NULL || trie->newTrie!=NULL ||
-        capacity<0 || (capacity>0 && (data==NULL || (U_POINTER_MASK_LSB(data, 3)!=0)))
+    if( trie==nullptr || trie->memory==nullptr || trie->newTrie!=nullptr ||
+        capacity<0 || (capacity>0 && (data==nullptr || (U_POINTER_MASK_LSB(data, 3)!=0)))
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -450,26 +450,26 @@ enumEitherTrie(const UTrie2 *trie,
     UChar32 c, prev, highStart;
     int32_t j, i2Block, prevI2Block, index2NullOffset, block, prevBlock, nullBlock;
 
-    if(enumRange==NULL) {
+    if(enumRange==nullptr) {
         return;
     }
-    if(enumValue==NULL) {
+    if(enumValue==nullptr) {
         enumValue=enumSameValue;
     }
 
-    if(trie->newTrie==NULL) {
+    if(trie->newTrie==nullptr) {
         /* frozen trie */
         idx=trie->index;
-        U_ASSERT(idx!=NULL); /* the following code assumes trie->newTrie is not NULL when idx is NULL */
+        U_ASSERT(idx!=nullptr); /* the following code assumes trie->newTrie is not nullptr when idx is nullptr */
         data32=trie->data32;
 
         index2NullOffset=trie->index2NullOffset;
         nullBlock=trie->dataNullOffset;
     } else {
         /* unfrozen, mutable trie */
-        idx=NULL;
+        idx=nullptr;
         data32=trie->newTrie->data;
-        U_ASSERT(data32!=NULL); /* the following code assumes idx is not NULL when data32 is NULL */
+        U_ASSERT(data32!=nullptr); /* the following code assumes idx is not nullptr when data32 is nullptr */
 
         index2NullOffset=trie->newTrie->index2NullOffset;
         nullBlock=trie->newTrie->dataNullOffset;
@@ -513,7 +513,7 @@ enumEitherTrie(const UTrie2 *trie,
             }
         } else {
             /* supplementary code points */
-            if(idx!=NULL) {
+            if(idx!=nullptr) {
                 i2Block=idx[(UTRIE2_INDEX_1_OFFSET-UTRIE2_OMITTED_BMP_INDEX_1_LENGTH)+
                               (c>>UTRIE2_SHIFT_1)];
             } else {
@@ -551,7 +551,7 @@ enumEitherTrie(const UTrie2 *trie,
                 i2Limit=UTRIE2_INDEX_2_BLOCK_LENGTH;
             }
             for(; i2<i2Limit; ++i2) {
-                if(idx!=NULL) {
+                if(idx!=nullptr) {
                     block=(int32_t)idx[i2Block+i2]<<UTRIE2_INDEX_SHIFT;
                 } else {
                     block=trie->newTrie->index2[i2Block+i2];
@@ -574,7 +574,7 @@ enumEitherTrie(const UTrie2 *trie,
                     c+=UTRIE2_DATA_BLOCK_LENGTH;
                 } else {
                     for(j=0; j<UTRIE2_DATA_BLOCK_LENGTH; ++j) {
-                        value=enumValue(context, data32!=NULL ? data32[block+j] : idx[block+j]);
+                        value=enumValue(context, data32!=nullptr ? data32[block+j] : idx[block+j]);
                         if(value!=prevValue) {
                             if(prev<c && !enumRange(context, prev, c-1, prevValue)) {
                                 return;
@@ -594,9 +594,9 @@ enumEitherTrie(const UTrie2 *trie,
     } else if(c<limit) {
         /* c==highStart<limit */
         uint32_t highValue;
-        if(idx!=NULL) {
+        if(idx!=nullptr) {
             highValue=
-                data32!=NULL ?
+                data32!=nullptr ?
                     data32[trie->highValueIndex] :
                     idx[trie->highValueIndex];
         } else {

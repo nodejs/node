@@ -55,14 +55,14 @@ them available to applications via the API functions L<EVP_DigestInit_ex(3)>,
 L<EVP_DigestUpdate(3)> and L<EVP_DigestFinal(3)> (and other related functions).
 
 All "functions" mentioned here are passed as function pointers between
-F<libcrypto> and the provider in B<OSSL_DISPATCH> arrays via
-B<OSSL_ALGORITHM> arrays that are returned by the provider's
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays via
+L<OSSL_ALGORITHM(3)> arrays that are returned by the provider's
 provider_query_operation() function
 (see L<provider-base(7)/Provider Functions>).
 
 All these "functions" have a corresponding function type definition
 named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
-function pointer from an B<OSSL_DISPATCH> element named
+function pointer from an L<OSSL_DISPATCH(3)> element named
 B<OSSL_FUNC_{name}>.
 For example, the "function" OSSL_FUNC_digest_newctx() has these:
 
@@ -70,7 +70,7 @@ For example, the "function" OSSL_FUNC_digest_newctx() has these:
  static ossl_inline OSSL_FUNC_digest_newctx_fn
      OSSL_FUNC_digest_newctx(const OSSL_DISPATCH *opf);
 
-B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
 macros in L<openssl-core_dispatch.h(7)>, as follows:
 
  OSSL_FUNC_digest_newctx               OSSL_FUNC_DIGEST_NEWCTX
@@ -158,13 +158,13 @@ OSSL_FUNC_digest_get_ctx_params() gets digest operation details details from
 the given provider side digest context I<dctx> and stores them in I<params>.
 Passing NULL for I<params> should return true.
 
-OSSL_FUNC_digest_gettable_params() returns a constant B<OSSL_PARAM> array
+OSSL_FUNC_digest_gettable_params() returns a constant L<OSSL_PARAM(3)> array
 containing descriptors of the parameters that OSSL_FUNC_digest_get_params()
 can handle.
 
 OSSL_FUNC_digest_gettable_ctx_params() and
 OSSL_FUNC_digest_settable_ctx_params() both return constant
-B<OSSL_PARAM> arrays as descriptors of the parameters that
+L<OSSL_PARAM(3)> arrays as descriptors of the parameters that
 OSSL_FUNC_digest_get_ctx_params() and OSSL_FUNC_digest_set_ctx_params()
 can handle, respectively.  The array is based on the current state of
 the provider side context if I<dctx> is not NULL and on the provider
@@ -268,6 +268,7 @@ L<EVP_MD-MD4(7)>, L<EVP_MD-MD5(7)>, L<EVP_MD-MD5-SHA1(7)>,
 L<EVP_MD-MDC2(7)>, L<EVP_MD-RIPEMD160(7)>, L<EVP_MD-SHA1(7)>,
 L<EVP_MD-SHA2(7)>, L<EVP_MD-SHA3(7)>, L<EVP_MD-SHAKE(7)>,
 L<EVP_MD-SM3(7)>, L<EVP_MD-WHIRLPOOL(7)>,
+L<EVP_MD-NULL(7)>,
 L<life_cycle-digest(7)>, L<EVP_DigestInit(3)>
 
 =head1 HISTORY
@@ -276,7 +277,7 @@ The provider DIGEST interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

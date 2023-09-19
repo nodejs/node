@@ -68,7 +68,7 @@ TEST(AssemblerIa320) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   auto res = f.Call(3, 4);
   ::printf("f() = %d\n", res);
   CHECK_EQ(7, res);
@@ -106,7 +106,7 @@ TEST(AssemblerIa321) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int res = f.Call(100);
   ::printf("f() = %d\n", res);
   CHECK_EQ(5050, res);
@@ -147,7 +147,7 @@ TEST(AssemblerIa322) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int res = f.Call(10);
   ::printf("f() = %d\n", res);
   CHECK_EQ(3628800, res);
@@ -176,7 +176,7 @@ TEST(AssemblerIa323) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   int res = f.Call(-3.1415f);
   ::printf("f() = %d\n", res);
   CHECK_EQ(-3, res);
@@ -205,7 +205,7 @@ TEST(AssemblerIa324) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F4>::FromCode(*code);
+  auto f = GeneratedCode<F4>::FromCode(isolate, *code);
   int res = f.Call(2.718281828);
   ::printf("f() = %d\n", res);
   CHECK_EQ(2, res);
@@ -229,7 +229,7 @@ TEST(AssemblerIa325) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F0>::FromCode(*code);
+  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   int res = f.Call();
   CHECK_EQ(42, res);
 }
@@ -266,7 +266,7 @@ TEST(AssemblerIa326) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F5>::FromCode(*code);
+  auto f = GeneratedCode<F5>::FromCode(isolate, *code);
   double res = f.Call(2.2, 1.1);
   ::printf("f() = %f\n", res);
   CHECK(2.29 < res && res < 2.31);
@@ -298,7 +298,7 @@ TEST(AssemblerIa328) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F6>::FromCode(*code);
+  auto f = GeneratedCode<F6>::FromCode(isolate, *code);
   double res = f.Call(12);
 
   ::printf("f() = %f\n", res);
@@ -379,7 +379,7 @@ TEST(AssemblerMultiByteNop) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   CHECK(code->IsCode());
 
-  auto f = GeneratedCode<F0>::FromCode(*code);
+  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   int res = f.Call();
   CHECK_EQ(42, res);
 }
@@ -429,7 +429,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F0>::FromCode(*code);
+  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   int res = f.Call();
   args.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
 }
@@ -498,7 +498,7 @@ TEST(AssemblerIa32Extractps) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F4>::FromCode(*code);
+  auto f = GeneratedCode<F4>::FromCode(isolate, *code);
   uint64_t value1 = 0x1234'5678'8765'4321;
   CHECK_EQ(0x12345678, f.Call(base::uint64_to_double(value1)));
   uint64_t value2 = 0x8765'4321'1234'5678;
@@ -538,7 +538,7 @@ TEST(AssemblerIa32SSE) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F8>::FromCode(*code);
+  auto f = GeneratedCode<F8>::FromCode(isolate, *code);
   CHECK_EQ(2, f.Call(1.0, 2.0));
 }
 
@@ -571,7 +571,7 @@ TEST(AssemblerIa32SSE3) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F8>::FromCode(*code);
+  auto f = GeneratedCode<F8>::FromCode(isolate, *code);
   CHECK_EQ(4, f.Call(1.0, 2.0));
 }
 
@@ -799,7 +799,7 @@ TEST(AssemblerX64FMA_sd) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F9>::FromCode(*code);
+  auto f = GeneratedCode<F9>::FromCode(isolate, *code);
   CHECK_EQ(
       0, f.Call(0.000092662107262076, -2.460774966188315, -1.0958787393627414));
 }
@@ -1028,7 +1028,7 @@ TEST(AssemblerX64FMA_ss) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F10>::FromCode(*code);
+  auto f = GeneratedCode<F10>::FromCode(isolate, *code);
   CHECK_EQ(0, f.Call(9.26621069e-05f, -2.4607749f, -1.09587872f));
 }
 
@@ -1136,7 +1136,7 @@ TEST(AssemblerIa32BMI1) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F0>::FromCode(*code);
+  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   CHECK_EQ(0, f.Call());
 }
 
@@ -1184,7 +1184,7 @@ TEST(AssemblerIa32LZCNT) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F0>::FromCode(*code);
+  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   CHECK_EQ(0, f.Call());
 }
 
@@ -1232,7 +1232,7 @@ TEST(AssemblerIa32POPCNT) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F0>::FromCode(*code);
+  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   CHECK_EQ(0, f.Call());
 }
 
@@ -1378,7 +1378,7 @@ TEST(AssemblerIa32BMI2) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F0>::FromCode(*code);
+  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   CHECK_EQ(0, f.Call());
 }
 
@@ -1421,7 +1421,7 @@ TEST(AssemblerIa32JumpTables1) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
     int res = f.Call(i);
     ::printf("f(%d) = %d\n", i, res);
@@ -1469,7 +1469,7 @@ TEST(AssemblerIa32JumpTables2) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
     int res = f.Call(i);
     ::printf("f(%d) = %d\n", i, res);
@@ -1514,7 +1514,7 @@ TEST(Regress621926) {
   code->Print(os);
 #endif
 
-  auto f = GeneratedCode<F0>::FromCode(*code);
+  auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   CHECK_EQ(1, f.Call());
 }
 

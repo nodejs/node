@@ -210,7 +210,7 @@ TEST(TestOperator1double_Equals) {
   CHECK(!op2b.Equals(&op1a));
   CHECK(!op2b.Equals(&op1b));
 
-  Operator op3(25, NONE, "Weepy", 0, 0, 0, 0, 0, 0);
+  Operator1<double> op3(25, NONE, "Weepy", 0, 0, 0, 0, 0, 0, 1.1);
 
   CHECK(!op1a.Equals(&op3));
   CHECK(!op1b.Equals(&op3));

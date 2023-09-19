@@ -107,12 +107,36 @@ class JSSpeculativeBinopBuilder final {
       case CompareOperationHint::kString:
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kBigInt:
+      case CompareOperationHint::kBigInt64:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
       case CompareOperationHint::kInternalizedString:
         break;
     }
     return false;
+  }
+
+  bool GetCompareBigIntOperationHint(BigIntOperationHint* hint) {
+    switch (GetCompareOperationHint()) {
+      case CompareOperationHint::kSignedSmall:
+      case CompareOperationHint::kNumber:
+      case CompareOperationHint::kNumberOrBoolean:
+      case CompareOperationHint::kNumberOrOddball:
+      case CompareOperationHint::kAny:
+      case CompareOperationHint::kNone:
+      case CompareOperationHint::kString:
+      case CompareOperationHint::kSymbol:
+      case CompareOperationHint::kReceiver:
+      case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kInternalizedString:
+        return false;
+      case CompareOperationHint::kBigInt:
+        *hint = BigIntOperationHint::kBigInt;
+        return true;
+      case CompareOperationHint::kBigInt64:
+        *hint = BigIntOperationHint::kBigInt64;
+        return true;
+    }
   }
 
   const Operator* SpeculativeNumberOp(NumberOperationHint hint) {
@@ -169,13 +193,21 @@ class JSSpeculativeBinopBuilder final {
         return simplified()->SpeculativeBigIntModulus(hint);
       case IrOpcode::kJSBitwiseAnd:
         return simplified()->SpeculativeBigIntBitwiseAnd(hint);
+      case IrOpcode::kJSBitwiseOr:
+        return simplified()->SpeculativeBigIntBitwiseOr(hint);
+      case IrOpcode::kJSBitwiseXor:
+        return simplified()->SpeculativeBigIntBitwiseXor(hint);
+      case IrOpcode::kJSShiftLeft:
+        return simplified()->SpeculativeBigIntShiftLeft(hint);
+      case IrOpcode::kJSShiftRight:
+        return simplified()->SpeculativeBigIntShiftRight(hint);
       default:
         break;
     }
     UNREACHABLE();
   }
 
-  const Operator* SpeculativeCompareOp(NumberOperationHint hint) {
+  const Operator* SpeculativeNumberCompareOp(NumberOperationHint hint) {
     switch (op_->opcode()) {
       case IrOpcode::kJSEqual:
         return simplified()->SpeculativeNumberEqual(hint);
@@ -189,6 +221,26 @@ class JSSpeculativeBinopBuilder final {
       case IrOpcode::kJSGreaterThanOrEqual:
         std::swap(left_, right_);  // a >= b => b <= a
         return simplified()->SpeculativeNumberLessThanOrEqual(hint);
+      default:
+        break;
+    }
+    UNREACHABLE();
+  }
+
+  const Operator* SpeculativeBigIntCompareOp(BigIntOperationHint hint) {
+    switch (op_->opcode()) {
+      case IrOpcode::kJSEqual:
+        return simplified()->SpeculativeBigIntEqual(hint);
+      case IrOpcode::kJSLessThan:
+        return simplified()->SpeculativeBigIntLessThan(hint);
+      case IrOpcode::kJSGreaterThan:
+        std::swap(left_, right_);
+        return simplified()->SpeculativeBigIntLessThan(hint);
+      case IrOpcode::kJSLessThanOrEqual:
+        return simplified()->SpeculativeBigIntLessThanOrEqual(hint);
+      case IrOpcode::kJSGreaterThanOrEqual:
+        std::swap(left_, right_);
+        return simplified()->SpeculativeBigIntLessThanOrEqual(hint);
       default:
         break;
     }
@@ -229,7 +281,17 @@ class JSSpeculativeBinopBuilder final {
   Node* TryBuildNumberCompare() {
     NumberOperationHint hint;
     if (GetCompareNumberOperationHint(&hint)) {
-      const Operator* op = SpeculativeCompareOp(hint);
+      const Operator* op = SpeculativeNumberCompareOp(hint);
+      Node* node = BuildSpeculativeOperation(op);
+      return node;
+    }
+    return nullptr;
+  }
+
+  Node* TryBuildBigIntCompare() {
+    BigIntOperationHint hint;
+    if (GetCompareBigIntOperationHint(&hint)) {
+      const Operator* op = SpeculativeBigIntCompareOp(hint);
       Node* node = BuildSpeculativeOperation(op);
       return node;
     }
@@ -381,6 +443,9 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
       if (Node* node = b.TryBuildNumberCompare()) {
         return LoweringResult::SideEffectFree(node, node, control);
       }
+      if (Node* node = b.TryBuildBigIntCompare()) {
+        return LoweringResult::SideEffectFree(node, node, control);
+      }
       break;
     }
     case IrOpcode::kJSInstanceOf: {
@@ -414,12 +479,8 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
       if (Node* node = b.TryBuildNumberBinop()) {
         return LoweringResult::SideEffectFree(node, node, control);
       }
-      if (op->opcode() == IrOpcode::kJSAdd ||
-          op->opcode() == IrOpcode::kJSSubtract ||
-          op->opcode() == IrOpcode::kJSMultiply ||
-          op->opcode() == IrOpcode::kJSDivide ||
-          op->opcode() == IrOpcode::kJSModulus ||
-          op->opcode() == IrOpcode::kJSBitwiseAnd) {
+      if (op->opcode() != IrOpcode::kJSShiftRightLogical &&
+          op->opcode() != IrOpcode::kJSExponentiate) {
         if (Node* node = b.TryBuildBigIntBinop()) {
           return LoweringResult::SideEffectFree(node, node, control);
         }

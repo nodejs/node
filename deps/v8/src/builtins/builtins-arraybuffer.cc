@@ -471,8 +471,9 @@ BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
   // 3. If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
   CHECK_SHARED(true, array_buffer, kMethodName);
 
-  DCHECK_EQ(array_buffer->max_byte_length(),
-            array_buffer->GetBackingStore()->max_byte_length());
+  DCHECK_IMPLIES(!array_buffer->GetBackingStore()->is_wasm_memory(),
+                 array_buffer->max_byte_length() ==
+                     array_buffer->GetBackingStore()->max_byte_length());
 
   // 4. Let length be ArrayBufferByteLength(O, SeqCst).
   size_t byte_length = array_buffer->GetByteLength();
@@ -488,36 +489,25 @@ BUILTIN(ArrayBufferPrototypeResize) {
   return ResizeHelper(args, isolate, kMethodName, kIsShared);
 }
 
-// ES #sec-arraybuffer.prototype.transfer
-// ArrayBuffer.prototype.transfer([new_length])
-BUILTIN(ArrayBufferPrototypeTransfer) {
-  const char kMethodName[] = "ArrayBuffer.prototype.transfer";
-  HandleScope scope(isolate);
+namespace {
 
-  Handle<Object> new_length = args.atOrUndefined(isolate, 1);
+enum PreserveResizability { kToFixedLength, kPreserveResizability };
 
-  // 1. Let O be the this value.
-  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
-  CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);
-
-  // 3. If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
-  CHECK_SHARED(false, array_buffer, kMethodName);
+Object ArrayBufferTransfer(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
+                           Handle<Object> new_length,
+                           PreserveResizability preserve_resizability,
+                           const char* method_name) {
+  // 2. If IsSharedArrayBuffer(arrayBuffer) is true, throw a TypeError
+  // exception.
+  CHECK_SHARED(false, array_buffer, method_name);
 
   size_t new_byte_length;
   if (new_length->IsUndefined(isolate)) {
-    // 4. If newLength is undefined,
-    //   a. If IsDetachedBuffer(O) is *true*, throw a *TypeError* exception.
-    if (array_buffer->was_detached()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kDetachedOperation,
-                                isolate->factory()->NewStringFromAsciiChecked(
-                                    kMethodName)));
-    }
-
-    //   b. Let newByteLength be O.[[ArrayBufferByteLength]].
+    // 3. If newLength is undefined, then
+    //   a. Let newByteLength be arrayBuffer.[[ArrayBufferByteLength]].
     new_byte_length = array_buffer->GetByteLength();
   } else {
-    // 5. Else,
+    // 4. Else,
     //   a. Let newByteLength be ? ToIndex(newLength).
     Handle<Object> number_new_byte_length;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_new_byte_length,
@@ -532,20 +522,36 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
           isolate,
           NewRangeError(
               MessageTemplate::kInvalidArrayBufferResizeLength,
-              isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
-    }
-
-    //   b. If IsDetachedBuffer(O) is *true*, throw a *TypeError* exception.
-    if (array_buffer->was_detached()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kDetachedOperation,
-                                isolate->factory()->NewStringFromAsciiChecked(
-                                    kMethodName)));
+              isolate->factory()->NewStringFromAsciiChecked(method_name)));
     }
   }
 
-  // After this point the steps are not observable and are performed out of
-  // spec order.
+  // 5. If IsDetachedBuffer(arrayBuffer) is true, throw a TypeError exception.
+  if (array_buffer->was_detached()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  ResizableFlag resizable;
+  size_t new_max_byte_length;
+  if (preserve_resizability == kPreserveResizability &&
+      array_buffer->is_resizable_by_js()) {
+    // 6. If preserveResizability is preserve-resizability and
+    //    IsResizableArrayBuffer(arrayBuffer) is true, then
+    //   a. Let newMaxByteLength be arrayBuffer.[[ArrayBufferMaxByteLength]].
+    new_max_byte_length = array_buffer->max_byte_length();
+    resizable = ResizableFlag::kResizable;
+  } else {
+    // 7. Else,
+    //   a. Let newMaxByteLength be empty.
+    new_max_byte_length = new_byte_length;
+    resizable = ResizableFlag::kNotResizable;
+  }
+
+  // 8. If arrayBuffer.[[ArrayBufferDetachKey]] is not undefined, throw a
+  //     TypeError exception.
 
   if (!array_buffer->is_detachable()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -553,27 +559,34 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
         NewTypeError(MessageTemplate::kDataCloneErrorNonDetachableArrayBuffer));
   }
 
+  // After this point the steps are not observable and are performed out of
+  // spec order.
+
   // Case 1: We don't need a BackingStore.
   if (new_byte_length == 0) {
-    // Nothing to do for steps 6-12.
+    // 15. Perform ! DetachArrayBuffer(arrayBuffer).
+    JSArrayBuffer::Detach(array_buffer).Check();
 
-    // 13. Perform ? DetachArrayBuffer(O).
-    MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer),
-                 ReadOnlyRoots(isolate).exception());
-
-    // 14. Return new.
+    // 9. Let newBuffer be ? AllocateArrayBuffer(%ArrayBuffer%, newByteLength,
+    //    newMaxByteLength).
+    //
+    // Nothing to do for steps 10-14.
+    //
+    // 16. Return newBuffer.
     return *isolate->factory()
                 ->NewJSArrayBufferAndBackingStore(
-                    0, InitializedFlag::kUninitialized)
+                    0, new_max_byte_length, InitializedFlag::kUninitialized,
+                    resizable)
                 .ToHandleChecked();
   }
 
   // Case 2: We can reuse the same BackingStore.
   auto from_backing_store = array_buffer->GetBackingStore();
   if (from_backing_store && !from_backing_store->is_resizable_by_js() &&
+      resizable == ResizableFlag::kNotResizable &&
       (new_byte_length == array_buffer->GetByteLength() ||
        from_backing_store->CanReallocate())) {
-    // Reallocate covers steps 6-12.
+    // Reallocate covers steps 10-14.
     if (new_byte_length != array_buffer->GetByteLength() &&
         !from_backing_store->Reallocate(isolate, new_byte_length)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
@@ -581,41 +594,50 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
           NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
     }
 
-    // 13. Perform ? DetachArrayBuffer(O).
-    MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer),
-                 ReadOnlyRoots(isolate).exception());
+    // 15. Perform ! DetachArrayBuffer(arrayBuffer).
+    JSArrayBuffer::Detach(array_buffer).Check();
 
-    // 14. Return new.
+    // 9. Let newBuffer be ? AllocateArrayBuffer(%ArrayBuffer%, newByteLength,
+    //    newMaxByteLength).
+    // 16. Return newBuffer.
     return *isolate->factory()->NewJSArrayBuffer(std::move(from_backing_store));
   }
 
   // Case 3: We can't reuse the same BackingStore. Copy the buffer.
 
-  // 6. Let new be ? Construct(%ArrayBuffer%, « 𝔽(newByteLength) »).
-  // 7. NOTE: This method returns a fixed-length ArrayBuffer.
-  Handle<JSArrayBuffer> new_;
+  if (new_byte_length > new_max_byte_length) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
+  }
+
+  // 9. Let newBuffer be ? AllocateArrayBuffer(%ArrayBuffer%, newByteLength,
+  //    newMaxByteLength).
+  Handle<JSArrayBuffer> new_buffer;
   MaybeHandle<JSArrayBuffer> result =
       isolate->factory()->NewJSArrayBufferAndBackingStore(
-          new_byte_length, InitializedFlag::kUninitialized);
-  if (!result.ToHandle(&new_)) {
+          new_byte_length, new_max_byte_length, InitializedFlag::kUninitialized,
+          resizable);
+  if (!result.ToHandle(&new_buffer)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
   }
 
-  // 8. Let copyLength be min(newByteLength, O.[[ArrayBufferByteLength]]).
+  // 10. Let copyLength be min(newByteLength,
+  //    arrayBuffer.[[ArrayBufferByteLength]]).
+  //
   // (Size comparison is done manually below instead of using min.)
 
-  // 9. Let fromBlock be O.[[ArrayBufferData]].
+  // 11. Let fromBlock be arrayBuffer.[[ArrayBufferData]].
   uint8_t* from_data =
       reinterpret_cast<uint8_t*>(array_buffer->backing_store());
 
-  // 10. Let toBlock be new.[[ArrayBufferData]].
-  uint8_t* to_data = reinterpret_cast<uint8_t*>(new_->backing_store());
+  // 12. Let toBlock be newBuffer.[[ArrayBufferData]].
+  uint8_t* to_data = reinterpret_cast<uint8_t*>(new_buffer->backing_store());
 
-  // 11. Perform CopyDataBlockBytes(toBlock, 0, fromBlock, 0, copyLength).
-  // 12. NOTE: Neither creation of the new Data Block nor copying from the old
-  // Data Block are observable. Implementations reserve the right to implement
-  // this method as a zero-copy move or a realloc.
+  // 13. Perform CopyDataBlockBytes(toBlock, 0, fromBlock, 0, copyLength).
+  // 14. NOTE: Neither creation of the new Data Block nor copying from the old
+  //     Data Block are observable. Implementations reserve the right to
+  //     implement this method as a zero-copy move or a realloc.
   size_t from_byte_length = array_buffer->GetByteLength();
   if (new_byte_length <= from_byte_length) {
     CopyBytes(to_data, from_data, new_byte_length);
@@ -624,12 +646,39 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
     memset(to_data + from_byte_length, 0, new_byte_length - from_byte_length);
   }
 
-  // 13. Perform ? DetachArrayBuffer(O).
-  MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer),
-               ReadOnlyRoots(isolate).exception());
+  // 15. Perform ! DetachArrayBuffer(arrayBuffer).
+  JSArrayBuffer::Detach(array_buffer).Check();
 
-  // 14. Return new.
-  return *new_;
+  // 16. Return newBuffer.
+  return *new_buffer;
+}
+
+}  // namespace
+
+// ES #sec-arraybuffer.prototype.transfer
+// ArrayBuffer.prototype.transfer([new_length])
+BUILTIN(ArrayBufferPrototypeTransfer) {
+  const char kMethodName[] = "ArrayBuffer.prototype.transfer";
+  HandleScope scope(isolate);
+
+  // 1. Perform ? RequireInternalSlot(arrayBuffer, [[ArrayBufferData]]).
+  CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);
+  Handle<Object> new_length = args.atOrUndefined(isolate, 1);
+  return ArrayBufferTransfer(isolate, array_buffer, new_length,
+                             kPreserveResizability, kMethodName);
+}
+
+// ES #sec-arraybuffer.prototype.transferToFixedLength
+// ArrayBuffer.prototype.transferToFixedLength([new_length])
+BUILTIN(ArrayBufferPrototypeTransferToFixedLength) {
+  const char kMethodName[] = "ArrayBuffer.prototype.transferToFixedLength";
+  HandleScope scope(isolate);
+
+  // 1. Perform ? RequireInternalSlot(arrayBuffer, [[ArrayBufferData]]).
+  CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);
+  Handle<Object> new_length = args.atOrUndefined(isolate, 1);
+  return ArrayBufferTransfer(isolate, array_buffer, new_length, kToFixedLength,
+                             kMethodName);
 }
 
 // ES #sec-sharedarraybuffer.prototype.grow

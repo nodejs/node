@@ -7,6 +7,7 @@
 
 #include "src/objects/fixed-array.h"
 #include "src/objects/map.h"
+#include "src/objects/object-list-macros.h"
 #include "src/objects/objects.h"
 #include "src/objects/visitors.h"
 
@@ -21,17 +22,18 @@ namespace internal {
   V(BytecodeArray)                      \
   V(CallHandlerInfo)                    \
   V(Cell)                               \
+  V(InstructionStream)                  \
   V(Code)                               \
-  V(CodeDataContainer)                  \
   V(CoverageInfo)                       \
   V(DataHandler)                        \
   V(EmbedderDataArray)                  \
   V(EphemeronHashTable)                 \
+  V(ExternalString)                     \
   V(FeedbackCell)                       \
   V(FeedbackMetadata)                   \
   V(FixedDoubleArray)                   \
   V(JSArrayBuffer)                      \
-  V(JSDataView)                         \
+  V(JSDataViewOrRabGsabDataView)        \
   V(JSExternalObject)                   \
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
@@ -49,6 +51,7 @@ namespace internal {
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
+  V(SharedFunctionInfo)                 \
   V(SmallOrderedHashMap)                \
   V(SmallOrderedHashSet)                \
   V(SmallOrderedNameDictionary)         \
@@ -70,7 +73,8 @@ namespace internal {
   IF_WASM(V, WasmSuspenderObject)       \
   IF_WASM(V, WasmResumeData)            \
   IF_WASM(V, WasmTypeInfo)              \
-  IF_WASM(V, WasmContinuationObject)
+  IF_WASM(V, WasmContinuationObject)    \
+  IF_WASM(V, WasmNull)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)
@@ -99,19 +103,18 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   V8_INLINE ResultType Visit(HeapObject object);
   V8_INLINE ResultType Visit(Map map, HeapObject object);
 
-  // A callback for visiting the map pointer in the object header.
-  void VisitMapPointer(HeapObject host);
-  // Guard predicate for visiting the objects map pointer separately.
-  V8_INLINE bool ShouldVisitMapPointer() { return true; }
-
  protected:
   // A guard predicate for visiting the object.
   // If it returns false then the default implementations of the Visit*
-  // functions bailout from iterating the object pointers.
+  // functions bail out from iterating the object pointers.
   V8_INLINE bool ShouldVisit(HeapObject object) { return true; }
-  // If this predicate returns false, then the heap visitor will fail
-  // in default Visit implementation for subclasses of JSObject.
-  V8_INLINE bool AllowDefaultJSObjectVisit() { return true; }
+
+  // If this predicate return false the default implementations of Visit*
+  // functions bail out from visiting the map pointer.
+  V8_INLINE static constexpr bool ShouldVisitMapPointer() { return true; }
+
+  // Only visits the Map pointer if `ShouldVisitMapPointer()` returns true.
+  V8_INLINE void VisitMapPointerIfNeeded(HeapObject host);
 
 #define VISIT(TypeName) \
   V8_INLINE ResultType Visit##TypeName(Map map, TypeName object);
@@ -125,6 +128,9 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   V8_INLINE ResultType VisitStruct(Map map, HeapObject object);
   V8_INLINE ResultType VisitFreeSpace(Map map, FreeSpace object);
 
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
+  V8_INLINE ResultType VisitJSObjectSubclass(Map map, T object);
+
   template <typename T>
   static V8_INLINE T Cast(HeapObject object);
 };
@@ -132,22 +138,18 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
 template <typename ConcreteVisitor>
 class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
  public:
-  V8_INLINE NewSpaceVisitor(Isolate* isolate);
+  V8_INLINE explicit NewSpaceVisitor(Isolate* isolate);
 
-  V8_INLINE bool ShouldVisitMapPointer() { return false; }
+ protected:
+  V8_INLINE static constexpr bool ShouldVisitMapPointer() { return false; }
 
   // Special cases for young generation.
-
   V8_INLINE int VisitNativeContext(Map map, NativeContext object);
-  V8_INLINE int VisitJSApiObject(Map map, JSObject object);
+  V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
+  V8_INLINE int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
+  V8_INLINE int VisitWeakCell(Map map, WeakCell weak_cell);
 
-  int VisitBytecodeArray(Map map, BytecodeArray object) {
-    UNREACHABLE();
-    return 0;
-  }
-
-  int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
-  int VisitWeakCell(Map map, WeakCell weak_cell);
+  friend class HeapVisitor<int, ConcreteVisitor>;
 };
 
 class WeakObjectRetainer;

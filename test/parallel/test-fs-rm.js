@@ -14,7 +14,7 @@ tmpdir.refresh();
 
 let count = 0;
 const nextDirPath = (name = 'rm') =>
-  path.join(tmpdir.path, `${name}-${count++}`);
+  tmpdir.resolve(`${name}-${count++}`);
 
 const isGitPresent = (() => {
   try { execSync('git --version'); return true; } catch { return false; }
@@ -128,7 +128,7 @@ function removeAsync(dir) {
 
   // Should fail if target does not exist
   fs.rm(
-    path.join(tmpdir.path, 'noexist.txt'),
+    tmpdir.resolve('noexist.txt'),
     common.mustNotMutateObjectDeep({ recursive: true }),
     common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOENT');
@@ -136,7 +136,7 @@ function removeAsync(dir) {
   );
 
   // Should delete a file
-  const filePath = path.join(tmpdir.path, 'rm-async-file.txt');
+  const filePath = tmpdir.resolve('rm-async-file.txt');
   fs.writeFileSync(filePath, '');
   fs.rm(filePath, common.mustNotMutateObjectDeep({ recursive: true }), common.mustCall((err) => {
     try {
@@ -148,9 +148,9 @@ function removeAsync(dir) {
   }));
 
   // Should delete a valid symlink
-  const linkTarget = path.join(tmpdir.path, 'link-target-async.txt');
+  const linkTarget = tmpdir.resolve('link-target-async.txt');
   fs.writeFileSync(linkTarget, '');
-  const validLink = path.join(tmpdir.path, 'valid-link-async');
+  const validLink = tmpdir.resolve('valid-link-async');
   fs.symlinkSync(linkTarget, validLink);
   fs.rm(validLink, common.mustNotMutateObjectDeep({ recursive: true }), common.mustCall((err) => {
     try {
@@ -163,7 +163,7 @@ function removeAsync(dir) {
   }));
 
   // Should delete an invalid symlink
-  const invalidLink = path.join(tmpdir.path, 'invalid-link-async');
+  const invalidLink = tmpdir.resolve('invalid-link-async');
   fs.symlinkSync('definitely-does-not-exist-async', invalidLink);
   fs.rm(invalidLink, common.mustNotMutateObjectDeep({ recursive: true }), common.mustCall((err) => {
     try {
@@ -175,8 +175,8 @@ function removeAsync(dir) {
   }));
 
   // Should delete a symlink that is part of a loop
-  const loopLinkA = path.join(tmpdir.path, 'loop-link-async-a');
-  const loopLinkB = path.join(tmpdir.path, 'loop-link-async-b');
+  const loopLinkA = tmpdir.resolve('loop-link-async-a');
+  const loopLinkB = tmpdir.resolve('loop-link-async-b');
   fs.symlinkSync(loopLinkA, loopLinkB);
   fs.symlinkSync(loopLinkB, loopLinkA);
   fs.rm(loopLinkA, common.mustNotMutateObjectDeep({ recursive: true }), common.mustCall((err) => {
@@ -215,7 +215,7 @@ if (isGitPresent) {
 
   // Should fail if target does not exist
   assert.throws(() => {
-    fs.rmSync(path.join(tmpdir.path, 'noexist.txt'), common.mustNotMutateObjectDeep({ recursive: true }));
+    fs.rmSync(tmpdir.resolve('noexist.txt'), common.mustNotMutateObjectDeep({ recursive: true }));
   }, {
     code: 'ENOENT',
     name: 'Error',
@@ -223,7 +223,7 @@ if (isGitPresent) {
   });
 
   // Should delete a file
-  const filePath = path.join(tmpdir.path, 'rm-file.txt');
+  const filePath = tmpdir.resolve('rm-file.txt');
   fs.writeFileSync(filePath, '');
 
   try {
@@ -234,9 +234,9 @@ if (isGitPresent) {
   }
 
   // Should delete a valid symlink
-  const linkTarget = path.join(tmpdir.path, 'link-target.txt');
+  const linkTarget = tmpdir.resolve('link-target.txt');
   fs.writeFileSync(linkTarget, '');
-  const validLink = path.join(tmpdir.path, 'valid-link');
+  const validLink = tmpdir.resolve('valid-link');
   fs.symlinkSync(linkTarget, validLink);
   try {
     fs.rmSync(validLink);
@@ -247,7 +247,7 @@ if (isGitPresent) {
   }
 
   // Should delete an invalid symlink
-  const invalidLink = path.join(tmpdir.path, 'invalid-link');
+  const invalidLink = tmpdir.resolve('invalid-link');
   fs.symlinkSync('definitely-does-not-exist', invalidLink);
   try {
     fs.rmSync(invalidLink);
@@ -257,8 +257,8 @@ if (isGitPresent) {
   }
 
   // Should delete a symlink that is part of a loop
-  const loopLinkA = path.join(tmpdir.path, 'loop-link-a');
-  const loopLinkB = path.join(tmpdir.path, 'loop-link-b');
+  const loopLinkA = tmpdir.resolve('loop-link-a');
+  const loopLinkB = tmpdir.resolve('loop-link-b');
   fs.symlinkSync(loopLinkA, loopLinkB);
   fs.symlinkSync(loopLinkB, loopLinkA);
   try {
@@ -270,7 +270,7 @@ if (isGitPresent) {
   }
 
   // Should accept URL
-  const fileURL = pathToFileURL(path.join(tmpdir.path, 'rm-file.txt'));
+  const fileURL = tmpdir.fileURL('rm-file.txt');
   fs.writeFileSync(fileURL, '');
 
   try {
@@ -317,7 +317,7 @@ if (isGitPresent) {
 
   // Should fail if target does not exist
   await assert.rejects(fs.promises.rm(
-    path.join(tmpdir.path, 'noexist.txt'),
+    tmpdir.resolve('noexist.txt'),
     { recursive: true }
   ), {
     code: 'ENOENT',
@@ -326,10 +326,10 @@ if (isGitPresent) {
   });
 
   // Should not fail if target does not exist and force option is true
-  await fs.promises.rm(path.join(tmpdir.path, 'noexist.txt'), common.mustNotMutateObjectDeep({ force: true }));
+  await fs.promises.rm(tmpdir.resolve('noexist.txt'), common.mustNotMutateObjectDeep({ force: true }));
 
   // Should delete file
-  const filePath = path.join(tmpdir.path, 'rm-promises-file.txt');
+  const filePath = tmpdir.resolve('rm-promises-file.txt');
   fs.writeFileSync(filePath, '');
 
   try {
@@ -340,9 +340,9 @@ if (isGitPresent) {
   }
 
   // Should delete a valid symlink
-  const linkTarget = path.join(tmpdir.path, 'link-target-prom.txt');
+  const linkTarget = tmpdir.resolve('link-target-prom.txt');
   fs.writeFileSync(linkTarget, '');
-  const validLink = path.join(tmpdir.path, 'valid-link-prom');
+  const validLink = tmpdir.resolve('valid-link-prom');
   fs.symlinkSync(linkTarget, validLink);
   try {
     await fs.promises.rm(validLink);
@@ -353,7 +353,7 @@ if (isGitPresent) {
   }
 
   // Should delete an invalid symlink
-  const invalidLink = path.join(tmpdir.path, 'invalid-link-prom');
+  const invalidLink = tmpdir.resolve('invalid-link-prom');
   fs.symlinkSync('definitely-does-not-exist-prom', invalidLink);
   try {
     await fs.promises.rm(invalidLink);
@@ -363,8 +363,8 @@ if (isGitPresent) {
   }
 
   // Should delete a symlink that is part of a loop
-  const loopLinkA = path.join(tmpdir.path, 'loop-link-prom-a');
-  const loopLinkB = path.join(tmpdir.path, 'loop-link-prom-b');
+  const loopLinkA = tmpdir.resolve('loop-link-prom-a');
+  const loopLinkB = tmpdir.resolve('loop-link-prom-b');
   fs.symlinkSync(loopLinkA, loopLinkB);
   fs.symlinkSync(loopLinkB, loopLinkA);
   try {
@@ -376,7 +376,7 @@ if (isGitPresent) {
   }
 
   // Should accept URL
-  const fileURL = pathToFileURL(path.join(tmpdir.path, 'rm-promises-file.txt'));
+  const fileURL = tmpdir.fileURL('rm-promises-file.txt');
   fs.writeFileSync(fileURL, '');
 
   try {
@@ -402,7 +402,7 @@ if (isGitPresent) {
 {
   const dir = nextDirPath();
   makeNonEmptyDirectory(4, 10, 2, dir, true);
-  const filePath = (path.join(tmpdir.path, 'rm-args-file.txt'));
+  const filePath = (tmpdir.resolve('rm-args-file.txt'));
   fs.writeFileSync(filePath, '');
 
   const defaults = {

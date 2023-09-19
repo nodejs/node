@@ -42,37 +42,37 @@ Object.defineProperty(exports, "loadConfig", {
 Object.defineProperty(exports, "loadPlugin", {
   enumerable: true,
   get: function () {
-    return plugins.loadPlugin;
+    return _plugins.loadPlugin;
   }
 });
 Object.defineProperty(exports, "loadPreset", {
   enumerable: true,
   get: function () {
-    return plugins.loadPreset;
+    return _plugins.loadPreset;
   }
 });
-exports.resolvePreset = exports.resolvePlugin = void 0;
+Object.defineProperty(exports, "resolvePlugin", {
+  enumerable: true,
+  get: function () {
+    return _plugins.resolvePlugin;
+  }
+});
+Object.defineProperty(exports, "resolvePreset", {
+  enumerable: true,
+  get: function () {
+    return _plugins.resolvePreset;
+  }
+});
 Object.defineProperty(exports, "resolveShowConfigPath", {
   enumerable: true,
   get: function () {
     return _configuration.resolveShowConfigPath;
   }
 });
-var _package = require("./package");
-var _configuration = require("./configuration");
-var plugins = require("./plugins");
-function _gensync() {
-  const data = require("gensync");
-  _gensync = function () {
-    return data;
-  };
-  return data;
-}
+var _package = require("./package.js");
+var _configuration = require("./configuration.js");
+var _plugins = require("./plugins.js");
 ({});
-const resolvePlugin = _gensync()(plugins.resolvePlugin).sync;
-exports.resolvePlugin = resolvePlugin;
-const resolvePreset = _gensync()(plugins.resolvePreset).sync;
-exports.resolvePreset = resolvePreset;
 0 && 0;
 
 //# sourceMappingURL=index.js.map

@@ -8,13 +8,13 @@ const cp = require('child_process');
 
 const {
   cleanupStaleProcess,
-  logInTimeout,
+  logAfterTime,
   kExpiringChildRunTime,
   kExpiringParentTimer,
 } = require('../common/child_process');
 
 if (process.argv[2] === 'child') {
-  logInTimeout(kExpiringChildRunTime);
+  logAfterTime(kExpiringChildRunTime);
   return;
 }
 

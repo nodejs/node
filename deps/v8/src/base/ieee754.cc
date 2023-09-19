@@ -105,9 +105,9 @@ namespace {
   } while (false)
 
 int32_t __ieee754_rem_pio2(double x, double* y) V8_WARN_UNUSED_RESULT;
-double __kernel_cos(double x, double y) V8_WARN_UNUSED_RESULT;
 int __kernel_rem_pio2(double* x, double* y, int e0, int nx, int prec,
                       const int32_t* ipio2) V8_WARN_UNUSED_RESULT;
+double __kernel_cos(double x, double y) V8_WARN_UNUSED_RESULT;
 double __kernel_sin(double x, double y, int iy) V8_WARN_UNUSED_RESULT;
 
 /* __ieee754_rem_pio2(x,y)
@@ -1348,7 +1348,11 @@ double atan2(double y, double x) {
  * Accuracy:
  *      TRIG(x) returns trig(x) nearly rounded
  */
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+double fdlibm_cos(double x) {
+#else
 double cos(double x) {
+#endif
   double y[2], z = 0.0;
   int32_t n, ix;
 
@@ -2440,7 +2444,11 @@ double cbrt(double x) {
  * Accuracy:
  *      TRIG(x) returns trig(x) nearly rounded
  */
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+double fdlibm_sin(double x) {
+#else
 double sin(double x) {
+#endif
   double y[2], z = 0.0;
   int32_t n, ix;
 
@@ -3014,6 +3022,11 @@ double tanh(double x) {
 #undef INSERT_WORDS
 #undef SET_HIGH_WORD
 #undef SET_LOW_WORD
+
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS) && defined(BUILDING_V8_BASE_SHARED)
+double libm_sin(double x) { return glibc_sin(x); }
+double libm_cos(double x) { return glibc_cos(x); }
+#endif
 
 }  // namespace ieee754
 }  // namespace base

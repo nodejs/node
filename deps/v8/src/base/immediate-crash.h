@@ -140,9 +140,9 @@
     [] { TRAP_SEQUENCE_(); }();  \
   } while (false)
 
-#endif  // !V8_CC_GCC
+#endif  // !V8_CC_GNU
 
-#if defined(__clang__) || V8_CC_GCC
+#if defined(__clang__) || V8_CC_GNU
 
 // __builtin_unreachable() hints to the compiler that this is noreturn and can
 // be packed in the function epilogue.

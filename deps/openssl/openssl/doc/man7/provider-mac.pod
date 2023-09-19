@@ -48,14 +48,14 @@ them available to applications via the API functions L<EVP_MAC_init(3)>,
 L<EVP_MAC_update(3)> and L<EVP_MAC_final(3)>.
 
 All "functions" mentioned here are passed as function pointers between
-F<libcrypto> and the provider in B<OSSL_DISPATCH> arrays via
-B<OSSL_ALGORITHM> arrays that are returned by the provider's
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays via
+L<OSSL_ALGORITHM(3)> arrays that are returned by the provider's
 provider_query_operation() function
 (see L<provider-base(7)/Provider Functions>).
 
 All these "functions" have a corresponding function type definition
 named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
-function pointer from an B<OSSL_DISPATCH> element named
+function pointer from an L<OSSL_DISPATCH(3)> element named
 B<OSSL_FUNC_{name}>.
 For example, the "function" OSSL_FUNC_mac_newctx() has these:
 
@@ -63,7 +63,7 @@ For example, the "function" OSSL_FUNC_mac_newctx() has these:
  static ossl_inline OSSL_FUNC_mac_newctx_fn
      OSSL_FUNC_mac_newctx(const OSSL_DISPATCH *opf);
 
-B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
 macros in L<openssl-core_dispatch.h(7)>, as follows:
 
  OSSL_FUNC_mac_newctx               OSSL_FUNC_MAC_NEWCTX
@@ -145,7 +145,7 @@ in I<params>.
 Passing NULL for I<params> should return true.
 
 OSSL_FUNC_mac_gettable_params(), OSSL_FUNC_mac_gettable_ctx_params(),
-and OSSL_FUNC_mac_settable_ctx_params() all return constant B<OSSL_PARAM>
+and OSSL_FUNC_mac_settable_ctx_params() all return constant L<OSSL_PARAM(3)>
 arrays as descriptors of the parameters that OSSL_FUNC_mac_get_params(),
 OSSL_FUNC_mac_get_ctx_params(), and OSSL_FUNC_mac_set_ctx_params()
 can handle, respectively.  OSSL_FUNC_mac_gettable_ctx_params() and
@@ -209,7 +209,7 @@ OSSL_FUNC_mac_get_ctx_params() and OSSL_FUNC_mac_set_ctx_params() should return 
 success or 0 on error.
 
 OSSL_FUNC_mac_gettable_params(), OSSL_FUNC_mac_gettable_ctx_params() and
-OSSL_FUNC_mac_settable_ctx_params() should return a constant B<OSSL_PARAM>
+OSSL_FUNC_mac_settable_ctx_params() should return a constant L<OSSL_PARAM(3)>
 array, or NULL if none is offered.
 
 =head1 SEE ALSO

@@ -333,10 +333,10 @@ public:
     int32_t requestedCapacity = ULOC_FULLNAME_CAPACITY;
 
     // No heap allocation. Use only on the stack.
-    static void* U_EXPORT2 operator new(size_t) U_NOEXCEPT = delete;
-    static void* U_EXPORT2 operator new[](size_t) U_NOEXCEPT = delete;
+    static void* U_EXPORT2 operator new(size_t) noexcept = delete;
+    static void* U_EXPORT2 operator new[](size_t) noexcept = delete;
 #if U_HAVE_PLACEMENT_NEW
-    static void* U_EXPORT2 operator new(size_t, void*) U_NOEXCEPT = delete;
+    static void* U_EXPORT2 operator new(size_t, void*) noexcept = delete;
 #endif
 
     PreflightingLocaleIDBuffer() {}

@@ -1,4 +1,7 @@
+import { writeSync } from 'node:fs';
+
+
 export async function load(url, context, next) {
-  console.log(context.foo); // This log is deliberate
+  writeSync(1, context.foo + '\n'); // Expose actual value the hook was called with
   return next(url, context);
 }

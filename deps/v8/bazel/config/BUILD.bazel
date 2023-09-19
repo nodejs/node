@@ -23,10 +23,25 @@ config_setting(
 )
 
 config_setting(
+    name = "is_opt",
+    values = {
+        "compilation_mode": "opt",
+    },
+)
+
+config_setting(
     name = "is_debug",
     values = {
         "compilation_mode": "dbg",
     },
+)
+
+selects.config_setting_group(
+    name = "is_opt_android",
+    match_all = [
+        ":is_opt",
+        ":is_android",
+    ],
 )
 
 config_setting(

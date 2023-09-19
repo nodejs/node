@@ -34,6 +34,16 @@ class V8_EXPORT_PRIVATE SegmentBase {
 };
 }  // namespace internal
 
+class V8_EXPORT_PRIVATE WorklistBase final {
+ public:
+  // Enforces predictable order of push/pop sequences in single-threaded mode.
+  static void EnforcePredictableOrder();
+  static bool PredictableOrder() { return predictable_order_; }
+
+ private:
+  static bool predictable_order_;
+};
+
 // A global worklist based on segments which allows for a thread-local
 // producer/consumer pattern with global work stealing.
 //
@@ -206,13 +216,19 @@ class Worklist<EntryType, MinSegmentSize>::Segment final
     : public internal::SegmentBase {
  public:
   static Segment* Create(uint16_t min_segment_size) {
-    auto result = v8::base::AllocateAtLeast<char>(
-        MallocSizeForCapacity(min_segment_size));
+    const auto wanted_bytes = MallocSizeForCapacity(min_segment_size);
+    v8::base::AllocationResult<char*> result;
+    if (WorklistBase::PredictableOrder()) {
+      result.ptr = static_cast<char*>(v8::base::Malloc(wanted_bytes));
+      result.count = wanted_bytes;
+    } else {
+      result = v8::base::AllocateAtLeast<char>(wanted_bytes);
+    }
     return new (result.ptr)
         Segment(CapacityForMallocSize(result.count * sizeof(char)));
   }
 
-  static void Delete(Segment* segment) { free(segment); }
+  static void Delete(Segment* segment) { v8::base::Free(segment); }
 
   V8_INLINE void Push(EntryType entry);
   V8_INLINE void Pop(EntryType* entry);

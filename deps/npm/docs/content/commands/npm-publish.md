@@ -52,7 +52,7 @@ to the registry.
 
 ### Files included in package
 
-To see what will be included in your package, run `npx npm-packlist`.  All
+To see what will be included in your package, run `npm pack --dry-run`.  All
 files are included by default, with the following exceptions:
 
 - Certain files that are relevant to package installation and distribution
@@ -101,21 +101,25 @@ command, if no explicit tag is given.
 When used by the `npm diff` command, this is the tag used to fetch the
 tarball that will be compared with the local files by default.
 
+
+
 #### `access`
 
-* Default: 'restricted' for scoped packages, 'public' for unscoped packages
+* Default: 'public' for new packages, existing packages it will not change the
+  current level
 * Type: null, "restricted", or "public"
 
-When publishing scoped packages, the access level defaults to `restricted`.
-If you want your scoped package to be publicly viewable (and installable)
-set `--access=public`. The only valid values for `access` are `public` and
-`restricted`. Unscoped packages _always_ have an access level of `public`.
+If you do not want your scoped package to be publicly viewable (and
+installable) set `--access=restricted`.
 
-Note: Using the `--access` flag on the `npm publish` command will only set
-the package access level on the initial publish of the package. Any
-subsequent `npm publish` commands using the `--access` flag will not have an
-effect to the access level. To make changes to the access level after the
-initial publish use `npm access`.
+Unscoped packages can not be set to `restricted`.
+
+Note: This defaults to not changing the current access level for existing
+packages. Specifying a value of `restricted` or `public` during publish will
+change the access for an existing package the same way that `npm access set
+status` would.
+
+
 
 #### `dry-run`
 
@@ -130,6 +134,8 @@ commands that modify your local installation, eg, `install`, `update`,
 Note: This is NOT honored by other network related commands, eg `dist-tags`,
 `owner`, etc.
 
+
+
 #### `otp`
 
 * Default: null
@@ -140,6 +146,8 @@ when publishing or changing package permissions with `npm access`.
 
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
+
+
 
 #### `workspace`
 
@@ -193,6 +201,25 @@ all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
+
+#### `provenance`
+
+* Default: false
+* Type: Boolean
+
+When publishing from a supported cloud CI/CD system, the package will be
+publicly linked to where it was built and published from.
+
+This config can not be used with: `provenance-file`
+
+#### `provenance-file`
+
+* Default: null
+* Type: Path
+
+When publishing, the provenance bundle at the given path will be used.
+
+This config can not be used with: `provenance`
 
 ### See Also
 

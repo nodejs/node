@@ -86,8 +86,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
-  void NotifyLeftTrimming(HeapObject from, HeapObject to);
-
   bool IsStopped() const { return !IsMarking(); }
   bool IsMarking() const { return is_marking_; }
   bool IsMajorMarkingComplete() const {
@@ -122,16 +120,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // marking completes.
   void AdvanceOnAllocation();
 
-  // This function is used to color the object black before it undergoes an
-  // unsafe layout change. This is a part of synchronization protocol with
-  // the concurrent marker.
-  void MarkBlackAndVisitObjectDueToLayoutChange(HeapObject obj);
-
   void MarkBlackBackground(HeapObject obj, int object_size);
 
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
   Heap* heap() const { return heap_; }
+  Isolate* isolate() const;
 
   IncrementalMarkingJob* incremental_marking_job() {
     return &incremental_marking_job_;

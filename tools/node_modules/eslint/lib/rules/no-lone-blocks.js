@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow unnecessary nested blocks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-lone-blocks"
+            url: "https://eslint.org/docs/latest/rules/no-lone-blocks"
         },
 
         schema: [],
@@ -33,6 +33,7 @@ module.exports = {
         // A stack of lone blocks to be checked for block-level bindings
         const loneBlocks = [];
         let ruleDef;
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports a node as invalid.
@@ -67,14 +68,15 @@ module.exports = {
         /**
          * Checks the enclosing block of the current node for block-level bindings,
          * and "marks it" as valid if any.
+         * @param {ASTNode} node The current node to check.
          * @returns {void}
          */
-        function markLoneBlock() {
+        function markLoneBlock(node) {
             if (loneBlocks.length === 0) {
                 return;
             }
 
-            const block = context.getAncestors().pop();
+            const block = node.parent;
 
             if (loneBlocks[loneBlocks.length - 1] === block) {
                 loneBlocks.pop();
@@ -116,13 +118,13 @@ module.exports = {
 
             ruleDef.VariableDeclaration = function(node) {
                 if (node.kind === "let" || node.kind === "const") {
-                    markLoneBlock();
+                    markLoneBlock(node);
                 }
             };
 
-            ruleDef.FunctionDeclaration = function() {
-                if (context.getScope().isStrict) {
-                    markLoneBlock();
+            ruleDef.FunctionDeclaration = function(node) {
+                if (sourceCode.getScope(node).isStrict) {
+                    markLoneBlock(node);
                 }
             };
 

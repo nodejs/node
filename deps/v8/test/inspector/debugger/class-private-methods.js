@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+utils.load('test/inspector/private-class-member-inspector-test.js');
+
 let { session, contextGroup, Protocol } = InspectorTest.start(
   "Test private class methods"
 );
@@ -52,25 +54,18 @@ InspectorTest.runAsyncTestSuite([
       params: { callFrames }
     } = await Protocol.Debugger.oncePaused(); // inside a.fn()
     let frame = callFrames[0];
-    let { result } = await Protocol.Runtime.getProperties({
-      objectId: frame.this.objectId
-    });
-
-    InspectorTest.log('private properties on the base class instance');
-    InspectorTest.logMessage(result.privateProperties);
-
-    ({ result } = await Protocol.Runtime.getProperties({
-      objectId: frame.this.objectId,
-      accessorPropertiesOnly: true,
-    }));
+    await printPrivateMembers(Protocol, InspectorTest, { objectId: frame.this.objectId });
 
     InspectorTest.log('private accessors properties on the base class instance');
-    InspectorTest.logMessage(result.privateProperties);
+    await printPrivateMembers(Protocol, InspectorTest, {
+      objectId: frame.this.objectId,
+      accessorPropertiesOnly: true,
+    });
 
-    ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
+    let { result } = await Protocol.Debugger.evaluateOnCallFrame({
       expression: 'this.#inc();',
       callFrameId: callFrames[0].callFrameId
-    }));
+    });
 
     InspectorTest.log('Evaluating private methods');
     InspectorTest.logObject(result);
@@ -111,11 +106,8 @@ InspectorTest.runAsyncTestSuite([
     ({ params: { callFrames }  } = await Protocol.Debugger.oncePaused());  // b.fn();
     frame = callFrames[0];
 
-    ({ result } = await Protocol.Runtime.getProperties({
-      objectId: frame.this.objectId
-    }));
-    InspectorTest.log('privateProperties on the subclass instance');
-    InspectorTest.logMessage(result.privateProperties);
+    InspectorTest.log('private members on the subclass instance');
+    await printPrivateMembers(Protocol, InspectorTest, { objectId: frame.this.objectId });
 
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
       expression: 'this.#subclassMethod();',

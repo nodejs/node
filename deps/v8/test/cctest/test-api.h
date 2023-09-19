@@ -44,9 +44,11 @@ template <typename T>
 static void CheckInternalFieldsAreZero(v8::Local<T> value) {
   CHECK_EQ(T::kInternalFieldCount, value->InternalFieldCount());
   for (int i = 0; i < value->InternalFieldCount(); i++) {
-    CHECK_EQ(0, value->GetInternalField(i)
-                    ->Int32Value(CcTest::isolate()->GetCurrentContext())
-                    .FromJust());
+    v8::Local<v8::Value> field =
+        value->GetInternalField(i).template As<v8::Value>();
+    CHECK_EQ(
+        0,
+        field->Int32Value(CcTest::isolate()->GetCurrentContext()).FromJust());
   }
 }
 
@@ -69,6 +71,14 @@ struct ConvertJSValue<uint32_t> {
   static v8::Maybe<uint32_t> Get(v8::Local<v8::Value> value,
                                  v8::Local<v8::Context> context) {
     return value->Uint32Value(context);
+  }
+};
+
+template <>
+struct ConvertJSValue<std::nullptr_t> {
+  static v8::Maybe<std::nullptr_t> Get(v8::Local<v8::Value> value,
+                                       v8::Local<v8::Context> context) {
+    return value->IsNull() ? v8::Just(nullptr) : v8::Nothing<std::nullptr_t>();
   }
 };
 

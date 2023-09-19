@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- mode: perl; -*-
-# Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -599,8 +599,7 @@ my @disable_cascades = (
 
     "crypto-mdebug"     => [ "crypto-mdebug-backtrace" ],
 
-    # If no modules, then no dynamic engines either
-    "module"            => [ "dynamic-engine" ],
+    "module"            => [ "dynamic-engine", "fips" ],
 
     # Without shared libraries, dynamic engines aren't possible.
     # This is due to them having to link with libcrypto and register features
@@ -617,8 +616,6 @@ my @disable_cascades = (
     # Without position independent code, there can be no shared libraries
     # or modules.
     "pic"               => [ "shared", "module" ],
-
-    "module"            => [ "fips", "dso" ],
 
     "engine"            => [ "dynamic-engine", grep(/eng$/, @disablables) ],
     "dynamic-engine"    => [ "loadereng" ],
@@ -1397,7 +1394,7 @@ $target{build_scheme} = [ $target{build_scheme} ]
 my ($builder, $builder_platform, @builder_opts) =
     @{$target{build_scheme}};
 
-foreach my $checker (($builder_platform."-".$target{build_file}."-checker.pm",
+foreach my $checker (($builder_platform."-".$config{build_file}."-checker.pm",
                       $builder_platform."-checker.pm")) {
     my $checker_path = catfile($srcdir, "Configurations", $checker);
     if (-f $checker_path) {
@@ -1426,7 +1423,7 @@ if ($target =~ /^mingw/ && `$config{CC} --target-help 2>&1` =~ m/-mno-cygwin/m)
         }
 
 if ($target =~ /linux.*-mips/ && !$disabled{asm}
-        && !grep { $_ !~ /-m(ips|arch=)/ } (@{$config{CFLAGS}})) {
+        && !grep { $_ =~ /-m(ips|arch=)/ } (@{$config{CFLAGS}})) {
         # minimally required architecture flags for assembly modules
         my $value;
         $value = '-mips2' if ($target =~ /mips32/);
@@ -1870,8 +1867,8 @@ if ($builder eq "unified") {
     # Store the name of the template file we will build the build file from
     # in %config.  This may be useful for the build file itself.
     my @build_file_template_names =
-        ( $builder_platform."-".$target{build_file}.".tmpl",
-          $target{build_file}.".tmpl" );
+        ( $builder_platform."-".$config{build_file}.".tmpl",
+          $config{build_file}.".tmpl" );
     my @build_file_templates = ();
 
     # First, look in the user provided directory, if given
@@ -2888,7 +2885,7 @@ exit(0);
 #
 sub death_handler {
     die @_ if $^S;              # To prevent the added message in eval blocks
-    my $build_file = $target{build_file} // "build file";
+    my $build_file = $config{build_file} // "build file";
     my @message = ( <<"_____", @_ );
 
 Failure!  $build_file wasn't produced.

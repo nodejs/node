@@ -8,10 +8,12 @@ let callFunctionOn = Protocol.Runtime.callFunctionOn.bind(Protocol.Runtime);
 let remoteObject1;
 let remoteObject2;
 let executionContextId;
+let executionContextUniqueId;
 
 Protocol.Runtime.enable();
 Protocol.Runtime.onExecutionContextCreated(messageObject => {
   executionContextId = messageObject.params.context.id;
+  executionContextUniqueId = messageObject.params.context.uniqueId;
   InspectorTest.runAsyncTestSuite(testSuite);
 });
 
@@ -135,15 +137,52 @@ let testSuite = [
     }));
   },
 
+  async function testEvaluateOnUniqueExecutionContext() {
+    InspectorTest.logMessage(await callFunctionOn({
+      uniqueContextId: executionContextUniqueId,
+      functionDeclaration: '(function(arg) { return this.globalObjectProperty + arg; })',
+      arguments: prepareArguments([ 28 ]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: false
+    }));
+  },
+
   async function testPassingBothObjectIdAndExecutionContextId() {
     InspectorTest.logMessage(await callFunctionOn({
       executionContextId,
       objectId: remoteObject1.objectId,
       functionDeclaration: '(function() { return 42; })',
       arguments: prepareArguments([]),
-      returnByValue: true,
-      generatePreview: false,
-      awaitPromise: false
+      returnByValue: true
+    }));
+  },
+
+  async function testPassingBothObjectIdAndExecutionContextUniqueId() {
+    InspectorTest.logMessage(await callFunctionOn({
+      uniqueContextId: executionContextUniqueId,
+      objectId: remoteObject1.objectId,
+      functionDeclaration: '(function() { return 42; })',
+      arguments: prepareArguments([]),
+      returnByValue: true
+    }));
+  },
+
+  async function testPassingTwoExecutionContextIds() {
+    InspectorTest.logMessage(await callFunctionOn({
+      executionContextId,
+      uniqueContextId: executionContextUniqueId,
+      functionDeclaration: '(function() { return 42; })',
+      arguments: prepareArguments([]),
+      returnByValue: true
+    }));
+  },
+
+  async function testPassingNeitherContextIdNorObjectId() {
+    InspectorTest.logMessage(await callFunctionOn({
+      functionDeclaration: '(function() { return 42; })',
+      arguments: prepareArguments([]),
+      returnByValue: true
     }));
   },
 

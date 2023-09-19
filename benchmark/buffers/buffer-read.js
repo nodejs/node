@@ -21,7 +21,7 @@ const types = [
 const bench = common.createBenchmark(main, {
   buffer: ['fast'],
   type: types,
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, buf, type }) {

@@ -18,7 +18,7 @@ tmpdir.refresh();
 
 let count = 0;
 const nextDirPath = (name = 'rmdir-recursive') =>
-  path.join(tmpdir.path, `${name}-${count++}`);
+  tmpdir.resolve(`${name}-${count++}`);
 
 function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
   fs.mkdirSync(dirname, { recursive: true });

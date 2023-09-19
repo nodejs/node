@@ -292,7 +292,6 @@
       './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/darwin64-arm64-cc/asm_avx2/crypto/bn/armv8-mont.S',
 
     ],
     'openssl_defines_darwin64-arm64-cc': [

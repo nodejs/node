@@ -69,7 +69,7 @@ typedef struct _REG_TZI_FORMAT {
 * as this API returns a non-localized time zone name which can be then mapped to an ICU time zone.
 * 
 * However, in some RDP/terminal services situations, this struct isn't always fully complete, and the TimeZoneKeyName
-* field of the struct might be NULL. This can happen with some 3rd party RDP clients, and also when using older versions
+* field of the struct might be nullptr. This can happen with some 3rd party RDP clients, and also when using older versions
 * of the RDP protocol, which don't send the newer TimeZoneKeyNamei information and only send the StandardName and DaylightName.
 * 
 * Since these 3rd party clients and older RDP clients only send the pre-Vista time zone information to the server, this means that we 
@@ -143,14 +143,14 @@ uprv_detectWindowsTimeZone()
             //
             // For example, a time zone that is 3 hours ahead of UTC (UTC+03:00) would have a Bias value of -180, and the
             // corresponding time zone ID would be "Etc/GMT-3". (So there is no need to negate utcOffsetMins below.)
-            int ret = snprintf(gmtOffsetTz, UPRV_LENGTHOF(gmtOffsetTz), "Etc/GMT%+ld", utcOffsetMins / 60);
+            int ret = snprintf(gmtOffsetTz, sizeof(gmtOffsetTz), "Etc/GMT%+ld", utcOffsetMins / 60);
             if (ret > 0 && ret < UPRV_LENGTHOF(gmtOffsetTz)) {
                 return uprv_strdup(gmtOffsetTz);
             }
         }
     }
 
-    // If DST is NOT disabled, but the TimeZoneKeyName field of the struct is NULL, then we may be dealing with a
+    // If DST is NOT disabled, but the TimeZoneKeyName field of the struct is nullptr, then we may be dealing with a
     // RDP/terminal services session where the 'Time Zone Redirection' feature is enabled. However, either the RDP
     // client sent the server incomplete info (some 3rd party RDP clients only send the StandardName and  DaylightName,
     // but do not send the important TimeZoneKeyName), or if the RDP server has not appropriately populated the struct correctly.
@@ -295,7 +295,7 @@ uprv_detectWindowsTimeZone()
     int geoId = GetUserGeoID(GEOCLASS_NATION);
     int regionCodeLen = GetGeoInfoW(geoId, GEO_ISO2, regionCodeW, UPRV_LENGTHOF(regionCodeW), 0);
 
-    const UChar *icuTZ16 = nullptr;
+    const char16_t *icuTZ16 = nullptr;
     int32_t tzListLen = 0;
 
     if (regionCodeLen != 0) {

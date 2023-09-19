@@ -1,4 +1,11 @@
 {
+  'variables': {
+    'llhttp_sources': [
+      'src/llhttp.c',
+      'src/api.c',
+      'src/http.c',
+    ]
+  },
   'targets': [
     {
       'target_name': 'llhttp',
@@ -7,7 +14,9 @@
       'direct_dependent_settings': {
         'include_dirs': [ 'include' ],
       },
-      'sources': [ 'src/llhttp.c', 'src/api.c', 'src/http.c' ],
+      'sources': [
+        '<@(llhttp_sources)',
+      ],
     },
   ]
 }

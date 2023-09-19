@@ -334,7 +334,7 @@ module.exports = {
         docs: {
             description: "Require `const` declarations for variables that are never reassigned after declared",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-const"
+            url: "https://eslint.org/docs/latest/rules/prefer-const"
         },
 
         fixable: "code",
@@ -356,7 +356,7 @@ module.exports = {
 
     create(context) {
         const options = context.options[0] || {};
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const shouldMatchAnyDestructuredVariable = options.destructuring !== "all";
         const ignoreReadBeforeAssign = options.ignoreReadBeforeAssign === true;
         const variables = [];
@@ -493,7 +493,7 @@ module.exports = {
 
             VariableDeclaration(node) {
                 if (node.kind === "let" && !isInitOfForStatement(node)) {
-                    variables.push(...context.getDeclaredVariables(node));
+                    variables.push(...sourceCode.getDeclaredVariables(node));
                 }
             }
         };

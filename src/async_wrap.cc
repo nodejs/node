@@ -44,6 +44,7 @@ using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::String;
@@ -334,39 +335,46 @@ void AsyncWrap::SetCallbackTrampoline(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(Environment* env) {
-  Local<FunctionTemplate> tmpl = env->async_wrap_ctor_template();
+Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(
+    IsolateData* isolate_data) {
+  Local<FunctionTemplate> tmpl = isolate_data->async_wrap_ctor_template();
   if (tmpl.IsEmpty()) {
-    Isolate* isolate = env->isolate();
+    Isolate* isolate = isolate_data->isolate();
     tmpl = NewFunctionTemplate(isolate, nullptr);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"));
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "AsyncWrap"));
     SetProtoMethod(isolate, tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
     SetProtoMethod(isolate, tmpl, "asyncReset", AsyncWrap::AsyncReset);
     SetProtoMethod(
         isolate, tmpl, "getProviderType", AsyncWrap::GetProviderType);
-    env->set_async_wrap_ctor_template(tmpl);
+    isolate_data->set_async_wrap_ctor_template(tmpl);
   }
   return tmpl;
 }
 
-void AsyncWrap::Initialize(Local<Object> target,
-                           Local<Value> unused,
-                           Local<Context> context,
-                           void* priv) {
+void AsyncWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                           Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+
+  SetMethod(isolate, target, "setupHooks", SetupHooks);
+  SetMethod(isolate, target, "setCallbackTrampoline", SetCallbackTrampoline);
+  SetMethod(isolate, target, "pushAsyncContext", PushAsyncContext);
+  SetMethod(isolate, target, "popAsyncContext", PopAsyncContext);
+  SetMethod(isolate, target, "executionAsyncResource", ExecutionAsyncResource);
+  SetMethod(isolate, target, "clearAsyncIdStack", ClearAsyncIdStack);
+  SetMethod(isolate, target, "queueDestroyAsyncId", QueueDestroyAsyncId);
+  SetMethod(isolate, target, "setPromiseHooks", SetPromiseHooks);
+  SetMethod(isolate, target, "registerDestroyHook", RegisterDestroyHook);
+  AsyncWrap::GetConstructorTemplate(isolate_data);
+}
+
+void AsyncWrap::CreatePerContextProperties(Local<Object> target,
+                                           Local<Value> unused,
+                                           Local<Context> context,
+                                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
-
-  SetMethod(context, target, "setupHooks", SetupHooks);
-  SetMethod(context, target, "setCallbackTrampoline", SetCallbackTrampoline);
-  SetMethod(context, target, "pushAsyncContext", PushAsyncContext);
-  SetMethod(context, target, "popAsyncContext", PopAsyncContext);
-  SetMethod(context, target, "executionAsyncResource", ExecutionAsyncResource);
-  SetMethod(context, target, "clearAsyncIdStack", ClearAsyncIdStack);
-  SetMethod(context, target, "queueDestroyAsyncId", QueueDestroyAsyncId);
-  SetMethod(context, target, "setPromiseHooks", SetPromiseHooks);
-  SetMethod(context, target, "registerDestroyHook", RegisterDestroyHook);
 
   PropertyAttribute ReadOnlyDontDelete =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
@@ -624,7 +632,6 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
                 async_id_, trigger_async_id_);
 }
 
-
 void AsyncWrap::EmitAsyncInit(Environment* env,
                               Local<Object> object,
                               Local<String> type,
@@ -671,13 +678,19 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   return ret;
 }
 
-std::string AsyncWrap::MemoryInfoName() const {
+const char* AsyncWrap::MemoryInfoName() const {
   return provider_names[provider_type()];
 }
 
 std::string AsyncWrap::diagnostic_name() const {
-  return MemoryInfoName() + " (" + std::to_string(env()->thread_id()) + ":" +
-      std::to_string(static_cast<int64_t>(async_id_)) + ")";
+  char buf[64];
+  snprintf(buf,
+           sizeof(buf),
+           "%s(%" PRIu64 ":%.0f)",
+           MemoryInfoName(),
+           env()->thread_id(),
+           async_id_);
+  return buf;
 }
 
 Local<Object> AsyncWrap::GetOwner() {
@@ -703,6 +716,9 @@ Local<Object> AsyncWrap::GetOwner(Environment* env, Local<Object> obj) {
 
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(async_wrap, node::AsyncWrap::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(async_wrap,
+                                    node::AsyncWrap::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(async_wrap,
+                              node::AsyncWrap::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(async_wrap,
                                 node::AsyncWrap::RegisterExternalReferences)

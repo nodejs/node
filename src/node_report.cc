@@ -7,6 +7,7 @@
 #include "node_metadata.h"
 #include "node_mutex.h"
 #include "node_worker.h"
+#include "permission/permission.h"
 #include "util.h"
 
 #ifdef _WIN32
@@ -66,6 +67,7 @@ static void PrintJavaScriptErrorStack(JSONWriter* writer,
                                       Isolate* isolate,
                                       Local<Value> error,
                                       const char* trigger);
+static void PrintEmptyJavaScriptStack(JSONWriter* writer);
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
                                  const char* trigger);
@@ -184,6 +186,10 @@ static void WriteNodeReport(Isolate* isolate,
 
     // Report V8 Heap and Garbage Collector information
     PrintGCStatistics(&writer, isolate);
+  } else {
+    writer.json_objectstart("javascriptStack");
+    PrintEmptyJavaScriptStack(&writer);
+    writer.json_objectend();  // the end of 'javascriptStack'
   }
 
   // Report native stack backtrace
@@ -400,11 +406,10 @@ static void PrintJavaScriptErrorProperties(JSONWriter* writer,
           !value->ToString(context).ToLocal(&value_string)) {
         continue;
       }
-      String::Utf8Value k(isolate, key);
-      if (!strcmp(*k, "stack") || !strcmp(*k, "message")) continue;
-      String::Utf8Value v(isolate, value_string);
-      writer->json_keyvalue(std::string(*k, k.length()),
-                            std::string(*v, v.length()));
+      node::Utf8Value k(isolate, key);
+      if (k == "stack" || k == "message") continue;
+      node::Utf8Value v(isolate, value_string);
+      writer->json_keyvalue(k.ToStringView(), v.ToStringView());
     }
   }
   writer->json_objectend();  // the end of 'errorProperties'
@@ -453,8 +458,9 @@ static void PrintEmptyJavaScriptStack(JSONWriter* writer) {
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
                                  const char* trigger) {
-  // Can not capture the stacktrace when the isolate is in a OOM state.
-  if (!strcmp(trigger, "OOMError")) {
+  // Can not capture the stacktrace when the isolate is in a OOM state or no
+  // context is entered.
+  if (!strcmp(trigger, "OOMError") || !isolate->InContext()) {
     PrintEmptyJavaScriptStack(writer);
     return;
   }
@@ -631,27 +637,26 @@ static void PrintResourceUsage(JSONWriter* writer) {
   uint64_t free_memory = uv_get_free_memory();
   uint64_t total_memory = uv_get_total_memory();
 
-  writer->json_keyvalue("free_memory", std::to_string(free_memory));
-  writer->json_keyvalue("total_memory", std::to_string(total_memory));
+  writer->json_keyvalue("free_memory", free_memory);
+  writer->json_keyvalue("total_memory", total_memory);
 
   size_t rss;
   int err = uv_resident_set_memory(&rss);
   if (!err) {
-    writer->json_keyvalue("rss", std::to_string(rss));
+    writer->json_keyvalue("rss", rss);
   }
 
   uint64_t constrained_memory = uv_get_constrained_memory();
   if (constrained_memory) {
-    writer->json_keyvalue("constrained_memory",
-                          std::to_string(constrained_memory));
+    writer->json_keyvalue("constrained_memory", constrained_memory);
   }
 
   // See GuessMemoryAvailableToTheProcess
   if (!err && constrained_memory && constrained_memory >= rss) {
     uint64_t available_memory = constrained_memory - rss;
-    writer->json_keyvalue("available_memory", std::to_string(available_memory));
+    writer->json_keyvalue("available_memory", available_memory);
   } else {
-    writer->json_keyvalue("available_memory", std::to_string(free_memory));
+    writer->json_keyvalue("available_memory", free_memory);
   }
 
   if (uv_getrusage(&rusage) == 0) {
@@ -668,7 +673,7 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_keyvalue("cpuConsumptionPercent", cpu_percentage);
     writer->json_keyvalue("userCpuConsumptionPercent", user_cpu_percentage);
     writer->json_keyvalue("kernelCpuConsumptionPercent", kernel_cpu_percentage);
-    writer->json_keyvalue("maxRss", std::to_string(rusage.ru_maxrss * 1024));
+    writer->json_keyvalue("maxRss", rusage.ru_maxrss * 1024);
     writer->json_objectstart("pageFaults");
     writer->json_keyvalue("IORequired", rusage.ru_majflt);
     writer->json_keyvalue("IONotRequired", rusage.ru_minflt);
@@ -794,9 +799,27 @@ static void PrintComponentVersions(JSONWriter* writer) {
 
   writer->json_objectstart("componentVersions");
 
-#define V(key) writer->json_keyvalue(#key, per_process::metadata.versions.key);
+#define V(key) +1
+  std::pair<std::string_view, std::string_view>
+      versions_array[NODE_VERSIONS_KEYS(V)];
+#undef V
+  auto* slot = &versions_array[0];
+
+#define V(key)                                                                 \
+  do {                                                                         \
+    *slot++ = std::pair<std::string_view, std::string_view>(                   \
+        #key, per_process::metadata.versions.key);                             \
+  } while (0);
   NODE_VERSIONS_KEYS(V)
 #undef V
+
+  std::sort(&versions_array[0],
+            &versions_array[arraysize(versions_array)],
+            [](auto& a, auto& b) { return a.first < b.first; });
+
+  for (const auto& version : versions_array) {
+    writer->json_keyvalue(version.first, version.second);
+  }
 
   writer->json_objectend();
 }
@@ -834,7 +857,13 @@ std::string TriggerNodeReport(Isolate* isolate,
   // Determine the required report filename. In order of priority:
   //   1) supplied on API 2) configured on startup 3) default generated
   if (!name.empty()) {
-    // Filename was specified as API parameter.
+    // we may not always be in a great state when generating a node report
+    // allow for the case where we don't have an env
+    if (env != nullptr) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env, permission::PermissionScope::kFileSystemWrite, name, name);
+      // Filename was specified as API parameter.
+    }
     filename = name;
   } else {
     std::string report_filename;
@@ -848,6 +877,13 @@ std::string TriggerNodeReport(Isolate* isolate,
     } else {
       filename = *DiagnosticFilename(
           env != nullptr ? env->thread_id() : 0, "report", "json");
+    }
+    if (env != nullptr) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env,
+          permission::PermissionScope::kFileSystemWrite,
+          std::string_view(Environment::GetCwd(env->exec_path())),
+          filename);
     }
   }
 

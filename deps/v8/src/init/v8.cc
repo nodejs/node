@@ -92,6 +92,7 @@ void AdvanceStartupState(V8StartupState expected_next_state) {
 V8_DECLARE_ONCE(init_snapshot_once);
 #endif
 
+// static
 void V8::InitializePlatform(v8::Platform* platform) {
   AdvanceStartupState(V8StartupState::kPlatformInitializing);
   CHECK(!platform_);
@@ -112,6 +113,16 @@ void V8::InitializePlatform(v8::Platform* platform) {
   CppHeap::InitializeOncePerProcess();
 
   AdvanceStartupState(V8StartupState::kPlatformInitialized);
+}
+
+// static
+void V8::InitializePlatformForTesting(v8::Platform* platform) {
+  if (v8_startup_state_ != V8StartupState::kIdle) {
+    FATAL(
+        "The platform was initialized before. Note that running multiple tests "
+        "in the same process is not supported.");
+  }
+  V8::InitializePlatform(platform);
 }
 
 #define DISABLE_FLAG(flag)                                                    \

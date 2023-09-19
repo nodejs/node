@@ -7,22 +7,21 @@ const common = require('../common');
 const tmpdir = require('../../test/common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
 const prefix = `.removeme-fs-readfile-${process.pid}`;
 
 tmpdir.refresh();
 
 const fileInfo = [
-  { name: path.join(tmpdir.path, `${prefix}-1K.txt`),
+  { name: tmpdir.resolve(`${prefix}-1K.txt`),
     len: 1024 },
-  { name: path.join(tmpdir.path, `${prefix}-64K.txt`),
+  { name: tmpdir.resolve(`${prefix}-64K.txt`),
     len: 64 * 1024 },
-  { name: path.join(tmpdir.path, `${prefix}-64KLessOne.txt`),
+  { name: tmpdir.resolve(`${prefix}-64KLessOne.txt`),
     len: (64 * 1024) - 1 },
-  { name: path.join(tmpdir.path, `${prefix}-1M.txt`),
+  { name: tmpdir.resolve(`${prefix}-1M.txt`),
     len: 1 * 1024 * 1024 },
-  { name: path.join(tmpdir.path, `${prefix}-1MPlusOne.txt`),
+  { name: tmpdir.resolve(`${prefix}-1MPlusOne.txt`),
     len: (1 * 1024 * 1024) + 1 },
 ];
 
@@ -52,21 +51,27 @@ for (const e of fileInfo) {
     assert.deepStrictEqual(buf, e.contents);
   }));
 }
-// Test readFile size too large
+
+// readFile() and readFileSync() should fail if the file is too big.
 {
   const kIoMaxLength = 2 ** 31 - 1;
 
-  const file = path.join(tmpdir.path, `${prefix}-too-large.txt`);
-  fs.writeFileSync(file, Buffer.from('0'));
-  fs.truncateSync(file, kIoMaxLength + 1);
+  if (!tmpdir.hasEnoughSpace(kIoMaxLength)) {
+    // truncateSync() will fail with ENOSPC if there is not enough space.
+    common.printSkipMessage(`Not enough space in ${tmpdir.path}`);
+  } else {
+    const file = tmpdir.resolve(`${prefix}-too-large.txt`);
+    fs.writeFileSync(file, Buffer.from('0'));
+    fs.truncateSync(file, kIoMaxLength + 1);
 
-  fs.readFile(file, common.expectsError({
-    code: 'ERR_FS_FILE_TOO_LARGE',
-    name: 'RangeError',
-  }));
-  assert.throws(() => {
-    fs.readFileSync(file);
-  }, { code: 'ERR_FS_FILE_TOO_LARGE', name: 'RangeError' });
+    fs.readFile(file, common.expectsError({
+      code: 'ERR_FS_FILE_TOO_LARGE',
+      name: 'RangeError',
+    }));
+    assert.throws(() => {
+      fs.readFileSync(file);
+    }, { code: 'ERR_FS_FILE_TOO_LARGE', name: 'RangeError' });
+  }
 }
 
 {
@@ -89,7 +94,7 @@ for (const e of fileInfo) {
   // Verify that if something different than Abortcontroller.signal
   // is passed, ERR_INVALID_ARG_TYPE is thrown
   assert.throws(() => {
-    const callback = common.mustNotCall(() => {});
+    const callback = common.mustNotCall();
     fs.readFile(fileInfo[0].name, { signal: 'hello' }, callback);
   }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
 }

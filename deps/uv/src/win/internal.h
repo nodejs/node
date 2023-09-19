@@ -168,18 +168,8 @@ void uv__process_tty_read_req(uv_loop_t* loop, uv_tty_t* handle,
     uv_req_t* req);
 void uv__process_tty_write_req(uv_loop_t* loop, uv_tty_t* handle,
     uv_write_t* req);
-/*
- * uv__process_tty_accept_req() is a stub to keep DELEGATE_STREAM_REQ working
- * TODO: find a way to remove it
- */
-void uv__process_tty_accept_req(uv_loop_t* loop, uv_tty_t* handle,
-    uv_req_t* raw_req);
-/*
- * uv__process_tty_connect_req() is a stub to keep DELEGATE_STREAM_REQ working
- * TODO: find a way to remove it
- */
-void uv__process_tty_connect_req(uv_loop_t* loop, uv_tty_t* handle,
-    uv_connect_t* req);
+#define uv__process_tty_accept_req(loop, handle, req) abort()
+#define uv__process_tty_connect_req(loop, handle, req) abort()
 void uv__process_tty_shutdown_req(uv_loop_t* loop,
                                   uv_tty_t* stream,
                                   uv_shutdown_t* req);
@@ -267,7 +257,6 @@ void uv__util_init(void);
 
 uint64_t uv__hrtime(unsigned int scale);
 __declspec(noreturn) void uv_fatal_error(const int errorno, const char* syscall);
-int uv__getpwuid_r(uv_passwd_t* pwd);
 int uv__convert_utf16_to_utf8(const WCHAR* utf16, int utf16len, char** utf8);
 int uv__convert_utf8_to_utf16(const char* utf8, int utf8len, WCHAR** utf16);
 

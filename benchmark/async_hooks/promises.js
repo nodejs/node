@@ -6,25 +6,25 @@ let hook;
 const tests = {
   disabled() {
     hook = createHook({
-      promiseResolve() {}
+      promiseResolve() {},
     });
   },
   enabled() {
     hook = createHook({
-      promiseResolve() {}
+      promiseResolve() {},
     }).enable();
   },
   enabledWithDestroy() {
     hook = createHook({
       promiseResolve() {},
-      destroy() {}
+      destroy() {},
     }).enable();
   },
   enabledWithInitOnly() {
     hook = createHook({
-      init() {}
+      init() {},
     }).enable();
-  }
+  },
 };
 
 const bench = common.createBenchmark(main, {
@@ -34,7 +34,7 @@ const bench = common.createBenchmark(main, {
     'enabledWithDestroy',
     'enabledWithInitOnly',
     'disabled',
-  ]
+  ],
 });
 
 const err = new Error('foobar');

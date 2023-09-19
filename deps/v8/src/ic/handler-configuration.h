@@ -228,6 +228,10 @@ class LoadHandler final : public DataHandler {
   // Decodes the KeyedAccessLoadMode from a {handler}.
   static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject handler);
 
+  // Returns true iff the handler can be used in the "holder != lookup start
+  // object" case.
+  static bool CanHandleHolderNotLookupStart(Object handler);
+
 #if defined(OBJECT_PRINT)
   static void PrintHandler(Object handler, std::ostream& os);
 #endif  // defined(OBJECT_PRINT)
@@ -354,11 +358,11 @@ class StoreHandler final : public DataHandler {
   // Creates a Smi-handler for storing a property to an interceptor.
   static inline Handle<Smi> StoreInterceptor(Isolate* isolate);
 
-  static inline Handle<CodeT> StoreSloppyArgumentsBuiltin(
+  static inline Handle<Code> StoreSloppyArgumentsBuiltin(
       Isolate* isolate, KeyedAccessStoreMode mode);
-  static inline Handle<CodeT> StoreFastElementBuiltin(
-      Isolate* isolate, KeyedAccessStoreMode mode);
-  static inline Handle<CodeT> ElementsTransitionAndStoreBuiltin(
+  static inline Handle<Code> StoreFastElementBuiltin(Isolate* isolate,
+                                                     KeyedAccessStoreMode mode);
+  static inline Handle<Code> ElementsTransitionAndStoreBuiltin(
       Isolate* isolate, KeyedAccessStoreMode mode);
 
   // Creates a Smi-handler for storing a property.

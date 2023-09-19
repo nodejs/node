@@ -38,7 +38,7 @@ assert(js() === cxx());
 
 const bench = common.createBenchmark(main, {
   type: ['js', 'cxx', 'napi'],
-  n: [1e6, 1e7, 5e7]
+  n: [1e6, 1e7, 5e7],
 });
 
 function main({ n, type }) {

@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow duplicate arguments in `function` definitions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-dupe-args"
+            url: "https://eslint.org/docs/latest/rules/no-dupe-args"
         },
 
         schema: [],
@@ -28,6 +28,8 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -49,7 +51,7 @@ module.exports = {
          * @private
          */
         function checkParams(node) {
-            const variables = context.getDeclaredVariables(node);
+            const variables = sourceCode.getDeclaredVariables(node);
 
             for (let i = 0; i < variables.length; ++i) {
                 const variable = variables[i];

@@ -1,6 +1,12 @@
 // META: title=Event constructors
 
 test(function() {
+  assert_throws_js(
+    TypeError,
+    () => Event(""),
+    "Calling Event constructor without 'new' must throw")
+})
+test(function() {
   assert_throws_js(TypeError, function() {
     new Event()
   })

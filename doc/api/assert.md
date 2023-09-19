@@ -221,11 +221,18 @@ try {
 added:
   - v14.2.0
   - v12.19.0
+changes:
+  - version: v20.1.0
+    pr-url: https://github.com/nodejs/node/pull/47740
+    description: the `assert.CallTracker` class has been deprecated and will be
+                  removed in a future version.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 0 - Deprecated
 
-This feature is currently experimental and behavior might still change.
+This feature is deprecated and will be removed in a future version.
+Please consider using alternatives such as the
+[`mock`][] helper function.
 
 ### `new assert.CallTracker()`
 
@@ -348,7 +355,7 @@ const callsfunc = tracker.calls(func);
 callsfunc(1, 2, 3);
 
 assert.deepStrictEqual(tracker.getCalls(callsfunc),
-                       [{ thisArg: this, arguments: [1, 2, 3 ] }]);
+                       [{ thisArg: undefined, arguments: [1, 2, 3] }]);
 ```
 
 ```cjs
@@ -362,7 +369,7 @@ const callsfunc = tracker.calls(func);
 callsfunc(1, 2, 3);
 
 assert.deepStrictEqual(tracker.getCalls(callsfunc),
-                       [{ thisArg: this, arguments: [1, 2, 3 ] }]);
+                       [{ thisArg: undefined, arguments: [1, 2, 3] }]);
 ```
 
 ### `tracker.report()`
@@ -399,7 +406,7 @@ function func() {}
 const callsfunc = tracker.calls(func, 2);
 
 // Returns an array containing information on callsfunc()
-tracker.report();
+console.log(tracker.report());
 // [
 //  {
 //    message: 'Expected the func function to be executed 2 time(s) but was
@@ -425,7 +432,7 @@ function func() {}
 const callsfunc = tracker.calls(func, 2);
 
 // Returns an array containing information on callsfunc()
-tracker.report();
+console.log(tracker.report());
 // [
 //  {
 //    message: 'Expected the func function to be executed 2 time(s) but was
@@ -448,9 +455,9 @@ added:
 
 * `fn` {Function} a tracked function to reset.
 
-reset calls of the call tracker.
-if a tracked function is passed as an argument, the calls will be reset for it.
-if no arguments are passed, all tracked functions will be reset
+Reset calls of the call tracker.
+If a tracked function is passed as an argument, the calls will be reset for it.
+If no arguments are passed, all tracked functions will be reset
 
 ```mjs
 import assert from 'node:assert';
@@ -462,24 +469,26 @@ const callsfunc = tracker.calls(func);
 
 callsfunc();
 // Tracker was called once
-tracker.getCalls(callsfunc).length === 1;
+assert.strictEqual(tracker.getCalls(callsfunc).length, 1);
 
 tracker.reset(callsfunc);
-tracker.getCalls(callsfunc).length === 0;
+assert.strictEqual(tracker.getCalls(callsfunc).length, 0);
 ```
 
 ```cjs
 const assert = require('node:assert');
+
+const tracker = new assert.CallTracker();
 
 function func() {}
 const callsfunc = tracker.calls(func);
 
 callsfunc();
 // Tracker was called once
-tracker.getCalls(callsfunc).length === 1;
+assert.strictEqual(tracker.getCalls(callsfunc).length, 1);
 
 tracker.reset(callsfunc);
-tracker.getCalls(callsfunc).length === 0;
+assert.strictEqual(tracker.getCalls(callsfunc).length, 0);
 ```
 
 ### `tracker.verify()`
@@ -664,7 +673,7 @@ const obj3 = {
     b: 1,
   },
 };
-const obj4 = Object.create(obj1);
+const obj4 = { __proto__: obj1 };
 
 assert.deepEqual(obj1, obj1);
 // OK
@@ -699,7 +708,7 @@ const obj3 = {
     b: 1,
   },
 };
-const obj4 = Object.create(obj1);
+const obj4 = { __proto__: obj1 };
 
 assert.deepEqual(obj1, obj1);
 // OK
@@ -1623,7 +1632,7 @@ const obj3 = {
     b: 1,
   },
 };
-const obj4 = Object.create(obj1);
+const obj4 = { __proto__: obj1 };
 
 assert.notDeepEqual(obj1, obj1);
 // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
@@ -1656,7 +1665,7 @@ const obj3 = {
     b: 1,
   },
 };
-const obj4 = Object.create(obj1);
+const obj4 = { __proto__: obj1 };
 
 assert.notDeepEqual(obj1, obj1);
 // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
@@ -2092,48 +2101,6 @@ argument, then `error` is assumed to be omitted and the string will be used for
 `message` instead. This can lead to easy-to-miss mistakes. Please read the
 example in [`assert.throws()`][] carefully if using a string as the second
 argument gets considered.
-
-## `assert.snapshot(value, name)`
-
-<!-- YAML
-added: v18.8.0
--->
-
-> Stability: 1 - Experimental
-
-* `value` {any} the value to snapshot.
-* `name` {string} the name of the snapshot.
-* Returns: {Promise}
-
-Reads the `name` snapshot from a file and compares `value` to the snapshot.
-`value` is serialized with [`util.inspect()`][]. If the value is not strictly
-equal to the snapshot, `assert.snapshot()` returns a rejected `Promise` with an
-[`AssertionError`][].
-
-The snapshot filename uses the same basename as the application's main
-entrypoint with a `.snapshot` extension. If the snapshot file does not exist,
-it is created. The [`--update-assert-snapshot`][] command line flag can be used
-to force the update of an existing snapshot.
-
-```mjs
-import assert from 'node:assert/strict';
-
-// Assuming that the application's main entrypoint is app.mjs, this reads the
-// 'snapshotName' snapshot from app.snapshot and strictly compares its value
-// to `util.inspect('value')`.
-await assert.snapshot('value', 'snapshotName');
-```
-
-```cjs
-const assert = require('node:assert/strict');
-
-(async () => {
-  // Assuming that the application's main entrypoint is app.js, this reads the
-  // 'snapshotName' snapshot from app.snapshot and strictly compares its value
-  // to `util.inspect('value')`.
-  await assert.snapshot('value', 'snapshotName');
-})();
-```
 
 ## `assert.strictEqual(actual, expected[, message])`
 
@@ -2571,7 +2538,6 @@ argument.
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [`!=` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Inequality
-[`--update-assert-snapshot`]: cli.md#--update-assert-snapshot
 [`===` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Strict_equality
 [`==` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Equality
 [`AssertionError`]: #class-assertassertionerror
@@ -2600,9 +2566,9 @@ argument.
 [`assert.strictEqual()`]: #assertstrictequalactual-expected-message
 [`assert.throws()`]: #assertthrowsfn-error-message
 [`getColorDepth()`]: tty.md#writestreamgetcolordepthenv
+[`mock`]: test.md#mocking
 [`process.on('exit')`]: process.md#event-exit
 [`tracker.calls()`]: #trackercallsfn-exact
 [`tracker.verify()`]: #trackerverify
-[`util.inspect()`]: util.md#utilinspectobject-options
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots

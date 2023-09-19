@@ -36,6 +36,7 @@
   'kraken/imaging-gaussian-blur': [PASS, SLOW],
   'octane/box2d': [PASS, SLOW],
   'octane/regexp': [PASS, SLOW],
+  'octane/splay': [PASS, SLOW],
   'octane/typescript': [PASS, SLOW],
 
   # https://crbug.com/v8/11905
@@ -51,6 +52,8 @@
   'kraken/ai-astar': [PASS, SLOW],
   'kraken/audio-beat-detection': [SLOW],
   'kraken/audio-dft': [PASS, SLOW],
+  'kraken/audio-fft': [PASS, SLOW],
+  'kraken/audio-oscillator': [PASS, SLOW],
   'kraken/imaging-darkroom': [PASS, SLOW],
   'kraken/imaging-desaturate': [PASS, SLOW],
   'octane/code-load': [PASS, SLOW],

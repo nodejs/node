@@ -27,7 +27,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//
 // The Google C++ Testing and Mocking Framework (Google Test)
 //
 // This header file defines the Message class.
@@ -42,16 +41,27 @@
 // to CHANGE WITHOUT NOTICE.  Therefore DO NOT DEPEND ON IT in a user
 // program!
 
-// GOOGLETEST_CM0001 DO NOT DELETE
+// IWYU pragma: private, include "gtest/gtest.h"
+// IWYU pragma: friend gtest/.*
+// IWYU pragma: friend gmock/.*
 
 #ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_MESSAGE_H_
 #define GOOGLETEST_INCLUDE_GTEST_GTEST_MESSAGE_H_
 
 #include <limits>
 #include <memory>
+#include <ostream>
 #include <sstream>
+#include <string>
 
 #include "gtest/internal/gtest-port.h"
+
+#ifdef GTEST_HAS_ABSL
+#include <type_traits>
+
+#include "absl/strings/internal/has_absl_stringify.h"
+#include "absl/strings/str_cat.h"
+#endif  // GTEST_HAS_ABSL
 
 GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
 /* class A needs to have dll-interface to be used by clients of class B */)
@@ -108,10 +118,19 @@ class GTEST_API_ Message {
     *ss_ << str;
   }
 
-  // Streams a non-pointer value to this object.
-  template <typename T>
-  inline Message& operator <<(const T& val) {
-    // Some libraries overload << for STL containers.  These
+  // Streams a non-pointer value to this object. If building a version of
+  // GoogleTest with ABSL, this overload is only enabled if the value does not
+  // have an AbslStringify definition.
+  template <typename T
+#ifdef GTEST_HAS_ABSL
+            ,
+            typename std::enable_if<
+                !absl::strings_internal::HasAbslStringify<T>::value,  // NOLINT
+                int>::type = 0
+#endif  // GTEST_HAS_ABSL
+            >
+  inline Message& operator<<(const T& val) {
+        // Some libraries overload << for STL containers.  These
     // overloads are defined in the global namespace instead of ::std.
     //
     // C++'s symbol lookup rule (i.e. Koenig lookup) says that these
@@ -125,10 +144,26 @@ class GTEST_API_ Message {
     // from the global namespace.  With this using declaration,
     // overloads of << defined in the global namespace and those
     // visible via Koenig lookup are both exposed in this function.
-    using ::operator <<;
+    using ::operator<<;
     *ss_ << val;
     return *this;
   }
+
+#ifdef GTEST_HAS_ABSL
+  // Streams a non-pointer value with an AbslStringify definition to this
+  // object.
+  template <typename T,
+            typename std::enable_if<
+                absl::strings_internal::HasAbslStringify<T>::value,  // NOLINT
+                int>::type = 0>
+  inline Message& operator<<(const T& val) {
+    // ::operator<< is needed here for a similar reason as with the non-Abseil
+    // version above
+    using ::operator<<;
+    *ss_ << absl::StrCat(val);
+    return *this;
+  }
+#endif  // GTEST_HAS_ABSL
 
   // Streams a pointer value to this object.
   //
@@ -144,7 +179,7 @@ class GTEST_API_ Message {
   // ensure consistent result across compilers, we always treat NULL
   // as "(null)".
   template <typename T>
-  inline Message& operator <<(T* const& pointer) {  // NOLINT
+  inline Message& operator<<(T* const& pointer) {  // NOLINT
     if (pointer == nullptr) {
       *ss_ << "(null)";
     } else {
@@ -159,25 +194,23 @@ class GTEST_API_ Message {
   // templatized version above.  Without this definition, streaming
   // endl or other basic IO manipulators to Message will confuse the
   // compiler.
-  Message& operator <<(BasicNarrowIoManip val) {
+  Message& operator<<(BasicNarrowIoManip val) {
     *ss_ << val;
     return *this;
   }
 
   // Instead of 1/0, we want to see true/false for bool values.
-  Message& operator <<(bool b) {
-    return *this << (b ? "true" : "false");
-  }
+  Message& operator<<(bool b) { return *this << (b ? "true" : "false"); }
 
   // These two overloads allow streaming a wide C string to a Message
   // using the UTF-8 encoding.
-  Message& operator <<(const wchar_t* wide_c_str);
-  Message& operator <<(wchar_t* wide_c_str);
+  Message& operator<<(const wchar_t* wide_c_str);
+  Message& operator<<(wchar_t* wide_c_str);
 
 #if GTEST_HAS_STD_WSTRING
   // Converts the given wide string to a narrow string using the UTF-8
   // encoding, and streams the result to this Message object.
-  Message& operator <<(const ::std::wstring& wstr);
+  Message& operator<<(const ::std::wstring& wstr);
 #endif  // GTEST_HAS_STD_WSTRING
 
   // Gets the text streamed to this object so far as an std::string.
@@ -196,7 +229,7 @@ class GTEST_API_ Message {
 };
 
 // Streams a Message to an ostream.
-inline std::ostream& operator <<(std::ostream& os, const Message& sb) {
+inline std::ostream& operator<<(std::ostream& os, const Message& sb) {
   return os << sb.GetString();
 }
 

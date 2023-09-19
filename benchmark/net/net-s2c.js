@@ -9,9 +9,9 @@ const bench = common.createBenchmark(main, {
   type: ['utf', 'asc', 'buf'],
   recvbuflen: [0, 64 * 1024, 1024 * 1024],
   recvbufgenfn: ['true', 'false'],
-  dur: [5]
+  dur: [5],
 }, {
-  test: { sendchunklen: 256 }
+  test: { sendchunklen: 256 },
 });
 
 let chunk;
@@ -65,8 +65,8 @@ function main({ dur, sendchunklen, type, recvbuflen, recvbufgenfn }) {
         buffer,
         callback: function(nread, buf) {
           received += nread;
-        }
-      }
+        },
+      },
     };
   }
 

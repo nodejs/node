@@ -609,7 +609,7 @@ public:
      * rule sets.  Each of these is one longer than the initial array,
      * with the first String being the ULocale ID, and the remaining
      * Strings being the localizations of the rule set names, in the
-     * same order as the initial array.  Arrays are NULL-terminated.
+     * same order as the initial array.  Arrays are nullptr-terminated.
      * @param rules A description of the formatter's desired behavior.
      * See the class documentation for a complete explanation of the description
      * syntax.
@@ -653,7 +653,7 @@ public:
      * rule sets.  Each of these is one longer than the initial array,
      * with the first String being the ULocale ID, and the remaining
      * Strings being the localizations of the rule set names, in the
-     * same order as the initial array.  Arrays are NULL-terminated.
+     * same order as the initial array.  Arrays are nullptr-terminated.
      * @param rules A description of the formatter's desired behavior.
      * See the class documentation for a complete explanation of the description
      * syntax.
@@ -1063,7 +1063,7 @@ public:
 private:
     RuleBasedNumberFormat() = delete; // default constructor not implemented
 
-    // this will ref the localizations if they are not NULL
+    // this will ref the localizations if they are not nullptr
     // caller must deref to get adoption
     RuleBasedNumberFormat(const UnicodeString& description, LocalizationInfo* localizations,
               const Locale& locale, UParseError& perror, UErrorCode& status);

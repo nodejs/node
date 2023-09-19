@@ -212,6 +212,20 @@ TEST_F(InspectorTest, NoInterruptOnGetAssociatedData) {
   CHECK(recorder.WasInvoked);
 }
 
+class TestChannel : public V8Inspector::Channel {
+ public:
+  ~TestChannel() override = default;
+  void sendResponse(int callId,
+                    std::unique_ptr<StringBuffer> message) override {
+    CHECK_EQ(callId, 1);
+    CHECK_NE(toString16(message->string()).find(expected_response_matcher_),
+             String16::kNotFound);
+  }
+  void sendNotification(std::unique_ptr<StringBuffer> message) override {}
+  void flushProtocolNotifications() override {}
+  v8_inspector::String16 expected_response_matcher_;
+};
+
 TEST_F(InspectorTest, NoConsoleAPIForUntrustedClient) {
   v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
@@ -221,20 +235,6 @@ TEST_F(InspectorTest, NoConsoleAPIForUntrustedClient) {
       V8Inspector::create(isolate, &default_client);
   V8ContextInfo context_info(v8_context(), 1, toStringView(""));
   inspector->contextCreated(context_info);
-
-  class TestChannel : public V8Inspector::Channel {
-   public:
-    ~TestChannel() override = default;
-    void sendResponse(int callId,
-                      std::unique_ptr<StringBuffer> message) override {
-      CHECK_EQ(callId, 1);
-      CHECK_NE(toString16(message->string()).find(expected_response_matcher_),
-               String16::kNotFound);
-    }
-    void sendNotification(std::unique_ptr<StringBuffer> message) override {}
-    void flushProtocolNotifications() override {}
-    v8_inspector::String16 expected_response_matcher_;
-  };
 
   TestChannel channel;
   const char kCommand[] = R"({
@@ -256,6 +256,26 @@ TEST_F(InspectorTest, NoConsoleAPIForUntrustedClient) {
       1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kUntrusted);
   channel.expected_response_matcher_ = R"("className":"ReferenceError")";
   untrusted_session->dispatchProtocolMessage(toStringView(kCommand));
+}
+
+TEST_F(InspectorTest, CanHandleMalformedCborMessage) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  TestChannel channel;
+  const unsigned char kCommand[] = {0xD8, 0x5A, 0x00, 0xBA, 0xDB, 0xEE, 0xF0};
+  std::unique_ptr<V8InspectorSession> trusted_session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+  channel.expected_response_matcher_ = R"("value":42)";
+  trusted_session->dispatchProtocolMessage(
+      StringView(kCommand, sizeof(kCommand)));
 }
 
 TEST_F(InspectorTest, ApiCreatedTasksAreCleanedUp) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -229,6 +229,7 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity,
             || !SSL_SESSION_set_cipher(tmpsess, cipher)
             || !SSL_SESSION_set_protocol_version(tmpsess, SSL_version(ssl))) {
         OPENSSL_free(key);
+        SSL_SESSION_free(tmpsess);
         return 0;
     }
     OPENSSL_free(key);
@@ -3069,7 +3070,7 @@ static int www_body(int s, int stype, int prot, unsigned char *context)
     }
 
     /* lets make the output buffer a reasonable size */
-    if (!BIO_set_write_buffer_size(io, bufsize))
+    if (BIO_set_write_buffer_size(io, bufsize) <= 0)
         goto err;
 
     if ((con = SSL_new(ctx)) == NULL)
@@ -3505,7 +3506,7 @@ static int rev_body(int s, int stype, int prot, unsigned char *context)
         goto err;
 
     /* lets make the output buffer a reasonable size */
-    if (!BIO_set_write_buffer_size(io, bufsize))
+    if (BIO_set_write_buffer_size(io, bufsize) <= 0)
         goto err;
 
     if ((con = SSL_new(ctx)) == NULL)

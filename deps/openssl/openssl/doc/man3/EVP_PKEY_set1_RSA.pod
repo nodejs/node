@@ -62,13 +62,16 @@ see L<openssl_user_macros(7)>:
 EVP_PKEY_get_base_id() returns the type of I<pkey>. For example
 an RSA key will return B<EVP_PKEY_RSA>.
 
-EVP_PKEY_get_id() returns the actual OID associated with I<pkey>.
-Historically keys using the same algorithm could use different OIDs.
-For example an RSA key could use the OIDs corresponding to
+EVP_PKEY_get_id() returns the actual NID associated with I<pkey>
+only if the I<pkey> type isn't implemented just in a L<provider(7)>.
+Historically keys using the same algorithm could use different NIDs.
+For example an RSA key could use the NIDs corresponding to
 the NIDs B<NID_rsaEncryption> (equivalent to B<EVP_PKEY_RSA>) or
 B<NID_rsa> (equivalent to B<EVP_PKEY_RSA2>). The use of
-alternative non-standard OIDs is now rare so B<EVP_PKEY_RSA2> et al are not
+alternative non-standard NIDs is now rare so B<EVP_PKEY_RSA2> et al are not
 often seen in practice.
+EVP_PKEY_get_id() returns -1 (B<EVP_PKEY_KEYMGMT>) if the I<pkey> is
+only implemented in a L<provider(7)>.
 
 EVP_PKEY_type() returns the underlying type of the NID I<type>. For example
 EVP_PKEY_type(EVP_PKEY_RSA2) will return B<EVP_PKEY_RSA>.
@@ -141,6 +144,9 @@ been assigned an internal key with EVP_PKEY_assign_*():
 EVP_PKEY_get_id(), EVP_PKEY_get_base_id(), EVP_PKEY_type()
 
 For EVP_PKEY key type checking purposes, L<EVP_PKEY_is_a(3)> is more generic.
+
+For purposes of retrieving the name of the B<EVP_PKEY> the function
+L<EVP_PKEY_get0_type_name(3)> is more generally useful.
 
 The keys returned from the functions EVP_PKEY_get0_RSA(), EVP_PKEY_get0_DSA(),
 EVP_PKEY_get0_DH() and EVP_PKEY_get0_EC_KEY() were changed to have a "const"
@@ -222,7 +228,7 @@ It was removed in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

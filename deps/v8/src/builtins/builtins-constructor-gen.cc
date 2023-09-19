@@ -252,8 +252,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
-  TNode<CodeT> lazy_builtin =
-      HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
+  TNode<Code> lazy_builtin = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
   Return(result);
 }
@@ -382,7 +381,7 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
       [=](TNode<IntPtrT> offset) {
         StoreObjectFieldNoWriteBarrier(function_context, offset, undefined);
       },
-      kTaggedSize, IndexAdvanceMode::kPost);
+      kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
   return function_context;
 }
 
@@ -664,7 +663,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
             TNode<Object> field = LoadObjectField(boilerplate, offset);
             StoreObjectFieldNoWriteBarrier(copy, offset, field);
           },
-          kTaggedSize, IndexAdvanceMode::kPost);
+          kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
       CopyMutableHeapNumbersInObject(copy, offset.value(), instance_size);
       Goto(&done_init);
     }
@@ -714,7 +713,7 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
         }
         BIND(&continue_loop);
       },
-      kTaggedSize, IndexAdvanceMode::kPost);
+      kTaggedSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 }
 
 }  // namespace internal

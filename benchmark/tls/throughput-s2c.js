@@ -5,7 +5,7 @@ const bench = common.createBenchmark(main, {
   type: ['buf', 'asc', 'utf'],
   sendchunklen: [256, 32 * 1024, 128 * 1024, 16 * 1024 * 1024],
   recvbuflen: [0, 64 * 1024, 1024 * 1024],
-  recvbufgenfn: ['true', 'false']
+  recvbufgenfn: ['true', 'false'],
 });
 
 const fixtures = require('../../test/common/fixtures');
@@ -68,8 +68,8 @@ function main({ dur, type, sendchunklen, recvbuflen, recvbufgenfn }) {
         buffer,
         callback: function(nread, buf) {
           received += nread;
-        }
-      }
+        },
+      },
     };
   }
 

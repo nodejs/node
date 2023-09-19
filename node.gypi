@@ -27,7 +27,7 @@
 
   'conditions': [
     [ 'clang==1', {
-      'cflags': [ '-Werror=undefined-inline', ]
+      'cflags': [ '-Werror=undefined-inline', '-Werror=extra-semi']
     }],
     [ '"<(_type)"=="executable"', {
       'msvs_settings': {
@@ -96,6 +96,9 @@
         'NODE_USE_V8_PLATFORM=0',
       ],
     }],
+    [ 'v8_enable_shared_ro_heap==1', {
+      'defines': ['NODE_V8_SHARED_RO_HEAP',],
+    }],
     [ 'node_tag!=""', {
       'defines': [ 'NODE_TAG="<(node_tag)"' ],
     }],
@@ -153,7 +156,7 @@
             },
           },
           'conditions': [
-            ['OS!="aix" and OS!="ios" and node_shared=="false"', {
+            ['OS!="aix" and OS!="os400" and OS!="ios" and node_shared=="false"', {
               'ldflags': [
                 '-Wl,--whole-archive',
                 '<(obj_dir)/deps/zlib/<(STATIC_LIB_PREFIX)zlib<(STATIC_LIB_SUFFIX)',
@@ -192,7 +195,7 @@
             },
           },
           'conditions': [
-            ['OS!="aix" and OS!="ios" and node_shared=="false"', {
+            ['OS!="aix" and OS!="os400" and OS!="ios" and node_shared=="false"', {
               'ldflags': [
                 '-Wl,--whole-archive',
                 '<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)uv<(STATIC_LIB_SUFFIX)',
@@ -230,7 +233,7 @@
         '-lkvm',
       ],
     }],
-    [ 'OS=="aix"', {
+    [ 'OS in "aix os400"', {
       'defines': [
         '_LINUX_SOURCE_COMPAT',
         '__STDC_FORMAT_MACROS',

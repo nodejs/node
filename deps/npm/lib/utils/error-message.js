@@ -5,9 +5,24 @@ const replaceInfo = require('./replace-info.js')
 const { report } = require('./explain-eresolve.js')
 const log = require('./log-shim')
 
-module.exports = (er, npm) => {
+const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
+
+const jsonError = (er, npm, { summary, detail }) => {
+  if (npm?.config.loaded && npm.config.get('json')) {
+    return {
+      error: {
+        code: er.code,
+        summary: messageText(summary),
+        detail: messageText(detail),
+      },
+    }
+  }
+}
+
+const errorMessage = (er, npm) => {
   const short = []
   const detail = []
+  const files = []
 
   if (er.message) {
     er.message = replaceInfo(er.message)
@@ -17,14 +32,17 @@ module.exports = (er, npm) => {
   }
 
   switch (er.code) {
-    case 'ERESOLVE':
+    case 'ERESOLVE': {
       short.push(['ERESOLVE', er.message])
       detail.push(['', ''])
       // XXX(display): error messages are logged so we use the logColor since that is based
       // on stderr. This should be handled solely by the display layer so it could also be
       // printed to stdout if necessary.
-      detail.push(['', report(er, !!npm.logColor, resolve(npm.cache, 'eresolve-report.txt'))])
+      const { explanation, file } = report(er, npm.logChalk, npm.noColorChalk)
+      detail.push(['', explanation])
+      files.push(['eresolve-report.txt', file])
       break
+    }
 
     case 'ENOLOCK': {
       const cmd = npm.command || ''
@@ -229,16 +247,34 @@ module.exports = (er, npm) => {
       break
 
     case 'EBADPLATFORM': {
-      const validOs =
-        er.required && er.required.os && er.required.os.join
-          ? er.required.os.join(',')
-          : er.required.os
-      const validArch =
-        er.required && er.required.cpu && er.required.cpu.join
-          ? er.required.cpu.join(',')
-          : er.required.cpu
-      const expected = { os: validOs, arch: validArch }
-      const actual = { os: process.platform, arch: process.arch }
+      const actual = er.current
+      const expected = { ...er.required }
+      const checkedKeys = []
+      for (const key in expected) {
+        if (Array.isArray(expected[key]) && expected[key].length > 0) {
+          expected[key] = expected[key].join(',')
+          checkedKeys.push(key)
+        } else if (expected[key] === undefined ||
+            Array.isArray(expected[key]) && expected[key].length === 0) {
+          delete expected[key]
+          delete actual[key]
+        } else {
+          checkedKeys.push(key)
+        }
+      }
+
+      const longestKey = Math.max(...checkedKeys.map((key) => key.length))
+      const detailEntry = []
+      for (const key of checkedKeys) {
+        const padding = key.length === longestKey
+          ? 1
+          : 1 + (longestKey - key.length)
+
+        // padding + 1 because 'actual' is longer than 'valid'
+        detailEntry.push(`Valid ${key}:${' '.repeat(padding + 1)}${expected[key]}`)
+        detailEntry.push(`Actual ${key}:${' '.repeat(padding)}${actual[key]}`)
+      }
+
       short.push([
         'notsup',
         [
@@ -252,12 +288,7 @@ module.exports = (er, npm) => {
       ])
       detail.push([
         'notsup',
-        [
-          'Valid OS:    ' + validOs,
-          'Valid Arch:  ' + validArch,
-          'Actual OS:   ' + process.platform,
-          'Actual Arch: ' + process.arch,
-        ].join('\n'),
+        detailEntry.join('\n'),
       ])
       break
     }
@@ -325,7 +356,7 @@ module.exports = (er, npm) => {
           'Actual:   ' +
             JSON.stringify({
               npm: npm.version,
-              node: npm.config.loaded ? npm.config.get('node-version') : process.version,
+              node: process.version,
             }),
         ].join('\n'),
       ])
@@ -398,5 +429,7 @@ module.exports = (er, npm) => {
 
       break
   }
-  return { summary: short, detail: detail }
+  return { summary: short, detail, files, json: jsonError(er, npm, { summary: short, detail }) }
 }
+
+module.exports = errorMessage

@@ -39,8 +39,9 @@ const cSet = (cache, key, val) => cache.set(normPath(key), val)
 
 const checkCwd = (dir, cb) => {
   fs.stat(dir, (er, st) => {
-    if (er || !st.isDirectory())
+    if (er || !st.isDirectory()) {
       er = new CwdError(dir, er && er.code || 'ENOTDIR')
+    }
     cb(er)
   })
 }
@@ -66,27 +67,31 @@ module.exports = (dir, opt, cb) => {
   const cwd = normPath(opt.cwd)
 
   const done = (er, created) => {
-    if (er)
+    if (er) {
       cb(er)
-    else {
+    } else {
       cSet(cache, dir, true)
-      if (created && doChown)
+      if (created && doChown) {
         chownr(created, uid, gid, er => done(er))
-      else if (needChmod)
+      } else if (needChmod) {
         fs.chmod(dir, mode, cb)
-      else
+      } else {
         cb()
+      }
     }
   }
 
-  if (cache && cGet(cache, dir) === true)
+  if (cache && cGet(cache, dir) === true) {
     return done()
+  }
 
-  if (dir === cwd)
+  if (dir === cwd) {
     return checkCwd(dir, done)
+  }
 
-  if (preserve)
-    return mkdirp(dir, {mode}).then(made => done(null, made), done)
+  if (preserve) {
+    return mkdirp(dir, { mode }).then(made => done(null, made), done)
+  }
 
   const sub = normPath(path.relative(cwd, dir))
   const parts = sub.split('/')
@@ -94,12 +99,14 @@ module.exports = (dir, opt, cb) => {
 }
 
 const mkdir_ = (base, parts, mode, cache, unlink, cwd, created, cb) => {
-  if (!parts.length)
+  if (!parts.length) {
     return cb(null, created)
+  }
   const p = parts.shift()
   const part = normPath(path.resolve(base + '/' + p))
-  if (cGet(cache, part))
+  if (cGet(cache, part)) {
     return mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
+  }
   fs.mkdir(part, mode, onmkdir(part, parts, mode, cache, unlink, cwd, created, cb))
 }
 
@@ -109,18 +116,20 @@ const onmkdir = (part, parts, mode, cache, unlink, cwd, created, cb) => er => {
       if (statEr) {
         statEr.path = statEr.path && normPath(statEr.path)
         cb(statEr)
-      } else if (st.isDirectory())
+      } else if (st.isDirectory()) {
         mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
-      else if (unlink) {
+      } else if (unlink) {
         fs.unlink(part, er => {
-          if (er)
+          if (er) {
             return cb(er)
+          }
           fs.mkdir(part, mode, onmkdir(part, parts, mode, cache, unlink, cwd, created, cb))
         })
-      } else if (st.isSymbolicLink())
+      } else if (st.isSymbolicLink()) {
         return cb(new SymlinkError(part, part + '/' + parts.join('/')))
-      else
+      } else {
         cb(er)
+      }
     })
   } else {
     created = created || part
@@ -136,8 +145,9 @@ const checkCwdSync = dir => {
   } catch (er) {
     code = er.code
   } finally {
-    if (!ok)
+    if (!ok) {
       throw new CwdError(dir, code)
+    }
   }
 }
 
@@ -162,22 +172,26 @@ module.exports.sync = (dir, opt) => {
 
   const done = (created) => {
     cSet(cache, dir, true)
-    if (created && doChown)
+    if (created && doChown) {
       chownr.sync(created, uid, gid)
-    if (needChmod)
+    }
+    if (needChmod) {
       fs.chmodSync(dir, mode)
+    }
   }
 
-  if (cache && cGet(cache, dir) === true)
+  if (cache && cGet(cache, dir) === true) {
     return done()
+  }
 
   if (dir === cwd) {
     checkCwdSync(cwd)
     return done()
   }
 
-  if (preserve)
+  if (preserve) {
     return done(mkdirp.sync(dir, mode))
+  }
 
   const sub = normPath(path.relative(cwd, dir))
   const parts = sub.split('/')
@@ -186,8 +200,9 @@ module.exports.sync = (dir, opt) => {
     p && (part += '/' + p);
     p = parts.shift()) {
     part = normPath(path.resolve(part))
-    if (cGet(cache, part))
+    if (cGet(cache, part)) {
       continue
+    }
 
     try {
       fs.mkdirSync(part, mode)
@@ -204,8 +219,9 @@ module.exports.sync = (dir, opt) => {
         created = created || part
         cSet(cache, part, true)
         continue
-      } else if (st.isSymbolicLink())
+      } else if (st.isSymbolicLink()) {
         return new SymlinkError(part, part + '/' + parts.join('/'))
+      }
     }
   }
 

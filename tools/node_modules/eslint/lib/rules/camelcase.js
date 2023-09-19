@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Enforce camelcase naming convention",
             recommended: false,
-            url: "https://eslint.org/docs/rules/camelcase"
+            url: "https://eslint.org/docs/latest/rules/camelcase"
         },
 
         schema: [
@@ -73,6 +73,7 @@ module.exports = {
         const ignoreImports = options.ignoreImports;
         const ignoreGlobals = options.ignoreGlobals;
         const allow = options.allow || [];
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -245,8 +246,8 @@ module.exports = {
         return {
 
             // Report camelcase of global variable references ------------------
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
 
                 if (!ignoreGlobals) {
 
@@ -295,7 +296,7 @@ module.exports = {
                 "ClassExpression",
                 "CatchClause"
             ]](node) {
-                for (const variable of context.getDeclaredVariables(node)) {
+                for (const variable of sourceCode.getDeclaredVariables(node)) {
                     if (isGoodName(variable.name)) {
                         continue;
                     }
@@ -345,7 +346,7 @@ module.exports = {
 
             // Report camelcase in import --------------------------------------
             ImportDeclaration(node) {
-                for (const variable of context.getDeclaredVariables(node)) {
+                for (const variable of sourceCode.getDeclaredVariables(node)) {
                     if (isGoodName(variable.name)) {
                         continue;
                     }

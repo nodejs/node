@@ -30,11 +30,10 @@ These methods replace the EVP_PKEY_CTX_ctrl() mechanism. (EVP_PKEY_CTX_ctrl now
 calls these methods internally to interact with providers).
 
 EVP_PKEY_CTX_gettable_params() and EVP_PKEY_CTX_settable_params() get a
-constant B<OSSL_PARAM> array that describes the gettable and
+constant L<OSSL_PARAM(3)> array that describes the gettable and
 settable parameters for the current algorithm implementation, i.e. parameters
 that can be used with EVP_PKEY_CTX_get_params() and EVP_PKEY_CTX_set_params()
 respectively.
-See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM> as parameter descriptor.
 These functions must only be called after the EVP_PKEY_CTX has been initialised
 for use in an operation.
 

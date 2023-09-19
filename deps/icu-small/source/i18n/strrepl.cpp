@@ -149,7 +149,7 @@ int32_t StringReplacer::replace(Replaceable& text,
             text.copy(start-len, start, tempStart);
             destStart += len;
         } else {
-            UnicodeString str((UChar) 0xFFFF);
+            UnicodeString str((char16_t) 0xFFFF);
             text.handleReplaceBetween(tempStart, tempStart, str);
             destStart++;
         }
@@ -162,7 +162,7 @@ int32_t StringReplacer::replace(Replaceable& text,
             }
             UChar32 c = output.char32At(oOutput);
             UnicodeReplacer* r = data->lookupReplacer(c);
-            if (r == NULL) {
+            if (r == nullptr) {
                 // Accumulate straight (non-segment) text.
                 buf.append(c);
             } else {
@@ -249,25 +249,25 @@ UnicodeString& StringReplacer::toReplacerPattern(UnicodeString& rule,
     // Handle a cursor preceding the output
     if (hasCursor && cursor < 0) {
         while (cursor++ < 0) {
-            ICU_Utility::appendToRule(rule, (UChar)0x0040 /*@*/, true, escapeUnprintable, quoteBuf);
+            ICU_Utility::appendToRule(rule, (char16_t)0x0040 /*@*/, true, escapeUnprintable, quoteBuf);
         }
         // Fall through and append '|' below
     }
 
     for (int32_t i=0; i<output.length(); ++i) {
         if (hasCursor && i == cursor) {
-            ICU_Utility::appendToRule(rule, (UChar)0x007C /*|*/, true, escapeUnprintable, quoteBuf);
+            ICU_Utility::appendToRule(rule, (char16_t)0x007C /*|*/, true, escapeUnprintable, quoteBuf);
         }
-        UChar c = output.charAt(i); // Ok to use 16-bits here
+        char16_t c = output.charAt(i); // Ok to use 16-bits here
 
         UnicodeReplacer* r = data->lookupReplacer(c);
-        if (r == NULL) {
+        if (r == nullptr) {
             ICU_Utility::appendToRule(rule, c, false, escapeUnprintable, quoteBuf);
         } else {
             UnicodeString buf;
             r->toReplacerPattern(buf, escapeUnprintable);
-            buf.insert(0, (UChar)0x20);
-            buf.append((UChar)0x20);
+            buf.insert(0, (char16_t)0x20);
+            buf.append((char16_t)0x20);
             ICU_Utility::appendToRule(rule, buf,
                                       true, escapeUnprintable, quoteBuf);
         }
@@ -279,9 +279,9 @@ UnicodeString& StringReplacer::toReplacerPattern(UnicodeString& rule,
     if (hasCursor && cursor > output.length()) {
         cursor -= output.length();
         while (cursor-- > 0) {
-            ICU_Utility::appendToRule(rule, (UChar)0x0040 /*@*/, true, escapeUnprintable, quoteBuf);
+            ICU_Utility::appendToRule(rule, (char16_t)0x0040 /*@*/, true, escapeUnprintable, quoteBuf);
         }
-        ICU_Utility::appendToRule(rule, (UChar)0x007C /*|*/, true, escapeUnprintable, quoteBuf);
+        ICU_Utility::appendToRule(rule, (char16_t)0x007C /*|*/, true, escapeUnprintable, quoteBuf);
     }
     // Flush quoteBuf out to result
     ICU_Utility::appendToRule(rule, -1,
@@ -298,7 +298,7 @@ void StringReplacer::addReplacementSetTo(UnicodeSet& toUnionTo) const {
     for (int32_t i=0; i<output.length(); i+=U16_LENGTH(ch)) {
     ch = output.char32At(i);
     UnicodeReplacer* r = data->lookupReplacer(ch);
-    if (r == NULL) {
+    if (r == nullptr) {
         toUnionTo.add(ch);
     } else {
         r->addReplacementSetTo(toUnionTo);
@@ -315,7 +315,7 @@ void StringReplacer::setData(const TransliterationRuleData* d) {
     while (i<output.length()) {
         UChar32 c = output.char32At(i);
         UnicodeFunctor* f = data->lookup(c);
-        if (f != NULL) {
+        if (f != nullptr) {
             f->setData(data);
         }
         i += U16_LENGTH(c);

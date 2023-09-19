@@ -6,7 +6,7 @@ const http = require('http');
 const bench = common.createBenchmark(main, {
   n: [10, 600],
   len: [1, 100],
-  duration: 5
+  duration: 5,
 });
 
 function main({ len, n, duration }) {

@@ -11,6 +11,7 @@ class Pkg extends BaseCommand {
     'delete <key> [<key> ...]',
     'set [<array>[<index>].<key>=<value> ...]',
     'set [<array>[].<key>=<value> ...]',
+    'fix',
   ]
 
   static params = [
@@ -20,6 +21,7 @@ class Pkg extends BaseCommand {
     'workspaces',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   async exec (args, { prefix } = {}) {
@@ -44,13 +46,15 @@ class Pkg extends BaseCommand {
         return this.set(_args)
       case 'delete':
         return this.delete(_args)
+      case 'fix':
+        return this.fix(_args)
       default:
         throw this.usageError()
     }
   }
 
-  async execWorkspaces (args, filters) {
-    await this.setWorkspaces(filters)
+  async execWorkspaces (args) {
+    await this.setWorkspaces()
     const result = {}
     for (const [workspaceName, workspacePath] of this.workspaces.entries()) {
       this.prefix = workspacePath
@@ -81,7 +85,7 @@ class Pkg extends BaseCommand {
     // only outputs if not running with workspaces config,
     // in case you're retrieving info for workspaces the pkgWorkspaces
     // will handle the output to make sure it get keyed by ws name
-    if (!this.workspaces) {
+    if (!this.npm.config.get('workspaces')) {
       this.npm.output(JSON.stringify(result, null, 2))
     }
 
@@ -133,6 +137,11 @@ class Pkg extends BaseCommand {
     }
 
     pkgJson.update(q.toJSON())
+    await pkgJson.save()
+  }
+
+  async fix () {
+    const pkgJson = await PackageJson.fix(this.prefix)
     await pkgJson.save()
   }
 }

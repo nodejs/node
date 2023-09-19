@@ -17,7 +17,7 @@ common.expectWarning('DeprecationWarning', warn, 'DEP0066');
   // Tests _headerNames getter result after setting a header.
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setHeader('key', 'value');
-  const expect = Object.create(null);
+  const expect = { __proto__: null };
   expect.key = 'key';
   assert.deepStrictEqual(outgoingMessage._headerNames, expect);
 }

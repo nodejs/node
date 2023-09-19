@@ -113,6 +113,49 @@ class U_I18N_API ChineseCalendar : public Calendar {
    */
   ChineseCalendar(const Locale& aLocale, UErrorCode &success);
 
+  /**
+   * Returns true if the date is in a leap year.
+   *
+   * @param status        ICU Error Code
+   * @return       True if the date in the fields is in a Temporal proposal
+   *               defined leap year. False otherwise.
+   */
+  virtual bool inTemporalLeapYear(UErrorCode &status) const override;
+
+  /**
+   * Gets The Temporal monthCode value corresponding to the month for the date.
+   * The value is a string identifier that starts with the literal grapheme
+   * "M" followed by two graphemes representing the zero-padded month number
+   * of the current month in a normal (non-leap) year and suffixed by an
+   * optional literal grapheme "L" if this is a leap month in a lunisolar
+   * calendar. For Chinese calendars (including Dangi), the values are
+   * "M01" .. "M12" for non-leap year, and "M01" .. "M12" with one of
+   * "M01L" .. "M12L" for leap year.
+   *
+   * @param status        ICU Error Code
+   * @return       One of 24 possible strings in
+   *               {"M01" .. "M12", "M01L" .. "M12L"}.
+   * @draft ICU 73
+   */
+  virtual const char* getTemporalMonthCode(UErrorCode &status) const override;
+
+  /**
+   * Sets The Temporal monthCode which is a string identifier that starts
+   * with the literal grapheme "M" followed by two graphemes representing
+   * the zero-padded month number of the current month in a normal
+   * (non-leap) year and suffixed by an optional literal grapheme "L" if this
+   * is a leap month in a lunisolar calendar. For Chinese calendars, the values
+   * are "M01" .. "M12" for non-leap years, and "M01" .. "M12" plus one in
+   * "M01L" .. "M12L" for leap year.
+   *
+   * @param temporalMonth  The value to be set for temporal monthCode. One of
+   *                    24 possible strings in {"M01" .. "M12", "M01L" .. "M12L"}.
+   * @param status        ICU Error Code
+   *
+   * @draft ICU 73
+   */
+  virtual void setTemporalMonthCode(const char* code, UErrorCode& status) override;
+
  protected:
  
    /**
@@ -152,7 +195,12 @@ class U_I18N_API ChineseCalendar : public Calendar {
   // Internal data....
   //-------------------------------------------------------------------------
     
-  UBool isLeapYear;
+  // There is a leap month between the Winter Solstice before and after the
+  // current date.This is different from leap year because in some year, such as
+  // 1813 and 2033, the leap month is after the Winter Solstice of that year. So
+  // this value could be false for a date prior to the Winter Solstice of that
+  // year but that year still has a leap month and therefor is a leap year.
+  UBool hasLeapMonthBetweenWinterSolstices;
   int32_t fEpochYear;   // Start year of this Chinese calendar instance.
   const TimeZone* fZoneAstroCalc;   // Zone used for the astronomical calculation
                                     // of this Chinese calendar instance.
@@ -175,6 +223,20 @@ class U_I18N_API ChineseCalendar : public Calendar {
   virtual void roll(UCalendarDateFields field, int32_t amount, UErrorCode &status) override;
   virtual void roll(EDateFields field, int32_t amount, UErrorCode &status) override;
 
+  /**
+   * @return      The related Gregorian year; will be obtained by modifying the value
+   *              obtained by get from UCAL_EXTENDED_YEAR field
+   * @internal
+   */
+  virtual int32_t getRelatedYear(UErrorCode &status) const override;
+
+  /**
+   * @param year  The related Gregorian year to set; will be modified as necessary then
+   *              set in UCAL_EXTENDED_YEAR field
+   * @internal
+   */
+  virtual void setRelatedYear(int32_t year) override;
+
   //----------------------------------------------------------------------
   // Internal methods & astronomical calculations
   //----------------------------------------------------------------------
@@ -195,7 +257,7 @@ class U_I18N_API ChineseCalendar : public Calendar {
                  int32_t gmonth, UBool setAllFields);
   virtual int32_t newYear(int32_t gyear) const;
   virtual void offsetMonth(int32_t newMoon, int32_t dom, int32_t delta);
-  const TimeZone* getChineseCalZoneAstroCalc(void) const;
+  const TimeZone* getChineseCalZoneAstroCalc() const;
 
   // UObject stuff
  public: 
@@ -204,7 +266,7 @@ class U_I18N_API ChineseCalendar : public Calendar {
    *           same class ID. Objects of other classes have different class IDs.
    * @internal
    */
-  virtual UClassID getDynamicClassID(void) const override;
+  virtual UClassID getDynamicClassID() const override;
 
   /**
    * Return the class ID for this class. This is useful only for comparing to a return
@@ -217,7 +279,7 @@ class U_I18N_API ChineseCalendar : public Calendar {
    * @return   The class ID for all objects of this class.
    * @internal
    */
-  static UClassID U_EXPORT2 getStaticClassID(void);
+  static UClassID U_EXPORT2 getStaticClassID();
 
   /**
    * return the calendar type, "chinese".
@@ -227,20 +289,12 @@ class U_I18N_API ChineseCalendar : public Calendar {
    */
   virtual const char * getType() const override;
 
+ protected:
+  virtual int32_t internalGetMonth(int32_t defaultValue) const override;
+
+  virtual int32_t internalGetMonth() const override;
 
  protected:
-  /**
-   * (Overrides Calendar) Return true if the current date for this Calendar is in
-   * Daylight Savings Time. Recognizes DST_OFFSET, if it is set.
-   *
-   * @param status Fill-in parameter which receives the status of this operation.
-   * @return   True if the current date for this Calendar is in Daylight Savings Time,
-   *           false, otherwise.
-   * @internal
-   */
-  virtual UBool inDaylightTime(UErrorCode& status) const override;
-
-
   /**
    * Returns true because the Islamic Calendar does have a default century
    * @internal
@@ -266,13 +320,13 @@ class U_I18N_API ChineseCalendar : public Calendar {
    * Returns the beginning date of the 100-year window that dates 
    * with 2-digit years are considered to fall within.
    */
-  UDate         internalGetDefaultCenturyStart(void) const;
+  UDate         internalGetDefaultCenturyStart() const;
 
   /**
    * Returns the first year of the 100-year window that dates with 
    * 2-digit years are considered to fall within.
    */
-  int32_t          internalGetDefaultCenturyStartYear(void) const;
+  int32_t          internalGetDefaultCenturyStartYear() const;
 
   ChineseCalendar() = delete; // default constructor not implemented
 };

@@ -74,6 +74,6 @@ TEST_IMPL(embed) {
   ASSERT_EQ(0, uv_thread_join(&thread));
   uv_barrier_destroy(&barrier);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

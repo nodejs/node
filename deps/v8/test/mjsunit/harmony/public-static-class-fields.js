@@ -144,6 +144,15 @@
 }
 
 {
+  let x = 'c';
+  class C {
+    static [x] = function() { return 1 };
+  }
+
+  assertEquals('c', C.c.name);
+}
+
+{
   let d = function() { return new.target; }
   class C {
     static c = d;
@@ -463,8 +472,39 @@ y()();
   let q = { ["z"]: class { static y = this.name } }
   assertEquals(q.z.y, 'z');
 
+  let r = { ["z"]: class { static y = this.name; static name = "zz" } }
+  let r_z_name_desc = Object.getOwnPropertyDescriptor(r.z, "name");
+  assertEquals(r.z.y, 'z');
+  assertEquals(r_z_name_desc, {
+    value: 'zz', enumerable: true, writable: true, configurable: true
+  });
+
+  let s = { ["z"]: class Y { static y = this.name } }
+  assertEquals(s.z.y, 'Y');
+
   const C = class {
     static x = this.name;
   }
   assertEquals(C.x, 'C');
+}
+
+{
+  let p = class { static z = class { static y = this.name } }
+  assertEquals(p.z.y, 'z');
+
+  let q = class { static ["z"] = class { static y = this.name } }
+  assertEquals(q.z.y, 'z');
+
+  let r = class {
+    static ["z"] =
+      class { static y = this.name; static name = "zz" }
+  }
+  let r_z_name_desc = Object.getOwnPropertyDescriptor(r.z, "name");
+  assertEquals(r.z.y, 'z');
+  assertEquals(r_z_name_desc, {
+    value: 'zz', enumerable: true, writable: true, configurable: true
+  });
+
+  let s = class { static ["z"] = class Y { static y = this.name } }
+  assertEquals(s.z.y, 'Y');
 }

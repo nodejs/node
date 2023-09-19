@@ -10,7 +10,7 @@ child_process.spawnSync(process.execPath, [
 
 const { stdout } = child_process.spawnSync('stty', {
   stdio: ['inherit', 'pipe', 'inherit'],
-  encoding: 'utf8'
+  encoding: 'utf8',
 });
 
 if (stdout.match(/-echo\b/)) {

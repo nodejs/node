@@ -41,12 +41,13 @@
 #include <sys/uio.h> /* writev */
 #include <sys/resource.h> /* getrusage */
 #include <pwd.h>
+#include <grp.h>
 #include <sys/utsname.h>
 #include <sys/time.h>
+#include <time.h> /* clock_gettime */
 
 #ifdef __sun
 # include <sys/filio.h>
-# include <sys/types.h>
 # include <sys/wait.h>
 #endif
 
@@ -66,13 +67,14 @@ extern char** environ;
 
 #if defined(__DragonFly__)      || \
     defined(__FreeBSD__)        || \
-    defined(__FreeBSD_kernel__) || \
     defined(__NetBSD__)         || \
     defined(__OpenBSD__)
 # include <sys/sysctl.h>
 # include <sys/filio.h>
 # include <sys/wait.h>
+# include <sys/param.h>
 # if defined(__FreeBSD__)
+#  include <sys/cpuset.h>
 #  define uv__accept4 accept4
 # endif
 # if defined(__NetBSD__)
@@ -105,6 +107,35 @@ STATIC_ASSERT(sizeof(((uv_buf_t*) 0)->len) ==
               sizeof(((struct iovec*) 0)->iov_len));
 STATIC_ASSERT(offsetof(uv_buf_t, base) == offsetof(struct iovec, iov_base));
 STATIC_ASSERT(offsetof(uv_buf_t, len) == offsetof(struct iovec, iov_len));
+
+
+/* https://github.com/libuv/libuv/issues/1674 */
+int uv_clock_gettime(uv_clock_id clock_id, uv_timespec64_t* ts) {
+  struct timespec t;
+  int r;
+
+  if (ts == NULL)
+    return UV_EFAULT;
+
+  switch (clock_id) {
+    default:
+      return UV_EINVAL;
+    case UV_CLOCK_MONOTONIC:
+      r = clock_gettime(CLOCK_MONOTONIC, &t);
+      break;
+    case UV_CLOCK_REALTIME:
+      r = clock_gettime(CLOCK_REALTIME, &t);
+      break;
+  }
+
+  if (r)
+    return UV__ERR(errno);
+
+  ts->tv_sec = t.tv_sec;
+  ts->tv_nsec = t.tv_nsec;
+
+  return 0;
+}
 
 
 uint64_t uv_hrtime(void) {
@@ -232,10 +263,10 @@ int uv__getiovmax(void) {
 #if defined(IOV_MAX)
   return IOV_MAX;
 #elif defined(_SC_IOV_MAX)
-  static int iovmax_cached = -1;
+  static _Atomic int iovmax_cached = -1;
   int iovmax;
 
-  iovmax = uv__load_relaxed(&iovmax_cached);
+  iovmax = atomic_load_explicit(&iovmax_cached, memory_order_relaxed);
   if (iovmax != -1)
     return iovmax;
 
@@ -247,7 +278,7 @@ int uv__getiovmax(void) {
   if (iovmax == -1)
     iovmax = 1;
 
-  uv__store_relaxed(&iovmax_cached, iovmax);
+  atomic_store_explicit(&iovmax_cached, iovmax, memory_order_relaxed);
 
   return iovmax;
 #else
@@ -313,7 +344,7 @@ static void uv__finish_close(uv_handle_t* handle) {
   }
 
   uv__handle_unref(handle);
-  QUEUE_REMOVE(&handle->handle_queue);
+  uv__queue_remove(&handle->handle_queue);
 
   if (handle->close_cb) {
     handle->close_cb(handle);
@@ -349,7 +380,7 @@ int uv_backend_fd(const uv_loop_t* loop) {
 static int uv__loop_alive(const uv_loop_t* loop) {
   return uv__has_active_handles(loop) ||
          uv__has_active_reqs(loop) ||
-         !QUEUE_EMPTY(&loop->pending_queue) ||
+         !uv__queue_empty(&loop->pending_queue) ||
          loop->closing_handles != NULL;
 }
 
@@ -358,8 +389,9 @@ static int uv__backend_timeout(const uv_loop_t* loop) {
   if (loop->stop_flag == 0 &&
       /* uv__loop_alive(loop) && */
       (uv__has_active_handles(loop) || uv__has_active_reqs(loop)) &&
-      QUEUE_EMPTY(&loop->pending_queue) &&
-      QUEUE_EMPTY(&loop->idle_handles) &&
+      uv__queue_empty(&loop->pending_queue) &&
+      uv__queue_empty(&loop->idle_handles) &&
+      (loop->flags & UV_LOOP_REAP_CHILDREN) == 0 &&
       loop->closing_handles == NULL)
     return uv__next_timeout(loop);
   return 0;
@@ -367,7 +399,7 @@ static int uv__backend_timeout(const uv_loop_t* loop) {
 
 
 int uv_backend_timeout(const uv_loop_t* loop) {
-  if (QUEUE_EMPTY(&loop->watcher_queue))
+  if (uv__queue_empty(&loop->watcher_queue))
     return uv__backend_timeout(loop);
   /* Need to call uv_run to update the backend fd state. */
   return 0;
@@ -388,12 +420,19 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
   if (!r)
     uv__update_time(loop);
 
-  while (r != 0 && loop->stop_flag == 0) {
+  /* Maintain backwards compatibility by processing timers before entering the
+   * while loop for UV_RUN_DEFAULT. Otherwise timers only need to be executed
+   * once, which should be done after polling in order to maintain proper
+   * execution order of the conceptual event loop. */
+  if (mode == UV_RUN_DEFAULT && r != 0 && loop->stop_flag == 0) {
     uv__update_time(loop);
     uv__run_timers(loop);
+  }
 
+  while (r != 0 && loop->stop_flag == 0) {
     can_sleep =
-        QUEUE_EMPTY(&loop->pending_queue) && QUEUE_EMPTY(&loop->idle_handles);
+        uv__queue_empty(&loop->pending_queue) &&
+        uv__queue_empty(&loop->idle_handles);
 
     uv__run_pending(loop);
     uv__run_idle(loop);
@@ -403,11 +442,13 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
     if ((mode == UV_RUN_ONCE && can_sleep) || mode == UV_RUN_DEFAULT)
       timeout = uv__backend_timeout(loop);
 
+    uv__metrics_inc_loop_count(loop);
+
     uv__io_poll(loop, timeout);
 
     /* Process immediate callbacks (e.g. write_cb) a small fixed number of
      * times to avoid loop starvation.*/
-    for (r = 0; r < 8 && !QUEUE_EMPTY(&loop->pending_queue); r++)
+    for (r = 0; r < 8 && !uv__queue_empty(&loop->pending_queue); r++)
       uv__run_pending(loop);
 
     /* Run one final update on the provider_idle_time in case uv__io_poll
@@ -420,18 +461,8 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
     uv__run_check(loop);
     uv__run_closing_handles(loop);
 
-    if (mode == UV_RUN_ONCE) {
-      /* UV_RUN_ONCE implies forward progress: at least one callback must have
-       * been invoked when it returns. uv__io_poll() can return without doing
-       * I/O (meaning: no callbacks) when its timeout expires - which means we
-       * have pending timers that satisfy the forward progress constraint.
-       *
-       * UV_RUN_NOWAIT makes no guarantees about progress so it's omitted from
-       * the check.
-       */
-      uv__update_time(loop);
-      uv__run_timers(loop);
-    }
+    uv__update_time(loop);
+    uv__run_timers(loop);
 
     r = uv__loop_alive(loop);
     if (mode == UV_RUN_ONCE || mode == UV_RUN_NOWAIT)
@@ -796,17 +827,17 @@ int uv_fileno(const uv_handle_t* handle, uv_os_fd_t* fd) {
 
 
 static void uv__run_pending(uv_loop_t* loop) {
-  QUEUE* q;
-  QUEUE pq;
+  struct uv__queue* q;
+  struct uv__queue pq;
   uv__io_t* w;
 
-  QUEUE_MOVE(&loop->pending_queue, &pq);
+  uv__queue_move(&loop->pending_queue, &pq);
 
-  while (!QUEUE_EMPTY(&pq)) {
-    q = QUEUE_HEAD(&pq);
-    QUEUE_REMOVE(q);
-    QUEUE_INIT(q);
-    w = QUEUE_DATA(q, uv__io_t, pending_queue);
+  while (!uv__queue_empty(&pq)) {
+    q = uv__queue_head(&pq);
+    uv__queue_remove(q);
+    uv__queue_init(q);
+    w = uv__queue_data(q, uv__io_t, pending_queue);
     w->cb(loop, w, POLLOUT);
   }
 }
@@ -861,17 +892,12 @@ static void maybe_resize(uv_loop_t* loop, unsigned int len) {
 void uv__io_init(uv__io_t* w, uv__io_cb cb, int fd) {
   assert(cb != NULL);
   assert(fd >= -1);
-  QUEUE_INIT(&w->pending_queue);
-  QUEUE_INIT(&w->watcher_queue);
+  uv__queue_init(&w->pending_queue);
+  uv__queue_init(&w->watcher_queue);
   w->cb = cb;
   w->fd = fd;
   w->events = 0;
   w->pevents = 0;
-
-#if defined(UV_HAVE_KQUEUE)
-  w->rcount = 0;
-  w->wcount = 0;
-#endif /* defined(UV_HAVE_KQUEUE) */
 }
 
 
@@ -893,8 +919,8 @@ void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
     return;
 #endif
 
-  if (QUEUE_EMPTY(&w->watcher_queue))
-    QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
+  if (uv__queue_empty(&w->watcher_queue))
+    uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
 
   if (loop->watchers[w->fd] == NULL) {
     loop->watchers[w->fd] = w;
@@ -919,8 +945,8 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   w->pevents &= ~events;
 
   if (w->pevents == 0) {
-    QUEUE_REMOVE(&w->watcher_queue);
-    QUEUE_INIT(&w->watcher_queue);
+    uv__queue_remove(&w->watcher_queue);
+    uv__queue_init(&w->watcher_queue);
     w->events = 0;
 
     if (w == loop->watchers[w->fd]) {
@@ -929,14 +955,14 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
       loop->nfds--;
     }
   }
-  else if (QUEUE_EMPTY(&w->watcher_queue))
-    QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
+  else if (uv__queue_empty(&w->watcher_queue))
+    uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
 }
 
 
 void uv__io_close(uv_loop_t* loop, uv__io_t* w) {
   uv__io_stop(loop, w, POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI);
-  QUEUE_REMOVE(&w->pending_queue);
+  uv__queue_remove(&w->pending_queue);
 
   /* Remove stale events for this file descriptor */
   if (w->fd != -1)
@@ -945,8 +971,8 @@ void uv__io_close(uv_loop_t* loop, uv__io_t* w) {
 
 
 void uv__io_feed(uv_loop_t* loop, uv__io_t* w) {
-  if (QUEUE_EMPTY(&w->pending_queue))
-    QUEUE_INSERT_TAIL(&loop->pending_queue, &w->pending_queue);
+  if (uv__queue_empty(&w->pending_queue))
+    uv__queue_insert_tail(&loop->pending_queue, &w->pending_queue);
 }
 
 
@@ -989,6 +1015,15 @@ int uv_getrusage(uv_rusage_t* rusage) {
   rusage->ru_nsignals = usage.ru_nsignals;
   rusage->ru_nvcsw = usage.ru_nvcsw;
   rusage->ru_nivcsw = usage.ru_nivcsw;
+#endif
+
+  /* Most platforms report ru_maxrss in kilobytes; macOS and Solaris are
+   * the outliers because of course they are.
+   */
+#if defined(__APPLE__)
+  rusage->ru_maxrss /= 1024;                  /* macOS and iOS report bytes. */
+#elif defined(__sun)
+  rusage->ru_maxrss /= getpagesize() / 1024;  /* Solaris reports pages. */
 #endif
 
   return 0;
@@ -1090,8 +1125,8 @@ int uv_os_homedir(char* buffer, size_t* size) {
   if (r != UV_ENOENT)
     return r;
 
-  /* HOME is not set, so call uv__getpwuid_r() */
-  r = uv__getpwuid_r(&pwd);
+  /* HOME is not set, so call uv_os_get_passwd() */
+  r = uv_os_get_passwd(&pwd);
 
   if (r != 0) {
     return r;
@@ -1164,11 +1199,10 @@ return_buffer:
 }
 
 
-int uv__getpwuid_r(uv_passwd_t* pwd) {
+static int uv__getpwuid_r(uv_passwd_t *pwd, uid_t uid) {
   struct passwd pw;
   struct passwd* result;
   char* buf;
-  uid_t uid;
   size_t bufsize;
   size_t name_size;
   size_t homedir_size;
@@ -1177,8 +1211,6 @@ int uv__getpwuid_r(uv_passwd_t* pwd) {
 
   if (pwd == NULL)
     return UV_EINVAL;
-
-  uid = geteuid();
 
   /* Calling sysconf(_SC_GETPW_R_SIZE_MAX) would get the suggested size, but it
    * is frequently 1024 or 4096, so we can just use that directly. The pwent
@@ -1238,24 +1270,98 @@ int uv__getpwuid_r(uv_passwd_t* pwd) {
 }
 
 
-void uv_os_free_passwd(uv_passwd_t* pwd) {
-  if (pwd == NULL)
-    return;
+int uv_os_get_group(uv_group_t* grp, uv_uid_t gid) {
+#if defined(__ANDROID__) && __ANDROID_API__ < 24
+  /* This function getgrgid_r() was added in Android N (level 24) */
+  return UV_ENOSYS;
+#else
+  struct group gp;
+  struct group* result;
+  char* buf;
+  char* gr_mem;
+  size_t bufsize;
+  size_t name_size;
+  long members;
+  size_t mem_size;
+  int r;
 
-  /*
-    The memory for name, shell, and homedir are allocated in a single
-    uv__malloc() call. The base of the pointer is stored in pwd->username, so
-    that is the field that needs to be freed.
-  */
-  uv__free(pwd->username);
-  pwd->username = NULL;
-  pwd->shell = NULL;
-  pwd->homedir = NULL;
+  if (grp == NULL)
+    return UV_EINVAL;
+
+  /* Calling sysconf(_SC_GETGR_R_SIZE_MAX) would get the suggested size, but it
+   * is frequently 1024 or 4096, so we can just use that directly. The pwent
+   * will not usually be large. */
+  for (bufsize = 2000;; bufsize *= 2) {
+    buf = uv__malloc(bufsize);
+
+    if (buf == NULL)
+      return UV_ENOMEM;
+
+    do
+      r = getgrgid_r(gid, &gp, buf, bufsize, &result);
+    while (r == EINTR);
+
+    if (r != 0 || result == NULL)
+      uv__free(buf);
+
+    if (r != ERANGE)
+      break;
+  }
+
+  if (r != 0)
+    return UV__ERR(r);
+
+  if (result == NULL)
+    return UV_ENOENT;
+
+  /* Allocate memory for the groupname and members. */
+  name_size = strlen(gp.gr_name) + 1;
+  members = 0;
+  mem_size = sizeof(char*);
+  for (r = 0; gp.gr_mem[r] != NULL; r++) {
+    mem_size += strlen(gp.gr_mem[r]) + 1 + sizeof(char*);
+    members++;
+  }
+
+  gr_mem = uv__malloc(name_size + mem_size);
+  if (gr_mem == NULL) {
+    uv__free(buf);
+    return UV_ENOMEM;
+  }
+
+  /* Copy the members */
+  grp->members = (char**) gr_mem;
+  grp->members[members] = NULL;
+  gr_mem = (char*) &grp->members[members + 1];
+  for (r = 0; r < members; r++) {
+    grp->members[r] = gr_mem;
+    strcpy(gr_mem, gp.gr_mem[r]);
+    gr_mem += strlen(gr_mem) + 1;
+  }
+  assert(gr_mem == (char*)grp->members + mem_size);
+
+  /* Copy the groupname */
+  grp->groupname = gr_mem;
+  memcpy(grp->groupname, gp.gr_name, name_size);
+  gr_mem += name_size;
+
+  /* Copy the gid */
+  grp->gid = gp.gr_gid;
+
+  uv__free(buf);
+
+  return 0;
+#endif
 }
 
 
 int uv_os_get_passwd(uv_passwd_t* pwd) {
-  return uv__getpwuid_r(pwd);
+  return uv__getpwuid_r(pwd, geteuid());
+}
+
+
+int uv_os_get_passwd2(uv_passwd_t* pwd, uv_uid_t uid) {
+  return uv__getpwuid_r(pwd, uid);
 }
 
 
@@ -1416,6 +1522,13 @@ uv_pid_t uv_os_getppid(void) {
   return getppid();
 }
 
+int uv_cpumask_size(void) {
+#if UV__CPU_AFFINITY_SUPPORTED
+  return CPU_SETSIZE;
+#else
+  return UV_ENOTSUP;
+#endif
+}
 
 int uv_os_getpriority(uv_pid_t pid, int* priority) {
   int r;

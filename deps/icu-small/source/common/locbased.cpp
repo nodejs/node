@@ -22,7 +22,7 @@ Locale LocaleBased::getLocale(ULocDataLocaleType type, UErrorCode& status) const
 
 const char* LocaleBased::getLocaleID(ULocDataLocaleType type, UErrorCode& status) const {
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
 
     switch(type) {
@@ -32,7 +32,7 @@ const char* LocaleBased::getLocaleID(ULocDataLocaleType type, UErrorCode& status
         return actual;
     default:
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 }
 

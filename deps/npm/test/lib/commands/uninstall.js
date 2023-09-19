@@ -1,226 +1,202 @@
 const t = require('tap')
 const fs = require('fs')
 const { resolve } = require('path')
-const { fake: mockNpm } = require('../../fixtures/mock-npm')
+const _mockNpm = require('../../fixtures/mock-npm')
 
-const npm = mockNpm({
-  globalDir: '',
-  config: {
-    global: false,
-    prefix: '',
-  },
-  localPrefix: '',
-})
-const mocks = {
-  '../../../lib/utils/reify-finish.js': () => Promise.resolve(),
-}
-
-const Uninstall = t.mock('../../../lib/commands/uninstall.js', mocks)
-const uninstall = new Uninstall(npm)
-
-t.afterEach(() => {
-  npm.globalDir = ''
-  npm.prefix = ''
-  npm.localPrefix = ''
-  npm.flatOptions.global = false
-  npm.flatOptions.prefix = ''
-})
-
-t.test('remove single installed lib', async t => {
-  const path = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'test-rm-single-lib',
-      version: '1.0.0',
-      dependencies: {
-        a: '*',
-        b: '*',
-      },
-    }),
-    node_modules: {
-      a: {
-        'package.json': JSON.stringify({
-          name: 'a',
-          version: '1.0.0',
-        }),
-      },
-      b: {
-        'package.json': JSON.stringify({
-          name: 'b',
-          version: '1.0.0',
-        }),
-      },
+const mockNpm = async (t, opts = {}) => {
+  const res = await _mockNpm(t, {
+    ...opts,
+    mocks: {
+      ...opts.mocks,
+      '{LIB}/utils/reify-finish.js': async () => {},
     },
-    'package-lock.json': JSON.stringify({
-      name: 'test-rm-single-lib',
-      version: '1.0.0',
-      lockfileVersion: 2,
-      requires: true,
-      packages: {
-        '': {
-          name: 'test-rm-single-lib',
-          version: '1.0.0',
-          dependencies: {
-            a: '*',
-          },
-        },
-        'node_modules/a': {
-          version: '1.0.0',
-        },
-        'node_modules/b': {
-          version: '1.0.0',
-        },
-      },
-      dependencies: {
-        a: {
-          version: '1.0.0',
-        },
-        b: {
-          version: '1.0.0',
-        },
-      },
-    }),
   })
 
-  const b = resolve(path, 'node_modules/b')
-  t.ok(() => fs.statSync(b))
+  return {
+    ...res,
+    uninstall: (args) => res.npm.exec('uninstall', args),
+  }
+}
 
-  npm.localPrefix = path
+t.test('remove single installed lib', async t => {
+  const { uninstall, prefix } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'test-rm-single-lib',
+        version: '1.0.0',
+        dependencies: {
+          a: '*',
+          b: '*',
+        },
+      }),
+      node_modules: {
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+          }),
+        },
+        b: {
+          'package.json': JSON.stringify({
+            name: 'b',
+            version: '1.0.0',
+          }),
+        },
+      },
+      'package-lock.json': JSON.stringify({
+        name: 'test-rm-single-lib',
+        version: '1.0.0',
+        lockfileVersion: 2,
+        requires: true,
+        packages: {
+          '': {
+            name: 'test-rm-single-lib',
+            version: '1.0.0',
+            dependencies: {
+              a: '*',
+            },
+          },
+          'node_modules/a': {
+            version: '1.0.0',
+          },
+          'node_modules/b': {
+            version: '1.0.0',
+          },
+        },
+        dependencies: {
+          a: {
+            version: '1.0.0',
+          },
+          b: {
+            version: '1.0.0',
+          },
+        },
+      }),
+    },
+  })
 
-  await uninstall.exec(['b'])
+  const b = resolve(prefix, 'node_modules/b')
+  t.ok(fs.statSync(b))
+
+  await uninstall(['b'])
 
   t.throws(() => fs.statSync(b), 'should have removed package from npm')
 })
 
 t.test('remove multiple installed libs', async t => {
-  const path = t.testdir({
-    node_modules: {
-      a: {
-        'package.json': JSON.stringify({
-          name: 'a',
-          version: '1.0.0',
-        }),
-      },
-      b: {
-        'package.json': JSON.stringify({
-          name: 'b',
-          version: '1.0.0',
-        }),
-      },
-    },
-    'package-lock.json': JSON.stringify({
-      name: 'test-rm-single-lib',
-      version: '1.0.0',
-      lockfileVersion: 2,
-      requires: true,
-      packages: {
-        '': {
-          name: 'test-rm-single-lib',
-          version: '1.0.0',
-          dependencies: {
-            a: '*',
-          },
-        },
-        'node_modules/a': {
-          version: '1.0.0',
-        },
-        'node_modules/b': {
-          version: '1.0.0',
-        },
-      },
-      dependencies: {
+  const { uninstall, prefix } = await mockNpm(t, {
+    prefixDir: {
+      node_modules: {
         a: {
-          version: '1.0.0',
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+          }),
         },
         b: {
-          version: '1.0.0',
+          'package.json': JSON.stringify({
+            name: 'b',
+            version: '1.0.0',
+          }),
         },
       },
-    }),
+      'package-lock.json': JSON.stringify({
+        name: 'test-rm-single-lib',
+        version: '1.0.0',
+        lockfileVersion: 2,
+        requires: true,
+        packages: {
+          '': {
+            name: 'test-rm-single-lib',
+            version: '1.0.0',
+            dependencies: {
+              a: '*',
+            },
+          },
+          'node_modules/a': {
+            version: '1.0.0',
+          },
+          'node_modules/b': {
+            version: '1.0.0',
+          },
+        },
+        dependencies: {
+          a: {
+            version: '1.0.0',
+          },
+          b: {
+            version: '1.0.0',
+          },
+        },
+      }),
+    },
   })
 
-  const a = resolve(path, 'node_modules/a')
-  const b = resolve(path, 'node_modules/b')
-  t.ok(() => fs.statSync(a))
-  t.ok(() => fs.statSync(b))
+  const a = resolve(prefix, 'node_modules/a')
+  const b = resolve(prefix, 'node_modules/b')
+  t.ok(fs.statSync(a))
+  t.ok(fs.statSync(b))
 
-  npm.localPrefix = path
-
-  await uninstall.exec(['b'])
+  await uninstall(['b'])
 
   t.throws(() => fs.statSync(a), 'should have removed a package from nm')
   t.throws(() => fs.statSync(b), 'should have removed b package from nm')
 })
 
 t.test('no args local', async t => {
-  const path = t.testdir()
-
-  npm.flatOptions.prefix = path
+  const { uninstall } = await mockNpm(t)
 
   await t.rejects(
-    uninstall.exec([]),
+    uninstall([]),
     /Must provide a package name to remove/,
     'should throw package name required error'
   )
 })
 
 t.test('no args global', async t => {
-  const path = t.testdir({
-    lib: {
+  const { uninstall, npm } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'a',
+        version: '1.0.0',
+      }),
+    },
+    globalPrefixDir: {
       node_modules: {
-        a: t.fixture('symlink', '../../projects/a'),
+        a: t.fixture('symlink', '../../prefix'),
       },
     },
-    projects: {
-      a: {
-        'package.json': JSON.stringify({
-          name: 'a',
-          version: '1.0.0',
-        }),
-      },
-    },
+    config: { global: true },
   })
 
-  npm.localPrefix = resolve(path, 'projects', 'a')
-  npm.globalDir = resolve(path, 'lib', 'node_modules')
-  npm.config.set('global', true)
+  const a = resolve(npm.globalDir, 'a')
+  t.ok(fs.statSync(a))
 
-  const a = resolve(path, 'lib/node_modules/a')
-  t.ok(() => fs.statSync(a))
-
-  await uninstall.exec([])
+  await uninstall([])
 
   t.throws(() => fs.statSync(a), 'should have removed global nm symlink')
 })
 
 t.test('no args global but no package.json', async t => {
-  const path = t.testdir({})
-
-  npm.prefix = path
-  npm.localPrefix = path
-  npm.flatOptions.global = true
+  const { uninstall } = await mockNpm(t, {
+    config: { global: true },
+  })
 
   await t.rejects(
-    uninstall.exec([]),
+    uninstall([]),
     /npm uninstall/
   )
 })
 
-t.test('unknown error reading from localPrefix package.json', async t => {
-  const path = t.testdir({})
-
-  const Uninstall = t.mock('../../../lib/commands/uninstall.js', {
-    ...mocks,
-    'read-package-json-fast': () => Promise.reject(new Error('ERR')),
+t.test('non ENOENT error reading from localPrefix package.json', async t => {
+  const { uninstall } = await mockNpm(t, {
+    config: { global: true },
+    prefixDir: { 'package.json': 'not[json]' },
   })
-  const uninstall = new Uninstall(npm)
-
-  npm.prefix = path
-  npm.localPrefix = path
-  npm.flatOptions.global = true
 
   await t.rejects(
-    uninstall.exec([]),
-    /ERR/,
-    'should throw unknown error'
+    uninstall([]),
+    { code: 'EJSONPARSE' },
+    'should throw non ENOENT error'
   )
 })

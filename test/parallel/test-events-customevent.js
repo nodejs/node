@@ -187,7 +187,7 @@ const { Event, EventTarget, CustomEvent } = require('internal/event_target');
 }
 {
   const ev = new CustomEvent('foo');
-  deepStrictEqual(Object.keys(ev), ['isTrusted']);
+  strictEqual(ev.isTrusted, false);
 }
 
 // Works with EventTarget

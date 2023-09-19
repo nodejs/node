@@ -4,13 +4,9 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = parseAndBuildMetadata;
-
 var _t = require("@babel/types");
-
 var _parser = require("@babel/parser");
-
 var _codeFrame = require("@babel/code-frame");
-
 const {
   isCallExpression,
   isExpressionStatement,
@@ -25,7 +21,6 @@ const {
   traverse
 } = _t;
 const PATTERN = /^[_$A-Z0-9]+$/;
-
 function parseAndBuildMetadata(formatter, code, opts) {
   const {
     placeholderWhitelist,
@@ -38,69 +33,55 @@ function parseAndBuildMetadata(formatter, code, opts) {
     preserveComments
   });
   formatter.validate(ast);
-  const syntactic = {
-    placeholders: [],
-    placeholderNames: new Set()
-  };
-  const legacy = {
-    placeholders: [],
-    placeholderNames: new Set()
-  };
-  const isLegacyRef = {
-    value: undefined
-  };
-  traverse(ast, placeholderVisitorHandler, {
-    syntactic,
-    legacy,
-    isLegacyRef,
+  const state = {
+    syntactic: {
+      placeholders: [],
+      placeholderNames: new Set()
+    },
+    legacy: {
+      placeholders: [],
+      placeholderNames: new Set()
+    },
     placeholderWhitelist,
     placeholderPattern,
     syntacticPlaceholders
-  });
+  };
+  traverse(ast, placeholderVisitorHandler, state);
   return Object.assign({
     ast
-  }, isLegacyRef.value ? legacy : syntactic);
+  }, state.syntactic.placeholders.length ? state.syntactic : state.legacy);
 }
-
 function placeholderVisitorHandler(node, ancestors, state) {
   var _state$placeholderWhi;
-
   let name;
-
+  let hasSyntacticPlaceholders = state.syntactic.placeholders.length > 0;
   if (isPlaceholder(node)) {
     if (state.syntacticPlaceholders === false) {
       throw new Error("%%foo%%-style placeholders can't be used when " + "'.syntacticPlaceholders' is false.");
-    } else {
-      name = node.name.name;
-      state.isLegacyRef.value = false;
     }
-  } else if (state.isLegacyRef.value === false || state.syntacticPlaceholders) {
+    name = node.name.name;
+    hasSyntacticPlaceholders = true;
+  } else if (hasSyntacticPlaceholders || state.syntacticPlaceholders) {
     return;
   } else if (isIdentifier(node) || isJSXIdentifier(node)) {
     name = node.name;
-    state.isLegacyRef.value = true;
   } else if (isStringLiteral(node)) {
     name = node.value;
-    state.isLegacyRef.value = true;
   } else {
     return;
   }
-
-  if (!state.isLegacyRef.value && (state.placeholderPattern != null || state.placeholderWhitelist != null)) {
+  if (hasSyntacticPlaceholders && (state.placeholderPattern != null || state.placeholderWhitelist != null)) {
     throw new Error("'.placeholderWhitelist' and '.placeholderPattern' aren't compatible" + " with '.syntacticPlaceholders: true'");
   }
-
-  if (state.isLegacyRef.value && (state.placeholderPattern === false || !(state.placeholderPattern || PATTERN).test(name)) && !((_state$placeholderWhi = state.placeholderWhitelist) != null && _state$placeholderWhi.has(name))) {
+  if (!hasSyntacticPlaceholders && (state.placeholderPattern === false || !(state.placeholderPattern || PATTERN).test(name)) && !((_state$placeholderWhi = state.placeholderWhitelist) != null && _state$placeholderWhi.has(name))) {
     return;
   }
-
   ancestors = ancestors.slice();
   const {
     node: parent,
     key
   } = ancestors[ancestors.length - 1];
   let type;
-
   if (isStringLiteral(node) || isPlaceholder(node, {
     expectedNode: "StringLiteral"
   })) {
@@ -115,11 +96,10 @@ function placeholderVisitorHandler(node, ancestors, state) {
   } else {
     type = "other";
   }
-
   const {
     placeholders,
     placeholderNames
-  } = state.isLegacyRef.value ? state.legacy : state.syntactic;
+  } = !hasSyntacticPlaceholders ? state.legacy : state.syntactic;
   placeholders.push({
     name,
     type,
@@ -128,23 +108,19 @@ function placeholderVisitorHandler(node, ancestors, state) {
   });
   placeholderNames.add(name);
 }
-
 function resolveAncestors(ast, ancestors) {
   let parent = ast;
-
   for (let i = 0; i < ancestors.length - 1; i++) {
     const {
       key,
       index
     } = ancestors[i];
-
     if (index === undefined) {
       parent = parent[key];
     } else {
       parent = parent[key][index];
     }
   }
-
   const {
     key,
     index
@@ -155,14 +131,11 @@ function resolveAncestors(ast, ancestors) {
     index
   };
 }
-
 function parseWithCodeFrame(code, parserOpts, syntacticPlaceholders) {
   const plugins = (parserOpts.plugins || []).slice();
-
   if (syntacticPlaceholders !== false) {
     plugins.push("placeholders");
   }
-
   parserOpts = Object.assign({
     allowReturnOutsideFunction: true,
     allowSuperOutsideMethod: true,
@@ -170,19 +143,18 @@ function parseWithCodeFrame(code, parserOpts, syntacticPlaceholders) {
   }, parserOpts, {
     plugins
   });
-
   try {
     return (0, _parser.parse)(code, parserOpts);
   } catch (err) {
     const loc = err.loc;
-
     if (loc) {
       err.message += "\n" + (0, _codeFrame.codeFrameColumns)(code, {
         start: loc
       });
       err.code = "BABEL_TEMPLATE_PARSE_ERROR";
     }
-
     throw err;
   }
 }
+
+//# sourceMappingURL=parse.js.map

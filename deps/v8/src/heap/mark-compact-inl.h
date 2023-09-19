@@ -25,7 +25,8 @@ namespace v8 {
 namespace internal {
 
 void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
-  if (marking_state()->WhiteToGrey(obj)) {
+  DCHECK(ReadOnlyHeap::Contains(obj) || heap()->Contains(obj));
+  if (marking_state()->TryMark(obj)) {
     local_marking_worklists()->Push(obj);
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
       heap_->AddRetainer(host, obj);
@@ -34,7 +35,8 @@ void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
 }
 
 void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
-  if (marking_state()->WhiteToGrey(obj)) {
+  DCHECK(ReadOnlyHeap::Contains(obj) || heap()->Contains(obj));
+  if (marking_state()->TryMark(obj)) {
     local_marking_worklists()->Push(obj);
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
       heap_->AddRetainingRoot(root, obj);
@@ -44,17 +46,8 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
 
 void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
   if (Heap::InYoungGeneration(obj) &&
-      non_atomic_marking_state()->WhiteToGrey(obj)) {
+      non_atomic_marking_state()->TryMark(obj)) {
     local_marking_worklists_->Push(obj);
-  }
-}
-
-void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject obj) {
-  if (marking_state()->WhiteToGrey(obj)) {
-    local_marking_worklists()->Push(obj);
-    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-      heap_->AddRetainingRoot(Root::kWrapperTracing, obj);
-    }
   }
 }
 
@@ -78,8 +71,7 @@ void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
                                       HeapObjectSlot slot, HeapObject target) {
   BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(target);
   if (target_page->IsEvacuationCandidate()) {
-    if (V8_EXTERNAL_CODE_SPACE_BOOL &&
-        target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+    if (target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
       RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(source_page,
                                                              slot.address());
     } else {
@@ -94,34 +86,10 @@ void MarkCompactCollector::AddTransitionArray(TransitionArray array) {
 }
 
 bool MarkCompactCollector::ShouldMarkObject(HeapObject object) const {
+  if (object.InReadOnlySpace()) return false;
   if (V8_LIKELY(!uses_shared_heap_)) return true;
-  if (v8_flags.shared_space) {
-    if (is_shared_heap_isolate_) return true;
-    return !object.InSharedHeap();
-  } else {
-    return is_shared_heap_isolate_ == object.InSharedHeap();
-  }
-}
-
-template <typename MarkingState>
-template <typename T, typename TBodyDescriptor>
-int MainMarkingVisitor<MarkingState>::VisitJSObjectSubclass(Map map, T object) {
-  if (!this->ShouldVisit(object)) return 0;
-  this->VisitMapPointer(object);
-  int size = TBodyDescriptor::SizeOf(map, object);
-  TBodyDescriptor::IterateBody(map, object, size, this);
-  return size;
-}
-
-template <typename MarkingState>
-template <typename T>
-int MainMarkingVisitor<MarkingState>::VisitLeftTrimmableArray(Map map,
-                                                              T object) {
-  if (!this->ShouldVisit(object)) return 0;
-  int size = T::SizeFor(object.length());
-  this->VisitMapPointer(object);
-  T::BodyDescriptor::IterateBody(map, object, size, this);
-  return size;
+  if (is_shared_space_isolate_) return true;
+  return !object.InAnySharedSpace();
 }
 
 template <typename MarkingState>
@@ -132,10 +100,9 @@ void MainMarkingVisitor<MarkingState>::RecordSlot(HeapObject object, TSlot slot,
 }
 
 template <typename MarkingState>
-void MainMarkingVisitor<MarkingState>::RecordRelocSlot(Code host,
-                                                       RelocInfo* rinfo,
+void MainMarkingVisitor<MarkingState>::RecordRelocSlot(RelocInfo* rinfo,
                                                        HeapObject target) {
-  MarkCompactCollector::RecordRelocSlot(host, rinfo, target);
+  MarkCompactCollector::RecordRelocSlot(rinfo, target);
 }
 
 template <LiveObjectIterationMode mode>
@@ -297,64 +264,6 @@ typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::end() {
 }
 
 Isolate* CollectorBase::isolate() { return heap()->isolate(); }
-
-class YoungGenerationMarkingTask;
-
-class PageMarkingItem : public ParallelWorkItem {
- public:
-  explicit PageMarkingItem(MemoryChunk* chunk) : chunk_(chunk) {}
-  ~PageMarkingItem() = default;
-
-  void Process(YoungGenerationMarkingTask* task);
-
- private:
-  inline Heap* heap() { return chunk_->heap(); }
-
-  void MarkUntypedPointers(YoungGenerationMarkingTask* task);
-
-  void MarkTypedPointers(YoungGenerationMarkingTask* task);
-
-  template <typename TSlot>
-  V8_INLINE SlotCallbackResult
-  CheckAndMarkObject(YoungGenerationMarkingTask* task, TSlot slot);
-
-  MemoryChunk* chunk_;
-};
-
-enum class YoungMarkingJobType { kAtomic, kIncremental };
-
-class YoungGenerationMarkingJob : public v8::JobTask {
- public:
-  YoungGenerationMarkingJob(Isolate* isolate, Heap* heap,
-                            MarkingWorklists* global_worklists,
-                            std::vector<PageMarkingItem> marking_items,
-                            YoungMarkingJobType young_marking_job_type)
-      : isolate_(isolate),
-        heap_(heap),
-        global_worklists_(global_worklists),
-        marking_items_(std::move(marking_items)),
-        remaining_marking_items_(marking_items_.size()),
-        generator_(marking_items_.size()),
-        young_marking_job_type_(young_marking_job_type) {}
-
-  void Run(JobDelegate* delegate) override;
-  size_t GetMaxConcurrency(size_t worker_count) const override;
-  bool incremental() const {
-    return young_marking_job_type_ == YoungMarkingJobType::kIncremental;
-  }
-
- private:
-  void ProcessItems(JobDelegate* delegate);
-  void ProcessMarkingItems(YoungGenerationMarkingTask* task);
-
-  Isolate* isolate_;
-  Heap* heap_;
-  MarkingWorklists* global_worklists_;
-  std::vector<PageMarkingItem> marking_items_;
-  std::atomic_size_t remaining_marking_items_{0};
-  IndexGenerator generator_;
-  YoungMarkingJobType young_marking_job_type_;
-};
 
 }  // namespace internal
 }  // namespace v8

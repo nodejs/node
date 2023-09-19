@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Require identifiers to match a specified regular expression",
             recommended: false,
-            url: "https://eslint.org/docs/rules/id-match"
+            url: "https://eslint.org/docs/latest/rules/id-match"
         },
 
         schema: [
@@ -67,6 +67,7 @@ module.exports = {
             onlyDeclarations = !!options.onlyDeclarations,
             ignoreDestructuring = !!options.ignoreDestructuring;
 
+        const sourceCode = context.sourceCode;
         let globalScope;
 
         //--------------------------------------------------------------------------
@@ -170,8 +171,8 @@ module.exports = {
 
         return {
 
-            Program() {
-                globalScope = context.getScope();
+            Program(node) {
+                globalScope = sourceCode.getScope(node);
             },
 
             Identifier(node) {

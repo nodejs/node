@@ -96,6 +96,9 @@ constexpr Register StoreWithVectorDescriptor::VectorRegister() {
 }
 
 // static
+constexpr Register DefineKeyedOwnDescriptor::FlagsRegister() { return no_reg; }
+
+// static
 constexpr Register StoreTransitionDescriptor::MapRegister() { return edi; }
 
 // static
@@ -312,6 +315,20 @@ constexpr auto WasmFloat64ToNumberDescriptor::registers() {
 
 // static
 constexpr auto NewHeapNumberDescriptor::registers() {
+  // Work around using eax, whose register code is 0, and leads to the FP
+  // parameter being passed via xmm0, which is not allocatable on ia32.
+  return RegisterArray(ecx);
+}
+
+// static
+constexpr auto CheckTurboshaftFloat32TypeDescriptor::registers() {
+  // Work around using eax, whose register code is 0, and leads to the FP
+  // parameter being passed via xmm0, which is not allocatable on ia32.
+  return RegisterArray(ecx);
+}
+
+// static
+constexpr auto CheckTurboshaftFloat64TypeDescriptor::registers() {
   // Work around using eax, whose register code is 0, and leads to the FP
   // parameter being passed via xmm0, which is not allocatable on ia32.
   return RegisterArray(ecx);

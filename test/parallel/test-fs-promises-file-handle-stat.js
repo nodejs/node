@@ -6,14 +6,13 @@ const common = require('../common');
 // FileHandle.stat method.
 
 const { open } = require('fs').promises;
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 
 tmpdir.refresh();
 
 async function validateStat() {
-  const filePath = path.resolve(tmpdir.path, 'tmp-read-file.txt');
+  const filePath = tmpdir.resolve('tmp-read-file.txt');
   const fileHandle = await open(filePath, 'w+');
   const stats = await fileHandle.stat();
   assert.ok(stats.mtime instanceof Date);

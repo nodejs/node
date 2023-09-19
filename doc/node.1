@@ -76,6 +76,18 @@ the next argument will be used as a script filename.
 .It Fl -abort-on-uncaught-exception
 Aborting instead of exiting causes a core file to be generated for analysis.
 .
+.It Fl -allow-fs-read
+Allow file system read access when using the permission model.
+.
+.It Fl -allow-fs-write
+Allow file system write access when using the permission model.
+.
+.It Fl -allow-child-process
+Allow spawning process when using the permission model.
+.
+.It Fl -allow-worker
+Allow creating worker threads when using the permission model.
+.
 .It Fl -completion-bash
 Print source-able bash completion script for Node.js.
 .
@@ -154,11 +166,17 @@ to use as a custom module loader.
 .It Fl -experimental-network-imports
 Enable experimental support for loading modules using `import` over `https:`.
 .
+.It Fl -experimental-permission
+Enable the experimental permission model.
+.
 .It Fl -experimental-policy
 Use the specified file as a security policy.
 .
 .It Fl -experimental-shadow-realm
 Use this flag to enable ShadowRealm support.
+.
+.It Fl -experimental-test-coverage
+Enable code coverage in the test runner.
 .
 .It Fl -no-experimental-fetch
 Disable experimental support for the Fetch API.
@@ -176,7 +194,8 @@ Disable top-level await keyword support in REPL.
 Enable experimental ES module support in VM module.
 .
 .It Fl -experimental-wasi-unstable-preview1
-Enable experimental WebAssembly System Interface support.
+Enable experimental WebAssembly System Interface support. This
+flag is no longer required as WASI is enabled by default.
 .
 .It Fl -experimental-wasm-modules
 Enable experimental WebAssembly module support.
@@ -395,9 +414,18 @@ Starts the Node.js command line test runner.
 A regular expression that configures the test runner to only execute tests
 whose name matches the provided pattern.
 .
+.It Fl -test-reporter
+A test reporter to use when running tests.
+.
+.It Fl -test-reporter-destination
+The destination for the corresponding test reporter.
+.
 .It Fl -test-only
 Configures the test runner to only execute top level tests that have the `only`
 option set.
+.
+.It Fl -test-shard
+Test suite shard to execute in a format of <index>/<total>.
 .
 .It Fl -throw-deprecation
 Throw errors for deprecations.
@@ -490,9 +518,6 @@ Track heap object allocations for heap snapshots.
 .
 .It Fl -unhandled-rejections=mode
 Define the behavior for unhandled rejections. Can be one of `strict` (raise an error), `warn` (enforce warnings) or `none` (silence warnings).
-.
-.It Fl -update-assert-snapshot
-Updates snapshot files used by `assert.snapshot()`.
 .
 .It Fl -use-bundled-ca , Fl -use-openssl-ca
 Use bundled Mozilla CA store as supplied by current Node.js version or use OpenSSL's default CA store.

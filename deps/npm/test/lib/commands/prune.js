@@ -4,7 +4,6 @@ const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 t.test('should prune using Arborist', async (t) => {
   t.plan(4)
   const { npm } = await loadMockNpm(t, {
-    load: false,
     mocks: {
       '@npmcli/arborist': function (args) {
         t.ok(args, 'gets options object')
@@ -13,7 +12,7 @@ t.test('should prune using Arborist', async (t) => {
           t.ok(true, 'prune is called')
         }
       },
-      '../../lib/utils/reify-finish.js': (arb) => {
+      '{LIB}/utils/reify-finish.js': (arb) => {
         t.ok(arb, 'gets arborist tree')
       },
     },

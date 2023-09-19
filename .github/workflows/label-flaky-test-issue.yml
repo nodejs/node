@@ -4,6 +4,9 @@ on:
   issues:
     types: [opened, labeled]
 
+permissions:
+  contents: read
+
 jobs:
   label:
     if: github.event.label.name == 'flaky-test'

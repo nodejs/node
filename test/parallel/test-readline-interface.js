@@ -126,7 +126,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   });
 
   // Constructor throws if historySize is not a positive number
-  ['not a number', -1, NaN, {}, true, Symbol(), null].forEach((historySize) => {
+  [-1, NaN].forEach((historySize) => {
     assert.throws(() => {
       readline.createInterface({
         input,
@@ -134,7 +134,20 @@ function assertCursorRowsAndCols(rli, rows, cols) {
       });
     }, {
       name: 'RangeError',
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_OUT_OF_RANGE',
+    });
+  });
+
+  // Constructor throws if type of historySize is not a number
+  ['not a number', {}, true, Symbol(), null].forEach((historySize) => {
+    assert.throws(() => {
+      readline.createInterface({
+        input,
+        historySize,
+      });
+    }, {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 
@@ -921,6 +934,24 @@ for (let i = 0; i < 12; i++) {
     fi.emit('data', 'asdf\n');
   }
 
+  // Ensure that options.signal.removeEventListener was called
+  {
+    const ac = new AbortController();
+    const signal = ac.signal;
+    const [rli] = getInterface({ terminal });
+    signal.removeEventListener = common.mustCall(
+      (event, onAbortFn) => {
+        assert.strictEqual(event, 'abort');
+        assert.strictEqual(onAbortFn.name, 'onAbort');
+      });
+
+    rli.question('hello?', { signal }, common.mustCall());
+
+    rli.write('bar\n');
+    ac.abort();
+    rli.close();
+  }
+
   // Sending a blank line
   {
     const [rli, fi] = getInterface({ terminal });
@@ -1036,8 +1067,7 @@ for (let i = 0; i < 12; i++) {
     rli.question('foo?', common.mustCall((answer) => {
       assert.strictEqual(answer, 'baz');
     }));
-    rli.question('bar?', common.mustNotCall(() => {
-    }));
+    rli.question('bar?', common.mustNotCall());
     rli.write('baz\n');
     rli.close();
   }

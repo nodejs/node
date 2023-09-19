@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
   num: [100],
   chunks: [1, 2, 4, 8],
   type: ['send', 'recv'],
-  dur: [5]
+  dur: [5],
 });
 
 function main({ dur, len, num, type, chunks }) {

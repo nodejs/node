@@ -7,16 +7,16 @@ description: Set access level on published packages
 ### Synopsis
 
 ```bash
-npm access public [<package>]
-npm access restricted [<package>]
+npm access list packages [<user>|<scope>|<scope:team> [<package>]
+npm access list collaborators [<package> [<user>]]
+npm access get status [<package>]
+npm access set status=public|private [<package>]
+npm access set mfa=none|publish|automation [<package>]
 npm access grant <read-only|read-write> <scope:team> [<package>]
 npm access revoke <scope:team> [<package>]
-npm access 2fa-required [<package>]
-npm access 2fa-not-required [<package>]
-npm access ls-packages [<user>|<scope>|<scope:team>]
-npm access ls-collaborators [<package> [<user>]]
-npm access edit [<package>]
 ```
+
+Note: This command is unaware of workspaces.
 
 ### Description
 
@@ -67,8 +67,7 @@ You must have privileges to set the access of a package:
 * You have been given read-write privileges for a package, either as a member
   of a team or directly as an owner.
 
-If you have two-factor authentication enabled then you'll be prompted to
-provide an otp token, or may use the `--otp=...` option to specify it on
+If you have two-factor authentication enabled then you'll be prompted to provide a second factor, or may use the `--otp=...` option to specify it on
 the command line.
 
 If your account is not paid, then attempts to publish scoped packages will
@@ -79,12 +78,19 @@ Management of teams and team memberships is done with the `npm team` command.
 
 ### Configuration
 
-#### `registry`
+#### `json`
 
-* Default: "https://registry.npmjs.org/"
-* Type: URL
+* Default: false
+* Type: Boolean
 
-The base URL of the npm registry.
+Whether or not to output JSON data, rather than the normal output.
+
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
+
+Not supported by all npm commands.
+
+
 
 #### `otp`
 
@@ -96,6 +102,17 @@ when publishing or changing package permissions with `npm access`.
 
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
+
+
+
+#### `registry`
+
+* Default: "https://registry.npmjs.org/"
+* Type: URL
+
+The base URL of the npm registry.
+
+
 
 ### See Also
 

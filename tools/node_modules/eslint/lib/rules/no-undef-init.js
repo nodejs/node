@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Disallow initializing variables to `undefined`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-undef-init"
+            url: "https://eslint.org/docs/latest/rules/no-undef-init"
         },
 
         schema: [],
@@ -32,14 +32,14 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
 
             VariableDeclarator(node) {
                 const name = sourceCode.getText(node.id),
                     init = node.init && node.init.name,
-                    scope = context.getScope(),
+                    scope = sourceCode.getScope(node),
                     undefinedVar = astUtils.getVariableByName(scope, "undefined"),
                     shadowed = undefinedVar && undefinedVar.defs.length > 0,
                     lastToken = sourceCode.getLastToken(node);

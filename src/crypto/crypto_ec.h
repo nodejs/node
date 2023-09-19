@@ -20,7 +20,7 @@ int GetOKPCurveFromName(const char* name);
 
 class ECDH final : public BaseObject {
  public:
-  ~ECDH() override;
+  ~ECDH() override = default;
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);

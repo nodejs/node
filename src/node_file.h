@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <optional>
 #include "aliased_buffer.h"
 #include "node_messaging.h"
 #include "node_snapshotable.h"
@@ -40,25 +41,75 @@ enum class FsStatsOffset {
 constexpr size_t kFsStatsBufferLength =
     static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber) * 2;
 
+enum class FsStatFsOffset {
+  kType = 0,
+  kBSize,
+  kBlocks,
+  kBFree,
+  kBAvail,
+  kFiles,
+  kFFree,
+  kFsStatFsFieldsNumber
+};
+
+constexpr size_t kFsStatFsBufferLength =
+    static_cast<size_t>(FsStatFsOffset::kFsStatFsFieldsNumber);
+
 class BindingData : public SnapshotableObject {
  public:
-  explicit BindingData(Environment* env, v8::Local<v8::Object> wrap);
+  struct InternalFieldInfo : public node::InternalFieldInfoBase {
+    AliasedBufferIndex stats_field_array;
+    AliasedBufferIndex stats_field_bigint_array;
+    AliasedBufferIndex statfs_field_array;
+    AliasedBufferIndex statfs_field_bigint_array;
+  };
+
+  enum class FilePathIsFileReturnType {
+    kIsFile = 0,
+    kIsNotFile,
+    kThrowInsufficientPermissions
+  };
+
+  explicit BindingData(Realm* realm,
+                       v8::Local<v8::Object> wrap,
+                       InternalFieldInfo* info = nullptr);
 
   AliasedFloat64Array stats_field_array;
   AliasedBigInt64Array stats_field_bigint_array;
 
+  AliasedFloat64Array statfs_field_array;
+  AliasedBigInt64Array statfs_field_bigint_array;
+
   std::vector<BaseObjectPtr<FileHandleReadWrap>>
       file_handle_read_wrap_freelist;
 
-  using InternalFieldInfo = InternalFieldInfoBase;
   SERIALIZABLE_OBJECT_METHODS()
-  static constexpr FastStringKey type_name{"node::fs::BindingData"};
-  static constexpr EmbedderObjectType type_int =
-      EmbedderObjectType::k_fs_binding_data;
+  SET_BINDING_ID(fs_binding_data)
+
+  static void LegacyMainResolve(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> ctor);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
+
+ private:
+  InternalFieldInfo* internal_field_info_ = nullptr;
+
+  static FilePathIsFileReturnType FilePathIsFile(Environment* env,
+                                                 const std::string& file_path);
+
+  static const std::array<std::string, 10> legacy_main_extensions;
+  // define the final index of the algorithm resolution
+  // when packageConfig.main is defined.
+  static const uint8_t legacy_main_extensions_with_main_end = 7;
+  // define the final index of the algorithm resolution
+  // when packageConfig.main is NOT defined
+  static const uint8_t legacy_main_extensions_package_fallback_end = 10;
 };
 
 // structure used to store state during a complex operation, e.g., mkdirp.
@@ -109,6 +160,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   virtual void Reject(v8::Local<v8::Value> reject) = 0;
   virtual void Resolve(v8::Local<v8::Value> value) = 0;
   virtual void ResolveStat(const uv_stat_t* stat) = 0;
+  virtual void ResolveStatFs(const uv_statfs_t* stat) = 0;
   virtual void SetReturnValue(
       const v8::FunctionCallbackInfo<v8::Value>& args) = 0;
 
@@ -165,6 +217,7 @@ class FSReqCallback final : public FSReqBase {
   void Reject(v8::Local<v8::Value> reject) override;
   void Resolve(v8::Local<v8::Value> value) override;
   void ResolveStat(const uv_stat_t* stat) override;
+  void ResolveStatFs(const uv_statfs_t* stat) override;
   void SetReturnValue(const v8::FunctionCallbackInfo<v8::Value>& args) override;
 
   SET_MEMORY_INFO_NAME(FSReqCallback)
@@ -184,6 +237,14 @@ inline v8::Local<v8::Value> FillGlobalStatsArray(BindingData* binding_data,
                                                  const uv_stat_t* s,
                                                  const bool second = false);
 
+template <typename NativeT, typename V8T>
+void FillStatFsArray(AliasedBufferBase<NativeT, V8T>* fields,
+                     const uv_statfs_t* s);
+
+inline v8::Local<v8::Value> FillGlobalStatFsArray(BindingData* binding_data,
+                                                  const bool use_bigint,
+                                                  const uv_statfs_t* s);
+
 template <typename AliasedBufferT>
 class FSReqPromise final : public FSReqBase {
  public:
@@ -194,6 +255,7 @@ class FSReqPromise final : public FSReqBase {
   inline void Reject(v8::Local<v8::Value> reject) override;
   inline void Resolve(v8::Local<v8::Value> value) override;
   inline void ResolveStat(const uv_stat_t* stat) override;
+  inline void ResolveStatFs(const uv_statfs_t* stat) override;
   inline void SetReturnValue(
       const v8::FunctionCallbackInfo<v8::Value>& args) override;
   inline void MemoryInfo(MemoryTracker* tracker) const override;
@@ -213,6 +275,7 @@ class FSReqPromise final : public FSReqBase {
 
   bool finished_ = false;
   AliasedBufferT stats_field_array_;
+  AliasedBufferT statfs_field_array_;
 };
 
 class FSReqAfterScope final {
@@ -273,12 +336,16 @@ class FileHandle final : public AsyncWrap, public StreamBase {
 
   static FileHandle* New(BindingData* binding_data,
                          int fd,
-                         v8::Local<v8::Object> obj = v8::Local<v8::Object>());
+                         v8::Local<v8::Object> obj = v8::Local<v8::Object>(),
+                         std::optional<int64_t> maybeOffset = std::nullopt,
+                         std::optional<int64_t> maybeLength = std::nullopt);
   ~FileHandle() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   int GetFD() override { return fd_; }
+
+  int Release();
 
   // Will asynchronously close the FD and return a Promise that will
   // be resolved once closing is complete.
@@ -314,7 +381,7 @@ class FileHandle final : public AsyncWrap, public StreamBase {
   FileHandle(const FileHandle&&) = delete;
   FileHandle& operator=(const FileHandle&&) = delete;
 
-  TransferMode GetTransferMode() const override;
+  BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<worker::TransferData> TransferForMessaging() override;
 
  private:

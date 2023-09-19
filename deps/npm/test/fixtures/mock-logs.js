@@ -2,6 +2,9 @@
 const NPMLOG = require('npmlog')
 const { LEVELS } = require('proc-log')
 
+const npmEmitLog = NPMLOG.emitLog.bind(NPMLOG)
+const npmLog = NPMLOG.log.bind(NPMLOG)
+
 const merge = (...objs) => objs.reduce((acc, obj) => ({ ...acc, ...obj }))
 
 const mockLogs = (otherMocks = {}) => {
@@ -21,6 +24,25 @@ const mockLogs = (otherMocks = {}) => {
       return acc
     }, {})
   )
+
+  // the above logs array is anything logged and it not filtered by level.
+  // this display array is filtered and will not include items that
+  // would not be shown in the terminal
+  const display = Object.defineProperties(
+    [],
+    ['timing', ...LEVELS].reduce((acc, level) => {
+      acc[level] = {
+        get () {
+          return this
+            .filter(([l]) => level === l)
+            .map(([l, ...args]) => args)
+        },
+      }
+      return acc
+    }, {})
+  )
+
+  const npmLogBuffer = []
 
   // This returns an object with mocked versions of all necessary
   // logging modules. It mocks them with methods that add logs
@@ -53,15 +75,33 @@ const mockLogs = (otherMocks = {}) => {
     // that reflected in the npmlog singleton.
     // XXX: remove with npmlog
     npmlog: Object.assign(NPMLOG, merge(
-      // no-op all npmlog methods by default so tests
-      // dont output anything to the terminal
-      Object.keys(NPMLOG.levels).reduce((acc, k) => {
-        acc[k] = () => {}
-        return acc
-      }, {}),
-      // except collect timing logs
       {
-        timing: (...args) => logs.push(['timing', ...args]),
+        log: (level, ...args) => {
+          // timing does not exist on proclog, so if it got logged
+          // with npmlog we need to push it to our logs
+          if (level === 'timing') {
+            logs.push([level, ...args])
+          }
+          npmLog(level, ...args)
+        },
+        write: (msg) => {
+          // npmlog.write is what outputs to the terminal.
+          // it writes in chunks so we push each chunk to an
+          // array that we will log and zero out
+          npmLogBuffer.push(msg)
+        },
+        emitLog: (m) => {
+          // this calls the original emitLog method
+          // which will filter based on loglevel
+          npmEmitLog(m)
+          // if anything was logged then we push to our display
+          // array which we can assert against in tests
+          if (npmLogBuffer.length) {
+            // first two parts are 'npm' and a single space
+            display.push(npmLogBuffer.slice(2))
+          }
+          npmLogBuffer.length = 0
+        },
         newItem: () => {
           return {
             info: (...p) => {
@@ -85,7 +125,7 @@ const mockLogs = (otherMocks = {}) => {
     )),
   }
 
-  return { logs, logMocks }
+  return { logs, logMocks, display }
 }
 
 module.exports = mockLogs

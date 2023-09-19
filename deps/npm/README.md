@@ -9,9 +9,8 @@
 
 One of the following versions of [Node.js](https://nodejs.org/en/download/) must be installed to run **`npm`**:
 
-* `12.x.x` >= `12.13.0`
-* `14.x.x` >= `14.15.0`
-* `16.0.0` or higher
+* `18.x.x` >= `18.17.0`
+* `20.5.0` or higher
 
 ### Installation
 
@@ -27,17 +26,7 @@ curl -qL https://www.npmjs.com/install.sh | sh
 
 #### Node Version Managers
 
-If you're looking to manage multiple versions of **`node`** &/or **`npm`**, consider using a "Node Version Manager" such as:
-
-* [**`nvm`**](https://github.com/nvm-sh/nvm)
-* [**`nvs`**](https://github.com/jasongin/nvs)
-* [**`nave`**](https://github.com/isaacs/nave)
-* [**`n`**](https://github.com/tj/n)
-* [**`volta`**](https://github.com/volta-cli/volta)
-* [**`nodenv`**](https://github.com/nodenv/nodenv)
-* [**`asdf-nodejs`**](https://github.com/asdf-vm/asdf-nodejs)
-* [**`nvm-windows`**](https://github.com/coreybutler/nvm-windows)
-* [**`fnm`**](https://github.com/Schniz/fnm)
+If you're looking to manage multiple versions of **`Node.js`** &/or **`npm`**, consider using a [node version manager](https://github.com/search?q=node+version+manager+archived%3Afalse&type=repositories&ref=advsearch)
 
 ### Usage
 

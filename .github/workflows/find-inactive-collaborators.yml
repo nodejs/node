@@ -19,13 +19,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744  # v3.6.0
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d  # v3.8.1
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -33,7 +33,7 @@ jobs:
         run: tools/find-inactive-collaborators.mjs
 
       - name: Open pull request
-        uses: gr2m/create-or-update-pull-request-action@dc1726cbf4dd3ce766af4ec29cfb660e0125e8ee
+        uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         env:

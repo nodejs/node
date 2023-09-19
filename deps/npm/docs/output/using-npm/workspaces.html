@@ -161,7 +161,7 @@ file system that is explicitly defined in the <a href="../configuring-npm/packag
 <h3 id="defining-workspaces">Defining workspaces</h3>
 <p>Workspaces are usually defined via the <code>workspaces</code> property of the
 <a href="../configuring-npm/package-json#workspaces.html"><code>package.json</code></a> file, e.g:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "my-workspaces-powered-project",
   "workspaces": [
     "packages/a"
@@ -266,6 +266,9 @@ given command in the context of that specific workspace. e.g:</p>
 command-line in order to target multiple workspaces, e.g:</p>
 <pre><code>npm run test --workspace=a --workspace=b
 </code></pre>
+<p>Or run the command for each workspace within the 'packages' folder:</p>
+<pre><code>npm run test --workspace=packages
+</code></pre>
 <p>It's also possible to use the <code>workspaces</code> (plural) configuration option to
 enable the same behavior but running that command in the context of <strong>all</strong>
 configured workspaces. e.g:</p>
@@ -293,8 +296,7 @@ configured workspaces. e.g:</p>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../commands/npm-run-script.html">npm run-script</a></li>
 <li><a href="../using-npm/config.html">config</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/workspaces.md">

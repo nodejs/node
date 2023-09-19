@@ -191,8 +191,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Define an own property keyed by a value in a register, trigger the
   // defineProperty traps if necessary. The value to be defined should be
   // in the accumulator.
-  BytecodeArrayBuilder& DefineKeyedOwnProperty(Register object, Register key,
-                                               int feedback_slot);
+  BytecodeArrayBuilder& DefineKeyedOwnProperty(
+      Register object, Register key, DefineKeyedOwnPropertyFlags flags,
+      int feedback_slot);
 
   // Store an own element in an array literal. The value to be stored should be
   // in the accumulator.

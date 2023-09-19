@@ -54,13 +54,14 @@
     {
       "name": "Array",
       "path": ["Array"],
-      "timeout": 180,
+      "timeout": 200,
       "timeout_arm64": 360,
       "main": "run.js",
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js", "reduce.js",
         "reduce-right.js", "to-string.js", "find.js", "find-index.js",
-        "from.js", "of.js", "for-each.js", "slice.js", "copy-within.js"
+        "from.js", "of.js", "for-each.js", "slice.js", "copy-within.js",
+        "at.js"
       ],
       "flags": [
         "--allow-natives-syntax"

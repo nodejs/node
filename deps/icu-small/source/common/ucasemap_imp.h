@@ -139,16 +139,16 @@ ustrcase_getCaseLocale(const char *locale);
 /** Implements UStringCaseMapper. */
 U_CFUNC int32_t U_CALLCONV
 ustrcase_internalToLower(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_PARAM
-                         UChar *dest, int32_t destCapacity,
-                         const UChar *src, int32_t srcLength,
+                         char16_t *dest, int32_t destCapacity,
+                         const char16_t *src, int32_t srcLength,
                          icu::Edits *edits,
                          UErrorCode &errorCode);
 
 /** Implements UStringCaseMapper. */
 U_CFUNC int32_t U_CALLCONV
 ustrcase_internalToUpper(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_PARAM
-                         UChar *dest, int32_t destCapacity,
-                         const UChar *src, int32_t srcLength,
+                         char16_t *dest, int32_t destCapacity,
+                         const char16_t *src, int32_t srcLength,
                          icu::Edits *edits,
                          UErrorCode &errorCode);
 
@@ -158,8 +158,8 @@ ustrcase_internalToUpper(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_IT
 U_CFUNC int32_t U_CALLCONV
 ustrcase_internalToTitle(int32_t caseLocale, uint32_t options,
                          icu::BreakIterator *iter,
-                         UChar *dest, int32_t destCapacity,
-                         const UChar *src, int32_t srcLength,
+                         char16_t *dest, int32_t destCapacity,
+                         const char16_t *src, int32_t srcLength,
                          icu::Edits *edits,
                          UErrorCode &errorCode);
 
@@ -168,8 +168,8 @@ ustrcase_internalToTitle(int32_t caseLocale, uint32_t options,
 /** Implements UStringCaseMapper. */
 U_CFUNC int32_t U_CALLCONV
 ustrcase_internalFold(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_PARAM
-                      UChar *dest, int32_t destCapacity,
-                      const UChar *src, int32_t srcLength,
+                      char16_t *dest, int32_t destCapacity,
+                      const char16_t *src, int32_t srcLength,
                       icu::Edits *edits,
                       UErrorCode &errorCode);
 
@@ -179,8 +179,8 @@ ustrcase_internalFold(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERA
  */
 U_CFUNC int32_t
 ustrcase_map(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_PARAM
-             UChar *dest, int32_t destCapacity,
-             const UChar *src, int32_t srcLength,
+             char16_t *dest, int32_t destCapacity,
+             const char16_t *src, int32_t srcLength,
              UStringCaseMapper *stringCaseMapper,
              icu::Edits *edits,
              UErrorCode &errorCode);
@@ -192,8 +192,8 @@ ustrcase_map(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_PARAM
  */
 U_CFUNC int32_t
 ustrcase_mapWithOverlap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_PARAM
-                        UChar *dest, int32_t destCapacity,
-                        const UChar *src, int32_t srcLength,
+                        char16_t *dest, int32_t destCapacity,
+                        const char16_t *src, int32_t srcLength,
                         UStringCaseMapper *stringCaseMapper,
                         UErrorCode &errorCode);
 

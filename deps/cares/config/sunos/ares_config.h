@@ -378,7 +378,7 @@
 #define PACKAGE_VERSION "1.13.0"
 
 /* a suitable file/device to read random data from */
-#define RANDOM_FILE "/dev/urandom"
+#define CARES_RANDOM_FILE "/dev/urandom"
 
 /* Define to the type qualifier pointed by arg 5 for recvfrom. */
 #define RECVFROM_QUAL_ARG5

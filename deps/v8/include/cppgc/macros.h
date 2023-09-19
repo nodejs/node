@@ -11,7 +11,10 @@
 
 namespace cppgc {
 
-// Use if the object is only stack allocated.
+// Use CPPGC_STACK_ALLOCATED if the object is only stack allocated.
+// Add the CPPGC_STACK_ALLOCATED_IGNORE annotation on a case-by-case basis when
+// enforcement of CPPGC_STACK_ALLOCATED should be suppressed.
+#if defined(__clang__)
 #define CPPGC_STACK_ALLOCATED()                        \
  public:                                               \
   using IsStackAllocatedTypeMarker CPPGC_UNUSED = int; \
@@ -20,6 +23,12 @@ namespace cppgc {
   void* operator new(size_t) = delete;                 \
   void* operator new(size_t, void*) = delete;          \
   static_assert(true, "Force semicolon.")
+#define CPPGC_STACK_ALLOCATED_IGNORE(bug_or_reason) \
+  __attribute__((annotate("stack_allocated_ignore")))
+#else  // !defined(__clang__)
+#define CPPGC_STACK_ALLOCATED() static_assert(true, "Force semicolon.")
+#define CPPGC_STACK_ALLOCATED_IGNORE(bug_or_reason)
+#endif  // !defined(__clang__)
 
 }  // namespace cppgc
 

@@ -1,10 +1,11 @@
 const t = require('tap')
+const tmock = require('../../fixtures/tmock')
 
 let readOpts = null
 let readResult = null
-const read = (opts, cb) => {
+const read = async (opts) => {
   readOpts = opts
-  return cb(null, readResult)
+  return readResult
 }
 
 const npmUserValidate = {
@@ -25,7 +26,7 @@ const npmUserValidate = {
 }
 
 let logMsg = null
-const readUserInfo = t.mock('../../../lib/utils/read-user-info.js', {
+const readUserInfo = tmock(t, '{LIB}/utils/read-user-info.js', {
   read,
   npmlog: {
     clearProgress: () => {},

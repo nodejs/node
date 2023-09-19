@@ -6,7 +6,7 @@ const bench = common.createBenchmark(main, {
   connections: [50], // Concurrent connections
   headers: [20], // Number of header lines to append after the common headers
   w: [0, 6], // Amount of trailing whitespace
-  duration: 5
+  duration: 5,
 });
 
 function main({ connections, headers, w, duration }) {
@@ -20,7 +20,7 @@ function main({ connections, headers, w, duration }) {
       'Accept': 'text/plain',
       'User-Agent': 'nodejs-benchmark',
       'Date': new Date().toString(),
-      'Cache-Control': 'no-cache'
+      'Cache-Control': 'no-cache',
     };
     for (let i = 0; i < headers; i++) {
       // Note:

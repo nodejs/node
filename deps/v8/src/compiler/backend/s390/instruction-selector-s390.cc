@@ -220,8 +220,14 @@ class S390OperandGenerator final : public OperandGenerator {
                                             AddressOption::kAllowInputSwap);
 #endif
     DCHECK(m.matches());
-    if ((m.displacement() == nullptr ||
-         CanBeImmediate(m.displacement(), immediate_mode))) {
+    if (m.base() != nullptr &&
+        m.base()->opcode() == IrOpcode::kLoadRootRegister) {
+      DCHECK_EQ(m.index(), nullptr);
+      DCHECK_EQ(m.scale(), 0);
+      inputs[(*input_count)++] = UseImmediate(m.displacement());
+      return kMode_Root;
+    } else if ((m.displacement() == nullptr ||
+                CanBeImmediate(m.displacement(), immediate_mode))) {
       DCHECK_EQ(0, m.scale());
       return GenerateMemoryOperandInputs(m.index(), m.base(), m.displacement(),
                                          m.displacement_mode(), inputs,
@@ -303,10 +309,10 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
       opcode = kS390_LoadDecompressTaggedSigned;
       break;
     case MachineRepresentation::kTaggedPointer:
-      opcode = kS390_LoadDecompressTaggedPointer;
+      opcode = kS390_LoadDecompressTagged;
       break;
     case MachineRepresentation::kTagged:
-      opcode = kS390_LoadDecompressAnyTagged;
+      opcode = kS390_LoadDecompressTagged;
       break;
 #else
     case MachineRepresentation::kTaggedSigned:   // Fall through.
@@ -748,7 +754,7 @@ static void VisitGeneralStore(
     size_t const temp_count = arraysize(temps);
     InstructionCode code = kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
-    code |= MiscField::encode(static_cast<int>(record_write_mode));
+    code |= RecordWriteModeField::encode(record_write_mode);
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     ArchOpcode opcode;
@@ -2969,6 +2975,22 @@ void InstructionSelector::VisitStoreLane(Node* node) {
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   opcode |= AddressingModeField::encode(mode);
   Emit(opcode, 0, nullptr, input_count, inputs);
+}
+
+void InstructionSelector::VisitI16x8DotI8x16I7x16S(Node* node) {
+  S390OperandGenerator g(this);
+  Emit(kS390_I16x8DotI8x16S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
+  S390OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kS390_I32x4DotI8x16AddS, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)),
+       g.UseUniqueRegister(node->InputAt(2)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {

@@ -29,8 +29,6 @@ const crypto = require('crypto');
 const { inspect } = require('util');
 const fixtures = require('../common/fixtures');
 
-crypto.DEFAULT_ENCODING = 'buffer';
-
 //
 // Test authenticated encryption modes.
 //
@@ -74,7 +72,6 @@ const expectedWarnings = common.hasFipsCrypto ?
   ];
 
 const expectedDeprecationWarnings = [
-  ['crypto.DEFAULT_ENCODING is deprecated.', 'DEP0091'],
   ['crypto.createCipher is deprecated.', 'DEP0106'],
 ];
 
@@ -785,4 +782,35 @@ for (const test of TEST_CASES) {
 
     assert.strictEqual(plaintext.toString('hex'), testCase.plain);
   }
+}
+
+// https://github.com/nodejs/node/issues/45874
+{
+  const rfcTestCases = TEST_CASES.filter(({ algo, tampered }) => {
+    return algo === 'chacha20-poly1305' && tampered === false;
+  });
+  assert.strictEqual(rfcTestCases.length, 1);
+
+  const [testCase] = rfcTestCases;
+  const key = Buffer.from(testCase.key, 'hex');
+  const iv = Buffer.from(testCase.iv, 'hex');
+  const aad = Buffer.from(testCase.aad, 'hex');
+  const opt = { authTagLength: 16 };
+
+  const cipher = crypto.createCipheriv('chacha20-poly1305', key, iv, opt);
+  const ciphertext = Buffer.concat([
+    cipher.setAAD(aad).update(testCase.plain, 'hex'),
+    cipher.final(),
+  ]);
+  const authTag = cipher.getAuthTag();
+
+  assert.strictEqual(ciphertext.toString('hex'), testCase.ct);
+  assert.strictEqual(authTag.toString('hex'), testCase.tag);
+
+  const decipher = crypto.createDecipheriv('chacha20-poly1305', key, iv, opt);
+  decipher.setAAD(aad).update(ciphertext);
+
+  assert.throws(() => {
+    decipher.final();
+  }, /Unsupported state or unable to authenticate data/);
 }

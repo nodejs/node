@@ -22,7 +22,7 @@ WasmCode*& WasmImportWrapperCache::operator[](
   return entry_map_[key];
 }
 
-WasmCode* WasmImportWrapperCache::Get(compiler::WasmImportCallKind kind,
+WasmCode* WasmImportWrapperCache::Get(ImportCallKind kind,
                                       uint32_t canonical_type_index,
                                       int expected_arity,
                                       Suspend suspend) const {
@@ -34,7 +34,7 @@ WasmCode* WasmImportWrapperCache::Get(compiler::WasmImportCallKind kind,
   return it->second;
 }
 
-WasmCode* WasmImportWrapperCache::MaybeGet(compiler::WasmImportCallKind kind,
+WasmCode* WasmImportWrapperCache::MaybeGet(ImportCallKind kind,
                                            uint32_t canonical_type_index,
                                            int expected_arity,
                                            Suspend suspend) const {

@@ -44,6 +44,20 @@ instead of `nsx` in the set above.
 You cannot build for TNS/E for FIPS, so you must specify the `no-fips`
 option to `./Configure`.
 
+Linking and Loading Considerations
+----------------------------------
+
+Because of how the NonStop Common Runtime Environment (CRE) works, there are
+restrictions on how programs can link and load with OpenSSL libraries.
+On current NonStop platforms, programs cannot both statically link OpenSSL
+libraries and dynamically load OpenSSL shared libraries concurrently. If this
+is done, there is a high probability of encountering a SIGSEGV condition
+relating to `atexit()` processing when a shared library is unloaded and when
+the program terminates. This limitation applies to all OpenSSL shared library
+components.
+
+A resolution to this situation is under investigation.
+
 About Prefix and OpenSSLDir
 ---------------------------
 
@@ -185,6 +199,9 @@ following variables:
         . VERSION.dat
         if [ -n "$PRE_RELEASE_TAG" ]; then
             PRE_RELEASE_TAG="-$PRE_RELEASE_TAG"
+        fi
+        if [ -n "$BUILD_METADATA" ]; then
+            BUILD_METADATA="+$BUILD_METADATA"
         fi
         echo "$MAJOR.$MINOR.$PATCH$PRE_RELEASE_TAG$BUILD_METADATA" |\
             sed -e 's/[-.+]/_/g'

@@ -228,7 +228,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of variables before they are defined",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-use-before-define"
+            url: "https://eslint.org/docs/latest/rules/no-use-before-define"
         },
 
         schema: [
@@ -258,6 +258,7 @@ module.exports = {
 
     create(context) {
         const options = parseOptions(context.options[0]);
+        const sourceCode = context.sourceCode;
 
         /**
          * Determines whether a given reference should be checked.
@@ -339,8 +340,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                checkReferencesInScope(context.getScope());
+            Program(node) {
+                checkReferencesInScope(sourceCode.getScope(node));
             }
         };
     }

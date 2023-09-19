@@ -18,7 +18,7 @@ const results = {
   modules: [],
   classes: [],
   globals: [],
-  methods: []
+  methods: [],
 };
 
 // Identify files that should be skipped. As files are processed, they
@@ -33,7 +33,7 @@ for (const link of toc.match(/<a.*?>/g)) {
   if (!jsonFiles.includes(json) || seen.has(json)) continue;
   const data = JSON.parse(
     fs.readFileSync(new URL(`./${json}`, source), 'utf8')
-      .replace(/<a href=\\"#/g, `<a href=\\"${href}#`)
+      .replace(/<a href=\\"#/g, `<a href=\\"${href}#`),
   );
 
   for (const property in data) {

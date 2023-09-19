@@ -1,9 +1,3 @@
-/* eslint-disable no-console */
-// XXX: remove console.log later
-
-// npm view [pkg [pkg ...]]
-
-const chalk = require('chalk')
 const columns = require('cli-columns')
 const fs = require('fs')
 const jsonParse = require('json-parse-even-better-errors')
@@ -31,11 +25,11 @@ class View extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
-
   static usage = ['[<package-spec>] [<field>[.subfield]...]']
 
-  async completion (opts) {
+  static async completion (opts, npm) {
     if (opts.conf.argv.remain.length <= 2) {
       // There used to be registry completion here, but it stopped
       // making sense somewhere around 50,000 packages on the registry
@@ -43,13 +37,13 @@ class View extends BaseCommand {
     }
     // have the package, get the fields
     const config = {
-      ...this.npm.flatOptions,
+      ...npm.flatOptions,
       fullMetadata: true,
       preferOnline: true,
     }
     const spec = npa(opts.conf.argv.remain[2])
     const pckmnt = await packument(spec, config)
-    const defaultTag = this.npm.config.get('tag')
+    const defaultTag = npm.config.get('tag')
     const dv = pckmnt.versions[pckmnt['dist-tags'][defaultTag]]
     pckmnt.versions = Object.keys(pckmnt.versions).sort(semver.compareLoose)
 
@@ -127,12 +121,12 @@ class View extends BaseCommand {
 
       const msg = await this.jsonData(reducedData, pckmnt._id)
       if (msg !== '') {
-        console.log(msg)
+        this.npm.output(msg)
       }
     }
   }
 
-  async execWorkspaces (args, filters) {
+  async execWorkspaces (args) {
     if (!args.length) {
       args = ['.']
     }
@@ -150,7 +144,7 @@ class View extends BaseCommand {
       args = [''] // getData relies on this
     }
     const results = {}
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
     for (const name of this.workspaceNames) {
       const wsPkg = `${name}${pkg.slice(1)}`
       const [pckmnt, data] = await this.getData(wsPkg, args)
@@ -166,10 +160,10 @@ class View extends BaseCommand {
         if (wholePackument) {
           data.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]]['']))
         } else {
-          console.log(`${name}:`)
+          this.npm.output(`${name}:`)
           const msg = await this.jsonData(reducedData, pckmnt._id)
           if (msg !== '') {
-            console.log(msg)
+            this.npm.output(msg)
           }
         }
       } else {
@@ -180,7 +174,7 @@ class View extends BaseCommand {
       }
     }
     if (Object.keys(results).length > 0) {
-      console.log(JSON.stringify(results, null, 2))
+      this.npm.output(JSON.stringify(results, null, 2))
     }
   }
 
@@ -196,15 +190,16 @@ class View extends BaseCommand {
     // get the data about this package
     let version = this.npm.config.get('tag')
     // rawSpec is the git url if this is from git
-    if (spec.type !== 'git' && spec.type !== 'directory' && spec.rawSpec) {
+    if (spec.type !== 'git' && spec.type !== 'directory' && spec.rawSpec !== '*') {
       version = spec.rawSpec
     }
 
     const pckmnt = await packument(spec, opts)
 
-    if (pckmnt['dist-tags'] && pckmnt['dist-tags'][version]) {
+    if (pckmnt['dist-tags']?.[version]) {
       version = pckmnt['dist-tags'][version]
     }
+
     if (pckmnt.time && pckmnt.time.unpublished) {
       const u = pckmnt.time.unpublished
       const er = new Error(`Unpublished on ${u.time}`)
@@ -316,13 +311,14 @@ class View extends BaseCommand {
     return msg.trim()
   }
 
-  prettyView (packument, manifest) {
+  prettyView (packu, manifest) {
     // More modern, pretty printing of default view
     const unicode = this.npm.config.get('unicode')
+    const chalk = this.npm.chalk
     const tags = []
 
-    Object.keys(packument['dist-tags']).forEach((t) => {
-      const version = packument['dist-tags'][t]
+    Object.keys(packu['dist-tags']).forEach((t) => {
+      const version = packu['dist-tags'][t]
       tags.push(`${chalk.bold.green(t)}: ${version}`)
     })
     const unpackedSize = manifest.dist.unpackedSize &&
@@ -332,10 +328,10 @@ class View extends BaseCommand {
       name: chalk.green(manifest.name),
       version: chalk.green(manifest.version),
       bins: Object.keys(manifest.bin || {}),
-      versions: chalk.yellow(packument.versions.length + ''),
+      versions: chalk.yellow(packu.versions.length + ''),
       description: manifest.description,
       deprecated: manifest.deprecated,
-      keywords: packument.keywords || [],
+      keywords: packu.keywords || [],
       license: typeof licenseField === 'string'
         ? licenseField
         : (licenseField.type || 'Proprietary'),
@@ -346,9 +342,9 @@ class View extends BaseCommand {
         name: chalk.yellow(manifest._npmUser.name),
         email: chalk.cyan(manifest._npmUser.email),
       }),
-      modified: !packument.time ? undefined
-      : chalk.yellow(relativeDate(packument.time[manifest.version])),
-      maintainers: (packument.maintainers || []).map((u) => unparsePerson({
+      modified: !packu.time ? undefined
+      : chalk.yellow(relativeDate(packu.time[manifest.version])),
+      maintainers: (packu.maintainers || []).map((u) => unparsePerson({
         name: chalk.yellow(u.name),
         email: chalk.cyan(u.email),
       })),
@@ -375,61 +371,61 @@ class View extends BaseCommand {
       info.license = chalk.green(info.license)
     }
 
-    console.log('')
-    console.log(
+    this.npm.output('')
+    this.npm.output(
       chalk.underline.bold(`${info.name}@${info.version}`) +
       ' | ' + info.license +
       ' | deps: ' + (info.deps.length ? chalk.cyan(info.deps.length) : chalk.green('none')) +
       ' | versions: ' + info.versions
     )
-    info.description && console.log(info.description)
+    info.description && this.npm.output(info.description)
     if (info.repo || info.site) {
-      info.site && console.log(chalk.cyan(info.site))
+      info.site && this.npm.output(chalk.cyan(info.site))
     }
 
     const warningSign = unicode ? ' ⚠️ ' : '!!'
-    info.deprecated && console.log(
+    info.deprecated && this.npm.output(
       `\n${chalk.bold.red('DEPRECATED')}${
       warningSign
     } - ${info.deprecated}`
     )
 
     if (info.keywords.length) {
-      console.log('')
-      console.log('keywords:', chalk.yellow(info.keywords.join(', ')))
+      this.npm.output('')
+      this.npm.output('keywords:', chalk.yellow(info.keywords.join(', ')))
     }
 
     if (info.bins.length) {
-      console.log('')
-      console.log('bin:', chalk.yellow(info.bins.join(', ')))
+      this.npm.output('')
+      this.npm.output('bin:', chalk.yellow(info.bins.join(', ')))
     }
 
-    console.log('')
-    console.log('dist')
-    console.log('.tarball:', info.tarball)
-    console.log('.shasum:', info.shasum)
-    info.integrity && console.log('.integrity:', info.integrity)
-    info.unpackedSize && console.log('.unpackedSize:', info.unpackedSize)
+    this.npm.output('')
+    this.npm.output('dist')
+    this.npm.output('.tarball:', info.tarball)
+    this.npm.output('.shasum:', info.shasum)
+    info.integrity && this.npm.output('.integrity:', info.integrity)
+    info.unpackedSize && this.npm.output('.unpackedSize:', info.unpackedSize)
 
     const maxDeps = 24
     if (info.deps.length) {
-      console.log('')
-      console.log('dependencies:')
-      console.log(columns(info.deps.slice(0, maxDeps), { padding: 1 }))
+      this.npm.output('')
+      this.npm.output('dependencies:')
+      this.npm.output(columns(info.deps.slice(0, maxDeps), { padding: 1 }))
       if (info.deps.length > maxDeps) {
-        console.log(`(...and ${info.deps.length - maxDeps} more.)`)
+        this.npm.output(`(...and ${info.deps.length - maxDeps} more.)`)
       }
     }
 
     if (info.maintainers && info.maintainers.length) {
-      console.log('')
-      console.log('maintainers:')
-      info.maintainers.forEach((u) => console.log('-', u))
+      this.npm.output('')
+      this.npm.output('maintainers:')
+      info.maintainers.forEach((u) => this.npm.output('-', u))
     }
 
-    console.log('')
-    console.log('dist-tags:')
-    console.log(columns(info.tags))
+    this.npm.output('')
+    this.npm.output('dist-tags:')
+    this.npm.output(columns(info.tags))
 
     if (info.publisher || info.modified) {
       let publishInfo = 'published'
@@ -439,8 +435,8 @@ class View extends BaseCommand {
       if (info.publisher) {
         publishInfo += ` by ${info.publisher}`
       }
-      console.log('')
-      console.log(publishInfo)
+      this.npm.output('')
+      this.npm.output(publishInfo)
     }
   }
 }

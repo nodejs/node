@@ -117,6 +117,7 @@ class CodePath {
     /**
      * Current code path segments.
      * @type {CodePathSegment[]}
+     * @deprecated
      */
     get currentSegments() {
         return this.internal.currentSegments;

@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm explain &lt;package-spec&gt;
+<pre><code class="language-bash">npm explain &lt;package-spec&gt;
 
 alias: why
 </code></pre>
@@ -157,7 +157,7 @@ to be installed in the current project.</p>
 one of the specifiers will have their relationships explained.</p>
 <p>The package spec can also refer to a folder within <code>./node_modules</code></p>
 <p>For example, running <code>npm explain glob</code> within npm's source tree will show:</p>
-<pre lang="bash"><code>glob@7.1.6
+<pre><code class="language-bash">glob@7.1.6
 node_modules/glob
   glob@"^7.1.4" from the root project
 
@@ -173,7 +173,7 @@ node_modules/tacks/node_modules/glob
 argument to the command.  This can be useful when trying to figure out
 exactly why a given dependency is being duplicated to satisfy conflicting
 version requirements within the project.</p>
-<pre lang="bash"><code>$ npm explain node_modules/nyc/node_modules/find-up
+<pre><code class="language-bash">$ npm explain node_modules/nyc/node_modules/find-up
 find-up@3.0.0 dev
 node_modules/nyc/node_modules/find-up
   find-up@"^3.0.0" from nyc@14.1.1
@@ -225,8 +225,7 @@ brand new workspace within the project.</p>
 <li><a href="../commands/npm-prune.html">npm prune</a></li>
 <li><a href="../commands/npm-outdated.html">npm outdated</a></li>
 <li><a href="../commands/npm-update.html">npm update</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-explain.md">

@@ -56,6 +56,36 @@ Array [
 ]
 `
 
+exports[`test/lib/commands/pack.js TAP should log scoped package output as valid json > logs pack contents 1`] = `
+Array []
+`
+
+exports[`test/lib/commands/pack.js TAP should log scoped package output as valid json > outputs as json 1`] = `
+Array [
+  Array [
+    Object {
+      "bundled": Array [],
+      "entryCount": 1,
+      "filename": "myscope-test-package-1.0.0.tgz",
+      "files": Array [
+        Object {
+          "mode": 420,
+          "path": "package.json",
+          "size": 50,
+        },
+      ],
+      "id": "@myscope/test-package@1.0.0",
+      "integrity": "sha512-bUu8iTm2E5DZMrwKeyx963K6ViEmaFocXh75EujgI+FHSaJeqvObcdk1KFwdx8CbOgsfNHEvWNQw/bONAJsoNw==",
+      "name": "@myscope/test-package",
+      "shasum": "7e6eb2e1ca46bed6b8fa8e144e0fcd1b22fe2d98",
+      "size": 145,
+      "unpackedSize": 50,
+      "version": "1.0.0",
+    },
+  ],
+]
+`
+
 exports[`test/lib/commands/pack.js TAP should pack current directory with no arguments > logs pack contents 1`] = `
 Array [
   undefined,

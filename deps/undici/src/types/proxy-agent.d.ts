@@ -1,8 +1,11 @@
-import { TlsOptions } from 'tls'
-import Agent = require('./agent')
-import Dispatcher = require('./dispatcher')
+import Agent from './agent'
+import buildConnector from './connector';
+import Client from './client'
+import Dispatcher from './dispatcher'
+import { IncomingHttpHeaders } from './header'
+import Pool from './pool'
 
-export = ProxyAgent
+export default ProxyAgent
 
 declare class ProxyAgent extends Dispatcher {
   constructor(options: ProxyAgent.Options | string)
@@ -19,7 +22,9 @@ declare namespace ProxyAgent {
      */
     auth?: string;
     token?: string;
-    requestTls?: TlsOptions & { servername?: string };
-    proxyTls?: TlsOptions & { servername?: string };
+    headers?: IncomingHttpHeaders;
+    requestTls?: buildConnector.BuildOptions;
+    proxyTls?: buildConnector.BuildOptions;
+    clientFactory?(origin: URL, opts: object): Dispatcher;
   }
 }

@@ -54,6 +54,9 @@
 /* Define to 1 if you have AF_INET6. */
 #undef HAVE_AF_INET6
 
+/* Define to 1 if you have the arc4random_buf function. */
+#undef HAVE_ARC4RANDOM_BUF
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 

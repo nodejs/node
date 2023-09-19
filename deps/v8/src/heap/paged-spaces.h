@@ -18,6 +18,8 @@
 #include "src/flags/flags.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-stats.h"
+#include "src/heap/heap-verifier.h"
+#include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
@@ -184,13 +186,10 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
-  virtual void Verify(Isolate* isolate, ObjectVisitor* visitor) const;
+  void Verify(Isolate* isolate,
+              SpaceVerificationVisitor* visitor) const override;
 
   void VerifyLiveBytes() const;
-
-  // Overridden by subclasses to verify space-specific object
-  // properties (e.g., only maps or free-list nodes are in map space).
-  virtual void VerifyObject(HeapObject obj) const {}
 #endif
 
 #ifdef DEBUG
@@ -226,7 +225,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Refills the free list from the corresponding free list filled by the
   // sweeper.
-  void RefillFreeList();
+  virtual void RefillFreeList() = 0;
 
   base::Mutex* mutex() { return &space_mutex_; }
 
@@ -261,7 +260,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
-  void SetLinearAllocationArea(Address top, Address limit);
+  void SetLinearAllocationArea(Address top, Address limit, Address end);
 
   void AddRangeToActiveSystemPages(Page* page, Address start, Address end);
   void ReduceActiveSystemPages(Page* page,
@@ -292,19 +291,27 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     base::Optional<base::MutexGuard> guard_;
   };
 
-  bool SupportsConcurrentAllocation() const { return !is_compaction_space(); }
+  bool SupportsConcurrentAllocation() const {
+    return !is_compaction_space() && (identity() != NEW_SPACE);
+  }
 
   // Set space linear allocation area.
-  void SetTopAndLimit(Address top, Address limit);
+  void SetTopAndLimit(Address top, Address limit, Address end);
   void DecreaseLimit(Address new_limit);
   bool SupportsAllocationObserver() const override {
     return !is_compaction_space();
   }
 
+ protected:
+  // Updates the current lab limit without updating top, original_top or
+  // original_limit.
+  void SetLimit(Address limit);
+
+  bool SupportsExtendingLAB() const { return identity() == NEW_SPACE; }
+
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
- protected:
-  void UpdateInlineAllocationLimit(size_t min_size) override;
+  void UpdateInlineAllocationLimit() override;
 
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -328,10 +335,10 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
       size_t size_in_bytes, AllocationOrigin origin);
 
-  V8_WARN_UNUSED_RESULT bool ContributeToSweepingMain(int required_freed_bytes,
-                                                      int max_pages,
-                                                      int size_in_bytes,
-                                                      AllocationOrigin origin);
+  V8_WARN_UNUSED_RESULT bool ContributeToSweepingMain(
+      int required_freed_bytes, int max_pages, int size_in_bytes,
+      AllocationOrigin origin, GCTracer::Scope::ScopeId sweeping_scope_id,
+      ThreadKind sweeping_scope_kind);
 
   // Refills LAB for EnsureLabMain. This function is space-dependent. Returns
   // false if there is not enough space and the caller has to retry after
@@ -343,6 +350,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // enough space and the caller has to retry after collecting garbage.
   V8_WARN_UNUSED_RESULT bool RawRefillLabMain(int size_in_bytes,
                                               AllocationOrigin origin);
+
+  V8_WARN_UNUSED_RESULT bool TryExtendLAB(int size_in_bytes);
 
   V8_WARN_UNUSED_RESULT bool TryExpand(int size_in_bytes,
                                        AllocationOrigin origin);
@@ -382,6 +391,8 @@ class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
       : PagedSpaceBase(heap, id, executable, free_list, allocation_counter_,
                        allocation_info, linear_area_original_data_,
                        compaction_space_kind) {}
+
+  void RefillFreeList() final;
 
  private:
   AllocationCounter allocation_counter_;

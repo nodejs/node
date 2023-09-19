@@ -20,11 +20,19 @@ async function test(format) {
   const reader = gunzip.readable.getReader();
   const writer = gzip.writable.getWriter();
 
+  const compressed_data = [];
+  const reader_function = ({ value, done }) => {
+    if (value)
+      compressed_data.push(value);
+    if (!done)
+      return reader.read().then(reader_function);
+    assert.strictEqual(dec.decode(Buffer.concat(compressed_data)), 'hello');
+  };
+  const reader_promise = reader.read().then(reader_function);
+
   await Promise.all([
-    reader.read().then(({ value, done }) => {
-      assert.strictEqual(dec.decode(value), 'hello');
-    }),
-    reader.read().then(({ done }) => assert(done)),
+    reader_promise,
+    reader_promise.then(() => reader.read().then(({ done }) => assert(done))),
     writer.write('hello'),
     writer.close(),
   ]);
@@ -43,17 +51,21 @@ Promise.all(['gzip', 'deflate'].map((i) => test(i))).then(common.mustCall());
 
 assert.throws(
   () => Reflect.get(CompressionStream.prototype, 'readable', {}), {
-    code: 'ERR_INVALID_THIS',
+    name: 'TypeError',
+    message: /Cannot read private member/,
   });
 assert.throws(
   () => Reflect.get(CompressionStream.prototype, 'writable', {}), {
-    code: 'ERR_INVALID_THIS',
+    name: 'TypeError',
+    message: /Cannot read private member/,
   });
 assert.throws(
   () => Reflect.get(DecompressionStream.prototype, 'readable', {}), {
-    code: 'ERR_INVALID_THIS',
+    name: 'TypeError',
+    message: /Cannot read private member/,
   });
 assert.throws(
   () => Reflect.get(DecompressionStream.prototype, 'writable', {}), {
-    code: 'ERR_INVALID_THIS',
+    name: 'TypeError',
+    message: /Cannot read private member/,
   });

@@ -402,7 +402,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function MultiBrTableTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig_ii_v = builder.addType(kSig_v_v);
 
   builder.addFunction("main", kSig_ii_v)
     .addBody([

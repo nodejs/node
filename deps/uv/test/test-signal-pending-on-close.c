@@ -88,11 +88,9 @@ TEST_IMPL(signal_pending_on_close) {
 
   ASSERT(0 == uv_run(&loop, UV_RUN_DEFAULT));
 
-  ASSERT(0 == uv_loop_close(&loop));
-
   ASSERT(2 == close_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
   return 0;
 }
 
@@ -109,10 +107,9 @@ TEST_IMPL(signal_close_loop_alive) {
   ASSERT(1 == uv_loop_alive(&loop));
 
   ASSERT(0 == uv_run(&loop, UV_RUN_DEFAULT));
-  ASSERT(0 == uv_loop_close(&loop));
   ASSERT(1 == close_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
   return 0;
 }
 

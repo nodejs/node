@@ -299,8 +299,6 @@
       './config/archs/aix64-gcc-as/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/aix64-gcc-as/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/aix64-gcc-as/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/aix64-gcc-as/asm/crypto/bn/bn-ppc.s',
-      './config/archs/aix64-gcc-as/asm/crypto/bn/ppc-mont.s',
       './config/archs/aix64-gcc-as/asm/providers/legacy.ld',
       './config/archs/aix64-gcc-as/asm/providers/fips.ld',
 

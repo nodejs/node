@@ -7,12 +7,11 @@ const common = require('../common');
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const dest = path.resolve(tmpdir.path, 'tmp.txt');
+const dest = tmpdir.resolve('tmp.txt');
 const buffer = Buffer.from('zyx');
 
 function testInvalid(dest, expectedCode, ...bufferAndOptions) {
@@ -32,18 +31,26 @@ function testInvalid(dest, expectedCode, ...bufferAndOptions) {
 
 function testValid(dest, buffer, options) {
   const length = options?.length;
-  let fd;
-  try {
-    fd = fs.openSync(dest, 'w+');
-    const bytesWritten = fs.writeSync(fd, buffer, options);
-    const bytesRead = fs.readSync(fd, buffer, options);
+  let fd, bytesWritten, bytesRead;
 
-    assert.ok(bytesWritten >= bytesRead);
-    if (length !== undefined && length !== null) {
-      assert.strictEqual(bytesWritten, length);
-    }
+  try {
+    fd = fs.openSync(dest, 'w');
+    bytesWritten = fs.writeSync(fd, buffer, options);
   } finally {
     if (fd != null) fs.closeSync(fd);
+  }
+
+  try {
+    fd = fs.openSync(dest, 'r');
+    bytesRead = fs.readSync(fd, buffer, options);
+  } finally {
+    if (fd != null) fs.closeSync(fd);
+  }
+
+  assert.ok(bytesWritten >= bytesRead);
+  if (length !== undefined && length !== null) {
+    assert.strictEqual(bytesWritten, length);
+    assert.strictEqual(bytesRead, length);
   }
 }
 

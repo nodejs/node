@@ -1,5 +1,5 @@
-import { IncomingHttpHeaders } from 'http'
-import Dispatcher = require('./dispatcher');
+import { IncomingHttpHeaders } from './header'
+import Dispatcher from './dispatcher';
 import { BodyInit, Headers } from './fetch'
 
 export {

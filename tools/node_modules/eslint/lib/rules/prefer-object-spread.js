@@ -1,12 +1,11 @@
 /**
  * @fileoverview Prefers object spread property over Object.assign
  * @author Sharmila Jesupaul
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
 
-const { CALL, ReferenceTracker } = require("eslint-utils");
+const { CALL, ReferenceTracker } = require("@eslint-community/eslint-utils");
 const {
     isCommaToken,
     isOpeningParenToken,
@@ -249,7 +248,7 @@ module.exports = {
             description:
                 "Disallow using Object.assign with an object literal as the first argument and prefer the use of object spread instead",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-object-spread"
+            url: "https://eslint.org/docs/latest/rules/prefer-object-spread"
         },
 
         schema: [],
@@ -262,11 +261,11 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
                 const tracker = new ReferenceTracker(scope);
                 const trackMap = {
                     Object: {
@@ -275,22 +274,22 @@ module.exports = {
                 };
 
                 // Iterate all calls of `Object.assign` (only of the global variable `Object`).
-                for (const { node } of tracker.iterateGlobalReferences(trackMap)) {
+                for (const { node: refNode } of tracker.iterateGlobalReferences(trackMap)) {
                     if (
-                        node.arguments.length >= 1 &&
-                        node.arguments[0].type === "ObjectExpression" &&
-                        !hasArraySpread(node) &&
+                        refNode.arguments.length >= 1 &&
+                        refNode.arguments[0].type === "ObjectExpression" &&
+                        !hasArraySpread(refNode) &&
                         !(
-                            node.arguments.length > 1 &&
-                            hasArgumentsWithAccessors(node)
+                            refNode.arguments.length > 1 &&
+                            hasArgumentsWithAccessors(refNode)
                         )
                     ) {
-                        const messageId = node.arguments.length === 1
+                        const messageId = refNode.arguments.length === 1
                             ? "useLiteralMessage"
                             : "useSpreadMessage";
-                        const fix = defineFixer(node, sourceCode);
+                        const fix = defineFixer(refNode, sourceCode);
 
-                        context.report({ node, messageId, fix });
+                        context.report({ node: refNode, messageId, fix });
                     }
                 }
             }

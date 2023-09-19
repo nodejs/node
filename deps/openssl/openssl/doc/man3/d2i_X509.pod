@@ -469,7 +469,7 @@ Represents an ECDSA signature.
 Represents an B<AlgorithmIdentifier> structure as used in IETF RFC 6960 and
 elsewhere.
 
-=item B<X509_Name>
+=item B<X509_NAME>
 
 Represents a B<Name> type as used for subject and issuer names in
 IETF RFC 6960 and elsewhere.
@@ -588,14 +588,14 @@ fixed in future so code should not assume that B<i2d_I<TYPE>>() will
 always succeed.
 
 Any function which encodes a structure (B<i2d_I<TYPE>>(),
-B<i2d_I<TYPE>>() or B<i2d_I<TYPE>>()) may return a stale encoding if the
+B<i2d_I<TYPE>_bio>() or B<i2d_I<TYPE>_fp>()) may return a stale encoding if the
 structure has been modified after deserialization or previous
 serialization. This is because some objects cache the encoding for
 efficiency reasons.
 
 =head1 COPYRIGHT
 
-Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 1998-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

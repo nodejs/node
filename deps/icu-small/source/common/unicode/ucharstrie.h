@@ -67,7 +67,7 @@ public:
      * @stable ICU 4.8
      */
     UCharsTrie(ConstChar16Ptr trieUChars)
-            : ownedArray_(NULL), uchars_(trieUChars),
+            : ownedArray_(nullptr), uchars_(trieUChars),
               pos_(uchars_), remainingMatchLength_(-1) {}
 
     /**
@@ -83,7 +83,7 @@ public:
      * @stable ICU 4.8
      */
     UCharsTrie(const UCharsTrie &other)
-            : ownedArray_(NULL), uchars_(other.uchars_),
+            : ownedArray_(nullptr), uchars_(other.uchars_),
               pos_(other.pos_), remainingMatchLength_(other.remainingMatchLength_) {}
 
     /**
@@ -141,7 +141,7 @@ public:
          * Constructs an empty State.
          * @stable ICU 4.8
          */
-        State() { uchars=NULL; }
+        State() { uchars=nullptr; }
     private:
         friend class UCharsTrie;
 
@@ -175,7 +175,7 @@ public:
      * @stable ICU 4.8
      */
     UCharsTrie &resetToState(const State &state) {
-        if(uchars_==state.uchars && uchars_!=NULL) {
+        if(uchars_==state.uchars && uchars_!=nullptr) {
             pos_=state.pos;
             remainingMatchLength_=state.remainingMatchLength;
         }
@@ -239,7 +239,7 @@ public:
      *   result=next(c);
      * return result;
      * \endcode
-     * @param s A string. Can be NULL if length is 0.
+     * @param s A string. Can be nullptr if length is 0.
      * @param length The length of the string. Can be -1 if NUL-terminated.
      * @return The match/value Result.
      * @stable ICU 4.8
@@ -275,7 +275,7 @@ public:
     inline UBool hasUniqueValue(int32_t &uniqueValue) const {
         const char16_t *pos=pos_;
         // Skip the rest of a pending linear-match node.
-        return pos!=NULL && findUniqueValue(pos+remainingMatchLength_+1, false, uniqueValue);
+        return pos!=nullptr && findUniqueValue(pos+remainingMatchLength_+1, false, uniqueValue);
     }
 
     /**
@@ -367,7 +367,7 @@ public:
 
     private:
         UBool truncateAndStop() {
-            pos_=NULL;
+            pos_=nullptr;
             value_=-1;  // no real value for str
             return true;
         }
@@ -412,7 +412,7 @@ private:
     UCharsTrie &operator=(const UCharsTrie &other) = delete;
 
     inline void stop() {
-        pos_=NULL;
+        pos_=nullptr;
     }
 
     // Reads a compact 32-bit integer.
@@ -610,7 +610,7 @@ private:
 
     // Iterator variables.
 
-    // Pointer to next trie unit to read. NULL if no more matches.
+    // Pointer to next trie unit to read. nullptr if no more matches.
     const char16_t *pos_;
     // Remaining length of a linear-match node, minus 1. Negative if not in such a node.
     int32_t remainingMatchLength_;
