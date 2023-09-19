@@ -25,12 +25,12 @@ using v8::SharedArrayBuffer;
 namespace node {
 namespace ffi {
 
-binding::DLib * FfiBindingData::GetLibrary(std::string fname) {
+binding::DLib* FfiBindingData::GetLibrary(std::string fname) {
   if (libraries_[fname] != nullptr) {
     return libraries_[fname];
   } else {
     binding::DLib* lib =
-      new binding::DLib(fname.c_str(), binding::DLib::kDefaultFlags);
+        new binding::DLib(fname.c_str(), binding::DLib::kDefaultFlags);
     if (!lib->Open()) return nullptr;
     libraries_[fname] = lib;
     return lib;
@@ -53,7 +53,7 @@ void GetLibrary(const FunctionCallbackInfo<Value>& args) {
   }
 
   ReturnPointer(args,
-      Realm::GetBindingData<FfiBindingData>(args)->GetLibrary(fname));
+                Realm::GetBindingData<FfiBindingData>(args)->GetLibrary(fname));
 }
 
 void GetSymbol(const FunctionCallbackInfo<Value>& args) {

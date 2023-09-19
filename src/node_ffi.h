@@ -42,7 +42,7 @@ class FfiBindingData : public BaseObject {
  public:
   FfiBindingData(Realm* realm, Local<Object> wrap) : BaseObject(realm, wrap) {}
 
-  binding::DLib * GetLibrary(std::string fname);
+  binding::DLib* GetLibrary(std::string fname);
 
   SET_BINDING_ID(ffi_binding_data)
 

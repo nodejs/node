@@ -1054,6 +1054,7 @@
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
+        'deps/libffi/libffi.gyp:libffi',
       ],
 
       'includes': [
@@ -1130,6 +1131,7 @@
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/ada/ada.gyp:ada',
+        'deps/libffi/libffi.gyp:libffi',
       ],
 
       'includes': [
@@ -1241,6 +1243,7 @@
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/ada/ada.gyp:ada',
+        'deps/libffi/libffi.gyp:libffi',
       ],
 
       'includes': [
