@@ -105,7 +105,7 @@ class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   console.log(a, b, this);
-  // Prints: a b {}
+  // Prints: a b undefined
 });
 myEmitter.emit('event', 'a', 'b');
 ```
