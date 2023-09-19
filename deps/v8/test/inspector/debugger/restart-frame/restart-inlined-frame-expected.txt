@@ -1,0 +1,20 @@
+Checks that restarting an inlined frame works.
+Optimization status for function "h"? optimized
+Paused at (after evaluation):
+  console.log('f');
+  return a + b;#  // Breakpoint is set here.
+}
+
+Pause stack:
+  f:3 (canBeRestarted = true)
+  g:8 (canBeRestarted = true)
+  h:13 (canBeRestarted = true)
+
+Optimization status for function "h" after we paused? optimized
+Restarting function "g" ...
+Paused at (after restart):
+function g(a, b) {  // We want to restart 'g'.
+  #console.log('g');
+  return 2 + f(a, b);
+
+Called functions: h,g,f,g,f

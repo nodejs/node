@@ -1,0 +1,120 @@
+=pod
+
+=head1 NAME
+
+OSSL_CRMF_MSG_set0_validity,
+OSSL_CRMF_MSG_set_certReqId,
+OSSL_CRMF_CERTTEMPLATE_fill,
+OSSL_CRMF_MSG_set0_extensions,
+OSSL_CRMF_MSG_push0_extension,
+OSSL_CRMF_MSG_create_popo,
+OSSL_CRMF_MSGS_verify_popo
+- functions populating and verifying CRMF CertReqMsg structures
+
+=head1 SYNOPSIS
+
+ #include <openssl/crmf.h>
+
+ int OSSL_CRMF_MSG_set0_validity(OSSL_CRMF_MSG *crm,
+                                 ASN1_TIME *notBefore, ASN1_TIME *notAfter);
+
+ int OSSL_CRMF_MSG_set_certReqId(OSSL_CRMF_MSG *crm, int rid);
+
+ int OSSL_CRMF_CERTTEMPLATE_fill(OSSL_CRMF_CERTTEMPLATE *tmpl,
+                                 EVP_PKEY *pubkey,
+                                 const X509_NAME *subject,
+                                 const X509_NAME *issuer,
+                                 const ASN1_INTEGER *serial);
+
+ int OSSL_CRMF_MSG_set0_extensions(OSSL_CRMF_MSG *crm, X509_EXTENSIONS *exts);
+
+ int OSSL_CRMF_MSG_push0_extension(OSSL_CRMF_MSG *crm, X509_EXTENSION *ext);
+
+ int OSSL_CRMF_MSG_create_popo(int meth, OSSL_CRMF_MSG *crm,
+                               EVP_PKEY *pkey, const EVP_MD *digest,
+                               OSSL_LIB_CTX *libctx, const char *propq);
+
+ int OSSL_CRMF_MSGS_verify_popo(const OSSL_CRMF_MSGS *reqs,
+                                int rid, int acceptRAVerified,
+                                OSSL_LIB_CTX *libctx, const char *propq);
+
+=head1 DESCRIPTION
+
+OSSL_CRMF_MSG_set0_validity() sets the I<notBefore> and I<notAfter> fields
+as validity constraints in the certTemplate of I<crm>.
+Any of the I<notBefore> and I<notAfter> parameters may be NULL,
+which means no constraint for the respective field.
+On success ownership of I<notBefore> and I<notAfter> is transferred to I<crm>.
+
+OSSL_CRMF_MSG_set_certReqId() sets I<rid> as the certReqId of I<crm>.
+
+OSSL_CRMF_CERTTEMPLATE_fill() sets those fields of the certTemplate I<tmpl>
+for which non-NULL values are provided: I<pubkey>, I<subject>, I<issuer>,
+and/or I<serial>.
+X.509 extensions may be set using OSSL_CRMF_MSG_set0_extensions().
+On success the reference counter of the I<pubkey> (if given) is incremented,
+while the I<subject>, I<issuer>, and I<serial> structures (if given) are copied.
+
+OSSL_CRMF_MSG_set0_extensions() sets I<exts> as the extensions in the
+certTemplate of I<crm>. Frees any pre-existing ones and consumes I<exts>.
+
+OSSL_CRMF_MSG_push0_extension() pushes the X509 extension I<ext> to the
+extensions in the certTemplate of I<crm>.  Consumes I<ext>.
+
+OSSL_CRMF_MSG_create_popo() creates and sets the Proof-of-Possession (POPO)
+according to the method I<meth> in I<crm>.
+The library context I<libctx> and property query string I<propq>,
+may be NULL to select the defaults.
+In case the method is OSSL_CRMF_POPO_SIGNATURE the POPO is calculated
+using the private key I<pkey> and the digest method I<digest>,
+where the I<digest> argument is ignored if I<pkey> is of a type (such as
+Ed25519 and Ed448) that is implicitly associated with a digest algorithm.
+
+I<meth> can be one of the following:
+
+=over 8
+
+=item * OSSL_CRMF_POPO_NONE       - RFC 4211, section 4, POP field omitted.
+CA/RA uses out-of-band method to verify POP. Note that servers may fail in this
+case, resulting for instance in HTTP error code 500 (Internal error).
+
+=item * OSSL_CRMF_POPO_RAVERIFIED - RFC 4211, section 4, explicit indication
+that the RA has already verified the POP.
+
+=item * OSSL_CRMF_POPO_SIGNATURE  - RFC 4211, section 4.1, only case 3 supported
+so far.
+
+=item * OSSL_CRMF_POPO_KEYENC     - RFC 4211, section 4.2, only indirect method
+(subsequentMessage/enccert) supported,
+challenge-response exchange (challengeResp) not yet supported.
+
+=item * OSSL_CRMF_POPO_KEYAGREE   - RFC 4211, section 4.3, not yet supported.
+
+=back
+
+OSSL_CRMF_MSGS_verify_popo verifies the Proof-of-Possession of the request with
+the given I<rid> in the list of I<reqs>. Optionally accepts RAVerified. It can
+make use of the library context I<libctx> and property query string I<propq>.
+
+=head1 RETURN VALUES
+
+All functions return 1 on success, 0 on error.
+
+=head1 SEE ALSO
+
+RFC 4211
+
+=head1 HISTORY
+
+The OpenSSL CRMF support was added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,32 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Resource Timing Level 2 (https://w3c.github.io/resource-timing/)
+
+[Exposed=(Window,Worker)]
+interface PerformanceResourceTiming : PerformanceEntry {
+    readonly attribute DOMString initiatorType;
+    readonly attribute ByteString nextHopProtocol;
+    readonly attribute DOMHighResTimeStamp workerStart;
+    readonly attribute DOMHighResTimeStamp redirectStart;
+    readonly attribute DOMHighResTimeStamp redirectEnd;
+    readonly attribute DOMHighResTimeStamp fetchStart;
+    readonly attribute DOMHighResTimeStamp domainLookupStart;
+    readonly attribute DOMHighResTimeStamp domainLookupEnd;
+    readonly attribute DOMHighResTimeStamp connectStart;
+    readonly attribute DOMHighResTimeStamp connectEnd;
+    readonly attribute DOMHighResTimeStamp secureConnectionStart;
+    readonly attribute DOMHighResTimeStamp requestStart;
+    readonly attribute DOMHighResTimeStamp responseStart;
+    readonly attribute DOMHighResTimeStamp responseEnd;
+    readonly attribute unsigned long long  transferSize;
+    readonly attribute unsigned long long  encodedBodySize;
+    readonly attribute unsigned long long  decodedBodySize;
+    [Default] object toJSON();
+};
+
+partial interface Performance {
+  undefined clearResourceTimings ();
+  undefined setResourceTimingBufferSize (unsigned long maxSize);
+  attribute EventHandler onresourcetimingbufferfull;
+};

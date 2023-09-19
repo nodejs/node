@@ -1,0 +1,316 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/swiss-name-dictionary.h'
+
+@doNotGenerateCppClass
+extern class SwissNameDictionary extends HeapObject {
+  hash: uint32;
+  const capacity: int32;
+  meta_table: ByteArray;
+  data_table[Convert<intptr>(capacity) * 2]: JSAny|TheHole;
+  ctrl_table[Convert<intptr>(capacity) + swiss_table::kGroupWidth]: uint8;
+  property_details_table[Convert<intptr>(capacity)]: uint8;
+}
+
+namespace swiss_table {
+
+const kDataTableEntryCount: constexpr intptr
+    generates 'SwissNameDictionary::kDataTableEntryCount';
+
+const kMax1ByteMetaTableCapacity: constexpr int32
+    generates 'SwissNameDictionary::kMax1ByteMetaTableCapacity';
+
+const kMax2ByteMetaTableCapacity: constexpr int32
+    generates 'SwissNameDictionary::kMax2ByteMetaTableCapacity';
+
+const kNotFoundSentinel:
+    constexpr int32 generates 'SwissNameDictionary::kNotFoundSentinel';
+
+extern macro LoadSwissNameDictionaryKey(SwissNameDictionary, intptr): Name;
+
+extern macro StoreSwissNameDictionaryKeyAndValue(
+    SwissNameDictionary, intptr, Object, Object): void;
+
+extern macro SwissNameDictionarySetCtrl(
+    SwissNameDictionary, intptr, intptr, uint8): void;
+
+extern macro StoreSwissNameDictionaryPropertyDetails(
+    SwissNameDictionary, intptr, intptr, uint8): void;
+
+extern macro
+SwissNameDictionaryIncreaseElementCountOrBailout(
+    ByteArray, intptr, uint32): uint32 labels Bailout;
+
+extern macro
+StoreSwissNameDictionaryEnumToEntryMapping(
+    SwissNameDictionary, intptr, intptr, int32): void;
+
+extern macro
+SwissNameDictionaryUpdateCountsForDeletion(ByteArray, intptr): uint32;
+
+namespace runtime {
+extern runtime SwissTableFindEntry(NoContext, SwissNameDictionary, Name): Smi;
+
+extern runtime SwissTableAdd(
+    NoContext, SwissNameDictionary, Name, Object, Smi): SwissNameDictionary;
+
+extern runtime ShrinkSwissNameDictionary(
+    NoContext, SwissNameDictionary): SwissNameDictionary;
+}
+
+// Counterpart for SwissNameDictionary::CapacityFor in C++.
+@export
+macro SwissNameDictionaryCapacityFor(atLeastSpaceFor: intptr): intptr {
+  if (atLeastSpaceFor <= 4) {
+    if (atLeastSpaceFor == 0) {
+      return 0;
+    } else if (atLeastSpaceFor < kSwissNameDictionaryInitialCapacity) {
+      return 4;
+    } else if (FromConstexpr<bool>(kGroupWidth == 16)) {
+      dcheck(atLeastSpaceFor == 4);
+      return 4;
+    } else if (FromConstexpr<bool>(kGroupWidth == 8)) {
+      dcheck(atLeastSpaceFor == 4);
+      return 8;
+    }
+  }
+
+  const nonNormalized = atLeastSpaceFor + atLeastSpaceFor / 7;
+  return IntPtrRoundUpToPowerOfTwo32(nonNormalized);
+}
+
+// Counterpart for SwissNameDictionary::MaxUsableCapacity in C++.
+@export
+macro SwissNameDictionaryMaxUsableCapacity(capacity: intptr): intptr {
+  dcheck(capacity == 0 || capacity >= kSwissNameDictionaryInitialCapacity);
+  if (FromConstexpr<bool>(kGroupWidth == 8) && capacity == 4) {
+    // If the group size is 16 we can fully utilize capacity 4: There will be
+    // enough kEmpty entries in the ctrl table.
+    return 3;
+  }
+  return capacity - capacity / 8;
+}
+
+// Counterpart for SwissNameDictionary::SizeFor in C++.
+@export
+macro SwissNameDictionarySizeFor(capacity: intptr): intptr {
+  const constant: constexpr int32 = kHeapObjectHeaderSize + 8 + kTaggedSize;
+  const dynamic: intptr =
+      capacity * FromConstexpr<intptr>(2 * kTaggedSize + 2) +
+      FromConstexpr<intptr>(kGroupWidth);
+  return constant + dynamic;
+}
+
+// Counterpart for SwissNameDictionary::MetaTableSizePerEntryFor in C++.
+@export
+macro SwissNameDictionaryMetaTableSizePerEntryFor(capacity: intptr): intptr {
+  if (capacity <= kMax1ByteMetaTableCapacity) {
+    return 1;
+  } else if (capacity <= kMax2ByteMetaTableCapacity) {
+    return 2;
+  } else {
+    return 4;
+  }
+}
+
+// Counterpart for SwissNameDictionary::MetaTableSizeFor in C++.
+@export
+macro SwissNameDictionaryMetaTableSizeFor(capacity: intptr): intptr {
+  const perEntry: intptr =
+      SwissNameDictionaryMetaTableSizePerEntryFor(capacity);
+  const maxUsable: intptr =
+      Convert<intptr>(SwissNameDictionaryMaxUsableCapacity(capacity));
+
+  return (2 + maxUsable) * perEntry;
+}
+
+//
+// Offsets. MT stands for "minus tag"
+//
+
+const kDataTableStartOffsetMT: constexpr intptr
+    generates 'SwissNameDictionary::DataTableStartOffset() - kHeapObjectTag';
+
+@export
+macro SwissNameDictionaryDataTableStartOffsetMT(): intptr {
+  return kDataTableStartOffsetMT;
+}
+
+@export
+macro SwissNameDictionaryCtrlTableStartOffsetMT(capacity: intptr): intptr {
+  return kDataTableStartOffsetMT +
+      kDataTableEntryCount * FromConstexpr<intptr>(kTaggedSize) * capacity;
+}
+
+macro Probe(hash: uint32, mask: uint32): ProbeSequence {
+  // Mask must be a power of 2 minus 1.
+  dcheck(((mask + 1) & mask) == 0);
+
+  return ProbeSequence{mask: mask, offset: H1(hash) & mask, index: 0};
+}
+
+macro FindEntry<GroupLoader: type>(
+    table: SwissNameDictionary, key: Name): never labels
+Found(intptr), NotFound {
+  const hash: uint32 = LoadNameHash(key);
+  const capacity: int32 = table.capacity;
+  const nonZeroCapacity: int32 = capacity | Convert<int32>(capacity == 0);
+  const mask: uint32 = Unsigned(nonZeroCapacity - 1);
+
+  const ctrlTableStart: intptr =
+      SwissNameDictionaryCtrlTableStartOffsetMT(Convert<intptr>(capacity)) +
+      BitcastTaggedToWord(table);
+
+  let seq = Probe(hash, mask);
+  while (true) {
+    const group =
+        GroupLoader{}.LoadGroup(ctrlTableStart + Convert<intptr>(seq.offset));
+    let match = group.Match(H2(hash));
+    while (match.HasBitsSet()) {
+      const inGroupIndex = match.LowestBitSet();
+      const candidateEntry = Convert<intptr>(seq.Offset(inGroupIndex));
+      const candidateKey: Object =
+          LoadSwissNameDictionaryKey(table, candidateEntry);
+      if (TaggedEqual(key, candidateKey)) {
+        goto Found(candidateEntry);
+      }
+      match.ClearLowestSetBit();
+    }
+    if (group.MatchEmpty().HasBitsSet()) {
+      goto NotFound;
+    }
+    seq.Next();
+  }
+
+  unreachable;
+}
+
+macro FindFirstEmpty<GroupLoader: type>(
+    table: SwissNameDictionary, capacity: intptr, hash: uint32): int32 {
+  const nonZeroCapacity: int32 =
+      Convert<int32>(capacity) | Convert<int32>(capacity == 0);
+  const mask: uint32 = Unsigned(nonZeroCapacity - 1);
+
+  const ctrlTableStart: intptr =
+      SwissNameDictionaryCtrlTableStartOffsetMT(capacity) +
+      BitcastTaggedToWord(table);
+
+  let seq = Probe(hash, mask);
+  while (true) {
+    const group =
+        GroupLoader{}.LoadGroup(ctrlTableStart + Convert<intptr>(seq.offset));
+    const match = group.MatchEmpty();
+    if (match.HasBitsSet()) {
+      const inGroupIndex = match.LowestBitSet();
+      return Signed(seq.Offset(inGroupIndex));
+    }
+    seq.Next();
+  }
+
+  unreachable;
+}
+
+macro Add<GroupLoader: type>(
+    table: SwissNameDictionary, key: Name, value: Object,
+    propertyDetails: uint8): void labels Bailout {
+  const capacity: intptr = Convert<intptr>(table.capacity);
+  const maxUsable: uint32 =
+      Unsigned(Convert<int32>(SwissNameDictionaryMaxUsableCapacity(capacity)));
+
+  try {
+    // We read the used capacity (present + deleted elements), compare it
+    // against the max usable capacity to determine if a bailout is necessary,
+    // and in case of no bailout increase the present element count all in one
+    // go using the following macro. This way we don't have to do the branching
+    // needed for meta table accesses multiple times.
+    const used: uint32 = SwissNameDictionaryIncreaseElementCountOrBailout(
+        table.meta_table, capacity, maxUsable) otherwise Bailout;
+
+    const hash: uint32 = LoadNameHash(key);
+    const newEntry32 = FindFirstEmpty<GroupLoader>(table, capacity, hash);
+    const newEntry = Convert<intptr>(newEntry32);
+
+    StoreSwissNameDictionaryKeyAndValue(table, newEntry, key, value);
+
+    StoreSwissNameDictionaryEnumToEntryMapping(
+        table, capacity, Convert<intptr>(used), newEntry32);
+
+    const h2 = Convert<uint8>(Convert<intptr>(H2(hash)));
+    SwissNameDictionarySetCtrl(table, capacity, newEntry, h2);
+
+    StoreSwissNameDictionaryPropertyDetails(
+        table, capacity, newEntry, propertyDetails);
+  } label Bailout {
+    goto Bailout;
+  }
+}
+
+@export
+macro SwissNameDictionaryDelete(table: SwissNameDictionary, entry: intptr):
+    void labels Shrunk(SwissNameDictionary) {
+  const capacity = Convert<intptr>(table.capacity);
+
+  // Update present and deleted element counts at once, without needing to do
+  // the meta table access related branching more than once.
+  const newElementCount =
+      SwissNameDictionaryUpdateCountsForDeletion(table.meta_table, capacity);
+
+  StoreSwissNameDictionaryKeyAndValue(table, entry, TheHole, TheHole);
+
+  const kDeleted = FromConstexpr<uint8>(ctrl::kDeleted);
+  SwissNameDictionarySetCtrl(table, capacity, entry, kDeleted);
+
+  // Same logic for deciding when to shrink as in SwissNameDictionary::Delete.
+  if (Convert<intptr>(Signed(newElementCount)) < (capacity >> 2)) {
+    const shrunkTable = runtime::ShrinkSwissNameDictionary(kNoContext, table);
+    goto Shrunk(shrunkTable);
+  }
+}
+
+// TODO(v8:11330) Ideally, we would like to implement
+// CodeStubAssembler::SwissNameDictionaryFindEntry in Torque and do the
+// necessary switching between the two implementations with if(kUseSimd) {...}
+// else {...}. However, Torque currently generates a call to
+// CodeAssembler::Branch which cannot guarantee that code for the "bad" path is
+// not generated, even if the branch can be resolved at compile time. This means
+// that we end up trying to generate unused code using unsupported instructions.
+@export
+macro SwissNameDictionaryFindEntrySIMD(table: SwissNameDictionary, key: Name):
+    never labels Found(intptr), NotFound {
+  FindEntry<GroupSse2Loader>(table, key)
+      otherwise Found, NotFound;
+}
+
+@export
+macro SwissNameDictionaryFindEntryPortable(
+    table: SwissNameDictionary, key: Name): never labels Found(intptr),
+    NotFound {
+  FindEntry<GroupPortableLoader>(table, key)
+      otherwise Found, NotFound;
+}
+
+// TODO(v8:11330) Ideally, we would like to implement
+// CodeStubAssembler::SwissNameDictionaryAdd in Torque and do the necessary
+// switching between the two implementations with if(kUseSimd) {...} else {...}.
+// However, Torque currently generates a call to CodeAssembler::Branch which
+// cannot guarantee that code for the "bad" path is not generated, even if the
+// branch can be resolved at compile time. This means that we end up trying to
+// generate unused code using unsupported instructions.
+@export
+macro SwissNameDictionaryAddSIMD(
+    table: SwissNameDictionary, key: Name, value: Object,
+    propertyDetails: uint8): void labels Bailout {
+  Add<GroupSse2Loader>(table, key, value, propertyDetails)
+      otherwise Bailout;
+}
+
+@export
+macro SwissNameDictionaryAddPortable(
+    table: SwissNameDictionary, key: Name, value: Object,
+    propertyDetails: uint8): void labels Bailout {
+  Add<GroupPortableLoader>(table, key, value, propertyDetails)
+      otherwise Bailout;
+}
+}

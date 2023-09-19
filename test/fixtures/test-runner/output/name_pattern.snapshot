@@ -1,0 +1,182 @@
+TAP version 13
+# Subtest: top level test disabled
+ok 1 - top level test disabled # SKIP test name does not match pattern
+  ---
+  duration_ms: *
+  ...
+# Subtest: top level skipped test disabled
+ok 2 - top level skipped test disabled # SKIP test name does not match pattern
+  ---
+  duration_ms: *
+  ...
+# Subtest: top level skipped test enabled
+ok 3 - top level skipped test enabled # SKIP
+  ---
+  duration_ms: *
+  ...
+# Subtest: top level it enabled
+ok 4 - top level it enabled
+  ---
+  duration_ms: *
+  ...
+# Subtest: top level it disabled
+ok 5 - top level it disabled # SKIP test name does not match pattern
+  ---
+  duration_ms: *
+  ...
+# Subtest: top level skipped it disabled
+ok 6 - top level skipped it disabled # SKIP test name does not match pattern
+  ---
+  duration_ms: *
+  ...
+# Subtest: top level skipped it enabled
+ok 7 - top level skipped it enabled # SKIP
+  ---
+  duration_ms: *
+  ...
+# Subtest: top level describe never disabled
+ok 8 - top level describe never disabled
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: top level skipped describe disabled
+ok 9 - top level skipped describe disabled # SKIP test name does not match pattern
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: top level skipped describe enabled
+ok 10 - top level skipped describe enabled # SKIP
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: top level runs because name includes PaTtErN
+ok 11 - top level runs because name includes PaTtErN
+  ---
+  duration_ms: *
+  ...
+# Subtest: top level test enabled
+    # Subtest: nested test runs because name includes PATTERN
+    ok 1 - nested test runs because name includes PATTERN
+      ---
+      duration_ms: *
+      ...
+    1..1
+ok 12 - top level test enabled
+  ---
+  duration_ms: *
+  ...
+# Subtest: top level describe enabled
+    # Subtest: nested it not disabled
+    ok 1 - nested it not disabled
+      ---
+      duration_ms: *
+      ...
+    # Subtest: nested it enabled
+    ok 2 - nested it enabled
+      ---
+      duration_ms: *
+      ...
+    # Subtest: nested describe not disabled
+    ok 3 - nested describe not disabled
+      ---
+      duration_ms: *
+      type: 'suite'
+      ...
+    # Subtest: nested describe enabled
+        # Subtest: is enabled
+        ok 1 - is enabled
+          ---
+          duration_ms: *
+          ...
+        1..1
+    ok 4 - nested describe enabled
+      ---
+      duration_ms: *
+      type: 'suite'
+      ...
+    1..4
+ok 13 - top level describe enabled
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: yes
+    # Subtest: no
+    ok 1 - no
+      ---
+      duration_ms: *
+      ...
+    # Subtest: yes
+    ok 2 - yes
+      ---
+      duration_ms: *
+      ...
+    # Subtest: maybe
+        # Subtest: no
+        ok 1 - no
+          ---
+          duration_ms: *
+          ...
+        # Subtest: yes
+        ok 2 - yes
+          ---
+          duration_ms: *
+          ...
+        1..2
+    ok 3 - maybe
+      ---
+      duration_ms: *
+      type: 'suite'
+      ...
+    1..3
+ok 14 - yes
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: no
+    # Subtest: no
+    ok 1 - no # SKIP test name does not match pattern
+      ---
+      duration_ms: *
+      ...
+    # Subtest: yes
+    ok 2 - yes
+      ---
+      duration_ms: *
+      ...
+    # Subtest: maybe
+        # Subtest: no
+        ok 1 - no # SKIP test name does not match pattern
+          ---
+          duration_ms: *
+          ...
+        # Subtest: yes
+        ok 2 - yes
+          ---
+          duration_ms: *
+          ...
+        1..2
+    ok 3 - maybe
+      ---
+      duration_ms: *
+      type: 'suite'
+      ...
+    1..3
+ok 15 - no
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+1..15
+# tests 21
+# suites 10
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 8
+# todo 0
+# duration_ms *

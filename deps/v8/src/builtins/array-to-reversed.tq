@@ -1,0 +1,161 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+
+macro FastPackedDoubleArrayToReversed(implicit context: Context)(
+    elements: FixedDoubleArray, length: Smi): JSArray {
+  // 3. Let A be ? ArrayCreate(𝔽(len)).
+  const copy: FixedDoubleArray =
+      UnsafeCast<FixedDoubleArray>(AllocateFixedArray(
+          ElementsKind::PACKED_DOUBLE_ELEMENTS, SmiUntag(length),
+          AllocationFlag::kAllowLargeObjectAllocation));
+
+  // 4. Let k be 0.
+  let k: Smi = 0;
+
+  // 5. Repeat, while k < len,
+  while (k < length) {
+    // a. Let from be ! ToString(𝔽(len - k - 1)).
+    // b. Let Pk be ! ToString(𝔽(k)).
+    const from = length - k - 1;
+
+    // c. Let fromValue be ? Get(O, from).
+    const fromValue: float64 =
+        elements.floats[from].Value() otherwise unreachable;
+
+    // d. Perform ! CreateDataPropertyOrThrow(A, Pk, fromValue).
+    StoreFixedDoubleArrayElement(copy, k, fromValue);
+
+    // e. Set k to k + 1.
+    ++k;
+  }
+
+  // 6. Return A.
+  const map: Map = LoadJSArrayElementsMap(
+      ElementsKind::PACKED_DOUBLE_ELEMENTS, LoadNativeContext(context));
+  return NewJSArray(map, copy);
+}
+
+macro FastArrayToReversed<FromElements : type extends FixedArrayBase>(
+    implicit context: Context)(
+    kind: constexpr ElementsKind, elements: FromElements, length: Smi,
+    initializeArray: constexpr bool): JSArray {
+  // 3. Let A be ? ArrayCreate(𝔽(len)).
+  const copy: FixedArrayBase = AllocateFixedArray(
+      kind, SmiUntag(length), AllocationFlag::kAllowLargeObjectAllocation);
+
+  // Reversing HOLEY_DOUBLE_ELEMENTS array may allocate heap numbers.
+  // We need to initialize the array to avoid running GC with garbage values.
+  if (initializeArray) {
+    dcheck(Is<FixedArray>(copy));
+    FillFixedArrayWithSmiZero(
+        kind, UnsafeCast<FixedArray>(copy), 0, SmiUntag(length));
+  }
+
+  // 4. Let k be 0.
+  let k: Smi = 0;
+
+  // 5. Repeat, while k < len,
+  while (k < length) {
+    // a. Let from be ! ToString(𝔽(len - k - 1)).
+    // b. Let Pk be ! ToString(𝔽(k)).
+    const from = length - k - 1;
+
+    // c. Let fromValue be ? Get(O, from).
+    const fromValue: Object = LoadElementOrUndefined(elements, from);
+
+    // d. Perform ! CreateDataPropertyOrThrow(A, Pk, fromValue).
+    StoreElement<FixedArray>(copy, k, fromValue);
+
+    // e. Set k to k + 1.
+    ++k;
+  }
+
+  // 6. Return A.
+  const map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
+  return NewJSArray(map, copy);
+}
+
+macro TryFastArrayToReversed(implicit context: Context)(receiver: JSAny):
+    JSArray labels Slow {
+  const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+
+  if (array.length < 1) return ArrayCreate(0);
+
+  const kind: ElementsKind = array.map.elements_kind;
+  if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
+    return FastArrayToReversed<FixedArray>(
+        ElementsKind::PACKED_SMI_ELEMENTS,
+        UnsafeCast<FixedArray>(array.elements), array.length, false);
+  } else if (kind == ElementsKind::PACKED_ELEMENTS) {
+    return FastArrayToReversed<FixedArray>(
+        ElementsKind::PACKED_ELEMENTS, UnsafeCast<FixedArray>(array.elements),
+        array.length, false);
+  } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+    return FastPackedDoubleArrayToReversed(
+        UnsafeCast<FixedDoubleArray>(array.elements), array.length);
+  } else {
+    if (!IsPrototypeInitialArrayPrototype(array.map)) goto Slow;
+    if (IsNoElementsProtectorCellInvalid()) goto Slow;
+
+    if (kind == ElementsKind::HOLEY_SMI_ELEMENTS ||
+        kind == ElementsKind::HOLEY_ELEMENTS) {
+      return FastArrayToReversed<FixedArray>(
+          ElementsKind::PACKED_ELEMENTS, UnsafeCast<FixedArray>(array.elements),
+          array.length, false);
+    } else if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
+      return FastArrayToReversed<FixedDoubleArray>(
+          ElementsKind::PACKED_ELEMENTS,
+          UnsafeCast<FixedDoubleArray>(array.elements), array.length, true);
+    }
+
+    goto Slow;
+  }
+}
+
+transitioning builtin GenericArrayToReversed(implicit context: Context)(
+    receiver: JSAny): JSAny {
+  // 1. Let O be ? ToObject(this value).
+  const object: JSReceiver = ToObject_Inline(context, receiver);
+
+  // 2. Let len be ? LengthOfArrayLike(O).
+  const len: Number = GetLengthProperty(object);
+
+  // 3. Let A be ? ArrayCreate(𝔽(len)).
+  const copy = ArrayCreate(len);
+
+  // 4. Let k be 0.
+  let k: Number = 0;
+
+  // 5. Repeat, while k < len,
+  while (k < len) {
+    // a. Let from be ! ToString(𝔽(len - k - 1)).
+    // b. Let Pk be ! ToString(𝔽(k)).
+    const from: Number = len - k - 1;
+
+    // c. Let fromValue be ? Get(object, from).
+    const fromValue = GetProperty(object, from);
+
+    // d. Perform ! CreateDataPropertyOrThrow(A, Pk, fromValue).
+    FastCreateDataProperty(copy, k, fromValue);
+
+    // e. Set k to k + 1.
+    ++k;
+  }
+
+  // 6. Return A.
+  return copy;
+}
+
+// https://tc39.es/proposal-change-array-by-copy/#sec-array.prototype.toReversed
+transitioning javascript builtin ArrayPrototypeToReversed(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  try {
+    return TryFastArrayToReversed(receiver) otherwise Slow;
+  } label Slow {
+    return GenericArrayToReversed(receiver);
+  }
+}
+}

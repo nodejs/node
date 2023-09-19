@@ -1,0 +1,215 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-typed-array-gen.h'
+
+namespace typed_array {
+const kBuiltinNameFrom: constexpr string = '%TypedArray%.from';
+
+type BuiltinsName extends int31 constexpr 'Builtin';
+const kTypedArrayPrototypeValues: constexpr BuiltinsName
+    generates 'Builtin::kTypedArrayPrototypeValues';
+const kArrayPrototypeValues: constexpr BuiltinsName
+    generates 'Builtin::kArrayPrototypeValues';
+
+extern builtin IterableToList(implicit context: Context)(JSAny, JSAny): JSArray;
+
+// %TypedArray%.from ( source [ , mapfn [ , thisArg ] ] )
+// https://tc39.github.io/ecma262/#sec-%typedarray%.from
+transitioning javascript builtin
+TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSTypedArray {
+  try {
+    const source: JSAny = arguments[0];
+    const mapfnObj: JSAny = arguments[1];
+    const thisArg = arguments[2];
+
+    // 1. Let C be the this value.
+    // 2. If IsConstructor(C) is false, throw a TypeError exception.
+    const constructor = Cast<Constructor>(receiver) otherwise NotConstructor;
+
+    // 3. If mapfn is undefined, then let mapping be false.
+    // 4. Else,
+    //   a. If IsCallable(mapfn) is false, throw a TypeError exception.
+    //   b. Let mapping be true.
+    const mapping: bool = mapfnObj != Undefined;
+    if (mapping && !Is<Callable>(mapfnObj)) deferred {
+        ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfnObj);
+      }
+
+    // We split up this builtin differently to the way it is written in the
+    // spec. We already have great code in the elements accessor for copying
+    // from a JSArray into a TypedArray, so we use that when possible. We only
+    // avoid calling into the elements accessor when we have a mapping
+    // function, because we can't handle that. Here, presence of a mapping
+    // function is the slow path. We also combine the two different loops in
+    // the specification (starting at 7.e and 13) because they are essentially
+    // identical. We also save on code-size this way.
+
+    let finalLength: uintptr;
+    let finalSource: JSAny;
+
+    try {
+      // 5. Let usingIterator be ? GetMethod(source, @@iterator).
+      // TODO(v8:8906): Use iterator::GetIteratorMethod() once it supports
+      // labels.
+      const usingIterator = GetMethod(source, IteratorSymbolConstant())
+          otherwise IteratorIsUndefined, IteratorNotCallable;
+
+      try {
+        // TypedArrays and JSArrays have iterators, so normally we would go
+        // through the IterableToList case below, which would convert the
+        // source to a JSArray (boxing the values if they won't fit in a Smi).
+        //
+        // However, if we can guarantee that the source object has the
+        // built-in iterator and that the %ArrayIteratorPrototype%.next method
+        // has not been overridden, then we know the behavior of the iterator:
+        // returning the values in the TypedArray sequentially from index 0 to
+        // length-1.
+        //
+        // In this case, we can avoid creating the intermediate array and the
+        // associated HeapNumbers, and use the fast path in
+        // TypedArrayCopyElements which uses the same ordering as the default
+        // iterator.
+        //
+        // Drop through to the default check_iterator behavior if any of these
+        // checks fail.
+
+        // If there is a mapping, we need to gather the values from the
+        // iterables before applying the mapping.
+        if (mapping) goto UseUserProvidedIterator;
+
+        const iteratorFn =
+            Cast<JSFunction>(usingIterator) otherwise UseUserProvidedIterator;
+
+        // Check that the ArrayIterator prototype's "next" method hasn't been
+        // overridden.
+        if (IsArrayIteratorProtectorCellInvalid()) goto UseUserProvidedIterator;
+
+        typeswitch (source) {
+          case (sourceArray: JSArray): {
+            // Check that the iterator function is exactly
+            // Builtin::kArrayPrototypeValues.
+            if (!TaggedEqual(
+                    iteratorFn.shared_function_info.function_data,
+                    SmiConstant(kArrayPrototypeValues))) {
+              goto UseUserProvidedIterator;
+            }
+
+            // Source is a JSArray with unmodified iterator behavior. Use the
+            // source object directly, taking advantage of the special-case code
+            // in TypedArrayCopyElements
+            finalLength = Convert<uintptr>(sourceArray.length);
+            finalSource = source;
+          }
+          case (sourceTypedArray: JSTypedArray): {
+            finalLength =
+                LoadJSTypedArrayLengthAndCheckDetached(sourceTypedArray)
+                otherwise UseUserProvidedIterator;
+
+            // Check that the iterator function is exactly
+            // Builtin::kTypedArrayPrototypeValues.
+            if (!TaggedEqual(
+                    iteratorFn.shared_function_info.function_data,
+                    SmiConstant(kTypedArrayPrototypeValues)))
+              goto UseUserProvidedIterator;
+
+            // Source is a TypedArray with unmodified iterator behavior. Use the
+            // source object directly, taking advantage of the special-case code
+            // in TypedArrayCopyElements
+            finalSource = source;
+          }
+          case (Object): {
+            goto UseUserProvidedIterator;
+          }
+        }
+      } label UseUserProvidedIterator {
+        // 6. If usingIterator is not undefined, then
+        //  a. Let values be ? IterableToList(source, usingIterator).
+        //  b. Let len be the number of elements in values.
+        const values: JSArray = IterableToList(source, usingIterator);
+
+        finalLength = Convert<uintptr>(values.length);
+        finalSource = values;
+      }
+    } label IteratorIsUndefined {
+      // 7. NOTE: source is not an Iterable so assume it is already an
+      // array-like object.
+
+      // 8. Let arrayLike be ! ToObject(source).
+      const arrayLike: JSReceiver = ToObject_Inline(context, source);
+
+      // 9. Let len be ? LengthOfArrayLike(arrayLike).
+      const length = GetLengthProperty(arrayLike);
+
+      try {
+        finalLength = ChangeSafeIntegerNumberToUintPtr(length)
+            otherwise IfInvalidLength;
+        finalSource = arrayLike;
+      } label IfInvalidLength deferred {
+        ThrowRangeError(MessageTemplate::kInvalidTypedArrayLength, length);
+      }
+    } label IteratorNotCallable(_value: JSAny) deferred {
+      ThrowTypeError(
+          MessageTemplate::kFirstArgumentIteratorSymbolNonCallable,
+          kBuiltinNameFrom);
+    }
+
+    const finalLengthNum = Convert<Number>(finalLength);
+
+    // 6c/10. Let targetObj be ? TypedArrayCreate(C, «len»).
+    const targetObj =
+        TypedArrayCreateByLength(constructor, finalLengthNum, kBuiltinNameFrom);
+
+    if (!mapping) {
+      // Fast path.
+      if (finalLength != 0) {
+        // Call runtime.
+        TypedArrayCopyElements(context, targetObj, finalSource, finalLengthNum);
+      }
+      return targetObj;
+    }
+    // Slow path.
+
+    const mapfn: Callable = Cast<Callable>(mapfnObj) otherwise unreachable;
+    const accessor: TypedArrayAccessor =
+        GetTypedArrayAccessor(targetObj.elements_kind);
+
+    // 6d-6e and 11-12.
+    // 11. Let k be 0.
+    // 12. Repeat, while k < len
+    for (let k: uintptr = 0; k < finalLength; k++) {
+      // 12a. Let Pk be ! ToString(k).
+      const kNum = Convert<Number>(k);
+
+      // 12b. Let kValue be ? Get(arrayLike, Pk).
+      const kValue: JSAny = GetProperty(finalSource, kNum);
+
+      let mappedValue: JSAny;
+      // 12c. If mapping is true, then
+      if (mapping) {
+        // i. Let mappedValue be ? Call(mapfn, T, « kValue, k »).
+        mappedValue = Call(context, mapfn, thisArg, kValue, kNum);
+      } else {
+        // 12d. Else, let mappedValue be kValue.
+        mappedValue = kValue;
+      }
+
+      // 12e. Perform ? Set(targetObj, Pk, mappedValue, true).
+      // The buffer may be detached or the target TypedArray may go out of
+      // bounds during executing ToNumber/ToBigInt or when we executed the
+      // mapper function above.
+      accessor.StoreJSAny(context, targetObj, k, mappedValue)
+          otherwise IfDetachedOrOutOfBounds;
+
+      // 12f. Set k to k + 1. (done by the loop).
+    }
+    return targetObj;
+  } label NotConstructor deferred {
+    ThrowTypeError(MessageTemplate::kNotConstructor, receiver);
+  } label IfDetachedOrOutOfBounds deferred {
+    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameFrom);
+  }
+}
+}

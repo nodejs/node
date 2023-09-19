@@ -1,0 +1,80 @@
+=pod
+
+=head1 NAME
+
+CMS_add0_cert, CMS_add1_cert, CMS_get1_certs, CMS_add0_crl, CMS_add1_crl, CMS_get1_crls
+- CMS certificate and CRL utility functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ int CMS_add0_cert(CMS_ContentInfo *cms, X509 *cert);
+ int CMS_add1_cert(CMS_ContentInfo *cms, X509 *cert);
+ STACK_OF(X509) *CMS_get1_certs(CMS_ContentInfo *cms);
+
+ int CMS_add0_crl(CMS_ContentInfo *cms, X509_CRL *crl);
+ int CMS_add1_crl(CMS_ContentInfo *cms, X509_CRL *crl);
+ STACK_OF(X509_CRL) *CMS_get1_crls(CMS_ContentInfo *cms);
+
+=head1 DESCRIPTION
+
+CMS_add0_cert() and CMS_add1_cert() add certificate I<cert> to I<cms>.
+This is used by L<CMS_sign_ex(3)> and L<CMS_sign(3)> and may be used before
+calling L<CMS_verify(3)> to help chain building in certificate validation.
+I<cms> must be of type signed data or (authenticated) enveloped data.
+For signed data, such a certificate can be used when signing or verifying
+to fill in the signer certificate or to provide an extra CA certificate
+that may be needed for chain building in certificate validation.
+
+CMS_get1_certs() returns all certificates in I<cms>.
+
+CMS_add0_crl() and CMS_add1_crl() add CRL I<crl> to I<cms>.
+I<cms> must be of type signed data or (authenticated) enveloped data.
+For signed data, such a CRL may be used in certificate validation
+with L<CMS_verify(3)>.
+It may be given both for inclusion when signing a CMS message
+and when verifying a signed CMS message.
+
+CMS_get1_crls() returns all CRLs in I<cms>.
+
+=head1 NOTES
+
+The CMS_ContentInfo structure I<cms> must be of type signed data or enveloped
+data or an error will be returned.
+
+For signed data certificates and CRLs are added to the I<certificates> and
+I<crls> fields of SignedData structure. For enveloped data they are added to
+B<OriginatorInfo>.
+
+As the I<0> implies CMS_add0_cert() adds I<cert> internally to I<cms> and it
+must not be freed up after the call as opposed to CMS_add1_cert() where I<cert>
+must be freed up.
+
+The same certificate must not be added to the same cms structure more than once.
+
+=head1 RETURN VALUES
+
+CMS_add0_cert(), CMS_add1_cert() and CMS_add0_crl() and CMS_add1_crl() return
+1 for success and 0 for failure.
+
+CMS_get1_certs() and CMS_get1_crls() return the STACK of certificates or CRLs
+or NULL if there are none or an error occurs. The only error which will occur
+in practice is if the I<cms> type is invalid.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>,
+L<CMS_sign(3)>, L<CMS_sign_ex(3)>, L<CMS_verify(3)>,
+L<CMS_encrypt(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

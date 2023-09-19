@@ -1,0 +1,159 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace arraybuffer {
+
+// #sec-get-arraybuffer.prototype.bytelength
+transitioning javascript builtin ArrayBufferPrototypeGetByteLength(
+    js-implicit context: NativeContext, receiver: JSAny)(): Number {
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+  const functionName = 'get ArrayBuffer.prototype.byteLength';
+  const o = Cast<JSArrayBuffer>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  // 3. If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
+  if (IsSharedArrayBuffer(o)) {
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  }
+  // 4. Let length be O.[[ArrayBufferByteLength]].
+  const length = o.byte_length;
+  // 5. Return length.
+  return Convert<Number>(length);
+}
+
+// #sec-get-arraybuffer.prototype.maxbytelength
+transitioning javascript builtin ArrayBufferPrototypeGetMaxByteLength(
+    js-implicit context: NativeContext, receiver: JSAny)(): Number {
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+  const functionName = 'get ArrayBuffer.prototype.maxByteLength';
+  const o = Cast<JSArrayBuffer>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  // 3. If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
+  if (IsSharedArrayBuffer(o)) {
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  }
+  // 4. If IsDetachedBuffer(O) is true, return 0_F.
+  if (IsDetachedBuffer(o)) {
+    return 0;
+  }
+  // 5. If IsResizableArrayBuffer(O) is true, then
+  //   a. Let length be O.[[ArrayBufferMaxByteLength]].
+  // 6. Else,
+  //   a. Let length be O.[[ArrayBufferByteLength]].
+  // 7. Return F(length);
+
+  if (IsResizableArrayBuffer(o)) {
+    return Convert<Number>(o.max_byte_length);
+  }
+  return Convert<Number>(o.byte_length);
+}
+
+// #sec-get-arraybuffer.prototype.resizable
+transitioning javascript builtin ArrayBufferPrototypeGetResizable(
+    js-implicit context: NativeContext, receiver: JSAny)(): Boolean {
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+  const functionName = 'get ArrayBuffer.prototype.resizable';
+  const o = Cast<JSArrayBuffer>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  // 3. If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
+  if (IsSharedArrayBuffer(o)) {
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  }
+  // 4. Return IsResizableArrayBuffer(O).
+  if (IsResizableArrayBuffer(o)) {
+    return True;
+  }
+  return False;
+}
+
+// #sec-get-arraybuffer.prototype.detached
+transitioning javascript builtin ArrayBufferPrototypeGetDetached(
+    js-implicit context: NativeContext, receiver: JSAny)(): Boolean {
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+  const functionName = 'get ArrayBuffer.prototype.detached';
+  const o = Cast<JSArrayBuffer>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  // 3. If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
+  if (IsSharedArrayBuffer(o)) {
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  }
+  // 4. Return IsDetachedBuffer(O).
+  if (IsDetachedBuffer(o)) {
+    return True;
+  }
+  return False;
+}
+
+// #sec-get-growablesharedarraybuffer.prototype.maxbytelength
+transitioning javascript builtin
+SharedArrayBufferPrototypeGetMaxByteLength(
+    js-implicit context: NativeContext, receiver: JSAny)(): Number {
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+  const functionName = 'get SharedArrayBuffer.prototype.maxByteLength';
+  const o = Cast<JSArrayBuffer>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  // 3. If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
+  if (!IsSharedArrayBuffer(o)) {
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  }
+  // 4. If IsResizableArrayBuffer(O) is true, then
+  //   a. Let length be O.[[ArrayBufferMaxByteLength]].
+  // 5. Else,
+  //   a. Let length be O.[[ArrayBufferByteLength]].
+  // 6. Return F(length);
+  dcheck(IsResizableArrayBuffer(o) || o.max_byte_length == o.byte_length);
+  return Convert<Number>(o.max_byte_length);
+}
+
+// #sec-get-sharedarraybuffer.prototype.growable
+transitioning javascript builtin SharedArrayBufferPrototypeGetGrowable(
+    js-implicit context: NativeContext, receiver: JSAny)(): Boolean {
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+  const functionName = 'get SharedArrayBuffer.prototype.growable';
+  const o = Cast<JSArrayBuffer>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  // 3. If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
+  if (!IsSharedArrayBuffer(o)) {
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, functionName, receiver);
+  }
+  // 4. Return IsResizableArrayBuffer(O).
+  if (IsResizableArrayBuffer(o)) {
+    return True;
+  }
+  return False;
+}
+
+// #sec-arraybuffer.isview
+transitioning javascript builtin ArrayBufferIsView(arg: JSAny): Boolean {
+  // 1. If Type(arg) is not Object, return false.
+  // 2. If arg has a [[ViewedArrayBuffer]] internal slot, return true.
+  // 3. Return false.
+  typeswitch (arg) {
+    case (JSArrayBufferView): {
+      return True;
+    }
+    case (JSAny): {
+      return False;
+    }
+  }
+}
+
+}  // namespace arraybuffer

@@ -1,0 +1,200 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+// Array.from( items [, mapfn [, thisArg ] ] )
+// ES #sec-array.from
+transitioning javascript builtin
+ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
+    JSReceiver {
+  const c = HasBuiltinSubclassingFlag() ? receiver : GetArrayFunction();
+
+  // Use fast path if:
+  // * |items| is the only argument, and
+  // * the receiver is the Array function.
+  if (arguments.length == 1 && c == GetArrayFunction()) {
+    try {
+      return iterator::FastIterableToList(arguments[0]) otherwise Slow;
+    } label Slow {
+      // fall through
+    }
+  }
+
+  const items = arguments[0];
+  const mapfn = arguments[1];
+  const thisArg = arguments[2];
+
+  // 1. Let C be the this value.
+  // (Done above.)
+
+  let mapping: bool;
+  // 2. If mapfn is undefined, let mapping be false.
+  if (mapfn == Undefined) {
+    mapping = false;
+  } else {
+    // a. If IsCallable(mapfn) is false, throw a TypeError exception.
+    if (!Is<Callable>(mapfn)) deferred {
+        ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfn);
+      }
+    // b. Let mapping be true.
+    mapping = true;
+  }
+
+  // 4. Let usingIterator be ? GetMethod(items, @@iterator).
+  // 5. If usingIterator is not undefined, then
+  try {
+    const usingIterator = GetMethod(items, IteratorSymbolConstant())
+        otherwise IteratorIsUndefined, IteratorNotCallable;
+
+    let a: JSReceiver;
+    // a. If IsConstructor(C) is true, then
+    typeswitch (c) {
+      case (c: Constructor): {
+        // i. Let A be ? Construct(C).
+        a = Construct(c);
+      }
+      case (JSAny): {
+        // i. Let A be ? ArrayCreate(0).
+        a = ArrayCreate(0);
+      }
+    }
+
+    // c. Let iteratorRecord be ? GetIterator(items, sync, usingIterator).
+    const iteratorRecord = iterator::GetIterator(items, usingIterator);
+
+    const fastIteratorResultMap = GetIteratorResultMap();
+
+    // d. Let k be 0.
+    let k: Smi = 0;
+    // e. Repeat,
+    while (true) {
+      // i. If k ≥ 2^53-1, then
+      //   1. Let error be ThrowCompletion(a newly created TypeError object).
+      //   2. Return ? IteratorClose(iteratorRecord, error).
+      // The spec requires that we throw an exception if index reaches 2^53-1,
+      // but an empty loop would take >100 days to do this many iterations. To
+      // actually run for that long would require an iterator that never set
+      // done to true and a target array which somehow never ran out of
+      // memory, e.g. a proxy that discarded the values. Ignoring this case
+      // just means we would repeatedly call CreateDataProperty with index =
+      // 2^53
+      dcheck(k < kMaxSafeInteger);
+
+      // ii. Let Pk be ! ToString(k).
+
+      // iii. Let next be ? IteratorStep(iteratorRecord).
+      let next: JSReceiver;
+      try {
+        next = iterator::IteratorStep(iteratorRecord, fastIteratorResultMap)
+            otherwise NextIsFalse;
+      }
+      // iv. If next is false, then
+      label NextIsFalse {
+        // 1. Perform ? Set(A, "length", k, true).
+        array::SetPropertyLength(a, k);
+        // 2. Return A.
+        return a;
+      }
+
+      // v. Let nextValue be ? IteratorValue(next).
+      const nextValue = iterator::IteratorValue(next, fastIteratorResultMap);
+
+      let mappedValue: JSAny;
+      // vi. If mapping is true, then
+      if (mapping) {
+        // 1. Let mappedValue be Call(mapfn, thisArg, « nextValue, k »).
+        // 2. If mappedValue is an abrupt completion,
+        //    return ? IteratorClose(iteratorRecord, mappedValue).
+        // 3. Set mappedValue to mappedValue.[[Value]].
+        try {
+          mappedValue =
+              Call(context, UnsafeCast<Callable>(mapfn), thisArg, nextValue, k);
+        } catch (e, message) {
+          iterator::IteratorCloseOnException(iteratorRecord);
+          ReThrowWithMessage(context, e, message);
+        }
+      } else {
+        mappedValue = nextValue;
+      }
+      // viii. Let defineStatus be
+      //       CreateDataPropertyOrThrow(A, Pk, mappedValue).
+      // ix. If defineStatus is an abrupt completion,
+      //     return ? IteratorClose(iteratorRecord, defineStatus).
+      try {
+        FastCreateDataProperty(a, k, mappedValue);
+      } catch (e, message) deferred {
+        iterator::IteratorCloseOnException(iteratorRecord);
+        ReThrowWithMessage(context, e, message);
+      }
+      // x. Set k to k + 1.
+      k += 1;
+    }
+    unreachable;
+  } label IteratorIsUndefined {
+    // 6. NOTE: items is not an Iterable so assume it is an array-like object.
+    // 7. Let arrayLike be ! ToObject(items).
+    const arrayLike = ToObject_Inline(context, items);
+    // 8. Let len be ? LengthOfArrayLike(arrayLike).
+    const len = GetLengthProperty(arrayLike);
+
+    let a: JSReceiver;
+    // 9. If IsConstructor(C) is true, then
+    try {
+      // Allocate an array with PACKED elements kind for fast-path rather than
+      // calling the constructor which creates an array with HOLEY kind.
+      if (c != GetArrayFunction()) goto CreateWithConstructor;
+      if (len > kMaxFastArrayLength) goto CreateWithConstructor;
+      const smiLen: Smi = 0;
+      const capacity: intptr = Convert<intptr>(len);
+      const map: Map = GetFastPackedSmiElementsJSArrayMap();
+      a = AllocateJSArray(
+          ElementsKind::PACKED_SMI_ELEMENTS, map, capacity, smiLen,
+          AllocationFlag::kAllowLargeObjectAllocation);
+    } label CreateWithConstructor {
+      typeswitch (c) {
+        case (c: Constructor): {
+          // a. Let A be ? Construct(C, « len »).
+          a = Construct(c, len);
+        }
+        case (JSAny): {
+          // a. Let A be ? ArrayCreate(len).
+          a = ArrayCreate(len);
+        }
+      }
+    }
+
+    // 11. Let k be 0.
+    let k: Smi = 0;
+    // 12. Repeat, while k < len
+    while (k < len) {
+      // a. Let Pk be ! ToString(k).
+      // b. Let kValue be ? Get(arrayLike, Pk).
+      const kValue = GetProperty(arrayLike, k);
+      let mappedValue: JSAny;
+      // c. If mapping is true, then
+      if (mapping) {
+        // i. Let mappedValue be ? Call(mapfn, thisArg, « kValue, k »).
+        mappedValue =
+            Call(context, UnsafeCast<Callable>(mapfn), thisArg, kValue, k);
+      } else {
+        // d. Else, let mappedValue be kValue.
+        mappedValue = kValue;
+      }
+      // e. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+      FastCreateDataProperty(a, k, mappedValue);
+      // f. Set k to k + 1.
+      k += 1;
+    }
+
+    // 13. Perform ? Set(A, "length", len, true).
+    array::SetPropertyLength(a, len);
+    // 14. Return A.
+    return a;
+  } label IteratorNotCallable(_value: JSAny) deferred {
+    ThrowTypeError(
+        MessageTemplate::kFirstArgumentIteratorSymbolNonCallable,
+        '%Array%.from');
+  }
+}
+}

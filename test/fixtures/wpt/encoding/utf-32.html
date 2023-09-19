@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Character Decoding: UTF-32 (not supported) subresource of UTF-8 document</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+
+// Since UTF-32 is not supported:
+//  * HTML resources will use the parent encoding (UTF-8)
+//  * XML resources will default to UTF-8
+// ... except for the UTF-32LE-with-BOM case, where the UTF-32
+// BOM will be mistaken for a UTF-16LE BOM (FF FE 00 00), in which
+// case it will be interpreted as UTF-16LE.
+
+const samples = [
+  {file: 'resources/utf-32-big-endian-bom.html',
+   characterSet: 'UTF-8',
+   contentType: 'text/html'
+  },
+  {file: 'resources/utf-32-big-endian-bom.xml',
+   characterSet: 'UTF-8',
+   contentType: 'application/xml'
+  },
+  {file: 'resources/utf-32-big-endian-nobom.html',
+   characterSet: 'UTF-8',
+   contentType: 'text/html'
+  },
+  {file: 'resources/utf-32-big-endian-nobom.xml',
+   characterSet: 'UTF-8',
+   contentType: 'application/xml'
+  },
+
+  {file: 'resources/utf-32-little-endian-bom.html',
+   characterSet: 'UTF-16LE',
+   contentType: 'text/html'
+  },
+  {file: 'resources/utf-32-little-endian-bom.xml',
+   characterSet: 'UTF-16LE',
+   contentType: 'application/xml'
+  },
+  {file: 'resources/utf-32-little-endian-nobom.html',
+   characterSet: 'UTF-8',
+   contentType: 'text/html'
+  },
+  {file: 'resources/utf-32-little-endian-nobom.xml',
+   characterSet: 'UTF-8',
+   contentType: 'application/xml'
+  }
+];
+
+samples.forEach(expected => async_test(t => {
+  const iframe = document.createElement('iframe');
+  iframe.src = expected.file;
+  iframe.onload = t.step_func_done(() => {
+    const doc = iframe.contentDocument;
+    assert_equals(doc.contentType, expected.contentType);
+    assert_equals(doc.characterSet, expected.characterSet);
+    // The following is a little quirky as non-well-formed XML isn't defined in sufficient detail to
+    // be able to use more precise assertions.
+    assert_true(
+      !('dataset' in doc.documentElement) ||
+      doc.documentElement.dataset['parsed'] !== 'yes',
+      'Should not have parsed as (X)HTML');
+  });
+  document.body.appendChild(iframe);
+  t.add_cleanup(() => iframe.remove());
+}, `Expect ${expected.file} to parse as ${expected.characterSet}`));
+
+</script>
+</body>

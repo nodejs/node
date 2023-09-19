@@ -1,0 +1,48 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>PerformanceObservers: resource</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="performanceobservers.js"></script>
+<h1>PerformanceObservers: resource</h1>
+<p>
+New resources will <a href="https://w3c.github.io/performance-timeline/#dfn-queue-a-performanceentry">queue a PerformanceEntry</a>.
+</p>
+<div id="log"></div>
+<script>
+  async_test(function (t) {
+    function path(pathname) {
+      var filename = pathname.substring(pathname.lastIndexOf('/')+1);
+      return pathname.substring(0, pathname.length - filename.length);
+    }
+    var gUniqueCounter = 0;
+    function generateUniqueValues() {
+      return Date.now() + "-" + (++gUniqueCounter);
+    }
+    var stored_entries = [];
+    var img_location = document.location.origin + path(document.location.pathname)
+       + "resources/square.png?random=";
+    var img1 = img_location + generateUniqueValues();
+    var img2 = img_location + generateUniqueValues();
+    var observer = new PerformanceObserver(
+        t.step_func(function (entryList, obs) {
+          stored_entries =
+            stored_entries.concat(entryList.getEntriesByType("resource"));
+          if (stored_entries.length >= 2) {
+            checkEntries(stored_entries,
+              [{ entryType: "resource", name: img1},
+               { entryType: "resource", name: img2}]);
+            observer.disconnect();
+            t.done();
+          }
+        })
+      );
+    observer.observe({entryTypes: ["resource"]});
+    var img = document.createElement("img");
+    img.src = img1;
+    document.body.appendChild(img);
+    img = document.createElement("img");
+    img.src = img2;
+    document.body.appendChild(img);
+  }, "resource entries are observable");
+</script>

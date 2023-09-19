@@ -1,0 +1,21 @@
+jgruber@chromium.org
+mslekova@chromium.org
+nicohartmann@chromium.org
+tebbi@chromium.org
+thibaudm@chromium.org
+dmercadier@chromium.org
+
+per-file wasm-*=ahaas@chromium.org
+per-file wasm-*=clemensb@chromium.org
+per-file wasm-*=gdeepti@chromium.org
+per-file wasm-*=jkummerow@chromium.org
+per-file wasm-*=manoskouk@chromium.org
+per-file wasm-*=mliedtke@chromium.org
+
+per-file int64-lowering.*=ahaas@chromium.org
+
+per-file machine-operator.*=ahaas@chromium.org
+per-file machine-operator.*=gdeepti@chromium.org
+
+per-file opcodes.*=ahaas@chromium.org
+per-file opcodes.*=gdeepti@chromium.org

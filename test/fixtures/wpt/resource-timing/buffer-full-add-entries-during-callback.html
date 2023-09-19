@@ -1,0 +1,28 @@
+<!DOCTYPE HTML>
+<html>
+<head onload>
+<meta charset="utf-8" />
+<title>This test validates that synchronously adding entries in onresourcetimingbufferfull callback results in these entries being properly handled.</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performance-onresourcetimingbufferfull"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/buffer-full-utilities.js"></script>
+</head>
+<body>
+<script>
+promise_test(async () => {
+    await fillUpTheBufferWithSingleResource();
+    performance.addEventListener('resourcetimingbufferfull', () => {
+        performance.setResourceTimingBufferSize(3);
+        load.xhr_sync(scriptResources[2]);
+    });
+    // This resource overflows the entry buffer, and goes into the secondary buffer.
+    load.script(scriptResources[1]);
+    await bufferFullFirePromise;
+    checkEntries(3);
+}, "Test that entries synchronously added to the buffer during the callback don't get dropped if the buffer is increased");
+</script>
+</body>
+</html>

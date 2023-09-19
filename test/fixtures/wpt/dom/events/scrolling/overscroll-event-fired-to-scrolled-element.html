@@ -1,0 +1,65 @@
+<!DOCTYPE HTML>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="scroll_support.js"></script>
+<style>
+#scrollableDiv {
+  width: 200px;
+  height: 200px;
+  overflow: scroll;
+}
+
+#innerDiv {
+  width: 400px;
+  height: 400px;
+}
+</style>
+
+<body style="margin:0" onload=runTest()>
+<div id="scrollableDiv">
+  <div id="innerDiv">
+  </div>
+</div>
+</body>
+
+<script>
+var scrolling_div = document.getElementById('scrollableDiv');
+var overscrolled_x_delta = 0;
+var overscrolled_y_delta = 0;
+function onOverscroll(event) {
+  assert_false(event.cancelable);
+  assert_false(event.bubbles);
+  overscrolled_x_delta = event.deltaX;
+  overscrolled_y_delta = event.deltaY;
+}
+scrolling_div.addEventListener("overscroll", onOverscroll);
+
+function runTest() {
+  promise_test (async (t) => {
+    // Make sure that no overscroll event is sent to document.
+    document.addEventListener("overscroll",
+        t.unreached_func("Document got unexpected overscroll event."));
+    await waitForCompositorCommit();
+
+    // Do a horizontal scroll and wait for overscroll event.
+    await touchScrollInTarget(300, scrolling_div , 'right');
+    await waitFor(() => { return overscrolled_x_delta > 0; },
+        'Scroller did not receive overscroll event after horizontal scroll.');
+    assert_equals(scrolling_div.scrollWidth - scrolling_div.scrollLeft,
+                scrolling_div.clientWidth);
+
+    overscrolled_x_delta = 0;
+    overscrolled_y_delta = 0;
+
+    // Do a vertical scroll and wait for overscroll event.
+    await touchScrollInTarget(300, scrolling_div, 'down');
+    await waitFor(() => { return overscrolled_y_delta > 0; },
+        'Scroller did not receive overscroll event after vertical scroll.');
+    assert_equals(scrolling_div.scrollHeight - scrolling_div.scrollTop,
+                scrolling_div.clientHeight);
+  }, 'Tests that the scrolled element gets overscroll event after fully scrolling by touch.');
+}
+</script>

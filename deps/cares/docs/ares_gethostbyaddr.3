@@ -1,0 +1,105 @@
+.\"
+.\" Copyright 1998 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_GETHOSTBYADDR 3 "24 July 1998"
+.SH NAME
+ares_gethostbyaddr \- Initiate a host query by address
+.SH SYNOPSIS
+.nf
+#include <ares.h>
+
+typedef void (*ares_host_callback)(void *\fIarg\fP, int \fIstatus\fP,
+                                   int \fItimeouts\fP,
+                                   struct hostent *\fIhostent\fP)
+
+void ares_gethostbyaddr(ares_channel \fIchannel\fP, const void *\fIaddr\fP,
+                        int \fIaddrlen\fP, int \fIfamily\fP,
+                        ares_host_callback \fIcallback\fP, void *\fIarg\fP)
+.fi
+.SH DESCRIPTION
+The
+.B ares_gethostbyaddr
+function initiates a host query by address on the name service channel
+identified by
+.IR channel .
+The parameters
+.I addr
+and
+.I addrlen
+give the address as a series of bytes, and
+.I family
+gives the type of address.  When the query is complete or has failed, the ares
+library will invoke \fIcallback\fP.  Completion or failure of the query may
+happen immediately, or may happen during a later call to
+\fIares_process(3)\fP, \fIares_destroy(3)\fP or \fIares_cancel(3)\fP.
+.PP
+The callback argument
+.I arg
+is copied from the
+.B ares_gethostbyaddr
+argument
+.IR arg .
+The callback argument
+.I status
+indicates whether the query succeeded and, if not, how it failed.  It
+may have any of the following values:
+.TP 19
+.B ARES_SUCCESS
+The host lookup completed successfully.
+.TP 19
+.B ARES_ENOTIMP
+The ares library does not know how to look up addresses of type
+.IR family .
+.TP 19
+.B ARES_ENOTFOUND
+The address
+.I addr
+was not found.
+.TP 19
+.B ARES_ENOMEM
+Memory was exhausted.
+.TP 19
+.B ARES_ECANCELLED
+The query was cancelled.
+.TP 19
+.B ARES_EDESTRUCTION
+The name service channel
+.I channel
+is being destroyed; the query will not be completed.
+.PP
+The callback argument
+.I timeouts
+reports how many times a query timed out during the execution of the
+given request.
+.PP
+On successful completion of the query, the callback argument
+.I hostent
+points to a
+.B struct hostent
+containing the name of the host returned by the query.  The callback
+need not and should not attempt to free the memory pointed to by
+.IR hostent ;
+the ares library will free it when the callback returns.  If the query
+did not complete successfully,
+.I hostent
+will be
+.BR NULL .
+.SH SEE ALSO
+.BR ares_process (3),
+.BR ares_gethostbyname (3)
+.SH AUTHOR
+Greg Hudson, MIT Information Systems
+.br
+Copyright 1998 by the Massachusetts Institute of Technology.

@@ -1,0 +1,401 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise-gen.h'
+
+namespace promise {
+type PromiseAnyRejectElementContext extends FunctionContext;
+extern enum PromiseAnyRejectElementContextSlots extends intptr
+constexpr 'PromiseBuiltins::PromiseAnyRejectElementContextSlots' {
+  kPromiseAnyRejectElementRemainingSlot:
+      Slot<PromiseAnyRejectElementContext, Smi>,
+  kPromiseAnyRejectElementCapabilitySlot:
+      Slot<PromiseAnyRejectElementContext, PromiseCapability>,
+  kPromiseAnyRejectElementErrorsSlot:
+      Slot<PromiseAnyRejectElementContext, FixedArray>,
+  kPromiseAnyRejectElementLength
+}
+
+extern operator '[]=' macro StoreContextElement(
+    Context, constexpr PromiseAnyRejectElementContextSlots, Object): void;
+extern operator '[]' macro LoadContextElement(
+    Context, constexpr PromiseAnyRejectElementContextSlots): Object;
+
+// Creates the context used by all Promise.any reject element closures,
+// together with the errors array. Since all closures for a single Promise.any
+// call use the same context, we need to store the indices for the individual
+// closures somewhere else (we put them into the identity hash field of the
+// closures), and we also need to have a separate marker for when the closure
+// was called already (we slap the native context onto the closure in that
+// case to mark it's done). See Promise.all which uses the same approach.
+transitioning macro CreatePromiseAnyRejectElementContext(
+    implicit context: Context)(
+    capability: PromiseCapability,
+    nativeContext: NativeContext): PromiseAnyRejectElementContext {
+  const rejectContext = %RawDownCast<PromiseAnyRejectElementContext>(
+      AllocateSyntheticFunctionContext(
+          nativeContext,
+          PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementLength));
+  InitContextSlot(
+      rejectContext,
+      PromiseAnyRejectElementContextSlots::
+          kPromiseAnyRejectElementRemainingSlot,
+      1);
+  InitContextSlot(
+      rejectContext,
+      PromiseAnyRejectElementContextSlots::
+          kPromiseAnyRejectElementCapabilitySlot,
+      capability);
+  InitContextSlot(
+      rejectContext,
+      PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementErrorsSlot,
+      kEmptyFixedArray);
+  return rejectContext;
+}
+
+macro CreatePromiseAnyRejectElementFunction(implicit context: Context)(
+    rejectElementContext: PromiseAnyRejectElementContext, index: Smi,
+    nativeContext: NativeContext): JSFunction {
+  dcheck(index > 0);
+  dcheck(index < kPropertyArrayHashFieldMax);
+  const map = *ContextSlot(
+      nativeContext, ContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  const rejectInfo = PromiseAnyRejectElementSharedFunConstant();
+  const reject =
+      AllocateFunctionWithMapAndContext(map, rejectInfo, rejectElementContext);
+  dcheck(kPropertyArrayNoHashSentinel == 0);
+  reject.properties_or_hash = index;
+  return reject;
+}
+
+// https://tc39.es/ecma262/#sec-promise.any-reject-element-functions
+transitioning javascript builtin
+PromiseAnyRejectElementClosure(
+    js-implicit context: Context, receiver: JSAny,
+    target: JSFunction)(value: JSAny): JSAny {
+  // 1. Let F be the active function object.
+
+  // 2. Let alreadyCalled be F.[[AlreadyCalled]].
+
+  // 3. If alreadyCalled.[[Value]] is true, return undefined.
+
+  // We use the function's context as the marker to remember whether this
+  // reject element closure was already called. It points to the reject
+  // element context (which is a FunctionContext) until it was called the
+  // first time, in which case we make it point to the native context here
+  // to mark this reject element closure as done.
+  if (IsNativeContext(context)) deferred {
+      return Undefined;
+    }
+
+  dcheck(
+      context.length ==
+      SmiTag(
+          PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementLength));
+  const context = %RawDownCast<PromiseAnyRejectElementContext>(context);
+
+  // 4. Set alreadyCalled.[[Value]] to true.
+  const nativeContext = LoadNativeContext(context);
+  target.context = nativeContext;
+
+  // 5. Let index be F.[[Index]].
+  dcheck(kPropertyArrayNoHashSentinel == 0);
+  const identityHash = LoadJSReceiverIdentityHash(target) otherwise unreachable;
+  dcheck(identityHash > 0);
+  const index = identityHash - 1;
+
+  // 6. Let errors be F.[[Errors]].
+  let errors = *ContextSlot(
+      context,
+      PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementErrorsSlot);
+
+  // 7. Let promiseCapability be F.[[Capability]].
+
+  // 8. Let remainingElementsCount be F.[[RemainingElements]].
+  let remainingElementsCount = *ContextSlot(
+      context,
+      PromiseAnyRejectElementContextSlots::
+          kPromiseAnyRejectElementRemainingSlot);
+
+  // 9. Set errors[index] to x.
+
+  // The max computation below is an optimization to avoid excessive allocations
+  // in the case of input promises being asynchronously rejected in ascending
+  // index order.
+  //
+  // Note that subtracting 1 from remainingElementsCount is intentional. The
+  // value of remainingElementsCount is 1 larger than the actual value during
+  // iteration. So in the case of synchronous rejection, newCapacity is the
+  // correct size by subtracting 1. In the case of asynchronous rejection this
+  // is 1 smaller than the correct size, but is not incorrect as it is maxed
+  // with index + 1.
+  const newCapacity =
+      IntPtrMax(SmiUntag(remainingElementsCount) - 1, index + 1);
+  if (newCapacity > errors.length_intptr) deferred {
+      errors = ExtractFixedArray(errors, 0, errors.length_intptr, newCapacity);
+      *ContextSlot(
+          context,
+          PromiseAnyRejectElementContextSlots::
+              kPromiseAnyRejectElementErrorsSlot) = errors;
+    }
+  errors.objects[index] = value;
+
+  // 10. Set remainingElementsCount.[[Value]] to
+  // remainingElementsCount.[[Value]] - 1.
+  remainingElementsCount = remainingElementsCount - 1;
+  *ContextSlot(
+      context,
+      PromiseAnyRejectElementContextSlots::
+          kPromiseAnyRejectElementRemainingSlot) = remainingElementsCount;
+
+  // 11. If remainingElementsCount.[[Value]] is 0, then
+  if (remainingElementsCount == 0) {
+    //   a. Let error be a newly created AggregateError object.
+
+    //   b. Set error.[[AggregateErrors]] to errors.
+    const error = ConstructAggregateError(errors);
+    //   c. Return ? Call(promiseCapability.[[Reject]], undefined, « error »).
+    const capability = *ContextSlot(
+        context,
+        PromiseAnyRejectElementContextSlots::
+            kPromiseAnyRejectElementCapabilitySlot);
+    Call(context, UnsafeCast<Callable>(capability.reject), Undefined, error);
+  }
+
+  // 12. Return undefined.
+  return Undefined;
+}
+
+transitioning macro PerformPromiseAny(implicit context: Context)(
+    nativeContext: NativeContext, iteratorRecord: iterator::IteratorRecord,
+    constructor: Constructor, resultCapability: PromiseCapability,
+    promiseResolveFunction: JSAny): JSAny labels
+Reject(JSAny) {
+  // 1. Assert: ! IsConstructor(constructor) is true.
+  // 2. Assert: resultCapability is a PromiseCapability Record.
+
+  // 3. Let errors be a new empty List. (Do nothing: errors is
+  // initialized lazily when the first Promise rejects.)
+
+  // 4. Let remainingElementsCount be a new Record { [[Value]]: 1 }.
+  const rejectElementContext =
+      CreatePromiseAnyRejectElementContext(resultCapability, nativeContext);
+
+  // 5. Let index be 0.
+  //    (We subtract 1 in the PromiseAnyRejectElementClosure).
+  let index: Smi = 1;
+
+  try {
+    const fastIteratorResultMap = *NativeContextSlot(
+        nativeContext, ContextSlot::ITERATOR_RESULT_MAP_INDEX);
+    // 8. Repeat,
+    while (true) {
+      let nextValue: JSAny;
+      try {
+        // a. Let next be IteratorStep(iteratorRecord).
+
+        // b. If next is an abrupt completion, set
+        // iteratorRecord.[[Done]] to true.
+
+        // c. ReturnIfAbrupt(next).
+
+        // d. if next is false, then [continues below in "Done"]
+        const next: JSReceiver = iterator::IteratorStep(
+            iteratorRecord, fastIteratorResultMap) otherwise goto Done;
+        // e. Let nextValue be IteratorValue(next).
+
+        // f. If nextValue is an abrupt completion, set
+        // iteratorRecord.[[Done]] to true.
+
+        // g. ReturnIfAbrupt(nextValue).
+        nextValue = iterator::IteratorValue(next, fastIteratorResultMap);
+      } catch (e, _message) {
+        goto Reject(e);
+      }
+
+      // We store the indices as identity hash on the reject element
+      // closures. Thus, we need this limit.
+      if (index == kPropertyArrayHashFieldMax) {
+        // If there are too many elements (currently more than
+        // 2**21-1), raise a RangeError here (which is caught later and
+        // turned into a rejection of the resulting promise). We could
+        // gracefully handle this case as well and support more than
+        // this number of elements by going to a separate function and
+        // pass the larger indices via a separate context, but it
+        // doesn't seem likely that we need this, and it's unclear how
+        // the rest of the system deals with 2**21 live Promises
+        // anyway.
+        ThrowRangeError(
+            MessageTemplate::kTooManyElementsInPromiseCombinator, 'any');
+      }
+
+      // h. Append undefined to errors. (Do nothing: errors is initialized
+      // lazily when the first Promise rejects.)
+
+      let nextPromise: JSAny;
+      // i. Let nextPromise be ? Call(constructor, promiseResolve,
+      // «nextValue »).
+      nextPromise = CallResolve(constructor, promiseResolveFunction, nextValue);
+
+      // j. Let steps be the algorithm steps defined in Promise.any
+      // Reject Element Functions.
+
+      // k. Let rejectElement be ! CreateBuiltinFunction(steps, «
+      // [[AlreadyCalled]], [[Index]],
+      // [[Errors]], [[Capability]], [[RemainingElements]] »).
+
+      // l. Set rejectElement.[[AlreadyCalled]] to a new Record {
+      // [[Value]]: false }.
+
+      // m. Set rejectElement.[[Index]] to index.
+
+      // n. Set rejectElement.[[Errors]] to errors.
+
+      // o. Set rejectElement.[[Capability]] to resultCapability.
+
+      // p. Set rejectElement.[[RemainingElements]] to
+      // remainingElementsCount.
+      const rejectElement = CreatePromiseAnyRejectElementFunction(
+          rejectElementContext, index, nativeContext);
+      // q. Set remainingElementsCount.[[Value]] to
+      // remainingElementsCount.[[Value]] + 1.
+      const remainingElementsCount = *ContextSlot(
+          rejectElementContext,
+          PromiseAnyRejectElementContextSlots::
+              kPromiseAnyRejectElementRemainingSlot);
+      *ContextSlot(
+          rejectElementContext,
+          PromiseAnyRejectElementContextSlots::
+              kPromiseAnyRejectElementRemainingSlot) =
+          remainingElementsCount + 1;
+
+      // r. Perform ? Invoke(nextPromise, "then", «
+      // resultCapability.[[Resolve]], rejectElement »).
+      let thenResult: JSAny;
+
+      const then = GetProperty(nextPromise, kThenString);
+      thenResult = Call(
+          context, then, nextPromise,
+          UnsafeCast<JSAny>(resultCapability.resolve), rejectElement);
+
+      // s. Increase index by 1.
+      index += 1;
+
+      // For catch prediction, mark that rejections here are
+      // semantically handled by the combined Promise.
+      if (IsDebugActive() && Is<JSPromise>(thenResult)) deferred {
+          SetPropertyStrict(
+              context, thenResult, kPromiseHandledBySymbol,
+              resultCapability.promise);
+          SetPropertyStrict(
+              context, rejectElement, kPromiseForwardingHandlerSymbol, True);
+        }
+    }
+  } catch (e, _message) deferred {
+    iterator::IteratorCloseOnException(iteratorRecord);
+    goto Reject(e);
+  } label Done {}
+
+  // (8.d)
+  //   i. Set iteratorRecord.[[Done]] to true.
+  //  ii. Set remainingElementsCount.[[Value]] to
+  //  remainingElementsCount.[[Value]] - 1.
+  const remainingElementsCount = -- *ContextSlot(
+      rejectElementContext,
+      PromiseAnyRejectElementContextSlots::
+          kPromiseAnyRejectElementRemainingSlot);
+
+  // iii. If remainingElementsCount.[[Value]] is 0, then
+  if (remainingElementsCount == 0) deferred {
+      // 1. Let error be a newly created AggregateError object.
+      // 2. Set error.[[AggregateErrors]] to errors.
+
+      // We may already have elements in "errors" - this happens when the
+      // Thenable calls the reject callback immediately.
+      const errors: FixedArray = *ContextSlot(
+          rejectElementContext,
+          PromiseAnyRejectElementContextSlots::
+              kPromiseAnyRejectElementErrorsSlot);
+
+      check(errors.length == index - 1);
+      const error = ConstructAggregateError(errors);
+      // 3. Return ThrowCompletion(error).
+      goto Reject(error);
+    }
+  // iv. Return resultCapability.[[Promise]].
+  return resultCapability.promise;
+}
+
+// https://tc39.es/ecma262/#sec-promise.any
+transitioning javascript builtin
+PromiseAny(
+    js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
+  const nativeContext = LoadNativeContext(context);
+
+  // 1. Let C be the this value.
+  const receiver = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'Promise.any');
+
+  // 2. Let promiseCapability be ? NewPromiseCapability(C).
+  const capability = NewPromiseCapability(receiver, False);
+
+  // NewPromiseCapability guarantees that receiver is Constructor.
+  dcheck(Is<Constructor>(receiver));
+  const constructor = UnsafeCast<Constructor>(receiver);
+
+  try {
+    // 3. Let promiseResolve be GetPromiseResolve(C).
+    // 4. IfAbruptRejectPromise(promiseResolve, promiseCapability).
+    // (catch below)
+    const promiseResolveFunction =
+        GetPromiseResolve(nativeContext, constructor);
+
+    // 5. Let iteratorRecord be GetIterator(iterable).
+
+    // 6. IfAbruptRejectPromise(iteratorRecord, promiseCapability).
+    // (catch below)
+    const iteratorRecord = iterator::GetIterator(iterable);
+
+    // 7. Let result be PerformPromiseAny(iteratorRecord, C,
+    // promiseCapability).
+
+    // 8. If result is an abrupt completion, then
+
+    //   a. If iteratorRecord.[[Done]] is false, set result to
+    //   IteratorClose(iteratorRecord, result).
+
+    //   b. IfAbruptRejectPromise(result, promiseCapability).
+
+    // [Iterator closing handled by PerformPromiseAny]
+
+    // 9. Return Completion(result).
+    return PerformPromiseAny(
+        nativeContext, iteratorRecord, constructor, capability,
+        promiseResolveFunction)
+        otherwise Reject;
+  } catch (e, _message) deferred {
+    goto Reject(e);
+  } label Reject(e: JSAny) deferred {
+    // Exception must be bound to a JS value.
+    dcheck(e != TheHole);
+    Call(
+        context, UnsafeCast<Callable>(capability.reject), Undefined,
+        UnsafeCast<JSAny>(e));
+    return capability.promise;
+  }
+}
+
+transitioning macro ConstructAggregateError(implicit context: Context)(
+    errors: FixedArray): JSObject {
+  const obj: JSObject = error::ConstructInternalAggregateErrorHelper(
+      context, SmiConstant(MessageTemplate::kAllPromisesRejected));
+  const errorsJSArray = array::CreateJSArrayWithElements(errors);
+  SetOwnPropertyIgnoreAttributes(
+      obj, ErrorsStringConstant(), errorsJSArray,
+      SmiConstant(PropertyAttributes::DONT_ENUM));
+  return obj;
+}
+
+extern macro PromiseAnyRejectElementSharedFunConstant(): SharedFunctionInfo;
+}

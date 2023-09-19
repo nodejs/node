@@ -1,0 +1,49 @@
+{
+  "name": "parse-conflict-json",
+  "version": "3.0.1",
+  "description": "Parse a JSON string that has git merge conflicts, resolving if possible",
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "main": "lib",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "tap": {
+    "check-coverage": true,
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.12.0",
+    "tap": "^16.0.1"
+  },
+  "dependencies": {
+    "json-parse-even-better-errors": "^3.0.0",
+    "just-diff": "^6.0.0",
+    "just-diff-apply": "^5.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/parse-conflict-json.git"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.12.0"
+  }
+}

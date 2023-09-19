@@ -1,0 +1,5 @@
+.pragma dollarid:off
+
+bar = 0
+foo = $bar
+cookie = ${foo}

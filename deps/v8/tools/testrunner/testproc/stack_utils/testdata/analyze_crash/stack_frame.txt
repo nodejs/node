@@ -1,0 +1,60 @@
+
+
+#
+# Fatal error in ../../src/execution/frames.cc, line 1430
+# Debug check failed: !StackFrame::IsTypeMarker(marker).
+#
+#
+#
+#FailureMessage Object: 0x7fff924da4a0Received signal 6
+
+==== C stack trace ===============================
+
+ [0x7fb3c0ab1503]
+ [0x7fb3c0ab1451]
+ [0x7fb3bd06a980]
+ [0x7fb3bc907e87]
+ [0x7fb3bc9097f1]
+ [0x7fb3c0aaf082]
+ [0x7fb3c0a90ed0]
+ [0x7fb3c0a90965]
+ [0x7fb3bf128909]
+ [0x7fb3bf1408c9]
+ [0x7fb3bf27ec15]
+ [0x7fb3bf27776b]
+ [0x7fb3bf274c53]
+ [0x7fb3bf271e03]
+ [0x7fb3bf262ae1]
+ [0x7fb3bf262b71]
+ [0x7fb3bf20b953]
+ [0x7fb3bf1d3a22]
+ [0x7fb3c01f46ca]
+
+#
+# Fatal error in ../../src/heap/marking-barrier.cc, line 77
+# Debug check failed: is_main_thread_barrier_.
+#
+#
+#
+#FailureMessage Object: 0x7fbcb88255c0Received signal 6
+
+==== C stack trace ===============================
+
+ [0x7fbcc0a3a7f7]
+ [0x7fbcbd9c1980]
+ [0x7fbcbd25efb7]
+ [0x7fbcbd260921]
+ [0x7fbcc0a38932]
+ [0x7fbcc0a1dfa0]
+ [0x7fbcc0a1da15]
+ [0x7fbcbf65b64a]
+ [0x7fbcbfeb60df]
+ [0x7fbcbfec3389]
+ [0x7fbcbfec324c]
+ [0x7fbcbfea5c34]
+ [0x7fbcbfea7f18]
+ [0x7fbcc0a395a0]
+ [0x7fbcbd9b66db]
+ [0x7fbcbd34171f]
+[end of stack trace]
+Aborted (core dumped)

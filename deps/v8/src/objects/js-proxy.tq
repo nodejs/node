@@ -1,0 +1,24 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class JSProxy extends JSReceiver {
+  target: JSReceiver|Null;
+  handler: JSReceiver|Null;
+}
+
+extern shape JSProxyRevocableResult extends JSObject {
+  proxy: JSAny;
+  revoke: JSAny;
+}
+
+macro NewJSProxyRevocableResult(implicit context: Context)(
+    proxy: JSProxy, revoke: JSFunction): JSProxyRevocableResult {
+  return new JSProxyRevocableResult{
+    map: GetProxyRevocableResultMap(),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    proxy,
+    revoke
+  };
+}

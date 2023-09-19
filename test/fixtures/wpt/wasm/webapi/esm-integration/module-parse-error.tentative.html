@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Handling of importing invalid WebAssembly modules</title>
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+    setup({allow_uncaught_exception: true});
+
+    window.log = [];
+
+    window.addEventListener("error", ev => log.push(ev.error));
+
+    const test_load = async_test(
+        "Test that imports of invalid WebAssembly modules leads to WebAssembly.CompileError on window.");
+    window.addEventListener("load", test_load.step_func_done(ev => {
+      assert_equals(log.length, 2);
+      assert_equals(log[0].constructor, WebAssembly.CompileError);
+      assert_equals(log[1].constructor, WebAssembly.CompileError);
+    }));
+
+    function unreachable() { log.push("unexpected"); }
+</script>
+<script type="module" src="./resources/invalid-bytecode.wasm" onerror="unreachable()"></script>
+<script type="module" src="./resources/invalid-module.wasm" onerror="unreachable()"></script>

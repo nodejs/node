@@ -1,0 +1,11 @@
+# Set update schedule for GitHub Actions
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: meta
+    open-pull-requests-limit: 10

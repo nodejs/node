@@ -1,0 +1,48 @@
+{
+  "name": "@npmcli/node-gyp",
+  "version": "3.0.0",
+  "description": "Tools for dealing with node-gyp packages",
+  "scripts": {
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/node-gyp.git"
+  },
+  "keywords": [
+    "npm",
+    "cli",
+    "node-gyp"
+  ],
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "main": "lib/index.js",
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "4.5.1",
+    "tap": "^16.0.1"
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.5.1"
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

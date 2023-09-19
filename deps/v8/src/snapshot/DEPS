@@ -1,0 +1,11 @@
+specific_include_rules = {
+  "mksnapshot\.cc": [
+    "+include/libplatform/libplatform.h",
+  ],
+  "snapshot-compression.cc": [
+    "+third_party/zlib",
+  ],
+  "snapshot-utils.cc": [
+    "+third_party/zlib",
+  ],
+}

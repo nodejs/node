@@ -1,0 +1,9 @@
+Tests stepping with blackboxing and inlining
+Paused in
+(...):1
+Paused in
+(...):1
+Paused in
+foo:2
+bar:2
+(...):1

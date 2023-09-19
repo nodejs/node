@@ -1,0 +1,156 @@
+.TH "NPM-SEARCH" "1" "September 2023" "" ""
+.SH "NAME"
+\fBnpm-search\fR - Search for packages
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm search \[lB]search terms ...\[rB]
+
+aliases: find, s, se
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Search the registry for packages matching the search terms. \fBnpm search\fR performs a linear, incremental, lexically-ordered search through package metadata for all files in the registry. If your terminal has color support, it will further highlight the matches in the results. This can be disabled with the config item \fBcolor\fR
+.P
+Additionally, using the \fB--searchopts\fR and \fB--searchexclude\fR options paired with more search terms will include and exclude further patterns. The main difference between \fB--searchopts\fR and the standard search terms is that the former does not highlight results in the output and you can use them more fine-grained filtering. Additionally, you can add both of these to your config to change default search filtering behavior.
+.P
+Search also allows targeting of maintainers in search results, by prefixing their npm username with \fB=\fR.
+.P
+If a term starts with \fB/\fR, then it's interpreted as a regular expression and supports standard JavaScript RegExp syntax. In this case search will ignore a trailing \fB/\fR . (Note you must escape or quote many regular expression characters in most shells.)
+.SS "Configuration"
+.SS "\fBlong\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Show extended information in \fBls\fR, \fBsearch\fR, and \fBhelp-search\fR.
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "\fBcolor\fR"
+.RS 0
+.IP \(bu 4
+Default: true unless the NO_COLOR environ is set to something other than '0'
+.IP \(bu 4
+Type: "always" or Boolean
+.RE 0
+
+.P
+If false, never shows colors. If \fB"always"\fR then always shows colors. If true, then only prints color codes for tty file descriptors.
+.SS "\fBparseable\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Output parseable results from commands that write to standard output. For \fBnpm search\fR, this will be tab-separated table format.
+.SS "\fBdescription\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Show the description in \fBnpm search\fR
+.SS "\fBsearchopts\fR"
+.RS 0
+.IP \(bu 4
+Default: ""
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+Space-separated options that are always passed to search.
+.SS "\fBsearchexclude\fR"
+.RS 0
+.IP \(bu 4
+Default: ""
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+Space-separated options that limit the results from search.
+.SS "\fBregistry\fR"
+.RS 0
+.IP \(bu 4
+Default: "https://registry.npmjs.org/"
+.IP \(bu 4
+Type: URL
+.RE 0
+
+.P
+The base URL of the npm registry.
+.SS "\fBprefer-online\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If true, staleness checks for cached data will be forced, making the CLI look for updates immediately even for fresh package data.
+.SS "\fBprefer-offline\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If true, staleness checks for cached data will be bypassed, but missing data will be requested from the server. To force full offline mode, use \fB--offline\fR.
+.SS "\fBoffline\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Force offline mode: no network requests will be done during install. To allow the CLI to fill in missing cache data, see \fB--prefer-offline\fR.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help registry
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help view
+.IP \(bu 4
+npm help cache
+.IP \(bu 4
+https://npm.im/npm-registry-fetch
+.RE 0

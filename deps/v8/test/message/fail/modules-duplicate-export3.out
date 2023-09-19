@@ -1,0 +1,5 @@
+*%(basename)s:7: SyntaxError: Duplicate export of 'x'
+export {y as x};
+        ^^^^^^
+SyntaxError: Duplicate export of 'x'
+

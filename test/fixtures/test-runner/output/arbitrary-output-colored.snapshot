@@ -1,0 +1,28 @@
+{ foo: [32m'bar'[39m }
+[33m1[39m
+[32m✔ passing test [90m(*ms)[39m[39m
+[34mℹ tests 1[39m
+[34mℹ suites 0[39m
+[34mℹ pass 1[39m
+[34mℹ fail 0[39m
+[34mℹ cancelled 0[39m
+[34mℹ skipped 0[39m
+[34mℹ todo 0[39m
+[34mℹ duration_ms *[39m
+TAP version 13
+# { foo: [32m'bar'[39m }
+# [33m1[39m
+# Subtest: passing test
+ok 1 - passing test
+  ---
+  duration_ms: *
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms *

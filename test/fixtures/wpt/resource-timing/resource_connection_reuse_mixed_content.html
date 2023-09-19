@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing connection reuse</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/webperftestharness.js"></script>
+<script src="resources/webperftestharnessextension.js"></script>
+<script>
+setup({explicit_done: true});
+let iframe;
+let d;
+let body;
+
+// Explicitly test the namespace before we start testing.
+test_namespace('getEntriesByType');
+
+function setup_iframe() {
+    iframe = document.getElementById('frameContext');
+    d = iframe.contentWindow.document;
+    iframe.addEventListener('load', onload_test, false);
+}
+
+function onload_test() {
+    const entries = iframe.contentWindow.performance.getEntriesByType('resource');
+
+    // When a persistent connection is used, follow-on resources should be included as PerformanceResourceTiming objects.
+    test_equals(entries.length, 2, 'There should be 2 PerformanceEntries');
+
+    if (entries.length >= 2) {
+        // When a persistent connection is used, for the resource that reuses the socket, connectStart and connectEnd should have the same value as fetchStart.
+        const entry = entries[1];
+        test_equals(entry.fetchStart, entry.connectStart, 'connectStart and fetchStart should be the same');
+        test_equals(entry.fetchStart, entry.connectEnd, 'connectEnd and fetchStart should be the same');
+        // secureConnectionStart is the same as fetchStart since the subresource is fetched over https
+        test_equals(entry.fetchStart, entry.secureConnectionStart, 'secureConnectionStart and fetchStart should be the same');
+        test_equals(entry.fetchStart, entry.domainLookupStart, 'domainLookupStart and fetchStart should be the same')
+        test_equals(entry.fetchStart, entry.domainLookupEnd, 'domainLookupEnd and fetchStart should be the same')
+    }
+
+    done();
+}
+
+window.setup_iframe = setup_iframe;
+</script>
+</head>
+<body>
+<h1>Description</h1>
+<p>This test validates that connectStart and connectEnd are the same when a connection is reused (e.g. when a persistent connection is used).</p>
+<div id="log"></div>
+<iframe id="frameContext" src="resources/fake_responses_https.sub.html"></iframe>
+</body>
+</html>

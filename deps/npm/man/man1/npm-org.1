@@ -1,0 +1,125 @@
+.TH "NPM-ORG" "1" "September 2023" "" ""
+.SH "NAME"
+\fBnpm-org\fR - Manage orgs
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm org set orgname username \[lB]developer | admin | owner\[rB]
+npm org rm orgname username
+npm org ls orgname \[lB]<username>\[rB]
+
+alias: ogr
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Example"
+.P
+Add a new developer to an org:
+.P
+.RS 2
+.nf
+$ npm org set my-org @mx-smith
+.fi
+.RE
+.P
+Add a new admin to an org (or change a developer to an admin):
+.P
+.RS 2
+.nf
+$ npm org set my-org @mx-santos admin
+.fi
+.RE
+.P
+Remove a user from an org:
+.P
+.RS 2
+.nf
+$ npm org rm my-org mx-santos
+.fi
+.RE
+.P
+List all users in an org:
+.P
+.RS 2
+.nf
+$ npm org ls my-org
+.fi
+.RE
+.P
+List all users in JSON format:
+.P
+.RS 2
+.nf
+$ npm org ls my-org --json
+.fi
+.RE
+.P
+See what role a user has in an org:
+.P
+.RS 2
+.nf
+$ npm org ls my-org @mx-santos
+.fi
+.RE
+.SS "Description"
+.P
+You can use the \fBnpm org\fR commands to manage and view users of an organization. It supports adding and removing users, changing their roles, listing them, and finding specific ones and their roles.
+.SS "Configuration"
+.SS "\fBregistry\fR"
+.RS 0
+.IP \(bu 4
+Default: "https://registry.npmjs.org/"
+.IP \(bu 4
+Type: URL
+.RE 0
+
+.P
+The base URL of the npm registry.
+.SS "\fBotp\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm access\fR.
+.P
+If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one.
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "\fBparseable\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Output parseable results from commands that write to standard output. For \fBnpm search\fR, this will be tab-separated table format.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help "using orgs"
+.IP \(bu 4
+\fBDocumentation on npm Orgs\fR \fI\(lahttps://docs.npmjs.com/orgs/\(ra\fR
+.RE 0

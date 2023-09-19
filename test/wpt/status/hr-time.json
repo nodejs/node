@@ -1,0 +1,12 @@
+{
+  "idlharness.any.js": {
+    "fail": {
+      "expected": [
+        "Window interface: attribute performance"
+      ]
+    }
+  },
+  "window-worker-timeOrigin.window.js": {
+    "skip": "depends on URL.createObjectURL(blob)"
+  }
+}

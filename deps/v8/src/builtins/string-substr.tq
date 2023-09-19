@@ -1,0 +1,42 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string {
+
+// String.prototype.substr ( start, length )
+// ES6 #sec-string.prototype.substr
+transitioning javascript builtin StringPrototypeSubstr(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+  const methodName: constexpr string = 'String.prototype.substr';
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  // 2. Let S be ? ToString(O).
+  const string: String = ToThisString(receiver, methodName);
+
+  // 5. Let size be the number of code units in S.
+  const size: uintptr = string.length_uintptr;
+
+  // 3. Let intStart be ? ToInteger(start).
+  // 6. If intStart < 0, set intStart to max(size + intStart, 0).
+  const start = arguments[0];
+  const initStart: uintptr =
+      start != Undefined ? ConvertAndClampRelativeIndex(start, size) : 0;
+
+  // 4. If length is undefined,
+  //   let end be +∞; otherwise let end be ? ToInteger(length).
+  // 7. Let resultLength be min(max(end, 0), size - intStart).
+  const length = arguments[1];
+  const lengthLimit = size - initStart;
+  dcheck(lengthLimit <= size);
+  const resultLength: uintptr = length != Undefined ?
+      ClampToIndexRange(length, lengthLimit) :
+      lengthLimit;
+
+  // 8. If resultLength ≤ 0, return the empty String "".
+  if (resultLength == 0) return EmptyStringConstant();
+
+  // 9. Return the String value containing resultLength consecutive code units
+  // from S beginning with the code unit at index intStart.
+  return SubString(string, initStart, initStart + resultLength);
+}
+}

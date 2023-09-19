@@ -1,0 +1,307 @@
+.TH "NPM-DIFF" "1" "September 2023" "" ""
+.SH "NAME"
+\fBnpm-diff\fR - The registry diff command
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm diff \[lB]...<paths>\[rB]
+.fi
+.RE
+.SS "Description"
+.P
+Similar to its \fBgit diff\fR counterpart, this command will print diff patches of files for packages published to the npm registry.
+.RS 0
+.IP \(bu 4
+\fBnpm diff --diff=<spec-a> --diff=<spec-b>\fR
+.P
+Compares two package versions using their registry specifiers, e.g: \fBnpm diff --diff=pkg@1.0.0 --diff=pkg@^2.0.0\fR. It's also possible to compare across forks of any package, e.g: \fBnpm diff --diff=pkg@1.0.0 --diff=pkg-fork@1.0.0\fR.
+.P
+Any valid spec can be used, so that it's also possible to compare directories or git repositories, e.g: \fBnpm diff --diff=pkg@latest --diff=./packages/pkg\fR
+.P
+Here's an example comparing two different versions of a package named \fBabbrev\fR from the registry:
+.P
+.RS 2
+.nf
+npm diff --diff=abbrev@1.1.0 --diff=abbrev@1.1.1
+.fi
+.RE
+.P
+On success, output looks like:
+.P
+.RS 2
+.nf
+diff --git a/package.json b/package.json
+index v1.1.0..v1.1.1 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "abbrev",
+-  "version": "1.1.0",
++  "version": "1.1.1",
+   "description": "Like ruby's abbrev module, but in js",
+   "author": "Isaac Z. Schlueter <i@izs.me>",
+   "main": "abbrev.js",
+.fi
+.RE
+.P
+Given the flexible nature of npm specs, you can also target local directories or git repos just like when using \fBnpm install\fR:
+.P
+.RS 2
+.nf
+npm diff --diff=https://github.com/npm/libnpmdiff --diff=./local-path
+.fi
+.RE
+.P
+In the example above we can compare the contents from the package installed from the git repo at \fBgithub.com/npm/libnpmdiff\fR with the contents of the \fB./local-path\fR that contains a valid package, such as a modified copy of the original.
+.IP \(bu 4
+\fBnpm diff\fR (in a package directory, no arguments):
+.P
+If the package is published to the registry, \fBnpm diff\fR will fetch the tarball version tagged as \fBlatest\fR (this value can be configured using the \fBtag\fR option) and proceed to compare the contents of files present in that tarball, with the current files in your local file system.
+.P
+This workflow provides a handy way for package authors to see what package-tracked files have been changed in comparison with the latest published version of that package.
+.IP \(bu 4
+\fBnpm diff --diff=<pkg-name>\fR (in a package directory):
+.P
+When using a single package name (with no version or tag specifier) as an argument, \fBnpm diff\fR will work in a similar way to \fB\fBnpm-outdated\fR\fR \fI\(lanpm-outdated\(ra\fR and reach for the registry to figure out what current published version of the package named \fB<pkg-name>\fR will satisfy its dependent declared semver-range. Once that specific version is known \fBnpm diff\fR will print diff patches comparing the current version of \fB<pkg-name>\fR found in the local file system with that specific version returned by the registry.
+.P
+Given a package named \fBabbrev\fR that is currently installed:
+.P
+.RS 2
+.nf
+npm diff --diff=abbrev
+.fi
+.RE
+.P
+That will request from the registry its most up to date version and will print a diff output comparing the currently installed version to this newer one if the version numbers are not the same.
+.IP \(bu 4
+\fBnpm diff --diff=<spec-a>\fR (in a package directory):
+.P
+Similar to using only a single package name, it's also possible to declare a full registry specifier version if you wish to compare the local version of an installed package with the specific version/tag/semver-range provided in \fB<spec-a>\fR.
+.P
+An example: assuming \fBpkg@1.0.0\fR is installed in the current \fBnode_modules\fR folder, running:
+.P
+.RS 2
+.nf
+npm diff --diff=pkg@2.0.0
+.fi
+.RE
+.P
+It will effectively be an alias to \fBnpm diff --diff=pkg@1.0.0 --diff=pkg@2.0.0\fR.
+.IP \(bu 4
+\fBnpm diff --diff=<semver-a> \[lB]--diff=<semver-b>\[rB]\fR (in a package directory):
+.P
+Using \fBnpm diff\fR along with semver-valid version numbers is a shorthand to compare different versions of the current package.
+.P
+It needs to be run from a package directory, such that for a package named \fBpkg\fR running \fBnpm diff --diff=1.0.0 --diff=1.0.1\fR is the same as running \fBnpm diff --diff=pkg@1.0.0 --diff=pkg@1.0.1\fR.
+.P
+If only a single argument \fB<version-a>\fR is provided, then the current local file system is going to be compared against that version.
+.P
+Here's an example comparing two specific versions (published to the configured registry) of the current project directory:
+.P
+.RS 2
+.nf
+npm diff --diff=1.0.0 --diff=1.1.0
+.fi
+.RE
+.RE 0
+
+.P
+Note that tag names are not valid \fB--diff\fR argument values, if you wish to compare to a published tag, you must use the \fBpkg@tagname\fR syntax.
+.SS "Filtering files"
+.P
+It's possible to also specify positional arguments using file names or globs pattern matching in order to limit the result of diff patches to only a subset of files for a given package, e.g:
+.P
+.RS 2
+.nf
+npm diff --diff=pkg@2 ./lib/ CHANGELOG.md
+.fi
+.RE
+.P
+In the example above the diff output is only going to print contents of files located within the folder \fB./lib/\fR and changed lines of code within the \fBCHANGELOG.md\fR file.
+.SS "Configuration"
+.SS "\fBdiff\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Define arguments to compare in \fBnpm diff\fR.
+.SS "\fBdiff-name-only\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Prints only filenames when using \fBnpm diff\fR.
+.SS "\fBdiff-unified\fR"
+.RS 0
+.IP \(bu 4
+Default: 3
+.IP \(bu 4
+Type: Number
+.RE 0
+
+.P
+The number of lines of context to print in \fBnpm diff\fR.
+.SS "\fBdiff-ignore-all-space\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Ignore whitespace when comparing lines in \fBnpm diff\fR.
+.SS "\fBdiff-no-prefix\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Do not show any source or destination prefix in \fBnpm diff\fR output.
+.P
+Note: this causes \fBnpm diff\fR to ignore the \fB--diff-src-prefix\fR and \fB--diff-dst-prefix\fR configs.
+.SS "\fBdiff-src-prefix\fR"
+.RS 0
+.IP \(bu 4
+Default: "a/"
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+Source prefix to be used in \fBnpm diff\fR output.
+.SS "\fBdiff-dst-prefix\fR"
+.RS 0
+.IP \(bu 4
+Default: "b/"
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+Destination prefix to be used in \fBnpm diff\fR output.
+.SS "\fBdiff-text\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Treat all files as text in \fBnpm diff\fR.
+.SS "\fBglobal\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "\fBtag\fR"
+.RS 0
+.IP \(bu 4
+Default: "latest"
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+If you ask npm to install a package and don't tell it a specific version, then it will install the specified tag.
+.P
+Also the tag that is added to the package@version specified by the \fBnpm tag\fR command, if no explicit tag is given.
+.P
+When used by the \fBnpm diff\fR command, this is the tag used to fetch the tarball that will be compared with the local files by default.
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SH "SEE ALSO"
+.RS 0
+.IP \(bu 4
+npm help outdated
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help registry
+.RE 0

@@ -1,0 +1,4 @@
+reachable
+Error: an exception
+    at branch (*typescript-throw.ts:18:11)
+    at Object.<anonymous> (*typescript-throw.ts:24:1)

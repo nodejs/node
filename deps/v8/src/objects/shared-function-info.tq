@@ -1,0 +1,170 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class PreparseData extends HeapObject {
+  // TODO(v8:8983): Add declaration for variable-sized region.
+  data_length: int32;
+  children_length: int32;
+}
+
+extern class InterpreterData extends Struct {
+  bytecode_array: BytecodeArray;
+  interpreter_trampoline: Code;
+}
+
+type FunctionKind extends uint8 constexpr 'FunctionKind';
+type FunctionSyntaxKind extends uint8 constexpr 'FunctionSyntaxKind';
+type BailoutReason extends uint8 constexpr 'BailoutReason';
+
+bitfield struct SharedFunctionInfoFlags extends uint32 {
+  // Have FunctionKind first to make it cheaper to access.
+  function_kind: FunctionKind: 5 bit;
+  is_native: bool: 1 bit;
+  is_strict: bool: 1 bit;
+  function_syntax_kind: FunctionSyntaxKind: 3 bit;
+  is_class_constructor: bool: 1 bit;
+  has_duplicate_parameters: bool: 1 bit;
+  allow_lazy_compilation: bool: 1 bit;
+  is_asm_wasm_broken: bool: 1 bit;
+  function_map_index: uint32: 5 bit;
+  disabled_optimization_reason: BailoutReason: 4 bit;
+  requires_instance_members_initializer: bool: 1 bit;
+  construct_as_builtin: bool: 1 bit;
+  name_should_print_as_anonymous: bool: 1 bit;
+  has_reported_binary_coverage: bool: 1 bit;
+  is_top_level: bool: 1 bit;
+  properties_are_final: bool: 1 bit;
+  private_name_lookup_skips_outer_class: bool: 1 bit;
+}
+
+bitfield struct SharedFunctionInfoFlags2 extends uint8 {
+  class_scope_has_private_brand: bool: 1 bit;
+  has_static_private_methods_or_accessors: bool: 1 bit;
+  is_sparkplug_compiling: bool: 1 bit;
+  maglev_compilation_failed: bool: 1 bit;
+  sparkplug_compiled: bool: 1 bit;
+}
+
+extern class SharedFunctionInfo extends HeapObject {
+  // function_data field is treated as a custom weak pointer. We visit this
+  // field as a weak pointer if there is aged bytecode. If there is no bytecode
+  // or if the bytecode is young then we treat it as a strong pointer. This is
+  // done to support flushing of bytecode.
+  @customWeakMarking function_data: Object;
+  name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
+  outer_scope_info_or_feedback_metadata: HeapObject;
+  script_or_debug_info: Script|DebugInfo|Undefined;
+  // [length]: The function length - usually the number of declared parameters
+  // (always without the receiver).
+  // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
+  // kDontAdaptArgumentsSentinel). The value is only reliable when the function
+  // has been compiled.
+  length: int16;
+  // [formal_parameter_count]: The number of declared parameters (or the special
+  // value kDontAdaptArgumentsSentinel to indicate that arguments are passed
+  // unaltered).
+  // In contrast to [length], formal_parameter_count includes the receiver.
+  formal_parameter_count: uint16;
+  function_token_offset: uint16;
+  // [expected_nof_properties]: Expected number of properties for the
+  // function. The value is only reliable when the function has been compiled.
+  expected_nof_properties: uint8;
+  flags2: SharedFunctionInfoFlags2;
+  flags: SharedFunctionInfoFlags;
+  // [function_literal_id] - uniquely identifies the FunctionLiteral this
+  // SharedFunctionInfo represents within its script, or -1 if this
+  // SharedFunctionInfo object doesn't correspond to a parsed FunctionLiteral.
+  function_literal_id: int32;
+  // [unique_id] - For --log-maps purposes, an identifier that's persistent
+  // even if the GC moves this SharedFunctionInfo.
+  @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
+
+  @if(V8_SFI_NEEDS_PADDING) optional_padding: uint32;
+  @ifnot(V8_SFI_NEEDS_PADDING) optional_padding: void;
+}
+
+const kDontAdaptArgumentsSentinel: constexpr int32
+    generates 'kDontAdaptArgumentsSentinel';
+
+@export
+macro LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(
+    sfi: SharedFunctionInfo): uint16 {
+  let formalParameterCount = sfi.formal_parameter_count;
+  if (Convert<int32>(formalParameterCount) != kDontAdaptArgumentsSentinel) {
+    formalParameterCount =
+        Convert<uint16>(formalParameterCount - kJSArgcReceiverSlots);
+  }
+  return formalParameterCount;
+}
+
+@export
+macro LoadSharedFunctionInfoFormalParameterCountWithReceiver(
+    sfi: SharedFunctionInfo): uint16 {
+  return sfi.formal_parameter_count;
+}
+
+@export
+macro IsSharedFunctionInfoDontAdaptArguments(sfi: SharedFunctionInfo): bool {
+  const formalParameterCount = sfi.formal_parameter_count;
+  return Convert<int32>(formalParameterCount) == kDontAdaptArgumentsSentinel;
+}
+
+@abstract
+extern class UncompiledData extends HeapObject {
+  inferred_name: String;
+  start_position: int32;
+  end_position: int32;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithoutPreparseData extends UncompiledData {
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithPreparseData extends UncompiledData {
+  preparse_data: PreparseData;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithoutPreparseDataWithJob extends
+    UncompiledDataWithoutPreparseData {
+  // TODO(v8:10391): Define the field as ExternalPointer or move jobs into cage.
+  job: RawPtr;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithPreparseDataAndJob extends
+    UncompiledDataWithPreparseData {
+  // TODO(v8:10391): Define the field as ExternalPointer or move jobs into cage.
+  job: RawPtr;
+}
+
+@useParentTypeChecker
+type PodArrayOfIntegerPairs extends ByteArray
+    constexpr 'PodArray<std::pair<int32_t, int32_t>>';
+
+@useParentTypeChecker
+type FixedInt32Array extends ByteArray constexpr 'FixedInt32Array';
+
+@useParentTypeChecker
+type FixedUInt32Array extends ByteArray constexpr 'FixedUInt32Array';
+
+@export
+class OnHeapBasicBlockProfilerData extends HeapObject {
+  block_ids: FixedInt32Array;
+  counts: FixedUInt32Array;
+  branches: PodArrayOfIntegerPairs;
+  name: String;
+  schedule: String;
+  code: String;
+  hash: Smi;
+}

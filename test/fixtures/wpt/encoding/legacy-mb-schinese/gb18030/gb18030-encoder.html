@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset=gb18030>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=resources/ranges.js></script>
+<script>
+ const encode = (input, output, desc) => {
+   test(function() {
+     const a = document.createElement("a"); // <a> uses document encoding for URL's query
+     a.href = "https://example.com/?" + input;
+     assert_equals(a.search.substr(1), output); // remove leading "?"
+   }, "gb18030 encoder: " + desc);
+ }
+
+ encode("s", "s", "very basic");
+ encode("\u20AC", "%A2%E3", "Euro");
+ encode("\u4E02", "%81@", "character");
+ encode("\uE4C6", "%A1@", "PUA");
+ encode("\uE4C5", "%FE%FE", "PUA #2");
+ encode("\uE5E5", "%26%2358853%3B", "PUA #3");
+ encode("\ud83d\udca9", "%949%DA3", "poo");
+ encode("\uE7C7", "%815%F47", "Ranges pointer special case");
+ encode("\uE7C8", "%836%C80", "legacy ICU special case 1");
+ encode("\u2026", "%A1%AD", "legacy ICU special case 2");
+ encode("\uFF5E", "%A1%AB", "legacy ICU special case 3");
+
+ const upperCaseNibble = x => {
+   return Math.floor(x).toString(16).toUpperCase();
+ }
+
+ const encodePointer = pointer => {
+   const firstByte = Math.floor(pointer / 12600) + 0x81;
+   const thirdByte = Math.floor((pointer % 1260) / 10) + 0x81;
+   return "%"
+     + upperCaseNibble(firstByte / 16)
+     + upperCaseNibble(firstByte % 16)
+     + String.fromCharCode(Math.floor((pointer % 12600) / 1260) + 0x30)
+     + "%"
+     + upperCaseNibble(thirdByte / 16)
+     + upperCaseNibble(thirdByte % 16)
+     + String.fromCharCode(pointer % 10 + 0x30);
+ }
+
+ let i = 0;
+ for (const range of ranges) {
+   encode(range[1], encodePointer(range[0]), "range " + i++);
+ }
+</script>

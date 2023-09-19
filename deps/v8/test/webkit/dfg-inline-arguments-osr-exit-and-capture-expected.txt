@@ -1,0 +1,332 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Tests what happens if you OSR exit within inlined code that has interesting control flow with arguments that are specially formatted and you capture the arguments reflectively after the OSR exit.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS baz(arg1, arg2) is 43
+PASS baz(arg1, arg2) is 45
+PASS baz(arg1, arg2) is 47
+PASS baz(arg1, arg2) is 49
+PASS baz(arg1, arg2) is 51
+PASS baz(arg1, arg2) is 53
+PASS baz(arg1, arg2) is 55
+PASS baz(arg1, arg2) is 57
+PASS baz(arg1, arg2) is 59
+PASS baz(arg1, arg2) is 61
+PASS baz(arg1, arg2) is 63
+PASS baz(arg1, arg2) is 65
+PASS baz(arg1, arg2) is 67
+PASS baz(arg1, arg2) is 69
+PASS baz(arg1, arg2) is 71
+PASS baz(arg1, arg2) is 73
+PASS baz(arg1, arg2) is 75
+PASS baz(arg1, arg2) is 77
+PASS baz(arg1, arg2) is 79
+PASS baz(arg1, arg2) is 81
+PASS baz(arg1, arg2) is 83
+PASS baz(arg1, arg2) is 85
+PASS baz(arg1, arg2) is 87
+PASS baz(arg1, arg2) is 89
+PASS baz(arg1, arg2) is 91
+PASS baz(arg1, arg2) is 93
+PASS baz(arg1, arg2) is 95
+PASS baz(arg1, arg2) is 97
+PASS baz(arg1, arg2) is 99
+PASS baz(arg1, arg2) is 101
+PASS baz(arg1, arg2) is 103
+PASS baz(arg1, arg2) is 105
+PASS baz(arg1, arg2) is 107
+PASS baz(arg1, arg2) is 109
+PASS baz(arg1, arg2) is 111
+PASS baz(arg1, arg2) is 113
+PASS baz(arg1, arg2) is 115
+PASS baz(arg1, arg2) is 117
+PASS baz(arg1, arg2) is 119
+PASS baz(arg1, arg2) is 121
+PASS baz(arg1, arg2) is 123
+PASS baz(arg1, arg2) is 125
+PASS baz(arg1, arg2) is 127
+PASS baz(arg1, arg2) is 129
+PASS baz(arg1, arg2) is 131
+PASS baz(arg1, arg2) is 133
+PASS baz(arg1, arg2) is 135
+PASS baz(arg1, arg2) is 137
+PASS baz(arg1, arg2) is 139
+PASS baz(arg1, arg2) is 141
+PASS baz(arg1, arg2) is 143
+PASS baz(arg1, arg2) is 145
+PASS baz(arg1, arg2) is 147
+PASS baz(arg1, arg2) is 149
+PASS baz(arg1, arg2) is 151
+PASS baz(arg1, arg2) is 153
+PASS baz(arg1, arg2) is 155
+PASS baz(arg1, arg2) is 157
+PASS baz(arg1, arg2) is 159
+PASS baz(arg1, arg2) is 161
+PASS baz(arg1, arg2) is 163
+PASS baz(arg1, arg2) is 165
+PASS baz(arg1, arg2) is 167
+PASS baz(arg1, arg2) is 169
+PASS baz(arg1, arg2) is 171
+PASS baz(arg1, arg2) is 173
+PASS baz(arg1, arg2) is 175
+PASS baz(arg1, arg2) is 177
+PASS baz(arg1, arg2) is 179
+PASS baz(arg1, arg2) is 181
+PASS baz(arg1, arg2) is 183
+PASS baz(arg1, arg2) is 185
+PASS baz(arg1, arg2) is 187
+PASS baz(arg1, arg2) is 189
+PASS baz(arg1, arg2) is 191
+PASS baz(arg1, arg2) is 193
+PASS baz(arg1, arg2) is 195
+PASS baz(arg1, arg2) is 197
+PASS baz(arg1, arg2) is 199
+PASS baz(arg1, arg2) is 201
+PASS baz(arg1, arg2) is 203
+PASS baz(arg1, arg2) is 205
+PASS baz(arg1, arg2) is 207
+PASS baz(arg1, arg2) is 209
+PASS baz(arg1, arg2) is 211
+PASS baz(arg1, arg2) is 213
+PASS baz(arg1, arg2) is 215
+PASS baz(arg1, arg2) is 217
+PASS baz(arg1, arg2) is 219
+PASS baz(arg1, arg2) is 221
+PASS baz(arg1, arg2) is 223
+PASS baz(arg1, arg2) is 225
+PASS baz(arg1, arg2) is 227
+PASS baz(arg1, arg2) is 229
+PASS baz(arg1, arg2) is 231
+PASS baz(arg1, arg2) is 233
+PASS baz(arg1, arg2) is 235
+PASS baz(arg1, arg2) is 237
+PASS baz(arg1, arg2) is 239
+PASS baz(arg1, arg2) is 241
+PASS baz(arg1, arg2) is 243
+PASS baz(arg1, arg2) is 245
+PASS baz(arg1, arg2) is 247
+PASS baz(arg1, arg2) is 249
+PASS baz(arg1, arg2) is 251
+PASS baz(arg1, arg2) is 253
+PASS baz(arg1, arg2) is 255
+PASS baz(arg1, arg2) is 257
+PASS baz(arg1, arg2) is 259
+PASS baz(arg1, arg2) is 261
+PASS baz(arg1, arg2) is 263
+PASS baz(arg1, arg2) is 265
+PASS baz(arg1, arg2) is 267
+PASS baz(arg1, arg2) is 269
+PASS baz(arg1, arg2) is 271
+PASS baz(arg1, arg2) is 273
+PASS baz(arg1, arg2) is 275
+PASS baz(arg1, arg2) is 277
+PASS baz(arg1, arg2) is 279
+PASS baz(arg1, arg2) is 281
+PASS baz(arg1, arg2) is 283
+PASS baz(arg1, arg2) is 285
+PASS baz(arg1, arg2) is 287
+PASS baz(arg1, arg2) is 289
+PASS baz(arg1, arg2) is 291
+PASS baz(arg1, arg2) is 293
+PASS baz(arg1, arg2) is 295
+PASS baz(arg1, arg2) is 297
+PASS baz(arg1, arg2) is 299
+PASS baz(arg1, arg2) is 301
+PASS baz(arg1, arg2) is 303
+PASS baz(arg1, arg2) is 305
+PASS baz(arg1, arg2) is 307
+PASS baz(arg1, arg2) is 309
+PASS baz(arg1, arg2) is 311
+PASS baz(arg1, arg2) is 313
+PASS baz(arg1, arg2) is 315
+PASS baz(arg1, arg2) is 317
+PASS baz(arg1, arg2) is 319
+PASS baz(arg1, arg2) is 321
+PASS baz(arg1, arg2) is 323
+PASS baz(arg1, arg2) is 325
+PASS baz(arg1, arg2) is 327
+PASS baz(arg1, arg2) is 329
+PASS baz(arg1, arg2) is 331
+PASS baz(arg1, arg2) is 333
+PASS baz(arg1, arg2) is 335
+PASS baz(arg1, arg2) is 337
+PASS baz(arg1, arg2) is 339
+PASS baz(arg1, arg2) is 341
+PASS baz(arg1, arg2) is 343
+PASS baz(arg1, arg2) is 345
+PASS baz(arg1, arg2) is 347
+PASS baz(arg1, arg2) is 349
+PASS baz(arg1, arg2) is 351
+PASS baz(arg1, arg2) is 353
+PASS baz(arg1, arg2) is 355
+PASS baz(arg1, arg2) is 357
+PASS baz(arg1, arg2) is 359
+PASS baz(arg1, arg2) is 361
+PASS baz(arg1, arg2) is 363
+PASS baz(arg1, arg2) is 365
+PASS baz(arg1, arg2) is 367
+PASS baz(arg1, arg2) is 369
+PASS baz(arg1, arg2) is 371
+PASS baz(arg1, arg2) is 373
+PASS baz(arg1, arg2) is 375
+PASS baz(arg1, arg2) is 377
+PASS baz(arg1, arg2) is 379
+PASS baz(arg1, arg2) is 381
+PASS baz(arg1, arg2) is 383
+PASS baz(arg1, arg2) is 385
+PASS baz(arg1, arg2) is 387
+PASS baz(arg1, arg2) is 389
+PASS baz(arg1, arg2) is 391
+PASS baz(arg1, arg2) is 393
+PASS baz(arg1, arg2) is 395
+PASS baz(arg1, arg2) is 397
+PASS baz(arg1, arg2) is 399
+PASS baz(arg1, arg2) is 401
+PASS baz(arg1, arg2) is 403
+PASS baz(arg1, arg2) is 405
+PASS baz(arg1, arg2) is 407
+PASS baz(arg1, arg2) is 409
+PASS baz(arg1, arg2) is 411
+PASS baz(arg1, arg2) is 413
+PASS baz(arg1, arg2) is 415
+PASS baz(arg1, arg2) is 417
+PASS baz(arg1, arg2) is 419
+PASS baz(arg1, arg2) is 421
+PASS baz(arg1, arg2) is 423
+PASS baz(arg1, arg2) is 425
+PASS baz(arg1, arg2) is 427
+PASS baz(arg1, arg2) is 429
+PASS baz(arg1, arg2) is 431
+PASS baz(arg1, arg2) is 433
+PASS baz(arg1, arg2) is 435
+PASS baz(arg1, arg2) is 437
+PASS baz(arg1, arg2) is 439
+PASS baz(arg1, arg2) is 441
+PASS baz(arg1, arg2) is 443
+PASS baz(arg1, arg2) is 445
+PASS baz(arg1, arg2) is 447
+PASS baz(arg1, arg2) is 449
+PASS baz(arg1, arg2) is 451
+PASS baz(arg1, arg2) is 453
+PASS baz(arg1, arg2) is 455
+PASS baz(arg1, arg2) is 457
+PASS baz(arg1, arg2) is 459
+PASS baz(arg1, arg2) is 461
+PASS baz(arg1, arg2) is 463
+PASS baz(arg1, arg2) is 465
+PASS baz(arg1, arg2) is 467
+PASS baz(arg1, arg2) is 469
+PASS baz(arg1, arg2) is 471
+PASS baz(arg1, arg2) is 473
+PASS baz(arg1, arg2) is 475
+PASS baz(arg1, arg2) is 477
+PASS baz(arg1, arg2) is 479
+PASS baz(arg1, arg2) is 481
+PASS baz(arg1, arg2) is 483
+PASS baz(arg1, arg2) is 485
+PASS baz(arg1, arg2) is 487
+PASS baz(arg1, arg2) is 489
+PASS baz(arg1, arg2) is 491
+PASS baz(arg1, arg2) is 493
+PASS baz(arg1, arg2) is 495
+PASS baz(arg1, arg2) is 497
+PASS baz(arg1, arg2) is 499
+PASS baz(arg1, arg2) is 501
+PASS baz(arg1, arg2) is 503
+PASS baz(arg1, arg2) is 505
+PASS baz(arg1, arg2) is 507
+PASS baz(arg1, arg2) is 509
+PASS baz(arg1, arg2) is 511
+PASS baz(arg1, arg2) is 513
+PASS baz(arg1, arg2) is 515
+PASS baz(arg1, arg2) is 517
+PASS baz(arg1, arg2) is 519
+PASS baz(arg1, arg2) is 521
+PASS baz(arg1, arg2) is 523
+PASS baz(arg1, arg2) is 525
+PASS baz(arg1, arg2) is 527
+PASS baz(arg1, arg2) is 529
+PASS baz(arg1, arg2) is 531
+PASS baz(arg1, arg2) is 533
+PASS baz(arg1, arg2) is 535
+PASS baz(arg1, arg2) is 537
+PASS baz(arg1, arg2) is 539
+PASS baz(arg1, arg2) is 541
+PASS baz(arg1, arg2) is 293.5
+PASS baz(arg1, arg2) is 294.5
+PASS baz(arg1, arg2) is 295.5
+PASS baz(arg1, arg2) is 296.5
+PASS baz(arg1, arg2) is 297.5
+PASS baz(arg1, arg2) is 298.5
+PASS baz(arg1, arg2) is 299.5
+PASS baz(arg1, arg2) is 300.5
+PASS baz(arg1, arg2) is 301.5
+PASS baz(arg1, arg2) is 302.5
+PASS baz(arg1, arg2) is 303.5
+PASS baz(arg1, arg2) is 304.5
+PASS baz(arg1, arg2) is 305.5
+PASS baz(arg1, arg2) is 306.5
+PASS baz(arg1, arg2) is 307.5
+PASS baz(arg1, arg2) is 308.5
+PASS baz(arg1, arg2) is 309.5
+PASS baz(arg1, arg2) is 310.5
+PASS baz(arg1, arg2) is 311.5
+PASS baz(arg1, arg2) is 312.5
+PASS baz(arg1, arg2) is 313.5
+PASS baz(arg1, arg2) is 314.5
+PASS baz(arg1, arg2) is 315.5
+PASS baz(arg1, arg2) is 316.5
+PASS baz(arg1, arg2) is 317.5
+PASS baz(arg1, arg2) is 318.5
+PASS baz(arg1, arg2) is 319.5
+PASS baz(arg1, arg2) is 320.5
+PASS baz(arg1, arg2) is 321.5
+PASS baz(arg1, arg2) is 322.5
+PASS baz(arg1, arg2) is 323.5
+PASS baz(arg1, arg2) is 324.5
+PASS baz(arg1, arg2) is 325.5
+PASS baz(arg1, arg2) is 326.5
+PASS baz(arg1, arg2) is 327.5
+PASS baz(arg1, arg2) is 328.5
+PASS baz(arg1, arg2) is 329.5
+PASS baz(arg1, arg2) is 330.5
+PASS baz(arg1, arg2) is 331.5
+PASS baz(arg1, arg2) is 332.5
+PASS baz(arg1, arg2) is 333.5
+PASS baz(arg1, arg2) is 334.5
+PASS baz(arg1, arg2) is 335.5
+PASS baz(arg1, arg2) is 336.5
+PASS baz(arg1, arg2) is 337.5
+PASS baz(arg1, arg2) is 338.5
+PASS baz(arg1, arg2) is 339.5
+PASS baz(arg1, arg2) is 340.5
+PASS baz(arg1, arg2) is 341.5
+PASS baz(arg1, arg2) is 342.5
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

@@ -1,0 +1,29 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+type DependentCode extends WeakFixedArray;
+
+extern class BytecodeArray extends FixedArrayBase {
+  // TODO(v8:8983): bytecode array object sizes vary based on their contents.
+  constant_pool: FixedArray;
+  // The handler table contains offsets of exception handlers.
+  handler_table: ByteArray;
+  // Source position table. Can contain:
+  // * undefined (initial value)
+  // * empty_byte_array (for bytecode generated for functions that will never
+  // have source positions, e.g. native functions).
+  // * ByteArray (when source positions have been collected for the bytecode)
+  // * exception (when an error occurred while explicitly collecting source
+  // positions for pre-existing bytecode).
+  @cppAcquireLoad
+  @cppReleaseStore
+  source_position_table: Undefined|ByteArray|Exception;
+  frame_size: int32;
+  parameter_size: int32;
+  incoming_new_target_or_generator_register: int32;
+  // TODO(jgruber): Only 3 bits are in use; if bits are needed, steal here.
+  bytecode_age: uint16;
+}
+
+extern class Code extends HeapObject;

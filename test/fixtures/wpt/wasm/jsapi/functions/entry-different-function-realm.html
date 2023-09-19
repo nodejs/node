@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Entry settings object for host functions when the function realm is different from the test realm</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/wasm/jsapi/wasm-module-builder.js"></script>
+<script src="/wasm/jsapi/functions/helper.js"></script>
+
+<!-- This is what would normally be considered the entry page. However, we use functions from the
+     resources/function/function.html realm. So window.open() should resolve relative to that realm
+     inside host functions. -->
+
+<iframe src="resources/entry-incumbent.html"></iframe>
+<iframe src="resources/function/function.html" id="function-frame"></iframe>
+
+<script>
+setup({ explicit_done: true });
+
+const relativeURL = "resources/window-to-open.html";
+const expectedURL = (new URL(relativeURL, document.querySelector("#function-frame").src)).href;
+
+const incumbentWindow = frames[0];
+const functionWindow = frames[1];
+const FunctionFromAnotherWindow = functionWindow.Function;
+
+window.onload = () => {
+  async_test(t => {
+    t.add_cleanup(() => { delete functionWindow.args; });
+    functionWindow.args = [incumbentWindow, relativeURL, t, assert_equals, expectedURL];
+
+    const func = FunctionFromAnotherWindow(`
+      const [incumbentWindow, relativeURL, t, assert_equals, expectedURL] = window.args;
+
+      const w = incumbentWindow.runWindowOpenVeryIndirectly(relativeURL);
+      w.onload = t.step_func_done(() => {
+        t.add_cleanup(() => w.close());
+        assert_equals(w.location.href, expectedURL);
+      });
+    `);
+    call_later(func);
+  }, "Start function");
+
+  done();
+};
+</script>

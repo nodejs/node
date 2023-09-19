@@ -1,0 +1,170 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+test of JavaScript date parsing (comments in parentheses)
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS Date.parse("Dec ((27) 26 (24)) 25 1995 1:30 PM UTC") == 819898200000 is true
+PASS Date.parse("DEC ((27) 26 (24)) 25 1995 1:30 PM UTC") == 819898200000 is true
+PASS Date.parse("dec ((27) 26 (24)) 25 1995 1:30 pm utc") == 819898200000 is true
+PASS Date.parse("Dec 25 1995 1:30 PM UTC (") == 819898200000 is true
+PASS Date.parse("DEC 25 1995 1:30 PM UTC (") == 819898200000 is true
+PASS Date.parse("dec 25 1995 1:30 pm utc (") == 819898200000 is true
+PASS Date.parse("Dec 25 1995 1:30 (PM)) UTC") is NaN
+PASS Date.parse("DEC 25 1995 1:30 (PM)) UTC") is NaN
+PASS Date.parse("dec 25 1995 1:30 (pm)) utc") is NaN
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) GMT (EST)") == 819849600000 is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) GMT (EST)") == 819849600000 is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) gmt (est)") == 819849600000 is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996)") == 819849600000 + timeZoneOffset is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996)") == 819849600000 + timeZoneOffset is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996)") == 819849600000 + timeZoneOffset is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) 1:30 (1:40) GMT (EST)") == 819855000000 is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) 1:30 (1:40) GMT (EST)") == 819855000000 is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) 1:30 (1:40) gmt (est)") == 819855000000 is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) 1:30 (1:40)") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) 1:30 (1:40)") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) 1:30 (1:40)") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) 1:30 ") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) 1:30 ") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) 1:30 ") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) 1:30 AM (1:40 PM) GMT (EST)") == 819855000000 is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) 1:30 AM (1:40 PM) GMT (EST)") == 819855000000 is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) 1:30 am (1:40 pm) gmt (est)") == 819855000000 is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) 1:30 AM (1:40 PM)") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) 1:30 AM (1:40 PM)") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) 1:30 am (1:40 pm)") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("Dec 25 1995 1:30( )AM (PM)") is NaN
+PASS Date.parse("DEC 25 1995 1:30( )AM (PM)") is NaN
+PASS Date.parse("dec 25 1995 1:30( )am (pm)") is NaN
+PASS Date.parse("Dec 25 1995 1:30 AM (PM)") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("DEC 25 1995 1:30 AM (PM)") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("dec 25 1995 1:30 am (pm)") == 819855000000 + timeZoneOffset is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) 13:30 (13:40) GMT (PST)") == 819898200000 is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) 13:30 (13:40) GMT (PST)") == 819898200000 is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) 13:30 (13:40) gmt (pst)") == 819898200000 is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) 13:30 (13:40)") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) 13:30 (13:40)") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) 13:30 (13:40)") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 13:30 (13:40) 1995 (1996)") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 13:30 (13:40) 1995 (1996)") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(nov) dec (24) 25 (26) 13:30 (13:40) 1995 (1996)") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) 13:30 (13:40) ") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) 13:30 (13:40) ") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) 13:30 (13:40) ") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) 1:30 (1:40) PM (AM) GMT (PST)") == 819898200000 is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) 1:30 (1:40) PM (AM) GMT (PST)") == 819898200000 is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) 1:30 (1:40) pm (am) gmt (pst)") == 819898200000 is true
+PASS Date.parse("(Nov) Dec (24) 25 (26) 1995 (1996) 1:30 (1:40) PM (AM)") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(NOV) DEC (24) 25 (26) 1995 (1996) 1:30 (1:40) PM (AM)") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("(nov) dec (24) 25 (26) 1995 (1996) 1:30 (1:40) pm (am)") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("Dec 25 1995 1:30(AM)PM") is NaN
+PASS Date.parse("DEC 25 1995 1:30(AM)PM") is NaN
+PASS Date.parse("dec 25 1995 1:30(am)pm") is NaN
+PASS Date.parse("Dec 25 1995 1:30 (AM)PM ") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("DEC 25 1995 1:30 (AM)PM ") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("dec 25 1995 1:30 (am)pm ") == 819898200000 + timeZoneOffset is true
+PASS Date.parse("Dec 25 1995 (PDT)UTC(PST)") == 819849600000 is true
+PASS Date.parse("DEC 25 1995 (PDT)UTC(PST)") == 819849600000 is true
+PASS Date.parse("dec 25 1995 (pdt)utc(pst)") == 819849600000 is true
+PASS Date.parse("Dec 25 1995 (PDT)UT(PST)") == 819849600000 is true
+PASS Date.parse("DEC 25 1995 (PDT)UT(PST)") == 819849600000 is true
+PASS Date.parse("dec 25 1995 (pdt)ut(pst)") == 819849600000 is true
+PASS Date.parse("Dec 25 1995 (UTC)PST(GMT)") == 819878400000 is true
+PASS Date.parse("DEC 25 1995 (UTC)PST(GMT)") == 819878400000 is true
+PASS Date.parse("dec 25 1995 (utc)pst(gmt)") == 819878400000 is true
+PASS Date.parse("Dec 25 1995 (UTC)PDT(GMT)") == 819874800000 is true
+PASS Date.parse("DEC 25 1995 (UTC)PDT(GMT)") == 819874800000 is true
+PASS Date.parse("dec 25 1995 (utc)pdt(gmt)") == 819874800000 is true
+PASS Date.parse("Dec 25 1995 1:30 (PDT)UTC(PST)") == 819855000000 is true
+PASS Date.parse("DEC 25 1995 1:30 (PDT)UTC(PST)") == 819855000000 is true
+PASS Date.parse("dec 25 1995 1:30 (pdt)utc(pst)") == 819855000000 is true
+PASS Date.parse("Dec 25 1995 1:30 (PDT)UT(PST)") == 819855000000 is true
+PASS Date.parse("DEC 25 1995 1:30 (PDT)UT(PST)") == 819855000000 is true
+PASS Date.parse("dec 25 1995 1:30 (pdt)ut(pst)") == 819855000000 is true
+PASS Date.parse("Dec 25 1995 1:30 (UTC)PST(GMT)") == 819883800000 is true
+PASS Date.parse("DEC 25 1995 1:30 (UTC)PST(GMT)") == 819883800000 is true
+PASS Date.parse("dec 25 1995 1:30 (utc)pst(gmt)") == 819883800000 is true
+PASS Date.parse("Dec 25 1995 1:30 (UTC)PDT(GMT)") == 819880200000 is true
+PASS Date.parse("DEC 25 1995 1:30 (UTC)PDT(GMT)") == 819880200000 is true
+PASS Date.parse("dec 25 1995 1:30 (utc)pdt(gmt)") == 819880200000 is true
+PASS Date.parse("Dec 25 1995 1:30 (AM) PM (PST) UTC") == 819898200000 is true
+PASS Date.parse("DEC 25 1995 1:30 (AM) PM (PST) UTC") == 819898200000 is true
+PASS Date.parse("dec 25 1995 1:30 (am) pm (pst) utc") == 819898200000 is true
+PASS Date.parse("Dec 25 1995 1:30 PM (AM) (PST) UT") == 819898200000 is true
+PASS Date.parse("DEC 25 1995 1:30 PM (AM) (PST) UT") == 819898200000 is true
+PASS Date.parse("dec 25 1995 1:30 pm (am) (pst) ut") == 819898200000 is true
+PASS Date.parse("Dec 25 1995 1:30 PM (AM) (UTC) PST") == 819927000000 is true
+PASS Date.parse("DEC 25 1995 1:30 PM (AM) (UTC) PST") == 819927000000 is true
+PASS Date.parse("dec 25 1995 1:30 pm (am) (utc) pst") == 819927000000 is true
+PASS Date.parse("Dec 25 1995 1:30 (AM) PM PDT (UTC)") == 819923400000 is true
+PASS Date.parse("DEC 25 1995 1:30 (AM) PM PDT (UTC)") == 819923400000 is true
+PASS Date.parse("dec 25 1995 1:30 (am) pm pdt (utc)") == 819923400000 is true
+PASS Date.parse("Dec 25 1995 XXX (GMT)") is NaN
+PASS Date.parse("DEC 25 1995 XXX (GMT)") is NaN
+PASS Date.parse("dec 25 1995 xxx (gmt)") is NaN
+PASS Date.parse("Dec 25 1995 1:30 XXX (GMT)") is NaN
+PASS Date.parse("DEC 25 1995 1:30 XXX (GMT)") is NaN
+PASS Date.parse("dec 25 1995 1:30 xxx (gmt)") is NaN
+PASS Date.parse("Dec 25 1995 1:30 U(TC)") is NaN
+PASS Date.parse("DEC 25 1995 1:30 U(TC)") is NaN
+PASS Date.parse("dec 25 1995 1:30 u(tc)") is NaN
+PASS Date.parse("Dec 25 1995 1:30 V(UTC)") is NaN
+PASS Date.parse("DEC 25 1995 1:30 V(UTC)") is NaN
+PASS Date.parse("dec 25 1995 1:30 v(utc)") is NaN
+PASS Date.parse("Dec 25 1995 1:30 (UTC)W") is NaN
+PASS Date.parse("DEC 25 1995 1:30 (UTC)W") is NaN
+PASS Date.parse("dec 25 1995 1:30 (utc)w") is NaN
+PASS Date.parse("Dec 25 1995 1:30 (GMT)X") is NaN
+PASS Date.parse("DEC 25 1995 1:30 (GMT)X") is NaN
+PASS Date.parse("dec 25 1995 1:30 (gmt)x") is NaN
+PASS Date.parse("Dec 25 1995 0:30 (PM) GMT") == 819851400000 is true
+PASS Date.parse("DEC 25 1995 0:30 (PM) GMT") == 819851400000 is true
+PASS Date.parse("dec 25 1995 0:30 (pm) gmt") == 819851400000 is true
+PASS Date.parse("Dec 25 1995 (1)0:30 AM GMT") == 819851400000 is true
+PASS Date.parse("DEC 25 1995 (1)0:30 AM GMT") == 819851400000 is true
+PASS Date.parse("dec 25 1995 (1)0:30 am gmt") == 819851400000 is true
+PASS Date.parse("Dec 25 1995 (1)0:30 PM GMT") == 819894600000 is true
+PASS Date.parse("DEC 25 1995 (1)0:30 PM GMT") == 819894600000 is true
+PASS Date.parse("dec 25 1995 (1)0:30 pm gmt") == 819894600000 is true
+PASS Date.parse("Anf(Dec) 25 1995 GMT") is NaN
+PASS Date.parse("ANF(DEC) 25 1995 GMT") is NaN
+PASS Date.parse("anf(dec) 25 1995 gmt") is NaN
+PASS Date.parse("(Sat) Wed (Nov) Dec (Nov) 25 1995 1:30 GMT") == 819855000000 is true
+PASS Date.parse("(SAT) WED (NOV) DEC (NOV) 25 1995 1:30 GMT") == 819855000000 is true
+PASS Date.parse("(sat) wed (nov) dec (nov) 25 1995 1:30 gmt") == 819855000000 is true
+PASS Date.parse("Wed (comment 1) (comment 2) Dec 25 1995 1:30 GMT") == 819855000000 is true
+PASS Date.parse("WED (COMMENT 1) (COMMENT 2) DEC 25 1995 1:30 GMT") == 819855000000 is true
+PASS Date.parse("wed (comment 1) (comment 2) dec 25 1995 1:30 gmt") == 819855000000 is true
+PASS Date.parse("Wed(comment 1) (comment 2) Dec 25 1995 1:30 GMT") == 819855000000 is true
+PASS Date.parse("WED(COMMENT 1) (COMMENT 2) DEC 25 1995 1:30 GMT") == 819855000000 is true
+PASS Date.parse("wed(comment 1) (comment 2) dec 25 1995 1:30 gmt") == 819855000000 is true
+PASS Date.parse("We(comment 1) (comment 2) Dec 25 1995 1:30 GMT") == 819855000000 is true
+PASS Date.parse("WE(COMMENT 1) (COMMENT 2) DEC 25 1995 1:30 GMT") == 819855000000 is true
+PASS Date.parse("we(comment 1) (comment 2) dec 25 1995 1:30 gmt") == 819855000000 is true
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

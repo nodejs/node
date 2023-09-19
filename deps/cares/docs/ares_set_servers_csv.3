@@ -1,0 +1,68 @@
+.\"
+.\" Copyright 2010 by Ben Greear <greearb@candelatech.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_SET_SERVERS_CSV 3 "30 June 2010"
+.SH NAME
+ares_set_servers_csv, ares_set_servers_ports_csv \- Set list of DNS servers to be used.
+.SH SYNOPSIS
+.nf
+#include <ares.h>
+
+int ares_set_servers_csv(ares_channel \fIchannel\fP, const char* \fIservers\fP)
+
+int ares_set_servers_ports_csv(ares_channel \fIchannel\fP, const char* \fIservers\fP)
+.fi
+.SH DESCRIPTION
+The \fBares_set_servers_csv\fP and \fBares_set_servers_ports_csv\fPfunctions set
+the list of DNS servers that ARES will query.  The format of the servers option is:
+
+host[:port][,host[:port]]...
+
+For example:
+
+192.168.1.100,192.168.1.101,3.4.5.6
+.PP
+The \fBares_set_servers_csv\fP function will ignore any port values specified in
+the input string, whereare the \fBares_set_servers_ports_csv\fP function will
+apply any specified port values as the UDP and TCP port to be used for that
+particular nameserver.
+
+.SH RETURN VALUES
+.B ares_set_servers_csv(3)
+This function may return any of the following values:
+.TP 15
+.B ARES_SUCCESS
+The name servers configuration was successfully initialized.
+.TP 15
+.B ARES_ENOMEM
+The process's available memory was exhausted.
+.TP 15
+.B ARES_ENODATA
+The channel data identified by
+.IR channel
+was invalid.
+.TP 15
+.B ARES_ENOTINITIALIZED
+c-ares library initialization not yet performed.
+.TP 15
+.B ARES_ENOTIMP
+Changing name servers configuration while queries are outstanding is not implemented.
+.SH SEE ALSO
+.BR ares_set_servers (3)
+.SH AVAILABILITY
+\fBares_set_servers_csv\fP was added in c-ares 1.7.2;
+\fBares_set_servers_ports_csv\fP was added in c-ares 1.11.0.
+.SH AUTHOR
+Ben Greear

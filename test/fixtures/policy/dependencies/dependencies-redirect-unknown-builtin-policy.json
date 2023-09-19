@@ -1,0 +1,10 @@
+{
+  "resources": {
+    "../parent.js": {
+      "integrity": true,
+      "dependencies": {
+        "../dep.js": "node:404"
+      }
+    }
+  }
+}

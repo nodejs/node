@@ -1,0 +1,62 @@
+{
+  "name": "@npmcli/query",
+  "version": "3.0.0",
+  "description": "npm query parser and tools",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint"
+  },
+  "contributors": [
+    {
+      "name": "Ruy Adorno",
+      "url": "https://ruyadorno.com",
+      "twitter": "ruyadorno"
+    }
+  ],
+  "keywords": [
+    "ast",
+    "npm",
+    "npmcli",
+    "parser",
+    "postcss",
+    "postcss-selector-parser",
+    "query"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.5.1"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "4.5.1",
+    "tap": "^16.2.0"
+  },
+  "dependencies": {
+    "postcss-selector-parser": "^6.0.10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/query.git"
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

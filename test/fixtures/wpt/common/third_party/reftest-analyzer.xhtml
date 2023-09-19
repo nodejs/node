@@ -1,0 +1,934 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- -*- Mode: HTML; tab-width: 2; indent-tabs-mode: nil; -*- -->
+<!-- vim: set shiftwidth=2 tabstop=2 autoindent expandtab: -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<!--
+
+Features to add:
+* make the left and right parts of the viewer independently scrollable
+* make the test list filterable
+** default to only showing unexpecteds
+* add other ways to highlight differences other than circling?
+* add zoom/pan to images
+* Add ability to load log via XMLHttpRequest (also triggered via URL param)
+* color the test list based on pass/fail and expected/unexpected/random/skip
+* ability to load multiple logs ?
+** rename them by clicking on the name and editing
+** turn the test list into a collapsing tree view
+** move log loading into popup from viewer UI
+
+-->
+<!DOCTYPE html>
+<html lang="en-US" xml:lang="en-US" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Reftest analyzer</title>
+  <style type="text/css"><![CDATA[
+
+  html, body { margin: 0; }
+  html { padding: 0; }
+  body { padding: 4px; }
+
+  #pixelarea, #itemlist, #images { position: absolute; }
+  #itemlist, #images { overflow: auto; }
+  #pixelarea { top: 0; left: 0; width: 320px; height: 84px; overflow: visible }
+  #itemlist { top: 84px; left: 0; width: 320px; bottom: 0; }
+  #images { top: 0; bottom: 0; left: 320px; right: 0; }
+
+  #leftpane { width: 320px; }
+  #images { position: fixed; top: 10px; left: 340px; }
+
+  form#imgcontrols { margin: 0; display: block; }
+
+  #itemlist > table { border-collapse: collapse; }
+  #itemlist > table > tbody > tr > td { border: 1px solid; padding: 1px; }
+  #itemlist td.activeitem { background-color: yellow; }
+
+  /*
+  #itemlist > table > tbody > tr.pass > td.url { background: lime; }
+  #itemlist > table > tbody > tr.fail > td.url { background: red; }
+  */
+
+  #magnification > svg { display: block; width: 84px; height: 84px; }
+
+  #pixelinfo { font: small sans-serif; position: absolute; width: 200px; left: 84px; }
+  #pixelinfo table { border-collapse: collapse; }
+  #pixelinfo table th { white-space: nowrap; text-align: left; padding: 0; }
+  #pixelinfo table td { font-family: monospace; padding: 0 0 0 0.25em; }
+
+  #pixelhint { display: inline; color: #88f; cursor: help; }
+  #pixelhint > * { display: none; position: absolute; margin: 8px 0 0 8px; padding: 4px; width: 400px; background: #ffa; color: black; box-shadow: 3px 3px 2px #888; z-index: 1; }
+  #pixelhint:hover { color: #000; }
+  #pixelhint:hover > * { display: block; }
+  #pixelhint p { margin: 0; }
+  #pixelhint p + p { margin-top: 1em; }
+
+  ]]></style>
+  <script type="text/javascript"><![CDATA[
+
+var XLINK_NS = "http://www.w3.org/1999/xlink";
+var SVG_NS = "http://www.w3.org/2000/svg";
+var IMAGE_NOT_AVAILABLE = "data:image/png;base64,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";
+
+var gPhases = null;
+
+var gIDCache = {};
+
+var gMagPixPaths = [];     // 2D array of array-of-two <path> objects used in the pixel magnifier
+var gMagWidth = 5;         // number of zoomed in pixels to show horizontally
+var gMagHeight = 5;        // number of zoomed in pixels to show vertically
+var gMagZoom = 16;         // size of the zoomed in pixels
+var gImage1Data;           // ImageData object for the reference image
+var gImage2Data;           // ImageData object for the test output image
+var gFlashingPixels = [];  // array of <path> objects that should be flashed due to pixel color mismatch
+var gParams;
+
+function ID(id) {
+  if (!(id in gIDCache))
+    gIDCache[id] = document.getElementById(id);
+  return gIDCache[id];
+}
+
+function hash_parameters() {
+  var result = { };
+  var params = window.location.hash.substr(1).split(/[&;]/);
+  for (var i = 0; i < params.length; i++) {
+    var parts = params[i].split("=");
+    result[parts[0]] = unescape(unescape(parts[1]));
+  }
+  return result;
+}
+
+function load() {
+  gPhases = [ ID("entry"), ID("loading"), ID("viewer") ];
+  build_mag();
+  gParams = hash_parameters();
+  if (gParams.log) {
+    show_phase("loading");
+    process_log(gParams.log);
+  } else if (gParams.logurl) {
+    show_phase("loading");
+    var req = new XMLHttpRequest();
+    req.onreadystatechange = function() {
+      if (req.readyState === 4) {
+        process_log(req.responseText);
+      }
+    };
+    req.open('GET', gParams.logurl, true);
+    req.send();
+  }
+  window.addEventListener('keypress', handle_keyboard_shortcut);
+  window.addEventListener('keydown',  handle_keydown);
+  ID("image1").addEventListener('error', image_load_error);
+  ID("image2").addEventListener('error', image_load_error);
+}
+
+function image_load_error(e) {
+  e.target.setAttributeNS(XLINK_NS, "xlink:href", IMAGE_NOT_AVAILABLE);
+}
+
+function build_mag() {
+  var mag = ID("mag");
+
+  var r = document.createElementNS(SVG_NS, "rect");
+  r.setAttribute("x", gMagZoom * -gMagWidth / 2);
+  r.setAttribute("y", gMagZoom * -gMagHeight / 2);
+  r.setAttribute("width", gMagZoom * gMagWidth);
+  r.setAttribute("height", gMagZoom * gMagHeight);
+  mag.appendChild(r);
+
+  mag.setAttribute("transform", "translate(" + (gMagZoom * (gMagWidth / 2) + 1) + "," + (gMagZoom * (gMagHeight / 2) + 1) + ")");
+
+  for (var x = 0; x < gMagWidth; x++) {
+    gMagPixPaths[x] = [];
+    for (var y = 0; y < gMagHeight; y++) {
+      var p1 = document.createElementNS(SVG_NS, "path");
+      p1.setAttribute("d", "M" + ((x - gMagWidth / 2) + 1) * gMagZoom + "," + (y - gMagHeight / 2) * gMagZoom + "h" + -gMagZoom + "v" + gMagZoom);
+      p1.setAttribute("stroke", "black");
+      p1.setAttribute("stroke-width", "1px");
+      p1.setAttribute("fill", "#aaa");
+
+      var p2 = document.createElementNS(SVG_NS, "path");
+      p2.setAttribute("d", "M" + ((x - gMagWidth / 2) + 1) * gMagZoom + "," + (y - gMagHeight / 2) * gMagZoom + "v" + gMagZoom + "h" + -gMagZoom);
+      p2.setAttribute("stroke", "black");
+      p2.setAttribute("stroke-width", "1px");
+      p2.setAttribute("fill", "#888");
+
+      mag.appendChild(p1);
+      mag.appendChild(p2);
+      gMagPixPaths[x][y] = [p1, p2];
+    }
+  }
+
+  var flashedOn = false;
+  setInterval(function() {
+    flashedOn = !flashedOn;
+    flash_pixels(flashedOn);
+  }, 500);
+}
+
+function show_phase(phaseid) {
+  for (var i in gPhases) {
+    var phase = gPhases[i];
+    phase.style.display = (phase.id == phaseid) ? "" : "none";
+  }
+
+  if (phase == "viewer")
+    ID("images").style.display = "none";
+}
+
+function fileentry_changed() {
+  show_phase("loading");
+  var input = ID("fileentry");
+  var files = input.files;
+  if (files.length > 0) {
+    // Only handle the first file; don't handle multiple selection.
+    // The parts of the log we care about are ASCII-only.  Since we
+    // can ignore lines we don't care about, best to read in as
+    // iso-8859-1, which guarantees we don't get decoding errors.
+    var fileReader = new FileReader();
+    fileReader.onload = function(e) {
+      var log = null;
+
+      log = e.target.result;
+
+      if (log)
+        process_log(log);
+      else
+        show_phase("entry");
+    }
+    fileReader.readAsText(files[0], "iso-8859-1");
+  }
+  // So the user can process the same filename again (after
+  // overwriting the log), clear the value on the form input so we
+  // will always get an onchange event.
+  input.value = "";
+}
+
+function log_pasted() {
+  show_phase("loading");
+  var entry = ID("logentry");
+  var log = entry.value;
+  entry.value = "";
+  process_log(log);
+}
+
+var gTestItems;
+
+// This function is not used in production code, but can be invoked manually
+// from the devtools console in order to test changes to the parsing regexes
+// in process_log.
+function test_parsing() {
+  // Note that the logs in these testcases have been manually edited to strip
+  // out stuff for brevity.
+  var testcases = [
+    { "name": "empty log",
+      "log": "",
+      "expected": { "pass": 0, "unexpected": 0, "random": 0, "skip": 0 },
+      "expected_images": 0,
+    },
+    { "name": "android log",
+      "log": `[task 2018-12-28T10:36:45.718Z] 10:36:45     INFO -  REFTEST TEST-START | a == b
+[task 2018-12-28T10:36:45.719Z] 10:36:45     INFO -  REFTEST TEST-LOAD | a | 78 / 275 (28%)
+[task 2018-12-28T10:36:56.138Z] 10:36:56     INFO -  REFTEST TEST-LOAD | b | 78 / 275 (28%)
+[task 2018-12-28T10:37:06.559Z] 10:37:06     INFO -  REFTEST TEST-UNEXPECTED-FAIL | a == b | image comparison, max difference: 255, number of differing pixels: 5950
+[task 2018-12-28T10:37:06.568Z] 10:37:06     INFO -  REFTEST   IMAGE 1 (TEST): data:image/png;base64,
+[task 2018-12-28T10:37:06.577Z] 10:37:06     INFO -  REFTEST   IMAGE 2 (REFERENCE): data:image/png;base64,
+[task 2018-12-28T10:37:06.577Z] 10:37:06     INFO -  REFTEST INFO | Saved log: stuff trimmed here
+[task 2018-12-28T10:37:06.582Z] 10:37:06     INFO -  REFTEST TEST-END | a == b
+[task 2018-12-28T10:37:06.583Z] 10:37:06     INFO -  REFTEST TEST-START | a2 == b2
+[task 2018-12-28T10:37:06.583Z] 10:37:06     INFO -  REFTEST TEST-LOAD | a2 | 79 / 275 (28%)
+[task 2018-12-28T10:37:06.584Z] 10:37:06     INFO -  REFTEST TEST-LOAD | b2 | 79 / 275 (28%)
+[task 2018-12-28T10:37:16.982Z] 10:37:16     INFO -  REFTEST TEST-PASS | a2 == b2 | image comparison, max difference: 0, number of differing pixels: 0
+[task 2018-12-28T10:37:16.982Z] 10:37:16     INFO -  REFTEST TEST-END | a2 == b2`,
+      "expected": { "pass": 1, "unexpected": 1, "random": 0, "skip": 0 },
+      "expected_images": 2,
+    },
+    { "name": "local reftest run (Linux)",
+      "log": `REFTEST TEST-START | file:///a == file:///b
+REFTEST TEST-LOAD | file:///a | 73 / 86 (84%)
+REFTEST TEST-LOAD | file:///b | 73 / 86 (84%)
+REFTEST TEST-PASS | file:///a == file:///b | image comparison, max difference: 0, number of differing pixels: 0
+REFTEST TEST-END | file:///a == file:///b`,
+      "expected": { "pass": 1, "unexpected": 0, "random": 0, "skip": 0 },
+      "expected_images": 0,
+    },
+    { "name": "wpt reftests (Linux automation)",
+      "log": `16:50:43     INFO - TEST-START | /a
+16:50:43     INFO - PID 4276 | 1548694243694	Marionette	INFO	Testing http://web-platform.test:8000/a == http://web-platform.test:8000/b
+16:50:43     INFO - PID 4276 | 1548694243963	Marionette	INFO	No differences allowed
+16:50:44     INFO - TEST-PASS | /a | took 370ms
+16:50:44     INFO - TEST-START | /a2
+16:50:44     INFO - PID 4276 | 1548694244066	Marionette	INFO	Testing http://web-platform.test:8000/a2 == http://web-platform.test:8000/b2
+16:50:44     INFO - PID 4276 | 1548694244792	Marionette	INFO	No differences allowed
+16:50:44     INFO - PID 4276 | 1548694244792	Marionette	INFO	Found 28 pixels different, maximum difference per channel 14
+16:50:44     INFO - TEST-UNEXPECTED-FAIL | /a2 | Testing http://web-platform.test:8000/a2 == http://web-platform.test:8000/b2
+16:50:44     INFO - REFTEST   IMAGE 1 (TEST): data:image/png;base64,
+16:50:44     INFO - REFTEST   IMAGE 2 (REFERENCE): data:image/png;base64,
+16:50:44     INFO - TEST-INFO took 840ms`,
+      "expected": { "pass": 1, "unexpected": 1, "random": 0, "skip": 0 },
+      "expected_images": 2,
+    },
+    { "name": "windows log",
+      "log": `12:17:14     INFO - REFTEST TEST-START | a == b
+12:17:14     INFO - REFTEST TEST-LOAD | a | 1603 / 2053 (78%)
+12:17:14     INFO - REFTEST TEST-LOAD | b | 1603 / 2053 (78%)
+12:17:14     INFO - REFTEST TEST-PASS(EXPECTED RANDOM) | a == b | image comparison, max difference: 0, number of differing pixels: 0
+12:17:14     INFO - REFTEST TEST-END | a == b
+12:17:14     INFO - REFTEST TEST-START | a2 == b2
+12:17:14     INFO - REFTEST TEST-LOAD | a2 | 1604 / 2053 (78%)
+12:17:14     INFO - REFTEST TEST-LOAD | b2 | 1604 / 2053 (78%)
+12:17:14     INFO - REFTEST TEST-UNEXPECTED-FAIL | a2 == b2 | image comparison, max difference: 255, number of differing pixels: 9976
+12:17:14     INFO - REFTEST   IMAGE 1 (TEST): data:image/png;base64,
+12:17:14     INFO - REFTEST   IMAGE 2 (REFERENCE): data:image/png;base64,
+12:17:14     INFO - REFTEST INFO | Saved log: stuff trimmed here
+12:17:14     INFO - REFTEST TEST-END | a2 == b2
+12:01:09     INFO - REFTEST TEST-START | a3 == b3
+12:01:09     INFO - REFTEST TEST-LOAD | a3 | 66 / 189 (34%)
+12:01:09     INFO - REFTEST TEST-LOAD | b3 | 66 / 189 (34%)
+12:01:09     INFO - REFTEST TEST-KNOWN-FAIL | a3 == b3 | image comparison, max difference: 255, number of differing pixels: 9654
+12:01:09     INFO - REFTEST TEST-END | a3 == b3`,
+      "expected": { "pass": 1, "unexpected": 1, "random": 1, "skip": 0 },
+      "expected_images": 2,
+    },
+    { "name": "webrender wrench log (windows)",
+      "log": `[task 2018-12-29T04:29:48.800Z] REFTEST a == b
+[task 2018-12-29T04:29:48.984Z] REFTEST a2 == b2
+[task 2018-12-29T04:29:49.053Z] REFTEST TEST-UNEXPECTED-FAIL | a2 == b2 | image comparison, max difference: 255, number of differing pixels: 3128
+[task 2018-12-29T04:29:49.053Z] REFTEST   IMAGE 1 (TEST): data:image/png;
+[task 2018-12-29T04:29:49.053Z] REFTEST   IMAGE 2 (REFERENCE): data:image/png;
+[task 2018-12-29T04:29:49.053Z] REFTEST TEST-END | a2 == b2`,
+      "expected": { "pass": 0, "unexpected": 1, "random": 0, "skip": 0 },
+      "expected_images": 2,
+    },
+    { "name": "wpt reftests (Linux local; Bug 1530008)",
+      "log": `SUITE-START | Running 1 tests
+TEST-START | /css/css-backgrounds/border-image-6.html
+TEST-UNEXPECTED-FAIL | /css/css-backgrounds/border-image-6.html | Testing http://web-platform.test:8000/css/css-backgrounds/border-image-6.html == http://web-platform.test:8000/css/css-backgrounds/border-image-6-ref.html
+REFTEST   IMAGE 1 (TEST): data:image/png;base64,
+REFTEST   IMAGE 2 (REFERENCE): data:image/png;base64,
+TEST-INFO took 425ms
+SUITE-END | took 2s`,
+      "expected": { "pass": 0, "unexpected": 1, "random": 0, "skip": 0 },
+      "expected_images": 2,
+    },
+    { "name": "wpt reftests (taskcluster log from macOS CI)",
+      "log": `[task 2020-06-26T01:35:29.065Z] 01:35:29     INFO - TEST-START | /html/rendering/non-replaced-elements/the-page/iframe-scrolling-attribute-values.html
+[task 2020-06-26T01:35:29.065Z] 01:35:29     INFO - PID 1353 | 1593135329040    Marionette  INFO    Testing http://web-platform.test:8000/html/rendering/non-replaced-elements/the-page/iframe-scrolling-attribute-values.html == http://web-platform.test:8000/html/rendering/non-replaced-elements/the-page/iframe-scrolling-attribute-values-ref.html
+[task 2020-06-26T01:35:29.673Z] 01:35:29     INFO - PID 1353 | 1593135329633    Marionette  INFO    No differences allowed
+[task 2020-06-26T01:35:29.726Z] 01:35:29     INFO - TEST-KNOWN-INTERMITTENT-FAIL | /html/rendering/non-replaced-elements/the-page/iframe-scrolling-attribute-values.html | took 649ms
+[task 2020-06-26T01:35:29.726Z] 01:35:29     INFO - REFTEST   IMAGE 1 (TEST): data:image/png;
+[task 2020-06-26T01:35:29.726Z] 01:35:29     INFO - REFTEST   IMAGE 2 (REFERENCE): data:image/png;`,
+      "expected": { "pass": 0, "unexpected": 0, "random": 1, "skip": 0 },
+      "expected_images": 2,
+    },
+    { "name": "wpt reftests (taskcluster log from Windows CI)",
+      "log": `[task 2020-06-26T01:41:19.205Z] 01:41:19     INFO - TEST-START | /html/rendering/non-replaced-elements/the-page/iframe-scrolling-attribute-values.html
+[task 2020-06-26T01:41:19.214Z] 01:41:19     INFO - PID 5920 | 1593135679202    Marionette  WARN    [24] http://web-platform.test:8000/css/WOFF2/metadatadisplay-schema-license-022-ref.xht overflows viewport (width: 783, height: 731)
+[task 2020-06-26T01:41:19.214Z] 01:41:19     INFO - PID 9692 | 1593135679208    Marionette  INFO    Testing http://web-platform.test:8000/html/rendering/non-replaced-elements/the-page/iframe-scrolling-attribute-values.html == http://web-platform.test:8000/html/rendering/non-replaced-elements/the-page/iframe-scrolling-attribute-values-ref.html
+[task 2020-06-26T01:41:19.638Z] 01:41:19     INFO - PID 9692 | 1593135679627    Marionette  INFO    No differences allowed
+[task 2020-06-26T01:41:19.688Z] 01:41:19     INFO - TEST-KNOWN-INTERMITTENT-PASS | /html/rendering/non-replaced-elements/the-page/iframe-scrolling-attribute-values.html | took 474ms
+[task 2020-06-26T01:41:19.688Z] 01:41:19     INFO - REFTEST   IMAGE 1 (TEST): data:image/png;
+[task 2020-06-26T01:41:19.689Z] 01:41:19     INFO - REFTEST   IMAGE 2 (REFERENCE): data:image/png;`,
+      "expected": { "pass": 1, "unexpected": 0, "random": 1, "skip": 0 },
+      "expected_images": 2,
+    },
+    { "name": "local reftest run with timestamps (Linux; Bug 1167712)",
+      "log": ` 0:05.21 REFTEST TEST-START | a
+ 0:05.21 REFTEST REFTEST TEST-LOAD | a | 0 / 1 (0%)
+ 0:05.27 REFTEST REFTEST TEST-LOAD | b | 0 / 1 (0%)
+ 0:05.66 REFTEST TEST-UNEXPECTED-FAIL | a | image comparison (==), max difference: 106, number of differing pixels: 800
+ 0:05.67 REFTEST REFTEST   IMAGE 1 (TEST): data:image/png;base64,
+ 0:05.67 REFTEST REFTEST   IMAGE 2 (REFERENCE): data:image/png;base64,
+ 0:05.73 REFTEST REFTEST TEST-END | a`,
+      "expected": { "pass": 0, "unexpected": 1, "random": 0, "skip": 0 },
+      "expected_images": 2,
+    },
+    { "name": "reftest run with whitespace compressed (Treeherder; Bug 1084322)",
+      "log": ` REFTEST TEST-START | a
+REFTEST TEST-LOAD | a | 0 / 1 (0%)
+REFTEST TEST-LOAD | b | 0 / 1 (0%)
+REFTEST TEST-UNEXPECTED-FAIL | a | image comparison (==), max difference: 106, number of differing pixels: 800
+REFTEST REFTEST IMAGE 1 (TEST): data:image/png;base64,
+REFTEST REFTEST IMAGE 2 (REFERENCE): data:image/png;base64,
+REFTEST REFTEST TEST-END | a`,
+      "expected": { "pass": 0, "unexpected": 1, "random": 0, "skip": 0 },
+      "expected_images": 2,
+    },
+  ];
+
+  var current_test = 0;
+
+  // Override the build_viewer function invoked at the end of process_log to
+  // actually just check the results of parsing.
+  build_viewer = function() {
+    var expected = testcases[current_test].expected;
+    var expected_images = testcases[current_test].expected_images;
+    for (var result of gTestItems) {
+      for (let type in expected) { // type is "pass", "unexpected" etc.
+        if (result[type]) {
+          expected[type]--;
+        }
+      }
+    }
+    var failed = false;
+    for (let type in expected) {
+      if (expected[type] != 0) {
+        console.log(`Failure: for testcase ${testcases[current_test].name} got ${expected[type]} fewer ${type} results than expected!`);
+        failed = true;
+      }
+    }
+
+    let total_images = 0;
+    for (var result of gTestItems) {
+      total_images += result.images.length;
+    }
+    if (total_images !== expected_images) {
+      console.log(`Failure: for testcase ${testcases[current_test].name} got ${total_images} images, expected ${expected_images}`);
+      failed = true;
+    }
+
+    if (!failed) {
+      console.log(`Success for testcase ${testcases[current_test].name}`);
+    }
+  };
+
+  while (current_test < testcases.length) {
+    process_log(testcases[current_test].log);
+    current_test++;
+  }
+}
+
+function process_log(contents) {
+  var lines = contents.split(/[\r\n]+/);
+  gTestItems = [];
+  for (var j in lines) {
+
+    // !!!!!!
+    // When making any changes to this code, please add a test to the
+    // test_parsing function above, and ensure all existing tests pass.
+    // !!!!!!
+
+    var line = lines[j];
+    // Ignore duplicated output in logcat.
+    if (line.match(/I\/Gecko.*?REFTEST/))
+      continue;
+    var match = line.match(/^.*?(?:REFTEST\s+)+(.*)$/);
+    if (!match) {
+      // WPT reftests don't always have the "REFTEST" prefix but do have
+      // mozharness prefixing. Trying to match both prefixes optionally with a
+      // single regex either makes an unreadable mess or matches everything so
+      // we do them separately.
+      match = line.match(/^(?:.*? (?:INFO|ERROR) -\s+)(.*)$/);
+    }
+    if (match)
+      line = match[1];
+    match = line.match(/^(TEST-PASS|TEST-UNEXPECTED-PASS|TEST-FAIL|TEST-KNOWN-FAIL|TEST-UNEXPECTED-FAIL|TEST-DEBUG-INFO|TEST-KNOWN-INTERMITTENT-FAIL|TEST-KNOWN-INTERMITTENT-PASS)(\(EXPECTED RANDOM\)|) \| ([^\|]+)(?: \|(.*)|$)/);
+    if (match) {
+      var state = match[1];
+      var random = match[2];
+      var url = match[3];
+      var extra = match[4];
+      gTestItems.push(
+        {
+          pass: !state.match(/DEBUG-INFO$|FAIL$/),
+          // only one of the following three should ever be true
+          unexpected: !!state.match(/^TEST-UNEXPECTED/),
+          random: (random == "(EXPECTED RANDOM)" || state == "TEST-KNOWN-INTERMITTENT-FAIL" || state == "TEST-KNOWN-INTERMITTENT-PASS"),
+          skip: (extra == " (SKIP)"),
+          url: url,
+          images: [],
+          imageLabels: []
+        });
+      continue;
+    }
+    match = line.match(/^IMAGE([^:]*): (data:.*)$/);
+    if (match) {
+      var item = gTestItems[gTestItems.length - 1];
+      item.images.push(match[2]);
+      item.imageLabels.push(match[1]);
+    }
+  }
+
+  build_viewer();
+}
+
+function build_viewer() {
+  if (gTestItems.length == 0) {
+    show_phase("entry");
+    return;
+  }
+
+  var cell = ID("itemlist");
+  while (cell.childNodes.length > 0)
+    cell.removeChild(cell.childNodes[cell.childNodes.length - 1]);
+
+  var table = document.createElement("table");
+  var tbody = document.createElement("tbody");
+  table.appendChild(tbody);
+
+  for (var i in gTestItems) {
+    var item = gTestItems[i];
+
+    // optional url filter for only showing unexpected results
+    if (parseInt(gParams.only_show_unexpected) && !item.unexpected)
+      continue;
+
+    // XXX regardless skip expected pass items until we have filtering UI
+    if (item.pass && !item.unexpected)
+      continue;
+
+    var tr = document.createElement("tr");
+    var rowclass = item.pass ? "pass" : "fail";
+    var td;
+    var text;
+
+    td = document.createElement("td");
+    text = "";
+    if (item.unexpected) { text += "!"; rowclass += " unexpected"; }
+    if (item.random) { text += "R"; rowclass += " random"; }
+    if (item.skip) { text += "S"; rowclass += " skip"; }
+    td.appendChild(document.createTextNode(text));
+    tr.appendChild(td);
+
+    td = document.createElement("td");
+    td.id = "item" + i;
+    td.className = "url";
+    // Only display part of URL after "/mozilla/".
+    var match = item.url.match(/\/mozilla\/(.*)/);
+    text = document.createTextNode(match ? match[1] : item.url);
+    if (item.images.length > 0) {
+      var a = document.createElement("a");
+      a.href = "javascript:show_images(" + i + ")";
+      a.appendChild(text);
+      td.appendChild(a);
+    } else {
+      td.appendChild(text);
+    }
+    tr.appendChild(td);
+
+    tbody.appendChild(tr);
+  }
+
+  cell.appendChild(table);
+
+  show_phase("viewer");
+}
+
+function get_image_data(src, whenReady) {
+  var img = new Image();
+  img.onload = function() {
+    var canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+
+    whenReady(ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight));
+  };
+  img.src = src;
+}
+
+function sync_svg_size(imageData) {
+  // We need the size of the 'svg' and its 'image' elements to match the size
+  // of the ImageData objects that we're going to read pixels from or else our
+  // magnify() function will be very broken.
+  ID("svg").setAttribute("width", imageData.width);
+  ID("svg").setAttribute("height", imageData.height);
+}
+
+function show_images(i) {
+  var item = gTestItems[i];
+  var cell = ID("images");
+
+  // Remove activeitem class from any existing elements
+  var activeItems = document.querySelectorAll(".activeitem");
+  for (var activeItemIdx = activeItems.length; activeItemIdx-- != 0;) {
+    activeItems[activeItemIdx].classList.remove("activeitem");
+  }
+
+  ID("item" + i).classList.add("activeitem");
+  ID("image1").style.display = "";
+  ID("image2").style.display = "none";
+  ID("diffrect").style.display = "none";
+  ID("imgcontrols").reset();
+  ID("pixel-differences").textContent = "";
+
+  ID("image1").setAttributeNS(XLINK_NS, "xlink:href", item.images[0]);
+  // Making the href be #image1 doesn't seem to work
+  ID("feimage1").setAttributeNS(XLINK_NS, "xlink:href", item.images[0]);
+  if (item.images.length == 1) {
+    ID("imgcontrols").style.display = "none";
+  } else {
+    ID("imgcontrols").style.display = "";
+
+    ID("image2").setAttributeNS(XLINK_NS, "xlink:href", item.images[1]);
+    // Making the href be #image2 doesn't seem to work
+    ID("feimage2").setAttributeNS(XLINK_NS, "xlink:href", item.images[1]);
+
+    ID("label1").textContent = 'Image ' + item.imageLabels[0];
+    ID("label2").textContent = 'Image ' + item.imageLabels[1];
+  }
+
+  cell.style.display = "";
+
+  let loaded = [false, false];
+
+  function images_loaded(id) {
+    loaded[id] = true;
+    if (loaded.every(x => x)) {
+      update_pixel_difference_text()
+    }
+  }
+
+  get_image_data(item.images[0], function(data) { gImage1Data = data; sync_svg_size(gImage1Data); images_loaded(0)});
+  get_image_data(item.images[1], function(data) { gImage2Data = data; images_loaded(1)});
+
+}
+
+function update_pixel_difference_text() {
+  let differenceText;
+  if (gImage1Data.height !== gImage2Data.height ||
+      gImage1Data.width !== gImage2Data.width) {
+    differenceText = "Images are different sizes"
+  } else {
+    let [numPixels, maxPerChannel] = get_pixel_differences();
+    if (!numPixels) {
+      differenceText = "Images are identical";
+    } else {
+      differenceText = `Maximum difference per channel ${maxPerChannel}, ${numPixels} pixels differ`;
+    }
+  }
+  // Disable this for now, because per bug 1633504, the numbers may be
+  // inaccurate and dependent on the browser's configuration.
+  // ID("pixel-differences").textContent = differenceText;
+}
+
+function get_pixel_differences() {
+  let numPixels = 0;
+  let maxPerChannel = 0;
+  for (var i=0; i<gImage1Data.data.length; i+=4) {
+    let r1 = gImage1Data.data[i];
+    let r2 = gImage2Data.data[i];
+    let g1 = gImage1Data.data[i+1];
+    let g2 = gImage2Data.data[i+1];
+    let b1 = gImage1Data.data[i+2];
+    let b2 = gImage2Data.data[i+2];
+    // Ignore alpha.
+    if (r1 == r2 && g1 == g2 && b1 == b2) {
+      continue;
+    }
+    numPixels += 1;
+    let maxDiff = Math.max(Math.abs(r1-r2),
+                           Math.abs(g1-g2),
+                           Math.abs(b1-b2));
+    if (maxDiff > maxPerChannel) {
+      maxPerChannel = maxDiff
+    }
+  }
+  return [numPixels, maxPerChannel];
+}
+
+function show_image(i) {
+  if (i == 1) {
+    ID("image1").style.display = "";
+    ID("image2").style.display = "none";
+  } else {
+    ID("image1").style.display = "none";
+    ID("image2").style.display = "";
+  }
+}
+
+function handle_keyboard_shortcut(event) {
+  switch (event.charCode) {
+  case 49: // "1" key
+    document.getElementById("radio1").checked = true;
+    show_image(1);
+    break;
+  case 50: // "2" key
+    document.getElementById("radio2").checked = true;
+    show_image(2);
+    break;
+  case 100: // "d" key
+    document.getElementById("differences").click();
+    break;
+  case 112: // "p" key
+    shift_images(-1);
+    break;
+  case 110: // "n" key
+    shift_images(1);
+    break;
+  }
+}
+
+function handle_keydown(event) {
+  switch (event.keyCode) {
+  case 37:  // left arrow
+    move_pixel(-1, 0);
+    break;
+  case 38:  // up arrow
+    move_pixel(0,-1);
+    break;
+  case 39:  // right arrow
+    move_pixel(1, 0);
+    break;
+  case 40:  // down arrow
+    move_pixel(0, 1);
+    break;
+  }
+}
+
+function shift_images(dir) {
+  var activeItem = document.querySelector(".activeitem");
+  if (!activeItem) {
+    return;
+  }
+  for (var elm = activeItem; elm; elm = elm.parentElement) {
+    if (elm.tagName != "tr") {
+      continue;
+    }
+    elm = dir > 0 ? elm.nextElementSibling : elm.previousElementSibling;
+    if (elm) {
+      elm.getElementsByTagName("a")[0].click();
+    }
+    return;
+  }
+}
+
+function show_differences(cb) {
+  ID("diffrect").style.display = cb.checked ? "" : "none";
+}
+
+function flash_pixels(on) {
+  var stroke = on ? "red" : "black";
+  var strokeWidth = on ? "2px" : "1px";
+  for (var i = 0; i < gFlashingPixels.length; i++) {
+    gFlashingPixels[i].setAttribute("stroke", stroke);
+    gFlashingPixels[i].setAttribute("stroke-width", strokeWidth);
+  }
+}
+
+function cursor_point(evt) {
+  var m = evt.target.getScreenCTM().inverse();
+  var p = ID("svg").createSVGPoint();
+  p.x = evt.clientX;
+  p.y = evt.clientY;
+  p = p.matrixTransform(m);
+  return { x: Math.floor(p.x), y: Math.floor(p.y) };
+}
+
+function hex2(i) {
+  return (i < 16 ? "0" : "") + i.toString(16);
+}
+
+function canvas_pixel_as_hex(data, x, y) {
+  var offset = (y * data.width + x) * 4;
+  var r = data.data[offset];
+  var g = data.data[offset + 1];
+  var b = data.data[offset + 2];
+  return "#" + hex2(r) + hex2(g) + hex2(b);
+}
+
+function hex_as_rgb(hex) {
+  return "rgb(" + [parseInt(hex.substring(1, 3), 16), parseInt(hex.substring(3, 5), 16), parseInt(hex.substring(5, 7), 16)] + ")";
+}
+
+function magnify(evt) {
+  var { x: x, y: y } = cursor_point(evt);
+  do_magnify(x, y);
+}
+
+function do_magnify(x, y) {
+  var centerPixelColor1, centerPixelColor2;
+
+  var dx_lo = -Math.floor(gMagWidth / 2);
+  var dx_hi = Math.floor(gMagWidth / 2);
+  var dy_lo = -Math.floor(gMagHeight / 2);
+  var dy_hi = Math.floor(gMagHeight / 2);
+
+  flash_pixels(false);
+  gFlashingPixels = [];
+  for (var j = dy_lo; j <= dy_hi; j++) {
+    for (var i = dx_lo; i <= dx_hi; i++) {
+      var px = x + i;
+      var py = y + j;
+      var p1 = gMagPixPaths[i + dx_hi][j + dy_hi][0];
+      var p2 = gMagPixPaths[i + dx_hi][j + dy_hi][1];
+      // Here we just use the dimensions of gImage1Data since we expect test
+      // and reference to have the same dimensions.
+      if (px < 0 || py < 0 || px >= gImage1Data.width || py >= gImage1Data.height) {
+        p1.setAttribute("fill", "#aaa");
+        p2.setAttribute("fill", "#888");
+      } else {
+        var color1 = canvas_pixel_as_hex(gImage1Data, x + i, y + j);
+        var color2 = canvas_pixel_as_hex(gImage2Data, x + i, y + j);
+        p1.setAttribute("fill", color1);
+        p2.setAttribute("fill", color2);
+        if (color1 != color2) {
+          gFlashingPixels.push(p1, p2);
+          p1.parentNode.appendChild(p1);
+          p2.parentNode.appendChild(p2);
+        }
+        if (i == 0 && j == 0) {
+          centerPixelColor1 = color1;
+          centerPixelColor2 = color2;
+        }
+      }
+    }
+  }
+  flash_pixels(true);
+  show_pixelinfo(x, y, centerPixelColor1, hex_as_rgb(centerPixelColor1), centerPixelColor2, hex_as_rgb(centerPixelColor2));
+}
+
+function show_pixelinfo(x, y, pix1rgb, pix1hex, pix2rgb, pix2hex) {
+  var pixelinfo = ID("pixelinfo");
+  ID("coords").textContent = [x, y];
+  ID("pix1hex").textContent = pix1hex;
+  ID("pix1rgb").textContent = pix1rgb;
+  ID("pix2hex").textContent = pix2hex;
+  ID("pix2rgb").textContent = pix2rgb;
+}
+
+function move_pixel(deltax, deltay) {
+  coords = ID("coords").textContent.split(',');
+  x = parseInt(coords[0]);
+  y = parseInt(coords[1]);
+  if (isNaN(x) || isNaN(y)) {
+    return;
+  }
+  x = x + deltax;
+  y = y + deltay;
+  if (x >= 0 && y >= 0 && x < gImage1Data.width && y < gImage1Data.height) {
+    do_magnify(x, y);
+  }
+}
+
+  ]]></script>
+
+</head>
+<body onload="load()">
+
+<div id="entry">
+
+<h1>Reftest analyzer: load reftest log</h1>
+
+<p>Either paste your log into this textarea:<br />
+<textarea cols="80" rows="10" id="logentry"/><br/>
+<input type="button" value="Process pasted log" onclick="log_pasted()" /></p>
+
+<p>... or load it from a file:<br/>
+<input type="file" id="fileentry" onchange="fileentry_changed()" />
+</p>
+</div>
+
+<div id="loading" style="display:none">Loading log...</div>
+
+<div id="viewer" style="display:none">
+  <div id="pixelarea">
+    <div id="pixelinfo">
+      <table>
+        <tbody>
+          <tr><th>Pixel at:</th><td colspan="2" id="coords"/></tr>
+          <tr><th>Image 1:</th><td id="pix1rgb"></td><td id="pix1hex"></td></tr>
+          <tr><th>Image 2:</th><td id="pix2rgb"></td><td id="pix2hex"></td></tr>
+        </tbody>
+      </table>
+      <div>
+        <div id="pixelhint">★
+          <div>
+            <p>Move the mouse over the reftest image on the right to show
+            magnified pixels on the left.  The color information above is for
+            the pixel centered in the magnified view.</p>
+            <p>Image 1 is shown in the upper triangle of each pixel and Image 2
+            is shown in the lower triangle.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="magnification">
+      <svg xmlns="http://www.w3.org/2000/svg" width="84" height="84" shape-rendering="optimizeSpeed">
+        <g id="mag"/>
+      </svg>
+    </div>
+  </div>
+  <div id="itemlist"></div>
+  <div id="images" style="display:none">
+    <form id="imgcontrols">
+    <input id="radio1" type="radio" name="which" value="0" onchange="show_image(1)" checked="checked" /><label id="label1" title="1" for="radio1">Image 1</label>
+    <input id="radio2" type="radio" name="which" value="1" onchange="show_image(2)"                   /><label id="label2" title="2" for="radio2">Image 2</label>
+    <label><input id="differences" type="checkbox" onchange="show_differences(this)" />Circle differences</label>
+    </form>
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="800" height="1000" id="svg">
+      <defs>
+        <!-- use sRGB to avoid loss of data -->
+        <filter id="showDifferences" x="0%" y="0%" width="100%" height="100%"
+                style="color-interpolation-filters: sRGB">
+          <feImage id="feimage1" result="img1" xlink:href="#image1" />
+          <feImage id="feimage2" result="img2" xlink:href="#image2" />
+          <!-- inv1 and inv2 are the images with RGB inverted -->
+          <feComponentTransfer result="inv1" in="img1">
+            <feFuncR type="linear" slope="-1" intercept="1" />
+            <feFuncG type="linear" slope="-1" intercept="1" />
+            <feFuncB type="linear" slope="-1" intercept="1" />
+          </feComponentTransfer>
+          <feComponentTransfer result="inv2" in="img2">
+            <feFuncR type="linear" slope="-1" intercept="1" />
+            <feFuncG type="linear" slope="-1" intercept="1" />
+            <feFuncB type="linear" slope="-1" intercept="1" />
+          </feComponentTransfer>
+          <!-- w1 will have non-white pixels anywhere that img2
+               is brighter than img1, and w2 for the reverse.
+               It would be nice not to have to go through these
+               intermediate states, but feComposite
+               type="arithmetic" can't transform the RGB channels
+               and leave the alpha channel untouched. -->
+          <feComposite result="w1" in="img1" in2="inv2" operator="arithmetic" k2="1" k3="1" />
+          <feComposite result="w2" in="img2" in2="inv1" operator="arithmetic" k2="1" k3="1" />
+          <!-- c1 will have non-black pixels anywhere that img2
+               is brighter than img1, and c2 for the reverse -->
+          <feComponentTransfer result="c1" in="w1">
+            <feFuncR type="linear" slope="-1" intercept="1" />
+            <feFuncG type="linear" slope="-1" intercept="1" />
+            <feFuncB type="linear" slope="-1" intercept="1" />
+          </feComponentTransfer>
+          <feComponentTransfer result="c2" in="w2">
+            <feFuncR type="linear" slope="-1" intercept="1" />
+            <feFuncG type="linear" slope="-1" intercept="1" />
+            <feFuncB type="linear" slope="-1" intercept="1" />
+          </feComponentTransfer>
+          <!-- c will be nonblack (and fully on) for every pixel+component where there are differences -->
+          <feComposite result="c" in="c1" in2="c2" operator="arithmetic" k2="255" k3="255" />
+          <!-- a will be opaque for every pixel with differences and transparent for all others -->
+          <feColorMatrix result="a" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 1 1 0 0" />
+
+          <!-- a, dilated by 1 pixel -->
+          <feMorphology result="dila1" in="a" operator="dilate" radius="1" />
+          <!-- a, dilated by 2 pixels -->
+          <feMorphology result="dila2" in="dila1" operator="dilate" radius="1" />
+
+          <!-- all the pixels in the 2-pixel dilation of a but not in the 1-pixel dilation, to highlight the diffs -->
+          <feComposite result="highlight" in="dila2" in2="dila1" operator="out" />
+
+          <feFlood result="red" flood-color="red" />
+          <feComposite result="redhighlight" in="red" in2="highlight" operator="in" />
+          <feFlood result="black" flood-color="black" flood-opacity="0.5" />
+          <feMerge>
+            <feMergeNode in="black" />
+            <feMergeNode in="redhighlight" />
+          </feMerge>
+        </filter>
+      </defs>
+      <g onmousemove="magnify(evt)">
+        <image x="0" y="0" width="100%" height="100%" id="image1" />
+        <image x="0" y="0" width="100%" height="100%" id="image2" />
+      </g>
+      <rect id="diffrect" filter="url(#showDifferences)" pointer-events="none" x="0" y="0" width="100%" height="100%" />
+    </svg>
+    <div id="pixel-differences"></div>
+  </div>
+</div>
+
+</body>
+</html>

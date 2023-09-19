@@ -1,0 +1,65 @@
+{
+  "name": "@npmcli/agent",
+  "version": "2.1.1",
+  "description": "the http/https agent used by the npm cli",
+  "main": "lib/index.js",
+  "scripts": {
+    "gencerts": "bash scripts/create-cert.sh",
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/agent/issues"
+  },
+  "homepage": "https://github.com/npm/agent#readme",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^16.14.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.18.0",
+    "publish": "true",
+    "ciVersions": [
+      "16.14.0",
+      "16.x",
+      "18.0.0",
+      "18.x"
+    ],
+    "npmSpec": "next-9"
+  },
+  "dependencies": {
+    "http-proxy-agent": "^7.0.0",
+    "https-proxy-agent": "^7.0.1",
+    "lru-cache": "^10.0.1",
+    "socks-proxy-agent": "^8.0.1"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.18.0",
+    "minipass-fetch": "^3.0.3",
+    "nock": "^13.2.7",
+    "simple-socks": "^2.2.2",
+    "tap": "^16.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/agent.git"
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

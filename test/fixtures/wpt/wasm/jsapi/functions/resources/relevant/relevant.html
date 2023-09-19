@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Relevant page used as a test helper</title>
+
+<script>
+// incumbent.html will end up posting a message to here. We need to signal back the "source".
+
+window.onmessage = e => {
+  const testId = e.data;
+  const sourceURL = e.source.document.URL;
+
+  window.dispatchEvent(new CustomEvent("messagereceived", { detail: [testId, sourceURL] }));
+};
+</script>

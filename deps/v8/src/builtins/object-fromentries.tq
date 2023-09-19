@@ -1,0 +1,80 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace object {
+
+transitioning macro ObjectFromEntriesFastCase(implicit context: Context)(
+    iterable: JSAny): JSObject labels IfSlow {
+  typeswitch (iterable) {
+    case (array: FastJSArrayWithNoCustomIteration): {
+      const elements: FixedArray =
+          Cast<FixedArray>(array.elements) otherwise IfSlow;
+      const length: Smi = array.length;
+      const result: JSObject = NewJSObject();
+
+      for (let k: Smi = 0; k < length; ++k) {
+        const value: JSAny = array::LoadElementOrUndefined(elements, k);
+        const pair: KeyValuePair =
+            collections::LoadKeyValuePairNoSideEffects(value)
+            otherwise IfSlow;
+        // CreateDataProperty only handles Names and Numbers. Bail out if
+        // the key is not one of those types. Note that JSReceivers should
+        // always bail to the slow path, as calling Symbol.toPrimitive,
+        // toString, or valueOf could invalidate assumptions about the
+        // iterable.
+        typeswitch (pair.key) {
+          case (Name): {
+            CreateDataProperty(result, pair.key, pair.value);
+          }
+          case (Number): {
+            CreateDataProperty(result, pair.key, pair.value);
+          }
+          case (oddball: Oddball): {
+            CreateDataProperty(result, oddball.to_string, pair.value);
+          }
+          case (JSAny): {
+            goto IfSlow;
+          }
+        }
+      }
+      return result;
+    }
+    case (JSAny): {
+      goto IfSlow;
+    }
+  }
+}
+
+transitioning javascript builtin
+ObjectFromEntries(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  const iterable: JSAny = arguments[0];
+  try {
+    if (IsNullOrUndefined(iterable)) goto Throw;
+    return ObjectFromEntriesFastCase(iterable) otherwise IfSlow;
+  } label IfSlow {
+    const result: JSObject = NewJSObject();
+    const fastIteratorResultMap: Map = GetIteratorResultMap();
+    let i: iterator::IteratorRecord = iterator::GetIterator(iterable);
+    try {
+      dcheck(!IsNullOrUndefined(i.object));
+      while (true) {
+        const step: JSReceiver =
+            iterator::IteratorStep(i, fastIteratorResultMap)
+            otherwise return result;
+        const iteratorValue: JSAny =
+            iterator::IteratorValue(step, fastIteratorResultMap);
+        const pair: KeyValuePair = collections::LoadKeyValuePair(iteratorValue);
+        CreateDataProperty(result, pair.key, pair.value);
+      }
+      return result;
+    } catch (e, message) deferred {
+      iterator::IteratorCloseOnException(i);
+      ReThrowWithMessage(context, e, message);
+    }
+  } label Throw deferred {
+    ThrowTypeError(MessageTemplate::kNotIterable);
+  }
+}
+}  // namespace object

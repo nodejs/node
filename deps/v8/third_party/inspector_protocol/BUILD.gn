@@ -1,0 +1,90 @@
+# Copyright 2019 the V8 project Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+config("crdtp_config") {
+  visibility = [
+    ":*",
+    "../../src/inspector:*",
+  ]
+  configs = [ "../../:internal_config" ]
+  include_dirs = [ "../../include" ]
+}
+
+v8_source_set("crdtp") {
+  sources = [
+    "crdtp/cbor.cc",
+    "crdtp/cbor.h",
+    "crdtp/dispatch.cc",
+    "crdtp/dispatch.h",
+    "crdtp/error_support.cc",
+    "crdtp/error_support.h",
+    "crdtp/export.h",
+    "crdtp/find_by_first.h",
+    "crdtp/json.cc",
+    "crdtp/json.h",
+    "crdtp/maybe.h",
+    "crdtp/parser_handler.h",
+    "crdtp/protocol_core.cc",
+    "crdtp/protocol_core.h",
+    "crdtp/serializable.cc",
+    "crdtp/serializable.h",
+    "crdtp/span.cc",
+    "crdtp/span.h",
+    "crdtp/status.cc",
+    "crdtp/status.h",
+  ]
+  configs = [ ":crdtp_config" ]
+  deps = [ ":crdtp_platform" ]
+}
+
+# A small adapter library which only :crdtp may depend on.
+v8_source_set("crdtp_platform") {
+  visibility = [ ":crdtp" ]
+  sources = [
+    "crdtp/json_platform.h",
+    "crdtp/json_platform_v8.cc",
+  ]
+  public_deps = [ "../..:v8_libbase" ]
+  deps = [ "../../:v8_internal_headers" ]
+  configs = [ ":crdtp_config" ]
+}
+
+# These tests are linked into test/unittests.
+v8_source_set("crdtp_test") {
+  sources = [
+    "crdtp/cbor_test.cc",
+    "crdtp/dispatch_test.cc",
+    "crdtp/error_support_test.cc",
+    "crdtp/find_by_first_test.cc",
+    "crdtp/glue_test.cc",
+    "crdtp/json_test.cc",
+    "crdtp/serializable_test.cc",
+    "crdtp/span_test.cc",
+    "crdtp/status_test.cc",
+    "crdtp/status_test_support.cc",
+    "crdtp/status_test_support.h",
+  ]
+  configs = [ ":crdtp_config" ]
+  deps = [ ":crdtp_test_platform" ]
+  testonly = true
+}
+
+# A small adapter library which only :crdtp_test may depend on.
+v8_source_set("crdtp_test_platform") {
+  sources = [
+    "crdtp/test_platform.h",
+    "crdtp/test_platform_v8.cc",
+  ]
+  configs = [ ":crdtp_config" ]
+  public_deps = [
+    ":crdtp",
+    "../..:v8_libbase",
+    "../../src/inspector:inspector_string_conversions",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+  testonly = true
+}

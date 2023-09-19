@@ -1,0 +1,182 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace iterator {
+
+macro NewJSValidIteratorWrapper(implicit context: Context)(
+    underlying: IteratorRecord): JSValidIteratorWrapper {
+  return new JSValidIteratorWrapper{
+    map: *NativeContextSlot(ContextSlot::VALID_ITERATOR_WRAPPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    underlying: underlying
+  };
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-getiteratorflattenable
+//
+// Currently never used with the async hint, so only the sync path is
+// implemented.
+transitioning macro GetIteratorFlattenable(implicit context: Context)(
+    obj: JSReceiver): IteratorRecord {
+  try {
+    // 1. If obj is not an Object, throw a TypeError exception.
+    // (Done by caller.)
+
+    // 2. Let alreadyAsync be false.
+    //
+    // (Unimplemented because the async path is unused.)
+
+    // 3. Let method be undefined.
+    //
+    // (Done below.)
+
+    // 4. If hint is async, then
+    //   a. Set method to ? Get(obj, @@asyncIterator).
+    //   b. Set alreadyAsync to true.
+    //
+    // (Unimplemented because unused.)
+
+    // 5. If IsCallable(method) is false, then
+    //   a. Set method to ? Get(obj, @@iterator).
+    const method = GetProperty(obj, IteratorSymbolConstant());
+
+    // b. Set alreadyAsync to false.
+    //
+    // (Unimplemented because unused.)
+
+    let iterator: JSAny;
+
+    // 6. If IsCallable(method) is false, then
+    if (!Is<Callable>(method)) {
+      // a. Let iterator be obj.
+      iterator = obj;
+
+      // b. Set alreadyAsync to true.
+      //
+      // (Unimplemented because unused.)
+    } else {
+      // 7. Else,
+      // a. Let iterator be ? Call(method, obj).
+      iterator = Call(context, UnsafeCast<Callable>(method), obj);
+    }
+
+    // 8. If iterator is not an Object, throw a TypeError exception.
+    const iteratorObj = Cast<JSReceiver>(iterator)
+        otherwise goto IteratorNotObject(obj, method);
+
+    // 9. Let nextMethod be ? Get(iterator, "next").
+    const nextMethod = GetProperty(iteratorObj, kNextString);
+
+    // 10. If IsCallable(nextMethod) is false, throw a TypeError exception.
+    if (!Is<Callable>(nextMethod)) {
+      ThrowTypeError(
+          MessageTemplate::kPropertyNotFunction, nextMethod, kNextString, obj);
+    }
+
+    // 11. Let iteratorRecord be the Iterator Record { [[Iterator]]: iterator,
+    //     [[NextMethod]]: nextMethod, [[Done]]: false }.
+    const iteratorRecord =
+    IteratorRecord{object: iteratorObj, next: nextMethod};
+
+    // 12. If hint is async and alreadyAsync is false, then
+    //   a. Return CreateAsyncFromSyncIterator(iteratorRecord).
+    //
+    // (Unimplemented because unused.)
+
+    // 13. Return iteratorRecord.
+    return iteratorRecord;
+  } label IteratorNotObject(obj: JSAny, method: JSAny) deferred {
+    if (Is<Callable>(method)) {
+      ThrowTypeError(MessageTemplate::kSymbolIteratorInvalid);
+    } else {
+      ThrowTypeError(MessageTemplate::kNotIterable, obj);
+    }
+  }
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iterator.from
+transitioning javascript builtin IteratorFrom(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(objArg: JSAny): JSReceiver {
+  // 1. If O is a String, set O to ! ToObject(O).
+  let obj: JSReceiver;
+  typeswitch (objArg) {
+    case (o: String): {
+      obj = ToObject_Inline(context, o);
+    }
+    case (o: JSReceiver): {
+      obj = o;
+    }
+    case (JSAny): {
+      ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'Iterator.from');
+    }
+  }
+
+  // 2. Let iteratorRecord be ? GetIteratorFlattenable(O, sync).
+  const iteratorRecord = GetIteratorFlattenable(obj);
+
+  // 3. Let hasInstance be ? OrdinaryHasInstance(%Iterator%,
+  //    iteratorRecord.[[Iterator]]).
+  const hasInstance = function::OrdinaryHasInstance(
+      context, GetIteratorFunction(), iteratorRecord.object);
+
+  // 4. If hasInstance is true, then
+  if (hasInstance == True) {
+    // a. Return iteratorRecord.[[Iterator]].
+    return iteratorRecord.object;
+  }
+
+  // 5. Let wrapper be OrdinaryObjectCreate(%WrapForValidIteratorPrototype%, «
+  //    [[Iterated]] »).
+  // 6. Set wrapper.[[Iterated]] to iteratorRecord.
+  // 7. Return wrapper.
+  return NewJSValidIteratorWrapper(iteratorRecord);
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype.next
+transitioning javascript builtin WrapForValidIteratorPrototypeNext(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  // 1. Let O be this value.
+  // 2. Perform ? RequireInternalSlot(O, [[Iterated]]).
+  const o = Cast<JSValidIteratorWrapper>(receiver) otherwise ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver,
+      '%WrapForValidIteratorPrototype%.next', receiver);
+
+  // 3. Let iteratorRecord be O.[[Iterated]].
+  const iteratorRecord = o.underlying;
+
+  // 4. Return ? Call(iteratorRecord.[[NextMethod]],
+  //    iteratorRecord.[[Iterator]]).
+  return Call(context, iteratorRecord.next, iteratorRecord.object);
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype.return
+transitioning javascript builtin WrapForValidIteratorPrototypeReturn(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  try {
+    // 1. Let O be this value.
+    // 2. Perform ? RequireInternalSlot(O, [[Iterated]]).
+    const o = Cast<JSValidIteratorWrapper>(receiver) otherwise ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver,
+        '%WrapForValidIteratorPrototype%.return', receiver);
+
+    // 3. Let iterator be O.[[Iterated]].[[Iterator]].
+    const iterator = o.underlying.object;
+
+    // 4. Assert: iterator is an Object.
+    // 5. Let returnMethod be ? GetMethod(iterator, "return").
+    const returnMethod =
+        GetMethod(iterator, kReturnString) otherwise ReturnMethodUndefined;
+
+    // 7. Return ? Call(returnMethod, iterator).
+    return Call(context, returnMethod, iterator);
+  } label ReturnMethodUndefined {
+    // 6. If returnMethod is undefined, then
+    // a. Return CreateIterResultObject(undefined, true).
+    return AllocateJSIteratorResult(Undefined, True);
+  }
+}
+
+}  // namespace iterator
