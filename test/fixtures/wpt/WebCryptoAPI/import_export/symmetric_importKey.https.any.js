@@ -49,7 +49,7 @@
                         data = jwkData(keyData, algorithm);
                     }
                     // Generate all combinations of valid usages for testing
-                    allValidUsages(vector.legalUsages, []).forEach(function(usages) {
+                    allValidUsages(vector.legalUsages).forEach(function(usages) {
                         testFormat(format, algorithm, data, keyData.length * 8, usages, extractable);
                     });
                     testEmptyUsages(format, algorithm, data, keyData.length * 8, extractable);
@@ -171,46 +171,6 @@
         var base64String = btoa(binaryString);
 
         return base64String.replace(/=/g, "");
-    }
-
-    // Want to test every valid combination of usages. Start by creating a list
-    // of all non-empty subsets to possible usages.
-    function allNonemptySubsetsOf(arr) {
-        var results = [];
-        var firstElement;
-        var remainingElements;
-
-        for(var i=0; i<arr.length; i++) {
-            firstElement = arr[i];
-            remainingElements = arr.slice(i+1);
-            results.push([firstElement]);
-
-            if (remainingElements.length > 0) {
-                allNonemptySubsetsOf(remainingElements).forEach(function(combination) {
-                    combination.push(firstElement);
-                    results.push(combination);
-                });
-            }
-        }
-
-        return results;
-    }
-
-    // Return a list of all valid usage combinations, given the possible ones
-    // and the ones that are required for a particular operation.
-    function allValidUsages(possibleUsages, requiredUsages) {
-        var allUsages = [];
-
-        allNonemptySubsetsOf(possibleUsages).forEach(function(usage) {
-            for (var i=0; i<requiredUsages.length; i++) {
-                if (!usage.includes(requiredUsages[i])) {
-                    return;
-                }
-            }
-            allUsages.push(usage);
-        });
-
-        return allUsages;
     }
 
     // Convert method parameters to a string to uniquely name each test
