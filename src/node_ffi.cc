@@ -25,6 +25,18 @@ using v8::SharedArrayBuffer;
 namespace node {
 namespace ffi {
 
+binding::DLib * FfiBindingData::GetLibrary(std::string fname) {
+  if (libraries_[fname] != nullptr) {
+    return libraries_[fname];
+  } else {
+    binding::DLib* lib =
+      new binding::DLib(fname.c_str(), binding::DLib::kDefaultFlags);
+    if (!lib->Open()) return nullptr;
+    libraries_[fname] = lib;
+    return lib;
+  }
+}
+
 void ReturnPointer(const FunctionCallbackInfo<Value>& args, void* ptr) {
   args.GetReturnValue().Set(BigInt::NewFromUnsigned(
       args.GetIsolate(), reinterpret_cast<uint64_t>(ptr)));
@@ -40,17 +52,8 @@ void GetLibrary(const FunctionCallbackInfo<Value>& args) {
     fname = *node::Utf8Value(env->isolate(), args[0]);
   }
 
-  std::map<std::string, binding::DLib*> libraries =
-      Realm::GetBindingData<FfiBindingData>(args)->libraries;
-  binding::DLib* lib = nullptr;
-  if (libraries[fname] != nullptr) {
-    lib = libraries[fname];
-  } else {
-    lib = new binding::DLib(fname.c_str(), binding::DLib::kDefaultFlags);
-    if (!lib->Open()) return;
-    libraries[fname] = lib;
-  }
-  ReturnPointer(args, lib);
+  ReturnPointer(args,
+      Realm::GetBindingData<FfiBindingData>(args)->GetLibrary(fname));
 }
 
 void GetSymbol(const FunctionCallbackInfo<Value>& args) {

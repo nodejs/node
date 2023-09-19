@@ -42,14 +42,18 @@ class FfiBindingData : public BaseObject {
  public:
   FfiBindingData(Realm* realm, Local<Object> wrap) : BaseObject(realm, wrap) {}
 
+  binding::DLib * GetLibrary(std::string fname);
+
   SET_BINDING_ID(ffi_binding_data)
 
   void* call_buffer;
-  std::map<std::string, binding::DLib*> libraries;
 
   SET_SELF_SIZE(FfiBindingData)
   SET_MEMORY_INFO_NAME(FfiBindingData)
   SET_NO_MEMORY_INFO()
+
+ private:
+  std::map<std::string, binding::DLib*> libraries_;
 };
 
 void MakeCall(const v8::FunctionCallbackInfo<Value>& args);
