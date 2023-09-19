@@ -1,4 +1,4 @@
-/* auto-generated on 2023-09-05 16:55:45 -0400. Do not edit! */
+/* auto-generated on 2023-09-19 16:48:25 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -1055,9 +1055,10 @@ inline constexpr bool is_normalized_windows_drive_letter(
   return input.size() >= 2 && (is_alpha(input[0]) && (input[1] == ':'));
 }
 
-ada_really_inline constexpr bool begins_with(std::string_view view,
-                                             std::string_view prefix) {
+ada_really_inline bool begins_with(std::string_view view,
+                                   std::string_view prefix) {
   // in C++20, you have view.begins_with(prefix)
+  // std::equal is constexpr in C++20
   return view.size() >= prefix.size() &&
          std::equal(prefix.begin(), prefix.end(), view.begin());
 }
@@ -5020,10 +5021,10 @@ inline constexpr bool is_normalized_windows_drive_letter(
     std::string_view input) noexcept;
 
 /**
- * @warning Will be removed when Ada supports C++20.
+ * @warning Will be removed when Ada requires C++20.
  */
-ada_really_inline constexpr bool begins_with(std::string_view view,
-                                             std::string_view prefix);
+ada_really_inline bool begins_with(std::string_view view,
+                                   std::string_view prefix);
 
 /**
  * Returns true if an input is an ipv4 address.
@@ -6557,7 +6558,9 @@ inline bool url_aggregator::has_hostname() const noexcept {
 
 inline bool url_aggregator::has_port() const noexcept {
   ada_log("url_aggregator::has_port");
-  return components.pathname_start != components.host_end;
+  // A URL cannot have a username/password/port if its host is null or the empty
+  // string, or its scheme is "file".
+  return has_hostname() && components.pathname_start != components.host_end;
 }
 
 inline bool url_aggregator::has_dash_dot() const noexcept {
@@ -6926,14 +6929,14 @@ inline void url_search_params::sort() {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.6.7"
+#define ADA_VERSION "2.6.8"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
   ADA_VERSION_MINOR = 6,
-  ADA_VERSION_REVISION = 7,
+  ADA_VERSION_REVISION = 8,
 };
 
 }  // namespace ada
