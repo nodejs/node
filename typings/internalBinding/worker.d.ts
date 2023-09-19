@@ -1,3 +1,5 @@
+import { InternalMessagingBinding } from './messaging';
+
 declare namespace InternalWorkerBinding {
   class Worker {
     constructor(
@@ -18,7 +20,7 @@ declare namespace InternalWorkerBinding {
   }
 }
 
-declare function InternalBinding(binding: 'worker'): {
+export interface WorkerBinding {
   Worker: typeof InternalWorkerBinding.Worker;
   getEnvMessagePort(): InternalMessagingBinding.MessagePort;
   threadId: number;
@@ -30,4 +32,4 @@ declare function InternalBinding(binding: 'worker'): {
   kCodeRangeSizeMb: number;
   kStackSizeMb: number;
   kTotalResourceLimitCount: number;
-};
+}
