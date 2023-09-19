@@ -3,7 +3,6 @@
 const common = require('../common');
 const http = require('http');
 const assert = require('assert');
-const ClientRequest = require('http').ClientRequest;
 
 {
   const server = http.createServer(common.mustCall((req, res) => {
@@ -11,7 +10,7 @@ const ClientRequest = require('http').ClientRequest;
     res.end('hello world');
   })).listen(80, '127.0.0.1');
 
-  const req = new ClientRequest(common.mustCall((response) => {
+  const req = new http.ClientRequest(common.mustCall((response) => {
     let body = '';
     response.setEncoding('utf8');
     response.on('data', (chunk) => {
