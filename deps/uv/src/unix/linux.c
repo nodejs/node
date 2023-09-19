@@ -431,8 +431,9 @@ static int uv__use_io_uring(void) {
   use = atomic_load_explicit(&use_io_uring, memory_order_relaxed);
 
   if (use == 0) {
+    /* Disable io_uring by default due to CVE-2024-22017. */
     val = getenv("UV_USE_IO_URING");
-    use = val == NULL || atoi(val) ? 1 : -1;
+    use = val != NULL && atoi(val) ? 1 : -1;
     atomic_store_explicit(&use_io_uring, use, memory_order_relaxed);
   }
 
