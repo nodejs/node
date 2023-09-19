@@ -20,7 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+require('../../common');
 
-// eslint-disable-next-line no-throw-literal
-throw undefined;
+setTimeout(function() {
+  // eslint-disable-next-line no-undef,no-unused-expressions
+  undefined_reference_error_maker;
+}, 1);
