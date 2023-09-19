@@ -10,7 +10,7 @@ changes:
     description: Use of this API no longer emit a runtime warning.
 -->
 
-> Stability: 1 - Experimental.
+> Stability: 2 - Stable
 
 An implementation of the [WHATWG Streams Standard][].
 
