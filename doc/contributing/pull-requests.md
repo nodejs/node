@@ -34,9 +34,11 @@
 ## Dependencies
 
 Node.js has several bundled dependencies in the _deps/_ and the _tools/_
-directories that are not part of the project proper. Changes to files in those
-directories should be sent to their respective projects. Do not send a patch to
-Node.js. We cannot accept such patches.
+directories that are not part of the project proper.
+These are detailed in the [maintaining dependencies][] document.
+Changes to files in those directories should be sent
+to their respective projects.
+Do not send a patch to Node.js. We cannot accept such patches.
 
 In case of doubt, open an issue in the
 [issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
@@ -590,6 +592,7 @@ More than one subsystem may be valid for any particular issue or pull request.
 [guide for writing tests in Node.js]: writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
+[maintaining dependencies]: ./maintaining/maintaining-dependencies.md
 [nodejs/core-validate-commit]: https://github.com/nodejs/core-validate-commit/blob/main/lib/rules/subsystem.js
 [pull request template]: https://raw.githubusercontent.com/nodejs/node/HEAD/.github/PULL_REQUEST_TEMPLATE.md
 [running tests]: ../../BUILDING.md#running-tests
