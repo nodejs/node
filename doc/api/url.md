@@ -129,7 +129,7 @@ return `true`.
 
 #### `new URL(input[, base])`
 
-<!--
+<!-- YAML
 changes:
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/47339
