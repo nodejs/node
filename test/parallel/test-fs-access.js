@@ -63,10 +63,10 @@ if (!common.isWindows && process.getuid() === 0) {
   }
 }
 
-assert.strictEqual(typeof fs.F_OK, 'number');
-assert.strictEqual(typeof fs.R_OK, 'number');
-assert.strictEqual(typeof fs.W_OK, 'number');
-assert.strictEqual(typeof fs.X_OK, 'number');
+assert.strictEqual(typeof fs.constants.F_OK, 'number');
+assert.strictEqual(typeof fs.constants.R_OK, 'number');
+assert.strictEqual(typeof fs.constants.W_OK, 'number');
+assert.strictEqual(typeof fs.constants.X_OK, 'number');
 
 const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 
@@ -76,16 +76,16 @@ fs.access(__filename, common.mustCall(function(...args) {
 fs.promises.access(__filename)
   .then(common.mustCall())
   .catch(throwNextTick);
-fs.access(__filename, fs.R_OK, common.mustCall(function(...args) {
+fs.access(__filename, fs.constants.R_OK, common.mustCall(function(...args) {
   assert.deepStrictEqual(args, [null]);
 }));
-fs.promises.access(__filename, fs.R_OK)
+fs.promises.access(__filename, fs.constants.R_OK)
   .then(common.mustCall())
   .catch(throwNextTick);
-fs.access(readOnlyFile, fs.R_OK, common.mustCall(function(...args) {
+fs.access(readOnlyFile, fs.constants.R_OK, common.mustCall(function(...args) {
   assert.deepStrictEqual(args, [null]);
 }));
-fs.promises.access(readOnlyFile, fs.R_OK)
+fs.promises.access(readOnlyFile, fs.constants.R_OK)
   .then(common.mustCall())
   .catch(throwNextTick);
 
@@ -111,8 +111,8 @@ fs.promises.access(readOnlyFile, fs.R_OK)
       assert.strictEqual(err.path, readOnlyFile);
     }
   }
-  fs.access(readOnlyFile, fs.W_OK, common.mustCall(expectedError));
-  fs.promises.access(readOnlyFile, fs.W_OK)
+  fs.access(readOnlyFile, fs.constants.W_OK, common.mustCall(expectedError));
+  fs.promises.access(readOnlyFile, fs.constants.W_OK)
     .then(common.mustNotCall(), common.mustCall(expectedError))
     .catch(throwNextTick);
 }
@@ -124,18 +124,18 @@ fs.promises.access(readOnlyFile, fs.R_OK)
     return true;
   };
   assert.throws(
-    () => { fs.access(100, fs.F_OK, common.mustNotCall()); },
+    () => { fs.access(100, fs.constants.F_OK, common.mustNotCall()); },
     expectedError
   );
 
-  fs.promises.access(100, fs.F_OK)
+  fs.promises.access(100, fs.constants.F_OK)
     .then(common.mustNotCall(), common.mustCall(expectedError))
     .catch(throwNextTick);
 }
 
 assert.throws(
   () => {
-    fs.access(__filename, fs.F_OK);
+    fs.access(__filename, fs.constants.F_OK);
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -144,7 +144,7 @@ assert.throws(
 
 assert.throws(
   () => {
-    fs.access(__filename, fs.F_OK, common.mustNotMutateObjectDeep({}));
+    fs.access(__filename, fs.constants.F_OK, common.mustNotMutateObjectDeep({}));
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -153,14 +153,14 @@ assert.throws(
 
 // Regular access should not throw.
 fs.accessSync(__filename);
-const mode = fs.R_OK | fs.W_OK;
+const mode = fs.constants.R_OK | fs.constants.W_OK;
 fs.accessSync(readWriteFile, mode);
 
 // Invalid modes should throw.
 [
   false,
   1n,
-  { [Symbol.toPrimitive]() { return fs.R_OK; } },
+  { [Symbol.toPrimitive]() { return fs.constants.R_OK; } },
   [1],
   'r',
 ].forEach((mode, i) => {
