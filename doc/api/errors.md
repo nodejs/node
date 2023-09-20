@@ -773,19 +773,17 @@ STDERR/STDOUT, and the data's length is longer than the `maxBuffer` option.
 
 ### `ERR_CLOSED_MESSAGE_PORT`
 
-<!--
-added:
-  - v16.2.0
-  - v14.17.1
+<!-- YAML
+added: v10.5.0
 changes:
-  - version: 11.12.0
-    pr-url: https://github.com/nodejs/node/pull/26487
-    description: The error message was removed.
   - version:
       - v16.2.0
       - v14.17.1
     pr-url: https://github.com/nodejs/node/pull/38510
     description: The error message was reintroduced.
+  - version: v11.12.0
+    pr-url: https://github.com/nodejs/node/pull/26487
+    description: The error message was removed.
 -->
 
 There was an attempt to use a `MessagePort` instance in a closed
@@ -802,7 +800,7 @@ non-writable `stdout` or `stderr` stream.
 
 ### `ERR_CONSTRUCT_CALL_INVALID`
 
-<!--
+<!-- YAML
 added: v12.5.0
 -->
 
@@ -1275,7 +1273,7 @@ to the current platform which is running Node.js is used.
 
 ### `ERR_FS_CP_DIR_TO_NON_DIR`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1286,7 +1284,7 @@ etc.) using [`fs.cp()`][].
 
 ### `ERR_FS_CP_EEXIST`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1297,7 +1295,7 @@ An attempt was made to copy over a file that already existed with
 
 ### `ERR_FS_CP_EINVAL`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1318,7 +1316,7 @@ Response body size doesn't match with the specified content-length header value.
 
 ### `ERR_FS_CP_FIFO_PIPE`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1328,7 +1326,7 @@ An attempt was made to copy a named pipe with [`fs.cp()`][].
 
 ### `ERR_FS_CP_NON_DIR_TO_DIR`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1339,7 +1337,7 @@ using [`fs.cp()`][].
 
 ### `ERR_FS_CP_SOCKET`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1349,7 +1347,7 @@ An attempt was made to copy to a socket with [`fs.cp()`][].
 
 ### `ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1360,7 +1358,7 @@ of `src`.
 
 ### `ERR_FS_CP_UNKNOWN`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1716,7 +1714,7 @@ made to mark a stream and dependent of itself.
 
 ### `ERR_HTTP2_TOO_MANY_INVALID_FRAMES`
 
-<!--
+<!-- YAML
 added: v15.14.0
 -->
 
@@ -3177,7 +3175,7 @@ attempting a [`require()`][] operation or when loading the program entry point.
 
 ### `ERR_CANNOT_TRANSFER_OBJECT`
 
-<!--
+<!-- YAML
 added: v10.5.0
 removed: v12.5.0
 -->
