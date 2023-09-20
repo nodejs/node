@@ -1,9 +1,6 @@
 'use strict';
 const common = require('../common.js');
-const {
-  Blob,
-  resolveObjectURL,
-} = require('node:buffer');
+const { Blob, resolveObjectURL } = require('node:buffer');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
