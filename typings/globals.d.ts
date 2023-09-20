@@ -52,9 +52,9 @@ type InternalBindingKeys = keyof InternalBindingMap;
 declare function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
 
 declare global {
-    namespace NodeJS {
-        interface Global {
-            internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
-        }
+  namespace NodeJS {
+    interface Global {
+      internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
     }
+  }
 }
