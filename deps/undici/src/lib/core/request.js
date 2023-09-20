@@ -320,10 +320,12 @@ class Request {
 
   static [kHTTP2CopyHeaders] (raw) {
     const rawHeaders = raw.split('\r\n')
-
     const headers = {}
+
     for (const header of rawHeaders) {
       const [key, value] = header.split(': ')
+
+      if (value == null || value.length === 0) continue
 
       if (headers[key]) headers[key] += `,${value}`
       else headers[key] = value

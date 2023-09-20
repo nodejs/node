@@ -34,6 +34,7 @@ class Pool extends PoolBase {
     socketPath,
     autoSelectFamily,
     autoSelectFamilyAttemptTimeout,
+    allowH2,
     ...options
   } = {}) {
     super()
@@ -54,6 +55,7 @@ class Pool extends PoolBase {
       connect = buildConnector({
         ...tls,
         maxCachedSessions,
+        allowH2,
         socketPath,
         timeout: connectTimeout == null ? 10e3 : connectTimeout,
         ...(util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
@@ -66,7 +68,7 @@ class Pool extends PoolBase {
       : []
     this[kConnections] = connections || null
     this[kUrl] = util.parseOrigin(origin)
-    this[kOptions] = { ...util.deepClone(options), connect }
+    this[kOptions] = { ...util.deepClone(options), connect, allowH2 }
     this[kOptions].interceptors = options.interceptors
       ? { ...options.interceptors }
       : undefined

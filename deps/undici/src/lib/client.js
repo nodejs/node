@@ -6,7 +6,6 @@
 
 const assert = require('assert')
 const net = require('net')
-const http2 = require('http2')
 const { pipeline } = require('stream')
 const util = require('./core/util')
 const timers = require('./timers')
@@ -79,6 +78,16 @@ const {
   kHTTP2CopyHeaders,
   kHTTP1BuildRequest
 } = require('./core/symbols')
+
+/** @type {import('http2')} */
+let http2
+try {
+  http2 = require('http2')
+} catch {
+  // @ts-ignore
+  http2 = { constants: {} }
+}
+
 const {
   constants: {
     HTTP2_HEADER_AUTHORITY,
@@ -1687,6 +1696,7 @@ function writeH2 (client, session, request) {
     // we are already connected, streams are pending, first request
     // will create a new stream. We trigger a request to create the stream and wait until
     // `ready` event is triggered
+    // We disabled endStream to allow the user to write to the stream
     stream = session.request(headers, { endStream: false, signal })
 
     if (stream.id && !stream.pending) {
@@ -1761,17 +1771,21 @@ function writeH2 (client, session, request) {
 
   session.ref()
 
+  const shouldEndStream = method === 'GET' || method === 'HEAD'
   if (expectContinue) {
     headers[HTTP2_HEADER_EXPECT] = '100-continue'
     /**
      * @type {import('node:http2').ClientHttp2Stream}
      */
-    stream = session.request(headers, { endStream: false, signal })
+    stream = session.request(headers, { endStream: shouldEndStream, signal })
 
     stream.once('continue', writeBodyH2)
   } else {
     /** @type {import('node:http2').ClientHttp2Stream} */
-    stream = session.request(headers, { endStream: false, signal })
+    stream = session.request(headers, {
+      endStream: shouldEndStream,
+      signal
+    })
     writeBodyH2()
   }
 
