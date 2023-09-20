@@ -52,7 +52,7 @@ function check(async, sync) {
 }
 
 check(fs.access, fs.accessSync, 'foo\u0000bar');
-check(fs.access, fs.accessSync, 'foo\u0000bar', fs.F_OK);
+check(fs.access, fs.accessSync, 'foo\u0000bar', fs.constants.F_OK);
 check(fs.appendFile, fs.appendFileSync, 'foo\u0000bar', 'abc');
 check(fs.chmod, fs.chmodSync, 'foo\u0000bar', '0644');
 check(fs.chown, fs.chownSync, 'foo\u0000bar', 12, 34);
@@ -87,7 +87,7 @@ const fileUrl = new URL('file:///C:/foo\u0000bar');
 const fileUrl2 = new URL('file:///C:/foo%00bar');
 
 check(fs.access, fs.accessSync, fileUrl);
-check(fs.access, fs.accessSync, fileUrl, fs.F_OK);
+check(fs.access, fs.accessSync, fileUrl, fs.constants.F_OK);
 check(fs.appendFile, fs.appendFileSync, fileUrl, 'abc');
 check(fs.chmod, fs.chmodSync, fileUrl, '0644');
 check(fs.chown, fs.chownSync, fileUrl, 12, 34);
@@ -119,7 +119,7 @@ check(null, fs.watchFile, fileUrl, assert.fail);
 check(fs.writeFile, fs.writeFileSync, fileUrl, 'abc');
 
 check(fs.access, fs.accessSync, fileUrl2);
-check(fs.access, fs.accessSync, fileUrl2, fs.F_OK);
+check(fs.access, fs.accessSync, fileUrl2, fs.constants.F_OK);
 check(fs.appendFile, fs.appendFileSync, fileUrl2, 'abc');
 check(fs.chmod, fs.chmodSync, fileUrl2, '0644');
 check(fs.chown, fs.chownSync, fileUrl2, 12, 34);
