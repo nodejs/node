@@ -20,7 +20,7 @@ def radix_hash(capacity, key):
 class ShardProc(base.TestProcFilter):
   @staticmethod
   def create(options):
-    myid, count = options.shard_info()
+    myid, count = options.shard_info
     if count == 1:
       return None
     return ShardProc(myid, count)

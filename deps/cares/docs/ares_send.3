@@ -18,13 +18,14 @@
 ares_send \- Initiate a DNS query
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B typedef void (*ares_callback)(void *\fIarg\fP, int \fIstatus\fP,
-.B	int \fItimeouts\fP, unsigned char *\fIabuf\fP, int \fIalen\fP)
-.PP
-.B void ares_send(ares_channel \fIchannel\fP, const unsigned char *\fIqbuf\fP,
-.B 	int \fIqlen\fP, ares_callback \fIcallback\fP, void *\fIarg\fP)
+#include <ares.h>
+
+typedef void (*ares_callback)(void *\fIarg\fP, int \fIstatus\fP,
+                              int \fItimeouts\fP, unsigned char *\fIabuf\fP,
+                              int \fIalen\fP)
+
+void ares_send(ares_channel \fIchannel\fP, const unsigned char *\fIqbuf\fP,
+               int \fIqlen\fP, ares_callback \fIcallback\fP, void *\fIarg\fP)
 .fi
 .SH DESCRIPTION
 The

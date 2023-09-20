@@ -5,12 +5,19 @@ const { mustNotCall } = require('../common');
 const assert = require('assert');
 
 const {
+  RegExpPrototypeExec,
   RegExpPrototypeSymbolReplace,
   RegExpPrototypeSymbolSearch,
   RegExpPrototypeSymbolSplit,
   SafeStringPrototypeSearch,
   hardenRegExp,
 } = require('internal/test/binding').primordials;
+
+const {
+  SideEffectFreeRegExpPrototypeExec,
+  SideEffectFreeRegExpPrototypeSymbolReplace,
+  SideEffectFreeRegExpPrototypeSymbolSplit,
+} = require('internal/util');
 
 
 Object.defineProperties(RegExp.prototype, {
@@ -89,13 +96,45 @@ hardenRegExp(hardenRegExp(/1/));
 // IMO there are no valid use cases in node core to use RegExpPrototypeSymbolMatch
 // or RegExpPrototypeSymbolMatchAll, they are inherently unsafe.
 
+assert.strictEqual(RegExpPrototypeExec(/foo/, 'bar'), null);
+assert.strictEqual(RegExpPrototypeExec(hardenRegExp(/foo/), 'bar'), null);
+assert.strictEqual(SideEffectFreeRegExpPrototypeExec(/foo/, 'bar'), null);
+assert.strictEqual(SideEffectFreeRegExpPrototypeExec(hardenRegExp(/foo/), 'bar'), null);
+{
+  const expected = ['bar'];
+  Object.defineProperties(expected, {
+    index: { __proto__: null, configurable: true, writable: true, enumerable: true, value: 0 },
+    input: { __proto__: null, configurable: true, writable: true, enumerable: true, value: 'bar' },
+    groups: { __proto__: null, configurable: true, writable: true, enumerable: true },
+  });
+  const actual = SideEffectFreeRegExpPrototypeExec(/bar/, 'bar');
+
+  // assert.deepStrictEqual(actual, expected) doesn't work for cross-realm comparison.
+
+  assert.strictEqual(Array.isArray(actual), Array.isArray(expected));
+  assert.deepStrictEqual(Reflect.ownKeys(actual), Reflect.ownKeys(expected));
+  for (const key of Reflect.ownKeys(expected)) {
+    assert.deepStrictEqual(
+      Reflect.getOwnPropertyDescriptor(actual, key),
+      Reflect.getOwnPropertyDescriptor(expected, key),
+    );
+  }
+}
 {
   const myRegex = hardenRegExp(/a/);
   assert.strictEqual(RegExpPrototypeSymbolReplace(myRegex, 'baar', 'e'), 'bear');
 }
 {
+  const myRegex = /a/;
+  assert.strictEqual(SideEffectFreeRegExpPrototypeSymbolReplace(myRegex, 'baar', 'e'), 'bear');
+}
+{
   const myRegex = hardenRegExp(/a/g);
   assert.strictEqual(RegExpPrototypeSymbolReplace(myRegex, 'baar', 'e'), 'beer');
+}
+{
+  const myRegex = /a/g;
+  assert.strictEqual(SideEffectFreeRegExpPrototypeSymbolReplace(myRegex, 'baar', 'e'), 'beer');
 }
 {
   const myRegex = hardenRegExp(/a/);
@@ -108,6 +147,22 @@ hardenRegExp(hardenRegExp(/1/));
 {
   const myRegex = hardenRegExp(/a/);
   assert.deepStrictEqual(RegExpPrototypeSymbolSplit(myRegex, 'baar', 0), []);
+}
+{
+  const myRegex = /a/;
+  const expected = [];
+  const actual = SideEffectFreeRegExpPrototypeSymbolSplit(myRegex, 'baar', 0);
+
+  // assert.deepStrictEqual(actual, expected) doesn't work for cross-realm comparison.
+
+  assert.strictEqual(Array.isArray(actual), Array.isArray(expected));
+  assert.deepStrictEqual(Reflect.ownKeys(actual), Reflect.ownKeys(expected));
+  for (const key of Reflect.ownKeys(expected)) {
+    assert.deepStrictEqual(
+      Reflect.getOwnPropertyDescriptor(actual, key),
+      Reflect.getOwnPropertyDescriptor(expected, key),
+    );
+  }
 }
 {
   const myRegex = hardenRegExp(/a/);

@@ -39,7 +39,7 @@ module.exports = {
         docs: {
             description: "Require calls to `isNaN()` when checking for `NaN`",
             recommended: true,
-            url: "https://eslint.org/docs/rules/use-isnan"
+            url: "https://eslint.org/docs/latest/rules/use-isnan"
         },
 
         schema: [

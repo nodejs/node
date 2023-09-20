@@ -186,7 +186,6 @@ class InterpreterData
 class SharedFunctionInfo
     : public TorqueGeneratedSharedFunctionInfo<SharedFunctionInfo, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS()
   DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS2()
 
@@ -205,12 +204,11 @@ class SharedFunctionInfo
   inline void SetName(String name);
 
   // Get the code object which represents the execution of this function.
-  V8_EXPORT_PRIVATE CodeT GetCode() const;
+  V8_EXPORT_PRIVATE Code GetCode(Isolate* isolate) const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  template <typename IsolateT>
-  inline AbstractCode abstract_code(IsolateT* isolate);
+  inline AbstractCode abstract_code(Isolate* isolate);
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
@@ -332,12 +330,12 @@ class SharedFunctionInfo
   inline BytecodeArray GetBytecodeArray(IsolateT* isolate) const;
 
   inline void set_bytecode_array(BytecodeArray bytecode);
-  DECL_GETTER(InterpreterTrampoline, CodeT)
+  DECL_GETTER(InterpreterTrampoline, Code)
   DECL_GETTER(HasInterpreterData, bool)
   DECL_GETTER(interpreter_data, InterpreterData)
   inline void set_interpreter_data(InterpreterData interpreter_data);
   DECL_GETTER(HasBaselineCode, bool)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, CodeT)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Code)
   inline void FlushBaselineCode();
   inline BytecodeArray GetActiveBytecodeArray() const;
   inline void SetActiveBytecodeArray(BytecodeArray bytecode);
@@ -361,6 +359,7 @@ class SharedFunctionInfo
 
   inline const wasm::WasmModule* wasm_module() const;
   inline const wasm::FunctionSig* wasm_function_signature() const;
+  inline int wasm_function_index() const;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // builtin corresponds to the auto-generated Builtin enum.
@@ -401,7 +400,8 @@ class SharedFunctionInfo
 
   // The function's name if it is non-empty, otherwise the inferred name.
   std::unique_ptr<char[]> DebugNameCStr() const;
-  static Handle<String> DebugName(Handle<SharedFunctionInfo>);
+  static Handle<String> DebugName(Isolate* isolate,
+                                  Handle<SharedFunctionInfo> shared);
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
@@ -522,7 +522,7 @@ class SharedFunctionInfo
 
   // Disable (further) attempted optimization of all functions sharing this
   // shared function info.
-  void DisableOptimization(BailoutReason reason);
+  void DisableOptimization(Isolate* isolate, BailoutReason reason);
 
   // This class constructor needs to call out to an instance fields
   // initializer. This flag is set when creating the
@@ -532,8 +532,10 @@ class SharedFunctionInfo
 
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
-  static Handle<Object> GetSourceCode(Handle<SharedFunctionInfo> shared);
-  static Handle<Object> GetSourceCodeHarmony(Handle<SharedFunctionInfo> shared);
+  static Handle<Object> GetSourceCode(Isolate* isolate,
+                                      Handle<SharedFunctionInfo> shared);
+  static Handle<Object> GetSourceCodeHarmony(Isolate* isolate,
+                                             Handle<SharedFunctionInfo> shared);
 
   // Tells whether this function should be subject to debugging, e.g. for
   // - scope inspection
@@ -666,7 +668,7 @@ class SharedFunctionInfo
   static const uint16_t kFunctionTokenOutOfRange = static_cast<uint16_t>(-1);
   static_assert(kMaximumFunctionTokenOffset + 1 == kFunctionTokenOutOfRange);
 
-  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kSize);
+  static_assert(kSize % kTaggedSize == 0);
 
   class BodyDescriptor;
 
@@ -689,8 +691,6 @@ class SharedFunctionInfo
                                      Isolate* isolate);
 
  private:
-  friend class WebSnapshotDeserializer;
-
 #ifdef VERIFY_HEAP
   void SharedFunctionInfoVerify(ReadOnlyRoots roots);
 #endif

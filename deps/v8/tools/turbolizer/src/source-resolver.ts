@@ -72,7 +72,7 @@ export class SourceResolver {
         const inliningId = inlining.inliningPosition.inliningId;
         const inl = new InliningPosition(inlining.sourceId,
           new SourcePosition(scriptOffset, inliningId));
-        this.inlinings[inliningIdStr] = inl;
+        this.inlinings[Number(inliningIdStr)] = inl;
         this.inliningsMap.set(inl.inliningPosition.toString(), inl);
       }
     }
@@ -106,8 +106,14 @@ export class SourceResolver {
       }
 
       const numSourceId = Number(sourceId);
-      this.bytecodeSources.set(numSourceId, new BytecodeSource(source.sourceId, source.functionName,
-        data, bytecodeSource.constantPool));
+      const inliningIds = [];
+      for (let index = -1; index < this.inlinings.length; index += 1) {
+        const inlining = this.inlinings[index];
+        if (inlining.sourceId == source.sourceId) inliningIds.push(index);
+      }
+      this.bytecodeSources.set(numSourceId,
+                               new BytecodeSource(source.sourceId, inliningIds, source.functionName,
+                                                  data, bytecodeSource.constantPool));
     }
   }
 

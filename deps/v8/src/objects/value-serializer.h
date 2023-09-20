@@ -98,8 +98,6 @@ class ValueSerializer {
   void SetTreatArrayBufferViewsAsHostObjects(bool mode);
 
  private:
-  friend class WebSnapshotSerializer;
-
   // Managing allocations of the internal buffer.
   Maybe<bool> ExpandBuffer(size_t required_capacity);
 
@@ -157,6 +155,8 @@ class ValueSerializer {
   Maybe<uint32_t> WriteJSObjectPropertiesSlow(
       Handle<JSObject> object, Handle<FixedArray> keys) V8_WARN_UNUSED_RESULT;
 
+  Maybe<bool> IsHostObject(Handle<JSObject> object);
+
   /*
    * Asks the delegate to handle an error that occurred during data cloning, by
    * throwing an exception appropriate for the host.
@@ -174,6 +174,7 @@ class ValueSerializer {
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
+  bool has_custom_host_objects_ = false;
   bool treat_array_buffer_views_as_host_objects_ = false;
   bool out_of_memory_ = false;
   Zone zone_;
@@ -249,8 +250,6 @@ class ValueDeserializer {
   bool ReadByte(uint8_t* value) V8_WARN_UNUSED_RESULT;
 
  private:
-  friend class WebSnapshotDeserializer;
-
   // Reading the wire format.
   Maybe<SerializationTag> PeekTag() const V8_WARN_UNUSED_RESULT;
   void ConsumeTag(SerializationTag peeked_tag);
@@ -297,15 +296,15 @@ class ValueDeserializer {
   MaybeHandle<JSRegExp> ReadJSRegExp() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSMap> ReadJSMap() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSSet> ReadJSSet() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer(bool is_shared)
-      V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer(
+      bool is_shared, bool is_resizable) V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer()
       V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
-  bool ValidateAndSetJSArrayBufferViewFlags(
-      JSArrayBufferView view, JSArrayBuffer buffer,
-      uint32_t serialized_flags) V8_WARN_UNUSED_RESULT;
+  bool ValidateJSArrayBufferViewFlags(
+      JSArrayBuffer buffer, uint32_t serialized_flags, bool& is_length_tracking,
+      bool& is_backed_by_rab) V8_WARN_UNUSED_RESULT;
   MaybeHandle<Object> ReadJSError() V8_WARN_UNUSED_RESULT;
 #if V8_ENABLE_WEBASSEMBLY
   MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;

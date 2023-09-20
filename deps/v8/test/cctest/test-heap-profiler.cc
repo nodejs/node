@@ -1260,8 +1260,8 @@ static TestStatsStream GetHeapStatsUpdate(
 TEST(HeapSnapshotObjectsStats) {
   // Concurrent allocation and conservative stack scanning might break results.
   i::v8_flags.stress_concurrent_allocation = false;
-  i::ScanStackModeScopeForTesting no_stack_scanning(
-      CcTest::heap(), i::Heap::ScanStackMode::kNone);
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1609,8 +1609,6 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
         graph->AddNode(std::unique_ptr<Group>(new Group("ccc-group")));
   }
 
-  START_ALLOW_USE_DEPRECATED()
-
   static void BuildEmbedderGraph(v8::Isolate* isolate, v8::EmbedderGraph* graph,
                                  void* data) {
     EmbedderGraphBuilder builder(isolate, graph);
@@ -1618,8 +1616,6 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
         ->global_handles()
         ->IterateAllRootsForTesting(&builder);
   }
-
-  END_ALLOW_USE_DEPRECATED()
 
   void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
                              uint16_t class_id) override {
@@ -2641,11 +2637,11 @@ TEST(AllocationSitesAreVisible) {
   const v8::HeapGraphNode* vector = GetProperty(
       env->GetIsolate(), feedback_cell, v8::HeapGraphEdge::kInternal, "value");
   CHECK_EQ(v8::HeapGraphNode::kCode, vector->GetType());
-  CHECK_EQ(4, vector->GetChildrenCount());
+  CHECK_EQ(5, vector->GetChildrenCount());
 
   // The last value in the feedback vector should be the boilerplate,
   // found in AllocationSite.transition_info.
-  const v8::HeapGraphEdge* prop = vector->GetChild(3);
+  const v8::HeapGraphEdge* prop = vector->GetChild(4);
   const v8::HeapGraphNode* allocation_site = prop->GetToNode();
   v8::String::Utf8Value name(env->GetIsolate(), allocation_site->GetName());
   CHECK_EQ(0, strcmp("system / AllocationSite", *name));
@@ -2737,11 +2733,7 @@ TEST(CheckCodeNames) {
   const char* builtin_path1[] = {
       "::(GC roots)",
       "::(Builtins)",
-#ifdef V8_EXTERNAL_CODE_SPACE
       "::(KeyedLoadIC_PolymorphicName builtin handle)",
-#else
-      "::(KeyedLoadIC_PolymorphicName builtin)",
-#endif
   };
   const v8::HeapGraphNode* node = GetNodeByPath(
       env->GetIsolate(), snapshot, builtin_path1, arraysize(builtin_path1));
@@ -2750,21 +2742,13 @@ TEST(CheckCodeNames) {
   const char* builtin_path2[] = {
       "::(GC roots)",
       "::(Builtins)",
-#ifdef V8_EXTERNAL_CODE_SPACE
       "::(CompileLazy builtin handle)",
-#else
-      "::(CompileLazy builtin)",
-#endif
   };
   node = GetNodeByPath(env->GetIsolate(), snapshot, builtin_path2,
                        arraysize(builtin_path2));
   CHECK(node);
   v8::String::Utf8Value node_name(env->GetIsolate(), node->GetName());
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    CHECK_EQ(0, strcmp("(CompileLazy builtin handle)", *node_name));
-  } else {
-    CHECK_EQ(0, strcmp("(CompileLazy builtin)", *node_name));
-  }
+  CHECK_EQ(0, strcmp("(CompileLazy builtin handle)", *node_name));
 }
 
 
@@ -2972,7 +2956,7 @@ TEST(TrackBumpPointerAllocations) {
     // Now check that not all allocations are tracked if we manually reenable
     // inline allocations.
     CHECK(i::v8_flags.single_generation ||
-          !CcTest::heap()->new_space()->IsInlineAllocationEnabled());
+          !CcTest::heap()->IsInlineAllocationEnabled());
     CcTest::heap()->EnableInlineAllocation();
 
     CompileRun(inline_heap_allocation_source);
@@ -4098,10 +4082,11 @@ TEST(WeakReference) {
                                        i_isolate);
   i::Handle<i::ClosureFeedbackCellArray> feedback_cell_array =
       i::ClosureFeedbackCellArray::New(i_isolate, shared_function);
-  i::Handle<i::FeedbackVector> fv =
-      factory->NewFeedbackVector(shared_function, feedback_cell_array);
+  i::Handle<i::FeedbackVector> fv = factory->NewFeedbackVector(
+      shared_function, feedback_cell_array,
+      handle(i::JSFunction::cast(*obj).raw_feedback_cell(), i_isolate));
 
-  // Create a Code.
+  // Create a Code object.
   i::Assembler assm(i::AssemblerOptions{});
   assm.nop();  // supported on all architectures
   i::CodeDesc desc;
@@ -4113,8 +4098,7 @@ TEST(WeakReference) {
 
   // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
   // to the FOR_TESTING code kind).
-  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(ToCodeT(*code)),
-                               v8::kReleaseStore);
+  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code));
   fv->set_flags(
       i::FeedbackVector::MaybeHasTurbofanCodeBit::encode(true) |
       i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));

@@ -3,14 +3,13 @@ const npmFetch = require('npm-registry-fetch')
 const pacote = require('pacote')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
-const readPackageJsonFast = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-command.js')
-const { resolve } = require('path')
 
-const readJson = async (pkg) => {
+const readJson = async (path) => {
   try {
-    const json = await readPackageJsonFast(pkg)
-    return json
+    const { content } = await pkgJson.normalize(path)
+    return content
   } catch {
     return {}
   }
@@ -32,9 +31,10 @@ class Owner extends BaseCommand {
     'ls <package-spec>',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
-  async completion (opts) {
+  static async completion (opts, npm) {
     const argv = opts.conf.argv.remain
     if (argv.length > 3) {
       return []
@@ -50,17 +50,17 @@ class Owner extends BaseCommand {
 
     // reaches registry in order to autocomplete rm
     if (argv[2] === 'rm') {
-      if (this.npm.global) {
+      if (npm.global) {
         return []
       }
-      const { name } = await readJson(resolve(this.npm.prefix, 'package.json'))
+      const { name } = await readJson(npm.prefix)
       if (!name) {
         return []
       }
 
       const spec = npa(name)
       const data = await pacote.packument(spec, {
-        ...this.npm.flatOptions,
+        ...npm.flatOptions,
         fullMetadata: true,
       })
       if (data && data.maintainers && data.maintainers.length) {
@@ -82,8 +82,8 @@ class Owner extends BaseCommand {
     }
   }
 
-  async execWorkspaces ([action, ...args], filters) {
-    await this.setWorkspaces(filters)
+  async execWorkspaces ([action, ...args]) {
+    await this.setWorkspaces()
     // ls pkg or owner add/rm package
     if ((action === 'ls' && args.length > 0) || args.length > 1) {
       const implicitWorkspaces = this.npm.config.get('workspace', 'default')
@@ -119,7 +119,7 @@ class Owner extends BaseCommand {
         this.npm.output(maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
       }
     } catch (err) {
-      log.error('owner ls', "Couldn't get owner data", pkg)
+      log.error('owner ls', "Couldn't get owner data", npmFetch.cleanUrl(pkg))
       throw err
     }
   }
@@ -129,7 +129,7 @@ class Owner extends BaseCommand {
       if (this.npm.global) {
         throw this.usageError()
       }
-      const { name } = await readJson(resolve(prefix, 'package.json'))
+      const { name } = await readJson(prefix)
       if (!name) {
         throw this.usageError()
       }

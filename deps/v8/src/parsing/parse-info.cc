@@ -92,8 +92,7 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelCompile(
   flags.SetFlagsForToplevelCompile(is_user_javascript, language_mode, repl_mode,
                                    type, lazy);
 
-  LOG(isolate, ScriptEvent(V8FileLogger::ScriptEventType::kReserveId,
-                           flags.script_id()));
+  LOG(isolate, ScriptEvent(ScriptEventType::kReserveId, flags.script_id()));
   return flags;
 }
 
@@ -209,7 +208,9 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
 #if V8_ENABLE_WEBASSEMBLY
       contains_asm_module_(false),
 #endif  // V8_ENABLE_WEBASSEMBLY
-      language_mode_(flags.outer_language_mode()) {
+      language_mode_(flags.outer_language_mode()),
+      is_background_compilation_(false),
+      is_streaming_compilation_(false) {
   if (flags.block_coverage_enabled()) {
     AllocateSourceRangeMap();
   }
@@ -241,8 +242,16 @@ Handle<Script> ParseInfo::CreateScript(
   // Create a script object describing the script to be compiled.
   DCHECK(flags().script_id() >= 0 ||
          flags().script_id() == Script::kTemporaryScriptId);
+  auto event = ScriptEventType::kCreate;
+  if (is_streaming_compilation()) {
+    event = is_background_compilation()
+                ? ScriptEventType::kStreamingCompileBackground
+                : ScriptEventType::kStreamingCompileForeground;
+  } else if (is_background_compilation()) {
+    event = ScriptEventType::kBackgroundCompile;
+  }
   Handle<Script> script =
-      isolate->factory()->NewScriptWithId(source, flags().script_id());
+      isolate->factory()->NewScriptWithId(source, flags().script_id(), event);
   DisallowGarbageCollection no_gc;
   auto raw_script = *script;
   switch (natives) {

@@ -30,6 +30,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // accessibly from the root list.
   RootIndex root_list_index;
   DCHECK(!isolate_->roots_table().IsRootHandle(object, &root_list_index));
+  DCHECK_IMPLIES(object->IsMap(), !HeapObject::cast(*object).InReadOnlySpace());
 
   // Not yet finalized.
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
@@ -43,7 +44,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
 
   // All code objects should be loaded through the root register or use
   // pc-relative addressing.
-  DCHECK(!object->IsCode());
+  DCHECK(!object->IsInstructionStream());
 #endif
 
   auto find_result = map_.FindOrInsert(object);
@@ -73,7 +74,7 @@ void CheckPreconditionsForPatching(Isolate* isolate,
 }  // namespace
 
 void BuiltinsConstantsTableBuilder::PatchSelfReference(
-    Handle<Object> self_reference, Handle<Code> code_object) {
+    Handle<Object> self_reference, Handle<InstructionStream> code_object) {
   CheckPreconditionsForPatching(isolate_, code_object);
   DCHECK(self_reference->IsOddball());
   DCHECK(Oddball::cast(*self_reference).kind() ==
@@ -81,7 +82,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
 
   uint32_t key;
   if (map_.Delete(self_reference, &key)) {
-    DCHECK(code_object->IsCode());
+    DCHECK(code_object->IsInstructionStream());
     map_.Insert(code_object, key);
   }
 }

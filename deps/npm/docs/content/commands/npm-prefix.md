@@ -49,10 +49,11 @@ folder instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
+
+
 ### See Also
 
 * [npm root](/commands/npm-root)
-* [npm bin](/commands/npm-bin)
 * [npm folders](/configuring-npm/folders)
 * [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)

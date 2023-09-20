@@ -7,6 +7,7 @@
 #include "src/base/small-vector.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
 
@@ -138,6 +139,86 @@ void BranchElimination::SimplifyBranchCondition(Node* branch) {
   NodeProperties::ReplaceValueInput(branch, new_phi, 0);
 }
 
+bool BranchElimination::TryEliminateBranchWithPhiCondition(Node* branch,
+                                                           Node* phi,
+                                                           Node* merge) {
+  // If the condition of the branch comes from two constant values,
+  // then try to merge the branches successors into its predecessors,
+  // and eliminate the (branch, phi, merge) nodes.
+  //
+  //  pred0   pred1
+  //     \    /
+  //      merge             0   1
+  //       |  \___________  |  /
+  //       |              \ | /              pred0     pred1
+  //       |               phi                 |         |
+  //       |   _____________/        =>        |         |
+  //       |  /                                |         |
+  //      branch                             succ0     succ1
+  //      /    \
+  //   false   true
+  //     |      |
+  //   succ0  succ1
+  //
+
+  DCHECK_EQ(branch->opcode(), IrOpcode::kBranch);
+  DCHECK_EQ(phi->opcode(), IrOpcode::kPhi);
+  DCHECK_EQ(merge->opcode(), IrOpcode::kMerge);
+  DCHECK_EQ(NodeProperties::GetControlInput(branch, 0), merge);
+  if (!phi->OwnedBy(branch)) return false;
+  if (phi->InputCount() != 3) return false;
+  if (phi->InputAt(2) != merge) return false;
+  if (merge->UseCount() != 2) return false;
+
+  Node::Inputs phi_inputs = phi->inputs();
+  Node* first_value = phi_inputs[0];
+  Node* second_value = phi_inputs[1];
+  if (first_value->opcode() != IrOpcode::kInt32Constant ||
+      second_value->opcode() != IrOpcode::kInt32Constant) {
+    return false;
+  }
+  Node::Inputs merge_inputs = merge->inputs();
+  Node* predecessor0 = merge_inputs[0];
+  Node* predecessor1 = merge_inputs[1];
+  DCHECK_EQ(branch->op()->ControlOutputCount(), 2);
+  Node** projections = zone()->NewArray<Node*>(2);
+  NodeProperties::CollectControlProjections(branch, projections, 2);
+  Node* branch_true = projections[0];
+  Node* branch_false = projections[1];
+  DCHECK_EQ(branch_true->opcode(), IrOpcode::kIfTrue);
+  DCHECK_EQ(branch_false->opcode(), IrOpcode::kIfFalse);
+
+  // The input values of phi should be true(1) and false(0).
+  Int32Matcher mfirst_value(first_value);
+  Int32Matcher msecond_value(second_value);
+  Node* predecessor_true = nullptr;
+  Node* predecessor_false = nullptr;
+  if (mfirst_value.Is(1) && msecond_value.Is(0)) {
+    predecessor_true = predecessor0;
+    predecessor_false = predecessor1;
+  } else if (mfirst_value.Is(0) && msecond_value.Is(1)) {
+    predecessor_true = predecessor1;
+    predecessor_false = predecessor0;
+  } else {
+    return false;
+  }
+
+  // Merge the branches successors into its predecessors.
+  for (Edge edge : branch_true->use_edges()) {
+    edge.UpdateTo(predecessor_true);
+  }
+  for (Edge edge : branch_false->use_edges()) {
+    edge.UpdateTo(predecessor_false);
+  }
+
+  branch_true->Kill();
+  branch_false->Kill();
+  branch->Kill();
+  phi->Kill();
+  merge->Kill();
+  return true;
+}
+
 Reduction BranchElimination::ReduceBranch(Node* node) {
   Node* condition = node->InputAt(0);
   Node* control_input = NodeProperties::GetControlInput(node, 0);
@@ -162,6 +243,13 @@ Reduction BranchElimination::ReduceBranch(Node* node) {
     return Replace(dead());
   }
   SimplifyBranchCondition(node);
+  // Try to reduce the pattern that branch condition comes from phi node.
+  if (condition->opcode() == IrOpcode::kPhi &&
+      control_input->opcode() == IrOpcode::kMerge) {
+    if (TryEliminateBranchWithPhiCondition(node, condition, control_input)) {
+      return Replace(dead());
+    }
+  }
   // Trigger revisits of the IfTrue/IfFalse projections, since they depend on
   // the branch condition.
   for (Node* const use : node->uses()) {

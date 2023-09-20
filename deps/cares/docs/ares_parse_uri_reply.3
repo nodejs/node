@@ -18,10 +18,10 @@
 ares_parse_uri_reply \- Parse a reply to a DNS query of type URI
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B int ares_parse_uri_reply(const unsigned char* \fIabuf\fP, int \fIalen\fP,
-.B                          struct ares_uri_reply** \fIuri_out\fP);
+#include <ares.h>
+
+int ares_parse_uri_reply(const unsigned char* \fIabuf\fP, int \fIalen\fP,
+                         struct ares_uri_reply** \fIuri_out\fP);
 .fi
 .SH DESCRIPTION
 The

@@ -513,8 +513,10 @@ int ec_pkey_export_to(const EVP_PKEY *from, void *to_keydata,
 
     if (pub_point != NULL) {
         /* convert pub_point to a octet string according to the SECG standard */
+        point_conversion_form_t format = EC_KEY_get_conv_form(eckey);
+
         if ((pub_key_buflen = EC_POINT_point2buf(ecg, pub_point,
-                                                 POINT_CONVERSION_COMPRESSED,
+                                                 format,
                                                  &pub_key_buf, bnctx)) == 0
             || !OSSL_PARAM_BLD_push_octet_string(tmpl,
                                                  OSSL_PKEY_PARAM_PUB_KEY,

@@ -18,10 +18,13 @@
 ares_set_servers, ares_set_servers_ports \- Initialize an ares_channel name servers configuration
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B int ares_set_servers(ares_channel \fIchannel\fP, struct ares_addr_node *\fIservers\fP)
-.B int ares_set_servers_ports(ares_channel \fIchannel\fP, struct ares_addr_port_node *\fIservers\fP)
+#include <ares.h>
+
+int ares_set_servers(ares_channel \fIchannel\fP,
+                     struct ares_addr_node *\fIservers\fP)
+
+int ares_set_servers_ports(ares_channel \fIchannel\fP,
+                           struct ares_addr_port_node *\fIservers\fP)
 .fi
 .SH DESCRIPTION
 The \fBares_set_servers(3)\fP function initializes name servers configuration

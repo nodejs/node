@@ -1,10 +1,9 @@
 const npa = require('npm-package-arg')
-const path = require('path')
 const regFetch = require('npm-registry-fetch')
 const semver = require('semver')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
-const readPackage = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-command.js')
 
 class DistTag extends BaseCommand {
@@ -17,9 +16,10 @@ class DistTag extends BaseCommand {
     'ls [<package-spec>]',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
       return ['add', 'rm', 'ls']
@@ -57,14 +57,14 @@ class DistTag extends BaseCommand {
     }
   }
 
-  async execWorkspaces ([cmdName, pkg, tag], filters) {
+  async execWorkspaces ([cmdName, pkg, tag]) {
     // cmdName is some form of list
     // pkg is one of:
     // - unset
     // - .
     // - .@version
     if (['ls', 'l', 'sl', 'list'].includes(cmdName) && (!pkg || pkg === '.' || /^\.@/.test(pkg))) {
-      return this.listWorkspaces(filters)
+      return this.listWorkspaces()
     }
 
     // pkg is unset
@@ -73,12 +73,12 @@ class DistTag extends BaseCommand {
     // - .
     // - .@version
     if (!pkg && (!cmdName || cmdName === '.' || /^\.@/.test(cmdName))) {
-      return this.listWorkspaces(filters)
+      return this.listWorkspaces()
     }
 
     // anything else is just a regular dist-tag command
     // so we fallback to the non-workspaces implementation
-    log.warn('Ignoring workspaces for specified package')
+    log.warn('dist-tag', 'Ignoring workspaces for specified package')
     return this.exec([cmdName, pkg, tag])
   }
 
@@ -116,7 +116,7 @@ class DistTag extends BaseCommand {
       },
       spec,
     }
-    await otplease(this.npm, reqOpts, reqOpts => regFetch(url, reqOpts))
+    await otplease(this.npm, reqOpts, o => regFetch(url, o))
     this.npm.output(`+${t}: ${spec.name}@${version}`)
   }
 
@@ -142,7 +142,7 @@ class DistTag extends BaseCommand {
       method: 'DELETE',
       spec,
     }
-    await otplease(this.npm, reqOpts, reqOpts => regFetch(url, reqOpts))
+    await otplease(this.npm, reqOpts, o => regFetch(url, o))
     this.npm.output(`-${tag}: ${spec.name}@${version}`)
   }
 
@@ -151,7 +151,7 @@ class DistTag extends BaseCommand {
       if (this.npm.global) {
         throw this.usageError()
       }
-      const { name } = await readPackage(path.resolve(this.npm.prefix, 'package.json'))
+      const { content: { name } } = await pkgJson.normalize(this.npm.prefix)
       if (!name) {
         throw this.usageError()
       }
@@ -172,8 +172,8 @@ class DistTag extends BaseCommand {
     }
   }
 
-  async listWorkspaces (filters) {
-    await this.setWorkspaces(filters)
+  async listWorkspaces () {
+    await this.setWorkspaces()
 
     for (const name of this.workspaceNames) {
       try {

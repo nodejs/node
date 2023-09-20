@@ -388,6 +388,17 @@ REQMASK=MASK:0x800 ./mkcert.sh req badalt7-key "O = Bad NC Test Certificate 7" \
     "email.1 = good@good.org" "email.2 = any@good.com" \
     "IP = 127.0.0.1" "IP = 192.168.0.1"
 
+# Certs for CVE-2022-4203 testcase
+
+NC="excluded;otherName:SRVName;UTF8STRING:foo@example.org" ./mkcert.sh genca \
+    "Test NC CA othername" nccaothername-key nccaothername-cert \
+    root-key root-cert
+
+./mkcert.sh req alt-email-key "O = NC email in othername Test Certificate" | \
+    ./mkcert.sh geneealt bad-othername-key bad-othername-cert \
+    nccaothername-key nccaothername-cert \
+    "otherName.1 = SRVName;UTF8STRING:foo@example.org"
+
 # RSA-PSS signatures
 # SHA1
 ./mkcert.sh genee PSS-SHA1 ee-key ee-pss-sha1-cert ca-key ca-cert \
@@ -429,3 +440,9 @@ OPENSSL_SIGALG=ED448 OPENSSL_KEYALG=ed448 ./mkcert.sh genee ed448 \
 
 # critical id-pkix-ocsp-no-check extension
 ./mkcert.sh geneeextra server.example ee-key ee-cert-ocsp-nocheck ca-key ca-cert "1.3.6.1.5.5.7.48.1.5=critical,DER:05:00"
+
+# certificatePolicies extension
+./mkcert.sh genca -c "1.3.6.1.4.1.16604.998855.1" "CA" ca-key ca-pol-cert root-key root-cert
+./mkcert.sh geneeextra server.example ee-key ee-cert-policies ca-key ca-cert "certificatePolicies=1.3.6.1.4.1.16604.998855.1"
+# We can create a cert with a duplicate policy oid - but its actually invalid!
+./mkcert.sh geneeextra server.example ee-key ee-cert-policies-bad ca-key ca-cert "certificatePolicies=1.3.6.1.4.1.16604.998855.1,1.3.6.1.4.1.16604.998855.1"

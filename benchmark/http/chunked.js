@@ -14,7 +14,7 @@ const bench = common.createBenchmark(main, {
   n: [1, 4, 8, 16],
   len: [1, 64, 256],
   c: [100],
-  duration: 5
+  duration: 5,
 });
 
 function main({ len, n, c, duration }) {

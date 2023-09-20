@@ -30,7 +30,10 @@ void
 get_dirname(char *dirname,
             const char *filename)
 {
-  const char *lastSlash = uprv_strrchr(filename, U_FILE_SEP_CHAR) + 1;
+  const char *lastSlash = uprv_strrchr(filename, U_FILE_SEP_CHAR);
+  if (lastSlash != NULL) {
+    lastSlash++;
+  }
 
   if(lastSlash>filename) {
     uprv_strncpy(dirname, filename, (lastSlash - filename));
@@ -46,7 +49,10 @@ get_basename(char *basename,
              const char *filename)
 {
   /* strip off any leading directory portions */
-  const char *lastSlash = uprv_strrchr(filename, U_FILE_SEP_CHAR) + 1;
+  const char *lastSlash = uprv_strrchr(filename, U_FILE_SEP_CHAR);
+  if (lastSlash != NULL) {
+    lastSlash++;
+  }
   char *lastDot;
 
   if(lastSlash>filename) {

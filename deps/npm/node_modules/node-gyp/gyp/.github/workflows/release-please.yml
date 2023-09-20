@@ -8,9 +8,9 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: GoogleCloudPlatform/release-please-action@v2
+      - uses: google-github-actions/release-please-action@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release-type: python
           package-name: gyp-next
-          bump-minor-pre-major: Yes
+          bump-minor-pre-major: true

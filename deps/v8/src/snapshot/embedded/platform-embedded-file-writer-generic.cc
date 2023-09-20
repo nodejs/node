@@ -94,7 +94,7 @@ void PlatformEmbeddedFileWriterGeneric::AlignToDataAlignment() {
   // instructions are used to retrieve v8_Default_embedded_blob_ and/or
   // v8_Default_embedded_blob_size_. The generated instructions require the
   // load target to be aligned at 8 bytes (2^3).
-  static_assert(8 >= Code::kMetadataAlignment);
+  static_assert(8 >= InstructionStream::kMetadataAlignment);
   fprintf(fp_, ".balign 8\n");
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -1005,6 +1005,13 @@ static int EdDSA_sign_loop(void *args)
     int ret, count;
 
     for (count = 0; COND(eddsa_c[testnum][0]); count++) {
+        ret = EVP_DigestSignInit(edctx[testnum], NULL, NULL, NULL, NULL);
+        if (ret == 0) {
+            BIO_printf(bio_err, "EdDSA sign init failure\n");
+            ERR_print_errors(bio_err);
+            count = -1;
+            break;
+        }
         ret = EVP_DigestSign(edctx[testnum], eddsasig, eddsasigsize, buf, 20);
         if (ret == 0) {
             BIO_printf(bio_err, "EdDSA sign failure\n");
@@ -1026,6 +1033,13 @@ static int EdDSA_verify_loop(void *args)
     int ret, count;
 
     for (count = 0; COND(eddsa_c[testnum][1]); count++) {
+        ret = EVP_DigestVerifyInit(edctx[testnum], NULL, NULL, NULL, NULL);
+        if (ret == 0) {
+            BIO_printf(bio_err, "EdDSA verify init failure\n");
+            ERR_print_errors(bio_err);
+            count = -1;
+            break;
+        }
         ret = EVP_DigestVerify(edctx[testnum], eddsasig, eddsasigsize, buf, 20);
         if (ret != 1) {
             BIO_printf(bio_err, "EdDSA verify failure\n");
@@ -2624,11 +2638,11 @@ skip_hmac:
              * code, for maximum performance.
              */
             if ((test_ctx = EVP_PKEY_CTX_new(key_B, NULL)) == NULL /* test ctx from skeyB */
-                || !EVP_PKEY_derive_init(test_ctx) /* init derivation test_ctx */
-                || !EVP_PKEY_derive_set_peer(test_ctx, key_A) /* set peer pubkey in test_ctx */
-                || !EVP_PKEY_derive(test_ctx, NULL, &test_outlen) /* determine max length */
-                || !EVP_PKEY_derive(ctx, loopargs[i].secret_a, &outlen) /* compute a*B */
-                || !EVP_PKEY_derive(test_ctx, loopargs[i].secret_b, &test_outlen) /* compute b*A */
+                || EVP_PKEY_derive_init(test_ctx) <= 0 /* init derivation test_ctx */
+                || EVP_PKEY_derive_set_peer(test_ctx, key_A) <= 0 /* set peer pubkey in test_ctx */
+                || EVP_PKEY_derive(test_ctx, NULL, &test_outlen) <= 0 /* determine max length */
+                || EVP_PKEY_derive(ctx, loopargs[i].secret_a, &outlen) <= 0 /* compute a*B */
+                || EVP_PKEY_derive(test_ctx, loopargs[i].secret_b, &test_outlen) <= 0 /* compute b*A */
                 || test_outlen != outlen /* compare output length */) {
                 ecdh_checks = 0;
                 BIO_printf(bio_err, "ECDH computation failure.\n");
@@ -3059,10 +3073,10 @@ skip_hmac:
                 ffdh_checks = 0;
                 break;
             }
-            if (!EVP_PKEY_derive_init(test_ctx) ||
-                !EVP_PKEY_derive_set_peer(test_ctx, pkey_A) ||
-                !EVP_PKEY_derive(test_ctx, NULL, &test_out) ||
-                !EVP_PKEY_derive(test_ctx, loopargs[i].secret_ff_b, &test_out) ||
+            if (EVP_PKEY_derive_init(test_ctx) <= 0 ||
+                EVP_PKEY_derive_set_peer(test_ctx, pkey_A) <= 0 ||
+                EVP_PKEY_derive(test_ctx, NULL, &test_out) <= 0 ||
+                EVP_PKEY_derive(test_ctx, loopargs[i].secret_ff_b, &test_out) <= 0 ||
                 test_out != secret_size) {
                 BIO_printf(bio_err, "FFDH computation failure.\n");
                 op_count = 1;
@@ -3133,12 +3147,22 @@ skip_hmac:
     }
 
     for (k = 0; k < ALGOR_NUM; k++) {
+        const char *alg_name = names[k];
+
         if (!doit[k])
             continue;
+
+        if (k == D_EVP) {
+            if (evp_cipher == NULL)
+                alg_name = evp_md_name;
+            else if ((alg_name = EVP_CIPHER_get0_name(evp_cipher)) == NULL)
+                app_bail_out("failed to get name of cipher '%s'\n", evp_cipher);
+        }
+
         if (mr)
-            printf("+F:%u:%s", k, names[k]);
+            printf("+F:%u:%s", k, alg_name);
         else
-            printf("%-13s", names[k]);
+            printf("%-13s", alg_name);
         for (testnum = 0; testnum < size_num; testnum++) {
             if (results[k][testnum] > 10000 && !mr)
                 printf(" %11.2fk", results[k][testnum] / 1e3);
@@ -3456,7 +3480,12 @@ static int do_multi(int multi, int size_num)
         char buf[1024];
         char *p;
 
-        f = fdopen(fds[n], "r");
+        if ((f = fdopen(fds[n], "r")) == NULL) {
+            BIO_printf(bio_err, "fdopen failure with 0x%x\n",
+                       errno);
+            OPENSSL_free(fds);
+            return 1;
+        }
         while (fgets(buf, sizeof(buf), f)) {
             p = strchr(buf, '\n');
             if (p)

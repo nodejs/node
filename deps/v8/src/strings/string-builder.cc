@@ -119,6 +119,16 @@ FixedArrayBuilder::FixedArrayBuilder(Handle<FixedArray> backing_store)
   DCHECK_GT(backing_store->length(), 0);
 }
 
+FixedArrayBuilder::FixedArrayBuilder(Isolate* isolate)
+    : array_(isolate->factory()->empty_fixed_array()),
+      length_(0),
+      has_non_smi_elements_(false) {}
+
+// static
+FixedArrayBuilder FixedArrayBuilder::Lazy(Isolate* isolate) {
+  return FixedArrayBuilder(isolate);
+}
+
 bool FixedArrayBuilder::HasCapacity(int elements) {
   int length = array_->length();
   int required_length = length_ + elements;
@@ -129,6 +139,13 @@ void FixedArrayBuilder::EnsureCapacity(Isolate* isolate, int elements) {
   int length = array_->length();
   int required_length = length_ + elements;
   if (length < required_length) {
+    if (length == 0) {
+      constexpr int kInitialCapacityForLazy = 16;
+      array_ = isolate->factory()->NewFixedArrayWithHoles(
+          std::max(kInitialCapacityForLazy, elements));
+      return;
+    }
+
     int new_length = length;
     do {
       new_length *= 2;
@@ -154,12 +171,6 @@ void FixedArrayBuilder::Add(Smi value) {
 }
 
 int FixedArrayBuilder::capacity() { return array_->length(); }
-
-Handle<JSArray> FixedArrayBuilder::ToJSArray(Handle<JSArray> target_array) {
-  JSArray::SetContent(target_array, array_);
-  target_array->set_length(Smi::FromInt(length_));
-  return target_array;
-}
 
 ReplacementStringBuilder::ReplacementStringBuilder(Heap* heap,
                                                    Handle<String> subject,

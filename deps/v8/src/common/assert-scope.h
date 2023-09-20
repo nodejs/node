@@ -25,6 +25,7 @@ enum PerThreadAssertType {
   HEAP_ALLOCATION_ASSERT,
   HANDLE_ALLOCATION_ASSERT,
   HANDLE_DEREFERENCE_ASSERT,
+  HANDLE_DEREFERENCE_ALL_THREADS_ASSERT,
   CODE_DEPENDENCY_CHANGE_ASSERT,
   CODE_ALLOCATION_ASSERT,
   // Dummy type for disabling GC mole.
@@ -50,7 +51,7 @@ class V8_NODISCARD PerThreadAssertScope {
 
 // Per-isolate assert scopes.
 
-#define PER_ISOLATE_ASSERT_TYPE_DEBUG_ONLY(V, enable)                   \
+#define PER_ISOLATE_DCHECK_TYPE(V, enable)                              \
   /* Scope to document where we do not expect javascript execution. */  \
   /* Scope to introduce an exception to DisallowJavascriptExecution. */ \
   V(AllowJavascriptExecution, DisallowJavascriptExecution,              \
@@ -66,7 +67,7 @@ class V8_NODISCARD PerThreadAssertScope {
   /* Scope to introduce an exception to DisallowExceptions. */          \
   V(AllowExceptions, DisallowExceptions, no_exception_assert, enable)
 
-#define PER_ISOLATE_ASSERT_TYPE(V, enable)                                   \
+#define PER_ISOLATE_CHECK_TYPE(V, enable)                                    \
   /* Scope in which javascript execution leads to exception being thrown. */ \
   /* Scope to introduce an exception to ThrowOnJavascriptExecution. */       \
   V(NoThrowOnJavascriptExecution, ThrowOnJavascriptExecution,                \
@@ -74,8 +75,7 @@ class V8_NODISCARD PerThreadAssertScope {
   /* Scope in which javascript execution causes dumps. */                    \
   /* Scope in which javascript execution doesn't cause dumps. */             \
   V(NoDumpOnJavascriptExecution, DumpOnJavascriptExecution,                  \
-    javascript_execution_dump, enable)                                       \
-  PER_ISOLATE_ASSERT_TYPE_DEBUG_ONLY(V, enable)
+    javascript_execution_dump, enable)
 
 #define PER_ISOLATE_ASSERT_SCOPE_DECLARATION(ScopeType)              \
   class V8_NODISCARD ScopeType {                                     \
@@ -103,46 +103,42 @@ class V8_NODISCARD PerThreadAssertScope {
 #define PER_ISOLATE_ASSERT_DISABLE_SCOPE(_1, DisableType, _2, _3) \
   PER_ISOLATE_ASSERT_SCOPE_DECLARATION(DisableType)
 
-PER_ISOLATE_ASSERT_TYPE(PER_ISOLATE_ASSERT_ENABLE_SCOPE, true)
-PER_ISOLATE_ASSERT_TYPE(PER_ISOLATE_ASSERT_DISABLE_SCOPE, false)
+PER_ISOLATE_DCHECK_TYPE(PER_ISOLATE_ASSERT_ENABLE_SCOPE, true)
+PER_ISOLATE_CHECK_TYPE(PER_ISOLATE_ASSERT_ENABLE_SCOPE, true)
+PER_ISOLATE_DCHECK_TYPE(PER_ISOLATE_ASSERT_DISABLE_SCOPE, false)
+PER_ISOLATE_CHECK_TYPE(PER_ISOLATE_ASSERT_DISABLE_SCOPE, false)
 
 #ifdef DEBUG
-#define PER_ISOLATE_ASSERT_ENABLE_SCOPE_DEBUG_ONLY(EnableType, DisableType,   \
-                                                   field, _)                  \
+#define PER_ISOLATE_DCHECK_ENABLE_SCOPE(EnableType, DisableType, field, _)    \
   class EnableType##DebugOnly : public EnableType {                           \
    public:                                                                    \
     explicit EnableType##DebugOnly(Isolate* isolate) : EnableType(isolate) {} \
   };
 #else
-#define PER_ISOLATE_ASSERT_ENABLE_SCOPE_DEBUG_ONLY(EnableType, DisableType, \
-                                                   field, _)                \
-  class V8_NODISCARD EnableType##DebugOnly {                                \
-   public:                                                                  \
-    explicit EnableType##DebugOnly(Isolate* isolate) {}                     \
+#define PER_ISOLATE_DCHECK_ENABLE_SCOPE(EnableType, DisableType, field, _) \
+  class V8_NODISCARD EnableType##DebugOnly {                               \
+   public:                                                                 \
+    explicit EnableType##DebugOnly(Isolate* isolate) {}                    \
   };
 #endif
 
 #ifdef DEBUG
-#define PER_ISOLATE_ASSERT_DISABLE_SCOPE_DEBUG_ONLY(EnableType, DisableType, \
-                                                    field, _)                \
-  class DisableType##DebugOnly : public DisableType {                        \
-   public:                                                                   \
-    explicit DisableType##DebugOnly(Isolate* isolate)                        \
-        : DisableType(isolate) {}                                            \
+#define PER_ISOLATE_DCHECK_DISABLE_SCOPE(EnableType, DisableType, field, _) \
+  class DisableType##DebugOnly : public DisableType {                       \
+   public:                                                                  \
+    explicit DisableType##DebugOnly(Isolate* isolate)                       \
+        : DisableType(isolate) {}                                           \
   };
 #else
-#define PER_ISOLATE_ASSERT_DISABLE_SCOPE_DEBUG_ONLY(EnableType, DisableType, \
-                                                    field, _)                \
-  class V8_NODISCARD DisableType##DebugOnly {                                \
-   public:                                                                   \
-    explicit DisableType##DebugOnly(Isolate* isolate) {}                     \
+#define PER_ISOLATE_DCHECK_DISABLE_SCOPE(EnableType, DisableType, field, _) \
+  class V8_NODISCARD DisableType##DebugOnly {                               \
+   public:                                                                  \
+    explicit DisableType##DebugOnly(Isolate* isolate) {}                    \
   };
 #endif
 
-PER_ISOLATE_ASSERT_TYPE_DEBUG_ONLY(PER_ISOLATE_ASSERT_ENABLE_SCOPE_DEBUG_ONLY,
-                                   true)
-PER_ISOLATE_ASSERT_TYPE_DEBUG_ONLY(PER_ISOLATE_ASSERT_DISABLE_SCOPE_DEBUG_ONLY,
-                                   false)
+PER_ISOLATE_DCHECK_TYPE(PER_ISOLATE_DCHECK_ENABLE_SCOPE, true)
+PER_ISOLATE_DCHECK_TYPE(PER_ISOLATE_DCHECK_DISABLE_SCOPE, false)
 
 template <typename... Scopes>
 class CombinationAssertScope;
@@ -230,6 +226,11 @@ using DisallowHandleDereference =
 // Scope to introduce an exception to DisallowHandleDereference.
 using AllowHandleDereference =
     PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ASSERT, true>;
+
+// Explicitly allow handle dereference for all threads/isolates on one
+// particular thread.
+using AllowHandleDereferenceAllThreads =
+    PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ALL_THREADS_ASSERT, true>;
 
 // Scope to document where we do not expect code dependencies to change.
 using DisallowCodeDependencyChange =

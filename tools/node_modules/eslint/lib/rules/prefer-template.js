@@ -130,7 +130,7 @@ module.exports = {
         docs: {
             description: "Require template literals instead of string concatenation",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-template"
+            url: "https://eslint.org/docs/latest/rules/prefer-template"
         },
 
         schema: [],
@@ -142,7 +142,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         let done = Object.create(null);
 
         /**

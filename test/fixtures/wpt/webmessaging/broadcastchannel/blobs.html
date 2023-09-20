@@ -2,6 +2,7 @@
 <meta charset=utf-8>
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
+<script src="/common/gc.js"></script>
 <script>
 async_test(t => {
     const c1 = new BroadcastChannel('blob');
@@ -27,9 +28,7 @@ async_test(t => {
     (() => {
       c1.postMessage({blob: new Blob(['foo', 'bar'])});
     })();
-    // TODO(https://github.com/web-platform-tests/wpt/issues/7899): Change to
-    // some sort of cross-browser GC trigger.
-    if (self.gc) self.gc();
+    garbageCollect();
   }, 'Blobs work on BroadcastChannel');
 
 async_test(t => {

@@ -9,7 +9,8 @@
 // Requirements
 //-----------------------------------------------------------------------------
 
-const ajv = require("../shared/ajv")();
+const ajvImport = require("../shared/ajv");
+const ajv = ajvImport();
 const {
     parseRuleId,
     getRuleFromConfig,

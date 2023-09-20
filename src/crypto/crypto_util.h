@@ -12,12 +12,13 @@
 #include "util.h"
 #include "v8.h"
 
+#include <openssl/dsa.h>
+#include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/ec.h>
+#include <openssl/hmac.h>
 #include <openssl/kdf.h>
 #include <openssl/rsa.h>
-#include <openssl/dsa.h>
 #include <openssl/ssl.h>
 #ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
@@ -398,7 +399,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
 
   AdditionalParams* params() { return &params_; }
 
-  std::string MemoryInfoName() const override {
+  const char* MemoryInfoName() const override {
     return CryptoJobTraits::JobName;
   }
 
@@ -675,7 +676,8 @@ void array_push_back(const TypeName* evp_ref,
 }
 #endif
 
-inline bool IsAnyByteSource(v8::Local<v8::Value> arg) {
+// WebIDL AllowSharedBufferSource.
+inline bool IsAnyBufferSource(v8::Local<v8::Value> arg) {
   return arg->IsArrayBufferView() ||
          arg->IsArrayBuffer() ||
          arg->IsSharedArrayBuffer();
@@ -693,7 +695,7 @@ class ArrayBufferOrViewContents {
       return;
     }
 
-    CHECK(IsAnyByteSource(buf));
+    CHECK(IsAnyBufferSource(buf));
     if (buf->IsArrayBufferView()) {
       auto view = buf.As<v8::ArrayBufferView>();
       offset_ = view->ByteOffset();

@@ -57,6 +57,8 @@ TEST(ArrayBuffer_OnlyMC) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   ArrayBufferExtension* extension;
   {
@@ -84,6 +86,8 @@ TEST(ArrayBuffer_OnlyScavenge) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   ArrayBufferExtension* extension;
   {
@@ -110,6 +114,8 @@ TEST(ArrayBuffer_ScavengeAndMC) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   ArrayBufferExtension* extension;
   {
@@ -217,8 +223,9 @@ TEST(ArrayBuffer_NonLivePromotion) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
-  JSArrayBuffer raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Handle<FixedArray> root =
@@ -235,13 +242,12 @@ TEST(ArrayBuffer_NonLivePromotion) {
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
     heap::GcAndSweep(heap, NEW_SPACE);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
-    raw_ab = JSArrayBuffer::cast(root->get(0));
+    ArrayBufferExtension* extension =
+        JSArrayBuffer::cast(root->get(0)).extension();
     root->set(0, ReadOnlyRoots(heap).undefined_value());
     heap::SimulateIncrementalMarking(heap, true);
-    // Prohibit page from being released.
-    Page::FromHeapObject(raw_ab)->MarkNeverEvacuate();
     heap::GcAndSweep(heap, OLD_SPACE);
-    CHECK(!IsTracked(heap, raw_ab));
+    CHECK(!IsTracked(heap, extension));
   }
 }
 

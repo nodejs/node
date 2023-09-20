@@ -78,7 +78,7 @@ module.exports = {
             if (beforeAllChecks) {
               context.report({
                 node: requireNode,
-                message: msg
+                message: msg,
               });
             }
           });
@@ -106,10 +106,10 @@ module.exports = {
                 commonModuleNode,
                 '\nif (!common.hasCrypto) {' +
                 ' common.skip("missing crypto");' +
-                '}'
+                '}',
               );
             }
-          }
+          },
         });
       });
     }
@@ -118,7 +118,7 @@ module.exports = {
       'CallExpression': (node) => testCryptoUsage(node),
       'IfStatement:exit': (node) => testIfStatement(node),
       'MemberExpression:exit': (node) => testMemberExpression(node),
-      'Program:exit': () => reportIfMissingCheck()
+      'Program:exit': () => reportIfMissingCheck(),
     };
-  }
+  },
 };

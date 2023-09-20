@@ -4,7 +4,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 if (common.isWindows) {
@@ -24,13 +23,13 @@ function test(mode, asString) {
     (mode | maskToIgnore).toString(8) : (mode | maskToIgnore);
 
   {
-    const dir = path.join(tmpdir.path, `mkdirSync-${suffix}`);
+    const dir = tmpdir.resolve(`mkdirSync-${suffix}`);
     fs.mkdirSync(dir, input);
     assert.strictEqual(fs.statSync(dir).mode & 0o777, mode);
   }
 
   {
-    const dir = path.join(tmpdir.path, `mkdir-${suffix}`);
+    const dir = tmpdir.resolve(`mkdir-${suffix}`);
     fs.mkdir(dir, input, common.mustSucceed(() => {
       assert.strictEqual(fs.statSync(dir).mode & 0o777, mode);
     }));

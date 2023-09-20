@@ -12,8 +12,8 @@ const object = {
     1, 94, 'str', 12.321, { test: 'obj in arr' },
   ],
   newObject: {
-    test: 'obj in obj'
-  }
+    test: 'obj in obj',
+  },
 };
 
 assert.strictEqual(test_object.Get(object, 'hello'), 'world');
@@ -91,7 +91,7 @@ assert.strictEqual(newObject.test_string, 'test string');
   const cube = {
     x: 10,
     y: 10,
-    z: 10
+    z: 10,
   };
 
   assert.deepStrictEqual(test_object.Inflate(cube), { x: 11, y: 11, z: 11 });
@@ -107,7 +107,7 @@ assert.strictEqual(newObject.test_string, 'test string');
   const sym4 = Symbol('4');
   const object2 = {
     [sym1]: '@@iterator',
-    [sym2]: sym3
+    [sym2]: sym3,
   };
 
   assert(test_object.Has(object2, sym1));
@@ -165,12 +165,26 @@ assert.strictEqual(newObject.test_string, 'test string');
   const obj2 = test_object.TypeTaggedInstance(1);
   const obj3 = test_object.TypeTaggedInstance(2);
   const obj4 = test_object.TypeTaggedInstance(3);
+  const external = test_object.TypeTaggedExternal(2);
+  const plainExternal = test_object.PlainExternal();
+
+  // Verify that we do not allow type tag indices greater than the largest
+  // available index.
+  assert.throws(() => test_object.TypeTaggedInstance(39), {
+    name: 'RangeError',
+    message: 'Invalid type index',
+  });
+  assert.throws(() => test_object.TypeTaggedExternal(39), {
+    name: 'RangeError',
+    message: 'Invalid type index',
+  });
 
   // Verify that type tags are correctly accepted.
   assert.strictEqual(test_object.CheckTypeTag(0, obj1), true);
   assert.strictEqual(test_object.CheckTypeTag(1, obj2), true);
   assert.strictEqual(test_object.CheckTypeTag(2, obj3), true);
   assert.strictEqual(test_object.CheckTypeTag(3, obj4), true);
+  assert.strictEqual(test_object.CheckTypeTag(2, external), true);
 
   // Verify that wrongly tagged objects are rejected.
   assert.strictEqual(test_object.CheckTypeTag(0, obj2), false);
@@ -180,10 +194,19 @@ assert.strictEqual(newObject.test_string, 'test string');
   assert.strictEqual(test_object.CheckTypeTag(2, obj4), false);
   assert.strictEqual(test_object.CheckTypeTag(3, obj3), false);
   assert.strictEqual(test_object.CheckTypeTag(4, obj3), false);
+  assert.strictEqual(test_object.CheckTypeTag(0, external), false);
+  assert.strictEqual(test_object.CheckTypeTag(1, external), false);
+  assert.strictEqual(test_object.CheckTypeTag(3, external), false);
+  assert.strictEqual(test_object.CheckTypeTag(4, external), false);
 
   // Verify that untagged objects are rejected.
   assert.strictEqual(test_object.CheckTypeTag(0, {}), false);
   assert.strictEqual(test_object.CheckTypeTag(1, {}), false);
+  assert.strictEqual(test_object.CheckTypeTag(0, plainExternal), false);
+  assert.strictEqual(test_object.CheckTypeTag(1, plainExternal), false);
+  assert.strictEqual(test_object.CheckTypeTag(2, plainExternal), false);
+  assert.strictEqual(test_object.CheckTypeTag(3, plainExternal), false);
+  assert.strictEqual(test_object.CheckTypeTag(4, plainExternal), false);
 }
 
 {
@@ -235,9 +258,9 @@ assert.strictEqual(newObject.test_string, 'test string');
   // i.e.: includes prototypes, only enumerable properties, skips symbols,
   // and includes indices and converts them to strings.
 
-  const object = Object.create({
-    inherited: 1
-  });
+  const object = { __proto__: {
+    inherited: 1,
+  } };
 
   const fooSymbol = Symbol('foo');
 
@@ -247,19 +270,19 @@ assert.strictEqual(newObject.test_string, 'test string');
     value: 4,
     enumerable: false,
     writable: true,
-    configurable: true
+    configurable: true,
   });
   Object.defineProperty(object, 'writable', {
     value: 4,
     enumerable: true,
     writable: true,
-    configurable: false
+    configurable: false,
   });
   Object.defineProperty(object, 'configurable', {
     value: 4,
     enumerable: true,
     writable: false,
-    configurable: true
+    configurable: true,
   });
   object[5] = 5;
 
@@ -308,7 +331,7 @@ assert.deepStrictEqual(test_object.TestSetProperty(), {
   envIsNull: 'Invalid argument',
   objectIsNull: 'Invalid argument',
   keyIsNull: 'Invalid argument',
-  valueIsNull: 'Invalid argument'
+  valueIsNull: 'Invalid argument',
 });
 
 // Verify that passing NULL to napi_has_property() results in the correct
@@ -317,7 +340,7 @@ assert.deepStrictEqual(test_object.TestHasProperty(), {
   envIsNull: 'Invalid argument',
   objectIsNull: 'Invalid argument',
   keyIsNull: 'Invalid argument',
-  resultIsNull: 'Invalid argument'
+  resultIsNull: 'Invalid argument',
 });
 
 // Verify that passing NULL to napi_get_property() results in the correct
@@ -326,7 +349,7 @@ assert.deepStrictEqual(test_object.TestGetProperty(), {
   envIsNull: 'Invalid argument',
   objectIsNull: 'Invalid argument',
   keyIsNull: 'Invalid argument',
-  resultIsNull: 'Invalid argument'
+  resultIsNull: 'Invalid argument',
 });
 
 {

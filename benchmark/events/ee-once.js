@@ -4,7 +4,7 @@ const EventEmitter = require('events').EventEmitter;
 
 const bench = common.createBenchmark(main, {
   n: [2e7],
-  argc: [0, 1, 4, 5]
+  argc: [0, 1, 4, 5],
 });
 
 function main({ n, argc }) {

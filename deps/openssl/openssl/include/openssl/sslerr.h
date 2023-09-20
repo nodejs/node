@@ -150,6 +150,7 @@
 # define SSL_R_INVALID_SRP_USERNAME                       357
 # define SSL_R_INVALID_STATUS_RESPONSE                    328
 # define SSL_R_INVALID_TICKET_KEYS_LENGTH                 325
+# define SSL_R_LEGACY_SIGALG_DISALLOWED_OR_UNSUPPORTED    333
 # define SSL_R_LENGTH_MISMATCH                            159
 # define SSL_R_LENGTH_TOO_LONG                            404
 # define SSL_R_LENGTH_TOO_SHORT                           160

@@ -23,16 +23,15 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const fn = path.join(tmpdir.path, 'write.txt');
-const fn2 = path.join(tmpdir.path, 'write2.txt');
-const fn3 = path.join(tmpdir.path, 'write3.txt');
-const fn4 = path.join(tmpdir.path, 'write4.txt');
+const fn = tmpdir.resolve('write.txt');
+const fn2 = tmpdir.resolve('write2.txt');
+const fn3 = tmpdir.resolve('write3.txt');
+const fn4 = tmpdir.resolve('write4.txt');
 const expected = 'ümlaut.';
 const constants = fs.constants;
 

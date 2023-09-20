@@ -1,10 +1,9 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
-const MockRegistry = require('../../fixtures/mock-registry.js')
-const mockGlobals = require('../../fixtures/mock-globals')
+const MockRegistry = require('@npmcli/mock-registry')
 
 const cacache = require('cacache')
-const fs = require('@npmcli/fs')
+const fs = require('fs')
 const path = require('path')
 
 const pkg = 'test-package'
@@ -267,8 +266,9 @@ t.test('cache verify', async t => {
 })
 
 t.test('cache verify as part of home', async t => {
-  const { npm, joinedOutput, prefix } = await loadMockNpm(t)
-  mockGlobals(t, { 'process.env.HOME': path.dirname(prefix) })
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    globals: ({ prefix }) => ({ 'process.env.HOME': path.dirname(prefix) }),
+  })
   await npm.exec('cache', ['verify'])
   t.match(joinedOutput(), 'Cache verified and compressed (~', 'contains ~ shorthand')
 })
@@ -302,8 +302,7 @@ t.test('cache verify w/ extra output', async t => {
 })
 
 t.test('cache completion', async t => {
-  const { npm } = await loadMockNpm(t)
-  const cache = await npm.cmd('cache')
+  const { cache } = await loadMockNpm(t, { command: 'cache' })
   const { completion } = cache
 
   const testComp = (argv, expect) => {

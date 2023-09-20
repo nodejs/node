@@ -44,6 +44,7 @@ JSIteratorResult::JSIteratorResult(Address ptr) : JSObject(ptr) {}
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSMessageObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSPrimitiveWrapper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSStringIterator)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSValidIteratorWrapper)
 
 NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
 
@@ -99,12 +100,6 @@ MaybeHandle<HeapObject> JSReceiver::GetPrototype(Isolate* isolate,
                                                  Handle<JSReceiver> receiver) {
   // We don't expect access checks to be needed on JSProxy objects.
   DCHECK(!receiver->IsAccessCheckNeeded() || receiver->IsJSObject());
-
-  if (receiver->IsWasmObject()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kWasmObjectsAreOpaque),
-                    HeapObject);
-  }
 
   PrototypeIterator iter(isolate, receiver, kStartAtReceiver,
                          PrototypeIterator::END_AT_NON_HIDDEN);
@@ -432,10 +427,7 @@ void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
   DCHECK(index.is_inobject());
   DCHECK(value.IsShared());
   SEQ_CST_WRITE_FIELD(*this, index.offset(), value);
-  // JSSharedStructs are allocated in the shared old space, which is currently
-  // collected by stopping the world, so the incremental write barrier is not
-  // needed. They can only store Smis and other HeapObjects in the shared old
-  // space, so the generational write barrier is also not needed.
+  CONDITIONAL_WRITE_BARRIER(*this, index.offset(), value, UPDATE_WRITE_BARRIER);
 }
 
 void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
@@ -462,7 +454,7 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   DCHECK_EQ(PropertyLocation::kField, details.location());
   DCHECK_EQ(PropertyKind::kData, details.kind());
   DisallowGarbageCollection no_gc;
-  FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
+  FieldIndex index = FieldIndex::ForDetails(map(), details);
   if (details.representation().IsDouble()) {
     // Manipulating the signaling NaN used for the hole and uninitialized
     // double field sentinel in C++, e.g. with base::bit_cast or
@@ -775,11 +767,14 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
 }
 
 DEF_GETTER(JSReceiver, HasFastProperties, bool) {
-  DCHECK(raw_properties_or_hash(cage_base).IsSmi() ||
-         ((raw_properties_or_hash(cage_base).IsGlobalDictionary(cage_base) ||
-           raw_properties_or_hash(cage_base).IsNameDictionary(cage_base) ||
-           raw_properties_or_hash(cage_base).IsSwissNameDictionary(
-               cage_base)) == map(cage_base).is_dictionary_map()));
+  Object raw_properties_or_hash_obj =
+      raw_properties_or_hash(cage_base, kRelaxedLoad);
+  DCHECK(raw_properties_or_hash_obj.IsSmi() ||
+         ((raw_properties_or_hash_obj.IsGlobalDictionary(cage_base) ||
+           raw_properties_or_hash_obj.IsNameDictionary(cage_base) ||
+           raw_properties_or_hash_obj.IsSwissNameDictionary(cage_base)) ==
+          map(cage_base).is_dictionary_map()));
+  USE(raw_properties_or_hash_obj);
   return !map(cage_base).is_dictionary_map();
 }
 

@@ -15,7 +15,7 @@ const imp = (file) => {
 
 (async () => {
   tmpdir.refresh();
-  const rel = (file) => path.join(tmpdir.path, file);
+  const rel = (file) => tmpdir.resolve(file);
 
   { // Load a single script
     const file = rel('con.mjs');

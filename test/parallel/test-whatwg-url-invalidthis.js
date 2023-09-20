@@ -10,7 +10,8 @@ const assert = require('assert');
   'toJSON',
 ].forEach((i) => {
   assert.throws(() => Reflect.apply(URL.prototype[i], [], {}), {
-    code: 'ERR_INVALID_THIS',
+    name: 'TypeError',
+    message: /Cannot read private member/,
   });
 });
 
@@ -27,11 +28,13 @@ const assert = require('assert');
   'hash',
 ].forEach((i) => {
   assert.throws(() => Reflect.get(URL.prototype, i, {}), {
-    code: 'ERR_INVALID_THIS',
+    name: 'TypeError',
+    message: /Cannot read private member/,
   });
 
   assert.throws(() => Reflect.set(URL.prototype, i, null, {}), {
-    code: 'ERR_INVALID_THIS',
+    name: 'TypeError',
+    message: /Cannot read private member/,
   });
 });
 
@@ -40,6 +43,7 @@ const assert = require('assert');
   'searchParams',
 ].forEach((i) => {
   assert.throws(() => Reflect.get(URL.prototype, i, {}), {
-    code: 'ERR_INVALID_THIS',
+    name: 'TypeError',
+    message: /Cannot read private member/,
   });
 });

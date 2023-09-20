@@ -74,11 +74,6 @@
 #endif  // NODE_OPENSSL_DEFAULT_CIPHER_LIST
 #endif  // HAVE_OPENSSL
 
-namespace node {
-
-void DefineConstants(v8::Isolate* isolate, v8::Local<v8::Object> target);
-}  // namespace node
-
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CONSTANTS_H_

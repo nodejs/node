@@ -6,7 +6,8 @@ uv_loop_t NodeZeroIsolateTestFixture::current_loop;
 NodePlatformUniquePtr NodeZeroIsolateTestFixture::platform;
 TracingAgentUniquePtr NodeZeroIsolateTestFixture::tracing_agent;
 bool NodeZeroIsolateTestFixture::node_initialized = false;
-
+v8::Isolate* NodeTestFixture::isolate_ = nullptr;
+node::IsolateData* EnvironmentTestFixture::isolate_data_ = nullptr;
 
 void NodeTestEnvironment::SetUp() {
   NodeZeroIsolateTestFixture::tracing_agent =
@@ -33,6 +34,7 @@ void NodeTestEnvironment::SetUp() {
 }
 
 void NodeTestEnvironment::TearDown() {
+  cppgc::ShutdownProcess();
   v8::V8::Dispose();
   v8::V8::DisposePlatform();
   NodeZeroIsolateTestFixture::platform->Shutdown();

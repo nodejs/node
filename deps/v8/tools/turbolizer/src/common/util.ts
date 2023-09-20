@@ -100,3 +100,7 @@ export function getNumericCssValue(varName: string): number {
   const propertyValue = getComputedStyle(document.body).getPropertyValue(varName);
   return parseFloat(propertyValue.match(/[+-]?\d+(\.\d+)?/g)[0]);
 }
+
+export function setCssValue(varName: string, value: string): void {
+  document.body.style.setProperty(varName, value);
+}

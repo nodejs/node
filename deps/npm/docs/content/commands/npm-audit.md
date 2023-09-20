@@ -100,9 +100,9 @@ the path `/-/npm/v1/security/advisories/bulk`.
 
 Any packages in the tree that do not have a `version` field in their
 package.json file will be ignored.  If any `--omit` options are specified
-(either via the `--omit` config, or one of the shorthands such as
-`--production`, `--only=dev`, and so on), then packages will be omitted
-from the submitted payload as appropriate.
+(either via the [`--omit` config](/using-npm/config#omit), or one of the
+shorthands such as `--production`, `--only=dev`, and so on), then packages will
+be omitted from the submitted payload as appropriate.
 
 If the registry responds with an error, or with an invalid response, then
 npm will attempt to load advisory data from the `Quick Audit` endpoint.
@@ -179,7 +179,7 @@ vulnerabilities are found _or_ if the remediation is able to successfully
 fix all vulnerabilities.
 
 If vulnerabilities were found the exit code will depend on the
-`audit-level` configuration setting.
+[`audit-level` config](/using-npm/config#audit-level).
 
 ### Examples
 
@@ -246,6 +246,8 @@ $ npm audit --audit-level=moderate
 The minimum level of vulnerability for `npm audit` to exit with a non-zero
 exit code.
 
+
+
 #### `dry-run`
 
 * Default: false
@@ -258,6 +260,8 @@ commands that modify your local installation, eg, `install`, `update`,
 
 Note: This is NOT honored by other network related commands, eg `dist-tags`,
 `owner`, etc.
+
+
 
 #### `force`
 
@@ -285,6 +289,8 @@ mistakes, unnecessary performance degradation, and malicious input.
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
 
+
+
 #### `json`
 
 * Default: false
@@ -296,6 +302,8 @@ Whether or not to output JSON data, rather than the normal output.
   saving them to your `package.json`.
 
 Not supported by all npm commands.
+
+
 
 #### `package-lock-only`
 
@@ -310,6 +318,8 @@ instead of checking `node_modules` and downloading dependencies.
 
 For `list` this means the output will be based on the tree described by the
 `package-lock.json`, rather than the contents of `node_modules`.
+
+
 
 #### `omit`
 
@@ -329,6 +339,8 @@ it will be included.
 If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
 variable will be set to `'production'` for all lifecycle scripts.
 
+
+
 #### `foreground-scripts`
 
 * Default: false
@@ -341,6 +353,8 @@ input, output, and error with the main npm process.
 Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.
 
+
+
 #### `ignore-scripts`
 
 * Default: false
@@ -352,6 +366,8 @@ Note that commands explicitly intended to run a particular script, such as
 `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
 will still run their intended script if `ignore-scripts` is set, but they
 will *not* run any pre- or post-scripts.
+
+
 
 #### `workspace`
 
@@ -411,9 +427,11 @@ This value is not exported to the environment for child processes.
 * Default: false
 * Type: Boolean
 
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.
+
+
 
 ### See Also
 

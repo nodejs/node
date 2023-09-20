@@ -308,6 +308,15 @@ String16 descriptionForObject(v8::Isolate* isolate,
   return toProtocolString(isolate, object->GetConstructorName());
 }
 
+String16 descriptionForProxy(v8::Isolate* isolate, v8::Local<v8::Proxy> proxy) {
+  v8::Local<v8::Value> target = proxy->GetTarget();
+  if (target->IsObject()) {
+    return String16::concat(
+        "Proxy(", descriptionForObject(isolate, target.As<v8::Object>()), ")");
+  }
+  return String16("Proxy");
+}
+
 String16 descriptionForDate(v8::Local<v8::Context> context,
                             v8::Local<v8::Date> date) {
   v8::Isolate* isolate = context->GetIsolate();
@@ -392,6 +401,24 @@ String16 descriptionForFunction(v8::Local<v8::Function> value) {
   v8::Isolate* isolate = value->GetIsolate();
   v8::Local<v8::String> description = v8::debug::GetFunctionDescription(value);
   return toProtocolString(isolate, description);
+}
+
+String16 descriptionForPrivateMethodList(v8::Local<v8::Array> list) {
+  return String16::concat(
+      "PrivateMethods[",
+      String16::fromInteger(static_cast<size_t>(list->Length())), ']');
+}
+
+String16 descriptionForPrivateMethod(v8::Local<v8::Context> context,
+                                     v8::Local<v8::Object> object) {
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::Local<v8::Value> value;
+  if (!object->GetRealNamedProperty(context, toV8String(isolate, "value"))
+           .ToLocal(&value)) {
+    return String16();
+  }
+  DCHECK(value->IsFunction());
+  return descriptionForFunction(value.As<v8::Function>());
 }
 
 class PrimitiveValueMirror final : public ValueMirror {
@@ -1286,7 +1313,6 @@ void nativeSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
       !object->IsObject()) {
     return;
   }
-  v8::Local<v8::Value> value;
   if (!object.As<v8::Object>()->Set(context, name, info[0]).IsNothing()) return;
 }
 
@@ -1376,7 +1402,8 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
       object = value.As<v8::Object>();
     }
   }
-  if (internalType == V8InternalValueType::kScopeList) {
+  if (internalType == V8InternalValueType::kScopeList ||
+      internalType == V8InternalValueType::kPrivateMethodList) {
     if (!set->Add(context, toV8String(isolate, "length")).ToLocal(&set)) {
       return false;
     }
@@ -1570,11 +1597,13 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
-  v8::Local<v8::Array> privateProperties;
 
   std::vector<v8::Local<v8::Value>> names;
   std::vector<v8::Local<v8::Value>> values;
-  if (!v8::debug::GetPrivateMembers(context, object, &names, &values))
+  int filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateAccessors) |
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateFields);
+  if (!v8::debug::GetPrivateMembers(context, object, filter, &names, &values))
     return mirrors;
 
   size_t len = values.size();
@@ -1688,7 +1717,8 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   }
   if (value->IsProxy()) {
     return std::make_unique<ObjectMirror>(
-        value, RemoteObject::SubtypeEnum::Proxy, "Proxy");
+        value, RemoteObject::SubtypeEnum::Proxy,
+        descriptionForProxy(isolate, value.As<v8::Proxy>()));
   }
   if (value->IsFunction()) {
     return std::make_unique<FunctionMirror>(value);
@@ -1790,6 +1820,12 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
         value, "internal#scopeList",
         descriptionForScopeList(value.As<v8::Array>()));
   }
+  if (value->IsArray() &&
+      internalType == V8InternalValueType::kPrivateMethodList) {
+    return std::make_unique<ObjectMirror>(
+        value, "internal#privateMethodList",
+        descriptionForPrivateMethodList(value.As<v8::Array>()));
+  }
   if (value->IsObject() && internalType == V8InternalValueType::kEntry) {
     return std::make_unique<ObjectMirror>(
         value, "internal#entry",
@@ -1799,6 +1835,12 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
     return std::make_unique<ObjectMirror>(
         value, "internal#scope",
         descriptionForScope(context, value.As<v8::Object>()));
+  }
+  if (value->IsObject() &&
+      internalType == V8InternalValueType::kPrivateMethod) {
+    return std::make_unique<ObjectMirror>(
+        value, "internal#privateMethod",
+        descriptionForPrivateMethod(context, value.As<v8::Object>()));
   }
   size_t length = 0;
   if (value->IsArray() || isArrayLike(context, value, &length)) {

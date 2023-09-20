@@ -116,34 +116,81 @@ Each instance of `AsyncLocalStorage` maintains an independent storage context.
 Multiple instances can safely exist simultaneously without risk of interfering
 with each other's data.
 
-### `new AsyncLocalStorage([options])`
+### `new AsyncLocalStorage()`
 
 <!-- YAML
 added:
  - v13.10.0
  - v12.17.0
 changes:
- - version: v19.2.0
+ - version:
+    - v19.7.0
+    - v18.16.0
+   pr-url: https://github.com/nodejs/node/pull/46386
+   description: Removed experimental onPropagate option.
+ - version:
+    - v19.2.0
+    - v18.13.0
    pr-url: https://github.com/nodejs/node/pull/45386
    description: Add option onPropagate.
 -->
 
-> Stability: 1 - `options.onPropagate` is experimental.
-
-* `options` {Object}
-  * `onPropagate` {Function} Optional callback invoked before a store is
-    propagated to a new async resource. Returning `true` allows propagation,
-    returning `false` avoids it. Default is to propagate always.
-
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 `run()` call or after an `enterWith()` call.
 
-The `onPropagate` is called during creation of an async resource. Throwing at
-this time will print the stack trace and exit. See
-[`async_hooks` Error handling][] for details.
+### Static method: `AsyncLocalStorage.bind(fn)`
 
-Creating an async resource within the `onPropagate` callback will result in
-a recursive call to `onPropagate`.
+<!-- YAML
+added:
+ - v19.8.0
+ - v18.16.0
+-->
+
+> Stability: 1 - Experimental
+
+* `fn` {Function} The function to bind to the current execution context.
+* Returns: {Function} A new function that calls `fn` within the captured
+  execution context.
+
+Binds the given function to the current execution context.
+
+### Static method: `AsyncLocalStorage.snapshot()`
+
+<!-- YAML
+added:
+ - v19.8.0
+ - v18.16.0
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {Function} A new function with the signature
+  `(fn: (...args) : R, ...args) : R`.
+
+Captures the current execution context and returns a function that accepts a
+function as an argument. Whenever the returned function is called, it
+calls the function passed to it within the captured context.
+
+```js
+const asyncLocalStorage = new AsyncLocalStorage();
+const runInAsyncScope = asyncLocalStorage.run(123, () => AsyncLocalStorage.snapshot());
+const result = asyncLocalStorage.run(321, () => runInAsyncScope(() => asyncLocalStorage.getStore()));
+console.log(result);  // returns 123
+```
+
+AsyncLocalStorage.snapshot() can replace the use of AsyncResource for simple
+async context tracking purposes, for example:
+
+```js
+class Foo {
+  #runInAsyncScope = AsyncLocalStorage.snapshot();
+
+  get() { return this.#runInAsyncScope(() => asyncLocalStorage.getStore()); }
+}
+
+const foo = asyncLocalStorage.run(123, () => new Foo());
+console.log(asyncLocalStorage.run(321, () => foo.get())); // returns 123
+```
 
 ### `asyncLocalStorage.disable()`
 
@@ -464,6 +511,11 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/46432
+    description: The `asyncResource` property added to the bound function
+                 has been deprecated and will be removed in a future
+                 version.
   - version:
     - v17.8.0
     - v16.15.0
@@ -482,9 +534,6 @@ changes:
 
 Binds the given function to the current execution context.
 
-The returned function will have an `asyncResource` property referencing
-the `AsyncResource` to which the function is bound.
-
 ### `asyncResource.bind(fn[, thisArg])`
 
 <!-- YAML
@@ -492,6 +541,11 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/46432
+    description: The `asyncResource` property added to the bound function
+                 has been deprecated and will be removed in a future
+                 version.
   - version:
     - v17.8.0
     - v16.15.0
@@ -507,9 +561,6 @@ changes:
 * `thisArg` {any}
 
 Binds the given function to execute to this `AsyncResource`'s scope.
-
-The returned function will have an `asyncResource` property referencing
-the `AsyncResource` to which the function is bound.
 
 ### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
 
@@ -762,7 +813,7 @@ This pool could be used as follows:
 import WorkerPool from './worker_pool.js';
 import os from 'node:os';
 
-const pool = new WorkerPool(os.cpus().length);
+const pool = new WorkerPool(os.availableParallelism());
 
 let finished = 0;
 for (let i = 0; i < 10; i++) {
@@ -778,7 +829,7 @@ for (let i = 0; i < 10; i++) {
 const WorkerPool = require('./worker_pool.js');
 const os = require('node:os');
 
-const pool = new WorkerPool(os.cpus().length);
+const pool = new WorkerPool(os.availableParallelism());
 
 let finished = 0;
 for (let i = 0; i < 10; i++) {
@@ -834,5 +885,4 @@ const server = createServer((req, res) => {
 [`EventEmitter`]: events.md#class-eventemitter
 [`Stream`]: stream.md#stream
 [`Worker`]: worker_threads.md#class-worker
-[`async_hooks` Error handling]: async_hooks.md#error-handling
 [`util.promisify()`]: util.md#utilpromisifyoriginal

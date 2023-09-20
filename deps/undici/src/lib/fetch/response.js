@@ -348,9 +348,7 @@ function makeNetworkError (reason) {
     status: 0,
     error: isError
       ? reason
-      : new Error(reason ? String(reason) : reason, {
-        cause: isError ? reason : undefined
-      }),
+      : new Error(reason ? String(reason) : reason),
     aborted: reason && reason.name === 'AbortError'
   })
 }
@@ -436,7 +434,7 @@ function makeAppropriateNetworkError (fetchParams) {
   // otherwise return a network error.
   return isAborted(fetchParams)
     ? makeNetworkError(new DOMException('The operation was aborted.', 'AbortError'))
-    : makeNetworkError(fetchParams.controller.terminated.reason)
+    : makeNetworkError('Request was cancelled.')
 }
 
 // https://whatpr.org/fetch/1392.html#initialize-a-response
@@ -469,7 +467,7 @@ function initializeResponse (response, init, body) {
 
   // 5. If init["headers"] exists, then fill response’s headers with init["headers"].
   if ('headers' in init && init.headers != null) {
-    fill(response[kState].headersList, init.headers)
+    fill(response[kHeaders], init.headers)
   }
 
   // 6. If body was given, then:
@@ -571,5 +569,6 @@ module.exports = {
   makeResponse,
   makeAppropriateNetworkError,
   filterResponse,
-  Response
+  Response,
+  cloneResponse
 }

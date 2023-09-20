@@ -77,7 +77,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
         shared.builtin_id() != Builtin::kMath##FName) {                    \
       return false;                                                        \
     }                                                                      \
-    DCHECK_EQ(shared.GetCode(),                                            \
+    DCHECK_EQ(shared.GetCode(isolate),                                     \
               isolate->builtins()->code(Builtin::kMath##FName));           \
   }
   STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)

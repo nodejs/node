@@ -160,7 +160,8 @@ class RedundantStoreFinder final {
         tick_counter_(tick_counter),
         temp_zone_(temp_zone),
         revisit_(temp_zone),
-        in_revisit_(js_graph->graph()->NodeCount(), temp_zone),
+        in_revisit_(static_cast<int>(js_graph->graph()->NodeCount()),
+                    temp_zone),
         unobservable_(js_graph->graph()->NodeCount(),
                       UnobservablesSet::Unvisited(), temp_zone),
         to_remove_(temp_zone),
@@ -222,7 +223,7 @@ class RedundantStoreFinder final {
   Zone* const temp_zone_;
 
   ZoneStack<Node*> revisit_;
-  ZoneVector<bool> in_revisit_;
+  BitVector in_revisit_;
 
   // Maps node IDs to UnobservableNodeSets.
   ZoneVector<UnobservablesSet> unobservable_;
@@ -237,8 +238,7 @@ void RedundantStoreFinder::Find() {
     tick_counter_->TickAndMaybeEnterSafepoint();
     Node* next = revisit_.top();
     revisit_.pop();
-    DCHECK_LT(next->id(), in_revisit_.size());
-    in_revisit_[next->id()] = false;
+    in_revisit_.Remove(next->id());
     Visit(next);
   }
 
@@ -255,10 +255,9 @@ void RedundantStoreFinder::Find() {
 }
 
 void RedundantStoreFinder::MarkForRevisit(Node* node) {
-  DCHECK_LT(node->id(), in_revisit_.size());
-  if (!in_revisit_[node->id()]) {
+  if (!in_revisit_.Contains(node->id())) {
     revisit_.push(node);
-    in_revisit_[node->id()] = true;
+    in_revisit_.Add(node->id());
   }
 }
 

@@ -22,7 +22,7 @@ namespace {
 
 // A dummy object used when a "0" compact decimal entry is encountered. This is necessary
 // in order to prevent falling back to root. Object equality ("==") is intended.
-const UChar *USE_FALLBACK = u"<USE FALLBACK>";
+const char16_t *USE_FALLBACK = u"<USE FALLBACK>";
 
 /** Produces a string like "NumberElements/latn/patternsShort/decimalFormat". */
 void getResourceBundleKey(const char *nsName, CompactStyle compactStyle, CompactType compactType,
@@ -38,7 +38,7 @@ int32_t getIndex(int32_t magnitude, StandardPlural::Form plural) {
     return magnitude * StandardPlural::COUNT + plural;
 }
 
-int32_t countZeros(const UChar *patternString, int32_t patternLength) {
+int32_t countZeros(const char16_t *patternString, int32_t patternLength) {
     // NOTE: This strategy for computing the number of zeros is a hack for efficiency.
     // It could break if there are any 0s that aren't part of the main pattern.
     int32_t numZeros = 0;
@@ -104,7 +104,7 @@ int32_t CompactData::getMultiplier(int32_t magnitude) const {
     return multipliers[magnitude];
 }
 
-const UChar *CompactData::getPattern(
+const char16_t *CompactData::getPattern(
         int32_t magnitude,
         const PluralRules *rules,
         const DecimalQuantity &dq) const {
@@ -114,7 +114,7 @@ const UChar *CompactData::getPattern(
     if (magnitude > largestMagnitude) {
         magnitude = largestMagnitude;
     }
-    const UChar *patternString = nullptr;
+    const char16_t *patternString = nullptr;
     if (dq.hasIntegerValue()) {
         int64_t i = dq.toLong(true);
         if (i == 0) {
@@ -151,14 +151,14 @@ void CompactData::getUniquePatterns(UVector &output, UErrorCode &status) const {
         // Insert pattern into the UVector if the UVector does not already contain the pattern.
         // Search the UVector from the end since identical patterns are likely to be adjacent.
         for (int32_t i = output.size() - 1; i >= 0; i--) {
-            if (u_strcmp(pattern, static_cast<const UChar *>(output[i])) == 0) {
+            if (u_strcmp(pattern, static_cast<const char16_t *>(output[i])) == 0) {
                 goto continue_outer;
             }
         }
 
         // The string was not found; add it to the UVector.
         // Note: must cast off const from pattern to store it in a UVector, which expects (void *)
-        output.addElement(const_cast<UChar *>(pattern), status);
+        output.addElement(const_cast<char16_t *>(pattern), status);
 
         continue_outer:
         continue;
@@ -197,7 +197,7 @@ void CompactData::CompactDataSink::put(const char *key, ResourceValue &value, UB
             // The value "0" means that we need to use the default pattern and not fall back
             // to parent locales. Example locale where this is relevant: 'it'.
             int32_t patternLength;
-            const UChar *patternString = value.getString(patternLength, status);
+            const char16_t *patternString = value.getString(patternLength, status);
             if (U_FAILURE(status)) { return; }
             if (u_strcmp(patternString, u"0") == 0) {
                 patternString = USE_FALLBACK;
@@ -279,7 +279,7 @@ void CompactHandler::precomputeAllModifiers(MutablePatternModifier &buildReferen
     }
 
     for (int32_t i = 0; i < precomputedModsLength; i++) {
-        auto patternString = static_cast<const UChar *>(allPatterns[i]);
+        auto patternString = static_cast<const char16_t *>(allPatterns[i]);
         UnicodeString hello(patternString);
         CompactModInfo &info = precomputedMods[i];
         ParsedPatternInfo patternInfo;
@@ -310,7 +310,7 @@ void CompactHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micr
         magnitude -= multiplier;
     }
 
-    const UChar *patternString = data.getPattern(magnitude, rules, quantity);
+    const char16_t *patternString = data.getPattern(magnitude, rules, quantity);
     if (patternString == nullptr) {
         // Use the default (non-compact) modifier.
         // No need to take any action.

@@ -75,6 +75,6 @@ TEST_IMPL(close_order) {
   ASSERT(close_cb_called == 3);
   ASSERT(timer_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

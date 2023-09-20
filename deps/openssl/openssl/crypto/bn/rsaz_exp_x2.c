@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2020, Intel Corporation. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -31,14 +31,6 @@ NON_EMPTY_TRANSLATION_UNIT
 #  define ALIGN64
 # endif
 
-# if defined(__GNUC__)
-#  define ALIGN1  __attribute__((aligned(1)))
-# elif defined(_MSC_VER)
-#  define ALIGN1  __declspec(align(1))
-# else
-#  define ALIGN1
-# endif
-
 # define ALIGN_OF(ptr, boundary) \
     ((unsigned char *)(ptr) + (boundary - (((size_t)(ptr)) & (boundary - 1))))
 
@@ -49,8 +41,6 @@ NON_EMPTY_TRANSLATION_UNIT
 
 # define BITS2WORD8_SIZE(x)  (((x) + 7) >> 3)
 # define BITS2WORD64_SIZE(x) (((x) + 63) >> 6)
-
-typedef uint64_t ALIGN1 uint64_t_align1;
 
 static ossl_inline uint64_t get_digit52(const uint8_t *in, int in_len);
 static ossl_inline void put_digit52(uint8_t *out, int out_len, uint64_t digit);
@@ -478,9 +468,13 @@ static void to_words52(BN_ULONG *out, int out_len,
     in_str = (uint8_t *)in;
 
     for (; in_bitsize >= (2 * DIGIT_SIZE); in_bitsize -= (2 * DIGIT_SIZE), out += 2) {
-        out[0] = (*(uint64_t_align1 *)in_str) & DIGIT_MASK;
+        uint64_t digit;
+
+        memcpy(&digit, in_str, sizeof(digit));
+        out[0] = digit & DIGIT_MASK;
         in_str += 6;
-        out[1] = ((*(uint64_t_align1 *)in_str) >> 4) & DIGIT_MASK;
+        memcpy(&digit, in_str, sizeof(digit));
+        out[1] = (digit >> 4) & DIGIT_MASK;
         in_str += 7;
         out_len -= 2;
     }
@@ -536,10 +530,15 @@ static void from_words52(BN_ULONG *out, int out_bitsize, const BN_ULONG *in)
     {
         uint8_t *out_str = (uint8_t *)out;
 
-        for (; out_bitsize >= (2 * DIGIT_SIZE); out_bitsize -= (2 * DIGIT_SIZE), in += 2) {
-            (*(uint64_t_align1 *)out_str) = in[0];
+        for (; out_bitsize >= (2 * DIGIT_SIZE);
+               out_bitsize -= (2 * DIGIT_SIZE), in += 2) {
+            uint64_t digit;
+
+            digit = in[0];
+            memcpy(out_str, &digit, sizeof(digit));
             out_str += 6;
-            (*(uint64_t_align1 *)out_str) ^= in[1] << 4;
+            digit = digit >> 48 | in[1] << 4;
+            memcpy(out_str, &digit, sizeof(digit));
             out_str += 7;
         }
 

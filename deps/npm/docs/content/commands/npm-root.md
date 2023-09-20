@@ -10,6 +10,8 @@ description: Display npm root
 npm root
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Print the effective `node_modules` folder to standard out.
@@ -39,10 +41,11 @@ folder instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
+
+
 ### See Also
 
 * [npm prefix](/commands/npm-prefix)
-* [npm bin](/commands/npm-bin)
 * [npm folders](/configuring-npm/folders)
 * [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)

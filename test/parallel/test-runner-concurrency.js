@@ -1,9 +1,16 @@
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const fixtures = require('../common/fixtures');
 const { describe, it, test } = require('node:test');
-const assert = require('assert');
+const assert = require('node:assert');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const timers = require('node:timers/promises');
 
-describe('Concurrency option (boolean) = true ', { concurrency: true }, () => {
+tmpdir.refresh();
+
+describe('Concurrency option (boolean) = true', { concurrency: true }, () => {
   let isFirstTestOver = false;
   it('should start the first test', () => new Promise((resolve) => {
     setImmediate(() => { isFirstTestOver = true; resolve(); });
@@ -15,7 +22,7 @@ describe('Concurrency option (boolean) = true ', { concurrency: true }, () => {
 });
 
 describe(
-  'Concurrency option (boolean) = false ',
+  'Concurrency option (boolean) = false',
   { concurrency: false },
   () => {
     let isFirstTestOver = false;
@@ -27,6 +34,22 @@ describe(
     });
   }
 );
+
+// Despite the docs saying so at some point, setting concurrency to true should
+// not limit concurrency to the number of available CPU cores.
+describe('concurrency: true implies Infinity', { concurrency: true }, () => {
+  // The factor 5 is intentionally chosen to be higher than the default libuv
+  // thread pool size.
+  const nTests = 5 * os.availableParallelism();
+  let nStarted = 0;
+  for (let i = 0; i < nTests; i++) {
+    it(`should run test ${i} concurrently`, async () => {
+      assert.strictEqual(nStarted++, i);
+      await timers.setImmediate();
+      assert.strictEqual(nStarted, nTests);
+    });
+  }
+});
 
 {
   // Make sure tests run in order when root concurrency is 1 (default)
@@ -62,3 +85,14 @@ describe(
     it('should run after other suites', expectedTestTree);
   });
 }
+
+test('--test multiple files', { skip: os.availableParallelism() < 3 }, async () => {
+  await fs.writeFile(tmpdir.resolve('test-runner-concurrency'), '');
+  const { code, stderr } = await common.spawnPromisified(process.execPath, [
+    '--test',
+    fixtures.path('test-runner', 'concurrency', 'a.mjs'),
+    fixtures.path('test-runner', 'concurrency', 'b.mjs'),
+  ]);
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(code, 0);
+});

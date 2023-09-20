@@ -51,7 +51,7 @@ class RuntimeFunction;
   V(GotoExternalInstruction)                         \
   V(MakeLazyNodeInstruction)                         \
   V(ReturnInstruction)                               \
-  V(PrintConstantStringInstruction)                  \
+  V(PrintErrorInstruction)                           \
   V(AbortInstruction)                                \
   V(UnsafeCastInstruction)
 
@@ -714,16 +714,16 @@ inline std::ostream& operator<<(std::ostream& os,
   return os << "Return count: " << instruction.count;
 }
 
-struct PrintConstantStringInstruction : InstructionBase {
+struct PrintErrorInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  explicit PrintConstantStringInstruction(std::string message)
+  explicit PrintErrorInstruction(std::string message)
       : message(std::move(message)) {}
 
   std::string message;
 };
 
-inline std::ostream& operator<<(
-    std::ostream& os, const PrintConstantStringInstruction& instruction) {
+inline std::ostream& operator<<(std::ostream& os,
+                                const PrintErrorInstruction& instruction) {
   return os << "PrintConstantString "
             << StringLiteralQuote(instruction.message);
 }

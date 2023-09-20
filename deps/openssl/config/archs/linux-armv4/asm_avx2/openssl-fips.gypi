@@ -293,8 +293,6 @@
       './config/archs/linux-armv4/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/linux-armv4/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/linux-armv4/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/linux-armv4/asm_avx2/crypto/bn/armv4-gf2m.S',
-      './config/archs/linux-armv4/asm_avx2/crypto/bn/armv4-mont.S',
       './config/archs/linux-armv4/asm_avx2/providers/legacy.ld',
       './config/archs/linux-armv4/asm_avx2/providers/fips.ld',
 

@@ -19,8 +19,8 @@ function checkOutput(stderr, stdout) {
   // We allow failures as it's not always possible to resolve localhost.
   // Functional tests are done in test/internet instead.
   if (!stderr.startsWith('error:')) {
-    assert(stdout.match(stdout, /address: "\d+\.\d+\.\d+\.\d+"/));
-    assert(stdout.match(stdout, /family: 4/));
+    assert.match(stdout, /address: "\d+\.\d+\.\d+\.\d+"/);
+    assert.match(stdout, /family: 4/);
     assert.strictEqual(stdout.trim().split('\n').length, 2);
   }
 }

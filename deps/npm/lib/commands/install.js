@@ -5,7 +5,6 @@ const readdir = util.promisify(fs.readdir)
 const reifyFinish = require('../utils/reify-finish.js')
 const log = require('../utils/log-shim.js')
 const { resolve, join } = require('path')
-const Arborist = require('@npmcli/arborist')
 const runScript = require('@npmcli/run-script')
 const pacote = require('pacote')
 const checks = require('npm-install-checks')
@@ -16,27 +15,33 @@ class Install extends ArboristWorkspaceCmd {
   static name = 'install'
 
   // These are in the order they will show up in when running "-h"
+  // If adding to this list, consider adding also to ci.js
   static params = [
     'save',
     'save-exact',
     'global',
-    'global-style',
+    'install-strategy',
     'legacy-bundling',
+    'global-style',
     'omit',
     'strict-peer-deps',
+    'prefer-dedupe',
     'package-lock',
+    'package-lock-only',
     'foreground-scripts',
     'ignore-scripts',
     'audit',
     'bin-links',
     'fund',
     'dry-run',
+    'cpu',
+    'os',
     ...super.params,
   ]
 
   static usage = ['[<package-spec> ...]']
 
-  async completion (opts) {
+  static async completion (opts) {
     const { partialWord } = opts
     // install can complete to a folder with a package.json, or any package.
     // if it has a slash, then it's gotta be a folder
@@ -134,6 +139,7 @@ class Install extends ArboristWorkspaceCmd {
       throw this.usageError()
     }
 
+    const Arborist = require('@npmcli/arborist')
     const opts = {
       ...this.npm.flatOptions,
       auditLevel: null,
@@ -160,7 +166,6 @@ class Install extends ArboristWorkspaceCmd {
           args: [],
           scriptShell,
           stdio: 'inherit',
-          stdioString: true,
           banner: !this.npm.silent,
           event,
         })

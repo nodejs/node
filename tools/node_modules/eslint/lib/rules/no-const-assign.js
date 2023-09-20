@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Disallow reassigning `const` variables",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-const-assign"
+            url: "https://eslint.org/docs/latest/rules/no-const-assign"
         },
 
         schema: [],
@@ -30,6 +30,8 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.sourceCode;
 
         /**
          * Finds and reports references that are non initializer and writable.
@@ -45,7 +47,7 @@ module.exports = {
         return {
             VariableDeclaration(node) {
                 if (node.kind === "const") {
-                    context.getDeclaredVariables(node).forEach(checkVariable);
+                    sourceCode.getDeclaredVariables(node).forEach(checkVariable);
                 }
             }
         };

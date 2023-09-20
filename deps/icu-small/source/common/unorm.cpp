@@ -44,7 +44,7 @@ U_NAMESPACE_USE
 /* quick check functions ---------------------------------------------------- */
 
 U_CAPI UNormalizationCheckResult U_EXPORT2
-unorm_quickCheck(const UChar *src,
+unorm_quickCheck(const char16_t *src,
                  int32_t srcLength, 
                  UNormalizationMode mode,
                  UErrorCode *pErrorCode) {
@@ -53,7 +53,7 @@ unorm_quickCheck(const UChar *src,
 }
 
 U_CAPI UNormalizationCheckResult U_EXPORT2
-unorm_quickCheckWithOptions(const UChar *src, int32_t srcLength, 
+unorm_quickCheckWithOptions(const char16_t *src, int32_t srcLength,
                             UNormalizationMode mode, int32_t options,
                             UErrorCode *pErrorCode) {
     const Normalizer2 *n2=Normalizer2Factory::getInstance(mode, *pErrorCode);
@@ -68,7 +68,7 @@ unorm_quickCheckWithOptions(const UChar *src, int32_t srcLength,
 }
 
 U_CAPI UBool U_EXPORT2
-unorm_isNormalized(const UChar *src, int32_t srcLength,
+unorm_isNormalized(const char16_t *src, int32_t srcLength,
                    UNormalizationMode mode,
                    UErrorCode *pErrorCode) {
     const Normalizer2 *n2=Normalizer2Factory::getInstance(mode, *pErrorCode);
@@ -76,7 +76,7 @@ unorm_isNormalized(const UChar *src, int32_t srcLength,
 }
 
 U_CAPI UBool U_EXPORT2
-unorm_isNormalizedWithOptions(const UChar *src, int32_t srcLength,
+unorm_isNormalizedWithOptions(const char16_t *src, int32_t srcLength,
                               UNormalizationMode mode, int32_t options,
                               UErrorCode *pErrorCode) {
     const Normalizer2 *n2=Normalizer2Factory::getInstance(mode, *pErrorCode);
@@ -94,9 +94,9 @@ unorm_isNormalizedWithOptions(const UChar *src, int32_t srcLength,
 
 /** Public API for normalizing. */
 U_CAPI int32_t U_EXPORT2
-unorm_normalize(const UChar *src, int32_t srcLength,
+unorm_normalize(const char16_t *src, int32_t srcLength,
                 UNormalizationMode mode, int32_t options,
-                UChar *dest, int32_t destCapacity,
+                char16_t *dest, int32_t destCapacity,
                 UErrorCode *pErrorCode) {
     const Normalizer2 *n2=Normalizer2Factory::getInstance(mode, *pErrorCode);
     if(options&UNORM_UNICODE_3_2) {
@@ -115,19 +115,19 @@ unorm_normalize(const UChar *src, int32_t srcLength,
 
 static int32_t
 _iterate(UCharIterator *src, UBool forward,
-              UChar *dest, int32_t destCapacity,
+              char16_t *dest, int32_t destCapacity,
               const Normalizer2 *n2,
               UBool doNormalize, UBool *pNeededToNormalize,
               UErrorCode *pErrorCode) {
     if(U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(destCapacity<0 || (dest==NULL && destCapacity>0) || src==NULL) {
+    if(destCapacity<0 || (dest==nullptr && destCapacity>0) || src==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
 
-    if(pNeededToNormalize!=NULL) {
+    if(pNeededToNormalize!=nullptr) {
         *pNeededToNormalize=false;
     }
     if(!(forward ? src->hasNext(src) : src->hasPrevious(src))) {
@@ -163,7 +163,7 @@ _iterate(UCharIterator *src, UBool forward,
     UnicodeString destString(dest, 0, destCapacity);
     if(buffer.length()>0 && doNormalize) {
         n2->normalize(buffer, destString, *pErrorCode).extract(dest, destCapacity, *pErrorCode);
-        if(pNeededToNormalize!=NULL && U_SUCCESS(*pErrorCode)) {
+        if(pNeededToNormalize!=nullptr && U_SUCCESS(*pErrorCode)) {
             *pNeededToNormalize= destString!=buffer;
         }
         return destString.length();
@@ -175,7 +175,7 @@ _iterate(UCharIterator *src, UBool forward,
 
 static int32_t
 unorm_iterate(UCharIterator *src, UBool forward,
-              UChar *dest, int32_t destCapacity,
+              char16_t *dest, int32_t destCapacity,
               UNormalizationMode mode, int32_t options,
               UBool doNormalize, UBool *pNeededToNormalize,
               UErrorCode *pErrorCode) {
@@ -195,7 +195,7 @@ unorm_iterate(UCharIterator *src, UBool forward,
 
 U_CAPI int32_t U_EXPORT2
 unorm_previous(UCharIterator *src,
-               UChar *dest, int32_t destCapacity,
+               char16_t *dest, int32_t destCapacity,
                UNormalizationMode mode, int32_t options,
                UBool doNormalize, UBool *pNeededToNormalize,
                UErrorCode *pErrorCode) {
@@ -208,7 +208,7 @@ unorm_previous(UCharIterator *src,
 
 U_CAPI int32_t U_EXPORT2
 unorm_next(UCharIterator *src,
-           UChar *dest, int32_t destCapacity,
+           char16_t *dest, int32_t destCapacity,
            UNormalizationMode mode, int32_t options,
            UBool doNormalize, UBool *pNeededToNormalize,
            UErrorCode *pErrorCode) {
@@ -222,22 +222,22 @@ unorm_next(UCharIterator *src,
 /* Concatenation of normalized strings -------------------------------------- */
 
 static int32_t
-_concatenate(const UChar *left, int32_t leftLength,
-                  const UChar *right, int32_t rightLength,
-                  UChar *dest, int32_t destCapacity,
+_concatenate(const char16_t *left, int32_t leftLength,
+                  const char16_t *right, int32_t rightLength,
+                  char16_t *dest, int32_t destCapacity,
                   const Normalizer2 *n2,
                   UErrorCode *pErrorCode) {
     if(U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(destCapacity<0 || (dest==NULL && destCapacity>0) ||
-        left==NULL || leftLength<-1 || right==NULL || rightLength<-1) {
+    if(destCapacity<0 || (dest==nullptr && destCapacity>0) ||
+        left==nullptr || leftLength<-1 || right==nullptr || rightLength<-1) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
 
     /* check for overlapping right and destination */
-    if( dest!=NULL &&
+    if( dest!=nullptr &&
         ((right>=dest && right<(dest+destCapacity)) ||
          (rightLength>0 && dest>=right && dest<(right+rightLength)))
     ) {
@@ -258,9 +258,9 @@ _concatenate(const UChar *left, int32_t leftLength,
 }
 
 U_CAPI int32_t U_EXPORT2
-unorm_concatenate(const UChar *left, int32_t leftLength,
-                  const UChar *right, int32_t rightLength,
-                  UChar *dest, int32_t destCapacity,
+unorm_concatenate(const char16_t *left, int32_t leftLength,
+                  const char16_t *right, int32_t rightLength,
+                  char16_t *dest, int32_t destCapacity,
                   UNormalizationMode mode, int32_t options,
                   UErrorCode *pErrorCode) {
     const Normalizer2 *n2=Normalizer2Factory::getInstance(mode, *pErrorCode);

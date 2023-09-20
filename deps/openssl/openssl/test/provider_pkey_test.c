@@ -176,6 +176,67 @@ end:
     return ret;
 }
 
+static int test_pkey_eq(void)
+{
+    OSSL_PROVIDER *deflt = NULL;
+    OSSL_PROVIDER *fake_rsa = NULL;
+    EVP_PKEY *pkey_fake = NULL;
+    EVP_PKEY *pkey_dflt = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
+    OSSL_PARAM *params = NULL;
+    int ret = 0;
+
+    if (!TEST_ptr(fake_rsa = fake_rsa_start(libctx)))
+        return 0;
+
+    if (!TEST_ptr(deflt = OSSL_PROVIDER_load(libctx, "default")))
+        goto end;
+
+    /* Construct a public key for fake-rsa */
+    if (!TEST_ptr(params = fake_rsa_key_params(0))
+        || !TEST_ptr(ctx = EVP_PKEY_CTX_new_from_name(libctx, "RSA",
+                                                      "provider=fake-rsa"))
+        || !TEST_true(EVP_PKEY_fromdata_init(ctx))
+        || !TEST_true(EVP_PKEY_fromdata(ctx, &pkey_fake, EVP_PKEY_PUBLIC_KEY,
+                                        params))
+        || !TEST_ptr(pkey_fake))
+        goto end;
+
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+    OSSL_PARAM_free(params);
+    params = NULL;
+
+    /* Construct a public key for default */
+    if (!TEST_ptr(params = fake_rsa_key_params(0))
+        || !TEST_ptr(ctx = EVP_PKEY_CTX_new_from_name(libctx, "RSA",
+                                                      "provider=default"))
+        || !TEST_true(EVP_PKEY_fromdata_init(ctx))
+        || !TEST_true(EVP_PKEY_fromdata(ctx, &pkey_dflt, EVP_PKEY_PUBLIC_KEY,
+                                        params))
+        || !TEST_ptr(pkey_dflt))
+        goto end;
+
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+    OSSL_PARAM_free(params);
+    params = NULL;
+
+    /* now test for equality */
+    if (!TEST_int_eq(EVP_PKEY_eq(pkey_fake, pkey_dflt), 1))
+        goto end;
+
+    ret = 1;
+end:
+    fake_rsa_finish(fake_rsa);
+    OSSL_PROVIDER_unload(deflt);
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey_fake);
+    EVP_PKEY_free(pkey_dflt);
+    OSSL_PARAM_free(params);
+    return ret;
+}
+
 static int test_pkey_store(int idx)
 {
     OSSL_PROVIDER *deflt = NULL;
@@ -235,6 +296,7 @@ int setup_tests(void)
 
     ADD_TEST(test_pkey_sig);
     ADD_TEST(test_alternative_keygen_init);
+    ADD_TEST(test_pkey_eq);
     ADD_ALL_TESTS(test_pkey_store, 2);
 
     return 1;

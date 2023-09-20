@@ -133,7 +133,7 @@ class AsmJsParser {
    public:
     explicit CachedVectors(Zone* zone) : reusable_vectors_(zone) {}
 
-    Zone* zone() const { return reusable_vectors_.get_allocator().zone(); }
+    Zone* zone() const { return reusable_vectors_.zone(); }
 
     inline void fill(ZoneVector<T>* vec) {
       if (reusable_vectors_.empty()) return;

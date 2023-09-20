@@ -9,7 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
-#include "src/logging/log.h"
+#include "src/heap/heap-verifier.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -60,6 +60,11 @@ class V8_EXPORT_PRIVATE BaseSpace : public Malloced {
 
   // Returns allocated size.
   virtual size_t Size() const = 0;
+
+#ifdef VERIFY_HEAP
+  virtual void Verify(Isolate* isolate,
+                      SpaceVerificationVisitor* visitor) const = 0;
+#endif  // VERIFY_HEAP
 
  protected:
   BaseSpace(Heap* heap, AllocationSpace id)

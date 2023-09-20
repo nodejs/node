@@ -144,7 +144,7 @@ class V8_EXPORT WasmStreaming final {
   /**
    * {Finish} should be called after all received bytes where passed to
    * {OnBytesReceived} to tell V8 that there will be no more bytes. {Finish}
-   * does not have to be called after {Abort} has been called already.
+   * must not be called after {Abort} has been called already.
    * If {can_use_compiled_module} is true and {SetCompiledModuleBytes} was
    * previously called, the compiled module bytes can be used.
    * If {can_use_compiled_module} is false, the compiled module bytes previously
@@ -156,6 +156,7 @@ class V8_EXPORT WasmStreaming final {
    * Abort streaming compilation. If {exception} has a value, then the promise
    * associated with streaming compilation is rejected with that value. If
    * {exception} does not have value, the promise does not get rejected.
+   * {Abort} must not be called repeatedly, or after {Finish}.
    */
   void Abort(MaybeLocal<Value> exception);
 

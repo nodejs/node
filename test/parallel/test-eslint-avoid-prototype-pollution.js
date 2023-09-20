@@ -295,5 +295,9 @@ new RuleTester({
         code: 'PromiseRace([])',
         errors: [{ message: /\bSafePromiseRace\b/ }]
       },
+      {
+        code: 'ArrayPrototypeConcat([])',
+        errors: [{ message: /\bisConcatSpreadable\b/ }]
+      },
     ]
   });

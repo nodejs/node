@@ -46,32 +46,6 @@ BUILTIN(ReflectDefineProperty) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
-// ES6 section 26.1.7 Reflect.getOwnPropertyDescriptor
-BUILTIN(ReflectGetOwnPropertyDescriptor) {
-  HandleScope scope(isolate);
-  DCHECK_LE(3, args.length());
-  Handle<Object> target = args.at(1);
-  Handle<Object> key = args.at(2);
-
-  if (!target->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Reflect.getOwnPropertyDescriptor")));
-  }
-
-  Handle<Name> name;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Object::ToName(isolate, key));
-
-  PropertyDescriptor desc;
-  Maybe<bool> found = JSReceiver::GetOwnPropertyDescriptor(
-      isolate, Handle<JSReceiver>::cast(target), name, &desc);
-  MAYBE_RETURN(found, ReadOnlyRoots(isolate).exception());
-  if (!found.FromJust()) return ReadOnlyRoots(isolate).undefined_value();
-  return *desc.ToObject(isolate);
-}
-
 // ES6 section 26.1.11 Reflect.ownKeys
 BUILTIN(ReflectOwnKeys) {
   HandleScope scope(isolate);

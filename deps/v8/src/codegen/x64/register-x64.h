@@ -41,7 +41,7 @@ namespace internal {
   V(r12)                                        \
   V(r15)
 
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#ifdef V8_COMPRESS_POINTERS
 #define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
 #else
 #define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V) V(r14)
@@ -102,12 +102,20 @@ constexpr Register arg_reg_1 = rcx;
 constexpr Register arg_reg_2 = rdx;
 constexpr Register arg_reg_3 = r8;
 constexpr Register arg_reg_4 = r9;
+constexpr int kRegisterPassedArguments = 4;
+// The Windows 64 ABI always reserves spill slots on the stack for the four
+// register arguments even if the function takes fewer than four arguments.
+// These stack slots are sometimes called 'home space', sometimes 'shadow
+// store' in Microsoft documentation, see
+// https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention.
+constexpr int kWindowsHomeStackSlots = 4;
 #else
 // AMD64 calling convention
 constexpr Register arg_reg_1 = rdi;
 constexpr Register arg_reg_2 = rsi;
 constexpr Register arg_reg_3 = rdx;
 constexpr Register arg_reg_4 = rcx;
+constexpr int kRegisterPassedArguments = 6;
 #endif  // V8_TARGET_OS_WIN
 
 #define DOUBLE_REGISTERS(V) \
@@ -279,14 +287,13 @@ constexpr Register kWasmInstanceRegister = rsi;
 // function calling convention.
 constexpr Register kScratchRegister = r10;
 constexpr XMMRegister kScratchDoubleReg = xmm15;
+constexpr YMMRegister kScratchSimd256Reg = ymm15;
 constexpr Register kRootRegister = r13;  // callee save
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#ifdef V8_COMPRESS_POINTERS
 constexpr Register kPtrComprCageBaseRegister = r14;  // callee save
 #else
-constexpr Register kPtrComprCageBaseRegister = kRootRegister;
+constexpr Register kPtrComprCageBaseRegister = no_reg;
 #endif
-
-constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
 
 constexpr DoubleRegister kFPReturnRegister0 = xmm0;
 

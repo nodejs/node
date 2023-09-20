@@ -4,13 +4,12 @@
 const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
 {
-  const emptyFile = path.join(tmpdir.path, 'empty.txt');
+  const emptyFile = tmpdir.resolve('empty.txt');
   fs.closeSync(fs.openSync(emptyFile, 'w'));
 
   fs.readFile(
@@ -29,7 +28,7 @@ tmpdir.refresh();
 }
 
 {
-  const willBeCreated = path.join(tmpdir.path, 'will-be-created');
+  const willBeCreated = tmpdir.resolve('will-be-created');
 
   fs.readFile(
     willBeCreated,
@@ -40,7 +39,7 @@ tmpdir.refresh();
 }
 
 {
-  const willNotBeCreated = path.join(tmpdir.path, 'will-not-be-created');
+  const willNotBeCreated = tmpdir.resolve('will-not-be-created');
 
   fs.readFile(
     willNotBeCreated,

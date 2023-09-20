@@ -51,9 +51,7 @@ Object.defineProperty(exports, "isStrictReservedWord", {
     return _keyword.isStrictReservedWord;
   }
 });
-
-var _identifier = require("./identifier");
-
-var _keyword = require("./keyword");
+var _identifier = require("./identifier.js");
+var _keyword = require("./keyword.js");
 
 //# sourceMappingURL=index.js.map

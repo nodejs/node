@@ -84,10 +84,14 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   //      separators.
   //   2) Implicitly between two consecutive strings a single separator.
   //
+  // In addition repeated strings are represented by a negative smi, indicating
+  // how many times the previously written string has to be repeated.
+  //
   // Here are some input/output examples given the separator string is ',':
   //
   //   [1, 'hello', 2, 'world', 1] => ',hello,,world,'
   //   ['hello', 'world']          => 'hello,world'
+  //   ['hello', -2, 'world']      => 'hello,hello,hello,world'
   //
   // To avoid any allocations, this helper assumes the destination string is the
   // exact length necessary to write the strings and separators from the fixed

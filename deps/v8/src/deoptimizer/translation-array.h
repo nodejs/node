@@ -30,40 +30,52 @@ class TranslationArrayIterator {
  public:
   TranslationArrayIterator(TranslationArray buffer, int index);
 
-  int32_t Next();
+  int32_t NextOperand();
 
-  uint32_t NextUnsigned();
+  uint32_t NextOperandUnsigned();
 
-  bool HasNext() const;
+  TranslationOpcode NextOpcode();
 
-  void Skip(int n) {
-    for (int i = 0; i < n; i++) Next();
+  bool HasNextOpcode() const;
+
+  void SkipOperands(int n) {
+    for (int i = 0; i < n; i++) NextOperand();
   }
 
  private:
+  TranslationOpcode NextOpcodeAtPreviousIndex();
+  uint32_t NextUnsignedOperandAtPreviousIndex();
+  void SkipOpcodeAndItsOperandsAtPreviousIndex();
+
   std::vector<int32_t> uncompressed_contents_;
   TranslationArray buffer_;
   int index_;
+
+  // This decrementing counter indicates how many more times to read operations
+  // from the previous translation before continuing to move the index forward.
+  int remaining_ops_to_use_from_previous_translation_ = 0;
+
+  // An index into buffer_ for operations starting at a previous BEGIN, which
+  // can be used to read operations referred to by MATCH_PREVIOUS_TRANSLATION.
+  int previous_index_ = 0;
+
+  // When starting a new MATCH_PREVIOUS_TRANSLATION operation, we'll need to
+  // advance the previous_index_ by this many steps.
+  int ops_since_previous_index_was_updated_ = 0;
 };
 
 class TranslationArrayBuilder {
  public:
   explicit TranslationArrayBuilder(Zone* zone)
-      : contents_(zone), contents_for_compression_(zone), zone_(zone) {}
+      : contents_(zone),
+        contents_for_compression_(zone),
+        basis_instructions_(zone),
+        zone_(zone) {}
 
   Handle<TranslationArray> ToTranslationArray(Factory* factory);
 
   int BeginTranslation(int frame_count, int jsframe_count,
-                       int update_feedback_count) {
-    int start_index = Size();
-    auto opcode = TranslationOpcode::BEGIN;
-    AddOpcode(opcode);
-    Add(frame_count);
-    Add(jsframe_count);
-    Add(update_feedback_count);
-    DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
-    return start_index;
-  }
+                       bool update_feedback);
 
   void BeginInterpretedFrame(BytecodeOffset bytecode_offset, int literal_id,
                              unsigned height, int return_value_offset,
@@ -87,6 +99,7 @@ class TranslationArrayBuilder {
   void BeginCapturedObject(int length);
   void AddUpdateFeedback(int vector_literal, int slot);
   void DuplicateObject(int object_index);
+  void StoreRegister(TranslationOpcode opcode, Register reg);
   void StoreRegister(Register reg);
   void StoreInt32Register(Register reg);
   void StoreInt64Register(Register reg);
@@ -110,11 +123,46 @@ class TranslationArrayBuilder {
   void StoreJSFrameFunction();
 
  private:
-  void Add(int32_t value);
-  void AddOpcode(TranslationOpcode opcode);
-  void AddRegister(Register reg);
-  void AddFloatRegister(FloatRegister reg);
-  void AddDoubleRegister(DoubleRegister reg);
+  struct Instruction {
+    template <typename... T>
+    Instruction(TranslationOpcode opcode, T... operands)
+        : opcode(opcode),
+          operands{operands.value()...}
+#ifdef ENABLE_SLOW_DCHECKS
+          ,
+          is_operand_signed{operands.IsSigned()...}
+#endif
+    {
+    }
+    TranslationOpcode opcode;
+    // The operands for the instruction. Signed values were static_casted to
+    // unsigned.
+    uint32_t operands[kMaxTranslationOperandCount];
+#ifdef ENABLE_SLOW_DCHECKS
+    bool is_operand_signed[kMaxTranslationOperandCount];
+#endif
+  };
+
+  // Either adds the instruction or increments matching_instructions_count_,
+  // depending on whether the instruction matches the corresponding instruction
+  // from the previous translation.
+  template <typename... T>
+  void Add(TranslationOpcode opcode, T... operands);
+
+  // Adds the instruction to contents_, without performing the other steps of
+  // Add(). Requires !v8_flags.turbo_compress_translation_arrays.
+  template <typename... T>
+  void AddRawToContents(TranslationOpcode opcode, T... operands);
+
+  // Adds the instruction to contents_for_compression_, without performing the
+  // other steps of Add(). Requires v8_flags.turbo_compress_translation_arrays.
+  template <typename... T>
+  void AddRawToContentsForCompression(TranslationOpcode opcode, T... operands);
+
+  // Adds a BEGIN instruction to contents_ or contents_for_compression_, but
+  // does not update other state. Used by BeginTranslation.
+  template <typename... T>
+  void AddRawBegin(bool update_feedback, T... operands);
 
   int Size() const {
     return V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)
@@ -129,9 +177,35 @@ class TranslationArrayBuilder {
 
   Zone* zone() const { return zone_; }
 
+  void FinishPendingInstructionIfNeeded();
+
   ZoneVector<uint8_t> contents_;
   ZoneVector<int32_t> contents_for_compression_;
+  // If match_previous_allowed_ is false, then this vector contains the
+  // instructions written so far in the current translation (since the last
+  // BEGIN). If match_previous_allowed_ is true, then this vector contains the
+  // instructions from the basis translation (the one written with
+  // !match_previous_allowed_). This allows Add() to easily check whether a
+  // newly added instruction matches the corresponding one from the basis
+  // translation.
+  ZoneVector<Instruction> basis_instructions_;
+#ifdef ENABLE_SLOW_DCHECKS
+  std::vector<Instruction> all_instructions_;
+#endif
   Zone* const zone_;
+  // How many consecutive instructions we've skipped writing because they match
+  // the basis translation.
+  size_t matching_instructions_count_ = 0;
+  size_t total_matching_instructions_in_current_translation_ = 0;
+  // The current index within basis_instructions_.
+  size_t instruction_index_within_translation_ = 0;
+  // The byte index within the contents_ array of the BEGIN instruction for the
+  // basis translation (the most recent translation which was fully written out,
+  // not using MATCH_PREVIOUS_TRANSLATION instructions).
+  int index_of_basis_translation_start_ = 0;
+  // Whether the builder can use MATCH_PREVIOUS_TRANSLATION in the current
+  // translation.
+  bool match_previous_allowed_ = true;
 };
 
 }  // namespace internal

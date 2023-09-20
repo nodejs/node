@@ -23,31 +23,83 @@ module.exports = {
         docs: {
             description: "Disallow specified names in exports",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-restricted-exports"
+            url: "https://eslint.org/docs/latest/rules/no-restricted-exports"
         },
 
         schema: [{
-            type: "object",
-            properties: {
-                restrictedNamedExports: {
-                    type: "array",
-                    items: {
-                        type: "string"
+            anyOf: [
+                {
+                    type: "object",
+                    properties: {
+                        restrictedNamedExports: {
+                            type: "array",
+                            items: {
+                                type: "string"
+                            },
+                            uniqueItems: true
+                        }
                     },
-                    uniqueItems: true
+                    additionalProperties: false
+                },
+                {
+                    type: "object",
+                    properties: {
+                        restrictedNamedExports: {
+                            type: "array",
+                            items: {
+                                type: "string",
+                                pattern: "^(?!default$)"
+                            },
+                            uniqueItems: true
+                        },
+                        restrictDefaultExports: {
+                            type: "object",
+                            properties: {
+
+                                // Allow/Disallow `export default foo; export default 42; export default function foo() {}` format
+                                direct: {
+                                    type: "boolean"
+                                },
+
+                                // Allow/Disallow `export { foo as default };` declarations
+                                named: {
+                                    type: "boolean"
+                                },
+
+                                //  Allow/Disallow `export { default } from "mod"; export { default as default } from "mod";` declarations
+                                defaultFrom: {
+                                    type: "boolean"
+                                },
+
+                                //  Allow/Disallow `export { foo as default } from "mod";` declarations
+                                namedFrom: {
+                                    type: "boolean"
+                                },
+
+                                //  Allow/Disallow `export * as default from "mod"`; declarations
+                                namespaceFrom: {
+                                    type: "boolean"
+                                }
+                            },
+                            additionalProperties: false
+                        }
+                    },
+                    additionalProperties: false
                 }
-            },
-            additionalProperties: false
+            ]
         }],
 
         messages: {
-            restrictedNamed: "'{{name}}' is restricted from being used as an exported name."
+            restrictedNamed: "'{{name}}' is restricted from being used as an exported name.",
+            restrictedDefault: "Exporting 'default' is restricted."
         }
     },
 
     create(context) {
 
         const restrictedNames = new Set(context.options[0] && context.options[0].restrictedNamedExports);
+        const restrictDefaultExports = context.options[0] && context.options[0].restrictDefaultExports;
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks and reports given exported name.
@@ -63,6 +115,42 @@ module.exports = {
                     messageId: "restrictedNamed",
                     data: { name }
                 });
+                return;
+            }
+
+            if (name === "default") {
+                if (node.parent.type === "ExportAllDeclaration") {
+                    if (restrictDefaultExports && restrictDefaultExports.namespaceFrom) {
+                        context.report({
+                            node,
+                            messageId: "restrictedDefault"
+                        });
+                    }
+
+                } else { // ExportSpecifier
+                    const isSourceSpecified = !!node.parent.parent.source;
+                    const specifierLocalName = astUtils.getModuleExportName(node.parent.local);
+
+                    if (!isSourceSpecified && restrictDefaultExports && restrictDefaultExports.named) {
+                        context.report({
+                            node,
+                            messageId: "restrictedDefault"
+                        });
+                        return;
+                    }
+
+                    if (isSourceSpecified && restrictDefaultExports) {
+                        if (
+                            (specifierLocalName === "default" && restrictDefaultExports.defaultFrom) ||
+                            (specifierLocalName !== "default" && restrictDefaultExports.namedFrom)
+                        ) {
+                            context.report({
+                                node,
+                                messageId: "restrictedDefault"
+                            });
+                        }
+                    }
+                }
             }
         }
 
@@ -73,6 +161,15 @@ module.exports = {
                 }
             },
 
+            ExportDefaultDeclaration(node) {
+                if (restrictDefaultExports && restrictDefaultExports.direct) {
+                    context.report({
+                        node,
+                        messageId: "restrictedDefault"
+                    });
+                }
+            },
+
             ExportNamedDeclaration(node) {
                 const declaration = node.declaration;
 
@@ -80,7 +177,7 @@ module.exports = {
                     if (declaration.type === "FunctionDeclaration" || declaration.type === "ClassDeclaration") {
                         checkExportedName(declaration.id);
                     } else if (declaration.type === "VariableDeclaration") {
-                        context.getDeclaredVariables(declaration)
+                        sourceCode.getDeclaredVariables(declaration)
                             .map(v => v.defs.find(d => d.parent === declaration))
                             .map(d => d.name) // Identifier nodes
                             .forEach(checkExportedName);

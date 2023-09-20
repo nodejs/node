@@ -14,8 +14,9 @@
 #include "node_options-inl.h"
 #include "node_process-inl.h"
 #include "node_url.h"
-#include "util-inl.h"
+#include "permission/permission.h"
 #include "timer_wrap-inl.h"
+#include "util-inl.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
 
@@ -36,7 +37,7 @@ namespace node {
 namespace inspector {
 namespace {
 
-using node::FatalError;
+using node::OnFatalError;
 
 using v8::Context;
 using v8::Function;
@@ -248,6 +249,9 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
 
   void dispatchProtocolMessage(const StringView& message) {
     std::string raw_message = protocol::StringUtil::StringViewToUtf8(message);
+    per_process::Debug(DebugCategory::INSPECTOR_SERVER,
+                       "[inspector received] %s\n",
+                       raw_message);
     std::unique_ptr<protocol::DictionaryValue> value =
         protocol::DictionaryValue::cast(protocol::StringUtil::parseMessage(
             raw_message, false));
@@ -296,6 +300,13 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   void flushProtocolNotifications() override { }
 
   void sendMessageToFrontend(const StringView& message) {
+    if (per_process::enabled_debug_list.enabled(
+            DebugCategory::INSPECTOR_SERVER)) {
+      std::string raw_message = protocol::StringUtil::StringViewToUtf8(message);
+      per_process::Debug(DebugCategory::INSPECTOR_SERVER,
+                         "[inspector send] %s\n",
+                         raw_message);
+    }
     delegate_->SendMessageToFrontend(message);
   }
 
@@ -650,8 +661,9 @@ class NodeInspectorClient : public V8InspectorClient {
         protocol::StringUtil::StringViewToUtf8(resource_name_view);
     if (!IsFilePath(resource_name))
       return nullptr;
-    node::url::URL url = node::url::URL::FromFilePath(resource_name);
-    return Utf8ToStringView(url.href());
+
+    std::string url = node::url::FromFilePath(resource_name);
+    return Utf8ToStringView(url);
   }
 
   node::Environment* env_;
@@ -675,7 +687,7 @@ Agent::Agent(Environment* env)
       debug_options_(env->options()->debug_options()),
       host_port_(env->inspector_host_port()) {}
 
-Agent::~Agent() {}
+Agent::~Agent() = default;
 
 bool Agent::Start(const std::string& path,
                   const DebugOptions& options,
@@ -744,6 +756,10 @@ bool Agent::StartIoThread() {
   if (io_ != nullptr)
     return true;
 
+  THROW_IF_INSUFFICIENT_PERMISSIONS(parent_env_,
+                                    permission::PermissionScope::kInspector,
+                                    "StartIoThread",
+                                    false);
   if (!parent_env_->should_create_inspector() && !client_) {
     ThrowUninitializedInspectorError(parent_env_);
     return false;
@@ -769,6 +785,10 @@ void Agent::Stop() {
 std::unique_ptr<InspectorSession> Agent::Connect(
     std::unique_ptr<InspectorSessionDelegate> delegate,
     bool prevent_shutdown) {
+  THROW_IF_INSUFFICIENT_PERMISSIONS(parent_env_,
+                                    permission::PermissionScope::kInspector,
+                                    "Connect",
+                                    std::unique_ptr<InspectorSession>{});
   if (!parent_env_->should_create_inspector() && !client_) {
     ThrowUninitializedInspectorError(parent_env_);
     return std::unique_ptr<InspectorSession>{};
@@ -785,6 +805,10 @@ std::unique_ptr<InspectorSession> Agent::Connect(
 std::unique_ptr<InspectorSession> Agent::ConnectToMainThread(
     std::unique_ptr<InspectorSessionDelegate> delegate,
     bool prevent_shutdown) {
+  THROW_IF_INSUFFICIENT_PERMISSIONS(parent_env_,
+                                    permission::PermissionScope::kInspector,
+                                    "ConnectToMainThread",
+                                    std::unique_ptr<InspectorSession>{});
   if (!parent_env_->should_create_inspector() && !client_) {
     ThrowUninitializedInspectorError(parent_env_);
     return std::unique_ptr<InspectorSession>{};
@@ -799,6 +823,9 @@ std::unique_ptr<InspectorSession> Agent::ConnectToMainThread(
 }
 
 void Agent::WaitForDisconnect() {
+  THROW_IF_INSUFFICIENT_PERMISSIONS(parent_env_,
+                                    permission::PermissionScope::kInspector,
+                                    "WaitForDisconnect");
   if (!parent_env_->should_create_inspector() && !client_) {
     ThrowUninitializedInspectorError(parent_env_);
     return;
@@ -890,8 +917,8 @@ void Agent::ToggleAsyncHook(Isolate* isolate, Local<Function> fn) {
   USE(fn->Call(context, Undefined(isolate), 0, nullptr));
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     PrintCaughtException(isolate, context, try_catch);
-    FatalError("\nnode::inspector::Agent::ToggleAsyncHook",
-               "Cannot toggle Inspector's AsyncHook, please report this.");
+    OnFatalError("\nnode::inspector::Agent::ToggleAsyncHook",
+                 "Cannot toggle Inspector's AsyncHook, please report this.");
   }
 }
 
@@ -951,7 +978,11 @@ void Agent::SetParentHandle(
 }
 
 std::unique_ptr<ParentInspectorHandle> Agent::GetParentHandle(
-    uint64_t thread_id, const std::string& url) {
+    uint64_t thread_id, const std::string& url, const std::string& name) {
+  THROW_IF_INSUFFICIENT_PERMISSIONS(parent_env_,
+                                    permission::PermissionScope::kInspector,
+                                    "GetParentHandle",
+                                    std::unique_ptr<ParentInspectorHandle>{});
   if (!parent_env_->should_create_inspector() && !client_) {
     ThrowUninitializedInspectorError(parent_env_);
     return std::unique_ptr<ParentInspectorHandle>{};
@@ -959,13 +990,15 @@ std::unique_ptr<ParentInspectorHandle> Agent::GetParentHandle(
 
   CHECK_NOT_NULL(client_);
   if (!parent_handle_) {
-    return client_->getWorkerManager()->NewParentHandle(thread_id, url);
+    return client_->getWorkerManager()->NewParentHandle(thread_id, url, name);
   } else {
-    return parent_handle_->NewParentInspectorHandle(thread_id, url);
+    return parent_handle_->NewParentInspectorHandle(thread_id, url, name);
   }
 }
 
 void Agent::WaitForConnect() {
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      parent_env_, permission::PermissionScope::kInspector, "WaitForConnect");
   if (!parent_env_->should_create_inspector() && !client_) {
     ThrowUninitializedInspectorError(parent_env_);
     return;
@@ -976,6 +1009,10 @@ void Agent::WaitForConnect() {
 }
 
 std::shared_ptr<WorkerManager> Agent::GetWorkerManager() {
+  THROW_IF_INSUFFICIENT_PERMISSIONS(parent_env_,
+                                    permission::PermissionScope::kInspector,
+                                    "GetWorkerManager",
+                                    std::unique_ptr<WorkerManager>{});
   if (!parent_env_->should_create_inspector() && !client_) {
     ThrowUninitializedInspectorError(parent_env_);
     return std::unique_ptr<WorkerManager>{};

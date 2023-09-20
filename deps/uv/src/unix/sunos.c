@@ -148,7 +148,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct port_event events[1024];
   struct port_event* pe;
   struct timespec spec;
-  QUEUE* q;
+  struct uv__queue* q;
   uv__io_t* w;
   sigset_t* pset;
   sigset_t set;
@@ -166,16 +166,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int reset_timeout;
 
   if (loop->nfds == 0) {
-    assert(QUEUE_EMPTY(&loop->watcher_queue));
+    assert(uv__queue_empty(&loop->watcher_queue));
     return;
   }
 
-  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
-    q = QUEUE_HEAD(&loop->watcher_queue);
-    QUEUE_REMOVE(q);
-    QUEUE_INIT(q);
+  while (!uv__queue_empty(&loop->watcher_queue)) {
+    q = uv__queue_head(&loop->watcher_queue);
+    uv__queue_remove(q);
+    uv__queue_init(q);
 
-    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
+    w = uv__queue_data(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
 
     if (port_associate(loop->backend_fd,
@@ -316,13 +316,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;  /* Disabled by callback. */
 
       /* Events Ports operates in oneshot mode, rearm timer on next run. */
-      if (w->pevents != 0 && QUEUE_EMPTY(&w->watcher_queue))
-        QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
+      if (w->pevents != 0 && uv__queue_empty(&w->watcher_queue))
+        uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
     }
 
+    uv__metrics_inc_events(loop, nevents);
     if (reset_timeout != 0) {
       timeout = user_timeout;
       reset_timeout = 0;
+      uv__metrics_inc_events_waiting(loop, nevents);
     }
 
     if (have_signals != 0) {
@@ -412,6 +414,11 @@ uint64_t uv_get_total_memory(void) {
 
 uint64_t uv_get_constrained_memory(void) {
   return 0;  /* Memory constraints are unknown. */
+}
+
+
+uint64_t uv_get_available_memory(void) {
+  return uv_get_free_memory();
 }
 
 

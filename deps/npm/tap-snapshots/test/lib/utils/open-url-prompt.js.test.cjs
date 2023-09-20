@@ -6,20 +6,10 @@
  */
 'use strict'
 exports[`test/lib/utils/open-url-prompt.js TAP opens a url > must match snapshot 1`] = `
-Array [
-  Array [
-    String(
-      npm home:
-      https://www.npmjs.com
-    ),
-  ],
-]
+npm home:
+https://www.npmjs.com
 `
 
 exports[`test/lib/utils/open-url-prompt.js TAP prints json output > must match snapshot 1`] = `
-Array [
-  Array [
-    "{\\"title\\":\\"npm home\\",\\"url\\":\\"https://www.npmjs.com\\"}",
-  ],
-]
+{"title":"npm home","url":"https://www.npmjs.com"}
 `

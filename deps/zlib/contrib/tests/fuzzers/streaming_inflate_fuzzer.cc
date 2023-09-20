@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "third_party/zlib/zlib.h"
+#include "zlib.h"
 
 // Fuzzer builds often have NDEBUG set, so roll our own assert macro.
 #define ASSERT(cond)                                                           \

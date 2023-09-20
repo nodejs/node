@@ -3,7 +3,6 @@ class Root extends BaseCommand {
   static description = 'Display npm root'
   static name = 'root'
   static params = ['global']
-  static ignoreImplicitWorkspace = true
 
   async exec () {
     this.npm.output(this.npm.dir)

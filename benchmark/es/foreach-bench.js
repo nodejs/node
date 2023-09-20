@@ -5,7 +5,7 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   method: ['for', 'for-of', 'for-in', 'forEach'],
   count: [5, 10, 20, 100],
-  n: [5e6]
+  n: [5e6],
 });
 
 function useFor(n, items, count) {

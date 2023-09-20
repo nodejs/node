@@ -340,8 +340,8 @@ For undocumented APIs that are public, open a pull request documenting the API.
 
 ### Breaking changes
 
-At least two TSC members must approve backward-incompatible changes to the
-`main` branch.
+At least two TSC voting members must approve backward-incompatible changes to
+the `main` branch.
 
 Examples of breaking changes include:
 
@@ -381,6 +381,24 @@ change. If such a change lands on the `main` branch, a collaborator can revert
 it. As an alternative to reverting, the TSC can apply the semver-major label
 after-the-fact.
 
+If the change has already been backported to release lines open
+an issue in the TSC repository to discuss how best to proceed. In the past
+we have often reverted in the release lines and kept the change on main. The
+decision to revert or not most often is based on limiting the impact
+to the ecosystem and how quickly the breaking change is discovered.
+
+If the change is reverted make sure to:
+
+* consider if additional tests can be added to avoid a similar breaking change
+  being missed in the future.
+* consider if adding packages to CITGM would have helped catch
+  the breaking change.
+* ensure the changelog with the revert clearly explains the situation and
+  it's impact on those who may have already used the updated API.
+
+In either case make sure that the documentation and changelog for the
+original breaking change are updated to reflect the breaking behavior.
+
 ##### Reverting commits
 
 Revert commits with `git revert <HASH>` or `git revert <FROM>..<TO>`. The
@@ -411,7 +429,7 @@ possible to avoid confusion and typosquatting attacks.
 For pull requests introducing new core modules:
 
 * Allow at least one week for review.
-* Land only after sign-off from at least two TSC members.
+* Land only after sign-off from at least two TSC voting members.
 * Land with a [Stability Index][] of Experimental. The module must remain
   Experimental until a semver-major release.
 
@@ -509,7 +527,7 @@ The TSC serves as the final arbiter where required.
      squashing only keeps one author.
    * The "Rebase and merge" method has no way of adding metadata to the commit.
 3. Make sure CI is complete and green. If the CI is not green, check for
-   unreliable tests and infrastructure failures. If there are not corresponding
+   unreliable tests and infrastructure failures. If there are no corresponding
    issues in the [node][unreliable tests] or
    [build](https://github.com/nodejs/build/issues) repositories, open new
    issues. Run a new CI any time someone pushes new code to the pull request.
@@ -521,6 +539,12 @@ The TSC serves as the final arbiter where required.
 For pull requests from first-time contributors, be
 [welcoming](#welcoming-first-time-contributors). Also, verify that their git
 settings are to their liking.
+
+If a pull request contains more than one commit, it can be landed either by
+squashing into one commit or by rebasing all the commits, or a mix of the two.
+Generally, a collaborator should land a pull request by squashing. If a pull
+request has more than one self-contained subsystem commits, a collaborator
+may land it as several commits.
 
 All commits should be self-contained, meaning every commit should pass all
 tests. This makes it much easier when bisecting to find a breaking change.
@@ -537,9 +561,9 @@ this tool, please file an issue [to the issue tracker][node-core-utils-issues].
 
 Quick example:
 
-```text
-$ npm install -g node-core-utils
-$ git node land $PRID
+```bash
+npm install -g node-core-utils
+git node land $PRID
 ```
 
 To use `node-core-utils`, you will need a GitHub access token. If you do not
@@ -558,37 +582,37 @@ pull request rather than rely on `git-node`.
 
 Clear any `am`/`rebase` that might already be underway:
 
-```text
-$ git am --abort
-$ git rebase --abort
+```bash
+git am --abort
+git rebase --abort
 ```
 
 Checkout proper target branch:
 
-```text
-$ git checkout main
+```bash
+git checkout main
 ```
 
 Update the tree (assumes your repository is set up as detailed in
 [CONTRIBUTING.md](./pull-requests.md#step-1-fork)):
 
-```text
-$ git fetch upstream
-$ git merge --ff-only upstream/main
+```bash
+git fetch upstream
+git merge --ff-only upstream/main
 ```
 
 Apply external patches:
 
-```text
-$ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
+```bash
+curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
 ```
 
 If the merge fails even though recent CI runs were successful, try a 3-way
 merge:
 
-```text
-$ git am --abort
-$ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace=fix
+```bash
+git am --abort
+curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace=fix
 ```
 
 If the 3-way merge succeeds, check the results against the original pull
@@ -599,20 +623,20 @@ has landed since the CI run. You will have to ask the author to rebase.
 
 Check and re-review the changes:
 
-```text
-$ git diff upstream/main
+```bash
+git diff upstream/main
 ```
 
 Check the number of commits and commit messages:
 
-```text
-$ git log upstream/main...main
+```bash
+git log upstream/main...main
 ```
 
 Squash commits and add metadata:
 
-```text
-$ git rebase -i upstream/main
+```bash
+git rebase -i upstream/main
 ```
 
 This will open a screen like this (in the default shell editor):
@@ -688,8 +712,8 @@ precaution, run tests (`make -j4 test` or `vcbuild test`).
 Confirm that the commit message format is correct using
 [core-validate-commit](https://github.com/nodejs/core-validate-commit).
 
-```text
-$ git rev-list upstream/main...HEAD | xargs core-validate-commit
+```bash
+git rev-list upstream/main...HEAD | xargs core-validate-commit
 ```
 
 Optional: For your own commits, force push the amended commit to the pull
@@ -704,8 +728,8 @@ the issue with the red closed status.
 
 Time to push it:
 
-```text
-$ git push upstream main
+```bash
+git push upstream main
 ```
 
 Close the pull request with a "Landed in `<commit hash>`" comment. Even if
@@ -742,7 +766,7 @@ git push upstream main
 
 ### I made a mistake
 
-* Ping a TSC member.
+* Ping a TSC voting member.
 * With `git`, there's a way to override remote trees by force pushing
   (`git push -f`). This is generally forbidden as it creates conflicts in other
   people's forks. It is permissible for simpler slip-ups such as typos in commit

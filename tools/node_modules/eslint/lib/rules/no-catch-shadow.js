@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Disallow `catch` clause parameters from shadowing variables in the outer scope",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-catch-shadow"
+            url: "https://eslint.org/docs/latest/rules/no-catch-shadow"
         },
 
         replacedBy: ["no-shadow"],
@@ -38,6 +38,8 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -60,7 +62,7 @@ module.exports = {
         return {
 
             "CatchClause[param!=null]"(node) {
-                let scope = context.getScope();
+                let scope = sourceCode.getScope(node);
 
                 /*
                  * When ecmaVersion >= 6, CatchClause creates its own scope

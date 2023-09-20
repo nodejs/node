@@ -149,7 +149,7 @@ const {
 {
   // Only own properties are used
   const base = { 'abc': 1 };
-  const headers = Object.create(base);
+  const headers = { __proto__: base };
   headers[':status'] = 200;
   headers.xyz = [1, 2, 3, 4];
   headers.foo = [];

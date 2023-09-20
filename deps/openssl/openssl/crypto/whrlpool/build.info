@@ -22,7 +22,7 @@ DEFINE[../../libcrypto]=$WPDEF
 
 # When all deprecated symbols are removed, libcrypto doesn't export the
 # WHIRLPOOL functions, so we must include them directly in liblegacy.a
-IF[{- $disabled{'deprecated-3.0'} -}]
+IF[{- $disabled{'deprecated-3.0'} && !$disabled{module} && !$disabled{shared} -}]
   SOURCE[../../providers/liblegacy.a]=wp_dgst.c $WPASM
   DEFINE[../../providers/liblegacy.a]=$WPDEF
 ENDIF

@@ -98,6 +98,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/ax_ac_append_to_file.m4 \
 	$(top_srcdir)/m4/ax_am_macros_static.m4 \
 	$(top_srcdir)/m4/ax_check_gnu_make.m4 \
 	$(top_srcdir)/m4/ax_code_coverage.m4 \
+	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx_11.m4 \
 	$(top_srcdir)/m4/ax_file_escapes.m4 \
 	$(top_srcdir)/m4/ax_require_defined.m4 \
@@ -134,7 +135,9 @@ am_acountry_OBJECTS = acountry-acountry.$(OBJEXT) $(am__objects_1) \
 	$(am__objects_2)
 acountry_OBJECTS = $(am_acountry_OBJECTS)
 acountry_LDADD = $(LDADD)
-acountry_DEPENDENCIES = $(top_builddir)/src/lib/libcares.la
+am__DEPENDENCIES_1 =
+acountry_DEPENDENCIES = $(top_builddir)/src/lib/libcares.la \
+	$(am__DEPENDENCIES_1)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -149,7 +152,8 @@ am_adig_OBJECTS = adig-adig.$(OBJEXT) $(am__objects_3) \
 	$(am__objects_2)
 adig_OBJECTS = $(am_adig_OBJECTS)
 adig_LDADD = $(LDADD)
-adig_DEPENDENCIES = $(top_builddir)/src/lib/libcares.la
+adig_DEPENDENCIES = $(top_builddir)/src/lib/libcares.la \
+	$(am__DEPENDENCIES_1)
 adig_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(adig_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
@@ -160,7 +164,8 @@ am_ahost_OBJECTS = ahost-ahost.$(OBJEXT) $(am__objects_4) \
 	$(am__objects_2)
 ahost_OBJECTS = $(am_ahost_OBJECTS)
 ahost_LDADD = $(LDADD)
-ahost_DEPENDENCIES = $(top_builddir)/src/lib/libcares.la
+ahost_DEPENDENCIES = $(top_builddir)/src/lib/libcares.la \
+	$(am__DEPENDENCIES_1)
 ahost_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(ahost_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
@@ -280,6 +285,7 @@ EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
+FILECMD = @FILECMD@
 GCOV = @GCOV@
 GENHTML = @GENHTML@
 GREP = @GREP@
@@ -399,7 +405,10 @@ SAMPLEHEADERS = ares_getopt.h		\
   ../lib/ares_nowarn.h				\
   ../lib/ares_strcasecmp.h
 
-LDADD = $(top_builddir)/src/lib/libcares.la
+
+# We're not interested in code coverage of the test apps themselves, but need
+# to link with gcov if building with code coverage enabled
+LDADD = $(top_builddir)/src/lib/libcares.la $(CODE_COVERAGE_LIBS)
 ahost_SOURCES = ahost.c $(SAMPLESOURCES) $(SAMPLEHEADERS)
 ahost_CFLAGS = $(AM_CFLAGS)
 ahost_CPPFLAGS = $(AM_CPPFLAGS)

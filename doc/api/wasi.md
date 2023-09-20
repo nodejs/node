@@ -16,6 +16,7 @@ import { WASI } from 'wasi';
 import { argv, env } from 'node:process';
 
 const wasi = new WASI({
+  version: 'preview1',
   args: argv,
   env,
   preopens: {
@@ -23,14 +24,10 @@ const wasi = new WASI({
   },
 });
 
-// Some WASI binaries require:
-//   const importObject = { wasi_unstable: wasi.wasiImport };
-const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
-
 const wasm = await WebAssembly.compile(
   await readFile(new URL('./demo.wasm', import.meta.url)),
 );
-const instance = await WebAssembly.instantiate(wasm, importObject);
+const instance = await WebAssembly.instantiate(wasm, wasi.getImportObject());
 
 wasi.start(instance);
 ```
@@ -43,6 +40,7 @@ const { argv, env } = require('node:process');
 const { join } = require('node:path');
 
 const wasi = new WASI({
+  version: 'preview1',
   args: argv,
   env,
   preopens: {
@@ -50,15 +48,11 @@ const wasi = new WASI({
   },
 });
 
-// Some WASI binaries require:
-//   const importObject = { wasi_unstable: wasi.wasiImport };
-const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
-
 (async () => {
   const wasm = await WebAssembly.compile(
     await readFile(join(__dirname, 'demo.wasm')),
   );
-  const instance = await WebAssembly.instantiate(wasm, importObject);
+  const instance = await WebAssembly.instantiate(wasm, wasi.getImportObject());
 
   wasi.start(instance);
 })();
@@ -99,12 +93,9 @@ To run the above example, create a new WebAssembly text format file named
 
 Use [wabt](https://github.com/WebAssembly/wabt) to compile `.wat` to `.wasm`
 
-```console
-$ wat2wasm demo.wat
+```bash
+wat2wasm demo.wat
 ```
-
-The `--experimental-wasi-unstable-preview1` CLI argument is needed for this
-example to run.
 
 ## Class: `WASI`
 
@@ -126,6 +117,16 @@ sandbox directory structure configured explicitly.
 added:
  - v13.3.0
  - v12.16.0
+changes:
+ - version: v20.1.0
+   pr-url: https://github.com/nodejs/node/pull/47390
+   description: default value of returnOnExit changed to true.
+ - version: v20.0.0
+   pr-url: https://github.com/nodejs/node/pull/47391
+   description: The version option is now required and has no default value.
+ - version: v19.8.0
+   pr-url: https://github.com/nodejs/node/pull/46469
+   description: version field added to options.
 -->
 
 * `options` {Object}
@@ -138,16 +139,42 @@ added:
     sandbox directory structure. The string keys of `preopens` are treated as
     directories within the sandbox. The corresponding values in `preopens` are
     the real paths to those directories on the host machine.
-  * `returnOnExit` {boolean} By default, WASI applications terminate the Node.js
-    process via the `__wasi_proc_exit()` function. Setting this option to `true`
-    causes `wasi.start()` to return the exit code rather than terminate the
-    process. **Default:** `false`.
+  * `returnOnExit` {boolean} By default, when WASI applications call
+    `__wasi_proc_exit()`  `wasi.start()` will return with the exit code
+    specified rather than terminating the process. Setting this option to
+    `false` will cause the Node.js process to exit with the specified
+    exit code instead.  **Default:** `true`.
   * `stdin` {integer} The file descriptor used as standard input in the
     WebAssembly application. **Default:** `0`.
   * `stdout` {integer} The file descriptor used as standard output in the
     WebAssembly application. **Default:** `1`.
   * `stderr` {integer} The file descriptor used as standard error in the
     WebAssembly application. **Default:** `2`.
+  * `version` {string} The version of WASI requested. Currently the only
+    supported versions are `unstable` and `preview1`. This option is
+    mandatory.
+
+### `wasi.getImportObject()`
+
+<!-- YAML
+added: v19.8.0
+-->
+
+Return an import object that can be passed to `WebAssembly.instantiate()` if
+no other WASM imports are needed beyond those provided by WASI.
+
+If version `unstable` was passed into the constructor it will return:
+
+```json
+{ wasi_unstable: wasi.wasiImport }
+```
+
+If version `preview1` was passed into the constructor or no version was
+specified it will return:
+
+```json
+{ wasi_snapshot_preview1: wasi.wasiImport }
+```
 
 ### `wasi.start(instance)`
 

@@ -79,6 +79,7 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_UNARY_CASE)
       SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_UNARY_CASE)
       SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_UNARY_CASE)
+      DECLARE_UNARY_CASE(ChangeUint32ToUint64)
 #undef DECLARE_UNARY_CASE
 #define DECLARE_BINARY_CASE(x, ...) \
   case IrOpcode::k##x:              \
@@ -125,7 +126,8 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_CHANGE_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       SIMPLIFIED_CHECKED_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       IF_WASM(SIMPLIFIED_WASM_OP_LIST, DECLARE_IMPOSSIBLE_CASE)
-      MACHINE_SIMD_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_SIMD128_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_SIMD256_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       MACHINE_UNOP_32_LIST(DECLARE_IMPOSSIBLE_CASE)
       DECLARE_IMPOSSIBLE_CASE(Word32Xor)
       DECLARE_IMPOSSIBLE_CASE(Word32Sar)
@@ -158,7 +160,6 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(Uint64MulHigh)
       DECLARE_IMPOSSIBLE_CASE(Word64Equal)
       DECLARE_IMPOSSIBLE_CASE(Int32LessThan)
-      DECLARE_IMPOSSIBLE_CASE(Int32LessThanOrEqual)
       DECLARE_IMPOSSIBLE_CASE(Int64LessThan)
       DECLARE_IMPOSSIBLE_CASE(Int64LessThanOrEqual)
       DECLARE_IMPOSSIBLE_CASE(Uint64LessThan)
@@ -215,7 +216,6 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(ChangeInt32ToInt64)
       DECLARE_IMPOSSIBLE_CASE(ChangeInt64ToFloat64)
       DECLARE_IMPOSSIBLE_CASE(ChangeUint32ToFloat64)
-      DECLARE_IMPOSSIBLE_CASE(ChangeUint32ToUint64)
       DECLARE_IMPOSSIBLE_CASE(TruncateFloat64ToFloat32)
       DECLARE_IMPOSSIBLE_CASE(TruncateInt64ToInt32)
       DECLARE_IMPOSSIBLE_CASE(RoundFloat64ToInt32)
@@ -240,6 +240,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(LoadStackCheckOffset)
       DECLARE_IMPOSSIBLE_CASE(LoadFramePointer)
       DECLARE_IMPOSSIBLE_CASE(LoadParentFramePointer)
+      DECLARE_IMPOSSIBLE_CASE(LoadRootRegister)
       DECLARE_IMPOSSIBLE_CASE(UnalignedLoad)
       DECLARE_IMPOSSIBLE_CASE(UnalignedStore)
       DECLARE_IMPOSSIBLE_CASE(Int32PairAdd)
@@ -250,6 +251,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(Word32PairSar)
       DECLARE_IMPOSSIBLE_CASE(ProtectedLoad)
       DECLARE_IMPOSSIBLE_CASE(ProtectedStore)
+      DECLARE_IMPOSSIBLE_CASE(LoadTrapOnNull)
+      DECLARE_IMPOSSIBLE_CASE(StoreTrapOnNull)
       DECLARE_IMPOSSIBLE_CASE(MemoryBarrier)
       DECLARE_IMPOSSIBLE_CASE(SignExtendWord8ToInt32)
       DECLARE_IMPOSSIBLE_CASE(SignExtendWord16ToInt32)
@@ -302,6 +305,7 @@ class Typer::Visitor : public Reducer {
 
   Zone* zone() { return typer_->zone(); }
   Graph* graph() { return typer_->graph(); }
+  JSHeapBroker* broker() { return typer_->broker(); }
 
   void SetWeakened(NodeId node_id) { weakened_nodes_.insert(node_id); }
   bool IsWeakened(NodeId node_id) {
@@ -341,6 +345,8 @@ class Typer::Visitor : public Reducer {
   static Type ToName(Type, Typer*);
   static Type ToNumber(Type, Typer*);
   static Type ToNumberConvertBigInt(Type, Typer*);
+  static Type ToBigInt(Type, Typer*);
+  static Type ToBigIntConvertNumber(Type, Typer*);
   static Type ToNumeric(Type, Typer*);
   static Type ToObject(Type, Typer*);
   static Type ToString(Type, Typer*);
@@ -352,6 +358,7 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_METHOD)
+  DECLARE_METHOD(ChangeUint32ToUint64)
 #undef DECLARE_METHOD
 #define DECLARE_METHOD(Name)                       \
   static Type Name(Type lhs, Type rhs, Typer* t) { \
@@ -385,6 +392,7 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_METHOD)
+  DECLARE_METHOD(ChangeUint32ToUint64)
 #undef DECLARE_METHOD
   static Type ObjectIsArrayBufferView(Type, Typer*);
   static Type ObjectIsBigInt(Type, Typer*);
@@ -415,6 +423,7 @@ class Typer::Visitor : public Reducer {
   static Type NumberEqualTyper(Type, Type, Typer*);
   static Type NumberLessThanTyper(Type, Type, Typer*);
   static Type NumberLessThanOrEqualTyper(Type, Type, Typer*);
+  static Type BigIntCompareTyper(Type, Type, Typer*);
   static Type ReferenceEqualTyper(Type, Type, Typer*);
   static Type SameValueTyper(Type, Type, Typer*);
   static Type SameValueNumbersOnlyTyper(Type, Type, Typer*);
@@ -675,6 +684,16 @@ Type Typer::Visitor::ToNumberConvertBigInt(Type type, Typer* t) {
 }
 
 // static
+Type Typer::Visitor::ToBigInt(Type type, Typer* t) {
+  return t->operation_typer_.ToBigInt(type);
+}
+
+// static
+Type Typer::Visitor::ToBigIntConvertNumber(Type type, Typer* t) {
+  return t->operation_typer_.ToBigIntConvertNumber(type);
+}
+
+// static
 Type Typer::Visitor::ToNumeric(Type type, Typer* t) {
   return t->operation_typer_.ToNumeric(type);
 }
@@ -726,7 +745,7 @@ Type Typer::Visitor::ObjectIsConstructor(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::Constructor?
   CHECK(!type.IsNone());
   if (type.IsHeapConstant() &&
-      type.AsHeapConstant()->Ref().map().is_constructor()) {
+      type.AsHeapConstant()->Ref().map(t->broker()).is_constructor()) {
     return t->singleton_true_;
   }
   if (!type.Maybe(Type::Callable())) return t->singleton_false_;
@@ -1361,6 +1380,8 @@ DEFINE_METHOD(ToLength)
 DEFINE_METHOD(ToName)
 DEFINE_METHOD(ToNumber)
 DEFINE_METHOD(ToNumberConvertBigInt)
+DEFINE_METHOD(ToBigInt)
+DEFINE_METHOD(ToBigIntConvertNumber)
 DEFINE_METHOD(ToNumeric)
 DEFINE_METHOD(ToObject)
 DEFINE_METHOD(ToString)
@@ -1415,7 +1436,7 @@ Type Typer::Visitor::TypeJSCreateGeneratorObject(Node* node) {
 
 Type Typer::Visitor::TypeJSCreateClosure(Node* node) {
   SharedFunctionInfoRef shared =
-      JSCreateClosureNode{node}.Parameters().shared_info(typer_->broker());
+      JSCreateClosureNode{node}.Parameters().shared_info();
   if (IsClassConstructor(shared.kind())) {
     return Type::ClassConstructor();
   } else {
@@ -1489,7 +1510,7 @@ Type Typer::Visitor::TypeJSLoadNamed(Node* node) {
   // is not a private brand here. Otherwise Type::NonInternal() is wrong.
   JSLoadNamedNode n(node);
   NamedAccess const& p = n.Parameters();
-  DCHECK(!p.name(typer_->broker()).object()->IsPrivateBrand());
+  DCHECK(!p.name().object()->IsPrivateBrand());
 #endif
   return Type::NonInternal();
 }
@@ -1697,10 +1718,10 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     return Type::NonInternal();
   }
   JSFunctionRef function = fun.AsHeapConstant()->Ref().AsJSFunction();
-  if (!function.shared().HasBuiltinId()) {
+  if (!function.shared(t->broker()).HasBuiltinId()) {
     return Type::NonInternal();
   }
-  switch (function.shared().builtin_id()) {
+  switch (function.shared(t->broker()).builtin_id()) {
     case Builtin::kMathRandom:
       return Type::PlainNumber();
     case Builtin::kMathFloor:
@@ -2124,6 +2145,14 @@ Type Typer::Visitor::NumberLessThanOrEqualTyper(Type lhs, Type rhs, Typer* t) {
       Invert(JSCompareTyper(ToNumber(rhs, t), ToNumber(lhs, t), t), t), t);
 }
 
+// static
+Type Typer::Visitor::BigIntCompareTyper(Type lhs, Type rhs, Typer* t) {
+  if (lhs.IsNone() || rhs.IsNone()) {
+    return Type::None();
+  }
+  return Type::Boolean();
+}
+
 Type Typer::Visitor::TypeNumberEqual(Node* node) {
   return TypeBinaryOp(node, NumberEqualTyper);
 }
@@ -2147,6 +2176,18 @@ Type Typer::Visitor::TypeSpeculativeNumberLessThan(Node* node) {
 Type Typer::Visitor::TypeSpeculativeNumberLessThanOrEqual(Node* node) {
   return TypeBinaryOp(node, NumberLessThanOrEqualTyper);
 }
+
+#define BIGINT_COMPARISON_BINOP(Name)              \
+  Type Typer::Visitor::Type##Name(Node* node) {    \
+    return TypeBinaryOp(node, BigIntCompareTyper); \
+  }
+BIGINT_COMPARISON_BINOP(BigIntEqual)
+BIGINT_COMPARISON_BINOP(BigIntLessThan)
+BIGINT_COMPARISON_BINOP(BigIntLessThanOrEqual)
+BIGINT_COMPARISON_BINOP(SpeculativeBigIntEqual)
+BIGINT_COMPARISON_BINOP(SpeculativeBigIntLessThan)
+BIGINT_COMPARISON_BINOP(SpeculativeBigIntLessThanOrEqual)
+#undef BIGINT_COMPARISON_BINOP
 
 Type Typer::Visitor::TypeStringConcat(Node* node) { return Type::String(); }
 
@@ -2314,7 +2355,7 @@ Type Typer::Visitor::TypeCheckNotTaggedHole(Node* node) {
 
 Type Typer::Visitor::TypeCheckClosure(Node* node) {
   FeedbackCellRef cell = MakeRef(typer_->broker(), FeedbackCellOf(node->op()));
-  base::Optional<SharedFunctionInfoRef> shared = cell.shared_function_info();
+  OptionalSharedFunctionInfoRef shared = cell.shared_function_info(broker());
   if (!shared.has_value()) return Type::Function();
 
   if (IsClassConstructor(shared->kind())) {
@@ -2541,6 +2582,10 @@ Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 Type Typer::Visitor::TypeAssertType(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeVerifyType(Node* node) {
+  return TypeOrNone(node->InputAt(0));
+}
+
+Type Typer::Visitor::TypeCheckTurboshaftTypeOf(Node* node) {
   return TypeOrNone(node->InputAt(0));
 }
 

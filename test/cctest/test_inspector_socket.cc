@@ -764,8 +764,8 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   std::string expected(EXPECTED_FRAME_HEADER, sizeof(EXPECTED_FRAME_HEADER));
   expected.append(message);
 
-  delegate->Write(&message[0], message.size());
-  expect_on_client(&expected[0], expected.size());
+  delegate->Write(message.data(), message.size());
+  expect_on_client(expected.data(), expected.size());
 
   char MASK[4] = {'W', 'h', 'O', 'a'};
 
@@ -778,8 +778,8 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   outgoing.resize(outgoing.size() + message.size());
   mask_message(message, &outgoing[sizeof(FRAME_TO_SERVER_HEADER)], MASK);
 
-  do_write(&outgoing[0], outgoing.size());
-  delegate->ExpectData(&message[0], message.size());
+  do_write(outgoing.data(), outgoing.size());
+  delegate->ExpectData(message.data(), message.size());
 
   // 3. Close
   const char CLIENT_CLOSE_FRAME[] = {'\x88', '\x80', '\x2D',

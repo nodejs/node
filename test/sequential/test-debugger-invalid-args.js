@@ -11,7 +11,7 @@ const assert = require('assert');
 (async () => {
   const cli = startCLI([]);
   const code = await cli.quit();
-  assert.strictEqual(code, 1);
+  assert.strictEqual(code, 9);
   assert.match(cli.output, /^Usage:/, 'Prints usage info');
 })().then(common.mustCall());
 

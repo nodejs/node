@@ -32,6 +32,8 @@ class Pool extends PoolBase {
     tls,
     maxCachedSessions,
     socketPath,
+    autoSelectFamily,
+    autoSelectFamilyAttemptTimeout,
     ...options
   } = {}) {
     super()
@@ -54,6 +56,7 @@ class Pool extends PoolBase {
         maxCachedSessions,
         socketPath,
         timeout: connectTimeout == null ? 10e3 : connectTimeout,
+        ...(util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
         ...connect
       })
     }

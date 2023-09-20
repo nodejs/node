@@ -1,11 +1,12 @@
 const t = require('tap')
 const log = require('../../../lib/utils/log-shim')
 const mockLogs = require('../../fixtures/mock-logs')
-const mockGlobals = require('../../fixtures/mock-globals')
+const mockGlobals = require('@npmcli/mock-globals')
+const tmock = require('../../fixtures/tmock')
 
 const mockDisplay = (t, mocks) => {
   const { logs, logMocks } = mockLogs(mocks)
-  const Display = t.mock('../../../lib/utils/display', {
+  const Display = tmock(t, '{LIB}/utils/display', {
     ...mocks,
     ...logMocks,
   })
@@ -18,7 +19,7 @@ t.test('setup', async (t) => {
   const { display } = mockDisplay(t)
 
   display.load({ timing: true, loglevel: 'notice' })
-  t.equal(log.level, 'timing')
+  t.equal(log.level, 'notice')
 
   display.load({ timing: false, loglevel: 'notice' })
   t.equal(log.level, 'notice')
@@ -44,7 +45,7 @@ t.test('can log', async (t) => {
       error: (...args) => logs.push(['error', ...args]),
       warn: (...args) => logs.push(['warn', ...args]),
     },
-    '../../../lib/utils/explain-eresolve.js': {
+    '{LIB}/utils/explain-eresolve.js': {
       explain: (...args) => {
         explains.push(args)
         return 'explanation'
@@ -57,7 +58,7 @@ t.test('can log', async (t) => {
 
   display.log('warn', 'ERESOLVE', 'hello', { some: 'object' })
   t.match(logs.warn, [['ERESOLVE', 'hello']])
-  t.match(explains, [[{ some: 'object' }, false, 2]])
+  t.match(explains, [[{ some: 'object' }, null, 2]])
 })
 
 t.test('handles log throwing', async (t) => {
@@ -71,7 +72,7 @@ t.test('handles log throwing', async (t) => {
         throw new Error('verbose')
       },
     },
-    '../../../lib/utils/explain-eresolve.js': {
+    '{LIB}/utils/explain-eresolve.js': {
       explain: () => {
         throw new Error('explain')
       },

@@ -133,7 +133,9 @@ class Scavenger {
   template <typename TSlot>
   inline void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk, TSlot slot);
   inline void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
-                                              SlotType slot_type, Address slot);
+                                              SlotType slot_type,
+                                              Address slot_address,
+                                              MaybeObject new_target);
 
   // Scavenges an object |object| referenced from slot |p|. |object| is required
   // to be in from space.
@@ -200,8 +202,8 @@ class Scavenger {
   PromotionList::Local promotion_list_local_;
   CopiedList::Local copied_list_local_;
   EphemeronTableList::Local ephemeron_table_list_local_;
-  PretenturingHandler* const pretenuring_handler_;
-  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenuringHandler* const pretenuring_handler_;
+  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   size_t copied_size_;
   size_t promoted_size_;
   EvacuationAllocator allocator_;
@@ -214,6 +216,7 @@ class Scavenger {
   const bool is_compacting_;
   const bool shared_string_table_;
   const bool mark_shared_heap_;
+  const bool shortcut_strings_;
 
   friend class IterateAndScavengePromotedObjectsVisitor;
   friend class RootScavengeVisitor;

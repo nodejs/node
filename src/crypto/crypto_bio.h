@@ -182,8 +182,6 @@ class NodeBIO : public MemoryRetainer {
   int eof_return_ = -1;
   Buffer* read_head_ = nullptr;
   Buffer* write_head_ = nullptr;
-
-  friend void node::crypto::InitCryptoOnce();
 };
 
 }  // namespace crypto

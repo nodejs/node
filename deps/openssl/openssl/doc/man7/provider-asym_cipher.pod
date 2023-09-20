@@ -54,14 +54,14 @@ L<EVP_PKEY_decrypt(3)> and
 other related functions).
 
 All "functions" mentioned here are passed as function pointers between
-F<libcrypto> and the provider in B<OSSL_DISPATCH> arrays via
-B<OSSL_ALGORITHM> arrays that are returned by the provider's
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays via
+L<OSSL_ALGORITHM(3)> arrays that are returned by the provider's
 provider_query_operation() function
 (see L<provider-base(7)/Provider Functions>).
 
 All these "functions" have a corresponding function type definition
 named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
-function pointer from an B<OSSL_DISPATCH> element named
+function pointer from an L<OSSL_DISPATCH(3)> element named
 B<OSSL_FUNC_{name}>.
 For example, the "function" OSSL_FUNC_asym_cipher_newctx() has these:
 
@@ -69,7 +69,7 @@ For example, the "function" OSSL_FUNC_asym_cipher_newctx() has these:
  static ossl_inline OSSL_FUNC_asym_cipher_newctx_fn
      OSSL_FUNC_asym_cipher_newctx(const OSSL_DISPATCH *opf);
 
-B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
 macros in L<openssl-core_dispatch.h(7)>, as follows:
 
  OSSL_FUNC_asym_cipher_newctx               OSSL_FUNC_ASYM_CIPHER_NEWCTX
@@ -127,8 +127,7 @@ pointer to a provider key object in the I<provkey> parameter.
 The I<params>, if not NULL, should be set on the context in a manner similar to
 using OSSL_FUNC_asym_cipher_set_ctx_params().
 The key object should have been previously generated, loaded or imported into
-the provider using the key management (OSSL_OP_KEYMGMT) operation (see
-provider-keymgmt(7)>.
+the provider using the key management (OSSL_OP_KEYMGMT) operation (see L<provider-keymgmt(7)>).
 OSSL_FUNC_asym_cipher_encrypt() performs the actual encryption itself.
 A previously initialised asymmetric cipher context is passed in the I<ctx>
 parameter.
@@ -150,7 +149,7 @@ The I<params>, if not NULL, should be set on the context in a manner similar to
 using OSSL_FUNC_asym_cipher_set_ctx_params().
 The key object should have been previously generated, loaded or imported into
 the provider using the key management (OSSL_OP_KEYMGMT) operation (see
-provider-keymgmt(7)>.
+L<provider-keymgmt(7)>).
 
 OSSL_FUNC_asym_cipher_decrypt() performs the actual decryption itself.
 A previously initialised asymmetric cipher context is passed in the I<ctx>
@@ -187,14 +186,10 @@ algorithms:
 
 =over 4
 
-=item "pad-mode" (B<OSSL_ASYM_CIPHER_PARAM_PAD_MODE>) <integer>
+=item "pad-mode" (B<OSSL_ASYM_CIPHER_PARAM_PAD_MODE>) <UTF8 string> OR <integer>
 
 The type of padding to be used. The interpretation of this value will depend
-on the algorithm in use. The default provider understands these RSA padding
-modes: 1 (RSA_PKCS1_PADDING), 3 (RSA_NO_PADDING),
-4 (RSA_PKCS1_OAEP_PADDING), 5 (RSA_X931_PADDING), 6 (RSA_PKCS1_PSS_PADDING) and
-7 (RSA_PKCS1_WITH_TLS_PADDING). See L<EVP_PKEY_CTX_set_rsa_padding(3)> for
-further details.
+on the algorithm in use.
 
 =item "digest" (B<OSSL_ASYM_CIPHER_PARAM_OAEP_DIGEST>) <UTF8 string>
 
@@ -223,27 +218,28 @@ is in use.
 
 Gets or sets the properties to use when fetching the MGF1 digest algorithm.
 
+=item "oaep-label" (B<OSSL_ASYM_CIPHER_PARAM_OAEP_LABEL>) <octet string ptr>
+
+Gets the OAEP label used when OAEP padding is in use.
+
 =item "oaep-label" (B<OSSL_ASYM_CIPHER_PARAM_OAEP_LABEL>) <octet string>
 
-Gets or sets the OAEP label used when OAEP padding is in use.
+Sets the OAEP label used when OAEP padding is in use.
 
 =item "tls-client-version" (B<OSSL_ASYM_CIPHER_PARAM_TLS_CLIENT_VERSION>) <unsigned integer>
 
-The TLS protocol version first requested by the client. See
-B<RSA_PKCS1_WITH_TLS_PADDING> on the page L<EVP_PKEY_CTX_set_rsa_padding(3)>.
+The TLS protocol version first requested by the client.
 
 =item "tls-negotiated-version" (B<OSSL_ASYM_CIPHER_PARAM_TLS_CLIENT_VERSION>) <unsigned integer>
 
-The negotiated TLS protocol version. See
-B<RSA_PKCS1_WITH_TLS_PADDING> on the page L<EVP_PKEY_CTX_set_rsa_padding(3)>.
+The negotiated TLS protocol version.
 
 =back
 
 OSSL_FUNC_asym_cipher_gettable_ctx_params() and OSSL_FUNC_asym_cipher_settable_ctx_params()
-get a constant B<OSSL_PARAM> array that describes the gettable and settable
+get a constant L<OSSL_PARAM(3)> array that describes the gettable and settable
 parameters, i.e. parameters that can be used with OSSL_FUNC_asym_cipherget_ctx_params()
 and OSSL_FUNC_asym_cipher_set_ctx_params() respectively.
-See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM> as parameter descriptor.
 
 =head1 RETURN VALUES
 
@@ -262,7 +258,7 @@ The provider ASYM_CIPHER interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

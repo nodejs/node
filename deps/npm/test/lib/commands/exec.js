@@ -1,8 +1,8 @@
 const t = require('tap')
-const fs = require('@npmcli/fs')
+const fs = require('fs/promises')
 const path = require('path')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
-const MockRegistry = require('../../fixtures/mock-registry.js')
+const MockRegistry = require('@npmcli/mock-registry')
 
 t.test('call with args', async t => {
   const { npm } = await loadMockNpm(t, {
@@ -38,9 +38,6 @@ t.test('registry package', async t => {
   require('fs').writeFileSync('npm-exec-test-success', '')`,
       },
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => prefix,
-    }),
   })
 
   await registry.package({
@@ -75,9 +72,6 @@ t.test('--prefix', async t => {
   require('fs').writeFileSync('npm-exec-test-success', '')`,
       },
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => prefix,
-    }),
   })
 
   // This is what `--prefix` does
@@ -125,9 +119,6 @@ t.test('workspaces', async t => {
         }),
       },
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => prefix,
-    }),
   })
 
   await registry.package({ manifest,
@@ -137,4 +128,39 @@ t.test('workspaces', async t => {
   await npm.exec('exec', ['@npmcli/npx-test'])
   const exists = await fs.stat(path.join(npm.prefix, 'workspace-a', 'npm-exec-test-success'))
   t.ok(exists.isFile(), 'bin ran, creating file inside workspace')
+})
+
+t.test('npx --no-install @npmcli/npx-test', async t => {
+  const registry = new MockRegistry({
+    tap: t,
+    registry: 'https://registry.npmjs.org/',
+  })
+
+  const manifest = registry.manifest({ name: '@npmcli/npx-test' })
+  manifest.versions['1.0.0'].bin = { 'npx-test': 'index.js' }
+
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      audit: false,
+      yes: false,
+    },
+    prefixDir: {
+      'npm-exec-test': {
+        'package.json': JSON.stringify(manifest),
+        'index.js': `#!/usr/bin/env node
+  require('fs').writeFileSync('npm-exec-test-success', '')`,
+      },
+    },
+  })
+
+  try {
+    await npm.exec('exec', ['@npmcli/npx-test'])
+    t.fail('Expected error was not thrown')
+  } catch (error) {
+    t.match(
+      error.message,
+      'npx canceled due to missing packages and no YES option: ',
+      'Expected error message thrown'
+    )
+  }
 })

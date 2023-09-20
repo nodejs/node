@@ -6,11 +6,17 @@
 #define V8_TRACING_TRACING_CATEGORY_OBSERVER_H_
 
 #include "include/v8-platform.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace tracing {
 
-class TracingCategoryObserver : public TracingController::TraceStateObserver {
+class TracingCategoryObserver
+#if defined(V8_USE_PERFETTO)
+    : public perfetto::TrackEventSessionObserver {
+#else
+    : public TracingController::TraceStateObserver {
+#endif
  public:
   enum Mode {
     ENABLED_BY_NATIVE = 1 << 0,
@@ -21,9 +27,15 @@ class TracingCategoryObserver : public TracingController::TraceStateObserver {
   static void SetUp();
   static void TearDown();
 
+#if defined(V8_USE_PERFETTO)
+  // perfetto::TrackEventSessionObserver
+  void OnStart(const perfetto::DataSourceBase::StartArgs&) override;
+  void OnStop(const perfetto::DataSourceBase::StopArgs&) override;
+#else
   // v8::TracingController::TraceStateObserver
   void OnTraceEnabled() final;
   void OnTraceDisabled() final;
+#endif
 
  private:
   static TracingCategoryObserver* instance_;

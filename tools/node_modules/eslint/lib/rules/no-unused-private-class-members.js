@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow unused private class members",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-unused-private-class-members"
+            url: "https://eslint.org/docs/latest/rules/no-unused-private-class-members"
         },
 
         schema: [],

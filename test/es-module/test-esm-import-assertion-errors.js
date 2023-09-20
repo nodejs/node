@@ -5,6 +5,13 @@ const { rejects } = require('assert');
 const jsModuleDataUrl = 'data:text/javascript,export{}';
 const jsonModuleDataUrl = 'data:application/json,""';
 
+common.expectWarning(
+  'ExperimentalWarning',
+  'Import assertions are not a stable feature of the JavaScript language. ' +
+  'Avoid relying on their current behavior and syntax as those might change ' +
+  'in a future version of Node.js.'
+);
+
 async function test() {
   await rejects(
     import('data:text/css,', { assert: { type: 'css' } }),

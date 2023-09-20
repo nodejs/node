@@ -72,7 +72,7 @@ std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
 }
 
 // static
-Stack::StackSlot Stack::GetStackStart() {
+Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   pthread_attr_t attr;
   int error;
   pthread_attr_init(&attr);

@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const { findVariable } = require("eslint-utils");
+const { findVariable } = require("@eslint-community/eslint-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -144,7 +144,7 @@ module.exports = {
         docs: {
             description: "Disallow returning values from setters",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-setter-return"
+            url: "https://eslint.org/docs/latest/rules/no-setter-return"
         },
 
         schema: [],
@@ -156,6 +156,7 @@ module.exports = {
 
     create(context) {
         let funcInfo = null;
+        const sourceCode = context.sourceCode;
 
         /**
          * Creates and pushes to the stack a function info object for the given function node.
@@ -163,7 +164,7 @@ module.exports = {
          * @returns {void}
          */
         function enterFunction(node) {
-            const outerScope = getOuterScope(context.getScope());
+            const outerScope = getOuterScope(sourceCode.getScope(node));
 
             funcInfo = {
                 upper: funcInfo,

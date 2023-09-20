@@ -606,7 +606,10 @@ process.on('warning', (warning) => {
 
 By default, Node.js will print process warnings to `stderr`. The `--no-warnings`
 command-line option can be used to suppress the default console output but the
-`'warning'` event will still be emitted by the `process` object.
+`'warning'` event will still be emitted by the `process` object. Currently, it
+is not possible to suppress specific warning types other than deprecation
+warnings. To suppress deprecation warnings, check out the [`--no-deprecation`][]
+flag.
 
 The following example illustrates the warning that is printed to `stderr` when
 too many listeners have been added to an event:
@@ -871,7 +874,7 @@ added: v0.5.0
 
 The operating system CPU architecture for which the Node.js binary was compiled.
 Possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,`'mipsel'`, `'ppc'`,
-`'ppc64'`, `'s390'`, `'s390x'`, and `'x64'`.
+`'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`, and `'x64'`.
 
 ```mjs
 import { arch } from 'node:process';
@@ -922,8 +925,8 @@ argv.forEach((val, index) => {
 
 Launching the Node.js process as:
 
-```console
-$ node process-args.js one two=three four
+```bash
+node process-args.js one two=three four
 ```
 
 Would generate the output:
@@ -1102,6 +1105,25 @@ and [Cluster][] documentation), the `process.connected` property will return
 
 Once `process.connected` is `false`, it is no longer possible to send messages
 over the IPC channel using `process.send()`.
+
+## `process.constrainedMemory()`
+
+<!-- YAML
+added:
+  - v19.6.0
+  - v18.15.0
+-->
+
+> Stability: 1 - Experimental
+
+* {number|undefined}
+
+Gets the amount of memory available to the process (in bytes) based on
+limits imposed by the OS. If there is no such constraint, or the constraint
+is unknown, `undefined` is returned.
+
+See [`uv_get_constrained_memory`][uv_get_constrained_memory] for more
+information.
 
 ## `process.cpuUsage([previousValue])`
 
@@ -1558,8 +1580,8 @@ reflected outside the Node.js process, or (unless explicitly requested)
 to other [`Worker`][] threads.
 In other words, the following example would not work:
 
-```console
-$ node -e 'process.env.foo = "bar"' && echo $foo
+```bash
+node -e 'process.env.foo = "bar"' && echo $foo
 ```
 
 While the following will:
@@ -1647,7 +1669,9 @@ each [`Worker`][] thread has its own copy of `process.env`, based on its
 parent thread's `process.env`, or whatever was specified as the `env` option
 to the [`Worker`][] constructor. Changes to `process.env` will not be visible
 across [`Worker`][] threads, and only the main thread can make changes that
-are visible to the operating system or to native add-ons.
+are visible to the operating system or to native add-ons. On Windows, a copy of
+`process.env` on a [`Worker`][] instance operates in a case-sensitive manner
+unlike the main thread.
 
 ## `process.execArgv`
 
@@ -1664,8 +1688,8 @@ include the Node.js executable, the name of the script, or any options following
 the script name. These options are useful in order to spawn child processes with
 the same execution environment as the parent.
 
-```console
-$ node --harmony script.js --version
+```bash
+node --harmony script.js --version
 ```
 
 Results in `process.execArgv`:
@@ -1709,7 +1733,7 @@ that started the Node.js process. Symbolic links, if any, are resolved.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/43716
     description: Only accepts a code of type number, or of type string if it
                  represents an integer.
@@ -1817,7 +1841,7 @@ than the current process.
 <!-- YAML
 added: v0.11.8
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/43716
     description: Only accepts a code of type number, or of type string if it
                  represents an integer.
@@ -2356,7 +2380,7 @@ console.log(memoryUsage.rss());
 ```
 
 ```cjs
-const { rss } = require('node:process');
+const { memoryUsage } = require('node:process');
 
 console.log(memoryUsage.rss());
 // 35655680
@@ -2600,6 +2624,53 @@ flag is set on the current Node.js process. See the documentation for
 the [`'warning'` event][process_warning] and the
 [`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
+
+## `process.permission`
+
+<!-- YAML
+added: v20.0.0
+-->
+
+* {Object}
+
+This API is available through the [`--experimental-permission`][] flag.
+
+`process.permission` is an object whose methods are used to manage permissions
+for the current process. Additional documentation is available in the
+[Permission Model][].
+
+### `process.permission.has(scope[, reference])`
+
+<!-- YAML
+added: v20.0.0
+-->
+
+* `scope` {string}
+* `reference` {string}
+* Returns: {boolean}
+
+Verifies that the process is able to access the given scope and reference.
+If no reference is provided, a global scope is assumed, for instance,
+`process.permission.has('fs.read')` will check if the process has ALL
+file system read permissions.
+
+The reference has a meaning based on the provided scope. For example,
+the reference when the scope is File System means files and folders.
+
+The available scopes are:
+
+* `fs` - All File System
+* `fs.read` - File System read operations
+* `fs.write` - File System write operations
+* `child` - Child process spawning operations
+* `worker` - Worker thread spawning operation
+
+```js
+// Check if the process has permission to read the README file
+process.permission.has('fs.read', './README.md');
+// Check if the process has read permission operations
+process.permission.has('fs.read');
+```
 
 ## `process.pid`
 
@@ -2868,6 +2939,7 @@ present.
 
 ```mjs
 import { report } from 'node:process';
+import util from 'node:util';
 
 const data = report.getReport();
 console.log(data.header.nodejsVersion);
@@ -2879,6 +2951,7 @@ fs.writeFileSync('my-report.log', util.inspect(data), 'utf8');
 
 ```cjs
 const { report } = require('node:process');
+const util = require('node:util');
 
 const data = report.getReport();
 console.log(data.header.nodejsVersion);
@@ -3447,6 +3520,19 @@ throw an error.
 Using this function is mutually exclusive with using the deprecated
 [`domain`][] built-in module.
 
+## `process.sourceMapsEnabled`
+
+<!-- YAML
+added: v20.7.0
+-->
+
+> Stability: 1 - Experimental
+
+* {boolean}
+
+The `process.sourceMapsEnabled` property returns whether the
+[Source Map v3][Source Map] support for stack traces is enabled.
+
 ## `process.stderr`
 
 * {Stream}
@@ -3775,21 +3861,30 @@ console.log(versions);
 Will generate an object similar to:
 
 ```console
-{ node: '11.13.0',
-  v8: '7.0.276.38-node.18',
-  uv: '1.27.0',
-  zlib: '1.2.11',
-  brotli: '1.0.7',
-  ares: '1.15.0',
-  modules: '67',
-  nghttp2: '1.34.0',
-  napi: '4',
-  llhttp: '1.1.1',
-  openssl: '1.1.1b',
-  cldr: '34.0',
-  icu: '63.1',
-  tz: '2018e',
-  unicode: '11.0' }
+{ node: '20.2.0',
+  acorn: '8.8.2',
+  ada: '2.4.0',
+  ares: '1.19.0',
+  base64: '0.5.0',
+  brotli: '1.0.9',
+  cjs_module_lexer: '1.2.2',
+  cldr: '43.0',
+  icu: '73.1',
+  llhttp: '8.1.0',
+  modules: '115',
+  napi: '8',
+  nghttp2: '1.52.0',
+  nghttp3: '0.7.0',
+  ngtcp2: '0.8.1',
+  openssl: '3.0.8+quic',
+  simdutf: '3.2.9',
+  tz: '2023c',
+  undici: '5.22.0',
+  unicode: '15.0',
+  uv: '1.44.2',
+  uvwasi: '0.0.16',
+  v8: '11.3.244.8-node.9',
+  zlib: '1.2.13' }
 ```
 
 ## Exit codes
@@ -3851,6 +3946,7 @@ cases:
 [Duplex]: stream.md#duplex-and-transform-streams
 [Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
 [LTS]: https://github.com/nodejs/Release
+[Permission Model]: permissions.md#permission-model
 [Readable]: stream.md#readable-streams
 [Signal Events]: #signal-events
 [Source Map]: https://sourcemaps.info/spec.html
@@ -3860,6 +3956,8 @@ cases:
 [`'exit'`]: #event-exit
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
+[`--experimental-permission`]: cli.md#--experimental-permission
+[`--no-deprecation`]: cli.md#--no-deprecation
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer`]: buffer.md
 [`ChildProcess.disconnect()`]: child_process.md#subprocessdisconnect
@@ -3901,6 +3999,7 @@ cases:
 [process_warning]: #event-warning
 [report documentation]: report.md
 [terminal raw mode]: tty.md#readstreamsetrawmodemode
+[uv_get_constrained_memory]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_get_constrained_memory
 [uv_rusage_t]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
 [wikipedia_major_fault]: https://en.wikipedia.org/wiki/Page_fault#Major
 [wikipedia_minor_fault]: https://en.wikipedia.org/wiki/Page_fault#Minor

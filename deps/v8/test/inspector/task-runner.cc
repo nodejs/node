@@ -68,7 +68,8 @@ void TaskRunner::Run() {
 
 void TaskRunner::RunMessageLoop(bool only_protocol) {
   int loop_number = ++nested_loop_count_;
-  while (nested_loop_count_ == loop_number && !is_terminated_) {
+  while (nested_loop_count_ == loop_number && !is_terminated_ &&
+         !isolate()->IsExecutionTerminating()) {
     std::unique_ptr<TaskRunner::Task> task = GetNext(only_protocol);
     if (!task) return;
     v8::Isolate::Scope isolate_scope(isolate());
@@ -88,7 +89,8 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     // This can be removed once https://crbug.com/v8/10747 is fixed.
     // TODO(10748): Enable --stress-incremental-marking after the existing
     // tests are fixed.
-    if (!i::v8_flags.stress_incremental_marking) {
+    if (!i::v8_flags.stress_incremental_marking &&
+        !isolate()->IsExecutionTerminating()) {
       while (v8::platform::PumpMessageLoop(
           v8::internal::V8::GetCurrentPlatform(), isolate(),
           isolate()->HasPendingBackgroundTasks()

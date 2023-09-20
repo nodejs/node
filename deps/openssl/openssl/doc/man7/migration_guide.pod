@@ -130,7 +130,7 @@ New algorithms provided via engines will still work.
 
 Engine-backed keys can be loaded via custom B<OSSL_STORE> implementation.
 In this case the B<EVP_PKEY> objects created via L<ENGINE_load_private_key(3)>
-will be concidered legacy and will continue to work.
+will be considered legacy and will continue to work.
 
 To ensure the future compatibility, the engines should be turned to providers.
 To prefer the provider-based hardware offload, you can specify the default
@@ -188,6 +188,15 @@ L<EVP_DigestSign(3)> and L<EVP_DigestVerify(3)>.
 All new applications should use the new L<EVP_MAC(3)> interface.
 See also L<OSSL_PROVIDER-default(7)/Message Authentication Code (MAC)>
 and L<OSSL_PROVIDER-FIPS(7)/Message Authentication Code (MAC)>.
+
+=head4 Algorithm Fetching
+
+Using calls to convenience functions such as EVP_sha256() and EVP_aes_256_gcm() may
+incur a performance penalty when using providers.
+Retrieving algorithms from providers involves searching for an algorithm by name.
+This is much slower than directly accessing a method table.
+It is recommended to prefetch algorithms if an algorithm is used many times.
+See L<crypto(7)/Performance>, L<crypto(7)/Explicit fetching> and L<crypto(7)/Implicit fetching>.
 
 =head4 Support for Linux Kernel TLS
 
@@ -472,6 +481,14 @@ The function code part of the error code is now always set to 0. For that
 reason the ERR_GET_FUNC() macro was removed. Applications must resolve
 the error codes only using the library number and the reason code.
 
+=head4 ChaCha20-Poly1305 cipher does not allow a truncated IV length to be used
+
+In OpenSSL 3.0 setting the IV length to any value other than 12 will result in an
+error.
+Prior to OpenSSL 3.0 the ivlen could be smaller that the required 12 byte length,
+using EVP_CIPHER_CTX_ctrl(ctx, EVP_CRTL_AEAD_SET_IVLEN, ivlen, NULL). This resulted
+in an IV that had leading zero padding.
+
 =head2 Installation and Compilation
 
 Please refer to the INSTALL.md file in the top of the distribution for
@@ -624,7 +641,7 @@ set up with the default library context. Use L<X509_new_ex(3)>,
 L<X509_CRL_new_ex(3)>, L<X509_REQ_new_ex(3)> and L<X509_PUBKEY_new_ex(3)> if a
 library context is required.
 
-All functions listed below with a I<NAME> have a replacment function I<NAME_ex>
+All functions listed below with a I<NAME> have a replacement function I<NAME_ex>
 that takes B<OSSL_LIB_CTX> as an additional argument. Functions that have other
 mappings are listed along with the respective name.
 
@@ -957,7 +974,7 @@ See also L<crypto(7)/OPENSSL PROVIDERS>.
 Implicit and Explicit Fetching is described in detail here
 L<crypto(7)/ALGORITHM FETCHING>.
 
-=head3 Mapping EVP controls and flags to provider B<OSSL_PARAM> parameters
+=head3 Mapping EVP controls and flags to provider L<OSSL_PARAM(3)> parameters
 
 The existing functions for controls (such as L<EVP_CIPHER_CTX_ctrl(3)>) and
 manipulating flags (such as L<EVP_MD_CTX_set_flags(3)>)internally use
@@ -982,7 +999,7 @@ that refer to these categories.
 Any accessor that uses an ENGINE is deprecated (such as EVP_PKEY_set1_engine()).
 Applications using engines should instead use providers.
 
-Before providers were added algorithms were overriden by changing the methods
+Before providers were added algorithms were overridden by changing the methods
 used by algorithms. All these methods such as RSA_new_method() and RSA_meth_new()
 are now deprecated and can be replaced by using providers instead.
 
@@ -1074,7 +1091,8 @@ See L<EVP_MAC(3)>, L<EVP_MAC-HMAC(7)>, L<EVP_MAC-CMAC(7)>, L<EVP_MAC-GMAC(7)>,
 L<EVP_MAC-KMAC(7)>, L<EVP_MAC-BLAKE2(7)>, L<EVP_MAC-Poly1305(7)> and
 L<EVP_MAC-Siphash(7)> for additional information.
 
-Note that the one-shot method HMAC() is still available for compatability purposes.
+Note that the one-shot method HMAC() is still available for compatibility purposes,
+but this can also be replaced by using EVP_Q_MAC if a library context is required.
 
 =head4 Deprecated low-level validation functions
 
@@ -1459,7 +1477,7 @@ See L</Deprecated low-level key exchange functions>.
 ECDH_KDF_X9_62()
 
 Applications may either set this using the helper function
-L<EVP_PKEY_CTX_set_ecdh_kdf_type(3)> or by setting an B<OSSL_PARAM> using the
+L<EVP_PKEY_CTX_set_ecdh_kdf_type(3)> or by setting an L<OSSL_PARAM(3)> using the
 "kdf-type" as shown in L<EVP_KEYEXCH-ECDH(7)/EXAMPLES>
 
 =item *
@@ -1530,7 +1548,7 @@ See L</Deprecated low-level validation functions>
 
 EC_KEY_set_flags(), EC_KEY_get_flags(), EC_KEY_clear_flags()
 
-See L<EVP_PKEY-EC(7)/Common EC parameters> which handles flags as seperate
+See L<EVP_PKEY-EC(7)/Common EC parameters> which handles flags as separate
 parameters for B<OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT>,
 B<OSSL_PKEY_PARAM_EC_GROUP_CHECK_TYPE>, B<OSSL_PKEY_PARAM_EC_ENCODING>,
 B<OSSL_PKEY_PARAM_USE_COFACTOR_ECDH> and
@@ -2204,6 +2222,28 @@ Use L<X509_load_http(3)> and L<X509_CRL_load_http(3)> instead.
 
 =back
 
+=head3 NID handling for provided keys and algorithms
+
+The following functions for NID (numeric id) handling have changed semantics.
+
+=over 4
+
+=item *
+
+EVP_PKEY_id(), EVP_PKEY_get_id()
+
+This function was previously used to reliably return the NID of
+an EVP_PKEY object, e.g., to look up the name of the algorithm of
+such EVP_PKEY by calling L<OBJ_nid2sn(3)>. With the introduction
+of L<provider(7)>s EVP_PKEY_id() or its new equivalent
+L<EVP_PKEY_get_id(3)> might now also return the value -1
+(B<EVP_PKEY_KEYMGMT>) indicating the use of a provider to
+implement the EVP_PKEY object. Therefore, the use of
+L<EVP_PKEY_get0_type_name(3)> is recommended for retrieving
+the name of the EVP_PKEY algorithm.
+
+=back
+
 =head2 Using the FIPS Module in applications
 
 See L<fips_module(7)> and L<OSSL_PROVIDER-FIPS(7)> for details.
@@ -2407,9 +2447,13 @@ options of the commands.
 
 L<fips_module(7)>
 
+=head1 HISTORY
+
+The migration guide was created for OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

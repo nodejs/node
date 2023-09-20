@@ -36,7 +36,11 @@
   // is a dictionary mode prototypes on the prototype chain. Therefore, if
   // v8_dict_property_const_tracking is enabled, the optimized code only
   // contains a call to the IC handler and doesn't get deopted.
-  assertEquals(%IsDictPropertyConstTrackingEnabled(), isOptimized(foo));
+  if (%IsDictPropertyConstTrackingEnabled()) {
+    assertOptimized(foo);
+  } else {
+    assertUnoptimized(foo);
+  }
   assertTrue(%HasDictionaryElements(a));
 
   %PrepareFunctionForOptimization(foo);

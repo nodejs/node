@@ -28,7 +28,7 @@ module.exports = {
         docs: {
             description: "Require destructuring from arrays and/or objects",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-destructuring"
+            url: "https://eslint.org/docs/latest/rules/prefer-destructuring"
         },
 
         fixable: "code",
@@ -190,7 +190,7 @@ module.exports = {
          */
         function fixIntoObjectDestructuring(fixer, node) {
             const rightNode = node.init;
-            const sourceCode = context.getSourceCode();
+            const sourceCode = context.sourceCode;
 
             // Don't fix if that would remove any comments. Only comments inside `rightNode.object` can be preserved.
             if (sourceCode.getCommentsInside(node).length > sourceCode.getCommentsInside(rightNode.object).length) {

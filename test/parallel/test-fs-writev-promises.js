@@ -1,14 +1,13 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs').promises;
 const tmpdir = require('../common/tmpdir');
 const expected = 'ümlaut. Лорем 運務ホソモ指及 आपको करने विकास 紙読決多密所 أضف';
 let cnt = 0;
 
 function getFileName() {
-  return path.join(tmpdir.path, `writev_promises_${++cnt}.txt`);
+  return tmpdir.resolve(`writev_promises_${++cnt}.txt`);
 }
 
 tmpdir.refresh();

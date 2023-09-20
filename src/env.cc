@@ -11,6 +11,8 @@
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_process-inl.h"
+#include "node_shadow_realm.h"
+#include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
 #include "node_worker.h"
 #include "req_wrap-inl.h"
@@ -18,6 +20,7 @@
 #include "tracing/agent.h"
 #include "tracing/traced_value.h"
 #include "util-inl.h"
+#include "v8-cppgc.h"
 #include "v8-profiler.h"
 
 #include <algorithm>
@@ -27,6 +30,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <unordered_map>
 
 namespace node {
 
@@ -34,10 +38,11 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::Function;
-using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
@@ -48,6 +53,7 @@ using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Private;
 using v8::Script;
 using v8::SnapshotCreator;
@@ -58,6 +64,7 @@ using v8::TracingController;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
+using v8::WrapperDescriptor;
 using worker::Worker;
 
 int const ContextEmbedderTag::kNodeContextTag = 0x6e6f64;
@@ -169,15 +176,13 @@ bool AsyncHooks::pop_async_context(double async_id) {
 }
 
 void AsyncHooks::clear_async_id_stack() {
-  if (env()->can_call_into_js()) {
+  if (!js_execution_async_resources_.IsEmpty() && env()->can_call_into_js()) {
     Isolate* isolate = env()->isolate();
     HandleScope handle_scope(isolate);
-    if (!js_execution_async_resources_.IsEmpty()) {
-      USE(PersistentToLocal::Strong(js_execution_async_resources_)
-              ->Set(env()->context(),
-                    env()->length_string(),
-                    Integer::NewFromUnsigned(isolate, 0)));
-    }
+    USE(PersistentToLocal::Strong(js_execution_async_resources_)
+            ->Set(env()->context(),
+                  env()->length_string(),
+                  Integer::NewFromUnsigned(isolate, 0)));
   }
 
   native_execution_async_resources_.clear();
@@ -224,6 +229,14 @@ void Environment::UntrackContext(Local<Context> context) {
       break;
     }
   }
+}
+
+void Environment::TrackShadowRealm(shadow_realm::ShadowRealm* realm) {
+  shadow_realms_.insert(realm);
+}
+
+void Environment::UntrackShadowRealm(shadow_realm::ShadowRealm* realm) {
+  shadow_realms_.erase(realm);
 }
 
 AsyncHooks::DefaultTriggerAsyncIdScope::DefaultTriggerAsyncIdScope(
@@ -299,13 +312,16 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
 #define VP(PropertyName, StringValue) V(Private, PropertyName)
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
+#define VR(PropertyName, TypeName) V(Private, per_realm_##PropertyName)
 #define V(TypeName, PropertyName)                                              \
   info.primitive_values.push_back(                                             \
       creator->AddData(PropertyName##_.Get(isolate)));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_REALM_STRONG_PERSISTENT_VALUES(VR)
 #undef V
+#undef VR
 #undef VY
 #undef VS
 #undef VP
@@ -314,6 +330,7 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
     info.primitive_values.push_back(creator->AddData(async_wrap_provider(i)));
 
   uint32_t id = 0;
+#define VM(PropertyName) V(PropertyName##_binding_template, ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     Local<TypeName> field = PropertyName();                                    \
@@ -324,6 +341,7 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
     id++;                                                                      \
   } while (0);
   PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+  NODE_BINDINGS_WITH_PER_ISOLATE_INIT(VM)
 #undef V
 
   return info;
@@ -333,9 +351,15 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   size_t i = 0;
   HandleScope handle_scope(isolate_);
 
+  if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
+    fprintf(stderr, "deserializing IsolateDataSerializeInfo...\n");
+    std::cerr << *info << "\n";
+  }
+
 #define VP(PropertyName, StringValue) V(Private, PropertyName)
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
+#define VR(PropertyName, TypeName) V(Private, per_realm_##PropertyName)
 #define V(TypeName, PropertyName)                                              \
   do {                                                                         \
     MaybeLocal<TypeName> maybe_field =                                         \
@@ -350,7 +374,9 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_REALM_STRONG_PERSISTENT_VALUES(VR)
 #undef V
+#undef VR
 #undef VY
 #undef VS
 #undef VP
@@ -368,6 +394,7 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   const std::vector<PropInfo>& values = info->template_values;
   i = 0;  // index to the array
   uint32_t id = 0;
+#define VM(PropertyName) V(PropertyName##_binding_template, ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     if (values.size() > i && id == values[i].id) {                             \
@@ -388,6 +415,7 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   } while (0);
 
   PER_ISOLATE_TEMPLATE_PROPERTIES(V);
+  NODE_BINDINGS_WITH_PER_ISOLATE_INIT(VM);
 #undef V
 }
 
@@ -416,6 +444,19 @@ void IsolateData::CreateProperties() {
                        sizeof(StringValue) - 1)                                \
                        .ToLocalChecked()));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+#define V(PropertyName, TypeName)                                              \
+  per_realm_##PropertyName##_.Set(                                             \
+      isolate_,                                                                \
+      Private::New(                                                            \
+          isolate_,                                                            \
+          String::NewFromOneByte(                                              \
+              isolate_,                                                        \
+              reinterpret_cast<const uint8_t*>("per_realm_" #PropertyName),    \
+              NewStringType::kInternalized,                                    \
+              sizeof("per_realm_" #PropertyName) - 1)                          \
+              .ToLocalChecked()));
+  PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 #define V(PropertyName, StringValue)                                           \
   PropertyName##_.Set(                                                         \
@@ -454,34 +495,101 @@ void IsolateData::CreateProperties() {
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
 
-  // TODO(legendecas): eagerly create per isolate templates.
-  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
-  templ->InstanceTemplate()->SetInternalFieldCount(
-      BaseObject::kInternalFieldCount);
-  templ->Inherit(BaseObject::GetConstructorTemplate(this));
-  set_binding_data_ctor_template(templ);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate());
+  templ->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  set_binding_data_default_template(templ);
+  binding::CreateInternalBindingTemplates(this);
 
   contextify::ContextifyContext::InitializeGlobalTemplates(this);
 }
+
+constexpr uint16_t kDefaultCppGCEmebdderID = 0x90de;
+Mutex IsolateData::isolate_data_mutex_;
+std::unordered_map<uint16_t, std::unique_ptr<PerIsolateWrapperData>>
+    IsolateData::wrapper_data_map_;
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
                          ArrayBufferAllocator* node_allocator,
-                         const IsolateDataSerializeInfo* isolate_data_info)
+                         const SnapshotData* snapshot_data)
     : isolate_(isolate),
       event_loop_(event_loop),
       node_allocator_(node_allocator == nullptr ? nullptr
                                                 : node_allocator->GetImpl()),
-      platform_(platform) {
+      platform_(platform),
+      snapshot_data_(snapshot_data) {
   options_.reset(
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
+  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
 
-  if (isolate_data_info == nullptr) {
+  uint16_t cppgc_id = kDefaultCppGCEmebdderID;
+  if (cpp_heap != nullptr) {
+    // The general convention of the wrappable layout for cppgc in the
+    // ecosystem is:
+    // [  0  ] -> embedder id
+    // [  1  ] -> wrappable instance
+    // If the Isolate includes a CppHeap attached by another embedder,
+    // And if they also use the field 0 for the ID, we DCHECK that
+    // the layout matches our layout, and record the embedder ID for cppgc
+    // to avoid accidentally enabling cppgc on non-cppgc-managed wrappers .
+    v8::WrapperDescriptor descriptor = cpp_heap->wrapper_descriptor();
+    if (descriptor.wrappable_type_index == BaseObject::kEmbedderType) {
+      cppgc_id = descriptor.embedder_id_for_garbage_collected;
+      DCHECK_EQ(descriptor.wrappable_instance_index, BaseObject::kSlot);
+    }
+    // If the CppHeap uses the slot we use to put non-cppgc-traced BaseObject
+    // for embedder ID, V8 could accidentally enable cppgc on them. So
+    // safe guard against this.
+    DCHECK_NE(descriptor.wrappable_type_index, BaseObject::kSlot);
+  } else {
+    cpp_heap_ = CppHeap::Create(
+        platform,
+        CppHeapCreateParams{
+            {},
+            WrapperDescriptor(
+                BaseObject::kEmbedderType, BaseObject::kSlot, cppgc_id)});
+    isolate->AttachCppHeap(cpp_heap_.get());
+  }
+  // We do not care about overflow since we just want this to be different
+  // from the cppgc id.
+  uint16_t non_cppgc_id = cppgc_id + 1;
+
+  {
+    // GC could still be run after the IsolateData is destroyed, so we store
+    // the ids in a static map to ensure pointers to them are still valid
+    // then. In practice there should be very few variants of the cppgc id
+    // in one process so the size of this map should be very small.
+    node::Mutex::ScopedLock lock(isolate_data_mutex_);
+    auto it = wrapper_data_map_.find(cppgc_id);
+    if (it == wrapper_data_map_.end()) {
+      auto pair = wrapper_data_map_.emplace(
+          cppgc_id, new PerIsolateWrapperData{cppgc_id, non_cppgc_id});
+      it = pair.first;
+    }
+    wrapper_data_ = it->second.get();
+  }
+
+  if (snapshot_data == nullptr) {
     CreateProperties();
   } else {
-    DeserializeProperties(isolate_data_info);
+    DeserializeProperties(&snapshot_data->isolate_data_info);
   }
+}
+
+IsolateData::~IsolateData() {
+  if (cpp_heap_ != nullptr) {
+    // The CppHeap must be detached before being terminated.
+    isolate_->DetachCppHeap();
+    cpp_heap_->Terminate();
+  }
+}
+
+// Public API
+void SetCppgcReference(Isolate* isolate,
+                       Local<Object> object,
+                       void* wrappable) {
+  IsolateData::SetCppgcReference(isolate, object, wrappable);
 }
 
 void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
@@ -538,9 +646,6 @@ void Environment::AssignToContext(Local<v8::Context> context,
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
                                            this);
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, realm);
-  // Used to retrieve bindings
-  context->SetAlignedPointerInEmbedderData(
-      ContextEmbedderIndex::kBindingListIndex, &(this->bindings_));
 
   // ContextifyContexts will update this to a pointer to the native object.
   context->SetAlignedPointerInEmbedderData(
@@ -557,6 +662,18 @@ void Environment::AssignToContext(Local<v8::Context> context,
   TrackContext(context);
 }
 
+void Environment::UnassignFromContext(Local<v8::Context> context) {
+  if (!context.IsEmpty()) {
+    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+                                             nullptr);
+    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm,
+                                             nullptr);
+    context->SetAlignedPointerInEmbedderData(
+        ContextEmbedderIndex::kContextifyContext, nullptr);
+  }
+  UntrackContext(context);
+}
+
 void Environment::TryLoadAddon(
     const char* filename,
     int flags,
@@ -567,7 +684,7 @@ void Environment::TryLoadAddon(
   }
 }
 
-std::string Environment::GetCwd() {
+std::string Environment::GetCwd(const std::string& exec_path) {
   char cwd[PATH_MAX_BYTES];
   size_t size = PATH_MAX_BYTES;
   const int err = uv_cwd(cwd, &size);
@@ -579,7 +696,6 @@ std::string Environment::GetCwd() {
 
   // This can fail if the cwd is deleted. In that case, fall back to
   // exec_path.
-  const std::string& exec_path = exec_path_;
   return exec_path.substr(0, exec_path.find_last_of(kPathSeparator));
 }
 
@@ -613,13 +729,13 @@ std::unique_ptr<v8::BackingStore> Environment::release_managed_buffer(
   return bs;
 }
 
-std::string GetExecPath(const std::vector<std::string>& argv) {
+std::string Environment::GetExecPath(const std::vector<std::string>& argv) {
   char exec_path_buf[2 * PATH_MAX];
   size_t exec_path_len = sizeof(exec_path_buf);
   std::string exec_path;
   if (uv_exepath(exec_path_buf, &exec_path_len) == 0) {
     exec_path = std::string(exec_path_buf, exec_path_len);
-  } else {
+  } else if (argv.size() > 0) {
     exec_path = argv[0];
   }
 
@@ -650,11 +766,12 @@ Environment::Environment(IsolateData* isolate_data,
       isolate_data_(isolate_data),
       async_hooks_(isolate, MAYBE_FIELD_PTR(env_info, async_hooks)),
       immediate_info_(isolate, MAYBE_FIELD_PTR(env_info, immediate_info)),
+      timeout_info_(isolate_, 1, MAYBE_FIELD_PTR(env_info, timeout_info)),
       tick_info_(isolate, MAYBE_FIELD_PTR(env_info, tick_info)),
       timer_base_(uv_now(isolate_data->event_loop())),
       exec_argv_(exec_args),
       argv_(args),
-      exec_path_(GetExecPath(args)),
+      exec_path_(Environment::GetExecPath(args)),
       exit_info_(
           isolate_, kExitInfoFieldCount, MAYBE_FIELD_PTR(env_info, exit_info)),
       should_abort_on_uncaught_toggle_(
@@ -664,12 +781,31 @@ Environment::Environment(IsolateData* isolate_data,
       stream_base_state_(isolate_,
                          StreamBase::kNumStreamBaseStateFields,
                          MAYBE_FIELD_PTR(env_info, stream_base_state)),
-      time_origin_(PERFORMANCE_NOW()),
-      time_origin_timestamp_(GetCurrentTimeInMicroseconds()),
+      time_origin_(performance::performance_process_start),
+      time_origin_timestamp_(performance::performance_process_start_timestamp),
+      environment_start_(PERFORMANCE_NOW()),
       flags_(flags),
       thread_id_(thread_id.id == static_cast<uint64_t>(-1)
                      ? AllocateEnvironmentThreadId().id
                      : thread_id.id) {
+  constexpr bool is_shared_ro_heap =
+#ifdef NODE_V8_SHARED_RO_HEAP
+      true;
+#else
+      false;
+#endif
+  if (is_shared_ro_heap && !is_main_thread()) {
+    // If this is a Worker thread and we are in shared-readonly-heap mode,
+    // we can always safely use the parent's Isolate's code cache.
+    CHECK_NOT_NULL(isolate_data->worker_context());
+    builtin_loader()->CopySourceAndCodeCacheReferenceFrom(
+        isolate_data->worker_context()->env()->builtin_loader());
+  } else if (isolate_data->snapshot_data() != nullptr) {
+    // ... otherwise, if a snapshot was provided, use its code cache.
+    builtin_loader()->RefreshCodeCache(
+        isolate_data->snapshot_data()->code_cache);
+  }
+
   // We'll be creating new objects so make sure we've entered the context.
   HandleScope handle_scope(isolate);
 
@@ -714,7 +850,7 @@ Environment::Environment(IsolateData* isolate_data,
   destroy_async_id_list_.reserve(512);
 
   performance_state_ = std::make_unique<performance::PerformanceState>(
-      isolate, MAYBE_FIELD_PTR(env_info, performance_state));
+      isolate, time_origin_, MAYBE_FIELD_PTR(env_info, performance_state));
 
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(environment)) != 0) {
@@ -731,30 +867,38 @@ Environment::Environment(IsolateData* isolate_data,
                                       "args",
                                       std::move(traced_value));
   }
-}
 
-Environment::Environment(IsolateData* isolate_data,
-                         Local<Context> context,
-                         const std::vector<std::string>& args,
-                         const std::vector<std::string>& exec_args,
-                         const EnvSerializeInfo* env_info,
-                         EnvironmentFlags::Flags flags,
-                         ThreadId thread_id)
-    : Environment(isolate_data,
-                  context->GetIsolate(),
-                  args,
-                  exec_args,
-                  env_info,
-                  flags,
-                  thread_id) {
-  InitializeMainContext(context, env_info);
+  if (options_->experimental_permission) {
+    permission()->EnablePermissions();
+    // The process shouldn't be able to neither
+    // spawn/worker nor use addons or enable inspector
+    // unless explicitly allowed by the user
+    options_->allow_native_addons = false;
+    flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
+    permission()->Apply({"*"}, permission::PermissionScope::kInspector);
+    if (!options_->allow_child_process) {
+      permission()->Apply({"*"}, permission::PermissionScope::kChildProcess);
+    }
+    if (!options_->allow_worker_threads) {
+      permission()->Apply({"*"}, permission::PermissionScope::kWorkerThreads);
+    }
+
+    if (!options_->allow_fs_read.empty()) {
+      permission()->Apply(options_->allow_fs_read,
+                          permission::PermissionScope::kFileSystemRead);
+    }
+
+    if (!options_->allow_fs_write.empty()) {
+      permission()->Apply(options_->allow_fs_write,
+                          permission::PermissionScope::kFileSystemWrite);
+    }
+  }
 }
 
 void Environment::InitializeMainContext(Local<Context> context,
                                         const EnvSerializeInfo* env_info) {
-  principal_realm_ = std::make_unique<Realm>(
+  principal_realm_ = std::make_unique<PrincipalRealm>(
       this, context, MAYBE_FIELD_PTR(env_info, principal_realm));
-  AssignToContext(context, principal_realm_.get(), ContextInfo(""));
   if (env_info != nullptr) {
     DeserializeProperties(env_info);
   }
@@ -770,7 +914,7 @@ void Environment::InitializeMainContext(Local<Context> context,
   set_exiting(false);
 
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT,
-                           time_origin_);
+                           environment_start_);
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
                            per_process::node_start_time);
 
@@ -824,9 +968,9 @@ Environment::~Environment() {
   inspector_agent_.reset();
 #endif
 
-  ctx->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
-                                       nullptr);
-  ctx->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, nullptr);
+  // Sub-realms should have been cleared with Environment's cleanup.
+  DCHECK_EQ(shadow_realms_.size(), 0);
+  principal_realm_.reset();
 
   if (trace_state_observer_) {
     tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
@@ -904,11 +1048,15 @@ void Environment::InitializeLibuv() {
   StartProfilerIdleNotifier();
 }
 
-void Environment::ExitEnv() {
-  set_can_call_into_js(false);
+void Environment::ExitEnv(StopFlags::Flags flags) {
+  // Should not access non-thread-safe methods here.
   set_stopping(true);
-  isolate_->TerminateExecution();
-  SetImmediateThreadsafe([](Environment* env) { uv_stop(env->event_loop()); });
+  if ((flags & StopFlags::kDoNotTerminateIsolate) == 0)
+    isolate_->TerminateExecution();
+  SetImmediateThreadsafe([](Environment* env) {
+    env->set_can_call_into_js(false);
+    uv_stop(env->event_loop());
+  });
 }
 
 void Environment::RegisterHandleCleanups() {
@@ -1008,7 +1156,6 @@ MaybeLocal<Value> Environment::RunSnapshotDeserializeMain() const {
 void Environment::RunCleanup() {
   started_cleanup_ = true;
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "RunCleanup");
-  bindings_.clear();
   // Only BaseObject's cleanups are registered as per-realm cleanup hooks now.
   // Defer the BaseObject cleanup after handles are cleaned up.
   CleanupHandles();
@@ -1263,12 +1410,16 @@ void Environment::ToggleImmediateRef(bool ref) {
   }
 }
 
-
-Local<Value> Environment::GetNow() {
+uint64_t Environment::GetNowUint64() {
   uv_update_time(event_loop());
   uint64_t now = uv_now(event_loop());
   CHECK_GE(now, timer_base());
   now -= timer_base();
+  return now;
+}
+
+Local<Value> Environment::GetNow() {
+  uint64_t now = GetNowUint64();
   if (now <= 0xffffffff)
     return Integer::NewFromUnsigned(isolate(), static_cast<uint32_t>(now));
   else
@@ -1581,18 +1732,6 @@ void Environment::PrintInfoForSnapshotIfDebug() {
   if (enabled_debug_list()->enabled(DebugCategory::MKSNAPSHOT)) {
     fprintf(stderr, "At the exit of the Environment:\n");
     principal_realm()->PrintInfoForSnapshot();
-    fprintf(stderr, "\nBuiltins without cache:\n");
-    for (const auto& s : builtins_without_cache) {
-      fprintf(stderr, "%s\n", s.c_str());
-    }
-    fprintf(stderr, "\nBuiltins with cache:\n");
-    for (const auto& s : builtins_with_cache) {
-      fprintf(stderr, "%s\n", s.c_str());
-    }
-    fprintf(stderr, "\nStatic bindings (need to be registered):\n");
-    for (const auto mod : internal_bindings) {
-      fprintf(stderr, "%s:%s\n", mod->nm_filename, mod->nm_modname);
-    }
   }
 }
 
@@ -1600,13 +1739,9 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   EnvSerializeInfo info;
   Local<Context> ctx = context();
 
-  // Currently all modules are compiled without cache in builtin snapshot
-  // builder.
-  info.builtins = std::vector<std::string>(builtins_without_cache.begin(),
-                                           builtins_without_cache.end());
-
   info.async_hooks = async_hooks_.Serialize(ctx, creator);
   info.immediate_info = immediate_info_.Serialize(ctx, creator);
+  info.timeout_info = timeout_info_.Serialize(ctx, creator);
   info.tick_info = tick_info_.Serialize(ctx, creator);
   info.performance_state = performance_state_->Serialize(ctx, creator);
   info.exit_info = exit_info_.Serialize(ctx, creator);
@@ -1626,7 +1761,7 @@ void Environment::EnqueueDeserializeRequest(DeserializeRequestCallback cb,
                                             Local<Object> holder,
                                             int index,
                                             InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   DeserializeRequest request{cb, {isolate(), holder}, index, info};
   deserialize_requests_.push_back(std::move(request));
 }
@@ -1648,23 +1783,24 @@ void Environment::RunDeserializeRequests() {
 void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   Local<Context> ctx = context();
 
+  if (enabled_debug_list_.enabled(DebugCategory::MKSNAPSHOT)) {
+    fprintf(stderr, "deserializing EnvSerializeInfo...\n");
+    std::cerr << *info << "\n";
+  }
+
+  // Deserialize the realm's properties before running the deserialize
+  // requests as the requests may need to access the realm's properties.
+  principal_realm_->DeserializeProperties(&info->principal_realm);
   RunDeserializeRequests();
 
-  builtins_in_snapshot = info->builtins;
   async_hooks_.Deserialize(ctx);
   immediate_info_.Deserialize(ctx);
+  timeout_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);
-  performance_state_->Deserialize(ctx);
+  performance_state_->Deserialize(ctx, time_origin_);
   exit_info_.Deserialize(ctx);
   stream_base_state_.Deserialize(ctx);
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
-
-  principal_realm_->DeserializeProperties(&info->principal_realm);
-
-  if (enabled_debug_list_.enabled(DebugCategory::MKSNAPSHOT)) {
-    fprintf(stderr, "deserializing...\n");
-    std::cerr << *info << "\n";
-  }
 }
 
 uint64_t GuessMemoryAvailableToTheProcess() {
@@ -1785,7 +1921,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
 
   std::string dir = env->options()->diagnostic_dir;
   if (dir.empty()) {
-    dir = env->GetCwd();
+    dir = Environment::GetCwd(env->exec_path_);
   }
   DiagnosticFilename name(env, "Heap", "heapsnapshot");
   std::string filename = dir + kPathSeparator + (*name);
@@ -1841,8 +1977,6 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   // Iteratable STLs have their own sizes subtracted from the parent
   // by default.
   tracker->TrackField("isolate_data", isolate_data_);
-  tracker->TrackField("builtins_with_cache", builtins_with_cache);
-  tracker->TrackField("builtins_without_cache", builtins_without_cache);
   tracker->TrackField("destroy_async_id_list", destroy_async_id_list_);
   tracker->TrackField("exec_argv", exec_argv_);
   tracker->TrackField("exit_info", exit_info_);
@@ -1852,8 +1986,10 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("cleanup_queue", cleanup_queue_);
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
+  tracker->TrackField("timeout_info", timeout_info_);
   tracker->TrackField("tick_info", tick_info_);
   tracker->TrackField("principal_realm", principal_realm_);
+  tracker->TrackField("shadow_realms", shadow_realms_);
 
   // FIXME(joyeecheung): track other fields in Environment.
   // Currently MemoryTracker is unable to track these

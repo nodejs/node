@@ -19,6 +19,7 @@
 U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(EthiopicCalendar)
+UOBJECT_DEFINE_RTTI_IMPLEMENTATION(EthiopicAmeteAlemCalendar)
 
 //static const int32_t JD_EPOCH_OFFSET_AMETE_ALEM = -285019;
 static const int32_t JD_EPOCH_OFFSET_AMETE_MIHRET = 1723856;
@@ -29,16 +30,8 @@ static const int32_t AMETE_MIHRET_DELTA = 5500; // 5501 - 1 (Amete Alem 5501 = A
 //-------------------------------------------------------------------------
 
 EthiopicCalendar::EthiopicCalendar(const Locale& aLocale,
-                                   UErrorCode& success,
-                                   EEraType type /*= AMETE_MIHRET_ERA*/)
-:   CECalendar(aLocale, success),
-    eraType(type)
-{
-}
-
-EthiopicCalendar::EthiopicCalendar(const EthiopicCalendar& other)
-:   CECalendar(other),
-    eraType(other.eraType)
+                                   UErrorCode& success)
+:   CECalendar(aLocale, success)
 {
 }
 
@@ -55,22 +48,7 @@ EthiopicCalendar::clone() const
 const char *
 EthiopicCalendar::getType() const
 {
-    if (isAmeteAlemEra()) {
-        return "ethiopic-amete-alem";
-    }
     return "ethiopic";
-}
-
-void
-EthiopicCalendar::setAmeteAlemEra(UBool onOff)
-{
-    eraType = onOff ? AMETE_ALEM_ERA : AMETE_MIHRET_ERA;
-}
-    
-UBool
-EthiopicCalendar::isAmeteAlemEra() const
-{
-    return (eraType == AMETE_ALEM_ERA);
 }
 
 //-------------------------------------------------------------------------
@@ -82,58 +60,46 @@ EthiopicCalendar::handleGetExtendedYear()
 {
     // Ethiopic calendar uses EXTENDED_YEAR aligned to
     // Amelete Hihret year always.
-    int32_t eyear;
     if (newerField(UCAL_EXTENDED_YEAR, UCAL_YEAR) == UCAL_EXTENDED_YEAR) {
-        eyear = internalGet(UCAL_EXTENDED_YEAR, 1); // Default to year 1
-    } else if (isAmeteAlemEra()) {
-        eyear = internalGet(UCAL_YEAR, 1 + AMETE_MIHRET_DELTA)
-            - AMETE_MIHRET_DELTA; // Default to year 1 of Amelete Mihret
-    } else {
-        // The year defaults to the epoch start, the era to AMETE_MIHRET
-        int32_t era = internalGet(UCAL_ERA, AMETE_MIHRET);
-        if (era == AMETE_MIHRET) {
-            eyear = internalGet(UCAL_YEAR, 1); // Default to year 1
-        } else {
-            eyear = internalGet(UCAL_YEAR, 1) - AMETE_MIHRET_DELTA;
-        }
+        return internalGet(UCAL_EXTENDED_YEAR, 1); // Default to year 1
     }
-    return eyear;
+    // The year defaults to the epoch start, the era to AMETE_MIHRET
+    if (internalGet(UCAL_ERA, AMETE_MIHRET) == AMETE_MIHRET) {
+        return internalGet(UCAL_YEAR, 1); // Default to year 1
+    }
+    return internalGet(UCAL_YEAR, 1) - AMETE_MIHRET_DELTA;
 }
 
 void
 EthiopicCalendar::handleComputeFields(int32_t julianDay, UErrorCode &/*status*/)
 {
-    int32_t eyear, month, day, era, year;
+    int32_t eyear, month, day;
     jdToCE(julianDay, getJDEpochOffset(), eyear, month, day);
 
-    if (isAmeteAlemEra()) {
-        era = AMETE_ALEM;
-        year = eyear + AMETE_MIHRET_DELTA;
-    } else {
-        if (eyear > 0) {
-            era = AMETE_MIHRET;
-            year = eyear;
-        } else {
-            era = AMETE_ALEM;
-            year = eyear + AMETE_MIHRET_DELTA;
-        }
-    }
-
     internalSet(UCAL_EXTENDED_YEAR, eyear);
-    internalSet(UCAL_ERA, era);
-    internalSet(UCAL_YEAR, year);
+    internalSet(UCAL_ERA, (eyear > 0) ? AMETE_MIHRET : AMETE_ALEM);
+    internalSet(UCAL_YEAR, (eyear > 0) ? eyear : (eyear + AMETE_MIHRET_DELTA));
     internalSet(UCAL_MONTH, month);
+    internalSet(UCAL_ORDINAL_MONTH, month);
     internalSet(UCAL_DATE, day);
     internalSet(UCAL_DAY_OF_YEAR, (30 * month) + day);
 }
 
-int32_t
-EthiopicCalendar::handleGetLimit(UCalendarDateFields field, ELimitType limitType) const
+constexpr uint32_t kEthiopicRelatedYearDiff = 8;
+
+int32_t EthiopicCalendar::getRelatedYear(UErrorCode &status) const
 {
-    if (isAmeteAlemEra() && field == UCAL_ERA) {
-        return 0; // Only one era in this mode, era is always 0
+    int32_t year = get(UCAL_EXTENDED_YEAR, status);
+    if (U_FAILURE(status)) {
+        return 0;
     }
-    return CECalendar::handleGetLimit(field, limitType);
+    return year + kEthiopicRelatedYearDiff;
+}
+
+void EthiopicCalendar::setRelatedYear(int32_t year)
+{
+    // set extended year
+    set(UCAL_EXTENDED_YEAR, year - kEthiopicRelatedYearDiff);
 }
 
 /**
@@ -173,9 +139,6 @@ EthiopicCalendar::defaultCenturyStartYear() const
 {
     // lazy-evaluate systemDefaultCenturyStartYear
     umtx_initOnce(gSystemDefaultCenturyInit, &initializeSystemDefaultCentury);
-    if (isAmeteAlemEra()) {
-        return gSystemDefaultCenturyStartYear + AMETE_MIHRET_DELTA;
-    }
     return gSystemDefaultCenturyStartYear;
 }
 
@@ -201,6 +164,95 @@ EthiopicCalendar::ethiopicToJD(int32_t year, int32_t month, int32_t date)
     return ceToJD(year, month, date, JD_EPOCH_OFFSET_AMETE_MIHRET);
 }
 #endif
+
+//-------------------------------------------------------------------------
+// Constructors...
+//-------------------------------------------------------------------------
+
+EthiopicAmeteAlemCalendar::EthiopicAmeteAlemCalendar(const Locale& aLocale,
+                                   UErrorCode& success)
+:   EthiopicCalendar(aLocale, success)
+{
+}
+
+EthiopicAmeteAlemCalendar::~EthiopicAmeteAlemCalendar()
+{
+}
+
+EthiopicAmeteAlemCalendar*
+EthiopicAmeteAlemCalendar::clone() const
+{
+    return new EthiopicAmeteAlemCalendar(*this);
+}
+
+//-------------------------------------------------------------------------
+// Calendar framework
+//-------------------------------------------------------------------------
+
+const char *
+EthiopicAmeteAlemCalendar::getType() const
+{
+    return "ethiopic-amete-alem";
+}
+
+int32_t
+EthiopicAmeteAlemCalendar::handleGetExtendedYear()
+{
+    // Ethiopic calendar uses EXTENDED_YEAR aligned to
+    // Amelete Hihret year always.
+    if (newerField(UCAL_EXTENDED_YEAR, UCAL_YEAR) == UCAL_EXTENDED_YEAR) {
+        return internalGet(UCAL_EXTENDED_YEAR, 1); // Default to year 1
+    }
+    return internalGet(UCAL_YEAR, 1 + AMETE_MIHRET_DELTA)
+            - AMETE_MIHRET_DELTA; // Default to year 1 of Amelete Mihret
+}
+
+void
+EthiopicAmeteAlemCalendar::handleComputeFields(int32_t julianDay, UErrorCode &/*status*/)
+{
+    int32_t eyear, month, day;
+    jdToCE(julianDay, getJDEpochOffset(), eyear, month, day);
+
+    internalSet(UCAL_EXTENDED_YEAR, eyear);
+    internalSet(UCAL_ERA, AMETE_ALEM);
+    internalSet(UCAL_YEAR, eyear + AMETE_MIHRET_DELTA);
+    internalSet(UCAL_MONTH, month);
+    internalSet(UCAL_ORDINAL_MONTH, month);
+    internalSet(UCAL_DATE, day);
+    internalSet(UCAL_DAY_OF_YEAR, (30 * month) + day);
+}
+
+int32_t
+EthiopicAmeteAlemCalendar::handleGetLimit(UCalendarDateFields field, ELimitType limitType) const
+{
+    if (field == UCAL_ERA) {
+        return 0; // Only one era in this mode, era is always 0
+    }
+    return EthiopicCalendar::handleGetLimit(field, limitType);
+}
+
+constexpr uint32_t kEthiopicAmeteAlemRelatedYearDiff = -5492;
+
+int32_t EthiopicAmeteAlemCalendar::getRelatedYear(UErrorCode &status) const
+{
+    int32_t year = get(UCAL_EXTENDED_YEAR, status);
+    if (U_FAILURE(status)) {
+        return 0;
+    }
+    return year + kEthiopicAmeteAlemRelatedYearDiff;
+}
+
+void EthiopicAmeteAlemCalendar::setRelatedYear(int32_t year)
+{
+    // set extended year
+    set(UCAL_EXTENDED_YEAR, year - kEthiopicAmeteAlemRelatedYearDiff);
+}
+
+int32_t
+EthiopicAmeteAlemCalendar::defaultCenturyStartYear() const
+{
+    return EthiopicCalendar::defaultCenturyStartYear() + AMETE_MIHRET_DELTA;
+}
 
 U_NAMESPACE_END
 

@@ -8,5 +8,8 @@ module.exports = (fakePlatform = false) => {
   const platform = fakePlatform || process.platform
   const cacheExtra = platform === 'win32' ? 'npm-cache' : '.npm'
   const cacheRoot = (platform === 'win32' && process.env.LOCALAPPDATA) || home
-  return resolve(cacheRoot, cacheExtra, '_cacache')
+  return {
+    cacache: resolve(cacheRoot, cacheExtra, '_cacache'),
+    tufcache: resolve(cacheRoot, cacheExtra, '_tuf'),
+  }
 }

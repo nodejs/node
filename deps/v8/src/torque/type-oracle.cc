@@ -11,8 +11,6 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-DEFINE_CONTEXTUAL_VARIABLE(TypeOracle)
-
 // static
 const std::vector<std::unique_ptr<AggregateType>>&
 TypeOracle::GetAggregateTypes() {

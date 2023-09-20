@@ -299,8 +299,6 @@
       './config/archs/aix64-gcc-as/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/aix64-gcc-as/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/aix64-gcc-as/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/aix64-gcc-as/asm_avx2/crypto/bn/bn-ppc.s',
-      './config/archs/aix64-gcc-as/asm_avx2/crypto/bn/ppc-mont.s',
       './config/archs/aix64-gcc-as/asm_avx2/providers/legacy.ld',
       './config/archs/aix64-gcc-as/asm_avx2/providers/fips.ld',
 

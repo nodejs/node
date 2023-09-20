@@ -203,7 +203,7 @@ assert.throws(
 
 if (common.enoughTestMem) {
   assert.throws(
-    () => new StringDecoder().write(Buffer.alloc(0x1fffffe8 + 1).fill('a')),
+    () => new StringDecoder().write(Buffer.alloc((process.arch === 'ia32' ? 0x18ffffe8 : 0x1fffffe8) + 1).fill('a')),
     {
       code: 'ERR_STRING_TOO_LONG',
     }

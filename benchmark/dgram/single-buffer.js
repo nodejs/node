@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
   len: [1, 64, 256, 1024],
   num: [100],
   type: ['send', 'recv'],
-  dur: [5]
+  dur: [5],
 });
 
 function main({ dur, len, num, type }) {

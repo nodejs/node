@@ -5,30 +5,30 @@ const { domainToASCII, domainToUnicode } = require('url');
 const domains = {
   empty: {
     ascii: '',
-    unicode: ''
+    unicode: '',
   },
   none: {
     ascii: 'passports',
-    unicode: 'passports'
+    unicode: 'passports',
   },
   some: {
     ascii: 'Paßstraße',
-    unicode: 'xn--Pastrae-1vae'
+    unicode: 'xn--Pastrae-1vae',
   },
   all: {
     ascii: '他们不说中文',
-    unicode: 'xn--ihqwczyycu19kkg2c'
+    unicode: 'xn--ihqwczyycu19kkg2c',
   },
   nonstring: {
     ascii: { toString() { return ''; } },
-    unicode: { toString() { return ''; } }
-  }
+    unicode: { toString() { return ''; } },
+  },
 };
 
 const bench = common.createBenchmark(main, {
   domain: Object.keys(domains),
   to: ['ascii', 'unicode'],
-  n: [5e6]
+  n: [5e6],
 });
 
 function main({ n, to, domain }) {

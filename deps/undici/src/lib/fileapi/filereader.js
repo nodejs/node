@@ -182,8 +182,13 @@ class FileReader extends EventTarget {
   set onloadend (fn) {
     webidl.brandCheck(this, FileReader)
 
+    if (this[kEvents].loadend) {
+      this.removeEventListener('loadend', this[kEvents].loadend)
+    }
+
     if (typeof fn === 'function') {
       this[kEvents].loadend = fn
+      this.addEventListener('loadend', fn)
     } else {
       this[kEvents].loadend = null
     }
@@ -198,8 +203,13 @@ class FileReader extends EventTarget {
   set onerror (fn) {
     webidl.brandCheck(this, FileReader)
 
+    if (this[kEvents].error) {
+      this.removeEventListener('error', this[kEvents].error)
+    }
+
     if (typeof fn === 'function') {
       this[kEvents].error = fn
+      this.addEventListener('error', fn)
     } else {
       this[kEvents].error = null
     }
@@ -214,8 +224,13 @@ class FileReader extends EventTarget {
   set onloadstart (fn) {
     webidl.brandCheck(this, FileReader)
 
+    if (this[kEvents].loadstart) {
+      this.removeEventListener('loadstart', this[kEvents].loadstart)
+    }
+
     if (typeof fn === 'function') {
       this[kEvents].loadstart = fn
+      this.addEventListener('loadstart', fn)
     } else {
       this[kEvents].loadstart = null
     }
@@ -230,8 +245,13 @@ class FileReader extends EventTarget {
   set onprogress (fn) {
     webidl.brandCheck(this, FileReader)
 
+    if (this[kEvents].progress) {
+      this.removeEventListener('progress', this[kEvents].progress)
+    }
+
     if (typeof fn === 'function') {
       this[kEvents].progress = fn
+      this.addEventListener('progress', fn)
     } else {
       this[kEvents].progress = null
     }
@@ -246,8 +266,13 @@ class FileReader extends EventTarget {
   set onload (fn) {
     webidl.brandCheck(this, FileReader)
 
+    if (this[kEvents].load) {
+      this.removeEventListener('load', this[kEvents].load)
+    }
+
     if (typeof fn === 'function') {
       this[kEvents].load = fn
+      this.addEventListener('load', fn)
     } else {
       this[kEvents].load = null
     }
@@ -262,8 +287,13 @@ class FileReader extends EventTarget {
   set onabort (fn) {
     webidl.brandCheck(this, FileReader)
 
+    if (this[kEvents].abort) {
+      this.removeEventListener('abort', this[kEvents].abort)
+    }
+
     if (typeof fn === 'function') {
       this[kEvents].abort = fn
+      this.addEventListener('abort', fn)
     } else {
       this[kEvents].abort = null
     }

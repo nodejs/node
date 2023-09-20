@@ -1,42 +1,31 @@
 const t = require('tap')
-const npm = {}
 const { explain, report } = require('../../../lib/utils/explain-eresolve.js')
-const { statSync, readFileSync, unlinkSync } = require('fs')
-// strip out timestamps from reports
-const read = f => readFileSync(f, 'utf8')
-  .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z/g, '${TIME}')
-
-const { resolve } = require('path')
 
 const cases = require('../../fixtures/eresolve-explanations.js')
 
-for (const [name, expl] of Object.entries(cases)) {
+t.test('basic', async t => {
+  const { Chalk } = await import('chalk')
+  const color = new Chalk({ level: 3 })
+  const noColor = new Chalk({ level: 0 })
+
+  for (const [name, expl] of Object.entries(cases)) {
   // no sense storing the whole contents of each object in the snapshot
   // we can trust that JSON.stringify still works just fine.
-  expl.toJSON = () => {
-    return { name, json: true }
+    expl.toJSON = () => ({ name, json: true })
+
+    t.test(name, t => {
+      const colorReport = report(expl, color, noColor)
+      t.matchSnapshot(colorReport.explanation, 'report with color')
+      t.matchSnapshot(colorReport.file, 'report from color')
+
+      const noColorReport = report(expl, noColor, noColor)
+      t.matchSnapshot(noColorReport.explanation, 'report with no color')
+      t.equal(noColorReport.file, colorReport.file, 'same report written for object')
+
+      t.matchSnapshot(explain(expl, color, 2), 'explain with color, depth of 2')
+      t.matchSnapshot(explain(expl, noColor, 6), 'explain with no color, depth of 6')
+
+      t.end()
+    })
   }
-
-  t.test(name, t => {
-    npm.cache = t.testdir()
-    const reportFile = resolve(npm.cache, 'eresolve-report.txt')
-    t.cleanSnapshot = str => str.split(reportFile).join('${REPORT}')
-
-    npm.color = true
-    t.matchSnapshot(report(expl, true, reportFile), 'report with color')
-    const reportData = read(reportFile)
-    t.matchSnapshot(reportData, 'report')
-    unlinkSync(reportFile)
-
-    t.matchSnapshot(report(expl, false, reportFile), 'report with no color')
-    t.equal(read(reportFile), reportData, 'same report written for object')
-    unlinkSync(reportFile)
-
-    t.matchSnapshot(explain(expl, true, 2), 'explain with color, depth of 2')
-    t.throws(() => statSync(reportFile), { code: 'ENOENT' }, 'no report')
-    t.matchSnapshot(explain(expl, false, 6), 'explain with no color, depth of 6')
-    t.throws(() => statSync(reportFile), { code: 'ENOENT' }, 'no report')
-
-    t.end()
-  })
-}
+})

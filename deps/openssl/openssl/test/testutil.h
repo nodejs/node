@@ -256,7 +256,9 @@ void cleanup_tests(void);
 int fips_provider_version_eq(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
 int fips_provider_version_ne(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
 int fips_provider_version_le(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
+int fips_provider_version_lt(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
 int fips_provider_version_gt(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
+int fips_provider_version_ge(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
 
 /*
  * This function matches fips provider version with (potentially multiple)

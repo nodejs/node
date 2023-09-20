@@ -438,8 +438,8 @@ static const UConverterImpl _SBCSUTF8Impl={
     ucnv_MBCSUnload,
 
     ucnv_MBCSOpen,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     ucnv_MBCSToUnicodeWithOffsets,
     ucnv_MBCSToUnicodeWithOffsets,
@@ -450,10 +450,10 @@ static const UConverterImpl _SBCSUTF8Impl={
     ucnv_MBCSGetStarters,
     ucnv_MBCSGetName,
     ucnv_MBCSWriteSub,
-    NULL,
+    nullptr,
     ucnv_MBCSGetUnicodeSet,
 
-    NULL,
+    nullptr,
     ucnv_SBCSFromUTF8
 };
 
@@ -464,8 +464,8 @@ static const UConverterImpl _DBCSUTF8Impl={
     ucnv_MBCSUnload,
 
     ucnv_MBCSOpen,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     ucnv_MBCSToUnicodeWithOffsets,
     ucnv_MBCSToUnicodeWithOffsets,
@@ -476,10 +476,10 @@ static const UConverterImpl _DBCSUTF8Impl={
     ucnv_MBCSGetStarters,
     ucnv_MBCSGetName,
     ucnv_MBCSWriteSub,
-    NULL,
+    nullptr,
     ucnv_MBCSGetUnicodeSet,
 
-    NULL,
+    nullptr,
     ucnv_DBCSFromUTF8
 };
 
@@ -490,8 +490,8 @@ static const UConverterImpl _MBCSImpl={
     ucnv_MBCSUnload,
 
     ucnv_MBCSOpen,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     ucnv_MBCSToUnicodeWithOffsets,
     ucnv_MBCSToUnicodeWithOffsets,
@@ -502,10 +502,10 @@ static const UConverterImpl _MBCSImpl={
     ucnv_MBCSGetStarters,
     ucnv_MBCSGetName,
     ucnv_MBCSWriteSub,
-    NULL,
+    nullptr,
     ucnv_MBCSGetUnicodeSet,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 /* Static data is in tools/makeconv/ucnvstat.c for data-based
@@ -514,7 +514,7 @@ static const UConverterImpl _MBCSImpl={
 
 const UConverterSharedData _MBCSData={
     sizeof(UConverterSharedData), 1,
-    NULL, NULL, false, true, &_MBCSImpl,
+    nullptr, nullptr, false, true, &_MBCSImpl,
     0, UCNV_MBCS_TABLE_INITIALIZER
 };
 
@@ -683,7 +683,7 @@ enumToU(UConverterMBCSTable *mbcsTable, int8_t stateProps[],
             action=MBCS_ENTRY_FINAL_ACTION(entry);
             if(action==MBCS_STATE_VALID_DIRECT_16) {
                 /* output BMP code point */
-                c=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                c=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             } else if(action==MBCS_STATE_VALID_16) {
                 int32_t finalOffset=offset+MBCS_ENTRY_FINAL_VALUE_16(entry);
                 c=unicodeCodeUnits[finalOffset];
@@ -1104,7 +1104,7 @@ ucnv_MBCSGetUnicodeSet(const UConverter *cnv,
 static UChar32
 _extFromU(UConverter *cnv, const UConverterSharedData *sharedData,
           UChar32 cp,
-          const UChar **source, const UChar *sourceLimit,
+          const char16_t **source, const char16_t *sourceLimit,
           uint8_t **target, const uint8_t *targetLimit,
           int32_t **offsets, int32_t sourceIndex,
           UBool flush,
@@ -1113,7 +1113,7 @@ _extFromU(UConverter *cnv, const UConverterSharedData *sharedData,
 
     cnv->useSubChar1=false;
 
-    if( (cx=sharedData->mbcs.extIndexes)!=NULL &&
+    if( (cx=sharedData->mbcs.extIndexes)!=nullptr &&
         ucnv_extInitialMatchFromU(
             cnv, cx,
             cp, source, sourceLimit,
@@ -1172,13 +1172,13 @@ static int8_t
 _extToU(UConverter *cnv, const UConverterSharedData *sharedData,
         int8_t length,
         const uint8_t **source, const uint8_t *sourceLimit,
-        UChar **target, const UChar *targetLimit,
+        char16_t **target, const char16_t *targetLimit,
         int32_t **offsets, int32_t sourceIndex,
         UBool flush,
         UErrorCode *pErrorCode) {
     const int32_t *cx;
 
-    if( (cx=sharedData->mbcs.extIndexes)!=NULL &&
+    if( (cx=sharedData->mbcs.extIndexes)!=nullptr &&
         ucnv_extInitialMatchToU(
             cnv, cx,
             length, (const char **)source, (const char *)sourceLimit,
@@ -1349,7 +1349,7 @@ _EBCDICSwapLFNL(UConverterSharedData *sharedData, UErrorCode *pErrorCode) {
         sizeofFromUBytes+
         UCNV_MAX_CONVERTER_NAME_LENGTH+20;
     p=(uint8_t *)uprv_malloc(size);
-    if(p==NULL) {
+    if(p==nullptr) {
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
         return false;
     }
@@ -1383,18 +1383,18 @@ _EBCDICSwapLFNL(UConverterSharedData *sharedData, UErrorCode *pErrorCode) {
     uprv_strcat(name, UCNV_SWAP_LFNL_OPTION_STRING);
 
     /* set the pointers */
-    icu::umtx_lock(NULL);
-    if(mbcsTable->swapLFNLStateTable==NULL) {
+    icu::umtx_lock(nullptr);
+    if(mbcsTable->swapLFNLStateTable==nullptr) {
         mbcsTable->swapLFNLStateTable=newStateTable;
         mbcsTable->swapLFNLFromUnicodeBytes=(uint8_t *)newResults;
         mbcsTable->swapLFNLName=name;
 
-        newStateTable=NULL;
+        newStateTable=nullptr;
     }
-    icu::umtx_unlock(NULL);
+    icu::umtx_unlock(nullptr);
 
     /* release the allocated memory if another thread beat us to it */
-    if(newStateTable!=NULL) {
+    if(newStateTable!=nullptr) {
         uprv_free(newStateTable);
     }
     return true;
@@ -1489,7 +1489,7 @@ reconstituteData(UConverterMBCSTable *mbcsTable,
     uint32_t *stage2;
     uint32_t dataLength=stage1Length*2+fullStage2Length*4+mbcsTable->fromUBytesLength;
     mbcsTable->reconstitutedData=(uint8_t *)uprv_malloc(dataLength);
-    if(mbcsTable->reconstitutedData==NULL) {
+    if(mbcsTable->reconstitutedData==nullptr) {
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -1593,7 +1593,7 @@ ucnv_MBCSLoad(UConverterSharedData *sharedData,
         const char *baseName;
 
         /* extension-only file, load the base table and set values appropriately */
-        if((extIndexes=mbcsTable->extIndexes)==NULL) {
+        if((extIndexes=mbcsTable->extIndexes)==nullptr) {
             /* extension-only file without extension */
             *pErrorCode=U_INVALID_TABLE_FORMAT;
             return;
@@ -1626,7 +1626,7 @@ ucnv_MBCSLoad(UConverterSharedData *sharedData,
             return;
         }
         if( baseSharedData->staticData->conversionType!=UCNV_MBCS ||
-            baseSharedData->mbcs.baseSharedData!=NULL
+            baseSharedData->mbcs.baseSharedData!=nullptr
         ) {
             ucnv_unload(baseSharedData);
             *pErrorCode=U_INVALID_TABLE_FORMAT;
@@ -1657,15 +1657,15 @@ ucnv_MBCSLoad(UConverterSharedData *sharedData,
          * It is easier to just create the data for the extension converter
          * separately when it is requested.
          */
-        mbcsTable->swapLFNLStateTable=NULL;
-        mbcsTable->swapLFNLFromUnicodeBytes=NULL;
-        mbcsTable->swapLFNLName=NULL;
+        mbcsTable->swapLFNLStateTable=nullptr;
+        mbcsTable->swapLFNLFromUnicodeBytes=nullptr;
+        mbcsTable->swapLFNLName=nullptr;
 
         /*
          * The reconstitutedData must be deleted only when the base converter
          * is unloaded.
          */
-        mbcsTable->reconstitutedData=NULL;
+        mbcsTable->reconstitutedData=nullptr;
 
         /*
          * Set a special, runtime-only outputType if the extension converter
@@ -1703,7 +1703,7 @@ ucnv_MBCSLoad(UConverterSharedData *sharedData,
                 /* allocate a new state table and copy the base state table contents */
                 count=mbcsTable->countStates;
                 newStateTable=(int32_t (*)[256])uprv_malloc((count+1)*1024);
-                if(newStateTable==NULL) {
+                if(newStateTable==nullptr) {
                     ucnv_unload(baseSharedData);
                     *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
                     return;
@@ -1828,7 +1828,7 @@ ucnv_MBCSLoad(UConverterSharedData *sharedData,
                 mbcsTable->mbcsIndex=(const uint16_t *)
                     (mbcsTable->fromUnicodeBytes+
                      (noFromU ? 0 : mbcsTable->fromUBytesLength));
-                mbcsTable->maxFastUChar=(((UChar)header->version[2])<<8)|0xff;
+                mbcsTable->maxFastUChar=(((char16_t)header->version[2])<<8)|0xff;
             }
         }
 
@@ -1880,16 +1880,16 @@ static void U_CALLCONV
 ucnv_MBCSUnload(UConverterSharedData *sharedData) {
     UConverterMBCSTable *mbcsTable=&sharedData->mbcs;
 
-    if(mbcsTable->swapLFNLStateTable!=NULL) {
+    if(mbcsTable->swapLFNLStateTable!=nullptr) {
         uprv_free(mbcsTable->swapLFNLStateTable);
     }
     if(mbcsTable->stateTableOwned) {
         uprv_free((void *)mbcsTable->stateTable);
     }
-    if(mbcsTable->baseSharedData!=NULL) {
+    if(mbcsTable->baseSharedData!=nullptr) {
         ucnv_unload(mbcsTable->baseSharedData);
     }
-    if(mbcsTable->reconstitutedData!=NULL) {
+    if(mbcsTable->reconstitutedData!=nullptr) {
         uprv_free(mbcsTable->reconstitutedData);
     }
 }
@@ -1919,9 +1919,9 @@ ucnv_MBCSOpen(UConverter *cnv,
         /* do this because double-checked locking is broken */
         UBool isCached;
 
-        icu::umtx_lock(NULL);
-        isCached=mbcsTable->swapLFNLStateTable!=NULL;
-        icu::umtx_unlock(NULL);
+        icu::umtx_lock(nullptr);
+        isCached=mbcsTable->swapLFNLStateTable!=nullptr;
+        icu::umtx_unlock(nullptr);
 
         if(!isCached) {
             if(!_EBCDICSwapLFNL(cnv->sharedData, pErrorCode)) {
@@ -1935,18 +1935,18 @@ ucnv_MBCSOpen(UConverter *cnv,
         }
     }
 
-    if(uprv_strstr(pArgs->name, "18030")!=NULL) {
-        if(uprv_strstr(pArgs->name, "gb18030")!=NULL || uprv_strstr(pArgs->name, "GB18030")!=NULL) {
+    if(uprv_strstr(pArgs->name, "18030")!=nullptr) {
+        if(uprv_strstr(pArgs->name, "gb18030")!=nullptr || uprv_strstr(pArgs->name, "GB18030")!=nullptr) {
             /* set a flag for GB 18030 mode, which changes the callback behavior */
             cnv->options|=_MBCS_OPTION_GB18030;
         }
-    } else if((uprv_strstr(pArgs->name, "KEIS")!=NULL) || (uprv_strstr(pArgs->name, "keis")!=NULL)) {
+    } else if((uprv_strstr(pArgs->name, "KEIS")!=nullptr) || (uprv_strstr(pArgs->name, "keis")!=nullptr)) {
         /* set a flag for KEIS converter, which changes the SI/SO character sequence */
         cnv->options|=_MBCS_OPTION_KEIS;
-    } else if((uprv_strstr(pArgs->name, "JEF")!=NULL) || (uprv_strstr(pArgs->name, "jef")!=NULL)) {
+    } else if((uprv_strstr(pArgs->name, "JEF")!=nullptr) || (uprv_strstr(pArgs->name, "jef")!=nullptr)) {
         /* set a flag for JEF converter, which changes the SI/SO character sequence */
         cnv->options|=_MBCS_OPTION_JEF;
-    } else if((uprv_strstr(pArgs->name, "JIPS")!=NULL) || (uprv_strstr(pArgs->name, "jips")!=NULL)) {
+    } else if((uprv_strstr(pArgs->name, "JIPS")!=nullptr) || (uprv_strstr(pArgs->name, "jips")!=nullptr)) {
         /* set a flag for JIPS converter, which changes the SI/SO character sequence */
         cnv->options|=_MBCS_OPTION_JIPS;
     }
@@ -1957,7 +1957,7 @@ ucnv_MBCSOpen(UConverter *cnv,
     }
 
     extIndexes=mbcsTable->extIndexes;
-    if(extIndexes!=NULL) {
+    if(extIndexes!=nullptr) {
         maxBytesPerUChar=(int8_t)UCNV_GET_MAX_BYTES_PER_UCHAR(extIndexes);
         if(outputType==MBCS_OUTPUT_2_SISO) {
             ++maxBytesPerUChar; /* SO + multiple DBCS */
@@ -1989,7 +1989,7 @@ U_CDECL_BEGIN
 
 static const char* U_CALLCONV
 ucnv_MBCSGetName(const UConverter *cnv) {
-    if((cnv->options&UCNV_OPTION_SWAP_LFNL)!=0 && cnv->sharedData->mbcs.swapLFNLName!=NULL) {
+    if((cnv->options&UCNV_OPTION_SWAP_LFNL)!=0 && cnv->sharedData->mbcs.swapLFNLName!=nullptr) {
         return cnv->sharedData->mbcs.swapLFNLName;
     } else {
         return cnv->sharedData->staticData->name;
@@ -2034,8 +2034,8 @@ ucnv_MBCSSingleToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                                 UErrorCode *pErrorCode) {
     UConverter *cnv;
     const uint8_t *source, *sourceLimit;
-    UChar *target;
-    const UChar *targetLimit;
+    char16_t *target;
+    const char16_t *targetLimit;
     int32_t *offsets;
 
     const int32_t (*stateTable)[256];
@@ -2043,7 +2043,7 @@ ucnv_MBCSSingleToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
     int32_t sourceIndex;
 
     int32_t entry;
-    UChar c;
+    char16_t c;
     uint8_t action;
 
     /* set up the local pointers */
@@ -2085,8 +2085,8 @@ ucnv_MBCSSingleToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
         /* test the most common case first */
         if(MBCS_ENTRY_FINAL_IS_VALID_DIRECT_16(entry)) {
             /* output BMP code point */
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
-            if(offsets!=NULL) {
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            if(offsets!=nullptr) {
                 *offsets++=sourceIndex;
             }
 
@@ -2105,14 +2105,14 @@ ucnv_MBCSSingleToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
         ) {
             entry=MBCS_ENTRY_FINAL_VALUE(entry);
             /* output surrogate pair */
-            *target++=(UChar)(0xd800|(UChar)(entry>>10));
-            if(offsets!=NULL) {
+            *target++=(char16_t)(0xd800|(char16_t)(entry>>10));
+            if(offsets!=nullptr) {
                 *offsets++=sourceIndex;
             }
-            c=(UChar)(0xdc00|(UChar)(entry&0x3ff));
+            c=(char16_t)(0xdc00|(char16_t)(entry&0x3ff));
             if(target<targetLimit) {
                 *target++=c;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
             } else {
@@ -2128,8 +2128,8 @@ ucnv_MBCSSingleToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
         } else if(action==MBCS_STATE_FALLBACK_DIRECT_16) {
             if(UCNV_TO_U_USE_FALLBACK(cnv)) {
                 /* output BMP code point */
-                *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
-                if(offsets!=NULL) {
+                *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
 
@@ -2186,7 +2186,7 @@ ucnv_MBCSSingleToBMPWithOffsets(UConverterToUnicodeArgs *pArgs,
                             UErrorCode *pErrorCode) {
     UConverter *cnv;
     const uint8_t *source, *sourceLimit, *lastSource;
-    UChar *target;
+    char16_t *target;
     int32_t targetCapacity, length;
     int32_t *offsets;
 
@@ -2216,7 +2216,7 @@ ucnv_MBCSSingleToBMPWithOffsets(UConverterToUnicodeArgs *pArgs,
     lastSource=source;
 
     /*
-     * since the conversion here is 1:1 UChar:uint8_t, we need only one counter
+     * since the conversion here is 1:1 char16_t:uint8_t, we need only one counter
      * for the minimum of the sourceLength and targetCapacity
      */
     length=(int32_t)(sourceLimit-source);
@@ -2234,37 +2234,37 @@ unrolled:
         loops=count=targetCapacity>>4;
         do {
             oredEntries=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             oredEntries|=entry=stateTable[0][*source++];
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
 
             /* were all 16 entries really valid? */
             if(!MBCS_ENTRY_FINAL_IS_VALID_DIRECT_16(oredEntries)) {
@@ -2277,7 +2277,7 @@ unrolled:
         count=loops-count;
         targetCapacity-=16*count;
 
-        if(offsets!=NULL) {
+        if(offsets!=nullptr) {
             lastSource+=16*count;
             while(count>0) {
                 *offsets++=sourceIndex++;
@@ -2310,7 +2310,7 @@ unrolled:
         /* test the most common case first */
         if(MBCS_ENTRY_FINAL_IS_VALID_DIRECT_16(entry)) {
             /* output BMP code point */
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             --targetCapacity;
             continue;
         }
@@ -2323,7 +2323,7 @@ unrolled:
         if(action==MBCS_STATE_FALLBACK_DIRECT_16) {
             if(UCNV_TO_U_USE_FALLBACK(cnv)) {
                 /* output BMP code point */
-                *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
                 --targetCapacity;
                 continue;
             }
@@ -2338,7 +2338,7 @@ unrolled:
         }
 
         /* set offsets since the start or the last extension */
-        if(offsets!=NULL) {
+        if(offsets!=nullptr) {
             int32_t count=(int32_t)(source-lastSource);
 
             /* predecrement: do not set the offset for the callback-causing character */
@@ -2388,7 +2388,7 @@ unrolled:
     }
 
     /* set offsets since the start or the last callback */
-    if(offsets!=NULL) {
+    if(offsets!=nullptr) {
         size_t count=source-lastSource;
         while(count>0) {
             *offsets++=sourceIndex++;
@@ -2466,8 +2466,8 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                           UErrorCode *pErrorCode) {
     UConverter *cnv;
     const uint8_t *source, *sourceLimit;
-    UChar *target;
-    const UChar *targetLimit;
+    char16_t *target;
+    const char16_t *targetLimit;
     int32_t *offsets;
 
     const int32_t (*stateTable)[256];
@@ -2481,7 +2481,7 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
     int32_t sourceIndex, nextSourceIndex;
 
     int32_t entry;
-    UChar c;
+    char16_t c;
     uint8_t action;
 
     /* use optimized function if possible */
@@ -2558,7 +2558,7 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
 
         if(byteIndex==0) {
             /* optimized loop for 1/2-byte input and BMP output */
-            if(offsets==NULL) {
+            if(offsets==nullptr) {
                 do {
                     entry=stateTable[state][*source];
                     if(MBCS_ENTRY_IS_TRANSITION(entry)) {
@@ -2585,7 +2585,7 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                         if(MBCS_ENTRY_FINAL_IS_VALID_DIRECT_16(entry)) {
                             /* output BMP code point */
                             ++source;
-                            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
                             state=(uint8_t)MBCS_ENTRY_FINAL_STATE(entry); /* typically 0 */
                         } else {
                             /* leave the optimized loop */
@@ -2593,7 +2593,7 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                         }
                     }
                 } while(source<sourceLimit && target<targetLimit);
-            } else /* offsets!=NULL */ {
+            } else /* offsets!=nullptr */ {
                 do {
                     entry=stateTable[state][*source];
                     if(MBCS_ENTRY_IS_TRANSITION(entry)) {
@@ -2608,7 +2608,7 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                         ) {
                             ++source;
                             *target++=c;
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex;
                                 sourceIndex=(nextSourceIndex+=2);
                             }
@@ -2625,8 +2625,8 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                         if(MBCS_ENTRY_FINAL_IS_VALID_DIRECT_16(entry)) {
                             /* output BMP code point */
                             ++source;
-                            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
-                            if(offsets!=NULL) {
+                            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex;
                                 sourceIndex=++nextSourceIndex;
                             }
@@ -2682,15 +2682,15 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
             if(c<0xfffe) {
                 /* output BMP code point */
                 *target++=c;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 byteIndex=0;
             } else if(c==0xfffe) {
                 if(UCNV_TO_U_USE_FALLBACK(cnv) && (entry=(int32_t)ucnv_MBCSGetFallback(&cnv->sharedData->mbcs, offset))!=0xfffe) {
                     /* output fallback BMP code point */
-                    *target++=(UChar)entry;
-                    if(offsets!=NULL) {
+                    *target++=(char16_t)entry;
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     byteIndex=0;
@@ -2701,8 +2701,8 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
             }
         } else if(action==MBCS_STATE_VALID_DIRECT_16) {
             /* output BMP code point */
-            *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
-            if(offsets!=NULL) {
+            *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            if(offsets!=nullptr) {
                 *offsets++=sourceIndex;
             }
             byteIndex=0;
@@ -2712,20 +2712,20 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
             if(c<0xd800) {
                 /* output BMP code point below 0xd800 */
                 *target++=c;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 byteIndex=0;
             } else if(UCNV_TO_U_USE_FALLBACK(cnv) ? c<=0xdfff : c<=0xdbff) {
                 /* output roundtrip or fallback surrogate pair */
-                *target++=(UChar)(c&0xdbff);
-                if(offsets!=NULL) {
+                *target++=(char16_t)(c&0xdbff);
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 byteIndex=0;
                 if(target<targetLimit) {
                     *target++=unicodeCodeUnits[offset];
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                 } else {
@@ -2740,7 +2740,7 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
             } else if(UCNV_TO_U_USE_FALLBACK(cnv) ? (c&0xfffe)==0xe000 : c==0xe000) {
                 /* output roundtrip BMP code point above 0xd800 or fallback BMP code point */
                 *target++=unicodeCodeUnits[offset];
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 byteIndex=0;
@@ -2753,15 +2753,15 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
         ) {
             entry=MBCS_ENTRY_FINAL_VALUE(entry);
             /* output surrogate pair */
-            *target++=(UChar)(0xd800|(UChar)(entry>>10));
-            if(offsets!=NULL) {
+            *target++=(char16_t)(0xd800|(char16_t)(entry>>10));
+            if(offsets!=nullptr) {
                 *offsets++=sourceIndex;
             }
             byteIndex=0;
-            c=(UChar)(0xdc00|(UChar)(entry&0x3ff));
+            c=(char16_t)(0xdc00|(char16_t)(entry&0x3ff));
             if(target<targetLimit) {
                 *target++=c;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
             } else {
@@ -2793,8 +2793,8 @@ ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
         } else if(action==MBCS_STATE_FALLBACK_DIRECT_16) {
             if(UCNV_TO_U_USE_FALLBACK(cnv)) {
                 /* output BMP code point */
-                *target++=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
-                if(offsets!=NULL) {
+                *target++=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 byteIndex=0;
@@ -2908,7 +2908,7 @@ ucnv_MBCSSingleGetNextUChar(UConverterToUnicodeArgs *pArgs,
 
         if(MBCS_ENTRY_FINAL_IS_VALID_DIRECT_16(entry)) {
             /* output BMP code point */
-            return (UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+            return (char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
         }
 
         /*
@@ -2924,7 +2924,7 @@ ucnv_MBCSSingleGetNextUChar(UConverterToUnicodeArgs *pArgs,
         } else if(action==MBCS_STATE_FALLBACK_DIRECT_16) {
             if(UCNV_TO_U_USE_FALLBACK(cnv)) {
                 /* output BMP code point */
-                return (UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                return (char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
             }
         } else if(action==MBCS_STATE_UNASSIGNED) {
             /* just fall through */
@@ -3054,7 +3054,7 @@ ucnv_MBCSGetNextUChar(UConverterToUnicodeArgs *pArgs,
             action=(uint8_t)(MBCS_ENTRY_FINAL_ACTION(entry));
             if(action==MBCS_STATE_VALID_DIRECT_16) {
                 /* output BMP code point */
-                c=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                c=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
                 break;
             } else if(action==MBCS_STATE_VALID_16) {
                 offset+=MBCS_ENTRY_FINAL_VALUE_16(entry);
@@ -3112,7 +3112,7 @@ ucnv_MBCSGetNextUChar(UConverterToUnicodeArgs *pArgs,
             } else if(action==MBCS_STATE_FALLBACK_DIRECT_16) {
                 if(UCNV_TO_U_USE_FALLBACK(cnv)) {
                     /* output BMP code point */
-                    c=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                    c=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
                     break;
                 }
             } else if(action==MBCS_STATE_UNASSIGNED) {
@@ -3213,7 +3213,7 @@ ucnv_MBCSSingleSimpleGetNextUChar(UConverterSharedData *sharedData,
 
     if(MBCS_ENTRY_FINAL_IS_VALID_DIRECT_16(entry)) {
         /* output BMP code point */
-        return (UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+        return (char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
     }
 
     /*
@@ -3229,7 +3229,7 @@ ucnv_MBCSSingleSimpleGetNextUChar(UConverterSharedData *sharedData,
             return 0xfffe;
         }
         /* output BMP code point */
-        return (UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+        return (char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
     } else if(action==MBCS_STATE_FALLBACK_DIRECT_20) {
         if(!TO_U_USE_FALLBACK(useFallback)) {
             return 0xfffe;
@@ -3331,7 +3331,7 @@ ucnv_MBCSSimpleGetNextUChar(UConverterSharedData *sharedData,
                 break;
             } else if(action==MBCS_STATE_VALID_DIRECT_16) {
                 /* output BMP code point */
-                c=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                c=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
                 break;
             } else if(action==MBCS_STATE_VALID_16_PAIR) {
                 offset+=MBCS_ENTRY_FINAL_VALUE_16(entry);
@@ -3360,7 +3360,7 @@ ucnv_MBCSSimpleGetNextUChar(UConverterSharedData *sharedData,
                     break;
                 }
                 /* output BMP code point */
-                c=(UChar)MBCS_ENTRY_FINAL_VALUE_16(entry);
+                c=(char16_t)MBCS_ENTRY_FINAL_VALUE_16(entry);
                 break;
             } else if(action==MBCS_STATE_FALLBACK_DIRECT_20) {
                 if(!TO_U_USE_FALLBACK(useFallback)) {
@@ -3391,7 +3391,7 @@ ucnv_MBCSSimpleGetNextUChar(UConverterSharedData *sharedData,
     if(c==0xfffe) {
         /* try an extension mapping */
         const int32_t *cx=sharedData->mbcs.extIndexes;
-        if(cx!=NULL) {
+        if(cx!=nullptr) {
             return ucnv_extSimpleMatchToU(cx, source, length, useFallback);
         }
     }
@@ -3406,7 +3406,7 @@ static void
 ucnv_MBCSDoubleFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                                   UErrorCode *pErrorCode) {
     UConverter *cnv;
-    const UChar *source, *sourceLimit;
+    const char16_t *source, *sourceLimit;
     uint8_t *target;
     int32_t targetCapacity;
     int32_t *offsets;
@@ -3468,14 +3468,14 @@ ucnv_MBCSDoubleFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
         if(targetCapacity>0) {
             /*
              * Get a correct Unicode code point:
-             * a single UChar for a BMP code point or
+             * a single char16_t for a BMP code point or
              * a matched surrogate pair for a "supplementary code point".
              */
             c=*source++;
             ++nextSourceIndex;
             if(c<=0x7f && IS_ASCII_ROUNDTRIP(c, asciiRoundtrips)) {
                 *target++=(uint8_t)c;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                     sourceIndex=nextSourceIndex;
                 }
@@ -3506,7 +3506,7 @@ ucnv_MBCSDoubleFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 getTrail:
                         if(source<sourceLimit) {
                             /* test the following code unit */
-                            UChar trail=*source;
+                            char16_t trail=*source;
                             if(U16_IS_TRAIL(trail)) {
                                 ++source;
                                 ++nextSourceIndex;
@@ -3585,7 +3585,7 @@ unassigned:
             if(value<=0xff) {
                 /* this is easy because we know that there is enough space */
                 *target++=(uint8_t)value;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 --targetCapacity;
@@ -3593,13 +3593,13 @@ unassigned:
                 *target++=(uint8_t)(value>>8);
                 if(2<=targetCapacity) {
                     *target++=(uint8_t)value;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                         *offsets++=sourceIndex;
                     }
                     targetCapacity-=2;
                 } else {
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     cnv->charErrorBuffer[0]=(char)value;
@@ -3638,7 +3638,7 @@ static void
 ucnv_MBCSSingleFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                                   UErrorCode *pErrorCode) {
     UConverter *cnv;
-    const UChar *source, *sourceLimit;
+    const char16_t *source, *sourceLimit;
     uint8_t *target;
     int32_t targetCapacity;
     int32_t *offsets;
@@ -3701,7 +3701,7 @@ ucnv_MBCSSingleFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
         if(targetCapacity>0) {
             /*
              * Get a correct Unicode code point:
-             * a single UChar for a BMP code point or
+             * a single char16_t for a BMP code point or
              * a matched surrogate pair for a "supplementary code point".
              */
             c=*source++;
@@ -3711,7 +3711,7 @@ ucnv_MBCSSingleFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 getTrail:
                     if(source<sourceLimit) {
                         /* test the following code unit */
-                        UChar trail=*source;
+                        char16_t trail=*source;
                         if(U16_IS_TRAIL(trail)) {
                             ++source;
                             ++nextSourceIndex;
@@ -3750,7 +3750,7 @@ getTrail:
                 /* length==1 */
                 /* this is easy because we know that there is enough space */
                 *target++=(uint8_t)value;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 --targetCapacity;
@@ -3814,7 +3814,7 @@ static void
 ucnv_MBCSSingleFromBMPWithOffsets(UConverterFromUnicodeArgs *pArgs,
                               UErrorCode *pErrorCode) {
     UConverter *cnv;
-    const UChar *source, *sourceLimit, *lastSource;
+    const char16_t *source, *sourceLimit, *lastSource;
     uint8_t *target;
     int32_t targetCapacity, length;
     int32_t *offsets;
@@ -3861,7 +3861,7 @@ ucnv_MBCSSingleFromBMPWithOffsets(UConverterFromUnicodeArgs *pArgs,
     lastSource=source;
 
     /*
-     * since the conversion here is 1:1 UChar:uint8_t, we need only one counter
+     * since the conversion here is 1:1 char16_t:uint8_t, we need only one counter
      * for the minimum of the sourceLength and targetCapacity
      */
     length=(int32_t)(sourceLimit-source);
@@ -3908,7 +3908,7 @@ unrolled:
         count=loops-count;
         targetCapacity-=4*count;
 
-        if(offsets!=NULL) {
+        if(offsets!=nullptr) {
             lastSource+=4*count;
             while(count>0) {
                 *offsets++=sourceIndex++;
@@ -3926,7 +3926,7 @@ unrolled:
     while(targetCapacity>0) {
         /*
          * Get a correct Unicode code point:
-         * a single UChar for a BMP code point or
+         * a single char16_t for a BMP code point or
          * a matched surrogate pair for a "supplementary code point".
          */
         c=*source++;
@@ -3960,7 +3960,7 @@ unrolled:
 getTrail:
             if(source<sourceLimit) {
                 /* test the following code unit */
-                UChar trail=*source;
+                char16_t trail=*source;
                 if(U16_IS_TRAIL(trail)) {
                     ++source;
                     c=U16_GET_SUPPLEMENTARY(c, trail);
@@ -3992,7 +3992,7 @@ getTrail:
         length=U16_LENGTH(c);
 
         /* set offsets since the start or the last extension */
-        if(offsets!=NULL) {
+        if(offsets!=nullptr) {
             int32_t count=(int32_t)(source-lastSource);
 
             /* do not set the offset for this character */
@@ -4042,7 +4042,7 @@ getTrail:
     }
 
     /* set offsets since the start or the last callback */
-    if(offsets!=NULL) {
+    if(offsets!=nullptr) {
         size_t count=source-lastSource;
         if (count > 0 && *pErrorCode == U_TRUNCATED_CHAR_FOUND) {
             /*
@@ -4071,7 +4071,7 @@ U_CFUNC void
 ucnv_MBCSFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                             UErrorCode *pErrorCode) {
     UConverter *cnv;
-    const UChar *source, *sourceLimit;
+    const char16_t *source, *sourceLimit;
     uint8_t *target;
     int32_t targetCapacity;
     int32_t *offsets;
@@ -4135,7 +4135,7 @@ ucnv_MBCSFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
     if(cnv->sharedData->mbcs.utf8Friendly) {
         mbcsIndex=cnv->sharedData->mbcs.mbcsIndex;
     } else {
-        mbcsIndex=NULL;
+        mbcsIndex=nullptr;
     }
     if((cnv->options&UCNV_OPTION_SWAP_LFNL)!=0) {
         bytes=cnv->sharedData->mbcs.swapLFNLFromUnicodeBytes;
@@ -4197,14 +4197,14 @@ ucnv_MBCSFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
         if(targetCapacity>0) {
             /*
              * Get a correct Unicode code point:
-             * a single UChar for a BMP code point or
+             * a single char16_t for a BMP code point or
              * a matched surrogate pair for a "supplementary code point".
              */
             c=*source++;
             ++nextSourceIndex;
             if(c<=0x7f && IS_ASCII_ROUNDTRIP(c, asciiRoundtrips)) {
                 *target++=(uint8_t)c;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                     prevSourceIndex=sourceIndex;
                     sourceIndex=nextSourceIndex;
@@ -4218,7 +4218,7 @@ ucnv_MBCSFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
              * to avoid dealing with surrogates.
              * MBCS_FAST_MAX must be >=0xd7ff.
              */
-            if(c<=0xd7ff && mbcsIndex!=NULL) {
+            if(c<=0xd7ff && mbcsIndex!=nullptr) {
                 value=mbcsIndex[c>>6];
 
                 /* get the bytes and the length for the output (copied from below and adapted for utf8Friendly data) */
@@ -4390,7 +4390,7 @@ ucnv_MBCSFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 getTrail:
                         if(source<sourceLimit) {
                             /* test the following code unit */
-                            UChar trail=*source;
+                            char16_t trail=*source;
                             if(U16_IS_TRAIL(trail)) {
                                 ++source;
                                 ++nextSourceIndex;
@@ -4628,7 +4628,7 @@ unassigned:
                         targetCapacity=(int32_t)(pArgs->targetLimit-(char *)target);
 
                         /* normal end of conversion: prepare for a new character */
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             prevSourceIndex=sourceIndex;
                             sourceIndex=nextSourceIndex;
                         }
@@ -4640,7 +4640,7 @@ unassigned:
             /* write the output character bytes from value and length */
             /* from the first if in the loop we know that targetCapacity>0 */
             if(length<=targetCapacity) {
-                if(offsets==NULL) {
+                if(offsets==nullptr) {
                     switch(length) {
                         /* each branch falls through to the next one */
                     case 4:
@@ -4719,19 +4719,19 @@ unassigned:
                     /* each branch falls through to the next one */
                 case 3:
                     *target++=(uint8_t)(value>>16);
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     U_FALLTHROUGH;
                 case 2:
                     *target++=(uint8_t)(value>>8);
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     U_FALLTHROUGH;
                 case 1:
                     *target++=(uint8_t)value;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     U_FALLTHROUGH;
@@ -4749,7 +4749,7 @@ unassigned:
 
             /* normal end of conversion: prepare for a new character */
             c=0;
-            if(offsets!=NULL) {
+            if(offsets!=nullptr) {
                 prevSourceIndex=sourceIndex;
                 sourceIndex=nextSourceIndex;
             }
@@ -4787,7 +4787,7 @@ unassigned:
                     *target++=(uint8_t)siBytes[1];
                 }
             }
-            if(offsets!=NULL) {
+            if(offsets!=nullptr) {
                 /* set the last source character's index (sourceIndex points at sourceLimit now) */
                 *offsets++=prevSourceIndex;
             }
@@ -4961,7 +4961,7 @@ ucnv_MBCSFromUChar32(UConverterSharedData *sharedData,
     }
 
     cx=sharedData->mbcs.extIndexes;
-    if(cx!=NULL) {
+    if(cx!=nullptr) {
         length=ucnv_extSimpleMatchFromU(cx, c, pValue, useFallback);
         return length>=0 ? length : -length;  /* return abs(length); */
     }
@@ -5257,12 +5257,12 @@ moreBytes:
                  * If we have a partial match on c, we will return and revert
                  * to UTF-8->UTF-16->charset conversion.
                  */
-                static const UChar nul=0;
-                const UChar *noSource=&nul;
+                static const char16_t nul=0;
+                const char16_t *noSource=&nul;
                 c=_extFromU(cnv, cnv->sharedData,
                             c, &noSource, noSource,
                             &target, target+targetCapacity,
-                            NULL, -1,
+                            nullptr, -1,
                             pFromUArgs->flush,
                             pErrorCode);
 
@@ -5560,12 +5560,12 @@ unassigned:
                  * If we have a partial match on c, we will return and revert
                  * to UTF-8->UTF-16->charset conversion.
                  */
-                static const UChar nul=0;
-                const UChar *noSource=&nul;
+                static const char16_t nul=0;
+                const char16_t *noSource=&nul;
                 c=_extFromU(cnv, cnv->sharedData,
                             c, &noSource, noSource,
                             &target, target+targetCapacity,
-                            NULL, -1,
+                            nullptr, -1,
                             pFromUArgs->flush,
                             pErrorCode);
 
@@ -5658,7 +5658,7 @@ ucnv_MBCSWriteSub(UConverterFromUnicodeArgs *pArgs,
 
     /* first, select between subChar and subChar1 */
     if( cnv->subChar1!=0 &&
-        (cnv->sharedData->mbcs.extIndexes!=NULL ?
+        (cnv->sharedData->mbcs.extIndexes!=nullptr ?
             cnv->useSubChar1 :
             (cnv->invalidUCharBuffer[0]<=0xff))
     ) {

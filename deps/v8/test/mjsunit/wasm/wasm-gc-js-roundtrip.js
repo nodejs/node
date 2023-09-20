@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --no-wasm-gc-structref-as-dataref
+// Flags: --experimental-wasm-gc
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -41,6 +41,7 @@ let instance = (() => {
     raw_struct: struct,
     raw_array: array,
     typed_func: sig,
+    i31: kWasmI31Ref,
     eq: kWasmEqRef,
     func: kWasmFuncRef,
     any: kWasmAnyRef,
@@ -85,23 +86,29 @@ assertThrows(
 instance.exports.eq_id(instance.exports.struct_producer());
 // We can roundtrip an array as eqref.
 instance.exports.eq_id(instance.exports.array_producer());
-// We can roundtrip an i31 as eqref.
+// We can roundtrip an i31 as eqref/i31ref.
 instance.exports.eq_id(instance.exports.i31_as_eq_producer());
-// We can roundtrip any null as eqref.
+instance.exports.i31_id(instance.exports.i31_as_eq_producer());
+// We can roundtrip any null as any null supertype.
 instance.exports.eq_id(instance.exports.struct_null());
 instance.exports.eq_id(instance.exports.eq_null());
 instance.exports.eq_id(instance.exports.func_null());
+instance.exports.eq_id(instance.exports.any_null());
+instance.exports.any_id(instance.exports.struct_null());
+instance.exports.any_id(instance.exports.eq_null());
+instance.exports.any_id(instance.exports.func_null());
+instance.exports.any_id(instance.exports.any_null());
+instance.exports.i31_id(instance.exports.struct_null());
+instance.exports.i31_id(instance.exports.eq_null());
+instance.exports.i31_id(instance.exports.func_null());
+instance.exports.i31_id(instance.exports.any_null());
+instance.exports.struct_id(instance.exports.struct_null());
+instance.exports.struct_id(instance.exports.eq_null());
+instance.exports.struct_id(instance.exports.func_null());
+instance.exports.struct_id(instance.exports.any_null());
 // We cannot roundtrip a func as eqref.
 assertThrows(
     () => instance.exports.eq_id(instance.exports.func_producer()), TypeError,
-    'type incompatibility when transforming from/to JS');
-
-// Anyref is not allowed at the JS interface.
-assertThrows(
-    () => instance.exports.any_null(), TypeError,
-    'type incompatibility when transforming from/to JS');
-assertThrows(
-    () => instance.exports.any_id(), TypeError,
     'type incompatibility when transforming from/to JS');
 
 // We can roundtrip a typed function.
@@ -123,24 +130,24 @@ assertThrows(
     TypeError,
     'type incompatibility when transforming from/to JS');
 
-// We cannot directly roundtrip structs or arrays.
-// TODO(7748): Switch these tests once we can.
+// We can directly roundtrip structs or arrays.
+instance.exports.raw_struct_id(instance.exports.struct_producer());
+instance.exports.raw_array_id(instance.exports.array_producer());
+
+// We cannot roundtrip an array as struct and vice versa.
 assertThrows(
-    () => instance.exports.raw_struct_id(instance.exports.struct_producer()),
-    TypeError, 'type incompatibility when transforming from/to JS');
+  () => instance.exports.raw_struct_id(instance.exports.array_producer()),
+  TypeError,
+  'type incompatibility when transforming from/to JS');
 assertThrows(
-    () => instance.exports.raw_array_id(instance.exports.array_producer()),
-    TypeError, 'type incompatibility when transforming from/to JS');
+  () => instance.exports.raw_array_id(instance.exports.struct_producer()),
+  TypeError,
+  'type incompatibility when transforming from/to JS');
 
 // We can roundtrip an extern.
 assertEquals(null, instance.exports.extern_id(instance.exports.extern_null()));
 
-// The special null types are not allowed on the boundary from/to JS.
+// We can roundtrip null typed as one of the three null types though wasm.
 for (const nullType of ["none", "nofunc", "noextern"]) {
-  assertThrows(
-    () => instance.exports[`${nullType}_null`](),
-    TypeError, 'type incompatibility when transforming from/to JS');
-  assertThrows(
-    () => instance.exports[`${nullType}_id`](),
-    TypeError, 'type incompatibility when transforming from/to JS');
+  instance.exports[`${nullType}_id`](instance.exports[`${nullType}_null`]());
 }

@@ -113,7 +113,8 @@ class WasmValue {
   FOREACH_PRIMITIVE_WASMVAL_TYPE(DEFINE_TYPE_SPECIFIC_METHODS)
 #undef DEFINE_TYPE_SPECIFIC_METHODS
 
-  WasmValue(byte* raw_bytes, ValueType type) : type_(type), bit_pattern_{} {
+  WasmValue(const uint8_t* raw_bytes, ValueType type)
+      : type_(type), bit_pattern_{} {
     DCHECK(type_.is_numeric());
     memcpy(bit_pattern_, raw_bytes, type.value_kind_size());
   }

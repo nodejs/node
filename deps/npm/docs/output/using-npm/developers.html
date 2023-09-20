@@ -171,7 +171,7 @@ benefits of using npm if you just want to write a node program (a), and
 perhaps if you also want to be able to easily install it elsewhere
 after packing it up into a tarball (b).</p>
 <p>Git urls can be of the form:</p>
-<pre lang="bash"><code>git://github.com/user/project.git#commit-ish
+<pre><code class="language-bash">git://github.com/user/project.git#commit-ish
 git+ssh://user@hostname:project.git#commit-ish
 git+http://user@hostname/project/blah.git#commit-ish
 git+https://user@hostname/project/blah.git#commit-ish
@@ -293,15 +293,15 @@ problems trying to publish it.  Or, worse yet, you'll be able to
 publish it, but you'll be publishing a broken or pointless package.
 So don't do that.</p>
 <p>In the root of your package, do this:</p>
-<pre lang="bash"><code>npm install . -g
+<pre><code class="language-bash">npm install . -g
 </code></pre>
 <p>That'll show you that it's working.  If you'd rather just create a symlink
 package that points to your working directory, then do this:</p>
-<pre lang="bash"><code>npm link
+<pre><code class="language-bash">npm link
 </code></pre>
 <p>Use <code>npm ls -g</code> to see if it's there.</p>
 <p>To test a local install, go into some other folder, and then do:</p>
-<pre lang="bash"><code>cd ../some-other-folder
+<pre><code class="language-bash">cd ../some-other-folder
 npm install ../my-package
 </code></pre>
 <p>to install it locally into the node_modules folder in that other place.</p>
@@ -309,13 +309,13 @@ npm install ../my-package
 bring in your module's main module.</p>
 <h3 id="create-a-user-account">Create a User Account</h3>
 <p>Create a user with the adduser command.  It works like this:</p>
-<pre lang="bash"><code>npm adduser
+<pre><code class="language-bash">npm adduser
 </code></pre>
 <p>and then follow the prompts.</p>
 <p>This is documented better in <a href="../commands/npm-adduser.html">npm adduser</a>.</p>
 <h3 id="publish-your-package">Publish your Package</h3>
 <p>This part's easy.  In the root of your folder, do this:</p>
-<pre lang="bash"><code>npm publish
+<pre><code class="language-bash">npm publish
 </code></pre>
 <p>You can give publish a url to a tarball, or a filename of a tarball,
 or a path to a folder.</p>
@@ -335,8 +335,7 @@ from a fresh checkout.</p>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../commands/npm-adduser.html">npm adduser</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/developers.md">

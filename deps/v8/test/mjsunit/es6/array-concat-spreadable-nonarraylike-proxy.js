@@ -36,7 +36,7 @@ assertEquals(["get", target, "length", obj], log[1]);
 target.length = 3;
 
 log.length = 0;
-assertEquals(["a", "b", undefined], [].concat(obj));
+assertEquals(["a", "b", ,], [].concat(obj));
 assertEquals(7, log.length);
 for (var i in log) assertSame(target, log[i][1]);
 assertEquals(["get", target, Symbol.isConcatSpreadable, obj], log[0]);
@@ -48,7 +48,7 @@ assertEquals(["get", target, "1", obj], log[5]);
 assertEquals(["has", target, "2"], log[6]);
 
 log.length = 0;
-assertEquals(["a", "b", undefined], Array.prototype.concat.apply(obj));
+assertEquals(["a", "b", ,], Array.prototype.concat.apply(obj));
 assertEquals(7, log.length);
 for (var i in log) assertSame(target, log[i][1]);
 assertEquals(["get", target, Symbol.isConcatSpreadable, obj], log[0]);

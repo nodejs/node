@@ -8,4 +8,4 @@ const assert = require('assert');
 // https://github.com/nodejs/node/issues/7592
 const F = () => {};
 F.prototype = {};
-assert(Object.create(F.prototype) instanceof F);
+assert({ __proto__: F.prototype } instanceof F);

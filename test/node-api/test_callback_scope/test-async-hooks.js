@@ -31,7 +31,7 @@ async_hooks.createHook({
   after: common.mustCall((id) => {
     assert.strictEqual(id, expectedId);
     insideHook = false;
-  })
+  }),
 }).enable();
 
 runInCallbackScope(expectedResource, expectedResourceType, () => {

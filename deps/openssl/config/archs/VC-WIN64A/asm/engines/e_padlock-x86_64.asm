@@ -48,6 +48,8 @@ global	padlock_key_bswap
 ALIGN	16
 padlock_key_bswap:
 	mov	edx,DWORD[240+rcx]
+	inc	edx
+	shl	edx,2
 $L$bswap_loop:
 	mov	eax,DWORD[rcx]
 	bswap	eax

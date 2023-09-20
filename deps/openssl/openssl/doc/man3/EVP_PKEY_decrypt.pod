@@ -18,19 +18,21 @@ EVP_PKEY_decrypt - decrypt using a public key algorithm
 =head1 DESCRIPTION
 
 The EVP_PKEY_decrypt_init() function initializes a public key algorithm
-context using key B<pkey> for a decryption operation.
+context using key I<pkey> for a decryption operation.
 
 The EVP_PKEY_decrypt_init_ex() function initializes a public key algorithm
-context using key B<pkey> for a decryption operation and sets the
-algorithm specific B<params>.
+context using key I<pkey> for a decryption operation and sets the
+algorithm specific I<params>.
 
 The EVP_PKEY_decrypt() function performs a public key decryption operation
-using B<ctx>. The data to be decrypted is specified using the B<in> and
-B<inlen> parameters. If B<out> is B<NULL> then the maximum size of the output
-buffer is written to the B<outlen> parameter. If B<out> is not B<NULL> then
-before the call the B<outlen> parameter should contain the length of the
-B<out> buffer, if the call is successful the decrypted data is written to
-B<out> and the amount of data written to B<outlen>.
+using I<ctx>. The data to be decrypted is specified using the I<in> and
+I<inlen> parameters. If I<out> is NULL then the minimum required size of
+the output buffer is written to the I<*outlen> parameter.
+
+If I<out> is not NULL then before the call the I<*outlen> parameter must
+contain the length of the I<out> buffer. If the call is successful the
+decrypted data is written to I<out> and the amount of the decrypted data
+written to I<*outlen>, otherwise an error is returned.
 
 =head1 NOTES
 

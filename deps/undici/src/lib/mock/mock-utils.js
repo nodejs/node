@@ -188,7 +188,11 @@ function buildKey (opts) {
 }
 
 function generateKeyValues (data) {
-  return Object.entries(data).reduce((keyValuePairs, [key, value]) => [...keyValuePairs, key, value], [])
+  return Object.entries(data).reduce((keyValuePairs, [key, value]) => [
+    ...keyValuePairs,
+    Buffer.from(`${key}`),
+    Array.isArray(value) ? value.map(x => Buffer.from(`${x}`)) : Buffer.from(`${value}`)
+  ], [])
 }
 
 /**

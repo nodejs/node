@@ -5427,3 +5427,5 @@ EVP_PKEY_get0_provider                  5554	3_0_0	EXIST::FUNCTION:
 EVP_PKEY_CTX_get0_provider              5555	3_0_0	EXIST::FUNCTION:
 OPENSSL_strcasecmp                      5556	3_0_3	EXIST::FUNCTION:
 OPENSSL_strncasecmp                     5557	3_0_3	EXIST::FUNCTION:
+OSSL_CMP_CTX_reset_geninfo_ITAVs        5558	3_0_8	EXIST::FUNCTION:CMP
+OSSL_CMP_MSG_update_recipNonce          5559	3_0_9	EXIST::FUNCTION:CMP

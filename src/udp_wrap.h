@@ -144,11 +144,6 @@ class UDPWrap final : public HandleWrap,
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMulticastInterface(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetMulticastTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetMulticastLoopback(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetBroadcast(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void BufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSendQueueSize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSendQueueCount(
@@ -174,6 +169,8 @@ class UDPWrap final : public HandleWrap,
   SocketAddress GetSockName() override;
 
   AsyncWrap* GetAsyncWrap() override;
+
+  inline uv_udp_t* GetLibuvHandle() { return &handle_; }
 
   static v8::MaybeLocal<v8::Object> Instantiate(Environment* env,
                                                 AsyncWrap* parent,

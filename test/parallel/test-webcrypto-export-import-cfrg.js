@@ -8,7 +8,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { subtle } = crypto.webcrypto;
+const { subtle } = globalThis.crypto;
 
 const keyData = {
   'Ed25519': {
@@ -164,6 +164,15 @@ async function testImportPkcs8({ name, privateUsages }, extractable) {
         message: /key is not extractable/
       });
   }
+
+  await assert.rejects(
+    subtle.importKey(
+      'pkcs8',
+      keyData[name].pkcs8,
+      { name },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
 }
 
 async function testImportJwk({ name, publicUsages, privateUsages }, extractable) {
@@ -242,13 +251,8 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
     assert.strictEqual(pvtJwk.crv, jwk.crv);
     assert.strictEqual(pvtJwk.d, jwk.d);
 
-    if (jwk.crv.startsWith('Ed')) {
-      assert.strictEqual(pubJwk.alg, 'EdDSA');
-      assert.strictEqual(pvtJwk.alg, 'EdDSA');
-    } else {
-      assert.strictEqual(pubJwk.alg, undefined);
-      assert.strictEqual(pvtJwk.alg, undefined);
-    }
+    assert.strictEqual(pubJwk.alg, undefined);
+    assert.strictEqual(pvtJwk.alg, undefined);
   } else {
     await assert.rejects(
       subtle.exportKey('jwk', publicKey), {
@@ -260,6 +264,36 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
       });
   }
 
+  {
+    const invalidUse = name.startsWith('X') ? 'sig' : 'enc';
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, use: invalidUse },
+        { name },
+        extractable,
+        privateUsages),
+      { message: 'Invalid JWK "use" Parameter' });
+  }
+
+  // The JWK alg member is ignored
+  // https://github.com/WICG/webcrypto-secure-curves/pull/24
+  if (name.startsWith('Ed')) {
+    await subtle.importKey(
+      'jwk',
+      { kty: jwk.kty, x: jwk.x, crv: jwk.crv, alg: 'foo' },
+      { name },
+      extractable,
+      publicUsages);
+
+    await subtle.importKey(
+      'jwk',
+      { ...jwk, alg: 'foo' },
+      { name },
+      extractable,
+      privateUsages);
+  }
+
   for (const crv of [undefined, name === 'Ed25519' ? 'Ed448' : 'Ed25519']) {
     await assert.rejects(
       subtle.importKey(
@@ -268,17 +302,26 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
         { name },
         extractable,
         publicUsages),
-      { message: /Subtype mismatch/ });
+      { message: 'JWK "crv" Parameter and algorithm name mismatch' });
 
     await assert.rejects(
       subtle.importKey(
         'jwk',
-        { kty: jwk.kty, d: jwk.d, x: jwk.x, y: jwk.y, crv },
+        { ...jwk, crv },
         { name },
         extractable,
-        publicUsages),
-      { message: /Subtype mismatch/ });
+        privateUsages),
+      { message: 'JWK "crv" Parameter and algorithm name mismatch' });
   }
+
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { ...jwk },
+      { name },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
 }
 
 async function testImportRaw({ name, publicUsages }) {

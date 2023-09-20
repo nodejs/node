@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const { URL, URLSearchParams } = require('url');
+const { URL, URLSearchParams, format } = require('url');
 
 [
   { name: 'toString' },
@@ -9,6 +9,17 @@ const { URL, URLSearchParams } = require('url');
   { name: Symbol.for('nodejs.util.inspect.custom') },
 ].forEach(({ name }) => {
   testMethod(URL.prototype, name);
+});
+
+[
+  'http://www.google.com',
+  'https://www.domain.com:443',
+  'file:///Users/yagiz/Developer/node',
+].forEach((url) => {
+  const u = new URL(url);
+  assert.strictEqual(JSON.stringify(u), `"${u.href}"`);
+  assert.strictEqual(u.toString(), u.href);
+  assert.strictEqual(format(u), u.href);
 });
 
 [
@@ -53,6 +64,21 @@ const { URL, URLSearchParams } = require('url');
 ].forEach(({ name, methodName }) => {
   testMethod(URLSearchParams.prototype, name, methodName);
 });
+
+{
+  const params = new URLSearchParams();
+  params.append('a', 'b');
+  params.append('a', 'c');
+  params.append('b', 'c');
+  assert.strictEqual(params.size, 3);
+}
+
+{
+  const u = new URL('https://abc.com/?q=old');
+  const s = u.searchParams;
+  u.href = 'http://abc.com/?q=new';
+  assert.strictEqual(s.get('q'), 'new');
+}
 
 function stringifyName(name) {
   if (typeof name === 'symbol') {

@@ -20,7 +20,7 @@ const bench = common.createBenchmark(main, {
   writes: [500],
   algo: ['SHA1', 'SHA224', 'SHA256', 'SHA384', 'SHA512'],
   keylen: keylen_list,
-  len: [1024, 102400, 2 * 102400, 3 * 102400, 1024 * 1024]
+  len: [1024, 102400, 2 * 102400, 3 * 102400, 1024 * 1024],
 });
 
 function main({ len, algo, keylen, writes }) {

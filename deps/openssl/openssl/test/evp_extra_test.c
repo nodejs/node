@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -31,6 +31,7 @@
 #include <openssl/decoder.h>
 #include <openssl/rsa.h>
 #include <openssl/engine.h>
+#include <openssl/proverr.h>
 #include "testutil.h"
 #include "internal/nelem.h"
 #include "internal/sizes.h"
@@ -898,6 +899,8 @@ static int test_EC_priv_pub(void)
     BIGNUM *priv = NULL;
     int ret = 0;
     unsigned char *encoded = NULL;
+    size_t len = 0;
+    unsigned char buffer[128];
 
     /*
      * Setup the parameters for our pkey object. For our purposes they don't
@@ -1016,6 +1019,26 @@ static int test_EC_priv_pub(void)
         encoded = NULL;
         goto err;
     }
+
+    /* Positive and negative testcase for EVP_PKEY_get_octet_string_param */
+    if (!TEST_int_eq(EVP_PKEY_get_octet_string_param(params_and_pub,
+                                                     OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY,
+                                                     buffer, sizeof(buffer), &len), 1)
+        || !TEST_int_eq(len, 65))
+        goto err;
+
+    len = 0;
+    if (!TEST_int_eq(EVP_PKEY_get_octet_string_param(params_and_pub,
+                                                     OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY,
+                                                     NULL, 0, &len), 1)
+        || !TEST_int_eq(len, 65))
+        goto err;
+
+    /* too-short buffer len*/
+    if (!TEST_int_eq(EVP_PKEY_get_octet_string_param(params_and_pub,
+                                                     OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY,
+                                                     buffer, 10, &len), 0))
+        goto err;
 
     ret = 1;
  err:
@@ -2039,7 +2062,7 @@ static int test_EVP_SM2(void)
                                         sizeof(kMsg))))
             goto done;
 
-        if (!TEST_true(EVP_PKEY_decrypt_init(cctx)))
+        if (!TEST_int_gt(EVP_PKEY_decrypt_init(cctx), 0))
             goto done;
 
         if (!TEST_true(EVP_PKEY_CTX_set_params(cctx, sparams)))
@@ -4622,11 +4645,13 @@ static int test_ecx_short_keys(int tst)
     EVP_PKEY *pkey;
 
 
-    pkey = EVP_PKEY_new_raw_private_key(ecxnids[tst], NULL, &ecxkeydata, 1);
+    pkey = EVP_PKEY_new_raw_private_key_ex(testctx, OBJ_nid2sn(ecxnids[tst]),
+                                           NULL, &ecxkeydata, 1);
     if (!TEST_ptr_null(pkey)) {
         EVP_PKEY_free(pkey);
         return 0;
     }
+
     return 1;
 }
 
@@ -4646,6 +4671,73 @@ const OPTIONS *test_get_options(void)
     };
     return options;
 }
+
+#ifndef OPENSSL_NO_EC
+/* Test that trying to sign with a public key errors out gracefully */
+static int test_ecx_not_private_key(int tst)
+{
+    EVP_PKEY *pkey = NULL;
+
+    const unsigned char msg[] = { 0x00, 0x01, 0x02, 0x03 };
+    int testresult = 0;
+    EVP_MD_CTX *ctx = NULL;
+    unsigned char *mac = NULL;
+    size_t maclen = 0;
+    unsigned char *pubkey;
+    size_t pubkeylen;
+
+    switch (keys[tst].type) {
+    case NID_X25519:
+    case NID_X448:
+        return TEST_skip("signing not supported for X25519/X448");
+    }
+
+    /* Check if this algorithm supports public keys */
+    if (keys[tst].pub == NULL)
+        return TEST_skip("no public key present");
+
+    pubkey = (unsigned char *)keys[tst].pub;
+    pubkeylen = strlen(keys[tst].pub);
+
+    pkey = EVP_PKEY_new_raw_public_key_ex(testctx, OBJ_nid2sn(keys[tst].type),
+                                          NULL, pubkey, pubkeylen);
+    if (!TEST_ptr(pkey))
+        goto err;
+
+    if (!TEST_ptr(ctx = EVP_MD_CTX_new()))
+        goto err;
+
+    if (EVP_DigestSignInit(ctx, NULL, NULL, NULL, pkey) != 1)
+        goto check_err;
+
+    if (EVP_DigestSign(ctx, NULL, &maclen, msg, sizeof(msg)) != 1)
+        goto check_err;
+
+    if (!TEST_ptr(mac = OPENSSL_malloc(maclen)))
+        goto err;
+
+    if (!TEST_int_eq(EVP_DigestSign(ctx, mac, &maclen, msg, sizeof(msg)), 0))
+        goto err;
+
+ check_err:
+    /*
+     * Currently only EVP_DigestSign will throw PROV_R_NOT_A_PRIVATE_KEY,
+     * but we relax the check to allow error also thrown by
+     * EVP_DigestSignInit and EVP_DigestSign.
+     */
+    if (ERR_GET_REASON(ERR_peek_error()) == PROV_R_NOT_A_PRIVATE_KEY) {
+        testresult = 1;
+        ERR_clear_error();
+    }
+
+ err:
+    EVP_MD_CTX_free(ctx);
+    OPENSSL_free(mac);
+    EVP_PKEY_free(pkey);
+
+    return testresult;
+}
+#endif /* OPENSSL_NO_EC */
 
 int setup_tests(void)
 {
@@ -4781,6 +4873,10 @@ int setup_tests(void)
 #endif
 
     ADD_ALL_TESTS(test_ecx_short_keys, OSSL_NELEM(ecxnids));
+
+#ifndef OPENSSL_NO_EC
+    ADD_ALL_TESTS(test_ecx_not_private_key, OSSL_NELEM(keys));
+#endif
 
     return 1;
 }

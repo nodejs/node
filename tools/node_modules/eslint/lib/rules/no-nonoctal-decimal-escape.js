@@ -32,7 +32,7 @@ module.exports = {
         docs: {
             description: "Disallow `\\8` and `\\9` escape sequences in string literals",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-nonoctal-decimal-escape"
+            url: "https://eslint.org/docs/latest/rules/no-nonoctal-decimal-escape"
         },
 
         hasSuggestions: true,
@@ -49,7 +49,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Creates a new Suggestion object.

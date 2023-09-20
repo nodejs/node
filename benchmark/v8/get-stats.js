@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
     'getHeapStatistics',
     'getHeapSpaceStatistics',
   ],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ method, n }) {

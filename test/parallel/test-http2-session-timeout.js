@@ -5,6 +5,8 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
+const hrtime = process.hrtime.bigint;
+const NS_PER_MS = 1_000_000n;
 
 let requests = 0;
 const mustNotCall = () => {
@@ -14,7 +16,7 @@ const mustNotCall = () => {
 const server = http2.createServer();
 // Disable server timeout until first request. We will set the timeout based on
 // how long the first request takes.
-server.timeout = 0;
+server.timeout = 0n;
 
 server.on('request', (req, res) => res.end());
 server.on('timeout', mustNotCall);
@@ -24,7 +26,7 @@ server.listen(0, common.mustCall(() => {
 
   const url = `http://localhost:${port}`;
   const client = http2.connect(url);
-  let startTime = process.hrtime();
+  let startTime = hrtime();
   makeReq();
 
   function makeReq() {
@@ -40,17 +42,17 @@ server.listen(0, common.mustCall(() => {
     requests += 1;
 
     request.on('end', () => {
-      const diff = process.hrtime(startTime);
-      const milliseconds = (diff[0] * 1e3 + diff[1] / 1e6);
-      if (server.timeout === 0) {
+      const diff = hrtime() - startTime;
+      const milliseconds = diff / NS_PER_MS;
+      if (server.timeout === 0n) {
         // Set the timeout now. First connection will take significantly longer
         // than subsequent connections, so using the duration of the first
         // connection as the timeout should be robust. Double it anyway for good
         // measure.
-        server.timeout = milliseconds * 2;
-        startTime = process.hrtime();
+        server.timeout = milliseconds * 2n;
+        startTime = hrtime();
         makeReq();
-      } else if (milliseconds < server.timeout * 2) {
+      } else if (milliseconds < server.timeout * 2n) {
         makeReq();
       } else {
         server.removeListener('timeout', mustNotCall);

@@ -73,7 +73,8 @@ Data types
 
 .. c:type:: uv_timeval_t
 
-    Data type for storing times.
+    Y2K38-unsafe data type for storing times with microsecond resolution.
+    Will be replaced with :c:type:`uv_timeval64_t` in libuv v2.0.
 
     ::
 
@@ -84,7 +85,7 @@ Data types
 
 .. c:type:: uv_timeval64_t
 
-    Alternative data type for storing times.
+    Y2K38-safe data type for storing times with microsecond resolution.
 
     ::
 
@@ -92,6 +93,28 @@ Data types
             int64_t tv_sec;
             int32_t tv_usec;
         } uv_timeval64_t;
+
+.. c:type:: uv_timespec64_t
+
+    Y2K38-safe data type for storing times with nanosecond resolution.
+
+    ::
+
+        typedef struct {
+            int64_t tv_sec;
+            int32_t tv_nsec;
+        } uv_timespec64_t;
+
+.. c:enum:: uv_clock_id
+
+    Clock source for :c:func:`uv_clock_gettime`.
+
+    ::
+
+        typedef enum {
+          UV_CLOCK_MONOTONIC,
+          UV_CLOCK_REALTIME
+        } uv_clock_id;
 
 .. c:type:: uv_rusage_t
 
@@ -119,7 +142,10 @@ Data types
         } uv_rusage_t;
 
     Members marked with `(X)` are unsupported on Windows.
-    See :man:`getrusage(2)` for supported fields on Unix
+    See :man:`getrusage(2)` for supported fields on UNIX-like platforms.
+
+    The maximum resident set size is reported in kilobytes, the unit most
+    platforms use natively.
 
 .. c:type:: uv_cpu_info_t
 
@@ -211,7 +237,7 @@ API
     type of the stdio streams.
 
     For :man:`isatty(3)` equivalent functionality use this function and test
-    for ``UV_TTY``.
+    for `UV_TTY`.
 
 .. c:function:: int uv_replace_allocator(uv_malloc_func malloc_func, uv_realloc_func realloc_func, uv_calloc_func calloc_func, uv_free_func free_func)
 
@@ -225,8 +251,8 @@ API
     after all resources have been freed and thus libuv doesn't reference
     any allocated memory chunk.
 
-    On success, it returns 0, if any of the function pointers is NULL it
-    returns UV_EINVAL.
+    On success, it returns 0, if any of the function pointers is `NULL` it
+    returns `UV_EINVAL`.
 
     .. warning:: There is no protection against changing the allocator multiple
                  times. If the user changes it they are responsible for making
@@ -361,6 +387,13 @@ API
 .. c:function:: void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count)
 
     Frees the `cpu_infos` array previously allocated with :c:func:`uv_cpu_info`.
+
+.. c:function:: int uv_cpumask_size(void)
+
+    Returns the maximum size of the mask used for process/thread affinities,
+    or `UV_ENOTSUP` if affinities are not supported on the current platform.
+
+    .. versionadded:: 1.45.0
 
 .. c:function:: int uv_interface_addresses(uv_interface_address_t** addresses, int* count)
 
@@ -541,18 +574,21 @@ API
 
 .. c:function:: uint64_t uv_get_free_memory(void)
 
-    Gets the amount of free memory available in the system, as reported by the kernel (in bytes).
+    Gets the amount of free memory available in the system, as reported by
+    the kernel (in bytes). Returns 0 when unknown.
 
 .. c:function:: uint64_t uv_get_total_memory(void)
 
     Gets the total amount of physical memory in the system (in bytes).
+    Returns 0 when unknown.
 
 .. c:function:: uint64_t uv_get_constrained_memory(void)
 
-    Gets the amount of memory available to the process (in bytes) based on
+    Gets the total amount of memory available to the process (in bytes) based on
     limits imposed by the OS. If there is no such constraint, or the constraint
-    is unknown, `0` is returned. Note that it is not unusual for this value to
-    be less than or greater than :c:func:`uv_get_total_memory`.
+    is unknown, `0` is returned. If there is a constraining mechanism, but there
+    is no constraint set, `UINT64_MAX` is returned. Note that it is not unusual
+    for this value to be less than or greater than :c:func:`uv_get_total_memory`.
 
     .. note::
         This function currently only returns a non-zero value on Linux, based
@@ -560,9 +596,23 @@ API
 
     .. versionadded:: 1.29.0
 
+.. c:function:: uint64_t uv_get_available_memory(void)
+
+    Gets the amount of free memory that is still available to the process (in bytes).
+    This differs from :c:func:`uv_get_free_memory` in that it takes into account any
+    limits imposed by the OS. If there is no such constraint, or the constraint
+    is unknown, the amount returned will be identical to :c:func:`uv_get_free_memory`.
+
+    .. note::
+        This function currently only returns a value that is different from
+        what :c:func:`uv_get_free_memory` reports on Linux, based
+        on cgroups if it is present.
+
+    .. versionadded:: 1.45.0
+
 .. c:function:: uint64_t uv_hrtime(void)
 
-    Returns the current high-resolution real time. This is expressed in
+    Returns the current high-resolution timestamp. This is expressed in
     nanoseconds. It is relative to an arbitrary time in the past. It is not
     related to the time of day and therefore not subject to clock drift. The
     primary use is for measuring performance between intervals.
@@ -570,6 +620,19 @@ API
     .. note::
         Not every platform can support nanosecond resolution; however, this value will always
         be in nanoseconds.
+
+.. c:function:: int uv_clock_gettime(uv_clock_id clock_id, uv_timespec64_t* ts)
+
+    Obtain the current system time from a high-resolution real-time or monotonic
+    clock source.
+
+    The real-time clock counts from the UNIX epoch (1970-01-01) and is subject
+    to time adjustments; it can jump back in time.
+
+    The monotonic clock counts from an arbitrary point in the past and never
+    jumps back in time.
+
+    .. versionadded:: 1.45.0
 
 .. c:function:: void uv_print_all_handles(uv_loop_t* loop, FILE* stream)
 

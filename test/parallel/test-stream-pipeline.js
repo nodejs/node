@@ -1556,3 +1556,109 @@ const tsp = require('timers/promises');
     })
   );
 }
+
+{
+  class CustomReadable extends Readable {
+    _read() {
+      this.push('asd');
+      this.push(null);
+    }
+  }
+
+  class CustomWritable extends Writable {
+    constructor() {
+      super();
+      this.endCount = 0;
+      this.str = '';
+    }
+
+    _write(chunk, enc, cb) {
+      this.str += chunk;
+      cb();
+    }
+
+    end() {
+      this.endCount += 1;
+      super.end();
+    }
+  }
+
+  const readable = new CustomReadable();
+  const writable = new CustomWritable();
+
+  pipeline(readable, writable, common.mustSucceed(() => {
+    assert.strictEqual(writable.str, 'asd');
+    assert.strictEqual(writable.endCount, 1);
+  }));
+}
+
+{
+  const readable = new Readable({
+    read() {}
+  });
+  readable.on('end', common.mustCall(() => {
+    pipeline(readable, new PassThrough(), common.mustSucceed());
+  }));
+  readable.push(null);
+  readable.read();
+}
+
+{
+  const dup = new Duplex({
+    read() {},
+    write(chunk, enc, cb) {
+      cb();
+    }
+  });
+  dup.on('end', common.mustCall(() => {
+    pipeline(dup, new PassThrough(), common.mustSucceed());
+  }));
+  dup.push(null);
+  dup.read();
+}
+
+{
+  let res = '';
+  const writable = new Writable({
+    write(chunk, enc, cb) {
+      res += chunk;
+      cb();
+    }
+  });
+  pipelinep(async function*() {
+    yield 'hello';
+    await Promise.resolve();
+    yield 'world';
+  }, writable, { end: false }).then(common.mustCall(() => {
+    assert.strictEqual(res, 'helloworld');
+    assert.strictEqual(writable.closed, false);
+  }));
+}
+
+{
+  const r = new Readable();
+  for (let i = 0; i < 4000; i++) {
+    r.push('asdfdagljanfgkaljdfn');
+  }
+  r.push(null);
+
+  let ended = false;
+  r.on('end', () => {
+    ended = true;
+  });
+
+  const w = new Writable({
+    write(chunk, enc, cb) {
+      cb(null);
+    },
+    final: common.mustCall((cb) => {
+      assert.strictEqual(ended, true);
+      cb(null);
+    })
+  });
+
+  pipeline(r, w, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
+  }));
+
+}

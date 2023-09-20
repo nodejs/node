@@ -3,7 +3,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   res: ['normal', 'setHeader', 'setHeaderWH'],
-  duration: 5
+  duration: 5,
 });
 
 const type = 'bytes';

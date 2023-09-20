@@ -93,7 +93,7 @@ class WasmModuleDebug {
   // Returns an empty array if the frame specified does not correspond to a Wasm
   // stack frame.
   static std::vector<FrameSummary> FindWasmFrame(
-      StackTraceFrameIterator* frame_it, uint32_t* frame_index);
+      DebuggableStackFrameIterator* frame_it, uint32_t* frame_index);
 
   // Converts a WasmValue into an array of bytes.
   static bool GetWasmValue(const wasm::WasmValue& wasm_value, uint8_t* buffer,

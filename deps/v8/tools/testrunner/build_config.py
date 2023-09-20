@@ -23,37 +23,50 @@ class BuildConfig(object):
 
     self.asan = build_config['is_asan']
     self.cfi_vptr = build_config['is_cfi']
+    self.code_comments = build_config['v8_code_comments']
     self.component_build = build_config['is_component_build']
+    self.concurrent_marking = build_config['v8_enable_concurrent_marking']
     self.conservative_stack_scanning = build_config[
         'v8_enable_conservative_stack_scanning']
     self.control_flow_integrity = build_config['v8_control_flow_integrity']
-    self.concurrent_marking = build_config['v8_enable_concurrent_marking']
-    self.single_generation = build_config['v8_enable_single_generation']
     self.dcheck_always_on = build_config['dcheck_always_on']
-    self.gcov_coverage = build_config['is_gcov_coverage']
+    self.debug_code = build_config['v8_enable_debug_code']
+    self.dict_property_const_tracking = build_config[
+        'v8_dict_property_const_tracking']
+    self.disassembler = build_config['v8_enable_disassembler']
+    self.gdbjit = build_config['v8_enable_gdbjit']
     self.is_android = build_config['is_android']
     self.is_clang = build_config['is_clang']
+    self.is_clang_coverage = build_config['is_clang_coverage']
     self.is_debug = build_config['is_debug']
+    self.is_DEBUG_defined = build_config['is_DEBUG_defined']
     self.is_full_debug = build_config['is_full_debug']
+    self.lite_mode = build_config['v8_enable_lite_mode']
+    self.maglev = build_config['v8_enable_maglev']
     self.msan = build_config['is_msan']
     self.no_i18n = not build_config['v8_enable_i18n_support']
-    self.predictable = build_config['v8_enable_verify_predictable']
-    self.simulator_run = (
-        build_config['target_cpu'] != build_config['v8_target_cpu'])
-    self.tsan = build_config['is_tsan']
-    # TODO(machenbach): We only have ubsan not ubsan_vptr.
-    self.ubsan_vptr = build_config['is_ubsan_vptr']
-    self.verify_csa = build_config['v8_enable_verify_csa']
-    self.lite_mode = build_config['v8_enable_lite_mode']
     self.pointer_compression = build_config['v8_enable_pointer_compression']
     self.pointer_compression_shared_cage = build_config[
         'v8_enable_pointer_compression_shared_cage']
-    self.shared_ro_heap = build_config['v8_enable_shared_ro_heap']
+    self.predictable = build_config['v8_enable_verify_predictable']
     self.sandbox = build_config['v8_enable_sandbox']
+    self.shared_ro_heap = build_config['v8_enable_shared_ro_heap']
+    self.simulator_run = (
+        build_config['target_cpu'] != build_config['v8_target_cpu'])
+    self.single_generation = build_config['v8_enable_single_generation']
+    self.slow_dchecks = build_config['v8_enable_slow_dchecks']
     self.third_party_heap = build_config['v8_enable_third_party_heap']
+    self.tsan = build_config['is_tsan']
+    self.turbofan = build_config['v8_enable_turbofan']
+    # TODO(machenbach): We only have ubsan not ubsan_vptr.
+    self.ubsan_vptr = build_config['is_ubsan_vptr']
+    self.verify_csa = build_config['v8_enable_verify_csa']
+    self.verify_heap = build_config['v8_enable_verify_heap']
     self.webassembly = build_config['v8_enable_webassembly']
-    self.dict_property_const_tracking = build_config[
-        'v8_dict_property_const_tracking']
+    self.write_barriers = not build_config['v8_disable_write_barriers']
+    # TODO(jgruber): Don't rename once it's no longer necessary to avoid
+    # conflicts with test variant names.
+    self.jitless_build_mode = build_config['v8_jitless']
     # Export only for MIPS target
     if self.arch in ['mips64', 'mips64el']:
       self._mips_arch_variant = build_config['mips_arch_variant']
@@ -67,7 +80,8 @@ class BuildConfig(object):
   @property
   def no_js_shared_memory(self):
     return (not self.shared_ro_heap) or (
-        self.pointer_compression and not self.pointer_compression_shared_cage)
+        self.pointer_compression and
+        not self.pointer_compression_shared_cage) or (not self.write_barriers)
 
   @property
   def is_mips_arch(self):
@@ -134,22 +148,32 @@ class BuildConfig(object):
     attrs = [
         'asan',
         'cfi_vptr',
+        'code_comments',
         'control_flow_integrity',
         'dcheck_always_on',
-        'gcov_coverage',
+        'debug_code',
+        'dict_property_const_tracking',
+        'disassembler',
+        'gdbjit',
+        'is_debug',
+        'is_DEBUG_defined',
+        'jitless_build_mode',
+        'lite_mode',
+        'maglev',
         'msan',
         'no_i18n',
-        'predictable',
-        'tsan',
-        'ubsan_vptr',
-        'verify_csa',
-        'lite_mode',
         'pointer_compression',
         'pointer_compression_shared_cage',
+        'predictable',
         'sandbox',
+        'slow_dchecks',
         'third_party_heap',
+        'tsan',
+        'turbofan',
+        'ubsan_vptr',
+        'verify_csa',
+        'verify_heap',
         'webassembly',
-        'dict_property_const_tracking',
     ]
     detected_options = [attr for attr in attrs if getattr(self, attr, False)]
-    return '\n'.join(detected_options)
+    return ', '.join(detected_options)

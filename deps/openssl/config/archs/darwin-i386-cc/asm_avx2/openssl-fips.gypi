@@ -298,13 +298,6 @@
       './config/archs/darwin-i386-cc/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/darwin-i386-cc/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/darwin-i386-cc/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/bn/bn-586.S',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/bn/co-586.S',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/bn/x86-gf2m.S',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/bn/x86-mont.S',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/des/crypt586.S',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/des/des-586.S',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/md5/md5-586.S',
 
     ],
     'openssl_defines_darwin-i386-cc': [

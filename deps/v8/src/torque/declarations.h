@@ -123,9 +123,10 @@ class Declarations {
 
   static Builtin* CreateBuiltin(std::string external_name,
                                 std::string readable_name, Builtin::Kind kind,
-                                Signature signature,
+                                Builtin::Flags flags, Signature signature,
                                 base::Optional<Statement*> body);
   static Builtin* DeclareBuiltin(const std::string& name, Builtin::Kind kind,
+                                 Builtin::Flags flags,
                                  const Signature& signature,
                                  base::Optional<Statement*> body);
 

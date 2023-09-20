@@ -284,8 +284,6 @@
       './config/archs/linux64-mips64/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/linux64-mips64/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/linux64-mips64/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/linux64-mips64/asm/crypto/bn/bn-mips.S',
-      './config/archs/linux64-mips64/asm/crypto/bn/mips-mont.S',
       './config/archs/linux64-mips64/asm/providers/legacy.ld',
       './config/archs/linux64-mips64/asm/providers/fips.ld',
 
@@ -303,6 +301,7 @@
       'FIPS_MODULE',
     ],
     'openssl_cflags_linux64-mips64': [
+      '-mips3',
       '-Wa,--noexecstack',
       '-Wall -O3',
       '-pthread -mabi=64',

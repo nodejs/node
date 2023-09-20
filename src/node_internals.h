@@ -83,6 +83,9 @@ void PrintStackTrace(v8::Isolate* isolate, v8::Local<v8::StackTrace> stack);
 void PrintCaughtException(v8::Isolate* isolate,
                           v8::Local<v8::Context> context,
                           const v8::TryCatch& try_catch);
+std::string FormatCaughtException(v8::Isolate* isolate,
+                                  v8::Local<v8::Context> context,
+                                  const v8::TryCatch& try_catch);
 
 void ResetStdio();  // Safe to call more than once and from signal handlers.
 #ifdef __POSIX__
@@ -303,7 +306,9 @@ bool SafeGetenv(const char* key,
 void DefineZlibConstants(v8::Local<v8::Object> target);
 v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         uv_loop_t* event_loop,
-                        MultiIsolatePlatform* platform);
+                        MultiIsolatePlatform* platform,
+                        const SnapshotData* snapshot_data = nullptr,
+                        const IsolateSettings& settings = {});
 // This overload automatically picks the right 'main_script_id' if no callback
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
@@ -313,7 +318,7 @@ void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class InitializationResultImpl final : public InitializationResult {
  public:
-  ~InitializationResultImpl();
+  ~InitializationResultImpl() = default;
   int exit_code() const { return static_cast<int>(exit_code_enum()); }
   ExitCode exit_code_enum() const { return exit_code_; }
   bool early_return() const { return early_return_; }

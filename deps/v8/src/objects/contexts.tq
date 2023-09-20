@@ -101,6 +101,12 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   ARRAY_JOIN_STACK_INDEX: Slot<NativeContext, Undefined|FixedArray>,
   OBJECT_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
   ITERATOR_RESULT_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_MAP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_FILTER_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_TAKE_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_DROP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  VALID_ITERATOR_WRAPPER_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   MATH_RANDOM_CACHE_INDEX: Slot<NativeContext, FixedDoubleArray>,
@@ -142,6 +148,9 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   RAB_GSAB_UINT8_CLAMPED_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
   RAB_GSAB_BIGUINT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
   RAB_GSAB_BIGINT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+
+  ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX: Slot<NativeContext, Map>,
+  DATA_PROPERTY_DESCRIPTOR_MAP_INDEX: Slot<NativeContext, Map>,
 
   PROMISE_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
   PROMISE_THEN_INDEX: Slot<NativeContext, JSFunction>,

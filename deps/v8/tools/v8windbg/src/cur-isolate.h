@@ -17,8 +17,8 @@
 
 HRESULT GetCurrentIsolate(WRL::ComPtr<IModelObject>& sp_result);
 
-constexpr wchar_t kIsolateKey[] = L"v8::internal::Isolate::isolate_key_";
-constexpr wchar_t kIsolate[] = L"v8::internal::Isolate";
+constexpr wchar_t kIsolateOffset[] = L"v8::internal::g_current_isolate_";
+constexpr wchar_t kIsolate[] = L"v8::internal::Isolate *";
 
 class CurrIsolateAlias
     : public WRL::RuntimeClass<

@@ -36,13 +36,30 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([
         kExprI32Const, 0,  // offset
         kExprLocalGet, 0,  // length
-        kGCPrefix, kExprArrayNewElem, array_type_index,
-        segment,
+        kGCPrefix, kExprArrayNewElem, array_type_index, segment,
         kExprLocalGet, 1,  // index in the array
         kGCPrefix, kExprArrayGet, array_type_index,
         kGCPrefix, kExprStructGet, struct_type_index, 0])
       .exportFunc()
   }
+
+  // Respective segment elements should be pointer-identical.
+  builder.addFunction("identical", makeSig([kWasmI32, kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprI32Const, 0,  // offset
+      kExprLocalGet, 0,  // length
+      kGCPrefix, kExprArrayNewElem, array_type_index, passive_segment,
+      kExprLocalGet, 1,  // index in the array
+      kGCPrefix, kExprArrayGet, array_type_index,
+
+      kExprI32Const, 0,  // offset
+      kExprLocalGet, 0,  // length
+      kGCPrefix, kExprArrayNewElem, array_type_index, passive_segment,
+      kExprLocalGet, 1,  // index in the array
+      kGCPrefix, kExprArrayGet, array_type_index,
+
+      kExprRefEq])
+    .exportFunc()
 
   generator("init_and_get", passive_segment);
   generator("init_and_get_active", active_segment);
@@ -67,6 +84,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapArrayTooLarge, () => init_and_get(1 << 31, 10));
   // Element is out of bounds.
   assertTraps(kTrapElementSegmentOutOfBounds, () => init_and_get(5, 0));
+  // Respective segment elements should be pointer-identical.
+  assertEquals(1, instance.exports.identical(3, 0));
   // Now drop the segment.
   instance.exports.drop();
   // A 0-length array should still be created...
@@ -78,6 +97,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapElementSegmentOutOfBounds, () => init_and_get_active(1, 0));
 })();
 
+// TODO(7748): Reenable when we have constant array.new_elem.
+/*
 (function TestArrayNewElemConstant() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -158,6 +179,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapNullDereference, () => table_get(0, 2));
   assertTraps(kTrapArrayOutOfBounds, () => table_get(0, 3));
 })();
+*/
 
 (function TestArrayNewElemMistypedSegment() {
   print(arguments.callee.name);
@@ -185,6 +207,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                /segment type.*is not a subtype of array element type.*/);
 })();
 
+// TODO(7748): Reenable when we have constant array.new_elem.
+/*
 // Element segments are defined after globals, so currently it is not valid
 // to refer to an element segment in the global section.
 (function TestArrayNewFixedFromElemInGlobal() {
@@ -326,3 +350,62 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // An active segment counts as having 0 length.
   assertTraps(kTrapElementSegmentOutOfBounds, () => instance.exports.init());
 })();
+
+(function TestArrayNewData() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI16, true);
+
+  let dummy_byte = 0xff;
+  let element_0 = 1000;
+  let element_1 = -2222;
+
+  let data_segment = builder.addPassiveDataSegment(
+    [dummy_byte, element_0 & 0xff, (element_0 >> 8) & 0xff,
+     element_1 & 0xff, (element_1 >> 8) & 0xff]);
+
+  let global = builder.addGlobal(
+    wasmRefType(array_type_index), true,
+    [...wasmI32Const(1), ...wasmI32Const(2),
+     kGCPrefix, kExprArrayNewData, array_type_index, data_segment],
+    builder);
+
+  builder.addFunction("global_get", kSig_i_i)
+    .addBody([
+      kExprGlobalGet, global.index,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprArrayGetS, array_type_index])
+    .exportFunc();
+
+  // parameters: (segment offset, array length, array index)
+  builder.addFunction("init_from_data", kSig_i_iii)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      kGCPrefix, kExprArrayNewData,
+      array_type_index, data_segment,
+      kExprLocalGet, 2,
+      kGCPrefix, kExprArrayGetS, array_type_index])
+    .exportFunc();
+
+  builder.addFunction("drop_segment", kSig_v_v)
+    .addBody([kNumericPrefix, kExprDataDrop, data_segment])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  assertEquals(element_0, instance.exports.global_get(0));
+  assertEquals(element_1, instance.exports.global_get(1));
+
+  let init = instance.exports.init_from_data;
+
+  assertEquals(element_0, init(1, 2, 0));
+  assertEquals(element_1, init(1, 2, 1));
+
+  assertTraps(kTrapArrayTooLarge, () => init(1, 1000000000, 0));
+  assertTraps(kTrapDataSegmentOutOfBounds, () => init(2, 2, 0));
+
+  instance.exports.drop_segment();
+
+  assertTraps(kTrapDataSegmentOutOfBounds, () => init(1, 2, 0));
+})();
+*/

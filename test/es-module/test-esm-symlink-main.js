@@ -9,7 +9,7 @@ const fs = require('fs');
 tmpdir.refresh();
 
 const realPath = path.resolve(__dirname, '../fixtures/es-modules/symlink.mjs');
-const symlinkPath = path.resolve(tmpdir.path, 'symlink.mjs');
+const symlinkPath = tmpdir.resolve('symlink.mjs');
 
 try {
   fs.symlinkSync(realPath, symlinkPath);

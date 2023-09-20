@@ -2,9 +2,12 @@
 
 const { isBlobLike, toUSVString, makeIterator } = require('./util')
 const { kState } = require('./symbols')
-const { File, FileLike, isFileLike } = require('./file')
+const { File: UndiciFile, FileLike, isFileLike } = require('./file')
 const { webidl } = require('./webidl')
-const { Blob } = require('buffer')
+const { Blob, File: NativeFile } = require('buffer')
+
+/** @type {globalThis['File']} */
+const File = NativeFile ?? UndiciFile
 
 // https://xhr.spec.whatwg.org/#formdata
 class FormData {
@@ -58,14 +61,7 @@ class FormData {
 
     // The delete(name) method steps are to remove all entries whose name
     // is name from this’s entry list.
-    const next = []
-    for (const entry of this[kState]) {
-      if (entry.name !== name) {
-        next.push(entry)
-      }
-    }
-
-    this[kState] = next
+    this[kState] = this[kState].filter(entry => entry.name !== name)
   }
 
   get (name) {
@@ -256,7 +252,7 @@ function makeEntry (name, value, filename) {
         lastModified: value.lastModified
       }
 
-      value = value instanceof File
+      value = (NativeFile && value instanceof NativeFile) || value instanceof UndiciFile
         ? new File([value], filename, options)
         : new FileLike(value, filename, options)
     }

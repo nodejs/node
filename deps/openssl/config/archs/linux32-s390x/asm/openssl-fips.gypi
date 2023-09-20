@@ -290,8 +290,6 @@
       './config/archs/linux32-s390x/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/linux32-s390x/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/linux32-s390x/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/linux32-s390x/asm/crypto/bn/s390x-gf2m.s',
-      './config/archs/linux32-s390x/asm/crypto/bn/s390x-mont.S',
       './config/archs/linux32-s390x/asm/providers/legacy.ld',
       './config/archs/linux32-s390x/asm/providers/fips.ld',
 

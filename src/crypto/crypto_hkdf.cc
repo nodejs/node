@@ -51,8 +51,8 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
 
   CHECK(args[offset]->IsString());  // Hash
   CHECK(args[offset + 1]->IsObject());  // Key
-  CHECK(IsAnyByteSource(args[offset + 2]));  // Salt
-  CHECK(IsAnyByteSource(args[offset + 3]));  // Info
+  CHECK(IsAnyBufferSource(args[offset + 2]));  // Salt
+  CHECK(IsAnyBufferSource(args[offset + 3]));  // Info
   CHECK(args[offset + 4]->IsUint32());  // Length
 
   Utf8Value hash(env->isolate(), args[offset]);
@@ -87,6 +87,10 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
       : info.ToByteSource();
 
   params->length = args[offset + 4].As<Uint32>()->Value();
+  // HKDF-Expand computes up to 255 HMAC blocks, each having as many bits as the
+  // output of the hash function. 255 is a hard limit because HKDF appends an
+  // 8-bit counter to each HMAC'd message, starting at 1.
+  constexpr size_t kMaxDigestMultiplier = 255;
   size_t max_length = EVP_MD_size(params->digest) * kMaxDigestMultiplier;
   if (params->length > max_length) {
     THROW_ERR_CRYPTO_INVALID_KEYLEN(env);

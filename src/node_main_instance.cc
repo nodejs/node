@@ -9,6 +9,7 @@
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_realm.h"
+#include "node_sea.h"
 #include "node_snapshot_builder.h"
 #include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
@@ -29,34 +30,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 
-NodeMainInstance::NodeMainInstance(Isolate* isolate,
-                                   uv_loop_t* event_loop,
-                                   MultiIsolatePlatform* platform,
-                                   const std::vector<std::string>& args,
-                                   const std::vector<std::string>& exec_args)
-    : args_(args),
-      exec_args_(exec_args),
-      array_buffer_allocator_(nullptr),
-      isolate_(isolate),
-      platform_(platform),
-      isolate_data_(nullptr),
-      snapshot_data_(nullptr) {
-  isolate_data_ =
-      std::make_unique<IsolateData>(isolate_, event_loop, platform, nullptr);
-
-  SetIsolateMiscHandlers(isolate_, {});
-}
-
-std::unique_ptr<NodeMainInstance> NodeMainInstance::Create(
-    Isolate* isolate,
-    uv_loop_t* event_loop,
-    MultiIsolatePlatform* platform,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args) {
-  return std::unique_ptr<NodeMainInstance>(
-      new NodeMainInstance(isolate, event_loop, platform, args, exec_args));
-}
-
 NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
                                    uv_loop_t* event_loop,
                                    MultiIsolatePlatform* platform,
@@ -71,42 +44,23 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
       isolate_params_(std::make_unique<Isolate::CreateParams>()),
       snapshot_data_(snapshot_data) {
   isolate_params_->array_buffer_allocator = array_buffer_allocator_.get();
-  if (snapshot_data != nullptr) {
-    SnapshotBuilder::InitializeIsolateParams(snapshot_data,
-                                             isolate_params_.get());
-  }
 
-  isolate_ = Isolate::Allocate();
+  isolate_ =
+      NewIsolate(isolate_params_.get(), event_loop, platform, snapshot_data);
   CHECK_NOT_NULL(isolate_);
-  // Register the isolate on the platform before the isolate gets initialized,
-  // so that the isolate can access the platform during initialization.
-  platform->RegisterIsolate(isolate_, event_loop);
-  SetIsolateCreateParamsForNode(isolate_params_.get());
-  Isolate::Initialize(isolate_, *isolate_params_);
 
   // If the indexes are not nullptr, we are not deserializing
-  isolate_data_ = std::make_unique<IsolateData>(
-      isolate_,
-      event_loop,
-      platform,
-      array_buffer_allocator_.get(),
-      snapshot_data == nullptr ? nullptr : &(snapshot_data->isolate_data_info));
-  IsolateSettings s;
-  SetIsolateMiscHandlers(isolate_, s);
-  if (snapshot_data == nullptr) {
-    // If in deserialize mode, delay until after the deserialization is
-    // complete.
-    SetIsolateErrorHandlers(isolate_, s);
-  }
+  isolate_data_.reset(
+      CreateIsolateData(isolate_,
+                        event_loop,
+                        platform,
+                        array_buffer_allocator_.get(),
+                        snapshot_data->AsEmbedderWrapper().get()));
+  isolate_data_->set_is_building_snapshot(
+      per_process::cli_options->per_isolate->build_snapshot);
+
   isolate_data_->max_young_gen_size =
       isolate_params_->constraints.max_young_generation_size_in_bytes();
-}
-
-void NodeMainInstance::Dispose() {
-  // This should only be called on a main instance that does not own its
-  // isolate.
-  CHECK_NULL(isolate_params_);
-  platform_->DrainTasks(isolate_);
 }
 
 NodeMainInstance::~NodeMainInstance() {
@@ -114,6 +68,8 @@ NodeMainInstance::~NodeMainInstance() {
     return;
   }
   // This should only be done on a main instance that owns its isolate.
+  // IsolateData must be freed before UnregisterIsolate() is called.
+  isolate_data_.reset();
   platform_->UnregisterIsolate(isolate_);
   isolate_->Dispose();
 }
@@ -135,7 +91,22 @@ ExitCode NodeMainInstance::Run() {
 
 void NodeMainInstance::Run(ExitCode* exit_code, Environment* env) {
   if (*exit_code == ExitCode::kNoFailure) {
-    LoadEnvironment(env, StartExecutionCallback{});
+    bool runs_sea_code = false;
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+    if (sea::IsSingleExecutable()) {
+      sea::SeaResource sea = sea::FindSingleExecutableResource();
+      if (!sea.use_snapshot()) {
+        runs_sea_code = true;
+        std::string_view code = sea.main_code_or_snapshot;
+        LoadEnvironment(env, code);
+      }
+    }
+#endif
+    // Either there is already a snapshot main function from SEA, or it's not
+    // a SEA at all.
+    if (!runs_sea_code) {
+      LoadEnvironment(env, StartExecutionCallback{});
+    }
 
     *exit_code =
         SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
@@ -162,28 +133,10 @@ NodeMainInstance::CreateMainEnvironment(ExitCode* exit_code) {
   DeleteFnPtr<Environment, FreeEnvironment> env;
 
   if (snapshot_data_ != nullptr) {
-    env.reset(new Environment(isolate_data_.get(),
-                              isolate_,
-                              args_,
-                              exec_args_,
-                              &(snapshot_data_->env_info),
-                              EnvironmentFlags::kDefaultFlags,
-                              {}));
-    context = Context::FromSnapshot(isolate_,
-                                    SnapshotData::kNodeMainContextIndex,
-                                    {DeserializeNodeInternalFields, env.get()})
-                  .ToLocalChecked();
-
-    CHECK(!context.IsEmpty());
-    Context::Scope context_scope(context);
-
-    CHECK(InitializeContextRuntime(context).IsJust());
-    SetIsolateErrorHandlers(isolate_, {});
-    env->InitializeMainContext(context, &(snapshot_data_->env_info));
-#if HAVE_INSPECTOR
-    env->InitializeInspector({});
-#endif
-
+    env.reset(CreateEnvironment(isolate_data_.get(),
+                                Local<Context>(),  // read from snapshot
+                                args_,
+                                exec_args_));
 #if HAVE_OPENSSL
     crypto::InitCryptoOnce(isolate_);
 #endif  // HAVE_OPENSSL
@@ -191,19 +144,8 @@ NodeMainInstance::CreateMainEnvironment(ExitCode* exit_code) {
     context = NewContext(isolate_);
     CHECK(!context.IsEmpty());
     Context::Scope context_scope(context);
-    env.reset(new Environment(isolate_data_.get(),
-                              context,
-                              args_,
-                              exec_args_,
-                              nullptr,
-                              EnvironmentFlags::kDefaultFlags,
-                              {}));
-#if HAVE_INSPECTOR
-    env->InitializeInspector({});
-#endif
-    if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
-      return nullptr;
-    }
+    env.reset(
+        CreateEnvironment(isolate_data_.get(), context, args_, exec_args_));
   }
 
   return env;

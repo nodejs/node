@@ -94,54 +94,6 @@ int nghttp2_http_on_data_chunk(nghttp2_stream *stream, size_t n);
 void nghttp2_http_record_request_method(nghttp2_stream *stream,
                                         nghttp2_frame *frame);
 
-/*
- * RFC 8941 Structured Field Values.
- */
-typedef enum nghttp2_sf_value_type {
-  NGHTTP2_SF_VALUE_TYPE_BOOLEAN,
-  NGHTTP2_SF_VALUE_TYPE_INTEGER,
-  NGHTTP2_SF_VALUE_TYPE_DECIMAL,
-  NGHTTP2_SF_VALUE_TYPE_STRING,
-  NGHTTP2_SF_VALUE_TYPE_TOKEN,
-  NGHTTP2_SF_VALUE_TYPE_BYTESEQ,
-  NGHTTP2_SF_VALUE_TYPE_INNER_LIST,
-} nghttp2_sf_value_type;
-
-/*
- * nghttp2_sf_value stores Structured Field Values item.  For Inner
- * List, only type is set to NGHTTP2_SF_VALUE_TYPE_INNER_LIST.
- */
-typedef struct nghttp2_sf_value {
-  uint8_t type;
-  union {
-    int b;
-    int64_t i;
-    double d;
-    struct {
-      const uint8_t *base;
-      size_t len;
-    } s;
-  };
-} nghttp2_sf_value;
-
-/*
- * nghttp2_sf_parse_item parses the input sequence [|begin|, |end|)
- * and stores the parsed an Item in |dest|.  It returns the number of
- * bytes consumed if it succeeds, or -1.  This function is declared
- * here for unit tests.
- */
-ssize_t nghttp2_sf_parse_item(nghttp2_sf_value *dest, const uint8_t *begin,
-                              const uint8_t *end);
-
-/*
- * nghttp2_sf_parse_inner_list parses the input sequence [|begin|, |end|)
- * and stores the parsed an Inner List in |dest|.  It returns the number of
- * bytes consumed if it succeeds, or -1.  This function is declared
- * here for unit tests.
- */
-ssize_t nghttp2_sf_parse_inner_list(nghttp2_sf_value *dest,
-                                    const uint8_t *begin, const uint8_t *end);
-
 int nghttp2_http_parse_priority(nghttp2_extpri *dest, const uint8_t *value,
                                 size_t valuelen);
 

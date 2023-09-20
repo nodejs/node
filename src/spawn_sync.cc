@@ -369,6 +369,8 @@ void SyncProcessRunner::Initialize(Local<Object> target,
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kChildProcess, "");
   env->PrintSyncTrace();
   SyncProcessRunner p(env);
   Local<Value> result;
@@ -931,8 +933,7 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
     return AddStdioInheritFD(child_fd, inherit_fd);
 
   } else {
-    CHECK(0 && "invalid child stdio type");
-    return UV_EINVAL;
+    UNREACHABLE("invalid child stdio type");
   }
 }
 

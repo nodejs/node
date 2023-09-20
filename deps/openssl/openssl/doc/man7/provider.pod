@@ -34,8 +34,8 @@ See L<crypto(7)> for further details.
 =head2 Provider
 
 A I<provider> offers an initialization function, as a set of base
-functions in the form of an B<OSSL_DISPATCH> array, and by extension,
-a set of B<OSSL_ALGORITHM>s (see L<openssl-core.h(7)>).
+functions in the form of an L<OSSL_DISPATCH(3)> array, and by extension,
+a set of L<OSSL_ALGORITHM(3)>s (see L<openssl-core.h(7)>).
 It may be a dynamically loadable module, or may be built-in, in
 OpenSSL libraries or in the application.
 If it's a dynamically loadable module, the initialization function
@@ -92,7 +92,7 @@ nonzero, signifies that the OpenSSL libraries will not store a
 reference to the returned data in their internal store of
 implementations.
 
-The returned B<OSSL_ALGORITHM> is the foundation of any OpenSSL
+The returned L<OSSL_ALGORITHM(3)> is the foundation of any OpenSSL
 library API that uses providers for their implementation, most
 commonly in the I<fetching> type of functions
 (see L<crypto(7)/ALGORITHM FETCHING>).

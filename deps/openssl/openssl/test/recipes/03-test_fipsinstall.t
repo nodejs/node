@@ -28,6 +28,7 @@ plan tests => 29;
 
 my $infile = bldtop_file('providers', platform->dso('fips'));
 my $fipskey = $ENV{FIPSKEY} // config('FIPSKEY') // '00';
+my $provconf = srctop_file("test", "fips-and-base.cnf");
 
 # Read in a text $infile and replace the regular expression in $srch with the
 # value in $repl and output to a new file $outfile.
@@ -230,6 +231,12 @@ SKIP: {
 SKIP: {
     skip "Skipping Signature DSA corruption test because of no dsa in this build", 1
         if disabled("dsa");
+
+    run(test(["fips_version_test", "-config", $provconf, "<3.1.0"]),
+             capture => 1, statusvar => \my $exit);
+    skip "FIPS provider version is too new for PCT DSA signature test", 1
+        if !$exit;
+
     ok(!run(app(['openssl', 'fipsinstall', '-out', 'fips.cnf', '-module', $infile,
                 '-provider_name', 'fips', '-mac_name', 'HMAC',
                 '-macopt', 'digest:SHA256', '-macopt', "hexkey:$fipskey",

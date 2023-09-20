@@ -292,7 +292,6 @@
       './config/archs/linux-aarch64/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/linux-aarch64/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/linux-aarch64/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/linux-aarch64/asm_avx2/crypto/bn/armv8-mont.S',
       './config/archs/linux-aarch64/asm_avx2/providers/legacy.ld',
       './config/archs/linux-aarch64/asm_avx2/providers/fips.ld',
 

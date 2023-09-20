@@ -197,16 +197,18 @@ TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
       }
 
       // 12e. Perform ? Set(targetObj, Pk, mappedValue, true).
-      // Buffer may be detached during executing ToNumber/ToBigInt.
+      // The buffer may be detached or the target TypedArray may go out of
+      // bounds during executing ToNumber/ToBigInt or when we executed the
+      // mapper function above.
       accessor.StoreJSAny(context, targetObj, k, mappedValue)
-          otherwise IfDetached;
+          otherwise IfDetachedOrOutOfBounds;
 
       // 12f. Set k to k + 1. (done by the loop).
     }
     return targetObj;
   } label NotConstructor deferred {
     ThrowTypeError(MessageTemplate::kNotConstructor, receiver);
-  } label IfDetached deferred {
+  } label IfDetachedOrOutOfBounds deferred {
     ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameFrom);
   }
 }

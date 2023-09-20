@@ -404,6 +404,8 @@ CPU::CPU()
       has_vfp3_(false),
       has_vfp3_d32_(false),
       has_jscvt_(false),
+      has_dot_prod_(false),
+      has_lse_(false),
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       is_running_in_vm_(false),
@@ -726,20 +728,29 @@ CPU::CPU()
 #if !defined(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE = 44;
 #endif
+#if !defined(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE = 43;
+#endif
 
   has_jscvt_ =
       IsProcessorFeaturePresent(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE);
+  has_dot_prod_ =
+      IsProcessorFeaturePresent(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE);
 
 #elif V8_OS_LINUX
   // Try to extract the list of CPU features from ELF hwcaps.
   uint32_t hwcaps = ReadELFHWCaps();
   if (hwcaps != 0) {
     has_jscvt_ = (hwcaps & HWCAP_JSCVT) != 0;
+    has_dot_prod_ = (hwcaps & HWCAP_ASIMDDP) != 0;
+    has_lse_ = (hwcaps & HWCAP_ATOMICS) != 0;
   } else {
     // Try to fallback to "Features" CPUInfo field
     CPUInfo cpu_info;
     char* features = cpu_info.ExtractField("Features");
     has_jscvt_ = HasListItem(features, "jscvt");
+    has_dot_prod_ = HasListItem(features, "asimddp");
+    has_lse_ = HasListItem(features, "atomics");
     delete[] features;
   }
 #elif V8_OS_DARWIN
@@ -752,9 +763,27 @@ CPU::CPU()
   } else {
     has_jscvt_ = feat_jscvt;
   }
+  int64_t feat_dot_prod = 0;
+  size_t feat_dot_prod_size = sizeof(feat_dot_prod);
+  if (sysctlbyname("hw.optional.arm.FEAT_DotProd", &feat_dot_prod,
+                   &feat_dot_prod_size, nullptr, 0) == -1) {
+    has_dot_prod_ = false;
+  } else {
+    has_dot_prod_ = feat_dot_prod;
+  }
+  int64_t feat_lse = 0;
+  size_t feat_lse_size = sizeof(feat_lse);
+  if (sysctlbyname("hw.optional.arm.FEAT_LSE", &feat_lse, &feat_lse_size,
+                   nullptr, 0) == -1) {
+    has_lse_ = false;
+  } else {
+    has_lse_ = feat_lse;
+  }
 #else
-  // ARM64 Macs always have JSCVT.
+  // ARM64 Macs always have JSCVT, ASIMDDP and LSE.
   has_jscvt_ = true;
+  has_dot_prod_ = true;
+  has_lse_ = true;
 #endif  // V8_OS_IOS
 #endif  // V8_OS_WIN
 

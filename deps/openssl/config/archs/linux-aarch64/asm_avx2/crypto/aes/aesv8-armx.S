@@ -1859,10 +1859,10 @@ aes_v8_xts_encrypt:
 	b.ne	.Lxts_enc_big_size
 	// Encrypt the iv with key2, as the first XEX iv.
 	ldr	w6,[x4,#240]
-	ld1	{v0.16b},[x4],#16
+	ld1	{v0.4s},[x4],#16
 	ld1	{v6.16b},[x5]
 	sub	w6,w6,#2
-	ld1	{v1.16b},[x4],#16
+	ld1	{v1.4s},[x4],#16
 
 .Loop_enc_iv_enc:
 	aese	v6.16b,v0.16b
@@ -2462,9 +2462,9 @@ aes_v8_xts_encrypt:
 
 	// Encrypt the composite block to get the last second encrypted text block
 	ldr	w6,[x3,#240]		// load key schedule...
-	ld1	{v0.16b},[x3],#16
+	ld1	{v0.4s},[x3],#16
 	sub	w6,w6,#2
-	ld1	{v1.16b},[x3],#16		// load key schedule...
+	ld1	{v1.4s},[x3],#16		// load key schedule...
 .Loop_final_enc:
 	aese	v26.16b,v0.16b
 	aesmc	v26.16b,v26.16b
@@ -2500,10 +2500,10 @@ aes_v8_xts_decrypt:
 	b.ne	.Lxts_dec_big_size
 	// Encrypt the iv with key2, as the first XEX iv.
 	ldr	w6,[x4,#240]
-	ld1	{v0.16b},[x4],#16
+	ld1	{v0.4s},[x4],#16
 	ld1	{v6.16b},[x5]
 	sub	w6,w6,#2
-	ld1	{v1.16b},[x4],#16
+	ld1	{v1.4s},[x4],#16
 
 .Loop_dec_small_iv_enc:
 	aese	v6.16b,v0.16b
@@ -2581,10 +2581,10 @@ aes_v8_xts_decrypt:
 
 	// Encrypt the iv with key2, as the first XEX iv
 	ldr	w6,[x4,#240]
-	ld1	{v0.16b},[x4],#16
+	ld1	{v0.4s},[x4],#16
 	ld1	{v6.16b},[x5]
 	sub	w6,w6,#2
-	ld1	{v1.16b},[x4],#16
+	ld1	{v1.4s},[x4],#16
 
 .Loop_dec_iv_enc:
 	aese	v6.16b,v0.16b
@@ -2914,7 +2914,7 @@ aes_v8_xts_decrypt:
 .align	4
 .Lxts_dec_tail4x:
 	add	x0,x0,#16
-	ld1	{v0.4s},[x0],#16
+	tst	x21,#0xf
 	eor	v5.16b,v1.16b,v4.16b
 	st1	{v5.16b},[x1],#16
 	eor	v17.16b,v24.16b,v17.16b
@@ -2923,6 +2923,8 @@ aes_v8_xts_decrypt:
 	eor	v31.16b,v26.16b,v31.16b
 	st1	{v30.16b,v31.16b},[x1],#32
 
+	b.eq	.Lxts_dec_abort
+	ld1	{v0.16b},[x0],#16
 	b	.Lxts_done
 .align	4
 .Lxts_outer_dec_tail:
@@ -3100,7 +3102,7 @@ aes_v8_xts_decrypt:
 	// Processing the last two blocks with cipher stealing.
 	mov	x7,x3
 	cbnz	x2,.Lxts_dec_1st_done
-	ld1	{v0.4s},[x0],#16
+	ld1	{v0.16b},[x0],#16
 
 	// Decrypt the last secod block to get the last plain text block
 .Lxts_dec_1st_done:
@@ -3145,9 +3147,9 @@ aes_v8_xts_decrypt:
 
 	// Decrypt the composite block to get the last second plain text block
 	ldr	w6,[x7,#240]
-	ld1	{v0.16b},[x7],#16
+	ld1	{v0.4s},[x7],#16
 	sub	w6,w6,#2
-	ld1	{v1.16b},[x7],#16
+	ld1	{v1.4s},[x7],#16
 .Loop_final_dec:
 	aesd	v26.16b,v0.16b
 	aesimc	v26.16b,v26.16b

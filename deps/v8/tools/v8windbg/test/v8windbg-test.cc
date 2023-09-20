@@ -235,17 +235,38 @@ void RunTests() {
   //     "First().LocalVariables.@\"memory interpreted as Objects\"",
   //     {"\"hello\""}, &output, p_debug_control.Get());
 
-  RunAndCheckOutput("js stack", "dx @$jsstack()[0].function_name",
-                    {"\"a\"", "SeqOneByteString"}, &output,
-                    p_debug_control.Get());
+  // TODO(v8:13484): try re-enabling the following jsstack() tests once we've
+  // updated to a newer VS toolchain. Stack walking is broken in dbghelp.dll
+  // version 10.0.20348.1, but works in the (much newer) version
+  // 10.0.25155.1000. With incorrect frame pointers, the code in
+  // V8LocalVariables::GetValue of course produces incorrect results.
 
-  RunAndCheckOutput("js stack", "dx @$jsstack()[1].function_name",
-                    {"\"b\"", "SeqOneByteString"}, &output,
-                    p_debug_control.Get());
+  // RunAndCheckOutput("js stack", "dx @$jsstack()[0].function_name",
+  //                   {"\"a\"", "SeqOneByteString"}, &output,
+  //                   p_debug_control.Get());
 
-  RunAndCheckOutput("js stack", "dx @$jsstack()[2].function_name",
-                    {"empty_string \"\"", "SeqOneByteString"}, &output,
-                    p_debug_control.Get());
+  // RunAndCheckOutput("js stack", "dx @$jsstack()[1].function_name",
+  //                   {"\"b\"", "SeqOneByteString"}, &output,
+  //                   p_debug_control.Get());
+
+  // RunAndCheckOutput("js stack", "dx @$jsstack()[2].function_name",
+  //                   {"empty_string \"\"", "SeqOneByteString"}, &output,
+  //                   p_debug_control.Get());
+
+  // Test for @$curisolate(). This should have the same output with
+  // `dx v8::internal::g_current_isolate_`.
+  output.ClearLog();
+  CHECK(SUCCEEDED(p_debug_control->Execute(
+      DEBUG_OUTCTL_ALL_CLIENTS, "dx v8::internal::g_current_isolate_",
+      DEBUG_EXECUTE_ECHO)));
+  size_t addr_pos = output.GetLog().find("0x");
+  CHECK(addr_pos != std::string::npos);
+  std::string expected_output = output.GetLog().substr(addr_pos);
+
+  output.ClearLog();
+  CHECK(SUCCEEDED(p_debug_control->Execute(
+      DEBUG_OUTCTL_ALL_CLIENTS, "dx @$curisolate()", DEBUG_EXECUTE_ECHO)));
+  CHECK_EQ(output.GetLog().substr(output.GetLog().find("0x")), expected_output);
 
   // Detach before exiting
   hr = p_client->DetachProcesses();

@@ -49,6 +49,16 @@ const { readFileSync } = require('fs');
   assert.strictEqual(originalLine, 2);
   assert.strictEqual(originalColumn, 4);
   assert(originalSource.endsWith('disk.js'));
+  const {
+    fileName,
+    lineNumber,
+    columnNumber,
+  } = sourceMap.findOrigin(1, 30);
+  assert.strictEqual(fileName, originalSource);
+  assert.strictEqual(lineNumber, 3);
+  assert.strictEqual(columnNumber, 6);
+  assert(Array.isArray(sourceMap.lineLengths));
+  assert(!sourceMap.lineLengths.some((len) => (typeof len !== 'number')));
 }
 
 // findSourceMap() can be used in Error.prepareStackTrace() to lookup
@@ -89,6 +99,18 @@ const { readFileSync } = require('fs');
   assert.strictEqual(originalLine, 17);
   assert.strictEqual(originalColumn, 10);
   assert(originalSource.endsWith('typescript-throw.ts'));
+
+  const {
+    fileName,
+    lineNumber,
+    columnNumber,
+  } = sourceMap.findOrigin(
+    callSite.getLineNumber(),
+    callSite.getColumnNumber()
+  );
+  assert.strictEqual(fileName, originalSource);
+  assert.strictEqual(lineNumber, 18);
+  assert.strictEqual(columnNumber, 11);
 }
 
 // SourceMap can be instantiated with Source Map V3 object as payload.
@@ -96,7 +118,10 @@ const { readFileSync } = require('fs');
   const payload = JSON.parse(readFileSync(
     require.resolve('../fixtures/source-map/disk.map'), 'utf8'
   ));
-  const sourceMap = new SourceMap(payload);
+  const lineLengths = readFileSync(
+    require.resolve('../fixtures/source-map/disk.map'), 'utf8'
+  ).replace(/\n$/, '').split('\n').map((l) => l.length);
+  const sourceMap = new SourceMap(payload, { lineLengths });
   const {
     originalLine,
     originalColumn,
@@ -105,6 +130,11 @@ const { readFileSync } = require('fs');
   assert.strictEqual(originalLine, 2);
   assert.strictEqual(originalColumn, 4);
   assert(originalSource.endsWith('disk.js'));
+  const sourceMapLineLengths = sourceMap.lineLengths;
+  for (let i = 0; i < sourceMapLineLengths.length; i++) {
+    assert.strictEqual(sourceMapLineLengths[i], lineLengths[i]);
+  }
+  assert.strictEqual(sourceMapLineLengths.length, lineLengths.length);
   // The stored payload should be a clone:
   assert.strictEqual(payload.mappings, sourceMap.payload.mappings);
   assert.notStrictEqual(payload, sourceMap.payload);
@@ -112,8 +142,8 @@ const { readFileSync } = require('fs');
   assert.notStrictEqual(payload.sources, sourceMap.payload.sources);
 }
 
-// findEntry() must return empty object instead error when
-// receive a malformed mappings.
+// findEntry() and findOrigin() must return empty object instead of
+// error when receiving a malformed mappings.
 {
   const payload = JSON.parse(readFileSync(
     require.resolve('../fixtures/source-map/disk.map'), 'utf8'
@@ -124,6 +154,9 @@ const { readFileSync } = require('fs');
   const result = sourceMap.findEntry(0, 5);
   assert.strictEqual(typeof result, 'object');
   assert.strictEqual(Object.keys(result).length, 0);
+  const origin = sourceMap.findOrigin(0, 5);
+  assert.strictEqual(typeof origin, 'object');
+  assert.strictEqual(Object.keys(origin).length, 0);
 }
 
 // SourceMap can be instantiated with Index Source Map V3 object as payload.

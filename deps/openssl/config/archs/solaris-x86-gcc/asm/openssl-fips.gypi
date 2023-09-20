@@ -298,13 +298,6 @@
       './config/archs/solaris-x86-gcc/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/solaris-x86-gcc/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/solaris-x86-gcc/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/solaris-x86-gcc/asm/crypto/bn/bn-586.S',
-      './config/archs/solaris-x86-gcc/asm/crypto/bn/co-586.S',
-      './config/archs/solaris-x86-gcc/asm/crypto/bn/x86-gf2m.S',
-      './config/archs/solaris-x86-gcc/asm/crypto/bn/x86-mont.S',
-      './config/archs/solaris-x86-gcc/asm/crypto/des/crypt586.S',
-      './config/archs/solaris-x86-gcc/asm/crypto/des/des-586.S',
-      './config/archs/solaris-x86-gcc/asm/crypto/md5/md5-586.S',
       './config/archs/solaris-x86-gcc/asm/providers/legacy.ld',
       './config/archs/solaris-x86-gcc/asm/providers/fips.ld',
 

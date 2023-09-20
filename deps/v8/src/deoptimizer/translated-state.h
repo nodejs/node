@@ -317,7 +317,7 @@ class TranslatedFrame {
 
   void Add(const TranslatedValue& value) { values_.push_back(value); }
   TranslatedValue* ValueAt(int index) { return &(values_[index]); }
-  void Handlify();
+  void Handlify(Isolate* isolate);
 
   Kind kind_;
   BytecodeOffset bytecode_offset_;

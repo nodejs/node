@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include "cppgc/internal/finalizer-trait.h"
+#include "cppgc/internal/logging.h"
 #include "cppgc/internal/name-trait.h"
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -20,12 +21,12 @@ namespace internal {
 using GCInfoIndex = uint16_t;
 
 struct V8_EXPORT EnsureGCInfoIndexTrait final {
-  // Acquires a new GC info object and returns the index. In addition, also
-  // updates `registered_index` atomically.
+  // Acquires a new GC info object and updates `registered_index` with the index
+  // that identifies that new info accordingly.
   template <typename T>
-  V8_INLINE static GCInfoIndex EnsureIndex(
+  V8_INLINE static void EnsureIndex(
       std::atomic<GCInfoIndex>& registered_index) {
-    return EnsureGCInfoIndexTraitDispatch<T>{}(registered_index);
+    EnsureGCInfoIndexTraitDispatch<T>{}(registered_index);
   }
 
  private:
@@ -34,38 +35,32 @@ struct V8_EXPORT EnsureGCInfoIndexTrait final {
             bool = NameTrait<T>::HasNonHiddenName()>
   struct EnsureGCInfoIndexTraitDispatch;
 
-  static GCInfoIndex EnsureGCInfoIndexPolymorphic(std::atomic<GCInfoIndex>&,
-                                                  TraceCallback,
-                                                  FinalizationCallback,
-                                                  NameCallback);
-  static GCInfoIndex EnsureGCInfoIndexPolymorphic(std::atomic<GCInfoIndex>&,
-                                                  TraceCallback,
-                                                  FinalizationCallback);
-  static GCInfoIndex EnsureGCInfoIndexPolymorphic(std::atomic<GCInfoIndex>&,
-                                                  TraceCallback, NameCallback);
-  static GCInfoIndex EnsureGCInfoIndexPolymorphic(std::atomic<GCInfoIndex>&,
-                                                  TraceCallback);
-  static GCInfoIndex EnsureGCInfoIndexNonPolymorphic(std::atomic<GCInfoIndex>&,
-                                                     TraceCallback,
-                                                     FinalizationCallback,
-                                                     NameCallback);
-  static GCInfoIndex EnsureGCInfoIndexNonPolymorphic(std::atomic<GCInfoIndex>&,
-                                                     TraceCallback,
-                                                     FinalizationCallback);
-  static GCInfoIndex EnsureGCInfoIndexNonPolymorphic(std::atomic<GCInfoIndex>&,
-                                                     TraceCallback,
-                                                     NameCallback);
-  static GCInfoIndex EnsureGCInfoIndexNonPolymorphic(std::atomic<GCInfoIndex>&,
-                                                     TraceCallback);
+  static void V8_PRESERVE_MOST
+  EnsureGCInfoIndexPolymorphic(std::atomic<GCInfoIndex>&, TraceCallback,
+                               FinalizationCallback, NameCallback);
+  static void V8_PRESERVE_MOST EnsureGCInfoIndexPolymorphic(
+      std::atomic<GCInfoIndex>&, TraceCallback, FinalizationCallback);
+  static void V8_PRESERVE_MOST EnsureGCInfoIndexPolymorphic(
+      std::atomic<GCInfoIndex>&, TraceCallback, NameCallback);
+  static void V8_PRESERVE_MOST
+  EnsureGCInfoIndexPolymorphic(std::atomic<GCInfoIndex>&, TraceCallback);
+  static void V8_PRESERVE_MOST
+  EnsureGCInfoIndexNonPolymorphic(std::atomic<GCInfoIndex>&, TraceCallback,
+                                  FinalizationCallback, NameCallback);
+  static void V8_PRESERVE_MOST EnsureGCInfoIndexNonPolymorphic(
+      std::atomic<GCInfoIndex>&, TraceCallback, FinalizationCallback);
+  static void V8_PRESERVE_MOST EnsureGCInfoIndexNonPolymorphic(
+      std::atomic<GCInfoIndex>&, TraceCallback, NameCallback);
+  static void V8_PRESERVE_MOST
+  EnsureGCInfoIndexNonPolymorphic(std::atomic<GCInfoIndex>&, TraceCallback);
 };
 
 #define DISPATCH(is_polymorphic, has_finalizer, has_non_hidden_name, function) \
   template <typename T>                                                        \
   struct EnsureGCInfoIndexTrait::EnsureGCInfoIndexTraitDispatch<               \
       T, is_polymorphic, has_finalizer, has_non_hidden_name> {                 \
-    V8_INLINE GCInfoIndex                                                      \
-    operator()(std::atomic<GCInfoIndex>& registered_index) {                   \
-      return function;                                                         \
+    V8_INLINE void operator()(std::atomic<GCInfoIndex>& registered_index) {    \
+      function;                                                                \
     }                                                                          \
   };
 
@@ -143,9 +138,16 @@ struct GCInfoTrait final {
     static_assert(sizeof(T), "T must be fully defined");
     static std::atomic<GCInfoIndex>
         registered_index;  // Uses zero initialization.
-    const GCInfoIndex index = registered_index.load(std::memory_order_acquire);
-    return index ? index
-                 : EnsureGCInfoIndexTrait::EnsureIndex<T>(registered_index);
+    GCInfoIndex index = registered_index.load(std::memory_order_acquire);
+    if (V8_UNLIKELY(!index)) {
+      EnsureGCInfoIndexTrait::EnsureIndex<T>(registered_index);
+      // Slow path call uses V8_PRESERVE_MOST which does not support return
+      // values (also preserves RAX). Avoid out parameter by just reloading the
+      // value here which at this point is guaranteed to be set.
+      index = registered_index.load(std::memory_order_acquire);
+      CPPGC_DCHECK(index != 0);
+    }
+    return index;
   }
 };
 

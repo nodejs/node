@@ -22,12 +22,16 @@ alias: verison
 Prevents throwing an error when `npm version` is used to set the new version
 to the same value as the current version.
 
+
+
 #### `commit-hooks`
 
 * Default: true
 * Type: Boolean
 
 Run git commit hooks when using the `npm version` command.
+
+
 
 #### `git-tag-version`
 
@@ -36,6 +40,8 @@ Run git commit hooks when using the `npm version` command.
 
 Tag the commit when using the `npm version` command. Setting this to false
 results in no commit being made at all.
+
+
 
 #### `json`
 
@@ -49,6 +55,8 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `preid`
 
 * Default: ""
@@ -56,6 +64,8 @@ Not supported by all npm commands.
 
 The "prerelease identifier" to use as a prefix for the "prerelease" part of
 a semver. Like the `rc` in `1.2.0-rc.8`.
+
+
 
 #### `sign-git-tag`
 
@@ -67,6 +77,8 @@ If set to true, then the `npm version` command will tag the version using
 
 Note that git requires you to have set up GPG keys in your git configs for
 this to work properly.
+
+
 
 #### `workspace`
 
@@ -116,6 +128,8 @@ This value is not exported to the environment for child processes.
 If set to true, the npm cli will run an update after operations that may
 possibly change the workspaces installed to the `node_modules` folder.
 
+
+
 #### `include-workspace-root`
 
 * Default: false
@@ -148,18 +162,18 @@ disabled on the command line by running `npm --no-git-tag-version version`.
 It will fail if the working directory is not clean, unless the `-f` or
 `--force` flag is set.
 
-If supplied with `-m` or `--message` config option, npm will use it as a
-commit message when creating a version commit.  If the `message` config
-contains `%s` then that will be replaced with the resulting version number.
-For example:
+If supplied with `-m` or [`--message` config](/using-npm/config#message) option,
+npm will use it as a commit message when creating a version commit.  If the
+`message` config contains `%s` then that will be replaced with the resulting
+version number. For example:
 
 ```bash
 npm version patch -m "Upgrade to %s for reasons"
 ```
 
-If the `sign-git-tag` config is set, then the tag will be signed using the
-`-s` flag to git.  Note that you must have a default GPG key set up in your
-git config for this to work properly.  For example:
+If the [`sign-git-tag` config](/using-npm/config#sign-git-tag) is set, then the
+tag will be signed using the `-s` flag to git. Note that you must have a default
+GPG key set up in your git config for this to work properly. For example:
 
 ```bash
 $ npm config set sign-git-tag true

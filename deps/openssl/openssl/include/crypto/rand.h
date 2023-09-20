@@ -125,4 +125,5 @@ void ossl_rand_cleanup_nonce(ossl_unused const OSSL_CORE_HANDLE *handle,
 size_t ossl_pool_acquire_entropy(RAND_POOL *pool);
 int ossl_pool_add_nonce_data(RAND_POOL *pool);
 
+void ossl_rand_ctx_free(void *vdgbl);
 #endif

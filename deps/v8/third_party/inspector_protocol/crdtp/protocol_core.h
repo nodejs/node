@@ -307,8 +307,6 @@ class ProtocolObject : public Serializable,
     AppendSerialized(&serialized);
     return T::ReadFrom(std::move(serialized)).value();
   }
-  // TODO(caseq): compatibility only, remove.
-  std::unique_ptr<T> clone() const { return Clone(); }
 
  protected:
   using ProtocolType = T;

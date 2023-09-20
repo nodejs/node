@@ -64,7 +64,7 @@ function run_test(algorithmNames, slowTest) {
             .then(function(result) {
                 if (resultType === "CryptoKeyPair") {
                     assert_goodCryptoKey(result.privateKey, algorithm, extractable, usages, "private");
-                    assert_goodCryptoKey(result.publicKey, algorithm, extractable, usages, "public");
+                    assert_goodCryptoKey(result.publicKey, algorithm, true, usages, "public");
                 } else {
                     assert_goodCryptoKey(result, algorithm, extractable, usages, "secret");
                 }

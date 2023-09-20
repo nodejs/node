@@ -44,3 +44,10 @@ assertThrowsEquals(() => {
 }, 42);
 Atomics.Mutex.tryLock(mutex, () => { locked_count++; });
 assertEquals(locked_count, 6);
+
+// Mutexes can be assigned to shared objects.
+(function TestMutexCanBeAssignedToSharedObjects() {
+  const Box = new SharedStructType(["payload"]);
+  const box = new Box;
+  box.payload = mutex;
+})();

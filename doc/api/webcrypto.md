@@ -2,6 +2,12 @@
 
 <!-- YAML
 changes:
+  - version:
+    - v20.0.0
+    - v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/46067
+    description: Arguments are now coerced and validated as per their WebIDL
+      definitions like in other Web Crypto API implementations.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44897
     description: No longer experimental except for the `Ed25519`, `Ed448`,
@@ -710,7 +716,7 @@ changes:
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
 * `key`: {CryptoKey}
-* Returns: {Promise} containing {ArrayBuffer}.
+* Returns: {Promise} containing {ArrayBuffer|Object}.
 
 Exports the given key into the specified format, if supported.
 
@@ -799,7 +805,7 @@ changes:
 -->
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
-* `keyData`: {ArrayBuffer|TypedArray|DataView|Buffer|KeyObject}
+* `keyData`: {ArrayBuffer|TypedArray|DataView|Buffer|Object}
 
 <!--lint disable maximum-line-length remark-lint-->
 
@@ -1589,7 +1595,7 @@ there is reason to use a different value, use `new Uint8Array([1, 0, 1])`
 added: v15.0.0
 -->
 
-#### rsaOaepParams.label
+#### `rsaOaepParams.label`
 
 <!-- YAML
 added: v15.0.0
@@ -1602,7 +1608,7 @@ to the generated ciphertext.
 
 The `rsaOaepParams.label` parameter is optional.
 
-#### rsaOaepParams.name
+#### `rsaOaepParams.name`
 
 <!-- YAML
 added: v15.0.0
@@ -1635,7 +1641,7 @@ added: v15.0.0
 The length (in bytes) of the random salt to use.
 
 [^1]: An experimental implementation of
-    [Secure Curves in the Web Cryptography API][] as of 05 May 2022
+    [Secure Curves in the Web Cryptography API][] as of 30 August 2023
 
 [JSON Web Key]: https://tools.ietf.org/html/rfc7517
 [Key usages]: #cryptokeyusages

@@ -9,6 +9,11 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.20.2">16.20.2</a><br/>
+<a href="#16.20.1">16.20.1</a><br/>
+<a href="#16.20.0">16.20.0</a><br/>
+<a href="#16.19.1">16.19.1</a><br/>
+<a href="#16.19.0">16.19.0</a><br/>
 <a href="#16.18.1">16.18.1</a><br/>
 <a href="#16.18.0">16.18.0</a><br/>
 <a href="#16.17.1">16.17.1</a><br/>
@@ -48,6 +53,7 @@
 </table>
 
 * Other Versions
+  * [20.x](CHANGELOG_V20.md)
   * [19.x](CHANGELOG_V19.md)
   * [18.x](CHANGELOG_V18.md)
   * [17.x](CHANGELOG_V17.md)
@@ -67,6 +73,262 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.20.2"></a>
+
+## 2023-08-09, Version 16.20.2 'Gallium' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* [CVE-2023-32002](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32002):  Policies can be bypassed via Module.\_load (High)
+* [CVE-2023-32006](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32006): Policies can be bypassed by module.constructor.createRequire (Medium)
+* [CVE-2023-32559](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32559): Policies can be bypassed via process.binding (Medium)
+* OpenSSL Security Releases
+  * [OpenSSL security advisory 14th July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000264.html).
+  * [OpenSSL security advisory 19th July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000265.html).
+  * [OpenSSL security advisory 31st July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000267.html)
+
+More detailed information on each of the vulnerabilities can be found in [August 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/) blog post.
+
+### Commits
+
+* \[[`40c3958a5a`](https://github.com/nodejs/node/commit/40c3958a5a)] - **deps**: update archs files for OpenSSL-1.1.1v (RafaelGSS) [#49043](https://github.com/nodejs/node/pull/49043)
+* \[[`a9ac9da89a`](https://github.com/nodejs/node/commit/a9ac9da89a)] - **deps**: fix openssl crypto clean (RafaelGSS) [#49043](https://github.com/nodejs/node/pull/49043)
+* \[[`362d4c7494`](https://github.com/nodejs/node/commit/362d4c7494)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1v (RafaelGSS) [#49043](https://github.com/nodejs/node/pull/49043)
+* \[[`d8ccfe9ad4`](https://github.com/nodejs/node/commit/d8ccfe9ad4)] - **policy**: handle Module.constructor and main.extensions bypass (RafaelGSS) [nodejs-private/node-private#445](https://github.com/nodejs-private/node-private/pull/445)
+* \[[`242aaa0caa`](https://github.com/nodejs/node/commit/242aaa0caa)] - **policy**: disable process.binding() when enabled (Tobias Nießen) [nodejs-private/node-private#459](https://github.com/nodejs-private/node-private/pull/459)
+
+<a id="16.20.1"></a>
+
+## 2023-06-20, Version 16.20.1 'Gallium' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* [CVE-2023-30581](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30581): `mainModule.__proto__` Bypass Experimental Policy Mechanism (High)
+* [CVE-2023-30585](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30585): Privilege escalation via Malicious Registry Key manipulation during Node.js installer repair process (Medium)
+* [CVE-2023-30588](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30588): Process interuption due to invalid Public Key information in x509 certificates (Medium)
+* [CVE-2023-30589](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30589): HTTP Request Smuggling via Empty headers separated by CR (Medium)
+* [CVE-2023-30590](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30590): DiffieHellman does not generate keys after setting a private key (Medium)
+* OpenSSL Security Releases
+  * [OpenSSL security advisory 28th March](https://www.openssl.org/news/secadv/20230328.txt).
+  * [OpenSSL security advisory 20th April](https://www.openssl.org/news/secadv/20230420.txt).
+  * [OpenSSL security advisory 30th May](https://www.openssl.org/news/secadv/20230530.txt)
+* c-ares vulnerabilities:
+  * [GHSA-9g78-jv2r-p7vc](https://github.com/c-ares/c-ares/security/advisories/GHSA-9g78-jv2r-p7vc)
+  * [GHSA-8r8p-23f3-64c2](https://github.com/c-ares/c-ares/security/advisories/GHSA-8r8p-23f3-64c2)
+  * [GHSA-54xr-f67r-4pc4](https://github.com/c-ares/c-ares/security/advisories/GHSA-54xr-f67r-4pc4)
+  * [GHSA-x6mf-cxr9-8q6v](https://github.com/c-ares/c-ares/security/advisories/GHSA-x6mf-cxr9-8q6v)
+
+More detailed information on each of the vulnerabilities can be found in [June 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/) blog post.
+
+### Commits
+
+* \[[`5a92ea7a3b`](https://github.com/nodejs/node/commit/5a92ea7a3b)] - **crypto**: handle cert with invalid SPKI gracefully (Tobias Nießen)
+* \[[`5df04e893a`](https://github.com/nodejs/node/commit/5df04e893a)] - **deps**: set `CARES_RANDOM_FILE` for c-ares (Richard Lau) [#48156](https://github.com/nodejs/node/pull/48156)
+* \[[`c171cbd124`](https://github.com/nodejs/node/commit/c171cbd124)] - **deps**: update c-ares to 1.19.1 (RafaelGSS) [#48115](https://github.com/nodejs/node/pull/48115)
+* \[[`155d3aac02`](https://github.com/nodejs/node/commit/155d3aac02)] - **deps**: update archs files for OpenSSL-1.1.1u+quic (RafaelGSS) [#48369](https://github.com/nodejs/node/pull/48369)
+* \[[`8d4c8f8ebe`](https://github.com/nodejs/node/commit/8d4c8f8ebe)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1u (RafaelGSS) [#48369](https://github.com/nodejs/node/pull/48369)
+* \[[`1a5c9284eb`](https://github.com/nodejs/node/commit/1a5c9284eb)] - **doc,test**: clarify behavior of DH generateKeys (Tobias Nießen) [nodejs-private/node-private#426](https://github.com/nodejs-private/node-private/pull/426)
+* \[[`e42ff4b018`](https://github.com/nodejs/node/commit/e42ff4b018)] - **http**: disable request smuggling via empty headers (Paolo Insogna) [nodejs-private/node-private#429](https://github.com/nodejs-private/node-private/pull/429)
+* \[[`10042683c8`](https://github.com/nodejs/node/commit/10042683c8)] - **msi**: do not create AppData\Roaming\npm (Tobias Nießen) [nodejs-private/node-private#408](https://github.com/nodejs-private/node-private/pull/408)
+* \[[`a6f4e87bc9`](https://github.com/nodejs/node/commit/a6f4e87bc9)] - **policy**: handle mainModule.\_\_proto\_\_ bypass (RafaelGSS) [nodejs-private/node-private#416](https://github.com/nodejs-private/node-private/pull/416)
+* \[[`b77000f4d7`](https://github.com/nodejs/node/commit/b77000f4d7)] - **test**: allow SIGBUS in signal-handler abort test (Michaël Zasso) [#47851](https://github.com/nodejs/node/pull/47851)
+
+<a id="16.20.0"></a>
+
+## 2023-03-29, Version 16.20.0 'Gallium' (LTS), @BethGriggs
+
+### Notable Changes
+
+* **deps:**
+  * update undici to 5.20.0 (Node.js GitHub Bot) [#46711](https://github.com/nodejs/node/pull/46711)
+  * update c-ares to 1.19.0 (Michaël Zasso) [#46415](https://github.com/nodejs/node/pull/46415)
+  * upgrade npm to 8.19.4 (npm team) [#46677](https://github.com/nodejs/node/pull/46677)
+  * update corepack to 0.17.0 (Node.js GitHub Bot) [#46842](https://github.com/nodejs/node/pull/46842)
+* **(SEMVER-MINOR)** **src**: add support for externally shared js builtins (Michael Dawson) [#44376](https://github.com/nodejs/node/pull/44376)
+
+### Commits
+
+* \[[`de6dd67790`](https://github.com/nodejs/node/commit/de6dd67790)] - **crypto**: avoid hang when no algorithm available (Richard Lau) [#46237](https://github.com/nodejs/node/pull/46237)
+* \[[`4617512788`](https://github.com/nodejs/node/commit/4617512788)] - **crypto**: ensure auth tag set for chacha20-poly1305 (Ben Noordhuis) [#46185](https://github.com/nodejs/node/pull/46185)
+* \[[`24972164fc`](https://github.com/nodejs/node/commit/24972164fc)] - **deps**: update undici to 5.20.0 (Node.js GitHub Bot) [#46711](https://github.com/nodejs/node/pull/46711)
+* \[[`85f88c6a8d`](https://github.com/nodejs/node/commit/85f88c6a8d)] - **deps**: V8: cherry-pick 90be99fab31c (Michaël Zasso) [#46646](https://github.com/nodejs/node/pull/46646)
+* \[[`b4ebe6d47b`](https://github.com/nodejs/node/commit/b4ebe6d47b)] - **deps**: update c-ares to 1.19.0 (Michaël Zasso) [#46415](https://github.com/nodejs/node/pull/46415)
+* \[[`56cbc7fdda`](https://github.com/nodejs/node/commit/56cbc7fdda)] - **deps**: V8: cherry-pick c2792e58035f (Jiawen Geng) [#44961](https://github.com/nodejs/node/pull/44961)
+* \[[`7af9bdb31e`](https://github.com/nodejs/node/commit/7af9bdb31e)] - **deps**: upgrade npm to 8.19.4 (npm team) [#46677](https://github.com/nodejs/node/pull/46677)
+* \[[`962a7471b5`](https://github.com/nodejs/node/commit/962a7471b5)] - **deps**: update corepack to 0.17.0 (Node.js GitHub Bot) [#46842](https://github.com/nodejs/node/pull/46842)
+* \[[`748bc96e35`](https://github.com/nodejs/node/commit/748bc96e35)] - **deps**: update corepack to 0.16.0 (Node.js GitHub Bot) [#46710](https://github.com/nodejs/node/pull/46710)
+* \[[`a467782499`](https://github.com/nodejs/node/commit/a467782499)] - **deps**: update corepack to 0.15.3 (Node.js GitHub Bot) [#46037](https://github.com/nodejs/node/pull/46037)
+* \[[`1913b6763d`](https://github.com/nodejs/node/commit/1913b6763d)] - **deps**: update corepack to 0.15.2 (Node.js GitHub Bot) [#45635](https://github.com/nodejs/node/pull/45635)
+* \[[`809371a15f`](https://github.com/nodejs/node/commit/809371a15f)] - **module**: require.resolve.paths returns null with node schema (MURAKAMI Masahiko) [#45147](https://github.com/nodejs/node/pull/45147)
+* \[[`086bb2f8d4`](https://github.com/nodejs/node/commit/086bb2f8d4)] - _**Revert**_ "**src**: let http2 streams end after session close" (Rich Trott) [#46721](https://github.com/nodejs/node/pull/46721)
+* \[[`6a01d39120`](https://github.com/nodejs/node/commit/6a01d39120)] - **(SEMVER-MINOR)** **src**: add support for externally shared js builtins (Michael Dawson) [#44376](https://github.com/nodejs/node/pull/44376)
+* \[[`d081032a60`](https://github.com/nodejs/node/commit/d081032a60)] - **test**: fix test-net-connect-reset-until-connected (Vita Batrla) [#46781](https://github.com/nodejs/node/pull/46781)
+* \[[`efe1be47ec`](https://github.com/nodejs/node/commit/efe1be47ec)] - **test**: skip test depending on `overlapped-checker` when not available (Antoine du Hamel) [#45015](https://github.com/nodejs/node/pull/45015)
+* \[[`fc47d58abe`](https://github.com/nodejs/node/commit/fc47d58abe)] - **test**: remove cjs loader from stack traces (Geoffrey Booth) [#44197](https://github.com/nodejs/node/pull/44197)
+* \[[`cf76d0790d`](https://github.com/nodejs/node/commit/cf76d0790d)] - **test**: fix WPT title when no META title is present (Filip Skokan) [#46804](https://github.com/nodejs/node/pull/46804)
+* \[[`0d1485b924`](https://github.com/nodejs/node/commit/0d1485b924)] - **test**: fix default WPT titles (Filip Skokan) [#46778](https://github.com/nodejs/node/pull/46778)
+* \[[`088e9cde3d`](https://github.com/nodejs/node/commit/088e9cde3d)] - **test**: add WPTRunner support for variants and generating WPT reports (Filip Skokan) [#46498](https://github.com/nodejs/node/pull/46498)
+* \[[`908c4dff44`](https://github.com/nodejs/node/commit/908c4dff44)] - **test**: mark test-crypto-key-objects flaky on Linux (Richard Lau) [#46684](https://github.com/nodejs/node/pull/46684)
+* \[[`768e56227e`](https://github.com/nodejs/node/commit/768e56227e)] - **tools**: make `utils.SearchFiles` deterministic (Bruno Pitrus) [#44496](https://github.com/nodejs/node/pull/44496)
+
+<a id="16.19.1"></a>
+
+## 2023-02-16, Version 16.19.1 'Gallium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* **[CVE-2023-23918](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23918)**: Node.js Permissions policies can be bypassed via process.mainModule (High)
+* **[CVE-2023-23919](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23919)**: Node.js OpenSSL error handling issues in nodejs crypto library (Medium)
+* **[CVE-2023-23920](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23920)**: Node.js insecure loading of ICU data through ICU\_DATA environment variable (Low)
+
+Fixed by an update to undici:
+
+* **[CVE-2023-23936](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23936)**: Fetch API in Node.js did not protect against CRLF injection in host headers (Medium)
+  * See <https://github.com/nodejs/undici/security/advisories/GHSA-5r9g-qh6m-jxff> for more information.
+* **[CVE-2023-24807](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-24807)**: Regular Expression Denial of Service in Headers in Node.js fetch API (Low)
+  * See <https://github.com/nodejs/undici/security/advisories/GHSA-r6ch-mqf9-qc9w> for more information.
+
+More detailed information on each of the vulnerabilities can be found in [February 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/february-2023-security-releases/) blog post.
+
+This security release includes OpenSSL security updates as outlined in the recent
+[OpenSSL security advisory](https://www.openssl.org/news/secadv/20230207.txt).
+
+### Commits
+
+* \[[`7fef050447`](https://github.com/nodejs/node/commit/7fef050447)] - **build**: build ICU with ICU\_NO\_USER\_DATA\_OVERRIDE (RafaelGSS) [nodejs-private/node-private#374](https://github.com/nodejs-private/node-private/pull/374)
+* \[[`b558e9f476`](https://github.com/nodejs/node/commit/b558e9f476)] - **crypto**: clear OpenSSL error on invalid ca cert (RafaelGSS) [nodejs-private/node-private#375](https://github.com/nodejs-private/node-private/pull/375)
+* \[[`160adb7ffc`](https://github.com/nodejs/node/commit/160adb7ffc)] - **crypto**: clear OpenSSL error queue after calling X509\_check\_private\_key() (Filip Skokan) [#45495](https://github.com/nodejs/node/pull/45495)
+* \[[`d0ece30948`](https://github.com/nodejs/node/commit/d0ece30948)] - **crypto**: clear OpenSSL error queue after calling X509\_verify() (Takuro Sato) [#45377](https://github.com/nodejs/node/pull/45377)
+* \[[`2d9ae4f184`](https://github.com/nodejs/node/commit/2d9ae4f184)] - **deps**: update undici to v5.19.1 (Matteo Collina) [nodejs-private/node-private#388](https://github.com/nodejs-private/node-private/pull/388)
+* \[[`d80e8312fd`](https://github.com/nodejs/node/commit/d80e8312fd)] - **deps**: cherry-pick Windows ARM64 fix for openssl (Richard Lau) [#46568](https://github.com/nodejs/node/pull/46568)
+* \[[`de5c8d2c2f`](https://github.com/nodejs/node/commit/de5c8d2c2f)] - **deps**: update archs files for quictls/openssl-1.1.1t+quic (RafaelGSS) [#46568](https://github.com/nodejs/node/pull/46568)
+* \[[`1a8ccfe908`](https://github.com/nodejs/node/commit/1a8ccfe908)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1t+quic (RafaelGSS) [#46568](https://github.com/nodejs/node/pull/46568)
+* \[[`693789780b`](https://github.com/nodejs/node/commit/693789780b)] - **doc**: clarify release notes for Node.js 16.19.0 (Richard Lau) [#45846](https://github.com/nodejs/node/pull/45846)
+* \[[`f95ef064f4`](https://github.com/nodejs/node/commit/f95ef064f4)] - **lib**: makeRequireFunction patch when experimental policy (RafaelGSS) [nodejs-private/node-private#358](https://github.com/nodejs-private/node-private/pull/358)
+* \[[`b02d895137`](https://github.com/nodejs/node/commit/b02d895137)] - **policy**: makeRequireFunction on mainModule.require (RafaelGSS) [nodejs-private/node-private#358](https://github.com/nodejs-private/node-private/pull/358)
+* \[[`d7f83c420c`](https://github.com/nodejs/node/commit/d7f83c420c)] - **test**: avoid left behind child processes (Richard Lau) [#46276](https://github.com/nodejs/node/pull/46276)
+
+<a id="16.19.0"></a>
+
+## 2022-12-13, Version 16.19.0 'Gallium' (LTS), @richardlau
+
+### Notable Changes
+
+#### OpenSSL 1.1.1s
+
+This OpenSSL version does not address any security vulnerabilities.
+
+#### Root certificates updated to NSS 3.85
+
+Certificates added:
+
+* Autoridad de Certificacion Firmaprofesional CIF A62634068
+* Certainly Root E1
+* Certainly Root R1
+* D-TRUST BR Root CA 1 2020
+* D-TRUST EV Root CA 1 2020
+* DigiCert TLS ECC P384 Root G5
+* DigiCert TLS RSA4096 Root G5
+* E-Tugra Global Root CA ECC v3
+* E-Tugra Global Root CA RSA v3
+* HiPKI Root CA - G1
+* ISRG Root X2
+* Security Communication ECC RootCA1
+* Security Communication RootCA3
+* Telia Root CA v2
+* vTrus ECC Root CA
+* vTrus Root CA
+
+Certificates removed:
+
+* Cybertrust Global Root
+* DST Root CA X3
+* GlobalSign Root CA - R2
+* Hellenic Academic and Research Institutions RootCA 2011
+
+#### Time zone update to 2022f
+
+Time zone data has been updated to 2022f. This includes changes to Daylight
+Savings Time (DST) for Fiji and Mexico. For more information, see
+<https://mm.icann.org/pipermail/tz-announce/2022-October/000075.html>.
+
+#### Other Notable Changes
+
+* \[[`33707dcd03`](https://github.com/nodejs/node/commit/33707dcd03)] - **(SEMVER-MINOR)** **dgram**: add dgram send queue info (theanarkh) [#44149](https://github.com/nodejs/node/pull/44149)
+
+Dependency updates:
+
+* \[[`3b2b70d792`](https://github.com/nodejs/node/commit/3b2b70d792)] - **deps**: upgrade npm to 8.19.3 (npm team) [#45322](https://github.com/nodejs/node/pull/45322)
+
+Experimental features:
+
+* \[[`1e0dcd1ee0`](https://github.com/nodejs/node/commit/1e0dcd1ee0)] - **(SEMVER-MINOR)** **cli**: add `--watch` (Moshe Atlow) [#44366](https://github.com/nodejs/node/pull/44366)
+* \[[`8c73279ebb`](https://github.com/nodejs/node/commit/8c73279ebb)] - **(SEMVER-MINOR)** **util**: add default value option to parsearg (Manuel Spigolon) [#44631](https://github.com/nodejs/node/pull/44631)
+
+### Commits
+
+* \[[`bbef3c42f6`](https://github.com/nodejs/node/commit/bbef3c42f6)] - **build**: add version info to timezone update PR (Darshan Sen) [#45021](https://github.com/nodejs/node/pull/45021)
+* \[[`cc2c7648e0`](https://github.com/nodejs/node/commit/cc2c7648e0)] - **build**: support Python 3.11 (Luigi Pinca) [#45191](https://github.com/nodejs/node/pull/45191)
+* \[[`ac24c80663`](https://github.com/nodejs/node/commit/ac24c80663)] - **build**: remove redundant condition from common.gypi (Richard Lau) [#45076](https://github.com/nodejs/node/pull/45076)
+* \[[`03dcbe3030`](https://github.com/nodejs/node/commit/03dcbe3030)] - **build**: fix bad upstream merge (Stephen Gallagher) [#44642](https://github.com/nodejs/node/pull/44642)
+* \[[`1e0dcd1ee0`](https://github.com/nodejs/node/commit/1e0dcd1ee0)] - **(SEMVER-MINOR)** **cli**: add `--watch` (Moshe Atlow) [#44366](https://github.com/nodejs/node/pull/44366)
+* \[[`96d131665e`](https://github.com/nodejs/node/commit/96d131665e)] - **cluster**: use inspector utils (Moshe Atlow) [#44592](https://github.com/nodejs/node/pull/44592)
+* \[[`704836033a`](https://github.com/nodejs/node/commit/704836033a)] - **crypto**: update root certificates (Luigi Pinca) [#45490](https://github.com/nodejs/node/pull/45490)
+* \[[`5a776d4a69`](https://github.com/nodejs/node/commit/5a776d4a69)] - **deps**: update timezone to 2022f (Richard Lau) [#45613](https://github.com/nodejs/node/pull/45613)
+* \[[`3b2b70d792`](https://github.com/nodejs/node/commit/3b2b70d792)] - **deps**: upgrade npm to 8.19.3 (npm team) [#45322](https://github.com/nodejs/node/pull/45322)
+* \[[`9fbc8b21db`](https://github.com/nodejs/node/commit/9fbc8b21db)] - **deps**: update corepack to 0.15.1 (Node.js GitHub Bot) [#45331](https://github.com/nodejs/node/pull/45331)
+* \[[`87e3d002ca`](https://github.com/nodejs/node/commit/87e3d002ca)] - **deps**: update corepack to 0.15.0 (Node.js GitHub Bot) [#45235](https://github.com/nodejs/node/pull/45235)
+* \[[`e972ff7b13`](https://github.com/nodejs/node/commit/e972ff7b13)] - **deps**: V8: backport bbd800c6e359 (Chengzhong Wu) [#44947](https://github.com/nodejs/node/pull/44947)
+* \[[`af9d8217c0`](https://github.com/nodejs/node/commit/af9d8217c0)] - **deps**: V8: cherry-pick b95354290941 (Chengzhong Wu) [#44947](https://github.com/nodejs/node/pull/44947)
+* \[[`38202d321b`](https://github.com/nodejs/node/commit/38202d321b)] - **deps**: update undici to 5.12.0 (Node.js GitHub Bot) [#45236](https://github.com/nodejs/node/pull/45236)
+* \[[`7c0da6adf9`](https://github.com/nodejs/node/commit/7c0da6adf9)] - **deps**: update archs files for OpenSSL-1.1.1s (RafaelGSS) [#45274](https://github.com/nodejs/node/pull/45274)
+* \[[`1149ead6f7`](https://github.com/nodejs/node/commit/1149ead6f7)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1s (RafaelGSS) [#45274](https://github.com/nodejs/node/pull/45274)
+* \[[`cd54bce4f5`](https://github.com/nodejs/node/commit/cd54bce4f5)] - **deps**: update timezone (Node.js GitHub Bot) [#44950](https://github.com/nodejs/node/pull/44950)
+* \[[`2901abe4f0`](https://github.com/nodejs/node/commit/2901abe4f0)] - **deps**: update undici to 5.11.0 (Node.js GitHub Bot) [#44929](https://github.com/nodejs/node/pull/44929)
+* \[[`c80cf97033`](https://github.com/nodejs/node/commit/c80cf97033)] - **deps**: update corepack to 0.14.2 (Node.js GitHub Bot) [#44775](https://github.com/nodejs/node/pull/44775)
+* \[[`33707dcd03`](https://github.com/nodejs/node/commit/33707dcd03)] - **(SEMVER-MINOR)** **dgram**: add dgram send queue info (theanarkh) [#44149](https://github.com/nodejs/node/pull/44149)
+* \[[`c708d9bb94`](https://github.com/nodejs/node/commit/c708d9bb94)] - **doc**: fix typo in parseArgs default value (Tobias Nießen) [#45083](https://github.com/nodejs/node/pull/45083)
+* \[[`5a0efa05d2`](https://github.com/nodejs/node/commit/5a0efa05d2)] - **node-api**: handle no support for external buffers (Michael Dawson) [#45181](https://github.com/nodejs/node/pull/45181)
+* \[[`db31de634e`](https://github.com/nodejs/node/commit/db31de634e)] - **readline**: refactor to avoid unsafe regex primordials (Antoine du Hamel) [#43475](https://github.com/nodejs/node/pull/43475)
+* \[[`fbc52e5729`](https://github.com/nodejs/node/commit/fbc52e5729)] - **src**: disambiguate terms used to refer to builtins and addons (Joyee Cheung) [#44135](https://github.com/nodejs/node/pull/44135)
+* \[[`953072d3db`](https://github.com/nodejs/node/commit/953072d3db)] - **src**: let http2 streams end after session close (Santiago Gimeno) [#45153](https://github.com/nodejs/node/pull/45153)
+* \[[`54608d8dc3`](https://github.com/nodejs/node/commit/54608d8dc3)] - **src**: split property helpers from node::Environment (Chengzhong Wu) [#44056](https://github.com/nodejs/node/pull/44056)
+* \[[`6733556783`](https://github.com/nodejs/node/commit/6733556783)] - **test**: add test to validate changelogs for releases (Richard Lau) [#45325](https://github.com/nodejs/node/pull/45325)
+* \[[`821d832cef`](https://github.com/nodejs/node/commit/821d832cef)] - **test**: mark test-watch-mode\* as flaky on all platforms (Pierrick Bouvier) [#45049](https://github.com/nodejs/node/pull/45049)
+* \[[`02a18eac69`](https://github.com/nodejs/node/commit/02a18eac69)] - **test**: fix test-runner-inspect (Moshe Atlow) [#44620](https://github.com/nodejs/node/pull/44620)
+* \[[`197df63f74`](https://github.com/nodejs/node/commit/197df63f74)] - **test**: add a test to ensure the correctness of timezone upgrades (Darshan Sen) [#45299](https://github.com/nodejs/node/pull/45299)
+* \[[`42e9d8016a`](https://github.com/nodejs/node/commit/42e9d8016a)] - **test**: fix textdecoder test for small-icu builds (Richard Lau) [#45225](https://github.com/nodejs/node/pull/45225)
+* \[[`6d736a56d8`](https://github.com/nodejs/node/commit/6d736a56d8)] - **test**: fix watch mode test flake (Moshe Atlow) [#44739](https://github.com/nodejs/node/pull/44739)
+* \[[`543d3d2bf3`](https://github.com/nodejs/node/commit/543d3d2bf3)] - **test**: deflake watch mode tests (Moshe Atlow) [#44621](https://github.com/nodejs/node/pull/44621)
+* \[[`97f6caf4eb`](https://github.com/nodejs/node/commit/97f6caf4eb)] - **test**: split watch mode inspector tests to sequential (Moshe Atlow) [#44551](https://github.com/nodejs/node/pull/44551)
+* \[[`499750ff7a`](https://github.com/nodejs/node/commit/499750ff7a)] - **test**: update list of known globals (Antoine du Hamel) [#45255](https://github.com/nodejs/node/pull/45255)
+* \[[`64d343af74`](https://github.com/nodejs/node/commit/64d343af74)] - **test\_runner**: support using `--inspect` with `--test` (Moshe Atlow) [#44520](https://github.com/nodejs/node/pull/44520)
+* \[[`99ee5e484d`](https://github.com/nodejs/node/commit/99ee5e484d)] - **test\_runner**: fix `duration_ms` to be milliseconds (Moshe Atlow) [#44450](https://github.com/nodejs/node/pull/44450)
+* \[[`37e909251c`](https://github.com/nodejs/node/commit/37e909251c)] - **test\_runner**: support programmatically running `--test` (Moshe Atlow) [#44241](https://github.com/nodejs/node/pull/44241)
+* \[[`0ae5694f88`](https://github.com/nodejs/node/commit/0ae5694f88)] - **tools**: update certdata.txt (Luigi Pinca) [#45490](https://github.com/nodejs/node/pull/45490)
+* \[[`891368cefd`](https://github.com/nodejs/node/commit/891368cefd)] - **tools**: remove faulty early termination logic from update-timezone.mjs (Darshan Sen) [#44870](https://github.com/nodejs/node/pull/44870)
+* \[[`543493c242`](https://github.com/nodejs/node/commit/543493c242)] - **tools**: fix timezone update tool (Darshan Sen) [#44870](https://github.com/nodejs/node/pull/44870)
+* \[[`c77f660b75`](https://github.com/nodejs/node/commit/c77f660b75)] - **tools**: fix `create-or-update-pull-request-action` hash on GHA (Antoine du Hamel) [#45166](https://github.com/nodejs/node/pull/45166)
+* \[[`58c30dd049`](https://github.com/nodejs/node/commit/58c30dd049)] - **tools**: update gr2m/create-or-update-pull-request-action (Luigi Pinca) [#45022](https://github.com/nodejs/node/pull/45022)
+* \[[`749a4b3e5e`](https://github.com/nodejs/node/commit/749a4b3e5e)] - **tools**: use Python 3.11 in GitHub Actions workflows (Luigi Pinca) [#45191](https://github.com/nodejs/node/pull/45191)
+* \[[`6f541d99a5`](https://github.com/nodejs/node/commit/6f541d99a5)] - **tools**: have test-asan use ubuntu-20.04 (Filip Skokan) [#45581](https://github.com/nodejs/node/pull/45581)
+* \[[`e7ed56f501`](https://github.com/nodejs/node/commit/e7ed56f501)] - **tools**: make license-builder.sh comply with shellcheck 0.8.0 (Rich Trott) [#41258](https://github.com/nodejs/node/pull/41258)
+* \[[`cc819b4bf8`](https://github.com/nodejs/node/commit/cc819b4bf8)] - **tools**: fix typo in `avoid-prototype-pollution` lint rule (Antoine du Hamel) [#44446](https://github.com/nodejs/node/pull/44446)
+* \[[`254358c81e`](https://github.com/nodejs/node/commit/254358c81e)] - **tools**: refactor `avoid-prototype-pollution` lint rule (Antoine du Hamel) [#43476](https://github.com/nodejs/node/pull/43476)
+* \[[`8c73279ebb`](https://github.com/nodejs/node/commit/8c73279ebb)] - **(SEMVER-MINOR)** **util**: add default value option to parsearg (Manuel Spigolon) [#44631](https://github.com/nodejs/node/pull/44631)
 
 <a id="16.18.1"></a>
 

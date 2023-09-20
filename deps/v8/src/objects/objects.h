@@ -157,8 +157,9 @@
 //     - DescriptorArray
 //     - PropertyCell
 //     - PropertyArray
-//     - Code
+//     - InstructionStream
 //     - AbstractCode, a wrapper around Code or BytecodeArray
+//     - GcSafeCode, a wrapper around Code
 //     - Map
 //     - Foreign
 //     - SmallOrderedHashTable
@@ -262,10 +263,10 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // Result of an abstract relational comparison of x and y, implemented according
 // to ES6 section 7.2.11 Abstract Relational Comparison.
 enum class ComparisonResult {
-  kLessThan,     // x < y
-  kEqual,        // x = y
-  kGreaterThan,  // x > y
-  kUndefined     // at least one of x or y was undefined or NaN
+  kLessThan = -1,    // x < y
+  kEqual = 0,        // x = y
+  kGreaterThan = 1,  // x > y
+  kUndefined = 2     // at least one of x or y was undefined or NaN
 };
 
 // (Returns false whenever {result} is kUndefined.)
@@ -307,7 +308,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // writable shared heap.
   V8_INLINE bool InSharedHeap() const;
 
-  V8_INLINE bool InSharedWritableHeap() const;
+  V8_INLINE bool InWritableSharedSpace() const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
@@ -316,19 +317,18 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(HashTableBase)
   IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
-  IS_TYPE_FUNCTION_DECL(CodeT)
 #undef IS_TYPE_FUNCTION_DECL
   V8_INLINE bool IsNumber(ReadOnlyRoots roots) const;
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value)              \
+#define IS_TYPE_FUNCTION_DECL(Type, Value, _)           \
   V8_INLINE bool Is##Type(Isolate* isolate) const;      \
   V8_INLINE bool Is##Type(LocalIsolate* isolate) const; \
   V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;   \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)
+  IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
 #undef IS_TYPE_FUNCTION_DECL
 
   V8_INLINE bool IsZero() const;
@@ -340,6 +340,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Dummy implementation on builds without WebAssembly.
   bool IsWasmObject(Isolate* = nullptr) const { return false; }
 #endif
+
+  V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype() const;
 
   enum class Conversion { kToNumber, kToNumeric };
 
@@ -645,15 +647,19 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   EXPORT_DECL_VERIFIER(Object)
 
 #ifdef VERIFY_HEAP
-  // Verify a pointer is a valid (non-Code) object pointer.
-  // When V8_EXTERNAL_CODE_SPACE is enabled Code objects are not allowed.
+  // Verify a pointer is a valid (non-InstructionStream) object pointer.
+  // When V8_EXTERNAL_CODE_SPACE is enabled InstructionStream objects are not
+  // allowed.
   static void VerifyPointer(Isolate* isolate, Object p);
   // Verify a pointer is a valid object pointer.
-  // Code objects are allowed regardless of the V8_EXTERNAL_CODE_SPACE mode.
+  // InstructionStream objects are allowed regardless of the
+  // V8_EXTERNAL_CODE_SPACE mode.
   static void VerifyAnyTagged(Isolate* isolate, Object p);
 #endif
 
-  inline void VerifyApiCallResultType();
+#ifdef DEBUG
+  inline bool IsApiCallResultType() const;
+#endif  // DEBUG
 
   // Prints this object without details.
   V8_EXPORT_PRIVATE void ShortPrint(FILE* out = stdout) const;
@@ -687,8 +693,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     }
   };
 
-  // For use with std::unordered_set/unordered_map when using both Code and
-  // non-Code objects as keys.
+  // For use with std::unordered_set/unordered_map when using both
+  // InstructionStream and non-InstructionStream objects as keys.
   struct KeyEqualSafe {
     bool operator()(const Object a, const Object b) const {
       return a.SafeEquals(b);
@@ -869,6 +875,16 @@ V8_INLINE static bool HasWeakHeapObjectTag(const Object value) {
 // during GC other data (e.g. mark bits, forwarding addresses) is sometimes
 // encoded in the first word.  The class MapWord is an abstraction of the
 // value in a heap object's first word.
+//
+// When external code space is enabled forwarding pointers are encoded as
+// Smi values representing a diff from the source or map word host object
+// address in kObjectAlignment chunks. Such a representation has the following
+// properties:
+// a) it can hold both positive an negative diffs for full pointer compression
+//    cage size (HeapObject address has only valuable 30 bits while Smis have
+//    31 bits),
+// b) it's independent of the pointer compression base and pointer compression
+//    scheme.
 class MapWord {
  public:
   // Normal state: the map word contains a map pointer.
@@ -888,18 +904,23 @@ class MapWord {
   inline bool IsForwardingAddress() const;
 
   // Create a map word from a forwarding address.
-  static inline MapWord FromForwardingAddress(HeapObject object);
+  static inline MapWord FromForwardingAddress(HeapObject map_word_host,
+                                              HeapObject object);
 
-  // View this map word as a forwarding address. The parameterless version
-  // is allowed to be used for objects allocated in the main pointer compression
-  // cage, while the second variant uses the value of the cage base explicitly
-  // and thus can be used in situations where one has to deal with both cases.
-  // Note, that the parameterless version is preferred because it avoids
-  // unnecessary recompressions.
-  inline HeapObject ToForwardingAddress();
-  inline HeapObject ToForwardingAddress(PtrComprCageBase host_cage_base);
+  // View this map word as a forwarding address.
+  inline HeapObject ToForwardingAddress(HeapObject map_word_host);
 
-  inline Address ptr() { return value_; }
+  constexpr inline Address ptr() const { return value_; }
+
+  // When pointer compression is enabled, MapWord is uniquely identified by
+  // the lower 32 bits. On the other hand full-value comparison is not correct
+  // because map word in a forwarding state might have corrupted upper part.
+  constexpr bool operator==(MapWord other) const {
+    return static_cast<Tagged_t>(ptr()) == static_cast<Tagged_t>(other.ptr());
+  }
+  constexpr bool operator!=(MapWord other) const {
+    return static_cast<Tagged_t>(ptr()) != static_cast<Tagged_t>(other.ptr());
+  }
 
 #ifdef V8_MAP_PACKING
   static constexpr Address Pack(Address map) {
@@ -924,7 +945,7 @@ class MapWord {
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
   friend class TaggedField;
 
-  explicit MapWord(Address value) : value_(value) {}
+  explicit constexpr MapWord(Address value) : value_(value) {}
 
   Address value_;
 };

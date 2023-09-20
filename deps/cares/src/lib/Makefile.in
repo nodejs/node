@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 # aminclude_static.am generated automatically by Autoconf
-# from AX_AM_MACROS_STATIC on Wed Oct 27 08:01:08 CEST 2021
+# from AX_AM_MACROS_STATIC on Mon May 22 13:34:17 CEST 2023
 
 VPATH = @srcdir@
 am__is_gnu_make = { \
@@ -106,6 +106,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/ax_ac_append_to_file.m4 \
 	$(top_srcdir)/m4/ax_am_macros_static.m4 \
 	$(top_srcdir)/m4/ax_check_gnu_make.m4 \
 	$(top_srcdir)/m4/ax_code_coverage.m4 \
+	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx_11.m4 \
 	$(top_srcdir)/m4/ax_file_escapes.m4 \
 	$(top_srcdir)/m4/ax_require_defined.m4 \
@@ -194,13 +195,14 @@ am__objects_1 = libcares_la-ares__addrinfo2hostent.lo \
 	libcares_la-ares_parse_txt_reply.lo \
 	libcares_la-ares_parse_uri_reply.lo \
 	libcares_la-ares_platform.lo libcares_la-ares_process.lo \
-	libcares_la-ares_query.lo libcares_la-ares_search.lo \
-	libcares_la-ares_send.lo libcares_la-ares_strcasecmp.lo \
-	libcares_la-ares_strdup.lo libcares_la-ares_strerror.lo \
-	libcares_la-ares_strsplit.lo libcares_la-ares_timeout.lo \
-	libcares_la-ares_version.lo libcares_la-ares_writev.lo \
-	libcares_la-bitncmp.lo libcares_la-inet_net_pton.lo \
-	libcares_la-inet_ntop.lo libcares_la-windows_port.lo
+	libcares_la-ares_query.lo libcares_la-ares_rand.lo \
+	libcares_la-ares_search.lo libcares_la-ares_send.lo \
+	libcares_la-ares_strcasecmp.lo libcares_la-ares_strdup.lo \
+	libcares_la-ares_strerror.lo libcares_la-ares_strsplit.lo \
+	libcares_la-ares_timeout.lo libcares_la-ares_version.lo \
+	libcares_la-ares_writev.lo libcares_la-bitncmp.lo \
+	libcares_la-inet_net_pton.lo libcares_la-inet_ntop.lo \
+	libcares_la-windows_port.lo
 am__objects_2 =
 am_libcares_la_OBJECTS = $(am__objects_1) $(am__objects_2)
 libcares_la_OBJECTS = $(am_libcares_la_OBJECTS)
@@ -273,6 +275,7 @@ am__depfiles_remade =  \
 	./$(DEPDIR)/libcares_la-ares_platform.Plo \
 	./$(DEPDIR)/libcares_la-ares_process.Plo \
 	./$(DEPDIR)/libcares_la-ares_query.Plo \
+	./$(DEPDIR)/libcares_la-ares_rand.Plo \
 	./$(DEPDIR)/libcares_la-ares_search.Plo \
 	./$(DEPDIR)/libcares_la-ares_send.Plo \
 	./$(DEPDIR)/libcares_la-ares_strcasecmp.Plo \
@@ -422,6 +425,7 @@ EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
+FILECMD = @FILECMD@
 GCOV = @GCOV@
 GENHTML = @GENHTML@
 GREP = @GREP@
@@ -616,6 +620,7 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_platform.c			\
   ares_process.c			\
   ares_query.c				\
+  ares_rand.c \
   ares_search.c				\
   ares_send.c				\
   ares_strcasecmp.c			\
@@ -636,7 +641,6 @@ HHEADERS = ares_android.h                        \
   ares_inet_net_pton.h			\
   ares_iphlpapi.h			\
   ares_ipv6.h				\
-  ares_library_init.h			\
   ares_llist.h				\
   ares_nowarn.h				\
   ares_platform.h			\
@@ -793,6 +797,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_platform.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_process.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_query.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_rand.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_search.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_send.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_strcasecmp.Plo@am__quote@ # am--include-marker
@@ -1159,6 +1164,13 @@ libcares_la-ares_query.lo: ares_query.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_query.lo `test -f 'ares_query.c' || echo '$(srcdir)/'`ares_query.c
 
+libcares_la-ares_rand.lo: ares_rand.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_rand.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_rand.Tpo -c -o libcares_la-ares_rand.lo `test -f 'ares_rand.c' || echo '$(srcdir)/'`ares_rand.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares_rand.Tpo $(DEPDIR)/libcares_la-ares_rand.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_rand.c' object='libcares_la-ares_rand.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_rand.lo `test -f 'ares_rand.c' || echo '$(srcdir)/'`ares_rand.c
+
 libcares_la-ares_search.lo: ares_search.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_search.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_search.Tpo -c -o libcares_la-ares_search.lo `test -f 'ares_search.c' || echo '$(srcdir)/'`ares_search.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares_search.Tpo $(DEPDIR)/libcares_la-ares_search.Plo
@@ -1503,6 +1515,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_platform.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_process.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_query.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares_rand.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_search.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_send.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_strcasecmp.Plo
@@ -1607,6 +1620,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_platform.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_process.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_query.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares_rand.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_search.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_send.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_strcasecmp.Plo

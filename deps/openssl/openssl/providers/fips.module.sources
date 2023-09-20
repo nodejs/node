@@ -28,6 +28,10 @@ crypto/aes/asm/vpaes-armv8.pl
 crypto/aes/asm/vpaes-ppc.pl
 crypto/aes/asm/vpaes-x86.pl
 crypto/aes/asm/vpaes-x86_64.pl
+crypto/alphacpuid.pl
+crypto/arm64cpuid.pl
+crypto/armcap.c
+crypto/armv4cpuid.pl
 crypto/asn1_dsa.c
 crypto/bn/asm/alpha-mont.pl
 crypto/bn/asm/armv4-gf2m.pl
@@ -100,6 +104,7 @@ crypto/bn/rsaz_exp.h
 crypto/bn/rsaz_exp_x2.c
 crypto/bsearch.c
 crypto/buffer/buffer.c
+crypto/c64xpluscpuid.pl
 crypto/cmac/cmac.c
 crypto/context.c
 crypto/core_algorithm.c
@@ -218,6 +223,7 @@ crypto/ffc/ffc_params_generate.c
 crypto/ffc/ffc_params_validate.c
 crypto/hmac/hmac.c
 crypto/hmac/hmac_local.h
+crypto/ia64cpuid.S
 crypto/initthread.c
 crypto/lhash/lhash.c
 crypto/lhash/lhash_local.h
@@ -250,6 +256,8 @@ crypto/param_build_set.c
 crypto/params.c
 crypto/params_dup.c
 crypto/params_from_text.c
+crypto/ppccap.c
+crypto/ppccpuid.pl
 crypto/property/defn_cache.c
 crypto/property/property.c
 crypto/property/property_local.h
@@ -279,6 +287,8 @@ crypto/rsa/rsa_sign.c
 crypto/rsa/rsa_sp800_56b_check.c
 crypto/rsa/rsa_sp800_56b_gen.c
 crypto/rsa/rsa_x931.c
+crypto/s390xcap.c
+crypto/s390xcpuid.pl
 crypto/self_test_core.c
 crypto/sha/asm/keccak1600-armv4.pl
 crypto/sha/asm/keccak1600-armv8.pl
@@ -328,6 +338,8 @@ crypto/sha/sha256.c
 crypto/sha/sha3.c
 crypto/sha/sha512.c
 crypto/sha/sha_local.h
+crypto/sparccpuid.S
+crypto/sparcv9cap.c
 crypto/sparse_array.c
 crypto/stack/stack.c
 crypto/threads_lib.c
@@ -335,6 +347,7 @@ crypto/threads_none.c
 crypto/threads_pthread.c
 crypto/threads_win.c
 crypto/x86_64cpuid.pl
+crypto/x86cpuid.pl
 e_os.h
 include/crypto/aes_platform.h
 include/crypto/asn1_dsa.h

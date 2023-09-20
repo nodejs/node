@@ -20,7 +20,7 @@ module.exports = {
         docs: {
             description: "Disallow `javascript:` urls",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-script-url"
+            url: "https://eslint.org/docs/latest/rules/no-script-url"
         },
 
         schema: [],

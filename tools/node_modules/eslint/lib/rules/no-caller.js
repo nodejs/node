@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `arguments.caller` or `arguments.callee`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-caller"
+            url: "https://eslint.org/docs/latest/rules/no-caller"
         },
 
         schema: [],

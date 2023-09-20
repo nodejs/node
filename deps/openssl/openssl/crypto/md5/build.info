@@ -23,7 +23,7 @@ SOURCE[../../libcrypto]=$COMMON
 # default provider.  A no-deprecated build removes the external definition from
 # libcrypto and this means that the code needs to be in liblegacy.  However,
 # when building without 'dso', liblegacy is included in libcrypto.
-IF[{- !$disabled{dso} -}]
+IF[{- !$disabled{module} && !$disabled{shared} -}]
   SOURCE[../../providers/liblegacy.a]=$COMMON
 ENDIF
 

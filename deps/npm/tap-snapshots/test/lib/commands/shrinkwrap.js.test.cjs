@@ -125,12 +125,12 @@ exports[`test/lib/commands/shrinkwrap.js TAP with nothing ancient > must match s
   "config": {},
   "shrinkwrap": {
     "name": "prefix",
-    "lockfileVersion": 2,
+    "lockfileVersion": 3,
     "requires": true,
     "packages": {}
   },
   "logs": [
-    "created a lockfile as npm-shrinkwrap.json with version 2"
+    "created a lockfile as npm-shrinkwrap.json with version 3"
   ]
 }
 `
@@ -163,7 +163,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json ancient > 
   "config": {},
   "shrinkwrap": {
     "name": "prefix",
-    "lockfileVersion": 2,
+    "lockfileVersion": 3,
     "requires": true,
     "packages": {
       "": {
@@ -172,7 +172,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json ancient > 
     }
   },
   "logs": [
-    "npm-shrinkwrap.json updated to version 2"
+    "npm-shrinkwrap.json updated to version 3"
   ]
 }
 `
@@ -284,7 +284,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json ancient > mu
   "config": {},
   "shrinkwrap": {
     "name": "prefix",
-    "lockfileVersion": 2,
+    "lockfileVersion": 3,
     "requires": true,
     "packages": {
       "": {
@@ -293,7 +293,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json ancient > mu
     }
   },
   "logs": [
-    "package-lock.json has been renamed to npm-shrinkwrap.json and updated to version 2"
+    "package-lock.json has been renamed to npm-shrinkwrap.json and updated to version 3"
   ]
 }
 `

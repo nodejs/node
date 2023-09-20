@@ -6,9 +6,20 @@
 # use Python3 instead of Python2 when running the code in this file.
 USE_PYTHON3 = True
 
+TEST_DIRECTORIES = [
+    'unittests',
+    'builtins-pgo',
+]
+
 
 def CheckChangeOnCommit(input_api, output_api):
-  tests = input_api.canned_checks.GetUnitTestsInDirectory(
-      input_api, output_api, 'unittests', files_to_check=[r'.+_test\.py$'],
-      run_on_python2=False)
+  tests = []
+  for directory in TEST_DIRECTORIES:
+    tests += input_api.canned_checks.GetUnitTestsInDirectory(
+        input_api,
+        output_api,
+        directory,
+        files_to_check=[r'.+_test\.py$'],
+        run_on_python2=False)
+
   return input_api.RunTests(tests)

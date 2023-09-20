@@ -27,10 +27,7 @@ const http = require('http');
 const url = require('url');
 const qs = require('querystring');
 
-// TODO: documentation does not allow Array as an option, so testing that
-// should fail, but currently http.Server does not typecheck further than
-// if `option` is `typeof object` - so we don't test that here right now
-const invalid_options = [ 'foo', 42, true ];
+const invalid_options = [ 'foo', 42, true, [] ];
 
 invalid_options.forEach((option) => {
   assert.throws(() => {

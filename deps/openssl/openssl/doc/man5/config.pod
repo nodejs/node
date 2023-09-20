@@ -73,7 +73,7 @@ done with the following directive:
 The default behavior, where the B<value> is B<false> or B<off>, is to treat
 the dollarsign as indicating a variable name; C<foo$bar> is interpreted as
 C<foo> followed by the expansion of the variable C<bar>. If B<value> is
-B<true> or B<on>, then C<foo$bar> is a single seven-character name nad
+B<true> or B<on>, then C<foo$bar> is a single seven-character name and
 variable expansions must be specified using braces or parentheses.
 
  .pragma [=] includedir:value
@@ -415,7 +415,7 @@ For example:
 =head2 Random Configuration
 
 The name B<random> in the initialization section names the section
-containing the random number generater settings.
+containing the random number generator settings.
 
 Within the random section, the following names have meaning:
 
@@ -575,7 +575,7 @@ L<x509v3_config(5)>.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

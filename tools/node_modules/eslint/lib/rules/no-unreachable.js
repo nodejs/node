@@ -24,12 +24,19 @@ function isInitialized(node) {
 }
 
 /**
- * Checks whether or not a given code path segment is unreachable.
- * @param {CodePathSegment} segment A CodePathSegment to check.
- * @returns {boolean} `true` if the segment is unreachable.
+ * Checks all segments in a set and returns true if all are unreachable.
+ * @param {Set<CodePathSegment>} segments The segments to check.
+ * @returns {boolean} True if all segments are unreachable; false otherwise.
  */
-function isUnreachable(segment) {
-    return !segment.reachable;
+function areAllSegmentsUnreachable(segments) {
+
+    for (const segment of segments) {
+        if (segment.reachable) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /**
@@ -113,7 +120,7 @@ module.exports = {
         docs: {
             description: "Disallow unreachable code after `return`, `throw`, `continue`, and `break` statements",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unreachable"
+            url: "https://eslint.org/docs/latest/rules/no-unreachable"
         },
 
         schema: [],
@@ -124,13 +131,18 @@ module.exports = {
     },
 
     create(context) {
-        let currentCodePath = null;
 
         /** @type {ConstructorInfo | null} */
         let constructorInfo = null;
 
         /** @type {ConsecutiveRange} */
-        const range = new ConsecutiveRange(context.getSourceCode());
+        const range = new ConsecutiveRange(context.sourceCode);
+
+        /** @type {Array<Set<CodePathSegment>>} */
+        const codePathSegments = [];
+
+        /** @type {Set<CodePathSegment>} */
+        let currentCodePathSegments = new Set();
 
         /**
          * Reports a given node if it's unreachable.
@@ -140,7 +152,7 @@ module.exports = {
         function reportIfUnreachable(node) {
             let nextNode = null;
 
-            if (node && (node.type === "PropertyDefinition" || currentCodePath.currentSegments.every(isUnreachable))) {
+            if (node && (node.type === "PropertyDefinition" || areAllSegmentsUnreachable(currentCodePathSegments))) {
 
                 // Store this statement to distinguish consecutive statements.
                 if (range.isEmpty) {
@@ -181,12 +193,29 @@ module.exports = {
         return {
 
             // Manages the current code path.
-            onCodePathStart(codePath) {
-                currentCodePath = codePath;
+            onCodePathStart() {
+                codePathSegments.push(currentCodePathSegments);
+                currentCodePathSegments = new Set();
             },
 
             onCodePathEnd() {
-                currentCodePath = currentCodePath.upper;
+                currentCodePathSegments = codePathSegments.pop();
+            },
+
+            onUnreachableCodePathSegmentStart(segment) {
+                currentCodePathSegments.add(segment);
+            },
+
+            onUnreachableCodePathSegmentEnd(segment) {
+                currentCodePathSegments.delete(segment);
+            },
+
+            onCodePathSegmentEnd(segment) {
+                currentCodePathSegments.delete(segment);
+            },
+
+            onCodePathSegmentStart(segment) {
+                currentCodePathSegments.add(segment);
             },
 
             // Registers for all statement nodes (excludes FunctionDeclaration).

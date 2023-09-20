@@ -37,13 +37,13 @@ permissions:
 jobs:
   coverage-windows:
     if: github.event.pull_request.draft == false
-    runs-on: windows-2019
+    runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744  # v3.6.0
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install deps
@@ -65,6 +65,6 @@ jobs:
       - name: Clean tmp
         run: npx rimraf ./coverage/tmp
       - name: Upload
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d  # v3.1.4
         with:
           directory: ./coverage

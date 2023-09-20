@@ -81,6 +81,8 @@ Some of these commands may not be available on non npmjs.com registries.
 
 The base URL of the npm registry.
 
+
+
 #### `json`
 
 * Default: false
@@ -93,6 +95,8 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `parseable`
 
 * Default: false
@@ -100,6 +104,8 @@ Not supported by all npm commands.
 
 Output parseable results from commands that write to standard output. For
 `npm search`, this will be tab-separated table format.
+
+
 
 #### `otp`
 
@@ -111,6 +117,8 @@ when publishing or changing package permissions with `npm access`.
 
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
+
+
 
 ### See Also
 

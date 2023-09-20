@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow declarations in the global scope",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-implicit-globals"
+            url: "https://eslint.org/docs/latest/rules/no-implicit-globals"
         },
 
         schema: [{
@@ -43,6 +43,7 @@ module.exports = {
     create(context) {
 
         const checkLexicalBindings = context.options[0] && context.options[0].lexicalBindings === true;
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports the node.
@@ -62,8 +63,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
 
                 scope.variables.forEach(variable => {
 

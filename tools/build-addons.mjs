@@ -11,7 +11,7 @@ import os from 'node:os';
 
 const execFile = util.promisify(child_process.execFile);
 
-const parallelization = +process.env.JOBS || os.cpus().length;
+const parallelization = +process.env.JOBS || os.availableParallelism();
 const nodeGyp = process.argv[2];
 const directory = process.argv[3];
 
@@ -31,7 +31,7 @@ async function buildAddon(dir) {
     await execFile(process.execPath, [nodeGyp, 'rebuild', `--directory=${dir}`],
                    {
                      stdio: 'inherit',
-                     env: { ...process.env, MAKEFLAGS: '-j1' }
+                     env: { ...process.env, MAKEFLAGS: '-j1' },
                    });
 
   // We buffer the output and print it out once the process is done in order

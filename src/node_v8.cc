@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_v8.h"
+#include "aliased_buffer-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -33,6 +34,7 @@ namespace v8_utils {
 using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::HeapCodeStatistics;
 using v8::HeapSpaceStatistics;
@@ -90,34 +92,57 @@ static const size_t kHeapCodeStatisticsPropertiesCount =
     HEAP_CODE_STATISTICS_PROPERTIES(V);
 #undef V
 
-BindingData::BindingData(Environment* env, Local<Object> obj)
-    : SnapshotableObject(env, obj, type_int),
-      heap_statistics_buffer(env->isolate(), kHeapStatisticsPropertiesCount),
-      heap_space_statistics_buffer(env->isolate(),
-                                   kHeapSpaceStatisticsPropertiesCount),
-      heap_code_statistics_buffer(env->isolate(),
-                                  kHeapCodeStatisticsPropertiesCount) {
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "heapStatisticsBuffer"),
-           heap_statistics_buffer.GetJSArray())
-      .Check();
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "heapCodeStatisticsBuffer"),
+BindingData::BindingData(Realm* realm,
+                         Local<Object> obj,
+                         InternalFieldInfo* info)
+    : SnapshotableObject(realm, obj, type_int),
+      heap_statistics_buffer(realm->isolate(),
+                             kHeapStatisticsPropertiesCount,
+                             MAYBE_FIELD_PTR(info, heap_statistics_buffer)),
+      heap_space_statistics_buffer(
+          realm->isolate(),
+          kHeapSpaceStatisticsPropertiesCount,
+          MAYBE_FIELD_PTR(info, heap_space_statistics_buffer)),
+      heap_code_statistics_buffer(
+          realm->isolate(),
+          kHeapCodeStatisticsPropertiesCount,
+          MAYBE_FIELD_PTR(info, heap_code_statistics_buffer)) {
+  Local<Context> context = realm->context();
+  if (info == nullptr) {
+    obj->Set(context,
+             FIXED_ONE_BYTE_STRING(realm->isolate(), "heapStatisticsBuffer"),
+             heap_statistics_buffer.GetJSArray())
+        .Check();
+    obj->Set(
+           context,
+           FIXED_ONE_BYTE_STRING(realm->isolate(), "heapCodeStatisticsBuffer"),
            heap_code_statistics_buffer.GetJSArray())
-      .Check();
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "heapSpaceStatisticsBuffer"),
+        .Check();
+    obj->Set(
+           context,
+           FIXED_ONE_BYTE_STRING(realm->isolate(), "heapSpaceStatisticsBuffer"),
            heap_space_statistics_buffer.GetJSArray())
-      .Check();
+        .Check();
+  } else {
+    heap_statistics_buffer.Deserialize(realm->context());
+    heap_code_statistics_buffer.Deserialize(realm->context());
+    heap_space_statistics_buffer.Deserialize(realm->context());
+  }
+  heap_statistics_buffer.MakeWeak();
+  heap_space_statistics_buffer.MakeWeak();
+  heap_code_statistics_buffer.MakeWeak();
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
                                           v8::SnapshotCreator* creator) {
-  // We'll just re-initialize the buffers in the constructor since their
-  // contents can be thrown away once consumed in the previous call.
-  heap_statistics_buffer.Release();
-  heap_space_statistics_buffer.Release();
-  heap_code_statistics_buffer.Release();
+  DCHECK_NULL(internal_field_info_);
+  internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  internal_field_info_->heap_statistics_buffer =
+      heap_statistics_buffer.Serialize(context, creator);
+  internal_field_info_->heap_space_statistics_buffer =
+      heap_space_statistics_buffer.Serialize(context, creator);
+  internal_field_info_->heap_code_statistics_buffer =
+      heap_code_statistics_buffer.Serialize(context, creator);
   // Return true because we need to maintain the reference to the binding from
   // JS land.
   return true;
@@ -127,17 +152,20 @@ void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
                               InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   HandleScope scope(context->GetIsolate());
-  Environment* env = Environment::GetCurrent(context);
-  BindingData* binding = env->AddBindingData<BindingData>(context, holder);
+  Realm* realm = Realm::GetCurrent(context);
+  // Recreate the buffer in the constructor.
+  InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
+  BindingData* binding =
+      realm->AddBindingData<BindingData>(holder, casted_info);
   CHECK_NOT_NULL(binding);
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
-  InternalFieldInfo* info =
-      InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  DCHECK_IS_SNAPSHOT_SLOT(index);
+  InternalFieldInfo* info = internal_field_info_;
+  internal_field_info_ = nullptr;
   return info;
 }
 
@@ -167,7 +195,7 @@ void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
 }
 
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = Environment::GetBindingData<BindingData>(args);
+  BindingData* data = Realm::GetBindingData<BindingData>(args);
   HeapStatistics s;
   args.GetIsolate()->GetHeapStatistics(&s);
   AliasedFloat64Array& buffer = data->heap_statistics_buffer;
@@ -178,7 +206,7 @@ void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = Environment::GetBindingData<BindingData>(args);
+  BindingData* data = Realm::GetBindingData<BindingData>(args);
   HeapSpaceStatistics s;
   Isolate* const isolate = args.GetIsolate();
   CHECK(args[0]->IsUint32());
@@ -193,7 +221,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void UpdateHeapCodeStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = Environment::GetBindingData<BindingData>(args);
+  BindingData* data = Realm::GetBindingData<BindingData>(args);
   HeapCodeStatistics s;
   args.GetIsolate()->GetHeapCodeAndMetadataStatistics(&s);
   AliasedFloat64Array& buffer = data->heap_code_statistics_buffer;
@@ -210,13 +238,191 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   V8::SetFlagsFromString(*flags, static_cast<size_t>(flags.length()));
 }
 
+static const char* GetGCTypeName(v8::GCType gc_type) {
+  switch (gc_type) {
+    case v8::GCType::kGCTypeScavenge:
+      return "Scavenge";
+    case v8::GCType::kGCTypeMarkSweepCompact:
+      return "MarkSweepCompact";
+    case v8::GCType::kGCTypeIncrementalMarking:
+      return "IncrementalMarking";
+    case v8::GCType::kGCTypeProcessWeakCallbacks:
+      return "ProcessWeakCallbacks";
+    default:
+      return "Unknown";
+  }
+}
+
+static void SetHeapStatistics(JSONWriter* writer, Isolate* isolate) {
+  HeapStatistics heap_statistics;
+  isolate->GetHeapStatistics(&heap_statistics);
+  writer->json_objectstart("heapStatistics");
+  writer->json_keyvalue("totalHeapSize", heap_statistics.total_heap_size());
+  writer->json_keyvalue("totalHeapSizeExecutable",
+                        heap_statistics.total_heap_size_executable());
+  writer->json_keyvalue("totalPhysicalSize",
+                        heap_statistics.total_physical_size());
+  writer->json_keyvalue("totalAvailableSize",
+                        heap_statistics.total_available_size());
+  writer->json_keyvalue("totalGlobalHandlesSize",
+                        heap_statistics.total_global_handles_size());
+  writer->json_keyvalue("usedGlobalHandlesSize",
+                        heap_statistics.used_global_handles_size());
+  writer->json_keyvalue("usedHeapSize", heap_statistics.used_heap_size());
+  writer->json_keyvalue("heapSizeLimit", heap_statistics.heap_size_limit());
+  writer->json_keyvalue("mallocedMemory", heap_statistics.malloced_memory());
+  writer->json_keyvalue("externalMemory", heap_statistics.external_memory());
+  writer->json_keyvalue("peakMallocedMemory",
+                        heap_statistics.peak_malloced_memory());
+  writer->json_objectend();
+
+  int space_count = isolate->NumberOfHeapSpaces();
+  writer->json_arraystart("heapSpaceStatistics");
+  for (int i = 0; i < space_count; i++) {
+    HeapSpaceStatistics heap_space_statistics;
+    isolate->GetHeapSpaceStatistics(&heap_space_statistics, i);
+    writer->json_start();
+    writer->json_keyvalue("spaceName", heap_space_statistics.space_name());
+    writer->json_keyvalue("spaceSize", heap_space_statistics.space_size());
+    writer->json_keyvalue("spaceUsedSize",
+                          heap_space_statistics.space_used_size());
+    writer->json_keyvalue("spaceAvailableSize",
+                          heap_space_statistics.space_available_size());
+    writer->json_keyvalue("physicalSpaceSize",
+                          heap_space_statistics.physical_space_size());
+    writer->json_end();
+  }
+  writer->json_arrayend();
+}
+
+static void BeforeGCCallback(Isolate* isolate,
+                             v8::GCType gc_type,
+                             v8::GCCallbackFlags flags,
+                             void* data) {
+  GCProfiler* profiler = static_cast<GCProfiler*>(data);
+  if (profiler->current_gc_type != 0) {
+    return;
+  }
+  JSONWriter* writer = profiler->writer();
+  writer->json_start();
+  writer->json_keyvalue("gcType", GetGCTypeName(gc_type));
+  writer->json_objectstart("beforeGC");
+  SetHeapStatistics(writer, isolate);
+  writer->json_objectend();
+  profiler->current_gc_type = gc_type;
+  profiler->start_time = uv_hrtime();
+}
+
+static void AfterGCCallback(Isolate* isolate,
+                            v8::GCType gc_type,
+                            v8::GCCallbackFlags flags,
+                            void* data) {
+  GCProfiler* profiler = static_cast<GCProfiler*>(data);
+  if (profiler->current_gc_type != gc_type) {
+    return;
+  }
+  JSONWriter* writer = profiler->writer();
+  profiler->current_gc_type = 0;
+  writer->json_keyvalue("cost", (uv_hrtime() - profiler->start_time) / 1e3);
+  profiler->start_time = 0;
+  writer->json_objectstart("afterGC");
+  SetHeapStatistics(writer, isolate);
+  writer->json_objectend();
+  writer->json_end();
+}
+
+GCProfiler::GCProfiler(Environment* env, Local<Object> object)
+    : BaseObject(env, object),
+      start_time(0),
+      current_gc_type(0),
+      state(GCProfilerState::kInitialized),
+      writer_(out_stream_, false) {
+  MakeWeak();
+}
+
+// This function will be called when
+// 1. StartGCProfile and StopGCProfile are called and
+//    JS land does not keep the object anymore.
+// 2. StartGCProfile is called then the env exits before
+//    StopGCProfile is called.
+GCProfiler::~GCProfiler() {
+  if (state != GCProfiler::GCProfilerState::kInitialized) {
+    env()->isolate()->RemoveGCPrologueCallback(BeforeGCCallback, this);
+    env()->isolate()->RemoveGCEpilogueCallback(AfterGCCallback, this);
+  }
+}
+
+JSONWriter* GCProfiler::writer() {
+  return &writer_;
+}
+
+std::ostringstream* GCProfiler::out_stream() {
+  return &out_stream_;
+}
+
+void GCProfiler::New(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+  Environment* env = Environment::GetCurrent(args);
+  new GCProfiler(env, args.This());
+}
+
+void GCProfiler::Start(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  GCProfiler* profiler;
+  ASSIGN_OR_RETURN_UNWRAP(&profiler, args.Holder());
+  if (profiler->state != GCProfiler::GCProfilerState::kInitialized) {
+    return;
+  }
+  profiler->writer()->json_start();
+  profiler->writer()->json_keyvalue("version", 1);
+
+  uv_timeval64_t ts;
+  if (uv_gettimeofday(&ts) == 0) {
+    profiler->writer()->json_keyvalue("startTime",
+                                      ts.tv_sec * 1000 + ts.tv_usec / 1000);
+  } else {
+    profiler->writer()->json_keyvalue("startTime", 0);
+  }
+  profiler->writer()->json_arraystart("statistics");
+  env->isolate()->AddGCPrologueCallback(BeforeGCCallback,
+                                        static_cast<void*>(profiler));
+  env->isolate()->AddGCEpilogueCallback(AfterGCCallback,
+                                        static_cast<void*>(profiler));
+  profiler->state = GCProfiler::GCProfilerState::kStarted;
+}
+
+void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  GCProfiler* profiler;
+  ASSIGN_OR_RETURN_UNWRAP(&profiler, args.Holder());
+  if (profiler->state != GCProfiler::GCProfilerState::kStarted) {
+    return;
+  }
+  profiler->writer()->json_arrayend();
+  uv_timeval64_t ts;
+  if (uv_gettimeofday(&ts) == 0) {
+    profiler->writer()->json_keyvalue("endTime",
+                                      ts.tv_sec * 1000 + ts.tv_usec / 1000);
+  } else {
+    profiler->writer()->json_keyvalue("endTime", 0);
+  }
+  profiler->writer()->json_end();
+  profiler->state = GCProfiler::GCProfilerState::kStopped;
+  auto string = profiler->out_stream()->str();
+  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
+                                                string.data(),
+                                                v8::NewStringType::kNormal,
+                                                string.size())
+                                .ToLocalChecked());
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  BindingData* const binding_data =
-      env->AddBindingData<BindingData>(context, target);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
+  BindingData* const binding_data = realm->AddBindingData<BindingData>(target);
   if (binding_data == nullptr) return;
 
   SetMethodNoSideEffect(
@@ -272,6 +478,14 @@ void Initialize(Local<Object> target,
 
   // Export symbols used by v8.setFlagsFromString()
   SetMethod(context, target, "setFlagsFromString", SetFlagsFromString);
+
+  // GCProfiler
+  Local<FunctionTemplate> t =
+      NewFunctionTemplate(env->isolate(), GCProfiler::New);
+  t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  SetProtoMethod(env->isolate(), t, "start", GCProfiler::Start);
+  SetProtoMethod(env->isolate(), t, "stop", GCProfiler::Stop);
+  SetConstructorFunction(context, target, "GCProfiler", t);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -281,6 +495,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(UpdateHeapSpaceStatisticsBuffer);
   registry->Register(SetFlagsFromString);
   registry->Register(SetHeapSnapshotNearHeapLimit);
+  registry->Register(GCProfiler::New);
+  registry->Register(GCProfiler::Start);
+  registry->Register(GCProfiler::Stop);
 }
 
 }  // namespace v8_utils

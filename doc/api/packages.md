@@ -251,7 +251,7 @@ both CommonJS and ES modules in a single package please consult
 
 Existing packages introducing the [`"exports"`][] field will prevent consumers
 of the package from using any entry points that are not defined, including the
-[`package.json`][] (e.g. `require('your-package/package.json')`. **This will
+[`package.json`][] (e.g. `require('your-package/package.json')`). **This will
 likely be a breaking change.**
 
 To make the introduction of [`"exports"`][] non-breaking, ensure that every
@@ -704,17 +704,16 @@ is provided below to assist with ecosystem coordination.
 
 * `"types"` - can be used by typing systems to resolve the typing file for
   the given export. _This condition should always be included first._
-* `"deno"` - indicates a variation for the Deno platform.
 * `"browser"` - any web browser environment.
-* `"react-native"` - will be matched by the React Native framework (all
-  platforms). _To target React Native for Web, `"browser"` should be specified
-  before this condition._
 * `"development"` - can be used to define a development-only environment
   entry point, for example to provide additional debugging context such as
   better error messages when running in a development mode. _Must always be
   mutually exclusive with `"production"`._
 * `"production"` - can be used to define a production environment entry
   point. _Must always be mutually exclusive with `"development"`._
+
+For other runtimes, platform-specific condition key definitions are maintained
+by the [WinterCG][] in the [Runtime Keys][] proposal specification.
 
 New conditions definitions may be added to this list by creating a pull request
 to the [Node.js documentation for this section][]. The requirements for listing
@@ -729,6 +728,10 @@ a new condition definition here are that:
   benefit to the ecosystem that wouldn't otherwise be possible. For example,
   this would not necessarily be the case for company-specific or
   application-specific conditions.
+* The condition should be such that a Node.js user would expect it to be in
+  Node.js core documentation. The `"types"` condition is a good example: It
+  doesn't really belong in the [Runtime Keys][] proposal but is a good fit
+  here in the Node.js docs.
 
 The above definitions may be moved to a dedicated conditions registry in due
 course.
@@ -1173,9 +1176,9 @@ added:
 ```
 
 The `"packageManager"` field defines which package manager is expected to be
-used when working on the current project. It can set to any of the
+used when working on the current project. It can be set to any of the
 [supported package managers][], and will ensure that your teams use the exact
-same package manager versions without having to install anything else than
+same package manager versions without having to install anything else other than
 Node.js.
 
 This field is currently experimental and needs to be opted-in; check the
@@ -1325,6 +1328,8 @@ This field defines [subpath imports][] for the current package.
 [ES module]: esm.md
 [ES modules]: esm.md
 [Node.js documentation for this section]: https://github.com/nodejs/node/blob/HEAD/doc/api/packages.md#conditions-definitions
+[Runtime Keys]: https://runtime-keys.proposal.wintercg.org/
+[WinterCG]: https://wintercg.org/
 [`"exports"`]: #exports
 [`"imports"`]: #imports
 [`"main"`]: #main

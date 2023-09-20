@@ -775,7 +775,7 @@ int PrepareForTailCallLatency() {
 int AssertLatency() { return 1; }
 
 int PrepareCallCFunctionLatency() {
-  int frame_alignment = TurboAssembler::ActivationFrameAlignment();
+  int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   if (frame_alignment > kSystemPointerSize) {
     return 1 + DsubuLatency(false) + AndLatency(false) + 1;
   } else {

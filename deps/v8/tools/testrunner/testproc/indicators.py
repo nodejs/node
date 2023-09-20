@@ -11,6 +11,7 @@ import time
 
 from . import base
 from . import util
+from .stack_utils import stack_analyzer_util
 
 
 def print_failure_header(test, is_flaky=False):
@@ -24,7 +25,7 @@ def print_failure_header(test, is_flaky=False):
   print(output.encode(encoding, errors='replace').decode(encoding))
 
 
-def formatted_result_output(result):
+def formatted_result_output(result, relative=False):
   lines = []
   if result.output.stderr:
     lines.append("--- stderr ---")
@@ -32,7 +33,7 @@ def formatted_result_output(result):
   if result.output.stdout:
     lines.append("--- stdout ---")
     lines.append(result.output.stdout.strip())
-  lines.append("Command: %s" % result.cmd.to_string())
+  lines.append("Command: %s" % result.cmd.to_string(relative))
   if result.output.HasCrashed():
     lines.append("exit code: %s" % result.output.exit_code_string)
     lines.append("--- CRASHED ---")
@@ -346,7 +347,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
 class JsonTestProgressIndicator(ProgressIndicator):
 
-  def __init__(self, context, options, test_count, framework_name):
+  def __init__(self, context, options, test_count):
     super(JsonTestProgressIndicator, self).__init__(context, options,
                                                     test_count)
     self.tests = util.FixedSizeTopList(
@@ -357,10 +358,10 @@ class JsonTestProgressIndicator(ProgressIndicator):
     # keep_output set to True in the RerunProc.
     self._requirement = base.DROP_PASS_STDOUT
 
-    self.framework_name = framework_name
     self.results = []
     self.duration_sum = 0
     self.test_count = 0
+    self.stack_parser = stack_analyzer_util.create_stack_parser()
 
   def on_test_result(self, test, result):
     self.process_results(test, result.as_list)
@@ -385,6 +386,9 @@ class JsonTestProgressIndicator(ProgressIndicator):
           "stderr": output.stderr,
           "error_details": result.error_details,
       })
+
+      record.update(self.stack_parser.analyze_crash(output.stderr))
+
       self.results.append(record)
 
   def _buffer_slow_tests(self, test, result, output, run):
@@ -406,7 +410,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
   def _test_record(self, test, result, run):
     record = util.base_test_record(test, result, run)
     record.update(
-        framework_name=self.framework_name,
         command=result.cmd.to_string(relative=True),
     )
     return record

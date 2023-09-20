@@ -278,16 +278,13 @@ if (node.type === 'id') {
 }
 ```
 
-### `node.clone()`
+### `node.clone([opts])`
 
 Returns a copy of a node, detached from any parent containers that the
 original might have had.
 
 ```js
-const cloned = parser.id({value: 'search'});
-String(cloned);
-
-// => #search
+const cloned = node.clone();
 ```
 
 ### `node.isAtPosition(line, column)`
@@ -395,16 +392,18 @@ Arguments:
 
 ### `container.atPosition(line, column)`
 
-Returns the node at the source position `index`.
+Returns the node at the source position `line` and `column`.
 
 ```js
-selector.at(0) === selector.first;
-selector.at(0) === selector.nodes[0];
+// Input: :not(.foo),\n#foo > :matches(ol, ul)
+selector.atPosition(1, 1); // => :not(.foo)
+selector.atPosition(2, 1); // => \n#foo
 ```
 
 Arguments:
 
-* `index`: The index of the node to return.
+* `line`: The line number of the node to return.
+* `column`: The column number of the node to return.
 
 ### `container.index(node)`
 

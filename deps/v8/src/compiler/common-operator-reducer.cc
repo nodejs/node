@@ -19,12 +19,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
-                                             JSHeapBroker* broker,
-                                             CommonOperatorBuilder* common,
-                                             MachineOperatorBuilder* machine,
-                                             Zone* temp_zone,
-                                             BranchSemantics branch_semantics)
+CommonOperatorReducer::CommonOperatorReducer(
+    Editor* editor, Graph* graph, JSHeapBroker* broker,
+    CommonOperatorBuilder* common, MachineOperatorBuilder* machine,
+    Zone* temp_zone, BranchSemantics default_branch_semantics)
     : AdvancedReducer(editor),
       graph_(graph),
       broker_(broker),
@@ -32,7 +30,7 @@ CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
       machine_(machine),
       dead_(graph->NewNode(common->Dead())),
       zone_(temp_zone),
-      branch_semantics_(branch_semantics) {
+      default_branch_semantics_(default_branch_semantics) {
   NodeProperties::SetType(dead_, Type::None());
 }
 
@@ -67,20 +65,22 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
   return NoChange();
 }
 
-Decision CommonOperatorReducer::DecideCondition(Node* const cond) {
+Decision CommonOperatorReducer::DecideCondition(
+    Node* const cond, BranchSemantics branch_semantics) {
   Node* unwrapped = SkipValueIdentities(cond);
   switch (unwrapped->opcode()) {
     case IrOpcode::kInt32Constant: {
-      DCHECK_EQ(branch_semantics_, BranchSemantics::kMachine);
+      DCHECK_EQ(branch_semantics, BranchSemantics::kMachine);
       Int32Matcher m(unwrapped);
       return m.ResolvedValue() ? Decision::kTrue : Decision::kFalse;
     }
     case IrOpcode::kHeapConstant: {
-      if (branch_semantics_ == BranchSemantics::kMachine) {
+      if (branch_semantics == BranchSemantics::kMachine) {
         return Decision::kTrue;
       }
       HeapObjectMatcher m(unwrapped);
-      base::Optional<bool> maybe_result = m.Ref(broker_).TryGetBooleanValue();
+      base::Optional<bool> maybe_result =
+          m.Ref(broker_).TryGetBooleanValue(broker());
       if (!maybe_result.has_value()) return Decision::kUnknown;
       return *maybe_result ? Decision::kTrue : Decision::kFalse;
     }
@@ -91,6 +91,7 @@ Decision CommonOperatorReducer::DecideCondition(Node* const cond) {
 
 Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   DCHECK_EQ(IrOpcode::kBranch, node->opcode());
+  BranchSemantics branch_semantics = BranchSemanticsOf(node);
   Node* const cond = node->InputAt(0);
   // Swap IfTrue/IfFalse on {branch} if {cond} is a BooleanNot and use the input
   // to BooleanNot as new condition for {branch}. Note we assume that {cond} was
@@ -99,8 +100,10 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   // not (i.e. true being returned in the false case and vice versa).
   if (cond->opcode() == IrOpcode::kBooleanNot ||
       (cond->opcode() == IrOpcode::kSelect &&
-       DecideCondition(cond->InputAt(1)) == Decision::kFalse &&
-       DecideCondition(cond->InputAt(2)) == Decision::kTrue)) {
+       DecideCondition(cond->InputAt(1), branch_semantics) ==
+           Decision::kFalse &&
+       DecideCondition(cond->InputAt(2), branch_semantics) ==
+           Decision::kTrue)) {
     for (Node* const use : node->uses()) {
       switch (use->opcode()) {
         case IrOpcode::kIfTrue:
@@ -122,7 +125,7 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
         node, common()->Branch(NegateBranchHint(BranchHintOf(node->op()))));
     return Changed(node);
   }
-  Decision const decision = DecideCondition(cond);
+  Decision const decision = DecideCondition(cond, branch_semantics);
   if (decision == Decision::kUnknown) return NoChange();
   Node* const control = node->InputAt(1);
   for (Node* const use : node->uses()) {
@@ -161,7 +164,8 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
                   : common()->DeoptimizeUnless(p.reason(), p.feedback()));
     return Changed(node);
   }
-  Decision const decision = DecideCondition(condition);
+  Decision const decision =
+      DecideCondition(condition, default_branch_semantics_);
   if (decision == Decision::kUnknown) return NoChange();
   if (condition_is_true == (decision == Decision::kTrue)) {
     ReplaceWithValue(node, dead(), effect, control);
@@ -305,6 +309,7 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
 Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
   DCHECK_EQ(IrOpcode::kReturn, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
+  // TODO(mslekova): Port this to Turboshaft.
   if (effect->opcode() == IrOpcode::kCheckpoint) {
     // Any {Return} node can never be used to insert a deoptimization point,
     // hence checkpoints can be cut out of the effect chain flowing into it.
@@ -392,7 +397,7 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
   Node* const vtrue = node->InputAt(1);
   Node* const vfalse = node->InputAt(2);
   if (vtrue == vfalse) return Replace(vtrue);
-  switch (DecideCondition(cond)) {
+  switch (DecideCondition(cond, default_branch_semantics_)) {
     case Decision::kTrue:
       return Replace(vtrue);
     case Decision::kFalse:
@@ -469,7 +474,7 @@ Reduction CommonOperatorReducer::ReduceSwitch(Node* node) {
 Reduction CommonOperatorReducer::ReduceStaticAssert(Node* node) {
   DCHECK_EQ(IrOpcode::kStaticAssert, node->opcode());
   Node* const cond = node->InputAt(0);
-  Decision decision = DecideCondition(cond);
+  Decision decision = DecideCondition(cond, default_branch_semantics_);
   if (decision == Decision::kTrue) {
     RelaxEffectsAndControls(node);
     return Changed(node);
@@ -483,7 +488,7 @@ Reduction CommonOperatorReducer::ReduceTrapConditional(Node* trap) {
          trap->opcode() == IrOpcode::kTrapUnless);
   bool trapping_condition = trap->opcode() == IrOpcode::kTrapIf;
   Node* const cond = trap->InputAt(0);
-  Decision decision = DecideCondition(cond);
+  Decision decision = DecideCondition(cond, default_branch_semantics_);
 
   if (decision == Decision::kUnknown) {
     return NoChange();

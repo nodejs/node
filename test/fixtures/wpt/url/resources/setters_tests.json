@@ -269,6 +269,57 @@
                 "protocol": "https:",
                 "port": ""
             }
+        },
+        {
+            "comment": "Tab and newline are stripped",
+            "href": "http://test/",
+            "new_value": "h\u000D\u000Att\u0009ps",
+            "expected": {
+              "href": "https://test/",
+              "protocol": "https:",
+              "port": ""
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u000D",
+            "expected": {
+              "href": "https://test/",
+              "protocol": "https:"
+            }
+        },
+        {
+            "comment": "Non-tab/newline C0 controls result in no-op",
+            "href": "http://test/",
+            "new_value": "https\u0000",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u000C",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u000E",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u0020",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
         }
     ],
     "username": [
@@ -1010,6 +1061,42 @@
                 "host": "",
                 "hostname": ""
             }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "a%C2%ADb",
+            "expected": {
+                "href": "https://ab/",
+                "host": "ab",
+                "hostname": "ab"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "\u00AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "%C2%AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "xn--",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
         }
     ],
     "hostname": [
@@ -1385,6 +1472,42 @@
                 "host": "",
                 "hostname": ""
             }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "a%C2%ADb",
+            "expected": {
+                "href": "https://ab/",
+                "host": "ab",
+                "hostname": "ab"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "\u00AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "%C2%AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "xn--",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
         }
     ],
     "port": [
@@ -1542,6 +1665,17 @@
             }
         },
         {
+            "comment": "Setting port to a string that doesn't parse as a number",
+            "href": "http://example.net:8080/path",
+            "new_value": "randomstring",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
             "comment": "Port numbers are 16 bit integers, overflowing is an error",
             "href": "non-special://example.net:8080/path",
             "new_value": "65536",
@@ -1599,16 +1733,56 @@
                 "href": "javascript://x:12/",
                 "port": "12"
             }
+        },
+        {
+            "comment": "Leading u0009 on special scheme",
+            "href": "https://domain.com:443",
+            "new_value": "\u00098080",
+            "expected": {
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Leading u0009 on non-special scheme",
+            "href": "wpt++://domain.com:443",
+            "new_value": "\u00098080",
+            "expected": {
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Should use all ascii prefixed characters as port",
+            "href": "https://www.google.com:4343",
+            "new_value": "4wpt",
+            "expected": {
+                "port": "4"
+            }
         }
     ],
     "pathname": [
         {
-            "comment": "Cannot-be-a-base don’t have a path",
+            "comment": "Opaque paths cannot be set",
             "href": "mailto:me@example.net",
             "new_value": "/foo",
             "expected": {
                 "href": "mailto:me@example.net",
                 "pathname": "me@example.net"
+            }
+        },
+        {
+            "href": "data:original",
+            "new_value": "new value",
+            "expected": {
+                "href": "data:original",
+                "pathname": "original"
+            }
+        },
+        {
+            "href": "sc:original",
+            "new_value": "new value",
+            "expected": {
+                "href": "sc:original",
+                "pathname": "original"
             }
         },
         {
@@ -1830,6 +2004,23 @@
                 "href": "non-spec:/p",
                 "pathname": "/p"
             }
+        },
+        {
+            "comment": "Non-special URLs with non-opaque paths percent-encode U+0020",
+            "href": "data:/nospace",
+            "new_value": "space ",
+            "expected": {
+                "href": "data:/space%20",
+                "pathname": "/space%20"
+            }
+        },
+        {
+            "href": "sc:/nospace",
+            "new_value": "space ",
+            "expected": {
+                "href": "sc:/space%20",
+                "pathname": "/space%20"
+            }
         }
     ],
     "search": [
@@ -1913,6 +2104,42 @@
             "expected": {
                 "href": "http://example.net/?%c3%89t%C3%A9",
                 "search": "?%c3%89t%C3%A9"
+            }
+        },
+        {
+            "comment": "Drop trailing spaces from trailing opaque paths",
+            "href": "data:space ?query",
+            "new_value": "",
+            "expected": {
+                "href": "data:space",
+                "pathname": "space",
+                "search": ""
+            }
+        },
+        {
+            "href": "sc:space ?query",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space",
+                "pathname": "space",
+                "search": ""
+            }
+        },
+        {
+            "comment": "Do not drop trailing spaces from non-trailing opaque paths",
+            "href": "data:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "data:space  #fragment",
+                "search": ""
+            }
+        },
+        {
+            "href": "sc:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space  #fragment",
+                "search": ""
             }
         }
     ],
@@ -2047,6 +2274,52 @@
             "expected": {
                 "href": "javascript:alert(1)#castle",
                 "hash": "#castle"
+            }
+        },
+        {
+            "comment": "Drop trailing spaces from trailing opaque paths",
+            "href": "data:space                                                                                                                                  #fragment",
+            "new_value": "",
+            "expected": {
+                "href": "data:space",
+                "pathname": "space",
+                "hash": ""
+            }
+        },
+        {
+            "href": "sc:space    #fragment",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space",
+                "pathname": "space",
+                "hash": ""
+            }
+        },
+        {
+            "comment": "Do not drop trailing spaces from non-trailing opaque paths",
+            "href": "data:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "data:space  ?query",
+                "hash": ""
+            }
+        },
+        {
+            "href": "sc:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space  ?query",
+                "hash": ""
+            }
+        }
+    ],
+    "href": [
+        {
+            "href": "file:///var/log/system.log",
+            "new_value": "http://0300.168.0xF0",
+            "expected": {
+                "href": "http://192.168.0.240/",
+                "protocol": "http:"
             }
         }
     ]

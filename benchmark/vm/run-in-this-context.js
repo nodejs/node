@@ -5,7 +5,7 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   n: [1],
   breakOnSigint: [0, 1],
-  withSigintListener: [0, 1]
+  withSigintListener: [0, 1],
 });
 
 const vm = require('vm');

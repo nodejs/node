@@ -7,7 +7,9 @@
 
 #include "src/base/small-vector.h"
 #include "src/common/globals.h"
-#include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/frame-states.h"
+#include "src/compiler/turboshaft/index.h"
+#include "src/compiler/turboshaft/representations.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -134,6 +136,13 @@ struct FrameStateData {
   base::Vector<MachineType> machine_types;
   base::Vector<uint32_t> int_operands;
 };
+
+inline bool operator==(const FrameStateData& lhs, const FrameStateData& rhs) {
+  return lhs.frame_state_info == rhs.frame_state_info &&
+         lhs.instructions == rhs.instructions &&
+         lhs.machine_types == rhs.machine_types &&
+         lhs.int_operands == rhs.int_operands;
+}
 
 }  // namespace v8::internal::compiler::turboshaft
 

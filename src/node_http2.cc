@@ -1,5 +1,5 @@
 #include "node_http2.h"
-#include "aliased_buffer.h"
+#include "aliased_buffer-inl.h"
 #include "aliased_struct-inl.h"
 #include "debug_utils-inl.h"
 #include "histogram-inl.h"
@@ -28,7 +28,6 @@ using v8::BackingStore;
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::False;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -42,7 +41,6 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
-using v8::True;
 using v8::Uint8Array;
 using v8::Undefined;
 using v8::Value;
@@ -332,10 +330,8 @@ void Http2Settings::Done(bool ack) {
   uint64_t end = uv_hrtime();
   double duration = (end - startTime_) / 1e6;
 
-  Local<Value> argv[] = {
-    ack ? True(env()->isolate()) : False(env()->isolate()),
-    Number::New(env()->isolate(), duration)
-  };
+  Local<Value> argv[] = {Boolean::New(env()->isolate(), ack),
+                         Number::New(env()->isolate(), duration)};
   MakeCallback(callback(), arraysize(argv), argv);
 }
 
@@ -441,8 +437,7 @@ Http2Session::Callbacks::Callbacks(bool kHasGetPaddingCallback) {
     callbacks_, OnFrameNotSent);
   nghttp2_session_callbacks_set_on_invalid_header_callback2(
     callbacks_, OnInvalidHeader);
-  nghttp2_session_callbacks_set_error_callback(
-    callbacks_, OnNghttpError);
+  nghttp2_session_callbacks_set_error_callback2(callbacks_, OnNghttpError);
   nghttp2_session_callbacks_set_send_data_callback(
     callbacks_, OnSendData);
   nghttp2_session_callbacks_set_on_invalid_frame_recv_callback(
@@ -1072,8 +1067,7 @@ int Http2Session::OnFrameNotSent(nghttp2_session* handle,
   // Do not report if the frame was not sent due to the session closing
   if (error_code == NGHTTP2_ERR_SESSION_CLOSING ||
       error_code == NGHTTP2_ERR_STREAM_CLOSED ||
-      error_code == NGHTTP2_ERR_STREAM_CLOSING ||
-      session->js_fields_->frame_error_listener_count == 0) {
+      error_code == NGHTTP2_ERR_STREAM_CLOSING) {
     // Nghttp2 contains header limit of 65536. When this value is exceeded the
     // pipeline is stopped and we should remove the current headers reference
     // to destroy the session completely.
@@ -1123,17 +1117,6 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   // already been destroyed
   if (!stream || stream->is_destroyed())
     return 0;
-
-  // Don't close synchronously in case there's pending data to be written. This
-  // may happen when writing trailing headers.
-  if (code == NGHTTP2_NO_ERROR && nghttp2_session_want_write(handle) &&
-      !env->is_stopping()) {
-    env->SetImmediate([handle, id, code, user_data](Environment* env) {
-      OnStreamClose(handle, id, code, user_data);
-    });
-
-    return 0;
-  }
 
   stream->Close(code);
 
@@ -1273,13 +1256,10 @@ ssize_t Http2Session::OnSelectPadding(nghttp2_session* handle,
   return padding;
 }
 
-#define BAD_PEER_MESSAGE "Remote peer returned unexpected data while we "     \
-                         "expected SETTINGS frame.  Perhaps, peer does not "  \
-                         "support HTTP/2 properly."
-
 // We use this currently to determine when an attempt is made to use the http2
 // protocol with a non-http2 peer.
 int Http2Session::OnNghttpError(nghttp2_session* handle,
+                                int lib_error_code,
                                 const char* message,
                                 size_t len,
                                 void* user_data) {
@@ -1287,7 +1267,7 @@ int Http2Session::OnNghttpError(nghttp2_session* handle,
   // the session errored because the peer is not an http2 peer.
   Http2Session* session = static_cast<Http2Session*>(user_data);
   Debug(session, "Error '%s'", message);
-  if (strncmp(message, BAD_PEER_MESSAGE, len) == 0) {
+  if (lib_error_code == NGHTTP2_ERR_SETTINGS_EXPECTED) {
     Environment* env = session->env();
     Isolate* isolate = env->isolate();
     HandleScope scope(isolate);
@@ -2579,7 +2559,7 @@ void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
 // would be suitable, for instance, for creating the Base64
 // output for an HTTP2-Settings header field.
 void PackSettings(const FunctionCallbackInfo<Value>& args) {
-  Http2State* state = Environment::GetBindingData<Http2State>(args);
+  Http2State* state = Realm::GetBindingData<Http2State>(args);
   args.GetReturnValue().Set(Http2Settings::Pack(state));
 }
 
@@ -2587,7 +2567,7 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
 // default SETTINGS. RefreshDefaultSettings updates that TypedArray with the
 // default values.
 void RefreshDefaultSettings(const FunctionCallbackInfo<Value>& args) {
-  Http2State* state = Environment::GetBindingData<Http2State>(args);
+  Http2State* state = Realm::GetBindingData<Http2State>(args);
   Http2Settings::RefreshDefaults(state);
 }
 
@@ -2670,12 +2650,12 @@ void Http2Session::RefreshState(const FunctionCallbackInfo<Value>& args) {
 
 // Constructor for new Http2Session instances.
 void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
-  Http2State* state = Environment::GetBindingData<Http2State>(args);
-  Environment* env = state->env();
+  Realm* realm = Realm::GetCurrent(args);
+  Http2State* state = realm->GetBindingData<Http2State>();
+
   CHECK(args.IsConstructCall());
-  SessionType type =
-      static_cast<SessionType>(
-          args[0]->Int32Value(env->context()).ToChecked());
+  SessionType type = static_cast<SessionType>(
+      args[0]->Int32Value(realm->context()).ToChecked());
   Http2Session* session = new Http2Session(state, args.This(), type);
   Debug(session, "session created");
 }
@@ -3143,10 +3123,7 @@ void Http2Ping::Done(bool ack, const uint8_t* payload) {
   }
 
   Local<Value> argv[] = {
-    ack ? True(isolate) : False(isolate),
-    Number::New(isolate, duration_ms),
-    buf
-  };
+      Boolean::New(isolate, ack), Number::New(isolate, duration_ms), buf};
   MakeCallback(callback(), arraysize(argv), argv);
 }
 
@@ -3198,11 +3175,12 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
 
-  Http2State* const state = env->AddBindingData<Http2State>(context, target);
+  Http2State* const state = realm->AddBindingData<Http2State>(target);
   if (state == nullptr) return;
 
 #define SET_STATE_TYPEDARRAY(name, field)             \

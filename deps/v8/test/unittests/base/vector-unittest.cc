@@ -60,7 +60,7 @@ TEST(VectorTest, Equals) {
   EXPECT_TRUE(vec3_char != vec1_const_char);
 }
 
-TEST(OwnedVectorConstruction, Equals) {
+TEST(OwnedVectorTest, Equals) {
   auto int_vec = base::OwnedVector<int>::New(4);
   EXPECT_EQ(4u, int_vec.size());
   auto find_non_zero = [](int i) { return i != 0; };
@@ -74,6 +74,31 @@ TEST(OwnedVectorConstruction, Equals) {
   auto init_vec2 = base::OwnedVector<const int>::Of(base::ArrayVector(kInit));
   EXPECT_EQ(init_vec1.as_vector(), base::ArrayVector(kInit));
   EXPECT_EQ(init_vec1.as_vector(), init_vec2.as_vector());
+}
+
+TEST(OwnedVectorTest, MoveConstructionAndAssignment) {
+  constexpr int kValues[] = {4, 11, 3};
+  auto int_vec = base::OwnedVector<int>::Of(kValues);
+  EXPECT_EQ(3u, int_vec.size());
+
+  auto move_constructed_vec = std::move(int_vec);
+  EXPECT_EQ(move_constructed_vec.as_vector(), base::ArrayVector(kValues));
+
+  auto move_assigned_to_empty = base::OwnedVector<int>{};
+  move_assigned_to_empty = std::move(move_constructed_vec);
+  EXPECT_EQ(move_assigned_to_empty.as_vector(), base::ArrayVector(kValues));
+
+  auto move_assigned_to_non_empty = base::OwnedVector<int>::New(2);
+  move_assigned_to_non_empty = std::move(move_assigned_to_empty);
+  EXPECT_EQ(move_assigned_to_non_empty.as_vector(), base::ArrayVector(kValues));
+
+  // All but the last vector must be empty (length 0, nullptr data).
+  EXPECT_TRUE(int_vec.empty());
+  EXPECT_TRUE(int_vec.begin() == nullptr);
+  EXPECT_TRUE(move_constructed_vec.empty());
+  EXPECT_TRUE(move_constructed_vec.begin() == nullptr);
+  EXPECT_TRUE(move_assigned_to_empty.empty());
+  EXPECT_TRUE(move_assigned_to_empty.begin() == nullptr);
 }
 
 // Test that the constexpr factory methods work.

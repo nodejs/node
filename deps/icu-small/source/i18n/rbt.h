@@ -193,7 +193,7 @@ public:
      * @return          The class ID for all objects of this class.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
-    U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);
+    U_I18N_API static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * Returns a unique class ID <b>polymorphically</b>.  This method
@@ -205,7 +205,7 @@ public:
      * class have the same class ID.  Objects of other classes have
      * different class IDs.
      */
-    virtual UClassID getDynamicClassID(void) const override;
+    virtual UClassID getDynamicClassID() const override;
 
 private:
 

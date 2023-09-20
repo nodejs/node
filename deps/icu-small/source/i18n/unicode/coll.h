@@ -625,7 +625,7 @@ public:
     /**
      * Retrieves the reordering codes for this collator.
      * @param dest The array to fill with the script ordering.
-     * @param destCapacity The length of dest. If it is 0, then dest may be NULL and the function
+     * @param destCapacity The length of dest. If it is 0, then dest may be nullptr and the function
      *  will only return the length of the result without writing any codes (pre-flighting).
      * @param status A reference to an error code value, which must not indicate
      * a failure before the function call.
@@ -645,7 +645,7 @@ public:
      * Sets the ordering of scripts for this collator.
      *
      * <p>The reordering codes are a combination of script codes and reorder codes.
-     * @param reorderCodes An array of script codes in the new order. This can be NULL if the
+     * @param reorderCodes An array of script codes in the new order. This can be nullptr if the
      * length is also set to 0. An empty array will clear any reordering codes on the collator.
      * @param reorderCodesLength The length of reorderCodes.
      * @param status error code
@@ -668,7 +668,7 @@ public:
      *
      * @param reorderCode The reorder code to determine equivalence for.
      * @param dest The array to fill with the script equivalence reordering codes.
-     * @param destCapacity The length of dest. If it is 0, then dest may be NULL and the
+     * @param destCapacity The length of dest. If it is 0, then dest may be nullptr and the
      * function will only return the length of the result without writing any codes (pre-flighting).
      * @param status A reference to an error code value, which must not indicate
      * a failure before the function call.
@@ -750,7 +750,7 @@ public:
      * ucol_getKeywords. If any other keyword is passed in, status is set
      * to U_ILLEGAL_ARGUMENT_ERROR.
      * @param status input-output error code
-     * @return a string enumeration over collation keyword values, or NULL
+     * @return a string enumeration over collation keyword values, or nullptr
      * upon error. The caller is responsible for deleting the result.
      * @stable ICU 3.0
      */
@@ -1008,7 +1008,7 @@ public:
      * For more details, see the ICU User Guide.
      *
      * @param source string to be processed.
-     * @param result buffer to store result in. If NULL, number of bytes needed
+     * @param result buffer to store result in. If nullptr, number of bytes needed
      *        will be returned.
      * @param resultLength length of the result buffer. If if not enough the
      *        buffer will be filled to capacity.
@@ -1031,7 +1031,7 @@ public:
      * @param sourceLength length of string to be processed.
      *        If -1, the string is 0 terminated and length will be decided by the
      *        function.
-     * @param result buffer to store result in. If NULL, number of bytes needed
+     * @param result buffer to store result in. If nullptr, number of bytes needed
      *        will be returned.
      * @param resultLength length of the result buffer. If if not enough the
      *        buffer will be filled to capacity.
@@ -1145,7 +1145,7 @@ public:
      *  This is internal, and intended to be used with delegate converters.
      *
      *  @param locale a locale that will appear as a collators locale in the resulting
-     *                short string definition. If NULL, the locale will be harvested
+     *                short string definition. If nullptr, the locale will be harvested
      *                from the collator.
      *  @param buffer space to hold the resulting string
      *  @param capacity capacity of the buffer
@@ -1249,9 +1249,9 @@ public:
 
     /**
      * Return a collator for the provided locale.  If the locale
-     * is not supported, return NULL.
+     * is not supported, return nullptr.
      * @param loc the locale identifying the collator to be created.
-     * @return a new collator if the locale is supported, otherwise NULL.
+     * @return a new collator if the locale is supported, otherwise nullptr.
      * @stable ICU 2.6
      */
     virtual Collator* createCollator(const Locale& loc) = 0;

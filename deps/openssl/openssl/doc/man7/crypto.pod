@@ -116,7 +116,8 @@ algorithm implementations in the default provider.
 
 Property query strings can be specified explicitly as an argument to a function.
 It is also possible to specify a default property query string for the whole
-library context using the L<EVP_set_default_properties(3)> function. Where both
+library context using the L<EVP_set_default_properties(3)> or
+L<EVP_default_properties_enable_fips(3)> functions. Where both
 default properties and function specific properties are specified then they are
 combined. Function specific properties will override default properties where
 there is a conflict.
@@ -164,7 +165,7 @@ functions that use them. For example the L<EVP_DigestInit_ex(3)> function takes
 as a parameter an B<EVP_MD> object which may have been returned from an earlier
 call to L<EVP_MD_fetch(3)>.
 
-=head2 Implicit fetch
+=head2 Implicit fetching
 
 OpenSSL has a number of functions that return an algorithm object with no
 associated implementation, such as L<EVP_sha256(3)>, L<EVP_aes_128_cbc(3)>,
@@ -206,9 +207,72 @@ If anything in this step fails, the next step is used as a fallback.
 
 As a fallback, try to fetch the operation type implementation from the same
 provider as the original L<EVP_PKEY(3)>'s L<EVP_KEYMGMT(3)>, still using the
-propery string from the B<EVP_PKEY_CTX>.
+property string from the B<EVP_PKEY_CTX>.
 
 =back
+
+=head2 Performance
+
+If you perform the same operation many times then it is recommended to use
+L</Explicit fetching> to prefetch an algorithm once initially,
+and then pass this created object to any operations that are currently
+using L</Implicit fetching>.
+See an example of Explicit fetching in L</USING ALGORITHMS IN APPLICATIONS>.
+
+Prior to OpenSSL 3.0, constant method tables (such as EVP_sha256()) were used
+directly to access methods. If you pass one of these convenience functions
+to an operation the fixed methods are ignored, and only the name is used to
+internally fetch methods from a provider.
+
+If the prefetched object is not passed to operations, then any implicit
+fetch will use the internally cached prefetched object, but it will
+still be slower than passing the prefetched object directly.
+
+Fetching via a provider offers more flexibility, but it is slower than the
+old method, since it must search for the algorithm in all loaded providers,
+and then populate the method table using provider supplied methods.
+Internally OpenSSL caches similar algorithms on the first fetch
+(so loading a digest caches all digests).
+
+The following methods can be used for prefetching:
+
+=over 4
+
+=item L<EVP_MD_fetch(3)>
+
+=item L<EVP_CIPHER_fetch(3)>
+
+=item L<EVP_KDF_fetch(3)>
+
+=item L<EVP_MAC_fetch(3)>
+
+=item L<EVP_KEM_fetch(3)>
+
+=item L<OSSL_ENCODER_fetch(3)>
+
+=item L<OSSL_DECODER_fetch(3)>
+
+=item L<EVP_RAND_fetch(3)>
+
+=back
+
+The following methods are used internally when performing operations:
+
+=over 4
+
+=item L<EVP_KEYMGMT_fetch(3)>
+
+=item L<EVP_KEYEXCH_fetch(3)>
+
+=item L<EVP_SIGNATURE_fetch(3)>
+
+=item L<OSSL_STORE_LOADER_fetch(3)>
+
+=back
+
+See L<OSSL_PROVIDER-default(7)>, <OSSL_PROVIDER-fips(7)> and
+<OSSL_PROVIDER-legacy(7)>for a list of algorithm names that
+can be fetched.
 
 =head1 FETCHING EXAMPLES
 
@@ -367,7 +431,7 @@ Most of these follow a common pattern. A "context" object is first created. For
 example for a digest operation you would use an B<EVP_MD_CTX>, and for an
 encryption/decryption operation you would use an B<EVP_CIPHER_CTX>. The
 operation is then initialised ready for use via an "init" function - optionally
-passing in a set of parameters (using the B<OSSL_PARAM> type) to configure how
+passing in a set of parameters (using the L<OSSL_PARAM(3)> type) to configure how
 the operation should behave. Next data is fed into the operation in a series of
 "update" calls. The operation is finalised using a "final" call which will
 typically provide some kind of output. Finally the context is cleaned up and
@@ -404,6 +468,8 @@ encryption/decryption, signatures, message authentication codes, etc.
       * we're not supplying any particular search criteria for our SHA256
       * implementation (second NULL parameter). Any SHA256 implementation will
       * do.
+      * In a larger application this fetch would just be done once, and could
+      * be used for multiple calls to other operations such as EVP_DigestInit_ex().
       */
      sha256 = EVP_MD_fetch(NULL, "SHA256", NULL);
      if (sha256 == NULL)
@@ -504,7 +570,7 @@ L<openssl-glossary(7)>, L<provider(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

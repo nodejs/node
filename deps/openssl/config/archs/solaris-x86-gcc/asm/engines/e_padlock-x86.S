@@ -76,6 +76,8 @@ padlock_key_bswap:
 
 	movl	4(%esp),%edx
 	movl	240(%edx),%ecx
+	incl	%ecx
+	shll	$2,%ecx
 .L003bswap_loop:
 	movl	(%edx),%eax
 	bswap	%eax

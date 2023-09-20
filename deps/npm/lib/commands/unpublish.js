@@ -2,11 +2,9 @@ const libaccess = require('libnpmaccess')
 const libunpub = require('libnpmpublish').unpublish
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
-const path = require('path')
-const util = require('util')
-const readJson = util.promisify(require('read-package-json'))
+const pkgJson = require('@npmcli/package-json')
 
-const { flatten } = require('../utils/config/index.js')
+const { flatten } = require('@npmcli/config/lib/definitions')
 const getIdentity = require('../utils/get-identity.js')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
@@ -21,32 +19,36 @@ class Unpublish extends BaseCommand {
   static name = 'unpublish'
   static params = ['dry-run', 'force', 'workspace', 'workspaces']
   static usage = ['[<package-spec>]']
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
-  async getKeysOfVersions (name, opts) {
+  static async getKeysOfVersions (name, opts) {
     const pkgUri = npa(name).escapedName
-    const json = await npmFetch.json(`${pkgUri}?write=true`, opts)
+    const json = await npmFetch.json(`${pkgUri}?write=true`, {
+      ...opts,
+      spec: name,
+    })
     return Object.keys(json.versions)
   }
 
-  async completion (args) {
+  static async completion (args, npm) {
     const { partialWord, conf } = args
 
     if (conf.argv.remain.length >= 3) {
       return []
     }
 
-    const opts = { ...this.npm.flatOptions }
-    const username = await getIdentity(this.npm, { ...opts }).catch(() => null)
+    const opts = { ...npm.flatOptions }
+    const username = await getIdentity(npm, { ...opts }).catch(() => null)
     if (!username) {
       return []
     }
 
-    const access = await libaccess.lsPackages(username, opts)
+    const access = await libaccess.getPackages(username, opts)
     // do a bit of filtering at this point, so that we don't need
     // to fetch versions for more than one thing, but also don't
     // accidentally unpublish a whole project
-    let pkgs = Object.keys(access || {})
+    let pkgs = Object.keys(access)
     if (!partialWord || !pkgs.length) {
       return pkgs
     }
@@ -92,8 +94,8 @@ class Unpublish extends BaseCommand {
     let manifest
     let manifestErr
     try {
-      const pkgJson = path.join(this.npm.localPrefix, 'package.json')
-      manifest = await readJson(pkgJson)
+      const { content } = await pkgJson.prepare(this.npm.localPrefix)
+      manifest = content
     } catch (err) {
       manifestErr = err
     }
@@ -103,7 +105,7 @@ class Unpublish extends BaseCommand {
       if (manifest && manifest.name === spec.name && manifest.publishConfig) {
         flatten(manifest.publishConfig, opts)
       }
-      const versions = await this.getKeysOfVersions(spec.name, opts)
+      const versions = await Unpublish.getKeysOfVersions(spec.name, opts)
       if (versions.length === 1 && !force) {
         throw this.usageError(LAST_REMAINING_VERSION_ERROR)
       }
@@ -130,15 +132,15 @@ class Unpublish extends BaseCommand {
     }
 
     if (!dryRun) {
-      await otplease(this.npm, opts, opts => libunpub(spec, opts))
+      await otplease(this.npm, opts, o => libunpub(spec, o))
     }
     if (!silent) {
       this.npm.output(`- ${pkgName}${pkgVersion}`)
     }
   }
 
-  async execWorkspaces (args, filters) {
-    await this.setWorkspaces(filters)
+  async execWorkspaces (args) {
+    await this.setWorkspaces()
 
     const force = this.npm.config.get('force')
     if (!force) {

@@ -356,9 +356,21 @@ export class Resizer {
     if (rangeGrid) {
       const yAxis = (this.ranges.getElementsByClassName("range-y-axis")[0] as HTMLElement);
       const rangeHeader = (this.ranges.getElementsByClassName("range-header")[0] as HTMLElement);
+      const rangeTitle = (this.ranges.getElementsByClassName("range-title-div")[0] as HTMLElement);
 
-      const gridWidth = rangeWidth - yAxis.clientWidth;
-      rangeGrid.style.width = `${Math.floor(gridWidth - 1)}px`;
+      let gridWidth = rangeWidth - yAxis.clientWidth;
+
+      if (this.ranges.classList.contains("flipped")) {
+        const rangeRegisters =
+                          (this.ranges.getElementsByClassName("range-registers")[0] as HTMLElement);
+        if (rangeRegisters.offsetWidth + C.FLIPPED_REGISTER_WIDTH_BUFFER < gridWidth) {
+          gridWidth = Math.floor(rangeRegisters.offsetWidth + rangeGrid.offsetWidth
+                                 - rangeGrid.clientWidth + C.FLIPPED_REGISTER_WIDTH_BUFFER);
+        }
+      }
+
+      rangeTitle.style.width = `${rangeWidth}px`;
+      rangeGrid.style.width = `${gridWidth - 1}px`;
       // Take live ranges' right scrollbar into account.
       rangeHeader.style.width =
         `${(gridWidth - rangeGrid.offsetWidth + rangeGrid.clientWidth - 1)}px`;
@@ -366,9 +378,10 @@ export class Resizer {
       this.resizerRanges.style("height",
         inLandscapeMode ? `${resizerSize}px` : `${clientHeight}px`);
 
-      const rangeTitle = (this.ranges.getElementsByClassName("range-title-div")[0] as HTMLElement);
-      const rangeHeaderLabel = (this.ranges.getElementsByClassName("range-header-label-x")[0] as HTMLElement);
-      const gridHeight = rangeHeight - rangeHeader.clientHeight - rangeTitle.clientHeight - rangeHeaderLabel.clientHeight;
+      const rangeHeaderLabel =
+                    (this.ranges.getElementsByClassName("range-header-label-x")[0] as HTMLElement);
+      const gridHeight = rangeHeight - rangeHeader.clientHeight
+                         - rangeTitle.clientHeight - rangeHeaderLabel.clientHeight;
       rangeGrid.style.height = `${gridHeight}px`;
       // Take live ranges' bottom scrollbar into account.
       yAxis.style.height = `${(gridHeight - rangeGrid.offsetHeight + rangeGrid.clientHeight)}px`;

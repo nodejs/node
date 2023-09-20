@@ -28,12 +28,12 @@ B<openssl> B<storeutl>
 [B<-fingerprint> I<arg>]
 [B<-I<digest>>]
 {- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_provider_synopsis -}
-I<uri> ...
+I<uri>
 
 =head1 DESCRIPTION
 
 This command can be used to display the contents (after
-decryption as the case may be) fetched from the given URIs.
+decryption as the case may be) fetched from the given URI.
 
 =head1 OPTIONS
 
@@ -75,6 +75,9 @@ Fetch objects recursively when possible.
 Only select the certificates, keys or CRLs from the given URI.
 However, if this URI would return a set of names (URIs), those are always
 returned.
+
+Note that all options must be given before the I<uri> argument.
+Otherwise they are ignored.
 
 =item B<-subject> I<arg>
 
@@ -134,7 +137,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

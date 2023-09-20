@@ -152,7 +152,22 @@
 #define INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)
 #endif  // V8_INTL_SUPPORT
 
-#define INTERNALIZED_STRING_LIST_GENERATOR(V, _)                     \
+// Internalized strings to be allocated early on the read only heap and early in
+// the roots table. Used to give this string a RootIndex < 32.
+#define EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
+  V(_, empty_string, "")
+
+// Internalized strings to be allocated early on the read only heap
+#define IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
+  V(_, length_string, "length")                            \
+  V(_, prototype_string, "prototype")                      \
+  V(_, name_string, "name")                                \
+  V(_, enumerable_string, "enumerable")                    \
+  V(_, configurable_string, "configurable")                \
+  V(_, value_string, "value")                              \
+  V(_, writable_string, "writable")
+
+#define NOT_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _)       \
   INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)                      \
   V(_, add_string, "add")                                            \
   V(_, AggregateError_string, "AggregateError")                      \
@@ -197,7 +212,6 @@
   V(_, code_string, "code")                                          \
   V(_, column_string, "column")                                      \
   V(_, computed_string, "<computed>")                                \
-  V(_, configurable_string, "configurable")                          \
   V(_, conjunction_string, "conjunction")                            \
   V(_, console_string, "console")                                    \
   V(_, constrain_string, "constrain")                                \
@@ -218,6 +232,7 @@
   V(_, default_string, "default")                                    \
   V(_, defineProperty_string, "defineProperty")                      \
   V(_, deleteProperty_string, "deleteProperty")                      \
+  V(_, detached_string, "detached")                                  \
   V(_, disjunction_string, "disjunction")                            \
   V(_, done_string, "done")                                          \
   V(_, dot_brand_string, ".brand")                                   \
@@ -235,7 +250,6 @@
   V(_, dotAll_string, "dotAll")                                      \
   V(_, Error_string, "Error")                                        \
   V(_, EvalError_string, "EvalError")                                \
-  V(_, enumerable_string, "enumerable")                              \
   V(_, element_string, "element")                                    \
   V(_, epochMicroseconds_string, "epochMicroseconds")                \
   V(_, epochMilliseconds_string, "epochMilliseconds")                \
@@ -305,7 +319,6 @@
   V(_, keys_string, "keys")                                          \
   V(_, largestUnit_string, "largestUnit")                            \
   V(_, lastIndex_string, "lastIndex")                                \
-  V(_, length_string, "length")                                      \
   V(_, let_string, "let")                                            \
   V(_, line_string, "line")                                          \
   V(_, linear_string, "linear")                                      \
@@ -332,7 +345,6 @@
   V(_, monthsInYear_string, "monthsInYear")                          \
   V(_, monthCode_string, "monthCode")                                \
   V(_, multiline_string, "multiline")                                \
-  V(_, name_string, "name")                                          \
   V(_, NaN_string, "NaN")                                            \
   V(_, nanosecond_string, "nanosecond")                              \
   V(_, nanoseconds_string, "nanoseconds")                            \
@@ -352,6 +364,7 @@
   V(_, Object_string, "Object")                                      \
   V(_, object_string, "object")                                      \
   V(_, object_to_string, "[object Object]")                          \
+  V(_, Object_prototype_string, "Object.prototype")                  \
   V(_, of_string, "of")                                              \
   V(_, offset_string, "offset")                                      \
   V(_, offsetNanoseconds_string, "offsetNanoseconds")                \
@@ -368,7 +381,6 @@
   V(_, private_constructor_string, "#constructor")                   \
   V(_, Promise_string, "Promise")                                    \
   V(_, proto_string, "__proto__")                                    \
-  V(_, prototype_string, "prototype")                                \
   V(_, proxy_string, "proxy")                                        \
   V(_, Proxy_string, "Proxy")                                        \
   V(_, query_colon_string, "(?:)")                                   \
@@ -415,6 +427,7 @@
   V(_, string_string, "string")                                      \
   V(_, string_to_string, "[object String]")                          \
   V(_, Symbol_iterator_string, "Symbol.iterator")                    \
+  V(_, Symbol_replace_string, "Symbol.replace")                      \
   V(_, symbol_species_string, "[Symbol.species]")                    \
   V(_, Symbol_species_string, "Symbol.species")                      \
   V(_, Symbol_string, "Symbol")                                      \
@@ -442,7 +455,6 @@
   V(_, unit_string, "unit")                                          \
   V(_, URIError_string, "URIError")                                  \
   V(_, UTC_string, "UTC")                                            \
-  V(_, value_string, "value")                                        \
   V(_, valueOf_string, "valueOf")                                    \
   V(_, WeakMap_string, "WeakMap")                                    \
   V(_, WeakRef_string, "WeakRef")                                    \
@@ -451,57 +463,67 @@
   V(_, weeks_string, "weeks")                                        \
   V(_, weekOfYear_string, "weekOfYear")                              \
   V(_, word_string, "word")                                          \
-  V(_, writable_string, "writable")                                  \
   V(_, yearMonthFromFields_string, "yearMonthFromFields")            \
   V(_, year_string, "year")                                          \
   V(_, years_string, "years")                                        \
   V(_, zero_string, "0")
 
-#define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)         \
-  V(_, array_buffer_wasm_memory_symbol)             \
-  V(_, call_site_info_symbol)                       \
-  V(_, console_context_id_symbol)                   \
-  V(_, console_context_name_symbol)                 \
-  V(_, class_fields_symbol)                         \
-  V(_, class_positions_symbol)                      \
-  V(_, elements_transition_symbol)                  \
-  V(_, error_end_pos_symbol)                        \
-  V(_, error_script_symbol)                         \
-  V(_, error_stack_symbol)                          \
-  V(_, error_start_pos_symbol)                      \
-  V(_, frozen_symbol)                               \
-  V(_, interpreter_trampoline_symbol)               \
-  V(_, mega_dom_symbol)                             \
-  V(_, megamorphic_symbol)                          \
-  V(_, native_context_index_symbol)                 \
-  V(_, nonextensible_symbol)                        \
-  V(_, not_mapped_symbol)                           \
-  V(_, promise_debug_marker_symbol)                 \
-  V(_, promise_debug_message_symbol)                \
-  V(_, promise_forwarding_handler_symbol)           \
-  V(_, promise_handled_by_symbol)                   \
-  V(_, promise_awaited_by_symbol)                   \
-  V(_, regexp_result_names_symbol)                  \
-  V(_, regexp_result_regexp_input_symbol)           \
-  V(_, regexp_result_regexp_last_index_symbol)      \
-  V(_, sealed_symbol)                               \
-  V(_, strict_function_transition_symbol)           \
-  V(_, template_literal_function_literal_id_symbol) \
-  V(_, template_literal_slot_id_symbol)             \
-  V(_, wasm_exception_tag_symbol)                   \
-  V(_, wasm_exception_values_symbol)                \
-  V(_, wasm_uncatchable_symbol)                     \
-  V(_, wasm_wrapped_object_symbol)                  \
-  V(_, wasm_debug_proxy_cache_symbol)               \
-  V(_, wasm_debug_proxy_names_symbol)               \
-  V(_, uninitialized_symbol)
+#define INTERNALIZED_STRING_LIST_GENERATOR(V, _)           \
+  EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
+  IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _)       \
+  NOT_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _)
+
+// Symbols to be allocated early on the read only heap
+#define IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _) \
+  V(_, not_mapped_symbol)                             \
+  V(_, uninitialized_symbol)                          \
+  V(_, megamorphic_symbol)                            \
+  V(_, elements_transition_symbol)                    \
+  V(_, mega_dom_symbol)
+
+#define NOT_IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _) \
+  V(_, array_buffer_wasm_memory_symbol)                   \
+  V(_, call_site_info_symbol)                             \
+  V(_, console_context_id_symbol)                         \
+  V(_, console_context_name_symbol)                       \
+  V(_, class_fields_symbol)                               \
+  V(_, class_positions_symbol)                            \
+  V(_, error_end_pos_symbol)                              \
+  V(_, error_script_symbol)                               \
+  V(_, error_stack_symbol)                                \
+  V(_, error_start_pos_symbol)                            \
+  V(_, frozen_symbol)                                     \
+  V(_, interpreter_trampoline_symbol)                     \
+  V(_, native_context_index_symbol)                       \
+  V(_, nonextensible_symbol)                              \
+  V(_, promise_debug_marker_symbol)                       \
+  V(_, promise_debug_message_symbol)                      \
+  V(_, promise_forwarding_handler_symbol)                 \
+  V(_, promise_handled_by_symbol)                         \
+  V(_, promise_awaited_by_symbol)                         \
+  V(_, regexp_result_names_symbol)                        \
+  V(_, regexp_result_regexp_input_symbol)                 \
+  V(_, regexp_result_regexp_last_index_symbol)            \
+  V(_, sealed_symbol)                                     \
+  V(_, strict_function_transition_symbol)                 \
+  V(_, template_literal_function_literal_id_symbol)       \
+  V(_, template_literal_slot_id_symbol)                   \
+  V(_, wasm_exception_tag_symbol)                         \
+  V(_, wasm_exception_values_symbol)                      \
+  V(_, wasm_uncatchable_symbol)                           \
+  V(_, wasm_wrapped_object_symbol)                        \
+  V(_, wasm_debug_proxy_cache_symbol)                     \
+  V(_, wasm_debug_proxy_names_symbol)
+
+#define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)     \
+  IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _) \
+  NOT_IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _)
 
 #define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)                \
   V(_, async_iterator_symbol, Symbol.asyncIterator)       \
   V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
   V(_, match_all_symbol, Symbol.matchAll)                 \
   V(_, match_symbol, Symbol.match)                        \
-  V(_, replace_symbol, Symbol.replace)                    \
   V(_, search_symbol, Symbol.search)                      \
   V(_, split_symbol, Symbol.split)                        \
   V(_, to_primitive_symbol, Symbol.toPrimitive)           \
@@ -523,11 +545,12 @@
   V(_, resolve_string, "resolve")                              \
   V(_, then_string, "then")
 
-// Note that the descriptioon string should be part of the internalized
+// Note that the description string should be part of the internalized
 // string roots to make sure we don't accidentally end up allocating the
 // description in between the symbols during deserialization.
 #define SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, iterator_symbol, Symbol.iterator)          \
+  V(_, replace_symbol, Symbol.replace)            \
   V(_, species_symbol, Symbol.species)
 
 #define WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
@@ -568,11 +591,12 @@
   MINOR_INCREMENTAL_SCOPES(F)                        \
   F(HEAP_EMBEDDER_TRACING_EPILOGUE)                  \
   F(HEAP_EPILOGUE)                                   \
-  F(HEAP_EPILOGUE_ADJUST_NEW_SPACE)                  \
+  F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
   F(HEAP_EPILOGUE_SAFEPOINT)                         \
   F(HEAP_EXTERNAL_EPILOGUE)                          \
   F(HEAP_EXTERNAL_NEAR_HEAP_LIMIT)                   \
   F(HEAP_EXTERNAL_PROLOGUE)                          \
+  F(HEAP_EXTERNAL_SECOND_PASS_CALLBACKS)             \
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
   F(HEAP_PROLOGUE)                                   \
   F(HEAP_PROLOGUE_SAFEPOINT)                         \
@@ -627,32 +651,28 @@
   F(MC_SWEEP_NEW_LO)                                 \
   F(MC_SWEEP_OLD)                                    \
   F(MC_SWEEP_SHARED)                                 \
+  F(MC_SWEEP_SHARED_LO)                              \
   F(MINOR_MARK_COMPACTOR)                            \
   F(MINOR_MC)                                        \
   TOP_MINOR_MC_SCOPES(F)                             \
+  F(MINOR_MC_CLEAR_STRING_FORWARDING_TABLE)          \
   F(MINOR_MC_CLEAR_STRING_TABLE)                     \
+  F(MINOR_MC_CLEAR_WEAK_GLOBAL_HANDLES)              \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)           \
   F(MINOR_MC_COMPLETE_SWEEPING)                      \
-  F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
-  F(MINOR_MC_EVACUATE_COPY)                          \
-  F(MINOR_MC_EVACUATE_COPY_PARALLEL)                 \
-  F(MINOR_MC_EVACUATE_EPILOGUE)                      \
-  F(MINOR_MC_EVACUATE_PROLOGUE)                      \
-  F(MINOR_MC_EVACUATE_REBALANCE)                     \
-  F(MINOR_MC_EVACUATE_UPDATE_POINTERS)               \
-  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL)      \
-  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS)         \
-  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK)          \
-  F(MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS)             \
-  F(MINOR_MC_MARK_GLOBAL_HANDLES)                    \
   F(MINOR_MC_MARK_FINISH_INCREMENTAL)                \
   F(MINOR_MC_MARK_PARALLEL)                          \
   F(MINOR_MC_MARK_SEED)                              \
   F(MINOR_MC_MARK_ROOTS)                             \
   F(MINOR_MC_MARK_CLOSURE_PARALLEL)                  \
   F(MINOR_MC_MARK_CLOSURE)                           \
+  F(MINOR_MC_MARK_EMBEDDER_PROLOGUE)                 \
+  F(MINOR_MC_MARK_EMBEDDER_TRACING)                  \
   F(MINOR_MC_SWEEP_NEW)                              \
   F(MINOR_MC_SWEEP_NEW_LO)                           \
+  F(MINOR_MC_SWEEP_UPDATE_STRING_TABLE)              \
+  F(MINOR_MC_SWEEP_START_JOBS)                       \
+  F(MINOR_MC_FINISH_ENSURE_CAPACITY)                 \
   F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
@@ -671,35 +691,37 @@
   F(TIME_TO_GLOBAL_SAFEPOINT)                        \
   F(TIME_TO_SAFEPOINT)                               \
   F(UNMAPPER)                                        \
-  F(UNPARK)
+  F(UNPARK)                                          \
+  F(YOUNG_ARRAY_BUFFER_SWEEP)                        \
+  F(FULL_ARRAY_BUFFER_SWEEP)
 
-#define TRACER_BACKGROUND_SCOPES(F)               \
-  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)          \
-  F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)           \
-  F(BACKGROUND_COLLECTION)                        \
-  F(BACKGROUND_UNMAPPER)                          \
-  F(BACKGROUND_UNPARK)                            \
-  F(BACKGROUND_SAFEPOINT)                         \
-  F(MC_BACKGROUND_EVACUATE_COPY)                  \
-  F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS)       \
-  F(MC_BACKGROUND_MARKING)                        \
-  F(MC_BACKGROUND_SWEEPING)                       \
-  F(MINOR_MC_BACKGROUND_EVACUATE_COPY)            \
-  F(MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
-  F(MINOR_MC_BACKGROUND_MARKING)                  \
-  F(MINOR_MC_BACKGROUND_SWEEPING)                 \
+#define TRACER_BACKGROUND_SCOPES(F)         \
+  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
+  F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)     \
+  F(BACKGROUND_COLLECTION)                  \
+  F(BACKGROUND_UNMAPPER)                    \
+  F(BACKGROUND_UNPARK)                      \
+  F(BACKGROUND_SAFEPOINT)                   \
+  F(MC_BACKGROUND_EVACUATE_COPY)            \
+  F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
+  F(MC_BACKGROUND_MARKING)                  \
+  F(MC_BACKGROUND_SWEEPING)                 \
+  F(MINOR_MC_BACKGROUND_EVACUATE_COPY)      \
+  F(MINOR_MC_BACKGROUND_MARKING)            \
+  F(MINOR_MC_BACKGROUND_SWEEPING)           \
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
 
-#define TRACER_YOUNG_EPOCH_SCOPES(F)              \
-  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)          \
-  F(MINOR_MARK_COMPACTOR)                         \
-  F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)        \
-  F(MINOR_MC_BACKGROUND_EVACUATE_COPY)            \
-  F(MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
-  F(MINOR_MC_BACKGROUND_MARKING)                  \
-  F(MINOR_MC_BACKGROUND_SWEEPING)                 \
-  F(SCAVENGER)                                    \
-  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)       \
+#define TRACER_YOUNG_EPOCH_SCOPES(F)        \
+  F(YOUNG_ARRAY_BUFFER_SWEEP)               \
+  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
+  F(MINOR_MARK_COMPACTOR)                   \
+  F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)  \
+  F(MINOR_MC_COMPLETE_SWEEPING)             \
+  F(MINOR_MC_BACKGROUND_EVACUATE_COPY)      \
+  F(MINOR_MC_BACKGROUND_MARKING)            \
+  F(MINOR_MC_BACKGROUND_SWEEPING)           \
+  F(SCAVENGER)                              \
+  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL) \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)
 
 #endif  // V8_INIT_HEAP_SYMBOLS_H_

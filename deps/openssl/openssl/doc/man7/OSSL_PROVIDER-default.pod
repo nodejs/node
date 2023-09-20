@@ -71,6 +71,8 @@ The OpenSSL default provider supports these operations and algorithms:
 
 =item RIPEMD160, see L<EVP_MD-RIPEMD160(7)>
 
+=item NULL, see L<EVP_MD-NULL(7)>
+
 =back
 
 =head2 Symmetric Ciphers
@@ -92,6 +94,8 @@ The OpenSSL default provider supports these operations and algorithms:
 =item ChaCha20, see L<EVP_CIPHER-CHACHA(7)>
 
 =item ChaCha20-Poly1305, see L<EVP_CIPHER-CHACHA(7)>
+
+=item NULL, see L<EVP_CIPHER-NULL(7)>
 
 =back
 
@@ -216,6 +220,22 @@ The OpenSSL default provider supports these operations and algorithms:
 
 =back
 
+=head2 Random Number Generation
+
+=over 4
+
+=item CTR-DRBG, see L<EVP_RAND-CTR-DRBG(7)>
+
+=item HASH-DRBG, see L<EVP_RAND-HASH-DRBG(7)>
+
+=item HMAC-DRBG, see L<EVP_RAND-HMAC-DRBG(7)>
+
+=item SEED-SRC,  see L<EVP_RAND-SEED-SRC(7)>
+
+=item TEST-RAND, see L<EVP_RAND-TEST-RAND(7)>
+
+=back
+
 =head2 Asymmetric Key Encoder
 
 The default provider also includes all of the encoding algorithms
@@ -247,9 +267,11 @@ L<OSSL_PROVIDER-base(7)>
 
 The RIPEMD160 digest was added to the default provider in OpenSSL 3.0.7.
 
+All other functionality was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

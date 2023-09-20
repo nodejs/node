@@ -28,7 +28,8 @@ export class ScheduleView extends TextView {
   public initializeContent(schedule: SchedulePhase, rememberedSelection: SelectionStorage): void {
     this.divNode.innerHTML = "";
     this.schedule = schedule;
-    this.addBlocks(schedule.data.blocks);
+    this.clearSelectionMaps();
+    this.addBlocks(schedule.data.blocksRpo);
     this.show();
     if (rememberedSelection) {
       const adaptedSelection = this.adaptSelection(rememberedSelection);
@@ -37,8 +38,8 @@ export class ScheduleView extends TextView {
   }
 
   public detachSelection(): SelectionStorage {
-    return new SelectionStorage(this.nodeSelection.detachSelection(),
-      this.blockSelection.detachSelection());
+    return new SelectionStorage(this.nodeSelections.current.detachSelection(),
+      this.blockSelections.current.detachSelection());
   }
 
   public adaptSelection(selection: SelectionStorage): SelectionStorage {
@@ -62,7 +63,7 @@ export class ScheduleView extends TextView {
         select.push(node.id);
       }
     }
-    this.nodeSelectionHandler.select(select, true);
+    this.nodeSelectionHandler.select(select, true, false);
   }
 
   private addBlocks(blocks: Array<ScheduleBlock>) {
@@ -74,10 +75,11 @@ export class ScheduleView extends TextView {
 
   private attachSelection(adaptedSelection: SelectionStorage): void {
     if (!(adaptedSelection instanceof SelectionStorage)) return;
-    this.nodeSelectionHandler.clear();
     this.blockSelectionHandler.clear();
-    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true);
-    this.blockSelectionHandler.select(adaptedSelection.adaptedBocks, true);
+    this.nodeSelectionHandler.clear();
+    this.blockSelectionHandler.select(
+                Array.from(adaptedSelection.adaptedBocks).map(block => Number(block)), true, true);
+    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true, true);
   }
 
   private createElementForBlock(block: ScheduleBlock): HTMLElement {
@@ -85,15 +87,15 @@ export class ScheduleView extends TextView {
     scheduleBlock.classList.toggle("deferred", block.deferred);
 
     const [start, end] = this.sourceResolver.instructionsPhase
-      .getInstructionRangeForBlock(block.id);
+      .getInstructionRangeForBlock(block.rpo);
     const instrMarker = this.createElement("div", "instr-marker com", "&#8857;");
     instrMarker.setAttribute("title", `Instructions range for this block is [${start}, ${end})`);
-    instrMarker.onclick = this.mkBlockLinkHandler(block.id);
+    instrMarker.onclick = this.mkBlockLinkHandler(block.rpo);
     scheduleBlock.appendChild(instrMarker);
 
-    const blockId = this.createElement("div", "block-id com clickable", String(block.id));
-    blockId.onclick = this.mkBlockLinkHandler(block.id);
-    scheduleBlock.appendChild(blockId);
+    const blocksRpoId = this.createElement("div", "block-id com clickable", String(block.rpo) + " Id:" + String(block.id));
+    blocksRpoId.onclick = this.mkBlockLinkHandler(block.rpo);
+    scheduleBlock.appendChild(blocksRpoId);
     const blockPred = this.createElement("div", "predecessor-list block-list comma-sep-list");
     for (const pred of block.predecessors) {
       const predEl = this.createElement("div", "block-id com clickable", String(pred));
@@ -114,7 +116,7 @@ export class ScheduleView extends TextView {
       blockSucc.appendChild(succEl);
     }
     if (block.successors.length) scheduleBlock.appendChild(blockSucc);
-    this.addHtmlElementForBlockId(block.id, scheduleBlock);
+    this.addHtmlElementForBlockId(block.rpo, scheduleBlock);
     return scheduleBlock;
   }
 
@@ -156,7 +158,7 @@ export class ScheduleView extends TextView {
       if (!e.shiftKey) {
         view.blockSelectionHandler.clear();
       }
-      view.blockSelectionHandler.select([blockId], true);
+      view.blockSelectionHandler.select([blockId], true, false);
     };
   }
 
@@ -167,7 +169,7 @@ export class ScheduleView extends TextView {
       if (!e.shiftKey) {
         view.nodeSelectionHandler.clear();
       }
-      view.nodeSelectionHandler.select([nodeId], true);
+      view.nodeSelectionHandler.select([nodeId], true, false);
     };
   }
 

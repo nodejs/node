@@ -5,7 +5,7 @@ const { File } = require('buffer');
 const bench = common.createBenchmark(main, {
   bytes: [128, 1024, 1024 ** 2],
   n: [1e6],
-  operation: ['text', 'arrayBuffer']
+  operation: ['text', 'arrayBuffer'],
 });
 
 const options = {

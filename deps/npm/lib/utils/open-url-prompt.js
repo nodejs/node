@@ -1,5 +1,5 @@
 const readline = require('readline')
-const opener = require('opener')
+const promiseSpawn = require('@npmcli/promise-spawn')
 
 function print (npm, title, url) {
   const json = npm.config.get('json')
@@ -64,15 +64,7 @@ const promptOpen = async (npm, url, title, prompt, emitter) => {
   }
 
   const command = browser === true ? null : browser
-  await new Promise((resolve, reject) => {
-    opener(url, { command }, err => {
-      if (err) {
-        return reject(err)
-      }
-
-      return resolve()
-    })
-  })
+  await promiseSpawn.open(url, { command })
 }
 
 module.exports = promptOpen

@@ -18,7 +18,7 @@ Running test: prototypeChainMustBeCorrect
 true
 
 Running test: consoleToString
-[object Object]
+[object console]
 
 Running test: consoleMethodPropertyDescriptor
 {

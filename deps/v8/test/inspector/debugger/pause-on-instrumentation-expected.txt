@@ -8,3 +8,9 @@ Resumed.
 Paused at foo.js with reason "other".
 Resumed.
 Done.
+
+Running test: testInstrumentationRemoveDuringInstrumentationPause
+Paused at  with reason "instrumentation".
+Removed instrumentation breakpoint
+Resumed
+Evaluation result: 42

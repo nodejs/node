@@ -63,6 +63,13 @@
 #  include <windows.h>
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
+/* To aid with linking against a static c-ares build, lets tell the microsoft
+ * compiler to pull in needed dependencies */
+#  ifdef _MSC_VER
+#    pragma comment(lib, "ws2_32")
+#    pragma comment(lib, "advapi32")
+#    pragma comment(lib, "iphlpapi")
+#  endif
 #else
 #  include <sys/socket.h>
 #  include <netinet/in.h>
@@ -168,6 +175,7 @@ extern "C" {
 #define ARES_OPT_EDNSPSZ        (1 << 15)
 #define ARES_OPT_NOROTATE       (1 << 16)
 #define ARES_OPT_RESOLVCONF     (1 << 17)
+#define ARES_OPT_HOSTS_FILE     (1 << 18)
 
 /* Nameinfo flag values */
 #define ARES_NI_NOFQDN                  (1 << 0)
@@ -277,6 +285,7 @@ struct ares_options {
   int nsort;
   int ednspsz;
   char *resolvconf_path;
+  char *hosts_path;
 };
 
 struct hostent;

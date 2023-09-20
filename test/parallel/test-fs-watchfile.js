@@ -30,7 +30,7 @@ assert.throws(() => {
   fs.watchFile(new Object(), common.mustNotCall());
 }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
 
-const enoentFile = path.join(tmpdir.path, 'non-existent-file');
+const enoentFile = tmpdir.resolve('non-existent-file');
 const expectedStatObject = new fs.Stats(
   0,                                        // dev
   0,                                        // mode
@@ -85,7 +85,7 @@ watcher.on('stop', common.mustCall());
 // Watch events should callback with a filename on supported systems.
 // Omitting AIX. It works but not reliably.
 if (common.isLinux || common.isOSX || common.isWindows) {
-  const dir = path.join(tmpdir.path, 'watch');
+  const dir = tmpdir.resolve('watch');
 
   fs.mkdir(dir, common.mustCall(function(err) {
     if (err) assert.fail(err);

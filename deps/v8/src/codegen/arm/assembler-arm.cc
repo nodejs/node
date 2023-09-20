@@ -553,13 +553,13 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
-  // raw workflow to create Code objects (mostly in tests), add another Align
-  // call here. It does no harm - the end of the Code object is aligned to the
-  // (larger) kCodeAlignment anyways.
+  // raw workflow to create InstructionStream objects (mostly in tests), add
+  // another Align call here. It does no harm - the end of the InstructionStream
+  // object is aligned to the (larger) kCodeAlignment anyways.
   // TODO(jgruber): Consider moving responsibility for proper alignment to
   // metadata table builders (safepoint, handler, constant pool, code
   // comments).
-  DataAlign(Code::kMetadataAlignment);
+  DataAlign(InstructionStream::kMetadataAlignment);
 
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
@@ -831,7 +831,8 @@ void Assembler::target_at_put(int pos, int target_pos) {
     //      orr dst, dst, #target8_1 << 8
     //      orr dst, dst, #target8_2 << 16
 
-    uint32_t target24 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
+    uint32_t target24 =
+        target_pos + (InstructionStream::kHeaderSize - kHeapObjectTag);
     CHECK(is_uint24(target24));
     if (is_uint8(target24)) {
       // If the target fits in a byte then only patch with a mov
@@ -1444,10 +1445,6 @@ int Assembler::branch_offset(Label* L) {
     L->link_to(pc_offset());
   }
 
-  // Block the emission of the constant pool, since the branch instruction must
-  // be emitted at the pc offset recorded by the label.
-  if (!is_const_pool_blocked()) BlockConstPoolFor(1);
-
   return target_pos - (pc_offset() + Instruction::kPcLoadDelta);
 }
 
@@ -1458,6 +1455,11 @@ void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
   int imm24 = branch_offset >> 2;
   const bool b_imm_check = is_int24(imm24);
   CHECK(b_imm_check);
+
+  // Block the emission of the constant pool before the next instruction.
+  // Otherwise the passed-in branch offset would be off.
+  BlockConstPoolFor(1);
+
   emit(cond | B27 | B25 | (imm24 & kImm24Mask));
 
   if (cond == al) {
@@ -1472,6 +1474,11 @@ void Assembler::bl(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
   int imm24 = branch_offset >> 2;
   const bool bl_imm_check = is_int24(imm24);
   CHECK(bl_imm_check);
+
+  // Block the emission of the constant pool before the next instruction.
+  // Otherwise the passed-in branch offset would be off.
+  BlockConstPoolFor(1);
+
   emit(cond | B27 | B25 | B24 | (imm24 & kImm24Mask));
 }
 
@@ -1481,6 +1488,11 @@ void Assembler::blx(int branch_offset) {
   int imm24 = branch_offset >> 2;
   const bool blx_imm_check = is_int24(imm24);
   CHECK(blx_imm_check);
+
+  // Block the emission of the constant pool before the next instruction.
+  // Otherwise the passed-in branch offset would be off.
+  BlockConstPoolFor(1);
+
   emit(kSpecialCondition | B27 | B25 | h | (imm24 & kImm24Mask));
 }
 
@@ -1624,7 +1636,8 @@ void Assembler::mov(Register dst, Register src, SBit s, Condition cond) {
 
 void Assembler::mov_label_offset(Register dst, Label* label) {
   if (label->is_bound()) {
-    mov(dst, Operand(label->pos() + (Code::kHeaderSize - kHeapObjectTag)));
+    mov(dst, Operand(label->pos() +
+                     (InstructionStream::kHeaderSize - kHeapObjectTag)));
   } else {
     // Emit the link to the label in the code stream followed by extra nop
     // instructions.
@@ -5241,7 +5254,8 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
+                  InstructionStream());
   reloc_info_writer.Write(&rinfo);
 }
 

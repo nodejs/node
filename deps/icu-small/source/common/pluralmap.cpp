@@ -36,7 +36,7 @@ PluralMapBase::toCategory(const UnicodeString &pluralForm) {
 const char *PluralMapBase::getCategoryName(Category c) {
     int32_t index = c;
     return (index < 0 || index >= UPRV_LENGTHOF(gPluralForms)) ?
-            NULL : gPluralForms[index];
+            nullptr : gPluralForms[index];
 }
 
 

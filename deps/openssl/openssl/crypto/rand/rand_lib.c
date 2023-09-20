@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -96,6 +96,7 @@ void ossl_rand_cleanup_int(void)
     CRYPTO_THREAD_lock_free(rand_meth_lock);
     rand_meth_lock = NULL;
 # endif
+    ossl_release_default_drbg_ctx();
     rand_inited = 0;
 }
 
@@ -119,6 +120,8 @@ void RAND_keep_random_devices_open(int keep)
  */
 int RAND_poll(void)
 {
+    static const char salt[] = "polling";
+
 # ifndef OPENSSL_NO_DEPRECATED_3_0
     const RAND_METHOD *meth = RAND_get_rand_method();
     int ret = meth == RAND_OpenSSL();
@@ -147,14 +150,12 @@ int RAND_poll(void)
         ret = 1;
      err:
         ossl_rand_pool_free(pool);
+        return ret;
     }
-    return ret;
-# else
-    static const char salt[] = "polling";
+# endif
 
     RAND_seed(salt, sizeof(salt));
     return 1;
-# endif
 }
 
 # ifndef OPENSSL_NO_DEPRECATED_3_0
@@ -271,7 +272,13 @@ void RAND_add(const void *buf, int num, double randomness)
 # endif
     drbg = RAND_get0_primary(NULL);
     if (drbg != NULL && num > 0)
+# ifdef OPENSSL_RAND_SEED_NONE
+        /* Without an entropy source, we have to rely on the user */
+        EVP_RAND_reseed(drbg, 0, buf, num, NULL, 0);
+# else
+        /* With an entropy source, we downgrade this to additional input */
         EVP_RAND_reseed(drbg, 0, NULL, 0, buf, num);
+# endif
 }
 
 # if !defined(OPENSSL_NO_DEPRECATED_1_1_0)
@@ -469,7 +476,7 @@ static void *rand_ossl_ctx_new(OSSL_LIB_CTX *libctx)
     return NULL;
 }
 
-static void rand_ossl_ctx_free(void *vdgbl)
+void ossl_rand_ctx_free(void *vdgbl)
 {
     RAND_GLOBAL *dgbl = vdgbl;
 
@@ -494,7 +501,7 @@ static void rand_ossl_ctx_free(void *vdgbl)
 static const OSSL_LIB_CTX_METHOD rand_drbg_ossl_ctx_method = {
     OSSL_LIB_CTX_METHOD_PRIORITY_2,
     rand_ossl_ctx_new,
-    rand_ossl_ctx_free,
+    ossl_rand_ctx_free,
 };
 
 static RAND_GLOBAL *rand_get_global(OSSL_LIB_CTX *libctx)

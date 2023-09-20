@@ -203,7 +203,7 @@ AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   GotoIf(TaggedIsSmi(iter_result), &if_notanobject);
 
   const TNode<Map> iter_result_map = LoadMap(CAST(iter_result));
-  GotoIfNot(IsJSReceiverMap(iter_result_map), &if_notanobject);
+  GotoIfNot(JSAnyIsNotPrimitiveMap(iter_result_map), &if_notanobject);
 
   const TNode<Object> fast_iter_result_map =
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);

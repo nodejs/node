@@ -70,35 +70,35 @@ assert.throws(() => {
     (err) => {
       assert.strictEqual(err, value);
       return true;
-    }
+    },
   ));
 
 assert.throws(
   () => test_error.throwErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'Error [error]'
+    message: 'Error [error]',
   });
 
 assert.throws(
   () => test_error.throwRangeErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'RangeError [range error]'
+    message: 'RangeError [range error]',
   });
 
 assert.throws(
   () => test_error.throwTypeErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'TypeError [type error]'
+    message: 'TypeError [type error]',
   });
 
 assert.throws(
   () => test_error.throwSyntaxErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'SyntaxError [syntax error]'
+    message: 'SyntaxError [syntax error]',
   });
 
 let error = test_error.createError();

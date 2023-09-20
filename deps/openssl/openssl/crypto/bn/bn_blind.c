@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -191,7 +191,8 @@ int BN_BLINDING_invert_ex(BIGNUM *n, const BIGNUM *r, BN_BLINDING *b,
             n->top = (int)(rtop & ~mask) | (ntop & mask);
             n->flags |= (BN_FLG_FIXED_TOP & ~mask);
         }
-        ret = BN_mod_mul_montgomery(n, n, r, b->m_ctx, ctx);
+        ret = bn_mul_mont_fixed_top(n, n, r, b->m_ctx, ctx);
+        bn_correct_top_consttime(n);
     } else {
         ret = BN_mod_mul(n, n, r, b->mod, ctx);
     }

@@ -56,9 +56,10 @@ def run(fuzz_file, flag_file):
   cmd = ' '.join(args)
   try:
     output = subprocess.check_output(cmd, stderr=subprocess.PIPE, shell=True)
-    return (cmd, output)
+    return (cmd, output.decode('utf-8'))
   except Exception as e:
-    return (cmd, e.output)
+    return (cmd, e.output.decode('utf-8'))
+
 
 def list_tests():
   """Iterates all fuzz tests and corresponding flags in the given base dir."""

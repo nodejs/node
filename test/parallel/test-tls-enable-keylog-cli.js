@@ -6,7 +6,6 @@ const fixtures = require('../common/fixtures');
 // Test --tls-keylog CLI flag.
 
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 const { fork } = require('child_process');
 
@@ -15,7 +14,7 @@ if (process.argv[2] === 'test')
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
-const file = path.resolve(tmpdir.path, 'keylog.log');
+const file = tmpdir.resolve('keylog.log');
 
 const child = fork(__filename, ['test'], {
   execArgv: ['--tls-keylog=' + file]

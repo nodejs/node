@@ -298,13 +298,6 @@
       './config/archs/VC-WIN32/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/VC-WIN32/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/VC-WIN32/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/VC-WIN32/asm/crypto/bn/bn-586.asm',
-      './config/archs/VC-WIN32/asm/crypto/bn/co-586.asm',
-      './config/archs/VC-WIN32/asm/crypto/bn/x86-gf2m.asm',
-      './config/archs/VC-WIN32/asm/crypto/bn/x86-mont.asm',
-      './config/archs/VC-WIN32/asm/crypto/des/crypt586.asm',
-      './config/archs/VC-WIN32/asm/crypto/des/des-586.asm',
-      './config/archs/VC-WIN32/asm/crypto/md5/md5-586.asm',
 
     ],
     'openssl_defines_VC-WIN32': [

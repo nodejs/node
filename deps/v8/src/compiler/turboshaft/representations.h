@@ -83,7 +83,7 @@ class RegisterRepresentation {
     }
   }
 
-  bool IsFloat() {
+  constexpr bool IsFloat() {
     switch (*this) {
       case Enum::kFloat32:
       case Enum::kFloat64:
@@ -180,10 +180,12 @@ class RegisterRepresentation {
   static constexpr Enum kInvalid = static_cast<Enum>(-1);
 };
 
-V8_INLINE bool operator==(RegisterRepresentation a, RegisterRepresentation b) {
+V8_INLINE constexpr bool operator==(RegisterRepresentation a,
+                                    RegisterRepresentation b) {
   return a.value() == b.value();
 }
-V8_INLINE bool operator!=(RegisterRepresentation a, RegisterRepresentation b) {
+V8_INLINE constexpr bool operator!=(RegisterRepresentation a,
+                                    RegisterRepresentation b) {
   return a.value() != b.value();
 }
 
@@ -344,6 +346,14 @@ class MemoryRepresentation {
   static constexpr MemoryRepresentation SandboxedPointer() {
     return MemoryRepresentation(Enum::kSandboxedPointer);
   }
+  static constexpr MemoryRepresentation PointerSized() {
+    if constexpr (kSystemPointerSize == 4) {
+      return Uint32();
+    } else {
+      DCHECK_EQ(kSystemPointerSize, 8);
+      return Uint64();
+    }
+  }
 
   bool IsWord() const {
     switch (*this) {
@@ -456,6 +466,19 @@ class MemoryRepresentation {
     }
   }
 
+  // The required register representation for storing a value. When pointer
+  // compression is enabled, we only store the lower 32bit of a tagged value,
+  // which we indicate as `RegisterRepresentation::Compressed()` here.
+  RegisterRepresentation ToRegisterRepresentationForStore() const {
+    RegisterRepresentation result = ToRegisterRepresentation();
+#ifdef V8_COMPRESS_POINTERS
+    if (result == RegisterRepresentation::Tagged()) {
+      result = RegisterRepresentation::Compressed();
+    }
+#endif
+    return result;
+  }
+
   MachineType ToMachineType() const {
     switch (*this) {
       case Int8():
@@ -503,6 +526,10 @@ class MemoryRepresentation {
         return TaggedSigned();
       case MachineRepresentation::kTaggedPointer:
         return TaggedPointer();
+      case MachineRepresentation::kMapWord:
+        // Turboshaft does not support map packing.
+        DCHECK(!V8_MAP_PACKING_BOOL);
+        return TaggedPointer();
       case MachineRepresentation::kTagged:
         return AnyTagged();
       case MachineRepresentation::kFloat32:
@@ -512,7 +539,6 @@ class MemoryRepresentation {
       case MachineRepresentation::kSandboxedPointer:
         return SandboxedPointer();
       case MachineRepresentation::kNone:
-      case MachineRepresentation::kMapWord:
       case MachineRepresentation::kBit:
       case MachineRepresentation::kSimd128:
       case MachineRepresentation::kSimd256:
@@ -556,27 +582,31 @@ class MemoryRepresentation {
     }
   }
 
-  uint8_t SizeInBytes() const {
+  constexpr uint8_t SizeInBytes() const {
+    return uint8_t{1} << SizeInBytesLog2();
+  }
+
+  constexpr uint8_t SizeInBytesLog2() const {
     switch (*this) {
       case Int8():
       case Uint8():
-        return 1;
+        return 0;
       case Int16():
       case Uint16():
-        return 2;
+        return 1;
       case Int32():
       case Uint32():
       case Float32():
-        return 4;
+        return 2;
       case Int64():
       case Uint64():
       case Float64():
       case SandboxedPointer():
-        return 8;
+        return 3;
       case AnyTagged():
       case TaggedPointer():
       case TaggedSigned():
-        return kTaggedSize;
+        return kTaggedSizeLog2;
     }
   }
 

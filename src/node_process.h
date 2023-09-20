@@ -10,12 +10,12 @@
 namespace node {
 
 class Environment;
+class IsolateData;
 class MemoryTracker;
 class ExternalReferenceRegistry;
 class Realm;
 
-v8::MaybeLocal<v8::Object> CreateEnvVarProxy(v8::Local<v8::Context> context,
-                                             v8::Isolate* isolate);
+void CreateEnvProxyTemplate(v8::Isolate* isolate, IsolateData* isolate_data);
 
 // Most of the time, it's best to use `console.error` to write
 // to the process.stderr stream.  However, in some cases, such as
@@ -48,17 +48,16 @@ void PatchProcessObject(const v8::FunctionCallbackInfo<v8::Value>& args);
 namespace process {
 class BindingData : public SnapshotableObject {
  public:
-  void AddMethods();
+  static void AddMethods(v8::Isolate* isolate,
+                         v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   using InternalFieldInfo = InternalFieldInfoBase;
 
   SERIALIZABLE_OBJECT_METHODS()
-  static constexpr FastStringKey type_name{"node::process::BindingData"};
-  static constexpr EmbedderObjectType type_int =
-      EmbedderObjectType::k_process_binding_data;
+  SET_BINDING_ID(process_binding_data)
 
-  BindingData(Environment* env, v8::Local<v8::Object> object);
+  BindingData(Realm* realm, v8::Local<v8::Object> object);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(BindingData)

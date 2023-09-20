@@ -5,4 +5,4 @@
 var args = (function(a) { return arguments; })(1,2,3);
 delete args[1];
 args[Symbol.isConcatSpreadable] = true;
-assertEquals([1, void 0, 3, 1, void 0, 3], [].concat(args, args));
+assertEquals([1, , 3, 1, , 3], [].concat(args, args));

@@ -925,8 +925,8 @@ changes:
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
-    as stdin to the spawned process. Supplying this value will override
-    `stdio[0]`.
+    as stdin to the spawned process. If `stdio[0]` is set to `'pipe'`, Supplying
+    this value will override `stdio[0]`.
   * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
@@ -995,8 +995,8 @@ changes:
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
-    as stdin to the spawned process. Supplying this value will override
-    `stdio[0]`.
+    as stdin to the spawned process. If `stdio[0]` is set to `'pipe'`, Supplying
+    this value will override `stdio[0]`.
   * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
@@ -1071,11 +1071,11 @@ changes:
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
-    as stdin to the spawned process. Supplying this value will override
-    `stdio[0]`.
+    as stdin to the spawned process. If `stdio[0]` is set to `'pipe'`, Supplying
+    this value will override `stdio[0]`.
   * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
     process. This will be set to `command` if not specified.
-  * `stdio` {string|Array} Child's stdio configuration.
+  * `stdio` {string|Array} Child's stdio configuration. **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
@@ -1186,9 +1186,10 @@ property is `false`.
 
 The `'error'` event is emitted whenever:
 
-1. The process could not be spawned, or
-2. The process could not be killed, or
-3. Sending a message to the child process failed.
+* The process could not be spawned.
+* The process could not be killed.
+* Sending a message to the child process failed.
+* The child process was aborted via the `signal` option.
 
 The `'exit'` event may or may not fire after an error has occurred. When
 listening to both the `'exit'` and `'error'` events, guard
@@ -1400,6 +1401,18 @@ setTimeout(() => {
   subprocess.kill(); // Does not terminate the Node.js process in the shell.
 }, 2000);
 ```
+
+### `subprocess[Symbol.dispose]()`
+
+<!-- YAML
+added:
+ - v20.5.0
+ - v18.18.0
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`subprocess.kill()`][] with `'SIGTERM'`.
 
 ### `subprocess.killed`
 

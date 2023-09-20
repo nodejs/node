@@ -69,6 +69,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   const keybuf = randomBytes(32);
   const key = createSecretKey(keybuf);
   assert.strictEqual(key.type, 'secret');
+  assert.strictEqual(key.toString(), '[object KeyObject]');
   assert.strictEqual(key.symmetricKeySize, 32);
   assert.strictEqual(key.asymmetricKeyType, undefined);
   assert.strictEqual(key.asymmetricKeyDetails, undefined);
@@ -150,27 +151,32 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 
   const publicKey = createPublicKey(publicPem);
   assert.strictEqual(publicKey.type, 'public');
+  assert.strictEqual(publicKey.toString(), '[object KeyObject]');
   assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(publicKey.symmetricKeySize, undefined);
 
   const privateKey = createPrivateKey(privatePem);
   assert.strictEqual(privateKey.type, 'private');
+  assert.strictEqual(privateKey.toString(), '[object KeyObject]');
   assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
 
   // It should be possible to derive a public key from a private key.
   const derivedPublicKey = createPublicKey(privateKey);
   assert.strictEqual(derivedPublicKey.type, 'public');
+  assert.strictEqual(derivedPublicKey.toString(), '[object KeyObject]');
   assert.strictEqual(derivedPublicKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(derivedPublicKey.symmetricKeySize, undefined);
 
   const publicKeyFromJwk = createPublicKey({ key: publicJwk, format: 'jwk' });
   assert.strictEqual(publicKey.type, 'public');
+  assert.strictEqual(publicKey.toString(), '[object KeyObject]');
   assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(publicKey.symmetricKeySize, undefined);
 
   const privateKeyFromJwk = createPrivateKey({ key: jwk, format: 'jwk' });
   assert.strictEqual(privateKey.type, 'private');
+  assert.strictEqual(privateKey.toString(), '[object KeyObject]');
   assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
 

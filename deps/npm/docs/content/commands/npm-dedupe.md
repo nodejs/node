@@ -77,27 +77,45 @@ values in `package.json` you can run: `npm update --save` instead.
 
 ### Configuration
 
-#### `global-style`
+#### `install-strategy`
 
-* Default: false
-* Type: Boolean
+* Default: "hoisted"
+* Type: "hoisted", "nested", "shallow", or "linked"
 
-Causes npm to install the package into your local `node_modules` folder with
-the same layout it uses with the global `node_modules` folder. Only your
-direct dependencies will show in `node_modules` and everything they depend
-on will be flattened in their `node_modules` folders. This obviously will
-eliminate some deduping. If used with `legacy-bundling`, `legacy-bundling`
-will be preferred.
+Sets the strategy for installing packages in node_modules. hoisted
+(default): Install non-duplicated in top-level, and duplicated as necessary
+within directory structure. nested: (formerly --legacy-bundling) install in
+place, no hoisting. shallow (formerly --global-style) only install direct
+deps at top-level. linked: (experimental) install in node_modules/.store,
+link in place, unhoisted.
+
+
 
 #### `legacy-bundling`
 
 * Default: false
 * Type: Boolean
+* DEPRECATED: This option has been deprecated in favor of
+  `--install-strategy=nested`
 
-Causes npm to install the package such that versions of npm prior to 1.4,
-such as the one included with node 0.8, can install the package. This
-eliminates all automatic deduping. If used with `global-style` this option
-will be preferred.
+Instead of hoisting package installs in `node_modules`, install packages in
+the same manner that they are depended on. This may cause very deep
+directory structures and duplicate package installs as there is no
+de-duplicating. Sets `--install-strategy=nested`.
+
+
+
+#### `global-style`
+
+* Default: false
+* Type: Boolean
+* DEPRECATED: This option has been deprecated in favor of
+  `--install-strategy=shallow`
+
+Only install direct dependencies in the top level `node_modules`, but hoist
+on deeper dependencies. Sets `--install-strategy=shallow`.
+
+
 
 #### `strict-peer-deps`
 
@@ -114,9 +132,11 @@ be resolved using the nearest non-peer dependency specification, even if
 doing so will result in some packages receiving a peer dependency outside
 the range set in their package's `peerDependencies` object.
 
-When such and override is performed, a warning is printed, explaining the
+When such an override is performed, a warning is printed, explaining the
 conflict and the packages involved. If `--strict-peer-deps` is set, then
 this warning is treated as a failure.
+
+
 
 #### `package-lock`
 
@@ -126,7 +146,7 @@ this warning is treated as a failure.
 If set to false, then ignore `package-lock.json` files when installing. This
 will also prevent _writing_ `package-lock.json` if `save` is true.
 
-This configuration does not affect `npm ci`.
+
 
 #### `omit`
 
@@ -146,6 +166,8 @@ it will be included.
 If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
 variable will be set to `'production'` for all lifecycle scripts.
 
+
+
 #### `ignore-scripts`
 
 * Default: false
@@ -158,6 +180,8 @@ Note that commands explicitly intended to run a particular script, such as
 will still run their intended script if `ignore-scripts` is set, but they
 will *not* run any pre- or post-scripts.
 
+
+
 #### `audit`
 
 * Default: true
@@ -167,6 +191,8 @@ When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes. See the
 documentation for [`npm audit`](/commands/npm-audit) for details on what is
 submitted.
+
+
 
 #### `bin-links`
 
@@ -180,6 +206,8 @@ Set to false to have it not do this. This can be used to work around the
 fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.
 
+
+
 #### `fund`
 
 * Default: true
@@ -188,6 +216,8 @@ systems.
 When "true" displays the message at the end of each `npm install`
 acknowledging the number of dependencies looking for funding. See [`npm
 fund`](/commands/npm-fund) for details.
+
+
 
 #### `dry-run`
 
@@ -201,6 +231,8 @@ commands that modify your local installation, eg, `install`, `update`,
 
 Note: This is NOT honored by other network related commands, eg `dist-tags`,
 `owner`, etc.
+
+
 
 #### `workspace`
 
@@ -260,9 +292,11 @@ This value is not exported to the environment for child processes.
 * Default: false
 * Type: Boolean
 
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.
+
+
 
 ### See Also
 

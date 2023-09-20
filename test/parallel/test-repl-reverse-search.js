@@ -7,7 +7,6 @@ const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const { inspect } = require('util');
 
 common.skipIfDumbTerminal();
@@ -16,7 +15,7 @@ common.allowGlobals('aaaa');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
+const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 
 // Create an input stream specialized for testing an array of actions
 class ActionStream extends stream.Stream {
@@ -238,8 +237,7 @@ const tests = [
       '2\n',
       '\x1B[1G', '\x1B[0J',
       prompt, '\x1B[3G',
-      '2', '\n// 2', '\x1B[4G', '\x1B[1A',
-      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '2',
       '\nbck-i-search: _', '\x1B[1A', '\x1B[4G',
       '\x1B[3G', '\x1B[0J',
       'Array(100).fill(1)\nbck-i-search: r_', '\x1B[1A', '\x1B[5G',

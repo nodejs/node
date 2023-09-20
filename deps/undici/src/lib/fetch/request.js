@@ -9,7 +9,8 @@ const util = require('../core/util')
 const {
   isValidHTTPToken,
   sameOrigin,
-  normalizeMethod
+  normalizeMethod,
+  makePolicyContainer
 } = require('./util')
 const {
   forbiddenMethods,
@@ -28,10 +29,12 @@ const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./dataURL')
 const { kHeadersList } = require('../core/symbols')
 const assert = require('assert')
+const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('events')
 
-let TransformStream
+let TransformStream = globalThis.TransformStream
 
 const kInit = Symbol('init')
+const kAbortController = Symbol('abortController')
 
 const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
   signal.removeEventListener('abort', abort)
@@ -50,10 +53,14 @@ class Request {
     input = webidl.converters.RequestInfo(input)
     init = webidl.converters.RequestInit(init)
 
-    // TODO
+    // https://html.spec.whatwg.org/multipage/webappapis.html#environment-settings-object
     this[kRealm] = {
       settingsObject: {
-        baseUrl: getGlobalOrigin()
+        baseUrl: getGlobalOrigin(),
+        get origin () {
+          return this.baseUrl?.origin
+        },
+        policyContainer: makePolicyContainer()
       }
     }
 
@@ -122,12 +129,12 @@ class Request {
     }
 
     // 10. If init["window"] exists and is non-null, then throw a TypeError.
-    if (init.window !== undefined && init.window != null) {
+    if (init.window != null) {
       throw new TypeError(`'window' option '${window}' must be null`)
     }
 
     // 11. If init["window"] exists, then set window to "no-window".
-    if (init.window !== undefined) {
+    if ('window' in init) {
       window = 'no-window'
     }
 
@@ -225,14 +232,18 @@ class Request {
         }
 
         // 3. If one of the following is true
-        // parsedReferrer’s cannot-be-a-base-URL is true, scheme is "about",
-        // and path contains a single string "client"
-        // parsedReferrer’s origin is not same origin with origin
+        // - parsedReferrer’s scheme is "about" and path is the string "client"
+        // - parsedReferrer’s origin is not same origin with origin
         // then set request’s referrer to "client".
-        // TODO
-
-        // 4. Otherwise, set request’s referrer to parsedReferrer.
-        request.referrer = parsedReferrer
+        if (
+          (parsedReferrer.protocol === 'about:' && parsedReferrer.hostname === 'client') ||
+          (origin && !sameOrigin(parsedReferrer, this[kRealm].settingsObject.baseUrl))
+        ) {
+          request.referrer = 'client'
+        } else {
+          // 4. Otherwise, set request’s referrer to parsedReferrer.
+          request.referrer = parsedReferrer
+        }
       }
     }
 
@@ -329,6 +340,8 @@ class Request {
 
     // 28. Set this’s signal to a new AbortSignal object with this’s relevant
     // Realm.
+    // TODO: could this be simplified with AbortSignal.any
+    // (https://dom.spec.whatwg.org/#dom-abortsignal-any)
     const ac = new AbortController()
     this[kSignal] = ac.signal
     this[kSignal][kRealm] = this[kRealm]
@@ -348,9 +361,34 @@ class Request {
       if (signal.aborted) {
         ac.abort(signal.reason)
       } else {
-        const abort = () => ac.abort(signal.reason)
-        signal.addEventListener('abort', abort, { once: true })
-        requestFinalizer.register(this, { signal, abort })
+        // Keep a strong ref to ac while request object
+        // is alive. This is needed to prevent AbortController
+        // from being prematurely garbage collected.
+        // See, https://github.com/nodejs/undici/issues/1926.
+        this[kAbortController] = ac
+
+        const acRef = new WeakRef(ac)
+        const abort = function () {
+          const ac = acRef.deref()
+          if (ac !== undefined) {
+            ac.abort(this.reason)
+          }
+        }
+
+        // Third-party AbortControllers may not work with these.
+        // See, https://github.com/nodejs/undici/pull/1910#issuecomment-1464495619.
+        try {
+          // If the max amount of listeners is equal to the default, increase it
+          // This is only available in node >= v19.9.0
+          if (typeof getMaxListeners === 'function' && getMaxListeners(signal) === defaultMaxListeners) {
+            setMaxListeners(100, signal)
+          } else if (getEventListeners(signal, 'abort').length >= defaultMaxListeners) {
+            setMaxListeners(100, signal)
+          }
+        } catch {}
+
+        util.addAbortListener(signal, abort)
+        requestFinalizer.register(ac, { signal, abort })
       }
     }
 
@@ -410,7 +448,7 @@ class Request {
     // non-null, and request’s method is `GET` or `HEAD`, then throw a
     // TypeError.
     if (
-      ((init.body !== undefined && init.body != null) || inputBody != null) &&
+      (init.body != null || inputBody != null) &&
       (request.method === 'GET' || request.method === 'HEAD')
     ) {
       throw new TypeError('Request with GET/HEAD method cannot have body.')
@@ -420,7 +458,7 @@ class Request {
     let initBody = null
 
     // 36. If init["body"] exists and is non-null, then:
-    if (init.body !== undefined && init.body != null) {
+    if (init.body != null) {
       // 1. Let Content-Type be null.
       // 2. Set initBody and Content-Type to the result of extracting
       // init["body"], with keepalive set to request’s keepalive.
@@ -697,12 +735,11 @@ class Request {
     if (this.signal.aborted) {
       ac.abort(this.signal.reason)
     } else {
-      this.signal.addEventListener(
-        'abort',
+      util.addAbortListener(
+        this.signal,
         () => {
           ac.abort(this.signal.reason)
-        },
-        { once: true }
+        }
       )
     }
     clonedRequestObject[kSignal] = ac.signal

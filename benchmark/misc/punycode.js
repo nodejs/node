@@ -35,7 +35,7 @@ const bench = common.createBenchmark(main, {
     'איקו״ם.ישראל.museum',
     '日本.icom.museum',
     'الأردن.icom.museum',
-  ]
+  ],
 });
 
 function usingPunycode(val) {

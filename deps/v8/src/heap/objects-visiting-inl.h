@@ -6,7 +6,6 @@
 #define V8_HEAP_OBJECTS_VISITING_INL_H_
 
 #include "src/base/logging.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects/arguments.h"
@@ -18,6 +17,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/torque-defined-classes.h"
 #include "src/objects/visitors.h"
@@ -90,30 +90,30 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
 }
 
 template <typename ResultType, typename ConcreteVisitor>
-void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
+void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointerIfNeeded(
     HeapObject host) {
-  DCHECK(!host.map_word(kRelaxedLoad).IsForwardingAddress());
-  if (!static_cast<ConcreteVisitor*>(this)->ShouldVisitMapPointer()) return;
+  DCHECK(!host.map_word(cage_base(), kRelaxedLoad).IsForwardingAddress());
+  if constexpr (!ConcreteVisitor::ShouldVisitMapPointer()) return;
   static_cast<ConcreteVisitor*>(this)->VisitMapPointer(host);
 }
 
-#define VISIT(TypeName)                                                        \
-  template <typename ResultType, typename ConcreteVisitor>                     \
-  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(        \
-      Map map, TypeName object) {                                              \
-    ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);            \
-    if (!visitor->ShouldVisit(object)) return ResultType();                    \
-    if (!visitor->AllowDefaultJSObjectVisit()) {                               \
-      DCHECK_WITH_MSG(!map.IsJSObjectMap(),                                    \
-                      "Implement custom visitor for new JSObject subclass in " \
-                      "concurrent marker");                                    \
-    }                                                                          \
-    int size = TypeName::BodyDescriptor::SizeOf(map, object);                  \
-    if (visitor->ShouldVisitMapPointer()) {                                    \
-      visitor->VisitMapPointer(object);                                        \
-    }                                                                          \
-    TypeName::BodyDescriptor::IterateBody(map, object, size, visitor);         \
-    return static_cast<ResultType>(size);                                      \
+#define VISIT(TypeName)                                                      \
+  template <typename ResultType, typename ConcreteVisitor>                   \
+  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(      \
+      Map map, TypeName object) {                                            \
+    ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);          \
+    if (!visitor->ShouldVisit(object)) return ResultType();                  \
+    /* If you see the following DCHECK fail, then the size computation of    \
+     * BodyDescriptor doesn't match the size return via obj.Size(). This is  \
+     * problematic as the GC requires those sizes to match for accounting    \
+     * reasons. The fix likely involves adding a padding field in the object \
+     * defintions. */                                                        \
+    DCHECK_EQ(object.SizeFromMap(map),                                       \
+              TypeName::BodyDescriptor::SizeOf(map, object));                \
+    visitor->VisitMapPointerIfNeeded(object);                                \
+    const int size = TypeName::BodyDescriptor::SizeOf(map, object);          \
+    TypeName::BodyDescriptor::IterateBody(map, object, size, visitor);       \
+    return static_cast<ResultType>(size);                                    \
   }
 TYPED_VISITOR_ID_LIST(VISIT)
 TORQUE_VISITOR_ID_LIST(VISIT)
@@ -131,20 +131,12 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = map.instance_size();
-  if (visitor->ShouldVisitMapPointer()) {
-    visitor->VisitMapPointer(object);
-  }
+  visitor->VisitMapPointerIfNeeded(object);
 #ifdef V8_ENABLE_SANDBOX
   // The following types have external pointers, which must be visited.
-  // TODO(v8:10391) Consider adding custom visitor IDs for these and making this
-  // block not depend on V8_ENABLE_SANDBOX.
-  if (object.IsExternalOneByteString(cage_base())) {
-    ExternalOneByteString::BodyDescriptor::IterateBody(map, object, size,
-                                                       visitor);
-  } else if (object.IsExternalTwoByteString(cage_base())) {
-    ExternalTwoByteString::BodyDescriptor::IterateBody(map, object, size,
-                                                       visitor);
-  } else if (object.IsForeign(cage_base())) {
+  // TODO(v8:10391) Consider adding custom visitor IDs for these and making
+  // this block not depend on V8_ENABLE_SANDBOX.
+  if (object.IsForeign(cage_base())) {
     Foreign::BodyDescriptor::IterateBody(map, object, size, visitor);
   }
 #endif  // V8_ENABLE_SANDBOX
@@ -154,27 +146,14 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectFast(
     Map map, JSObject object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return ResultType();
-  int size = JSObject::FastBodyDescriptor::SizeOf(map, object);
-  if (visitor->ShouldVisitMapPointer()) {
-    visitor->VisitMapPointer(object);
-  }
-  JSObject::FastBodyDescriptor::IterateBody(map, object, size, visitor);
-  return static_cast<ResultType>(size);
+  return VisitJSObjectSubclass<JSObject, JSObject::FastBodyDescriptor>(map,
+                                                                       object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSApiObject(
     Map map, JSObject object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return ResultType();
-  int size = JSObject::BodyDescriptor::SizeOf(map, object);
-  if (visitor->ShouldVisitMapPointer()) {
-    visitor->VisitMapPointer(object);
-  }
-  JSObject::BodyDescriptor::IterateBody(map, object, size, visitor);
-  return static_cast<ResultType>(size);
+  return VisitJSObjectSubclass<JSObject, JSObject::BodyDescriptor>(map, object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
@@ -183,9 +162,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitStruct(
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = map.instance_size();
-  if (visitor->ShouldVisitMapPointer()) {
-    visitor->VisitMapPointer(object);
-  }
+  visitor->VisitMapPointerIfNeeded(object);
   StructBodyDescriptor::IterateBody(map, object, size, visitor);
   return static_cast<ResultType>(size);
 }
@@ -195,10 +172,27 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
     Map map, FreeSpace object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
-  if (visitor->ShouldVisitMapPointer()) {
-    visitor->VisitMapPointer(object);
-  }
+  visitor->VisitMapPointerIfNeeded(object);
   return static_cast<ResultType>(object.size(kRelaxedLoad));
+}
+
+template <typename ResultType, typename ConcreteVisitor>
+template <typename T, typename TBodyDescriptor>
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectSubclass(
+    Map map, T object) {
+  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
+  if (!visitor->ShouldVisit(object)) return 0;
+  visitor->VisitMapPointerIfNeeded(object);
+  const int size = TBodyDescriptor::SizeOf(map, object);
+  const int used_size = map.UsedInstanceSize();
+  DCHECK_LE(used_size, size);
+  DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
+  // It is important to visit only the used field and ignore the slack fields
+  // because the slack fields may be trimmed concurrently. For non-concurrent
+  // visitors this merely is an optimization in that we only visit the actually
+  // used fields.
+  TBodyDescriptor::IterateBody(map, object, used_size, visitor);
+  return size;
 }
 
 template <typename ConcreteVisitor>
@@ -213,24 +207,21 @@ int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map map,
 }
 
 template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitJSApiObject(Map map,
-                                                       JSObject object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  return visitor->VisitJSObject(map, object);
-}
-
-template <typename ConcreteVisitor>
 int NewSpaceVisitor<ConcreteVisitor>::VisitSharedFunctionInfo(
     Map map, SharedFunctionInfo object) {
   UNREACHABLE();
-  return 0;
+}
+
+template <typename ConcreteVisitor>
+int NewSpaceVisitor<ConcreteVisitor>::VisitBytecodeArray(Map map,
+                                                         BytecodeArray object) {
+  UNREACHABLE();
 }
 
 template <typename ConcreteVisitor>
 int NewSpaceVisitor<ConcreteVisitor>::VisitWeakCell(Map map,
                                                     WeakCell weak_cell) {
   UNREACHABLE();
-  return 0;
 }
 
 }  // namespace internal

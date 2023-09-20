@@ -68,6 +68,24 @@ When used with the `npm rm` command, removes the dependency from
 
 Will also prevent writing to `package-lock.json` if set to `false`.
 
+
+
+#### `global`
+
+* Default: false
+* Type: Boolean
+
+Operates in "global" mode, so that packages are installed into the `prefix`
+folder instead of the current working directory. See
+[folders](/configuring-npm/folders) for more on the differences in behavior.
+
+* packages are installed into the `{prefix}/lib/node_modules` folder, instead
+  of the current working directory.
+* bin files are linked to `{prefix}/bin`
+* man pages are linked to `{prefix}/share/man`
+
+
+
 #### `workspace`
 
 * Default:
@@ -126,9 +144,11 @@ This value is not exported to the environment for child processes.
 * Default: false
 * Type: Boolean
 
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.
+
+
 
 ### See Also
 

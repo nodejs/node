@@ -1,10 +1,10 @@
-const Arborist = require('@npmcli/arborist')
-const auditReport = require('npm-audit-report')
+const npmAuditReport = require('npm-audit-report')
 const fetch = require('npm-registry-fetch')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const npa = require('npm-package-arg')
 const pacote = require('pacote')
 const pMap = require('p-map')
+const tufClient = require('@sigstore/tuf')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 const auditError = require('../utils/audit-error.js')
@@ -24,8 +24,8 @@ class VerifySignatures {
     this.missing = []
     this.checkedPackages = new Set()
     this.auditedWithKeysCount = 0
-    this.verifiedCount = 0
-    this.output = []
+    this.verifiedSignatureCount = 0
+    this.verifiedAttestationCount = 0
     this.exitCode = 0
   }
 
@@ -38,7 +38,12 @@ class VerifySignatures {
       throw new Error('found no installed dependencies to audit')
     }
 
-    await Promise.all([...registries].map(registry => this.setKeys({ registry })))
+    const tuf = await tufClient.initTUF({
+      cachePath: this.opts.tufCache,
+      retry: this.opts.retry,
+      timeout: this.opts.timeout,
+    })
+    await Promise.all([...registries].map(registry => this.setKeys({ registry, tuf })))
 
     const progress = log.newItem('verifying registry signatures', edges.size)
     const mapper = async (edge) => {
@@ -60,13 +65,13 @@ class VerifySignatures {
     const hasNoInvalidOrMissing = invalid.length === 0 && missing.length === 0
 
     if (!hasNoInvalidOrMissing) {
-      this.exitCode = 1
+      process.exitCode = 1
     }
 
     if (this.npm.config.get('json')) {
-      this.appendOutput(JSON.stringify({
-        invalid: this.makeJSON(invalid),
-        missing: this.makeJSON(missing),
+      this.npm.output(JSON.stringify({
+        invalid,
+        missing,
       }, null, 2))
       return
     }
@@ -76,52 +81,92 @@ class VerifySignatures {
     const auditedPlural = this.auditedWithKeysCount > 1 ? 's' : ''
     const timing = `audited ${this.auditedWithKeysCount} package${auditedPlural} in ` +
       `${Math.floor(Number(elapsed) / 1e9)}s`
-    this.appendOutput(`${timing}\n`)
+    this.npm.output(timing)
+    this.npm.output('')
 
-    if (this.verifiedCount) {
-      const verifiedBold = this.npm.chalk.bold('verified')
-      const msg = this.verifiedCount === 1 ?
-        `${this.verifiedCount} package has a ${verifiedBold} registry signature\n` :
-        `${this.verifiedCount} packages have ${verifiedBold} registry signatures\n`
-      this.appendOutput(msg)
+    const verifiedBold = this.npm.chalk.bold('verified')
+    if (this.verifiedSignatureCount) {
+      if (this.verifiedSignatureCount === 1) {
+        /* eslint-disable-next-line max-len */
+        this.npm.output(`${this.verifiedSignatureCount} package has a ${verifiedBold} registry signature`)
+      } else {
+        /* eslint-disable-next-line max-len */
+        this.npm.output(`${this.verifiedSignatureCount} packages have ${verifiedBold} registry signatures`)
+      }
+      this.npm.output('')
+    }
+
+    if (this.verifiedAttestationCount) {
+      if (this.verifiedAttestationCount === 1) {
+        /* eslint-disable-next-line max-len */
+        this.npm.output(`${this.verifiedAttestationCount} package has a ${verifiedBold} attestation`)
+      } else {
+        /* eslint-disable-next-line max-len */
+        this.npm.output(`${this.verifiedAttestationCount} packages have ${verifiedBold} attestations`)
+      }
+      this.npm.output('')
     }
 
     if (missing.length) {
       const missingClr = this.npm.chalk.bold(this.npm.chalk.red('missing'))
-      const msg = missing.length === 1 ?
-        `package has a ${missingClr} registry signature` :
-        `packages have ${missingClr} registry signatures`
-      this.appendOutput(
-        `${missing.length} ${msg} but the registry is ` +
-        `providing signing keys:\n`
+      if (missing.length === 1) {
+        /* eslint-disable-next-line max-len */
+        this.npm.output(`1 package has a ${missingClr} registry signature but the registry is providing signing keys:`)
+      } else {
+        /* eslint-disable-next-line max-len */
+        this.npm.output(`${missing.length} packages have ${missingClr} registry signatures but the registry is providing signing keys:`)
+      }
+      this.npm.output('')
+      missing.map(m =>
+        this.npm.output(`${this.npm.chalk.red(`${m.name}@${m.version}`)} (${m.registry})`)
       )
-      this.appendOutput(this.humanOutput(missing))
     }
 
     if (invalid.length) {
+      if (missing.length) {
+        this.npm.output('')
+      }
       const invalidClr = this.npm.chalk.bold(this.npm.chalk.red('invalid'))
-      const msg = invalid.length === 1 ?
-        `${invalid.length} package has an ${invalidClr} registry signature:\n` :
-        `${invalid.length} packages have ${invalidClr} registry signatures:\n`
-      this.appendOutput(
-        `${missing.length ? '\n' : ''}${msg}`
-      )
-      this.appendOutput(this.humanOutput(invalid))
-      const tamperMsg = invalid.length === 1 ?
-        `\nSomeone might have tampered with this package since it was ` +
-        `published on the registry!\n` :
-        `\nSomeone might have tampered with these packages since they where ` +
-        `published on the registry!\n`
-      this.appendOutput(tamperMsg)
+      // We can have either invalid signatures or invalid provenance
+      const invalidSignatures = this.invalid.filter(i => i.code === 'EINTEGRITYSIGNATURE')
+      if (invalidSignatures.length) {
+        if (invalidSignatures.length === 1) {
+          this.npm.output(`1 package has an ${invalidClr} registry signature:`)
+        } else {
+          /* eslint-disable-next-line max-len */
+          this.npm.output(`${invalidSignatures.length} packages have ${invalidClr} registry signatures:`)
+        }
+        this.npm.output('')
+        invalidSignatures.map(i =>
+          this.npm.output(`${this.npm.chalk.red(`${i.name}@${i.version}`)} (${i.registry})`)
+        )
+        this.npm.output('')
+      }
+
+      const invalidAttestations = this.invalid.filter(i => i.code === 'EATTESTATIONVERIFY')
+      if (invalidAttestations.length) {
+        if (invalidAttestations.length === 1) {
+          this.npm.output(`1 package has an ${invalidClr} attestation:`)
+        } else {
+          /* eslint-disable-next-line max-len */
+          this.npm.output(`${invalidAttestations.length} packages have ${invalidClr} attestations:`)
+        }
+        this.npm.output('')
+        invalidAttestations.map(i =>
+          this.npm.output(`${this.npm.chalk.red(`${i.name}@${i.version}`)} (${i.registry})`)
+        )
+        this.npm.output('')
+      }
+
+      if (invalid.length === 1) {
+        /* eslint-disable-next-line max-len */
+        this.npm.output(`Someone might have tampered with this package since it was published on the registry!`)
+      } else {
+        /* eslint-disable-next-line max-len */
+        this.npm.output(`Someone might have tampered with these packages since they were published on the registry!`)
+      }
+      this.npm.output('')
     }
-  }
-
-  appendOutput (...args) {
-    this.output.push(...args.flat())
-  }
-
-  report () {
-    return { report: this.output.join('\n'), exitCode: this.exitCode }
   }
 
   getEdgesOut (nodes, filterSet) {
@@ -148,20 +193,42 @@ class VerifySignatures {
     return { edges, registries }
   }
 
-  async setKeys ({ registry }) {
-    const keys = await fetch.json('/-/npm/v1/keys', {
-      ...this.npm.flatOptions,
-      registry,
-    }).then(({ keys }) => keys.map((key) => ({
-      ...key,
-      pemkey: `-----BEGIN PUBLIC KEY-----\n${key.key}\n-----END PUBLIC KEY-----`,
-    }))).catch(err => {
-      if (err.code === 'E404') {
-        return null
-      } else {
-        throw err
-      }
-    })
+  async setKeys ({ registry, tuf }) {
+    const { host, pathname } = new URL(registry)
+    // Strip any trailing slashes from pathname
+    const regKey = `${host}${pathname.replace(/\/$/, '')}/keys.json`
+    let keys = await tuf.getTarget(regKey)
+      .then((target) => JSON.parse(target))
+      .then(({ keys: ks }) => ks.map((key) => ({
+        ...key,
+        keyid: key.keyId,
+        pemkey: `-----BEGIN PUBLIC KEY-----\n${key.publicKey.rawBytes}\n-----END PUBLIC KEY-----`,
+        expires: key.publicKey.validFor.end || null,
+      }))).catch(err => {
+        if (err.code === 'TUF_FIND_TARGET_ERROR') {
+          return null
+        } else {
+          throw err
+        }
+      })
+
+    // If keys not found in Sigstore TUF repo, fallback to registry keys API
+    if (!keys) {
+      keys = await fetch.json('/-/npm/v1/keys', {
+        ...this.npm.flatOptions,
+        registry,
+      }).then(({ keys: ks }) => ks.map((key) => ({
+        ...key,
+        pemkey: `-----BEGIN PUBLIC KEY-----\n${key.key}\n-----END PUBLIC KEY-----`,
+      }))).catch(err => {
+        if (err.code === 'E404' || err.code === 'E400') {
+          return null
+        } else {
+          throw err
+        }
+      })
+    }
+
     if (keys) {
       this.keys.set(registry, keys)
     }
@@ -242,18 +309,22 @@ class VerifySignatures {
     const {
       _integrity: integrity,
       _signatures,
+      _attestations,
       _resolved: resolved,
     } = await pacote.manifest(`${name}@${version}`, {
       verifySignatures: true,
+      verifyAttestations: true,
       ...this.buildRegistryConfig(registry),
       ...this.npm.flatOptions,
     })
     const signatures = _signatures || []
-    return {
+    const result = {
       integrity,
       signatures,
+      attestations: _attestations,
       resolved,
     }
+    return result
   }
 
   async getVerifiedInfo (edge) {
@@ -276,60 +347,51 @@ class VerifySignatures {
     }
 
     try {
-      const { integrity, signatures, resolved } = await this.verifySignatures(
+      const { integrity, signatures, attestations, resolved } = await this.verifySignatures(
         name, version, registry
       )
 
       // Currently we only care about missing signatures on registries that provide a public key
       // We could make this configurable in the future with a strict/paranoid mode
       if (signatures.length) {
-        this.verifiedCount += 1
+        this.verifiedSignatureCount += 1
       } else if (keys.length) {
         this.missing.push({
-          name,
-          version,
-          location,
-          resolved,
           integrity,
+          location,
+          name,
           registry,
+          resolved,
+          version,
         })
       }
+
+      // Track verified attestations separately to registry signatures, as all
+      // packages on registries with signing keys are expected to have registry
+      // signatures, but not all packages have provenance and publish attestations.
+      if (attestations) {
+        this.verifiedAttestationCount += 1
+      }
     } catch (e) {
-      if (e.code === 'EINTEGRITYSIGNATURE') {
-        const { signature, keyid, integrity, resolved } = e
+      if (e.code === 'EINTEGRITYSIGNATURE' || e.code === 'EATTESTATIONVERIFY') {
         this.invalid.push({
+          code: e.code,
+          message: e.message,
+          integrity: e.integrity,
+          keyid: e.keyid,
+          location,
           name,
+          registry,
+          resolved: e.resolved,
+          signature: e.signature,
+          predicateType: e.predicateType,
           type,
           version,
-          resolved,
-          location,
-          integrity,
-          registry,
-          signature,
-          keyid,
         })
       } else {
         throw e
       }
     }
-  }
-
-  humanOutput (list) {
-    return list.map(v =>
-      `${this.npm.chalk.red(`${v.name}@${v.version}`)} (${v.registry})`
-    ).join('\n')
-  }
-
-  makeJSON (deps) {
-    return deps.map(d => ({
-      name: d.name,
-      version: d.version,
-      location: d.location,
-      resolved: d.resolved,
-      integrity: d.integrity,
-      signature: d.signature,
-      keyid: d.keyid,
-    }))
   }
 }
 
@@ -350,15 +412,16 @@ class Audit extends ArboristWorkspaceCmd {
 
   static usage = ['[fix|signatures]']
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
 
     if (argv.length === 2) {
-      return ['fix']
+      return ['fix', 'signatures']
     }
 
     switch (argv[2]) {
       case 'fix':
+      case 'signatures':
         return []
       default:
         throw Object.assign(new Error(argv[2] + ' not recognized'), {
@@ -377,6 +440,7 @@ class Audit extends ArboristWorkspaceCmd {
 
   async auditAdvisories (args) {
     const reporter = this.npm.config.get('json') ? 'json' : 'detail'
+    const Arborist = require('@npmcli/arborist')
     const opts = {
       ...this.npm.flatOptions,
       audit: true,
@@ -393,7 +457,10 @@ class Audit extends ArboristWorkspaceCmd {
     } else {
       // will throw if there's an error, because this is an audit command
       auditError(this.npm, arb.auditReport)
-      const result = auditReport(arb.auditReport, opts)
+      const result = npmAuditReport(arb.auditReport, {
+        ...opts,
+        chalk: this.npm.chalk,
+      })
       process.exitCode = process.exitCode || result.exitCode
       this.npm.output(result.report)
     }
@@ -409,6 +476,7 @@ class Audit extends ArboristWorkspaceCmd {
     }
 
     log.verbose('loading installed dependencies')
+    const Arborist = require('@npmcli/arborist')
     const opts = {
       ...this.npm.flatOptions,
       path: this.npm.prefix,
@@ -432,9 +500,6 @@ class Audit extends ArboristWorkspaceCmd {
 
     const verify = new VerifySignatures(tree, filterSet, this.npm, { ...opts })
     await verify.run()
-    const result = verify.report()
-    process.exitCode = process.exitCode || result.exitCode
-    this.npm.output(result.report)
   }
 }
 

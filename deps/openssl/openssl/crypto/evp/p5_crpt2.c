@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -159,7 +159,7 @@ int PKCS5_v2_PBE_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
     /* Fixup cipher based on AlgorithmIdentifier */
     if (!EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, en_de))
         goto err;
-    if (EVP_CIPHER_asn1_to_param(ctx, pbe2->encryption->parameter) < 0) {
+    if (EVP_CIPHER_asn1_to_param(ctx, pbe2->encryption->parameter) <= 0) {
         ERR_raise(ERR_LIB_EVP, EVP_R_CIPHER_PARAMETER_ERROR);
         goto err;
     }
@@ -231,13 +231,16 @@ int PKCS5_v2_PBKDF2_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass,
         goto err;
     }
 
+    (void)ERR_set_mark();
     prfmd = prfmd_fetch = EVP_MD_fetch(libctx, OBJ_nid2sn(hmac_md_nid), propq);
     if (prfmd == NULL)
         prfmd = EVP_get_digestbynid(hmac_md_nid);
     if (prfmd == NULL) {
+        (void)ERR_clear_last_mark();
         ERR_raise(ERR_LIB_EVP, EVP_R_UNSUPPORTED_PRF);
         goto err;
     }
+    (void)ERR_pop_to_mark();
 
     if (kdf->salt->type != V_ASN1_OCTET_STRING) {
         ERR_raise(ERR_LIB_EVP, EVP_R_UNSUPPORTED_SALT_TYPE);

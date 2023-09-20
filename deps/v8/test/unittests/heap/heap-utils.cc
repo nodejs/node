@@ -244,7 +244,7 @@ void FillCurrentSemiSpacePage(v8::internal::NewSpace* space,
   // We cannot rely on `space->limit()` to point to the end of the current page
   // in the case where inline allocations are disabled, it actually points to
   // the current allocation pointer.
-  DCHECK_IMPLIES(!space->IsInlineAllocationEnabled(),
+  DCHECK_IMPLIES(!space->heap()->IsInlineAllocationEnabled(),
                  space->limit() == space->top());
   int space_remaining = GetSpaceRemainingOnCurrentSemiSpacePage(space);
   if (space_remaining == 0) return;
@@ -280,6 +280,17 @@ void HeapInternalsBase::FillCurrentPage(
 bool IsNewObjectInCorrectGeneration(HeapObject object) {
   return v8_flags.single_generation ? !i::Heap::InYoungGeneration(object)
                                     : i::Heap::InYoungGeneration(object);
+}
+
+void FinalizeGCIfRunning(Isolate* isolate) {
+  if (!isolate) {
+    return;
+  }
+  auto* heap = isolate->heap();
+  if (heap->incremental_marking()->IsMarking()) {
+    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+    heap->CompleteSweepingFull();
+  }
 }
 
 }  // namespace internal

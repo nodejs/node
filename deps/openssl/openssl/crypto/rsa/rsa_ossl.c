@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -234,6 +234,7 @@ static int rsa_blinding_invert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
      * will only read the modulus from BN_BLINDING. In both cases it's safe
      * to access the blinding without a lock.
      */
+    BN_set_flags(f, BN_FLG_CONSTTIME);
     return BN_BLINDING_invert_ex(f, unblind, b, ctx);
 }
 
@@ -416,6 +417,11 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
         goto err;
     }
 
+    if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
+        if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, rsa->lock,
+                                    rsa->n, ctx))
+            goto err;
+
     if (!(rsa->flags & RSA_FLAG_NO_BLINDING)) {
         blinding = rsa_get_blinding(rsa, &local_blinding, ctx);
         if (blinding == NULL) {
@@ -453,13 +459,6 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
             goto err;
         }
         BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
-
-        if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
-            if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, rsa->lock,
-                                        rsa->n, ctx)) {
-                BN_free(d);
-                goto err;
-            }
         if (!rsa->meth->bn_mod_exp(ret, f, d, rsa->n, ctx,
                                    rsa->_method_mod_n)) {
             BN_free(d);

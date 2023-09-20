@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
     'object', 'nullProtoObject', 'nullProtoLiteralObject', 'storageObject',
     'fakeMap', 'map',
   ],
-  n: [1e6]
+  n: [1e6],
 });
 
 function runObject(n) {
@@ -25,7 +25,7 @@ function runObject(n) {
 }
 
 function runNullProtoObject(n) {
-  const m = Object.create(null);
+  const m = { __proto__: null };
   bench.start();
   for (let i = 0; i < n; i++) {
     m[`i${i}`] = i;
@@ -51,7 +51,7 @@ function runNullProtoLiteralObject(n) {
 }
 
 function StorageObject() {}
-StorageObject.prototype = Object.create(null);
+StorageObject.prototype = { __proto__: null };
 
 function runStorageObject(n) {
   const m = new StorageObject();
@@ -72,7 +72,7 @@ function fakeMap() {
     get(key) { return m[`$${key}`]; },
     set(key, val) { m[`$${key}`] = val; },
     get size() { return Object.keys(m).length; },
-    has(key) { return Object.hasOwn(m, `$${key}`); }
+    has(key) { return Object.hasOwn(m, `$${key}`); },
   };
 }
 

@@ -359,8 +359,6 @@ class MergeDeserializedCodeTest : public DeserializeTest {
       }
     }
 
-    i::ScanStackModeScopeForTesting no_stack_scanning(
-        i_isolate->heap(), i::Heap::ScanStackMode::kNone);
     i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                          i::GarbageCollectionReason::kTesting);
 
@@ -411,6 +409,8 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
     IsolateAndContextScope scope(this);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate->heap());
     ScriptOrigin default_origin(isolate(), NewString(""));
 
     i::Handle<i::WeakFixedArray> original_objects =
@@ -509,8 +509,6 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     // At this point, the original_objects array might still have pointers to
     // some old discarded content, such as UncompiledData from flushed
     // functions. GC again to clear it all out.
-    i::ScanStackModeScopeForTesting no_stack_scanning(
-        i_isolate->heap(), i::Heap::ScanStackMode::kNone);
     i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                          i::GarbageCollectionReason::kTesting);
 
@@ -645,6 +643,9 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate->heap());
+
   ScriptOrigin default_origin(isolate(), NewString(""));
 
   constexpr char kSourceCode[] = "function f() {}";
@@ -727,6 +728,8 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate->heap());
   ScriptOrigin default_origin(isolate(), NewString(""));
 
   constexpr char kSourceCode[] =
@@ -817,6 +820,100 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
       String::NewFromOneByte(isolate(), kFunctionText).ToLocalChecked();
   Local<Value> actual = RunGlobalFunc("f");
   CHECK(expected->StrictEquals(actual));
+}
+
+TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
+      true;
+  constexpr int kSimultaneousScripts = 10;
+  std::vector<std::unique_ptr<v8::ScriptCompiler::CachedData>> cached_data;
+  IsolateAndContextScope scope(this);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  ScriptOrigin default_origin(isolate(), NewString(""));
+
+  // Compile the script for the first time to produce code cache data.
+  {
+    v8::HandleScope handle_scope(isolate());
+    Local<Script> script =
+        Script::Compile(context(), NewString(kSourceCode), &default_origin)
+            .ToLocalChecked();
+    CHECK(!script->Run(context()).IsEmpty());
+
+    // Create a bunch of copies of the code cache data.
+    for (int i = 0; i < kSimultaneousScripts; ++i) {
+      cached_data.emplace_back(
+          ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+    }
+
+    // Age the top-level bytecode so that the Isolate compilation cache will
+    // contain only the Script.
+    i::BytecodeArray bytecode =
+        GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
+    for (int j = 0; j < i::v8_flags.bytecode_old_age; ++j) {
+      bytecode.MakeOlder();
+    }
+  }
+
+  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+                                       i::GarbageCollectionReason::kTesting);
+
+  // A second round of GC is necessary in case incremental marking had already
+  // started before the bytecode was aged.
+  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+                                       i::GarbageCollectionReason::kTesting);
+
+  // Start several background deserializations.
+  std::vector<std::unique_ptr<DeserializeThread>> deserialize_threads;
+  for (int i = 0; i < kSimultaneousScripts; ++i) {
+    deserialize_threads.push_back(std::make_unique<DeserializeThread>(
+        ScriptCompiler::StartConsumingCodeCache(
+            isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                           cached_data[i]->data, cached_data[i]->length,
+                           ScriptCompiler::CachedData::BufferNotOwned))));
+  }
+  for (int i = 0; i < kSimultaneousScripts; ++i) {
+    CHECK(deserialize_threads[i]->Start());
+  }
+  for (int i = 0; i < kSimultaneousScripts; ++i) {
+    deserialize_threads[i]->Join();
+  }
+
+  // Start background merges for all of those simultaneous scripts.
+  std::vector<std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask>> tasks;
+  std::vector<std::unique_ptr<MergeThread>> merge_threads;
+  for (int i = 0; i < kSimultaneousScripts; ++i) {
+    tasks.push_back(deserialize_threads[i]->TakeTask());
+    tasks[i]->SourceTextAvailable(isolate(), NewString(kSourceCode),
+                                  default_origin);
+    CHECK(tasks[i]->ShouldMergeWithExistingScript());
+    merge_threads.push_back(std::make_unique<MergeThread>(tasks[i].get()));
+  }
+  for (int i = 0; i < kSimultaneousScripts; ++i) {
+    CHECK(merge_threads[i]->Start());
+  }
+  for (int i = 0; i < kSimultaneousScripts; ++i) {
+    merge_threads[i]->Join();
+  }
+
+  // Complete compilation of each script on the main thread. The first one will
+  // actually finish its merge; the others will abandon their in-progress merges
+  // and instead use the result from the first script since it will be in the
+  // Isolate compilation cache.
+  i::Handle<i::SharedFunctionInfo> first_script_sfi;
+  for (int i = 0; i < kSimultaneousScripts; ++i) {
+    ScriptCompiler::Source source(NewString(kSourceCode), default_origin,
+                                  cached_data[i].release(), tasks[i].release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    if (i == 0) {
+      first_script_sfi = i::handle(GetSharedFunctionInfo(script), i_isolate);
+    } else {
+      CHECK_EQ(*first_script_sfi, GetSharedFunctionInfo(script));
+    }
+    CHECK(!script->Run(context()).IsEmpty());
+  }
 }
 
 }  // namespace v8

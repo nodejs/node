@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,7 +25,6 @@ const common = require('../common');
 const assert = require('assert');
 const { inspect } = require('util');
 const vm = require('vm');
-const { internalBinding } = require('internal/test/binding');
 const a = assert;
 
 // Disable colored output to prevent color codes from breaking assertion
@@ -727,6 +725,61 @@ assert.throws(
   }
 );
 assert.throws(
+  () => {
+    // This test case checks if `try` left brace without a line break
+    // before the assertion causes any wrong assertion message.
+    // Therefore, don't reformat the following code.
+    // Refs: https://github.com/nodejs/node/issues/30872
+    try { assert.ok(0);   // eslint-disable-line no-useless-catch, brace-style
+    } catch (err) {
+      throw err;
+    }
+  },
+  {
+    code: 'ERR_ASSERTION',
+    constructor: assert.AssertionError,
+    generatedMessage: true,
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert.ok(0)\n'
+  }
+);
+assert.throws(
+  () => {
+    try {
+      throw new Error();
+    // This test case checks if `catch` left brace without a line break
+    // before the assertion causes any wrong assertion message.
+    // Therefore, don't reformat the following code.
+    // Refs: https://github.com/nodejs/node/issues/30872
+    } catch (err) { assert.ok(0); }     // eslint-disable-line no-unused-vars
+  },
+  {
+    code: 'ERR_ASSERTION',
+    constructor: assert.AssertionError,
+    generatedMessage: true,
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert.ok(0)\n'
+  }
+);
+assert.throws(
+  () => {
+    // This test case checks if `function` left brace without a line break
+    // before the assertion causes any wrong assertion message.
+    // Therefore, don't reformat the following code.
+    // Refs: https://github.com/nodejs/node/issues/30872
+    function test() { assert.ok(0);     // eslint-disable-line brace-style
+    }
+    test();
+  },
+  {
+    code: 'ERR_ASSERTION',
+    constructor: assert.AssertionError,
+    generatedMessage: true,
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert.ok(0)\n'
+  }
+);
+assert.throws(
   () => assert(typeof 123n === 'string'),
   {
     code: 'ERR_ASSERTION',
@@ -746,37 +799,6 @@ assert.throws(
     message: 'Symbol(foo)'
   }
 );
-
-{
-  // Test caching.
-  const fs = internalBinding('fs');
-  const tmp = fs.close;
-  fs.close = common.mustCall(tmp, 1);
-  function throwErr() {
-    assert(
-      (Buffer.from('test') instanceof Error)
-    );
-  }
-  assert.throws(
-    () => throwErr(),
-    {
-      code: 'ERR_ASSERTION',
-      constructor: assert.AssertionError,
-      message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
-    }
-  );
-  assert.throws(
-    () => throwErr(),
-    {
-      code: 'ERR_ASSERTION',
-      constructor: assert.AssertionError,
-      message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
-    }
-  );
-  fs.close = tmp;
-}
 
 assert.throws(
   () => {
@@ -921,7 +943,7 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     constructor: assert.AssertionError,
-    message: 'The expression evaluated to a falsy value:\n\n  assert(1 === 2)\n'
+    message: 'false == true'
   }
 );
 assert.throws(

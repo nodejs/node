@@ -57,7 +57,9 @@ new RuleTester({
       {
         code: `
           const { ObjectDefineProperty, Symbol } = primordials;
-          ObjectDefineProperty(o, Symbol.toStringTag, { value: "o" })
+          ObjectDefineProperty(o, Symbol.toStringTag, { value: "o" });
+          const val = Symbol.toStringTag;
+          const { toStringTag } = Symbol;
         `,
         options: [{ name: 'Symbol', ignore: ['toStringTag'] }]
       },

@@ -13,7 +13,7 @@ namespace internal {
 // the owner to the main isolate once the shared isolate is removed.
 SharedObjectConveyorHandles::SharedObjectConveyorHandles(Isolate* isolate)
     : persistent_handles_(
-          isolate->shared_heap_isolate()->NewPersistentHandles()) {}
+          isolate->shared_space_isolate()->NewPersistentHandles()) {}
 
 uint32_t SharedObjectConveyorHandles::Persist(HeapObject shared_object) {
   DCHECK(shared_object.IsShared());

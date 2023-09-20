@@ -7,7 +7,6 @@ const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const { inspect } = require('util');
 
 common.skipIfDumbTerminal();
@@ -18,7 +17,7 @@ tmpdir.refresh();
 process.throwDeprecation = true;
 process.on('warning', common.mustNotCall());
 
-const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
+const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 
 // Create an input stream specialized for testing an array of actions
 class ActionStream extends stream.Stream {
@@ -610,6 +609,24 @@ const tests = [
       '{}\n',
       prompt, ...'Reflect.defineProperty(globalThis, "util", utilDesc)',
       'true\n',
+      prompt,
+    ],
+    clean: false
+  },
+  {
+    // Test that preview should not be removed when pressing ESCAPE key
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      '1+1',
+      ESCAPE,
+      ENTER,
+    ],
+    expected: [
+      prompt, ...'1+1',
+      '\n// 2',
+      '\n// 2',
+      '2\n',
       prompt,
     ],
     clean: false

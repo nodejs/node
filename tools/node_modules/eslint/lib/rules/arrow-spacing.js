@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent spacing before and after the arrow in arrow functions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/arrow-spacing"
+            url: "https://eslint.org/docs/latest/rules/arrow-spacing"
         },
 
         fixable: "whitespace",
@@ -61,7 +61,7 @@ module.exports = {
         rule.before = rule.before !== false;
         rule.after = rule.after !== false;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Get tokens of arrow(`=>`) and before/after arrow.

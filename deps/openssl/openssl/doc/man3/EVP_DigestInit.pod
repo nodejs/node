@@ -207,27 +207,24 @@ See L</PARAMETERS> below for more information.
 
 =item EVP_MD_gettable_params()
 
-Get a constant B<OSSL_PARAM> array that describes the retrievable parameters
-that can be used with EVP_MD_get_params().  See L<OSSL_PARAM(3)> for the
-use of B<OSSL_PARAM> as a parameter descriptor.
+Get a constant L<OSSL_PARAM(3)> array that describes the retrievable parameters
+that can be used with EVP_MD_get_params().
 
 =item EVP_MD_gettable_ctx_params(), EVP_MD_CTX_gettable_params()
 
-Get a constant B<OSSL_PARAM> array that describes the retrievable parameters
+Get a constant L<OSSL_PARAM(3)> array that describes the retrievable parameters
 that can be used with EVP_MD_CTX_get_params().  EVP_MD_gettable_ctx_params()
 returns the parameters that can be retrieved from the algorithm, whereas
 EVP_MD_CTX_gettable_params() returns the parameters that can be retrieved
-in the context's current state.  See L<OSSL_PARAM(3)> for the use of
-B<OSSL_PARAM> as a parameter descriptor.
+in the context's current state.
 
 =item EVP_MD_settable_ctx_params(), EVP_MD_CTX_settable_params()
 
-Get a constant B<OSSL_PARAM> array that describes the settable parameters
+Get a constant L<OSSL_PARAM(3)> array that describes the settable parameters
 that can be used with EVP_MD_CTX_set_params().  EVP_MD_settable_ctx_params()
 returns the parameters that can be set from the algorithm, whereas
 EVP_MD_CTX_settable_params() returns the parameters that can be set in the
-context's current state.  See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM>
-as a parameter descriptor.
+context's current state.
 
 =item EVP_MD_CTX_set_flags(), EVP_MD_CTX_clear_flags(), EVP_MD_CTX_test_flags()
 
@@ -569,6 +566,7 @@ Returns 1 for success or 0 for failure.
 EVP_Digest(),
 EVP_DigestInit_ex2(),
 EVP_DigestInit_ex(),
+EVP_DigestInit(),
 EVP_DigestUpdate(),
 EVP_DigestFinal_ex(),
 EVP_DigestFinalXOF(), and
@@ -589,7 +587,7 @@ Returns 1 if successful or 0 for failure.
 =item EVP_MD_CTX_settable_params(),
 EVP_MD_CTX_gettable_params()
 
-Return an array of constant B<OSSL_PARAM>s, or NULL if there is none
+Return an array of constant L<OSSL_PARAM(3)>s, or NULL if there is none
 to get.
 
 =item EVP_MD_CTX_copy_ex()
@@ -607,7 +605,7 @@ EVP_MD_get_block_size(),
 EVP_MD_CTX_get_size(),
 EVP_MD_CTX_get_block_size()
 
-Returns the digest or block size in bytes.
+Returns the digest or block size in bytes or -1 for failure.
 
 =item EVP_md_null()
 
@@ -642,6 +640,13 @@ are still in common use.
 
 For most applications the I<impl> parameter to EVP_DigestInit_ex() will be
 set to NULL to use the default digest implementation.
+
+Ignoring failure returns of EVP_DigestInit_ex(), EVP_DigestInit_ex2(), or
+EVP_DigestInit() can lead to undefined behavior on subsequent calls
+updating or finalizing the B<EVP_MD_CTX> such as the EVP_DigestUpdate() or
+EVP_DigestFinal() functions. The only valid calls on the B<EVP_MD_CTX>
+when initialization fails are calls that attempt another initialization of
+the context or release the context.
 
 The functions EVP_DigestInit(), EVP_DigestFinal() and EVP_MD_CTX_copy() are
 obsolete but are retained to maintain compatibility with existing code. New
@@ -690,10 +695,26 @@ digest name passed on the command line.
      }
 
      mdctx = EVP_MD_CTX_new();
-     EVP_DigestInit_ex2(mdctx, md, NULL);
-     EVP_DigestUpdate(mdctx, mess1, strlen(mess1));
-     EVP_DigestUpdate(mdctx, mess2, strlen(mess2));
-     EVP_DigestFinal_ex(mdctx, md_value, &md_len);
+     if (!EVP_DigestInit_ex2(mdctx, md, NULL)) {
+         printf("Message digest initialization failed.\n");
+         EVP_MD_CTX_free(mdctx);
+         exit(1);
+     }
+     if (!EVP_DigestUpdate(mdctx, mess1, strlen(mess1))) {
+         printf("Message digest update failed.\n");
+         EVP_MD_CTX_free(mdctx);
+         exit(1);
+     }
+     if (!EVP_DigestUpdate(mdctx, mess2, strlen(mess2))) {
+         printf("Message digest update failed.\n");
+         EVP_MD_CTX_free(mdctx);
+         exit(1);
+     }
+     if (!EVP_DigestFinal_ex(mdctx, md_value, &md_len)) {
+         printf("Message digest finalization failed.\n");
+         EVP_MD_CTX_free(mdctx);
+         exit(1);
+     }
      EVP_MD_CTX_free(mdctx);
 
      printf("Digest is: ");
@@ -763,7 +784,7 @@ in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

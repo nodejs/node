@@ -75,6 +75,8 @@ class TestTypeOfFlags {
   static uint8_t Encode(LiteralFlag literal_flag);
   static LiteralFlag Decode(uint8_t raw_flag);
 
+  static const char* ToString(LiteralFlag literal_flag);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TestTypeOfFlags);
 };

@@ -20,15 +20,17 @@ cmd.create = (entity, opts = {}) => {
   })
 }
 
-cmd.destroy = (entity, opts = {}) => {
+cmd.destroy = async (entity, opts = {}) => {
   const { scope, team } = splitEntity(entity)
   validate('SSO', [scope, team, opts])
   const uri = `/-/team/${eu(scope)}/${eu(team)}`
-  return npmFetch.json(uri, {
+  await npmFetch(uri, {
     ...opts,
     method: 'DELETE',
     scope,
+    ignoreBody: true,
   })
+  return true
 }
 
 cmd.add = (user, entity, opts = {}) => {
@@ -43,16 +45,18 @@ cmd.add = (user, entity, opts = {}) => {
   })
 }
 
-cmd.rm = (user, entity, opts = {}) => {
+cmd.rm = async (user, entity, opts = {}) => {
   const { scope, team } = splitEntity(entity)
   validate('SSO', [scope, team, opts])
   const uri = `/-/team/${eu(scope)}/${eu(team)}/user`
-  return npmFetch.json(uri, {
+  await npmFetch(uri, {
     ...opts,
     method: 'DELETE',
     scope,
     body: { user },
+    ignoreBody: true,
   })
+  return true
 }
 
 cmd.lsTeams = (...args) => cmd.lsTeams.stream(...args).collect()

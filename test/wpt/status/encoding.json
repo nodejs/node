@@ -2,9 +2,6 @@
   "api-basics.any.js": {
     "requires": ["small-icu"]
   },
-  "api-invalid-label.any.js": {
-    "skip": "location is not defined"
-  },
   "textdecoder-fatal-streaming.any.js": {
     "requires": ["small-icu"]
   },
@@ -51,6 +48,9 @@
   "streams/decode-ignore-bom.any.js": {
     "requires": ["small-icu"]
   },
+  "streams/invalid-realm.window.js": {
+    "skip": "document is not defined"
+  },
   "streams/realms.window.js": {
     "skip": "window is not defined"
   },
@@ -91,9 +91,12 @@
     "requires": ["small-icu"]
   },
   "single-byte-decoder.window.js": {
-    "skip": "location is not defined"
+    "skip": "document is not defined"
   },
   "textdecoder-eof.any.js": {
     "requires": ["small-icu"]
+  },
+  "unsupported-labels.window.js": {
+    "skip": "document is not defined"
   }
 }

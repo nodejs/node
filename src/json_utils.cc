@@ -2,8 +2,11 @@
 
 namespace node {
 
-std::string EscapeJsonChars(const std::string& str) {
-  const std::string control_symbols[0x20] = {
+std::string EscapeJsonChars(std::string_view str) {
+  // 'static constexpr' is slightly better than static const
+  // since the initialization occurs at compile time.
+  // See https://lemire.me/blog/I3Cah
+  static constexpr std::string_view control_symbols[0x20] = {
       "\\u0000", "\\u0001", "\\u0002", "\\u0003", "\\u0004", "\\u0005",
       "\\u0006", "\\u0007", "\\b",     "\\t",     "\\n",     "\\u000b",
       "\\f",     "\\r",     "\\u000e", "\\u000f", "\\u0010", "\\u0011",

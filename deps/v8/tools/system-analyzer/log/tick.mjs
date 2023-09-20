@@ -42,7 +42,7 @@ export class TickLogEntry extends LogEntry {
       return 'Idle';
     }
     const topOfStack = processedStack[0];
-    if (typeof topOfStack === 'number') {
+    if (typeof topOfStack === 'number' || typeof topOfStack === 'bigint') {
       // TODO(cbruni): Handle VmStack and native ticks better.
       return 'Other';
     }

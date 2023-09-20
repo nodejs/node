@@ -17,11 +17,10 @@
 .SH NAME
 ares_parse_mx_reply \- Parse a reply to a DNS query of type MX
 .SH SYNOPSIS
-.nf
-.B #include <ares.h>
-.PP
-.B int ares_parse_mx_reply(const unsigned char* \fIabuf\fP, int \fIalen\fP,
-.B                          struct ares_mx_reply** \fImx_out\fP);
+#include <ares.h>
+
+int ares_parse_mx_reply(const unsigned char* \fIabuf\fP, int \fIalen\fP,
+                        struct ares_mx_reply** \fImx_out\fP);
 .fi
 .SH DESCRIPTION
 The

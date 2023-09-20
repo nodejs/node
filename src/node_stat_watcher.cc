@@ -25,6 +25,7 @@
 #include "memory_tracker-inl.h"
 #include "node_external_reference.h"
 #include "node_file-inl.h"
+#include "permission/permission.h"
 #include "util-inl.h"
 
 #include <cstring>
@@ -40,21 +41,21 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Uint32;
 using v8::Value;
 
-void StatWatcher::Initialize(Environment* env, Local<Object> target) {
-  Isolate* isolate = env->isolate();
-  HandleScope scope(env->isolate());
+void StatWatcher::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                             Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, StatWatcher::New);
   t->InstanceTemplate()->SetInternalFieldCount(
       StatWatcher::kInternalFieldCount);
-  t->Inherit(HandleWrap::GetConstructorTemplate(env));
-
+  t->Inherit(HandleWrap::GetConstructorTemplate(isolate_data));
   SetProtoMethod(isolate, t, "start", StatWatcher::Start);
 
-  SetConstructorFunction(env->context(), target, "StatWatcher", t);
+  SetConstructorFunction(isolate, target, "StatWatcher", t);
 }
 
 void StatWatcher::RegisterExternalReferences(
@@ -97,8 +98,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
 
 void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  fs::BindingData* binding_data =
-      Environment::GetBindingData<fs::BindingData>(args);
+  fs::BindingData* binding_data = Realm::GetBindingData<fs::BindingData>(args);
   new StatWatcher(binding_data, args.This(), args[0]->IsTrue());
 }
 
@@ -112,6 +112,10 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value path(args.GetIsolate(), args[0]);
   CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      wrap->env(),
+      permission::PermissionScope::kFileSystemRead,
+      path.ToStringView());
 
   CHECK(args[1]->IsUint32());
   const uint32_t interval = args[1].As<Uint32>()->Value();

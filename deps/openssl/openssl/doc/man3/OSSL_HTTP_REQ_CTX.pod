@@ -133,7 +133,7 @@ The function may need to be called again if its result is -1, which indicates
 L<BIO_should_retry(3)>.  In such a case it is advisable to sleep a little in
 between, using L<BIO_wait(3)> on the read BIO to prevent a busy loop.
 
-OSSL_HTTP_REQ_CTX_nbio_d2i() is like OSSL_HTTP_REQ_CTX_nbio() but on successs
+OSSL_HTTP_REQ_CTX_nbio_d2i() is like OSSL_HTTP_REQ_CTX_nbio() but on success
 in addition parses the response, which must be a DER-encoded ASN.1 structure,
 using the ASN.1 template I<it> and places the result in I<*pval>.
 
@@ -256,7 +256,7 @@ The functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

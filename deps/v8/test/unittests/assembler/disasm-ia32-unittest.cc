@@ -288,13 +288,9 @@ TEST_F(DisasmIa320Test, DisasmIa320) {
   __ bind(&L2);
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
-  Handle<Code> ic = BUILTIN_CODE(isolate(), ArrayFrom);
-  __ call(ic, RelocInfo::CODE_TARGET);
-  __ nop();
 
   __ jmp(&L1);
   __ jmp(Operand(ebx, ecx, times_4, 10000));
-  __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
 
   Label Ljcc;
@@ -988,8 +984,8 @@ TEST_F(DisasmIa320Test, DisasmIa320) {
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
-  Address begin = code->raw_instruction_start();
-  Address end = code->raw_instruction_end();
+  Address begin = code->InstructionStart();
+  Address end = code->InstructionEnd();
   disasm::Disassembler::Disassemble(stdout, reinterpret_cast<byte*>(begin),
                                     reinterpret_cast<byte*>(end));
 #endif

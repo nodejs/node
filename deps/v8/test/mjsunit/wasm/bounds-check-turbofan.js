@@ -14,10 +14,10 @@ builder.addFunction('load', kSig_i_i)
     kExprI32LoadMem, 0, 100])
     .exportFunc();
 
-const module = builder.instantiate();
-%WasmTierUpFunction(module, 0);
+const load = builder.instantiate().exports.load;
+%WasmTierUpFunction(load);
 // 100 is added as part of the load instruction above
 // Last valid address (64k - 100 - 4)
-assertEquals(0, module.exports.load(0x10000 - 100 - 4));
+assertEquals(0, load(0x10000 - 100 - 4));
 // First invalid address (64k - 100)
-assertTraps(kTrapMemOutOfBounds, _ => { module.exports.load(0x10000 - 100);});
+assertTraps(kTrapMemOutOfBounds, _ => { load(0x10000 - 100);});

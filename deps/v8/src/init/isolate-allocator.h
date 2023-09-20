@@ -15,16 +15,10 @@
 namespace v8 {
 namespace internal {
 
+// TODO(v8:13788): remove IsolateAllocator, as it's no longer needed.
+//
 // IsolateAllocator object is responsible for allocating memory for one (!)
-// Isolate object. Depending on the whether pointer compression is enabled,
-// the memory can be allocated
-//
-// 1) in the C++ heap (when pointer compression is disabled or when multiple
-// Isolates share a pointer compression cage)
-//
-// 2) in a proper part of a properly aligned region of a reserved address space
-//   (when pointer compression is enabled and each Isolate has its own pointer
-//   compression cage).
+// Isolate object. Currently, the memory is always allocated in the C++ heap.
 //
 // Isolate::New() first creates IsolateAllocator object which allocates the
 // memory and then it constructs Isolate object in this memory. Once it's done
@@ -54,8 +48,6 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
   static void InitializeOncePerProcess();
 
  private:
-  void CommitPagesForIsolate();
-
   friend class SequentialUnmapperTest;
   // Only used for testing.
   static void FreeProcessWidePtrComprCageForTesting();

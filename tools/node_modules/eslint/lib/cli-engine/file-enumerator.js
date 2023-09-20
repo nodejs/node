@@ -217,8 +217,8 @@ class FileEnumerator {
         cwd = process.cwd(),
         configArrayFactory = new CascadingConfigArrayFactory({
             cwd,
-            getEslintRecommendedConfig: () => require("../../conf/eslint-recommended.js"),
-            getEslintAllConfig: () => require("../../conf/eslint-all.js")
+            getEslintRecommendedConfig: () => require("@eslint/js").configs.recommended,
+            getEslintAllConfig: () => require("@eslint/js").configs.all
         }),
         extensions = null,
         globInputPaths = true,
@@ -349,7 +349,7 @@ class FileEnumerator {
             return this._iterateFilesWithFile(absolutePath);
         }
         if (globInputPaths && isGlobPattern(pattern)) {
-            return this._iterateFilesWithGlob(absolutePath, isDot);
+            return this._iterateFilesWithGlob(pattern, isDot);
         }
 
         return [];
@@ -398,15 +398,17 @@ class FileEnumerator {
     _iterateFilesWithGlob(pattern, dotfiles) {
         debug(`Glob: ${pattern}`);
 
-        const directoryPath = path.resolve(getGlobParent(pattern));
-        const globPart = pattern.slice(directoryPath.length + 1);
+        const { cwd } = internalSlotsMap.get(this);
+        const directoryPath = path.resolve(cwd, getGlobParent(pattern));
+        const absolutePath = path.resolve(cwd, pattern);
+        const globPart = absolutePath.slice(directoryPath.length + 1);
 
         /*
          * recursive if there are `**` or path separators in the glob part.
          * Otherwise, patterns such as `src/*.js`, it doesn't need recursive.
          */
         const recursive = /\*\*|\/|\\/u.test(globPart);
-        const selector = new Minimatch(pattern, minimatchOpts);
+        const selector = new Minimatch(absolutePath, minimatchOpts);
 
         debug(`recursive? ${recursive}`);
 

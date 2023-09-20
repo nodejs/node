@@ -908,6 +908,7 @@ class TimelineView {
           height === oldState.timelineSize.height &&
           newState.file === oldState.file &&
           newState.currentCodeId === oldState.currentCodeId &&
+          newState.callTree.attribution === oldState.callTree.attribution &&
           newState.start === oldState.start &&
           newState.end === oldState.end) {
         // No change, nothing to do.
@@ -945,11 +946,10 @@ class TimelineView {
     this.selectionStart = (start - firstTime) / (lastTime - firstTime) * width;
     this.selectionEnd = (end - firstTime) / (lastTime - firstTime) * width;
 
-    let stackProcessor = new CategorySampler(file, bucketCount);
+    let filter = filterFromFilterId(this.currentState.callTree.attribution);
+    let stackProcessor = new CategorySampler(file, bucketCount, filter);
     generateTree(file, 0, Infinity, stackProcessor);
-    let codeIdProcessor = new FunctionTimelineProcessor(
-      currentCodeId,
-      filterFromFilterId(this.currentState.callTree.attribution));
+    let codeIdProcessor = new FunctionTimelineProcessor(currentCodeId, filter);
     generateTree(file, 0, Infinity, codeIdProcessor);
 
     let buffer = document.createElement("canvas");

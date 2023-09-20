@@ -6,7 +6,8 @@
 #define V8_TORQUE_LS_GLOBALS_H_
 
 #include <fstream>
-#include "src/torque/contextual.h"
+
+#include "src/base/contextual.h"
 
 namespace v8 {
 namespace internal {
@@ -16,7 +17,7 @@ namespace torque {
 // used as the communication channel. For debugging purposes a simple
 // Log class is added, that allows writing diagnostics to a file configurable
 // via command line flag.
-class Logger : public ContextualClass<Logger> {
+class Logger : public base::ContextualClass<Logger> {
  public:
   Logger() : enabled_(false) {}
   ~Logger() {

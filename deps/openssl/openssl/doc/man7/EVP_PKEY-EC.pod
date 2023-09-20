@@ -15,7 +15,7 @@ The B<EC> keytype is implemented in OpenSSL's default provider.
 The normal way of specifying domain parameters for an EC curve is via the
 curve name "group". For curves with no curve name, explicit parameters can be
 used that specify "field-type", "p", "a", "b", "generator" and "order".
-Explicit parameters are supported for backwards compability reasons, but they
+Explicit parameters are supported for backwards compatibility reasons, but they
 are not compliant with multiple standards (including RFC5915) which only allow
 named curves.
 
@@ -70,7 +70,7 @@ I<order> multiplied by the I<cofactor> gives the number of points on the curve.
 
 =item  "decoded-from-explicit" (B<OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS>) <integer>
 
-Gets a flag indicating wether the key or parameters were decoded from explicit
+Gets a flag indicating whether the key or parameters were decoded from explicit
 curve parameters. Set to 1 if so or 0 if a named curve was used.
 
 =item "use-cofactor-flag" (B<OSSL_PKEY_PARAM_USE_COFACTOR_ECDH>) <integer>
@@ -78,6 +78,10 @@ curve parameters. Set to 1 if so or 0 if a named curve was used.
 Enable Cofactor DH (ECC CDH) if this value is 1, otherwise it uses normal EC DH
 if the value is zero. The cofactor variant multiplies the shared secret by the
 EC curve's cofactor (note for some curves the cofactor is 1).
+
+See also L<EVP_KEYEXCH-ECDH(7)> for the related
+B<OSSL_EXCHANGE_PARAM_EC_ECDH_COFACTOR_MODE> parameter that can be set on a
+per-operation basis.
 
 =item "encoding" (B<OSSL_PKEY_PARAM_EC_ENCODING>) <UTF8 string>
 
@@ -95,7 +99,7 @@ point_conversion_forms please see L<EC_POINT_new(3)>. Valid values are
 Sets or Gets the type of group check done when EVP_PKEY_param_check() is called.
 Valid values are "default", "named" and "named-nist".
 The "named" type checks that the domain parameters match the inbuilt curve parameters,
-"named-nist" is similiar but also checks that the named curve is a nist curve.
+"named-nist" is similar but also checks that the named curve is a nist curve.
 The "default" type does domain parameter validation for the OpenSSL default provider,
 but is equivalent to "named-nist" for the OpenSSL FIPS provider.
 
@@ -104,15 +108,21 @@ but is equivalent to "named-nist" for the OpenSSL FIPS provider.
 Setting this value to 0 indicates that the public key should not be included when
 encoding the private key. The default value of 1 will include the public key.
 
-See also L<EVP_KEYEXCH-ECDH(7)> for the related
-B<OSSL_EXCHANGE_PARAM_EC_ECDH_COFACTOR_MODE> parameter that can be set on a
-per-operation basis.
-
 =item "pub" (B<OSSL_PKEY_PARAM_PUB_KEY>) <octet string>
 
-The public key value in encoded EC point format. This parameter is used
-when importing or exporting the public key value with the EVP_PKEY_fromdata()
-and EVP_PKEY_todata() functions.
+The public key value in encoded EC point format conforming to Sec. 2.3.3 and
+2.3.4 of the SECG SEC 1 ("Elliptic Curve Cryptography") standard.
+This parameter is used when importing or exporting the public key value with the
+EVP_PKEY_fromdata() and EVP_PKEY_todata() functions.
+
+Note, in particular, that the choice of point compression format used for
+encoding the exported value via EVP_PKEY_todata() depends on the underlying
+provider implementation.
+Before OpenSSL 3.0.8, the implementation of providers included with OpenSSL always
+opted for an encoding in compressed format, unconditionally.
+Since OpenSSL 3.0.8, the implementation has been changed to honor the
+B<OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT> parameter, if set, or to default
+to uncompressed format.
 
 =item "priv" (B<OSSL_PKEY_PARAM_PRIV_KEY>) <unsigned integer>
 
@@ -132,7 +142,7 @@ Used for getting the EC public key X component.
 
 Used for getting the EC public key Y component.
 
-=item (B<OSSL_PKEY_PARAM_DEFAULT_DIGEST>) <UTF8 string>
+=item "default-digest" (B<OSSL_PKEY_PARAM_DEFAULT_DIGEST>) <UTF8 string>
 
 Getter that returns the default digest name.
 (Currently returns "SHA256" as of OpenSSL 3.0).
@@ -262,7 +272,7 @@ L<EVP_KEYEXCH-ECDH(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

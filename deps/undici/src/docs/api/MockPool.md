@@ -63,7 +63,8 @@ Returns: `MockInterceptor` corresponding to the input options.
 
 We can define the behaviour of an intercepted request with the following options.
 
-* **reply** `(statusCode: number, replyData: string | Buffer | object | MockInterceptor.MockResponseDataHandler, responseOptions?: MockResponseOptions) => MockScope` - define a reply for a matching request. You can define this as a callback to read incoming request data. Default for `responseOptions` is `{}`.
+* **reply** `(statusCode: number, replyData: string | Buffer | object | MockInterceptor.MockResponseDataHandler, responseOptions?: MockResponseOptions) => MockScope` - define a reply for a matching request. You can define the replyData as a callback to read incoming request data. Default for `responseOptions` is `{}`.
+* **reply** `(callback: MockInterceptor.MockReplyOptionsCallback) => MockScope` - define a reply for a matching request, allowing dynamic mocking of all reply options rather than just the data.
 * **replyWithError** `(error: Error) => MockScope` - define an error for a matching request to throw.
 * **defaultReplyHeaders** `(headers: Record<string, string>) => MockInterceptor` - define default headers to be included in subsequent replies. These are in addition to headers on a specific reply.
 * **defaultReplyTrailers** `(trailers: Record<string, string>) => MockInterceptor` - define default trailers to be included in subsequent replies. These are in addition to trailers on a specific reply.

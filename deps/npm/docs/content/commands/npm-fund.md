@@ -16,9 +16,10 @@ This command retrieves information on how to fund the dependencies of a
 given project. If no package name is provided, it will list all
 dependencies that are looking for funding in a tree structure, listing
 the type of funding and the url to visit. If a package name is provided
-then it tries to open its funding url using the `--browser` config
-param; if there are multiple funding sources for the package, the user
-will be instructed to pass the `--which` option to disambiguate.
+then it tries to open its funding url using the
+[`--browser` config](/using-npm/config#browser) param; if there are multiple
+funding sources for the package, the user will be instructed to pass the
+`--which` option to disambiguate.
 
 The list will avoid duplicated entries and will stack all packages that
 share the same url as a single entry. Thus, the list does not have the
@@ -29,7 +30,8 @@ same shape of the output from `npm ls`.
 ### Workspaces support
 
 It's possible to filter the results to only include a single workspace
-and its dependencies using the `workspace` config option.
+and its dependencies using the
+[`workspace` config](/using-npm/config#workspace) option.
 
 #### Example:
 
@@ -75,6 +77,8 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `browser`
 
 * Default: OS X: `"open"`, Windows: `"start"`, Others: `"xdg-open"`
@@ -87,6 +91,8 @@ terminal.
 
 Set to `true` to use default system URL opener.
 
+
+
 #### `unicode`
 
 * Default: false on windows, true on mac/unix systems with a unicode locale,
@@ -95,6 +101,8 @@ Set to `true` to use default system URL opener.
 
 When set to true, npm uses unicode characters in the tree output. When
 false, it uses ascii characters instead of unicode glyphs.
+
+
 
 #### `workspace`
 
@@ -124,6 +132,8 @@ This value is not exported to the environment for child processes.
 * Type: null or Number
 
 If there are multiple funding sources, which 1-indexed source URL to open.
+
+
 
 ## See Also
 

@@ -16,7 +16,7 @@ const bench = common.createBenchmark(main, {
     'uint16array',
   ],
   len: [100, 2048],
-  n: [8e5]
+  n: [8e5],
 });
 
 function main({ len, n, source }) {

@@ -1,6 +1,7 @@
 #include <js_native_api.h>
-#include "myobject.h"
 #include "../common.h"
+#include "../entry_point.h"
+#include "myobject.h"
 
 napi_value CreateObject(napi_env env, napi_callback_info info) {
   size_t argc = 1;

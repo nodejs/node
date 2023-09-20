@@ -1,13 +1,12 @@
 'use strict';
 
-// This tests snapshot JS API
+// This tests snapshot JS API using the example in the docs.
 
 require('../common');
 const assert = require('assert');
-const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
-const path = require('path');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const fs = require('fs');
 
 const v8 = require('v8');
@@ -17,39 +16,44 @@ const v8 = require('v8');
 assert(!v8.startupSnapshot.isBuildingSnapshot());
 
 tmpdir.refresh();
-const blobPath = path.join(tmpdir.path, 'snapshot.blob');
+const blobPath = tmpdir.resolve('snapshot.blob');
 const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
 {
-  const child = spawnSync(process.execPath, [
+  for (const book of [
+    'book1.en_US.txt',
+    'book1.es_ES.txt',
+    'book2.zh_CN.txt',
+  ]) {
+    const content = `This is ${book}`;
+    fs.writeFileSync(tmpdir.resolve(book), content, 'utf8');
+  }
+  fs.copyFileSync(entry, tmpdir.resolve('entry.js'));
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     '--build-snapshot',
-    entry,
+    'entry.js',
   ], {
     cwd: tmpdir.path
   });
-  if (child.status !== 0) {
-    console.log(child.stderr.toString());
-    console.log(child.stdout.toString());
-    assert.strictEqual(child.status, 0);
-  }
-  const stats = fs.statSync(path.join(tmpdir.path, 'snapshot.blob'));
+  const stats = fs.statSync(tmpdir.resolve('snapshot.blob'));
   assert(stats.isFile());
 }
 
 {
-  const child = spawnSync(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
+    'book1',
   ], {
     cwd: tmpdir.path,
     env: {
       ...process.env,
+      BOOK_LANG: 'en_US',
     }
+  }, {
+    stderr: 'Reading book1.en_US.txt',
+    stdout: 'This is book1.en_US.txt',
+    trim: true
   });
-
-  const stdout = child.stdout.toString().trim();
-  const file = fs.readFileSync(fixtures.path('x1024.txt'), 'utf8');
-  assert.strictEqual(stdout, file);
-  assert.strictEqual(child.status, 0);
 }

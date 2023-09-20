@@ -6,6 +6,7 @@ This directory contains modules used to test the Node.js implementation.
 
 * [ArrayStream module](#arraystream-module)
 * [Benchmark module](#benchmark-module)
+* [Child process module](#child-process-module)
 * [Common module API](#common-module-api)
 * [Countdown module](#countdown-module)
 * [CPU Profiler module](#cpu-profiler-module)
@@ -34,6 +35,46 @@ The `benchmark` module is used by tests to run benchmarks.
 * `name` [\<string>][<string>] Name of benchmark suite to be run.
 * `env` [\<Object>][<Object>] Environment variables to be applied during the
   run.
+
+## Child Process Module
+
+The `child_process` module is used by tests that launch child processes.
+
+### `spawnSyncAndExit(command[, args][, spawnOptions], expectations)`
+
+Spawns a child process synchronously using [`child_process.spawnSync()`][] and
+check if it runs in the way expected. If it does not, print the stdout and
+stderr output from the child process and additional information about it to
+the stderr of the current process before throwing and error. This helps
+gathering more information about test failures coming from child processes.
+
+* `command`, `args`, `spawnOptions` See [`child_process.spawnSync()`][]
+* `expectations` [\<Object>][<Object>]
+  * `status` [\<number>][<number>] Expected `child.status`
+  * `signal` [\<string>][<string>] | `null` Expected `child.signal`
+  * `stderr` [\<string>][<string>] | [\<RegExp>][<RegExp>] |
+    [\<Function>][<Function>] Optional. If it's a string, check that the output
+    to the stderr of the child process is exactly the same as the string. If
+    it's a regular expression, check that the stderr matches it. If it's a
+    function, invoke it with the stderr output as a string and check
+    that it returns true. The function can just throw errors (e.g. assertion
+    errors) to provide more information if the check fails.
+  * `stdout` [\<string>][<string>] | [\<RegExp>][<RegExp>] |
+    [\<Function>][<Function>] Optional. Similar to `stderr` but for the stdout.
+  * `trim` [\<boolean>][<boolean>] Optional. Whether this method should trim
+    out the whitespace characters when checking `stderr` and `stdout` outputs.
+    Defaults to `false`.
+* return [\<Object>][<Object>]
+  * `child` [\<ChildProcess>][<ChildProcess>] The child process returned by
+    [`child_process.spawnSync()`][].
+  * `stderr` [\<string>][<string>] The output from the child process to stderr.
+  * `stdout` [\<string>][<string>] The output from the child process to stdout.
+
+### `spawnSyncAndExitWithoutError(command[, args][, spawnOptions], expectations)`
+
+Similar to `expectSyncExit()` with the `status` expected to be 0 and
+`signal` expected to be `null`. Any other optional options are passed
+into `expectSyncExit()`.
 
 ## Common Module API
 
@@ -642,6 +683,12 @@ environment variables.
 If set, `NODE_COMMON_PORT`'s value overrides the `common.PORT` default value of
 12346\.
 
+### `NODE_REGENERATE_SNAPSHOTS`
+
+If set, test snapshots for a the current test are regenerated.
+for example `NODE_REGENERATE_SNAPSHOTS=1 out/Release/node test/parallel/test-runner-output.mjs`
+will update all the test runner output snapshots.
+
 ### `NODE_SKIP_FLAG_CHECK`
 
 If set, command line arguments passed to individual tests are not validated.
@@ -672,6 +719,12 @@ The absolute path to the `test/fixtures/` directory.
 * `...args` [\<string>][<string>]
 
 Returns the result of `path.join(fixtures.fixturesDir, ...args)`.
+
+### `fixtures.fileURL(...args)`
+
+* `...args` [\<string>][<string>]
+
+Returns the result of `url.pathToFileURL(fixtures.path(...args))`.
 
 ### `fixtures.readSync(args[, enc])`
 
@@ -985,6 +1038,22 @@ Validates the schema of a diagnostic report file whose path is specified in
 Validates the schema of a diagnostic report whose content is specified in
 `report`. If the report fails validation, an exception is thrown.
 
+## SEA Module
+
+The `sea` module provides helper functions for testing Single Executable
+Application functionality.
+
+### `skipIfSingleExecutableIsNotSupported()`
+
+Skip the rest of the tests if single executable applications are not supported
+in the current configuration.
+
+### `injectAndCodeSign(targetExecutable, resource)`
+
+Uses Postect to inject the contents of the file at the path `resource` into
+the target executable file at the path `targetExecutable` and ultimately code
+sign the final binary.
+
 ## tick Module
 
 The `tick` module provides a helper function that can be used to call a callback
@@ -1005,9 +1074,22 @@ The `tmpdir` module supports the use of a temporary directory for testing.
 
 The realpath of the testing temporary directory.
 
-### `refresh()`
+### `fileURL([...paths])`
 
-Deletes and recreates the testing temporary directory.
+* `...paths` [\<string>][<string>]
+* return [\<URL>][<URL>]
+
+Resolves a sequence of paths into absolute url in the temporary directory.
+
+When called without arguments, returns absolute url of the testing
+temporary directory with explicit trailing `/`.
+
+### `refresh(useSpawn)`
+
+* `useSpawn` [\<boolean>][<boolean>] default = false
+
+Deletes and recreates the testing temporary directory. When `useSpawn` is true
+this action is performed using `child_process.spawnSync`.
 
 The first time `refresh()` runs, it adds a listener to process `'exit'` that
 cleans the temporary directory. Thus, every file under `tmpdir.path` needs to
@@ -1020,6 +1102,22 @@ It is usually only necessary to call `refresh()` once in a test file.
 Avoid calling it more than once in an asynchronous context as one call
 might refresh the temporary directory of a different context, causing
 the test to fail somewhat mysteriously.
+
+### `resolve([...paths])`
+
+* `...paths` [\<string>][<string>]
+* return [\<string>][<string>]
+
+Resolves a sequence of paths into absolute path in the temporary directory.
+
+### `hasEnoughSpace(size)`
+
+* `size` [\<number>][<number>] Required size, in bytes.
+
+Returns `true` if the available blocks of the file system underlying `path`
+are likely sufficient to hold a single file of `size` bytes. This is useful for
+skipping tests that require hundreds of megabytes or even gigabytes of temporary
+files, but it is inaccurate and susceptible to race conditions.
 
 ## UDP pair helper
 
@@ -1054,16 +1152,19 @@ See [the WPT tests README][] for details.
 [<ArrayBufferView>]: https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView
 [<Buffer>]: https://nodejs.org/api/buffer.html#buffer_class_buffer
 [<BufferSource>]: https://developer.mozilla.org/en-US/docs/Web/API/BufferSource
+[<ChildProcess>]: ../../doc/api/child_process.md#class-childprocess
 [<Error>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
 [<Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
 [<Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [<RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+[<URL>]: https://developer.mozilla.org/en-US/docs/Web/API/URL
 [<any>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Data_types
 [<bigint>]: https://github.com/tc39/proposal-bigint
 [<boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
 [<number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [<string>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
+[`child_process.spawnSync()`]: ../../doc/api/child_process.md#child_processspawnsynccommand-args-options
 [`hijackstdio.hijackStdErr()`]: #hijackstderrlistener
 [`hijackstdio.hijackStdOut()`]: #hijackstdoutlistener
 [internationalization]: ../../doc/api/intl.md

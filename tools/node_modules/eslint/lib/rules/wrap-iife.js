@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const eslintUtils = require("eslint-utils");
+const eslintUtils = require("@eslint-community/eslint-utils");
 
 //----------------------------------------------------------------------
 // Helpers
@@ -45,7 +45,7 @@ module.exports = {
         docs: {
             description: "Require parentheses around immediate `function` invocations",
             recommended: false,
-            url: "https://eslint.org/docs/rules/wrap-iife"
+            url: "https://eslint.org/docs/latest/rules/wrap-iife"
         },
 
         schema: [
@@ -77,7 +77,7 @@ module.exports = {
         const style = context.options[0] || "outside";
         const includeFunctionPrototypeMethods = context.options[1] && context.options[1].functionPrototypeMethods;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Check if the node is wrapped in any (). All parens count: grouping parens and parens for constructs such as if()

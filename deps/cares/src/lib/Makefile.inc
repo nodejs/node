@@ -45,6 +45,7 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_platform.c			\
   ares_process.c			\
   ares_query.c				\
+  ares_rand.c				\
   ares_search.c				\
   ares_send.c				\
   ares_strcasecmp.c			\
@@ -59,13 +60,12 @@ CSOURCES = ares__addrinfo2hostent.c	\
   inet_ntop.c				\
   windows_port.c
 
-HHEADERS = ares_android.h                        \
+HHEADERS = ares_android.h	\
   ares_data.h				\
   ares_getenv.h				\
   ares_inet_net_pton.h			\
   ares_iphlpapi.h			\
   ares_ipv6.h				\
-  ares_library_init.h			\
   ares_llist.h				\
   ares_nowarn.h				\
   ares_platform.h			\

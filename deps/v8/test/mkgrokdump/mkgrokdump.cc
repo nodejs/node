@@ -103,7 +103,7 @@ static void DumpSpaceFirstPageAddress(FILE* out, i::BaseSpace* space,
                                       i::Address first_page) {
   const char* name = space->name();
   i::Tagged_t compressed =
-      i::V8HeapCompressionScheme::CompressTagged(first_page);
+      i::V8HeapCompressionScheme::CompressObject(first_page);
   uintptr_t unsigned_compressed = static_cast<uint32_t>(compressed);
   i::PrintF(out, "  0x%08" V8PRIxPTR ": \"%s\",\n", unsigned_compressed, name);
 }

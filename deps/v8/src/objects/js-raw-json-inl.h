@@ -18,6 +18,10 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRawJson)
 
+bool JSRawJson::HasInitialLayout(Isolate* isolate) const {
+  return map() == *isolate->js_raw_json_map();
+}
+
 }  // namespace internal
 }  // namespace v8
 

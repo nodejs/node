@@ -13,7 +13,6 @@ try {
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
-const path = require('path');
 
 const enable = `require("trace_events").createTracing(
 { categories: ["node.async_hooks"] }).enable();`;
@@ -21,7 +20,7 @@ const code =
   'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1)';
 
 const tmpdir = require('../common/tmpdir');
-const filename = path.join(tmpdir.path, 'node_trace.1.log');
+const filename = tmpdir.resolve('node_trace.1.log');
 
 tmpdir.refresh();
 const proc = cp.spawnSync(

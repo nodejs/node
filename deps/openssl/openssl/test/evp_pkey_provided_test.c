@@ -188,7 +188,12 @@ static int test_print_key_using_pem(const char *alg, const EVP_PKEY *pk)
         /* Unencrypted private key in PEM form */
         || !TEST_true(PEM_write_bio_PrivateKey(membio, pk,
                                                NULL, NULL, 0, NULL, NULL))
-        || !TEST_true(compare_with_file(alg, PRIV_PEM, membio)))
+        || !TEST_true(compare_with_file(alg, PRIV_PEM, membio))
+        /* NULL key */
+        || !TEST_false(PEM_write_bio_PrivateKey(membio, NULL,
+                                               NULL, NULL, 0, NULL, NULL))
+        || !TEST_false(PEM_write_bio_PrivateKey_traditional(membio, NULL,
+                                               NULL, NULL, 0, NULL, NULL)))
         goto err;
 
     ret = 1;
@@ -1180,13 +1185,20 @@ static int test_fromdata_ec(void)
        0x7f, 0x59, 0x5f, 0x8c, 0xd1, 0x96, 0x0b, 0xdf,
        0x29, 0x3e, 0x49, 0x07, 0x88, 0x3f, 0x9a, 0x29
     };
+    /* SAME BUT COMPRESSED FORMAT */
+    static const unsigned char ec_pub_keydata_compressed[] = {
+       POINT_CONVERSION_COMPRESSED+1,
+       0x1b, 0x93, 0x67, 0x55, 0x1c, 0x55, 0x9f, 0x63,
+       0xd1, 0x22, 0xa4, 0xd8, 0xd1, 0x0a, 0x60, 0x6d,
+       0x02, 0xa5, 0x77, 0x57, 0xc8, 0xa3, 0x47, 0x73,
+       0x3a, 0x6a, 0x08, 0x28, 0x39, 0xbd, 0xc9, 0xd2
+    };
     static const unsigned char ec_priv_keydata[] = {
         0x33, 0xd0, 0x43, 0x83, 0xa9, 0x89, 0x56, 0x03,
         0xd2, 0xd7, 0xfe, 0x6b, 0x01, 0x6f, 0xe4, 0x59,
         0xcc, 0x0d, 0x9a, 0x24, 0x6c, 0x86, 0x1b, 0x2e,
         0xdc, 0x4b, 0x4d, 0x35, 0x43, 0xe1, 0x1b, 0xad
     };
-    const int compressed_sz = 1 + (sizeof(ec_pub_keydata) - 1) / 2;
     unsigned char out_pub[sizeof(ec_pub_keydata)];
     char out_curve_name[80];
     const OSSL_PARAM *gettable = NULL;
@@ -1209,9 +1221,17 @@ static int test_fromdata_ec(void)
     if (OSSL_PARAM_BLD_push_utf8_string(bld, OSSL_PKEY_PARAM_GROUP_NAME,
                                         curve, 0) <= 0)
         goto err;
+    /*
+     * We intentionally provide the input point in compressed format,
+     * and avoid setting `OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT`.
+     *
+     * Later on we check what format is used when exporting the
+     * `OSSL_PKEY_PARAM_PUB_KEY` and expect to default to uncompressed
+     * format.
+     */
     if (OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY,
-                                         ec_pub_keydata,
-                                         sizeof(ec_pub_keydata)) <= 0)
+                                         ec_pub_keydata_compressed,
+                                         sizeof(ec_pub_keydata_compressed)) <= 0)
         goto err;
     if (OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, ec_priv_bn) <= 0)
         goto err;
@@ -1282,9 +1302,17 @@ static int test_fromdata_ec(void)
             || !TEST_str_eq(out_curve_name, curve)
             || !EVP_PKEY_get_octet_string_param(pk, OSSL_PKEY_PARAM_PUB_KEY,
                                             out_pub, sizeof(out_pub), &len)
-            || !TEST_true(out_pub[0] == (POINT_CONVERSION_COMPRESSED + 1))
+
+            /*
+             * Our providers use uncompressed format by default if
+             * `OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT` was not
+             * explicitly set, irrespective of the format used for the
+             * input point given as a param to create this key.
+             */
+            || !TEST_true(out_pub[0] == POINT_CONVERSION_UNCOMPRESSED)
             || !TEST_mem_eq(out_pub + 1, len - 1,
-                            ec_pub_keydata + 1, compressed_sz - 1)
+                            ec_pub_keydata + 1, sizeof(ec_pub_keydata) - 1)
+
             || !TEST_true(EVP_PKEY_get_bn_param(pk, OSSL_PKEY_PARAM_PRIV_KEY,
                                                 &bn_priv))
             || !TEST_BN_eq(ec_priv_bn, bn_priv))

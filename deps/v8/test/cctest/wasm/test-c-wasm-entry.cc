@@ -80,7 +80,7 @@ class CWasmEntryArgTester {
   Isolate* isolate_;
   std::function<ReturnType(Args...)> expected_fn_;
   const FunctionSig* sig_;
-  Handle<CodeT> c_wasm_entry_;
+  Handle<Code> c_wasm_entry_;
   WasmCode* wasm_code_;
 };
 

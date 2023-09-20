@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.once = once;
-var _async = require("./async");
+var _async = require("./async.js");
 function once(fn) {
   let result;
   let resultP;

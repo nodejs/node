@@ -105,6 +105,7 @@
 #  define CMS_R_UNKNOWN_DIGEST_ALGORITHM                   149
 #  define CMS_R_UNKNOWN_ID                                 150
 #  define CMS_R_UNSUPPORTED_COMPRESSION_ALGORITHM          151
+#  define CMS_R_UNSUPPORTED_CONTENT_ENCRYPTION_ALGORITHM   194
 #  define CMS_R_UNSUPPORTED_CONTENT_TYPE                   152
 #  define CMS_R_UNSUPPORTED_ENCRYPTION_TYPE                192
 #  define CMS_R_UNSUPPORTED_KEK_ALGORITHM                  153

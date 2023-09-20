@@ -1072,6 +1072,8 @@ VISIT_SIMD_QFMOP(F32x4Qfms, kRiscvF32x4Qfms)
 #undef VISIT_SIMD_QFMOP
 
 void InstructionSelector::VisitI32x4DotI16x8S(Node* node) {
+  constexpr int32_t FIRST_INDEX = 0b01010101;
+  constexpr int32_t SECOND_INDEX = 0b10101010;
   RiscvOperandGenerator g(this);
   InstructionOperand temp = g.TempFpRegister(v16);
   InstructionOperand temp1 = g.TempFpRegister(v14);
@@ -1080,12 +1082,75 @@ void InstructionSelector::VisitI32x4DotI16x8S(Node* node) {
   this->Emit(kRiscvVwmul, temp, g.UseRegister(node->InputAt(0)),
              g.UseRegister(node->InputAt(1)), g.UseImmediate(E16),
              g.UseImmediate(m1));
-  this->Emit(kRiscvVcompress, temp2, temp, g.UseImmediate(0b01010101),
+  this->Emit(kRiscvVcompress, temp2, temp, g.UseImmediate(FIRST_INDEX),
              g.UseImmediate(E32), g.UseImmediate(m2));
-  this->Emit(kRiscvVcompress, temp1, temp, g.UseImmediate(0b10101010),
+  this->Emit(kRiscvVcompress, temp1, temp, g.UseImmediate(SECOND_INDEX),
              g.UseImmediate(E32), g.UseImmediate(m2));
   this->Emit(kRiscvVaddVv, dst, temp1, temp2, g.UseImmediate(E32),
              g.UseImmediate(m1));
+}
+
+void InstructionSelector::VisitI16x8DotI8x16I7x16S(Node* node) {
+  constexpr int32_t FIRST_INDEX = 0b0101010101010101;
+  constexpr int32_t SECOND_INDEX = 0b1010101010101010;
+  RiscvOperandGenerator g(this);
+  InstructionOperand temp = g.TempFpRegister(v16);
+  InstructionOperand temp1 = g.TempFpRegister(v14);
+  InstructionOperand temp2 = g.TempFpRegister(v30);
+  InstructionOperand dst = g.DefineAsRegister(node);
+  this->Emit(kRiscvVwmul, temp, g.UseRegister(node->InputAt(0)),
+             g.UseRegister(node->InputAt(1)), g.UseImmediate(E8),
+             g.UseImmediate(m1));
+  this->Emit(kRiscvVcompress, temp2, temp, g.UseImmediate(FIRST_INDEX),
+             g.UseImmediate(E16), g.UseImmediate(m2));
+  this->Emit(kRiscvVcompress, temp1, temp, g.UseImmediate(SECOND_INDEX),
+             g.UseImmediate(E16), g.UseImmediate(m2));
+  this->Emit(kRiscvVaddVv, dst, temp1, temp2, g.UseImmediate(E16),
+             g.UseImmediate(m1));
+}
+
+void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
+  constexpr int32_t FIRST_INDEX = 0b0001000100010001;
+  constexpr int32_t SECOND_INDEX = 0b0010001000100010;
+  constexpr int32_t THIRD_INDEX = 0b0100010001000100;
+  constexpr int32_t FOURTH_INDEX = 0b1000100010001000;
+  RiscvOperandGenerator g(this);
+  InstructionOperand intermediate = g.TempFpRegister(v12);
+  this->Emit(kRiscvVwmul, intermediate, g.UseRegister(node->InputAt(0)),
+             g.UseRegister(node->InputAt(1)), g.UseImmediate(E8),
+             g.UseImmediate(m1));
+
+  InstructionOperand compressedPart1 = g.TempFpRegister(v14);
+  InstructionOperand compressedPart2 = g.TempFpRegister(v16);
+  this->Emit(kRiscvVcompress, compressedPart2, intermediate,
+             g.UseImmediate(FIRST_INDEX), g.UseImmediate(E16),
+             g.UseImmediate(m2));
+  this->Emit(kRiscvVcompress, compressedPart1, intermediate,
+             g.UseImmediate(SECOND_INDEX), g.UseImmediate(E16),
+             g.UseImmediate(m2));
+
+  InstructionOperand compressedPart3 = g.TempFpRegister(v20);
+  InstructionOperand compressedPart4 = g.TempFpRegister(v26);
+  this->Emit(kRiscvVcompress, compressedPart3, intermediate,
+             g.UseImmediate(THIRD_INDEX), g.UseImmediate(E16),
+             g.UseImmediate(m2));
+  this->Emit(kRiscvVcompress, compressedPart4, intermediate,
+             g.UseImmediate(FOURTH_INDEX), g.UseImmediate(E16),
+             g.UseImmediate(m2));
+
+  InstructionOperand temp2 = g.TempFpRegister(v18);
+  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
+  this->Emit(kRiscvVwadd, temp2, compressedPart1, compressedPart2,
+             g.UseImmediate(E16), g.UseImmediate(m1));
+  this->Emit(kRiscvVwadd, temp, compressedPart3, compressedPart4,
+             g.UseImmediate(E16), g.UseImmediate(m1));
+
+  InstructionOperand mul_result = g.TempFpRegister(v16);
+  InstructionOperand dst = g.DefineAsRegister(node);
+  this->Emit(kRiscvVaddVv, mul_result, temp2, temp, g.UseImmediate(E32),
+             g.UseImmediate(m1));
+  this->Emit(kRiscvVaddVv, dst, mul_result, g.UseRegister(node->InputAt(2)),
+             g.UseImmediate(E32), g.UseImmediate(m1));
 }
 
 void InstructionSelector::VisitI8x16Shuffle(Node* node) {

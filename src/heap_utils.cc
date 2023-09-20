@@ -2,6 +2,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_external_reference.h"
+#include "permission/permission.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
 
@@ -454,6 +455,10 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
 
   if (filename_v->IsUndefined()) {
     DiagnosticFilename name(env, "Heap", "heapsnapshot");
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env,
+        permission::PermissionScope::kFileSystemWrite,
+        Environment::GetCwd(env->exec_path()));
     if (WriteSnapshot(env, *name, options).IsNothing()) return;
     if (String::NewFromUtf8(isolate, *name).ToLocal(&filename_v)) {
       args.GetReturnValue().Set(filename_v);
@@ -463,6 +468,8 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, filename_v);
   CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
   if (WriteSnapshot(env, *path, options).IsNothing()) return;
   return args.GetReturnValue().Set(filename_v);
 }

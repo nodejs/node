@@ -59,6 +59,7 @@ export declare class Headers implements SpecIterable<[string, string]> {
   readonly get: (name: string) => string | null
   readonly has: (name: string) => boolean
   readonly set: (name: string, value: string) => void
+  readonly getSetCookie: () => string[]
   readonly forEach: (
     callbackfn: (value: string, key: string, iterable: Headers) => void,
     thisArg?: unknown

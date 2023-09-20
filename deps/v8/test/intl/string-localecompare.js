@@ -50,8 +50,11 @@ function isOptimized(fun) {
 }
 
 assertFalse(isOptimized(check));
-while (true) {
-    var optimized = isOptimized(check);
-    check();
-    if (optimized) break;
-}
+%PrepareFunctionForOptimization(check);
+check();
+check();
+check();
+%OptimizeFunctionOnNextCall(check);
+check();
+check();
+assertTrue(isOptimized(check));

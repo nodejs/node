@@ -1,5 +1,675 @@
    Changelog for the c-ares project. Generated with git2changes.pl
 
+Version 1.19.1 (22 May 2023)
+
+bradh352 (22 May 2023)
+- Makefile.inc Windows requires tabs not spaces for nmake
+
+GitHub (22 May 2023)
+- [Daniel Stenberg brought this change]
+
+  ares_expand_name: fix compiler warnings (#522)
+  
+  Fix some compiler warnings (not introduced in this release)
+  
+  Fix By: Daniel Stenberg (@bagder)
+
+bradh352 (22 May 2023)
+- windows MSVC compiler fix on 32bit
+
+- update security advisory links
+
+- minor CI issues fixes for imported inet_net_pton
+
+- ares_rand static analysis fixes from CI
+
+- windows build fix
+
+- security release notes
+
+GitHub (22 May 2023)
+- [Brad House brought this change]
+
+  Merge pull request from GHSA-9g78-jv2r-p7vc
+
+- [Brad House brought this change]
+
+  Merge pull request from GHSA-x6mf-cxr9-8q6v
+  
+  * Merged latest OpenBSD changes for inet_net_pton_ipv6() into c-ares.
+  * Always use our own IP conversion functions now, do not delegate to OS
+    so we can have consistency in testing and fuzzing.
+  * Removed bogus test cases that never should have passed.
+  * Add new test case for crash bug found.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  Merge pull request from GHSA-8r8p-23f3-64c2
+  
+  * segment random number generation into own file
+  
+  * abstract random code to make it more modular so we can have multiple backends
+  
+  * rand: add support for arc4random_buf() and also direct CARES_RANDOM_FILE reading
+  
+  * autotools: fix detection of arc4random_buf
+  
+  * rework initial rc4 seed for PRNG as last fallback
+  
+  * rc4: more proper implementation, simplified for clarity
+  
+  * clarifications
+
+bradh352 (20 May 2023)
+- add public release note information
+
+- bump version to 1.19.1
+
+GitHub (6 May 2023)
+- [Gregor Jasny brought this change]
+
+  test: fix warning about uninitialized memory (#515)
+  
+  fix warning in tests
+  
+  Fix By: Gregor Jasny (@gjasny)
+
+- [lifenjoiner brought this change]
+
+  Turn off IPV6_V6ONLY on Windows if it is supported (#520)
+  
+  Turn off IPV6_V6ONLY on Windows if it is supported, support for IPv4-mapped IPv6 addresses.
+  
+  IPV6_V6ONLY refs:
+  https://en.wikipedia.org/wiki/IPv6#IPv4-mapped_IPv6_addresses
+  https://github.com/golang/go/blob/master/src/net/ipsock_posix.go
+  https://en.wikipedia.org/wiki/Unix-like
+  off:
+  https://www.kernel.org/doc/html/latest/networking/ip-sysctl.html#proc-sys-net-ipv6-variables
+  https://man.netbsd.org/inet6.4
+  https://man.freebsd.org/cgi/man.cgi?query=inet6
+  https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man4/inet6.4
+  on:
+  https://learn.microsoft.com/en-us/windows/win32/winsock/ipproto-ipv6-socket-options
+  acts like off, but returns 1 and dummy setting:
+  https://man.dragonflybsd.org/?command=inet6
+  https://man.dragonflybsd.org/?command=ip6
+  unsupported and read-only returns 1:
+  https://man.openbsd.org/inet6.4
+  
+  default value refs:
+  https://datatracker.ietf.org/doc/html/rfc3493#section-5.3
+  https://www.kernel.org/doc/html/latest/networking/ip-sysctl.html#proc-sys-net-ipv6-variables
+
+- [Brad House brought this change]
+
+  Merge pull request from GHSA-54xr-f67r-4pc4
+  
+  * CARES_RANDOM_FILE should always default to /dev/urandom
+  
+  During cross-compilation, CARES_RANDOM_FILE may not be able to be appropriately
+  detected, therefore we should always set it to /dev/urandom and allow the
+  entity requesting compilation override the value.  The code does appropriately
+  fall back if CARES_RANDOM_FILE cannot be opened.
+  
+  * use set not option
+
+bradh352 (18 Mar 2023)
+- ares_getaddrinfo using service of "0" should be allowed
+  
+  As per #517 glibc allows a service/servname of "0" to be treated the
+  same as if NULL was provided.  Also, add a sanity check to ensure
+  the port number is in range instead of a blind cast.
+  
+  Fixes: #517
+  Fix By: Brad House (@bradh352)
+
+GitHub (10 Feb 2023)
+- [Nikolaos Chatzikonstantinou brought this change]
+
+  fix memory leak in ares_send (#511)
+  
+  When the condition channel->nservers < 1 holds, the function returns
+  prematurely, without deallocating query->tcpbuf. We rearrange the
+  check to be done prior to the allocations, avoiding the memory
+  leak. In this way, we also avoid unnecessary allocations if
+  channel->nservers < 1 holds.
+  
+  Fix By: Nikolaos Chatzikonstantinou (@createyourpersonalaccount)
+
+- [Nikolaos Chatzikonstantinou brought this change]
+
+  change comment style to old-style (#513)
+  
+  Following the README.md guidelines,
+  
+      "Comments must be written in the old-style"
+  
+  the comment is changed to the old style.
+  
+  Fix By: Nikolaos Chatzikonstantinou (@createyourpersonalaccount)
+
+- [Nikolaos Chatzikonstantinou brought this change]
+
+  use strncasecmp in ares__strsplit (#512)
+  
+  strncasecmp on platforms that don't already have it is already #define'd to a private implementation.  There is no need to have OS-specific logic.  Also removes ares__strsplit.h as a header as ares_private.h already includes it.
+  
+  Fix By: Nikolaos Chatzikonstantinou (@createyourpersonalaccount)
+
+- [Yijie Ma brought this change]
+
+  Fix a typo in ares_init_options.3 (#510)
+  
+  that -> than
+  
+  Fix By: Yijie Ma (@yijiem)
+
+- [Douglas R. Reno brought this change]
+
+  Watcom Portability Improvements (#509)
+  
+  - Modify the Watcom Makefile for the source code reorganization (#352)
+  - Add *.map files into .gitignore
+  - Fix build errors with Watcom's builtin Windows SDK (which is rather
+    outdated). It's smart enough to understand Windows Vista, but doesn't
+    have PMIB_UNICASTIPADDRESS_TABLE or MIB_IPFORWARD_ROW2.
+  
+  It may be possible to use a different Windows SDK with the Watcom
+  compiler, such as the most recent Windows 10 SDK. Alternatively the SDK
+  in OpenWatcom 2.0 (which is in development) should fix this.
+  
+  I have no problems testing this Makefile prior to releases, just give me
+  a ping.
+  
+  Tested with Windows Vista, Windows 7, and Windows 10 using 'adig',
+  'acountry', and 'ahost'. This also seems to work on Windows XP, though
+  this is likely due to the compiler in use.
+  
+  Fix By: Douglas R. Reno (@renodr)
+  Fixes Bug: #352
+
+- [Jay Freeman (saurik) brought this change]
+
+  ignore aminclude_static.am, as generated by AX_AM_MACROS_STATIC (#508)
+  
+  Fix By: Jay Freeman (@saurik)
+
+- [Jay Freeman (saurik) brought this change]
+
+  sync ax_pthread.m4 with upstream (#507)
+  
+  The version in the repository is many years old so this PR simply pulls in the latest
+  available revision from:
+  http://git.savannah.gnu.org/gitweb/?p=autoconf-archive.git;a=tree;f=m4
+  
+  Fix By: Jay Freeman (@saurik)
+
+- [Chilledheart brought this change]
+
+  Windows: Invalid stack variable out of scope for HOSTS file path  (#502)
+  
+  In some conditions Windows might try to use a stack address that has gone out of scope when determining where to read the hosts data from for file lookups.
+  
+  Fix By: @Chilledheart
+
+- [Brad House brought this change]
+
+  sync ax_cxx_compile_stdcxx_11.m4 with upstream (#505)
+  
+  It was reported that ax_cxx_compile_stdcxx_11.m4 was not compatible with uclibc.
+  The version in the repository is many years old so this PR simply pulls in the latest
+  available revision from:
+  http://git.savannah.gnu.org/gitweb/?p=autoconf-archive.git;a=tree;f=m4
+  
+  Fixes Bug: #504
+  Fix By: Brad House (@bradh352)
+
+Version 1.19.0 (18 Jan 2023)
+
+bradh352 (18 Jan 2023)
+- Prep for 1.19.0 release
+
+- Fix inverted logic in 25523e2
+  
+  Fix .localhost. handling in prior commit
+  
+  Fix By: Brad House (@bradh352)
+
+- RFC6761 localhost definition includes subdomains
+  
+  RFC6761 6.3 states:
+    The domain "localhost." and any names falling within ".localhost."
+  
+  We were only honoring "localhost".
+  
+  Fixes: #477
+  Fix By: Brad House (@bradh352)
+
+- docs: ARES_OPT_UDP_PORT and ARES_OPT_TCP_PORT docs wrong byte order
+  
+  As per #487, documentation states the port should be in network byte
+  order, but we can see from the test cases using MockServers on
+  different ports that this is not the case, it is definitely in host
+  byte order.
+  
+  Fix By: Brad House (@bradh352)
+
+GitHub (18 Jan 2023)
+- [hopper-vul brought this change]
+
+  Add str len check in config_sortlist to avoid stack overflow (#497)
+  
+  In ares_set_sortlist, it calls config_sortlist(..., sortstr) to parse
+  the input str and initialize a sortlist configuration.
+  
+  However, ares_set_sortlist has not any checks about the validity of the input str.
+  It is very easy to create an arbitrary length stack overflow with the unchecked
+  `memcpy(ipbuf, str, q-str);` and `memcpy(ipbufpfx, str, q-str);`
+  statements in the config_sortlist call, which could potentially cause severe
+  security impact in practical programs.
+  
+  This commit add necessary check for `ipbuf` and `ipbufpfx` which avoid the
+  potential stack overflows.
+  
+  fixes #496
+  
+  Fix By: @hopper-vul
+
+bradh352 (18 Jan 2023)
+- Fix build due to str-split sed gone wrong
+  
+  Fix By: Brad House (@bradh352)
+
+- cirrus-ci: switch to scan-build-py for MacOS
+  
+  MacOS seems to work better with scan-build-py
+  
+  Fix By: Brad House (@bradh352)
+
+- ares_strsplit* -> ares__strsplit* to comply with internal function naming
+  
+  Inspired by #495, but was missing test cases and would failed to build.
+  
+  Fix By: Brad House (@bradh352), Daniel Stenberg (@bagder)
+
+- Cirrus-CI: MacOS Homebrew has changed from /usr/local/opt to /opt/homebrew
+  
+  Fix paths for homebrew.
+  
+  Fix By: Brad House (@bradh352)
+
+- cirrus-ci: iOS build needs to use ARM MacOS image
+  
+  CirrusCI removed Intel-based MacOS images.  Need to switch
+  iOS builds to use new ARM images as well.
+  
+  Fix By: Brad House (@bradh352)
+
+- cirrus-ci: new MacOS image
+  
+  Cirrus-CI has recently EOL'd Intel MacOS VMs, switch to the latest
+  ARM-based image.
+  
+  Fix By: Brad House (@bradh352)
+
+- acountry was passing stack variable to callback
+  
+  Recent ASAN versions picked up that acountry was passing stack
+  variables to ares_gethostbyname() then leaving the stack context.
+  We will now allocate a buffer for this.
+  
+  Fix By: Brad House (@bradh352)
+
+GitHub (13 Dec 2022)
+- [Daniel Stenberg brought this change]
+
+  docs: reformat/cleanup man pages SYNOPSIS sections (#494)
+  
+  To make them render "nicer" in both terminals and on the website.
+  
+  - Removes the bold
+  - Removes .PP lines
+  - Indents them more like proper code style
+  
+  Fix By: Daniel Stenberg (@bagder)
+
+- [Nikolaos Chatzikonstantinou brought this change]
+
+  bug fix: new ares_strsplit (#492)
+  
+  * add ares_strsplit unit test
+  
+  The test reveals a bug in the implementation of ares_strsplit when the
+  make_set parameter is set to 1, as distinct domains are confused for
+  equal:
+  
+    out = ares_strsplit("example.com, example.co", ", ", 1, &n);
+  
+  evaluates to n = 1 with out = { "example.com" }.
+  
+  * bugfix and cleanup of ares_strsplit
+  
+  The purpose of ares_strsplit in c-ares is to split a comma-delimited
+  string of unique (up to letter case) domains. However, because the
+  terminating NUL byte was not checked in the substrings when comparing
+  for uniqueness, the function would sometimes drop domains it should
+  not. For example,
+  
+      ares_strsplit("example.com, example.co", ",")
+  
+  would only result in a single domain "example.com".
+  
+  Aside from this bugfix, the following cleanup is performed:
+  
+  1. The tokenization now happens with the help of strcspn instead of the
+     custom function is_delim.
+  2. The function list_contains has been inlined.
+  3. The interface of ares_strsplit has been simplified by removing the
+     parameter make_set since in practice it was always 1.
+  4. There are fewer passes over the input string.
+  5. We resize the table using realloc() down to its minimum size.
+  6. The docstring of ares_strsplit is updated and also a couple typos
+     are fixed.
+  
+  There occurs a single use of ares_strsplit and since the make_set
+  parameter has been removed, the call in ares_init.c is modified
+  accordingly. The unit test for ares_strsplit is also updated.
+  
+  Fix By: Nikolaos Chatzikonstantinou (@createyourpersonalaccount)
+
+bradh352 (23 Oct 2022)
+- CirrusCI: update freebsd image
+  
+  Old FreeBSD image for CirrusCI has issues with newer symbols, update to later one.
+  
+  Fix By: Brad House (@bradh352)
+
+GitHub (23 Oct 2022)
+- [Stephen Sachs brought this change]
+
+  Fix Intel compiler deprecated options (#485)
+  
+  Options `-we ###` and `-wd ###` should not include a whitespace. They are also deprecated and `-diag-error` and `-diag-disable` are their replacements.
+  
+  Intel compiler 2021.6 is not able to be used in configure without the proposed patch.
+  
+  Fix By: Stephen Sachs (@stephenmsachs)
+
+- [Jonathan Ringer brought this change]
+
+  Allow for CMake to use absolute install paths (#486)
+  
+  Generated libcares.pc could have bad paths when using absolute paths.
+  
+  Fix By: Jonathan Ringer (@jonringer)
+
+- [Thomas Dreibholz brought this change]
+
+  Fix for issue #488: ensure that the number of iovec entries does not exceed system limits. (#489)
+  
+  c-ares could try to exceed maximum number of iovec entries supported by system.
+  
+  Fix By: Thomas Dreibholz (@dreibh)
+
+- [bsergean brought this change]
+
+  Add include guards to ares_data.h (#491)
+  
+  All the other header files in the src/lib folder do have an include guard so it look like an overthought.
+  
+  Fix By: @bsergean
+
+- [Brad Spencer brought this change]
+
+  Fix typo in docs for ares_process_fd (#490)
+  
+  A single letter was missing
+  
+  Fix By: Brad Spencer (@b-spencer)
+
+- [lifenjoiner brought this change]
+
+  tools: refine help (#481)
+  
+  fix invalid help options and documentation typos
+  
+  Fix By: @lifenjoiner
+
+- [lifenjoiner brought this change]
+
+  Git: ignore CMake temporary files (#480)
+  
+  exclude more files from git
+  
+  Fix By: @lifenjoiner
+
+- [lifenjoiner brought this change]
+
+  adig: fix `-T` option (#479)
+  
+  Helper was missing flag to enable TCP mode of operation.
+  
+  Fix By: @lifenjoiner
+
+- [Frank brought this change]
+
+  Add vcpkg installation instructions (#478)
+  
+  Update to include vcpkg installation instructions
+  
+  Fix By: @FrankXie05
+
+- [marc-groundctl brought this change]
+
+  Convert total timeout to per-query (#467)
+  
+  On Apple platforms, libresolv reports the total timeout in retrans, not the per-query time. This patch undoes that math to get the per-query time, which is what c-ares expects. This is not perfect because libresolv is inconsistent on whether the timeout is multiplied by retry or retry+1, but I don't see any way to distinguish these cases.
+  
+  Fix By: Marc Aldorasi (@marc-groundctl)
+
+- [marc-groundctl brought this change]
+
+  Don't include version info in the static library (#468)
+  
+  The static library should not contain version info, since it would be linked into an executable or dll with its own version info.
+  
+  Fix By: @marc-groundctl
+
+- [Ridge Kennedy brought this change]
+
+  Fix ares_getaddrinfo() numerical address fast path with AF_UNSPEC (#469)
+  
+  The conversion of numeric IPv4 addresses in fake_addrinfo() is broken when
+  the family is AF_UNSPEC. The initial call to ares_inet_pton with AF_INET
+  will succeed, but the subsequent call using AF_INET6 will fail. This results
+  in the fake_addrinfo() fast path failing, and ares_getaddrinfo() making a
+  query when none should be required.
+  
+  Resolve this by only attempting the call to ares_inet_pton with AF_INET6
+  if the initial call with AF_INET was unsuccessful.
+  
+  Fix By: Ridge Kennedy (@ridgek)
+
+- [Manish Mehra brought this change]
+
+  Configurable hosts path for file_lookup (#465)
+  
+  This changeset adds support for configurable hosts file
+  ARES_OPT_HOSTS_FILE (similar to ARES_OPT_RESOLVCONF).
+  
+  Co-authored-by: Manish Mehra (@mmehra)
+
+bradh352 (27 Apr 2022)
+- CMake: Windows DLLs lack version information
+  
+  The cares.rc was not included in the build for CMake.  Conditionally
+  add it when building for Windows.
+  
+  Fix By: Brad House (@bradh352)
+  Fixes Bug: #460
+
+GitHub (27 Apr 2022)
+- [Kai Pastor brought this change]
+
+  CMake: Guard target creation in exported config (#464)
+  
+  User projects may call 'find_package(c-ares)' multiple times (e.g.
+  via dependencies), but targets must be created only once.
+  Shared and static target must be treated independently.
+  
+  Fix By: Kai Pastor (@dg0yt)
+
+bradh352 (27 Apr 2022)
+- Honor valid DNS result even if other class returned an error
+  
+  When using ares_getaddrinfo() with PF_UNSPEC, if a DNS server returned
+  good data on an A record, followed by bad data on an AAAA record, the
+  good record would be thrown away and an error returned.
+  
+  If we got a good response from one of the two queries, regardless of
+  the order returned, we should honor that.
+  
+  Fix By: Dmitry Karpov (dkarpov@roku.com)
+  Signed Off By: Brad House (@bradh352)
+
+GitHub (2 Apr 2022)
+- [Sam James brought this change]
+
+  configure.ac: fix STDC_HEADERS typo (#459)
+  
+  There is no autoconf macro called STDC_HEADERS. AC_HEADER_STDC however does
+  exist and it defines the STDC_HEADERS macro for use.
+  
+  Not clear that STDC_HEADERS from its use in the repo is needed but
+  would rather not meddle with it for now.
+  
+  Fixes an annoying warning on `./configure`:
+  ```
+  /var/tmp/portage/net-dns/c-ares-1.18.1/work/c-ares-1.18.1/configure: 24546: STDC_HEADERS: not found
+  ```
+  
+  Signed-off-by: Sam James <sam@gentoo.org>
+
+bradh352 (2 Mar 2022)
+- Asterisks should be allowed in host validation as CNAMEs may reference wildcard domains
+  
+  CloudFlare appears to use this logic in CNAMEs as per
+  https://github.com/nodejs/node/issues/42171
+  
+  Fixes: #457
+  Fix By: Brad House (@bradh352)
+
+- Don't return on file lookup failure, set status
+  
+  When resolving a host via /etc/hosts, don't return with a predefined
+  error as there may be other tries.
+  
+  Fix By: Brad House (@bradh352)
+
+- 'localhost' special treatment enhancement
+  
+  Since localhost is special-cased, any errors should be ignored when
+  reading /etc/hosts as otherwise we could return an error if there
+  were for instance an invalidly formatted /etc/hosts or if /etc/hosts
+  had a permissions error while reading.
+  
+  This exact behavior appears to have been seen on OS/400 PASE
+  environments which allows AIX binares to run.
+  
+  Fix By: Brad House (@bradh352)
+
+- If chain building c-ares as part of another project, detect of res_servicename could fail (#451)
+  
+  If libresolv is already included with the build, c-ares wouldn't properly detect its use.
+  
+  May fix: #451
+  Fix by: Brad House (@bradh352)
+
+- no analyze capability on ios
+
+- attempt to use scan-build on ios
+
+- disable tests on ios
+
+- fix switch statement
+
+- code coverage had gotten disabled
+
+- looks like shell expansion doesn't work with cirrus-ci, lets do it another way
+
+- attempt to autobuild for iOS
+
+GitHub (8 Dec 2021)
+- [Brad House brought this change]
+
+  Windows: rework/simplify initialization code, drop long EOL systems (#445)
+  
+  There was a lot of windows initialization code specific to the era that predates Windows Vista such as reading DNS configuration from the registry, and dynamically loading libraries to get access to functions that didn't exist in XP or earlier releases.
+  
+  Vista was released in January 2007, and was EOL'd in 2017, and support for Vista is still maintained with this patch set.
+  
+  XP was EOL'd in Apr 8 2014.
+  
+  I believe the last OS based on something earlier than Vista was POSReady 2009, as it was XP based for some reason, and that was EOL'd in January 2019. Considering any POS system falls under the PCI-DSS rules, they aren't allow to run POSReady 2009 any more so there is no reason to try to continue supporting such systems.
+  
+  We have also targeted with our build system Vista support for the last few years, and while developers could change the target, we haven't had any reports that they have.
+
+bradh352 (9 Nov 2021)
+- Fix memory leak in reading /etc/hosts
+  
+  When an /etc/hosts lookup is performed, but fails with ENOTFOUND, and
+  a valid RFC6761 Section 6.3 fallback is performed, it could overwrite
+  variables that were already set and therefore leave the pointers
+  dangling, never to be cleaned up.
+  
+  Clean up explicitly on ENOTFOUND when returning from the file parser.
+  
+  Fixes: #439
+  Fix By: Brad House (@bradh352)
+
+GitHub (2 Nov 2021)
+- [Bobby Reynolds brought this change]
+
+  Fix cross-compilation from Windows to Linux due to CPACK logic (#436)
+  
+  When determining value for CPACK_PACKAGE_ARCHITECTURE, prefer to use
+  value from CMAKE_SYSTEM_PROCESSOR before falling back to uname output.
+  
+  Additionally, if building from a Windows host, emit a fatal error
+  instead of attempting to call uname.
+  
+  Fix By: Bobby Reynolds (@reynoldsbd)
+
+bradh352 (1 Nov 2021)
+- fix coveralls link
+
+- coveralls needs token
+
+- coveralls appears to require git
+
+- fix a couple of coveralls vars
+
+- more coveralls fixes
+
+- add code coverage libs to LDADD instead of _LIBS
+
+- make verbose
+
+- try to fix code coverage building
+
+- need -y for install
+
+- try to fix asan/ubsan/lsan when built with clang. try to support code coverage properly.
+
+- try another path
+
+- fix pip
+
+- attempt to enable some other build types that travis supported
+
 Version 1.18.1 (26 Oct 2021)
 
 bradh352 (26 Oct 2021)
@@ -4882,240 +5552,3 @@ Daniel Stenberg (23 Mar 2010)
 - git now, not CVS
 
 - ignore lots of generated files
-
-- [Daniel Johnson brought this change]
-
-  Fix warnings for clang
-
-Yang Tse (17 Mar 2010)
-- replaced intel compiler option -no-ansi-alias with -fno-strict-aliasing
-
-- update outdated serial number
-
-- fix compiler warning
-
-- watt32 compilation fix
-
-- Added another VS10 version string
-
-- fix line break
-
-- removed usage of 's6_addr', fixing compilation issue triggered with no
-  longer using 'in6_addr' but only our 'ares_in6_addr' struct
-
-Daniel Stenberg (5 Mar 2010)
-- Daniel Johnson provided fixes for building with the clang compiler
-
-Yang Tse (5 Mar 2010)
-- Added IPv6 name servers support
-
-Gisle Vanem (5 Mar 2010)
-- Ops!. Readded ares_nowarn.h.
-
-- Added ares_nowarn.c.
-
-Yang Tse (28 Feb 2010)
-- Added SIZEOF_INT and SIZEOF_SHORT definitions for non-configure systems
-
-- Added ares_nowarn.* to VC6 project file
-
-- Added SIZEOF_INT definition
-
-- fix compiler warning
-
-- fix compiler warning
-
-- fix compiler warning
-
-Daniel Stenberg (17 Feb 2010)
-- ares_reinit()
-  
-  - To allow an app to force a re-read of /etc/resolv.conf etc, pretty much
-    like the res_init() resolver function offers
-
-- - Tommie Gannert pointed out a silly bug in ares_process_fd() since it didn't
-    check for broken connections like ares_process() did. Based on that, I
-    merged the two functions into a single generic one with two front-ends.
-
-Yang Tse (30 Dec 2009)
-- VMS specific preprocessor symbol checking adjustments
-
-- Mention last changes
-
-- - Fix configure_socket() to use ares_socket_t instead of int data type.
-
-- - Where run-time error checks enabling compiler option /GZ was used it is now
-    replaced with equivalent /RTCsu for Visual Studio 2003 and newer versions.
-  
-  - Compiler option /GX is now replaced with equivalent /EHsc for all versions.
-
-- - Ingmar Runge noticed that Windows config-win32.h configuration file
-    did not include a definition for HAVE_CLOSESOCKET which resulted in
-    function close() being inappropriately used to close sockets.
-
-Daniel Stenberg (30 Nov 2009)
-- start working on 1.7.1
-
-Version 1.7.0 (27 Nov 2009)
-
-Yang Tse (27 Nov 2009)
-- Preserve empty line following last target
-
-- - Larry Lansing fixed ares_parse_srv_reply to properly parse replies
-    which might contain non-SRV answers, skipping over potential non-SRV
-    ones such as CNAMEs.
-
-- When using icc, compile with -fpic and link with intel dynamic libraries.
-
-- Added 'currently' in italics to insist on transient situation.
-
-- Fix language
-
-- Daniel wants upcoming release to be 1.7.0
-
-- Mention last changes
-
-- - Removed from external interface preprocessor symbol definition for
-    CARES_HAVE_ARES_FREE_DATA. Current functionality of ares_free_data()
-    makes it unnecessary.
-
-- Added README.msvc
-
-- Changed c-ares naming conventions when using MSVC as described in README.msvc
-
-- - Mention other recent changes
-
-- - Jakub Hrozek renamed addrttl and addr6ttl structs to ares_addrttl and
-    ares_addr6ttl in order to prevent name space pollution, along with
-    necessary changes to code base and man pages.This change does not break
-    ABI, there is no need to recompile existing applications. But existing
-    applications using these structs with the old name will need source code
-    adjustments when recompiled using c-ares 1.6.1.
-
-- - Jakub Hrozek fixed more function prototypes in man pages to sync them
-    with the ones declared in ares.h
-
-- Make configure remove the ares_build.h file included in distribution tarballs.
-
-- Fix macro redefinition.
-
-- Fix name space pollution.
-
-- Allow using different extra import libraries for debug and release builds.
-
-- Add manifest stuff to msvc makefile
-
-- Sync man page with reality
-
-- Add missing external API decoration for ares_set_socket_callback()
-
-- Add ares_free_data() man page.
-
-- - Provide in external interface preprocessor symbol definitions for
-    CARES_HAVE_ARES_FREE_DATA as an indication of function availability.
-
-- Remove typecast
-
-- Fix comment
-
-- Add ares_data.c and ares_data.h
-
-- Jakub Hrozek modified ares_parse_srv_reply() and ares_parse_txt_reply() API
-  to return a linked lists of results. These were also modified to internally
-  use the ares_data memory struct and as such its result must be free'ed with
-  ares_free_data().
-
-- Initial support for the generic ares_free_data() function that will allow
-  applications to free memory allocated and returned by some c-ares funtions.
-
-- Make usage of calloc()'s arguments consistent with rest of code base
-
-- workaround icc 9.1 optimizer issue
-
-- Add icc fvisibility bug test
-
-- Fix icc 9.0 compiler warning: external definition with no prior declaration
-
-- Fix three var names
-
-- Add check for assert.h header file
-
-- getaddrinfo is fully thread safe on solaris versions which
-  implement the function even when h_errno is not a macro.
-  
-  The h_errno macro test now only done on systems for which there
-  is no hard coded knowledge about getaddrinfo's thread safeness.
-
-- Remove files generated on previous buildconf/configure run
-
-- Remove enable-thread / disable-thread configure option. These were only placebo
-  options. The library is always built as thread safe as possible on every system.
-
-- Refactor how preprocessor symbol _THREAD_SAFE definition is done.
-
-- Assume that getaddrinfo is thread safe, unless hard coded
-  knowledge says the contrary or h_errno is not defined.
-
-- Related with the threadsafe capability of getaddrinfo:
-  
-  - Constantine Sapuntzakis reported that Darwin 6.0 a.k.a. MAC OS X 10.2
-    and newer have a threadsafe getaddrinfo.
-  
-  - Fix Dragonfly BSD triplet detection.
-  
-  - In case the hard-coded knowledge says that getaddrinfo is threadsafe,
-    an additional check is done to verify that h_errno is also defined.
-    If h_errno isn't defined, we finally assume that it isn't threadsafe.
-    Jamie Lokier provided the inspiration for this extra check.
-
-- AIX 5.2 and newer have threadsafe getaddrinfo.
-  
-  Add some comments to better understand what the regex's pretend to achieve.
-
-- HP-UX 11.11 and later have threadsafe getaddrinfo
-
-- Check if getaddrinfo is threadsafe when function check allows it to be used
-
-- Renamed fpGetNetworkParams and fpSystemFunction036 to avoid namespace pollution with static library
-
-- Add kernel32.lib
-
-- Mention last changes
-
-- Reinstate copyright symbol lost in previous commit
-
-- Make some strings different in resource file for debug or release builds
-
-- Ignore more subdirs
-
-- Fix compiler warning: conditional expression is constant
-
-- Sync linker and resource compiler options with Makefile.msvc
-
-- Follow Makefile.msvc subdirectory naming scheme, and sync compiler options
-
-- Updated MSVC makefile that allows building dynamic and static
-  c-ares libraries in debug and release flavours.
-  
-  Additionally each of the three sample programs is built against
-  each of the four possible c-ares libraries, generating all this
-  a total number of 12 executables and 4 libraries.
-
-- Test for USE_WINSOCK since it is more restrictive than WIN32
-
-- Make header inclusion depend on HAVE_*_H definition
-
-- Remove unneeded preprocessor directives
-
-- Adjust c-ares include paths for memory tracking enabled (--enable-curldebug) builds
-
-- source files used by sample programs
-
-- Renamed c-ares setup.h to ares_setup.h
-
-- Adjust include paths to take in account that currently:
-  
-  c-ares with --enable-curldebug uses memdebug.h from libcurl's lib subdirectory.
-  
-  memdebug.h needs access to libcurl's setup.h from libcurl's lib subdirectory
-  and also needs access to libcurl's generated curl_config.h

@@ -101,6 +101,8 @@ inline std::ostream& operator<<(std::ostream& os,
 const int kMaxFastLiteralDepth = 3;
 const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 
+enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

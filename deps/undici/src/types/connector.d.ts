@@ -10,26 +10,24 @@ declare namespace buildConnector {
     socketPath?: string | null;
     timeout?: number | null;
     port?: number;
+    keepAlive?: boolean | null;
+    keepAliveInitialDelay?: number | null;
   }
 
   export interface Options {
     hostname: string
     host?: string
     protocol: string
-    port: number
+    port: string
     servername?: string
+    localAddress?: string | null
+    httpSocket?: Socket
   }
 
   export type Callback = (...args: CallbackArgs) => void
   type CallbackArgs = [null, Socket | TLSSocket] | [Error, null]
 
-  export type connector = connectorAsync | connectorSync
-
-  interface connectorSync {
-    (options: buildConnector.Options): Socket | TLSSocket
-  }
-
-  interface connectorAsync {
+  export interface connector {
     (options: buildConnector.Options, callback: buildConnector.Callback): void
   }
 }

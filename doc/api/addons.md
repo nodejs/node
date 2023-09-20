@@ -27,7 +27,7 @@ involving knowledge of several components and APIs:
   threads and all of the asynchronous behaviors of the platform. It also
   serves as a cross-platform abstraction library, giving easy, POSIX-like
   access across all major operating systems to many common system tasks, such
-  as interacting with the filesystem, sockets, timers, and system events. libuv
+  as interacting with the file system, sockets, timers, and system events. libuv
   also provides a threading abstraction similar to POSIX threads for
   more sophisticated asynchronous addons that need to move beyond the
   standard event loop. Addon authors should
@@ -106,6 +106,9 @@ and the addon module name is `addon`.
 When building addons with `node-gyp`, using the macro `NODE_GYP_MODULE_NAME` as
 the first parameter of `NODE_MODULE()` will ensure that the name of the final
 binary will be passed to `NODE_MODULE()`.
+
+Addons defined with `NODE_MODULE()` can not be loaded in multiple contexts or
+multiple threads at the same time.
 
 ### Context-aware addons
 
@@ -529,8 +532,8 @@ filename to the `sources` array:
 Once the `binding.gyp` file is ready, the example addons can be configured and
 built using `node-gyp`:
 
-```console
-$ node-gyp configure build
+```bash
+node-gyp configure build
 ```
 
 ### Function arguments
@@ -909,7 +912,8 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     const int argc = 1;
     Local<Value> argv[argc] = { args[0] };
     Local<Function> cons =
-        args.Data().As<Object>()->GetInternalField(0).As<Function>();
+        args.Data().As<Object>()->GetInternalField(0)
+            .As<Value>().As<Function>();
     Local<Object> result =
         cons->NewInstance(context, argc, argv).ToLocalChecked();
     args.GetReturnValue().Set(result);

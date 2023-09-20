@@ -90,8 +90,8 @@ the environment variable OPENSSL_MODULES if set.
 
 OSSL_PROVIDER_try_load() functions like OSSL_PROVIDER_load(), except that
 it does not disable the fallback providers if the provider cannot be
-loaded and initialized or if I<retain_fallbacks> is zero.
-If the provider loads successfully and I<retain_fallbacks> is nonzero, the
+loaded and initialized or if I<retain_fallbacks> is nonzero.
+If the provider loads successfully and I<retain_fallbacks> is zero, the
 fallback providers are disabled.
 
 OSSL_PROVIDER_unload() unloads the given provider.
@@ -110,11 +110,10 @@ See L<OSSL_PROVIDER-default(7)> for more information on this fallback
 behaviour.
 
 OSSL_PROVIDER_gettable_params() is used to get a provider parameter
-descriptor set as a constant B<OSSL_PARAM> array.
-See L<OSSL_PARAM(3)> for more information.
+descriptor set as a constant L<OSSL_PARAM(3)> array.
 
 OSSL_PROVIDER_get_params() is used to get provider parameter values.
-The caller must prepare the B<OSSL_PARAM> array before calling this
+The caller must prepare the L<OSSL_PARAM(3)> array before calling this
 function, and the variables acting as buffers for this parameter array
 should be filled with data when it returns successfully.
 
@@ -150,7 +149,7 @@ OSSL_PROVIDER_get0_name() returns the name of the given provider.
 OSSL_PROVIDER_get_capabilities() provides information about the capabilities
 supported by the provider specified in I<prov> with the capability name
 I<capability>. For each capability of that name supported by the provider it
-will call the callback I<cb> and supply a set of B<OSSL_PARAM>s describing the
+will call the callback I<cb> and supply a set of L<OSSL_PARAM(3)>s describing the
 capability. It will also pass back the argument I<arg>. For more details about
 capabilities and what they can be used for please see
 L<provider-base(7)/CAPABILTIIES>.
@@ -173,7 +172,7 @@ OSSL_PROVIDER_available() returns 1 if the named provider is available,
 otherwise 0.
 
 OSSL_PROVIDER_gettable_params() returns a pointer to an array
-of constant B<OSSL_PARAM>, or NULL if none is provided.
+of constant L<OSSL_PARAM(3)>, or NULL if none is provided.
 
 OSSL_PROVIDER_get_params() and returns 1 on success, or 0 on error.
 
@@ -214,7 +213,7 @@ The type and functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

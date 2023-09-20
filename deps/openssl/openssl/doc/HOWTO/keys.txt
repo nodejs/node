@@ -14,9 +14,9 @@ algorithms.  The most popular ones associated with certificates are
 RSA and DSA, and this HOWTO will show how to generate each of them.
 
 
-2. To generate a RSA key
+2. To generate an RSA key
 
-A RSA key can be used both for encryption and for signing.
+An RSA key can be used both for encryption and for signing.
 
 Generating a key for the RSA algorithm is quite easy, all you have to
 do is the following:

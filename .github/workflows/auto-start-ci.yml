@@ -34,7 +34,7 @@ jobs:
                   --label 'request-ci' \
                   --json 'number' \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100)
+                  --limit 5)
           echo "numbers=$numbers" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -46,12 +46,12 @@ jobs:
     if: needs.get-prs-for-ci.outputs.numbers != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744  # v3.6.0
         with:
           persist-credentials: false
 
       - name: Install Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d  # v3.8.1
         with:
           node-version: ${{ env.NODE_VERSION }}
 

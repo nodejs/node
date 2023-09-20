@@ -8,9 +8,9 @@ const bench = common.createBenchmark(main, {
     'trackingEnabled',
     'trackingEnabledWithDestroyHook',
     'trackingDisabled',
-  ]
+  ],
 }, {
-  flags: ['--expose-gc']
+  flags: ['--expose-gc'],
 });
 
 function endAfterGC(n) {

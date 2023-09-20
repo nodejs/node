@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const vectors = require('../fixtures/crypto/ecdsa')();
 
@@ -135,7 +135,8 @@ async function testVerify({ name,
 
   await assert.rejects(
     subtle.verify({ name, hash: 'sha256' }, publicKey, signature, copy), {
-      message: /Unrecognized name/
+      message: /Unrecognized algorithm name/,
+      name: 'NotSupportedError',
     });
 }
 
@@ -148,7 +149,6 @@ async function testSign({ name,
                           plaintext }) {
   const [
     publicKey,
-    noSignPrivateKey,
     privateKey,
     hmacKey,
     rsaKeys,
@@ -160,12 +160,6 @@ async function testSign({ name,
       { name, namedCurve },
       false,
       ['verify']),
-    subtle.importKey(
-      'pkcs8',
-      privateKeyBuffer,
-      { name, namedCurve },
-      false,
-      [ /* No usages */ ]),
     subtle.importKey(
       'pkcs8',
       privateKeyBuffer,
@@ -210,12 +204,6 @@ async function testSign({ name,
   // Test failure when using wrong key
   await assert.rejects(
     subtle.sign({ name, hash }, publicKey, plaintext), {
-      message: /Unable to use this key to sign/
-    });
-
-  // Test failure when no sign usage
-  await assert.rejects(
-    subtle.sign({ name, hash }, noSignPrivateKey, plaintext), {
       message: /Unable to use this key to sign/
     });
 

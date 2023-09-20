@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Disallow throwing literals as exceptions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-throw-literal"
+            url: "https://eslint.org/docs/latest/rules/no-throw-literal"
         },
 
         schema: [],

@@ -1,5 +1,4 @@
 #include <cstdio>
-#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -72,29 +71,26 @@ int BuildSnapshot(int argc, char* argv[]) {
   CHECK_EQ(result->exit_code(), 0);
 
   std::string out_path;
-  if (node::per_process::cli_options->build_snapshot) {
+  std::optional<std::string_view> main_script_path = std::nullopt;
+  if (node::per_process::cli_options->per_isolate->build_snapshot) {
+    main_script_path = result->args()[1];
     out_path = result->args()[2];
   } else {
     out_path = result->args()[1];
   }
 
-  std::ofstream out(out_path, std::ios::out | std::ios::binary);
-  if (!out) {
-    std::cerr << "Cannot open " << out_path << "\n";
-    return 1;
-  }
+#ifdef NODE_MKSNAPSHOT_USE_ARRAY_LITERALS
+  bool use_array_literals = true;
+#else
+  bool use_array_literals = false;
+#endif
 
-  node::ExitCode exit_code = node::ExitCode::kNoFailure;
-  {
-    exit_code = node::SnapshotBuilder::Generate(
-        out, result->args(), result->exec_args());
-    if (exit_code == node::ExitCode::kNoFailure) {
-      if (!out) {
-        std::cerr << "Failed to write " << out_path << "\n";
-        exit_code = node::ExitCode::kGenericUserError;
-      }
-    }
-  }
+  node::ExitCode exit_code =
+      node::SnapshotBuilder::GenerateAsSource(out_path.c_str(),
+                                              result->args(),
+                                              result->exec_args(),
+                                              main_script_path,
+                                              use_array_literals);
 
   node::TearDownOncePerProcess();
   return static_cast<int>(exit_code);

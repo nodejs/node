@@ -46,8 +46,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
 #if V8_ENABLE_WEBASSEMBLY
     TYPE_WASM = 3,
 #endif  // V8_ENABLE_WEBASSEMBLY
-    TYPE_INSPECTOR = 4,
-    TYPE_WEB_SNAPSHOT = 5
+    TYPE_INSPECTOR = 4
   };
 
   // Script compilation types.
@@ -62,7 +61,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // [type]: the script type.
   DECL_INT_ACCESSORS(type)
 
-  DECL_ACCESSORS(eval_from_shared_or_wrapped_arguments_or_sfi_table, Object)
+  DECL_ACCESSORS(eval_from_shared_or_wrapped_arguments, Object)
 
   // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
@@ -70,12 +69,6 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
 
   // [wrapped_arguments]: for the list of arguments in a wrapped script.
   DECL_ACCESSORS(wrapped_arguments, FixedArray)
-
-  // For web snapshots: a hash table mapping function positions to indices in
-  // shared_function_infos.
-  // TODO(v8:11525): Replace with a more efficient data structure mapping
-  // function positions to weak pointers to SharedFunctionInfos directly.
-  DECL_ACCESSORS(shared_function_info_table, ObjectHashTable)
 
   // Whether the script is implicitly wrapped in a function.
   inline bool is_wrapped() const;
@@ -128,6 +121,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   inline CompilationType compilation_type();
   inline void set_compilation_type(CompilationType type);
 
+  inline bool produce_compile_hints() const;
+  inline void set_produce_compile_hints(bool produce_compile_hints);
+
   // [compilation_state]: determines whether the script has already been
   // compiled. Encoded in the 'flags' field.
   inline CompilationState compilation_state();
@@ -143,6 +139,8 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // this through. Encoded in the 'flags' field.
   inline v8::ScriptOriginOptions origin_options();
   inline void set_origin_options(ScriptOriginOptions origin_options);
+
+  DECL_ACCESSORS(compiled_lazy_function_positions, Object)
 
   // If script source is an external string, check that the underlying
   // resource is accessible. Otherwise, always return true.
@@ -214,14 +212,6 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   template <typename IsolateT>
   static MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(
       Handle<Script> script, IsolateT* isolate,
-      FunctionLiteral* function_literal);
-
-  static MaybeHandle<SharedFunctionInfo> FindWebSnapshotSharedFunctionInfo(
-      Handle<Script> script, Isolate* isolate,
-      FunctionLiteral* function_literal);
-
-  static MaybeHandle<SharedFunctionInfo> FindWebSnapshotSharedFunctionInfo(
-      Handle<Script> script, LocalIsolate* isolate,
       FunctionLiteral* function_literal);
 
   // Iterate over all script objects on the heap.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -76,6 +76,7 @@
 # define FFC_ERROR_NOT_SUITABLE_GENERATOR 0x08
 # define FFC_ERROR_PRIVKEY_TOO_SMALL      0x10
 # define FFC_ERROR_PRIVKEY_TOO_LARGE      0x20
+# define FFC_ERROR_PASSED_NULL_PARAM      0x40
 
 /*
  * Finite field cryptography (FFC) domain parameters are used by DH and DSA.

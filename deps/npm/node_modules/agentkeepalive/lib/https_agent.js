@@ -25,8 +25,8 @@ class HttpsAgent extends HttpAgent {
     };
   }
 
-  createConnection(options) {
-    const socket = this[CREATE_HTTPS_CONNECTION](options);
+  createConnection(options, oncreate) {
+    const socket = this[CREATE_HTTPS_CONNECTION](options, oncreate);
     this[INIT_SOCKET](socket, options);
     return socket;
   }

@@ -1,0 +1,9 @@
+Test that live editing the top-level function of an ES module does not work [crbug.com/1413447]
+Uncommenting the import line should fail:
+{
+    status : BlockedByTopLevelEsModuleChange
+}
+Uncommenting the console.log line should work:
+{
+    status : Ok
+}

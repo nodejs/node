@@ -107,6 +107,6 @@ TEST_IMPL(watcher_cross_stop) {
   ASSERT(ARRAY_SIZE(sockets) == send_cb_called);
   ASSERT(ARRAY_SIZE(sockets) == close_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

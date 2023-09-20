@@ -1,4 +1,5 @@
 const log = require('./log-shim')
+const replaceInfo = require('./replace-info.js')
 
 // print an error or just nothing if the audit report has an error
 // this is called by the audit command, and by the reify-output util
@@ -24,7 +25,7 @@ const auditError = (npm, report) => {
     npm.output(JSON.stringify({
       message: error.message,
       method: error.method,
-      uri: error.uri,
+      uri: replaceInfo(error.uri),
       headers: error.headers,
       statusCode: error.statusCode,
       body,

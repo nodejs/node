@@ -9,6 +9,7 @@ import { InstructionsPhase } from "./instructions-phase";
 
 export class SequencePhase extends Phase {
   blocks: Array<SequenceBlock>;
+  instructions: Array<SequenceBlockInstruction>;
   instructionsPhase: InstructionsPhase;
   positions: PositionsContainer;
   registerAllocation: RegisterAllocation;
@@ -34,6 +35,7 @@ export class SequencePhase extends Phase {
   private parseBlocksFromJSON(blocksJSON): void {
     if (!blocksJSON || blocksJSON.length == 0) return;
     this.blocks = new Array<SequenceBlock>();
+    this.instructions = new Array<SequenceBlockInstruction>();
     for (const block of blocksJSON) {
       const newBlock = new SequenceBlock(block.id, block.deferred, block.loopHeader, block.loopEnd,
         block.predecessors, block.successors);
@@ -62,6 +64,7 @@ export class SequencePhase extends Phase {
         newInstruction.gaps.push(newGap);
       }
       this.lastBlock().instructions.push(newInstruction);
+      this.instructions.push(newInstruction);
     }
   }
 
@@ -88,7 +91,7 @@ export class SequencePhase extends Phase {
     if (!rangesJSON) return null;
     const parsedRanges = new Array<Range>();
     for (const [idx, range] of Object.entries<Range>(rangesJSON)) {
-      const newRange = new Range(range.isDeferred);
+      const newRange = new Range(range.isDeferred, range.instructionRange);
       for (const childRange of range.childRanges) {
         let operand: SequenceBlockOperand | string = null;
         if (childRange.op) {
@@ -176,61 +179,16 @@ export class RegisterAllocation {
     this.fixedLiveRanges = new Array<Range>();
     this.liveRanges = new Array<Range>();
   }
-
-  public forEachFixedRange(row: number, callback: (registerIndex: number, row: number,
-                                                   registerName: string,
-                                                   ranges: [Range, Range]) => void): number {
-    const forEachRangeInMap = (rangeMap: Array<Range>) => {
-      // There are two fixed live ranges for each register, one for normal, another for deferred.
-      // These are combined into a single row.
-      const fixedRegisterMap = new Map<string, {registerIndex: number, ranges: [Range, Range]}>();
-      for (const [registerIndex, range] of rangeMap.entries()) {
-        if (!range) continue;
-        const registerName = range.fixedRegisterName();
-        if (fixedRegisterMap.has(registerName)) {
-          const entry = fixedRegisterMap.get(registerName);
-          entry.ranges[1] = range;
-          // Only use the deferred register index if no normal index exists.
-          if (!range.isDeferred) {
-            entry.registerIndex = registerIndex;
-          }
-        } else {
-          fixedRegisterMap.set(registerName, {registerIndex, ranges: [range, undefined]});
-        }
-      }
-      // Sort the registers by number.
-      const sortedMap = new Map([...fixedRegisterMap.entries()].sort(([nameA, _], [nameB, __]) => {
-        if (nameA.length > nameB.length) {
-          return 1;
-        } else if (nameA.length < nameB.length) {
-          return -1;
-        } else if (nameA > nameB) {
-          return 1;
-        } else if (nameA < nameB) {
-          return -1;
-        }
-        return 0;
-      }));
-
-      for (const [registerName, {ranges, registerIndex}] of sortedMap) {
-        callback(-registerIndex - 1, row, registerName, ranges);
-        ++row;
-      }
-    };
-
-    forEachRangeInMap(this.fixedLiveRanges);
-    forEachRangeInMap(this.fixedDoubleLiveRanges);
-
-    return row;
-  }
 }
 
 export class Range {
   isDeferred: boolean;
+  instructionRange: [number, number];
   childRanges: Array<ChildRange>;
 
-  constructor(isDeferred: boolean) {
+  constructor(isDeferred: boolean, instructionRange: [number, number]) {
     this.isDeferred = isDeferred;
+    this.instructionRange = instructionRange;
     this.childRanges = new Array<ChildRange>();
   }
 
@@ -259,24 +217,38 @@ export class ChildRange {
     this.uses = uses;
   }
 
-  public getTooltip(registerIndex: number): string {
+  public getTooltip(registerIndex: number): RangeToolTip {
     switch (this.type) {
       case "none":
-        return C.INTERVAL_TEXT_FOR_NONE;
+        return new RangeToolTip(C.INTERVAL_TEXT_FOR_NONE, false);
       case "spill_range":
-        return `${C.INTERVAL_TEXT_FOR_STACK}${registerIndex}`;
+        return new RangeToolTip(`${C.INTERVAL_TEXT_FOR_STACK}${registerIndex}`, true);
       default:
         if (this.op instanceof SequenceBlockOperand && this.op.type == "constant") {
-          return C.INTERVAL_TEXT_FOR_CONST;
+          new RangeToolTip(C.INTERVAL_TEXT_FOR_CONST, false);
         } else {
           if (this.op instanceof SequenceBlockOperand && this.op.text) {
-            return this.op.text;
+            new RangeToolTip(this.op.text, true);
           } else if (typeof this.op === "string") {
-            return this.op;
+            new RangeToolTip(this.op, true);
           }
         }
     }
-    return "";
+    return new RangeToolTip("", false);
+  }
+
+  public isFloatingPoint(): boolean {
+    return this.op instanceof SequenceBlockOperand && this.op.tooltip.includes("Float");
+  }
+}
+
+export class RangeToolTip {
+  text: string;
+  isId: boolean;
+
+  constructor(text: string, isId: boolean) {
+    this.text = text;
+    this.isId = isId;
   }
 }
 

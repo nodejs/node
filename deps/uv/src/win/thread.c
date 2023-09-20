@@ -180,6 +180,81 @@ int uv_thread_create_ex(uv_thread_t* tid,
   return UV_EIO;
 }
 
+int uv_thread_setaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          char* oldmask,
+                          size_t mask_size) {
+  int i;
+  HANDLE hproc;
+  DWORD_PTR procmask;
+  DWORD_PTR sysmask;
+  DWORD_PTR threadmask;
+  DWORD_PTR oldthreadmask;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  assert(cpumasksize > 0);
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  hproc = GetCurrentProcess();
+  if (!GetProcessAffinityMask(hproc, &procmask, &sysmask))
+    return uv_translate_sys_error(GetLastError());
+
+  threadmask = 0;
+  for (i = 0; i < cpumasksize; i++) {
+    if (cpumask[i]) {
+      if (procmask & (1 << i))
+        threadmask |= 1 << i;
+      else
+        return UV_EINVAL;
+    }
+  }
+
+  oldthreadmask = SetThreadAffinityMask(*tid, threadmask);
+  if (oldthreadmask == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  if (oldmask != NULL) {
+    for (i = 0; i < cpumasksize; i++)
+      oldmask[i] = (oldthreadmask >> i) & 1;
+  }
+
+  return 0;
+}
+
+int uv_thread_getaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          size_t mask_size) {
+  int i;
+  HANDLE hproc;
+  DWORD_PTR procmask;
+  DWORD_PTR sysmask;
+  DWORD_PTR threadmask;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  assert(cpumasksize > 0);
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  hproc = GetCurrentProcess();
+  if (!GetProcessAffinityMask(hproc, &procmask, &sysmask))
+    return uv_translate_sys_error(GetLastError());
+
+  threadmask = SetThreadAffinityMask(*tid, procmask);
+  if (threadmask == 0 || SetThreadAffinityMask(*tid, threadmask) == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  for (i = 0; i < cpumasksize; i++)
+    cpumask[i] = (threadmask >> i) & 1;
+
+  return 0;
+}
+
+int uv_thread_getcpu(void) {
+  return GetCurrentProcessorNumber();
+}
 
 uv_thread_t uv_thread_self(void) {
   uv_thread_t key;
@@ -374,75 +449,13 @@ void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
     abort();
 }
 
+
 int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   if (SleepConditionVariableCS(&cond->cond_var, mutex, (DWORD)(timeout / 1e6)))
     return 0;
   if (GetLastError() != ERROR_TIMEOUT)
     abort();
   return UV_ETIMEDOUT;
-}
-
-
-int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
-  int err;
-
-  barrier->n = count;
-  barrier->count = 0;
-
-  err = uv_mutex_init(&barrier->mutex);
-  if (err)
-    return err;
-
-  err = uv_sem_init(&barrier->turnstile1, 0);
-  if (err)
-    goto error2;
-
-  err = uv_sem_init(&barrier->turnstile2, 1);
-  if (err)
-    goto error;
-
-  return 0;
-
-error:
-  uv_sem_destroy(&barrier->turnstile1);
-error2:
-  uv_mutex_destroy(&barrier->mutex);
-  return err;
-
-}
-
-
-void uv_barrier_destroy(uv_barrier_t* barrier) {
-  uv_sem_destroy(&barrier->turnstile2);
-  uv_sem_destroy(&barrier->turnstile1);
-  uv_mutex_destroy(&barrier->mutex);
-}
-
-
-int uv_barrier_wait(uv_barrier_t* barrier) {
-  int serial_thread;
-
-  uv_mutex_lock(&barrier->mutex);
-  if (++barrier->count == barrier->n) {
-    uv_sem_wait(&barrier->turnstile2);
-    uv_sem_post(&barrier->turnstile1);
-  }
-  uv_mutex_unlock(&barrier->mutex);
-
-  uv_sem_wait(&barrier->turnstile1);
-  uv_sem_post(&barrier->turnstile1);
-
-  uv_mutex_lock(&barrier->mutex);
-  serial_thread = (--barrier->count == 0);
-  if (serial_thread) {
-    uv_sem_wait(&barrier->turnstile1);
-    uv_sem_post(&barrier->turnstile2);
-  }
-  uv_mutex_unlock(&barrier->mutex);
-
-  uv_sem_wait(&barrier->turnstile2);
-  uv_sem_post(&barrier->turnstile2);
-  return serial_thread;
 }
 
 

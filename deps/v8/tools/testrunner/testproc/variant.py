@@ -28,6 +28,9 @@ class VariantProc(base.TestProcProducer):
     self._variant_gens = {}
     self._variants = variants
 
+  def test_suffix(self, test):
+    return test.variant
+
   def _next_test(self, test):
     gen = self._variants_gen(test)
     self._next_variant[test.procid] = gen
@@ -43,8 +46,8 @@ class VariantProc(base.TestProcProducer):
 
   def _try_send_new_subtest(self, test, variants_gen):
     for variant, flags, suffix in variants_gen:
-      subtest = self._create_subtest(test, '%s-%s' % (variant, suffix),
-                                     variant=variant, flags=flags)
+      subtest = test.create_subtest(
+          self, '%s-%s' % (variant, suffix), variant=variant, flags=flags)
       if self._send_test(subtest):
         return True
 

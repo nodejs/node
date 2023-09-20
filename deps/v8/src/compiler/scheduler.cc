@@ -495,13 +495,6 @@ class CFGBuilder : public ZoneObject {
         break;
     }
 
-    if (v8_flags.warn_about_builtin_profile_data &&
-        hint_from_profile != BranchHint::kNone &&
-        BranchHintOf(branch->op()) != BranchHint::kNone &&
-        hint_from_profile != BranchHintOf(branch->op())) {
-      PrintF("Warning: profiling data overrode manual branch hint.\n");
-    }
-
     if (branch == component_entry_) {
       TraceConnect(branch, component_start_, successor_blocks[0]);
       TraceConnect(branch, component_start_, successor_blocks[1]);
@@ -1307,7 +1300,7 @@ class PrepareUsesVisitor {
       : scheduler_(scheduler),
         schedule_(scheduler->schedule_),
         graph_(graph),
-        visited_(graph_->NodeCount(), false, zone),
+        visited_(static_cast<int>(graph_->NodeCount()), zone),
         stack_(zone) {}
 
   void Run() {
@@ -1340,7 +1333,7 @@ class PrepareUsesVisitor {
       }
     }
     stack_.push(node);
-    visited_[node->id()] = true;
+    visited_.Add(node->id());
   }
 
   void VisitInputs(Node* node) {
@@ -1363,12 +1356,12 @@ class PrepareUsesVisitor {
     }
   }
 
-  bool Visited(Node* node) { return visited_[node->id()]; }
+  bool Visited(Node* node) { return visited_.Contains(node->id()); }
 
   Scheduler* scheduler_;
   Schedule* schedule_;
   Graph* graph_;
-  BoolVector visited_;
+  BitVector visited_;
   ZoneStack<Node*> stack_;
 };
 
@@ -1506,7 +1499,6 @@ class ScheduleLateNodeVisitor {
       : zone_(zone),
         scheduler_(scheduler),
         schedule_(scheduler_->schedule_),
-        marked_(scheduler->zone_),
         marking_queue_(scheduler->zone_) {}
 
   // Run the schedule late algorithm on a set of fixed root nodes.
@@ -1594,15 +1586,13 @@ class ScheduleLateNodeVisitor {
   }
 
   bool IsMarked(BasicBlock* block) const {
-    DCHECK_LT(block->id().ToSize(), marked_.size());
-    return marked_[block->id().ToSize()];
+    return marked_.Contains(block->id().ToInt());
   }
 
-  void Mark(BasicBlock* block) { marked_[block->id().ToSize()] = true; }
+  void Mark(BasicBlock* block) { marked_.Add(block->id().ToInt()); }
 
   // Mark {block} and push its non-marked predecessor on the marking queue.
   void MarkBlock(BasicBlock* block) {
-    DCHECK_LT(block->id().ToSize(), marked_.size());
     Mark(block);
     for (BasicBlock* pred_block : block->predecessors()) {
       if (IsMarked(pred_block)) continue;
@@ -1623,8 +1613,11 @@ class ScheduleLateNodeVisitor {
 
     // Clear marking bits.
     DCHECK(marking_queue_.empty());
-    std::fill(marked_.begin(), marked_.end(), false);
-    marked_.resize(schedule_->BasicBlockCount() + 1, false);
+    marked_.Clear();
+    int new_size = static_cast<int>(schedule_->BasicBlockCount() + 1);
+    if (marked_.length() < new_size) {
+      marked_.Resize(new_size, scheduler_->zone_);
+    }
 
     // Check if the {node} has uses in {block}.
     for (Edge edge : node->use_edges()) {
@@ -1647,10 +1640,12 @@ class ScheduleLateNodeVisitor {
       marking_queue_.pop_front();
       if (IsMarked(top_block)) continue;
       bool marked = true;
-      for (BasicBlock* successor : top_block->successors()) {
-        if (!IsMarked(successor)) {
-          marked = false;
-          break;
+      if (top_block->loop_depth() == block->loop_depth()) {
+        for (BasicBlock* successor : top_block->successors()) {
+          if (!IsMarked(successor)) {
+            marked = false;
+            break;
+          }
         }
       }
       if (marked) MarkBlock(top_block);
@@ -1840,7 +1835,7 @@ class ScheduleLateNodeVisitor {
   Zone* zone_;
   Scheduler* scheduler_;
   Schedule* schedule_;
-  BoolVector marked_;
+  BitVector marked_;
   ZoneDeque<BasicBlock*> marking_queue_;
 };
 

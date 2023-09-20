@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Require symbol descriptions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/symbol-description"
+            url: "https://eslint.org/docs/latest/rules/symbol-description"
         },
         fixable: null,
         schema: [],
@@ -34,6 +34,8 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports if node does not conform the rule in case rule is set to
@@ -51,16 +53,16 @@ module.exports = {
         }
 
         return {
-            "Program:exit"() {
-                const scope = context.getScope();
+            "Program:exit"(node) {
+                const scope = sourceCode.getScope(node);
                 const variable = astUtils.getVariableByName(scope, "Symbol");
 
                 if (variable && variable.defs.length === 0) {
                     variable.references.forEach(reference => {
-                        const node = reference.identifier;
+                        const idNode = reference.identifier;
 
-                        if (astUtils.isCallee(node)) {
-                            checkArgument(node.parent);
+                        if (astUtils.isCallee(idNode)) {
+                            checkArgument(idNode.parent);
                         }
                     });
                 }

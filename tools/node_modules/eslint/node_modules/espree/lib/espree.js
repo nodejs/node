@@ -1,4 +1,5 @@
-/* eslint-disable no-param-reassign*/
+/* eslint no-param-reassign: 0 -- stylistic choice */
+
 import TokenTranslator from "./token-translator.js";
 import { normalizeOptions } from "./options.js";
 
@@ -109,7 +110,7 @@ export default () => Parser => {
                 allowReturnOutsideFunction: options.allowReturnOutsideFunction,
 
                 // Collect tokens
-                onToken: token => {
+                onToken(token) {
                     if (tokenTranslator) {
 
                         // Use `tokens`, `ecmaVersion`, and `jsxAttrValueToken` in the state.
@@ -121,7 +122,7 @@ export default () => Parser => {
                 },
 
                 // Collect comments
-                onComment: (block, text, start, end, startLoc, endLoc) => {
+                onComment(block, text, start, end, startLoc, endLoc) {
                     if (state.comments) {
                         const comment = convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, endLoc, code);
 
@@ -314,7 +315,7 @@ export default () => Parser => {
         * on extra so that when tokens are converted, the next token will be switched
         * to JSXText via onToken.
         */
-        jsx_readString(quote) { // eslint-disable-line camelcase
+        jsx_readString(quote) { // eslint-disable-line camelcase -- required by API
             const result = super.jsx_readString(quote);
 
             if (this.type === tokTypes.string) {

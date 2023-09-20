@@ -25,6 +25,18 @@ function valid (string) {
   }
 }
 
+// Sorting function that orders the given array of transpositions such
+// that a transposition with the longer pattern comes before a transposition
+// with a shorter pattern. This is to prevent e.g. the transposition
+// ["General Public License", "GPL"] from matching to "Lesser General Public License"
+// before a longer and more accurate transposition ["Lesser General Public License", "LGPL"]
+// has a chance to be recognized.
+function sortTranspositions(a, b) {
+  var length = b[0].length - a[0].length
+  if (length !== 0) return length
+  return a[0].toUpperCase().localeCompare(b[0].toUpperCase())
+}
+
 // Common transpositions of license identifier acronyms
 var transpositions = [
   ['APGL', 'AGPL'],
@@ -41,8 +53,17 @@ var transpositions = [
   ['GUN', 'GPL'],
   ['+', ''],
   ['GNU GPL', 'GPL'],
+  ['GNU LGPL', 'LGPL'],
   ['GNU/GPL', 'GPL'],
   ['GNU GLP', 'GPL'],
+  ['GNU LESSER GENERAL PUBLIC LICENSE', 'LGPL'],
+  ['GNU Lesser General Public License', 'LGPL'],
+  ['GNU LESSER GENERAL PUBLIC LICENSE', 'LGPL-2.1'],
+  ['GNU Lesser General Public License', 'LGPL-2.1'],
+  ['LESSER GENERAL PUBLIC LICENSE', 'LGPL'],
+  ['Lesser General Public License', 'LGPL'],
+  ['LESSER GENERAL PUBLIC LICENSE', 'LGPL-2.1'],
+  ['Lesser General Public License', 'LGPL-2.1'],
   ['GNU General Public License', 'GPL'],
   ['Gnu public license', 'GPL'],
   ['GNU Public License', 'GPL'],
@@ -51,8 +72,9 @@ var transpositions = [
   ['Mozilla Public License', 'MPL'],
   ['Universal Permissive License', 'UPL'],
   ['WTH', 'WTF'],
+  ['WTFGPL', 'WTFPL'],
   ['-License', '']
-]
+].sort(sortTranspositions)
 
 var TRANSPOSED = 0
 var CORRECT = 1
@@ -254,7 +276,7 @@ var lastResorts = [
   ['MPL', 'MPL-2.0'],
   ['X11', 'X11'],
   ['ZLIB', 'Zlib']
-].concat(licensesWithOneVersion)
+].concat(licensesWithOneVersion).sort(sortTranspositions)
 
 var SUBSTRING = 0
 var IDENTIFIER = 1

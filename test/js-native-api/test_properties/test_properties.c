@@ -1,6 +1,7 @@
-#define NAPI_EXPERIMENTAL
+#define NAPI_VERSION 9
 #include <js_native_api.h>
 #include "../common.h"
+#include "../entry_point.h"
 
 static double value_ = 1;
 

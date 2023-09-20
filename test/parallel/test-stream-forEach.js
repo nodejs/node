@@ -96,7 +96,7 @@ const { once } = require('events');
     Readable.from([1, 2, 3, 4]).forEach(async (_, { signal }) => {
       calls++;
       await once(signal, 'abort');
-    }, { signal: ac.signal, concurrency: 2 });
+    }, { signal: ac.signal, concurrency: 2, highWaterMark: 0 });
   // pump
   assert.rejects(async () => {
     await forEachPromise;
@@ -132,7 +132,7 @@ const { once } = require('events');
 {
   const stream = Readable.from([1, 2, 3, 4, 5]);
   Object.defineProperty(stream, 'map', {
-    value: common.mustNotCall(() => {}),
+    value: common.mustNotCall(),
   });
   // Check that map isn't getting called.
   stream.forEach(() => true);

@@ -116,7 +116,7 @@ multiple synonyms associated with it. In this case the first name from the
 algorithm definition is returned. Ownership of the returned string is retained
 by the I<decoder> object and should not be freed by the caller.
 
-OSSL_DECODER_get0_description() returns a pointer to a decription, or NULL if
+OSSL_DECODER_get0_description() returns a pointer to a description, or NULL if
 there isn't one.
 
 OSSL_DECODER_names_do_all() returns 1 if the callback was called for all
@@ -180,7 +180,7 @@ The functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -7,7 +7,7 @@ class InstallCITest extends CI {
   static description = 'Install a project with a clean slate and run tests'
   static name = 'install-ci-test'
 
-  async exec (args, cb) {
+  async exec (args) {
     await this.npm.exec('ci', args)
     return this.npm.exec('test', [])
   }
