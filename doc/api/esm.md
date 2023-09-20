@@ -323,14 +323,19 @@ const buffer = readFileSync(new URL('./data.proto', import.meta.url));
 
 ### `import.meta.resolve(specifier)`
 
-<!--
+<!-- YAML
 added:
   - v13.9.0
   - v12.16.2
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/49028
-    description: No longer behind the `--experimental-import-meta-resolve` flag.
+    description: Unflag `import.meta.resolve``, with `parentURL` parameter still
+                 flagged.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49038
+    description: This API no longer throws when targeting `file:` URLs that do
+                 not map to an existing file on the local FS.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/44710
     description: This API now returns a string synchronously instead of a Promise.
@@ -339,11 +344,6 @@ changes:
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38587
     description: Add support for WHATWG `URL` object to `parentURL` parameter.
-  - version:
-      - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/49028
-    description: Unflag import.meta.resolve, with `parentURL` parameter still
-                 flagged.
 -->
 
 > Stability: 1.2 - Release candidate
