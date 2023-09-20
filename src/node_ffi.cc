@@ -26,15 +26,16 @@ namespace node {
 namespace ffi {
 
 binding::DLib* FfiBindingData::GetLibrary(std::string fname) {
-  if (libraries_[fname] != nullptr) {
-    return libraries_[fname];
-  } else {
-    binding::DLib* lib =
-        new binding::DLib(fname.c_str(), binding::DLib::kDefaultFlags);
-    if (!lib->Open()) return nullptr;
-    libraries_[fname] = lib;
-    return lib;
+  auto result = libraries_.find(fname);
+  if (result != libraries_.end()) {
+    return result->second.get();
   }
+  std::unique_ptr<binding::DLib> lib(
+      new binding::DLib(fname.c_str(), binding::DLib::kDefaultFlags));
+  if (!lib->Open()) return nullptr;
+  binding::DLib* ptr = lib.get();
+  libraries_.insert({fname, std::move(lib)});
+  return ptr;
 }
 
 void ReturnPointer(const FunctionCallbackInfo<Value>& args, void* ptr) {

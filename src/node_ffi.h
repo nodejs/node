@@ -53,7 +53,7 @@ class FfiBindingData : public BaseObject {
   SET_NO_MEMORY_INFO()
 
  private:
-  std::map<std::string, binding::DLib*> libraries_;
+  std::map<std::string, std::unique_ptr<binding::DLib>> libraries_;
 };
 
 void MakeCall(const v8::FunctionCallbackInfo<Value>& args);
