@@ -142,7 +142,7 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.strictEqual(child.status, 7);
     assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stdout.toString(), 'Going to throw an error\n');
-    assert.match(child.stderr.toString(), /Error: Reporting error\n\s+at customReporter/);
+    assert.match(child.stderr.toString(), /Error: Reporting error\r?\n\s+at customReporter/);
   });
 
   it('should throw when reporter errors asynchronously', async () => {
