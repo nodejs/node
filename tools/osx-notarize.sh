@@ -33,6 +33,8 @@ if [ -z "$NOTARIZATION_TEAM_ID" ]; then
   exit 0
 fi
 
+# TODO(@ulisesGascon): remove support for gon
+# when https://github.com/nodejs/build/issues/3385#issuecomment-1729281269 is ready
 if [ "$xcode_version_result" -lt "$xcode_version_threshold" ]; then
   echo "Notarization process is done with gon."
   set -x
@@ -62,6 +64,8 @@ else
   fi
 
   # Submit the package for notarization
+  # TODO(@ulisesGascon): refactor to use --keychain-profile
+  # when https://github.com/nodejs/build/issues/3385#issuecomment-1729281269 is ready
   notarization_output=$(
     xcrun notarytool submit \
       --apple-id "$NOTARIZATION_ID" \
