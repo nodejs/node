@@ -1,7 +1,7 @@
 // Flags: --unhandled-rejections=warn-with-error-code
 'use strict';
 
-require('../common');
+require('../../common');
 const assert = require('assert');
 
 Promise.reject(new Error('alas'));
