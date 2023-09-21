@@ -2551,7 +2551,6 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
 
   uv_file file;
   uv_fs_t req;
-  auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
 
   bool is_fd = args[0]->IsInt32();
 
@@ -2567,17 +2566,19 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     file = uv_fs_open(nullptr, &req, *path, flags, O_RDONLY, nullptr);
     FS_SYNC_TRACE_END(open);
     if (req.result < 0) {
+      uv_fs_req_cleanup(&req);
       // req will be cleaned up by scope leave.
       return env->ThrowUVException(req.result, "open", nullptr, path.out());
     }
   }
 
-  auto defer_close = OnScopeLeave([file, is_fd]() {
+  auto defer_close = OnScopeLeave([file, is_fd, &req]() {
     if (!is_fd) {
-      uv_fs_t close_req;
-      CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
-      uv_fs_req_cleanup(&close_req);
+      FS_SYNC_TRACE_BEGIN(close);
+      CHECK_EQ(0, uv_fs_close(nullptr, &req, file, nullptr));
+      FS_SYNC_TRACE_END(close);
     }
+    uv_fs_req_cleanup(&req);
   });
 
   std::string result{};
