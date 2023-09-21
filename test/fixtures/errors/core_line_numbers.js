@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+require('../../common');
 Error.stackTraceLimit = 3;
 
 const punycode = require('punycode');
