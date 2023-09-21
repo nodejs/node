@@ -134,4 +134,25 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.strictEqual(child.stdout.toString(), '');
     assert.match(child.stderr.toString(), /ERR_INVALID_ARG_TYPE/);
   });
+
+  it('should throw when reporter errors', async () => {
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter', fixtures.fileURL('test-runner/custom_reporters/throwing.js'),
+                             fixtures.path('test-runner/default-behavior/index.test.js')]);
+    assert.strictEqual(child.status, 7);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stdout.toString(), 'Going to throw an error\n');
+    assert.match(child.stderr.toString(), /Error: Reporting error\r?\n\s+at customReporter/);
+  });
+
+  it('should throw when reporter errors asynchronously', async () => {
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter',
+                             fixtures.fileURL('test-runner/custom_reporters/throwing-async.js'),
+                             fixtures.path('test-runner/default-behavior/index.test.js')]);
+    assert.strictEqual(child.status, 7);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stdout.toString(), 'Going to throw an error\n');
+    assert.match(child.stderr.toString(), /Emitted 'error' event on Duplex instance/);
+  });
 });
