@@ -5,6 +5,11 @@ const fs = require('fs');
 const tmpdir = require('../../test/common/tmpdir');
 tmpdir.refresh();
 
+// Windows does not have `getuid` or `getgid`.
+if (process.platform === 'win32') {
+  return;
+}
+
 const tmpfile = tmpdir.resolve(`.existing-file-${process.pid}`);
 fs.writeFileSync(tmpfile, 'this-is-for-a-benchmark', 'utf8');
 

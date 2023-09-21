@@ -2768,7 +2768,7 @@ static void ChownSync(const FunctionCallbackInfo<Value>& args) {
   const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
 
   uv_fs_t req;
-  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
   FS_SYNC_TRACE_BEGIN(chown);
   int err = uv_fs_chown(nullptr, &req, *path, uid, gid, nullptr);
   FS_SYNC_TRACE_END(chown);
