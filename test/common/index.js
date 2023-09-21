@@ -59,9 +59,6 @@ const hasCrypto = Boolean(process.versions.openssl) &&
 const hasOpenSSL3 = hasCrypto &&
     require('crypto').constants.OPENSSL_VERSION_NUMBER >= 0x30000000;
 
-const hasOpenSSL31 = hasCrypto &&
-    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 0x30100000;
-
 const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
 
 function parseTestFlags(filename = process.argv[1]) {
@@ -922,7 +919,6 @@ const common = {
   hasIntl,
   hasCrypto,
   hasOpenSSL3,
-  hasOpenSSL31,
   hasQuic,
   hasMultiLocalhost,
   invalidArgTypeHelper,

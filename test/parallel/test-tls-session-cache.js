@@ -100,7 +100,7 @@ function doTest(testOptions, callback) {
     const args = [
       's_client',
       '-tls1',
-      '-cipher', (common.hasOpenSSL31 ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT'),
+      '-cipher', 'DEFAULT:@SECLEVEL=0',
       '-connect', `localhost:${this.address().port}`,
       '-servername', 'ohgod',
       '-key', fixtures.path('keys/rsa_private.pem'),

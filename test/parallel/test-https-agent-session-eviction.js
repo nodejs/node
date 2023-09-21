@@ -56,7 +56,7 @@ function faultyServer(port) {
 function second(server, session) {
   const req = https.request({
     port: server.address().port,
-    ciphers: (common.hasOpenSSL31 ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT'),
+    ciphers: 'DEFAULT:@SECLEVEL=0',
     rejectUnauthorized: false
   }, function(res) {
     res.resume();
