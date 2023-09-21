@@ -480,7 +480,7 @@ added:
 changes:
   - version:
     - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/46718
+    pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
