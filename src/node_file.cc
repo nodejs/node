@@ -2957,6 +2957,38 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void MkdtempSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_GE(args.Length(), 2);
+
+  BufferValue tmpl(isolate, args[0]);
+  CHECK_NOT_NULL(*tmpl);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, tmpl.ToStringView());
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(mkdtemp);
+  int err = uv_fs_mkdtemp(nullptr, &req, *tmpl, nullptr);
+  FS_SYNC_TRACE_END(mkdtemp);
+  if (err < 0) {
+    return env->ThrowUVException(err, "mkdtemp", nullptr, *tmpl);
+  }
+
+  Local<Value> error;
+  MaybeLocal<Value> rc =
+      StringBytes::Encode(isolate, req.path, encoding, &error);
+  if (rc.IsEmpty()) {
+    env->isolate()->ThrowException(error);
+    return;
+  }
+  args.GetReturnValue().Set(rc.ToLocalChecked());
+}
+
 static bool FileURLToPath(
     Environment* env,
     const ada::url_aggregator& file_url,
@@ -3409,6 +3441,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "lutimes", LUTimes);
 
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
+  SetMethodNoSideEffect(isolate, target, "mkdtempSync", MkdtempSync);
 
   StatWatcher::CreatePerIsolateProperties(isolate_data, target);
   BindingData::CreatePerIsolateProperties(isolate_data, target);
@@ -3534,6 +3567,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(LUTimes);
 
   registry->Register(Mkdtemp);
+  registry->Register(MkdtempSync);
   registry->Register(NewFSReqCallback);
 
   registry->Register(FileHandle::New);
