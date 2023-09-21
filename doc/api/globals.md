@@ -478,6 +478,10 @@ added:
   - v17.5.0
   - v16.15.0
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46718
+    description: No longer experimental.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
     description: No longer behind `--experimental-global-fetch` CLI flag.
