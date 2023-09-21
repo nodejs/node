@@ -6249,7 +6249,7 @@ napi_create_threadsafe_function(napi_env env,
 
 * Experimental (`NAPI_EXPERIMENTAL` is defined):
 
-  Uncaught exceptions thrown in `call_js_cb` is handled with the
+  Uncaught exceptions thrown in `call_js_cb` are handled with the
   [`'uncaughtException'`][] event, instead of being ignored.
 
 ### `napi_get_threadsafe_function_context`
