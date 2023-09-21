@@ -32,10 +32,16 @@ rm -rf deps/acorn/acorn-walk
 
     "$NODE" "$NPM" init --yes
 
+    NPM_VERSION=$("$NODE" "$NPM" --version)
+
+    "$NODE" "$NPM" pkg set 'engines.npm'="$NPM_VERSION"
+
     "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "acorn-walk@$NEW_VERSION"
 )
 
 mv acorn-walk-tmp/node_modules/acorn-walk deps/acorn
+
+mv acorn-walk-tmp/package-lock.json deps/acorn/acorn-walk/
 
 rm -rf acorn-walk-tmp/
 
