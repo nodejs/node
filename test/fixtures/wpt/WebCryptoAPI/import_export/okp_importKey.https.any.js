@@ -72,7 +72,7 @@
         [true, false].forEach(function(extractable) {
 
             // Test public keys first
-            [[]].forEach(function(usages) { // Only valid usages argument is empty array
+            allValidUsages(vector.publicUsages, true).forEach(function(usages) {
                 ['spki', 'jwk', 'raw'].forEach(function(format) {
                     var algorithm = {name: vector.name};
                     var data = keyData[vector.name];
@@ -86,7 +86,7 @@
             });
 
             // Next, test private keys
-            allValidUsages(vector.privateUsages, []).forEach(function(usages) {
+            allValidUsages(vector.privateUsages).forEach(function(usages) {
                 ['pkcs8', 'jwk'].forEach(function(format) {
                     var algorithm = {name: vector.name};
                     var data = keyData[vector.name];
@@ -192,46 +192,6 @@
         var base64String = btoa(binaryString);
 
         return base64String.replace(/=/g, "");
-    }
-
-    // Want to test every valid combination of usages. Start by creating a list
-    // of all non-empty subsets to possible usages.
-    function allNonemptySubsetsOf(arr) {
-        var results = [];
-        var firstElement;
-        var remainingElements;
-
-        for(var i=0; i<arr.length; i++) {
-            firstElement = arr[i];
-            remainingElements = arr.slice(i+1);
-            results.push([firstElement]);
-
-            if (remainingElements.length > 0) {
-                allNonemptySubsetsOf(remainingElements).forEach(function(combination) {
-                    combination.push(firstElement);
-                    results.push(combination);
-                });
-            }
-        }
-
-        return results;
-    }
-
-    // Return a list of all valid usage combinations, given the possible ones
-    // and the ones that are required for a particular operation.
-    function allValidUsages(possibleUsages, requiredUsages) {
-        var allUsages = [];
-
-        allNonemptySubsetsOf(possibleUsages).forEach(function(usage) {
-            for (var i=0; i<requiredUsages.length; i++) {
-                if (!usage.includes(requiredUsages[i])) {
-                    return;
-                }
-            }
-            allUsages.push(usage);
-        });
-
-        return allUsages;
     }
 
     // Convert method parameters to a string to uniquely name each test
