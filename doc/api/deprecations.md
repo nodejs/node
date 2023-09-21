@@ -3400,6 +3400,20 @@ Type: Runtime
 Calling [`util.promisify`][] on a function that returns a <Promise> will ignore
 the result of said promise, which can lead to unhandled promise rejections.
 
+### DEP0175: `util.toUSVString`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49725
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`util.toUSVString()`][] API is deprecated. Please use
+[`String.prototype.toWellFormed`][] instead.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3422,6 +3436,7 @@ the result of said promise, which can lead to unhandled promise rejections.
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
 [`SlowBuffer`]: buffer.md#class-slowbuffer
+[`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert.CallTracker`]: assert.md#class-assertcalltracker
 [`assert`]: assert.md
@@ -3541,6 +3556,7 @@ the result of said promise, which can lead to unhandled promise rejections.
 [`util.isUndefined()`]: util.md#utilisundefinedobject
 [`util.log()`]: util.md#utillogstring
 [`util.promisify`]: util.md#utilpromisifyoriginal
+[`util.toUSVString()`]: util.md#utiltousvstringstring
 [`util.types`]: util.md#utiltypes
 [`util`]: util.md
 [`worker.exitedAfterDisconnect`]: cluster.md#workerexitedafterdisconnect
