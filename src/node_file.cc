@@ -2081,7 +2081,6 @@ static inline Maybe<void> CheckOpenPermissions(Environment* env,
   const int write_as_side_effect = flags & (UV_FS_O_APPEND | UV_FS_O_CREAT |
                                             UV_FS_O_TRUNC | UV_FS_O_TEMPORARY);
 
-  // TODO(rafaelgss): it can be optimized to avoid two permission checks
   auto pathView = path.ToStringView();
   if (rwflags != UV_FS_O_WRONLY) {
     THROW_IF_INSUFFICIENT_PERMISSIONS(
