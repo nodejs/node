@@ -1635,6 +1635,8 @@ async function callStat() {
   const stats = await stat('.');
   console.log(`This directory is owned by ${stats.uid}`);
 }
+
+callStat();
 ```
 
 If there is an `original[util.promisify.custom]` property present, `promisify`
