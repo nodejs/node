@@ -397,6 +397,32 @@ static void OpenDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void OpenDirSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_GE(args.Length(), 1);
+
+  BufferValue path(isolate, args[0]);
+  CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_DIR_SYNC_TRACE_BEGIN(opendir);
+  int err = uv_fs_opendir(nullptr, &req, *path, nullptr);
+  FS_DIR_SYNC_TRACE_END(opendir);
+  if (err < 0) {
+    return env->ThrowUVException(err, "opendir");
+  }
+
+  uv_dir_t* dir = static_cast<uv_dir_t*>(req.ptr);
+  DirHandle* handle = DirHandle::New(env, dir);
+
+  args.GetReturnValue().Set(handle->object().As<Value>());
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -405,6 +431,7 @@ void Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
 
   SetMethod(context, target, "opendir", OpenDir);
+  SetMethod(context, target, "opendirSync", OpenDirSync);
 
   // Create FunctionTemplate for DirHandle
   Local<FunctionTemplate> dir = NewFunctionTemplate(isolate, DirHandle::New);
@@ -419,6 +446,7 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(OpenDir);
+  registry->Register(OpenDirSync);
   registry->Register(DirHandle::New);
   registry->Register(DirHandle::Read);
   registry->Register(DirHandle::Close);
