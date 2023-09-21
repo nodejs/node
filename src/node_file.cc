@@ -2751,6 +2751,31 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void ChownSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_GE(args.Length(), 3);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
+
+  CHECK(IsSafeJsInt(args[1]));
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
+
+  CHECK(IsSafeJsInt(args[2]));
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(chown);
+  int err = uv_fs_chown(nullptr, &req, *path, uid, gid, nullptr);
+  FS_SYNC_TRACE_END(chown);
+  if (err < 0) {
+    return env->ThrowUVException(err, "chown", nullptr, *path);
+  }
+}
 
 /* fs.fchown(fd, uid, gid);
  * Wrapper for fchown(1) / EIO_FCHOWN
@@ -3401,6 +3426,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "fchmod", FChmod);
 
   SetMethod(isolate, target, "chown", Chown);
+  SetMethodNoSideEffect(isolate, target, "chownSync", ChownSync);
   SetMethod(isolate, target, "fchown", FChown);
   SetMethod(isolate, target, "lchown", LChown);
 
@@ -3526,6 +3552,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(FChmod);
 
   registry->Register(Chown);
+  registry->Register(ChownSync);
   registry->Register(FChown);
   registry->Register(LChown);
 
