@@ -20,9 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+require('../../common');
+const vm = require('vm');
 
-setTimeout(function() {
-  // eslint-disable-next-line no-undef,no-unused-expressions
-  undefined_reference_error_maker;
-}, 1);
+console.error('before');
+
+// undefined reference
+vm.runInNewContext('Error.stackTraceLimit = 5; foo.bar = 5;');
+
+console.error('after');
