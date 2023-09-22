@@ -23,7 +23,7 @@ const UDP = internalBinding('udp_wrap').UDP;
   const StreamWrapProto = Object.getPrototypeOf(TTY.prototype);
   const properties = ['bytesRead', 'fd', '_externalStream'];
 
-  properties.forEach((property) => {
+  for (const property of properties) {
     // Should throw instead of raise assertions
     assert.throws(() => {
       TTY.prototype[property]; // eslint-disable-line no-unused-expressions
@@ -35,7 +35,7 @@ const UDP = internalBinding('udp_wrap').UDP;
       'object',
       'typeof property descriptor ' + property + ' is not \'object\''
     );
-  });
+  }
 
   if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
     // There are accessor properties in crypto too
