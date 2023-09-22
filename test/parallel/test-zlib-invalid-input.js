@@ -42,19 +42,19 @@ const unzips = [
   zlib.BrotliDecompress(),
 ];
 
-nonStringInputs.forEach(common.mustCall((input) => {
+for (const input of nonStringInputs) {
   assert.throws(() => {
     zlib.gunzip(input);
   }, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE'
   });
-}, nonStringInputs.length));
+}
 
-unzips.forEach(common.mustCall((uz, i) => {
+for (const uz of unzips) {
   uz.on('error', common.mustCall());
   uz.on('end', common.mustNotCall());
 
   // This will trigger error event
   uz.write('this is not valid compressed data.');
-}, unzips.length));
+}
