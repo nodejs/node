@@ -93,9 +93,7 @@ function getExpectedError(type) {
   const socket = dgram.createSocket('udp4');
 
   socket.bind(common.mustCall(() => {
-    for (let i = 0; i < badBufferSizes.length; i++) {
-      const badBufferSize = badBufferSizes[i];
-  
+    for (const badBufferSize of badBufferSizes) {
       assert.throws(() => {
         socket.setRecvBufferSize(badBufferSize);
       }, errorObj);
