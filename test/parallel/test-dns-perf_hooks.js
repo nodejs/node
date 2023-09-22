@@ -30,7 +30,7 @@ dns.promises.resolveAny('localhost').then(inc).catch(() => {});
 
 process.on('exit', () => {
   assert.strictEqual(entries.length, count);
-  entries.forEach((entry) => {
+  for (const entry of entries) {
     assert.strictEqual(!!entry.name, true);
     assert.strictEqual(entry.entryType, 'dns');
     assert.strictEqual(typeof entry.startTime, 'number');
@@ -56,5 +56,6 @@ process.on('exit', () => {
         assert.strictEqual(Array.isArray(entry.detail.result), true);
         break;
     }
-  });
-});
+  }
+}
+);
