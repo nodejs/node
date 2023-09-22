@@ -33,7 +33,7 @@ async function main(conf) {
     // Valid file a granted directory
     process.permission.has('fs.read', '/tmp/example');
     // Wildcard check for a directory
-    process.permission.has('fs.read', '/tmp/*'); 
+    process.permission.has('fs.read', '/tmp/*');
   }
 
   bench.end(conf.n);
