@@ -51,11 +51,11 @@ const server = tls.createServer(options, (conn) => {
   ];
 
   // Brainpool is not supported in FIPS mode.
-  if (common.hasFipsCrypto)
-    unsupportedCurves.push('brainpoolP256r1');
-
-  unsupportedCurves.forEach((ecdhCurve) => {
-    assert.throws(() => tls.createServer({ ecdhCurve }),
-                  /Error: Failed to set ECDH curve/);
-  });
+  if (common.hasFipsCrypto) unsupportedCurves.push('brainpoolP256r1');
+  for (const ecdhCurve of unsupportedCurves) {
+    assert.throws(
+      () => tls.createServer({ ecdhCurve }),
+      /Error: Failed to set ECDH curve/
+    );
+  }
 }
