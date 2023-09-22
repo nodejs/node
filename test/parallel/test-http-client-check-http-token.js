@@ -28,8 +28,7 @@ server.listen(0, common.mustCall(() => {
     });
   }
 
-  for (let i = 0; i < expectedSuccesses.length; i++) {
-    const method = expectedSuccesses[i];
+  for (const method of expectedSuccesses) {
     http.request({ method, port: server.address().port }).end();
   }
 }));
