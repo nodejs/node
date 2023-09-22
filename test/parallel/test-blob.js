@@ -331,12 +331,54 @@ assert.throws(() => new Blob({}), {
   const b = new Blob(Array(10).fill('hello'));
   const stream = b.stream();
   const reader = stream.getReader();
-  assert.strictEqual(stream[kState].controller.desiredSize, 1);
+  assert.strictEqual(stream[kState].controller.desiredSize, 0);
   const { value, done } = await reader.read();
   assert.strictEqual(value.byteLength, 5);
   assert(!done);
   setTimeout(() => {
-    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+    // The blob stream is now a byte stream hence after the first read,
+    // it should pull in the next 'hello' which is 5 bytes hence -5.
+    assert.strictEqual(stream[kState].controller.desiredSize, -5);
+  }, 0);
+})().then(common.mustCall());
+
+(async () => {
+  const blob = new Blob(['hello', 'world']);
+  const stream = blob.stream();
+  const reader = stream.getReader({ mode: 'byob' });
+  const decoder = new TextDecoder();
+  const chunks = [];
+  while (true) {
+    const { value, done } = await reader.read(new Uint8Array(100));
+    if (done) break;
+    chunks.push(decoder.decode(value, { stream: true }));
+  }
+  assert.strictEqual(chunks.join(''), 'helloworld');
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(Array(10).fill('hello'));
+  const stream = b.stream();
+  const reader = stream.getReader({ mode: 'byob' });
+  assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  const { value, done } = await reader.read(new Uint8Array(100));
+  assert.strictEqual(value.byteLength, 5);
+  assert(!done);
+  setTimeout(() => {
+    assert.strictEqual(stream[kState].controller.desiredSize, -5);
+  }, 0);
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(Array(10).fill('hello'));
+  const stream = b.stream();
+  const reader = stream.getReader({ mode: 'byob' });
+  assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  const { value, done } = await reader.read(new Uint8Array(2));
+  assert.strictEqual(value.byteLength, 2);
+  assert(!done);
+  setTimeout(() => {
+    assert.strictEqual(stream[kState].controller.desiredSize, -3);
   }, 0);
 })().then(common.mustCall());
 
