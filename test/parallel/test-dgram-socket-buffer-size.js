@@ -102,7 +102,7 @@ function getExpectedError(type) {
       }, errorObj);
     }
     socket.close();
-  }));  
+  }));
 }
 
 {
