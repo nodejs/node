@@ -17,8 +17,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 }, expectedSuccesses.length));
 
 server.listen(0, common.mustCall(() => {
-  for (let i = 0; i < expectedFails.length; i++) {
-    const method = expectedFails[i];
+  for (const method of expectedFails) {
     assert.throws(() => {
       http.request({ method, path: '/' }, common.mustNotCall());
     }, {
