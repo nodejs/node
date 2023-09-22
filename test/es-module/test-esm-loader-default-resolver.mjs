@@ -55,12 +55,12 @@ describe('default resolver', () => {
 
     const { code, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
-      fixtures.path('es-modules','invalid-posix-host.mjs'),
+      fixtures.path('es-modules', 'invalid-posix-host.mjs'),
     ]);
 
     assert.match(stderr, /ERR_INVALID_FILE_URL_HOST/);
-    assert.match(stderr, /file\:\/\/hmm.js/);
-    assert.match(stderr, /invalid-posix-host.mjs/);
+    assert.match(stderr, /file:\/\/hmm\.js/);
+    assert.match(stderr, /invalid-posix-host\.mjs/);
     assert.strictEqual(code, 1);
   });
 });
