@@ -11,7 +11,7 @@ const uvKeys = Object.keys(uv);
 
 const errMap = getSystemErrorMap();
 
-for (key of uvKeys) {
+for (const key of uvKeys) {
   if (!key.startsWith('UV_')) return;
 
   const err = _errnoException(uv[key]);
