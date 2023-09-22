@@ -97,7 +97,6 @@ function getExpectedError(type) {
       assert.throws(() => {
         socket.setRecvBufferSize(badBufferSize);
       }, errorObj);
-  
       assert.throws(() => {
         socket.setSendBufferSize(badBufferSize);
       }, errorObj);
