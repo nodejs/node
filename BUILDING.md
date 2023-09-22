@@ -620,8 +620,8 @@ To install Node.js prerequisites using
 <https://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter>
 with Internet Explorer or Edge browser on the target machine.
 
-Alternatively, you can use PowerShell. Run those commands from an elevated (Administrator)
-PowerShell terminal:
+Alternatively, you can use PowerShell. Run those commands from
+an elevated (Administrator) PowerShell terminal:
 
 ```powershell
 Set-ExecutionPolicy Unrestricted -Force
