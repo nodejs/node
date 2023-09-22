@@ -14,7 +14,7 @@ const keys = Object.keys(uv);
 
 assert.strictEqual(uv.errname(-111111), 'Unknown system error -111111');
 
-keys.forEach((key) => {
+for (const key of keys) {
   if (!key.startsWith('UV_'))
     return;
 
@@ -24,10 +24,12 @@ keys.forEach((key) => {
   assert.strictEqual(err.code, name);
   assert.strictEqual(err.code, getSystemErrorName(err.errno));
   assert.strictEqual(err.message, `test ${name}`);
-});
+}
 
 function runTest(fn) {
-  ['test', {}, []].forEach((err) => {
+  const invalidArgType = ['test', {}, []];
+  const outOfRangeArgs = [0, 1, Infinity, -Infinity, NaN];
+  for (const err of invalidArgType) {
     assert.throws(
       () => fn(err),
       {
@@ -36,9 +38,9 @@ function runTest(fn) {
         message: 'The "err" argument must be of type number.' +
                  common.invalidArgTypeHelper(err)
       });
-  });
+  }
 
-  [0, 1, Infinity, -Infinity, NaN].forEach((err) => {
+  for (const err of outOfRangeArgs) {
     assert.throws(
       () => fn(err),
       {
@@ -48,7 +50,7 @@ function runTest(fn) {
                  'It must be a negative integer. ' +
                  `Received ${err}`
       });
-  });
+  }
 }
 
 runTest(_errnoException);
