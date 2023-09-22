@@ -148,13 +148,11 @@ const trailingTests = [
   ],
 ];
 const failures = [];
-trailingTests.forEach((test) => {
-  const parse = test[0];
+trailingTests.forEach(([parse, testList]) => {
   const os = parse === path.win32.parse ? 'win32' : 'posix';
-  test[1].forEach((test) => {
-    const actual = parse(test[0]);
-    const expected = test[1];
-    const message = `path.${os}.parse(${JSON.stringify(test[0])})\n  expect=${
+  testList.forEach(([input, expected]) => {
+    const actual = parse(input);
+    const message = `path.${os}.parse(${JSON.stringify(input)})\n  expect=${
       JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
     const actualKeys = Object.keys(actual);
     const expectedKeys = Object.keys(expected);
