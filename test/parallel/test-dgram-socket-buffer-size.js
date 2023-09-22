@@ -93,17 +93,19 @@ function getExpectedError(type) {
   const socket = dgram.createSocket('udp4');
 
   socket.bind(common.mustCall(() => {
-    badBufferSizes.forEach((badBufferSize) => {
+    for (let i = 0; i < badBufferSizes.length; i++) {
+      const badBufferSize = badBufferSizes[i];
+  
       assert.throws(() => {
         socket.setRecvBufferSize(badBufferSize);
       }, errorObj);
-
+  
       assert.throws(() => {
         socket.setSendBufferSize(badBufferSize);
       }, errorObj);
-    });
+    }
     socket.close();
-  }));
+  }));  
 }
 
 {
