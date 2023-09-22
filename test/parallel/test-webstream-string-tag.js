@@ -28,16 +28,15 @@ const classesToBeTested = [
 // });
 
 /* Adding for loop with all the test included in the above code */
-for (let i = 0; i < classesToBeTested.length; i++) {
-  const cls = classesToBeTested[i];
-  assert.strictEqual(cls.prototype[Symbol.toStringTag], cls.name);
-  assert.deepStrictEqual(
-    Object.getOwnPropertyDescriptor(cls.prototype, Symbol.toStringTag),
-    {
-      configurable: true,
-      enumerable: false,
-      value: cls.name,
-      writable: false,
-    }
-  );
+for (const cls of classesToBeTested) {
+  const clsName = cls.name;
+
+  assert.strictEqual(cls.prototype[Symbol.toStringTag], clsName);
+
+  assert.deepStrictEqual(Object.getOwnPropertyDescriptor(cls.prototype, Symbol.toStringTag), {
+    configurable: true,
+    enumerable: false,
+    value: clsName,
+    writable: false
+  });
 }
