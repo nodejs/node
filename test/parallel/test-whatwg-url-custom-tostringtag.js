@@ -23,10 +23,12 @@ const test = [
   [Object.getPrototypeOf(spIterator), 'URLSearchParams Iterator'],
 ];
 
-test.forEach(([obj, expected]) => {
+
+
+for (const [obj, expected] of test) {
   assert.strictEqual(obj[Symbol.toStringTag], expected,
                      `${obj[Symbol.toStringTag]} !== ${expected}`);
   const str = toString.call(obj);
   assert.strictEqual(str, `[object ${expected}]`,
                      `${str} !== [object ${expected}]`);
-});
+};
