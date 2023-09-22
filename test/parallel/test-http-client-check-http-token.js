@@ -17,7 +17,8 @@ const server = http.createServer(common.mustCall((req, res) => {
 }, expectedSuccesses.length));
 
 server.listen(0, common.mustCall(() => {
-  expectedFails.forEach((method) => {
+  for (let i = 0; i < expectedFails.length; i++) {
+    const method = expectedFails[i];
     assert.throws(() => {
       http.request({ method, path: '/' }, common.mustNotCall());
     }, {
@@ -26,9 +27,10 @@ server.listen(0, common.mustCall(() => {
       message: 'The "options.method" property must be of type string.' +
                common.invalidArgTypeHelper(method)
     });
-  });
+  }
 
-  expectedSuccesses.forEach((method) => {
+  for (let i = 0; i < expectedSuccesses.length; i++) {
+    const method = expectedSuccesses[i];
     http.request({ method, port: server.address().port }).end();
-  });
+  }
 }));
