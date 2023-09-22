@@ -406,7 +406,7 @@ var require_util = __commonJS({
         return 0;
       } else if (isStream(body)) {
         const state = body._readableState;
-        return state && state.ended === true && Number.isFinite(state.length) ? state.length : null;
+        return state && state.objectMode === false && state.ended === true && Number.isFinite(state.length) ? state.length : null;
       } else if (isBlobLike(body)) {
         return body.size != null ? body.size : null;
       } else if (isBuffer(body)) {
@@ -12419,7 +12419,6 @@ var require_util3 = __commonJS({
 var require_connection = __commonJS({
   "lib/websocket/connection.js"(exports2, module2) {
     "use strict";
-    var { randomBytes, createHash } = require("crypto");
     var diagnosticsChannel = require("diagnostics_channel");
     var { uid, states } = require_constants3();
     var {
@@ -12439,6 +12438,11 @@ var require_connection = __commonJS({
     channels.open = diagnosticsChannel.channel("undici:websocket:open");
     channels.close = diagnosticsChannel.channel("undici:websocket:close");
     channels.socketError = diagnosticsChannel.channel("undici:websocket:socket_error");
+    var crypto;
+    try {
+      crypto = require("crypto");
+    } catch {
+    }
     function establishWebSocketConnection(url, protocols, ws, onEstablish, options) {
       const requestURL = url;
       requestURL.protocol = url.protocol === "ws:" ? "http:" : "https:";
@@ -12455,7 +12459,7 @@ var require_connection = __commonJS({
         const headersList = new Headers(options.headers)[kHeadersList];
         request.headersList = headersList;
       }
-      const keyValue = randomBytes(16).toString("base64");
+      const keyValue = crypto.randomBytes(16).toString("base64");
       request.headersList.append("sec-websocket-key", keyValue);
       request.headersList.append("sec-websocket-version", "13");
       for (const protocol of protocols) {
@@ -12484,7 +12488,7 @@ var require_connection = __commonJS({
             return;
           }
           const secWSAccept = response.headersList.get("Sec-WebSocket-Accept");
-          const digest = createHash("sha1").update(keyValue + uid).digest("base64");
+          const digest = crypto.createHash("sha1").update(keyValue + uid).digest("base64");
           if (secWSAccept !== digest) {
             failWebsocketConnection(ws, "Incorrect hash received in Sec-WebSocket-Accept header.");
             return;
@@ -12563,12 +12567,16 @@ var require_connection = __commonJS({
 var require_frame = __commonJS({
   "lib/websocket/frame.js"(exports2, module2) {
     "use strict";
-    var { randomBytes } = require("crypto");
     var { maxUnsigned16Bit } = require_constants3();
+    var crypto;
+    try {
+      crypto = require("crypto");
+    } catch {
+    }
     var WebsocketFrameSend = class {
       constructor(data) {
         this.frameData = data;
-        this.maskKey = randomBytes(4);
+        this.maskKey = crypto.randomBytes(4);
       }
       createFrame(opcode) {
         const bodyLength = this.frameData?.byteLength ?? 0;
