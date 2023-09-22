@@ -44,12 +44,5 @@
   },
   "Blob-slice.any.js": {
     "skip": "Depends on File API"
-  },
-  "Blob-stream.any.js": {
-    "fail": {
-      "expected": [
-        "Reading Blob.stream() with BYOB reader"
-      ]
-    }
   }
 }
