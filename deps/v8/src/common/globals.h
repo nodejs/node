@@ -21,6 +21,12 @@
 
 #define V8_INFINITY std::numeric_limits<double>::infinity()
 
+// AIX has jmpbuf redefined as __jmpbuf in /usr/include/sys/context.h
+// which replaces v8's jmpbuf , resulting in undefined symbol errors
+#if defined(V8_OS_AIX) && defined(jmpbuf)
+#undef jmpbuf
+#endif
+
 namespace v8 {
 
 namespace base {
