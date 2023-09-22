@@ -46,8 +46,7 @@ function createRequest(agent) {
 server.listen(0, baseOptions.host, common.mustCall(function() {
   baseOptions.port = this.address().port;
 
-  for (let i = 0; i < failingAgentOptions.length; i++) {
-    const agent = failingAgentOptions[i];
+  for (const agent of failingAgentOptions) {
     assert.throws(
       () => createRequest(agent),
       {
@@ -60,8 +59,7 @@ server.listen(0, baseOptions.host, common.mustCall(function() {
     );
   }
 
-  for (let i = 0; i < acceptableAgentOptions.length; i++) {
-    const agent = acceptableAgentOptions[i];
+  for (const agent of acceptableAgentOptions) {
     createRequest(agent);
   }
 }));
