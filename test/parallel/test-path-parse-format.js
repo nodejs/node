@@ -148,9 +148,9 @@ const trailingTests = [
   ],
 ];
 const failures = [];
-trailingTests.forEach(([parse, testList]) => {
+for (const [parse, testList] of trailingTests) {
   const os = parse === path.win32.parse ? 'win32' : 'posix';
-  testList.forEach(([input, expected]) => {
+  for (const [input, expected] of testList) {
     const actual = parse(input);
     const message = `path.${os}.parse(${JSON.stringify(input)})\n  expect=${
       JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
@@ -168,8 +168,8 @@ trailingTests.forEach(([parse, testList]) => {
     }
     if (failed)
       failures.push(`\n${message}`);
-  });
-});
+  }
+}
 assert.strictEqual(failures.length, 0, failures.join(''));
 
 function checkErrors(path) {
