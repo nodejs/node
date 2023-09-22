@@ -46,7 +46,8 @@ function createRequest(agent) {
 server.listen(0, baseOptions.host, common.mustCall(function() {
   baseOptions.port = this.address().port;
 
-  failingAgentOptions.forEach((agent) => {
+  for (let i = 0; i < failingAgentOptions.length; i++) {
+    const agent = failingAgentOptions[i];
     assert.throws(
       () => createRequest(agent),
       {
@@ -57,11 +58,12 @@ server.listen(0, baseOptions.host, common.mustCall(function() {
                  common.invalidArgTypeHelper(agent)
       }
     );
-  });
+  }
 
-  acceptableAgentOptions.forEach((agent) => {
+  for (let i = 0; i < acceptableAgentOptions.length; i++) {
+    const agent = acceptableAgentOptions[i];
     createRequest(agent);
-  });
+  }
 }));
 
 process.on('exit', () => {
