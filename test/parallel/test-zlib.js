@@ -77,9 +77,9 @@ if (process.env.FAST) {
 }
 
 const tests = {};
-testFiles.forEach(common.mustCall((file) => {
+for(const file in testFiles){
   tests[file] = fixtures.readSync(file);
-}, testFiles.length));
+};
 
 
 // Stream that saves everything
@@ -103,10 +103,10 @@ class BufferStream extends stream.Stream {
     // flatten
     const buf = Buffer.allocUnsafe(this.length);
     let i = 0;
-    this.chunks.forEach((c) => {
+    for (const c of this.chunks) {
       c.copy(buf, i);
       i += c.length;
-    });
+    };
     this.emit('data', buf);
     this.emit('end');
     return true;
@@ -188,45 +188,45 @@ zlib.createDeflateRaw({ windowBits: 8 });
 // of the options set above.
 
 const testKeys = Object.keys(tests);
-testKeys.forEach(common.mustCall((file) => {
+for (const file of testKeys) {
   const test = tests[file];
-  chunkSize.forEach(common.mustCall((chunkSize) => {
-    trickle.forEach(common.mustCall((trickle) => {
-      windowBits.forEach(common.mustCall((windowBits) => {
-        level.forEach(common.mustCall((level) => {
-          memLevel.forEach(common.mustCall((memLevel) => {
-            strategy.forEach(common.mustCall((strategy) => {
-              zlibPairs.forEach(common.mustCall((pair) => {
-                const Def = pair[0];
-                const Inf = pair[1];
-                const opts = { level, windowBits, memLevel, strategy };
+  for (const chunkSize of chunkSize) {
+    for (const trickle of trickle) {
+      for (const windowBits of windowBits) {
+        for (const memLevel of memLevel) {
+          for (const strategy of strategy) {
+            for (const pair of zlibPairs) {
+              const Def = pair[0];
+              const Inf = pair[1];
+              const opts = { level, windowBits, memLevel, strategy };
 
-                const def = new Def(opts);
-                const inf = new Inf(opts);
-                const ss = new SlowStream(trickle);
-                const buf = new BufferStream();
+              const def = new Def(opts);
+              const inf = new Inf(opts);
+              const ss = new SlowStream(trickle);
+              const buf = new BufferStream();
 
-                // Verify that the same exact buffer comes out the other end.
-                buf.on('data', common.mustCall((c) => {
-                  const msg = `${file} ${chunkSize} ${
-                    JSON.stringify(opts)} ${Def.name} -> ${Inf.name}`;
-                  let i;
-                  for (i = 0; i < Math.max(c.length, test.length); i++) {
-                    if (c[i] !== test[i]) {
-                      assert.fail(msg);
-                      break;
-                    }
+              // Verify that the same exact buffer comes out the other end.
+              buf.on('data', common.mustCall((c) => {
+                const msg = `${file} ${chunkSize} ${
+                  JSON.stringify(opts)} ${Def.name} -> ${Inf.name}`;
+                let i;
+                for (i = 0; i < Math.max(c.length, test.length); i++) {
+                  if (c[i] !== test[i]) {
+                    assert.fail(msg);
+                    break;
                   }
-                }));
+                }
+              }));
 
-                // The magic happens here.
-                ss.pipe(def).pipe(inf).pipe(buf);
-                ss.end(test);
-              }, zlibPairs.length));
-            }, strategy.length));
-          }, memLevel.length));
-        }, level.length));
-      }, windowBits.length));
-    }, trickle.length));
-  }, chunkSize.length));
-}, testKeys.length));
+              // The magic happens here.
+              ss.pipe(def).pipe(inf).pipe(buf);
+              ss.end(test);
+            };
+          };
+        };
+      };
+    };
+  };
+};
+
+              
