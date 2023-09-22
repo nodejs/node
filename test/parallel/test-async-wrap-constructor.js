@@ -9,14 +9,14 @@ const async_hooks = require('async_hooks');
 const badArgs = [0, 1, false, true, null, 'hello'];
 const hookNames = ['init', 'before', 'after', 'destroy', 'promiseResolve'];
 
-for (let i = 0; i < badArgs.length; i++) {
-  for (let j = 0; j < hookNames.length; j++) {
+for (const arg of badArgs) {
+  for (const name of hookNames) {
     assert.throws(() => {
-      async_hooks.createHook({ [hookNames[j]]: badArgs[i] });
+      async_hooks.createHook({ [name]: arg });
     }, {
       code: 'ERR_ASYNC_CALLBACK',
       name: 'TypeError',
-      message: `hook.${hookNames[j]} must be a function`
+      message: `hook.${name} must be a function`
     });
   }
 }
