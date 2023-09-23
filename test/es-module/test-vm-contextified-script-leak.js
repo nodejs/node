@@ -13,4 +13,4 @@ async function createContextifyScript() {
     async importModuleDynamically() {},
   });
 }
-checkIfCollectable(createContextifyScript, 2048);
+checkIfCollectable(createContextifyScript, 2048, 512);
