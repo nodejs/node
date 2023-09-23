@@ -732,7 +732,7 @@ maintaining the Node.js project.
 * [VoltrexKeyva](https://github.com/VoltrexKeyva) -
   **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 * [mertcanaltin](https://github.com/mertcanaltin) -
-**Darshan Sen** <<mertgold60@gmail.com>>
+  **Mert Can Altin** <<mertgold60@gmail.com>>
 
 Triagers follow the [Triage Guide](./doc/contributing/issues.md#triaging-a-bug-report) when
 responding to new issues.
