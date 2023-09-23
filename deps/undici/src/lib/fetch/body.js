@@ -387,6 +387,7 @@ function bodyMixinMethods (instance) {
         try {
           busboy = Busboy({
             headers,
+            preservePath: true,
             defParamCharset: 'utf8'
           })
         } catch (err) {
@@ -532,7 +533,7 @@ async function specConsumeBody (object, convertBytesToJSValue, instance) {
 
   // 6. Otherwise, fully read object’s body given successSteps,
   //    errorSteps, and object’s relevant global object.
-  fullyReadBody(object[kState].body, successSteps, errorSteps)
+  await fullyReadBody(object[kState].body, successSteps, errorSteps)
 
   // 7. Return promise.
   return promise.promise

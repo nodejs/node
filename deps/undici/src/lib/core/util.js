@@ -168,7 +168,7 @@ function bodyLength (body) {
     return 0
   } else if (isStream(body)) {
     const state = body._readableState
-    return state && state.ended === true && Number.isFinite(state.length)
+    return state && state.objectMode === false && state.ended === true && Number.isFinite(state.length)
       ? state.length
       : null
   } else if (isBlobLike(body)) {
@@ -199,6 +199,7 @@ function destroy (stream, err) {
       // See: https://github.com/nodejs/node/pull/38505/files
       stream.socket = null
     }
+
     stream.destroy(err)
   } else if (err) {
     process.nextTick((stream, err) => {
@@ -218,6 +219,9 @@ function parseKeepAliveTimeout (val) {
 }
 
 function parseHeaders (headers, obj = {}) {
+  // For H2 support
+  if (!Array.isArray(headers)) return headers
+
   for (let i = 0; i < headers.length; i += 2) {
     const key = headers[i].toString().toLowerCase()
     let val = obj[key]
@@ -355,6 +359,12 @@ function getSocketInfo (socket) {
   }
 }
 
+async function * convertIterableToBuffer (iterable) {
+  for await (const chunk of iterable) {
+    yield Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+  }
+}
+
 let ReadableStream
 function ReadableStreamFrom (iterable) {
   if (!ReadableStream) {
@@ -362,8 +372,7 @@ function ReadableStreamFrom (iterable) {
   }
 
   if (ReadableStream.from) {
-    // https://github.com/whatwg/streams/pull/1083
-    return ReadableStream.from(iterable)
+    return ReadableStream.from(convertIterableToBuffer(iterable))
   }
 
   let iterator
