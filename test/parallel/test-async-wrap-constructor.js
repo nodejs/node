@@ -20,4 +20,3 @@ for (const arg of badArgs) {
     });
   }
 }
-
