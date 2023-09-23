@@ -1236,6 +1236,44 @@ by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
 a colon, Node.js will open a file system stream, as described by
 [this MSDN page][MSDN-Using-Streams].
 
+### `fsPromises.openAsBlob(path[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `type` {string} An optional mime type for the blob.
+* Return: {Promise} containing {Blob}
+
+Returns a {Blob} whose data is backed by the given file.
+
+The file must not be modified after the {Blob} is created. Any modifications
+will cause reading the {Blob} data to fail with a `DOMException` error.
+Synchronous stat operations on the file when the `Blob` is created, and before
+each read in order to detect whether the file data has been modified on disk.
+
+```mjs
+import { openAsBlob } from 'node:fs/promises';
+
+const blob = await openAsBlob('the.file.txt');
+const ab = await blob.arrayBuffer();
+blob.stream();
+```
+
+```cjs
+const { openAsBlob } = require('node:fs/promises');
+
+(async () => {
+  const blob = await openAsBlob('the.file.txt');
+  const ab = await blob.arrayBuffer();
+  blob.stream();
+})();
+```
+
 ### `fsPromises.opendir(path[, options])`
 
 <!-- YAML
@@ -3401,10 +3439,14 @@ a colon, Node.js will open a file system stream, as described by
 Functions based on `fs.open()` exhibit this behavior as well:
 `fs.writeFile()`, `fs.readFile()`, etc.
 
-### `fs.openAsBlob(path[, options])`
+### `fs.openAsBlob(path[, options], callback)`
 
 <!-- YAML
 added: v19.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49759
+    description: Replaced with callback-based function.
 -->
 
 > Stability: 1 - Experimental
@@ -3412,32 +3454,12 @@ added: v19.8.0
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `type` {string} An optional mime type for the blob.
-* Return: {Promise} containing {Blob}
+* `callback` {Function}
+  * `err` {Error}
+  * `blob` {Blob}
 
-Returns a {Blob} whose data is backed by the given file.
-
-The file must not be modified after the {Blob} is created. Any modifications
-will cause reading the {Blob} data to fail with a `DOMException` error.
-Synchronous stat operations on the file when the `Blob` is created, and before
-each read in order to detect whether the file data has been modified on disk.
-
-```mjs
-import { openAsBlob } from 'node:fs';
-
-const blob = await openAsBlob('the.file.txt');
-const ab = await blob.arrayBuffer();
-blob.stream();
-```
-
-```cjs
-const { openAsBlob } = require('node:fs');
-
-(async () => {
-  const blob = await openAsBlob('the.file.txt');
-  const ab = await blob.arrayBuffer();
-  blob.stream();
-})();
-```
+For detailed information, see the documentation of the Promises version
+of this API: [`fsPromises.openAsBlob()`][].
 
 ### `fs.opendir(path[, options], callback)`
 
@@ -5601,6 +5623,22 @@ this API: [`fs.mkdtemp()`][].
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
+
+### `fs.openAsBlobSync(path[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `type` {string} An optional mime type for the blob.
+* Returns: {Blob}
+
+For detailed information, see the documentation of the Promises version
+of this API: [`fsPromises.openAsBlob()`][].
 
 ### `fs.opendirSync(path[, options])`
 
@@ -8149,6 +8187,7 @@ the file contents.
 [`fsPromises.access()`]: #fspromisesaccesspath-mode
 [`fsPromises.copyFile()`]: #fspromisescopyfilesrc-dest-mode
 [`fsPromises.open()`]: #fspromisesopenpath-flags-mode
+[`fsPromises.openAsBlob()`]: #fspromisesopenasblobpath-options
 [`fsPromises.opendir()`]: #fspromisesopendirpath-options
 [`fsPromises.rm()`]: #fspromisesrmpath-options
 [`fsPromises.stat()`]: #fspromisesstatpath-options
