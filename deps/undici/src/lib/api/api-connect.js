@@ -1,7 +1,7 @@
 'use strict'
 
-const { InvalidArgumentError, RequestAbortedError, SocketError } = require('../core/errors')
 const { AsyncResource } = require('async_hooks')
+const { InvalidArgumentError, RequestAbortedError, SocketError } = require('../core/errors')
 const util = require('../core/util')
 const { addSignal, removeSignal } = require('./abort-signal')
 
@@ -50,7 +50,13 @@ class ConnectHandler extends AsyncResource {
     removeSignal(this)
 
     this.callback = null
-    const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
+
+    let headers = rawHeaders
+    // Indicates is an HTTP2Session
+    if (headers != null) {
+      headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
+    }
+
     this.runInAsyncScope(callback, null, null, {
       statusCode,
       headers,

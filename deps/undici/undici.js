@@ -60,7 +60,13 @@ var require_symbols = __commonJS({
       kProxy: Symbol("proxy agent options"),
       kCounter: Symbol("socket request counter"),
       kInterceptors: Symbol("dispatch interceptors"),
-      kMaxResponseSize: Symbol("max response size")
+      kMaxResponseSize: Symbol("max response size"),
+      kHTTP2Session: Symbol("http2Session"),
+      kHTTP2SessionState: Symbol("http2Session state"),
+      kHTTP2BuildRequest: Symbol("http2 build request"),
+      kHTTP1BuildRequest: Symbol("http1 build request"),
+      kHTTP2CopyHeaders: Symbol("http2 copy headers"),
+      kHTTPConnVersion: Symbol("http connection version")
     };
   }
 });
@@ -292,7 +298,7 @@ var require_util = __commonJS({
     var stream = require("stream");
     var net = require("net");
     var { InvalidArgumentError } = require_errors();
-    var { Blob } = require("buffer");
+    var { Blob: Blob2 } = require("buffer");
     var nodeUtil = require("util");
     var { stringify } = require("querystring");
     var [nodeMajor, nodeMinor] = process.versions.node.split(".").map((v) => Number(v));
@@ -302,7 +308,7 @@ var require_util = __commonJS({
       return obj && typeof obj === "object" && typeof obj.pipe === "function" && typeof obj.on === "function";
     }
     function isBlobLike(object) {
-      return Blob && object instanceof Blob || object && typeof object === "object" && (typeof object.stream === "function" || typeof object.arrayBuffer === "function") && /^(Blob|File)$/.test(object[Symbol.toStringTag]);
+      return Blob2 && object instanceof Blob2 || object && typeof object === "object" && (typeof object.stream === "function" || typeof object.arrayBuffer === "function") && /^(Blob|File)$/.test(object[Symbol.toStringTag]);
     }
     function buildURL(url, queryParams) {
       if (url.includes("?") || url.includes("#")) {
@@ -400,7 +406,7 @@ var require_util = __commonJS({
         return 0;
       } else if (isStream(body)) {
         const state = body._readableState;
-        return state && state.ended === true && Number.isFinite(state.length) ? state.length : null;
+        return state && state.objectMode === false && state.ended === true && Number.isFinite(state.length) ? state.length : null;
       } else if (isBlobLike(body)) {
         return body.size != null ? body.size : null;
       } else if (isBuffer(body)) {
@@ -439,6 +445,8 @@ var require_util = __commonJS({
       return m ? parseInt(m[1], 10) * 1e3 : null;
     }
     function parseHeaders(headers, obj = {}) {
+      if (!Array.isArray(headers))
+        return headers;
       for (let i = 0; i < headers.length; i += 2) {
         const key = headers[i].toString().toLowerCase();
         let val = obj[key];
@@ -535,13 +543,18 @@ var require_util = __commonJS({
         bytesRead: socket.bytesRead
       };
     }
+    async function* convertIterableToBuffer(iterable) {
+      for await (const chunk of iterable) {
+        yield Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      }
+    }
     var ReadableStream;
     function ReadableStreamFrom(iterable) {
       if (!ReadableStream) {
         ReadableStream = require("stream/web").ReadableStream;
       }
       if (ReadableStream.from) {
-        return ReadableStream.from(iterable);
+        return ReadableStream.from(convertIterableToBuffer(iterable));
       }
       let iterator;
       return new ReadableStream({
@@ -1139,9 +1152,22 @@ var require_util2 = __commonJS({
       const metadata = list.filter((item) => item.algo === strongest);
       for (const item of metadata) {
         const algorithm = item.algo;
-        const expectedValue = item.hash;
-        const actualValue = crypto.createHash(algorithm).update(bytes).digest("base64");
+        let expectedValue = item.hash;
+        if (expectedValue.endsWith("==")) {
+          expectedValue = expectedValue.slice(0, -2);
+        }
+        let actualValue = crypto.createHash(algorithm).update(bytes).digest("base64");
+        if (actualValue.endsWith("==")) {
+          actualValue = actualValue.slice(0, -2);
+        }
         if (actualValue === expectedValue) {
+          return true;
+        }
+        let actualBase64URL = crypto.createHash(algorithm).update(bytes).digest("base64url");
+        if (actualBase64URL.endsWith("==")) {
+          actualBase64URL = actualBase64URL.slice(0, -2);
+        }
+        if (actualBase64URL === expectedValue) {
           return true;
         }
       }
@@ -1250,9 +1276,9 @@ var require_util2 = __commonJS({
       }
       return { value: result, done: false };
     }
-    function fullyReadBody(body, processBody, processBodyError) {
-      const successSteps = (bytes) => queueMicrotask(() => processBody(bytes));
-      const errorSteps = (error) => queueMicrotask(() => processBodyError(error));
+    async function fullyReadBody(body, processBody, processBodyError) {
+      const successSteps = processBody;
+      const errorSteps = processBodyError;
       let reader;
       try {
         reader = body.stream.getReader();
@@ -1260,7 +1286,12 @@ var require_util2 = __commonJS({
         errorSteps(e);
         return;
       }
-      readAllBytes(reader, successSteps, errorSteps);
+      try {
+        const result = await readAllBytes(reader);
+        successSteps(result);
+      } catch (e) {
+        errorSteps(e);
+      }
     }
     var ReadableStream = globalThis.ReadableStream;
     function isReadableStreamLike(stream) {
@@ -1291,25 +1322,16 @@ var require_util2 = __commonJS({
       }
       return input;
     }
-    async function readAllBytes(reader, successSteps, failureSteps) {
+    async function readAllBytes(reader) {
       const bytes = [];
       let byteLength = 0;
       while (true) {
-        let done;
-        let chunk;
-        try {
-          ({ done, value: chunk } = await reader.read());
-        } catch (e) {
-          failureSteps(e);
-          return;
-        }
+        const { done, value: chunk } = await reader.read();
         if (done) {
-          successSteps(Buffer.concat(bytes, byteLength));
-          return;
+          return Buffer.concat(bytes, byteLength);
         }
         if (!isUint8Array(chunk)) {
-          failureSteps(new TypeError("Received non-Uint8Array chunk"));
-          return;
+          throw new TypeError("Received non-Uint8Array chunk");
         }
         bytes.push(chunk);
         byteLength += chunk.length;
@@ -6015,14 +6037,14 @@ var require_dataURL = __commonJS({
 var require_file = __commonJS({
   "lib/fetch/file.js"(exports2, module2) {
     "use strict";
-    var { Blob, File: NativeFile } = require("buffer");
+    var { Blob: Blob2, File: NativeFile } = require("buffer");
     var { types } = require("util");
     var { kState } = require_symbols2();
     var { isBlobLike } = require_util2();
     var { webidl } = require_webidl();
     var { parseMIMEType, serializeAMimeType } = require_dataURL();
     var { kEnumerableProperty } = require_util();
-    var File = class extends Blob {
+    var File = class extends Blob2 {
       constructor(fileBits, fileName, options = {}) {
         webidl.argumentLengthCheck(arguments, 2, { header: "File constructor" });
         fileBits = webidl.converters["sequence<BlobPart>"](fileBits);
@@ -6118,7 +6140,7 @@ var require_file = __commonJS({
       name: kEnumerableProperty,
       lastModified: kEnumerableProperty
     });
-    webidl.converters.Blob = webidl.interfaceConverter(Blob);
+    webidl.converters.Blob = webidl.interfaceConverter(Blob2);
     webidl.converters.BlobPart = function(V, opts) {
       if (webidl.util.Type(V) === "Object") {
         if (isBlobLike(V)) {
@@ -6200,7 +6222,7 @@ var require_formdata = __commonJS({
     var { kState } = require_symbols2();
     var { File: UndiciFile, FileLike, isFileLike } = require_file();
     var { webidl } = require_webidl();
-    var { Blob, File: NativeFile } = require("buffer");
+    var { Blob: Blob2, File: NativeFile } = require("buffer");
     var File = NativeFile ?? UndiciFile;
     var FormData = class {
       constructor(form) {
@@ -6310,7 +6332,7 @@ var require_formdata = __commonJS({
         value = Buffer.from(value).toString("utf8");
       } else {
         if (!isFileLike(value)) {
-          value = value instanceof Blob ? new File([value], "blob", { type: value.type }) : new FileLike(value, "blob", { type: value.type });
+          value = value instanceof Blob2 ? new File([value], "blob", { type: value.type }) : new FileLike(value, "blob", { type: value.type });
         }
         if (filename !== void 0) {
           const options = {
@@ -6344,7 +6366,7 @@ var require_body = __commonJS({
     var { kState } = require_symbols2();
     var { webidl } = require_webidl();
     var { DOMException, structuredClone } = require_constants();
-    var { Blob, File: NativeFile } = require("buffer");
+    var { Blob: Blob2, File: NativeFile } = require("buffer");
     var { kBodyUsed } = require_symbols();
     var assert = require("assert");
     var { isErrored } = require_util();
@@ -6536,7 +6558,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             } else if (mimeType) {
               mimeType = serializeAMimeType(mimeType);
             }
-            return new Blob([bytes], { type: mimeType });
+            return new Blob2([bytes], { type: mimeType });
           }, instance);
         },
         arrayBuffer() {
@@ -6563,6 +6585,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             try {
               busboy = Busboy({
                 headers,
+                preservePath: true,
                 defParamCharset: "utf8"
               });
             } catch (err) {
@@ -6660,7 +6683,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         successSteps(new Uint8Array());
         return promise.promise;
       }
-      fullyReadBody(object[kState].body, successSteps, errorSteps);
+      await fullyReadBody(object[kState].body, successSteps, errorSteps);
       return promise.promise;
     }
     function bodyUnusable(body) {
@@ -6738,7 +6761,7 @@ var require_response = __commonJS({
         responseObject[kHeaders][kRealm] = relevantRealm;
         return responseObject;
       }
-      static json(data = void 0, init = {}) {
+      static json(data, init = {}) {
         webidl.argumentLengthCheck(arguments, 1, { header: "Response.json" });
         if (init !== null) {
           init = webidl.converters.ResponseInit(init);
@@ -6959,9 +6982,9 @@ var require_response = __commonJS({
         assert(false);
       }
     }
-    function makeAppropriateNetworkError(fetchParams) {
+    function makeAppropriateNetworkError(fetchParams, err = null) {
       assert(isCancelled(fetchParams));
-      return isAborted(fetchParams) ? makeNetworkError(new DOMException("The operation was aborted.", "AbortError")) : makeNetworkError("Request was cancelled.");
+      return isAborted(fetchParams) ? makeNetworkError(Object.assign(new DOMException("The operation was aborted.", "AbortError"), { cause: err })) : makeNetworkError(Object.assign(new DOMException("Request was cancelled."), { cause: err }));
     }
     function initializeResponse(response, init, body) {
       if (init.status !== null && (init.status < 200 || init.status > 599)) {
@@ -8140,6 +8163,7 @@ var require_request2 = __commonJS({
       NotSupportedError
     } = require_errors();
     var assert = require("assert");
+    var { kHTTP2BuildRequest, kHTTP2CopyHeaders, kHTTP1BuildRequest } = require_symbols();
     var util = require_util();
     var tokenRegExp = /^[\^_`a-zA-Z\-0-9!#$%&'*+.|~]+$/;
     var headerCharRegex = /[^\t\x20-\x7e\x80-\xff]/;
@@ -8174,7 +8198,8 @@ var require_request2 = __commonJS({
         headersTimeout,
         bodyTimeout,
         reset,
-        throwOnError
+        throwOnError,
+        expectContinue
       }, handler) {
         if (typeof path !== "string") {
           throw new InvalidArgumentError("path must be a string");
@@ -8199,6 +8224,9 @@ var require_request2 = __commonJS({
         }
         if (reset != null && typeof reset !== "boolean") {
           throw new InvalidArgumentError("invalid reset");
+        }
+        if (expectContinue != null && typeof expectContinue !== "boolean") {
+          throw new InvalidArgumentError("invalid expectContinue");
         }
         this.headersTimeout = headersTimeout;
         this.bodyTimeout = bodyTimeout;
@@ -8233,6 +8261,7 @@ var require_request2 = __commonJS({
         this.contentLength = null;
         this.contentType = null;
         this.headers = "";
+        this.expectContinue = expectContinue != null ? expectContinue : false;
         if (Array.isArray(headers)) {
           if (headers.length % 2 !== 0) {
             throw new InvalidArgumentError("headers array must be even");
@@ -8335,8 +8364,48 @@ var require_request2 = __commonJS({
         processHeader(this, key, value);
         return this;
       }
+      static [kHTTP1BuildRequest](origin, opts, handler) {
+        return new Request(origin, opts, handler);
+      }
+      static [kHTTP2BuildRequest](origin, opts, handler) {
+        const headers = opts.headers;
+        opts = { ...opts, headers: null };
+        const request = new Request(origin, opts, handler);
+        request.headers = {};
+        if (Array.isArray(headers)) {
+          if (headers.length % 2 !== 0) {
+            throw new InvalidArgumentError("headers array must be even");
+          }
+          for (let i = 0; i < headers.length; i += 2) {
+            processHeader(request, headers[i], headers[i + 1], true);
+          }
+        } else if (headers && typeof headers === "object") {
+          const keys = Object.keys(headers);
+          for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            processHeader(request, key, headers[key], true);
+          }
+        } else if (headers != null) {
+          throw new InvalidArgumentError("headers must be an object or an array");
+        }
+        return request;
+      }
+      static [kHTTP2CopyHeaders](raw) {
+        const rawHeaders = raw.split("\r\n");
+        const headers = {};
+        for (const header of rawHeaders) {
+          const [key, value] = header.split(": ");
+          if (value == null || value.length === 0)
+            continue;
+          if (headers[key])
+            headers[key] += `,${value}`;
+          else
+            headers[key] = value;
+        }
+        return headers;
+      }
     };
-    function processHeaderValue(key, val) {
+    function processHeaderValue(key, val, skipAppend) {
       if (val && typeof val === "object") {
         throw new InvalidArgumentError(`invalid ${key} header`);
       }
@@ -8344,10 +8413,10 @@ var require_request2 = __commonJS({
       if (headerCharRegex.exec(val) !== null) {
         throw new InvalidArgumentError(`invalid ${key} header`);
       }
-      return `${key}: ${val}\r
+      return skipAppend ? val : `${key}: ${val}\r
 `;
     }
-    function processHeader(request, key, val) {
+    function processHeader(request, key, val, skipAppend = false) {
       if (val && (typeof val === "object" && !Array.isArray(val))) {
         throw new InvalidArgumentError(`invalid ${key} header`);
       } else if (val === void 0) {
@@ -8386,10 +8455,20 @@ var require_request2 = __commonJS({
       } else {
         if (Array.isArray(val)) {
           for (let i = 0; i < val.length; i++) {
-            request.headers += processHeaderValue(key, val[i]);
+            if (skipAppend) {
+              if (request.headers[key])
+                request.headers[key] += `,${processHeaderValue(key, val[i], skipAppend)}`;
+              else
+                request.headers[key] = processHeaderValue(key, val[i], skipAppend);
+            } else {
+              request.headers += processHeaderValue(key, val[i]);
+            }
           }
         } else {
-          request.headers += processHeaderValue(key, val);
+          if (skipAppend)
+            request.headers[key] = processHeaderValue(key, val, skipAppend);
+          else
+            request.headers += processHeaderValue(key, val);
         }
       }
     }
@@ -8455,13 +8534,14 @@ var require_connect = __commonJS({
         }
       };
     }
-    function buildConnector({ maxCachedSessions, socketPath, timeout, ...opts }) {
+    function buildConnector({ allowH2, maxCachedSessions, socketPath, timeout, ...opts }) {
       if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
         throw new InvalidArgumentError("maxCachedSessions must be a positive integer or zero");
       }
       const options = { path: socketPath, ...opts };
       const sessionCache = new SessionCache(maxCachedSessions == null ? 100 : maxCachedSessions);
       timeout = timeout == null ? 1e4 : timeout;
+      allowH2 = allowH2 != null ? allowH2 : false;
       return function connect({ hostname, host, protocol, port, servername, localAddress, httpSocket }, callback) {
         let socket;
         if (protocol === "https:") {
@@ -8478,6 +8558,7 @@ var require_connect = __commonJS({
             servername,
             session,
             localAddress,
+            ALPNProtocols: allowH2 ? ["http/1.1", "h2"] : ["http/1.1"],
             socket: httpSocket,
             port: port || 443,
             host: hostname
@@ -9068,6 +9149,7 @@ var require_client = __commonJS({
     "use strict";
     var assert = require("assert");
     var net = require("net");
+    var { pipeline } = require("stream");
     var util = require_util();
     var timers = require_timers();
     var Request = require_request2();
@@ -9129,8 +9211,32 @@ var require_client = __commonJS({
       kDispatch,
       kInterceptors,
       kLocalAddress,
-      kMaxResponseSize
+      kMaxResponseSize,
+      kHTTPConnVersion,
+      kHost,
+      kHTTP2Session,
+      kHTTP2SessionState,
+      kHTTP2BuildRequest,
+      kHTTP2CopyHeaders,
+      kHTTP1BuildRequest
     } = require_symbols();
+    var http2;
+    try {
+      http2 = require("http2");
+    } catch {
+      http2 = { constants: {} };
+    }
+    var {
+      constants: {
+        HTTP2_HEADER_AUTHORITY,
+        HTTP2_HEADER_METHOD,
+        HTTP2_HEADER_PATH,
+        HTTP2_HEADER_CONTENT_LENGTH,
+        HTTP2_HEADER_EXPECT,
+        HTTP2_HEADER_STATUS
+      }
+    } = http2;
+    var h2ExperimentalWarned = false;
     var FastBuffer = Buffer[Symbol.species];
     var kClosedResolve = Symbol("kClosedResolve");
     var channels = {};
@@ -9172,7 +9278,9 @@ var require_client = __commonJS({
         localAddress,
         maxResponseSize,
         autoSelectFamily,
-        autoSelectFamilyAttemptTimeout
+        autoSelectFamilyAttemptTimeout,
+        allowH2,
+        maxConcurrentStreams
       } = {}) {
         super();
         if (keepAlive !== void 0) {
@@ -9232,10 +9340,17 @@ var require_client = __commonJS({
         if (autoSelectFamilyAttemptTimeout != null && (!Number.isInteger(autoSelectFamilyAttemptTimeout) || autoSelectFamilyAttemptTimeout < -1)) {
           throw new InvalidArgumentError("autoSelectFamilyAttemptTimeout must be a positive number");
         }
+        if (allowH2 != null && typeof allowH2 !== "boolean") {
+          throw new InvalidArgumentError("allowH2 must be a valid boolean value");
+        }
+        if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== "number" || maxConcurrentStreams < 1)) {
+          throw new InvalidArgumentError("maxConcurrentStreams must be a possitive integer, greater than 0");
+        }
         if (typeof connect2 !== "function") {
           connect2 = buildConnector({
             ...tls,
             maxCachedSessions,
+            allowH2,
             socketPath,
             timeout: connectTimeout,
             ...util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : void 0,
@@ -9265,6 +9380,13 @@ var require_client = __commonJS({
         this[kMaxRequests] = maxRequestsPerClient;
         this[kClosedResolve] = null;
         this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1;
+        this[kHTTPConnVersion] = "h1";
+        this[kHTTP2Session] = null;
+        this[kHTTP2SessionState] = !allowH2 ? null : {
+          openStreams: 0,
+          maxConcurrentStreams: maxConcurrentStreams != null ? maxConcurrentStreams : 100
+        };
+        this[kHost] = `${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ""}`;
         this[kQueue] = [];
         this[kRunningIdx] = 0;
         this[kPendingIdx] = 0;
@@ -9298,7 +9420,7 @@ var require_client = __commonJS({
       }
       [kDispatch](opts, handler) {
         const origin = opts.origin || this[kUrl].origin;
-        const request = new Request(origin, opts, handler);
+        const request = this[kHTTPConnVersion] === "h2" ? Request[kHTTP2BuildRequest](origin, opts, handler) : Request[kHTTP1BuildRequest](origin, opts, handler);
         this[kQueue].push(request);
         if (this[kResuming]) {
         } else if (util.bodyLength(request.body) == null && util.isIterable(request.body)) {
@@ -9335,6 +9457,11 @@ var require_client = __commonJS({
             }
             resolve();
           };
+          if (this[kHTTP2Session] != null) {
+            util.destroy(this[kHTTP2Session], err);
+            this[kHTTP2Session] = null;
+            this[kHTTP2SessionState] = null;
+          }
           if (!this[kSocket]) {
             queueMicrotask(callback);
           } else {
@@ -9344,6 +9471,44 @@ var require_client = __commonJS({
         });
       }
     };
+    function onHttp2SessionError(err) {
+      assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
+      this[kSocket][kError] = err;
+      onError(this[kClient], err);
+    }
+    function onHttp2FrameError(type, code, id) {
+      const err = new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`);
+      if (id === 0) {
+        this[kSocket][kError] = err;
+        onError(this[kClient], err);
+      }
+    }
+    function onHttp2SessionEnd() {
+      util.destroy(this, new SocketError("other side closed"));
+      util.destroy(this[kSocket], new SocketError("other side closed"));
+    }
+    function onHTTP2GoAway(code) {
+      const client = this[kClient];
+      const err = new InformationalError(`HTTP/2: "GOAWAY" frame received with code ${code}`);
+      client[kSocket] = null;
+      client[kHTTP2Session] = null;
+      if (client.destroyed) {
+        assert(this[kPending] === 0);
+        const requests = client[kQueue].splice(client[kRunningIdx]);
+        for (let i = 0; i < requests.length; i++) {
+          const request = requests[i];
+          errorRequest(this, request, err);
+        }
+      } else if (client[kRunning] > 0) {
+        const request = client[kQueue][client[kRunningIdx]];
+        client[kQueue][client[kRunningIdx]++] = null;
+        errorRequest(client, request, err);
+      }
+      client[kPendingIdx] = client[kRunningIdx];
+      assert(client[kRunning] === 0);
+      client.emit("disconnect", client[kUrl], [client], err);
+      resume(client);
+    }
     var constants = require_constants2();
     var createRedirectInterceptor = require_redirectInterceptor();
     var EMPTY_BUF = Buffer.alloc(0);
@@ -9783,11 +9948,13 @@ var require_client = __commonJS({
       parser.readMore();
     }
     function onSocketError(err) {
-      const { [kParser]: parser } = this;
+      const { [kClient]: client, [kParser]: parser } = this;
       assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
-      if (err.code === "ECONNRESET" && parser.statusCode && !parser.shouldKeepAlive) {
-        parser.onMessageComplete();
-        return;
+      if (client[kHTTPConnVersion] !== "h2") {
+        if (err.code === "ECONNRESET" && parser.statusCode && !parser.shouldKeepAlive) {
+          parser.onMessageComplete();
+          return;
+        }
       }
       this[kError] = err;
       onError(this[kClient], err);
@@ -9804,20 +9971,24 @@ var require_client = __commonJS({
       }
     }
     function onSocketEnd() {
-      const { [kParser]: parser } = this;
-      if (parser.statusCode && !parser.shouldKeepAlive) {
-        parser.onMessageComplete();
-        return;
+      const { [kParser]: parser, [kClient]: client } = this;
+      if (client[kHTTPConnVersion] !== "h2") {
+        if (parser.statusCode && !parser.shouldKeepAlive) {
+          parser.onMessageComplete();
+          return;
+        }
       }
       util.destroy(this, new SocketError("other side closed", util.getSocketInfo(this)));
     }
     function onSocketClose() {
-      const { [kClient]: client } = this;
-      if (!this[kError] && this[kParser].statusCode && !this[kParser].shouldKeepAlive) {
-        this[kParser].onMessageComplete();
+      const { [kClient]: client, [kParser]: parser } = this;
+      if (client[kHTTPConnVersion] === "h1" && parser) {
+        if (!this[kError] && parser.statusCode && !parser.shouldKeepAlive) {
+          parser.onMessageComplete();
+        }
+        this[kParser].destroy();
+        this[kParser] = null;
       }
-      this[kParser].destroy();
-      this[kParser] = null;
       const err = this[kError] || new SocketError("closed", util.getSocketInfo(this));
       client[kSocket] = null;
       if (client.destroyed) {
@@ -9884,21 +10055,46 @@ var require_client = __commonJS({
           }), new ClientDestroyedError());
           return;
         }
-        if (!llhttpInstance) {
-          llhttpInstance = await llhttpPromise;
-          llhttpPromise = null;
-        }
         client[kConnecting] = false;
         assert(socket);
-        socket[kNoRef] = false;
-        socket[kWriting] = false;
-        socket[kReset] = false;
-        socket[kBlocking] = false;
-        socket[kError] = null;
-        socket[kParser] = new Parser(client, socket, llhttpInstance);
-        socket[kClient] = client;
+        const isH2 = socket.alpnProtocol === "h2";
+        if (isH2) {
+          if (!h2ExperimentalWarned) {
+            h2ExperimentalWarned = true;
+            process.emitWarning("H2 support is experimental, expect them to change at any time.", {
+              code: "UNDICI-H2"
+            });
+          }
+          const session = http2.connect(client[kUrl], {
+            createConnection: () => socket,
+            peerMaxConcurrentStreams: client[kHTTP2SessionState].maxConcurrentStreams
+          });
+          client[kHTTPConnVersion] = "h2";
+          session[kClient] = client;
+          session[kSocket] = socket;
+          session.on("error", onHttp2SessionError);
+          session.on("frameError", onHttp2FrameError);
+          session.on("end", onHttp2SessionEnd);
+          session.on("goaway", onHTTP2GoAway);
+          session.on("close", onSocketClose);
+          session.unref();
+          client[kHTTP2Session] = session;
+          socket[kHTTP2Session] = session;
+        } else {
+          if (!llhttpInstance) {
+            llhttpInstance = await llhttpPromise;
+            llhttpPromise = null;
+          }
+          socket[kNoRef] = false;
+          socket[kWriting] = false;
+          socket[kReset] = false;
+          socket[kBlocking] = false;
+          socket[kParser] = new Parser(client, socket, llhttpInstance);
+        }
         socket[kCounter] = 0;
         socket[kMaxRequests] = client[kMaxRequests];
+        socket[kClient] = client;
+        socket[kError] = null;
         socket.on("error", onSocketError).on("readable", onSocketReadable).on("end", onSocketEnd).on("close", onSocketClose);
         client[kSocket] = socket;
         if (channels.connected.hasSubscribers) {
@@ -9977,7 +10173,7 @@ var require_client = __commonJS({
           return;
         }
         const socket = client[kSocket];
-        if (socket && !socket.destroyed) {
+        if (socket && !socket.destroyed && socket.alpnProtocol !== "h2") {
           if (client[kSize] === 0) {
             if (!socket[kNoRef] && socket.unref) {
               socket.unref();
@@ -10030,7 +10226,7 @@ var require_client = __commonJS({
         if (client[kConnecting]) {
           return;
         }
-        if (!socket) {
+        if (!socket && !client[kHTTP2Session]) {
           connect(client);
           return;
         }
@@ -10064,6 +10260,10 @@ var require_client = __commonJS({
       }
     }
     function write(client, request) {
+      if (client[kHTTPConnVersion] === "h2") {
+        writeH2(client, client[kHTTP2Session], request);
+        return;
+      }
       const { body, method, path, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -10175,8 +10375,205 @@ upgrade: ${upgrade}\r
       }
       return true;
     }
-    function writeStream({ body, client, request, socket, contentLength, header, expectsPayload }) {
+    function writeH2(client, session, request) {
+      const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      let headers;
+      if (typeof reqHeaders === "string")
+        headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
+      else
+        headers = reqHeaders;
+      if (upgrade) {
+        errorRequest(client, request, new Error("Upgrade not supported for H2"));
+        return false;
+      }
+      try {
+        request.onConnect((err) => {
+          if (request.aborted || request.completed) {
+            return;
+          }
+          errorRequest(client, request, err || new RequestAbortedError());
+        });
+      } catch (err) {
+        errorRequest(client, request, err);
+      }
+      if (request.aborted) {
+        return false;
+      }
+      let stream;
+      const h2State = client[kHTTP2SessionState];
+      headers[HTTP2_HEADER_AUTHORITY] = host || client[kHost];
+      headers[HTTP2_HEADER_PATH] = path;
+      if (method === "CONNECT") {
+        session.ref();
+        stream = session.request(headers, { endStream: false, signal });
+        if (stream.id && !stream.pending) {
+          request.onUpgrade(null, null, stream);
+          ++h2State.openStreams;
+        } else {
+          stream.once("ready", () => {
+            request.onUpgrade(null, null, stream);
+            ++h2State.openStreams;
+          });
+        }
+        stream.once("close", () => {
+          h2State.openStreams -= 1;
+          if (h2State.openStreams === 0)
+            session.unref();
+        });
+        return true;
+      } else {
+        headers[HTTP2_HEADER_METHOD] = method;
+      }
+      const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
+      if (body && typeof body.read === "function") {
+        body.read(0);
+      }
+      let contentLength = util.bodyLength(body);
+      if (contentLength == null) {
+        contentLength = request.contentLength;
+      }
+      if (contentLength === 0 || !expectsPayload) {
+        contentLength = null;
+      }
+      if (request.contentLength != null && request.contentLength !== contentLength) {
+        if (client[kStrictContentLength]) {
+          errorRequest(client, request, new RequestContentLengthMismatchError());
+          return false;
+        }
+        process.emitWarning(new RequestContentLengthMismatchError());
+      }
+      if (contentLength != null) {
+        assert(body, "no body must not have content length");
+        headers[HTTP2_HEADER_CONTENT_LENGTH] = `${contentLength}`;
+      }
+      session.ref();
+      const shouldEndStream = method === "GET" || method === "HEAD";
+      if (expectContinue) {
+        headers[HTTP2_HEADER_EXPECT] = "100-continue";
+        stream = session.request(headers, { endStream: shouldEndStream, signal });
+        stream.once("continue", writeBodyH2);
+      } else {
+        stream = session.request(headers, {
+          endStream: shouldEndStream,
+          signal
+        });
+        writeBodyH2();
+      }
+      ++h2State.openStreams;
+      stream.once("response", (headers2) => {
+        if (request.onHeaders(Number(headers2[HTTP2_HEADER_STATUS]), headers2, stream.resume.bind(stream), "") === false) {
+          stream.pause();
+        }
+      });
+      stream.once("end", () => {
+        request.onComplete([]);
+      });
+      stream.on("data", (chunk) => {
+        if (request.onData(chunk) === false)
+          stream.pause();
+      });
+      stream.once("close", () => {
+        h2State.openStreams -= 1;
+        if (h2State.openStreams === 0)
+          session.unref();
+      });
+      stream.once("error", function(err) {
+        if (client[kHTTP2Session] && !client[kHTTP2Session].destroyed && !this.closed && !this.destroyed) {
+          h2State.streams -= 1;
+          util.destroy(stream, err);
+        }
+      });
+      stream.once("frameError", (type, code) => {
+        const err = new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`);
+        errorRequest(client, request, err);
+        if (client[kHTTP2Session] && !client[kHTTP2Session].destroyed && !this.closed && !this.destroyed) {
+          h2State.streams -= 1;
+          util.destroy(stream, err);
+        }
+      });
+      return true;
+      function writeBodyH2() {
+        if (!body) {
+          request.onRequestSent();
+        } else if (util.isBuffer(body)) {
+          assert(contentLength === body.byteLength, "buffer body must have content length");
+          stream.cork();
+          stream.write(body);
+          stream.uncork();
+          request.onBodySent(body);
+          request.onRequestSent();
+        } else if (util.isBlobLike(body)) {
+          if (typeof body.stream === "function") {
+            writeIterable({
+              client,
+              request,
+              contentLength,
+              h2stream: stream,
+              expectsPayload,
+              body: body.stream(),
+              socket: client[kSocket],
+              header: ""
+            });
+          } else {
+            writeBlob({
+              body,
+              client,
+              request,
+              contentLength,
+              expectsPayload,
+              h2stream: stream,
+              header: "",
+              socket: client[kSocket]
+            });
+          }
+        } else if (util.isStream(body)) {
+          writeStream({
+            body,
+            client,
+            request,
+            contentLength,
+            expectsPayload,
+            socket: client[kSocket],
+            h2stream: stream,
+            header: ""
+          });
+        } else if (util.isIterable(body)) {
+          writeIterable({
+            body,
+            client,
+            request,
+            contentLength,
+            expectsPayload,
+            header: "",
+            h2stream: stream,
+            socket: client[kSocket]
+          });
+        } else {
+          assert(false);
+        }
+      }
+    }
+    function writeStream({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
       assert(contentLength !== 0 || client[kRunning] === 0, "stream body cannot be pipelined");
+      if (client[kHTTPConnVersion] === "h2") {
+        let onPipeData = function(chunk) {
+          request.onBodySent(chunk);
+        };
+        const pipe = pipeline(body, h2stream, (err) => {
+          if (err) {
+            util.destroy(body, err);
+            util.destroy(h2stream, err);
+          } else {
+            request.onRequestSent();
+          }
+        });
+        pipe.on("data", onPipeData);
+        pipe.once("end", () => {
+          pipe.removeListener("data", onPipeData);
+          util.destroy(pipe);
+        });
+        return;
+      }
       let finished = false;
       const writer = new AsyncWriter({ socket, request, contentLength, client, expectsPayload, header });
       const onData = function(chunk) {
@@ -10230,19 +10627,26 @@ upgrade: ${upgrade}\r
       }
       socket.on("drain", onDrain).on("error", onFinished);
     }
-    async function writeBlob({ body, client, request, socket, contentLength, header, expectsPayload }) {
+    async function writeBlob({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
       assert(contentLength === body.size, "blob body must have content length");
+      const isH2 = client[kHTTPConnVersion] === "h2";
       try {
         if (contentLength != null && contentLength !== body.size) {
           throw new RequestContentLengthMismatchError();
         }
         const buffer = Buffer.from(await body.arrayBuffer());
-        socket.cork();
-        socket.write(`${header}content-length: ${contentLength}\r
+        if (isH2) {
+          h2stream.cork();
+          h2stream.write(buffer);
+          h2stream.uncork();
+        } else {
+          socket.cork();
+          socket.write(`${header}content-length: ${contentLength}\r
 \r
 `, "latin1");
-        socket.write(buffer);
-        socket.uncork();
+          socket.write(buffer);
+          socket.uncork();
+        }
         request.onBodySent(buffer);
         request.onRequestSent();
         if (!expectsPayload) {
@@ -10250,10 +10654,10 @@ upgrade: ${upgrade}\r
         }
         resume(client);
       } catch (err) {
-        util.destroy(socket, err);
+        util.destroy(isH2 ? h2stream : socket, err);
       }
     }
-    async function writeIterable({ body, client, request, socket, contentLength, header, expectsPayload }) {
+    async function writeIterable({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
       assert(contentLength !== 0 || client[kRunning] === 0, "iterator body cannot be pipelined");
       let callback = null;
       function onDrain() {
@@ -10271,6 +10675,24 @@ upgrade: ${upgrade}\r
           callback = resolve;
         }
       });
+      if (client[kHTTPConnVersion] === "h2") {
+        h2stream.on("close", onDrain).on("drain", onDrain);
+        try {
+          for await (const chunk of body) {
+            if (socket[kError]) {
+              throw socket[kError];
+            }
+            if (!h2stream.write(chunk)) {
+              await waitForDrain();
+            }
+          }
+        } catch (err) {
+          h2stream.destroy(err);
+        } finally {
+          h2stream.off("close", onDrain).off("drain", onDrain);
+        }
+        return;
+      }
       socket.on("close", onDrain).on("drain", onDrain);
       const writer = new AsyncWriter({ socket, request, contentLength, client, expectsPayload, header });
       try {
@@ -10442,6 +10864,7 @@ var require_pool = __commonJS({
         socketPath,
         autoSelectFamily,
         autoSelectFamilyAttemptTimeout,
+        allowH2,
         ...options
       } = {}) {
         super();
@@ -10458,6 +10881,7 @@ var require_pool = __commonJS({
           connect = buildConnector({
             ...tls,
             maxCachedSessions,
+            allowH2,
             socketPath,
             timeout: connectTimeout == null ? 1e4 : connectTimeout,
             ...util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : void 0,
@@ -10467,7 +10891,7 @@ var require_pool = __commonJS({
         this[kInterceptors] = options.interceptors && options.interceptors.Pool && Array.isArray(options.interceptors.Pool) ? options.interceptors.Pool : [];
         this[kConnections] = connections || null;
         this[kUrl] = util.parseOrigin(origin);
-        this[kOptions] = { ...util.deepClone(options), connect };
+        this[kOptions] = { ...util.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
       }
@@ -11383,7 +11807,7 @@ var require_fetch = __commonJS({
       } catch (err) {
         if (err.name === "AbortError") {
           fetchParams.controller.connection.destroy();
-          return makeAppropriateNetworkError(fetchParams);
+          return makeAppropriateNetworkError(fetchParams, err);
         }
         return makeNetworkError(err);
       }
@@ -11498,15 +11922,28 @@ var require_fetch = __commonJS({
             let codings = [];
             let location = "";
             const headers = new Headers();
-            for (let n = 0; n < headersList.length; n += 2) {
-              const key = headersList[n + 0].toString("latin1");
-              const val = headersList[n + 1].toString("latin1");
-              if (key.toLowerCase() === "content-encoding") {
-                codings = val.toLowerCase().split(",").map((x) => x.trim()).reverse();
-              } else if (key.toLowerCase() === "location") {
-                location = val;
+            if (Array.isArray(headersList)) {
+              for (let n = 0; n < headersList.length; n += 2) {
+                const key = headersList[n + 0].toString("latin1");
+                const val = headersList[n + 1].toString("latin1");
+                if (key.toLowerCase() === "content-encoding") {
+                  codings = val.toLowerCase().split(",").map((x) => x.trim());
+                } else if (key.toLowerCase() === "location") {
+                  location = val;
+                }
+                headers.append(key, val);
               }
-              headers.append(key, val);
+            } else {
+              const keys = Object.keys(headersList);
+              for (const key of keys) {
+                const val = headersList[key];
+                if (key.toLowerCase() === "content-encoding") {
+                  codings = val.toLowerCase().split(",").map((x) => x.trim()).reverse();
+                } else if (key.toLowerCase() === "location") {
+                  location = val;
+                }
+                headers.append(key, val);
+              }
             }
             this.body = new Readable({ read: resume });
             const decoders = [];
@@ -11591,11 +12028,1194 @@ var require_fetch = __commonJS({
   }
 });
 
+// lib/websocket/constants.js
+var require_constants3 = __commonJS({
+  "lib/websocket/constants.js"(exports2, module2) {
+    "use strict";
+    var uid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    var staticPropertyDescriptors = {
+      enumerable: true,
+      writable: false,
+      configurable: false
+    };
+    var states = {
+      CONNECTING: 0,
+      OPEN: 1,
+      CLOSING: 2,
+      CLOSED: 3
+    };
+    var opcodes = {
+      CONTINUATION: 0,
+      TEXT: 1,
+      BINARY: 2,
+      CLOSE: 8,
+      PING: 9,
+      PONG: 10
+    };
+    var maxUnsigned16Bit = 2 ** 16 - 1;
+    var parserStates = {
+      INFO: 0,
+      PAYLOADLENGTH_16: 2,
+      PAYLOADLENGTH_64: 3,
+      READ_DATA: 4
+    };
+    var emptyBuffer = Buffer.allocUnsafe(0);
+    module2.exports = {
+      uid,
+      staticPropertyDescriptors,
+      states,
+      opcodes,
+      maxUnsigned16Bit,
+      parserStates,
+      emptyBuffer
+    };
+  }
+});
+
+// lib/websocket/symbols.js
+var require_symbols3 = __commonJS({
+  "lib/websocket/symbols.js"(exports2, module2) {
+    "use strict";
+    module2.exports = {
+      kWebSocketURL: Symbol("url"),
+      kReadyState: Symbol("ready state"),
+      kController: Symbol("controller"),
+      kResponse: Symbol("response"),
+      kBinaryType: Symbol("binary type"),
+      kSentClose: Symbol("sent close"),
+      kReceivedClose: Symbol("received close"),
+      kByteParser: Symbol("byte parser")
+    };
+  }
+});
+
+// lib/websocket/events.js
+var require_events = __commonJS({
+  "lib/websocket/events.js"(exports2, module2) {
+    "use strict";
+    var { webidl } = require_webidl();
+    var { kEnumerableProperty } = require_util();
+    var { MessagePort } = require("worker_threads");
+    var MessageEvent = class extends Event {
+      #eventInit;
+      constructor(type, eventInitDict = {}) {
+        webidl.argumentLengthCheck(arguments, 1, { header: "MessageEvent constructor" });
+        type = webidl.converters.DOMString(type);
+        eventInitDict = webidl.converters.MessageEventInit(eventInitDict);
+        super(type, eventInitDict);
+        this.#eventInit = eventInitDict;
+      }
+      get data() {
+        webidl.brandCheck(this, MessageEvent);
+        return this.#eventInit.data;
+      }
+      get origin() {
+        webidl.brandCheck(this, MessageEvent);
+        return this.#eventInit.origin;
+      }
+      get lastEventId() {
+        webidl.brandCheck(this, MessageEvent);
+        return this.#eventInit.lastEventId;
+      }
+      get source() {
+        webidl.brandCheck(this, MessageEvent);
+        return this.#eventInit.source;
+      }
+      get ports() {
+        webidl.brandCheck(this, MessageEvent);
+        if (!Object.isFrozen(this.#eventInit.ports)) {
+          Object.freeze(this.#eventInit.ports);
+        }
+        return this.#eventInit.ports;
+      }
+      initMessageEvent(type, bubbles = false, cancelable = false, data = null, origin = "", lastEventId = "", source = null, ports = []) {
+        webidl.brandCheck(this, MessageEvent);
+        webidl.argumentLengthCheck(arguments, 1, { header: "MessageEvent.initMessageEvent" });
+        return new MessageEvent(type, {
+          bubbles,
+          cancelable,
+          data,
+          origin,
+          lastEventId,
+          source,
+          ports
+        });
+      }
+    };
+    var CloseEvent = class extends Event {
+      #eventInit;
+      constructor(type, eventInitDict = {}) {
+        webidl.argumentLengthCheck(arguments, 1, { header: "CloseEvent constructor" });
+        type = webidl.converters.DOMString(type);
+        eventInitDict = webidl.converters.CloseEventInit(eventInitDict);
+        super(type, eventInitDict);
+        this.#eventInit = eventInitDict;
+      }
+      get wasClean() {
+        webidl.brandCheck(this, CloseEvent);
+        return this.#eventInit.wasClean;
+      }
+      get code() {
+        webidl.brandCheck(this, CloseEvent);
+        return this.#eventInit.code;
+      }
+      get reason() {
+        webidl.brandCheck(this, CloseEvent);
+        return this.#eventInit.reason;
+      }
+    };
+    var ErrorEvent = class extends Event {
+      #eventInit;
+      constructor(type, eventInitDict) {
+        webidl.argumentLengthCheck(arguments, 1, { header: "ErrorEvent constructor" });
+        super(type, eventInitDict);
+        type = webidl.converters.DOMString(type);
+        eventInitDict = webidl.converters.ErrorEventInit(eventInitDict ?? {});
+        this.#eventInit = eventInitDict;
+      }
+      get message() {
+        webidl.brandCheck(this, ErrorEvent);
+        return this.#eventInit.message;
+      }
+      get filename() {
+        webidl.brandCheck(this, ErrorEvent);
+        return this.#eventInit.filename;
+      }
+      get lineno() {
+        webidl.brandCheck(this, ErrorEvent);
+        return this.#eventInit.lineno;
+      }
+      get colno() {
+        webidl.brandCheck(this, ErrorEvent);
+        return this.#eventInit.colno;
+      }
+      get error() {
+        webidl.brandCheck(this, ErrorEvent);
+        return this.#eventInit.error;
+      }
+    };
+    Object.defineProperties(MessageEvent.prototype, {
+      [Symbol.toStringTag]: {
+        value: "MessageEvent",
+        configurable: true
+      },
+      data: kEnumerableProperty,
+      origin: kEnumerableProperty,
+      lastEventId: kEnumerableProperty,
+      source: kEnumerableProperty,
+      ports: kEnumerableProperty,
+      initMessageEvent: kEnumerableProperty
+    });
+    Object.defineProperties(CloseEvent.prototype, {
+      [Symbol.toStringTag]: {
+        value: "CloseEvent",
+        configurable: true
+      },
+      reason: kEnumerableProperty,
+      code: kEnumerableProperty,
+      wasClean: kEnumerableProperty
+    });
+    Object.defineProperties(ErrorEvent.prototype, {
+      [Symbol.toStringTag]: {
+        value: "ErrorEvent",
+        configurable: true
+      },
+      message: kEnumerableProperty,
+      filename: kEnumerableProperty,
+      lineno: kEnumerableProperty,
+      colno: kEnumerableProperty,
+      error: kEnumerableProperty
+    });
+    webidl.converters.MessagePort = webidl.interfaceConverter(MessagePort);
+    webidl.converters["sequence<MessagePort>"] = webidl.sequenceConverter(webidl.converters.MessagePort);
+    var eventInit = [
+      {
+        key: "bubbles",
+        converter: webidl.converters.boolean,
+        defaultValue: false
+      },
+      {
+        key: "cancelable",
+        converter: webidl.converters.boolean,
+        defaultValue: false
+      },
+      {
+        key: "composed",
+        converter: webidl.converters.boolean,
+        defaultValue: false
+      }
+    ];
+    webidl.converters.MessageEventInit = webidl.dictionaryConverter([
+      ...eventInit,
+      {
+        key: "data",
+        converter: webidl.converters.any,
+        defaultValue: null
+      },
+      {
+        key: "origin",
+        converter: webidl.converters.USVString,
+        defaultValue: ""
+      },
+      {
+        key: "lastEventId",
+        converter: webidl.converters.DOMString,
+        defaultValue: ""
+      },
+      {
+        key: "source",
+        converter: webidl.nullableConverter(webidl.converters.MessagePort),
+        defaultValue: null
+      },
+      {
+        key: "ports",
+        converter: webidl.converters["sequence<MessagePort>"],
+        get defaultValue() {
+          return [];
+        }
+      }
+    ]);
+    webidl.converters.CloseEventInit = webidl.dictionaryConverter([
+      ...eventInit,
+      {
+        key: "wasClean",
+        converter: webidl.converters.boolean,
+        defaultValue: false
+      },
+      {
+        key: "code",
+        converter: webidl.converters["unsigned short"],
+        defaultValue: 0
+      },
+      {
+        key: "reason",
+        converter: webidl.converters.USVString,
+        defaultValue: ""
+      }
+    ]);
+    webidl.converters.ErrorEventInit = webidl.dictionaryConverter([
+      ...eventInit,
+      {
+        key: "message",
+        converter: webidl.converters.DOMString,
+        defaultValue: ""
+      },
+      {
+        key: "filename",
+        converter: webidl.converters.USVString,
+        defaultValue: ""
+      },
+      {
+        key: "lineno",
+        converter: webidl.converters["unsigned long"],
+        defaultValue: 0
+      },
+      {
+        key: "colno",
+        converter: webidl.converters["unsigned long"],
+        defaultValue: 0
+      },
+      {
+        key: "error",
+        converter: webidl.converters.any
+      }
+    ]);
+    module2.exports = {
+      MessageEvent,
+      CloseEvent,
+      ErrorEvent
+    };
+  }
+});
+
+// lib/websocket/util.js
+var require_util3 = __commonJS({
+  "lib/websocket/util.js"(exports2, module2) {
+    "use strict";
+    var { kReadyState, kController, kResponse, kBinaryType, kWebSocketURL } = require_symbols3();
+    var { states, opcodes } = require_constants3();
+    var { MessageEvent, ErrorEvent } = require_events();
+    function isEstablished(ws) {
+      return ws[kReadyState] === states.OPEN;
+    }
+    function isClosing(ws) {
+      return ws[kReadyState] === states.CLOSING;
+    }
+    function isClosed(ws) {
+      return ws[kReadyState] === states.CLOSED;
+    }
+    function fireEvent(e, target, eventConstructor = Event, eventInitDict) {
+      const event = new eventConstructor(e, eventInitDict);
+      target.dispatchEvent(event);
+    }
+    function websocketMessageReceived(ws, type, data) {
+      if (ws[kReadyState] !== states.OPEN) {
+        return;
+      }
+      let dataForEvent;
+      if (type === opcodes.TEXT) {
+        try {
+          dataForEvent = new TextDecoder("utf-8", { fatal: true }).decode(data);
+        } catch {
+          failWebsocketConnection(ws, "Received invalid UTF-8 in text frame.");
+          return;
+        }
+      } else if (type === opcodes.BINARY) {
+        if (ws[kBinaryType] === "blob") {
+          dataForEvent = new Blob([data]);
+        } else {
+          dataForEvent = new Uint8Array(data).buffer;
+        }
+      }
+      fireEvent("message", ws, MessageEvent, {
+        origin: ws[kWebSocketURL].origin,
+        data: dataForEvent
+      });
+    }
+    function isValidSubprotocol(protocol) {
+      if (protocol.length === 0) {
+        return false;
+      }
+      for (const char of protocol) {
+        const code = char.charCodeAt(0);
+        if (code < 33 || code > 126 || char === "(" || char === ")" || char === "<" || char === ">" || char === "@" || char === "," || char === ";" || char === ":" || char === "\\" || char === '"' || char === "/" || char === "[" || char === "]" || char === "?" || char === "=" || char === "{" || char === "}" || code === 32 || code === 9) {
+          return false;
+        }
+      }
+      return true;
+    }
+    function isValidStatusCode(code) {
+      if (code >= 1e3 && code < 1015) {
+        return code !== 1004 && code !== 1005 && code !== 1006;
+      }
+      return code >= 3e3 && code <= 4999;
+    }
+    function failWebsocketConnection(ws, reason) {
+      const { [kController]: controller, [kResponse]: response } = ws;
+      controller.abort();
+      if (response?.socket && !response.socket.destroyed) {
+        response.socket.destroy();
+      }
+      if (reason) {
+        fireEvent("error", ws, ErrorEvent, {
+          error: new Error(reason)
+        });
+      }
+    }
+    module2.exports = {
+      isEstablished,
+      isClosing,
+      isClosed,
+      fireEvent,
+      isValidSubprotocol,
+      isValidStatusCode,
+      failWebsocketConnection,
+      websocketMessageReceived
+    };
+  }
+});
+
+// lib/websocket/connection.js
+var require_connection = __commonJS({
+  "lib/websocket/connection.js"(exports2, module2) {
+    "use strict";
+    var diagnosticsChannel = require("diagnostics_channel");
+    var { uid, states } = require_constants3();
+    var {
+      kReadyState,
+      kSentClose,
+      kByteParser,
+      kReceivedClose
+    } = require_symbols3();
+    var { fireEvent, failWebsocketConnection } = require_util3();
+    var { CloseEvent } = require_events();
+    var { makeRequest } = require_request();
+    var { fetching } = require_fetch();
+    var { Headers } = require_headers();
+    var { getGlobalDispatcher } = require_global2();
+    var { kHeadersList } = require_symbols();
+    var channels = {};
+    channels.open = diagnosticsChannel.channel("undici:websocket:open");
+    channels.close = diagnosticsChannel.channel("undici:websocket:close");
+    channels.socketError = diagnosticsChannel.channel("undici:websocket:socket_error");
+    var crypto;
+    try {
+      crypto = require("crypto");
+    } catch {
+    }
+    function establishWebSocketConnection(url, protocols, ws, onEstablish, options) {
+      const requestURL = url;
+      requestURL.protocol = url.protocol === "ws:" ? "http:" : "https:";
+      const request = makeRequest({
+        urlList: [requestURL],
+        serviceWorkers: "none",
+        referrer: "no-referrer",
+        mode: "websocket",
+        credentials: "include",
+        cache: "no-store",
+        redirect: "error"
+      });
+      if (options.headers) {
+        const headersList = new Headers(options.headers)[kHeadersList];
+        request.headersList = headersList;
+      }
+      const keyValue = crypto.randomBytes(16).toString("base64");
+      request.headersList.append("sec-websocket-key", keyValue);
+      request.headersList.append("sec-websocket-version", "13");
+      for (const protocol of protocols) {
+        request.headersList.append("sec-websocket-protocol", protocol);
+      }
+      const permessageDeflate = "";
+      const controller = fetching({
+        request,
+        useParallelQueue: true,
+        dispatcher: options.dispatcher ?? getGlobalDispatcher(),
+        processResponse(response) {
+          if (response.type === "error" || response.status !== 101) {
+            failWebsocketConnection(ws, "Received network error or non-101 status code.");
+            return;
+          }
+          if (protocols.length !== 0 && !response.headersList.get("Sec-WebSocket-Protocol")) {
+            failWebsocketConnection(ws, "Server did not respond with sent protocols.");
+            return;
+          }
+          if (response.headersList.get("Upgrade")?.toLowerCase() !== "websocket") {
+            failWebsocketConnection(ws, 'Server did not set Upgrade header to "websocket".');
+            return;
+          }
+          if (response.headersList.get("Connection")?.toLowerCase() !== "upgrade") {
+            failWebsocketConnection(ws, 'Server did not set Connection header to "upgrade".');
+            return;
+          }
+          const secWSAccept = response.headersList.get("Sec-WebSocket-Accept");
+          const digest = crypto.createHash("sha1").update(keyValue + uid).digest("base64");
+          if (secWSAccept !== digest) {
+            failWebsocketConnection(ws, "Incorrect hash received in Sec-WebSocket-Accept header.");
+            return;
+          }
+          const secExtension = response.headersList.get("Sec-WebSocket-Extensions");
+          if (secExtension !== null && secExtension !== permessageDeflate) {
+            failWebsocketConnection(ws, "Received different permessage-deflate than the one set.");
+            return;
+          }
+          const secProtocol = response.headersList.get("Sec-WebSocket-Protocol");
+          if (secProtocol !== null && secProtocol !== request.headersList.get("Sec-WebSocket-Protocol")) {
+            failWebsocketConnection(ws, "Protocol was not set in the opening handshake.");
+            return;
+          }
+          response.socket.on("data", onSocketData);
+          response.socket.on("close", onSocketClose);
+          response.socket.on("error", onSocketError);
+          if (channels.open.hasSubscribers) {
+            channels.open.publish({
+              address: response.socket.address(),
+              protocol: secProtocol,
+              extensions: secExtension
+            });
+          }
+          onEstablish(response);
+        }
+      });
+      return controller;
+    }
+    function onSocketData(chunk) {
+      if (!this.ws[kByteParser].write(chunk)) {
+        this.pause();
+      }
+    }
+    function onSocketClose() {
+      const { ws } = this;
+      const wasClean = ws[kSentClose] && ws[kReceivedClose];
+      let code = 1005;
+      let reason = "";
+      const result = ws[kByteParser].closingInfo;
+      if (result) {
+        code = result.code ?? 1005;
+        reason = result.reason;
+      } else if (!ws[kSentClose]) {
+        code = 1006;
+      }
+      ws[kReadyState] = states.CLOSED;
+      fireEvent("close", ws, CloseEvent, {
+        wasClean,
+        code,
+        reason
+      });
+      if (channels.close.hasSubscribers) {
+        channels.close.publish({
+          websocket: ws,
+          code,
+          reason
+        });
+      }
+    }
+    function onSocketError(error) {
+      const { ws } = this;
+      ws[kReadyState] = states.CLOSING;
+      if (channels.socketError.hasSubscribers) {
+        channels.socketError.publish(error);
+      }
+      this.destroy();
+    }
+    module2.exports = {
+      establishWebSocketConnection
+    };
+  }
+});
+
+// lib/websocket/frame.js
+var require_frame = __commonJS({
+  "lib/websocket/frame.js"(exports2, module2) {
+    "use strict";
+    var { maxUnsigned16Bit } = require_constants3();
+    var crypto;
+    try {
+      crypto = require("crypto");
+    } catch {
+    }
+    var WebsocketFrameSend = class {
+      constructor(data) {
+        this.frameData = data;
+        this.maskKey = crypto.randomBytes(4);
+      }
+      createFrame(opcode) {
+        const bodyLength = this.frameData?.byteLength ?? 0;
+        let payloadLength = bodyLength;
+        let offset = 6;
+        if (bodyLength > maxUnsigned16Bit) {
+          offset += 8;
+          payloadLength = 127;
+        } else if (bodyLength > 125) {
+          offset += 2;
+          payloadLength = 126;
+        }
+        const buffer = Buffer.allocUnsafe(bodyLength + offset);
+        buffer[0] = buffer[1] = 0;
+        buffer[0] |= 128;
+        buffer[0] = (buffer[0] & 240) + opcode;
+        buffer[offset - 4] = this.maskKey[0];
+        buffer[offset - 3] = this.maskKey[1];
+        buffer[offset - 2] = this.maskKey[2];
+        buffer[offset - 1] = this.maskKey[3];
+        buffer[1] = payloadLength;
+        if (payloadLength === 126) {
+          buffer.writeUInt16BE(bodyLength, 2);
+        } else if (payloadLength === 127) {
+          buffer[2] = buffer[3] = 0;
+          buffer.writeUIntBE(bodyLength, 4, 6);
+        }
+        buffer[1] |= 128;
+        for (let i = 0; i < bodyLength; i++) {
+          buffer[offset + i] = this.frameData[i] ^ this.maskKey[i % 4];
+        }
+        return buffer;
+      }
+    };
+    module2.exports = {
+      WebsocketFrameSend
+    };
+  }
+});
+
+// lib/websocket/receiver.js
+var require_receiver = __commonJS({
+  "lib/websocket/receiver.js"(exports2, module2) {
+    "use strict";
+    var { Writable } = require("stream");
+    var diagnosticsChannel = require("diagnostics_channel");
+    var { parserStates, opcodes, states, emptyBuffer } = require_constants3();
+    var { kReadyState, kSentClose, kResponse, kReceivedClose } = require_symbols3();
+    var { isValidStatusCode, failWebsocketConnection, websocketMessageReceived } = require_util3();
+    var { WebsocketFrameSend } = require_frame();
+    var channels = {};
+    channels.ping = diagnosticsChannel.channel("undici:websocket:ping");
+    channels.pong = diagnosticsChannel.channel("undici:websocket:pong");
+    var ByteParser = class extends Writable {
+      #buffers = [];
+      #byteOffset = 0;
+      #state = parserStates.INFO;
+      #info = {};
+      #fragments = [];
+      constructor(ws) {
+        super();
+        this.ws = ws;
+      }
+      _write(chunk, _, callback) {
+        this.#buffers.push(chunk);
+        this.#byteOffset += chunk.length;
+        this.run(callback);
+      }
+      run(callback) {
+        while (true) {
+          if (this.#state === parserStates.INFO) {
+            if (this.#byteOffset < 2) {
+              return callback();
+            }
+            const buffer = this.consume(2);
+            this.#info.fin = (buffer[0] & 128) !== 0;
+            this.#info.opcode = buffer[0] & 15;
+            this.#info.originalOpcode ??= this.#info.opcode;
+            this.#info.fragmented = !this.#info.fin && this.#info.opcode !== opcodes.CONTINUATION;
+            if (this.#info.fragmented && this.#info.opcode !== opcodes.BINARY && this.#info.opcode !== opcodes.TEXT) {
+              failWebsocketConnection(this.ws, "Invalid frame type was fragmented.");
+              return;
+            }
+            const payloadLength = buffer[1] & 127;
+            if (payloadLength <= 125) {
+              this.#info.payloadLength = payloadLength;
+              this.#state = parserStates.READ_DATA;
+            } else if (payloadLength === 126) {
+              this.#state = parserStates.PAYLOADLENGTH_16;
+            } else if (payloadLength === 127) {
+              this.#state = parserStates.PAYLOADLENGTH_64;
+            }
+            if (this.#info.fragmented && payloadLength > 125) {
+              failWebsocketConnection(this.ws, "Fragmented frame exceeded 125 bytes.");
+              return;
+            } else if ((this.#info.opcode === opcodes.PING || this.#info.opcode === opcodes.PONG || this.#info.opcode === opcodes.CLOSE) && payloadLength > 125) {
+              failWebsocketConnection(this.ws, "Payload length for control frame exceeded 125 bytes.");
+              return;
+            } else if (this.#info.opcode === opcodes.CLOSE) {
+              if (payloadLength === 1) {
+                failWebsocketConnection(this.ws, "Received close frame with a 1-byte body.");
+                return;
+              }
+              const body = this.consume(payloadLength);
+              this.#info.closeInfo = this.parseCloseBody(false, body);
+              if (!this.ws[kSentClose]) {
+                const body2 = Buffer.allocUnsafe(2);
+                body2.writeUInt16BE(this.#info.closeInfo.code, 0);
+                const closeFrame = new WebsocketFrameSend(body2);
+                this.ws[kResponse].socket.write(closeFrame.createFrame(opcodes.CLOSE), (err) => {
+                  if (!err) {
+                    this.ws[kSentClose] = true;
+                  }
+                });
+              }
+              this.ws[kReadyState] = states.CLOSING;
+              this.ws[kReceivedClose] = true;
+              this.end();
+              return;
+            } else if (this.#info.opcode === opcodes.PING) {
+              const body = this.consume(payloadLength);
+              if (!this.ws[kReceivedClose]) {
+                const frame = new WebsocketFrameSend(body);
+                this.ws[kResponse].socket.write(frame.createFrame(opcodes.PONG));
+                if (channels.ping.hasSubscribers) {
+                  channels.ping.publish({
+                    payload: body
+                  });
+                }
+              }
+              this.#state = parserStates.INFO;
+              if (this.#byteOffset > 0) {
+                continue;
+              } else {
+                callback();
+                return;
+              }
+            } else if (this.#info.opcode === opcodes.PONG) {
+              const body = this.consume(payloadLength);
+              if (channels.pong.hasSubscribers) {
+                channels.pong.publish({
+                  payload: body
+                });
+              }
+              if (this.#byteOffset > 0) {
+                continue;
+              } else {
+                callback();
+                return;
+              }
+            }
+          } else if (this.#state === parserStates.PAYLOADLENGTH_16) {
+            if (this.#byteOffset < 2) {
+              return callback();
+            }
+            const buffer = this.consume(2);
+            this.#info.payloadLength = buffer.readUInt16BE(0);
+            this.#state = parserStates.READ_DATA;
+          } else if (this.#state === parserStates.PAYLOADLENGTH_64) {
+            if (this.#byteOffset < 8) {
+              return callback();
+            }
+            const buffer = this.consume(8);
+            const upper = buffer.readUInt32BE(0);
+            if (upper > 2 ** 31 - 1) {
+              failWebsocketConnection(this.ws, "Received payload length > 2^31 bytes.");
+              return;
+            }
+            const lower = buffer.readUInt32BE(4);
+            this.#info.payloadLength = (upper << 8) + lower;
+            this.#state = parserStates.READ_DATA;
+          } else if (this.#state === parserStates.READ_DATA) {
+            if (this.#byteOffset < this.#info.payloadLength) {
+              return callback();
+            } else if (this.#byteOffset >= this.#info.payloadLength) {
+              const body = this.consume(this.#info.payloadLength);
+              this.#fragments.push(body);
+              if (!this.#info.fragmented || this.#info.fin && this.#info.opcode === opcodes.CONTINUATION) {
+                const fullMessage = Buffer.concat(this.#fragments);
+                websocketMessageReceived(this.ws, this.#info.originalOpcode, fullMessage);
+                this.#info = {};
+                this.#fragments.length = 0;
+              }
+              this.#state = parserStates.INFO;
+            }
+          }
+          if (this.#byteOffset > 0) {
+            continue;
+          } else {
+            callback();
+            break;
+          }
+        }
+      }
+      consume(n) {
+        if (n > this.#byteOffset) {
+          return null;
+        } else if (n === 0) {
+          return emptyBuffer;
+        }
+        if (this.#buffers[0].length === n) {
+          this.#byteOffset -= this.#buffers[0].length;
+          return this.#buffers.shift();
+        }
+        const buffer = Buffer.allocUnsafe(n);
+        let offset = 0;
+        while (offset !== n) {
+          const next = this.#buffers[0];
+          const { length } = next;
+          if (length + offset === n) {
+            buffer.set(this.#buffers.shift(), offset);
+            break;
+          } else if (length + offset > n) {
+            buffer.set(next.subarray(0, n - offset), offset);
+            this.#buffers[0] = next.subarray(n - offset);
+            break;
+          } else {
+            buffer.set(this.#buffers.shift(), offset);
+            offset += next.length;
+          }
+        }
+        this.#byteOffset -= n;
+        return buffer;
+      }
+      parseCloseBody(onlyCode, data) {
+        let code;
+        if (data.length >= 2) {
+          code = data.readUInt16BE(0);
+        }
+        if (onlyCode) {
+          if (!isValidStatusCode(code)) {
+            return null;
+          }
+          return { code };
+        }
+        let reason = data.subarray(2);
+        if (reason[0] === 239 && reason[1] === 187 && reason[2] === 191) {
+          reason = reason.subarray(3);
+        }
+        if (code !== void 0 && !isValidStatusCode(code)) {
+          return null;
+        }
+        try {
+          reason = new TextDecoder("utf-8", { fatal: true }).decode(reason);
+        } catch {
+          return null;
+        }
+        return { code, reason };
+      }
+      get closingInfo() {
+        return this.#info.closeInfo;
+      }
+    };
+    module2.exports = {
+      ByteParser
+    };
+  }
+});
+
+// lib/websocket/websocket.js
+var require_websocket = __commonJS({
+  "lib/websocket/websocket.js"(exports2, module2) {
+    "use strict";
+    var { webidl } = require_webidl();
+    var { DOMException } = require_constants();
+    var { URLSerializer } = require_dataURL();
+    var { getGlobalOrigin } = require_global();
+    var { staticPropertyDescriptors, states, opcodes, emptyBuffer } = require_constants3();
+    var {
+      kWebSocketURL,
+      kReadyState,
+      kController,
+      kBinaryType,
+      kResponse,
+      kSentClose,
+      kByteParser
+    } = require_symbols3();
+    var { isEstablished, isClosing, isValidSubprotocol, failWebsocketConnection, fireEvent } = require_util3();
+    var { establishWebSocketConnection } = require_connection();
+    var { WebsocketFrameSend } = require_frame();
+    var { ByteParser } = require_receiver();
+    var { kEnumerableProperty, isBlobLike } = require_util();
+    var { getGlobalDispatcher } = require_global2();
+    var { types } = require("util");
+    var experimentalWarned = false;
+    var WebSocket = class extends EventTarget {
+      #events = {
+        open: null,
+        error: null,
+        close: null,
+        message: null
+      };
+      #bufferedAmount = 0;
+      #protocol = "";
+      #extensions = "";
+      constructor(url, protocols = []) {
+        super();
+        webidl.argumentLengthCheck(arguments, 1, { header: "WebSocket constructor" });
+        if (!experimentalWarned) {
+          experimentalWarned = true;
+          process.emitWarning("WebSockets are experimental, expect them to change at any time.", {
+            code: "UNDICI-WS"
+          });
+        }
+        const options = webidl.converters["DOMString or sequence<DOMString> or WebSocketInit"](protocols);
+        url = webidl.converters.USVString(url);
+        protocols = options.protocols;
+        const baseURL = getGlobalOrigin();
+        let urlRecord;
+        try {
+          urlRecord = new URL(url, baseURL);
+        } catch (e) {
+          throw new DOMException(e, "SyntaxError");
+        }
+        if (urlRecord.protocol === "http:") {
+          urlRecord.protocol = "ws:";
+        } else if (urlRecord.protocol === "https:") {
+          urlRecord.protocol = "wss:";
+        }
+        if (urlRecord.protocol !== "ws:" && urlRecord.protocol !== "wss:") {
+          throw new DOMException(`Expected a ws: or wss: protocol, got ${urlRecord.protocol}`, "SyntaxError");
+        }
+        if (urlRecord.hash || urlRecord.href.endsWith("#")) {
+          throw new DOMException("Got fragment", "SyntaxError");
+        }
+        if (typeof protocols === "string") {
+          protocols = [protocols];
+        }
+        if (protocols.length !== new Set(protocols.map((p) => p.toLowerCase())).size) {
+          throw new DOMException("Invalid Sec-WebSocket-Protocol value", "SyntaxError");
+        }
+        if (protocols.length > 0 && !protocols.every((p) => isValidSubprotocol(p))) {
+          throw new DOMException("Invalid Sec-WebSocket-Protocol value", "SyntaxError");
+        }
+        this[kWebSocketURL] = new URL(urlRecord.href);
+        this[kController] = establishWebSocketConnection(urlRecord, protocols, this, (response) => this.#onConnectionEstablished(response), options);
+        this[kReadyState] = WebSocket.CONNECTING;
+        this[kBinaryType] = "blob";
+      }
+      close(code = void 0, reason = void 0) {
+        webidl.brandCheck(this, WebSocket);
+        if (code !== void 0) {
+          code = webidl.converters["unsigned short"](code, { clamp: true });
+        }
+        if (reason !== void 0) {
+          reason = webidl.converters.USVString(reason);
+        }
+        if (code !== void 0) {
+          if (code !== 1e3 && (code < 3e3 || code > 4999)) {
+            throw new DOMException("invalid code", "InvalidAccessError");
+          }
+        }
+        let reasonByteLength = 0;
+        if (reason !== void 0) {
+          reasonByteLength = Buffer.byteLength(reason);
+          if (reasonByteLength > 123) {
+            throw new DOMException(`Reason must be less than 123 bytes; received ${reasonByteLength}`, "SyntaxError");
+          }
+        }
+        if (this[kReadyState] === WebSocket.CLOSING || this[kReadyState] === WebSocket.CLOSED) {
+        } else if (!isEstablished(this)) {
+          failWebsocketConnection(this, "Connection was closed before it was established.");
+          this[kReadyState] = WebSocket.CLOSING;
+        } else if (!isClosing(this)) {
+          const frame = new WebsocketFrameSend();
+          if (code !== void 0 && reason === void 0) {
+            frame.frameData = Buffer.allocUnsafe(2);
+            frame.frameData.writeUInt16BE(code, 0);
+          } else if (code !== void 0 && reason !== void 0) {
+            frame.frameData = Buffer.allocUnsafe(2 + reasonByteLength);
+            frame.frameData.writeUInt16BE(code, 0);
+            frame.frameData.write(reason, 2, "utf-8");
+          } else {
+            frame.frameData = emptyBuffer;
+          }
+          const socket = this[kResponse].socket;
+          socket.write(frame.createFrame(opcodes.CLOSE), (err) => {
+            if (!err) {
+              this[kSentClose] = true;
+            }
+          });
+          this[kReadyState] = states.CLOSING;
+        } else {
+          this[kReadyState] = WebSocket.CLOSING;
+        }
+      }
+      send(data) {
+        webidl.brandCheck(this, WebSocket);
+        webidl.argumentLengthCheck(arguments, 1, { header: "WebSocket.send" });
+        data = webidl.converters.WebSocketSendData(data);
+        if (this[kReadyState] === WebSocket.CONNECTING) {
+          throw new DOMException("Sent before connected.", "InvalidStateError");
+        }
+        if (!isEstablished(this) || isClosing(this)) {
+          return;
+        }
+        const socket = this[kResponse].socket;
+        if (typeof data === "string") {
+          const value = Buffer.from(data);
+          const frame = new WebsocketFrameSend(value);
+          const buffer = frame.createFrame(opcodes.TEXT);
+          this.#bufferedAmount += value.byteLength;
+          socket.write(buffer, () => {
+            this.#bufferedAmount -= value.byteLength;
+          });
+        } else if (types.isArrayBuffer(data)) {
+          const value = Buffer.from(data);
+          const frame = new WebsocketFrameSend(value);
+          const buffer = frame.createFrame(opcodes.BINARY);
+          this.#bufferedAmount += value.byteLength;
+          socket.write(buffer, () => {
+            this.#bufferedAmount -= value.byteLength;
+          });
+        } else if (ArrayBuffer.isView(data)) {
+          const ab = Buffer.from(data, data.byteOffset, data.byteLength);
+          const frame = new WebsocketFrameSend(ab);
+          const buffer = frame.createFrame(opcodes.BINARY);
+          this.#bufferedAmount += ab.byteLength;
+          socket.write(buffer, () => {
+            this.#bufferedAmount -= ab.byteLength;
+          });
+        } else if (isBlobLike(data)) {
+          const frame = new WebsocketFrameSend();
+          data.arrayBuffer().then((ab) => {
+            const value = Buffer.from(ab);
+            frame.frameData = value;
+            const buffer = frame.createFrame(opcodes.BINARY);
+            this.#bufferedAmount += value.byteLength;
+            socket.write(buffer, () => {
+              this.#bufferedAmount -= value.byteLength;
+            });
+          });
+        }
+      }
+      get readyState() {
+        webidl.brandCheck(this, WebSocket);
+        return this[kReadyState];
+      }
+      get bufferedAmount() {
+        webidl.brandCheck(this, WebSocket);
+        return this.#bufferedAmount;
+      }
+      get url() {
+        webidl.brandCheck(this, WebSocket);
+        return URLSerializer(this[kWebSocketURL]);
+      }
+      get extensions() {
+        webidl.brandCheck(this, WebSocket);
+        return this.#extensions;
+      }
+      get protocol() {
+        webidl.brandCheck(this, WebSocket);
+        return this.#protocol;
+      }
+      get onopen() {
+        webidl.brandCheck(this, WebSocket);
+        return this.#events.open;
+      }
+      set onopen(fn) {
+        webidl.brandCheck(this, WebSocket);
+        if (this.#events.open) {
+          this.removeEventListener("open", this.#events.open);
+        }
+        if (typeof fn === "function") {
+          this.#events.open = fn;
+          this.addEventListener("open", fn);
+        } else {
+          this.#events.open = null;
+        }
+      }
+      get onerror() {
+        webidl.brandCheck(this, WebSocket);
+        return this.#events.error;
+      }
+      set onerror(fn) {
+        webidl.brandCheck(this, WebSocket);
+        if (this.#events.error) {
+          this.removeEventListener("error", this.#events.error);
+        }
+        if (typeof fn === "function") {
+          this.#events.error = fn;
+          this.addEventListener("error", fn);
+        } else {
+          this.#events.error = null;
+        }
+      }
+      get onclose() {
+        webidl.brandCheck(this, WebSocket);
+        return this.#events.close;
+      }
+      set onclose(fn) {
+        webidl.brandCheck(this, WebSocket);
+        if (this.#events.close) {
+          this.removeEventListener("close", this.#events.close);
+        }
+        if (typeof fn === "function") {
+          this.#events.close = fn;
+          this.addEventListener("close", fn);
+        } else {
+          this.#events.close = null;
+        }
+      }
+      get onmessage() {
+        webidl.brandCheck(this, WebSocket);
+        return this.#events.message;
+      }
+      set onmessage(fn) {
+        webidl.brandCheck(this, WebSocket);
+        if (this.#events.message) {
+          this.removeEventListener("message", this.#events.message);
+        }
+        if (typeof fn === "function") {
+          this.#events.message = fn;
+          this.addEventListener("message", fn);
+        } else {
+          this.#events.message = null;
+        }
+      }
+      get binaryType() {
+        webidl.brandCheck(this, WebSocket);
+        return this[kBinaryType];
+      }
+      set binaryType(type) {
+        webidl.brandCheck(this, WebSocket);
+        if (type !== "blob" && type !== "arraybuffer") {
+          this[kBinaryType] = "blob";
+        } else {
+          this[kBinaryType] = type;
+        }
+      }
+      #onConnectionEstablished(response) {
+        this[kResponse] = response;
+        const parser = new ByteParser(this);
+        parser.on("drain", function onParserDrain() {
+          this.ws[kResponse].socket.resume();
+        });
+        response.socket.ws = this;
+        this[kByteParser] = parser;
+        this[kReadyState] = states.OPEN;
+        const extensions = response.headersList.get("sec-websocket-extensions");
+        if (extensions !== null) {
+          this.#extensions = extensions;
+        }
+        const protocol = response.headersList.get("sec-websocket-protocol");
+        if (protocol !== null) {
+          this.#protocol = protocol;
+        }
+        fireEvent("open", this);
+      }
+    };
+    WebSocket.CONNECTING = WebSocket.prototype.CONNECTING = states.CONNECTING;
+    WebSocket.OPEN = WebSocket.prototype.OPEN = states.OPEN;
+    WebSocket.CLOSING = WebSocket.prototype.CLOSING = states.CLOSING;
+    WebSocket.CLOSED = WebSocket.prototype.CLOSED = states.CLOSED;
+    Object.defineProperties(WebSocket.prototype, {
+      CONNECTING: staticPropertyDescriptors,
+      OPEN: staticPropertyDescriptors,
+      CLOSING: staticPropertyDescriptors,
+      CLOSED: staticPropertyDescriptors,
+      url: kEnumerableProperty,
+      readyState: kEnumerableProperty,
+      bufferedAmount: kEnumerableProperty,
+      onopen: kEnumerableProperty,
+      onerror: kEnumerableProperty,
+      onclose: kEnumerableProperty,
+      close: kEnumerableProperty,
+      onmessage: kEnumerableProperty,
+      binaryType: kEnumerableProperty,
+      send: kEnumerableProperty,
+      extensions: kEnumerableProperty,
+      protocol: kEnumerableProperty,
+      [Symbol.toStringTag]: {
+        value: "WebSocket",
+        writable: false,
+        enumerable: false,
+        configurable: true
+      }
+    });
+    Object.defineProperties(WebSocket, {
+      CONNECTING: staticPropertyDescriptors,
+      OPEN: staticPropertyDescriptors,
+      CLOSING: staticPropertyDescriptors,
+      CLOSED: staticPropertyDescriptors
+    });
+    webidl.converters["sequence<DOMString>"] = webidl.sequenceConverter(webidl.converters.DOMString);
+    webidl.converters["DOMString or sequence<DOMString>"] = function(V) {
+      if (webidl.util.Type(V) === "Object" && Symbol.iterator in V) {
+        return webidl.converters["sequence<DOMString>"](V);
+      }
+      return webidl.converters.DOMString(V);
+    };
+    webidl.converters.WebSocketInit = webidl.dictionaryConverter([
+      {
+        key: "protocols",
+        converter: webidl.converters["DOMString or sequence<DOMString>"],
+        get defaultValue() {
+          return [];
+        }
+      },
+      {
+        key: "dispatcher",
+        converter: (V) => V,
+        get defaultValue() {
+          return getGlobalDispatcher();
+        }
+      },
+      {
+        key: "headers",
+        converter: webidl.nullableConverter(webidl.converters.HeadersInit)
+      }
+    ]);
+    webidl.converters["DOMString or sequence<DOMString> or WebSocketInit"] = function(V) {
+      if (webidl.util.Type(V) === "Object" && !(Symbol.iterator in V)) {
+        return webidl.converters.WebSocketInit(V);
+      }
+      return { protocols: webidl.converters["DOMString or sequence<DOMString>"](V) };
+    };
+    webidl.converters.WebSocketSendData = function(V) {
+      if (webidl.util.Type(V) === "Object") {
+        if (isBlobLike(V)) {
+          return webidl.converters.Blob(V, { strict: false });
+        }
+        if (ArrayBuffer.isView(V) || types.isAnyArrayBuffer(V)) {
+          return webidl.converters.BufferSource(V);
+        }
+      }
+      return webidl.converters.USVString(V);
+    };
+    module2.exports = {
+      WebSocket
+    };
+  }
+});
+
 // index-fetch.js
 var fetchImpl = require_fetch().fetch;
-module.exports.fetch = async function fetch(resource) {
+module.exports.fetch = async function fetch(resource, init = void 0) {
   try {
-    return await fetchImpl(...arguments);
+    return await fetchImpl(resource, init);
   } catch (err) {
     Error.captureStackTrace(err, this);
     throw err;
@@ -11605,4 +13225,6 @@ module.exports.FormData = require_formdata().FormData;
 module.exports.Headers = require_headers().Headers;
 module.exports.Response = require_response().Response;
 module.exports.Request = require_request().Request;
+module.exports.WebSocket = require_websocket().WebSocket;
 /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
+/*! ws. MIT License. Einar Otto Stangvik <einaros@gmail.com> */

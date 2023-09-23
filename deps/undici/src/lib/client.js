@@ -6,6 +6,7 @@
 
 const assert = require('assert')
 const net = require('net')
+const { pipeline } = require('stream')
 const util = require('./core/util')
 const timers = require('./timers')
 const Request = require('./core/request')
@@ -67,8 +68,40 @@ const {
   kDispatch,
   kInterceptors,
   kLocalAddress,
-  kMaxResponseSize
+  kMaxResponseSize,
+  kHTTPConnVersion,
+  // HTTP2
+  kHost,
+  kHTTP2Session,
+  kHTTP2SessionState,
+  kHTTP2BuildRequest,
+  kHTTP2CopyHeaders,
+  kHTTP1BuildRequest
 } = require('./core/symbols')
+
+/** @type {import('http2')} */
+let http2
+try {
+  http2 = require('http2')
+} catch {
+  // @ts-ignore
+  http2 = { constants: {} }
+}
+
+const {
+  constants: {
+    HTTP2_HEADER_AUTHORITY,
+    HTTP2_HEADER_METHOD,
+    HTTP2_HEADER_PATH,
+    HTTP2_HEADER_CONTENT_LENGTH,
+    HTTP2_HEADER_EXPECT,
+    HTTP2_HEADER_STATUS
+  }
+} = http2
+
+// Experimental
+let h2ExperimentalWarned = false
+
 const FastBuffer = Buffer[Symbol.species]
 
 const kClosedResolve = Symbol('kClosedResolve')
@@ -122,7 +155,10 @@ class Client extends DispatcherBase {
     localAddress,
     maxResponseSize,
     autoSelectFamily,
-    autoSelectFamilyAttemptTimeout
+    autoSelectFamilyAttemptTimeout,
+    // h2
+    allowH2,
+    maxConcurrentStreams
   } = {}) {
     super()
 
@@ -205,10 +241,20 @@ class Client extends DispatcherBase {
       throw new InvalidArgumentError('autoSelectFamilyAttemptTimeout must be a positive number')
     }
 
+    // h2
+    if (allowH2 != null && typeof allowH2 !== 'boolean') {
+      throw new InvalidArgumentError('allowH2 must be a valid boolean value')
+    }
+
+    if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== 'number' || maxConcurrentStreams < 1)) {
+      throw new InvalidArgumentError('maxConcurrentStreams must be a possitive integer, greater than 0')
+    }
+
     if (typeof connect !== 'function') {
       connect = buildConnector({
         ...tls,
         maxCachedSessions,
+        allowH2,
         socketPath,
         timeout: connectTimeout,
         ...(util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
@@ -240,6 +286,18 @@ class Client extends DispatcherBase {
     this[kMaxRequests] = maxRequestsPerClient
     this[kClosedResolve] = null
     this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1
+    this[kHTTPConnVersion] = 'h1'
+
+    // HTTP/2
+    this[kHTTP2Session] = null
+    this[kHTTP2SessionState] = !allowH2
+      ? null
+      : {
+        // streams: null, // Fixed queue of streams - For future support of `push`
+          openStreams: 0, // Keep track of them to decide wether or not unref the session
+          maxConcurrentStreams: maxConcurrentStreams != null ? maxConcurrentStreams : 100 // Max peerConcurrentStreams for a Node h2 server
+        }
+    this[kHost] = `${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ''}`
 
     // kQueue is built up of 3 sections separated by
     // the kRunningIdx and kPendingIdx indices.
@@ -298,7 +356,9 @@ class Client extends DispatcherBase {
   [kDispatch] (opts, handler) {
     const origin = opts.origin || this[kUrl].origin
 
-    const request = new Request(origin, opts, handler)
+    const request = this[kHTTPConnVersion] === 'h2'
+      ? Request[kHTTP2BuildRequest](origin, opts, handler)
+      : Request[kHTTP1BuildRequest](origin, opts, handler)
 
     this[kQueue].push(request)
     if (this[kResuming]) {
@@ -319,6 +379,8 @@ class Client extends DispatcherBase {
   }
 
   async [kClose] () {
+    // TODO: for H2 we need to gracefully flush the remaining enqueued
+    // request and close each stream.
     return new Promise((resolve) => {
       if (!this[kSize]) {
         resolve(null)
@@ -345,6 +407,12 @@ class Client extends DispatcherBase {
         resolve()
       }
 
+      if (this[kHTTP2Session] != null) {
+        util.destroy(this[kHTTP2Session], err)
+        this[kHTTP2Session] = null
+        this[kHTTP2SessionState] = null
+      }
+
       if (!this[kSocket]) {
         queueMicrotask(callback)
       } else {
@@ -354,6 +422,64 @@ class Client extends DispatcherBase {
       resume(this)
     })
   }
+}
+
+function onHttp2SessionError (err) {
+  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
+
+  this[kSocket][kError] = err
+
+  onError(this[kClient], err)
+}
+
+function onHttp2FrameError (type, code, id) {
+  const err = new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`)
+
+  if (id === 0) {
+    this[kSocket][kError] = err
+    onError(this[kClient], err)
+  }
+}
+
+function onHttp2SessionEnd () {
+  util.destroy(this, new SocketError('other side closed'))
+  util.destroy(this[kSocket], new SocketError('other side closed'))
+}
+
+function onHTTP2GoAway (code) {
+  const client = this[kClient]
+  const err = new InformationalError(`HTTP/2: "GOAWAY" frame received with code ${code}`)
+  client[kSocket] = null
+  client[kHTTP2Session] = null
+
+  if (client.destroyed) {
+    assert(this[kPending] === 0)
+
+    // Fail entire queue.
+    const requests = client[kQueue].splice(client[kRunningIdx])
+    for (let i = 0; i < requests.length; i++) {
+      const request = requests[i]
+      errorRequest(this, request, err)
+    }
+  } else if (client[kRunning] > 0) {
+    // Fail head of pipeline.
+    const request = client[kQueue][client[kRunningIdx]]
+    client[kQueue][client[kRunningIdx]++] = null
+
+    errorRequest(client, request, err)
+  }
+
+  client[kPendingIdx] = client[kRunningIdx]
+
+  assert(client[kRunning] === 0)
+
+  client.emit('disconnect',
+    client[kUrl],
+    [client],
+    err
+  )
+
+  resume(client)
 }
 
 const constants = require('./llhttp/constants')
@@ -946,16 +1072,18 @@ function onSocketReadable () {
 }
 
 function onSocketError (err) {
-  const { [kParser]: parser } = this
+  const { [kClient]: client, [kParser]: parser } = this
 
   assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
 
-  // On Mac OS, we get an ECONNRESET even if there is a full body to be forwarded
-  // to the user.
-  if (err.code === 'ECONNRESET' && parser.statusCode && !parser.shouldKeepAlive) {
-    // We treat all incoming data so for as a valid response.
-    parser.onMessageComplete()
-    return
+  if (client[kHTTPConnVersion] !== 'h2') {
+    // On Mac OS, we get an ECONNRESET even if there is a full body to be forwarded
+    // to the user.
+    if (err.code === 'ECONNRESET' && parser.statusCode && !parser.shouldKeepAlive) {
+      // We treat all incoming data so for as a valid response.
+      parser.onMessageComplete()
+      return
+    }
   }
 
   this[kError] = err
@@ -984,27 +1112,31 @@ function onError (client, err) {
 }
 
 function onSocketEnd () {
-  const { [kParser]: parser } = this
+  const { [kParser]: parser, [kClient]: client } = this
 
-  if (parser.statusCode && !parser.shouldKeepAlive) {
-    // We treat all incoming data so far as a valid response.
-    parser.onMessageComplete()
-    return
+  if (client[kHTTPConnVersion] !== 'h2') {
+    if (parser.statusCode && !parser.shouldKeepAlive) {
+      // We treat all incoming data so far as a valid response.
+      parser.onMessageComplete()
+      return
+    }
   }
 
   util.destroy(this, new SocketError('other side closed', util.getSocketInfo(this)))
 }
 
 function onSocketClose () {
-  const { [kClient]: client } = this
+  const { [kClient]: client, [kParser]: parser } = this
 
-  if (!this[kError] && this[kParser].statusCode && !this[kParser].shouldKeepAlive) {
-    // We treat all incoming data so far as a valid response.
-    this[kParser].onMessageComplete()
+  if (client[kHTTPConnVersion] === 'h1' && parser) {
+    if (!this[kError] && parser.statusCode && !parser.shouldKeepAlive) {
+      // We treat all incoming data so far as a valid response.
+      parser.onMessageComplete()
+    }
+
+    this[kParser].destroy()
+    this[kParser] = null
   }
-
-  this[kParser].destroy()
-  this[kParser] = null
 
   const err = this[kError] || new SocketError('closed', util.getSocketInfo(this))
 
@@ -1092,24 +1224,54 @@ async function connect (client) {
       return
     }
 
-    if (!llhttpInstance) {
-      llhttpInstance = await llhttpPromise
-      llhttpPromise = null
-    }
-
     client[kConnecting] = false
 
     assert(socket)
 
-    socket[kNoRef] = false
-    socket[kWriting] = false
-    socket[kReset] = false
-    socket[kBlocking] = false
-    socket[kError] = null
-    socket[kParser] = new Parser(client, socket, llhttpInstance)
-    socket[kClient] = client
+    const isH2 = socket.alpnProtocol === 'h2'
+    if (isH2) {
+      if (!h2ExperimentalWarned) {
+        h2ExperimentalWarned = true
+        process.emitWarning('H2 support is experimental, expect them to change at any time.', {
+          code: 'UNDICI-H2'
+        })
+      }
+
+      const session = http2.connect(client[kUrl], {
+        createConnection: () => socket,
+        peerMaxConcurrentStreams: client[kHTTP2SessionState].maxConcurrentStreams
+      })
+
+      client[kHTTPConnVersion] = 'h2'
+      session[kClient] = client
+      session[kSocket] = socket
+      session.on('error', onHttp2SessionError)
+      session.on('frameError', onHttp2FrameError)
+      session.on('end', onHttp2SessionEnd)
+      session.on('goaway', onHTTP2GoAway)
+      session.on('close', onSocketClose)
+      session.unref()
+
+      client[kHTTP2Session] = session
+      socket[kHTTP2Session] = session
+    } else {
+      if (!llhttpInstance) {
+        llhttpInstance = await llhttpPromise
+        llhttpPromise = null
+      }
+
+      socket[kNoRef] = false
+      socket[kWriting] = false
+      socket[kReset] = false
+      socket[kBlocking] = false
+      socket[kParser] = new Parser(client, socket, llhttpInstance)
+    }
+
     socket[kCounter] = 0
     socket[kMaxRequests] = client[kMaxRequests]
+    socket[kClient] = client
+    socket[kError] = null
+
     socket
       .on('error', onSocketError)
       .on('readable', onSocketReadable)
@@ -1208,7 +1370,7 @@ function _resume (client, sync) {
 
     const socket = client[kSocket]
 
-    if (socket && !socket.destroyed) {
+    if (socket && !socket.destroyed && socket.alpnProtocol !== 'h2') {
       if (client[kSize] === 0) {
         if (!socket[kNoRef] && socket.unref) {
           socket.unref()
@@ -1273,7 +1435,7 @@ function _resume (client, sync) {
       return
     }
 
-    if (!socket) {
+    if (!socket && !client[kHTTP2Session]) {
       connect(client)
       return
     }
@@ -1334,6 +1496,11 @@ function _resume (client, sync) {
 }
 
 function write (client, request) {
+  if (client[kHTTPConnVersion] === 'h2') {
+    writeH2(client, client[kHTTP2Session], request)
+    return
+  }
+
   const { body, method, path, host, upgrade, headers, blocking, reset } = request
 
   // https://tools.ietf.org/html/rfc7231#section-4.3.1
@@ -1489,8 +1656,290 @@ function write (client, request) {
   return true
 }
 
-function writeStream ({ body, client, request, socket, contentLength, header, expectsPayload }) {
+function writeH2 (client, session, request) {
+  const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request
+
+  let headers
+  if (typeof reqHeaders === 'string') headers = Request[kHTTP2CopyHeaders](reqHeaders.trim())
+  else headers = reqHeaders
+
+  if (upgrade) {
+    errorRequest(client, request, new Error('Upgrade not supported for H2'))
+    return false
+  }
+
+  try {
+    // TODO(HTTP/2): Should we call onConnect immediately or on stream ready event?
+    request.onConnect((err) => {
+      if (request.aborted || request.completed) {
+        return
+      }
+
+      errorRequest(client, request, err || new RequestAbortedError())
+    })
+  } catch (err) {
+    errorRequest(client, request, err)
+  }
+
+  if (request.aborted) {
+    return false
+  }
+
+  let stream
+  const h2State = client[kHTTP2SessionState]
+
+  headers[HTTP2_HEADER_AUTHORITY] = host || client[kHost]
+  headers[HTTP2_HEADER_PATH] = path
+
+  if (method === 'CONNECT') {
+    session.ref()
+    // we are already connected, streams are pending, first request
+    // will create a new stream. We trigger a request to create the stream and wait until
+    // `ready` event is triggered
+    // We disabled endStream to allow the user to write to the stream
+    stream = session.request(headers, { endStream: false, signal })
+
+    if (stream.id && !stream.pending) {
+      request.onUpgrade(null, null, stream)
+      ++h2State.openStreams
+    } else {
+      stream.once('ready', () => {
+        request.onUpgrade(null, null, stream)
+        ++h2State.openStreams
+      })
+    }
+
+    stream.once('close', () => {
+      h2State.openStreams -= 1
+      // TODO(HTTP/2): unref only if current streams count is 0
+      if (h2State.openStreams === 0) session.unref()
+    })
+
+    return true
+  } else {
+    headers[HTTP2_HEADER_METHOD] = method
+  }
+
+  // https://tools.ietf.org/html/rfc7231#section-4.3.1
+  // https://tools.ietf.org/html/rfc7231#section-4.3.2
+  // https://tools.ietf.org/html/rfc7231#section-4.3.5
+
+  // Sending a payload body on a request that does not
+  // expect it can cause undefined behavior on some
+  // servers and corrupt connection state. Do not
+  // re-use the connection for further requests.
+
+  const expectsPayload = (
+    method === 'PUT' ||
+    method === 'POST' ||
+    method === 'PATCH'
+  )
+
+  if (body && typeof body.read === 'function') {
+    // Try to read EOF in order to get length.
+    body.read(0)
+  }
+
+  let contentLength = util.bodyLength(body)
+
+  if (contentLength == null) {
+    contentLength = request.contentLength
+  }
+
+  if (contentLength === 0 || !expectsPayload) {
+    // https://tools.ietf.org/html/rfc7230#section-3.3.2
+    // A user agent SHOULD NOT send a Content-Length header field when
+    // the request message does not contain a payload body and the method
+    // semantics do not anticipate such a body.
+
+    contentLength = null
+  }
+
+  if (request.contentLength != null && request.contentLength !== contentLength) {
+    if (client[kStrictContentLength]) {
+      errorRequest(client, request, new RequestContentLengthMismatchError())
+      return false
+    }
+
+    process.emitWarning(new RequestContentLengthMismatchError())
+  }
+
+  if (contentLength != null) {
+    assert(body, 'no body must not have content length')
+    headers[HTTP2_HEADER_CONTENT_LENGTH] = `${contentLength}`
+  }
+
+  session.ref()
+
+  const shouldEndStream = method === 'GET' || method === 'HEAD'
+  if (expectContinue) {
+    headers[HTTP2_HEADER_EXPECT] = '100-continue'
+    /**
+     * @type {import('node:http2').ClientHttp2Stream}
+     */
+    stream = session.request(headers, { endStream: shouldEndStream, signal })
+
+    stream.once('continue', writeBodyH2)
+  } else {
+    /** @type {import('node:http2').ClientHttp2Stream} */
+    stream = session.request(headers, {
+      endStream: shouldEndStream,
+      signal
+    })
+    writeBodyH2()
+  }
+
+  // Increment counter as we have new several streams open
+  ++h2State.openStreams
+
+  stream.once('response', headers => {
+    if (request.onHeaders(Number(headers[HTTP2_HEADER_STATUS]), headers, stream.resume.bind(stream), '') === false) {
+      stream.pause()
+    }
+  })
+
+  stream.once('end', () => {
+    request.onComplete([])
+  })
+
+  stream.on('data', (chunk) => {
+    if (request.onData(chunk) === false) stream.pause()
+  })
+
+  stream.once('close', () => {
+    h2State.openStreams -= 1
+    // TODO(HTTP/2): unref only if current streams count is 0
+    if (h2State.openStreams === 0) session.unref()
+  })
+
+  stream.once('error', function (err) {
+    if (client[kHTTP2Session] && !client[kHTTP2Session].destroyed && !this.closed && !this.destroyed) {
+      h2State.streams -= 1
+      util.destroy(stream, err)
+    }
+  })
+
+  stream.once('frameError', (type, code) => {
+    const err = new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`)
+    errorRequest(client, request, err)
+
+    if (client[kHTTP2Session] && !client[kHTTP2Session].destroyed && !this.closed && !this.destroyed) {
+      h2State.streams -= 1
+      util.destroy(stream, err)
+    }
+  })
+
+  // stream.on('aborted', () => {
+  //   // TODO(HTTP/2): Support aborted
+  // })
+
+  // stream.on('timeout', () => {
+  //   // TODO(HTTP/2): Support timeout
+  // })
+
+  // stream.on('push', headers => {
+  //   // TODO(HTTP/2): Suppor push
+  // })
+
+  // stream.on('trailers', headers => {
+  //   // TODO(HTTP/2): Support trailers
+  // })
+
+  return true
+
+  function writeBodyH2 () {
+    /* istanbul ignore else: assertion */
+    if (!body) {
+      request.onRequestSent()
+    } else if (util.isBuffer(body)) {
+      assert(contentLength === body.byteLength, 'buffer body must have content length')
+      stream.cork()
+      stream.write(body)
+      stream.uncork()
+      request.onBodySent(body)
+      request.onRequestSent()
+    } else if (util.isBlobLike(body)) {
+      if (typeof body.stream === 'function') {
+        writeIterable({
+          client,
+          request,
+          contentLength,
+          h2stream: stream,
+          expectsPayload,
+          body: body.stream(),
+          socket: client[kSocket],
+          header: ''
+        })
+      } else {
+        writeBlob({
+          body,
+          client,
+          request,
+          contentLength,
+          expectsPayload,
+          h2stream: stream,
+          header: '',
+          socket: client[kSocket]
+        })
+      }
+    } else if (util.isStream(body)) {
+      writeStream({
+        body,
+        client,
+        request,
+        contentLength,
+        expectsPayload,
+        socket: client[kSocket],
+        h2stream: stream,
+        header: ''
+      })
+    } else if (util.isIterable(body)) {
+      writeIterable({
+        body,
+        client,
+        request,
+        contentLength,
+        expectsPayload,
+        header: '',
+        h2stream: stream,
+        socket: client[kSocket]
+      })
+    } else {
+      assert(false)
+    }
+  }
+}
+
+function writeStream ({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
   assert(contentLength !== 0 || client[kRunning] === 0, 'stream body cannot be pipelined')
+
+  if (client[kHTTPConnVersion] === 'h2') {
+    // For HTTP/2, is enough to pipe the stream
+    const pipe = pipeline(
+      body,
+      h2stream,
+      (err) => {
+        if (err) {
+          util.destroy(body, err)
+          util.destroy(h2stream, err)
+        } else {
+          request.onRequestSent()
+        }
+      }
+    )
+
+    pipe.on('data', onPipeData)
+    pipe.once('end', () => {
+      pipe.removeListener('data', onPipeData)
+      util.destroy(pipe)
+    })
+
+    function onPipeData (chunk) {
+      request.onBodySent(chunk)
+    }
+
+    return
+  }
 
   let finished = false
 
@@ -1572,9 +2021,10 @@ function writeStream ({ body, client, request, socket, contentLength, header, ex
     .on('error', onFinished)
 }
 
-async function writeBlob ({ body, client, request, socket, contentLength, header, expectsPayload }) {
+async function writeBlob ({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
   assert(contentLength === body.size, 'blob body must have content length')
 
+  const isH2 = client[kHTTPConnVersion] === 'h2'
   try {
     if (contentLength != null && contentLength !== body.size) {
       throw new RequestContentLengthMismatchError()
@@ -1582,10 +2032,16 @@ async function writeBlob ({ body, client, request, socket, contentLength, header
 
     const buffer = Buffer.from(await body.arrayBuffer())
 
-    socket.cork()
-    socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, 'latin1')
-    socket.write(buffer)
-    socket.uncork()
+    if (isH2) {
+      h2stream.cork()
+      h2stream.write(buffer)
+      h2stream.uncork()
+    } else {
+      socket.cork()
+      socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, 'latin1')
+      socket.write(buffer)
+      socket.uncork()
+    }
 
     request.onBodySent(buffer)
     request.onRequestSent()
@@ -1596,11 +2052,11 @@ async function writeBlob ({ body, client, request, socket, contentLength, header
 
     resume(client)
   } catch (err) {
-    util.destroy(socket, err)
+    util.destroy(isH2 ? h2stream : socket, err)
   }
 }
 
-async function writeIterable ({ body, client, request, socket, contentLength, header, expectsPayload }) {
+async function writeIterable ({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
   assert(contentLength !== 0 || client[kRunning] === 0, 'iterator body cannot be pipelined')
 
   let callback = null
@@ -1621,6 +2077,33 @@ async function writeIterable ({ body, client, request, socket, contentLength, he
       callback = resolve
     }
   })
+
+  if (client[kHTTPConnVersion] === 'h2') {
+    h2stream
+      .on('close', onDrain)
+      .on('drain', onDrain)
+
+    try {
+      // It's up to the user to somehow abort the async iterable.
+      for await (const chunk of body) {
+        if (socket[kError]) {
+          throw socket[kError]
+        }
+
+        if (!h2stream.write(chunk)) {
+          await waitForDrain()
+        }
+      }
+    } catch (err) {
+      h2stream.destroy(err)
+    } finally {
+      h2stream
+        .off('close', onDrain)
+        .off('drain', onDrain)
+    }
+
+    return
+  }
 
   socket
     .on('close', onDrain)

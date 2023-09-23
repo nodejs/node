@@ -379,11 +379,7 @@ class Cache {
       const reader = stream.getReader()
 
       // 11.3
-      readAllBytes(
-        reader,
-        (bytes) => bodyReadPromise.resolve(bytes),
-        (error) => bodyReadPromise.reject(error)
-      )
+      readAllBytes(reader).then(bodyReadPromise.resolve, bodyReadPromise.reject)
     } else {
       bodyReadPromise.resolve(undefined)
     }

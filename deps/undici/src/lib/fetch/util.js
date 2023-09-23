@@ -556,14 +556,35 @@ function bytesMatch (bytes, metadataList) {
     const algorithm = item.algo
 
     // 2. Let expectedValue be the val component of item.
-    const expectedValue = item.hash
+    let expectedValue = item.hash
+
+    // See https://github.com/web-platform-tests/wpt/commit/e4c5cc7a5e48093220528dfdd1c4012dc3837a0e
+    // "be liberal with padding". This is annoying, and it's not even in the spec.
+
+    if (expectedValue.endsWith('==')) {
+      expectedValue = expectedValue.slice(0, -2)
+    }
 
     // 3. Let actualValue be the result of applying algorithm to bytes.
-    const actualValue = crypto.createHash(algorithm).update(bytes).digest('base64')
+    let actualValue = crypto.createHash(algorithm).update(bytes).digest('base64')
+
+    if (actualValue.endsWith('==')) {
+      actualValue = actualValue.slice(0, -2)
+    }
 
     // 4. If actualValue is a case-sensitive match for expectedValue,
     //    return true.
     if (actualValue === expectedValue) {
+      return true
+    }
+
+    let actualBase64URL = crypto.createHash(algorithm).update(bytes).digest('base64url')
+
+    if (actualBase64URL.endsWith('==')) {
+      actualBase64URL = actualBase64URL.slice(0, -2)
+    }
+
+    if (actualBase64URL === expectedValue) {
       return true
     }
   }
@@ -812,17 +833,17 @@ function iteratorResult (pair, kind) {
 /**
  * @see https://fetch.spec.whatwg.org/#body-fully-read
  */
-function fullyReadBody (body, processBody, processBodyError) {
+async function fullyReadBody (body, processBody, processBodyError) {
   // 1. If taskDestination is null, then set taskDestination to
   //    the result of starting a new parallel queue.
 
   // 2. Let successSteps given a byte sequence bytes be to queue a
   //    fetch task to run processBody given bytes, with taskDestination.
-  const successSteps = (bytes) => queueMicrotask(() => processBody(bytes))
+  const successSteps = processBody
 
   // 3. Let errorSteps be to queue a fetch task to run processBodyError,
   //    with taskDestination.
-  const errorSteps = (error) => queueMicrotask(() => processBodyError(error))
+  const errorSteps = processBodyError
 
   // 4. Let reader be the result of getting a reader for body’s stream.
   //    If that threw an exception, then run errorSteps with that
@@ -837,7 +858,12 @@ function fullyReadBody (body, processBody, processBodyError) {
   }
 
   // 5. Read all bytes from reader, given successSteps and errorSteps.
-  readAllBytes(reader, successSteps, errorSteps)
+  try {
+    const result = await readAllBytes(reader)
+    successSteps(result)
+  } catch (e) {
+    errorSteps(e)
+  }
 }
 
 /** @type {ReadableStream} */
@@ -906,36 +932,23 @@ function isomorphicEncode (input) {
  * @see https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
  * @see https://streams.spec.whatwg.org/#read-loop
  * @param {ReadableStreamDefaultReader} reader
- * @param {(bytes: Uint8Array) => void} successSteps
- * @param {(error: Error) => void} failureSteps
  */
-async function readAllBytes (reader, successSteps, failureSteps) {
+async function readAllBytes (reader) {
   const bytes = []
   let byteLength = 0
 
   while (true) {
-    let done
-    let chunk
-
-    try {
-      ({ done, value: chunk } = await reader.read())
-    } catch (e) {
-      // 1. Call failureSteps with e.
-      failureSteps(e)
-      return
-    }
+    const { done, value: chunk } = await reader.read()
 
     if (done) {
       // 1. Call successSteps with bytes.
-      successSteps(Buffer.concat(bytes, byteLength))
-      return
+      return Buffer.concat(bytes, byteLength)
     }
 
     // 1. If chunk is not a Uint8Array object, call failureSteps
     //    with a TypeError and abort these steps.
     if (!isUint8Array(chunk)) {
-      failureSteps(new TypeError('Received non-Uint8Array chunk'))
-      return
+      throw new TypeError('Received non-Uint8Array chunk')
     }
 
     // 2. Append the bytes represented by chunk to bytes.

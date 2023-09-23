@@ -35,7 +35,8 @@ const mockPool = mockAgent.get('http://localhost:3000')
 
 ### `MockPool.intercept(options)`
 
-This method defines the interception rules for matching against requests for a MockPool or MockPool. We can intercept multiple times on a single instance.
+This method defines the interception rules for matching against requests for a MockPool or MockPool. We can intercept multiple times on a single instance, but each intercept is only used once. 
+For example if you expect to make 2 requests inside a test, you need to call `intercept()` twice. Assuming you use `disableNetConnect()` you will get `MockNotMatchedError` on the second request when you only call `intercept()` once.
 
 When defining interception rules, all the rules must pass for a request to be intercepted. If a request is not intercepted, a real request will be attempted.
 

@@ -1,6 +1,5 @@
 'use strict'
 
-const { randomBytes, createHash } = require('crypto')
 const diagnosticsChannel = require('diagnostics_channel')
 const { uid, states } = require('./constants')
 const {
@@ -21,6 +20,14 @@ const channels = {}
 channels.open = diagnosticsChannel.channel('undici:websocket:open')
 channels.close = diagnosticsChannel.channel('undici:websocket:close')
 channels.socketError = diagnosticsChannel.channel('undici:websocket:socket_error')
+
+/** @type {import('crypto')} */
+let crypto
+try {
+  crypto = require('crypto')
+} catch {
+
+}
 
 /**
  * @see https://websockets.spec.whatwg.org/#concept-websocket-establish
@@ -66,7 +73,7 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
   // 5. Let keyValue be a nonce consisting of a randomly selected
   //    16-byte value that has been forgiving-base64-encoded and
   //    isomorphic encoded.
-  const keyValue = randomBytes(16).toString('base64')
+  const keyValue = crypto.randomBytes(16).toString('base64')
 
   // 6. Append (`Sec-WebSocket-Key`, keyValue) to request’s
   //    header list.
@@ -148,7 +155,7 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
       //    trailing whitespace, the client MUST _Fail the WebSocket
       //    Connection_.
       const secWSAccept = response.headersList.get('Sec-WebSocket-Accept')
-      const digest = createHash('sha1').update(keyValue + uid).digest('base64')
+      const digest = crypto.createHash('sha1').update(keyValue + uid).digest('base64')
       if (secWSAccept !== digest) {
         failWebsocketConnection(ws, 'Incorrect hash received in Sec-WebSocket-Accept header.')
         return

@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.23.0",
+  "version": "5.25.2",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -11,11 +11,40 @@
     "url": "git+https://github.com/nodejs/undici.git"
   },
   "license": "MIT",
-  "author": "Matteo Collina <hello@matteocollina.com>",
   "contributors": [
+    {
+      "name": "Daniele Belardi",
+      "url": "https://github.com/dnlup",
+      "author": true
+    },
+    {
+      "name": "Ethan Arrowood",
+      "url": "https://github.com/ethan-arrowood",
+      "author": true
+    },
+    {
+      "name": "Matteo Collina",
+      "url": "https://github.com/mcollina",
+      "author": true
+    },
+    {
+      "name": "Matthew Aitken",
+      "url": "https://github.com/KhafraDev",
+      "author": true
+    },
     {
       "name": "Robert Nagy",
       "url": "https://github.com/ronag",
+      "author": true
+    },
+    {
+      "name": "Szymon Marczak",
+      "url": "https://github.com/szmarczak",
+      "author": true
+    },
+    {
+      "name": "Tomas Della Vedova",
+      "url": "https://github.com/delvedor",
       "author": true
     }
   ],
@@ -64,10 +93,11 @@
     "bench:run": "CONNECTIONS=1 node benchmarks/benchmark.js; CONNECTIONS=50 node benchmarks/benchmark.js",
     "serve:website": "docsify serve .",
     "prepare": "husky install",
+    "postpublish": "node scripts/update-undici-types-version.js && cd types && npm publish",
     "fuzz": "jsfuzz test/fuzzing/fuzz.js corpus"
   },
   "devDependencies": {
-    "@sinonjs/fake-timers": "^10.0.2",
+    "@sinonjs/fake-timers": "^11.1.0",
     "@types/node": "^18.0.3",
     "abort-controller": "^3.0.0",
     "atomic-sleep": "^1.0.0",
@@ -98,7 +128,7 @@
     "standard": "^17.0.0",
     "table": "^6.8.0",
     "tap": "^16.1.0",
-    "tsd": "^0.28.1",
+    "tsd": "^0.29.0",
     "typescript": "^5.0.2",
     "wait-on": "^7.0.1",
     "ws": "^8.11.0"
