@@ -370,6 +370,9 @@ if (global.ReadableStream) {
     global.DecompressionStream,
   );
 }
+if (global.WebSocket) {
+  knownGlobals.push(WebSocket);
+}
 
 function allowGlobals(...allowlist) {
   knownGlobals = knownGlobals.concat(allowlist);

@@ -1018,6 +1018,17 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
+## `WebSocket`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`WebSocket`][]. Enable this API
+with the [`--experimental-websocket`][] CLI flag.
+
 ## Class: `WritableStream`
 
 <!-- YAML
@@ -1052,6 +1063,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [ECMAScript module]: esm.md
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [Web Crypto API]: webcrypto.md
+[`--experimental-websocket`]: cli.md#--experimental-websocket
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
 [`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
@@ -1085,6 +1097,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`TransformStream`]: webstreams.md#class-transformstream
 [`URLSearchParams`]: url.md#class-urlsearchparams
 [`URL`]: url.md#class-url
+[`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`WritableStreamDefaultController`]: webstreams.md#class-writablestreamdefaultcontroller
 [`WritableStreamDefaultWriter`]: webstreams.md#class-writablestreamdefaultwriter
 [`WritableStream`]: webstreams.md#class-writablestream
