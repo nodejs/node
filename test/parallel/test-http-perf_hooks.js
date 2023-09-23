@@ -57,7 +57,7 @@ server.listen(0, common.mustCall(async () => {
 process.on('exit', () => {
   let numberOfHttpClients = 0;
   let numberOfHttpRequests = 0;
-  for (const entry in entries) {
+  for (const entry of entries) {
     assert.strictEqual(entry.entryType, 'http');
     assert.strictEqual(typeof entry.startTime, 'number');
     assert.strictEqual(typeof entry.duration, 'number');
