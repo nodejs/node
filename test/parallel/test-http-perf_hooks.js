@@ -57,7 +57,7 @@ server.listen(0, common.mustCall(async () => {
 process.on('exit', () => {
   let numberOfHttpClients = 0;
   let numberOfHttpRequests = 0;
-  entries.forEach((entry) => {
+  for (const entry of entries) {
     assert.strictEqual(entry.entryType, 'http');
     assert.strictEqual(typeof entry.startTime, 'number');
     assert.strictEqual(typeof entry.duration, 'number');
@@ -72,7 +72,7 @@ process.on('exit', () => {
     assert.strictEqual(typeof entry.detail.res.statusCode, 'number');
     assert.strictEqual(typeof entry.detail.res.statusMessage, 'string');
     assert.strictEqual(typeof entry.detail.res.headers, 'object');
-  });
+  }
   assert.strictEqual(numberOfHttpClients, 2);
   assert.strictEqual(numberOfHttpRequests, 2);
 });
