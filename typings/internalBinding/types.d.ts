@@ -1,4 +1,4 @@
-declare function InternalBinding(binding: 'types'): {
+export interface TypesBinding {
   isAsyncFunction(value: unknown): value is (...args: unknown[]) => Promise<unknown>;
   isGeneratorFunction(value: unknown): value is GeneratorFunction;
   isAnyArrayBuffer(value: unknown): value is (ArrayBuffer | SharedArrayBuffer);
@@ -23,4 +23,4 @@ declare function InternalBinding(binding: 'types'): {
   isNumberObject: (value: unknown) => value is Number;
   isBooleanObject: (value: unknown) => value is Boolean,
   isBigIntObject: (value: unknown) => value is BigInt;
-};
+}

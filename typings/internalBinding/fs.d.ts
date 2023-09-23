@@ -109,7 +109,7 @@ declare namespace InternalFSBinding {
 
   function internalModuleReadJSON(path: string): [] | [string, boolean];
   function internalModuleStat(path: string): number;
-  
+
   function lchown(path: string, uid: number, gid: number, req: FSReqCallback): void;
   function lchown(path: string, uid: number, gid: number, req: undefined, ctx: FSSyncContext): void;
   function lchown(path: string, uid: number, gid: number, usePromises: typeof kUsePromises): Promise<void>;
@@ -198,7 +198,7 @@ declare namespace InternalFSBinding {
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, req: FSReqCallback): void;
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, req: undefined, ctx: FSSyncContext): void;
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, usePromises: typeof kUsePromises): Promise<void>;
-  
+
   function unlink(path: string, req: FSReqCallback): void;
   function unlink(path: string, req: undefined, ctx: FSSyncContext): void;
   function unlink(path: string, usePromises: typeof kUsePromises): Promise<void>;
@@ -220,7 +220,7 @@ declare namespace InternalFSBinding {
   function writeString(fd: number, value: string, pos: unknown, encoding: unknown, usePromises: typeof kUsePromises): Promise<number>;
 }
 
-declare function InternalBinding(binding: 'fs'): {
+export interface FsBinding {
   FSReqCallback: typeof InternalFSBinding.FSReqCallback;
 
   FileHandle: typeof InternalFSBinding.FileHandle;
@@ -269,4 +269,4 @@ declare function InternalBinding(binding: 'fs'): {
   writeBuffer: typeof InternalFSBinding.writeBuffer;
   writeBuffers: typeof InternalFSBinding.writeBuffers;
   writeString: typeof InternalFSBinding.writeString;
-};
+}
