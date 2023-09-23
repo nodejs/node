@@ -10,7 +10,7 @@ export const owner_symbol: unique symbol;
 export const onpskexchange_symbol: unique symbol;
 export const trigger_async_id_symbol: unique symbol;
 
-declare function InternalBinding(binding: 'symbols'): {
+export interface SymbolsBinding {
   async_id_symbol: typeof async_id_symbol;
   handle_onclose_symbol: typeof handle_onclose_symbol;
   no_message_symbol: typeof no_message_symbol;
@@ -22,4 +22,4 @@ declare function InternalBinding(binding: 'symbols'): {
   owner_symbol: typeof owner_symbol;
   onpskexchange_symbol: typeof onpskexchange_symbol;
   trigger_async_id_symbol: typeof trigger_async_id_symbol;
-};
+}
