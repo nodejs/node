@@ -75,7 +75,7 @@ const wrongInputs = [false, 'test', {}, [{}], ['sdf'], null, undefined];
         name: 'TypeError'
       }
     );
-  };
+  }
 
   fs.closeSync(fd);
 }
@@ -90,5 +90,5 @@ const wrongInputs = [false, 'test', {}, [{}], ['sdf'], null, undefined];
         name: 'TypeError'
       }
     );
-  };
+  }
 }
