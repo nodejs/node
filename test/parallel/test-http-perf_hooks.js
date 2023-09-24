@@ -72,7 +72,7 @@ process.on('exit', () => {
     assert.strictEqual(typeof entry.detail.res.statusCode, 'number');
     assert.strictEqual(typeof entry.detail.res.statusMessage, 'string');
     assert.strictEqual(typeof entry.detail.res.headers, 'object');
-  };
+  }
   assert.strictEqual(numberOfHttpClients, 2);
   assert.strictEqual(numberOfHttpRequests, 2);
 });
