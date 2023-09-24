@@ -31,6 +31,8 @@ describe('the type flag should change the interpretation of certain files outsid
   it('should run as Wasm an extensionless Wasm file that is outside of any package scope', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
+      '--experimental-wasm-modules',
+      '--no-warnings',
       fixtures.path('es-modules/noext-wasm'),
     ]);
 
@@ -67,6 +69,8 @@ describe('the type flag should change the interpretation of certain files outsid
   it('should import as Wasm an extensionless Wasm file that is outside of any package scope', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
+      '--experimental-wasm-modules',
+      '--no-warnings',
       '--eval',
       `import { add } from ${JSON.stringify(fixtures.fileURL('es-modules/noext-wasm'))};
       console.log(add(1, 2));`,

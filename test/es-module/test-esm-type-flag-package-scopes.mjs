@@ -32,6 +32,7 @@ describe('the type flag should change the interpretation of certain files within
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
       '--experimental-wasm-modules',
+      '--no-warnings',
       fixtures.path('es-modules/package-type-module/noext-wasm'),
     ]);
 
@@ -44,6 +45,8 @@ describe('the type flag should change the interpretation of certain files within
   it('should import as Wasm an extensionless Wasm file within a "type": "module" scope', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
+      '--experimental-wasm-modules',
+      '--no-warnings',
       '--eval',
       `import { add } from ${JSON.stringify(fixtures.fileURL('es-modules/package-type-module/noext-wasm'))};
       console.log(add(1, 2));`,
@@ -85,6 +88,7 @@ describe('the type flag should change the interpretation of certain files within
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
       '--experimental-wasm-modules',
+      '--no-warnings',
       fixtures.path('es-modules/noext-wasm'),
     ]);
 
@@ -123,6 +127,8 @@ describe('the type flag should change the interpretation of certain files within
   it('should import as Wasm an extensionless Wasm file within a package scope that has no defined "type" and is not under node_modules', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
+      '--experimental-wasm-modules',
+      '--no-warnings',
       '--eval',
       `import { add } from ${JSON.stringify(fixtures.fileURL('es-modules/noext-wasm'))};
       console.log(add(1, 2));`,
