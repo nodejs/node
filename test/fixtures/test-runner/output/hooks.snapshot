@@ -42,6 +42,8 @@ ok 1 - describe hooks
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 1)
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -51,6 +53,8 @@ ok 1 - describe hooks
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 1)
       ...
     1..2
 not ok 2 - before throws
@@ -70,6 +74,7 @@ not ok 2 - before throws
     *
     *
     *
+    async Promise.all (index 1)
     *
   ...
 # Subtest: after throws
@@ -101,6 +106,7 @@ not ok 3 - after throws
     *
     *
     *
+    async Promise.all (index 2)
     *
   ...
 # Subtest: beforeEach throws
@@ -122,7 +128,7 @@ not ok 3 - after throws
         *
         async Promise.all (index 0)
         *
-        *
+        async Promise.all (index 3)
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -140,7 +146,9 @@ not ok 3 - after throws
         *
         *
         *
+        async Promise.all (index 1)
         *
+        async Promise.all (index 3)
       ...
     1..2
 not ok 4 - beforeEach throws
@@ -151,6 +159,8 @@ not ok 4 - beforeEach throws
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 3)
   ...
 # Subtest: afterEach throws
     # Subtest: 1
@@ -190,6 +200,7 @@ not ok 4 - beforeEach throws
         *
         *
         *
+        async Promise.all (index 1)
         *
       ...
     1..2
@@ -201,6 +212,8 @@ not ok 5 - afterEach throws
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 4)
   ...
 # Subtest: afterEach when test fails
     # Subtest: 1
@@ -218,10 +231,10 @@ not ok 5 - afterEach throws
         *
         *
         *
+        *
         new Promise (<anonymous>)
         *
         *
-        Array.map (<anonymous>)
       ...
     # Subtest: 2
     ok 2 - 2
@@ -237,6 +250,8 @@ not ok 6 - afterEach when test fails
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 5)
   ...
 # Subtest: afterEach throws and test fails
     # Subtest: 1
@@ -254,10 +269,10 @@ not ok 6 - afterEach when test fails
         *
         *
         *
+        *
         new Promise (<anonymous>)
         *
         *
-        Array.map (<anonymous>)
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -276,6 +291,7 @@ not ok 6 - afterEach when test fails
         *
         *
         *
+        async Promise.all (index 1)
         *
       ...
     1..2
@@ -287,6 +303,8 @@ not ok 7 - afterEach throws and test fails
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 6)
   ...
 # Subtest: test hooks
     # Subtest: 1
@@ -369,6 +387,8 @@ not ok 9 - t.before throws
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 8)
   ...
 # Subtest: t.beforeEach throws
     # Subtest: 1
@@ -389,7 +409,7 @@ not ok 9 - t.before throws
         *
         *
         *
-        *
+        async Promise.all (index 9)
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -409,7 +429,7 @@ not ok 9 - t.before throws
         *
         *
         *
-        *
+        async Promise.all (index 9)
       ...
     1..2
 not ok 10 - t.beforeEach throws
@@ -419,6 +439,8 @@ not ok 10 - t.beforeEach throws
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 9)
   ...
 # Subtest: t.afterEach throws
     # Subtest: 1
@@ -469,6 +491,8 @@ not ok 11 - t.afterEach throws
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 10)
   ...
 # Subtest: afterEach when test fails
     # Subtest: 1
@@ -489,6 +513,7 @@ not ok 11 - t.afterEach throws
         *
         *
         *
+        async Promise.all (index 11)
       ...
     # Subtest: 2
     ok 2 - 2
@@ -503,6 +528,8 @@ not ok 12 - afterEach when test fails
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 11)
   ...
 # Subtest: afterEach throws and test fails
     # Subtest: 1
@@ -523,6 +550,7 @@ not ok 12 - afterEach when test fails
         *
         *
         *
+        async Promise.all (index 12)
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -552,6 +580,8 @@ not ok 13 - afterEach throws and test fails
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 12)
   ...
 # Subtest: t.after() is called if test body throws
 not ok 14 - t.after() is called if test body throws
@@ -565,6 +595,7 @@ not ok 14 - t.after() is called if test body throws
     *
     *
     *
+    async Promise.all (index 13)
     *
   ...
 # - after() called

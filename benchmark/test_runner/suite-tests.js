@@ -1,14 +1,11 @@
 'use strict';
 const common = require('../common');
-const { finished } = require('node:stream/promises');
-
-const reporter = require('../fixtures/empty-test-reporter');
 
 const { describe, it } = require('node:test');
 
 const bench = common.createBenchmark(main, {
   numberOfSuites: [10, 100],
-  testsPerSuite: [10, 100, 1000],
+  testsPerSuite: [10, 100],
   testType: ['sync', 'async'],
   concurrency: ['yes', 'no'],
 }, {
@@ -51,8 +48,6 @@ async function run({ numberOfSuites, testsPerSuite, testType, concurrency }) {
       break;
     }
   }
-
-  await finished(reporter);
 
   return numberOfSuites * testsPerSuite;
 }

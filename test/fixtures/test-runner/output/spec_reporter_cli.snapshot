@@ -9,6 +9,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 1)
 
  sync fail todo with message (*ms) # this is a failing todo
   Error: thrown from sync fail todo with message
@@ -19,6 +22,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 2)
 
  sync skip pass (*ms) # SKIP
  sync skip pass with message (*ms) # this is skipped
@@ -33,6 +39,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 6)
 
  async skip pass (*ms) # SKIP
  async pass (*ms)
@@ -45,6 +54,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 9)
 
  async skip fail (*ms) # SKIP
   Error: thrown from async throw fail
@@ -55,6 +67,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 10)
 
  async assertion fail (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
@@ -67,7 +82,10 @@
       *
       *
       *
-      * {
+      *
+      *
+      *
+      at async Promise.all (index 11) {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: true,
@@ -85,6 +103,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 13)
 
  unhandled rejection - passes but warns (*ms)
  async unhandled rejection - passes but warns (*ms)
@@ -140,6 +161,8 @@
       *
       *
       *
+      at async Promise.all (index 26)
+      *
 
  <anonymous> (*ms)
  functionOnly (*ms)
@@ -170,6 +193,8 @@
       *
       *
       *
+      at async Promise.all (index 41)
+      *
 
  callback called twice (*ms)
   'callback invoked multiple times'
@@ -189,16 +214,13 @@
       *
 
  callback async throw after done (*ms)
- only is set but not in only mode
+ runOnly is set
    running subtest 1 (*ms)
-   running subtest 2 (*ms)
-   'only' and 'runOnly' require the --test-only command-line option.
+   skipped subtest 2 (*ms) # 'only' option not set
    running subtest 3 (*ms)
-   'only' and 'runOnly' require the --test-only command-line option.
    running subtest 4 (*ms)
- only is set but not in only mode (*ms)
+ runOnly is set (*ms)
 
- 'only' and 'runOnly' require the --test-only command-line option.
  custom inspect symbol fail (*ms)
   customized
 
@@ -292,10 +314,10 @@
  Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
  tests 76
  suites 0
- pass 35
+ pass 34
  fail 25
  cancelled 3
- skipped 9
+ skipped 10
  todo 4
  duration_ms *
 
@@ -311,6 +333,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 1)
 
 *
  sync fail todo with message (*ms) # this is a failing todo
@@ -322,6 +347,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 2)
 
 *
  sync throw fail (*ms)
@@ -333,6 +361,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 6)
 
 *
  async throw fail (*ms)
@@ -344,6 +375,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 9)
 
 *
  async skip fail (*ms) # SKIP
@@ -355,6 +389,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 10)
 
 *
  async assertion fail (*ms)
@@ -368,7 +405,10 @@
       *
       *
       *
-      * {
+      *
+      *
+      *
+      at async Promise.all (index 11) {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: true,
@@ -386,6 +426,9 @@
       *
       *
       *
+      *
+      *
+      at async Promise.all (index 13)
 
 *
  +sync throw fail (*ms)
@@ -419,6 +462,8 @@
       *
       *
       *
+      at async Promise.all (index 26)
+      *
 
 *
  callback fail (*ms)
@@ -439,6 +484,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 41)
       *
 
 *
