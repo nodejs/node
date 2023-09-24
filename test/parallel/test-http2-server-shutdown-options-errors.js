@@ -48,7 +48,7 @@ server.on('stream', common.mustCall((stream) => {
                  `TypedArray, or DataView.${received}`
       }
     );
-  };
+  }
 
   stream.session.destroy();
 }));
