@@ -3426,7 +3426,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "fchmod", FChmod);
 
   SetMethod(isolate, target, "chown", Chown);
-  SetMethodNoSideEffect(isolate, target, "chownSync", ChownSync);
+  SetMethod(isolate, target, "chownSync", ChownSync);
   SetMethod(isolate, target, "fchown", FChown);
   SetMethod(isolate, target, "lchown", LChown);
 
