@@ -39,8 +39,8 @@ const v4not = [
 
 for(const ip of v4) {
   assert.strictEqual(net.isIPv4(ip), true);
-};
+}
 
 for(const ip of v4not) {
   assert.strictEqual(net.isIPv4(ip), false);
-};
+}
