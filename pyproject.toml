@@ -20,6 +20,7 @@ select = [
 exclude = [
   "deps",
   "tools/inspector_protocol",
+  "tools/node_modules",
 ]
 ignore = [
   "E401",
