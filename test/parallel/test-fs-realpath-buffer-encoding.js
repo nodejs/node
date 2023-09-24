@@ -12,7 +12,7 @@ const encodings = ['ascii', 'utf8', 'utf16le', 'ucs2',
 const expected = {};
 for(const encoding of encodings) {
   expected[encoding] = buffer_dir.toString(encoding);
-};
+}
 
 
 // test sync version
