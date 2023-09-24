@@ -237,8 +237,8 @@ const v6not = [
 
 for(const ip of v6) {
   assert.strictEqual(net.isIPv6(ip), true);
-};
+}
 
 for(const ip of v6not) {
   assert.strictEqual(net.isIPv6(ip), false);
-};
+}
