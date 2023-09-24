@@ -1,5 +1,4 @@
 import { spawnPromisified } from '../common/index.mjs';
-import * as fixtures from '../common/fixtures.mjs';
 import { spawn } from 'node:child_process';
 import { describe, it } from 'node:test';
 import { strictEqual, match } from 'node:assert';
@@ -9,7 +8,7 @@ describe('the type flag should change the interpretation of string input', { con
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
       '--eval',
-      `import "data:text/javascript,console.log(42)"`,
+      'import "data:text/javascript,console.log(42)"',
     ]);
 
     strictEqual(stderr, '');
