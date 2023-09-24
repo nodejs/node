@@ -145,7 +145,7 @@ describe('the type flag should NOT change the interpretation of certain files wi
   it('should run as CommonJS a .js file within package scope that has no defined "type" and is under node_modules', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
-      fixtures.path('es-modules/package-type-module/node_modules/dep/run.js'),
+      fixtures.path('es-modules/package-type-module/node_modules/dep-with-package-json/run.js'),
     ]);
 
     strictEqual(stderr, '');
@@ -158,7 +158,7 @@ describe('the type flag should NOT change the interpretation of certain files wi
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
       '--eval',
-      `import ${JSON.stringify(fixtures.fileURL('es-modules/package-type-module/node_modules/dep/run.js'))};`,
+      `import ${JSON.stringify(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json/run.js'))};`,
     ]);
 
     strictEqual(stderr, '');
@@ -170,7 +170,7 @@ describe('the type flag should NOT change the interpretation of certain files wi
   it('should run as CommonJS an extensionless JavaScript file within a package scope that has no defined "type" and is under node_modules', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
-      fixtures.path('es-modules/package-type-module/node_modules/dep/noext-cjs'),
+      fixtures.path('es-modules/package-type-module/node_modules/dep-with-package-json/noext-cjs'),
     ]);
 
     strictEqual(stderr, '');
@@ -183,7 +183,7 @@ describe('the type flag should NOT change the interpretation of certain files wi
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-type=module',
       '--eval',
-      `import ${JSON.stringify(fixtures.fileURL('es-modules/package-type-module/node_modules/dep/noext-cjs'))};`,
+      `import ${JSON.stringify(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json/noext-cjs'))};`,
     ]);
 
     strictEqual(stderr, '');
