@@ -114,10 +114,22 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("--policy-integrity cannot be empty");
   }
 
-  if (!module_type.empty()) {
-    if (module_type != "commonjs" && module_type != "module") {
+  if (!input_type.empty()) {
+    if (input_type != "commonjs" && input_type != "module") {
       errors->push_back("--input-type must be \"module\" or \"commonjs\"");
     }
+  }
+
+  if (!type.empty()) {
+    if (type != "commonjs" && type != "module") {
+      errors->push_back("--experimental-type must be "
+                        "\"module\" or \"commonjs\"");
+    }
+  }
+
+  if (!input_type.empty() && !type.empty()) {
+    errors->push_back("--input-type and --experimental-type cannot be used "
+                      "together");
   }
 
   if (syntax_check_only && has_eval_string) {
@@ -474,7 +486,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--input-type",
             "set module type for string input",
-            &EnvironmentOptions::module_type,
+            &EnvironmentOptions::input_type,
             kAllowedInEnvvar);
   AddOption(
       "--experimental-specifier-resolution", "", NoOp{}, kAllowedInEnvvar);
@@ -648,7 +660,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--experimental-type",
             "set module system to use by default",
-            &EnvironmentOptions::module_type,
+            &EnvironmentOptions::type,
             kAllowedInEnvvar);
   AddOption("--extra-info-on-fatal-exception",
             "hide extra information on fatal exception that causes exit",
