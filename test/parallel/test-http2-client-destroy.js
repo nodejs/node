@@ -45,7 +45,7 @@ const { getEventListeners } = require('events');
 
         countdown.dec();
       }));
-    };
+    }
   }));
 }
 
