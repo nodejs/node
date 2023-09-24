@@ -469,7 +469,7 @@ for(const value of candidateGreedyOptions) {
     const result = parseArgs({ args, options, strict: false });
     assert.deepStrictEqual(result, expectedResult);
   });
-};
+}
 
 test('strict: when candidate option value is plain text then does not throw', () => {
   const args = ['--with', 'abc'];
