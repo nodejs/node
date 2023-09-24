@@ -1,3 +1,4 @@
+// Flags: --experimental-type=module --experimental-wasm-modules
 import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { describe, it } from 'node:test';
@@ -17,15 +18,8 @@ describe('the type flag should change the interpretation of certain files within
   });
 
   it('should import an extensionless JavaScript file within a "type": "module" scope', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
-      fixtures.path('es-modules/package-type-module/imports-noext.mjs'),
-    ]);
-
-    strictEqual(stderr, '');
-    strictEqual(stdout, 'executed\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    const { default: defaultExport } = await import(fixtures.fileURL('es-modules/package-type-module/noext-esm'));
+    strictEqual(defaultExport, 'module');
   });
 
   it('should run as Wasm an extensionless Wasm file within a "type": "module" scope', async () => {
@@ -43,19 +37,8 @@ describe('the type flag should change the interpretation of certain files within
   });
 
   it('should import as Wasm an extensionless Wasm file within a "type": "module" scope', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
-      '--experimental-wasm-modules',
-      '--no-warnings',
-      '--eval',
-      `import { add } from ${JSON.stringify(fixtures.fileURL('es-modules/package-type-module/noext-wasm'))};
-      console.log(add(1, 2));`,
-    ]);
-
-    strictEqual(stderr, '');
-    strictEqual(stdout, '3\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    const { add } = await import(fixtures.fileURL('es-modules/package-type-module/noext-wasm'));
+    strictEqual(add(1, 2), 3);
   });
 });
 
@@ -99,45 +82,18 @@ describe('the type flag should change the interpretation of certain files within
   });
 
   it('should import as ESM a .js file within package scope that has no defined "type" and is not under node_modules', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
-      '--eval',
-      `import ${JSON.stringify(fixtures.fileURL('es-modules/package-without-type/module.js'))};`,
-    ]);
-
-    strictEqual(stderr, '');
-    strictEqual(stdout, 'executed\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    const { default: defaultExport } = await import(fixtures.fileURL('es-modules/package-without-type/module.js'));
+    strictEqual(defaultExport, 'module');
   });
 
   it('should import as ESM an extensionless JavaScript file within a package scope that has no defined "type" and is not under node_modules', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
-      '--eval',
-      `import ${JSON.stringify(fixtures.fileURL('es-modules/package-without-type/noext-esm'))};`,
-    ]);
-
-    strictEqual(stderr, '');
-    strictEqual(stdout, 'executed\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    const { default: defaultExport } = await import(fixtures.fileURL('es-modules/package-without-type/noext-esm'));
+    strictEqual(defaultExport, 'module');
   });
 
   it('should import as Wasm an extensionless Wasm file within a package scope that has no defined "type" and is not under node_modules', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
-      '--experimental-wasm-modules',
-      '--no-warnings',
-      '--eval',
-      `import { add } from ${JSON.stringify(fixtures.fileURL('es-modules/noext-wasm'))};
-      console.log(add(1, 2));`,
-    ]);
-
-    strictEqual(stderr, '');
-    strictEqual(stdout, '3\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    const { add } = await import(fixtures.fileURL('es-modules/noext-wasm'));
+    strictEqual(add(1, 2), 3);
   });
 });
 
@@ -155,16 +111,8 @@ describe('the type flag should NOT change the interpretation of certain files wi
   });
 
   it('should import as CommonJS a .js file within a package scope that has no defined "type" and is under node_modules', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
-      '--eval',
-      `import ${JSON.stringify(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json/run.js'))};`,
-    ]);
-
-    strictEqual(stderr, '');
-    strictEqual(stdout, 'executed\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    const { default: defaultExport } = await import(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json/run.js'));
+    strictEqual(defaultExport, 42);
   });
 
   it('should run as CommonJS an extensionless JavaScript file within a package scope that has no defined "type" and is under node_modules', async () => {
@@ -180,15 +128,7 @@ describe('the type flag should NOT change the interpretation of certain files wi
   });
 
   it('should import as CommonJS an extensionless JavaScript file within a package scope that has no defined "type" and is under node_modules', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
-      '--eval',
-      `import ${JSON.stringify(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json/noext-cjs'))};`,
-    ]);
-
-    strictEqual(stderr, '');
-    strictEqual(stdout, 'executed\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    const { default: defaultExport } = await import(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json/noext-cjs'));
+    strictEqual(defaultExport, 42);
   });
 });

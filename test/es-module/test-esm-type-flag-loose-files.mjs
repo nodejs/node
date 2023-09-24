@@ -1,3 +1,4 @@
+// Flags: --experimental-type=module --experimental-wasm-modules
 import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { describe, it } from 'node:test';
@@ -43,43 +44,18 @@ describe('the type flag should change the interpretation of certain files outsid
   });
 
   it('should import as ESM a .js file that is outside of any package scope', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
-      fixtures.path('es-modules/imports-loose.mjs'),
-    ]);
-
-    strictEqual(stderr, '');
-    strictEqual(stdout, 'executed\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    const { default: defaultExport } = await import(fixtures.fileURL('es-modules/loose.js'));
+    strictEqual(defaultExport, 'module');
   });
 
   it('should import as ESM an extensionless JavaScript file that is outside of any package scope', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
-      fixtures.path('es-modules/imports-noext.mjs'),
-    ]);
-
-    strictEqual(stderr, '');
-    strictEqual(stdout, 'executed\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    const { default: defaultExport } = await import(fixtures.fileURL('es-modules/noext-esm'));
+    strictEqual(defaultExport, 'module');
   });
 
   it('should import as Wasm an extensionless Wasm file that is outside of any package scope', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
-      '--experimental-wasm-modules',
-      '--no-warnings',
-      '--eval',
-      `import { add } from ${JSON.stringify(fixtures.fileURL('es-modules/noext-wasm'))};
-      console.log(add(1, 2));`,
-    ]);
-
-    strictEqual(stderr, '');
-    strictEqual(stdout, '3\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    const { add } = await import(fixtures.fileURL('es-modules/noext-wasm'));
+    strictEqual(add(1, 2), 3);
   });
 
   it('should check as ESM input passed via --check', async () => {
