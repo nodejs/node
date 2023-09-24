@@ -7,7 +7,7 @@ try {
     process.stderr.write(
       pico.red(
         'Update npm or call ' +
-          pico.yellow('npx browserslist@latest --update-db') +
+          pico.yellow('npx update-browserslist-db@latest') +
           '\n'
       )
     )
