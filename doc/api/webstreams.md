@@ -5,12 +5,16 @@
 <!-- YAML
 added: v16.5.0
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45684
+    description: No longer experimental.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: Use of this API no longer emit a runtime warning.
 -->
 
-> Stability: 1 - Experimental.
+> Stability: 2 - Stable
 
 An implementation of the [WHATWG Streams Standard][].
 
