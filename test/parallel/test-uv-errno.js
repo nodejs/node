@@ -16,7 +16,7 @@ assert.strictEqual(uv.errname(-111111), 'Unknown system error -111111');
 
 for (const key of keys) {
   if (!key.startsWith('UV_'))
-    return;
+    continue;
 
   const err = _errnoException(uv[key], 'test');
   const name = uv.errname(uv[key]);
