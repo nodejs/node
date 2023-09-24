@@ -55,7 +55,7 @@ for(const attribute of attributes) {
           ' and enumerable data descriptor'
     }
   );
-};
+}
 
 assert.strictEqual(process.env.goo, undefined);
 Object.defineProperty(process.env, 'goo', {
