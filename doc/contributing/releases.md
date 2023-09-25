@@ -563,7 +563,7 @@ ecosystem.
 Use `ncu-ci` to compare `vx.x` run (10) and proposal branch (11)
 
 ```bash
-npm i -g node-core-utils
+npm i -g @node-core/utils
 ncu-ci citgm 10 11
 ```
 
@@ -1052,7 +1052,7 @@ _In whatever form you do this..._
 ### Marking a release line as LTS
 
 The process of marking a release line as LTS has been automated using
-[node-core-utils](https://github.com/nodejs/node-core-utils).
+[`@node-core/utils`](https://github.com/nodejs/node-core-utils).
 
 Start by checking out the staging branch for the release line that is going to
 be marked as LTS, e.g:
@@ -1061,10 +1061,10 @@ be marked as LTS, e.g:
 git checkout v1.x-staging
 ```
 
-Next, make sure you have **node-core-utils** installed:
+Next, make sure you have **`@node-core/utils`** installed:
 
 ```bash
-npm i -g node-core-utils
+npm i -g @node-core/utils
 ```
 
 Run the prepare LTS release command:
@@ -1110,7 +1110,7 @@ current LTS codename in its release line changelog file.
 
 The `test/parallel/test-process-release.js` file might also need to be updated.
 
-In case you can not run the automated `node-core-utils` command and you are
+In case you can not run the automated `@node-core/utils` command and you are
 currently running these steps manually it's a good idea to refer to previous
 LTS proposal PRs and make sure all required changes are covered.
 
