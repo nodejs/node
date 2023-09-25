@@ -32,7 +32,7 @@ if (process.argv[2] === 'child') {
     const file = tmpdir.resolve('node_trace.1.log');
 
     assert(fs.existsSync(file));
-    fs.readFile(file, common.mustCall((err, data) => {
+    fs.readFile(file, common.mustSucceed((data) => {
       const traces = JSON.parse(data.toString()).traceEvents
         .filter((trace) => trace.cat !== '__metadata');
       traces.forEach((trace) => {
