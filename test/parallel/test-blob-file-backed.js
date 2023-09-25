@@ -9,7 +9,7 @@ const {
 const { TextDecoder } = require('util');
 const {
   writeFileSync,
-  openAsBlob,
+  promises: { openAsBlob },
 } = require('fs');
 
 const {

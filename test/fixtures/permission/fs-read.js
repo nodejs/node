@@ -253,7 +253,7 @@ const regularFile = __filename;
 // fs.openAsBlob
 {
   assert.throws(() => {
-    fs.openAsBlob(blockedFile);
+    fs.openAsBlob(blockedFile, () => {});
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
