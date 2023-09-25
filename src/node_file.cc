@@ -2552,18 +2552,16 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   int mode = args[1].As<Int32>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {  // chmod(path, mode, req)
+  if (argc > 2) {  // chmod(path, mode, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_CHMOD, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "chmod", UTF8, AfterNoArgs,
               uv_fs_chmod, *path, mode);
-  } else {  // chmod(path, mode, undefined, ctx)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // chmod(path, mode)
+    FSReqWrapSync req_wrap_sync("chmod", *path);
     FS_SYNC_TRACE_BEGIN(chmod);
-    SyncCall(env, args[3], &req_wrap_sync, "chmod",
-             uv_fs_chmod, *path, mode);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_chmod, *path, mode);
     FS_SYNC_TRACE_END(chmod);
   }
 }
@@ -2584,17 +2582,15 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   const int mode = args[1].As<Int32>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {  // fchmod(fd, mode, req)
+  if (argc > 2) {  // fchmod(fd, mode, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FCHMOD, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "fchmod", UTF8, AfterNoArgs,
               uv_fs_fchmod, fd, mode);
-  } else {  // fchmod(fd, mode, undefined, ctx)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // fchmod(fd, mode)
+    FSReqWrapSync req_wrap_sync("fchmod");
     FS_SYNC_TRACE_BEGIN(fchmod);
-    SyncCall(env, args[3], &req_wrap_sync, "fchmod",
-             uv_fs_fchmod, fd, mode);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_fchmod, fd, mode);
     FS_SYNC_TRACE_END(fchmod);
   }
 }
