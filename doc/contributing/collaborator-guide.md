@@ -555,9 +555,10 @@ See the [commit queue guide][commit-queue.md].
 
 ### Using `git-node`
 
-In most cases, using [the `git-node` command][git-node] of [`@node-core/utils`][]
-is enough to land a pull request. If you discover a problem when using
-this tool, please file an issue [to the issue tracker][node-core-utils-issues].
+In most cases, using [the `git-node` command][git-node] of
+[`@node-core/utils`][] is enough to land a pull request. If you discover a
+problem when using this tool, please file an issue
+[to the issue tracker][node-core-utils-issues].
 
 Quick example:
 
