@@ -57,7 +57,8 @@ assert.strictEqual(
     {
       code: 'ENOENT',
       name: 'Error',
-      message: /^ENOENT: no such file or directory, access/
+      message: /^ENOENT: no such file or directory, access/,
+      stack: /at async Function\.rejects/
     }
   );
 
