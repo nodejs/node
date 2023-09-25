@@ -3406,7 +3406,7 @@ Type: Documentation-only
 The [`util.toUSVString()`][] API is deprecated. Please use
 [`String.prototype.toWellFormed`][] instead.
 
-### DEP0175: `fs.F_OK`, `fs.R_OK`, `fs.W_OK`, `fs.X_OK`
+### DEP0176: `fs.F_OK`, `fs.R_OK`, `fs.W_OK`, `fs.X_OK`
 
 <!-- YAML
 changes:
