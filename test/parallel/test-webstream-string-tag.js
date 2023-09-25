@@ -20,14 +20,7 @@ const classesToBeTested = [
   TransformStreamDefaultController,
 ];
 
-/* Commenting forEach Loop as per the document */
-// classesToBeTested.forEach((cls) => {
-//   assert.strictEqual(cls.prototype[Symbol.toStringTag], cls.name);
-//   assert.deepStrictEqual(Object.getOwnPropertyDescriptor(cls.prototype, Symbol.toStringTag),
-//                          { configurable: true, enumerable: false, value: cls.name, writable: false });
-// });
-
-/* Adding for loop with all the test included in the above code */
+/* Replaced for loop with all the test included in the above code */
 for (const cls of classesToBeTested) {
   const clsName = cls.name;
 
