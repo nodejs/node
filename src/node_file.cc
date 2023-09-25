@@ -1568,6 +1568,38 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void RenameSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 2);
+
+  BufferValue old_path(isolate, args[0]);
+  CHECK_NOT_NULL(*old_path);
+  auto view_old_path = old_path.ToStringView();
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, view_old_path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, view_old_path);
+
+  BufferValue new_path(isolate, args[1]);
+  CHECK_NOT_NULL(*new_path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env,
+      permission::PermissionScope::kFileSystemWrite,
+      new_path.ToStringView());
+
+  uv_fs_t req;
+  auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(rename);
+  int err = uv_fs_rename(nullptr, &req, *old_path, *new_path, nullptr);
+  FS_SYNC_TRACE_END(rename);
+
+  if (err < 0) {
+    return env->ThrowUVException(err, "rename", nullptr, *old_path, *new_path);
+  }
+}
+
 static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -3395,6 +3427,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "fdatasync", Fdatasync);
   SetMethod(isolate, target, "fsync", Fsync);
   SetMethod(isolate, target, "rename", Rename);
+  SetMethod(isolate, target, "renameSync", RenameSync);
   SetMethod(isolate, target, "ftruncate", FTruncate);
   SetMethod(isolate, target, "rmdir", RMDir);
   SetMethod(isolate, target, "mkdir", MKDir);
@@ -3521,6 +3554,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Fdatasync);
   registry->Register(Fsync);
   registry->Register(Rename);
+  registry->Register(RenameSync);
   registry->Register(FTruncate);
   registry->Register(RMDir);
   registry->Register(MKDir);

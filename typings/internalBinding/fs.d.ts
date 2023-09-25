@@ -180,6 +180,7 @@ declare namespace InternalFSBinding {
   function rename(oldPath: string, newPath: string, req: FSReqCallback): void;
   function rename(oldPath: string, newPath: string, req: undefined, ctx: FSSyncContext): void;
   function rename(oldPath: string, newPath: string, usePromises: typeof kUsePromises): Promise<void>;
+  function renameSync(oldPath: string, newPath: string): void;
 
   function rmdir(path: string, req: FSReqCallback): void;
   function rmdir(path: string, req: undefined, ctx: FSSyncContext): void;
@@ -261,6 +262,7 @@ export interface FsBinding {
   readlink: typeof InternalFSBinding.readlink;
   realpath: typeof InternalFSBinding.realpath;
   rename: typeof InternalFSBinding.rename;
+  renameSync: typeof InternalFSBinding.renameSync;
   rmdir: typeof InternalFSBinding.rmdir;
   stat: typeof InternalFSBinding.stat;
   symlink: typeof InternalFSBinding.symlink;
