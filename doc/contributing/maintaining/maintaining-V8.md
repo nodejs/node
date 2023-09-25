@@ -122,7 +122,7 @@ some manual steps and is recommended.
 
 Here are the steps for the bug mentioned above:
 
-1. Install `git-node` by installing [`node-core-utils`][].
+1. Install `git-node` by installing [`@node-core/utils`][].
 2. Install the prerequisites for [`git-node-v8`][].
 3. Find the commit hash linked-to in the issue (in this case a51f429).
 4. Checkout a branch off the appropriate _vY.x-staging_ branch (e.g.
@@ -277,7 +277,7 @@ that Node.js may be floating (or else cause a merge conflict).
 
 #### Applying minor updates with `git-node` (recommended)
 
-1. Install [`git-node`][] by installing [`node-core-utils`][].
+1. Install [`git-node`][] by installing [`@node-core/utils`][].
 2. Install the prerequisites for [`git-node-v8`][].
 3. Run `git node v8 minor` to apply a minor update.
 
@@ -384,8 +384,8 @@ This would require some tooling to:
 [V8MergingPatching]: https://v8.dev/docs/merge-patch
 [V8TemplateMergeRequest]: https://bugs.chromium.org/p/v8/issues/entry?template=Node.js%20merge%20request
 [V8TemplateUpstreamBug]: https://bugs.chromium.org/p/v8/issues/entry?template=Node.js%20upstream%20bug
+[`@node-core/utils`]: https://github.com/nodejs/node-core-utils#Install
 [`git-node-v8-backport`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-v8-backport-sha
 [`git-node-v8-minor`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-v8-minor
 [`git-node-v8`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-v8
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-v8
-[`node-core-utils`]: https://github.com/nodejs/node-core-utils#Install
