@@ -1303,10 +1303,10 @@ void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
       auto ipv4 = preferredAddress->ipv4();
       if (ipv4.has_value()) {
         if (ipv4->address.empty() || ipv4->port == 0) return;
-        SocketAddress::New(AF_INET,
-                           std::string(ipv4->address).c_str(),
-                           ipv4->port,
-                           &remote_address_);
+        CHECK(SocketAddress::New(AF_INET,
+                                 std::string(ipv4->address).c_str(),
+                                 ipv4->port,
+                                 &remote_address_));
         preferredAddress->Use(ipv4.value());
       }
       break;
@@ -1315,10 +1315,10 @@ void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
       auto ipv6 = preferredAddress->ipv6();
       if (ipv6.has_value()) {
         if (ipv6->address.empty() || ipv6->port == 0) return;
-        SocketAddress::New(AF_INET,
-                           std::string(ipv6->address).c_str(),
-                           ipv6->port,
-                           &remote_address_);
+        CHECK(SocketAddress::New(AF_INET,
+                                 std::string(ipv6->address).c_str(),
+                                 ipv6->port,
+                                 &remote_address_));
         preferredAddress->Use(ipv6.value());
       }
       break;
