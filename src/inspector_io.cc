@@ -293,7 +293,7 @@ void InspectorIo::ThreadMain() {
       new InspectorIoDelegate(queue, main_thread_, id_,
                               script_path, script_name_));
   std::string host;
-  int port;
+  uint16_t port;
   {
     ExclusiveAccess<HostPort>::Scoped host_port(host_port_);
     host = host_port->host();
