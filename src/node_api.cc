@@ -82,9 +82,8 @@ void node_napi_env__::trigger_fatal_exception(v8::Local<v8::Value> local_err) {
   node::errors::TriggerUncaughtException(isolate, local_err, local_msg);
 }
 
-// option enforceUncaughtExceptionPolicy is added for not breaking existing
-// running n-api add-ons, and should be deprecated in the next major Node.js
-// release.
+// The option enforceUncaughtExceptionPolicy is added for not breaking existing
+// running Node-API add-ons.
 template <bool enforceUncaughtExceptionPolicy, typename T>
 void node_napi_env__::CallbackIntoModule(T&& call) {
   CallIntoModule(call, [](napi_env env_, v8::Local<v8::Value> local_err) {
@@ -93,19 +92,24 @@ void node_napi_env__::CallbackIntoModule(T&& call) {
       return;
     }
     node::Environment* node_env = env->node_env();
-    if (!node_env->options()->force_node_api_uncaught_exceptions_policy &&
+    // If the module api version is less than NAPI_VERSION_EXPERIMENTAL,
+    // and the option --force-node-api-uncaught-exceptions-policy is not
+    // specified, emit a warning about the uncaught exception instead of
+    // triggering uncaught exception event.
+    if (env->module_api_version < NAPI_VERSION_EXPERIMENTAL &&
+        !node_env->options()->force_node_api_uncaught_exceptions_policy &&
         !enforceUncaughtExceptionPolicy) {
       ProcessEmitDeprecationWarning(
           node_env,
           "Uncaught N-API callback exception detected, please run node "
-          "with option --force-node-api-uncaught-exceptions-policy=true"
+          "with option --force-node-api-uncaught-exceptions-policy=true "
           "to handle those exceptions properly.",
           "DEP0168");
       return;
     }
     // If there was an unhandled exception in the complete callback,
     // report it as a fatal exception. (There is no JavaScript on the
-    // callstack that can possibly handle it.)
+    // call stack that can possibly handle it.)
     env->trigger_fatal_exception(local_err);
   });
 }
