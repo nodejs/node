@@ -1117,7 +1117,7 @@ Silence deprecation warnings.
 added: v18.0.0
 -->
 
-Disable exposition of [Fetch API][] on the global scope.
+Disable experimental support for the [Fetch API][].
 
 ### `--no-experimental-global-customevent`
 
