@@ -61,7 +61,7 @@ declare namespace InternalFSBinding {
   function access(path: StringOrBuffer, mode: number, usePromises: typeof kUsePromises): Promise<void>;
 
   function chmod(path: string, mode: number, req: FSReqCallback): void;
-  function chmod(path: string, mode: number, req: undefined, ctx: FSSyncContext): void;
+  function chmod(path: string, mode: number): void;
   function chmod(path: string, mode: number, usePromises: typeof kUsePromises): Promise<void>;
 
   function chown(path: string, uid: number, gid: number, req: FSReqCallback): void;
@@ -76,7 +76,7 @@ declare namespace InternalFSBinding {
   function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, usePromises: typeof kUsePromises): Promise<void>;
 
   function fchmod(fd: number, mode: number, req: FSReqCallback): void;
-  function fchmod(fd: number, mode: number, req: undefined, ctx: FSSyncContext): void;
+  function fchmod(fd: number, mode: number): void;
   function fchmod(fd: number, mode: number, usePromises: typeof kUsePromises): Promise<void>;
 
   function fchown(fd: number, uid: number, gid: number, req: FSReqCallback): void;
