@@ -48,7 +48,7 @@ line.
 
 ### Automated
 
-1. Make sure you have [`node-core-utils`][] installed
+1. Make sure you have [`@node-core/utils`][] installed
 
 2. Run the [`git node backport`][] command
 
@@ -132,6 +132,6 @@ original pull request with `backported-to-v20.x`.
 
 [Release Plan]: https://github.com/nodejs/Release#release-plan
 [Release Schedule]: https://github.com/nodejs/Release#release-schedule
+[`@node-core/utils`]: https://github.com/nodejs/node-core-utils
 [`git node backport`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-backport
-[`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [`node-test-pull-request`]: https://ci.nodejs.org/job/node-test-pull-request/build
