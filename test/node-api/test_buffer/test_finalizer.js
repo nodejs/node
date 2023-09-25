@@ -2,7 +2,7 @@
 // Flags: --expose-gc --force-node-api-uncaught-exceptions-policy
 
 const common = require('../../common');
-const binding = require(`./build/${common.buildType}/test_buffer`);
+const binding = require(`./build/${common.buildType}/test_finalizer`);
 const assert = require('assert');
 const tick = require('util').promisify(require('../../common/tick'));
 
