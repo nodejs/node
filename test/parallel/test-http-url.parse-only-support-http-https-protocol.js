@@ -34,7 +34,7 @@ const invalidUrls = [
   'f://some.host/path',
 ];
 
-for(const invalid of invalidUrls){
+for (const invalid of invalidUrls) {
   assert.throws(
     () => { http.request(url.parse(invalid)); },
     {
