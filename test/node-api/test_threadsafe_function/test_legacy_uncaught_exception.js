@@ -2,7 +2,7 @@
 // Flags: --no-force-node-api-uncaught-exceptions-policy
 
 const common = require('../../common');
-const binding = require(`./build/${common.buildType}/binding`);
+const binding = require(`./build/${common.buildType}/test_uncaught_exception_v9`);
 
 process.on(
   'uncaughtException',
