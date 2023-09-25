@@ -55,10 +55,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install node-core-utils
-        run: npm install -g node-core-utils
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
 
-      - name: Setup node-core-utils
+      - name: Setup @node-core/utils
         run: |
           ncu-config set username ${{ secrets.JENKINS_USER }}
           ncu-config set token "${{ secrets.GH_USER_TOKEN }}"

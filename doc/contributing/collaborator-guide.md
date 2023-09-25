@@ -555,22 +555,23 @@ See the [commit queue guide][commit-queue.md].
 
 ### Using `git-node`
 
-In most cases, using [the `git-node` command][git-node] of [`node-core-utils`][]
-is enough to land a pull request. If you discover a problem when using
-this tool, please file an issue [to the issue tracker][node-core-utils-issues].
+In most cases, using [the `git-node` command][git-node] of
+[`@node-core/utils`][] is enough to land a pull request. If you discover a
+problem when using this tool, please file an issue
+[to the issue tracker][node-core-utils-issues].
 
 Quick example:
 
 ```bash
-npm install -g node-core-utils
+npm install -g @node-core/utils
 git node land $PRID
 ```
 
-To use `node-core-utils`, you will need a GitHub access token. If you do not
-have one, `node-core-utils` will create one for you the first time you use it.
+To use `@node-core/utils`, you will need a GitHub access token. If you do not
+have one, `@node-core/utils` will create one for you the first time you use it.
 To do this, it will ask for your GitHub password and two-factor authentication
 code. If you wish to create the token yourself in advance, see
-[the `node-core-utils` guide][node-core-utils-credentials].
+[the `@node-core/utils` guide][node-core-utils-credentials].
 
 ### Technical HOWTO
 
@@ -959,7 +960,7 @@ need to be attached anymore, as only important bugfixes will be included.
 [TSC]: https://github.com/nodejs/TSC
 [`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
 [`--throw-deprecation`]: ../api/cli.md#--throw-deprecation
-[`node-core-utils`]: https://github.com/nodejs/node-core-utils
+[`@node-core/utils`]: https://github.com/nodejs/node-core-utils
 [backporting guide]: backporting-to-release-lines.md
 [commit message guidelines]: pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
