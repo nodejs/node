@@ -10,7 +10,7 @@ const buffer_dir = Buffer.from(string_dir);
 const encodings = ['ascii', 'utf8', 'utf16le', 'ucs2',
                    'base64', 'binary', 'hex'];
 const expected = {};
-for(const encoding of encodings) {
+for (const encoding of encodings) {
   expected[encoding] = buffer_dir.toString(encoding);
 }
 
