@@ -2721,18 +2721,17 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   const double mtime = args[2].As<Number>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // utimes(path, atime, mtime, req)
+  if (argc > 3) {  // utimes(path, atime, mtime, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_UTIME, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "utime", UTF8, AfterNoArgs,
               uv_fs_utime, *path, atime, mtime);
-  } else {  // utimes(path, atime, mtime, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // utimes(path, atime, mtime)
+    FSReqWrapSync req_wrap_sync("utime", *path);
     FS_SYNC_TRACE_BEGIN(utimes);
-    SyncCall(env, args[4], &req_wrap_sync, "utime",
-             uv_fs_utime, *path, atime, mtime);
+    SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_utime, *path, atime, mtime);
     FS_SYNC_TRACE_END(utimes);
   }
 }
@@ -2752,17 +2751,16 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   const double mtime = args[2].As<Number>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // futimes(fd, atime, mtime, req)
+  if (argc > 3) {  // futimes(fd, atime, mtime, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FUTIME, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "futime", UTF8, AfterNoArgs,
               uv_fs_futime, fd, atime, mtime);
-  } else {  // futimes(fd, atime, mtime, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // futimes(fd, atime, mtime)
+    FSReqWrapSync req_wrap_sync("futime");
     FS_SYNC_TRACE_BEGIN(futimes);
-    SyncCall(env, args[4], &req_wrap_sync, "futime",
-             uv_fs_futime, fd, atime, mtime);
+    SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_futime, fd, atime, mtime);
     FS_SYNC_TRACE_END(futimes);
   }
 }
@@ -2784,18 +2782,17 @@ static void LUTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   const double mtime = args[2].As<Number>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // lutimes(path, atime, mtime, req)
+  if (argc > 3) {  // lutimes(path, atime, mtime, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_LUTIME, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "lutime", UTF8, AfterNoArgs,
               uv_fs_lutime, *path, atime, mtime);
-  } else {  // lutimes(path, atime, mtime, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // lutimes(path, atime, mtime)
+    FSReqWrapSync req_wrap_sync("lutime", *path);
     FS_SYNC_TRACE_BEGIN(lutimes);
-    SyncCall(env, args[4], &req_wrap_sync, "lutime",
-             uv_fs_lutime, *path, atime, mtime);
+    SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_lutime, *path, atime, mtime);
     FS_SYNC_TRACE_END(lutimes);
   }
 }
