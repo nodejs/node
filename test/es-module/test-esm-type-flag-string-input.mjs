@@ -27,4 +27,18 @@ describe('the type flag should change the interpretation of string input', { con
 
     match((await child.stdout.toArray()).toString(), /^function\r?\n$/);
   });
+
+  it('should be overridden by --input-type', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+      '--experimental-type=module',
+      '--input-type=commonjs',
+      '--eval',
+      'console.log(require("process").version)',
+    ]);
+
+    strictEqual(stderr, '');
+    strictEqual(stdout, `${process.version}\n`);
+    strictEqual(code, 0);
+    strictEqual(signal, null);
+  });
 });

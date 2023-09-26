@@ -127,11 +127,6 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     }
   }
 
-  if (!input_type.empty() && !type.empty()) {
-    errors->push_back("--input-type and --experimental-type cannot be used "
-                      "together");
-  }
-
   if (syntax_check_only && has_eval_string) {
     errors->push_back("either --check or --eval can be used, not both");
   }

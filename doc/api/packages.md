@@ -94,7 +94,7 @@ one module system or the other based on the value of the
   as CommonJS when the `package.json` file lacks a `"type"` field, regardless
   of `--experimental-type`, for backward compatibility.)
 
-* Strings passed in as an argument to `--eval` or piped to `node` via `STDIN`.
+* Strings passed in as an argument to `--eval` or piped to `node` via `STDIN`, when `--input-type` is unspecified.
 
 This flag currently defaults to `"commonjs"`, but it may change in the future to
 default to `"module"`. For this reason it is best to be explicit wherever
