@@ -55,7 +55,7 @@ for (const test of failureTests) {
     () => new URL(test.input, test.base),
     (error) => {
       assert.throws(() => { throw error; }, expectedError);
-      assert.strictEqual(`${error}`, 'TypeError [ERR_INVALID_URL]: Invalid URL');
+      assert.strictEqual(`${error}`, 'TypeError: Invalid URL');
       assert.strictEqual(error.message, 'Invalid URL');
       return true;
     });
