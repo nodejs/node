@@ -33,7 +33,7 @@ describe('the type flag should change the interpretation of certain files within
              ]);
 
              strictEqual(stderr, '');
-             strictEqual(stdout, '');
+             strictEqual(stdout, 'executed\n');
              strictEqual(code, 0);
              strictEqual(signal, null);
            });

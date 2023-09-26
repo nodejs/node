@@ -11,3 +11,5 @@ export function jsInitFn () {
   strictEqual(state, 'JS Function Executed');
   state = 'WASM Start Executed';
 }
+
+console.log('executed');
