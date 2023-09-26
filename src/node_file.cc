@@ -2155,7 +2155,7 @@ static void OpenSync(const FunctionCallbackInfo<Value>& args) {
   uv_fs_t req;
   auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
   FS_SYNC_TRACE_BEGIN(open);
-  int err = uv_fs_open(nullptr, &req, *path, flags, mode, nullptr);
+  auto err = uv_fs_open(nullptr, &req, *path, flags, mode, nullptr);
   FS_SYNC_TRACE_END(open);
   if (err < 0) {
     return env->ThrowUVException(err, "open", nullptr, path.out());
@@ -2546,30 +2546,41 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_GE(args.Length(), 2);
 
-  BufferValue path(env->isolate(), args[0]);
-  CHECK_NOT_NULL(*path);
-
   CHECK(args[1]->IsInt32());
   const int flags = args[1].As<Int32>()->Value();
 
-  if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
-
+  uv_file file;
   uv_fs_t req;
-  auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
 
-  FS_SYNC_TRACE_BEGIN(open);
-  uv_file file = uv_fs_open(nullptr, &req, *path, flags, 438, nullptr);
-  FS_SYNC_TRACE_END(open);
-  if (req.result < 0) {
-    // req will be cleaned up by scope leave.
-    return env->ThrowUVException(req.result, "open", nullptr, path.out());
+  bool is_fd = args[0]->IsInt32();
+
+  // Check for file descriptor
+  if (is_fd) {
+    file = args[0].As<Int32>()->Value();
+  } else {
+    BufferValue path(env->isolate(), args[0]);
+    CHECK_NOT_NULL(*path);
+    if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
+
+    FS_SYNC_TRACE_BEGIN(open);
+    file = uv_fs_open(nullptr, &req, *path, flags, O_RDONLY, nullptr);
+    FS_SYNC_TRACE_END(open);
+    if (req.result < 0) {
+      uv_fs_req_cleanup(&req);
+      // req will be cleaned up by scope leave.
+      return env->ThrowUVException(req.result, "open", nullptr, path.out());
+    }
   }
 
-  auto defer_close = OnScopeLeave([file]() {
-    uv_fs_t close_req;
-    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
-    uv_fs_req_cleanup(&close_req);
+  auto defer_close = OnScopeLeave([file, is_fd, &req]() {
+    if (!is_fd) {
+      FS_SYNC_TRACE_BEGIN(close);
+      CHECK_EQ(0, uv_fs_close(nullptr, &req, file, nullptr));
+      FS_SYNC_TRACE_END(close);
+    }
+    uv_fs_req_cleanup(&req);
   });
+
   std::string result{};
   char buffer[8192];
   uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
@@ -2580,7 +2591,7 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     if (req.result < 0) {
       FS_SYNC_TRACE_END(read);
       // req will be cleaned up by scope leave.
-      return env->ThrowUVException(req.result, "read", nullptr, path.out());
+      return env->ThrowUVException(req.result, "read", nullptr);
     }
     if (r <= 0) {
       break;
