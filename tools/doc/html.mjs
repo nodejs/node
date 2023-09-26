@@ -467,7 +467,7 @@ export function buildToc({ filename, apilinks }) {
         .use(htmlStringify)
         .processSync(toc).toString();
 
-      file.toc = `<details id="toc" open><summary>Table of contents</summary>${inner}</details>`;
+      file.toc = `<details role="navigation" id="toc" open><summary>Table of contents</summary>${inner}</details>`;
       file.tocPicker = `<div class="toc">${inner}</div>`;
     } else {
       file.toc = file.tocPicker = '<!-- TOC -->';
