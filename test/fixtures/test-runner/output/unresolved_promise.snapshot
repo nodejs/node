@@ -18,7 +18,7 @@ not ok 2 - never resolving promise
 # Subtest: fail
 not ok 3 - fail
   ---
-  duration_ms: ZERO
+  duration_ms: *
   location: '/test/fixtures/test-runner/output/unresolved_promise.js:(LINE):1'
   failureType: 'cancelledByParent'
   error: 'Promise resolution is still pending but the event loop has already resolved'

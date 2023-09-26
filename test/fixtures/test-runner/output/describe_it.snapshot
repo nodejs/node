@@ -513,7 +513,7 @@ not ok 51 - subtest sync throw fails
     # Subtest: should not run
     not ok 1 - should not run
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
@@ -544,7 +544,7 @@ not ok 52 - describe sync throw fails
     # Subtest: should not run
     not ok 1 - should not run
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
