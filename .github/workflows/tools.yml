@@ -23,8 +23,8 @@ on:
           - corepack
           - doc
           - eslint
-          - googletest
           - github_reporter
+          - googletest
           - histogram
           - icu
           - libuv
