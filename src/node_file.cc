@@ -1543,6 +1543,24 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void FsyncSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 1);
+
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
+  uv_fs_t req;
+  FS_SYNC_TRACE_BEGIN(fsync);
+  int err = uv_fs_fsync(nullptr, &req, fd, nullptr);
+  FS_SYNC_TRACE_END(fsync);
+  if (err < 0) {
+    return env->ThrowUVException(err, "fsync", nullptr);
+  }
+}
+
 static void Unlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -3219,6 +3237,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "readBuffers", ReadBuffers);
   SetMethod(isolate, target, "fdatasync", Fdatasync);
   SetMethod(isolate, target, "fsync", Fsync);
+  SetMethod(isolate, target, "fsyncSync", FsyncSync);
   SetMethod(isolate, target, "rename", Rename);
   SetMethod(isolate, target, "ftruncate", FTruncate);
   SetMethod(isolate, target, "rmdir", RMDir);
@@ -3338,6 +3357,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ReadBuffers);
   registry->Register(Fdatasync);
   registry->Register(Fsync);
+  registry->Register(FsyncSync);
   registry->Register(Rename);
   registry->Register(FTruncate);
   registry->Register(RMDir);
