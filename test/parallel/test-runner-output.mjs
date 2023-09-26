@@ -10,7 +10,6 @@ const skipForceColors =
 
 function replaceTestDuration(str) {
   return str
-    .replaceAll(/duration_ms: 0(\r?\n)/g, 'duration_ms: ZERO$1')
     .replaceAll(/duration_ms: [0-9.]+/g, 'duration_ms: *')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *');
 }
@@ -20,7 +19,6 @@ const stackTraceBasePath = new RegExp(`${color}\\(${process.cwd()}/?${color}(.*)
 
 function replaceSpecDuration(str) {
   return str
-    .replaceAll(/\(0(\r?\n)ms\)/g, '(ZEROms)')
     .replaceAll(/[0-9.]+ms/g, '*ms')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
     .replace(stackTraceBasePath, '$3');
@@ -28,7 +26,6 @@ function replaceSpecDuration(str) {
 
 function replaceJunitDuration(str) {
   return str
-    .replaceAll(/time="0"/g, 'time="ZERO"')
     .replaceAll(/time="[0-9.]+"/g, 'time="*"')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
     .replaceAll(hostname(), 'HOSTNAME')
