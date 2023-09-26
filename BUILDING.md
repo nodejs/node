@@ -576,7 +576,7 @@ to run it again before invoking `make -j4`.
 
 * [Python 3.11](https://apps.microsoft.com/store/detail/python-311/9NRWMJP3717K)
 * The "Desktop development with C++" workload from
-  [Visual Studio 2022](https://visualstudio.microsoft.com/vs/) or
+  [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/) or
   the "C++ build tools" workload from the
   [Build Tools](https://aka.ms/vs/17/release/vs_buildtools.exe),
   with the default optional components
@@ -590,12 +590,12 @@ to run it again before invoking `make -j4`.
 
 Optional requirements to build the MSI installer package:
 
-* The .NET SDK component from [Visual Studio 2022](https://visualstudio.microsoft.com/vs/)
+* The .NET SDK component from [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/)
   * This component can be installed via the Visual Studio Installer Application
 
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
-* Visual Studio 17.4.0 or newer
+* Visual Studio 17.6.0 or newer
 * Visual Studio optional components
   * Visual C++ compilers and libraries for ARM64
   * Visual C++ ATL for ARM64
