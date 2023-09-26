@@ -1,17 +1,17 @@
 TAP version 13
 ok 1 - test
   ---
-  duration_ms: ZERO
+  duration_ms: *
   ...
 # arbitrary - pre
 ok 2 - test
   ---
-  duration_ms: ZERO
+  duration_ms: *
   ...
 # arbitrary - mid
 ok 3 - test
   ---
-  duration_ms: ZERO
+  duration_ms: *
   ...
 # arbitrary - post
 1..3

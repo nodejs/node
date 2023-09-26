@@ -37,7 +37,7 @@ ok 1 - describe hooks
     # Subtest: 1
     not ok 1 - 1
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/hooks.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
@@ -46,7 +46,7 @@ ok 1 - describe hooks
     # Subtest: 2
     not ok 2 - 2
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/hooks.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'

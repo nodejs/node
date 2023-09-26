@@ -11,7 +11,7 @@ TAP version 13
     # Subtest: test 1
     not ok 1 - test 1
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
@@ -20,7 +20,7 @@ TAP version 13
     # Subtest: test 2
     not ok 2 - test 2
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
