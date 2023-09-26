@@ -20,6 +20,8 @@ class Function;
 class FunctionTemplate;
 template <typename T>
 class PropertyCallbackInfo;
+class Module;
+class UnboundScript;
 
 /**
  * A private symbol
@@ -479,6 +481,21 @@ class V8_EXPORT Object : public Value {
 
   /** Sets the value in an internal field. */
   void SetInternalField(int index, Local<Value> value);
+
+  /**
+   * Warning: These are Node.js-specific extentions used to avoid breaking
+   * changes in Node.js v18.x. They do not exist in V8 upstream and will
+   * not exist in Node.js v21.x. Node.js embedders and addon authors should
+   * not use them from v18.x.
+   */
+#ifndef NODE_WANT_INTERNALS
+  V8_DEPRECATED("This extention should only be used by Node.js core")
+#endif
+  void SetInternalFieldForNodeCore(int index, Local<Module> value);
+#ifndef NODE_WANT_INTERNALS
+  V8_DEPRECATED("This extention should only be used by Node.js core")
+#endif
+  void SetInternalFieldForNodeCore(int index, Local<UnboundScript> value);
 
   /**
    * Gets a 2-byte-aligned native pointer from an internal field. This field

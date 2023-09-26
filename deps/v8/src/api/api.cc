@@ -5948,12 +5948,31 @@ Local<Value> v8::Object::SlowGetInternalField(int index) {
   return Utils::ToLocal(value);
 }
 
-void v8::Object::SetInternalField(int index, v8::Local<Value> value) {
-  i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
+template<typename T>
+void SetInternalFieldImpl(v8::Object* receiver, int index, v8::Local<T> value) {
+  i::Handle<i::JSReceiver> obj = Utils::OpenHandle(receiver);
   const char* location = "v8::Object::SetInternalField()";
   if (!InternalFieldOK(obj, index, location)) return;
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   i::Handle<i::JSObject>::cast(obj)->SetEmbedderField(index, *val);
+}
+
+void v8::Object::SetInternalField(int index, v8::Local<Value> value) {
+  SetInternalFieldImpl(this, index, value);
+}
+
+/**
+ * These are Node.js-specific extentions used to avoid breaking changes in
+ * Node.js v20.x.
+ */
+void v8::Object::SetInternalFieldForNodeCore(int index,
+                                             v8::Local<Module> value) {
+  SetInternalFieldImpl(this, index, value);
+}
+
+void v8::Object::SetInternalFieldForNodeCore(int index,
+                                             v8::Local<UnboundScript> value) {
+  SetInternalFieldImpl(this, index, value);
 }
 
 void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
