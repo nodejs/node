@@ -479,7 +479,7 @@ added:
   - v16.15.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -509,7 +509,7 @@ added:
   - v16.15.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -548,7 +548,7 @@ added:
   - v16.15.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -597,7 +597,7 @@ This variable may appear to be global but is not. See [`module`][].
 ## `Navigator`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -607,7 +607,7 @@ A partial implementation of the [Navigator API][].
 ## `navigator`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -617,7 +617,7 @@ A partial implementation of [`window.navigator`][].
 ### `navigator.hardwareConcurrency`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 * {number}
@@ -823,7 +823,7 @@ added:
   - v16.15.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -843,7 +843,7 @@ added:
   - v16.15.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -1021,7 +1021,7 @@ The object that acts as the namespace for all W3C
 ## `WebSocket`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 > Stability: 1 - Experimental.
