@@ -723,7 +723,7 @@ Define which module system, `module` or `commonjs`, to use for the following:
 
 In other words, `--experimental-type=module` flips all the places where Node.js
 currently defaults to CommonJS to instead default to ECMAScript modules, with
-the exception of packages inside `node_modules`.
+the exception of packages inside `node_modules`, for backward compatibility reasons.
 
 Under `--experimental-type=module` and `--experimental-wasm-modules`, files with
 no extension will be treated as WebAssembly if they begin with the WebAssembly
