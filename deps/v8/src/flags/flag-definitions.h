@@ -2543,7 +2543,6 @@ DEFINE_BOOL(log_all, false, "Log all events to the log file.")
 DEFINE_BOOL(log_internal_timer_events, false, "See --log-timer-events")
 DEFINE_BOOL(log_timer_events, false,
             "Log timer events (incl. console.time* and Date.now).")
-DEFINE_IMPLICATION(log_timer_events, log_timer_events)
 
 DEFINE_BOOL(log_source_code, false, "Log source code.")
 DEFINE_BOOL(log_source_position, false, "Log detailed source information.")
