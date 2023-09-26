@@ -319,7 +319,7 @@ fd.createReadStream({ start: 90, end: 99 });
 <!-- YAML
 added: v16.11.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50093
     description: The `flush` option is now supported.
 -->
@@ -376,7 +376,7 @@ added: v10.0.0
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/42835
     description: Accepts bigint values as `position`.
 -->
@@ -406,7 +406,7 @@ added:
  - v13.11.0
  - v12.17.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/42835
     description: Accepts bigint values as `position`.
 -->
@@ -440,7 +440,7 @@ added:
   - v18.2.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/42835
     description: Accepts bigint values as `position`.
 -->
@@ -1750,7 +1750,7 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version:
@@ -2546,7 +2546,7 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50093
     description: The `flush` option is now supported.
   - version: v16.10.0
@@ -4900,7 +4900,7 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version: v19.0.0
@@ -6196,7 +6196,7 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version: v19.0.0

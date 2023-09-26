@@ -458,7 +458,7 @@ register('./path-to-my-hooks.js', {
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: The property `context.importAssertions` is replaced with
                  `context.importAttributes`. Using the old name is still
