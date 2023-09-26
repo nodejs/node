@@ -21,7 +21,7 @@ function main({ n, type }) {
       fd = fs.openSync(tmpfile, 'r', 0o666);
       break;
     case 'non-existing':
-      fd = 0;
+      fd = 1 << 30;
       break;
     default:
       new Error('Invalid type');
@@ -36,7 +36,7 @@ function main({ n, type }) {
     }
   }
 
-  if (fd !== 0) fs.closeSync(fd);
-
   bench.end(n);
+
+  if (type === 'existing') fs.closeSync(fd);
 }

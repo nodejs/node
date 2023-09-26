@@ -94,10 +94,11 @@ declare namespace InternalFSBinding {
   function fstat(fd: number, useBigint: boolean, usePromises: typeof kUsePromises): Promise<Float64Array | BigUint64Array>;
   function fstat(fd: number, useBigint: true, usePromises: typeof kUsePromises): Promise<BigUint64Array>;
   function fstat(fd: number, useBigint: false, usePromises: typeof kUsePromises): Promise<Float64Array>;
+  function fsync(fd: number): void;
 
-  function fsync(fd: number, req: FSReqCallback): void;
-  function fsync(fd: number, req: undefined, ctx: FSSyncContext): void;
-  function fsync(fd: number, usePromises: typeof kUsePromises): Promise<void>;
+  function fsyncSync(fd: number, req: FSReqCallback): void;
+  function fsyncSync(fd: number, req: undefined, ctx: FSSyncContext): void;
+  function fsyncSync(fd: number, usePromises: typeof kUsePromises): Promise<void>;
 
   function ftruncate(fd: number, len: number, req: FSReqCallback): void;
   function ftruncate(fd: number, len: number, req: undefined, ctx: FSSyncContext): void;
@@ -243,6 +244,7 @@ export interface FsBinding {
   fdatasync: typeof InternalFSBinding.fdatasync;
   fstat: typeof InternalFSBinding.fstat;
   fsync: typeof InternalFSBinding.fsync;
+  fsyncSync: typeof InternalFSBinding.fsyncSync;
   ftruncate: typeof InternalFSBinding.ftruncate;
   futimes: typeof InternalFSBinding.futimes;
   internalModuleReadJSON: typeof InternalFSBinding.internalModuleReadJSON;

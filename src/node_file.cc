@@ -1550,14 +1550,16 @@ static void FsyncSync(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 1);
 
   CHECK(args[0]->IsInt32());
+
   const int fd = args[0].As<Int32>()->Value();
+  CHECK_GE(fd, 0);
 
   uv_fs_t req;
   FS_SYNC_TRACE_BEGIN(fsync);
   int err = uv_fs_fsync(nullptr, &req, fd, nullptr);
   FS_SYNC_TRACE_END(fsync);
   if (err < 0) {
-    return env->ThrowUVException(err, "fsync", nullptr);
+    return env->ThrowUVException(err, "fsync");
   }
 }
 
