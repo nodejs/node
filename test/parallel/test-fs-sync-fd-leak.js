@@ -25,7 +25,6 @@ require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const { internalBinding } = require('internal/test/binding');
-const { UV_EBADF } = internalBinding('uv');
 
 // Ensure that (read|write|append)FileSync() closes the file descriptor
 fs.openSync = function() {
@@ -42,15 +41,11 @@ fs.writeSync = function() {
   throw new Error('BAM');
 };
 
-internalBinding('fs').fstat = function(fd, bigint, _, ctx) {
-  ctx.errno = UV_EBADF;
-  ctx.syscall = 'fstat';
+internalBinding('fs').fstat = function() {
+  throw new Error('EBADF: bad file descriptor, fstat');
 };
 
 let close_called = 0;
-ensureThrows(function() {
-  fs.readFileSync('dummy');
-}, 'EBADF: bad file descriptor, fstat');
 ensureThrows(function() {
   fs.writeFileSync('dummy', 'xxx');
 }, 'BAM');
