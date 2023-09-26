@@ -445,16 +445,15 @@ void Blob::Reader::PullAll(const FunctionCallbackInfo<Value>& args) {
   };
 
   while (impl->status > 0) {
-    impl->reader->inner_->Pull(
-        next, node::bob::OPTIONS_END, nullptr, 0);
+    impl->reader->inner_->Pull(next, node::bob::OPTIONS_END, nullptr, 0);
   };
 
-  std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
-      env->isolate(), impl->total);
+  std::shared_ptr<BackingStore> store =
+      ArrayBuffer::NewBackingStore(env->isolate(), impl->total);
   auto ptr = static_cast<uint8_t*>(store->Data());
   for (size_t n = 0; n < impl->views.size(); n++) {
-    uint8_t* from =
-        static_cast<uint8_t*>(impl->views[n].store->Data()) + impl->views[n].offset;
+    uint8_t* from = static_cast<uint8_t*>(impl->views[n].store->Data()) +
+                    impl->views[n].offset;
     std::copy(from, from + impl->views[n].length, ptr);
     ptr += impl->views[n].length;
   }
