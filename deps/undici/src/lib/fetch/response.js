@@ -49,7 +49,7 @@ class Response {
   }
 
   // https://fetch.spec.whatwg.org/#dom-response-json
-  static json (data = undefined, init = {}) {
+  static json (data, init = {}) {
     webidl.argumentLengthCheck(arguments, 1, { header: 'Response.json' })
 
     if (init !== null) {
@@ -426,15 +426,15 @@ function filterResponse (response, type) {
 }
 
 // https://fetch.spec.whatwg.org/#appropriate-network-error
-function makeAppropriateNetworkError (fetchParams) {
+function makeAppropriateNetworkError (fetchParams, err = null) {
   // 1. Assert: fetchParams is canceled.
   assert(isCancelled(fetchParams))
 
   // 2. Return an aborted network error if fetchParams is aborted;
   // otherwise return a network error.
   return isAborted(fetchParams)
-    ? makeNetworkError(new DOMException('The operation was aborted.', 'AbortError'))
-    : makeNetworkError('Request was cancelled.')
+    ? makeNetworkError(Object.assign(new DOMException('The operation was aborted.', 'AbortError'), { cause: err }))
+    : makeNetworkError(Object.assign(new DOMException('Request was cancelled.'), { cause: err }))
 }
 
 // https://whatpr.org/fetch/1392.html#initialize-a-response

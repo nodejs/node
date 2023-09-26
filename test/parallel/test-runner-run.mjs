@@ -148,6 +148,18 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
   });
 
+  it('should pass only to children', async () => {
+    const result = await run({
+      files: [join(testFixtures, 'test_only.js')],
+      only: true
+    })
+      .compose(tap)
+      .toArray();
+
+    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP \'only\' option not set\n');
+    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+  });
+
   it('should emit "test:watch:drained" event on watch mode', async () => {
     const controller = new AbortController();
     await run({

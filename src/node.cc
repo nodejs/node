@@ -916,9 +916,14 @@ static ExitCode InitializeNodeWithArgsInternal(
 
     // Initialize ICU.
     // If icu_data_dir is empty here, it will load the 'minimal' data.
-    if (!i18n::InitializeICUDirectory(per_process::cli_options->icu_data_dir)) {
-      errors->push_back("could not initialize ICU "
-                        "(check NODE_ICU_DATA or --icu-data-dir parameters)\n");
+    std::string icu_error;
+    if (!i18n::InitializeICUDirectory(per_process::cli_options->icu_data_dir,
+                                      &icu_error)) {
+      errors->push_back(icu_error +
+                        ": Could not initialize ICU. "
+                        "Check the directory specified by NODE_ICU_DATA or "
+                        "--icu-data-dir contains " U_ICUDATA_NAME ".dat and "
+                        "it's readable\n");
       return ExitCode::kInvalidCommandLineArgument;
     }
     per_process::metadata.versions.InitializeIntlVersions();

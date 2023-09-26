@@ -40,10 +40,26 @@ For the following labels, the `N` in `vN.x` refers to the major release number.
 
 ## How to submit a backport pull request
 
-For the following steps, let's assume that a backport is needed for the v10.x
-release line. All commands will use the `v10.x-staging` branch as the target
-branch. In order to submit a backport pull request to another branch, simply
-replace that with the staging branch for the targeted release line.
+For the following steps, let's assume that you need to backport PR `123`
+to the v20.x release line. All commands will use the `v20.x-staging` branch
+as the target branch. In order to submit a backport pull request to another
+branch, simply replace that with the staging branch for the targeted release
+line.
+
+### Automated
+
+1. Make sure you have [`@node-core/utils`][] installed
+
+2. Run the [`git node backport`][] command
+
+```bash
+# Backport PR 123 to v20.x-staging
+git node backport 123 --to=20
+```
+
+3. Jump to step 5 in the Manual section below
+
+### Manually
 
 1. Checkout the staging branch for the targeted release line.
 
@@ -56,10 +72,10 @@ replace that with the staging branch for the targeted release line.
    # the origin remote points to your fork, and the upstream remote points
    # to git@github.com:nodejs/node.git
    cd $NODE_DIR
-   # If v10.x-staging is checked out `pull` should be used instead of `fetch`
-   git fetch upstream v10.x-staging:v10.x-staging -f
+   # If v20.x-staging is checked out `pull` should be used instead of `fetch`
+   git fetch upstream v20.x-staging:v20.x-staging -f
    # Assume we want to backport PR #10157
-   git checkout -b backport-10157-to-v10.x v10.x-staging
+   git checkout -b backport-10157-to-v20.x v20.x-staging
    # Ensure there are no test artifacts from previous builds
    # Note that this command deletes all files and directories
    # not under revision control below the ./test directory.
@@ -93,10 +109,10 @@ replace that with the staging branch for the targeted release line.
 8. Push the changes to your fork.
 
 9. Open a pull request:
-   1. Be sure to target the `v10.x-staging` branch in the pull request.
+   1. Be sure to target the `v20.x-staging` branch in the pull request.
    2. Include the backport target in the pull request title in the following
-      format: `[v10.x backport] <commit title>`.
-      Example: `[v10.x backport] process: improve performance of nextTick`
+      format: `[v20.x backport] <commit title>`.
+      Example: `[v20.x backport] process: improve performance of nextTick`
    3. Check the checkbox labeled "Allow edits and access to secrets by
       maintainers".
    4. In the description add a reference to the original pull request.
@@ -105,15 +121,17 @@ replace that with the staging branch for the targeted release line.
    6. Run a [`node-test-pull-request`][] CI job (with `REBASE_ONTO` set to the
       default `<pr base branch>`)
 
-10. Replace the `backport-requested-v10.x` label on the original pull request
-    with `backport-open-v10.x`.
+10. Replace the `backport-requested-v20.x` label on the original pull request
+    with `backport-open-v20.x`.
 
 11. If during the review process conflicts arise, use the following to rebase:
-    `git pull --rebase upstream v10.x-staging`
+    `git pull --rebase upstream v20.x-staging`
 
-After the pull request lands, replace the `backport-open-v10.x` label on the
-original pull request with `backported-to-v10.x`.
+After the pull request lands, replace the `backport-open-v20.x` label on the
+original pull request with `backported-to-v20.x`.
 
 [Release Plan]: https://github.com/nodejs/Release#release-plan
 [Release Schedule]: https://github.com/nodejs/Release#release-schedule
+[`@node-core/utils`]: https://github.com/nodejs/node-core-utils
+[`git node backport`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-backport
 [`node-test-pull-request`]: https://ci.nodejs.org/job/node-test-pull-request/build

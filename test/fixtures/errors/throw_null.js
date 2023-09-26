@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+require('../../common');
 
 // eslint-disable-next-line no-throw-literal
 throw null;

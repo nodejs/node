@@ -23,6 +23,7 @@ on:
           - corepack
           - doc
           - eslint
+          - github_reporter
           - googletest
           - histogram
           - icu

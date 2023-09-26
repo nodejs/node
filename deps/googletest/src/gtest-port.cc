@@ -158,13 +158,13 @@ size_t GetThreadCount() {
 // we cannot detect it.
 size_t GetThreadCount() {
   int mib[] = {
-    CTL_KERN,
-    KERN_PROC,
-    KERN_PROC_PID,
-    getpid(),
+      CTL_KERN,
+      KERN_PROC,
+      KERN_PROC_PID,
+      getpid(),
 #ifdef GTEST_OS_NETBSD
-    sizeof(struct kinfo_proc),
-    1,
+      sizeof(struct kinfo_proc),
+      1,
 #endif
   };
   u_int miblen = sizeof(mib) / sizeof(mib[0]);
@@ -1028,6 +1028,16 @@ GTEST_DISABLE_MSC_DEPRECATED_PUSH_()
 
 #if GTEST_HAS_STREAM_REDIRECTION
 
+namespace {
+
+#if defined(GTEST_OS_LINUX_ANDROID) || defined(GTEST_OS_IOS)
+bool EndsWithPathSeparator(const std::string& path) {
+  return !path.empty() && path.back() == GTEST_PATH_SEP_[0];
+}
+#endif
+
+}  // namespace
+
 // Object that captures an output stream (stdout/stderr).
 class CapturedStream {
  public:
@@ -1064,7 +1074,13 @@ class CapturedStream {
     // The location /data/local/tmp is directly accessible from native code.
     // '/sdcard' and other variants cannot be relied on, as they are not
     // guaranteed to be mounted, or may have a delay in mounting.
-    name_template = "/data/local/tmp/";
+    //
+    // However, prefer using the TMPDIR environment variable if set, as newer
+    // devices may have /data/local/tmp read-only.
+    name_template = TempDir();
+    if (!EndsWithPathSeparator(name_template))
+      name_template.push_back(GTEST_PATH_SEP_[0]);
+
 #elif defined(GTEST_OS_IOS)
     char user_temp_dir[PATH_MAX + 1];
 
@@ -1084,7 +1100,7 @@ class CapturedStream {
     ::confstr(_CS_DARWIN_USER_TEMP_DIR, user_temp_dir, sizeof(user_temp_dir));
 
     name_template = user_temp_dir;
-    if (name_template.back() != GTEST_PATH_SEP_[0])
+    if (!EndsWithPathSeparator(name_template))
       name_template.push_back(GTEST_PATH_SEP_[0]);
 #else
     name_template = "/tmp/";
