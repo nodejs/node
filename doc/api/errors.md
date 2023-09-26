@@ -1791,7 +1791,7 @@ An import attribute is not supported by this version of Node.js.
 ### `ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 An import attribute is not supported by this version of Node.js.
@@ -3293,9 +3293,9 @@ An invalid or unknown file encoding was passed.
 ### `ERR_INVALID_TRANSFER_OBJECT`
 
 <!-- YAML
-removed: REPLACEME
+removed: v21.0.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47839
     description: A `DOMException` is thrown instead.
 -->
@@ -3320,9 +3320,9 @@ transferable objects also exist now.
 
 <!-- YAML
 added: v15.0.0
-removed: REPLACEME
+removed: v21.0.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47839
     description: A `DOMException` is thrown instead.
 -->

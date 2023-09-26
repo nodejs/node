@@ -594,7 +594,7 @@ and `"` are usable.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v21.0.0
 -->
 
 > Stability: 1.0 - Early development
@@ -774,7 +774,7 @@ Enable experimental WebAssembly module support.
 ### `--experimental-websocket`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 Enable experimental [`WebSocket`][] support.
@@ -1657,7 +1657,7 @@ for more details.
 ### `--test-concurrency`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 The maximum number of test files that the test runner CLI will execute
