@@ -57,6 +57,7 @@
   V(args_string, "args")                                                       \
   V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
+  V(base_string, "base")                                                       \
   V(bits_string, "bits")                                                       \
   V(block_list_string, "blockList")                                            \
   V(buffer_string, "buffer")                                                   \

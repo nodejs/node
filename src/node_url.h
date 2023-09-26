@@ -76,6 +76,9 @@ class BindingData : public SnapshotableObject {
                         const ada::scheme::type type);
 
   static v8::CFunction fast_can_parse_methods_[];
+  static void ThrowInvalidURL(Environment* env,
+                              std::string_view input,
+                              std::optional<std::string> base);
 };
 
 std::string FromFilePath(const std::string_view file_path);
