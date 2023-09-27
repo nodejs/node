@@ -116,6 +116,24 @@ inline int64_t GetOffset(Local<Value> value) {
   return IsSafeJsInt(value) ? value.As<Integer>()->Value() : -1;
 }
 
+inline int GetValidatedFd(Environment* env, Local<Value> value) {
+  if (!value->IsInt32()) {
+    env->isolate()->ThrowException(ERR_INVALID_ARG_TYPE(
+        env->isolate(), "Invalid argument. The fd must be int32."));
+    return 1 << 30;
+  }
+
+  const int fd = value.As<Int32>()->Value();
+
+  if (fd < 0 || fd > INT32_MAX) {
+    env->isolate()->ThrowException(ERR_OUT_OF_RANGE(
+        env->isolate(), "It must be >= 0 && <= INT32_MAX. Received %d", fd));
+    return 1 << 30;
+  }
+
+  return fd;
+}
+
 static const char* get_fs_func_name_by_type(uv_fs_type req_type) {
   switch (req_type) {
 #define FS_TYPE_TO_NAME(type, name)                                            \
