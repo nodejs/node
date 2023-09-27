@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../common.h"
+#include "../entry_point.h"
 
 typedef struct {
   int32_t finalize_count;
@@ -18,8 +19,9 @@ static void finalizerOnlyCallback(napi_env env,
 
   // It is safe to access instance data
   NODE_API_CALL_RETURN_VOID(env, napi_get_instance_data(env, (void**)&data));
-  NODE_API_ASSERT_RETURN_VOID(
-      env, count = data->finalize_count, "Expected to the same FinalizerData");
+  NODE_API_ASSERT_RETURN_VOID(env,
+                              count = data->finalize_count,
+                              "Expected to be the same FinalizerData");
 }
 
 static void finalizerCallingJSCallback(napi_env env,

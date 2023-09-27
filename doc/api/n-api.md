@@ -5456,13 +5456,13 @@ Returns `napi_ok` if the API succeeded.
 Schedules `napi_finalize` callback to be called asynchronously in the
 event loop.
 
-This API must be called inside of a finalizer if it must call any code
-that may affect the state of GC (garbage collector).
+Normally, finalizers are called while the GC (garbage collector) collects
+objects. At that point calling any Node-API that may cause changes in the GC
+state will be disabled and will crash Node.js.
 
-The finalizers are called while GC collects objects. At that point of time
-calling any API that may cause changes in GC state will cause unpredictable
-behavior and crashes. The `node_api_post_finalizer` helps to work around
-this limitation by running code outside of the GC finalization.
+`node_api_post_finalizer` helps to work around this limitation by allowing the
+add-on to defer calls to such Node-APIs to a point in time outside of the GC
+finalization.
 
 ## Simple asynchronous operations
 

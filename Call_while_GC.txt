@@ -1,0 +1,18 @@
+safe functions:
+napi_get_last_error_info
+napi_get_cb_info
+napi_get_new_target
+napi_get_version
+node_api_post_finalizer
+napi_adjust_external_memory
+napi_set_instance_data
+napi_get_instance_data
+napi_add_env_cleanup_hook
+napi_remove_env_cleanup_hook
+napi_add_async_cleanup_hook
+napi_remove_async_cleanup_hook
+napi_fatal_error
+napi_open_callback_scope
+napi_close_callback_scope
+napi_get_node_version
+node_api_get_module_file_name

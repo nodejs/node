@@ -661,13 +661,11 @@ void TrackedFinalizer::FinalizeCore(bool deleteMe) {
   // Either the RefBase is going to be deleted in the finalize_callback or not,
   // it should be removed from the tracked list.
   Unlink();
-  // 1. If the finalize_callback is present, it should either delete the
-  //    derived RefBase, or set ownership with Ownership::kRuntime.
-  // 2. If the finalizer is not present, the derived RefBase can be deleted
-  //    after the call.
+  // If the finalize_callback is present, it should either delete the
+  // derived RefBase, or the RefBase ownership was set to Ownership::kRuntime
+  // and the deleteMe parameter is true.
   if (finalize_callback != nullptr) {
     env_->CallFinalizer(finalize_callback, finalize_data, finalize_hint);
-    // No access to `this` after finalize_callback is called.
   }
 
   if (deleteMe) {
@@ -2026,6 +2024,7 @@ napi_status NAPI_CDECL napi_get_new_target(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, cbinfo);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   v8impl::CallbackWrapper* info =
       reinterpret_cast<v8impl::CallbackWrapper*>(cbinfo);
