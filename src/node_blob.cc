@@ -433,7 +433,7 @@ void Blob::Reader::PullAll(const FunctionCallbackInfo<Value>& args) {
         ptr += vecs[n].len;
       }
       std::move(doneCb)(0);
-      impl_ptr->views.push_back(View{store, total});
+      impl_ptr->views.emplace_back(View{store, total});
       impl_ptr->total_size += total;
     }
 
@@ -442,10 +442,11 @@ void Blob::Reader::PullAll(const FunctionCallbackInfo<Value>& args) {
     } else {
       std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(env->isolate(), impl_ptr->total_size);
       auto ptr = static_cast<uint8_t*>(store->Data());
-      for (size_t n = 0; n < impl_ptr->views.size(); n++) {
-        uint8_t* from = static_cast<uint8_t*>(impl_ptr->views[n].store->Data()) + impl_ptr->views[n].offset;
-        std::copy(from, from + impl_ptr->views[n].length, ptr);
-        ptr += impl_ptr->views[n].length;
+      auto views = impl_ptr->views;
+      for (const auto& view : views) {
+        uint8_t* from = static_cast<uint8_t*>(view.store->Data()) + view.offset;
+        std::copy(from, from + view.length, ptr);
+        ptr += view.length;
       }
       Local<Value> argv[2] = {Int32::New(env->isolate(), status), ArrayBuffer::New(env->isolate(), store)};
       impl_ptr->reader->MakeCallback(fn, arraysize(argv), argv);
