@@ -1111,9 +1111,8 @@ bool FastExistsSync(v8::Local<v8::Object> recv,
   memcpy(path.out(), string.data, string.length);
   path.SetLengthAndZeroTerminate(string.length);
 
-  if (UNLIKELY(!env->permission()
-                   ->is_granted(permission::PermissionScope::kFileSystemRead,
-                                path.ToStringView()))) {
+  if (UNLIKELY(!env->permission()->is_granted(
+          permission::PermissionScope::kFileSystemRead, path.ToStringView()))) {
     options.fallback = true;
     return false;
   }
@@ -3409,8 +3408,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethodNoSideEffect(isolate, target, "accessSync", AccessSync);
   SetMethod(isolate, target, "close", Close);
   SetMethod(isolate, target, "closeSync", CloseSync);
-  SetFastMethodNoSideEffect(isolate, target, "existsSync",
-                            ExistsSync, &fast_exists_sync_);
+  SetFastMethodNoSideEffect(
+      isolate, target, "existsSync", ExistsSync, &fast_exists_sync_);
   SetMethod(isolate, target, "open", Open);
   SetMethod(isolate, target, "openSync", OpenSync);
   SetMethod(isolate, target, "openFileHandle", OpenFileHandle);

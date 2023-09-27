@@ -28,7 +28,8 @@ using CFunctionCallbackWithStrings =
 using CFunctionWithUint32 = uint32_t (*)(v8::Local<v8::Value>,
                                          const uint32_t input);
 using CFunctionCallbackWithStringOptions =
-    bool (*)(v8::Local<v8::Object>, const v8::FastOneByteString& input,
+    bool (*)(v8::Local<v8::Object>,
+             const v8::FastOneByteString& input,
              // NOLINTNEXTLINE(runtime/references) This is V8 api.
              v8::FastApiCallbackOptions& options);
 
