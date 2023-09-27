@@ -60,5 +60,6 @@ assert(!fs.existsSync(new URL('https://foo')));
   const oneBytePath = 'hello.txt';
   for (let i = 0; i < 1e5; i++) {
     assert(!fs.existsSync(oneBytePath));
+    assert(fs.existsSync(__filename));
   }
 }
