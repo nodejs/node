@@ -29,7 +29,7 @@ This a list of all the dependencies:
 * [postject 1.0.0-alpha.6][]
 * [simdutf 3.2.17][]
 * [undici 5.25.2][]
-* [uvwasi 0.0.16][]
+* [uvwasi 0.0.19][]
 * [V8 11.3.244.8][]
 * [zlib 1.2.13.1-motley-f5fd0ad][]
 
@@ -297,7 +297,7 @@ The [undici](https://github.com/nodejs/undici) dependency is an HTTP/1.1 client,
 written from scratch for Node.js..
 See [maintaining-http][] for more informations.
 
-### uvwasi 0.0.16
+### uvwasi 0.0.19
 
 The [uvwasi](https://github.com/nodejs/uvwasi) dependency implements
 the WASI system call API, so that WebAssembly runtimes can easily
@@ -347,6 +347,6 @@ performance improvements not currently available in standard zlib.
 [simdutf 3.2.17]: #simdutf-3217
 [undici 5.25.2]: #undici-5252
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
-[uvwasi 0.0.16]: #uvwasi-0016
+[uvwasi 0.0.19]: #uvwasi-0019
 [v8 11.3.244.8]: #v8-1132448
 [zlib 1.2.13.1-motley-f5fd0ad]: #zlib-12131-motley-f5fd0ad
