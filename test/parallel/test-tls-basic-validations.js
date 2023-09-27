@@ -136,11 +136,11 @@ assert.throws(() => { tls.createSecureContext({ maxVersion: 'fhqwhgads' }); },
                 name: 'TypeError'
               });
 
-[undefined, null, 1, true].forEach((value) => {
+for (const checkServerIdentity of [undefined, null, 1, true]) {
   assert.throws(() => {
-    tls.connect({ checkServerIdentity: value });
+    tls.connect({ checkServerIdentity });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
   });
-});
+}
