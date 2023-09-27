@@ -5,6 +5,7 @@
       'src/fd_table.c',
       'src/path_resolver.c',
       'src/poll_oneoff.c',
+      'src/sync_helpers.c',
       'src/uv_mapping.c',
       'src/uvwasi.c',
       'src/wasi_rights.c',
