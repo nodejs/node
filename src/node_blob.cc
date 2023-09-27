@@ -405,68 +405,64 @@ void Blob::Reader::PullAll(const FunctionCallbackInfo<Value>& args) {
     BaseObjectPtr<Blob::Reader> reader;
     Global<Function> callback;
     Environment* env;
-    size_t total = 0;
+    std::function<void()> enqueue_cb;
     std::vector<View> views;
-    int status = 1;
+    size_t total_size = 0;
   };
 
-  Impl* impl = new Impl();
-  impl->reader = BaseObjectPtr<Blob::Reader>(reader);
-  impl->callback.Reset(env->isolate(), fn);
-  impl->env = env;
+  std::shared_ptr<Impl> impl_ptr = std::make_shared<Impl>();
+  impl_ptr->reader = BaseObjectPtr<Blob::Reader>(reader);
+  impl_ptr->callback.Reset(env->isolate(), fn);
+  impl_ptr->env = env;
 
-  auto next = [impl](int status,
-                     const DataQueue::Vec* vecs,
-                     size_t count,
-                     bob::Done doneCb) mutable {
-    Environment* env = impl->env;
-    if (status == bob::STATUS_EOS) impl->reader->eos_ = true;
+  auto next = [impl_ptr](int status, const DataQueue::Vec* vecs, size_t count, bob::Done doneCb) mutable {
+    Environment* env = impl_ptr->env;
+    HandleScope handleScope(env->isolate());
+    Local<Function> fn = impl_ptr->callback.Get(env->isolate());
+
+    if (status == bob::STATUS_EOS) impl_ptr->reader->eos_ = true;
 
     if (count > 0) {
-      // Copy the returns vectors into a single ArrayBuffer.
       size_t total = 0;
       for (size_t n = 0; n < count; n++) total += vecs[n].len;
 
-      std::shared_ptr<BackingStore> store =
-          v8::ArrayBuffer::NewBackingStore(env->isolate(), total);
+      std::shared_ptr<BackingStore> store = v8::ArrayBuffer::NewBackingStore(env->isolate(), total);
       auto ptr = static_cast<uint8_t*>(store->Data());
       for (size_t n = 0; n < count; n++) {
         std::copy(vecs[n].base, vecs[n].base + vecs[n].len, ptr);
         ptr += vecs[n].len;
       }
-      // Since we copied the data buffers, signal that we're done with them.
       std::move(doneCb)(0);
-      impl->views.push_back(View{store, total});
-      impl->total += total;
+      impl_ptr->views.push_back(View{store, total});
+      impl_ptr->total_size += total;
     }
 
-    impl->status = status;
-    return;
+    if (status > 0) {
+      impl_ptr->enqueue_cb();
+    } else {
+      std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(env->isolate(), impl_ptr->total_size);
+      auto ptr = static_cast<uint8_t*>(store->Data());
+      for (size_t n = 0; n < impl_ptr->views.size(); n++) {
+        uint8_t* from = static_cast<uint8_t*>(impl_ptr->views[n].store->Data()) + impl_ptr->views[n].offset;
+        std::copy(from, from + impl_ptr->views[n].length, ptr);
+        ptr += impl_ptr->views[n].length;
+      }
+      Local<Value> argv[2] = {Int32::New(env->isolate(), status), ArrayBuffer::New(env->isolate(), store)};
+      impl_ptr->reader->MakeCallback(fn, arraysize(argv), argv);
+      impl_ptr->reader.reset();
+    }
   };
 
-  while (impl->status > 0) {
-    impl->reader->inner_->Pull(next, node::bob::OPTIONS_END, nullptr, 0);
+  impl_ptr->enqueue_cb = [next, impl_ptr]() {
+    if (impl_ptr->reader && impl_ptr->reader->inner_) {
+      impl_ptr->reader->inner_->Pull(next, node::bob::OPTIONS_END, nullptr, 0);
+    }
   };
 
-  std::shared_ptr<BackingStore> store =
-      ArrayBuffer::NewBackingStore(env->isolate(), impl->total);
-  auto ptr = static_cast<uint8_t*>(store->Data());
-  for (size_t n = 0; n < impl->views.size(); n++) {
-    uint8_t* from = static_cast<uint8_t*>(impl->views[n].store->Data()) +
-                    impl->views[n].offset;
-    std::copy(from, from + impl->views[n].length, ptr);
-    ptr += impl->views[n].length;
-  }
-
-  Local<Value> argv[2] = {
-      Int32::New(env->isolate(), impl->status),
-      ArrayBuffer::New(env->isolate(), store),
-  };
-
-  impl->reader->MakeCallback(fn, arraysize(argv), argv);
-  auto dropMe = std::unique_ptr<Impl>(impl);
-  args.GetReturnValue().Set(impl->status);
+  impl_ptr->enqueue_cb();
 }
+
+
 
 BaseObjectPtr<BaseObject>
 Blob::BlobTransferData::Deserialize(
