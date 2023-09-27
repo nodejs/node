@@ -31,30 +31,51 @@ describe('ESM: importing JSON', () => {
       await mkdir(root, { recursive: true });
 
       await t.test('json', async () => {
+        let i = 0;
         const url = new URL('./foo.json', root);
-        await writeFile(url, JSON.stringify({ firstJson: true }));
-        const firstJson = await import(`${url}?a=1`, {
+        await writeFile(url, JSON.stringify({ id: i++ }));
+        const absoluteURL = await import(`${url}`, {
           assert: { type: 'json' },
           });
-        await writeFile(url, JSON.stringify({ firstJson: false }));
-        const secondJson = await import(`${url}?a=2`, {
+        await writeFile(url, JSON.stringify({ id: i++ }));
+        const queryString = await import(`${url}?a=2`, {
+          assert: { type: 'json' },
+          });
+        await writeFile(url, JSON.stringify({ id: i++ }));
+        const hash = await import(`${url}#a=2`, {
+          assert: { type: 'json' },
+          });
+        await writeFile(url, JSON.stringify({ id: i++ }));
+        const queryStringAndHash = await import(`${url}?a=2#a=2`, {
           assert: { type: 'json' },
           });
 
-        assert.notDeepStrictEqual(firstJson, secondJson);
+        assert.notDeepStrictEqual(absoluteURL, queryString);
+        assert.notDeepStrictEqual(absoluteURL, hash);
+        assert.notDeepStrictEqual(queryString, hash);
+        assert.notDeepStrictEqual(absoluteURL, queryStringAndHash);
+        assert.notDeepStrictEqual(queryString, queryStringAndHash);
+        assert.notDeepStrictEqual(hash, queryStringAndHash);
       });
 
       await t.test('js', async () => {
+        let i = 0;
         const url = new URL('./foo.mjs', root);
-        await writeFile(url, `
-      export const firstJS = true
-      `);
-        const firstJS = await import(`${url}?a=1`);
-        await writeFile(url, `
-      export const firstJS = false
-      `);
-        const secondJS = await import(`${url}?a=2`);
-        assert.notDeepStrictEqual(firstJS, secondJS);
+        await writeFile(url, `export default ${JSON.stringify({ id: i++ })}\n`);
+        const absoluteURL = await import(`${url}`);
+        await writeFile(url, `export default ${JSON.stringify({ id: i++ })}\n`);
+        const queryString = await import(`${url}?a=1`);
+        await writeFile(url, `export default ${JSON.stringify({ id: i++ })}\n`);
+        const hash = await import(`${url}#a=1`);
+        await writeFile(url, `export default ${JSON.stringify({ id: i++ })}\n`);
+        const queryStringAndHash = await import(`${url}?a=1#a=1`);
+
+        assert.notDeepStrictEqual(absoluteURL, queryString);
+        assert.notDeepStrictEqual(absoluteURL, hash);
+        assert.notDeepStrictEqual(queryString, hash);
+        assert.notDeepStrictEqual(absoluteURL, queryStringAndHash);
+        assert.notDeepStrictEqual(queryString, queryStringAndHash);
+        assert.notDeepStrictEqual(hash, queryStringAndHash);
       });
     } finally {
       await rm(root, { force: true, recursive: true });
