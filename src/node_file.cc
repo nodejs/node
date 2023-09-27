@@ -3441,7 +3441,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "lutimes", LUTimes);
 
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
-  SetMethodNoSideEffect(isolate, target, "mkdtempSync", MkdtempSync);
+  SetMethod(isolate, target, "mkdtempSync", MkdtempSync);
 
   StatWatcher::CreatePerIsolateProperties(isolate_data, target);
   BindingData::CreatePerIsolateProperties(isolate_data, target);
