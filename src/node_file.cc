@@ -31,6 +31,7 @@
 #include "node_stat_watcher.h"
 #include "permission/permission.h"
 #include "util-inl.h"
+#include "v8-fast-api-calls.h"
 
 #include "tracing/trace_event.h"
 
@@ -57,8 +58,11 @@ namespace fs {
 
 using v8::Array;
 using v8::BigInt;
+using v8::CFunction;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::FastApiCallbackOptions;
+using v8::FastOneByteString;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -1094,6 +1098,47 @@ static void ExistsSync(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(err == 0);
 }
+
+bool FastExistsSync(v8::Local<v8::Object> recv,
+                    const FastOneByteString& string,
+                    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+                    FastApiCallbackOptions& options) {
+  Environment* env = Environment::GetCurrent(recv->GetCreationContextChecked());
+
+  MaybeStackBuffer<char> path;
+
+  path.AllocateSufficientStorage(string.length + 1);
+  memcpy(path.out(), string.data, string.length);
+  path.SetLengthAndZeroTerminate(string.length);
+
+  if (UNLIKELY(!env->permission()
+                   ->is_granted(permission::PermissionScope::kFileSystemRead,
+                                path.ToStringView()))) {
+    options.fallback = true;
+    return false;
+  }
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(access);
+  int err = uv_fs_access(nullptr, &req, path.out(), 0, nullptr);
+  FS_SYNC_TRACE_END(access);
+
+#ifdef _WIN32
+  // In case of an invalid symlink, `uv_fs_access` on win32
+  // will **not** return an error and is therefore not enough.
+  // Double check with `uv_fs_stat()`.
+  if (err == 0) {
+    FS_SYNC_TRACE_BEGIN(stat);
+    err = uv_fs_stat(nullptr, &req, path.out(), nullptr);
+    FS_SYNC_TRACE_END(stat);
+  }
+#endif  // _WIN32
+
+  return err == 0;
+}
+
+CFunction fast_exists_sync_(CFunction::Make(FastExistsSync));
 
 // Used to speed up module loading. Returns an array [string, boolean]
 static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
@@ -3364,7 +3409,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethodNoSideEffect(isolate, target, "accessSync", AccessSync);
   SetMethod(isolate, target, "close", Close);
   SetMethod(isolate, target, "closeSync", CloseSync);
-  SetMethodNoSideEffect(isolate, target, "existsSync", ExistsSync);
+  SetFastMethodNoSideEffect(isolate, target, "existsSync",
+                            ExistsSync, &fast_exists_sync_);
   SetMethod(isolate, target, "open", Open);
   SetMethod(isolate, target, "openSync", OpenSync);
   SetMethod(isolate, target, "openFileHandle", OpenFileHandle);
@@ -3490,6 +3536,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Close);
   registry->Register(CloseSync);
   registry->Register(ExistsSync);
+  registry->Register(FastExistsSync);
+  registry->Register(fast_exists_sync_.GetTypeInfo());
   registry->Register(Open);
   registry->Register(OpenSync);
   registry->Register(OpenFileHandle);
