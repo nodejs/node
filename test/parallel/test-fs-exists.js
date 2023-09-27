@@ -54,3 +54,11 @@ assert(!fs.existsSync(`${f}-NO`));
 assert(!fs.existsSync());
 assert(!fs.existsSync({}));
 assert(!fs.existsSync(new URL('https://foo')));
+
+{
+  // This test is to ensure that the v8 fast api works.
+  const oneBytePath = 'hello.txt'
+  for (let i = 0; i < 1e5; i++) {
+    assert(!fs.existsSync(oneBytePath));
+  }
+}
