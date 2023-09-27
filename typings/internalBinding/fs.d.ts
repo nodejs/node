@@ -57,6 +57,7 @@ declare namespace InternalFSBinding {
   function access(path: StringOrBuffer, mode: number, req: FSReqCallback): void;
   function access(path: StringOrBuffer, mode: number, req: undefined, ctx: FSSyncContext): void;
   function access(path: StringOrBuffer, mode: number, usePromises: typeof kUsePromises): Promise<void>;
+  function accessSync(path: StringOrBuffer, mode: number): void;
 
   function chmod(path: string, mode: number, req: FSReqCallback): void;
   function chmod(path: string, mode: number, req: undefined, ctx: FSSyncContext): void;
@@ -68,10 +69,14 @@ declare namespace InternalFSBinding {
 
   function close(fd: number, req: FSReqCallback): void;
   function close(fd: number, req: undefined, ctx: FSSyncContext): void;
+  function closeSync(fd: number): void;
 
   function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, req: FSReqCallback): void;
   function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, req: undefined, ctx: FSSyncContext): void;
   function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, usePromises: typeof kUsePromises): Promise<void>;
+  function copyFileSync(src: StringOrBuffer, dest: StringOrBuffer, mode: number): void;
+
+  function existsSync(src: string): boolean;
 
   function fchmod(fd: number, mode: number, req: FSReqCallback): void;
   function fchmod(fd: number, mode: number, req: undefined, ctx: FSSyncContext): void;
@@ -148,6 +153,7 @@ declare namespace InternalFSBinding {
 
   function open(path: StringOrBuffer, flags: number, mode: number, req: FSReqCallback<number>): void;
   function open(path: StringOrBuffer, flags: number, mode: number, req: undefined, ctx: FSSyncContext): number;
+  function openSync(path: StringOrBuffer, flags: number, mode: number): number;
 
   function openFileHandle(path: StringOrBuffer, flags: number, mode: number, usePromises: typeof kUsePromises): Promise<FileHandle>;
 
@@ -168,6 +174,8 @@ declare namespace InternalFSBinding {
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: boolean, usePromises: typeof kUsePromises): Promise<string[] | [string[], number[]]>;
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: true, usePromises: typeof kUsePromises): Promise<[string[], number[]]>;
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: false, usePromises: typeof kUsePromises): Promise<string[]>;
+
+  function readFileUtf8(path: StringOrBuffer, flags: number): string;
 
   function readlink(path: StringOrBuffer, encoding: unknown, req: FSReqCallback<string | Buffer>): void;
   function readlink(path: StringOrBuffer, encoding: unknown, req: undefined, ctx: FSSyncContext): string | Buffer;
@@ -194,6 +202,9 @@ declare namespace InternalFSBinding {
   function stat(path: StringOrBuffer, useBigint: boolean, usePromises: typeof kUsePromises): Promise<Float64Array | BigUint64Array>;
   function stat(path: StringOrBuffer, useBigint: true, usePromises: typeof kUsePromises): Promise<BigUint64Array>;
   function stat(path: StringOrBuffer, useBigint: false, usePromises: typeof kUsePromises): Promise<Float64Array>;
+  function statSync(path: StringOrBuffer, useBigInt: boolean, throwIfNoEntry: boolean): Float64Array;
+
+  function statfsSync(path: StringOrBuffer, useBigInt: boolean): Float64Array;
 
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, req: FSReqCallback): void;
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, req: undefined, ctx: FSSyncContext): void;
@@ -234,10 +245,14 @@ export interface FsBinding {
   StatWatcher: typeof InternalFSBinding.StatWatcher;
 
   access: typeof InternalFSBinding.access;
+  accessSync: typeof InternalFSBinding.accessSync;
   chmod: typeof InternalFSBinding.chmod;
   chown: typeof InternalFSBinding.chown;
   close: typeof InternalFSBinding.close;
+  closeSync: typeof InternalFSBinding.closeSync;
   copyFile: typeof InternalFSBinding.copyFile;
+  copyFileSync: typeof InternalFSBinding.copyFileSync;
+  existsSync: typeof InternalFSBinding.existsSync;
   fchmod: typeof InternalFSBinding.fchmod;
   fchown: typeof InternalFSBinding.fchown;
   fdatasync: typeof InternalFSBinding.fdatasync;
@@ -254,15 +269,19 @@ export interface FsBinding {
   mkdtemp: typeof InternalFSBinding.mkdtemp;
   mkdir: typeof InternalFSBinding.mkdir;
   open: typeof InternalFSBinding.open;
+  openSync: typeof InternalFSBinding.openSync;
   openFileHandle: typeof InternalFSBinding.openFileHandle;
   read: typeof InternalFSBinding.read;
   readBuffers: typeof InternalFSBinding.readBuffers;
   readdir: typeof InternalFSBinding.readdir;
   readlink: typeof InternalFSBinding.readlink;
+  readFileUtf8: typeof InternalFSBinding.readFileUtf8;
   realpath: typeof InternalFSBinding.realpath;
   rename: typeof InternalFSBinding.rename;
   rmdir: typeof InternalFSBinding.rmdir;
   stat: typeof InternalFSBinding.stat;
+  statSync: typeof InternalFSBinding.statSync;
+  statfsSync: typeof InternalFSBinding.statfsSync;
   symlink: typeof InternalFSBinding.symlink;
   unlink: typeof InternalFSBinding.unlink;
   utimes: typeof InternalFSBinding.utimes;
