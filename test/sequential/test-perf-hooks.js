@@ -41,8 +41,40 @@ const epsilon = 50;
 assert.strictEqual(performance.nodeTiming.name, 'node');
 assert.strictEqual(performance.nodeTiming.entryType, 'node');
 
+// If timing.duration gets copied into the argument instead of being computed
+// via the getter, this should be called right after timing is created.
+function checkNodeTiming(timing) {
+  // Calculate the difference between now() and duration as soon as possible.
+  const now = performance.now();
+  const delta = Math.abs(now - timing.duration);
+
+  log(JSON.stringify(timing, null, 2));
+  // Check that the properties are still reasonable.
+  assert.strictEqual(timing.name, 'node');
+  assert.strictEqual(timing.entryType, 'node');
+
+  // Check that duration is positive and practically the same as
+  // performance.now() i.e. measures Node.js instance up time.
+  assert.strictEqual(typeof timing.duration, 'number');
+  assert(timing.duration > 0, `timing.duration ${timing.duration} <= 0`);
+  assert(delta < 10,
+         `now (${now}) - timing.duration (${timing.duration}) = ${delta} >= ${10}`);
+
+  // Check that the following fields do not change.
+  assert.strictEqual(timing.startTime, initialTiming.startTime);
+  assert.strictEqual(timing.nodeStart, initialTiming.nodeStart);
+  assert.strictEqual(timing.v8Start, initialTiming.v8Start);
+  assert.strictEqual(timing.environment, initialTiming.environment);
+  assert.strictEqual(timing.bootstrapComplete, initialTiming.bootstrapComplete);
+
+  assert.strictEqual(typeof timing.loopStart, 'number');
+  assert.strictEqual(typeof timing.loopExit, 'number');
+}
+
+log('check initial nodeTiming');
 // Copy all the values from the getters.
 const initialTiming = { ...performance.nodeTiming };
+checkNodeTiming(initialTiming);
 
 {
   const {
@@ -87,36 +119,6 @@ const initialTiming = { ...performance.nodeTiming };
          `bootstrapComplete ${bootstrapComplete} >= ${testStartTime}`);
 }
 
-function checkNodeTiming(timing) {
-  // Calculate the difference between now() and duration as soon as possible.
-  const now = performance.now();
-  const delta = Math.abs(now - timing.duration);
-
-  log(JSON.stringify(timing, null, 2));
-  // Check that the properties are still reasonable.
-  assert.strictEqual(timing.name, 'node');
-  assert.strictEqual(timing.entryType, 'node');
-
-  // Check that duration is positive and practically the same as
-  // performance.now() i.e. measures Node.js instance up time.
-  assert.strictEqual(typeof timing.duration, 'number');
-  assert(timing.duration > 0, `timing.duration ${timing.duration} <= 0`);
-  assert(delta < 10,
-         `now (${now}) - timing.duration (${timing.duration}) = ${delta} >= 10`);
-
-  // Check that the following fields do not change.
-  assert.strictEqual(timing.startTime, initialTiming.startTime);
-  assert.strictEqual(timing.nodeStart, initialTiming.nodeStart);
-  assert.strictEqual(timing.v8Start, initialTiming.v8Start);
-  assert.strictEqual(timing.environment, initialTiming.environment);
-  assert.strictEqual(timing.bootstrapComplete, initialTiming.bootstrapComplete);
-
-  assert.strictEqual(typeof timing.loopStart, 'number');
-  assert.strictEqual(typeof timing.loopExit, 'number');
-}
-
-log('check initial nodeTiming');
-checkNodeTiming(initialTiming);
 assert.strictEqual(initialTiming.loopExit, -1);
 
 function checkValue(timing, name, min, max) {
