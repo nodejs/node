@@ -5453,7 +5453,7 @@ napi_status node_api_post_finalizer(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-Schedules `napi_finalize` callback to be called asynchronously in the
+Schedules a `napi_finalize` callback to be called asynchronously in the
 event loop.
 
 Normally, finalizers are called while the GC (garbage collector) collects
