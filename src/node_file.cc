@@ -3429,8 +3429,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "accessSync", AccessSync);
   SetMethod(isolate, target, "close", Close);
   SetMethod(isolate, target, "closeSync", CloseSync);
-  SetFastMethodNoSideEffect(
-      isolate, target, "existsSync", ExistsSync, &fast_exists_sync_);
+  SetFastMethod(isolate, target, "existsSync",
+                ExistsSync, &fast_exists_sync_);
   SetMethod(isolate, target, "open", Open);
   SetMethod(isolate, target, "openSync", OpenSync);
   SetMethod(isolate, target, "openFileHandle", OpenFileHandle);
