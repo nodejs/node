@@ -28,7 +28,7 @@ This a list of all the dependencies:
 * [simdutf 3.2.18][]
 * [undici 5.26.4][]
 * [uv][]
-* [uvwasi][]
+* [uvwasi 0.0.19][]
 * [V8][]
 * [zlib][]
 
@@ -290,7 +290,7 @@ The [libuv](https://github.com/libuv/libuv) dependency is a
 multi-platform support library with a focus on asynchronous I/O.
 It was primarily developed for use by Node.js.
 
-### uvwasi
+### uvwasi 0.0.19
 
 The [uvwasi](https://github.com/nodejs/uvwasi) dependency implements
 the WASI system call API, so that WebAssembly runtimes can easily
@@ -339,6 +339,6 @@ performance improvements not currently available in standard zlib.
 [undici 5.26.4]: #undici-5264
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uv]: #uv
-[uvwasi]: #uvwasi
+[uvwasi 0.0.19]: #uvwasi-0019
 [v8]: #v8
 [zlib]: #zlib
