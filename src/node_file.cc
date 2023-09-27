@@ -3417,15 +3417,15 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   Isolate* isolate = isolate_data->isolate();
 
   SetMethod(isolate, target, "access", Access);
-  SetMethodNoSideEffect(isolate, target, "accessSync", AccessSync);
+  SetMethod(isolate, target, "accessSync", AccessSync);
   SetMethod(isolate, target, "close", Close);
   SetMethod(isolate, target, "closeSync", CloseSync);
-  SetMethodNoSideEffect(isolate, target, "existsSync", ExistsSync);
+  SetMethod(isolate, target, "existsSync", ExistsSync);
   SetMethod(isolate, target, "open", Open);
   SetMethod(isolate, target, "openSync", OpenSync);
   SetMethod(isolate, target, "openFileHandle", OpenFileHandle);
   SetMethod(isolate, target, "read", Read);
-  SetMethodNoSideEffect(isolate, target, "readFileUtf8", ReadFileUtf8);
+  SetMethod(isolate, target, "readFileUtf8", ReadFileUtf8);
   SetMethod(isolate, target, "readBuffers", ReadBuffers);
   SetMethod(isolate, target, "fdatasync", Fdatasync);
   SetMethod(isolate, target, "fsync", Fsync);
@@ -3452,7 +3452,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "writeString", WriteString);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
-  SetMethodNoSideEffect(isolate, target, "copyFileSync", CopyFileSync);
+  SetMethod(isolate, target, "copyFileSync", CopyFileSync);
 
   SetMethod(isolate, target, "chmod", Chmod);
   SetMethod(isolate, target, "fchmod", FChmod);
