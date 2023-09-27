@@ -1570,6 +1570,7 @@ static void FsyncSync(const FunctionCallbackInfo<Value>& args) {
   if (fd == (1 << 30)) return;
 
   uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
   FS_SYNC_TRACE_BEGIN(fsync);
   int err = uv_fs_fsync(nullptr, &req, fd, nullptr);
   FS_SYNC_TRACE_END(fsync);
