@@ -1564,8 +1564,7 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
 static void FsyncSync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  const int argc = args.Length();
-  CHECK_GE(argc, 1);
+  CHECK_EQ(args.Length(), 1);
 
   const int fd = GetValidatedFd(env, args[0]);
   if (fd == (1 << 30)) return;
