@@ -392,7 +392,7 @@ void Blob::Reader::PullAll(const FunctionCallbackInfo<Value>& args) {
   if (reader->eos_) {
     Local<Value> arg = Int32::New(env->isolate(), bob::STATUS_EOS);
     reader->MakeCallback(fn, 1, &arg);
-    return args.GetReturnValue().Set(bob::STATUS_EOS);
+    return;
   }
 
   struct View {
@@ -461,8 +461,6 @@ void Blob::Reader::PullAll(const FunctionCallbackInfo<Value>& args) {
 
   impl_ptr->enqueue_cb();
 }
-
-
 
 BaseObjectPtr<BaseObject>
 Blob::BlobTransferData::Deserialize(
