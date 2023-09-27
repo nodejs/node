@@ -116,6 +116,24 @@ inline int64_t GetOffset(Local<Value> value) {
   return IsSafeJsInt(value) ? value.As<Integer>()->Value() : -1;
 }
 
+inline int GetValidatedFd(Environment* env, Local<Value> value) {
+  if (!value->IsInt32()) {
+    env->isolate()->ThrowException(ERR_INVALID_ARG_TYPE(
+        env->isolate(), "Invalid argument. The fd must be int32."));
+    return 1 << 30;
+  }
+
+  const int fd = value.As<Int32>()->Value();
+
+  if (fd < 0 || fd > INT32_MAX) {
+    env->isolate()->ThrowException(ERR_OUT_OF_RANGE(
+        env->isolate(), "It must be >= 0 && <= INT32_MAX. Received %d", fd));
+    return 1 << 30;
+  }
+
+  return fd;
+}
+
 static const char* get_fs_func_name_by_type(uv_fs_type req_type) {
   switch (req_type) {
 #define FS_TYPE_TO_NAME(type, name)                                            \
@@ -1517,6 +1535,24 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(fdatasync);
     SyncCall(env, args[2], &req_wrap_sync, "fdatasync", uv_fs_fdatasync, fd);
     FS_SYNC_TRACE_END(fdatasync);
+  }
+}
+
+static void FdatasyncSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 1);
+
+  const int fd = GetValidatedFd(env, args[0]);
+  if (fd == (1 << 30)) return;
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(fdatasync);
+  int err = uv_fs_fdatasync(nullptr, &req, fd, nullptr);
+  FS_SYNC_TRACE_END(fdatasync);
+  if (err < 0) {
+    return env->ThrowUVException(err, "fdatasync");
   }
 }
 
@@ -3218,6 +3254,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "readFileUtf8", ReadFileUtf8);
   SetMethod(isolate, target, "readBuffers", ReadBuffers);
   SetMethod(isolate, target, "fdatasync", Fdatasync);
+  SetMethod(isolate, target, "fdatasyncSync", FdatasyncSync);
   SetMethod(isolate, target, "fsync", Fsync);
   SetMethod(isolate, target, "rename", Rename);
   SetMethod(isolate, target, "ftruncate", FTruncate);
@@ -3337,6 +3374,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ReadFileUtf8);
   registry->Register(ReadBuffers);
   registry->Register(Fdatasync);
+  registry->Register(FdatasyncSync);
   registry->Register(Fsync);
   registry->Register(Rename);
   registry->Register(FTruncate);
