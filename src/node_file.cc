@@ -1711,6 +1711,27 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void UnlinkSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 1);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(unlink);
+  int err = uv_fs_unlink(nullptr, &req, *path, nullptr);
+  FS_SYNC_TRACE_END(unlink);
+  if (err < 0) {
+    return env->ThrowUVException(err, "unlink", nullptr, *path);
+  }
+}
+
 static void RMDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -3405,7 +3426,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   Isolate* isolate = isolate_data->isolate();
 
   SetMethod(isolate, target, "access", Access);
-  SetMethodNoSideEffect(isolate, target, "accessSync", AccessSync);
+  SetMethod(isolate, target, "accessSync", AccessSync);
   SetMethod(isolate, target, "close", Close);
   SetMethod(isolate, target, "closeSync", CloseSync);
   SetFastMethodNoSideEffect(
@@ -3414,7 +3435,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "openSync", OpenSync);
   SetMethod(isolate, target, "openFileHandle", OpenFileHandle);
   SetMethod(isolate, target, "read", Read);
-  SetMethodNoSideEffect(isolate, target, "readFileUtf8", ReadFileUtf8);
+  SetMethod(isolate, target, "readFileUtf8", ReadFileUtf8);
   SetMethod(isolate, target, "readBuffers", ReadBuffers);
   SetMethod(isolate, target, "fdatasync", Fdatasync);
   SetMethod(isolate, target, "fsync", Fsync);
@@ -3435,12 +3456,13 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "symlink", Symlink);
   SetMethod(isolate, target, "readlink", ReadLink);
   SetMethod(isolate, target, "unlink", Unlink);
+  SetMethod(isolate, target, "unlinkSync", UnlinkSync);
   SetMethod(isolate, target, "writeBuffer", WriteBuffer);
   SetMethod(isolate, target, "writeBuffers", WriteBuffers);
   SetMethod(isolate, target, "writeString", WriteString);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
-  SetMethodNoSideEffect(isolate, target, "copyFileSync", CopyFileSync);
+  SetMethod(isolate, target, "copyFileSync", CopyFileSync);
 
   SetMethod(isolate, target, "chmod", Chmod);
   SetMethod(isolate, target, "fchmod", FChmod);
@@ -3562,6 +3584,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Symlink);
   registry->Register(ReadLink);
   registry->Register(Unlink);
+  registry->Register(UnlinkSync);
   registry->Register(WriteBuffer);
   registry->Register(WriteBuffers);
   registry->Register(WriteString);
