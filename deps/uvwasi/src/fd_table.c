@@ -37,6 +37,7 @@ static uvwasi_errno_t uvwasi__insert_stdio(uvwasi_t* uvwasi,
   err = uvwasi_fd_table_insert(uvwasi,
                                table,
                                fd,
+                               NULL,
                                name,
                                name,
                                type,
@@ -58,6 +59,7 @@ static uvwasi_errno_t uvwasi__insert_stdio(uvwasi_t* uvwasi,
 uvwasi_errno_t uvwasi_fd_table_insert(uvwasi_t* uvwasi,
                                       struct uvwasi_fd_table_t* table,
                                       uv_file fd,
+                                      uv_tcp_t* sock,
                                       const char* mapped_path,
                                       const char* real_path,
                                       uvwasi_filetype_t type,
@@ -78,29 +80,40 @@ uvwasi_errno_t uvwasi_fd_table_insert(uvwasi_t* uvwasi,
   char* rp_copy;
   char* np_copy;
 
-  mp_len = strlen(mapped_path);
-  rp_len = strlen(real_path);
+  if (type != UVWASI_FILETYPE_SOCKET_STREAM) {
+    mp_len = strlen(mapped_path);
+    rp_len = strlen(real_path);
+  } else {
+    mp_len = 0;
+    rp_len = 0;
+    rp_copy = NULL;
+    mp_copy = NULL;
+    np_copy = NULL;
+  }
+
   /* Reserve room for the mapped path, real path, and normalized mapped path. */
   entry = (struct uvwasi_fd_wrap_t*)
     uvwasi__malloc(uvwasi, sizeof(*entry) + mp_len + mp_len + rp_len + 3);
   if (entry == NULL)
     return UVWASI_ENOMEM;
 
-  mp_copy = (char*)(entry + 1);
-  rp_copy = mp_copy + mp_len + 1;
-  np_copy = rp_copy + rp_len + 1;
-  memcpy(mp_copy, mapped_path, mp_len);
-  mp_copy[mp_len] = '\0';
-  memcpy(rp_copy, real_path, rp_len);
-  rp_copy[rp_len] = '\0';
+  if (type != UVWASI_FILETYPE_SOCKET_STREAM) {
+    mp_copy = (char*)(entry + 1);
+    rp_copy = mp_copy + mp_len + 1;
+    np_copy = rp_copy + rp_len + 1;
+    memcpy(mp_copy, mapped_path, mp_len);
+    mp_copy[mp_len] = '\0';
+    memcpy(rp_copy, real_path, rp_len);
+    rp_copy[rp_len] = '\0';
 
-  /* Calculate the normalized version of the mapped path, as it will be used for
-     any path calculations on this fd. Use the length of the mapped path as an
-     upper bound for the normalized path length. */
-  err = uvwasi__normalize_path(mp_copy, mp_len, np_copy, mp_len);
-  if (err) {
-    uvwasi__free(uvwasi, entry);
-    goto exit;
+    /* Calculate the normalized version of the mapped path, as it will be used for
+       any path calculations on this fd. Use the length of the mapped path as an
+       upper bound for the normalized path length. */
+    err = uvwasi__normalize_path(mp_copy, mp_len, np_copy, mp_len);
+    if (err) {
+      uvwasi__free(uvwasi, entry);
+      goto exit;
+    }
   }
 
   uv_rwlock_wrlock(&table->rwlock);
@@ -150,6 +163,7 @@ uvwasi_errno_t uvwasi_fd_table_insert(uvwasi_t* uvwasi,
 
   entry->id = index;
   entry->fd = fd;
+  entry->sock = sock;
   entry->path = mp_copy;
   entry->real_path = rp_copy;
   entry->normalized_path = np_copy;
@@ -280,11 +294,32 @@ uvwasi_errno_t uvwasi_fd_table_insert_preopen(uvwasi_t* uvwasi,
   return uvwasi_fd_table_insert(uvwasi,
                                 table,
                                 fd,
+                                NULL,
                                 path,
                                 real_path,
                                 UVWASI_FILETYPE_DIRECTORY,
                                 UVWASI__RIGHTS_DIRECTORY_BASE,
                                 UVWASI__RIGHTS_DIRECTORY_INHERITING,
+                                1,
+                                NULL);
+}
+
+
+uvwasi_errno_t uvwasi_fd_table_insert_preopen_socket(uvwasi_t* uvwasi,
+                                              struct uvwasi_fd_table_t* table,
+                                              uv_tcp_t* sock) {
+  if (table == NULL || sock == NULL)
+    return UVWASI_EINVAL;
+
+  return uvwasi_fd_table_insert(uvwasi,
+                                table,
+                                -1,
+                                sock,
+                                NULL,
+                                NULL,
+                                UVWASI_FILETYPE_SOCKET_STREAM,
+                                UVWASI__RIGHTS_SOCKET_BASE,
+                                UVWASI__RIGHTS_SOCKET_INHERITING,
                                 1,
                                 NULL);
 }
