@@ -4,19 +4,12 @@ const common = require('../common');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [1e4],
+  n: [1e5],
   objectToTest: [
     'object',
     'null',
     'array',
-    'function'
-  ],
-  option: [
-    'default',
-    'allowNullable',
-    'allowArray',
-    'allowFunction',
-    'allowAll',
+    'function',
   ],
 }, {
   flags: ['--expose-internals'],
@@ -37,44 +30,42 @@ function getObjectToTest(objectToTest) {
   }
 }
 
-function getOptions(option) {
+function getOptions(objectToTest) {
   const {
     kValidateObjectAllowNullable,
     kValidateObjectAllowArray,
     kValidateObjectAllowFunction,
   } = require('internal/validators');
 
-  switch(option) {
-    case 'default':
+  switch (objectToTest) {
+    case 'object':
       return 0;
-    case 'allowNullable':
+    case 'null':
       return kValidateObjectAllowNullable;
-    case 'allowArray':
+    case 'array':
       return kValidateObjectAllowArray;
-    case 'allowFunction':
+    case 'function':
       return kValidateObjectAllowFunction;
-    case 'allowAll':
-      return kValidateObjectAllowNullable | kValidateObjectAllowArray | kValidateObjectAllowFunction;
     default:
-      throw new Error(`Value ${ option } is not a valid option.`)
+      throw new Error(`Value ${objectToTest} is not a valid objectToTest.`);
   }
 }
 
 let _validateResult;
 
-function main({ n, objectToTest, option }) {
+function main({ n, objectToTest }) {
   const {
     validateObject,
   } = require('internal/validators');
 
   const value = getObjectToTest(objectToTest);
-  const options = getOptions(option);
+  const options = getOptions(objectToTest);
 
   bench.start();
   for (let i = 0; i < n; ++i) {
     try {
       _validateResult = validateObject(value, 'Object', options);
-    } catch (e) {
+    } catch {
       _validateResult = undefined;
     }
   }
