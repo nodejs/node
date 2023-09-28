@@ -5,7 +5,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (common.isSunOS || common.isWindows || common.isAIX) {
+if (common.isSunOS || common.isWindows || common.isAIX || common.isIBMi) {
   // The current working directory cannot be removed on these platforms.
   // Change this to common.skip() when this is no longer a known issue test.
   assert.fail('cannot rmdir current working directory');

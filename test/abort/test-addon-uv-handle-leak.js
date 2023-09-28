@@ -78,6 +78,7 @@ if (process.argv[2] === 'child') {
 
   if (!(common.isFreeBSD ||
         common.isAIX ||
+        common.isIBMi ||
         (common.isLinux && !isGlibc()) ||
         common.isWindows)) {
     assert(stderr.includes('ExampleOwnerClass'), stderr);
