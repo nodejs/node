@@ -10,6 +10,7 @@
 		<skipped type="todo" message="true"/>
 		<failure type="testCodeFailure" message="thrown from sync fail todo">
 [Error [ERR_TEST_FAILURE]: thrown from sync fail todo] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from sync fail todo
       *
@@ -18,8 +19,7 @@
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -27,6 +27,7 @@
 		<skipped type="todo" message="this is a failing todo"/>
 		<failure type="testCodeFailure" message="thrown from sync fail todo with message">
 [Error [ERR_TEST_FAILURE]: thrown from sync fail todo with message] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from sync fail todo with message
       *
@@ -35,8 +36,7 @@
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -51,6 +51,7 @@
 	<testcase name="sync throw fail" time="*" classname="test" failure="thrown from sync throw fail">
 		<failure type="testCodeFailure" message="thrown from sync throw fail">
 [Error [ERR_TEST_FAILURE]: thrown from sync throw fail] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from sync throw fail
       *
@@ -59,8 +60,7 @@
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -71,6 +71,7 @@
 	<testcase name="async throw fail" time="*" classname="test" failure="thrown from async throw fail">
 		<failure type="testCodeFailure" message="thrown from async throw fail">
 [Error [ERR_TEST_FAILURE]: thrown from async throw fail] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from async throw fail
       *
@@ -79,8 +80,7 @@
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -88,6 +88,7 @@
 		<skipped type="skipped" message="true"/>
 		<failure type="testCodeFailure" message="thrown from async throw fail">
 [Error [ERR_TEST_FAILURE]: thrown from async throw fail] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from async throw fail
       *
@@ -96,8 +97,7 @@
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -107,6 +107,7 @@
 
 true !== false
 ] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   
@@ -124,8 +125,7 @@ true !== false
     actual: true,
     expected: false,
     operator: 'strictEqual'
-  },
-  code: 'ERR_TEST_FAILURE'
+  }
 }
 		</failure>
 	</testcase>
@@ -133,6 +133,7 @@ true !== false
 	<testcase name="reject fail" time="*" classname="test" failure="rejected from reject fail">
 		<failure type="testCodeFailure" message="rejected from reject fail">
 [Error [ERR_TEST_FAILURE]: rejected from reject fail] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: rejected from reject fail
       *
@@ -141,8 +142,7 @@ true !== false
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -156,6 +156,7 @@ true !== false
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fail">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
     * {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from subtest sync throw fail
       *
@@ -167,8 +168,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
       *
       *
       *
-      at Test.postRun (node:internal/test_runner/test:715:19),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 			</failure>
 		</testcase>
@@ -176,7 +176,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 	</testsuite>
 	<testcase name="sync throw non-error fail" time="*" classname="test" failure="Symbol(thrown symbol from sync throw non-error fail)">
 		<failure type="testCodeFailure" message="Symbol(thrown symbol from sync throw non-error fail)">
-[Error [ERR_TEST_FAILURE]: Symbol(thrown symbol from sync throw non-error fail)] { failureType: 'testCodeFailure', cause: Symbol(thrown symbol from sync throw non-error fail), code: 'ERR_TEST_FAILURE' }
+[Error [ERR_TEST_FAILURE]: Symbol(thrown symbol from sync throw non-error fail)] { code: 'ERR_TEST_FAILURE', failureType: 'testCodeFailure', cause: Symbol(thrown symbol from sync throw non-error fail) }
 		</failure>
 	</testcase>
 	<testsuite name="level 0a" time="*" disabled="0" errors="0" tests="4" failures="0" skipped="0" hostname="HOSTNAME">
@@ -188,7 +188,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 	<testsuite name="top level" time="*" disabled="0" errors="0" tests="2" failures="1" skipped="0" hostname="HOSTNAME">
 		<testcase name="+long running" time="*" classname="test" failure="test did not finish before its parent and was cancelled">
 			<failure type="cancelledByParent" message="test did not finish before its parent and was cancelled">
-[Error [ERR_TEST_FAILURE]: test did not finish before its parent and was cancelled] { failureType: 'cancelledByParent', cause: 'test did not finish before its parent and was cancelled', code: 'ERR_TEST_FAILURE' }
+[Error [ERR_TEST_FAILURE]: test did not finish before its parent and was cancelled] { code: 'ERR_TEST_FAILURE', failureType: 'cancelledByParent', cause: 'test did not finish before its parent and was cancelled' }
 			</failure>
 		</testcase>
 		<testsuite name="+short running" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
@@ -205,6 +205,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 	<testcase name="sync skip option is false fail" time="*" classname="test" failure="this should be executed">
 		<failure type="testCodeFailure" message="this should be executed">
 [Error [ERR_TEST_FAILURE]: this should be executed] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: this should be executed
       *
@@ -213,8 +214,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -236,11 +236,11 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 	<testcase name="callback fail" time="*" classname="test" failure="callback failure">
 		<failure type="testCodeFailure" message="callback failure">
 [Error [ERR_TEST_FAILURE]: callback failure] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: callback failure
       *
-      at process.processImmediate (node:internal/timers:478:21),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -249,12 +249,13 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 	<testcase name="callback t is this in test" time="*" classname="test"/>
 	<testcase name="callback also returns a Promise" time="*" classname="test" failure="passed a callback but also returned a Promise">
 		<failure type="callbackAndPromisePresent" message="passed a callback but also returned a Promise">
-[Error [ERR_TEST_FAILURE]: passed a callback but also returned a Promise] { failureType: 'callbackAndPromisePresent', cause: 'passed a callback but also returned a Promise', code: 'ERR_TEST_FAILURE' }
+[Error [ERR_TEST_FAILURE]: passed a callback but also returned a Promise] { code: 'ERR_TEST_FAILURE', failureType: 'callbackAndPromisePresent', cause: 'passed a callback but also returned a Promise' }
 		</failure>
 	</testcase>
 	<testcase name="callback throw" time="*" classname="test" failure="thrown from callback throw">
 		<failure type="testCodeFailure" message="thrown from callback throw">
 [Error [ERR_TEST_FAILURE]: thrown from callback throw] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from callback throw
       *
@@ -263,8 +264,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -273,9 +273,9 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 Error [ERR_TEST_FAILURE]: callback invoked multiple times
     *
     * {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'multipleCallbackInvocations',
-  cause: 'callback invoked multiple times',
-  code: 'ERR_TEST_FAILURE'
+  cause: 'callback invoked multiple times'
 }
 		</failure>
 	</testcase>
@@ -284,14 +284,14 @@ Error [ERR_TEST_FAILURE]: callback invoked multiple times
 		<failure type="uncaughtException" message="callback invoked multiple times">
 Error [ERR_TEST_FAILURE]: callback invoked multiple times
     * {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'uncaughtException',
   cause: Error [ERR_TEST_FAILURE]: callback invoked multiple times
       * {
+    code: 'ERR_TEST_FAILURE',
     failureType: 'multipleCallbackInvocations',
-    cause: 'callback invoked multiple times',
-    code: 'ERR_TEST_FAILURE'
-  },
-  code: 'ERR_TEST_FAILURE'
+    cause: 'callback invoked multiple times'
+  }
 }
 		</failure>
 	</testcase>
@@ -299,11 +299,11 @@ Error [ERR_TEST_FAILURE]: callback invoked multiple times
 		<failure type="uncaughtException" message="thrown from callback async throw">
 Error [ERR_TEST_FAILURE]: thrown from callback async throw
     * {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'uncaughtException',
   cause: Error: thrown from callback async throw
       *
-      at process.processImmediate (node:internal/timers:478:21),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -319,7 +319,7 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
 	<!-- 'only' and 'runOnly' require the &#45;&#45;test-only command-line option. -->
 	<testcase name="custom inspect symbol fail" time="*" classname="test" failure="customized">
 		<failure type="testCodeFailure" message="customized">
-[Error [ERR_TEST_FAILURE]: customized] { failureType: 'testCodeFailure', cause: customized, code: 'ERR_TEST_FAILURE' }
+[Error [ERR_TEST_FAILURE]: customized] { code: 'ERR_TEST_FAILURE', failureType: 'testCodeFailure', cause: customized }
 		</failure>
 	</testcase>
 	<testcase name="custom inspect symbol that throws fail" time="*" classname="test" failure="{  foo: 1,  [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]]}">
@@ -328,9 +328,9 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
   foo: 1,
   [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]]
 }] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
-  cause: { foo: 1, [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] },
-  code: 'ERR_TEST_FAILURE'
+  cause: { foo: 1, [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] }
 }
 		</failure>
 	</testcase>
@@ -339,6 +339,7 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fails at first">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
     * {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from subtest sync throw fails at first
       *
@@ -350,8 +351,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
       *
       *
       *
-      at Test.postRun (node:internal/test_runner/test:715:19),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 			</failure>
 		</testcase>
@@ -359,6 +359,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fails at second">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at second
     * {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from subtest sync throw fails at second
       *
@@ -370,20 +371,19 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at second
       *
       *
       *
-      at async Test.run (node:internal/test_runner/test:632:9),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 			</failure>
 		</testcase>
 	</testsuite>
 	<testcase name="timed out async test" time="*" classname="test" failure="test timed out after 5ms">
 		<failure type="testTimeoutFailure" message="test timed out after 5ms">
-[Error [ERR_TEST_FAILURE]: test timed out after 5ms] { failureType: 'testTimeoutFailure', cause: 'test timed out after 5ms', code: 'ERR_TEST_FAILURE' }
+[Error [ERR_TEST_FAILURE]: test timed out after 5ms] { code: 'ERR_TEST_FAILURE', failureType: 'testTimeoutFailure', cause: 'test timed out after 5ms' }
 		</failure>
 	</testcase>
 	<testcase name="timed out callback test" time="*" classname="test" failure="test timed out after 5ms">
 		<failure type="testTimeoutFailure" message="test timed out after 5ms">
-[Error [ERR_TEST_FAILURE]: test timed out after 5ms] { failureType: 'testTimeoutFailure', cause: 'test timed out after 5ms', code: 'ERR_TEST_FAILURE' }
+[Error [ERR_TEST_FAILURE]: test timed out after 5ms] { code: 'ERR_TEST_FAILURE', failureType: 'testTimeoutFailure', cause: 'test timed out after 5ms' }
 		</failure>
 	</testcase>
 	<testcase name="large timeout async test is ok" time="*" classname="test"/>
@@ -391,19 +391,19 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at second
 	<testcase name="successful thenable" time="*" classname="test"/>
 	<testcase name="rejected thenable" time="*" classname="test" failure="custom error">
 		<failure type="testCodeFailure" message="custom error">
-[Error [ERR_TEST_FAILURE]: custom error] { failureType: 'testCodeFailure', cause: 'custom error', code: 'ERR_TEST_FAILURE' }
+[Error [ERR_TEST_FAILURE]: custom error] { code: 'ERR_TEST_FAILURE', failureType: 'testCodeFailure', cause: 'custom error' }
 		</failure>
 	</testcase>
 	<testcase name="unfinished test with uncaughtException" time="*" classname="test" failure="foo">
 		<failure type="uncaughtException" message="foo">
 Error [ERR_TEST_FAILURE]: foo
     * {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'uncaughtException',
   cause: Error: foo
       *
       *
-      at process.processTimers (node:internal/timers:514:7),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -411,12 +411,12 @@ Error [ERR_TEST_FAILURE]: foo
 		<failure type="unhandledRejection" message="bar">
 Error [ERR_TEST_FAILURE]: bar
     * {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'unhandledRejection',
   cause: Error: bar
       *
       *
-      at process.processTimers (node:internal/timers:514:7),
-  code: 'ERR_TEST_FAILURE'
+      *
 }
 		</failure>
 	</testcase>
@@ -435,6 +435,7 @@ should loosely deep-equal
   bar: 2,
   c: [Circular *1]
 }] {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: AssertionError [ERR_ASSERTION]: Expected values to be loosely deep-equal:
   
@@ -455,8 +456,7 @@ should loosely deep-equal
     actual: [Object],
     expected: [Object],
     operator: 'deepEqual'
-  },
-  code: 'ERR_TEST_FAILURE'
+  }
 }
 		</failure>
 	</testcase>
@@ -464,9 +464,9 @@ should loosely deep-equal
 		<failure type="parentAlreadyFinished" message="test could not be started because its parent finished">
 Error [ERR_TEST_FAILURE]: test could not be started because its parent finished
     * {
+  code: 'ERR_TEST_FAILURE',
   failureType: 'parentAlreadyFinished',
-  cause: 'test could not be started because its parent finished',
-  code: 'ERR_TEST_FAILURE'
+  cause: 'test could not be started because its parent finished'
 }
 		</failure>
 	</testcase>

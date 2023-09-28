@@ -178,9 +178,9 @@
  callback called twice in future tick (*ms)
   Error [ERR_TEST_FAILURE]: callback invoked multiple times
       * {
+    code: 'ERR_TEST_FAILURE',
     failureType: 'multipleCallbackInvocations',
-    cause: 'callback invoked multiple times',
-    code: 'ERR_TEST_FAILURE'
+    cause: 'callback invoked multiple times'
   }
 
  callback async throw (*ms)
@@ -449,9 +449,9 @@
  callback called twice in future tick (*ms)
   Error [ERR_TEST_FAILURE]: callback invoked multiple times
       * {
+    code: 'ERR_TEST_FAILURE',
     failureType: 'multipleCallbackInvocations',
-    cause: 'callback invoked multiple times',
-    code: 'ERR_TEST_FAILURE'
+    cause: 'callback invoked multiple times'
   }
 
 *
