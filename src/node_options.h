@@ -111,6 +111,7 @@ class EnvironmentOptions : public Options {
   std::string dns_result_order;
   bool enable_source_maps = false;
   bool experimental_fetch = true;
+  bool experimental_websocket = false;
   bool experimental_global_customevent = true;
   bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;

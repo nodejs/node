@@ -478,13 +478,16 @@ added:
   - v17.5.0
   - v16.15.0
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45684
+    description: No longer experimental.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
     description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
-> CLI flag.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of the [`fetch()`][] function.
 
@@ -505,13 +508,16 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45684
+    description: No longer experimental.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
     description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
-> CLI flag.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {FormData}.
 
@@ -541,13 +547,16 @@ added:
   - v17.5.0
   - v16.15.0
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45684
+    description: No longer experimental.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
     description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
-> CLI flag.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {Headers}.
 
@@ -813,13 +822,16 @@ added:
   - v17.5.0
   - v16.15.0
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45684
+    description: No longer experimental.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
     description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
-> CLI flag.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {Response}.
 
@@ -830,13 +842,16 @@ added:
   - v17.5.0
   - v16.15.0
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45684
+    description: No longer experimental.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
     description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
-> CLI flag.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {Request}.
 
@@ -1003,6 +1018,17 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
+## `WebSocket`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`WebSocket`][]. Enable this API
+with the [`--experimental-websocket`][] CLI flag.
+
 ## Class: `WritableStream`
 
 <!-- YAML
@@ -1037,7 +1063,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [ECMAScript module]: esm.md
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [Web Crypto API]: webcrypto.md
-[`--no-experimental-fetch`]: cli.md#--no-experimental-fetch
+[`--experimental-websocket`]: cli.md#--experimental-websocket
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
 [`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
@@ -1071,6 +1097,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`TransformStream`]: webstreams.md#class-transformstream
 [`URLSearchParams`]: url.md#class-urlsearchparams
 [`URL`]: url.md#class-url
+[`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`WritableStreamDefaultController`]: webstreams.md#class-writablestreamdefaultcontroller
 [`WritableStreamDefaultWriter`]: webstreams.md#class-writablestreamdefaultwriter
 [`WritableStream`]: webstreams.md#class-writablestream

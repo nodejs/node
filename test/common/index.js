@@ -370,6 +370,9 @@ if (global.ReadableStream) {
     global.DecompressionStream,
   );
 }
+if (global.WebSocket) {
+  knownGlobals.push(WebSocket);
+}
 
 function allowGlobals(...allowlist) {
   knownGlobals = knownGlobals.concat(allowlist);
@@ -720,9 +723,8 @@ function expectsError(validator, exact) {
       assert.fail(`Expected one argument, got ${inspect(args)}`);
     }
     const error = args.pop();
-    const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
     // The error message should be non-enumerable
-    assert.strictEqual(descriptor.enumerable, false);
+    assert.strictEqual(Object.prototype.propertyIsEnumerable.call(error, 'message'), false);
 
     assert.throws(() => { throw error; }, validator);
     return true;

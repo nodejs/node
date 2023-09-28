@@ -1,7 +1,14 @@
 'use strict'
 
-const { randomBytes } = require('crypto')
 const { maxUnsigned16Bit } = require('./constants')
+
+/** @type {import('crypto')} */
+let crypto
+try {
+  crypto = require('crypto')
+} catch {
+
+}
 
 class WebsocketFrameSend {
   /**
@@ -9,7 +16,7 @@ class WebsocketFrameSend {
    */
   constructor (data) {
     this.frameData = data
-    this.maskKey = randomBytes(4)
+    this.maskKey = crypto.randomBytes(4)
   }
 
   createFrame (opcode) {

@@ -738,6 +738,14 @@ added: v12.3.0
 
 Enable experimental WebAssembly module support.
 
+### `--experimental-websocket`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental [`WebSocket`][] support.
+
 ### `--force-context-aware`
 
 <!-- YAML
@@ -1117,7 +1125,7 @@ Silence deprecation warnings.
 added: v18.0.0
 -->
 
-Disable experimental support for the [Fetch API][].
+Disable exposition of [Fetch API][] on the global scope.
 
 ### `--no-experimental-global-customevent`
 
@@ -2248,6 +2256,7 @@ Node.js options that are allowed are:
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
+* `--experimental-websocket`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -2715,6 +2724,7 @@ done
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
+[`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder

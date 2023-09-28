@@ -3414,6 +3414,20 @@ Type: Documentation-only
 The [`util.toUSVString()`][] API is deprecated. Please use
 [`String.prototype.toWellFormed`][] instead.
 
+### DEP0176: `fs.F_OK`, `fs.R_OK`, `fs.W_OK`, `fs.X_OK`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49683
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`F_OK`, `R_OK`, `W_OK` and `X_OK` getters exposed directly on `node:fs` are
+deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
