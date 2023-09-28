@@ -6,7 +6,7 @@ import { strictEqual, match } from 'node:assert';
 describe('the type flag should change the interpretation of string input', { concurrency: true }, () => {
   it('should run as ESM input passed via --eval', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
+      '--experimental-default-type=module',
       '--eval',
       'import "data:text/javascript,console.log(42)"',
     ]);
@@ -21,7 +21,7 @@ describe('the type flag should change the interpretation of string input', { con
 
   it('should run as ESM input passed via STDIN', async () => {
     const child = spawn(process.execPath, [
-      '--experimental-type=module',
+      '--experimental-default-type=module',
     ]);
     child.stdin.end('console.log(typeof import.meta.resolve)');
 
@@ -30,7 +30,7 @@ describe('the type flag should change the interpretation of string input', { con
 
   it('should be overridden by --input-type', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
+      '--experimental-default-type=module',
       '--input-type=commonjs',
       '--eval',
       'console.log(require("process").version)',

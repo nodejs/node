@@ -1,4 +1,4 @@
-// Flags: --experimental-type=module --experimental-wasm-modules
+// Flags: --experimental-default-type=module --experimental-wasm-modules
 import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { describe, it } from 'node:test';
@@ -8,7 +8,7 @@ describe('the type flag should change the interpretation of certain files within
          { concurrency: true }, () => {
            it('should run as ESM an extensionless JavaScript file within a "type": "module" scope', async () => {
              const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-               '--experimental-type=module',
+               '--experimental-default-type=module',
                fixtures.path('es-modules/package-type-module/noext-esm'),
              ]);
 
@@ -26,7 +26,7 @@ describe('the type flag should change the interpretation of certain files within
 
            it('should run as Wasm an extensionless Wasm file within a "type": "module" scope', async () => {
              const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-               '--experimental-type=module',
+               '--experimental-default-type=module',
                '--experimental-wasm-modules',
                '--no-warnings',
                fixtures.path('es-modules/package-type-module/noext-wasm'),
@@ -49,7 +49,7 @@ describe(`the type flag should change the interpretation of certain files within
   it('should run as ESM a .js file within package scope that has no defined "type" and is not under node_modules',
      async () => {
        const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-         '--experimental-type=module',
+         '--experimental-default-type=module',
          fixtures.path('es-modules/package-without-type/module.js'),
        ]);
 
@@ -62,7 +62,7 @@ describe(`the type flag should change the interpretation of certain files within
   it(`should run as ESM an extensionless JavaScript file within a package scope that has no defined "type" and is not
 under node_modules`, async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
+      '--experimental-default-type=module',
       fixtures.path('es-modules/package-without-type/noext-esm'),
     ]);
 
@@ -75,7 +75,7 @@ under node_modules`, async () => {
   it(`should run as Wasm an extensionless Wasm file within a package scope that has no defined "type" and is not under
   node_modules`, async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
+      '--experimental-default-type=module',
       '--experimental-wasm-modules',
       '--no-warnings',
       fixtures.path('es-modules/noext-wasm'),
@@ -111,7 +111,7 @@ describe(`the type flag should NOT change the interpretation of certain files wi
   it('should run as CommonJS a .js file within package scope that has no defined "type" and is under node_modules',
      async () => {
        const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-         '--experimental-type=module',
+         '--experimental-default-type=module',
          fixtures.path('es-modules/package-type-module/node_modules/dep-with-package-json/run.js'),
        ]);
 
@@ -131,7 +131,7 @@ describe(`the type flag should NOT change the interpretation of certain files wi
   it(`should run as CommonJS an extensionless JavaScript file within a package scope that has no defined "type" and is
   under node_modules`, async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--experimental-type=module',
+      '--experimental-default-type=module',
       fixtures.path('es-modules/package-type-module/node_modules/dep-with-package-json/noext-cjs'),
     ]);
 

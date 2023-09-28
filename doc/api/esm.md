@@ -108,9 +108,9 @@ Node.js has two module systems: [CommonJS][] modules and ECMAScript modules.
 
 Authors can tell Node.js to use the ECMAScript modules loader via the `.mjs`
 file extension, the `package.json` [`"type"`][] field, the [`--input-type`][]
-flag, or the [`--experimental-type`][] flag. Outside of those cases, Node.js
-will use the CommonJS module loader. See [Determining module system][] for more
-details.
+flag, or the [`--experimental-default-type`][] flag. Outside of those cases,
+Node.js will use the CommonJS module loader. See [Determining module system][]
+for more details.
 
 <!-- Anchors to make sure old links find a target -->
 
@@ -1060,7 +1060,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [URL]: https://url.spec.whatwg.org/
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
-[`--experimental-type`]: cli.md#--experimental-typetype
+[`--experimental-default-type`]: cli.md#--experimental-default-typetype
 [`--input-type`]: cli.md#--input-typetype
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export

@@ -118,7 +118,7 @@ class EnvironmentOptions : public Options {
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
   std::string input_type;  // Value of --input-type
-  std::string type;        // Value of --experimental-type
+  std::string type;        // Value of --experimental-default-type
   std::string experimental_policy;
   std::string experimental_policy_integrity;
   bool has_policy_integrity_string = false;

@@ -122,7 +122,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
 
   if (!type.empty()) {
     if (type != "commonjs" && type != "module") {
-      errors->push_back("--experimental-type must be "
+      errors->push_back("--experimental-default-type must be "
                         "\"module\" or \"commonjs\"");
     }
   }
@@ -653,7 +653,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvvar);
-  AddOption("--experimental-type",
+  AddOption("--experimental-default-type",
             "set module system to use by default",
             &EnvironmentOptions::type,
             kAllowedInEnvvar);

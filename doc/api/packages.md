@@ -83,7 +83,7 @@ expressions:
 
 Aside from these explicit cases, there are other cases where Node.js defaults to
 one module system or the other based on the value of the
-[`--experimental-type`][] flag:
+[`--experimental-default-type`][] flag:
 
 * Files ending in `.js` or with no extension, if there is no `package.json` file
   present in the same folder or any parent folder.
@@ -92,7 +92,7 @@ one module system or the other based on the value of the
   `package.json` field lacks a `"type"` field; unless the folder is inside a
   `node_modules` folder. (Package scopes under `node_modules` are always treated
   as CommonJS when the `package.json` file lacks a `"type"` field, regardless
-  of `--experimental-type`, for backward compatibility.)
+  of `--experimental-default-type`, for backward compatibility.)
 
 * Strings passed in as an argument to `--eval` or piped to `node` via `STDIN`,
   when `--input-type` is unspecified.
@@ -1353,7 +1353,7 @@ This field defines [subpath imports][] for the current package.
 [`"packageManager"`]: #packagemanager
 [`"type"`]: #type
 [`--conditions` / `-C` flag]: #resolving-user-conditions
-[`--experimental-type`]: cli.md#--experimental-typetype
+[`--experimental-default-type`]: cli.md#--experimental-default-typetype
 [`--no-addons` flag]: cli.md#--no-addons
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme

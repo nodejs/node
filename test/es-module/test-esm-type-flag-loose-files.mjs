@@ -1,4 +1,4 @@
-// Flags: --experimental-type=module --experimental-wasm-modules
+// Flags: --experimental-default-type=module --experimental-wasm-modules
 import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { describe, it } from 'node:test';
@@ -8,7 +8,7 @@ describe('the type flag should change the interpretation of certain files outsid
          { concurrency: true }, () => {
            it('should run as ESM a .js file that is outside of any package scope', async () => {
              const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-               '--experimental-type=module',
+               '--experimental-default-type=module',
                fixtures.path('es-modules/loose.js'),
              ]);
 
@@ -20,7 +20,7 @@ describe('the type flag should change the interpretation of certain files outsid
 
            it('should run as ESM an extensionless JavaScript file that is outside of any package scope', async () => {
              const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-               '--experimental-type=module',
+               '--experimental-default-type=module',
                fixtures.path('es-modules/noext-esm'),
              ]);
 
@@ -32,7 +32,7 @@ describe('the type flag should change the interpretation of certain files outsid
 
            it('should run as Wasm an extensionless Wasm file that is outside of any package scope', async () => {
              const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-               '--experimental-type=module',
+               '--experimental-default-type=module',
                '--experimental-wasm-modules',
                '--no-warnings',
                fixtures.path('es-modules/noext-wasm'),
@@ -62,7 +62,7 @@ describe('the type flag should change the interpretation of certain files outsid
 
            it('should check as ESM input passed via --check', async () => {
              const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-               '--experimental-type=module',
+               '--experimental-default-type=module',
                '--check',
                fixtures.path('es-modules/loose.js'),
              ]);
