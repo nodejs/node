@@ -2626,6 +2626,32 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void FChownSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  CHECK(args[0]->IsInt32());
+  const uv_gid_t fd = static_cast<uv_gid_t>(args[0].As<Int32>()->Value());
+
+  CHECK(args[1]->IsInt32());
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Int32>()->Value());
+
+  CHECK(args[2]->IsInt32());
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Int32>()->Value());
+
+  uv_fs_t req;
+  auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(fchown);
+  int err = uv_fs_fchown(nullptr, &req, fd, uid, gid, nullptr);
+  FS_SYNC_TRACE_END(fchown);
+  if (err < 0) {
+    return env->ThrowUVException(err, "fchown");
+  }
+}
+
+
 static void LChown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -3224,6 +3250,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "rmdir", RMDir);
   SetMethod(isolate, target, "mkdir", MKDir);
   SetMethod(isolate, target, "readdir", ReadDir);
+  SetMethod(isolate, target, "fchownSync", FChownSync);
   SetMethod(isolate, target, "internalModuleReadJSON", InternalModuleReadJSON);
   SetMethod(isolate, target, "internalModuleStat", InternalModuleStat);
   SetMethod(isolate, target, "stat", Stat);
@@ -3364,6 +3391,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(Chown);
   registry->Register(FChown);
+  registry->Register(FChownSync);
   registry->Register(LChown);
 
   registry->Register(UTimes);

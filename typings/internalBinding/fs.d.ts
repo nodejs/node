@@ -65,6 +65,7 @@ declare namespace InternalFSBinding {
   function chown(path: string, uid: number, gid: number, req: FSReqCallback): void;
   function chown(path: string, uid: number, gid: number, req: undefined, ctx: FSSyncContext): void;
   function chown(path: string, uid: number, gid: number, usePromises: typeof kUsePromises): Promise<void>;
+  function fchownSync(path: number, uid: number, gid: number): void;
 
   function close(fd: number, req: FSReqCallback): void;
   function close(fd: number, req: undefined, ctx: FSSyncContext): void;
@@ -240,6 +241,7 @@ export interface FsBinding {
   copyFile: typeof InternalFSBinding.copyFile;
   fchmod: typeof InternalFSBinding.fchmod;
   fchown: typeof InternalFSBinding.fchown;
+  fchownSync: typeof InternalFSBinding.fchownSync;
   fdatasync: typeof InternalFSBinding.fdatasync;
   fstat: typeof InternalFSBinding.fstat;
   fsync: typeof InternalFSBinding.fsync;
