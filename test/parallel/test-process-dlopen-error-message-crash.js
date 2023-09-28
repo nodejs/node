@@ -17,7 +17,7 @@ assert.throws(() => {
 }, ({ name, code, message }) => {
   assert.strictEqual(name, 'Error');
   assert.strictEqual(code, 'ERR_DLOPEN_FAILED');
-  if (!common.isAIX) {
+  if (!common.isAIX && !common.isIBMi) {
     assert.match(message, /foo-%s\.node/);
   }
   return true;
