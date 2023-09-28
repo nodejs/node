@@ -5,6 +5,7 @@
 
 #include "debug_utils-inl.h"
 #include "env.h"
+#include "node_buffer.h"
 #include "v8.h"
 
 // Use ostringstream to print exact-width integer types
@@ -220,9 +221,10 @@ inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
 
 inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
   char message[128];
-  snprintf(message, sizeof(message),
-      "Cannot create a Buffer larger than 0x%zx bytes",
-      v8::TypedArray::kMaxLength);
+  snprintf(message,
+           sizeof(message),
+           "Cannot create a Buffer larger than 0x%zx bytes",
+           Buffer::kMaxLength);
   return ERR_BUFFER_TOO_LARGE(isolate, message);
 }
 
