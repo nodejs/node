@@ -982,7 +982,7 @@ argv[1] /Users/geoffrey/Sites/node/test.js
 ```
 
 `process.argv1` is `undefined` for cases where Node.js is run without a main
-entry point, such as `node --eval`.
+entry point, such as `node --eval`; and within worker threads.
 
 ## `process.channel`
 
