@@ -712,9 +712,8 @@ function expectsError(validator, exact) {
       assert.fail(`Expected one argument, got ${inspect(args)}`);
     }
     const error = args.pop();
-    const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
     // The error message should be non-enumerable
-    assert.strictEqual(descriptor.enumerable, false);
+    assert.strictEqual(Object.prototype.propertyIsEnumerable.call(error, 'message'), false);
 
     assert.throws(() => { throw error; }, validator);
     return true;
