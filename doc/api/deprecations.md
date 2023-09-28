@@ -3390,7 +3390,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/49609
     description: Runtime deprecation.
-  - version: REPLACEME
+  - version: v20.8.0
     pr-url: https://github.com/nodejs/node/pull/49647
     description: Documentation-only deprecation.
 -->
@@ -3404,7 +3404,7 @@ the result of said promise, which can lead to unhandled promise rejections.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.8.0
     pr-url: https://github.com/nodejs/node/pull/49725
     description: Documentation-only deprecation.
 -->
@@ -3418,7 +3418,7 @@ The [`util.toUSVString()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.8.0
     pr-url: https://github.com/nodejs/node/pull/49683
     description: Documentation-only deprecation.
 -->
