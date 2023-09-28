@@ -604,12 +604,12 @@ Define which module system, `module` or `commonjs`, to use for the following:
   present in the same folder or any parent folder.
 
 * Files ending in `.js` or with no extension, if the nearest parent
-  `package.json` field lacks a `"type"` field; unless the folder is inside a
-  `node_modules` folder.
+  `package.json` field lacks a `"type"` field; unless the `package.json` folder
+  or any parent folder is inside a `node_modules` folder.
 
 In other words, `--experimental-default-type=module` flips all the places where
 Node.js currently defaults to CommonJS to instead default to ECMAScript modules,
-with the exception of packages inside `node_modules`, for backward
+with the exception of folders and subfolders below `node_modules`, for backward
 compatibility.
 
 Under `--experimental-default-type=module` and `--experimental-wasm-modules`,
