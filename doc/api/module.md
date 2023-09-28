@@ -85,7 +85,7 @@ isBuiltin('wss'); // false
 <!-- YAML
 added: v20.6.0
 changes:
-  - version: REPLACEME
+  - version: v20.8.0
     pr-url: https://github.com/nodejs/node/pull/49655
     description: Add support for WHATWG URL instances.
 -->
