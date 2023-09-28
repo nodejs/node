@@ -357,7 +357,7 @@ int SyncCallAndThrowIf(Predicate should_throw,
                        Func fn,
                        Args... args) {
   env->PrintSyncTrace();
-  int result = fn(env->event_loop(), &(req_wrap->req), args..., nullptr);
+  int result = fn(nullptr, &(req_wrap->req), args..., nullptr);
   if (should_throw(result)) {
     env->ThrowUVException(result,
                           req_wrap->syscall_p,

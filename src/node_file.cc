@@ -981,7 +981,7 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
-  if (argc == 3) {  // access(path, mode, req)
+  if (argc > 2) {  // access(path, mode, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN1(
@@ -1006,7 +1006,7 @@ void Close(const FunctionCallbackInfo<Value>& args) {
   int fd = args[0].As<Int32>()->Value();
   env->RemoveUnmanagedFd(fd);
 
-  if (args.Length() == 2) {  // close(fd, req)
+  if (argc > 1) {  // close(fd, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 1);
     CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_CLOSE, req_wrap_async)
@@ -1144,7 +1144,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = realm->env();
 
   const int argc = args.Length();
-  CHECK_GE(argc, 2);
+  CHECK_GE(argc, 3);
 
   BufferValue path(realm->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
@@ -1152,7 +1152,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
   bool use_bigint = args[1]->IsTrue();
-  if (argc == 3) {  // stat(path, use_bigint, req)
+  if (!args[2]->IsUndefined()) {  // stat(path, use_bigint, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
     CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN1(
@@ -1171,7 +1171,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
       result = SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_stat, *path);
     }
     FS_SYNC_TRACE_END(stat);
-    if (result < 0) {
+    if (is_uv_error(result)) {
       return;
     }
     Local<Value> arr = FillGlobalStatsArray(binding_data, use_bigint,
@@ -1262,8 +1262,9 @@ static void StatFs(const FunctionCallbackInfo<Value>& args) {
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
   bool use_bigint = args[1]->IsTrue();
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
-  if (req_wrap_async != nullptr) {  // statfs(path, use_bigint, req)
+  if (argc > 2) {  // statfs(path, use_bigint, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
+    CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_STATFS, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env,
@@ -1280,7 +1281,7 @@ static void StatFs(const FunctionCallbackInfo<Value>& args) {
     int result =
         SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_statfs, *path);
     FS_SYNC_TRACE_END(statfs);
-    if (result < 0) {
+    if (is_uv_error(result)) {
       return;
     }
 
@@ -1553,7 +1554,7 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
 
-  if (argc == 2) {  // unlink(path, req)
+  if (argc > 1) {  // unlink(path, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 1);
     CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN1(
@@ -2017,7 +2018,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 
   if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
 
-  if (argc == 4) {  // open(path, flags, mode, req)
+  if (argc > 3) {  // open(path, flags, mode, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     CHECK_NOT_NULL(req_wrap_async);
     req_wrap_async->set_is_plain_open(true);
@@ -2031,7 +2032,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
     int result = SyncCallAndThrowOnError(
         env, &req_wrap_sync, uv_fs_open, *path, flags, mode);
     FS_SYNC_TRACE_END(open);
-    if (result < 0) return;
+    if (is_uv_error(result)) return;
     env->AddUnmanagedFd(result);
     args.GetReturnValue().Set(result);
   }
@@ -2098,7 +2099,7 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsInt32());
   const int flags = args[2].As<Int32>()->Value();
 
-  if (argc == 4) {  // copyFile(src, dest, flags, req)
+  if (argc > 3) {  // copyFile(src, dest, flags, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN2(UV_FS_COPYFILE,
                           req_wrap_async,
