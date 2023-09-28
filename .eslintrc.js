@@ -360,5 +360,6 @@ module.exports = {
     WritableStream: 'readable',
     WritableStreamDefaultWriter: 'readable',
     WritableStreamDefaultController: 'readable',
+    WebSocket: 'readable',
   },
 };
