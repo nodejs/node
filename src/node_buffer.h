@@ -29,7 +29,9 @@ namespace node {
 
 namespace Buffer {
 
-static const size_t kMaxLength = v8::TypedArray::kMaxLength;
+static constexpr size_t kMaxLength =
+    v8::TypedArray::kMaxLength < 0x10000000000ull ? v8::Uint8Array::kMaxLength
+                                                  : 0x10000000000ull;
 
 typedef void (*FreeCallback)(char* data, void* hint);
 
