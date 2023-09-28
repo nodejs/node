@@ -8,6 +8,11 @@ import assert from 'node:assert';
 const testFixtures = fixtures.path('test-runner');
 
 describe('require(\'node:test\').run', { concurrency: true }, () => {
+  it('should fail when passing array as options', () => {
+    assert.throws(() => run([]), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  });
 
   it('should run with no tests', async () => {
     const stream = run({ files: [] });
