@@ -67,8 +67,13 @@ testMe.complete('inner.o', common.mustSucceed((data) => {
 // Clear the REPL.
 putIn.run(['.clear']);
 
+testMe._sawKeyPress = true;
 // Load the file back in.
 putIn.run([`.load ${saveFileName}`]);
+
+// Make sure loading doesn't insert extra indentation
+// https://github.com/nodejs/node/issues/47673
+assert.strictEqual(testMe.line, '');
 
 // Make sure that the REPL data is "correct".
 testMe.complete('inner.o', common.mustSucceed((data) => {

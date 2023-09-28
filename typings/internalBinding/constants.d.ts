@@ -1,4 +1,4 @@
-declare function InternalBinding(binding: 'constants'): {
+export interface ConstantsBinding {
   os: {
     UV_UDP_REUSEADDR: 4;
     dlopen: {
@@ -382,4 +382,4 @@ declare function InternalBinding(binding: 'constants'): {
     TRACE_EVENT_PHASE_LEAVE_CONTEXT: 41;
     TRACE_EVENT_PHASE_LINK_IDS: 61;
   };
-};
+}

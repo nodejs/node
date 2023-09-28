@@ -6249,6 +6249,13 @@ napi_create_threadsafe_function(napi_env env,
   [`napi_threadsafe_function_call_js`][] provides more details.
 * `[out] result`: The asynchronous thread-safe JavaScript function.
 
+**Change History:**
+
+* Experimental (`NAPI_EXPERIMENTAL` is defined):
+
+  Uncaught exceptions thrown in `call_js_cb` are handled with the
+  [`'uncaughtException'`][] event, instead of being ignored.
+
 ### `napi_get_threadsafe_function_context`
 
 <!-- YAML
@@ -6479,6 +6486,7 @@ the add-on's file name during loading.
 [Visual Studio]: https://visualstudio.microsoft.com
 [Working with JavaScript properties]: #working-with-javascript-properties
 [Xcode]: https://developer.apple.com/xcode/
+[`'uncaughtException'`]: process.md#event-uncaughtexception
 [`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
 [`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
 [`Worker`]: worker_threads.md#class-worker

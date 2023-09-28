@@ -13,8 +13,8 @@ Every Tls option, see [here](https://nodejs.org/api/tls.html#tls_tls_connect_opt
 Furthermore, the following options can be passed:
 
 * **socketPath** `string | null` (optional) - Default: `null` - An IPC endpoint, either Unix domain socket or Windows named pipe.
-* **maxCachedSessions** `number | null` (optional) - Default: `100` - Maximum number of TLS cached sessions. Use 0 to disable TLS session caching. Default: 100.
-* **timeout** `number | null` (optional) -  Default `10e3`
+* **maxCachedSessions** `number | null` (optional) - Default: `100` - Maximum number of TLS cached sessions. Use 0 to disable TLS session caching. Default: `100`.
+* **timeout** `number | null` (optional) -  In milliseconds. Default `10e3`.
 * **servername** `string | null` (optional)
 
 Once you call `buildConnector`, it will return a connector function, which takes the following parameters.
