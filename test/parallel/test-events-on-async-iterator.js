@@ -40,6 +40,15 @@ async function invalidArgType() {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
   }));
+
+  const ee = new EventEmitter();
+
+  [1, 'hi', null, false, () => {}, Symbol(), 1n].map((options) => {
+    return assert.throws(() => on(ee, 'foo', options), common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+    }));
+  });
 }
 
 async function error() {
