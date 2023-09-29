@@ -178,6 +178,7 @@ declare namespace InternalFSBinding {
   function readlink(path: StringOrBuffer, encoding: unknown, req: FSReqCallback<string | Buffer>): void;
   function readlink(path: StringOrBuffer, encoding: unknown, req: undefined, ctx: FSSyncContext): string | Buffer;
   function readlink(path: StringOrBuffer, encoding: unknown, usePromises: typeof kUsePromises): Promise<string | Buffer>;
+  function readlink(path: StringOrBuffer, encoding: unknown): StringOrBuffer;
 
   function realpath(path: StringOrBuffer, encoding: unknown, req: FSReqCallback<string | Buffer>): void;
   function realpath(path: StringOrBuffer, encoding: unknown, req: undefined, ctx: FSSyncContext): string | Buffer;
