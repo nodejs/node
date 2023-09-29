@@ -4,7 +4,7 @@ const common = require('../common');
 const Writable = require('stream').Writable;
 
 const bench = common.createBenchmark(main, {
-  n: [2e6],
+  n: [1e5],
   sync: ['yes', 'no'],
   writev: ['yes', 'no'],
   callback: ['yes', 'no'],
@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, sync, writev, callback, len }) {
   const b = Buffer.allocUnsafe(len);
-  const s = new Writable();
+  const s = new Writable({ highWaterMark: 16 * 1024 });
   sync = sync === 'yes';
 
   const writecb = (cb) => {
