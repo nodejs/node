@@ -1,4 +1,4 @@
-/* auto-generated on 2023-09-19 16:48:25 -0400. Do not edit! */
+/* auto-generated on 2023-09-29 13:28:16 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -116,7 +116,7 @@ ada_really_inline constexpr bool verify_dns_length(
 
 ADA_PUSH_DISABLE_ALL_WARNINGS
 /* begin file src/ada_idna.cpp */
-/* auto-generated on 2023-08-29 15:28:19 -0400. Do not edit! */
+/* auto-generated on 2023-09-19 15:58:51 -0400. Do not edit! */
 /* begin file src/idna.cpp */
 /* begin file src/unicode_transcoding.cpp */
 
@@ -9505,18 +9505,19 @@ bool is_label_valid(const std::u32string_view label) {
 
 namespace ada::idna {
 
-bool constexpr begins_with(std::u32string_view view,
-                           std::u32string_view prefix) {
+bool begins_with(std::u32string_view view, std::u32string_view prefix) {
   if (view.size() < prefix.size()) {
     return false;
   }
+  // constexpr as of C++20
   return std::equal(prefix.begin(), prefix.end(), view.begin());
 }
 
-bool constexpr begins_with(std::string_view view, std::string_view prefix) {
+bool begins_with(std::string_view view, std::string_view prefix) {
   if (view.size() < prefix.size()) {
     return false;
   }
+  // constexpr as of C++20
   return std::equal(prefix.begin(), prefix.end(), view.begin());
 }
 
