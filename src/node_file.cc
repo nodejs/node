@@ -2795,27 +2795,26 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
 
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {  // mkdtemp(tmpl, encoding, req)
+  if (argc > 2) {  // mkdtemp(tmpl, encoding, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_MKDTEMP, req_wrap_async, "path", TRACE_STR_COPY(*tmpl))
     AsyncCall(env, req_wrap_async, args, "mkdtemp", encoding, AfterStringPath,
               uv_fs_mkdtemp, *tmpl);
-  } else {  // mkdtemp(tmpl, encoding, undefined, ctx)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // mkdtemp(tmpl, encoding)
+    FSReqWrapSync req_wrap_sync("mkdtemp", *tmpl);
     FS_SYNC_TRACE_BEGIN(mkdtemp);
-    SyncCall(env, args[3], &req_wrap_sync, "mkdtemp",
-             uv_fs_mkdtemp, *tmpl);
+    int result =
+        SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_mkdtemp, *tmpl);
     FS_SYNC_TRACE_END(mkdtemp);
-    const char* path = req_wrap_sync.req.path;
-
+    if (is_uv_error(result)) {
+      return;
+    }
     Local<Value> error;
     MaybeLocal<Value> rc =
-        StringBytes::Encode(isolate, path, encoding, &error);
+        StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding, &error);
     if (rc.IsEmpty()) {
-      Local<Object> ctx = args[3].As<Object>();
-      ctx->Set(env->context(), env->error_string(), error).Check();
+      env->isolate()->ThrowException(error);
       return;
     }
     args.GetReturnValue().Set(rc.ToLocalChecked());

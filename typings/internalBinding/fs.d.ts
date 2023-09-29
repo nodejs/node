@@ -140,6 +140,7 @@ declare namespace InternalFSBinding {
   function mkdtemp(prefix: string, encoding: unknown, req: FSReqCallback<string>): void;
   function mkdtemp(prefix: string, encoding: unknown, req: undefined, ctx: FSSyncContext): string;
   function mkdtemp(prefix: string, encoding: unknown, usePromises: typeof kUsePromises): Promise<string>;
+  function mkdtemp(prefix: string, encoding: unknown): string;
 
   function mkdir(path: string, mode: number, recursive: boolean, req: FSReqCallback<void | string>): void;
   function mkdir(path: string, mode: number, recursive: true, req: FSReqCallback<string>): void;
