@@ -975,14 +975,14 @@ console.log('argv1  ', process.argv1);
 console.log('argv[1]', process.argv[1]);
 ```
 
-```shell
+```console
 $ node ./test.js
 argv1   ./test.js
-argv[1] /Users/geoffrey/Sites/node/test.js
+argv[1] /absolute/path/to/test.js
 ```
 
 `process.argv1` is `undefined` for cases where Node.js is run without a main
-entry point, such as `node --eval`; and within worker threads.
+entry point (such as `node --eval`) and within worker threads.
 
 ## `process.channel`
 
