@@ -2633,7 +2633,7 @@ static void FChownSync(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   CHECK(args[0]->IsInt32());
-  const uv_gid_t fd = static_cast<uv_gid_t>(args[0].As<Int32>()->Value());
+  const uv_file fd = static_cast<uv_file>(args[0].As<Int32>()->Value());
 
   CHECK(args[1]->IsInt32());
   const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Int32>()->Value());
