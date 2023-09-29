@@ -183,6 +183,7 @@ declare namespace InternalFSBinding {
   function rename(oldPath: string, newPath: string, req: FSReqCallback): void;
   function rename(oldPath: string, newPath: string, req: undefined, ctx: FSSyncContext): void;
   function rename(oldPath: string, newPath: string, usePromises: typeof kUsePromises): Promise<void>;
+  function rename(oldPath: string, newPath: string): void;
 
   function rmdir(path: string, req: FSReqCallback): void;
   function rmdir(path: string, req: undefined, ctx: FSSyncContext): void;
