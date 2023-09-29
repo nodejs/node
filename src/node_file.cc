@@ -1432,7 +1432,7 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
-  CHECK_GE(argc, 3);
+  CHECK_GE(argc, 2);
 
   BufferValue old_path(isolate, args[0]);
   CHECK_NOT_NULL(*old_path);
@@ -1449,8 +1449,8 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
       permission::PermissionScope::kFileSystemWrite,
       new_path.ToStringView());
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {
+  if (argc > 2) {  // rename(old_path, new_path, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN2(UV_FS_RENAME,
                           req_wrap_async,
                           "old_path",
@@ -1460,12 +1460,11 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
     AsyncDestCall(env, req_wrap_async, args, "rename", *new_path,
                   new_path.length(), UTF8, AfterNoArgs, uv_fs_rename,
                   *old_path, *new_path);
-  } else {
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // rename(old_path, new_path)
+    FSReqWrapSync req_wrap_sync("rename", *old_path, *new_path);
     FS_SYNC_TRACE_BEGIN(rename);
-    SyncCall(env, args[3], &req_wrap_sync, "rename", uv_fs_rename,
-             *old_path, *new_path);
+    SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_rename, *old_path, *new_path);
     FS_SYNC_TRACE_END(rename);
   }
 }
