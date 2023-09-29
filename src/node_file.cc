@@ -3120,11 +3120,19 @@ BindingData::FilePathIsFileReturnType BindingData::FilePathIsFile(
   return BindingData::FilePathIsFileReturnType::kIsNotFile;
 }
 
+namespace {
+
+// define the final index of the algorithm resolution
+// when packageConfig.main is defined.
+constexpr uint8_t legacy_main_extensions_with_main_end = 7;
+// define the final index of the algorithm resolution
+// when packageConfig.main is NOT defined
+constexpr uint8_t legacy_main_extensions_package_fallback_end = 10;
 // the possible file extensions that should be tested
 // 0-6: when packageConfig.main is defined
 // 7-9: when packageConfig.main is NOT defined,
 //      or when the previous case didn't found the file
-const std::array<std::string, 10> BindingData::legacy_main_extensions = {
+constexpr std::array<std::string_view, 10> legacy_main_extensions = {
     "",
     ".js",
     ".json",
@@ -3135,6 +3143,8 @@ const std::array<std::string, 10> BindingData::legacy_main_extensions = {
     ".js",
     ".json",
     ".node"};
+
+}  // namespace
 
 void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
@@ -3176,9 +3186,8 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
 
     FromNamespacedPath(&initial_file_path);
 
-    for (int i = 0; i < BindingData::legacy_main_extensions_with_main_end;
-         i++) {
-      file_path = initial_file_path + BindingData::legacy_main_extensions[i];
+    for (int i = 0; i < legacy_main_extensions_with_main_end; i++) {
+      file_path = initial_file_path + std::string(legacy_main_extensions[i]);
 
       switch (FilePathIsFile(env, file_path)) {
         case BindingData::FilePathIsFileReturnType::kIsFile:
@@ -3211,10 +3220,10 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
 
   FromNamespacedPath(&initial_file_path);
 
-  for (int i = BindingData::legacy_main_extensions_with_main_end;
-       i < BindingData::legacy_main_extensions_package_fallback_end;
+  for (int i = legacy_main_extensions_with_main_end;
+       i < legacy_main_extensions_package_fallback_end;
        i++) {
-    file_path = initial_file_path + BindingData::legacy_main_extensions[i];
+    file_path = initial_file_path + std::string(legacy_main_extensions[i]);
 
     switch (FilePathIsFile(env, file_path)) {
       case BindingData::FilePathIsFileReturnType::kIsFile:
