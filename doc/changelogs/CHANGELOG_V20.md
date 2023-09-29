@@ -71,7 +71,7 @@ This rework addressed a series of long-standing memory leaks and use-after-free 
 * `vm.SyntheticModule`
 * `vm.SourceTextModule`
 
-This should enable affected users (in particular Jest users) to upgrade from older versions of Node.js.
+This should enable affected users to upgrade from older versions of Node.js.
 
 Contributed by Joyee Cheung in [#48510](https://github.com/nodejs/node/pull/48510).
 
