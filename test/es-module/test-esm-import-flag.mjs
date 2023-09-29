@@ -1,6 +1,7 @@
-import { spawnPromisified } from '../common/index.mjs';
+import { mustCall, spawnPromisified } from '../common/index.mjs';
 import fixtures from '../common/fixtures.js';
 import assert from 'node:assert';
+import { spawn } from 'node:child_process';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
@@ -40,6 +41,48 @@ describe('import modules using --import', { concurrency: true }, () => {
     assert.match(stdout, /^\.mjs file\r?\nlog\r?\n$/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
+  });
+
+  it('should treat the last import as the main entry point when no argument is passed', async () => {
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [
+        '--import', mjsImport,
+      ]
+    );
+
+    assert.strictEqual(stderr, '');
+    assert.match(stdout, /^\.mjs file\r?\n$/);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should still launch the REPL when --interactive is passed', async () => {
+    const child = spawn(execPath, [
+      '--import', mjsImport,
+      '--interactive',
+    ]);
+
+    child.on('exit', mustCall((code, signal) => {
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    }));
+
+    child.stdin.write('.exit\n');
+  });
+
+  it('should still launch the REPL when -i is passed', async () => {
+    const child = spawn(execPath, [
+      '--import', mjsImport,
+      '-i',
+    ]);
+
+    child.on('exit', mustCall((code, signal) => {
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    }));
+
+    child.stdin.write('.exit\n');
   });
 
   it('should import when main entrypoint is a cjs file', async () => {
