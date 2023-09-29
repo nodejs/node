@@ -1298,7 +1298,7 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
-  CHECK_GE(argc, 4);
+  CHECK_GE(argc, 3);
 
   BufferValue target(isolate, args[0]);
   CHECK_NOT_NULL(*target);
@@ -1317,8 +1317,8 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsInt32());
   int flags = args[2].As<Int32>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // symlink(target, path, flags, req)
+  if (argc > 3) {  // symlink(target, path, flags, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN2(UV_FS_SYMLINK,
                           req_wrap_async,
                           "target",
@@ -1328,11 +1328,10 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
     AsyncDestCall(env, req_wrap_async, args, "symlink", *path, path.length(),
                   UTF8, AfterNoArgs, uv_fs_symlink, *target, *path, flags);
   } else {  // symlink(target, path, flags, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+    FSReqWrapSync req_wrap_sync("symlink", *target, *path);
     FS_SYNC_TRACE_BEGIN(symlink);
-    SyncCall(env, args[4], &req_wrap_sync, "symlink",
-             uv_fs_symlink, *target, *path, flags);
+    SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_symlink, *target, *path, flags);
     FS_SYNC_TRACE_END(symlink);
   }
 }

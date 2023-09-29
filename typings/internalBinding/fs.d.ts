@@ -206,6 +206,7 @@ declare namespace InternalFSBinding {
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, req: FSReqCallback): void;
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, req: undefined, ctx: FSSyncContext): void;
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, usePromises: typeof kUsePromises): Promise<void>;
+  function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number): void;
 
   function unlink(path: string, req: FSReqCallback): void;
   function unlink(path: string): void;
