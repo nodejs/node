@@ -1,4 +1,4 @@
-/* auto-generated on 2023-09-19 16:48:25 -0400. Do not edit! */
+/* auto-generated on 2023-09-29 13:28:16 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -8,7 +8,7 @@
 #define ADA_H
 
 /* begin file include/ada/ada_idna.h */
-/* auto-generated on 2023-08-29 15:28:19 -0400. Do not edit! */
+/* auto-generated on 2023-09-19 15:58:51 -0400. Do not edit! */
 /* begin file include/idna.h */
 #ifndef ADA_IDNA_H
 #define ADA_IDNA_H
@@ -129,9 +129,8 @@ std::string to_ascii(std::string_view ut8_string);
 // https://url.spec.whatwg.org/#forbidden-domain-code-point
 bool contains_forbidden_domain_code_point(std::string_view ascii_string);
 
-bool constexpr begins_with(std::u32string_view view,
-                           std::u32string_view prefix);
-bool constexpr begins_with(std::string_view view, std::string_view prefix);
+bool begins_with(std::u32string_view view, std::u32string_view prefix);
+bool begins_with(std::string_view view, std::string_view prefix);
 
 bool constexpr is_ascii(std::u32string_view view);
 bool constexpr is_ascii(std::string_view view);
@@ -6929,14 +6928,14 @@ inline void url_search_params::sort() {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.6.8"
+#define ADA_VERSION "2.6.9"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
   ADA_VERSION_MINOR = 6,
-  ADA_VERSION_REVISION = 8,
+  ADA_VERSION_REVISION = 9,
 };
 
 }  // namespace ada
