@@ -117,6 +117,7 @@ declare namespace InternalFSBinding {
   function lchown(path: string, uid: number, gid: number, req: FSReqCallback): void;
   function lchown(path: string, uid: number, gid: number, req: undefined, ctx: FSSyncContext): void;
   function lchown(path: string, uid: number, gid: number, usePromises: typeof kUsePromises): Promise<void>;
+  function lchown(path: string, uid: number, gid: number): void;
 
   function link(existingPath: string, newPath: string, req: FSReqCallback): void;
   function link(existingPath: string, newPath: string, req: undefined, ctx: FSSyncContext): void;
