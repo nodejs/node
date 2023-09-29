@@ -1377,7 +1377,7 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
-  CHECK_GE(argc, 3);
+  CHECK_GE(argc, 2);
 
   BufferValue src(isolate, args[0]);
   CHECK_NOT_NULL(*src);
@@ -1395,8 +1395,8 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, dest_view);
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {  // link(src, dest, req)
+  if (argc > 2) {  // link(src, dest, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN2(UV_FS_LINK,
                           req_wrap_async,
                           "src",
@@ -1406,11 +1406,9 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
     AsyncDestCall(env, req_wrap_async, args, "link", *dest, dest.length(), UTF8,
                   AfterNoArgs, uv_fs_link, *src, *dest);
   } else {  // link(src, dest)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+    FSReqWrapSync req_wrap_sync("link", *src, *dest);
     FS_SYNC_TRACE_BEGIN(link);
-    SyncCall(env, args[3], &req_wrap_sync, "link",
-             uv_fs_link, *src, *dest);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_link, *src, *dest);
     FS_SYNC_TRACE_END(link);
   }
 }
