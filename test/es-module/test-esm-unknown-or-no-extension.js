@@ -26,10 +26,10 @@ describe('ESM: extensionless and unknown specifiers', { concurrency: true }, () 
       assert.strictEqual(code, 1);
       assert.strictEqual(signal, null);
       assert.strictEqual(stdout, '');
-      assert.ok(stderr.includes('ERR_UNKNOWN_FILE_EXTENSION'));
+      assert.match(stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
       if (fixturePath.includes('noext')) {
         // Check for explanation to users
-        assert.ok(stderr.includes('extensionless'));
+        assert.match(stderr, /extensionless/);
       }
     });
   }
