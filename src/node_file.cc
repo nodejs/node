@@ -1383,7 +1383,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
-  CHECK_GE(argc, 3);
+  CHECK_GE(argc, 2);
 
   BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
@@ -1392,21 +1392,20 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
 
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {  // readlink(path, encoding, req)
+  if (argc > 2) {  // readlink(path, encoding, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_READLINK, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "readlink", encoding, AfterStringPtr,
               uv_fs_readlink, *path);
-  } else {
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // readlink(path, encoding)
+    FSReqWrapSync req_wrap_sync("readlink", *path);
     FS_SYNC_TRACE_BEGIN(readlink);
-    int err = SyncCall(env, args[3], &req_wrap_sync, "readlink",
-                       uv_fs_readlink, *path);
+    int err =
+        SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_readlink, *path);
     FS_SYNC_TRACE_END(readlink);
     if (err < 0) {
-      return;  // syscall failed, no need to continue, error info is in ctx
+      return;
     }
     const char* link_path = static_cast<const char*>(req_wrap_sync.req.ptr);
 
@@ -1416,8 +1415,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
                                                encoding,
                                                &error);
     if (rc.IsEmpty()) {
-      Local<Object> ctx = args[3].As<Object>();
-      ctx->Set(env->context(), env->error_string(), error).Check();
+      env->isolate()->ThrowException(error);
       return;
     }
 
