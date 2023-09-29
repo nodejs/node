@@ -230,7 +230,7 @@
             ],
           },],
           ['OS == "android"', {
-            'cflags': [ '-fPIC' ],
+            'cflags': [ '-fPIC', '-I<(android_ndk_path)/sources/android/cpufeatures' ],
             'ldflags': [ '-fPIC' ]
           }],
         ],
