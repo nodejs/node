@@ -121,6 +121,7 @@ declare namespace InternalFSBinding {
   function link(existingPath: string, newPath: string, req: FSReqCallback): void;
   function link(existingPath: string, newPath: string, req: undefined, ctx: FSSyncContext): void;
   function link(existingPath: string, newPath: string, usePromises: typeof kUsePromises): Promise<void>;
+  function link(existingPath: string, newPath: string): void;
 
   function lstat(path: StringOrBuffer, useBigint: boolean, req: FSReqCallback<Float64Array | BigUint64Array>): void;
   function lstat(path: StringOrBuffer, useBigint: true, req: FSReqCallback<BigUint64Array>): void;
