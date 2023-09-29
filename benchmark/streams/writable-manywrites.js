@@ -24,6 +24,7 @@ function main({ n, sync, writev, callback, len }) {
   };
 
   if (writev === 'yes') {
+    s._writev2 = (chunks, encoding, cb) => writecb(cb);
     s._writev = (chunks, cb) => writecb(cb);
   } else {
     s._write = (chunk, encoding, cb) => writecb(cb);
