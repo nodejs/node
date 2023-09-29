@@ -1454,12 +1454,13 @@ added: REPLACEME
 -->
 
 * `options` {Object}
-  * `shouldIgnoreErrors` {boolean} **Default:** `false`
-  * `useStdErr` {boolean} **Default:** `false`
+  * `rejectIfNonZeroExitCode` {boolean} **Default:** `false`
+  * `listenTo` {string} Can be one of `'stdout'`, or `'stderr'`.
+    **Default:** `'stdout'`
 * Returns: {readline.InterfaceConstructor}
 
-Convenience method to create a `readline` interface and stream over the stdout
-(or stderr if `useStdErr` is `true`) of the process.
+Convenience method to create a `node:readline` interface and stream over the
+output of the child process.
 
 ```mjs
 import { spawn } from 'node:child_process';
