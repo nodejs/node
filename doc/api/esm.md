@@ -1009,8 +1009,12 @@ _isImports_, _conditions_)
 > 5. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_url_).
 > 6. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
 > 7. If _pjson?.type_ exists and is _"module"_, then
->    1. If _url_ ends in _".js"_, then
->       1. Return _"module"_.
+>    1. If _url_ ends in _".js"_ or has no file extension, then
+>       1. If `--experimental-wasm-modules` is enabled and the file at _url_
+>          contains the header for a WebAssembly module, then
+>          1. Return _"wasm"_.
+>       2. Otherwise,
+>          1. Return _"module"_.
 >    2. Return **undefined**.
 > 8. Otherwise,
 >    1. Return **undefined**.
