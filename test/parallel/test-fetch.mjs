@@ -10,6 +10,14 @@ assert.strictEqual(typeof globalThis.Headers, 'function');
 assert.strictEqual(typeof globalThis.Request, 'function');
 assert.strictEqual(typeof globalThis.Response, 'function');
 
+{
+  const asyncFunction = async function() {}.constructor;
+
+  assert.ok(!(fetch instanceof asyncFunction));
+  assert.notStrictEqual(Reflect.getPrototypeOf(fetch), Reflect.getPrototypeOf(async function() {}));
+  assert.strictEqual(Reflect.getPrototypeOf(fetch), Reflect.getPrototypeOf(function() {}));
+}
+
 const server = http.createServer(common.mustCall((req, res) => {
   res.end('Hello world');
 }));
