@@ -68,8 +68,6 @@ void builderAppendQuotedString(StringBuilder& builder, const std::string_view);
 std::unique_ptr<Value> parseJSON(const std::string_view);
 std::unique_ptr<Value> parseJSON(v8_inspector::StringView view);
 
-std::unique_ptr<Value> parseMessage(const std::string_view message,
-                                    bool binary);
 ProtocolMessage jsonToMessage(String message);
 ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
 String fromUTF8(const uint8_t* data, size_t length);
