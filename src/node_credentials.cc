@@ -116,7 +116,7 @@ bool SafeGetenv(const char* key,
       ret = uv_os_getenv(key, *val, &init_sz);
     }
 
-    if (ret >= 0) {  // Env key value fetch success.
+    if (ret == 0) {  // Env key value fetch success.
       *text = *val;
       return true;
     }
