@@ -617,6 +617,17 @@ files with no extension will be treated as WebAssembly if they begin with the
 WebAssembly magic number (`\0asm`); otherwise they will be treated as ES module
 JavaScript.
 
+### `--experimental-entry-url`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+When present, Node.js will interpret the entry point as a URL, rather than a path.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -2274,6 +2285,7 @@ Node.js options that are allowed are:
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
 * `--experimental-default-type`
+* `--experimental-entry-url`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`

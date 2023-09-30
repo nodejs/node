@@ -119,6 +119,7 @@ class EnvironmentOptions : public Options {
   bool experimental_import_meta_resolve = false;
   std::string input_type;  // Value of --input-type
   std::string type;        // Value of --experimental-default-type
+  bool entry_is_url = false;
   std::string experimental_policy;
   std::string experimental_policy_integrity;
   bool has_policy_integrity_string = false;

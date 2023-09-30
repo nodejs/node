@@ -657,6 +657,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set module system to use by default",
             &EnvironmentOptions::type,
             kAllowedInEnvvar);
+  AddOption("--experimental-entry-url",
+            "set module system to use by default",
+            &EnvironmentOptions::entry_is_url,
+            kAllowedInEnvvar);
   AddOption("--extra-info-on-fatal-exception",
             "hide extra information on fatal exception that causes exit",
             &EnvironmentOptions::extra_info_on_fatal_exception,
