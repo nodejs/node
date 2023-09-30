@@ -253,8 +253,8 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                        "[inspector received] %s\n",
                        raw_message);
     std::unique_ptr<protocol::DictionaryValue> value =
-        protocol::DictionaryValue::cast(protocol::StringUtil::parseMessage(
-            raw_message, false));
+        protocol::DictionaryValue::cast(
+            protocol::StringUtil::parseJSON(message));
     int call_id;
     std::string method;
     node_dispatcher_->parseCommand(value.get(), &call_id, &method);

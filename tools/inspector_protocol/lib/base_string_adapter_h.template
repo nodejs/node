@@ -92,7 +92,6 @@ class {{config.lib.export_macro}} StringUtil {
     return builder.toString();
   }
 
-  static std::unique_ptr<Value> parseMessage(const std::string& message, bool binary);
   static ProtocolMessage jsonToMessage(String message);
   static ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
 
