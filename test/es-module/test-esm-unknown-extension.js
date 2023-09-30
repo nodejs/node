@@ -7,14 +7,11 @@ const { execPath } = require('node:process');
 const { describe, it } = require('node:test');
 
 
-// In a "type": "module" package scope, files with unknown extensions or no
-// extensions should throw; both when used as a main entry point and also when
-// referenced via `import`.
-describe('ESM: extensionless and unknown specifiers', { concurrency: true }, () => {
+// In a "type": "module" package scope, files with unknown extensions should throw;
+// both when used as a main entry point and also when referenced via `import`.
+describe('ESM: unknown specifiers', { concurrency: true }, () => {
   for (
     const fixturePath of [
-      '/es-modules/package-type-module/noext-esm',
-      '/es-modules/package-type-module/imports-noext.mjs',
       '/es-modules/package-type-module/extension.unknown',
       '/es-modules/package-type-module/imports-unknownext.mjs',
     ]
@@ -27,10 +24,6 @@ describe('ESM: extensionless and unknown specifiers', { concurrency: true }, () 
       assert.strictEqual(signal, null);
       assert.strictEqual(stdout, '');
       assert.match(stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
-      if (fixturePath.includes('noext')) {
-        // Check for explanation to users
-        assert.match(stderr, /extensionless/);
-      }
     });
   }
 });
