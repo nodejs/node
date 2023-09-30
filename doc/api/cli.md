@@ -626,7 +626,10 @@ added:
 
 > Stability: 1.0 - Early development
 
-When present, Node.js will interpret the entry point as a URL, rather than a path.
+When present, Node.js will interpret the entry point as a URL, rather than a
+path. The URL must either start with `./` (e.g. `./entry.js`) or be absolute
+(e.g. `file:///home/user/entry.js`). Bare specifier (e.g. `entry.js`) won't
+work.
 
 ### `--experimental-import-meta-resolve`
 

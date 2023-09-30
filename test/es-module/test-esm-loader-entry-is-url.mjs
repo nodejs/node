@@ -20,6 +20,21 @@ describe('--entry-url', { concurrency: true }, () => {
     assert.strictEqual(signal, null);
   });
 
+  it('should support loading absolute Unix path properly encoded', async () => {
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [
+        '--experimental-entry-url',
+        fixtures.fileURL('es-modules/test-esm-double-encoding-native%20.mjs').pathname,
+      ]
+    );
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
   it('should support loading absolute URLs', async () => {
     const { code, signal, stderr, stdout } = await spawnPromisified(
       execPath,
@@ -65,7 +80,25 @@ describe('--entry-url', { concurrency: true }, () => {
       }
     );
 
-    assert.match(stderr, /ERR_MODULE_NOT_FOUND/);
+    assert.match(stderr, /ERR_INVALID_URL/);
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should reject loading bare specifiers from node_modules', async () => {
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [
+        '--experimental-entry-url',
+        'explicit-main',
+      ],
+      {
+        cwd: fixtures.fileURL('./es-module-specifiers/'),
+      }
+    );
+
+    assert.match(stderr, /ERR_INVALID_URL/);
     assert.strictEqual(stdout, '');
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
