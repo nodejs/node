@@ -808,7 +808,7 @@ function invalidArgTypeHelper(input) {
   if (input == null) {
     return ` Received ${input}`;
   }
-  if (typeof input === 'function' && input.name) {
+  if (typeof input === 'function') {
     return ` Received function ${input.name}`;
   }
   if (typeof input === 'object') {
