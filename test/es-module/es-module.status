@@ -9,3 +9,7 @@ prefix es-module
 [$system==linux || $system==freebsd]
 # https://github.com/nodejs/node/issues/47836
 test-esm-loader-http-imports: PASS,FLAKY
+
+[$arch==arm || $arch==arm64]
+# https://github.com/nodejs/node/issues/47297
+test-wasm-web-api: SKIP
