@@ -10,9 +10,6 @@ if (typeof this !== 'undefined') {
 if (typeof exports !== 'undefined') {
   throw new Error('not an ESM');
 }
-if (typeof require !== 'undefined') {
-  throw new Error('not an ESM');
-}
 if (typeof module !== 'undefined') {
   throw new Error('not an ESM');
 }
