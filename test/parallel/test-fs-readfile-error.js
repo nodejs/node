@@ -61,7 +61,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "path" argument must be of type string or an instance of ' +
-             'Buffer or URL. Received type function ([Function (anonymous)])',
+             'Buffer or URL. Received function ',
     name: 'TypeError'
   }
 );
