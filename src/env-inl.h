@@ -775,14 +775,9 @@ inline void Environment::ThrowRangeError(const char* errmsg) {
   ThrowError(v8::Exception::RangeError, errmsg);
 }
 
-inline void Environment::ThrowError(V8ExceptionConstructorOld fun,
-                                    const char* errmsg) {
-  v8::HandleScope handle_scope(isolate());
-  isolate()->ThrowException(fun(OneByteString(isolate(), errmsg)));
-}
-
-inline void Environment::ThrowError(V8ExceptionConstructorNew fun,
-                                    const char* errmsg) {
+inline void Environment::ThrowError(
+    v8::Local<v8::Value> (*fun)(v8::Local<v8::String>, v8::Local<v8::Value>),
+    const char* errmsg) {
   v8::HandleScope handle_scope(isolate());
   isolate()->ThrowException(fun(OneByteString(isolate(), errmsg), {}));
 }
