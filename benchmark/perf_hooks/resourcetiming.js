@@ -72,6 +72,6 @@ function main({ n, observe }) {
   obs.observe({ entryTypes: [observe], buffered: true });
 
   bench.start();
-  for (let i = 0; i < 1e5; i++)
+  for (let i = 0; i < n; i++)
     test();
 }
