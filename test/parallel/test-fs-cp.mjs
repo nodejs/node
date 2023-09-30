@@ -133,8 +133,10 @@ function nextdir() {
 
 // It rejects if options.mode is invalid.
 {
+  const src = './test/fixtures/copy/kitchen-sink';
+  const dest = nextdir();
   assert.throws(
-    () => cpSync('a', 'b', { mode: -1 }),
+    () => cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true, mode: -1 })),
     { code: 'ERR_OUT_OF_RANGE' }
   );
 }
@@ -858,10 +860,11 @@ if (!isWindows) {
 
 // It throws if options is not object.
 {
-  assert.throws(
-    () => cp('a', 'b', { mode: -1 }, () => {}),
-    { code: 'ERR_OUT_OF_RANGE' }
-  );
+  const src = './test/fixtures/copy/kitchen-sink';
+  const dest = nextdir();
+  cp(src, dest, mustNotMutateObjectDeep({ recursive: true, mode: -1 }), (err) => {
+    assert.strictEqual(err.code, 'ERR_OUT_OF_RANGE');
+  });
 }
 
 // Promises implementation of copy.
@@ -943,10 +946,13 @@ if (!isWindows) {
 
 // It rejects if options.mode is invalid.
 {
+  const src = './test/fixtures/copy/kitchen-sink';
+  const dest = nextdir();
   await assert.rejects(
-    fs.promises.cp('a', 'b', {
+    fs.promises.cp(src, dest, mustNotMutateObjectDeep({
+      recursive: true,
       mode: -1,
-    }),
+    })),
     { code: 'ERR_OUT_OF_RANGE' }
   );
 }

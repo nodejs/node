@@ -163,6 +163,8 @@ fs.accessSync(readWriteFile, mode);
   { [Symbol.toPrimitive]() { return fs.constants.R_OK; } },
   [1],
   'r',
+  NaN,
+  Infinity,
 ].forEach((mode, i) => {
   console.log(mode, i);
   assert.throws(
@@ -183,8 +185,6 @@ fs.accessSync(readWriteFile, mode);
 [
   -1,
   8,
-  Infinity,
-  NaN,
 ].forEach((mode, i) => {
   console.log(mode, i);
   assert.throws(

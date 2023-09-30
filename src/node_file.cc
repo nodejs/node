@@ -89,6 +89,24 @@ constexpr char kPathSeparator = '/';
 const char* const kPathSeparator = "\\/";
 #endif
 
+// The access modes can be any of F_OK, R_OK, W_OK or X_OK. Some might not be
+// available on specific systems. They can be used in combination as well
+// (F_OK | R_OK | W_OK | X_OK).
+constexpr int kMaximumAccessMode = F_OK | W_OK | R_OK | X_OK;
+constexpr int kMinimumAccessMode = std::min({F_OK, W_OK, R_OK, X_OK});
+
+constexpr int kDefaultCopyMode = 0;
+// The copy modes can be any of UV_FS_COPYFILE_EXCL, UV_FS_COPYFILE_FICLONE or
+// UV_FS_COPYFILE_FICLONE_FORCE. They can be used in combination as well
+// (US_FS_COPYFILE_EXCL | US_FS_COPYFILE_FICLONE |
+// US_FS_COPYFILE_FICLONE_FORCE).
+constexpr int kMinimumCopyMode = std::min({kDefaultCopyMode,
+                                           UV_FS_COPYFILE_EXCL,
+                                           UV_FS_COPYFILE_FICLONE,
+                                           UV_FS_COPYFILE_FICLONE_FORCE});
+constexpr int kMaximumCopyMode =
+    UV_FS_COPYFILE_EXCL | UV_FS_COPYFILE_FICLONE | UV_FS_COPYFILE_FICLONE_FORCE;
+
 std::string Basename(const std::string& str, const std::string& extension) {
   // Remove everything leading up to and including the final path separator.
   std::string::size_type pos = str.find_last_of(kPathSeparator);
@@ -854,6 +872,43 @@ void FromNamespacedPath(std::string* path) {
 #endif
 }
 
+static inline int GetValidMode(Environment* env,
+                               Local<Value> mode_v,
+                               std::string_view type) {
+  if (!mode_v->IsInt32() && !mode_v->IsNullOrUndefined()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "mode must be int32 or null/undefined");
+    return -1;
+  }
+
+  int min = kMinimumAccessMode;
+  int max = kMaximumAccessMode;
+  int def = F_OK;
+
+  if (type == "copyFile") {
+    min = kMinimumCopyMode;
+    max = kMaximumCopyMode;
+    def = mode_v->IsNullOrUndefined() ? kDefaultCopyMode
+                                      : mode_v.As<Int32>()->Value();
+  } else if (type != "access") {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env, "type must be equal to \"copyFile\" or \"access\"");
+    return -1;
+  }
+
+  if (mode_v->IsNullOrUndefined()) {
+    return def;
+  }
+
+  const int mode = mode_v.As<Int32>()->Value();
+  if (mode < min || mode > max) {
+    THROW_ERR_OUT_OF_RANGE(
+        env, "mode is out of range: >= %d && <= %d", min, max);
+    return -1;
+  }
+
+  return mode;
+}
+
 void AfterMkdirp(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
@@ -973,8 +1028,8 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 2);
 
-  CHECK(args[1]->IsInt32());
-  int mode = args[1].As<Int32>()->Value();
+  int mode = GetValidMode(env, args[1], "access");
+  if (mode == -1) return;
 
   BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
@@ -2086,6 +2141,9 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
+  const int flags = GetValidMode(env, args[2], "copyFile");
+  if (flags == -1) return;
+
   BufferValue src(isolate, args[0]);
   CHECK_NOT_NULL(*src);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
@@ -2095,9 +2153,6 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(*dest);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
-
-  CHECK(args[2]->IsInt32());
-  const int flags = args[2].As<Int32>()->Value();
 
   if (argc > 3) {  // copyFile(src, dest, flags, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
