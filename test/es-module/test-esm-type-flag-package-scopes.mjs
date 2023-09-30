@@ -24,6 +24,14 @@ describe('the type flag should change the interpretation of certain files within
              strictEqual(defaultExport, 'module');
            });
 
+           it('should import an extensionless JavaScript file within a "type": "module" scope under node_modules',
+              async () => {
+                const { default: defaultExport } =
+                await import(fixtures.fileURL(
+                  'es-modules/package-type-module/node_modules/dep-with-package-json-type-module/noext-esm'));
+                strictEqual(defaultExport, 'module');
+              });
+
            it('should run as Wasm an extensionless Wasm file within a "type": "module" scope', async () => {
              const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
                '--experimental-default-type=module',
@@ -42,6 +50,13 @@ describe('the type flag should change the interpretation of certain files within
              const { add } = await import(fixtures.fileURL('es-modules/package-type-module/noext-wasm'));
              strictEqual(add(1, 2), 3);
            });
+
+           it('should import an extensionless Wasm file within a "type": "module" scope under node_modules',
+              async () => {
+                const { add } = await import(fixtures.fileURL(
+                  'es-modules/package-type-module/node_modules/dep-with-package-json-type-module/noext-wasm'));
+                strictEqual(add(1, 2), 3);
+              });
          });
 
 describe(`the type flag should change the interpretation of certain files within a package scope that lacks a
@@ -112,7 +127,7 @@ describe(`the type flag should NOT change the interpretation of certain files wi
      async () => {
        const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
          '--experimental-default-type=module',
-         fixtures.path('es-modules/package-type-module/node_modules/dep-with-package-json/run.js'),
+         fixtures.path('es-modules/package-type-module/node_modules/dep-with-package-json-without-type/run.js'),
        ]);
 
        strictEqual(stderr, '');
@@ -124,7 +139,8 @@ describe(`the type flag should NOT change the interpretation of certain files wi
   it(`should import as CommonJS a .js file within a package scope that has no defined "type" and is under
   node_modules`, async () => {
     const { default: defaultExport } =
-      await import(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json/run.js'));
+      await import(fixtures.fileURL(
+        'es-modules/package-type-module/node_modules/dep-with-package-json-without-type/run.js'));
     strictEqual(defaultExport, 42);
   });
 
@@ -132,7 +148,7 @@ describe(`the type flag should NOT change the interpretation of certain files wi
   under node_modules`, async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-default-type=module',
-      fixtures.path('es-modules/package-type-module/node_modules/dep-with-package-json/noext-cjs'),
+      fixtures.path('es-modules/package-type-module/node_modules/dep-with-package-json-without-type/noext-cjs'),
     ]);
 
     strictEqual(stderr, '');
@@ -144,7 +160,8 @@ describe(`the type flag should NOT change the interpretation of certain files wi
   it(`should import as CommonJS an extensionless JavaScript file within a package scope that has no defined "type" and
   is under node_modules`, async () => {
     const { default: defaultExport } =
-      await import(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json/noext-cjs'));
+      await import(fixtures.fileURL(
+        'es-modules/package-type-module/node_modules/dep-with-package-json-without-type/noext-cjs'));
     strictEqual(defaultExport, 42);
   });
 });
