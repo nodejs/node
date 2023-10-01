@@ -1522,6 +1522,7 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 1);
 
   const int fd = GetValidatedFd(env, args[0]);
+  if (fd == (1 << 30)) return;
 
   if (argc > 1) {  // fdatasync(fd, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 1);
