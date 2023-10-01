@@ -308,7 +308,7 @@ For information about the governance of the Node.js project, see
 * [bmeck](https://github.com/bmeck) -
   **Bradley Farias** <<bradley.meck@gmail.com>>
 * [bnb](https://github.com/bnb) -
-  **Tierney Cyren** <<hello@bnb.im>> (they/he)
+  **Tierney Cyren** <<hello@bnb.im>> (they/them)
 * [bnoordhuis](https://github.com/bnoordhuis) -
   **Ben Noordhuis** <<info@bnoordhuis.nl>>
 * [BridgeAR](https://github.com/BridgeAR) -
