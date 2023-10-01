@@ -1298,6 +1298,15 @@ Starts the Node.js command line test runner. This flag cannot be combined with
 See the documentation on [running tests from the command line][]
 for more details.
 
+### `--test-concurrency`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The maximum number of test files that the test runner CLI will execute
+concurrently. The default value is `os.availableParallelism() - 1`.
+
 ### `--test-name-pattern`
 
 <!-- YAML
