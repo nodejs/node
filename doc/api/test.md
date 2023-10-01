@@ -373,11 +373,12 @@ When searching for test files to execute, the test runner behaves as follows:
     automatically executed by the test runner, but are supported if explicitly
     provided on the command line.
 
-Each matching test file is executed in a separate child process. If the child
-process finishes with an exit code of 0, the test is considered passing.
-Otherwise, the test is considered to be a failure. Test files must be
-executable by Node.js, but are not required to use the `node:test` module
-internally.
+Each matching test file is executed in a separate child process. The maximum
+number of child processes running at any time is controlled by the
+[`--test-concurrency`][] flag. If the child process finishes with an exit code
+of 0, the test is considered passing. Otherwise, the test is considered to be a
+failure. Test files must be executable by Node.js, but are not required to use
+the `node:test` module internally.
 
 Each test file is executed as if it was a regular script. That is, if the test
 file itself uses `node:test` to define tests, all of those tests will be
@@ -2562,6 +2563,7 @@ added:
 [TTY]: tty.md
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--import`]: cli.md#--importmodule
+[`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination

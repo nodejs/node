@@ -159,6 +159,7 @@ class EnvironmentOptions : public Options {
   std::string env_file;
   bool has_env_file_string = false;
   bool test_runner = false;
+  uint64_t test_runner_concurrency = 0;
   bool test_runner_coverage = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
