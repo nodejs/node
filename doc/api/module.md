@@ -610,19 +610,21 @@ not possible to replace the value of a Node.js builtin (core) module.
 
 Omitting vs providing a `source` for `'commonjs'` has very different effects:
 
-* When a `source` is provided, all `require` calls from this module will be
-  processed by the ESM loader with registered `resolve` and `load` hooks; all
-  `require.resolve` calls from this module will be processed by the ESM loader
-  with registered `resolve` hooks; only a subset of the CommonJS API will be
-  available (e.g. no `require.extensions`, no `require.cache`, no
+* When a `source` is provided, or when running `node` with
+  `--experimental-default-type=module`, all `require` calls from this module
+  will be processed by the ESM loader with registered `resolve` and `load`
+  hooks; all `require.resolve` calls from this module will be processed by the
+  ESM loader with registered `resolve` hooks; only a subset of the CommonJS API
+  will be available (e.g. no `require.extensions`, no `require.cache`, no
   `require.resolve.paths`) and monkey-patching on the CommonJS module loader
   will not apply.
-* If `source` is undefined or `null`, it will be handled by the CommonJS module
-  loader and `require`/`require.resolve` calls will not go through the
-  registered hooks. This behavior for nullish `source` is temporary — in the
-  future, nullish `source` will not be supported.
+* If `source` is undefined or `null`, and `node` is run with
+  `--experimental-default-type=commonjs`, it will be handled by the CommonJS
+  module loader and `require`/`require.resolve` calls will not go through the
+  registered hooks.
 
-The Node.js internal `load` implementation, which is the value of `next` for the
+When `node` is run with `--experimental-default-type=commonjs`, the Node.js
+internal `load` implementation, which is the value of `next` for the
 last hook in the `load` chain, returns `null` for `source` when `format` is
 `'commonjs'` for backward compatibility. Here is an example hook that would
 opt-in to using the non-default behavior:
