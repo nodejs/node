@@ -1542,40 +1542,22 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 2);
-
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
-
-  FSReqBase* req_wrap_async = GetReqWrap(args, 1);
-  if (req_wrap_async != nullptr) {
-    FS_ASYNC_TRACE_BEGIN0(UV_FS_FSYNC, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "fsync", UTF8, AfterNoArgs,
-              uv_fs_fsync, fd);
-  } else {
-    CHECK_EQ(argc, 3);
-    FSReqWrapSync req_wrap_sync;
-    FS_SYNC_TRACE_BEGIN(fsync);
-    SyncCall(env, args[2], &req_wrap_sync, "fsync", uv_fs_fsync, fd);
-    FS_SYNC_TRACE_END(fsync);
-  }
-}
-
-static void FsyncSync(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK_EQ(args.Length(), 1);
+  CHECK_GE(argc, 1);
 
   const int fd = GetValidatedFd(env, args[0]);
   if (fd == (1 << 30)) return;
 
-  uv_fs_t req;
-  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-  FS_SYNC_TRACE_BEGIN(fsync);
-  int err = uv_fs_fsync(nullptr, &req, fd, nullptr);
-  FS_SYNC_TRACE_END(fsync);
-  if (err < 0) {
-    return env->ThrowUVException(err, "fsync");
+  if (argc > 1) {
+    FSReqBase* req_wrap_async = GetReqWrap(args, 1);
+    CHECK_NOT_NULL(req_wrap_async);
+    FS_ASYNC_TRACE_BEGIN0(UV_FS_FSYNC, req_wrap_async)
+    AsyncCall(env, req_wrap_async, args, "fsync", UTF8, AfterNoArgs,
+              uv_fs_fsync, fd);
+  } else {
+    FSReqWrapSync req_wrap_sync("fsync");
+    FS_SYNC_TRACE_BEGIN(fsync);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_fsync, fd);
+    FS_SYNC_TRACE_END(fsync);
   }
 }
 
@@ -3255,7 +3237,6 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "readBuffers", ReadBuffers);
   SetMethod(isolate, target, "fdatasync", Fdatasync);
   SetMethod(isolate, target, "fsync", Fsync);
-  SetMethod(isolate, target, "fsyncSync", FsyncSync);
   SetMethod(isolate, target, "rename", Rename);
   SetMethod(isolate, target, "ftruncate", FTruncate);
   SetMethod(isolate, target, "rmdir", RMDir);
@@ -3375,7 +3356,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ReadBuffers);
   registry->Register(Fdatasync);
   registry->Register(Fsync);
-  registry->Register(FsyncSync);
   registry->Register(Rename);
   registry->Register(FTruncate);
   registry->Register(RMDir);

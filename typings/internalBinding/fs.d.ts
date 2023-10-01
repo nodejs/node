@@ -98,7 +98,7 @@ declare namespace InternalFSBinding {
   function fsync(fd: number, req: FSReqCallback): void;
   function fsync(fd: number, req: undefined, ctx: FSSyncContext): void;
   function fsync(fd: number, usePromises: typeof kUsePromises): Promise<void>;
-  function fsyncSync(fd: number): void;
+  function fsync(fd: number): void;
 
   function ftruncate(fd: number, len: number, req: FSReqCallback): void;
   function ftruncate(fd: number, len: number, req: undefined, ctx: FSSyncContext): void;
