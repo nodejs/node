@@ -26,7 +26,7 @@ describe('--experimental-default-type=module should not support extension search
       cwd: fixtures.path('es-modules/package-without-type'),
     });
 
-    match(stderr, /ERR_MODULE_NOT_FOUND/);
+    match(stderr, /ENOENT/);
     strictEqual(stdout, '');
     strictEqual(code, 1);
     strictEqual(signal, null);
