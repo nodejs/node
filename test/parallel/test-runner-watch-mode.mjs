@@ -34,7 +34,7 @@ async function testWatch({ fileToUpdate, file }) {
   const ran2 = util.createDeferredPromise();
   const child = spawn(process.execPath,
                       ['--watch', '--test', file ? fixturePaths[file] : undefined].filter(Boolean),
-                      { encoding: 'utf8', stdio: 'pipe', cwd: tmpdir.path });
+                      { encoding: 'utf8', stdio: 'pipe', cwd: file ? undefined : tmpdir.path });
   let stdout = '';
 
   child.stdout.on('data', (data) => {
@@ -47,10 +47,10 @@ async function testWatch({ fileToUpdate, file }) {
   await ran1.promise;
   const content = fixtureContent[fileToUpdate];
   const path = fixturePaths[fileToUpdate];
-  const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
+  const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(2000));
   await ran2.promise;
   clearInterval(interval);
-  child.kill();
+  child.kill('SIGTERM');
 }
 
 describe('test runner watch mode', () => {
