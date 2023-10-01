@@ -84,7 +84,7 @@ declare namespace InternalFSBinding {
   function fdatasync(fd: number, req: FSReqCallback): void;
   function fdatasync(fd: number, req: undefined, ctx: FSSyncContext): void;
   function fdatasync(fd: number, usePromises: typeof kUsePromises): Promise<void>;
-  function fdatasyncSync(fd: number): void;
+  function fdatasync(fd: number): void;
 
   function fstat(fd: number, useBigint: boolean, req: FSReqCallback<Float64Array | BigUint64Array>): void;
   function fstat(fd: number, useBigint: true, req: FSReqCallback<BigUint64Array>): void;
