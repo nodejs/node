@@ -116,7 +116,7 @@
 #include <vector>
 
 #ifdef GTEST_HAS_ABSL
-#include "absl/strings/internal/has_absl_stringify.h"
+#include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/str_cat.h"
 #endif  // GTEST_HAS_ABSL
 #include "gtest/internal/gtest-internal.h"
@@ -292,10 +292,9 @@ struct ConvertibleToStringViewPrinter {
 
 #ifdef GTEST_HAS_ABSL
 struct ConvertibleToAbslStringifyPrinter {
-  template <
-      typename T,
-      typename = typename std::enable_if<
-          absl::strings_internal::HasAbslStringify<T>::value>::type>  // NOLINT
+  template <typename T,
+            typename = typename std::enable_if<
+                absl::HasAbslStringify<T>::value>::type>  // NOLINT
   static void PrintValue(const T& value, ::std::ostream* os) {
     *os << absl::StrCat(value);
   }
