@@ -595,6 +595,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner);
+  AddOption("--test-concurrency",
+            "specify test runner concurrency",
+            &EnvironmentOptions::test_runner_concurrency);
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
             &EnvironmentOptions::test_runner_coverage);
