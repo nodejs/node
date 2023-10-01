@@ -66,6 +66,7 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
@@ -87,6 +88,13 @@ using v8::Value;
 constexpr char kPathSeparator = '/';
 #else
 const char* const kPathSeparator = "\\/";
+#endif
+
+// F_OK etc. constants
+#ifdef _WIN32
+#include "uv.h"
+#else
+#include <unistd.h>
 #endif
 
 // The access modes can be any of F_OK, R_OK, W_OK or X_OK. Some might not be
@@ -872,41 +880,39 @@ void FromNamespacedPath(std::string* path) {
 #endif
 }
 
-static inline int GetValidMode(Environment* env,
-                               Local<Value> mode_v,
-                               std::string_view type) {
+static inline Maybe<int> GetValidMode(Environment* env,
+                                      Local<Value> mode_v,
+                                      uv_fs_type type) {
   if (!mode_v->IsInt32() && !mode_v->IsNullOrUndefined()) {
     THROW_ERR_INVALID_ARG_TYPE(env, "mode must be int32 or null/undefined");
-    return -1;
+    return Nothing<int>();
   }
 
   int min = kMinimumAccessMode;
   int max = kMaximumAccessMode;
   int def = F_OK;
 
-  if (type == "copyFile") {
+  CHECK(type == UV_FS_ACCESS || type == UV_FS_COPYFILE);
+
+  if (type == UV_FS_COPYFILE) {
     min = kMinimumCopyMode;
     max = kMaximumCopyMode;
     def = mode_v->IsNullOrUndefined() ? kDefaultCopyMode
                                       : mode_v.As<Int32>()->Value();
-  } else if (type != "access") {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env, "type must be equal to \"copyFile\" or \"access\"");
-    return -1;
   }
 
   if (mode_v->IsNullOrUndefined()) {
-    return def;
+    return Just(def);
   }
 
   const int mode = mode_v.As<Int32>()->Value();
   if (mode < min || mode > max) {
     THROW_ERR_OUT_OF_RANGE(
         env, "mode is out of range: >= %d && <= %d", min, max);
-    return -1;
+    return Nothing<int>();
   }
 
-  return mode;
+  return Just(mode);
 }
 
 void AfterMkdirp(uv_fs_t* req) {
@@ -1028,8 +1034,9 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 2);
 
-  int mode = GetValidMode(env, args[1], "access");
-  if (mode == -1) return;
+  Maybe<int> maybe_mode = GetValidMode(env, args[1], UV_FS_ACCESS);
+  int mode;
+  if (!maybe_mode.To(&mode)) return;
 
   BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
@@ -2141,8 +2148,9 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  const int flags = GetValidMode(env, args[2], "copyFile");
-  if (flags == -1) return;
+  Maybe<int> maybe_mode = GetValidMode(env, args[2], UV_FS_COPYFILE);
+  int mode;
+  if (!maybe_mode.To(&mode)) return;
 
   BufferValue src(isolate, args[0]);
   CHECK_NOT_NULL(*src);
@@ -2154,7 +2162,7 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
 
-  if (argc > 3) {  // copyFile(src, dest, flags, req)
+  if (argc > 3) {  // copyFile(src, dest, mode, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN2(UV_FS_COPYFILE,
                           req_wrap_async,
@@ -2162,14 +2170,23 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
                           TRACE_STR_COPY(*src),
                           "dest",
                           TRACE_STR_COPY(*dest))
-    AsyncDestCall(env, req_wrap_async, args, "copyfile",
-                  *dest, dest.length(), UTF8, AfterNoArgs,
-                  uv_fs_copyfile, *src, *dest, flags);
-  } else {  // copyFile(src, dest, flags)
+    AsyncDestCall(env,
+                  req_wrap_async,
+                  args,
+                  "copyfile",
+                  *dest,
+                  dest.length(),
+                  UTF8,
+                  AfterNoArgs,
+                  uv_fs_copyfile,
+                  *src,
+                  *dest,
+                  mode);
+  } else {  // copyFile(src, dest, mode)
     FSReqWrapSync req_wrap_sync("copyfile", *src, *dest);
     FS_SYNC_TRACE_BEGIN(copyfile);
     SyncCallAndThrowOnError(
-        env, &req_wrap_sync, uv_fs_copyfile, *src, *dest, flags);
+        env, &req_wrap_sync, uv_fs_copyfile, *src, *dest, mode);
     FS_SYNC_TRACE_END(copyfile);
   }
 }
