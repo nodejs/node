@@ -18,20 +18,46 @@ if len(sys.argv) != 3:
   sys.exit(2)
 
 outfile = open(sys.argv[1], 'w')
-try:
-  pipe = subprocess.Popen([ 'objdump', '-z', '-D', sys.argv[2] ],
-      bufsize=-1, stdout=subprocess.PIPE).stdout
-except OSError as e:
-  if e.errno == errno.ENOENT:
-    print('''
-      Node.js compile error: could not find objdump
 
-      Check that GNU binutils are installed and included in PATH
-      ''')
-  else:
-    print('problem running objdump: ', e.strerror)
+def objdump(filename, opts):
+  try:
+    pipe = subprocess.Popen([ 'objdump' ] + opts + [ filename ],
+        bufsize=-1, stdout=subprocess.PIPE).stdout
+  except OSError as e:
+    if e.errno == errno.ENOENT:
+      print('''
+        Node.js compile error: could not find objdump
 
-  sys.exit()
+        Check that GNU binutils are installed and included in PATH
+        ''')
+    else:
+      print('problem running objdump: ', e.strerror)
+
+    sys.exit()
+
+  return pipe
+
+# Since GNU binutils 2.41, gobjdump does not include .bss sections in
+# disassembly output, even with -z.
+# https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=0a3137ce4c4b38ee8
+# To work around this while still supporting older versions of binutils, we
+# need to extract a list of sections and pass them all to objdump via -j.
+
+sections = set()
+pattern = re.compile(r'^\s+\d+\s+(\.\S+)')
+pipe = objdump(sys.argv[2], [ '-h' ])
+for line in pipe:
+  line = line.decode('utf-8')
+  match = pattern.match(line)
+  if match is None:
+    continue
+  sections.add(str(match.group(1)))
+
+opts = [ '-z', '-D' ]
+for section in sections:
+  opts.extend([ '-j', section ])
+
+pipe = objdump(sys.argv[2], opts)
 
 pattern = re.compile('([0-9a-fA-F]{8}|[0-9a-fA-F]{16}) <(.*)>:')
 v8dbg = re.compile('^v8dbg.*$')
