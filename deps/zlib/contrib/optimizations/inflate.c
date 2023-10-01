@@ -1488,8 +1488,9 @@ int ZEXPORT inflateCopy(z_streamp dest, z_streamp source) {
     if (copy == Z_NULL) return Z_MEM_ERROR;
     window = Z_NULL;
     if (state->window != Z_NULL) {
-        window = (unsigned char FAR *)
-                 ZALLOC(source, 1U << state->wbits, sizeof(unsigned char));
+        window = (unsigned char FAR *)ZALLOC(
+            source, (1U << state->wbits) + CHUNKCOPY_CHUNK_SIZE,
+            sizeof(unsigned char));
         if (window == Z_NULL) {
             ZFREE(source, copy);
             return Z_MEM_ERROR;

@@ -5,7 +5,7 @@ Version: 1.2.13
 CPEPrefix: cpe:/a:zlib:zlib:1.2.13
 Security Critical: yes
 Shipped: yes
-License: Custom license
+License: Zlib
 License File: LICENSE
 License Android Compatible: yes
 
