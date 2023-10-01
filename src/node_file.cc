@@ -2797,6 +2797,51 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void GetFormatOfExtensionlessFile(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Environment* env = Environment::GetCurrent(args);
+  node::Utf8Value input(args.GetIsolate(), args[0]);
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, input.ToStringView());
+
+  uv_fs_t req;
+  FS_SYNC_TRACE_BEGIN(open)
+  uv_file file = uv_fs_open(nullptr, &req, input.out(), O_RDONLY, 0, nullptr);
+  FS_SYNC_TRACE_END(open);
+
+  if (req.result < 0) {
+    return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_JAVASCRIPT);
+  }
+
+  auto cleanup = OnScopeLeave([&req, &file]() {
+    FS_SYNC_TRACE_BEGIN(close);
+    CHECK_EQ(0, uv_fs_close(nullptr, &req, file, nullptr));
+    FS_SYNC_TRACE_END(close);
+    uv_fs_req_cleanup(&req);
+  });
+
+  char buffer[4];
+  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
+  int err = uv_fs_read(nullptr, &req, file, &buf, 1, 0, nullptr);
+
+  if (err < 0) {
+    return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_JAVASCRIPT);
+  }
+
+  // We do this by taking advantage of the fact that all Wasm files start with
+  // the header `0x00 0x61 0x73 0x6d`
+  if (buffer[0] == 0x00 && buffer[1] == 0x61 && buffer[2] == 0x73 &&
+      buffer[3] == 0x6d) {
+    return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_WASM);
+  }
+
+  return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_JAVASCRIPT);
+}
+
 static bool FileURLToPath(
     Environment* env,
     const ada::url_aggregator& file_url,
@@ -3209,6 +3254,10 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
 
+  SetMethod(isolate,
+            target,
+            "getFormatOfExtensionlessFile",
+            GetFormatOfExtensionlessFile);
   SetMethod(isolate, target, "access", Access);
   SetMethod(isolate, target, "close", Close);
   SetMethod(isolate, target, "existsSync", ExistsSync);
@@ -3329,6 +3378,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   StatWatcher::RegisterExternalReferences(registry);
   BindingData::RegisterExternalReferences(registry);
 
+  registry->Register(GetFormatOfExtensionlessFile);
   registry->Register(Close);
   registry->Register(ExistsSync);
   registry->Register(Open);
