@@ -2659,6 +2659,32 @@ static void LChown(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void LChownSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
+
+  CHECK(IsSafeJsInt(args[1]));
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
+
+  CHECK(IsSafeJsInt(args[2]));
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
+
+  uv_fs_t req;
+  auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_SYNC_TRACE_BEGIN(lchown);
+  int err = uv_fs_lchown(nullptr, &req, *path, uid, gid, nullptr);
+  FS_SYNC_TRACE_END(lchown);
+  if (err < 0) {
+    return env->ThrowUVException(err, "lchown");
+  }
+}
 
 static void UTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -3295,6 +3321,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "chown", Chown);
   SetMethod(isolate, target, "fchown", FChown);
   SetMethod(isolate, target, "lchown", LChown);
+  SetMethod(isolate, target, "lchownSync", LChownSync);
 
   SetMethod(isolate, target, "utimes", UTimes);
   SetMethod(isolate, target, "futimes", FUTimes);
@@ -3415,6 +3442,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Chown);
   registry->Register(FChown);
   registry->Register(LChown);
+  registry->Register(LChownSync);
 
   registry->Register(UTimes);
   registry->Register(FUTimes);
