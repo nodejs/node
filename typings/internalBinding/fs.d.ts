@@ -244,7 +244,6 @@ export interface FsBinding {
   fdatasync: typeof InternalFSBinding.fdatasync;
   fstat: typeof InternalFSBinding.fstat;
   fsync: typeof InternalFSBinding.fsync;
-  fsyncSync: typeof InternalFSBinding.fsyncSync;
   ftruncate: typeof InternalFSBinding.ftruncate;
   futimes: typeof InternalFSBinding.futimes;
   internalModuleReadJSON: typeof InternalFSBinding.internalModuleReadJSON;
