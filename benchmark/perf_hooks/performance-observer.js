@@ -16,7 +16,7 @@ const bench = common.createBenchmark(main, {
   n: [1e5],
   pending: [1, 10],
 }, {
-  options: ['--expose-internals']
+  options: ['--expose-internals'],
 });
 
 let _result;
