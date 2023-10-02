@@ -316,6 +316,7 @@ added: REPLACEME
 -->
 
 > Stability: 1.2 - Release candidate
+
 * {string} The directory name of the current module. This is the same as the
   [`path.dirname()`][] of the [`import.meta.filename`][].
 
