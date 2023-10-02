@@ -330,6 +330,7 @@ added: REPLACEME
 -->
 
 > Stability: 1.2 - Release candidate
+
 * {string} The full absolute path and filename of the current module, with
 * symlinks resolved.
 * This is the same as the [`url.fileURLToPath()`][] of the
