@@ -37,13 +37,13 @@ describe('--experimental-default-type=module should not parse paths as URLs', { 
   it('should not parse a `?` in a filename as starting a query string', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-default-type=module',
-      'wha?.js',
+      'file#1.js',
     ], {
       cwd: fixtures.path('es-modules/package-without-type'),
     });
 
     strictEqual(stderr, '');
-    strictEqual(stdout, 'wha?\n');
+    strictEqual(stdout, 'file#1\n');
     strictEqual(code, 0);
     strictEqual(signal, null);
   });
@@ -51,13 +51,13 @@ describe('--experimental-default-type=module should not parse paths as URLs', { 
   it('should resolve `..`', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-default-type=module',
-      '../package-without-type/wha?.js',
+      '../package-without-type/file#1.js',
     ], {
       cwd: fixtures.path('es-modules/package-without-type'),
     });
 
     strictEqual(stderr, '');
-    strictEqual(stdout, 'wha?\n');
+    strictEqual(stdout, 'file#1\n');
     strictEqual(code, 0);
     strictEqual(signal, null);
   });
@@ -65,13 +65,13 @@ describe('--experimental-default-type=module should not parse paths as URLs', { 
   it('should allow a leading `./`', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-default-type=module',
-      './wha?.js',
+      './file#1.js',
     ], {
       cwd: fixtures.path('es-modules/package-without-type'),
     });
 
     strictEqual(stderr, '');
-    strictEqual(stdout, 'wha?\n');
+    strictEqual(stdout, 'file#1\n');
     strictEqual(code, 0);
     strictEqual(signal, null);
   });
@@ -79,13 +79,13 @@ describe('--experimental-default-type=module should not parse paths as URLs', { 
   it('should not require a leading `./`', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-default-type=module',
-      'wha?.js',
+      'file#1.js',
     ], {
       cwd: fixtures.path('es-modules/package-without-type'),
     });
 
     strictEqual(stderr, '');
-    strictEqual(stdout, 'wha?\n');
+    strictEqual(stdout, 'file#1\n');
     strictEqual(code, 0);
     strictEqual(signal, null);
   });
