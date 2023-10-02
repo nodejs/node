@@ -112,7 +112,7 @@
             },
           },
         }],
-        ['OS=="linux"', {
+        ['OS=="linux" or OS=="android"', {
           'defines': [
             'HAVE_ARPA_INET_H',
             'HAVE_NETINET_IN_H',
@@ -162,7 +162,7 @@
             },
           },
         }],
-        ['OS=="linux"', {
+        ['OS=="linux" or OS=="android"', {
           'defines': [
             'HAVE_ARPA_INET_H',
             'HAVE_NETINET_IN_H',
