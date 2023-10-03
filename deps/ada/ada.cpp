@@ -1,4 +1,4 @@
-/* auto-generated on 2023-09-29 13:28:16 -0400. Do not edit! */
+/* auto-generated on 2023-09-30 20:34:30 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -9810,6 +9810,17 @@ constexpr bool to_lower_ascii(char* input, size_t length) noexcept {
 #if ADA_NEON
 ada_really_inline bool has_tabs_or_newline(
     std::string_view user_input) noexcept {
+  // first check for short strings in which case we do it naively.
+  if (user_input.size() < 16) {  // slow path
+    for (size_t i = 0; i < user_input.size(); i++) {
+      if (user_input[i] == '\r' || user_input[i] == '\n' ||
+          user_input[i] == '\t') {
+        return true;
+      }
+    }
+    return false;
+  }
+  // fast path for long strings (expected to be common)
   size_t i = 0;
   const uint8x16_t mask1 = vmovq_n_u8('\r');
   const uint8x16_t mask2 = vmovq_n_u8('\n');
@@ -9822,9 +9833,8 @@ ada_really_inline bool has_tabs_or_newline(
                        vceqq_u8(word, mask3));
   }
   if (i < user_input.size()) {
-    uint8_t buffer[16]{};
-    memcpy(buffer, user_input.data() + i, user_input.size() - i);
-    uint8x16_t word = vld1q_u8((const uint8_t*)user_input.data() + i);
+    uint8x16_t word =
+        vld1q_u8((const uint8_t*)user_input.data() + user_input.length() - 16);
     running = vorrq_u8(vorrq_u8(running, vorrq_u8(vceqq_u8(word, mask1),
                                                   vceqq_u8(word, mask2))),
                        vceqq_u8(word, mask3));
@@ -9834,6 +9844,17 @@ ada_really_inline bool has_tabs_or_newline(
 #elif ADA_SSE2
 ada_really_inline bool has_tabs_or_newline(
     std::string_view user_input) noexcept {
+  // first check for short strings in which case we do it naively.
+  if (user_input.size() < 16) {  // slow path
+    for (size_t i = 0; i < user_input.size(); i++) {
+      if (user_input[i] == '\r' || user_input[i] == '\n' ||
+          user_input[i] == '\t') {
+        return true;
+      }
+    }
+    return false;
+  }
+  // fast path for long strings (expected to be common)
   size_t i = 0;
   const __m128i mask1 = _mm_set1_epi8('\r');
   const __m128i mask2 = _mm_set1_epi8('\n');
@@ -9847,9 +9868,8 @@ ada_really_inline bool has_tabs_or_newline(
         _mm_cmpeq_epi8(word, mask3));
   }
   if (i < user_input.size()) {
-    alignas(16) uint8_t buffer[16]{};
-    memcpy(buffer, user_input.data() + i, user_input.size() - i);
-    __m128i word = _mm_load_si128((const __m128i*)buffer);
+    __m128i word = _mm_loadu_si128(
+        (const __m128i*)(user_input.data() + user_input.length() - 16));
     running = _mm_or_si128(
         _mm_or_si128(running, _mm_or_si128(_mm_cmpeq_epi8(word, mask1),
                                            _mm_cmpeq_epi8(word, mask2))),
