@@ -673,7 +673,7 @@ added: v10.0.0
 * Returns: {Promise}
 
 Change the file system timestamps of the object referenced by the {FileHandle}
-then resolves the promise with no arguments upon success.
+then fulfills the promise with no arguments upon success.
 
 #### `filehandle.write(buffer, offset[, length[, position]])`
 
@@ -699,14 +699,14 @@ changes:
 
 Write `buffer` to the file.
 
-The promise is resolved with an object containing two properties:
+The promise is fulfilled with an object containing two properties:
 
 * `bytesWritten` {integer} the number of bytes written
 * `buffer` {Buffer|TypedArray|DataView} a reference to the
   `buffer` written.
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
-without waiting for the promise to be resolved (or rejected). For this
+without waiting for the promise to be fulfilled (or rejected). For this
 scenario, use [`filehandle.createWriteStream()`][].
 
 On Linux, positional writes do not work when the file is opened in append mode.
@@ -756,13 +756,13 @@ changes:
 Write `string` to the file. If `string` is not a string, the promise is
 rejected with an error.
 
-The promise is resolved with an object containing two properties:
+The promise is fulfilled with an object containing two properties:
 
 * `bytesWritten` {integer} the number of bytes written
 * `buffer` {string} a reference to the `string` written.
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
-without waiting for the promise to be resolved (or rejected). For this
+without waiting for the promise to be fulfilled (or rejected). For this
 scenario, use [`filehandle.createWriteStream()`][].
 
 On Linux, positional writes do not work when the file is opened in append mode.
@@ -793,14 +793,14 @@ changes:
 
 Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
-The promise is resolved with no arguments upon success.
+The promise is fulfilled with no arguments upon success.
 
 If `options` is a string, then it specifies the `encoding`.
 
 The {FileHandle} has to support writing.
 
 It is unsafe to use `filehandle.writeFile()` multiple times on the same file
-without waiting for the promise to be resolved (or rejected).
+without waiting for the promise to be fulfilled (or rejected).
 
 If one or more `filehandle.write()` calls are made on a file handle and then a
 `filehandle.writeFile()` call is made, the data will be written from the
@@ -821,14 +821,14 @@ added: v12.9.0
 
 Write an array of {ArrayBufferView}s to the file.
 
-The promise is resolved with an object containing a two properties:
+The promise is fulfilled with an object containing a two properties:
 
 * `bytesWritten` {integer} the number of bytes written
 * `buffers` {Buffer\[]|TypedArray\[]|DataView\[]} a reference to the `buffers`
   input.
 
 It is unsafe to call `writev()` multiple times on the same file without waiting
-for the promise to be resolved (or rejected).
+for the promise to be fulfilled (or rejected).
 
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
@@ -864,7 +864,7 @@ or a mask consisting of the bitwise OR of any of `fs.constants.R_OK`,
 `fs.constants.W_OK | fs.constants.R_OK`). Check [File access constants][] for
 possible values of `mode`.
 
-If the accessibility check is successful, the promise is resolved with no
+If the accessibility check is successful, the promise is fulfilled with no
 value. If any of the accessibility checks fail, the promise is rejected
 with an {Error} object. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
@@ -1333,7 +1333,7 @@ object with an `encoding` property specifying the character encoding to use for
 the filenames. If the `encoding` is set to `'buffer'`, the filenames returned
 will be passed as {Buffer} objects.
 
-If `options.withFileTypes` is set to `true`, the resolved array will contain
+If `options.withFileTypes` is set to `true`, the returned array will contain
 {fs.Dirent} objects.
 
 ```mjs
@@ -1447,7 +1447,7 @@ added: v10.0.0
 * Returns: {Promise} Fulfills with the `linkString` upon success.
 
 Reads the contents of the symbolic link referred to by `path`. See the POSIX
-readlink(2) documentation for more detail. The promise is resolved with the
+readlink(2) documentation for more detail. The promise is fulfilled with the
 `linkString` upon success.
 
 The optional `options` argument can be a string specifying an encoding, or an
@@ -6339,7 +6339,7 @@ added: v12.12.0
 Asynchronously close the directory's underlying resource handle.
 Subsequent reads will result in errors.
 
-A promise is returned that will be resolved after the resource has been
+A promise is returned that will be fulfilled after the resource has been
 closed.
 
 #### `dir.close(callback)`
@@ -6393,7 +6393,7 @@ added: v12.12.0
 Asynchronously read the next directory entry via readdir(3) as an
 {fs.Dirent}.
 
-A promise is returned that will be resolved with an {fs.Dirent}, or `null`
+A promise is returned that will be fulfilled with an {fs.Dirent}, or `null`
 if there are no more directory entries to read.
 
 Directory entries returned by this function are in no particular order as
