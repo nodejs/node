@@ -40,6 +40,19 @@ function replaceTestLocationLine(str) {
   return str.replaceAll(/(js:)(\d+)(:\d+)/g, '$1(LINE)$3');
 }
 
+// The Node test coverage returns results for all files called by the test. This
+// will make the output file change if files like test/common/index.js change.
+// This transform picks only the first line and then the lines from the test
+// file.
+function pickTestFileFromLcov(str) {
+  const lines = str.split(/\n/);
+  const firstLineOfTestFile = lines.findIndex((line) => line === 'SF:test/fixtures/test-runner/output/output.js');
+  const lastLineOfTestFile = lines.findIndex((line, index) => index > line && line === 'end_of_record');
+  return (
+    lines[0] + '\n' + lines.slice(firstLineOfTestFile, lastLineOfTestFile).join('\n') + '\n'
+  );
+}
+
 const defaultTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
@@ -58,6 +71,13 @@ const junitTransform = snapshot.transform(
   replaceJunitDuration,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
+);
+const lcovTransform = snapshot.transform(
+  snapshot.replaceWindowsLineEndings,
+  snapshot.replaceStackTrace,
+  snapshot.replaceFullPaths,
+  snapshot.replaceWindowsPaths,
+  pickTestFileFromLcov
 );
 
 const tests = [
@@ -80,7 +100,7 @@ const tests = [
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter_cli.js', transform: specTransform },
-  { name: 'test-runner/output/lcov_reporter.js' },
+  { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform },
   { name: 'test-runner/output/output.js' },
   { name: 'test-runner/output/output_cli.js' },
   { name: 'test-runner/output/name_pattern.js' },
