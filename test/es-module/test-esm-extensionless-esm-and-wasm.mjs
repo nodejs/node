@@ -21,6 +21,12 @@ describe('extensionless ES modules within a "type": "module" package scope', { c
               await import(fixtures.fileURL('es-modules/package-type-module/noext-esm'));
     strictEqual(defaultExport, 'module');
   });
+
+  it('should be importable from a module scope under node_modules', async () => {
+    const { default: defaultExport } =
+              await import(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json-type-module/noext-esm'));
+    strictEqual(defaultExport, 'module');
+  });
 });
 describe('extensionless Wasm modules within a "type": "module" package scope', { concurrency: true }, () => {
   it('should run as the entry point', async () => {
