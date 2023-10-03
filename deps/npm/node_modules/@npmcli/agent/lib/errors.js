@@ -1,7 +1,5 @@
 'use strict'
 
-const { appendPort } = require('./util')
-
 class InvalidProxyProtocolError extends Error {
   constructor (url) {
     super(`Invalid protocol \`${url.protocol}\` connecting to proxy \`${url.host}\``)
@@ -11,8 +9,7 @@ class InvalidProxyProtocolError extends Error {
 }
 
 class ConnectionTimeoutError extends Error {
-  constructor ({ host, port }) {
-    host = appendPort(host, port)
+  constructor (host) {
     super(`Timeout connecting to host \`${host}\``)
     this.code = 'ECONNECTIONTIMEOUT'
     this.host = host
@@ -20,8 +17,7 @@ class ConnectionTimeoutError extends Error {
 }
 
 class IdleTimeoutError extends Error {
-  constructor ({ host, port }) {
-    host = appendPort(host, port)
+  constructor (host) {
     super(`Idle timeout reached for host \`${host}\``)
     this.code = 'EIDLETIMEOUT'
     this.host = host

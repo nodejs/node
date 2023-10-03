@@ -264,6 +264,16 @@ npm query ":type(git)" | jq 'map(.name)' | xargs -I {} npm why {}
   },
   ...
 </code></pre>
+<h3 id="package-lock-only-mode">Package lock only mode</h3>
+<p>If package-lock-only is enabled, only the information in the package
+lock (or shrinkwrap) is loaded.  This means that information from the
+package.json files of your dependencies will not be included in the
+result set (e.g. description, homepage, engines).</p>
+<h3 id="package-lock-only-mode2">Package lock only mode</h3>
+<p>If package-lock-only is enabled, only the information in the package
+lock (or shrinkwrap) is loaded.  This means that information from the
+package.json files of your dependencies will not be included in the
+result set (e.g. description, homepage, engines).</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="global"><code>global</code></h4>
 <ul>
@@ -324,6 +334,17 @@ other things (test, exec, publish, etc.) will operate on the root project,
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
+<h4 id="package-lock-only"><code>package-lock-only</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, the current operation will only use the <code>package-lock.json</code>,
+ignoring <code>node_modules</code>.</p>
+<p>For <code>update</code> this means only the <code>package-lock.json</code> will be updated,
+instead of checking <code>node_modules</code> and downloading dependencies.</p>
+<p>For <code>list</code> this means the output will be based on the tree described by the
+<code>package-lock.json</code>, rather than the contents of <code>node_modules</code>.</p>
 <h2 id="see-also">See Also</h2>
 <ul>
 <li><a href="../using-npm/dependency-selectors.html">dependency selectors</a></li>

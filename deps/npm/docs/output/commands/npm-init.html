@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><ul><li><a href="#forwarding-additional-options">Forwarding additional options</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#workspaces-support">Workspaces support</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#yes"><code>yes</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#scope"><code>scope</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#workspaces-update"><code>workspaces-update</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><ul><li><a href="#forwarding-additional-options">Forwarding additional options</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#workspaces-support">Workspaces support</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#init-author-name"><code>init-author-name</code></a></li><li><a href="#init-author-url"><code>init-author-url</code></a></li><li><a href="#init-license"><code>init-license</code></a></li><li><a href="#init-module"><code>init-module</code></a></li><li><a href="#init-version"><code>init-version</code></a></li><li><a href="#yes"><code>yes</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#scope"><code>scope</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#workspaces-update"><code>workspaces-update</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -256,6 +256,41 @@ dot to represent the current directory in that context, e.g: <code>react-app .</
        `-- ...
 </code></pre>
 <h3 id="configuration">Configuration</h3>
+<h4 id="init-author-name"><code>init-author-name</code></h4>
+<ul>
+<li>Default: ""</li>
+<li>Type: String</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package author's name.</p>
+<h4 id="init-author-url"><code>init-author-url</code></h4>
+<ul>
+<li>Default: ""</li>
+<li>Type: "" or URL</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package author's
+homepage.</p>
+<h4 id="init-license"><code>init-license</code></h4>
+<ul>
+<li>Default: "ISC"</li>
+<li>Type: String</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package license.</p>
+<h4 id="init-module"><code>init-module</code></h4>
+<ul>
+<li>Default: "~/.npm-init.js"</li>
+<li>Type: Path</li>
+</ul>
+<p>A module that will be loaded by the <code>npm init</code> command. See the
+documentation for the
+<a href="https://github.com/npm/init-package-json">init-package-json</a> module for
+more information, or <a href="../commands/npm-init.html">npm init</a>.</p>
+<h4 id="init-version"><code>init-version</code></h4>
+<ul>
+<li>Default: "1.0.0"</li>
+<li>Type: SemVer string</li>
+</ul>
+<p>The value that <code>npm init</code> should use by default for the package version
+number, if not already set in package.json.</p>
 <h4 id="yes"><code>yes</code></h4>
 <ul>
 <li>Default: null</li>
