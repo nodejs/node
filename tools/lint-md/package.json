@@ -6,9 +6,9 @@
     "build": "rollup -f es -p '@rollup/plugin-node-resolve={exportConditions: [\"node\"]}'  -p @rollup/plugin-commonjs -p rollup-plugin-cleanup lint-md.src.mjs --file lint-md.mjs"
   },
   "dependencies": {
-    "remark-parse": "^10.0.2",
-    "remark-preset-lint-node": "^4.0.0",
-    "remark-stringify": "^10.0.3",
+    "remark-parse": "^11.0.0",
+    "remark-preset-lint-node": "^5.0.0",
+    "remark-stringify": "^11.0.0",
     "to-vfile": "^8.0.0",
     "unified": "^11.0.3",
     "vfile-reporter": "^8.1.0"
@@ -16,7 +16,7 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.4",
     "@rollup/plugin-node-resolve": "^15.2.1",
-    "rollup": "^3.29.2",
+    "rollup": "^3.29.4",
     "rollup-plugin-cleanup": "^3.2.1"
   }
 }
