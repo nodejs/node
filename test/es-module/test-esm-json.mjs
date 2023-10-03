@@ -36,19 +36,19 @@ describe('ESM: importing JSON', () => {
         await writeFile(url, JSON.stringify({ id: i++ }));
         const absoluteURL = await import(`${url}`, {
           assert: { type: 'json' },
-          });
+        });
         await writeFile(url, JSON.stringify({ id: i++ }));
         const queryString = await import(`${url}?a=2`, {
           assert: { type: 'json' },
-          });
+        });
         await writeFile(url, JSON.stringify({ id: i++ }));
         const hash = await import(`${url}#a=2`, {
           assert: { type: 'json' },
-          });
+        });
         await writeFile(url, JSON.stringify({ id: i++ }));
         const queryStringAndHash = await import(`${url}?a=2#a=2`, {
           assert: { type: 'json' },
-          });
+        });
 
         assert.notDeepStrictEqual(absoluteURL, queryString);
         assert.notDeepStrictEqual(absoluteURL, hash);

@@ -50,6 +50,6 @@ await rejects(
 );
 
 await rejects(
-  import(jsonModuleDataUrl, { assert: { type: 'unsupported' }}),
+  import(jsonModuleDataUrl, { assert: { type: 'unsupported' } }),
   { code: 'ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED' }
 );

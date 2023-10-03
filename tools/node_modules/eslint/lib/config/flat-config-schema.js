@@ -507,7 +507,7 @@ const eslintrcKeys = [
 // Full schema
 //-----------------------------------------------------------------------------
 
-exports.flatConfigSchema = {
+const flatConfigSchema = {
 
     // eslintrc-style keys that should always error
     ...Object.fromEntries(eslintrcKeys.map(key => [key, createEslintrcErrorSchema(key)])),
@@ -532,4 +532,14 @@ exports.flatConfigSchema = {
     processor: processorSchema,
     plugins: pluginsSchema,
     rules: rulesSchema
+};
+
+//-----------------------------------------------------------------------------
+// Exports
+//-----------------------------------------------------------------------------
+
+module.exports = {
+    flatConfigSchema,
+    assertIsRuleSeverity,
+    assertIsRuleOptions
 };

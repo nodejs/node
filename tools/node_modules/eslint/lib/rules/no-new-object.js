@@ -1,6 +1,7 @@
 /**
  * @fileoverview A rule to disallow calls to the Object constructor
  * @author Matt DuVall <http://www.mattduvall.com/>
+ * @deprecated in ESLint v8.50.0
  */
 
 "use strict";
@@ -25,6 +26,12 @@ module.exports = {
             recommended: false,
             url: "https://eslint.org/docs/latest/rules/no-new-object"
         },
+
+        deprecated: true,
+
+        replacedBy: [
+            "no-object-constructor"
+        ],
 
         schema: [],
 
