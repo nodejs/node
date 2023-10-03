@@ -55,7 +55,7 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
   handle->pending = 0;
   handle->u.fd = 0; /* This will be used as a busy flag. */
 
-  uv__queue_insert_tail(&loop->async_handles, &handle->queue);
+  QUEUE_INSERT_TAIL(&loop->async_handles, &handle->queue);
   uv__handle_start(handle);
 
   return 0;
@@ -124,7 +124,7 @@ static void uv__async_spin(uv_async_t* handle) {
 
 void uv__async_close(uv_async_t* handle) {
   uv__async_spin(handle);
-  uv__queue_remove(&handle->queue);
+  QUEUE_REMOVE(&handle->queue);
   uv__handle_stop(handle);
 }
 
@@ -132,8 +132,8 @@ void uv__async_close(uv_async_t* handle) {
 static void uv__async_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   char buf[1024];
   ssize_t r;
-  struct uv__queue queue;
-  struct uv__queue* q;
+  QUEUE queue;
+  QUEUE* q;
   uv_async_t* h;
   _Atomic int *pending;
 
@@ -157,13 +157,13 @@ static void uv__async_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
     abort();
   }
 
-  uv__queue_move(&loop->async_handles, &queue);
-  while (!uv__queue_empty(&queue)) {
-    q = uv__queue_head(&queue);
-    h = uv__queue_data(q, uv_async_t, queue);
+  QUEUE_MOVE(&loop->async_handles, &queue);
+  while (!QUEUE_EMPTY(&queue)) {
+    q = QUEUE_HEAD(&queue);
+    h = QUEUE_DATA(q, uv_async_t, queue);
 
-    uv__queue_remove(q);
-    uv__queue_insert_tail(&loop->async_handles, q);
+    QUEUE_REMOVE(q);
+    QUEUE_INSERT_TAIL(&loop->async_handles, q);
 
     /* Atomically fetch and clear pending flag */
     pending = (_Atomic int*) &h->pending;
@@ -241,8 +241,8 @@ static int uv__async_start(uv_loop_t* loop) {
 
 
 void uv__async_stop(uv_loop_t* loop) {
-  struct uv__queue queue;
-  struct uv__queue* q;
+  QUEUE queue;
+  QUEUE* q;
   uv_async_t* h;
 
   if (loop->async_io_watcher.fd == -1)
@@ -251,13 +251,13 @@ void uv__async_stop(uv_loop_t* loop) {
   /* Make sure no other thread is accessing the async handle fd after the loop
    * cleanup.
    */
-  uv__queue_move(&loop->async_handles, &queue);
-  while (!uv__queue_empty(&queue)) {
-    q = uv__queue_head(&queue);
-    h = uv__queue_data(q, uv_async_t, queue);
+  QUEUE_MOVE(&loop->async_handles, &queue);
+  while (!QUEUE_EMPTY(&queue)) {
+    q = QUEUE_HEAD(&queue);
+    h = QUEUE_DATA(q, uv_async_t, queue);
 
-    uv__queue_remove(q);
-    uv__queue_insert_tail(&loop->async_handles, q);
+    QUEUE_REMOVE(q);
+    QUEUE_INSERT_TAIL(&loop->async_handles, q);
 
     uv__async_spin(h);
   }
@@ -275,20 +275,20 @@ void uv__async_stop(uv_loop_t* loop) {
 
 
 int uv__async_fork(uv_loop_t* loop) {
-  struct uv__queue queue;
-  struct uv__queue* q;
+  QUEUE queue;
+  QUEUE* q;
   uv_async_t* h;
 
   if (loop->async_io_watcher.fd == -1) /* never started */
     return 0;
 
-  uv__queue_move(&loop->async_handles, &queue);
-  while (!uv__queue_empty(&queue)) {
-    q = uv__queue_head(&queue);
-    h = uv__queue_data(q, uv_async_t, queue);
+  QUEUE_MOVE(&loop->async_handles, &queue);
+  while (!QUEUE_EMPTY(&queue)) {
+    q = QUEUE_HEAD(&queue);
+    h = QUEUE_DATA(q, uv_async_t, queue);
 
-    uv__queue_remove(q);
-    uv__queue_insert_tail(&loop->async_handles, q);
+    QUEUE_REMOVE(q);
+    QUEUE_INSERT_TAIL(&loop->async_handles, q);
 
     /* The state of any thread that set pending is now likely corrupt in this
      * child because the user called fork, so just clear these flags and move
