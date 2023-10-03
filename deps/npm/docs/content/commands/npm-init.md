@@ -156,6 +156,56 @@ dot to represent the current directory in that context, e.g: `react-app .`:
 
 ### Configuration
 
+#### `init-author-name`
+
+* Default: ""
+* Type: String
+
+The value `npm init` should use by default for the package author's name.
+
+
+
+#### `init-author-url`
+
+* Default: ""
+* Type: "" or URL
+
+The value `npm init` should use by default for the package author's
+homepage.
+
+
+
+#### `init-license`
+
+* Default: "ISC"
+* Type: String
+
+The value `npm init` should use by default for the package license.
+
+
+
+#### `init-module`
+
+* Default: "~/.npm-init.js"
+* Type: Path
+
+A module that will be loaded by the `npm init` command. See the
+documentation for the
+[init-package-json](https://github.com/npm/init-package-json) module for
+more information, or [npm init](/commands/npm-init).
+
+
+
+#### `init-version`
+
+* Default: "1.0.0"
+* Type: SemVer string
+
+The value that `npm init` should use by default for the package version
+number, if not already set in package.json.
+
+
+
 #### `yes`
 
 * Default: null

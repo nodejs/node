@@ -22,13 +22,13 @@ const checkEngine = (target, npmVer, nodeVer, force = false) => {
 
 const isMusl = (file) => file.includes('libc.musl-') || file.includes('ld-musl-')
 
-const checkPlatform = (target, force = false) => {
+const checkPlatform = (target, force = false, environment = {}) => {
   if (force) {
     return
   }
 
-  const platform = process.platform
-  const arch = process.arch
+  const platform = environment.os || process.platform
+  const arch = environment.cpu || process.arch
   const osOk = target.os ? checkList(platform, target.os) : true
   const cpuOk = target.cpu ? checkList(arch, target.cpu) : true
 

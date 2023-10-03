@@ -1,6 +1,6 @@
 const { Minipass } = require('minipass')
 const columnify = require('columnify')
-const ansiTrim = require('../utils/ansi-trim.js')
+const ansiTrim = require('strip-ansi')
 
 // This module consumes package data in the following format:
 //
@@ -143,7 +143,7 @@ function highlightSearchTerms (str, terms) {
 function normalizePackage (data, opts) {
   return {
     name: ansiTrim(data.name),
-    description: ansiTrim(data.description),
+    description: ansiTrim(data.description ?? ''),
     author: data.maintainers.map((m) => `=${ansiTrim(m.username)}`).join(' '),
     keywords: Array.isArray(data.keywords)
       ? data.keywords.map(ansiTrim).join(' ')
