@@ -22,7 +22,6 @@
 BENCHMARK_DECLARE (sizes)
 BENCHMARK_DECLARE (loop_count)
 BENCHMARK_DECLARE (loop_count_timed)
-BENCHMARK_DECLARE (loop_alive)
 BENCHMARK_DECLARE (ping_pongs)
 BENCHMARK_DECLARE (ping_udp1)
 BENCHMARK_DECLARE (ping_udp10)
@@ -90,7 +89,6 @@ TASK_LIST_START
   BENCHMARK_ENTRY  (sizes)
   BENCHMARK_ENTRY  (loop_count)
   BENCHMARK_ENTRY  (loop_count_timed)
-  BENCHMARK_ENTRY  (loop_alive)
 
   BENCHMARK_ENTRY  (ping_pongs)
   BENCHMARK_HELPER (ping_pongs, tcp4_echo_server)

@@ -27,7 +27,7 @@
 #include <termios.h>
 #include <sys/msg.h>
 
-static struct uv__queue global_epoll_queue;
+static QUEUE global_epoll_queue;
 static uv_mutex_t global_epoll_lock;
 static uv_once_t once = UV_ONCE_INIT;
 
@@ -178,18 +178,18 @@ static void after_fork(void) {
 
 
 static void child_fork(void) {
-  struct uv__queue* q;
+  QUEUE* q;
   uv_once_t child_once = UV_ONCE_INIT;
 
   /* reset once */
   memcpy(&once, &child_once, sizeof(child_once));
 
   /* reset epoll list */
-  while (!uv__queue_empty(&global_epoll_queue)) {
+  while (!QUEUE_EMPTY(&global_epoll_queue)) {
     uv__os390_epoll* lst;
-    q = uv__queue_head(&global_epoll_queue);
-    uv__queue_remove(q);
-    lst = uv__queue_data(q, uv__os390_epoll, member);
+    q = QUEUE_HEAD(&global_epoll_queue);
+    QUEUE_REMOVE(q);
+    lst = QUEUE_DATA(q, uv__os390_epoll, member);
     uv__free(lst->items);
     lst->items = NULL;
     lst->size = 0;
@@ -201,7 +201,7 @@ static void child_fork(void) {
 
 
 static void epoll_init(void) {
-  uv__queue_init(&global_epoll_queue);
+  QUEUE_INIT(&global_epoll_queue);
   if (uv_mutex_init(&global_epoll_lock))
     abort();
 
@@ -225,7 +225,7 @@ uv__os390_epoll* epoll_create1(int flags) {
     lst->items[lst->size - 1].revents = 0;
     uv_once(&once, epoll_init);
     uv_mutex_lock(&global_epoll_lock);
-    uv__queue_insert_tail(&global_epoll_queue, &lst->member);
+    QUEUE_INSERT_TAIL(&global_epoll_queue, &lst->member);
     uv_mutex_unlock(&global_epoll_lock);
   }
 
@@ -352,14 +352,14 @@ int epoll_wait(uv__os390_epoll* lst, struct epoll_event* events,
 
 
 int epoll_file_close(int fd) {
-  struct uv__queue* q;
+  QUEUE* q;
 
   uv_once(&once, epoll_init);
   uv_mutex_lock(&global_epoll_lock);
-  uv__queue_foreach(q, &global_epoll_queue) {
+  QUEUE_FOREACH(q, &global_epoll_queue) {
     uv__os390_epoll* lst;
 
-    lst = uv__queue_data(q, uv__os390_epoll, member);
+    lst = QUEUE_DATA(q, uv__os390_epoll, member);
     if (fd < lst->size && lst->items != NULL && lst->items[fd].fd != -1)
       lst->items[fd].fd = -1;
   }
@@ -371,7 +371,7 @@ int epoll_file_close(int fd) {
 void epoll_queue_close(uv__os390_epoll* lst) {
   /* Remove epoll instance from global queue */
   uv_mutex_lock(&global_epoll_lock);
-  uv__queue_remove(&lst->member);
+  QUEUE_REMOVE(&lst->member);
   uv_mutex_unlock(&global_epoll_lock);
 
   /* Free resources */
