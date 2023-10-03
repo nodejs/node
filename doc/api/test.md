@@ -44,7 +44,7 @@ processed in one of three ways:
 1. A synchronous function that is considered failing if it throws an exception,
    and is considered passing otherwise.
 2. A function that returns a `Promise` that is considered failing if the
-   `Promise` rejects, and is considered passing if the `Promise` resolves.
+   `Promise` rejects, and is considered passing if the `Promise` fulfiills.
 3. A function that receives a callback function. If the callback receives any
    truthy value as its first argument, the test is considered failing. If a
    falsy value is passed as the first argument to the callback, the test is
@@ -67,7 +67,7 @@ test('synchronous failing test', (t) => {
 
 test('asynchronous passing test', async (t) => {
   // This test passes because the Promise returned by the async
-  // function is not rejected.
+  // function is settled and not rejected.
   assert.strictEqual(1, 1);
 });
 
@@ -984,7 +984,7 @@ changes:
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
   function.
-* Returns: {Promise} Resolved with `undefined` once
+* Returns: {Promise} Fulfilled with `undefined` once
   the test completes, or immediately if the test runs within [`describe()`][].
 
 The `test()` function is the value imported from the `test` module. Each
@@ -994,8 +994,8 @@ The `TestContext` object passed to the `fn` argument can be used to perform
 actions related to the current test. Examples include skipping the test, adding
 additional diagnostic information, or creating subtests.
 
-`test()` returns a `Promise` that resolves once the test completes.
-if `test()` is called within a `describe()` block, it resolve immediately.
+`test()` returns a `Promise` that fulfills once the test completes.
+if `test()` is called within a `describe()` block, it fulfills immediately.
 The return value can usually be discarded for top level tests.
 However, the return value from subtests should be used to prevent the parent
 test from finishing first and cancelling the subtest
@@ -2497,7 +2497,7 @@ changes:
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
   function.
-* Returns: {Promise} Resolved with `undefined` once the test completes.
+* Returns: {Promise} Fulfilled with `undefined` once the test completes.
 
 This function is used to create subtests under the current test. This function
 behaves in the same fashion as the top level [`test()`][] function.
