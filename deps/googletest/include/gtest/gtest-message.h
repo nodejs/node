@@ -59,7 +59,7 @@
 #ifdef GTEST_HAS_ABSL
 #include <type_traits>
 
-#include "absl/strings/internal/has_absl_stringify.h"
+#include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/str_cat.h"
 #endif  // GTEST_HAS_ABSL
 
@@ -121,14 +121,14 @@ class GTEST_API_ Message {
   // Streams a non-pointer value to this object. If building a version of
   // GoogleTest with ABSL, this overload is only enabled if the value does not
   // have an AbslStringify definition.
-  template <typename T
+  template <
+      typename T
 #ifdef GTEST_HAS_ABSL
-            ,
-            typename std::enable_if<
-                !absl::strings_internal::HasAbslStringify<T>::value,  // NOLINT
-                int>::type = 0
+      ,
+      typename std::enable_if<!absl::HasAbslStringify<T>::value,  // NOLINT
+                              int>::type = 0
 #endif  // GTEST_HAS_ABSL
-            >
+      >
   inline Message& operator<<(const T& val) {
         // Some libraries overload << for STL containers.  These
     // overloads are defined in the global namespace instead of ::std.
@@ -153,9 +153,8 @@ class GTEST_API_ Message {
   // Streams a non-pointer value with an AbslStringify definition to this
   // object.
   template <typename T,
-            typename std::enable_if<
-                absl::strings_internal::HasAbslStringify<T>::value,  // NOLINT
-                int>::type = 0>
+            typename std::enable_if<absl::HasAbslStringify<T>::value,  // NOLINT
+                                    int>::type = 0>
   inline Message& operator<<(const T& val) {
     // ::operator<< is needed here for a similar reason as with the non-Abseil
     // version above
