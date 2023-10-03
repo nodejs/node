@@ -105,6 +105,8 @@ var extend$1 = function extend() {
 };
 var extend$2 = getDefaultExportFromCjs(extend$1);
 
+function ok$B() {}
+
 function isPlainObject(value) {
 	if (typeof value !== 'object' || value === null) {
 		return false;
@@ -193,28 +195,28 @@ function wrap(middleware, callback) {
   }
 }
 
-function stringifyPosition$3(value) {
+function stringifyPosition$2(value) {
   if (!value || typeof value !== 'object') {
     return ''
   }
   if ('position' in value || 'type' in value) {
-    return position$3(value.position)
+    return position$2(value.position)
   }
   if ('start' in value || 'end' in value) {
-    return position$3(value)
+    return position$2(value)
   }
   if ('line' in value || 'column' in value) {
-    return point$5(value)
+    return point$4(value)
   }
   return ''
 }
-function point$5(point) {
-  return index$3(point && point.line) + ':' + index$3(point && point.column)
+function point$4(point) {
+  return index$2(point && point.line) + ':' + index$2(point && point.column)
 }
-function position$3(pos) {
-  return point$5(pos && pos.start) + '-' + point$5(pos && pos.end)
+function position$2(pos) {
+  return point$4(pos && pos.start) + '-' + point$4(pos && pos.end)
 }
-function index$3(value) {
+function index$2(value) {
   return value && typeof value === 'number' ? value : 1
 }
 
@@ -285,7 +287,7 @@ let VFileMessage$1 = class VFileMessage extends Error {
     this.file;
     this.message = reason;
     this.line = start ? start.line : undefined;
-    this.name = stringifyPosition$3(options.place) || '1:1';
+    this.name = stringifyPosition$2(options.place) || '1:1';
     this.place = options.place || undefined;
     this.reason = this.message;
     this.ruleId = options.ruleId || undefined;
@@ -814,19 +816,19 @@ function isUint8Array$2(value) {
   )
 }
 
-const emptyOptions = {};
-function toString(value, options) {
-  const settings = options || emptyOptions;
+const emptyOptions$3 = {};
+function toString$2(value, options) {
+  const settings = options || emptyOptions$3;
   const includeImageAlt =
     typeof settings.includeImageAlt === 'boolean'
       ? settings.includeImageAlt
       : true;
   const includeHtml =
     typeof settings.includeHtml === 'boolean' ? settings.includeHtml : true;
-  return one(value, includeImageAlt, includeHtml)
+  return one$2(value, includeImageAlt, includeHtml)
 }
-function one(value, includeImageAlt, includeHtml) {
-  if (node(value)) {
+function one$2(value, includeImageAlt, includeHtml) {
+  if (node$2(value)) {
     if ('value' in value) {
       return value.type === 'html' && !includeHtml ? '' : value.value
     }
@@ -834,800 +836,24 @@ function one(value, includeImageAlt, includeHtml) {
       return value.alt
     }
     if ('children' in value) {
-      return all(value.children, includeImageAlt, includeHtml)
+      return all$2(value.children, includeImageAlt, includeHtml)
     }
   }
   if (Array.isArray(value)) {
-    return all(value, includeImageAlt, includeHtml)
+    return all$2(value, includeImageAlt, includeHtml)
   }
   return ''
 }
-function all(values, includeImageAlt, includeHtml) {
+function all$2(values, includeImageAlt, includeHtml) {
   const result = [];
   let index = -1;
   while (++index < values.length) {
-    result[index] = one(values[index], includeImageAlt, includeHtml);
+    result[index] = one$2(values[index], includeImageAlt, includeHtml);
   }
   return result.join('')
 }
-function node(value) {
+function node$2(value) {
   return Boolean(value && typeof value === 'object')
-}
-
-function splice(list, start, remove, items) {
-  const end = list.length;
-  let chunkStart = 0;
-  let parameters;
-  if (start < 0) {
-    start = -start > end ? 0 : end + start;
-  } else {
-    start = start > end ? end : start;
-  }
-  remove = remove > 0 ? remove : 0;
-  if (items.length < 10000) {
-    parameters = Array.from(items);
-    parameters.unshift(start, remove);
-    list.splice(...parameters);
-  } else {
-    if (remove) list.splice(start, remove);
-    while (chunkStart < items.length) {
-      parameters = items.slice(chunkStart, chunkStart + 10000);
-      parameters.unshift(start, 0);
-      list.splice(...parameters);
-      chunkStart += 10000;
-      start += 10000;
-    }
-  }
-}
-function push(list, items) {
-  if (list.length > 0) {
-    splice(list, list.length, 0, items);
-    return list
-  }
-  return items
-}
-
-const hasOwnProperty = {}.hasOwnProperty;
-function combineExtensions(extensions) {
-  const all = {};
-  let index = -1;
-  while (++index < extensions.length) {
-    syntaxExtension(all, extensions[index]);
-  }
-  return all
-}
-function syntaxExtension(all, extension) {
-  let hook;
-  for (hook in extension) {
-    const maybe = hasOwnProperty.call(all, hook) ? all[hook] : undefined;
-    const left = maybe || (all[hook] = {});
-    const right = extension[hook];
-    let code;
-    if (right) {
-      for (code in right) {
-        if (!hasOwnProperty.call(left, code)) left[code] = [];
-        const value = right[code];
-        constructs(
-          left[code],
-          Array.isArray(value) ? value : value ? [value] : []
-        );
-      }
-    }
-  }
-}
-function constructs(existing, list) {
-  let index = -1;
-  const before = [];
-  while (++index < list.length) {
-(list[index].add === 'after' ? existing : before).push(list[index]);
-  }
-  splice(existing, 0, 0, before);
-}
-
-const unicodePunctuationRegex =
-  /[!-\/:-@\[-`\{-~\xA1\xA7\xAB\xB6\xB7\xBB\xBF\u037E\u0387\u055A-\u055F\u0589\u058A\u05BE\u05C0\u05C3\u05C6\u05F3\u05F4\u0609\u060A\u060C\u060D\u061B\u061D-\u061F\u066A-\u066D\u06D4\u0700-\u070D\u07F7-\u07F9\u0830-\u083E\u085E\u0964\u0965\u0970\u09FD\u0A76\u0AF0\u0C77\u0C84\u0DF4\u0E4F\u0E5A\u0E5B\u0F04-\u0F12\u0F14\u0F3A-\u0F3D\u0F85\u0FD0-\u0FD4\u0FD9\u0FDA\u104A-\u104F\u10FB\u1360-\u1368\u1400\u166E\u169B\u169C\u16EB-\u16ED\u1735\u1736\u17D4-\u17D6\u17D8-\u17DA\u1800-\u180A\u1944\u1945\u1A1E\u1A1F\u1AA0-\u1AA6\u1AA8-\u1AAD\u1B5A-\u1B60\u1B7D\u1B7E\u1BFC-\u1BFF\u1C3B-\u1C3F\u1C7E\u1C7F\u1CC0-\u1CC7\u1CD3\u2010-\u2027\u2030-\u2043\u2045-\u2051\u2053-\u205E\u207D\u207E\u208D\u208E\u2308-\u230B\u2329\u232A\u2768-\u2775\u27C5\u27C6\u27E6-\u27EF\u2983-\u2998\u29D8-\u29DB\u29FC\u29FD\u2CF9-\u2CFC\u2CFE\u2CFF\u2D70\u2E00-\u2E2E\u2E30-\u2E4F\u2E52-\u2E5D\u3001-\u3003\u3008-\u3011\u3014-\u301F\u3030\u303D\u30A0\u30FB\uA4FE\uA4FF\uA60D-\uA60F\uA673\uA67E\uA6F2-\uA6F7\uA874-\uA877\uA8CE\uA8CF\uA8F8-\uA8FA\uA8FC\uA92E\uA92F\uA95F\uA9C1-\uA9CD\uA9DE\uA9DF\uAA5C-\uAA5F\uAADE\uAADF\uAAF0\uAAF1\uABEB\uFD3E\uFD3F\uFE10-\uFE19\uFE30-\uFE52\uFE54-\uFE61\uFE63\uFE68\uFE6A\uFE6B\uFF01-\uFF03\uFF05-\uFF0A\uFF0C-\uFF0F\uFF1A\uFF1B\uFF1F\uFF20\uFF3B-\uFF3D\uFF3F\uFF5B\uFF5D\uFF5F-\uFF65]/;
-
-const asciiAlpha = regexCheck(/[A-Za-z]/);
-const asciiAlphanumeric = regexCheck(/[\dA-Za-z]/);
-const asciiAtext = regexCheck(/[#-'*+\--9=?A-Z^-~]/);
-function asciiControl(code) {
-  return (
-    code !== null && (code < 32 || code === 127)
-  )
-}
-const asciiDigit = regexCheck(/\d/);
-const asciiHexDigit = regexCheck(/[\dA-Fa-f]/);
-const asciiPunctuation = regexCheck(/[!-/:-@[-`{-~]/);
-function markdownLineEnding(code) {
-  return code !== null && code < -2
-}
-function markdownLineEndingOrSpace(code) {
-  return code !== null && (code < 0 || code === 32)
-}
-function markdownSpace(code) {
-  return code === -2 || code === -1 || code === 32
-}
-const unicodePunctuation = regexCheck(unicodePunctuationRegex);
-const unicodeWhitespace = regexCheck(/\s/);
-function regexCheck(regex) {
-  return check
-  function check(code) {
-    return code !== null && regex.test(String.fromCharCode(code))
-  }
-}
-
-function factorySpace(effects, ok, type, max) {
-  const limit = max ? max - 1 : Number.POSITIVE_INFINITY;
-  let size = 0;
-  return start
-  function start(code) {
-    if (markdownSpace(code)) {
-      effects.enter(type);
-      return prefix(code)
-    }
-    return ok(code)
-  }
-  function prefix(code) {
-    if (markdownSpace(code) && size++ < limit) {
-      effects.consume(code);
-      return prefix
-    }
-    effects.exit(type);
-    return ok(code)
-  }
-}
-
-const content$1 = {
-  tokenize: initializeContent
-};
-function initializeContent(effects) {
-  const contentStart = effects.attempt(
-    this.parser.constructs.contentInitial,
-    afterContentStartConstruct,
-    paragraphInitial
-  );
-  let previous;
-  return contentStart
-  function afterContentStartConstruct(code) {
-    if (code === null) {
-      effects.consume(code);
-      return
-    }
-    effects.enter('lineEnding');
-    effects.consume(code);
-    effects.exit('lineEnding');
-    return factorySpace(effects, contentStart, 'linePrefix')
-  }
-  function paragraphInitial(code) {
-    effects.enter('paragraph');
-    return lineStart(code)
-  }
-  function lineStart(code) {
-    const token = effects.enter('chunkText', {
-      contentType: 'text',
-      previous
-    });
-    if (previous) {
-      previous.next = token;
-    }
-    previous = token;
-    return data(code)
-  }
-  function data(code) {
-    if (code === null) {
-      effects.exit('chunkText');
-      effects.exit('paragraph');
-      effects.consume(code);
-      return
-    }
-    if (markdownLineEnding(code)) {
-      effects.consume(code);
-      effects.exit('chunkText');
-      return lineStart
-    }
-    effects.consume(code);
-    return data
-  }
-}
-
-const document$1 = {
-  tokenize: initializeDocument
-};
-const containerConstruct = {
-  tokenize: tokenizeContainer
-};
-function initializeDocument(effects) {
-  const self = this;
-  const stack = [];
-  let continued = 0;
-  let childFlow;
-  let childToken;
-  let lineStartOffset;
-  return start
-  function start(code) {
-    if (continued < stack.length) {
-      const item = stack[continued];
-      self.containerState = item[1];
-      return effects.attempt(
-        item[0].continuation,
-        documentContinue,
-        checkNewContainers
-      )(code)
-    }
-    return checkNewContainers(code)
-  }
-  function documentContinue(code) {
-    continued++;
-    if (self.containerState._closeFlow) {
-      self.containerState._closeFlow = undefined;
-      if (childFlow) {
-        closeFlow();
-      }
-      const indexBeforeExits = self.events.length;
-      let indexBeforeFlow = indexBeforeExits;
-      let point;
-      while (indexBeforeFlow--) {
-        if (
-          self.events[indexBeforeFlow][0] === 'exit' &&
-          self.events[indexBeforeFlow][1].type === 'chunkFlow'
-        ) {
-          point = self.events[indexBeforeFlow][1].end;
-          break
-        }
-      }
-      exitContainers(continued);
-      let index = indexBeforeExits;
-      while (index < self.events.length) {
-        self.events[index][1].end = Object.assign({}, point);
-        index++;
-      }
-      splice(
-        self.events,
-        indexBeforeFlow + 1,
-        0,
-        self.events.slice(indexBeforeExits)
-      );
-      self.events.length = index;
-      return checkNewContainers(code)
-    }
-    return start(code)
-  }
-  function checkNewContainers(code) {
-    if (continued === stack.length) {
-      if (!childFlow) {
-        return documentContinued(code)
-      }
-      if (childFlow.currentConstruct && childFlow.currentConstruct.concrete) {
-        return flowStart(code)
-      }
-      self.interrupt = Boolean(
-        childFlow.currentConstruct && !childFlow._gfmTableDynamicInterruptHack
-      );
-    }
-    self.containerState = {};
-    return effects.check(
-      containerConstruct,
-      thereIsANewContainer,
-      thereIsNoNewContainer
-    )(code)
-  }
-  function thereIsANewContainer(code) {
-    if (childFlow) closeFlow();
-    exitContainers(continued);
-    return documentContinued(code)
-  }
-  function thereIsNoNewContainer(code) {
-    self.parser.lazy[self.now().line] = continued !== stack.length;
-    lineStartOffset = self.now().offset;
-    return flowStart(code)
-  }
-  function documentContinued(code) {
-    self.containerState = {};
-    return effects.attempt(
-      containerConstruct,
-      containerContinue,
-      flowStart
-    )(code)
-  }
-  function containerContinue(code) {
-    continued++;
-    stack.push([self.currentConstruct, self.containerState]);
-    return documentContinued(code)
-  }
-  function flowStart(code) {
-    if (code === null) {
-      if (childFlow) closeFlow();
-      exitContainers(0);
-      effects.consume(code);
-      return
-    }
-    childFlow = childFlow || self.parser.flow(self.now());
-    effects.enter('chunkFlow', {
-      contentType: 'flow',
-      previous: childToken,
-      _tokenizer: childFlow
-    });
-    return flowContinue(code)
-  }
-  function flowContinue(code) {
-    if (code === null) {
-      writeToChild(effects.exit('chunkFlow'), true);
-      exitContainers(0);
-      effects.consume(code);
-      return
-    }
-    if (markdownLineEnding(code)) {
-      effects.consume(code);
-      writeToChild(effects.exit('chunkFlow'));
-      continued = 0;
-      self.interrupt = undefined;
-      return start
-    }
-    effects.consume(code);
-    return flowContinue
-  }
-  function writeToChild(token, eof) {
-    const stream = self.sliceStream(token);
-    if (eof) stream.push(null);
-    token.previous = childToken;
-    if (childToken) childToken.next = token;
-    childToken = token;
-    childFlow.defineSkip(token.start);
-    childFlow.write(stream);
-    if (self.parser.lazy[token.start.line]) {
-      let index = childFlow.events.length;
-      while (index--) {
-        if (
-          childFlow.events[index][1].start.offset < lineStartOffset &&
-          (!childFlow.events[index][1].end ||
-            childFlow.events[index][1].end.offset > lineStartOffset)
-        ) {
-          return
-        }
-      }
-      const indexBeforeExits = self.events.length;
-      let indexBeforeFlow = indexBeforeExits;
-      let seen;
-      let point;
-      while (indexBeforeFlow--) {
-        if (
-          self.events[indexBeforeFlow][0] === 'exit' &&
-          self.events[indexBeforeFlow][1].type === 'chunkFlow'
-        ) {
-          if (seen) {
-            point = self.events[indexBeforeFlow][1].end;
-            break
-          }
-          seen = true;
-        }
-      }
-      exitContainers(continued);
-      index = indexBeforeExits;
-      while (index < self.events.length) {
-        self.events[index][1].end = Object.assign({}, point);
-        index++;
-      }
-      splice(
-        self.events,
-        indexBeforeFlow + 1,
-        0,
-        self.events.slice(indexBeforeExits)
-      );
-      self.events.length = index;
-    }
-  }
-  function exitContainers(size) {
-    let index = stack.length;
-    while (index-- > size) {
-      const entry = stack[index];
-      self.containerState = entry[1];
-      entry[0].exit.call(self, effects);
-    }
-    stack.length = size;
-  }
-  function closeFlow() {
-    childFlow.write([null]);
-    childToken = undefined;
-    childFlow = undefined;
-    self.containerState._closeFlow = undefined;
-  }
-}
-function tokenizeContainer(effects, ok, nok) {
-  return factorySpace(
-    effects,
-    effects.attempt(this.parser.constructs.document, ok, nok),
-    'linePrefix',
-    this.parser.constructs.disable.null.includes('codeIndented') ? undefined : 4
-  )
-}
-
-function classifyCharacter(code) {
-  if (
-    code === null ||
-    markdownLineEndingOrSpace(code) ||
-    unicodeWhitespace(code)
-  ) {
-    return 1
-  }
-  if (unicodePunctuation(code)) {
-    return 2
-  }
-}
-
-function resolveAll(constructs, events, context) {
-  const called = [];
-  let index = -1;
-  while (++index < constructs.length) {
-    const resolve = constructs[index].resolveAll;
-    if (resolve && !called.includes(resolve)) {
-      events = resolve(events, context);
-      called.push(resolve);
-    }
-  }
-  return events
-}
-
-const attention = {
-  name: 'attention',
-  tokenize: tokenizeAttention,
-  resolveAll: resolveAllAttention
-};
-function resolveAllAttention(events, context) {
-  let index = -1;
-  let open;
-  let group;
-  let text;
-  let openingSequence;
-  let closingSequence;
-  let use;
-  let nextEvents;
-  let offset;
-  while (++index < events.length) {
-    if (
-      events[index][0] === 'enter' &&
-      events[index][1].type === 'attentionSequence' &&
-      events[index][1]._close
-    ) {
-      open = index;
-      while (open--) {
-        if (
-          events[open][0] === 'exit' &&
-          events[open][1].type === 'attentionSequence' &&
-          events[open][1]._open &&
-          context.sliceSerialize(events[open][1]).charCodeAt(0) ===
-            context.sliceSerialize(events[index][1]).charCodeAt(0)
-        ) {
-          if (
-            (events[open][1]._close || events[index][1]._open) &&
-            (events[index][1].end.offset - events[index][1].start.offset) % 3 &&
-            !(
-              (events[open][1].end.offset -
-                events[open][1].start.offset +
-                events[index][1].end.offset -
-                events[index][1].start.offset) %
-              3
-            )
-          ) {
-            continue
-          }
-          use =
-            events[open][1].end.offset - events[open][1].start.offset > 1 &&
-            events[index][1].end.offset - events[index][1].start.offset > 1
-              ? 2
-              : 1;
-          const start = Object.assign({}, events[open][1].end);
-          const end = Object.assign({}, events[index][1].start);
-          movePoint(start, -use);
-          movePoint(end, use);
-          openingSequence = {
-            type: use > 1 ? 'strongSequence' : 'emphasisSequence',
-            start,
-            end: Object.assign({}, events[open][1].end)
-          };
-          closingSequence = {
-            type: use > 1 ? 'strongSequence' : 'emphasisSequence',
-            start: Object.assign({}, events[index][1].start),
-            end
-          };
-          text = {
-            type: use > 1 ? 'strongText' : 'emphasisText',
-            start: Object.assign({}, events[open][1].end),
-            end: Object.assign({}, events[index][1].start)
-          };
-          group = {
-            type: use > 1 ? 'strong' : 'emphasis',
-            start: Object.assign({}, openingSequence.start),
-            end: Object.assign({}, closingSequence.end)
-          };
-          events[open][1].end = Object.assign({}, openingSequence.start);
-          events[index][1].start = Object.assign({}, closingSequence.end);
-          nextEvents = [];
-          if (events[open][1].end.offset - events[open][1].start.offset) {
-            nextEvents = push(nextEvents, [
-              ['enter', events[open][1], context],
-              ['exit', events[open][1], context]
-            ]);
-          }
-          nextEvents = push(nextEvents, [
-            ['enter', group, context],
-            ['enter', openingSequence, context],
-            ['exit', openingSequence, context],
-            ['enter', text, context]
-          ]);
-          nextEvents = push(
-            nextEvents,
-            resolveAll(
-              context.parser.constructs.insideSpan.null,
-              events.slice(open + 1, index),
-              context
-            )
-          );
-          nextEvents = push(nextEvents, [
-            ['exit', text, context],
-            ['enter', closingSequence, context],
-            ['exit', closingSequence, context],
-            ['exit', group, context]
-          ]);
-          if (events[index][1].end.offset - events[index][1].start.offset) {
-            offset = 2;
-            nextEvents = push(nextEvents, [
-              ['enter', events[index][1], context],
-              ['exit', events[index][1], context]
-            ]);
-          } else {
-            offset = 0;
-          }
-          splice(events, open - 1, index - open + 3, nextEvents);
-          index = open + nextEvents.length - offset - 2;
-          break
-        }
-      }
-    }
-  }
-  index = -1;
-  while (++index < events.length) {
-    if (events[index][1].type === 'attentionSequence') {
-      events[index][1].type = 'data';
-    }
-  }
-  return events
-}
-function tokenizeAttention(effects, ok) {
-  const attentionMarkers = this.parser.constructs.attentionMarkers.null;
-  const previous = this.previous;
-  const before = classifyCharacter(previous);
-  let marker;
-  return start
-  function start(code) {
-    marker = code;
-    effects.enter('attentionSequence');
-    return inside(code)
-  }
-  function inside(code) {
-    if (code === marker) {
-      effects.consume(code);
-      return inside
-    }
-    const token = effects.exit('attentionSequence');
-    const after = classifyCharacter(code);
-    const open =
-      !after || (after === 2 && before) || attentionMarkers.includes(code);
-    const close =
-      !before || (before === 2 && after) || attentionMarkers.includes(previous);
-    token._open = Boolean(marker === 42 ? open : open && (before || !close));
-    token._close = Boolean(marker === 42 ? close : close && (after || !open));
-    return ok(code)
-  }
-}
-function movePoint(point, offset) {
-  point.column += offset;
-  point.offset += offset;
-  point._bufferIndex += offset;
-}
-
-const autolink = {
-  name: 'autolink',
-  tokenize: tokenizeAutolink
-};
-function tokenizeAutolink(effects, ok, nok) {
-  let size = 0;
-  return start
-  function start(code) {
-    effects.enter('autolink');
-    effects.enter('autolinkMarker');
-    effects.consume(code);
-    effects.exit('autolinkMarker');
-    effects.enter('autolinkProtocol');
-    return open
-  }
-  function open(code) {
-    if (asciiAlpha(code)) {
-      effects.consume(code);
-      return schemeOrEmailAtext
-    }
-    return emailAtext(code)
-  }
-  function schemeOrEmailAtext(code) {
-    if (code === 43 || code === 45 || code === 46 || asciiAlphanumeric(code)) {
-      size = 1;
-      return schemeInsideOrEmailAtext(code)
-    }
-    return emailAtext(code)
-  }
-  function schemeInsideOrEmailAtext(code) {
-    if (code === 58) {
-      effects.consume(code);
-      size = 0;
-      return urlInside
-    }
-    if (
-      (code === 43 || code === 45 || code === 46 || asciiAlphanumeric(code)) &&
-      size++ < 32
-    ) {
-      effects.consume(code);
-      return schemeInsideOrEmailAtext
-    }
-    size = 0;
-    return emailAtext(code)
-  }
-  function urlInside(code) {
-    if (code === 62) {
-      effects.exit('autolinkProtocol');
-      effects.enter('autolinkMarker');
-      effects.consume(code);
-      effects.exit('autolinkMarker');
-      effects.exit('autolink');
-      return ok
-    }
-    if (code === null || code === 32 || code === 60 || asciiControl(code)) {
-      return nok(code)
-    }
-    effects.consume(code);
-    return urlInside
-  }
-  function emailAtext(code) {
-    if (code === 64) {
-      effects.consume(code);
-      return emailAtSignOrDot
-    }
-    if (asciiAtext(code)) {
-      effects.consume(code);
-      return emailAtext
-    }
-    return nok(code)
-  }
-  function emailAtSignOrDot(code) {
-    return asciiAlphanumeric(code) ? emailLabel(code) : nok(code)
-  }
-  function emailLabel(code) {
-    if (code === 46) {
-      effects.consume(code);
-      size = 0;
-      return emailAtSignOrDot
-    }
-    if (code === 62) {
-      effects.exit('autolinkProtocol').type = 'autolinkEmail';
-      effects.enter('autolinkMarker');
-      effects.consume(code);
-      effects.exit('autolinkMarker');
-      effects.exit('autolink');
-      return ok
-    }
-    return emailValue(code)
-  }
-  function emailValue(code) {
-    if ((code === 45 || asciiAlphanumeric(code)) && size++ < 63) {
-      const next = code === 45 ? emailValue : emailLabel;
-      effects.consume(code);
-      return next
-    }
-    return nok(code)
-  }
-}
-
-const blankLine = {
-  tokenize: tokenizeBlankLine,
-  partial: true
-};
-function tokenizeBlankLine(effects, ok, nok) {
-  return start
-  function start(code) {
-    return markdownSpace(code)
-      ? factorySpace(effects, after, 'linePrefix')(code)
-      : after(code)
-  }
-  function after(code) {
-    return code === null || markdownLineEnding(code) ? ok(code) : nok(code)
-  }
-}
-
-const blockQuote = {
-  name: 'blockQuote',
-  tokenize: tokenizeBlockQuoteStart,
-  continuation: {
-    tokenize: tokenizeBlockQuoteContinuation
-  },
-  exit: exit$1
-};
-function tokenizeBlockQuoteStart(effects, ok, nok) {
-  const self = this;
-  return start
-  function start(code) {
-    if (code === 62) {
-      const state = self.containerState;
-      if (!state.open) {
-        effects.enter('blockQuote', {
-          _container: true
-        });
-        state.open = true;
-      }
-      effects.enter('blockQuotePrefix');
-      effects.enter('blockQuoteMarker');
-      effects.consume(code);
-      effects.exit('blockQuoteMarker');
-      return after
-    }
-    return nok(code)
-  }
-  function after(code) {
-    if (markdownSpace(code)) {
-      effects.enter('blockQuotePrefixWhitespace');
-      effects.consume(code);
-      effects.exit('blockQuotePrefixWhitespace');
-      effects.exit('blockQuotePrefix');
-      return ok
-    }
-    effects.exit('blockQuotePrefix');
-    return ok(code)
-  }
-}
-function tokenizeBlockQuoteContinuation(effects, ok, nok) {
-  const self = this;
-  return contStart
-  function contStart(code) {
-    if (markdownSpace(code)) {
-      return factorySpace(
-        effects,
-        contBefore,
-        'linePrefix',
-        self.parser.constructs.disable.null.includes('codeIndented')
-          ? undefined
-          : 4
-      )(code)
-    }
-    return contBefore(code)
-  }
-  function contBefore(code) {
-    return effects.attempt(blockQuote, ok, nok)(code)
-  }
-}
-function exit$1(effects) {
-  effects.exit('blockQuote');
-}
-
-const characterEscape = {
-  name: 'characterEscape',
-  tokenize: tokenizeCharacterEscape
-};
-function tokenizeCharacterEscape(effects, ok, nok) {
-  return start
-  function start(code) {
-    effects.enter('characterEscape');
-    effects.enter('escapeMarker');
-    effects.consume(code);
-    effects.exit('escapeMarker');
-    return inside
-  }
-  function inside(code) {
-    if (asciiPunctuation(code)) {
-      effects.enter('characterEscapeValue');
-      effects.consume(code);
-      effects.exit('characterEscapeValue');
-      effects.exit('characterEscape');
-      return ok
-    }
-    return nok(code)
-  }
 }
 
 const characterEntities = {
@@ -3763,6 +2989,810 @@ function decodeNamedCharacterReference(value) {
   return own$5.call(characterEntities, value) ? characterEntities[value] : false
 }
 
+function splice(list, start, remove, items) {
+  const end = list.length;
+  let chunkStart = 0;
+  let parameters;
+  if (start < 0) {
+    start = -start > end ? 0 : end + start;
+  } else {
+    start = start > end ? end : start;
+  }
+  remove = remove > 0 ? remove : 0;
+  if (items.length < 10000) {
+    parameters = Array.from(items);
+    parameters.unshift(start, remove);
+    list.splice(...parameters);
+  } else {
+    if (remove) list.splice(start, remove);
+    while (chunkStart < items.length) {
+      parameters = items.slice(chunkStart, chunkStart + 10000);
+      parameters.unshift(start, 0);
+      list.splice(...parameters);
+      chunkStart += 10000;
+      start += 10000;
+    }
+  }
+}
+function push(list, items) {
+  if (list.length > 0) {
+    splice(list, list.length, 0, items);
+    return list
+  }
+  return items
+}
+
+const hasOwnProperty = {}.hasOwnProperty;
+function combineExtensions(extensions) {
+  const all = {};
+  let index = -1;
+  while (++index < extensions.length) {
+    syntaxExtension(all, extensions[index]);
+  }
+  return all
+}
+function syntaxExtension(all, extension) {
+  let hook;
+  for (hook in extension) {
+    const maybe = hasOwnProperty.call(all, hook) ? all[hook] : undefined;
+    const left = maybe || (all[hook] = {});
+    const right = extension[hook];
+    let code;
+    if (right) {
+      for (code in right) {
+        if (!hasOwnProperty.call(left, code)) left[code] = [];
+        const value = right[code];
+        constructs(
+          left[code],
+          Array.isArray(value) ? value : value ? [value] : []
+        );
+      }
+    }
+  }
+}
+function constructs(existing, list) {
+  let index = -1;
+  const before = [];
+  while (++index < list.length) {
+(list[index].add === 'after' ? existing : before).push(list[index]);
+  }
+  splice(existing, 0, 0, before);
+}
+
+function decodeNumericCharacterReference(value, base) {
+  const code = Number.parseInt(value, base);
+  if (
+    code < 9 ||
+    code === 11 ||
+    (code > 13 && code < 32) ||
+    (code > 126 && code < 160) ||
+    (code > 55_295 && code < 57_344) ||
+    (code > 64_975 && code < 65_008)  ||
+    (code & 65_535) === 65_535 ||
+    (code & 65_535) === 65_534  ||
+    code > 1_114_111
+  ) {
+    return '\uFFFD'
+  }
+  return String.fromCharCode(code)
+}
+
+function normalizeIdentifier$1(value) {
+  return (
+    value
+      .replace(/[\t\n\r ]+/g, ' ')
+      .replace(/^ | $/g, '')
+      .toLowerCase()
+      .toUpperCase()
+  )
+}
+
+const unicodePunctuationInternal = regexCheck(/\p{P}/u);
+const asciiAlpha = regexCheck(/[A-Za-z]/);
+const asciiAlphanumeric = regexCheck(/[\dA-Za-z]/);
+const asciiAtext = regexCheck(/[#-'*+\--9=?A-Z^-~]/);
+function asciiControl(code) {
+  return (
+    code !== null && (code < 32 || code === 127)
+  )
+}
+const asciiDigit = regexCheck(/\d/);
+const asciiHexDigit = regexCheck(/[\dA-Fa-f]/);
+const asciiPunctuation = regexCheck(/[!-/:-@[-`{-~]/);
+function markdownLineEnding(code) {
+  return code !== null && code < -2
+}
+function markdownLineEndingOrSpace(code) {
+  return code !== null && (code < 0 || code === 32)
+}
+function markdownSpace(code) {
+  return code === -2 || code === -1 || code === 32
+}
+function unicodePunctuation(code) {
+  return asciiPunctuation(code) || unicodePunctuationInternal(code)
+}
+const unicodeWhitespace = regexCheck(/\s/);
+function regexCheck(regex) {
+  return check
+  function check(code) {
+    return code !== null && code > -1 && regex.test(String.fromCharCode(code))
+  }
+}
+
+function factorySpace(effects, ok, type, max) {
+  const limit = max ? max - 1 : Number.POSITIVE_INFINITY;
+  let size = 0;
+  return start
+  function start(code) {
+    if (markdownSpace(code)) {
+      effects.enter(type);
+      return prefix(code)
+    }
+    return ok(code)
+  }
+  function prefix(code) {
+    if (markdownSpace(code) && size++ < limit) {
+      effects.consume(code);
+      return prefix
+    }
+    effects.exit(type);
+    return ok(code)
+  }
+}
+
+const content$1 = {
+  tokenize: initializeContent
+};
+function initializeContent(effects) {
+  const contentStart = effects.attempt(
+    this.parser.constructs.contentInitial,
+    afterContentStartConstruct,
+    paragraphInitial
+  );
+  let previous;
+  return contentStart
+  function afterContentStartConstruct(code) {
+    if (code === null) {
+      effects.consume(code);
+      return
+    }
+    effects.enter('lineEnding');
+    effects.consume(code);
+    effects.exit('lineEnding');
+    return factorySpace(effects, contentStart, 'linePrefix')
+  }
+  function paragraphInitial(code) {
+    effects.enter('paragraph');
+    return lineStart(code)
+  }
+  function lineStart(code) {
+    const token = effects.enter('chunkText', {
+      contentType: 'text',
+      previous
+    });
+    if (previous) {
+      previous.next = token;
+    }
+    previous = token;
+    return data(code)
+  }
+  function data(code) {
+    if (code === null) {
+      effects.exit('chunkText');
+      effects.exit('paragraph');
+      effects.consume(code);
+      return
+    }
+    if (markdownLineEnding(code)) {
+      effects.consume(code);
+      effects.exit('chunkText');
+      return lineStart
+    }
+    effects.consume(code);
+    return data
+  }
+}
+
+const document$1 = {
+  tokenize: initializeDocument
+};
+const containerConstruct = {
+  tokenize: tokenizeContainer
+};
+function initializeDocument(effects) {
+  const self = this;
+  const stack = [];
+  let continued = 0;
+  let childFlow;
+  let childToken;
+  let lineStartOffset;
+  return start
+  function start(code) {
+    if (continued < stack.length) {
+      const item = stack[continued];
+      self.containerState = item[1];
+      return effects.attempt(
+        item[0].continuation,
+        documentContinue,
+        checkNewContainers
+      )(code)
+    }
+    return checkNewContainers(code)
+  }
+  function documentContinue(code) {
+    continued++;
+    if (self.containerState._closeFlow) {
+      self.containerState._closeFlow = undefined;
+      if (childFlow) {
+        closeFlow();
+      }
+      const indexBeforeExits = self.events.length;
+      let indexBeforeFlow = indexBeforeExits;
+      let point;
+      while (indexBeforeFlow--) {
+        if (
+          self.events[indexBeforeFlow][0] === 'exit' &&
+          self.events[indexBeforeFlow][1].type === 'chunkFlow'
+        ) {
+          point = self.events[indexBeforeFlow][1].end;
+          break
+        }
+      }
+      exitContainers(continued);
+      let index = indexBeforeExits;
+      while (index < self.events.length) {
+        self.events[index][1].end = Object.assign({}, point);
+        index++;
+      }
+      splice(
+        self.events,
+        indexBeforeFlow + 1,
+        0,
+        self.events.slice(indexBeforeExits)
+      );
+      self.events.length = index;
+      return checkNewContainers(code)
+    }
+    return start(code)
+  }
+  function checkNewContainers(code) {
+    if (continued === stack.length) {
+      if (!childFlow) {
+        return documentContinued(code)
+      }
+      if (childFlow.currentConstruct && childFlow.currentConstruct.concrete) {
+        return flowStart(code)
+      }
+      self.interrupt = Boolean(
+        childFlow.currentConstruct && !childFlow._gfmTableDynamicInterruptHack
+      );
+    }
+    self.containerState = {};
+    return effects.check(
+      containerConstruct,
+      thereIsANewContainer,
+      thereIsNoNewContainer
+    )(code)
+  }
+  function thereIsANewContainer(code) {
+    if (childFlow) closeFlow();
+    exitContainers(continued);
+    return documentContinued(code)
+  }
+  function thereIsNoNewContainer(code) {
+    self.parser.lazy[self.now().line] = continued !== stack.length;
+    lineStartOffset = self.now().offset;
+    return flowStart(code)
+  }
+  function documentContinued(code) {
+    self.containerState = {};
+    return effects.attempt(
+      containerConstruct,
+      containerContinue,
+      flowStart
+    )(code)
+  }
+  function containerContinue(code) {
+    continued++;
+    stack.push([self.currentConstruct, self.containerState]);
+    return documentContinued(code)
+  }
+  function flowStart(code) {
+    if (code === null) {
+      if (childFlow) closeFlow();
+      exitContainers(0);
+      effects.consume(code);
+      return
+    }
+    childFlow = childFlow || self.parser.flow(self.now());
+    effects.enter('chunkFlow', {
+      contentType: 'flow',
+      previous: childToken,
+      _tokenizer: childFlow
+    });
+    return flowContinue(code)
+  }
+  function flowContinue(code) {
+    if (code === null) {
+      writeToChild(effects.exit('chunkFlow'), true);
+      exitContainers(0);
+      effects.consume(code);
+      return
+    }
+    if (markdownLineEnding(code)) {
+      effects.consume(code);
+      writeToChild(effects.exit('chunkFlow'));
+      continued = 0;
+      self.interrupt = undefined;
+      return start
+    }
+    effects.consume(code);
+    return flowContinue
+  }
+  function writeToChild(token, eof) {
+    const stream = self.sliceStream(token);
+    if (eof) stream.push(null);
+    token.previous = childToken;
+    if (childToken) childToken.next = token;
+    childToken = token;
+    childFlow.defineSkip(token.start);
+    childFlow.write(stream);
+    if (self.parser.lazy[token.start.line]) {
+      let index = childFlow.events.length;
+      while (index--) {
+        if (
+          childFlow.events[index][1].start.offset < lineStartOffset &&
+          (!childFlow.events[index][1].end ||
+            childFlow.events[index][1].end.offset > lineStartOffset)
+        ) {
+          return
+        }
+      }
+      const indexBeforeExits = self.events.length;
+      let indexBeforeFlow = indexBeforeExits;
+      let seen;
+      let point;
+      while (indexBeforeFlow--) {
+        if (
+          self.events[indexBeforeFlow][0] === 'exit' &&
+          self.events[indexBeforeFlow][1].type === 'chunkFlow'
+        ) {
+          if (seen) {
+            point = self.events[indexBeforeFlow][1].end;
+            break
+          }
+          seen = true;
+        }
+      }
+      exitContainers(continued);
+      index = indexBeforeExits;
+      while (index < self.events.length) {
+        self.events[index][1].end = Object.assign({}, point);
+        index++;
+      }
+      splice(
+        self.events,
+        indexBeforeFlow + 1,
+        0,
+        self.events.slice(indexBeforeExits)
+      );
+      self.events.length = index;
+    }
+  }
+  function exitContainers(size) {
+    let index = stack.length;
+    while (index-- > size) {
+      const entry = stack[index];
+      self.containerState = entry[1];
+      entry[0].exit.call(self, effects);
+    }
+    stack.length = size;
+  }
+  function closeFlow() {
+    childFlow.write([null]);
+    childToken = undefined;
+    childFlow = undefined;
+    self.containerState._closeFlow = undefined;
+  }
+}
+function tokenizeContainer(effects, ok, nok) {
+  return factorySpace(
+    effects,
+    effects.attempt(this.parser.constructs.document, ok, nok),
+    'linePrefix',
+    this.parser.constructs.disable.null.includes('codeIndented') ? undefined : 4
+  )
+}
+
+function classifyCharacter(code) {
+  if (
+    code === null ||
+    markdownLineEndingOrSpace(code) ||
+    unicodeWhitespace(code)
+  ) {
+    return 1
+  }
+  if (unicodePunctuation(code)) {
+    return 2
+  }
+}
+
+function resolveAll(constructs, events, context) {
+  const called = [];
+  let index = -1;
+  while (++index < constructs.length) {
+    const resolve = constructs[index].resolveAll;
+    if (resolve && !called.includes(resolve)) {
+      events = resolve(events, context);
+      called.push(resolve);
+    }
+  }
+  return events
+}
+
+const attention = {
+  name: 'attention',
+  tokenize: tokenizeAttention,
+  resolveAll: resolveAllAttention
+};
+function resolveAllAttention(events, context) {
+  let index = -1;
+  let open;
+  let group;
+  let text;
+  let openingSequence;
+  let closingSequence;
+  let use;
+  let nextEvents;
+  let offset;
+  while (++index < events.length) {
+    if (
+      events[index][0] === 'enter' &&
+      events[index][1].type === 'attentionSequence' &&
+      events[index][1]._close
+    ) {
+      open = index;
+      while (open--) {
+        if (
+          events[open][0] === 'exit' &&
+          events[open][1].type === 'attentionSequence' &&
+          events[open][1]._open &&
+          context.sliceSerialize(events[open][1]).charCodeAt(0) ===
+            context.sliceSerialize(events[index][1]).charCodeAt(0)
+        ) {
+          if (
+            (events[open][1]._close || events[index][1]._open) &&
+            (events[index][1].end.offset - events[index][1].start.offset) % 3 &&
+            !(
+              (events[open][1].end.offset -
+                events[open][1].start.offset +
+                events[index][1].end.offset -
+                events[index][1].start.offset) %
+              3
+            )
+          ) {
+            continue
+          }
+          use =
+            events[open][1].end.offset - events[open][1].start.offset > 1 &&
+            events[index][1].end.offset - events[index][1].start.offset > 1
+              ? 2
+              : 1;
+          const start = Object.assign({}, events[open][1].end);
+          const end = Object.assign({}, events[index][1].start);
+          movePoint(start, -use);
+          movePoint(end, use);
+          openingSequence = {
+            type: use > 1 ? 'strongSequence' : 'emphasisSequence',
+            start,
+            end: Object.assign({}, events[open][1].end)
+          };
+          closingSequence = {
+            type: use > 1 ? 'strongSequence' : 'emphasisSequence',
+            start: Object.assign({}, events[index][1].start),
+            end
+          };
+          text = {
+            type: use > 1 ? 'strongText' : 'emphasisText',
+            start: Object.assign({}, events[open][1].end),
+            end: Object.assign({}, events[index][1].start)
+          };
+          group = {
+            type: use > 1 ? 'strong' : 'emphasis',
+            start: Object.assign({}, openingSequence.start),
+            end: Object.assign({}, closingSequence.end)
+          };
+          events[open][1].end = Object.assign({}, openingSequence.start);
+          events[index][1].start = Object.assign({}, closingSequence.end);
+          nextEvents = [];
+          if (events[open][1].end.offset - events[open][1].start.offset) {
+            nextEvents = push(nextEvents, [
+              ['enter', events[open][1], context],
+              ['exit', events[open][1], context]
+            ]);
+          }
+          nextEvents = push(nextEvents, [
+            ['enter', group, context],
+            ['enter', openingSequence, context],
+            ['exit', openingSequence, context],
+            ['enter', text, context]
+          ]);
+          nextEvents = push(
+            nextEvents,
+            resolveAll(
+              context.parser.constructs.insideSpan.null,
+              events.slice(open + 1, index),
+              context
+            )
+          );
+          nextEvents = push(nextEvents, [
+            ['exit', text, context],
+            ['enter', closingSequence, context],
+            ['exit', closingSequence, context],
+            ['exit', group, context]
+          ]);
+          if (events[index][1].end.offset - events[index][1].start.offset) {
+            offset = 2;
+            nextEvents = push(nextEvents, [
+              ['enter', events[index][1], context],
+              ['exit', events[index][1], context]
+            ]);
+          } else {
+            offset = 0;
+          }
+          splice(events, open - 1, index - open + 3, nextEvents);
+          index = open + nextEvents.length - offset - 2;
+          break
+        }
+      }
+    }
+  }
+  index = -1;
+  while (++index < events.length) {
+    if (events[index][1].type === 'attentionSequence') {
+      events[index][1].type = 'data';
+    }
+  }
+  return events
+}
+function tokenizeAttention(effects, ok) {
+  const attentionMarkers = this.parser.constructs.attentionMarkers.null;
+  const previous = this.previous;
+  const before = classifyCharacter(previous);
+  let marker;
+  return start
+  function start(code) {
+    marker = code;
+    effects.enter('attentionSequence');
+    return inside(code)
+  }
+  function inside(code) {
+    if (code === marker) {
+      effects.consume(code);
+      return inside
+    }
+    const token = effects.exit('attentionSequence');
+    const after = classifyCharacter(code);
+    const open =
+      !after || (after === 2 && before) || attentionMarkers.includes(code);
+    const close =
+      !before || (before === 2 && after) || attentionMarkers.includes(previous);
+    token._open = Boolean(marker === 42 ? open : open && (before || !close));
+    token._close = Boolean(marker === 42 ? close : close && (after || !open));
+    return ok(code)
+  }
+}
+function movePoint(point, offset) {
+  point.column += offset;
+  point.offset += offset;
+  point._bufferIndex += offset;
+}
+
+const autolink = {
+  name: 'autolink',
+  tokenize: tokenizeAutolink
+};
+function tokenizeAutolink(effects, ok, nok) {
+  let size = 0;
+  return start
+  function start(code) {
+    effects.enter('autolink');
+    effects.enter('autolinkMarker');
+    effects.consume(code);
+    effects.exit('autolinkMarker');
+    effects.enter('autolinkProtocol');
+    return open
+  }
+  function open(code) {
+    if (asciiAlpha(code)) {
+      effects.consume(code);
+      return schemeOrEmailAtext
+    }
+    return emailAtext(code)
+  }
+  function schemeOrEmailAtext(code) {
+    if (code === 43 || code === 45 || code === 46 || asciiAlphanumeric(code)) {
+      size = 1;
+      return schemeInsideOrEmailAtext(code)
+    }
+    return emailAtext(code)
+  }
+  function schemeInsideOrEmailAtext(code) {
+    if (code === 58) {
+      effects.consume(code);
+      size = 0;
+      return urlInside
+    }
+    if (
+      (code === 43 || code === 45 || code === 46 || asciiAlphanumeric(code)) &&
+      size++ < 32
+    ) {
+      effects.consume(code);
+      return schemeInsideOrEmailAtext
+    }
+    size = 0;
+    return emailAtext(code)
+  }
+  function urlInside(code) {
+    if (code === 62) {
+      effects.exit('autolinkProtocol');
+      effects.enter('autolinkMarker');
+      effects.consume(code);
+      effects.exit('autolinkMarker');
+      effects.exit('autolink');
+      return ok
+    }
+    if (code === null || code === 32 || code === 60 || asciiControl(code)) {
+      return nok(code)
+    }
+    effects.consume(code);
+    return urlInside
+  }
+  function emailAtext(code) {
+    if (code === 64) {
+      effects.consume(code);
+      return emailAtSignOrDot
+    }
+    if (asciiAtext(code)) {
+      effects.consume(code);
+      return emailAtext
+    }
+    return nok(code)
+  }
+  function emailAtSignOrDot(code) {
+    return asciiAlphanumeric(code) ? emailLabel(code) : nok(code)
+  }
+  function emailLabel(code) {
+    if (code === 46) {
+      effects.consume(code);
+      size = 0;
+      return emailAtSignOrDot
+    }
+    if (code === 62) {
+      effects.exit('autolinkProtocol').type = 'autolinkEmail';
+      effects.enter('autolinkMarker');
+      effects.consume(code);
+      effects.exit('autolinkMarker');
+      effects.exit('autolink');
+      return ok
+    }
+    return emailValue(code)
+  }
+  function emailValue(code) {
+    if ((code === 45 || asciiAlphanumeric(code)) && size++ < 63) {
+      const next = code === 45 ? emailValue : emailLabel;
+      effects.consume(code);
+      return next
+    }
+    return nok(code)
+  }
+}
+
+const blankLine = {
+  tokenize: tokenizeBlankLine,
+  partial: true
+};
+function tokenizeBlankLine(effects, ok, nok) {
+  return start
+  function start(code) {
+    return markdownSpace(code)
+      ? factorySpace(effects, after, 'linePrefix')(code)
+      : after(code)
+  }
+  function after(code) {
+    return code === null || markdownLineEnding(code) ? ok(code) : nok(code)
+  }
+}
+
+const blockQuote = {
+  name: 'blockQuote',
+  tokenize: tokenizeBlockQuoteStart,
+  continuation: {
+    tokenize: tokenizeBlockQuoteContinuation
+  },
+  exit: exit$1
+};
+function tokenizeBlockQuoteStart(effects, ok, nok) {
+  const self = this;
+  return start
+  function start(code) {
+    if (code === 62) {
+      const state = self.containerState;
+      if (!state.open) {
+        effects.enter('blockQuote', {
+          _container: true
+        });
+        state.open = true;
+      }
+      effects.enter('blockQuotePrefix');
+      effects.enter('blockQuoteMarker');
+      effects.consume(code);
+      effects.exit('blockQuoteMarker');
+      return after
+    }
+    return nok(code)
+  }
+  function after(code) {
+    if (markdownSpace(code)) {
+      effects.enter('blockQuotePrefixWhitespace');
+      effects.consume(code);
+      effects.exit('blockQuotePrefixWhitespace');
+      effects.exit('blockQuotePrefix');
+      return ok
+    }
+    effects.exit('blockQuotePrefix');
+    return ok(code)
+  }
+}
+function tokenizeBlockQuoteContinuation(effects, ok, nok) {
+  const self = this;
+  return contStart
+  function contStart(code) {
+    if (markdownSpace(code)) {
+      return factorySpace(
+        effects,
+        contBefore,
+        'linePrefix',
+        self.parser.constructs.disable.null.includes('codeIndented')
+          ? undefined
+          : 4
+      )(code)
+    }
+    return contBefore(code)
+  }
+  function contBefore(code) {
+    return effects.attempt(blockQuote, ok, nok)(code)
+  }
+}
+function exit$1(effects) {
+  effects.exit('blockQuote');
+}
+
+const characterEscape = {
+  name: 'characterEscape',
+  tokenize: tokenizeCharacterEscape
+};
+function tokenizeCharacterEscape(effects, ok, nok) {
+  return start
+  function start(code) {
+    effects.enter('characterEscape');
+    effects.enter('escapeMarker');
+    effects.consume(code);
+    effects.exit('escapeMarker');
+    return inside
+  }
+  function inside(code) {
+    if (asciiPunctuation(code)) {
+      effects.enter('characterEscapeValue');
+      effects.consume(code);
+      effects.exit('characterEscapeValue');
+      effects.exit('characterEscape');
+      return ok
+    }
+    return nok(code)
+  }
+}
+
 const characterReference = {
   name: 'characterReference',
   tokenize: tokenizeCharacterReference
@@ -4731,16 +4761,6 @@ function factoryWhitespace(effects, ok) {
   }
 }
 
-function normalizeIdentifier(value) {
-  return (
-    value
-      .replace(/[\t\n\r ]+/g, ' ')
-      .replace(/^ | $/g, '')
-      .toLowerCase()
-      .toUpperCase()
-  )
-}
-
 const definition$1 = {
   name: 'definition',
   tokenize: tokenizeDefinition
@@ -4769,7 +4789,7 @@ function tokenizeDefinition(effects, ok, nok) {
     )(code)
   }
   function labelAfter(code) {
-    identifier = normalizeIdentifier(
+    identifier = normalizeIdentifier$1(
       self.sliceSerialize(self.events[self.events.length - 1][1]).slice(1, -1)
     );
     if (code === 58) {
@@ -5914,7 +5934,7 @@ function tokenizeLabelEnd(effects, ok, nok) {
       return labelEndNok(code)
     }
     defined = self.parser.defined.includes(
-      normalizeIdentifier(
+      normalizeIdentifier$1(
         self.sliceSerialize({
           start: labelStart.end,
           end: self.now()
@@ -6043,7 +6063,7 @@ function tokenizeReferenceFull(effects, ok, nok) {
   }
   function referenceFullAfter(code) {
     return self.parser.defined.includes(
-      normalizeIdentifier(
+      normalizeIdentifier$1(
         self.sliceSerialize(self.events[self.events.length - 1][1]).slice(1, -1)
       )
     )
@@ -6184,7 +6204,7 @@ function tokenizeThematicBreak(effects, ok, nok) {
   }
 }
 
-const list$1 = {
+const list$2 = {
   name: 'list',
   tokenize: tokenizeListStart,
   continuation: {
@@ -6322,7 +6342,7 @@ function tokenizeListContinuation(effects, ok, nok) {
     self.interrupt = undefined;
     return factorySpace(
       effects,
-      effects.attempt(list$1, ok, nok),
+      effects.attempt(list$2, ok, nok),
       'linePrefix',
       self.parser.constructs.disable.null.includes('codeIndented')
         ? undefined
@@ -6972,19 +6992,19 @@ function serializeChunks(chunks, expandTabs) {
 }
 
 const document = {
-  [42]: list$1,
-  [43]: list$1,
-  [45]: list$1,
-  [48]: list$1,
-  [49]: list$1,
-  [50]: list$1,
-  [51]: list$1,
-  [52]: list$1,
-  [53]: list$1,
-  [54]: list$1,
-  [55]: list$1,
-  [56]: list$1,
-  [57]: list$1,
+  [42]: list$2,
+  [43]: list$2,
+  [45]: list$2,
+  [48]: list$2,
+  [49]: list$2,
+  [50]: list$2,
+  [51]: list$2,
+  [52]: list$2,
+  [53]: list$2,
+  [54]: list$2,
+  [55]: list$2,
+  [56]: list$2,
+  [57]: list$2,
   [62]: blockQuote
 };
 const contentInitial = {
@@ -7069,6 +7089,12 @@ function parse$1(options) {
   }
 }
 
+function postprocess(events) {
+  while (!subtokenize(events)) {
+  }
+  return events
+}
+
 const search = /[\0\t\n\r]/g;
 function preprocess() {
   let column = 1;
@@ -7083,7 +7109,11 @@ function preprocess() {
     let startPosition;
     let endPosition;
     let code;
-    value = buffer + value.toString(encoding);
+    value =
+      buffer +
+      (typeof value === 'string'
+        ? value.toString()
+        : new TextDecoder(encoding || undefined).decode(value));
     startPosition = 0;
     buffer = '';
     if (start) {
@@ -7148,30 +7178,6 @@ function preprocess() {
   }
 }
 
-function postprocess(events) {
-  while (!subtokenize(events)) {
-  }
-  return events
-}
-
-function decodeNumericCharacterReference(value, base) {
-  const code = Number.parseInt(value, base);
-  if (
-    code < 9 ||
-    code === 11 ||
-    (code > 13 && code < 32) ||
-    (code > 126 && code < 160) ||
-    (code > 55295 && code < 57344) ||
-    (code > 64975 && code < 65008)  ||
-    (code & 65535) === 65535 ||
-    (code & 65535) === 65534  ||
-    code > 1114111
-  ) {
-    return '\uFFFD'
-  }
-  return String.fromCharCode(code)
-}
-
 const characterEscapeOrReference =
   /\\([!-/:-@[-`{-~])|&(#(?:\d{1,7}|x[\da-f]{1,6})|[\da-z]{1,31});/gi;
 function decodeString(value) {
@@ -7190,44 +7196,18 @@ function decode($0, $1, $2) {
   return decodeNamedCharacterReference($2) || $0
 }
 
-function stringifyPosition$2(value) {
-  if (!value || typeof value !== 'object') {
-    return ''
-  }
-  if ('position' in value || 'type' in value) {
-    return position$2(value.position)
-  }
-  if ('start' in value || 'end' in value) {
-    return position$2(value)
-  }
-  if ('line' in value || 'column' in value) {
-    return point$4(value)
-  }
-  return ''
-}
-function point$4(point) {
-  return index$2(point && point.line) + ':' + index$2(point && point.column)
-}
-function position$2(pos) {
-  return point$4(pos && pos.start) + '-' + point$4(pos && pos.end)
-}
-function index$2(value) {
-  return value && typeof value === 'number' ? value : 1
-}
-
 const own$4 = {}.hasOwnProperty;
-const fromMarkdown =
-  function (value, encoding, options) {
-    if (typeof encoding !== 'string') {
-      options = encoding;
-      encoding = undefined;
-    }
-    return compiler(options)(
-      postprocess(
-        parse$1(options).document().write(preprocess()(value, encoding, true))
-      )
+function fromMarkdown(value, encoding, options) {
+  if (typeof encoding !== 'string') {
+    options = encoding;
+    encoding = undefined;
+  }
+  return compiler(options)(
+    postprocess(
+      parse$1(options).document().write(preprocess()(value, encoding, true))
     )
-  };
+  )
+}
 function compiler(options) {
   const config = {
     transforms: [],
@@ -7342,8 +7322,7 @@ function compiler(options) {
       exit,
       buffer,
       resume,
-      setData,
-      getData
+      data
     };
     const listStack = [];
     let index = -1;
@@ -7416,37 +7395,42 @@ function compiler(options) {
     let atMarker;
     while (++index <= length) {
       const event = events[index];
-      if (
-        event[1].type === 'listUnordered' ||
-        event[1].type === 'listOrdered' ||
-        event[1].type === 'blockQuote'
-      ) {
-        if (event[0] === 'enter') {
-          containerBalance++;
-        } else {
-          containerBalance--;
-        }
-        atMarker = undefined;
-      } else if (event[1].type === 'lineEndingBlank') {
-        if (event[0] === 'enter') {
-          if (
-            listItem &&
-            !atMarker &&
-            !containerBalance &&
-            !firstBlankLineIndex
-          ) {
-            firstBlankLineIndex = index;
+      switch (event[1].type) {
+        case 'listUnordered':
+        case 'listOrdered':
+        case 'blockQuote': {
+          if (event[0] === 'enter') {
+            containerBalance++;
+          } else {
+            containerBalance--;
           }
           atMarker = undefined;
+          break
         }
-      } else if (
-        event[1].type === 'linePrefix' ||
-        event[1].type === 'listItemValue' ||
-        event[1].type === 'listItemMarker' ||
-        event[1].type === 'listItemPrefix' ||
-        event[1].type === 'listItemPrefixWhitespace'
-      ) ; else {
-        atMarker = undefined;
+        case 'lineEndingBlank': {
+          if (event[0] === 'enter') {
+            if (
+              listItem &&
+              !atMarker &&
+              !containerBalance &&
+              !firstBlankLineIndex
+            ) {
+              firstBlankLineIndex = index;
+            }
+            atMarker = undefined;
+          }
+          break
+        }
+        case 'linePrefix':
+        case 'listItemValue':
+        case 'listItemMarker':
+        case 'listItemPrefix':
+        case 'listItemPrefixWhitespace': {
+          break
+        }
+        default: {
+          atMarker = undefined;
+        }
       }
       if (
         (!containerBalance &&
@@ -7498,13 +7482,14 @@ function compiler(options) {
           length++;
         }
         if (event[1].type === 'listItemPrefix') {
-          listItem = {
+          const item = {
             type: 'listItem',
             _spread: false,
             start: Object.assign({}, event[1].start),
             end: undefined
           };
-          events.splice(index, 0, ['enter', listItem, event[2]]);
+          listItem = item;
+          events.splice(index, 0, ['enter', item, event[2]]);
           index++;
           length++;
           firstBlankLineIndex = undefined;
@@ -7514,12 +7499,6 @@ function compiler(options) {
     }
     events[start][1]._spread = listSpread;
     return length
-  }
-  function setData(key, value) {
-    data[key] = value;
-  }
-  function getData(key) {
-    return data[key]
   }
   function opener(create, and) {
     return open
@@ -7536,13 +7515,14 @@ function compiler(options) {
   }
   function enter(node, token, errorHandler) {
     const parent = this.stack[this.stack.length - 1];
-    parent.children.push(node);
+    const siblings = parent.children;
+    siblings.push(node);
     this.stack.push(node);
     this.tokenStack.push([token, errorHandler]);
     node.position = {
-      start: point$3(token.start)
+      start: point$3(token.start),
+      end: undefined
     };
-    return node
   }
   function closer(and) {
     return close
@@ -7574,19 +7554,18 @@ function compiler(options) {
       }
     }
     node.position.end = point$3(token.end);
-    return node
   }
   function resume() {
-    return toString(this.stack.pop())
+    return toString$2(this.stack.pop())
   }
   function onenterlistordered() {
-    setData('expectingFirstListItemValue', true);
+    this.data.expectingFirstListItemValue = true;
   }
   function onenterlistitemvalue(token) {
-    if (getData('expectingFirstListItemValue')) {
+    if (this.data.expectingFirstListItemValue) {
       const ancestor = this.stack[this.stack.length - 2];
       ancestor.start = Number.parseInt(this.sliceSerialize(token), 10);
-      setData('expectingFirstListItemValue');
+      this.data.expectingFirstListItemValue = undefined;
     }
   }
   function onexitcodefencedfenceinfo() {
@@ -7600,15 +7579,15 @@ function compiler(options) {
     node.meta = data;
   }
   function onexitcodefencedfence() {
-    if (getData('flowCodeInside')) return
+    if (this.data.flowCodeInside) return
     this.buffer();
-    setData('flowCodeInside', true);
+    this.data.flowCodeInside = true;
   }
   function onexitcodefenced() {
     const data = this.resume();
     const node = this.stack[this.stack.length - 1];
     node.value = data.replace(/^(\r?\n|\r)|(\r?\n|\r)$/g, '');
-    setData('flowCodeInside');
+    this.data.flowCodeInside = undefined;
   }
   function onexitcodeindented() {
     const data = this.resume();
@@ -7619,7 +7598,7 @@ function compiler(options) {
     const label = this.resume();
     const node = this.stack[this.stack.length - 1];
     node.label = label;
-    node.identifier = normalizeIdentifier(
+    node.identifier = normalizeIdentifier$1(
       this.sliceSerialize(token)
     ).toLowerCase();
   }
@@ -7641,24 +7620,26 @@ function compiler(options) {
     }
   }
   function onexitsetextheadingtext() {
-    setData('setextHeadingSlurpLineEnding', true);
+    this.data.setextHeadingSlurpLineEnding = true;
   }
   function onexitsetextheadinglinesequence(token) {
     const node = this.stack[this.stack.length - 1];
-    node.depth = this.sliceSerialize(token).charCodeAt(0) === 61 ? 1 : 2;
+    node.depth = this.sliceSerialize(token).codePointAt(0) === 61 ? 1 : 2;
   }
   function onexitsetextheading() {
-    setData('setextHeadingSlurpLineEnding');
+    this.data.setextHeadingSlurpLineEnding = undefined;
   }
   function onenterdata(token) {
     const node = this.stack[this.stack.length - 1];
-    let tail = node.children[node.children.length - 1];
+    const siblings = node.children;
+    let tail = siblings[siblings.length - 1];
     if (!tail || tail.type !== 'text') {
       tail = text();
       tail.position = {
-        start: point$3(token.start)
+        start: point$3(token.start),
+        end: undefined
       };
-      node.children.push(tail);
+      siblings.push(tail);
     }
     this.stack.push(tail);
   }
@@ -7669,14 +7650,14 @@ function compiler(options) {
   }
   function onexitlineending(token) {
     const context = this.stack[this.stack.length - 1];
-    if (getData('atHardBreak')) {
+    if (this.data.atHardBreak) {
       const tail = context.children[context.children.length - 1];
       tail.position.end = point$3(token.end);
-      setData('atHardBreak');
+      this.data.atHardBreak = undefined;
       return
     }
     if (
-      !getData('setextHeadingSlurpLineEnding') &&
+      !this.data.setextHeadingSlurpLineEnding &&
       config.canContainEols.includes(context.type)
     ) {
       onenterdata.call(this, token);
@@ -7684,7 +7665,7 @@ function compiler(options) {
     }
   }
   function onexithardbreak() {
-    setData('atHardBreak', true);
+    this.data.atHardBreak = true;
   }
   function onexithtmlflow() {
     const data = this.resume();
@@ -7703,8 +7684,8 @@ function compiler(options) {
   }
   function onexitlink() {
     const node = this.stack[this.stack.length - 1];
-    if (getData('inReference')) {
-      const referenceType = getData('referenceType') || 'shortcut';
+    if (this.data.inReference) {
+      const referenceType = this.data.referenceType || 'shortcut';
       node.type += 'Reference';
       node.referenceType = referenceType;
       delete node.url;
@@ -7713,12 +7694,12 @@ function compiler(options) {
       delete node.identifier;
       delete node.label;
     }
-    setData('referenceType');
+    this.data.referenceType = undefined;
   }
   function onexitimage() {
     const node = this.stack[this.stack.length - 1];
-    if (getData('inReference')) {
-      const referenceType = getData('referenceType') || 'shortcut';
+    if (this.data.inReference) {
+      const referenceType = this.data.referenceType || 'shortcut';
       node.type += 'Reference';
       node.referenceType = referenceType;
       delete node.url;
@@ -7727,19 +7708,19 @@ function compiler(options) {
       delete node.identifier;
       delete node.label;
     }
-    setData('referenceType');
+    this.data.referenceType = undefined;
   }
   function onexitlabeltext(token) {
     const string = this.sliceSerialize(token);
     const ancestor = this.stack[this.stack.length - 2];
     ancestor.label = decodeString(string);
-    ancestor.identifier = normalizeIdentifier(string).toLowerCase();
+    ancestor.identifier = normalizeIdentifier$1(string).toLowerCase();
   }
   function onexitlabel() {
     const fragment = this.stack[this.stack.length - 1];
     const value = this.resume();
     const node = this.stack[this.stack.length - 1];
-    setData('inReference', true);
+    this.data.inReference = true;
     if (node.type === 'link') {
       const children = fragment.children;
       node.children = children;
@@ -7758,33 +7739,33 @@ function compiler(options) {
     node.title = data;
   }
   function onexitresource() {
-    setData('inReference');
+    this.data.inReference = undefined;
   }
   function onenterreference() {
-    setData('referenceType', 'collapsed');
+    this.data.referenceType = 'collapsed';
   }
   function onexitreferencestring(token) {
     const label = this.resume();
     const node = this.stack[this.stack.length - 1];
     node.label = label;
-    node.identifier = normalizeIdentifier(
+    node.identifier = normalizeIdentifier$1(
       this.sliceSerialize(token)
     ).toLowerCase();
-    setData('referenceType', 'full');
+    this.data.referenceType = 'full';
   }
   function onexitcharacterreferencemarker(token) {
-    setData('characterReferenceType', token.type);
+    this.data.characterReferenceType = token.type;
   }
   function onexitcharacterreferencevalue(token) {
     const data = this.sliceSerialize(token);
-    const type = getData('characterReferenceType');
+    const type = this.data.characterReferenceType;
     let value;
     if (type) {
       value = decodeNumericCharacterReference(
         data,
         type === 'characterReferenceMarkerNumeric' ? 10 : 16
       );
-      setData('characterReferenceType');
+      this.data.characterReferenceType = undefined;
     } else {
       const result = decodeNamedCharacterReference(data);
       value = result;
@@ -7841,7 +7822,7 @@ function compiler(options) {
   function heading() {
     return {
       type: 'heading',
-      depth: undefined,
+      depth: 0,
       children: []
     }
   }
@@ -7935,20 +7916,28 @@ function extension(combined, extension) {
   let key;
   for (key in extension) {
     if (own$4.call(extension, key)) {
-      if (key === 'canContainEols') {
-        const right = extension[key];
-        if (right) {
-          combined[key].push(...right);
+      switch (key) {
+        case 'canContainEols': {
+          const right = extension[key];
+          if (right) {
+            combined[key].push(...right);
+          }
+          break
         }
-      } else if (key === 'transforms') {
-        const right = extension[key];
-        if (right) {
-          combined[key].push(...right);
+        case 'transforms': {
+          const right = extension[key];
+          if (right) {
+            combined[key].push(...right);
+          }
+          break
         }
-      } else if (key === 'enter' || key === 'exit') {
-        const right = extension[key];
-        if (right) {
-          Object.assign(combined[key], right);
+        case 'enter':
+        case 'exit': {
+          const right = extension[key];
+          if (right) {
+            Object.assign(combined[key], right);
+          }
+          break
         }
       }
     }
@@ -7988,17 +7977,16 @@ function defaultOnError(left, right) {
 }
 
 function remarkParse(options) {
-  const parser = (doc) => {
-    const settings =  (this.data('settings'));
-    return fromMarkdown(
-      doc,
-      Object.assign({}, settings, options, {
-        extensions: this.data('micromarkExtensions') || [],
-        mdastExtensions: this.data('fromMarkdownExtensions') || []
-      })
-    )
-  };
-  Object.assign(this, {Parser: parser});
+  const self = this;
+  self.parser = parser;
+  function parser(doc) {
+    return fromMarkdown(doc, {
+      ...self.data('settings'),
+      ...options,
+      extensions: self.data('micromarkExtensions') || [],
+      mdastExtensions: self.data('fromMarkdownExtensions') || []
+    })
+  }
 }
 
 const own$3 = {}.hasOwnProperty;
@@ -8021,6 +8009,7 @@ function zwitch(key, options) {
   return one
 }
 
+const own$2 = {}.hasOwnProperty;
 function configure(base, extension) {
   let index = -1;
   let key;
@@ -8030,15 +8019,40 @@ function configure(base, extension) {
     }
   }
   for (key in extension) {
-    if (key === 'extensions') ; else if (key === 'unsafe' || key === 'join') {
-      base[key] = [...(base[key] || []), ...(extension[key] || [])];
-    } else if (key === 'handlers') {
-      base[key] = Object.assign(base[key], extension[key] || {});
-    } else {
-      base.options[key] = extension[key];
+    if (own$2.call(extension, key)) {
+      switch (key) {
+        case 'extensions': {
+          break
+        }
+        case 'unsafe': {
+          list$1(base[key], extension[key]);
+          break
+        }
+        case 'join': {
+          list$1(base[key], extension[key]);
+          break
+        }
+        case 'handlers': {
+          map$4(base[key], extension[key]);
+          break
+        }
+        default: {
+          base.options[key] = extension[key];
+        }
+      }
     }
   }
   return base
+}
+function list$1(left, right) {
+  if (right) {
+    left.push(...right);
+  }
+}
+function map$4(left, right) {
+  if (right) {
+    Object.assign(left, right);
+  }
 }
 
 function blockquote(node, _, state, info) {
@@ -8117,7 +8131,7 @@ function longestStreak(value, substring) {
 
 function formatCodeAsIndented(node, state) {
   return Boolean(
-    !state.options.fences &&
+    state.options.fences === false &&
       node.value &&
       !node.lang &&
       /[^ \r\n]/.test(node.value) &&
@@ -8287,176 +8301,196 @@ function emphasisPeek(_, _1, state) {
   return state.options.emphasis || '*'
 }
 
-const convert =
+const convert$A =
   (
     function (test) {
-      if (test === undefined || test === null) {
-        return ok
-      }
-      if (typeof test === 'string') {
-        return typeFactory(test)
-      }
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory(test) : propsFactory(test)
+      if (test === null || test === undefined) {
+        return ok$A
       }
       if (typeof test === 'function') {
-        return castFactory(test)
+        return castFactory$A(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$A(test) : propsFactory$A(test)
+      }
+      if (typeof test === 'string') {
+        return typeFactory$A(test)
       }
       throw new Error('Expected function, string, or object as test')
     }
   );
-function anyFactory(tests) {
+function anyFactory$A(tests) {
   const checks = [];
   let index = -1;
   while (++index < tests.length) {
-    checks[index] = convert(tests[index]);
+    checks[index] = convert$A(tests[index]);
   }
-  return castFactory(any)
+  return castFactory$A(any)
   function any(...parameters) {
     let index = -1;
     while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
+      if (checks[index].apply(this, parameters)) return true
     }
     return false
   }
 }
-function propsFactory(check) {
-  return castFactory(all)
+function propsFactory$A(check) {
+  const checkAsRecord =  (check);
+  return castFactory$A(all)
   function all(node) {
+    const nodeAsRecord =  (
+       (node)
+    );
     let key;
     for (key in check) {
-      if (node[key] !== check[key]) return false
+      if (nodeAsRecord[key] !== checkAsRecord[key]) return false
     }
     return true
   }
 }
-function typeFactory(check) {
-  return castFactory(type)
+function typeFactory$A(check) {
+  return castFactory$A(type)
   function type(node) {
     return node && node.type === check
   }
 }
-function castFactory(check) {
-  return assertion
-  function assertion(node, ...parameters) {
+function castFactory$A(testFunction) {
+  return check
+  function check(value, index, parent) {
     return Boolean(
-      node &&
-        typeof node === 'object' &&
-        'type' in node &&
-        Boolean(check.call(this, node, ...parameters))
+      looksLikeANode(value) &&
+        testFunction.call(
+          this,
+          value,
+          typeof index === 'number' ? index : undefined,
+          parent || undefined
+        )
     )
   }
 }
-function ok() {
+function ok$A() {
   return true
 }
+function looksLikeANode(value) {
+  return value !== null && typeof value === 'object' && 'type' in value
+}
 
-function color$2(d) {
+function color$B(d) {
   return '\u001B[33m' + d + '\u001B[39m'
 }
 
-const CONTINUE$1 = true;
-const EXIT$1 = false;
-const SKIP$1 = 'skip';
-const visitParents$1 =
-  (
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-      const is = convert(test);
-      const step = reverse ? -1 : 1;
-      factory(tree, undefined, [])();
-      function factory(node, index, parents) {
-        const value = node && typeof node === 'object' ? node : {};
-        if (typeof value.type === 'string') {
-          const name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              :
-              typeof value.name === 'string'
-              ? value.name
-              : undefined;
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' + color$2(node.type + (name ? '<' + name + '>' : '')) + ')'
-          });
-        }
-        return visit
-        function visit() {
-          let result = [];
-          let subresult;
-          let offset;
-          let grandparents;
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$1(visitor(node, parents));
-            if (result[0] === EXIT$1) {
-              return result
-            }
-          }
-          if (node.children && result[0] !== SKIP$1) {
-            offset = (reverse ? node.children.length : -1) + step;
-            grandparents = parents.concat(node);
-            while (offset > -1 && offset < node.children.length) {
-              subresult = factory(node.children[offset], offset, grandparents)();
-              if (subresult[0] === EXIT$1) {
-                return subresult
-              }
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
+const empty = [];
+const CONTINUE$A = true;
+const EXIT$A = false;
+const SKIP$A = 'skip';
+function visitParents$A(tree, test, visitor, reverse) {
+  let check;
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+  } else {
+    check = test;
+  }
+  const is = convert$A(check);
+  const step = reverse ? -1 : 1;
+  factory(tree, undefined, [])();
+  function factory(node, index, parents) {
+    const value =  (
+      node && typeof node === 'object' ? node : {}
+    );
+    if (typeof value.type === 'string') {
+      const name =
+        typeof value.tagName === 'string'
+          ? value.tagName
+          :
+          typeof value.name === 'string'
+          ? value.name
+          : undefined;
+      Object.defineProperty(visit, 'name', {
+        value:
+          'node (' + color$B(node.type + (name ? '<' + name + '>' : '')) + ')'
+      });
+    }
+    return visit
+    function visit() {
+      let result = empty;
+      let subresult;
+      let offset;
+      let grandparents;
+      if (!test || is(node, index, parents[parents.length - 1] || undefined)) {
+        result = toResult$A(visitor(node, parents));
+        if (result[0] === EXIT$A) {
           return result
         }
       }
+      if ('children' in node && node.children) {
+        const nodeAsParent =  (node);
+        if (nodeAsParent.children && result[0] !== SKIP$A) {
+          offset = (reverse ? nodeAsParent.children.length : -1) + step;
+          grandparents = parents.concat(nodeAsParent);
+          while (offset > -1 && offset < nodeAsParent.children.length) {
+            const child = nodeAsParent.children[offset];
+            subresult = factory(child, offset, grandparents)();
+            if (subresult[0] === EXIT$A) {
+              return subresult
+            }
+            offset =
+              typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+          }
+        }
+      }
+      return result
     }
-  );
-function toResult$1(value) {
+  }
+}
+function toResult$A(value) {
   if (Array.isArray(value)) {
     return value
   }
   if (typeof value === 'number') {
-    return [CONTINUE$1, value]
+    return [CONTINUE$A, value]
   }
-  return [value]
+  return value === null || value === undefined ? empty : [value]
 }
 
-const visit$1 =
-  (
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-      visitParents$1(tree, test, overload, reverse);
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
+function visit$A(tree, testOrVisitor, visitorOrReverse, maybeReverse) {
+  let reverse;
+  let test;
+  let visitor;
+  if (
+    typeof testOrVisitor === 'function' &&
+    typeof visitorOrReverse !== 'function'
+  ) {
+    test = undefined;
+    visitor = testOrVisitor;
+    reverse = visitorOrReverse;
+  } else {
+    test = testOrVisitor;
+    visitor = visitorOrReverse;
+    reverse = maybeReverse;
+  }
+  visitParents$A(tree, test, overload, reverse);
+  function overload(node, parents) {
+    const parent = parents[parents.length - 1];
+    const index = parent ? parent.children.indexOf(node) : undefined;
+    return visitor(node, index, parent)
+  }
+}
 
 function formatHeadingAsSetext(node, state) {
   let literalWithBreak = false;
-  visit$1(node, (node) => {
+  visit$A(node, function (node) {
     if (
       ('value' in node && /\r?\n|\r/.test(node.value)) ||
       node.type === 'break'
     ) {
       literalWithBreak = true;
-      return EXIT$1
+      return EXIT$A
     }
   });
   return Boolean(
     (!node.depth || node.depth < 3) &&
-      toString(node) &&
+      toString$2(node) &&
       (state.options.setext || literalWithBreak)
   )
 }
@@ -8609,22 +8643,6 @@ function imageReferencePeek() {
   return '!'
 }
 
-function patternCompile(pattern) {
-  if (!pattern._compiled) {
-    const before =
-      (pattern.atBreak ? '[\\r\\n][\\t ]*' : '') +
-      (pattern.before ? '(?:' + pattern.before + ')' : '');
-    pattern._compiled = new RegExp(
-      (before ? '(' + before + ')' : '') +
-        (/[|\\{}()[\]^$+*?.-]/.test(pattern.character) ? '\\' : '') +
-        pattern.character +
-        (pattern.after ? '(?:' + pattern.after + ')' : ''),
-      'g'
-    );
-  }
-  return pattern._compiled
-}
-
 inlineCode.peek = inlineCodePeek;
 function inlineCode(node, _, state) {
   let value = node.value || '';
@@ -8641,7 +8659,7 @@ function inlineCode(node, _, state) {
   }
   while (++index < state.unsafe.length) {
     const pattern = state.unsafe[index];
-    const expression = patternCompile(pattern);
+    const expression = state.compilePattern(pattern);
     let match;
     if (!pattern.atBreak) continue
     while ((match = expression.exec(value))) {
@@ -8662,7 +8680,7 @@ function inlineCodePeek() {
 }
 
 function formatLinkAsAutolink(node, state) {
-  const raw = toString(node);
+  const raw = toString$2(node);
   return Boolean(
     !state.options.resourceLink &&
       node.url &&
@@ -8841,31 +8859,6 @@ function checkBulletOrdered(state) {
   return marker
 }
 
-function checkBulletOrderedOther(state) {
-  const bulletOrdered = checkBulletOrdered(state);
-  const bulletOrderedOther = state.options.bulletOrderedOther;
-  if (!bulletOrderedOther) {
-    return bulletOrdered === '.' ? ')' : '.'
-  }
-  if (bulletOrderedOther !== '.' && bulletOrderedOther !== ')') {
-    throw new Error(
-      'Cannot serialize items with `' +
-        bulletOrderedOther +
-        '` for `options.bulletOrderedOther`, expected `*`, `+`, or `-`'
-    )
-  }
-  if (bulletOrderedOther === bulletOrdered) {
-    throw new Error(
-      'Expected `bulletOrdered` (`' +
-        bulletOrdered +
-        '`) and `bulletOrderedOther` (`' +
-        bulletOrderedOther +
-        '`) to be different'
-    )
-  }
-  return bulletOrderedOther
-}
-
 function checkRule(state) {
   const marker = state.options.rule || '*';
   if (marker !== '*' && marker !== '-' && marker !== '_') {
@@ -8883,20 +8876,12 @@ function list(node, parent, state, info) {
   const bulletCurrent = state.bulletCurrent;
   let bullet = node.ordered ? checkBulletOrdered(state) : checkBullet(state);
   const bulletOther = node.ordered
-    ? checkBulletOrderedOther(state)
+    ? bullet === '.'
+      ? ')'
+      : '.'
     : checkBulletOther(state);
-  const bulletLastUsed = state.bulletLastUsed;
-  let useDifferentMarker = false;
-  if (
-    parent &&
-    (node.ordered
-      ? state.options.bulletOrderedOther
-      : state.options.bulletOther) &&
-    bulletLastUsed &&
-    bullet === bulletLastUsed
-  ) {
-    useDifferentMarker = true;
-  }
+  let useDifferentMarker =
+    parent && state.bulletLastUsed ? bullet === state.bulletLastUsed : false;
   if (!node.ordered) {
     const firstListItem = node.children ? node.children[0] : undefined;
     if (
@@ -8942,10 +8927,7 @@ function list(node, parent, state, info) {
 }
 
 function checkListItemIndent(state) {
-  const style = state.options.listItemIndent || 'tab';
-  if (style === 1 || style === '1') {
-    return 'one'
-  }
+  const style = state.options.listItemIndent || 'one';
   if (style !== 'tab' && style !== 'one' && style !== 'mixed') {
     throw new Error(
       'Cannot serialize items with `' +
@@ -9004,25 +8986,28 @@ function paragraph(node, _, state, info) {
   return value
 }
 
-const phrasing =  (
-  convert([
-    'break',
-    'delete',
-    'emphasis',
-    'footnote',
-    'footnoteReference',
-    'image',
-    'imageReference',
-    'inlineCode',
-    'link',
-    'linkReference',
-    'strong',
-    'text'
-  ])
-);
+const phrasing =
+  (
+    convert$A([
+      'break',
+      'delete',
+      'emphasis',
+      'footnote',
+      'footnoteReference',
+      'image',
+      'imageReference',
+      'inlineCode',
+      'link',
+      'linkReference',
+      'strong',
+      'text'
+    ])
+  );
 
 function root(node, _, state, info) {
-  const hasPhrasing = node.children.some((d) => phrasing(d));
+  const hasPhrasing = node.children.some(function (d) {
+    return phrasing(d)
+  });
   const fn = hasPhrasing ? state.containerPhrasing : state.containerFlow;
   return fn.call(state, node, info)
 }
@@ -9113,16 +9098,6 @@ function joinDefaults(left, right, parent, state) {
     formatCodeAsIndented(right, state) &&
     (left.type === 'list' ||
       (left.type === right.type && formatCodeAsIndented(left, state)))
-  ) {
-    return false
-  }
-  if (
-    left.type === 'list' &&
-    left.type === right.type &&
-    Boolean(left.ordered) === Boolean(right.ordered) &&
-    !(left.ordered
-      ? state.options.bulletOrderedOther
-      : state.options.bulletOther)
   ) {
     return false
   }
@@ -9239,6 +9214,22 @@ function association(node) {
     return node.label || ''
   }
   return decodeString(node.identifier)
+}
+
+function compilePattern(pattern) {
+  if (!pattern._compiled) {
+    const before =
+      (pattern.atBreak ? '[\\r\\n][\\t ]*' : '') +
+      (pattern.before ? '(?:' + pattern.before + ')' : '');
+    pattern._compiled = new RegExp(
+      (before ? '(' + before + ')' : '') +
+        (/[|\\{}()[\]^$+*?.-]/.test(pattern.character) ? '\\' : '') +
+        pattern.character +
+        (pattern.after ? '(?:' + pattern.after + ')' : ''),
+      'g'
+    );
+  }
+  return pattern._compiled
 }
 
 function containerPhrasing(parent, state, info) {
@@ -9372,7 +9363,7 @@ function safe(state, input, config) {
     if (!patternInScope(state.stack, pattern)) {
       continue
     }
-    const expression = patternCompile(pattern);
+    const expression = state.compilePattern(pattern);
     let match;
     while ((match = expression.exec(value))) {
       const before = 'before' in pattern || Boolean(pattern.atBreak);
@@ -9489,19 +9480,19 @@ function toMarkdown(tree, options = {}) {
     containerPhrasing: containerPhrasingBound,
     containerFlow: containerFlowBound,
     createTracker: track,
+    compilePattern,
     safe: safeBound,
     stack: [],
-    unsafe: [],
-    join: [],
-    handlers: {},
+    unsafe: [...unsafe],
+    join: [...join],
+    handlers: {...handle},
     options: {},
     indexStack: [],
     handle: undefined
   };
-  configure(state, {unsafe, join, handlers: handle});
   configure(state, options);
   if (state.options.tightDefinitions) {
-    configure(state, {join: [joinDefinition]});
+    state.join.push(joinDefinition);
   }
   state.handle = zwitch('type', {
     invalid,
@@ -9533,7 +9524,8 @@ function toMarkdown(tree, options = {}) {
 function invalid(value) {
   throw new Error('Cannot handle value `' + value + '`, expected node')
 }
-function unknown(node) {
+function unknown(value) {
+  const node =  (value);
   throw new Error('Cannot handle unknown node `' + node.type + '`')
 }
 function joinDefinition(left, right) {
@@ -9552,19 +9544,871 @@ function safeBound(value, config) {
 }
 
 function remarkStringify(options) {
-  const compiler = (tree) => {
-    const settings =  (this.data('settings'));
-    return toMarkdown(
-      tree,
-      Object.assign({}, settings, options, {
-        extensions:
-           (
-            this.data('toMarkdownExtensions')
-          ) || []
-      })
-    )
+  const self = this;
+  self.compiler = compiler;
+  function compiler(tree) {
+    return toMarkdown(tree, {
+      ...self.data('settings'),
+      ...options,
+      extensions: self.data('toMarkdownExtensions') || []
+    })
+  }
+}
+
+function ccount(value, character) {
+  const source = String(value);
+  if (typeof character !== 'string') {
+    throw new TypeError('Expected character')
+  }
+  let count = 0;
+  let index = source.indexOf(character);
+  while (index !== -1) {
+    count++;
+    index = source.indexOf(character, index + character.length);
+  }
+  return count
+}
+
+function escapeStringRegexp(string) {
+	if (typeof string !== 'string') {
+		throw new TypeError('Expected a string');
+	}
+	return string
+		.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
+		.replace(/-/g, '\\x2d');
+}
+
+function findAndReplace(tree, list, options) {
+  const settings = options || {};
+  const ignored = convert$A(settings.ignore || []);
+  const pairs = toPairs(list);
+  let pairIndex = -1;
+  while (++pairIndex < pairs.length) {
+    visitParents$A(tree, 'text', visitor);
+  }
+  function visitor(node, parents) {
+    let index = -1;
+    let grandparent;
+    while (++index < parents.length) {
+      const parent = parents[index];
+      const siblings = grandparent ? grandparent.children : undefined;
+      if (
+        ignored(
+          parent,
+          siblings ? siblings.indexOf(parent) : undefined,
+          grandparent
+        )
+      ) {
+        return
+      }
+      grandparent = parent;
+    }
+    if (grandparent) {
+      return handler(node, parents)
+    }
+  }
+  function handler(node, parents) {
+    const parent = parents[parents.length - 1];
+    const find = pairs[pairIndex][0];
+    const replace = pairs[pairIndex][1];
+    let start = 0;
+    const siblings = parent.children;
+    const index = siblings.indexOf(node);
+    let change = false;
+    let nodes = [];
+    find.lastIndex = 0;
+    let match = find.exec(node.value);
+    while (match) {
+      const position = match.index;
+      const matchObject = {
+        index: match.index,
+        input: match.input,
+        stack: [...parents, node]
+      };
+      let value = replace(...match, matchObject);
+      if (typeof value === 'string') {
+        value = value.length > 0 ? {type: 'text', value} : undefined;
+      }
+      if (value === false) {
+        find.lastIndex = position + 1;
+      } else {
+        if (start !== position) {
+          nodes.push({
+            type: 'text',
+            value: node.value.slice(start, position)
+          });
+        }
+        if (Array.isArray(value)) {
+          nodes.push(...value);
+        } else if (value) {
+          nodes.push(value);
+        }
+        start = position + match[0].length;
+        change = true;
+      }
+      if (!find.global) {
+        break
+      }
+      match = find.exec(node.value);
+    }
+    if (change) {
+      if (start < node.value.length) {
+        nodes.push({type: 'text', value: node.value.slice(start)});
+      }
+      parent.children.splice(index, 1, ...nodes);
+    } else {
+      nodes = [node];
+    }
+    return index + nodes.length
+  }
+}
+function toPairs(tupleOrList) {
+  const result = [];
+  if (!Array.isArray(tupleOrList)) {
+    throw new TypeError('Expected find and replace tuple or list of tuples')
+  }
+  const list =
+    !tupleOrList[0] || Array.isArray(tupleOrList[0])
+      ? tupleOrList
+      : [tupleOrList];
+  let index = -1;
+  while (++index < list.length) {
+    const tuple = list[index];
+    result.push([toExpression(tuple[0]), toFunction(tuple[1])]);
+  }
+  return result
+}
+function toExpression(find) {
+  return typeof find === 'string' ? new RegExp(escapeStringRegexp(find), 'g') : find
+}
+function toFunction(replace) {
+  return typeof replace === 'function'
+    ? replace
+    : function () {
+        return replace
+      }
+}
+
+const inConstruct = 'phrasing';
+const notInConstruct = ['autolink', 'link', 'image', 'label'];
+function gfmAutolinkLiteralFromMarkdown() {
+  return {
+    transforms: [transformGfmAutolinkLiterals],
+    enter: {
+      literalAutolink: enterLiteralAutolink,
+      literalAutolinkEmail: enterLiteralAutolinkValue,
+      literalAutolinkHttp: enterLiteralAutolinkValue,
+      literalAutolinkWww: enterLiteralAutolinkValue
+    },
+    exit: {
+      literalAutolink: exitLiteralAutolink,
+      literalAutolinkEmail: exitLiteralAutolinkEmail,
+      literalAutolinkHttp: exitLiteralAutolinkHttp,
+      literalAutolinkWww: exitLiteralAutolinkWww
+    }
+  }
+}
+function gfmAutolinkLiteralToMarkdown() {
+  return {
+    unsafe: [
+      {
+        character: '@',
+        before: '[+\\-.\\w]',
+        after: '[\\-.\\w]',
+        inConstruct,
+        notInConstruct
+      },
+      {
+        character: '.',
+        before: '[Ww]',
+        after: '[\\-.\\w]',
+        inConstruct,
+        notInConstruct
+      },
+      {
+        character: ':',
+        before: '[ps]',
+        after: '\\/',
+        inConstruct,
+        notInConstruct
+      }
+    ]
+  }
+}
+function enterLiteralAutolink(token) {
+  this.enter({type: 'link', title: null, url: '', children: []}, token);
+}
+function enterLiteralAutolinkValue(token) {
+  this.config.enter.autolinkProtocol.call(this, token);
+}
+function exitLiteralAutolinkHttp(token) {
+  this.config.exit.autolinkProtocol.call(this, token);
+}
+function exitLiteralAutolinkWww(token) {
+  this.config.exit.data.call(this, token);
+  const node = this.stack[this.stack.length - 1];
+  ok$B(node.type === 'link');
+  node.url = 'http://' + this.sliceSerialize(token);
+}
+function exitLiteralAutolinkEmail(token) {
+  this.config.exit.autolinkEmail.call(this, token);
+}
+function exitLiteralAutolink(token) {
+  this.exit(token);
+}
+function transformGfmAutolinkLiterals(tree) {
+  findAndReplace(
+    tree,
+    [
+      [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
+      [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/g, findEmail]
+    ],
+    {ignore: ['link', 'linkReference']}
+  );
+}
+function findUrl(_, protocol, domain, path, match) {
+  let prefix = '';
+  if (!previous(match)) {
+    return false
+  }
+  if (/^w/i.test(protocol)) {
+    domain = protocol + domain;
+    protocol = '';
+    prefix = 'http://';
+  }
+  if (!isCorrectDomain(domain)) {
+    return false
+  }
+  const parts = splitUrl(domain + path);
+  if (!parts[0]) return false
+  const result = {
+    type: 'link',
+    title: null,
+    url: prefix + protocol + parts[0],
+    children: [{type: 'text', value: protocol + parts[0]}]
   };
-  Object.assign(this, {Compiler: compiler});
+  if (parts[1]) {
+    return [result, {type: 'text', value: parts[1]}]
+  }
+  return result
+}
+function findEmail(_, atext, label, match) {
+  if (
+    !previous(match, true) ||
+    /[-\d_]$/.test(label)
+  ) {
+    return false
+  }
+  return {
+    type: 'link',
+    title: null,
+    url: 'mailto:' + atext + '@' + label,
+    children: [{type: 'text', value: atext + '@' + label}]
+  }
+}
+function isCorrectDomain(domain) {
+  const parts = domain.split('.');
+  if (
+    parts.length < 2 ||
+    (parts[parts.length - 1] &&
+      (/_/.test(parts[parts.length - 1]) ||
+        !/[a-zA-Z\d]/.test(parts[parts.length - 1]))) ||
+    (parts[parts.length - 2] &&
+      (/_/.test(parts[parts.length - 2]) ||
+        !/[a-zA-Z\d]/.test(parts[parts.length - 2])))
+  ) {
+    return false
+  }
+  return true
+}
+function splitUrl(url) {
+  const trailExec = /[!"&'),.:;<>?\]}]+$/.exec(url);
+  if (!trailExec) {
+    return [url, undefined]
+  }
+  url = url.slice(0, trailExec.index);
+  let trail = trailExec[0];
+  let closingParenIndex = trail.indexOf(')');
+  const openingParens = ccount(url, '(');
+  let closingParens = ccount(url, ')');
+  while (closingParenIndex !== -1 && openingParens > closingParens) {
+    url += trail.slice(0, closingParenIndex + 1);
+    trail = trail.slice(closingParenIndex + 1);
+    closingParenIndex = trail.indexOf(')');
+    closingParens++;
+  }
+  return [url, trail]
+}
+function previous(match, email) {
+  const code = match.input.charCodeAt(match.index - 1);
+  return (
+    (match.index === 0 ||
+      unicodeWhitespace(code) ||
+      unicodePunctuation(code)) &&
+    (!email || code !== 47)
+  )
+}
+
+footnoteReference.peek = footnoteReferencePeek;
+function gfmFootnoteFromMarkdown() {
+  return {
+    enter: {
+      gfmFootnoteDefinition: enterFootnoteDefinition,
+      gfmFootnoteDefinitionLabelString: enterFootnoteDefinitionLabelString,
+      gfmFootnoteCall: enterFootnoteCall,
+      gfmFootnoteCallString: enterFootnoteCallString
+    },
+    exit: {
+      gfmFootnoteDefinition: exitFootnoteDefinition,
+      gfmFootnoteDefinitionLabelString: exitFootnoteDefinitionLabelString,
+      gfmFootnoteCall: exitFootnoteCall,
+      gfmFootnoteCallString: exitFootnoteCallString
+    }
+  }
+}
+function gfmFootnoteToMarkdown() {
+  return {
+    unsafe: [{character: '[', inConstruct: ['phrasing', 'label', 'reference']}],
+    handlers: {footnoteDefinition, footnoteReference}
+  }
+}
+function enterFootnoteDefinition(token) {
+  this.enter(
+    {type: 'footnoteDefinition', identifier: '', label: '', children: []},
+    token
+  );
+}
+function enterFootnoteDefinitionLabelString() {
+  this.buffer();
+}
+function exitFootnoteDefinitionLabelString(token) {
+  const label = this.resume();
+  const node = this.stack[this.stack.length - 1];
+  ok$B(node.type === 'footnoteDefinition');
+  node.label = label;
+  node.identifier = normalizeIdentifier$1(
+    this.sliceSerialize(token)
+  ).toLowerCase();
+}
+function exitFootnoteDefinition(token) {
+  this.exit(token);
+}
+function enterFootnoteCall(token) {
+  this.enter({type: 'footnoteReference', identifier: '', label: ''}, token);
+}
+function enterFootnoteCallString() {
+  this.buffer();
+}
+function exitFootnoteCallString(token) {
+  const label = this.resume();
+  const node = this.stack[this.stack.length - 1];
+  ok$B(node.type === 'footnoteReference');
+  node.label = label;
+  node.identifier = normalizeIdentifier$1(
+    this.sliceSerialize(token)
+  ).toLowerCase();
+}
+function exitFootnoteCall(token) {
+  this.exit(token);
+}
+function footnoteReference(node, _, state, info) {
+  const tracker = state.createTracker(info);
+  let value = tracker.move('[^');
+  const exit = state.enter('footnoteReference');
+  const subexit = state.enter('reference');
+  value += tracker.move(
+    state.safe(state.associationId(node), {
+      ...tracker.current(),
+      before: value,
+      after: ']'
+    })
+  );
+  subexit();
+  exit();
+  value += tracker.move(']');
+  return value
+}
+function footnoteReferencePeek() {
+  return '['
+}
+function footnoteDefinition(node, _, state, info) {
+  const tracker = state.createTracker(info);
+  let value = tracker.move('[^');
+  const exit = state.enter('footnoteDefinition');
+  const subexit = state.enter('label');
+  value += tracker.move(
+    state.safe(state.associationId(node), {
+      ...tracker.current(),
+      before: value,
+      after: ']'
+    })
+  );
+  subexit();
+  value += tracker.move(
+    ']:' + (node.children && node.children.length > 0 ? ' ' : '')
+  );
+  tracker.shift(4);
+  value += tracker.move(
+    state.indentLines(state.containerFlow(node, tracker.current()), map$1)
+  );
+  exit();
+  return value
+}
+function map$1(line, index, blank) {
+  if (index === 0) {
+    return line
+  }
+  return (blank ? '' : '    ') + line
+}
+
+const constructsWithoutStrikethrough = [
+  'autolink',
+  'destinationLiteral',
+  'destinationRaw',
+  'reference',
+  'titleQuote',
+  'titleApostrophe'
+];
+handleDelete.peek = peekDelete;
+function gfmStrikethroughFromMarkdown() {
+  return {
+    canContainEols: ['delete'],
+    enter: {strikethrough: enterStrikethrough},
+    exit: {strikethrough: exitStrikethrough}
+  }
+}
+function gfmStrikethroughToMarkdown() {
+  return {
+    unsafe: [
+      {
+        character: '~',
+        inConstruct: 'phrasing',
+        notInConstruct: constructsWithoutStrikethrough
+      }
+    ],
+    handlers: {delete: handleDelete}
+  }
+}
+function enterStrikethrough(token) {
+  this.enter({type: 'delete', children: []}, token);
+}
+function exitStrikethrough(token) {
+  this.exit(token);
+}
+function handleDelete(node, _, state, info) {
+  const tracker = state.createTracker(info);
+  const exit = state.enter('strikethrough');
+  let value = tracker.move('~~');
+  value += state.containerPhrasing(node, {
+    ...tracker.current(),
+    before: value,
+    after: '~'
+  });
+  value += tracker.move('~~');
+  exit();
+  return value
+}
+function peekDelete() {
+  return '~'
+}
+
+function markdownTable(table, options = {}) {
+  const align = (options.align || []).concat();
+  const stringLength = options.stringLength || defaultStringLength;
+  const alignments = [];
+  const cellMatrix = [];
+  const sizeMatrix = [];
+  const longestCellByColumn = [];
+  let mostCellsPerRow = 0;
+  let rowIndex = -1;
+  while (++rowIndex < table.length) {
+    const row = [];
+    const sizes = [];
+    let columnIndex = -1;
+    if (table[rowIndex].length > mostCellsPerRow) {
+      mostCellsPerRow = table[rowIndex].length;
+    }
+    while (++columnIndex < table[rowIndex].length) {
+      const cell = serialize(table[rowIndex][columnIndex]);
+      if (options.alignDelimiters !== false) {
+        const size = stringLength(cell);
+        sizes[columnIndex] = size;
+        if (
+          longestCellByColumn[columnIndex] === undefined ||
+          size > longestCellByColumn[columnIndex]
+        ) {
+          longestCellByColumn[columnIndex] = size;
+        }
+      }
+      row.push(cell);
+    }
+    cellMatrix[rowIndex] = row;
+    sizeMatrix[rowIndex] = sizes;
+  }
+  let columnIndex = -1;
+  if (typeof align === 'object' && 'length' in align) {
+    while (++columnIndex < mostCellsPerRow) {
+      alignments[columnIndex] = toAlignment(align[columnIndex]);
+    }
+  } else {
+    const code = toAlignment(align);
+    while (++columnIndex < mostCellsPerRow) {
+      alignments[columnIndex] = code;
+    }
+  }
+  columnIndex = -1;
+  const row = [];
+  const sizes = [];
+  while (++columnIndex < mostCellsPerRow) {
+    const code = alignments[columnIndex];
+    let before = '';
+    let after = '';
+    if (code === 99 ) {
+      before = ':';
+      after = ':';
+    } else if (code === 108 ) {
+      before = ':';
+    } else if (code === 114 ) {
+      after = ':';
+    }
+    let size =
+      options.alignDelimiters === false
+        ? 1
+        : Math.max(
+            1,
+            longestCellByColumn[columnIndex] - before.length - after.length
+          );
+    const cell = before + '-'.repeat(size) + after;
+    if (options.alignDelimiters !== false) {
+      size = before.length + size + after.length;
+      if (size > longestCellByColumn[columnIndex]) {
+        longestCellByColumn[columnIndex] = size;
+      }
+      sizes[columnIndex] = size;
+    }
+    row[columnIndex] = cell;
+  }
+  cellMatrix.splice(1, 0, row);
+  sizeMatrix.splice(1, 0, sizes);
+  rowIndex = -1;
+  const lines = [];
+  while (++rowIndex < cellMatrix.length) {
+    const row = cellMatrix[rowIndex];
+    const sizes = sizeMatrix[rowIndex];
+    columnIndex = -1;
+    const line = [];
+    while (++columnIndex < mostCellsPerRow) {
+      const cell = row[columnIndex] || '';
+      let before = '';
+      let after = '';
+      if (options.alignDelimiters !== false) {
+        const size =
+          longestCellByColumn[columnIndex] - (sizes[columnIndex] || 0);
+        const code = alignments[columnIndex];
+        if (code === 114 ) {
+          before = ' '.repeat(size);
+        } else if (code === 99 ) {
+          if (size % 2) {
+            before = ' '.repeat(size / 2 + 0.5);
+            after = ' '.repeat(size / 2 - 0.5);
+          } else {
+            before = ' '.repeat(size / 2);
+            after = before;
+          }
+        } else {
+          after = ' '.repeat(size);
+        }
+      }
+      if (options.delimiterStart !== false && !columnIndex) {
+        line.push('|');
+      }
+      if (
+        options.padding !== false &&
+        !(options.alignDelimiters === false && cell === '') &&
+        (options.delimiterStart !== false || columnIndex)
+      ) {
+        line.push(' ');
+      }
+      if (options.alignDelimiters !== false) {
+        line.push(before);
+      }
+      line.push(cell);
+      if (options.alignDelimiters !== false) {
+        line.push(after);
+      }
+      if (options.padding !== false) {
+        line.push(' ');
+      }
+      if (
+        options.delimiterEnd !== false ||
+        columnIndex !== mostCellsPerRow - 1
+      ) {
+        line.push('|');
+      }
+    }
+    lines.push(
+      options.delimiterEnd === false
+        ? line.join('').replace(/ +$/, '')
+        : line.join('')
+    );
+  }
+  return lines.join('\n')
+}
+function serialize(value) {
+  return value === null || value === undefined ? '' : String(value)
+}
+function defaultStringLength(value) {
+  return value.length
+}
+function toAlignment(value) {
+  const code = typeof value === 'string' ? value.codePointAt(0) : 0;
+  return code === 67  || code === 99
+    ? 99
+    : code === 76  || code === 108
+    ? 108
+    : code === 82  || code === 114
+    ? 114
+    : 0
+}
+
+function gfmTableFromMarkdown() {
+  return {
+    enter: {
+      table: enterTable,
+      tableData: enterCell,
+      tableHeader: enterCell,
+      tableRow: enterRow
+    },
+    exit: {
+      codeText: exitCodeText,
+      table: exitTable,
+      tableData: exit,
+      tableHeader: exit,
+      tableRow: exit
+    }
+  }
+}
+function enterTable(token) {
+  const align = token._align;
+  this.enter(
+    {
+      type: 'table',
+      align: align.map(function (d) {
+        return d === 'none' ? null : d
+      }),
+      children: []
+    },
+    token
+  );
+  this.data.inTable = true;
+}
+function exitTable(token) {
+  this.exit(token);
+  this.data.inTable = undefined;
+}
+function enterRow(token) {
+  this.enter({type: 'tableRow', children: []}, token);
+}
+function exit(token) {
+  this.exit(token);
+}
+function enterCell(token) {
+  this.enter({type: 'tableCell', children: []}, token);
+}
+function exitCodeText(token) {
+  let value = this.resume();
+  if (this.data.inTable) {
+    value = value.replace(/\\([\\|])/g, replace);
+  }
+  const node = this.stack[this.stack.length - 1];
+  ok$B(node.type === 'inlineCode');
+  node.value = value;
+  this.exit(token);
+}
+function replace($0, $1) {
+  return $1 === '|' ? $1 : $0
+}
+function gfmTableToMarkdown(options) {
+  const settings = options || {};
+  const padding = settings.tableCellPadding;
+  const alignDelimiters = settings.tablePipeAlign;
+  const stringLength = settings.stringLength;
+  const around = padding ? ' ' : '|';
+  return {
+    unsafe: [
+      {character: '\r', inConstruct: 'tableCell'},
+      {character: '\n', inConstruct: 'tableCell'},
+      {atBreak: true, character: '|', after: '[\t :-]'},
+      {character: '|', inConstruct: 'tableCell'},
+      {atBreak: true, character: ':', after: '-'},
+      {atBreak: true, character: '-', after: '[:|-]'}
+    ],
+    handlers: {
+      inlineCode: inlineCodeWithTable,
+      table: handleTable,
+      tableCell: handleTableCell,
+      tableRow: handleTableRow
+    }
+  }
+  function handleTable(node, _, state, info) {
+    return serializeData(handleTableAsData(node, state, info), node.align)
+  }
+  function handleTableRow(node, _, state, info) {
+    const row = handleTableRowAsData(node, state, info);
+    const value = serializeData([row]);
+    return value.slice(0, value.indexOf('\n'))
+  }
+  function handleTableCell(node, _, state, info) {
+    const exit = state.enter('tableCell');
+    const subexit = state.enter('phrasing');
+    const value = state.containerPhrasing(node, {
+      ...info,
+      before: around,
+      after: around
+    });
+    subexit();
+    exit();
+    return value
+  }
+  function serializeData(matrix, align) {
+    return markdownTable(matrix, {
+      align,
+      alignDelimiters,
+      padding,
+      stringLength
+    })
+  }
+  function handleTableAsData(node, state, info) {
+    const children = node.children;
+    let index = -1;
+    const result = [];
+    const subexit = state.enter('table');
+    while (++index < children.length) {
+      result[index] = handleTableRowAsData(children[index], state, info);
+    }
+    subexit();
+    return result
+  }
+  function handleTableRowAsData(node, state, info) {
+    const children = node.children;
+    let index = -1;
+    const result = [];
+    const subexit = state.enter('tableRow');
+    while (++index < children.length) {
+      result[index] = handleTableCell(children[index], node, state, info);
+    }
+    subexit();
+    return result
+  }
+  function inlineCodeWithTable(node, parent, state) {
+    let value = handle.inlineCode(node, parent, state);
+    if (state.stack.includes('tableCell')) {
+      value = value.replace(/\|/g, '\\$&');
+    }
+    return value
+  }
+}
+
+function gfmTaskListItemFromMarkdown() {
+  return {
+    exit: {
+      taskListCheckValueChecked: exitCheck,
+      taskListCheckValueUnchecked: exitCheck,
+      paragraph: exitParagraphWithTaskListItem
+    }
+  }
+}
+function gfmTaskListItemToMarkdown() {
+  return {
+    unsafe: [{atBreak: true, character: '-', after: '[:|-]'}],
+    handlers: {listItem: listItemWithTaskListItem}
+  }
+}
+function exitCheck(token) {
+  const node = this.stack[this.stack.length - 2];
+  ok$B(node.type === 'listItem');
+  node.checked = token.type === 'taskListCheckValueChecked';
+}
+function exitParagraphWithTaskListItem(token) {
+  const parent = this.stack[this.stack.length - 2];
+  if (
+    parent &&
+    parent.type === 'listItem' &&
+    typeof parent.checked === 'boolean'
+  ) {
+    const node = this.stack[this.stack.length - 1];
+    ok$B(node.type === 'paragraph');
+    const head = node.children[0];
+    if (head && head.type === 'text') {
+      const siblings = parent.children;
+      let index = -1;
+      let firstParaghraph;
+      while (++index < siblings.length) {
+        const sibling = siblings[index];
+        if (sibling.type === 'paragraph') {
+          firstParaghraph = sibling;
+          break
+        }
+      }
+      if (firstParaghraph === node) {
+        head.value = head.value.slice(1);
+        if (head.value.length === 0) {
+          node.children.shift();
+        } else if (
+          node.position &&
+          head.position &&
+          typeof head.position.start.offset === 'number'
+        ) {
+          head.position.start.column++;
+          head.position.start.offset++;
+          node.position.start = Object.assign({}, head.position.start);
+        }
+      }
+    }
+  }
+  this.exit(token);
+}
+function listItemWithTaskListItem(node, parent, state, info) {
+  const head = node.children[0];
+  const checkable =
+    typeof node.checked === 'boolean' && head && head.type === 'paragraph';
+  const checkbox = '[' + (node.checked ? 'x' : ' ') + '] ';
+  const tracker = state.createTracker(info);
+  if (checkable) {
+    tracker.move(checkbox);
+  }
+  let value = handle.listItem(node, parent, state, {
+    ...info,
+    ...tracker.current()
+  });
+  if (checkable) {
+    value = value.replace(/^(?:[*+-]|\d+\.)([\r\n]| {1,3})/, check);
+  }
+  return value
+  function check($0) {
+    return $0 + checkbox
+  }
+}
+
+function gfmFromMarkdown() {
+  return [
+    gfmAutolinkLiteralFromMarkdown(),
+    gfmFootnoteFromMarkdown(),
+    gfmStrikethroughFromMarkdown(),
+    gfmTableFromMarkdown(),
+    gfmTaskListItemFromMarkdown()
+  ]
+}
+function gfmToMarkdown(options) {
+  return {
+    extensions: [
+      gfmAutolinkLiteralToMarkdown(),
+      gfmFootnoteToMarkdown(),
+      gfmStrikethroughToMarkdown(),
+      gfmTableToMarkdown(options),
+      gfmTaskListItemToMarkdown()
+    ]
+  }
 }
 
 const wwwPrefix = {
@@ -9600,9 +10444,11 @@ const emailAutolink = {
   previous: previousEmail
 };
 const text = {};
-const gfmAutolinkLiteral = {
-  text
-};
+function gfmAutolinkLiteral() {
+  return {
+    text
+  }
+}
 let code = 48;
 while (code < 123) {
   text[code] = emailAutolink;
@@ -10046,7 +10892,7 @@ function tokenizePotentialGfmFootnoteCall(effects, ok, nok) {
     if (!labelStart || !labelStart._balanced) {
       return nok(code)
     }
-    const id = normalizeIdentifier(
+    const id = normalizeIdentifier$1(
       self.sliceSerialize({
         start: labelStart.end,
         end: self.now()
@@ -10152,7 +10998,7 @@ function tokenizeGfmFootnoteCall(effects, ok, nok) {
     if (code === 93) {
       effects.exit('chunkString');
       const token = effects.exit('gfmFootnoteCallString');
-      if (!defined.includes(normalizeIdentifier(self.sliceSerialize(token)))) {
+      if (!defined.includes(normalizeIdentifier$1(self.sliceSerialize(token)))) {
         return nok(code)
       }
       effects.enter('gfmFootnoteCallLabelMarker');
@@ -10216,7 +11062,7 @@ function tokenizeDefinitionStart(effects, ok, nok) {
     if (code === 93) {
       effects.exit('chunkString');
       const token = effects.exit('gfmFootnoteDefinitionLabelString');
-      identifier = normalizeIdentifier(self.sliceSerialize(token));
+      identifier = normalizeIdentifier$1(self.sliceSerialize(token));
       effects.enter('gfmFootnoteDefinitionLabelMarker');
       effects.consume(code);
       effects.exit('gfmFootnoteDefinitionLabelMarker');
@@ -10409,7 +11255,9 @@ class EditMap {
     addImpl(this, index, remove, add);
   }
   consume(events) {
-    this.map.sort((a, b) => a[0] - b[0]);
+    this.map.sort(function (a, b) {
+      return a[0] - b[0]
+    });
     if (this.map.length === 0) {
       return
     }
@@ -10417,8 +11265,10 @@ class EditMap {
     const vecs = [];
     while (index > 0) {
       index -= 1;
-      vecs.push(events.slice(this.map[index][0] + this.map[index][1]));
-      vecs.push(this.map[index][2]);
+      vecs.push(
+        events.slice(this.map[index][0] + this.map[index][1]),
+        this.map[index][2]
+      );
       events.length = this.map[index][0];
     }
     vecs.push([...events]);
@@ -10479,14 +11329,16 @@ function gfmTableAlign(events, index) {
   return align
 }
 
-const gfmTable = {
-  flow: {
-    null: {
-      tokenize: tokenizeTable,
-      resolveAll: resolveTable
+function gfmTable() {
+  return {
+    flow: {
+      null: {
+        tokenize: tokenizeTable,
+        resolveAll: resolveTable
+      }
     }
   }
-};
+}
 function tokenizeTable(effects, ok, nok) {
   const self = this;
   let size = 0;
@@ -10916,11 +11768,13 @@ function getPoint(events, index) {
 const tasklistCheck = {
   tokenize: tokenizeTasklistCheck
 };
-const gfmTaskListItem = {
-  text: {
-    [91]: tasklistCheck
+function gfmTaskListItem() {
+  return {
+    text: {
+      [91]: tasklistCheck
+    }
   }
-};
+}
 function tokenizeTasklistCheck(effects, ok, nok) {
   const self = this;
   return open
@@ -10987,884 +11841,28 @@ function spaceThenNonSpace(effects, ok, nok) {
 
 function gfm(options) {
   return combineExtensions([
-    gfmAutolinkLiteral,
+    gfmAutolinkLiteral(),
     gfmFootnote(),
     gfmStrikethrough(options),
-    gfmTable,
-    gfmTaskListItem
+    gfmTable(),
+    gfmTaskListItem()
   ])
 }
 
-function ccount(value, character) {
-  const source = String(value);
-  if (typeof character !== 'string') {
-    throw new TypeError('Expected character')
-  }
-  let count = 0;
-  let index = source.indexOf(character);
-  while (index !== -1) {
-    count++;
-    index = source.indexOf(character, index + character.length);
-  }
-  return count
-}
-
-function escapeStringRegexp(string) {
-	if (typeof string !== 'string') {
-		throw new TypeError('Expected a string');
-	}
-	return string
-		.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
-		.replace(/-/g, '\\x2d');
-}
-
-const own$2 = {}.hasOwnProperty;
-const findAndReplace =
-  (
-    function (tree, find, replace, options) {
-      let settings;
-      let schema;
-      if (typeof find === 'string' || find instanceof RegExp) {
-        schema = [[find, replace]];
-        settings = options;
-      } else {
-        schema = find;
-        settings = replace;
-      }
-      if (!settings) {
-        settings = {};
-      }
-      const ignored = convert(settings.ignore || []);
-      const pairs = toPairs(schema);
-      let pairIndex = -1;
-      while (++pairIndex < pairs.length) {
-        visitParents$1(tree, 'text', visitor);
-      }
-      return tree
-      function visitor(node, parents) {
-        let index = -1;
-        let grandparent;
-        while (++index < parents.length) {
-          const parent = parents[index];
-          if (
-            ignored(
-              parent,
-              grandparent ? grandparent.children.indexOf(parent) : undefined,
-              grandparent
-            )
-          ) {
-            return
-          }
-          grandparent = parent;
-        }
-        if (grandparent) {
-          return handler(node, parents)
-        }
-      }
-      function handler(node, parents) {
-        const parent = parents[parents.length - 1];
-        const find = pairs[pairIndex][0];
-        const replace = pairs[pairIndex][1];
-        let start = 0;
-        const index = parent.children.indexOf(node);
-        let change = false;
-        let nodes = [];
-        find.lastIndex = 0;
-        let match = find.exec(node.value);
-        while (match) {
-          const position = match.index;
-          const matchObject = {
-            index: match.index,
-            input: match.input,
-            stack: [...parents, node]
-          };
-          let value = replace(...match, matchObject);
-          if (typeof value === 'string') {
-            value = value.length > 0 ? {type: 'text', value} : undefined;
-          }
-          if (value !== false) {
-            if (start !== position) {
-              nodes.push({
-                type: 'text',
-                value: node.value.slice(start, position)
-              });
-            }
-            if (Array.isArray(value)) {
-              nodes.push(...value);
-            } else if (value) {
-              nodes.push(value);
-            }
-            start = position + match[0].length;
-            change = true;
-          }
-          if (!find.global) {
-            break
-          }
-          match = find.exec(node.value);
-        }
-        if (change) {
-          if (start < node.value.length) {
-            nodes.push({type: 'text', value: node.value.slice(start)});
-          }
-          parent.children.splice(index, 1, ...nodes);
-        } else {
-          nodes = [node];
-        }
-        return index + nodes.length
-      }
-    }
-  );
-function toPairs(schema) {
-  const result = [];
-  if (typeof schema !== 'object') {
-    throw new TypeError('Expected array or object as schema')
-  }
-  if (Array.isArray(schema)) {
-    let index = -1;
-    while (++index < schema.length) {
-      result.push([
-        toExpression(schema[index][0]),
-        toFunction(schema[index][1])
-      ]);
-    }
-  } else {
-    let key;
-    for (key in schema) {
-      if (own$2.call(schema, key)) {
-        result.push([toExpression(key), toFunction(schema[key])]);
-      }
-    }
-  }
-  return result
-}
-function toExpression(find) {
-  return typeof find === 'string' ? new RegExp(escapeStringRegexp(find), 'g') : find
-}
-function toFunction(replace) {
-  return typeof replace === 'function' ? replace : () => replace
-}
-
-const inConstruct = 'phrasing';
-const notInConstruct = ['autolink', 'link', 'image', 'label'];
-const gfmAutolinkLiteralFromMarkdown = {
-  transforms: [transformGfmAutolinkLiterals],
-  enter: {
-    literalAutolink: enterLiteralAutolink,
-    literalAutolinkEmail: enterLiteralAutolinkValue,
-    literalAutolinkHttp: enterLiteralAutolinkValue,
-    literalAutolinkWww: enterLiteralAutolinkValue
-  },
-  exit: {
-    literalAutolink: exitLiteralAutolink,
-    literalAutolinkEmail: exitLiteralAutolinkEmail,
-    literalAutolinkHttp: exitLiteralAutolinkHttp,
-    literalAutolinkWww: exitLiteralAutolinkWww
-  }
-};
-const gfmAutolinkLiteralToMarkdown = {
-  unsafe: [
-    {
-      character: '@',
-      before: '[+\\-.\\w]',
-      after: '[\\-.\\w]',
-      inConstruct,
-      notInConstruct
-    },
-    {
-      character: '.',
-      before: '[Ww]',
-      after: '[\\-.\\w]',
-      inConstruct,
-      notInConstruct
-    },
-    {character: ':', before: '[ps]', after: '\\/', inConstruct, notInConstruct}
-  ]
-};
-function enterLiteralAutolink(token) {
-  this.enter({type: 'link', title: null, url: '', children: []}, token);
-}
-function enterLiteralAutolinkValue(token) {
-  this.config.enter.autolinkProtocol.call(this, token);
-}
-function exitLiteralAutolinkHttp(token) {
-  this.config.exit.autolinkProtocol.call(this, token);
-}
-function exitLiteralAutolinkWww(token) {
-  this.config.exit.data.call(this, token);
-  const node =  (this.stack[this.stack.length - 1]);
-  node.url = 'http://' + this.sliceSerialize(token);
-}
-function exitLiteralAutolinkEmail(token) {
-  this.config.exit.autolinkEmail.call(this, token);
-}
-function exitLiteralAutolink(token) {
-  this.exit(token);
-}
-function transformGfmAutolinkLiterals(tree) {
-  findAndReplace(
-    tree,
-    [
-      [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
-      [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/g, findEmail]
-    ],
-    {ignore: ['link', 'linkReference']}
-  );
-}
-function findUrl(_, protocol, domain, path, match) {
-  let prefix = '';
-  if (!previous(match)) {
-    return false
-  }
-  if (/^w/i.test(protocol)) {
-    domain = protocol + domain;
-    protocol = '';
-    prefix = 'http://';
-  }
-  if (!isCorrectDomain(domain)) {
-    return false
-  }
-  const parts = splitUrl(domain + path);
-  if (!parts[0]) return false
-  const result = {
-    type: 'link',
-    title: null,
-    url: prefix + protocol + parts[0],
-    children: [{type: 'text', value: protocol + parts[0]}]
-  };
-  if (parts[1]) {
-    return [result, {type: 'text', value: parts[1]}]
-  }
-  return result
-}
-function findEmail(_, atext, label, match) {
-  if (
-    !previous(match, true) ||
-    /[-\d_]$/.test(label)
-  ) {
-    return false
-  }
-  return {
-    type: 'link',
-    title: null,
-    url: 'mailto:' + atext + '@' + label,
-    children: [{type: 'text', value: atext + '@' + label}]
-  }
-}
-function isCorrectDomain(domain) {
-  const parts = domain.split('.');
-  if (
-    parts.length < 2 ||
-    (parts[parts.length - 1] &&
-      (/_/.test(parts[parts.length - 1]) ||
-        !/[a-zA-Z\d]/.test(parts[parts.length - 1]))) ||
-    (parts[parts.length - 2] &&
-      (/_/.test(parts[parts.length - 2]) ||
-        !/[a-zA-Z\d]/.test(parts[parts.length - 2])))
-  ) {
-    return false
-  }
-  return true
-}
-function splitUrl(url) {
-  const trailExec = /[!"&'),.:;<>?\]}]+$/.exec(url);
-  if (!trailExec) {
-    return [url, undefined]
-  }
-  url = url.slice(0, trailExec.index);
-  let trail = trailExec[0];
-  let closingParenIndex = trail.indexOf(')');
-  const openingParens = ccount(url, '(');
-  let closingParens = ccount(url, ')');
-  while (closingParenIndex !== -1 && openingParens > closingParens) {
-    url += trail.slice(0, closingParenIndex + 1);
-    trail = trail.slice(closingParenIndex + 1);
-    closingParenIndex = trail.indexOf(')');
-    closingParens++;
-  }
-  return [url, trail]
-}
-function previous(match, email) {
-  const code = match.input.charCodeAt(match.index - 1);
-  return (
-    (match.index === 0 ||
-      unicodeWhitespace(code) ||
-      unicodePunctuation(code)) &&
-    (!email || code !== 47)
-  )
-}
-
-footnoteReference.peek = footnoteReferencePeek;
-function gfmFootnoteFromMarkdown() {
-  return {
-    enter: {
-      gfmFootnoteDefinition: enterFootnoteDefinition,
-      gfmFootnoteDefinitionLabelString: enterFootnoteDefinitionLabelString,
-      gfmFootnoteCall: enterFootnoteCall,
-      gfmFootnoteCallString: enterFootnoteCallString
-    },
-    exit: {
-      gfmFootnoteDefinition: exitFootnoteDefinition,
-      gfmFootnoteDefinitionLabelString: exitFootnoteDefinitionLabelString,
-      gfmFootnoteCall: exitFootnoteCall,
-      gfmFootnoteCallString: exitFootnoteCallString
-    }
-  }
-}
-function gfmFootnoteToMarkdown() {
-  return {
-    unsafe: [{character: '[', inConstruct: ['phrasing', 'label', 'reference']}],
-    handlers: {footnoteDefinition, footnoteReference}
-  }
-}
-function enterFootnoteDefinition(token) {
-  this.enter(
-    {type: 'footnoteDefinition', identifier: '', label: '', children: []},
-    token
-  );
-}
-function enterFootnoteDefinitionLabelString() {
-  this.buffer();
-}
-function exitFootnoteDefinitionLabelString(token) {
-  const label = this.resume();
-  const node =  (
-    this.stack[this.stack.length - 1]
-  );
-  node.label = label;
-  node.identifier = normalizeIdentifier(
-    this.sliceSerialize(token)
-  ).toLowerCase();
-}
-function exitFootnoteDefinition(token) {
-  this.exit(token);
-}
-function enterFootnoteCall(token) {
-  this.enter({type: 'footnoteReference', identifier: '', label: ''}, token);
-}
-function enterFootnoteCallString() {
-  this.buffer();
-}
-function exitFootnoteCallString(token) {
-  const label = this.resume();
-  const node =  (
-    this.stack[this.stack.length - 1]
-  );
-  node.label = label;
-  node.identifier = normalizeIdentifier(
-    this.sliceSerialize(token)
-  ).toLowerCase();
-}
-function exitFootnoteCall(token) {
-  this.exit(token);
-}
-function footnoteReference(node, _, context, safeOptions) {
-  const tracker = track(safeOptions);
-  let value = tracker.move('[^');
-  const exit = context.enter('footnoteReference');
-  const subexit = context.enter('reference');
-  value += tracker.move(
-    safe(context, association(node), {
-      ...tracker.current(),
-      before: value,
-      after: ']'
-    })
-  );
-  subexit();
-  exit();
-  value += tracker.move(']');
-  return value
-}
-function footnoteReferencePeek() {
-  return '['
-}
-function footnoteDefinition(node, _, context, safeOptions) {
-  const tracker = track(safeOptions);
-  let value = tracker.move('[^');
-  const exit = context.enter('footnoteDefinition');
-  const subexit = context.enter('label');
-  value += tracker.move(
-    safe(context, association(node), {
-      ...tracker.current(),
-      before: value,
-      after: ']'
-    })
-  );
-  subexit();
-  value += tracker.move(
-    ']:' + (node.children && node.children.length > 0 ? ' ' : '')
-  );
-  tracker.shift(4);
-  value += tracker.move(
-    indentLines(containerFlow(node, context, tracker.current()), map$1)
-  );
-  exit();
-  return value
-}
-function map$1(line, index, blank) {
-  if (index === 0) {
-    return line
-  }
-  return (blank ? '' : '    ') + line
-}
-
-const constructsWithoutStrikethrough = [
-  'autolink',
-  'destinationLiteral',
-  'destinationRaw',
-  'reference',
-  'titleQuote',
-  'titleApostrophe'
-];
-handleDelete.peek = peekDelete;
-const gfmStrikethroughFromMarkdown = {
-  canContainEols: ['delete'],
-  enter: {strikethrough: enterStrikethrough},
-  exit: {strikethrough: exitStrikethrough}
-};
-const gfmStrikethroughToMarkdown = {
-  unsafe: [
-    {
-      character: '~',
-      inConstruct: 'phrasing',
-      notInConstruct: constructsWithoutStrikethrough
-    }
-  ],
-  handlers: {delete: handleDelete}
-};
-function enterStrikethrough(token) {
-  this.enter({type: 'delete', children: []}, token);
-}
-function exitStrikethrough(token) {
-  this.exit(token);
-}
-function handleDelete(node, _, context, safeOptions) {
-  const tracker = track(safeOptions);
-  const exit = context.enter('strikethrough');
-  let value = tracker.move('~~');
-  value += containerPhrasing(node, context, {
-    ...tracker.current(),
-    before: value,
-    after: '~'
-  });
-  value += tracker.move('~~');
-  exit();
-  return value
-}
-function peekDelete() {
-  return '~'
-}
-
-function markdownTable(table, options = {}) {
-  const align = (options.align || []).concat();
-  const stringLength = options.stringLength || defaultStringLength;
-  const alignments = [];
-  const cellMatrix = [];
-  const sizeMatrix = [];
-  const longestCellByColumn = [];
-  let mostCellsPerRow = 0;
-  let rowIndex = -1;
-  while (++rowIndex < table.length) {
-    const row = [];
-    const sizes = [];
-    let columnIndex = -1;
-    if (table[rowIndex].length > mostCellsPerRow) {
-      mostCellsPerRow = table[rowIndex].length;
-    }
-    while (++columnIndex < table[rowIndex].length) {
-      const cell = serialize(table[rowIndex][columnIndex]);
-      if (options.alignDelimiters !== false) {
-        const size = stringLength(cell);
-        sizes[columnIndex] = size;
-        if (
-          longestCellByColumn[columnIndex] === undefined ||
-          size > longestCellByColumn[columnIndex]
-        ) {
-          longestCellByColumn[columnIndex] = size;
-        }
-      }
-      row.push(cell);
-    }
-    cellMatrix[rowIndex] = row;
-    sizeMatrix[rowIndex] = sizes;
-  }
-  let columnIndex = -1;
-  if (typeof align === 'object' && 'length' in align) {
-    while (++columnIndex < mostCellsPerRow) {
-      alignments[columnIndex] = toAlignment(align[columnIndex]);
-    }
-  } else {
-    const code = toAlignment(align);
-    while (++columnIndex < mostCellsPerRow) {
-      alignments[columnIndex] = code;
-    }
-  }
-  columnIndex = -1;
-  const row = [];
-  const sizes = [];
-  while (++columnIndex < mostCellsPerRow) {
-    const code = alignments[columnIndex];
-    let before = '';
-    let after = '';
-    if (code === 99 ) {
-      before = ':';
-      after = ':';
-    } else if (code === 108 ) {
-      before = ':';
-    } else if (code === 114 ) {
-      after = ':';
-    }
-    let size =
-      options.alignDelimiters === false
-        ? 1
-        : Math.max(
-            1,
-            longestCellByColumn[columnIndex] - before.length - after.length
-          );
-    const cell = before + '-'.repeat(size) + after;
-    if (options.alignDelimiters !== false) {
-      size = before.length + size + after.length;
-      if (size > longestCellByColumn[columnIndex]) {
-        longestCellByColumn[columnIndex] = size;
-      }
-      sizes[columnIndex] = size;
-    }
-    row[columnIndex] = cell;
-  }
-  cellMatrix.splice(1, 0, row);
-  sizeMatrix.splice(1, 0, sizes);
-  rowIndex = -1;
-  const lines = [];
-  while (++rowIndex < cellMatrix.length) {
-    const row = cellMatrix[rowIndex];
-    const sizes = sizeMatrix[rowIndex];
-    columnIndex = -1;
-    const line = [];
-    while (++columnIndex < mostCellsPerRow) {
-      const cell = row[columnIndex] || '';
-      let before = '';
-      let after = '';
-      if (options.alignDelimiters !== false) {
-        const size =
-          longestCellByColumn[columnIndex] - (sizes[columnIndex] || 0);
-        const code = alignments[columnIndex];
-        if (code === 114 ) {
-          before = ' '.repeat(size);
-        } else if (code === 99 ) {
-          if (size % 2) {
-            before = ' '.repeat(size / 2 + 0.5);
-            after = ' '.repeat(size / 2 - 0.5);
-          } else {
-            before = ' '.repeat(size / 2);
-            after = before;
-          }
-        } else {
-          after = ' '.repeat(size);
-        }
-      }
-      if (options.delimiterStart !== false && !columnIndex) {
-        line.push('|');
-      }
-      if (
-        options.padding !== false &&
-        !(options.alignDelimiters === false && cell === '') &&
-        (options.delimiterStart !== false || columnIndex)
-      ) {
-        line.push(' ');
-      }
-      if (options.alignDelimiters !== false) {
-        line.push(before);
-      }
-      line.push(cell);
-      if (options.alignDelimiters !== false) {
-        line.push(after);
-      }
-      if (options.padding !== false) {
-        line.push(' ');
-      }
-      if (
-        options.delimiterEnd !== false ||
-        columnIndex !== mostCellsPerRow - 1
-      ) {
-        line.push('|');
-      }
-    }
-    lines.push(
-      options.delimiterEnd === false
-        ? line.join('').replace(/ +$/, '')
-        : line.join('')
-    );
-  }
-  return lines.join('\n')
-}
-function serialize(value) {
-  return value === null || value === undefined ? '' : String(value)
-}
-function defaultStringLength(value) {
-  return value.length
-}
-function toAlignment(value) {
-  const code = typeof value === 'string' ? value.codePointAt(0) : 0;
-  return code === 67  || code === 99
-    ? 99
-    : code === 76  || code === 108
-    ? 108
-    : code === 82  || code === 114
-    ? 114
-    : 0
-}
-
-const gfmTableFromMarkdown = {
-  enter: {
-    table: enterTable,
-    tableData: enterCell,
-    tableHeader: enterCell,
-    tableRow: enterRow
-  },
-  exit: {
-    codeText: exitCodeText,
-    table: exitTable,
-    tableData: exit,
-    tableHeader: exit,
-    tableRow: exit
-  }
-};
-function enterTable(token) {
-  const align = token._align;
-  this.enter(
-    {
-      type: 'table',
-      align: align.map((d) => (d === 'none' ? null : d)),
-      children: []
-    },
-    token
-  );
-  this.setData('inTable', true);
-}
-function exitTable(token) {
-  this.exit(token);
-  this.setData('inTable');
-}
-function enterRow(token) {
-  this.enter({type: 'tableRow', children: []}, token);
-}
-function exit(token) {
-  this.exit(token);
-}
-function enterCell(token) {
-  this.enter({type: 'tableCell', children: []}, token);
-}
-function exitCodeText(token) {
-  let value = this.resume();
-  if (this.getData('inTable')) {
-    value = value.replace(/\\([\\|])/g, replace);
-  }
-  const node =  (this.stack[this.stack.length - 1]);
-  node.value = value;
-  this.exit(token);
-}
-function replace($0, $1) {
-  return $1 === '|' ? $1 : $0
-}
-function gfmTableToMarkdown(options) {
-  const settings = options || {};
-  const padding = settings.tableCellPadding;
-  const alignDelimiters = settings.tablePipeAlign;
-  const stringLength = settings.stringLength;
-  const around = padding ? ' ' : '|';
-  return {
-    unsafe: [
-      {character: '\r', inConstruct: 'tableCell'},
-      {character: '\n', inConstruct: 'tableCell'},
-      {atBreak: true, character: '|', after: '[\t :-]'},
-      {character: '|', inConstruct: 'tableCell'},
-      {atBreak: true, character: ':', after: '-'},
-      {atBreak: true, character: '-', after: '[:|-]'}
-    ],
-    handlers: {
-      table: handleTable,
-      tableRow: handleTableRow,
-      tableCell: handleTableCell,
-      inlineCode: inlineCodeWithTable
-    }
-  }
-  function handleTable(node, _, context, safeOptions) {
-    return serializeData(
-      handleTableAsData(node, context, safeOptions),
-      node.align
-    )
-  }
-  function handleTableRow(node, _, context, safeOptions) {
-    const row = handleTableRowAsData(node, context, safeOptions);
-    const value = serializeData([row]);
-    return value.slice(0, value.indexOf('\n'))
-  }
-  function handleTableCell(node, _, context, safeOptions) {
-    const exit = context.enter('tableCell');
-    const subexit = context.enter('phrasing');
-    const value = containerPhrasing(node, context, {
-      ...safeOptions,
-      before: around,
-      after: around
-    });
-    subexit();
-    exit();
-    return value
-  }
-  function serializeData(matrix, align) {
-    return markdownTable(matrix, {
-      align,
-      alignDelimiters,
-      padding,
-      stringLength
-    })
-  }
-  function handleTableAsData(node, context, safeOptions) {
-    const children = node.children;
-    let index = -1;
-    const result = [];
-    const subexit = context.enter('table');
-    while (++index < children.length) {
-      result[index] = handleTableRowAsData(
-        children[index],
-        context,
-        safeOptions
-      );
-    }
-    subexit();
-    return result
-  }
-  function handleTableRowAsData(node, context, safeOptions) {
-    const children = node.children;
-    let index = -1;
-    const result = [];
-    const subexit = context.enter('tableRow');
-    while (++index < children.length) {
-      result[index] = handleTableCell(
-        children[index],
-        node,
-        context,
-        safeOptions
-      );
-    }
-    subexit();
-    return result
-  }
-  function inlineCodeWithTable(node, parent, context) {
-    let value = inlineCode(node, parent, context);
-    if (context.stack.includes('tableCell')) {
-      value = value.replace(/\|/g, '\\$&');
-    }
-    return value
-  }
-}
-
-const gfmTaskListItemFromMarkdown = {
-  exit: {
-    taskListCheckValueChecked: exitCheck,
-    taskListCheckValueUnchecked: exitCheck,
-    paragraph: exitParagraphWithTaskListItem
-  }
-};
-const gfmTaskListItemToMarkdown = {
-  unsafe: [{atBreak: true, character: '-', after: '[:|-]'}],
-  handlers: {listItem: listItemWithTaskListItem}
-};
-function exitCheck(token) {
-  const node =  (this.stack[this.stack.length - 2]);
-  node.checked = token.type === 'taskListCheckValueChecked';
-}
-function exitParagraphWithTaskListItem(token) {
-  const parent =  (this.stack[this.stack.length - 2]);
-  if (
-    parent &&
-    parent.type === 'listItem' &&
-    typeof parent.checked === 'boolean'
-  ) {
-    const node =  (this.stack[this.stack.length - 1]);
-    const head = node.children[0];
-    if (head && head.type === 'text') {
-      const siblings = parent.children;
-      let index = -1;
-      let firstParaghraph;
-      while (++index < siblings.length) {
-        const sibling = siblings[index];
-        if (sibling.type === 'paragraph') {
-          firstParaghraph = sibling;
-          break
-        }
-      }
-      if (firstParaghraph === node) {
-        head.value = head.value.slice(1);
-        if (head.value.length === 0) {
-          node.children.shift();
-        } else if (
-          node.position &&
-          head.position &&
-          typeof head.position.start.offset === 'number'
-        ) {
-          head.position.start.column++;
-          head.position.start.offset++;
-          node.position.start = Object.assign({}, head.position.start);
-        }
-      }
-    }
-  }
-  this.exit(token);
-}
-function listItemWithTaskListItem(node, parent, context, safeOptions) {
-  const head = node.children[0];
-  const checkable =
-    typeof node.checked === 'boolean' && head && head.type === 'paragraph';
-  const checkbox = '[' + (node.checked ? 'x' : ' ') + '] ';
-  const tracker = track(safeOptions);
-  if (checkable) {
-    tracker.move(checkbox);
-  }
-  let value = listItem(node, parent, context, {
-    ...safeOptions,
-    ...tracker.current()
-  });
-  if (checkable) {
-    value = value.replace(/^(?:[*+-]|\d+\.)([\r\n]| {1,3})/, check);
-  }
-  return value
-  function check($0) {
-    return $0 + checkbox
-  }
-}
-
-function gfmFromMarkdown() {
-  return [
-    gfmAutolinkLiteralFromMarkdown,
-    gfmFootnoteFromMarkdown(),
-    gfmStrikethroughFromMarkdown,
-    gfmTableFromMarkdown,
-    gfmTaskListItemFromMarkdown
-  ]
-}
-function gfmToMarkdown(options) {
-  return {
-    extensions: [
-      gfmAutolinkLiteralToMarkdown,
-      gfmFootnoteToMarkdown(),
-      gfmStrikethroughToMarkdown,
-      gfmTableToMarkdown(options),
-      gfmTaskListItemToMarkdown
-    ]
-  }
-}
-
-function remarkGfm(options = {}) {
-  const data = this.data();
-  add('micromarkExtensions', gfm(options));
-  add('fromMarkdownExtensions', gfmFromMarkdown());
-  add('toMarkdownExtensions', gfmToMarkdown(options));
-  function add(field, value) {
-    const list =  (
-      data[field] ? data[field] : (data[field] = [])
-    );
-    list.push(value);
-  }
+const emptyOptions$2 = {};
+function remarkGfm(options) {
+  const self =  (this);
+  const settings = options || emptyOptions$2;
+  const data = self.data();
+  const micromarkExtensions =
+    data.micromarkExtensions || (data.micromarkExtensions = []);
+  const fromMarkdownExtensions =
+    data.fromMarkdownExtensions || (data.fromMarkdownExtensions = []);
+  const toMarkdownExtensions =
+    data.toMarkdownExtensions || (data.toMarkdownExtensions = []);
+  micromarkExtensions.push(gfm(settings));
+  fromMarkdownExtensions.push(gfmFromMarkdown());
+  toMarkdownExtensions.push(gfmToMarkdown(settings));
 }
 
 function location(file) {
@@ -11914,14 +11912,78 @@ function location(file) {
   }
 }
 
-function color$1(d) {
+const convert$z =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$z
+      }
+      if (typeof test === 'string') {
+        return typeFactory$z(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$z(test) : propsFactory$z(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$z(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$z(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$z(tests[index]);
+  }
+  return castFactory$z(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$z(check) {
+  return castFactory$z(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$z(check) {
+  return castFactory$z(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$z(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$z() {
+  return true
+}
+
+function color$A(d) {
   return '\u001B[33m' + d + '\u001B[39m'
 }
 
-const CONTINUE = true;
-const SKIP = 'skip';
-const EXIT = false;
-const visitParents =
+const CONTINUE$z = true;
+const SKIP$z = 'skip';
+const EXIT$z = false;
+const visitParents$z =
   (
     function (tree, test, visitor, reverse) {
       if (typeof test === 'function' && typeof visitor !== 'function') {
@@ -11929,7 +11991,7 @@ const visitParents =
         visitor = test;
         test = null;
       }
-      var is = convert(test);
+      var is = convert$z(test);
       var step = reverse ? -1 : 1;
       factory(tree, null, [])();
       function factory(node, index, parents) {
@@ -11945,7 +12007,7 @@ const visitParents =
           Object.defineProperty(visit, 'name', {
             value:
               'node (' +
-              color$1(value.type + (name ? '<' + name + '>' : '')) +
+              color$A(value.type + (name ? '<' + name + '>' : '')) +
               ')'
           });
         }
@@ -11956,17 +12018,17 @@ const visitParents =
           var offset;
           var grandparents;
           if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult(visitor(node, parents));
-            if (result[0] === EXIT) {
+            result = toResult$z(visitor(node, parents));
+            if (result[0] === EXIT$z) {
               return result
             }
           }
-          if (node.children && result[0] !== SKIP) {
+          if (node.children && result[0] !== SKIP$z) {
             offset = (reverse ? node.children.length : -1) + step;
             grandparents = parents.concat(node);
             while (offset > -1 && offset < node.children.length) {
               subresult = factory(node.children[offset], offset, grandparents)();
-              if (subresult[0] === EXIT) {
+              if (subresult[0] === EXIT$z) {
                 return subresult
               }
               offset =
@@ -11978,17 +12040,17 @@ const visitParents =
       }
     }
   );
-function toResult(value) {
+function toResult$z(value) {
   if (Array.isArray(value)) {
     return value
   }
   if (typeof value === 'number') {
-    return [CONTINUE, value]
+    return [CONTINUE$z, value]
   }
   return [value]
 }
 
-const visit =
+const visit$z =
   (
     function (tree, test, visitor, reverse) {
       if (typeof test === 'function' && typeof visitor !== 'function') {
@@ -11996,7 +12058,7 @@ const visit =
         visitor = test;
         test = null;
       }
-      visitParents(tree, test, overload, reverse);
+      visitParents$z(tree, test, overload, reverse);
       function overload(node, parents) {
         var parent = parents[parents.length - 1];
         return visitor(
@@ -12034,7 +12096,7 @@ function messageControl(options) {
     const gaps = detectGaps(tree, file);
     const scope = {};
     const globals = [];
-    visit(tree, options.test, visitor);
+    visit$z(tree, options.test, visitor);
     file.messages = file.messages.filter((m) => filter(m));
     function visitor(node, position, parent) {
       const mark = options.marker(node);
@@ -12169,7 +12231,7 @@ function detectGaps(tree, file) {
   const gaps = [];
   let offset = 0;
   let gap;
-  visit(tree, one);
+  visit$z(tree, one);
   if (
     lastNode &&
     lastNode.position &&
@@ -12764,6 +12826,162 @@ var pluralize = {exports: {}};
 var pluralizeExports = pluralize.exports;
 var plural = getDefaultExportFromCjs(pluralizeExports);
 
+const convert$y =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$y
+      }
+      if (typeof test === 'string') {
+        return typeFactory$y(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$y(test) : propsFactory$y(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$y(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$y(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$y(tests[index]);
+  }
+  return castFactory$y(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$y(check) {
+  return castFactory$y(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$y(check) {
+  return castFactory$y(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$y(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$y() {
+  return true
+}
+
+function color$z(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$y = true;
+const EXIT$y = false;
+const SKIP$y = 'skip';
+const visitParents$y =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$y(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$z(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$y(visitor(node, parents));
+            if (result[0] === EXIT$y) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$y) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$y) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$y(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$y, value]
+  }
+  return [value]
+}
+
+const visit$y =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$y(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
+
 /**
  * ## When should I use this?
  *
@@ -12829,7 +13047,7 @@ const remarkLintListItemBulletIndent = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-list-item-bullet-indent#readme'
   },
   (tree, file) => {
-    visit$1(tree, 'list', (list, _, grandparent) => {
+    visit$y(tree, 'list', (list, _, grandparent) => {
       let index = -1;
       while (++index < list.children.length) {
         const item = list.children[index];
@@ -12858,6 +13076,162 @@ const remarkLintListItemBulletIndent = lintRule(
   }
 );
 var remarkLintListItemBulletIndent$1 = remarkLintListItemBulletIndent;
+
+const convert$x =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$x
+      }
+      if (typeof test === 'string') {
+        return typeFactory$x(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$x(test) : propsFactory$x(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$x(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$x(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$x(tests[index]);
+  }
+  return castFactory$x(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$x(check) {
+  return castFactory$x(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$x(check) {
+  return castFactory$x(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$x(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$x() {
+  return true
+}
+
+function color$y(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$x = true;
+const EXIT$x = false;
+const SKIP$x = 'skip';
+const visitParents$x =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$x(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$y(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$x(visitor(node, parents));
+            if (result[0] === EXIT$x) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$x) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$x) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$x(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$x, value]
+  }
+  return [value]
+}
+
+const visit$x =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$x(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 const pointStart = point$2('start');
 const pointEnd = point$2('end');
@@ -13051,7 +13425,7 @@ const remarkLintListItemIndent = lintRule(
           "`: use either `'tab-size'`, `'space'`, or `'mixed'`"
       );
     }
-    visit$1(tree, 'list', (node) => {
+    visit$x(tree, 'list', (node) => {
       if (generated(node)) return
       const spread = node.spread;
       let index = -1;
@@ -13085,6 +13459,162 @@ const remarkLintListItemIndent = lintRule(
   }
 );
 var remarkLintListItemIndent$1 = remarkLintListItemIndent;
+
+const convert$w =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$w
+      }
+      if (typeof test === 'string') {
+        return typeFactory$w(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$w(test) : propsFactory$w(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$w(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$w(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$w(tests[index]);
+  }
+  return castFactory$w(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$w(check) {
+  return castFactory$w(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$w(check) {
+  return castFactory$w(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$w(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$w() {
+  return true
+}
+
+function color$x(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$w = true;
+const EXIT$w = false;
+const SKIP$w = 'skip';
+const visitParents$w =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$w(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$x(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$w(visitor(node, parents));
+            if (result[0] === EXIT$w) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$w) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$w) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$w(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$w, value]
+  }
+  return [value]
+}
+
+const visit$w =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$w(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -13158,7 +13688,7 @@ const remarkLintNoBlockquoteWithoutMarker = lintRule(
   (tree, file) => {
     const value = String(file);
     const loc = location(file);
-    visit$1(tree, 'blockquote', (node) => {
+    visit$w(tree, 'blockquote', (node) => {
       let index = -1;
       while (++index < node.children.length) {
         const child = node.children[index];
@@ -13182,6 +13712,202 @@ const remarkLintNoBlockquoteWithoutMarker = lintRule(
   }
 );
 var remarkLintNoBlockquoteWithoutMarker$1 = remarkLintNoBlockquoteWithoutMarker;
+
+const convert$v =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$v
+      }
+      if (typeof test === 'string') {
+        return typeFactory$v(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$v(test) : propsFactory$v(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$v(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$v(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$v(tests[index]);
+  }
+  return castFactory$v(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$v(check) {
+  return castFactory$v(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$v(check) {
+  return castFactory$v(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$v(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$v() {
+  return true
+}
+
+function color$w(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$v = true;
+const EXIT$v = false;
+const SKIP$v = 'skip';
+const visitParents$v =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$v(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$w(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$v(visitor(node, parents));
+            if (result[0] === EXIT$v) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$v) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$v) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$v(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$v, value]
+  }
+  return [value]
+}
+
+const visit$v =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$v(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
+
+const emptyOptions$1 = {};
+function toString$1(value, options) {
+  const settings = options || emptyOptions$1;
+  const includeImageAlt =
+    typeof settings.includeImageAlt === 'boolean'
+      ? settings.includeImageAlt
+      : true;
+  const includeHtml =
+    typeof settings.includeHtml === 'boolean' ? settings.includeHtml : true;
+  return one$1(value, includeImageAlt, includeHtml)
+}
+function one$1(value, includeImageAlt, includeHtml) {
+  if (node$1(value)) {
+    if ('value' in value) {
+      return value.type === 'html' && !includeHtml ? '' : value.value
+    }
+    if (includeImageAlt && 'alt' in value && value.alt) {
+      return value.alt
+    }
+    if ('children' in value) {
+      return all$1(value.children, includeImageAlt, includeHtml)
+    }
+  }
+  if (Array.isArray(value)) {
+    return all$1(value, includeImageAlt, includeHtml)
+  }
+  return ''
+}
+function all$1(values, includeImageAlt, includeHtml) {
+  const result = [];
+  let index = -1;
+  while (++index < values.length) {
+    result[index] = one$1(values[index], includeImageAlt, includeHtml);
+  }
+  return result.join('')
+}
+function node$1(value) {
+  return Boolean(value && typeof value === 'object')
+}
 
 /**
  * ## When should I use this?
@@ -13231,8 +13957,8 @@ const remarkLintNoLiteralUrls = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-literal-urls#readme'
   },
   (tree, file) => {
-    visit$1(tree, 'link', (node) => {
-      const value = toString(node);
+    visit$v(tree, 'link', (node) => {
+      const value = toString$1(node);
       if (
         !generated(node) &&
         pointStart(node).column === pointStart(node.children[0]).column &&
@@ -13246,6 +13972,162 @@ const remarkLintNoLiteralUrls = lintRule(
   }
 );
 var remarkLintNoLiteralUrls$1 = remarkLintNoLiteralUrls;
+
+const convert$u =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$u
+      }
+      if (typeof test === 'string') {
+        return typeFactory$u(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$u(test) : propsFactory$u(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$u(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$u(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$u(tests[index]);
+  }
+  return castFactory$u(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$u(check) {
+  return castFactory$u(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$u(check) {
+  return castFactory$u(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$u(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$u() {
+  return true
+}
+
+function color$v(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$u = true;
+const EXIT$u = false;
+const SKIP$u = 'skip';
+const visitParents$u =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$u(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$v(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$u(visitor(node, parents));
+            if (result[0] === EXIT$u) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$u) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$u) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$u(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$u, value]
+  }
+  return [value]
+}
+
+const visit$u =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$u(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -13341,7 +14223,7 @@ const remarkLintOrderedListMarkerStyle = lintRule(
           "`: use either `'.'` or `')'`"
       );
     }
-    visit$1(tree, 'list', (node) => {
+    visit$u(tree, 'list', (node) => {
       let index = -1;
       if (!node.ordered) return
       while (++index < node.children.length) {
@@ -13367,6 +14249,162 @@ const remarkLintOrderedListMarkerStyle = lintRule(
   }
 );
 var remarkLintOrderedListMarkerStyle$1 = remarkLintOrderedListMarkerStyle;
+
+const convert$t =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$t
+      }
+      if (typeof test === 'string') {
+        return typeFactory$t(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$t(test) : propsFactory$t(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$t(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$t(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$t(tests[index]);
+  }
+  return castFactory$t(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$t(check) {
+  return castFactory$t(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$t(check) {
+  return castFactory$t(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$t(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$t() {
+  return true
+}
+
+function color$u(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$t = true;
+const EXIT$t = false;
+const SKIP$t = 'skip';
+const visitParents$t =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$t(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$u(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$t(visitor(node, parents));
+            if (result[0] === EXIT$t) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$t) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$t) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$t(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$t, value]
+  }
+  return [value]
+}
+
+const visit$t =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$t(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -13415,7 +14453,7 @@ const remarkLintHardBreakSpaces = lintRule(
   },
   (tree, file) => {
     const value = String(file);
-    visit$1(tree, 'break', (node) => {
+    visit$t(tree, 'break', (node) => {
       if (!generated(node)) {
         const slice = value
           .slice(pointStart(node).offset, pointEnd(node).offset)
@@ -13429,6 +14467,187 @@ const remarkLintHardBreakSpaces = lintRule(
   }
 );
 var remarkLintHardBreakSpaces$1 = remarkLintHardBreakSpaces;
+
+function stringifyPosition$1(value) {
+  if (!value || typeof value !== 'object') {
+    return ''
+  }
+  if ('position' in value || 'type' in value) {
+    return position$1(value.position)
+  }
+  if ('start' in value || 'end' in value) {
+    return position$1(value)
+  }
+  if ('line' in value || 'column' in value) {
+    return point$1(value)
+  }
+  return ''
+}
+function point$1(point) {
+  return index$1(point && point.line) + ':' + index$1(point && point.column)
+}
+function position$1(pos) {
+  return point$1(pos && pos.start) + '-' + point$1(pos && pos.end)
+}
+function index$1(value) {
+  return value && typeof value === 'number' ? value : 1
+}
+
+const convert$s =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$s
+      }
+      if (typeof test === 'string') {
+        return typeFactory$s(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$s(test) : propsFactory$s(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$s(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$s(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$s(tests[index]);
+  }
+  return castFactory$s(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$s(check) {
+  return castFactory$s(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$s(check) {
+  return castFactory$s(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$s(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$s() {
+  return true
+}
+
+function color$t(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$s = true;
+const EXIT$s = false;
+const SKIP$s = 'skip';
+const visitParents$s =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$s(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$t(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$s(visitor(node, parents));
+            if (result[0] === EXIT$s) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$s) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$s) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$s(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$s, value]
+  }
+  return [value]
+}
+
+const visit$s =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$s(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -13473,7 +14692,7 @@ const remarkLintNoDuplicateDefinitions = lintRule(
   },
   (tree, file) => {
     const map = Object.create(null);
-    visit$1(tree, (node) => {
+    visit$s(tree, (node) => {
       if (
         (node.type === 'definition' || node.type === 'footnoteDefinition') &&
         !generated(node)
@@ -13488,12 +14707,168 @@ const remarkLintNoDuplicateDefinitions = lintRule(
             node
           );
         }
-        map[identifier] = stringifyPosition$2(pointStart(node));
+        map[identifier] = stringifyPosition$1(pointStart(node));
       }
     });
   }
 );
 var remarkLintNoDuplicateDefinitions$1 = remarkLintNoDuplicateDefinitions;
+
+const convert$r =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$r
+      }
+      if (typeof test === 'string') {
+        return typeFactory$r(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$r(test) : propsFactory$r(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$r(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$r(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$r(tests[index]);
+  }
+  return castFactory$r(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$r(check) {
+  return castFactory$r(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$r(check) {
+  return castFactory$r(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$r(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$r() {
+  return true
+}
+
+function color$s(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$r = true;
+const EXIT$r = false;
+const SKIP$r = 'skip';
+const visitParents$r =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$r(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$s(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$r(visitor(node, parents));
+            if (result[0] === EXIT$r) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$r) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$r) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$r(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$r, value]
+  }
+  return [value]
+}
+
+const visit$r =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$r(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 function headingStyle(node, relative) {
   const last = node.children[node.children.length - 1];
@@ -13593,7 +14968,7 @@ const remarkLintNoHeadingContentIndent = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-heading-content-indent#readme'
   },
   (tree, file) => {
-    visit$1(tree, 'heading', (node) => {
+    visit$r(tree, 'heading', (node) => {
       if (generated(node)) {
         return
       }
@@ -13634,6 +15009,202 @@ const remarkLintNoHeadingContentIndent = lintRule(
 );
 var remarkLintNoHeadingContentIndent$1 = remarkLintNoHeadingContentIndent;
 
+const convert$q =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$q
+      }
+      if (typeof test === 'string') {
+        return typeFactory$q(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$q(test) : propsFactory$q(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$q(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$q(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$q(tests[index]);
+  }
+  return castFactory$q(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$q(check) {
+  return castFactory$q(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$q(check) {
+  return castFactory$q(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$q(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$q() {
+  return true
+}
+
+function color$r(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$q = true;
+const EXIT$q = false;
+const SKIP$q = 'skip';
+const visitParents$q =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$q(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$r(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$q(visitor(node, parents));
+            if (result[0] === EXIT$q) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$q) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$q) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$q(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$q, value]
+  }
+  return [value]
+}
+
+const visit$q =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$q(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
+
+const emptyOptions = {};
+function toString(value, options) {
+  const settings = options || emptyOptions;
+  const includeImageAlt =
+    typeof settings.includeImageAlt === 'boolean'
+      ? settings.includeImageAlt
+      : true;
+  const includeHtml =
+    typeof settings.includeHtml === 'boolean' ? settings.includeHtml : true;
+  return one(value, includeImageAlt, includeHtml)
+}
+function one(value, includeImageAlt, includeHtml) {
+  if (node(value)) {
+    if ('value' in value) {
+      return value.type === 'html' && !includeHtml ? '' : value.value
+    }
+    if (includeImageAlt && 'alt' in value && value.alt) {
+      return value.alt
+    }
+    if ('children' in value) {
+      return all(value.children, includeImageAlt, includeHtml)
+    }
+  }
+  if (Array.isArray(value)) {
+    return all(value, includeImageAlt, includeHtml)
+  }
+  return ''
+}
+function all(values, includeImageAlt, includeHtml) {
+  const result = [];
+  let index = -1;
+  while (++index < values.length) {
+    result[index] = one(values[index], includeImageAlt, includeHtml);
+  }
+  return result.join('')
+}
+function node(value) {
+  return Boolean(value && typeof value === 'object')
+}
+
 /**
  * ## When should I use this?
  *
@@ -13673,7 +15244,7 @@ const remarkLintNoInlinePadding = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-inline-padding#readme'
   },
   (tree, file) => {
-    visit$1(tree, (node) => {
+    visit$q(tree, (node) => {
       if (
         (node.type === 'link' || node.type === 'linkReference') &&
         !generated(node)
@@ -13687,6 +15258,162 @@ const remarkLintNoInlinePadding = lintRule(
   }
 );
 var remarkLintNoInlinePadding$1 = remarkLintNoInlinePadding;
+
+const convert$p =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$p
+      }
+      if (typeof test === 'string') {
+        return typeFactory$p(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$p(test) : propsFactory$p(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$p(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$p(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$p(tests[index]);
+  }
+  return castFactory$p(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$p(check) {
+  return castFactory$p(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$p(check) {
+  return castFactory$p(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$p(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$p() {
+  return true
+}
+
+function color$q(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$p = true;
+const EXIT$p = false;
+const SKIP$p = 'skip';
+const visitParents$p =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$p(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$q(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$p(visitor(node, parents));
+            if (result[0] === EXIT$p) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$p) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$p) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$p(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$p, value]
+  }
+  return [value]
+}
+
+const visit$p =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$p(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -13737,7 +15464,7 @@ const remarkLintNoShortcutReferenceImage = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-shortcut-reference-image#readme'
   },
   (tree, file) => {
-    visit$1(tree, 'imageReference', (node) => {
+    visit$p(tree, 'imageReference', (node) => {
       if (!generated(node) && node.referenceType === 'shortcut') {
         file.message('Use the trailing [] on reference images', node);
       }
@@ -13745,6 +15472,162 @@ const remarkLintNoShortcutReferenceImage = lintRule(
   }
 );
 var remarkLintNoShortcutReferenceImage$1 = remarkLintNoShortcutReferenceImage;
+
+const convert$o =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$o
+      }
+      if (typeof test === 'string') {
+        return typeFactory$o(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$o(test) : propsFactory$o(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$o(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$o(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$o(tests[index]);
+  }
+  return castFactory$o(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$o(check) {
+  return castFactory$o(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$o(check) {
+  return castFactory$o(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$o(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$o() {
+  return true
+}
+
+function color$p(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$o = true;
+const EXIT$o = false;
+const SKIP$o = 'skip';
+const visitParents$o =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$o(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$p(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$o(visitor(node, parents));
+            if (result[0] === EXIT$o) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$o) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$o) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$o(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$o, value]
+  }
+  return [value]
+}
+
+const visit$o =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$o(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -13795,7 +15678,7 @@ const remarkLintNoShortcutReferenceLink = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-shortcut-reference-link#readme'
   },
   (tree, file) => {
-    visit$1(tree, 'linkReference', (node) => {
+    visit$o(tree, 'linkReference', (node) => {
       if (!generated(node) && node.referenceType === 'shortcut') {
         file.message('Use the trailing `[]` on reference links', node);
       }
@@ -13803,6 +15686,172 @@ const remarkLintNoShortcutReferenceLink = lintRule(
   }
 );
 var remarkLintNoShortcutReferenceLink$1 = remarkLintNoShortcutReferenceLink;
+
+function normalizeIdentifier(value) {
+  return (
+    value
+      .replace(/[\t\n\r ]+/g, ' ')
+      .replace(/^ | $/g, '')
+      .toLowerCase()
+      .toUpperCase()
+  )
+}
+
+const convert$n =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$n
+      }
+      if (typeof test === 'string') {
+        return typeFactory$n(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$n(test) : propsFactory$n(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$n(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$n(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$n(tests[index]);
+  }
+  return castFactory$n(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$n(check) {
+  return castFactory$n(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$n(check) {
+  return castFactory$n(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$n(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$n() {
+  return true
+}
+
+function color$o(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$n = true;
+const EXIT$n = false;
+const SKIP$n = 'skip';
+const visitParents$n =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$n(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$o(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$n(visitor(node, parents));
+            if (result[0] === EXIT$n) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$n) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$n) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$n(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$n, value]
+  }
+  return [value]
+}
+
+const visit$n =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$n(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -13949,7 +15998,7 @@ const remarkLintNoUndefinedReferences = lintRule(
         regexes.push(new RegExp(value.source, 'i'));
       }
     }
-    visit$1(tree, (node) => {
+    visit$n(tree, (node) => {
       if (
         (node.type === 'definition' || node.type === 'footnoteDefinition') &&
         !generated(node)
@@ -13957,7 +16006,7 @@ const remarkLintNoUndefinedReferences = lintRule(
         map[normalizeIdentifier(node.identifier)] = true;
       }
     });
-    visit$1(tree, (node) => {
+    visit$n(tree, (node) => {
       if (
         (node.type === 'imageReference' ||
           node.type === 'linkReference' ||
@@ -13974,17 +16023,17 @@ const remarkLintNoUndefinedReferences = lintRule(
     });
     function findInPhrasing(node) {
       let ranges = [];
-      visit$1(node, (child) => {
+      visit$n(node, (child) => {
         if (child === node) return
         if (child.type === 'link' || child.type === 'linkReference') {
           ranges = [];
-          return SKIP$1
+          return SKIP$n
         }
         if (child.type !== 'text') return
         const start = pointStart(child).offset;
         const end = pointEnd(child).offset;
         if (typeof start !== 'number' || typeof end !== 'number') {
-          return EXIT$1
+          return EXIT$n
         }
         const source = contents.slice(start, end);
         const lines = [[start, '']];
@@ -14051,7 +16100,7 @@ const remarkLintNoUndefinedReferences = lintRule(
       while (++index < ranges.length) {
         handleRange(ranges[index]);
       }
-      return SKIP$1
+      return SKIP$n
       function handleRange(range) {
         if (range.length === 1) return
         if (range.length === 3) range.length = 2;
@@ -14083,6 +16132,162 @@ const remarkLintNoUndefinedReferences = lintRule(
   }
 );
 var remarkLintNoUndefinedReferences$1 = remarkLintNoUndefinedReferences;
+
+const convert$m =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$m
+      }
+      if (typeof test === 'string') {
+        return typeFactory$m(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$m(test) : propsFactory$m(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$m(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$m(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$m(tests[index]);
+  }
+  return castFactory$m(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$m(check) {
+  return castFactory$m(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$m(check) {
+  return castFactory$m(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$m(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$m() {
+  return true
+}
+
+function color$n(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$m = true;
+const EXIT$m = false;
+const SKIP$m = 'skip';
+const visitParents$m =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$m(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$n(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$m(visitor(node, parents));
+            if (result[0] === EXIT$m) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$m) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$m) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$m(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$m, value]
+  }
+  return [value]
+}
+
+const visit$m =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$m(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -14128,7 +16333,7 @@ const remarkLintNoUnusedDefinitions = lintRule(
   },
   (tree, file) => {
     const map = Object.create(null);
-    visit$1(tree, (node) => {
+    visit$m(tree, (node) => {
       if (
         (node.type === 'definition' || node.type === 'footnoteDefinition') &&
         !generated(node)
@@ -14136,7 +16341,7 @@ const remarkLintNoUnusedDefinitions = lintRule(
         map[node.identifier.toUpperCase()] = {node, used: false};
       }
     });
-    visit$1(tree, (node) => {
+    visit$m(tree, (node) => {
       if (
         node.type === 'imageReference' ||
         node.type === 'linkReference' ||
@@ -14181,6 +16386,162 @@ const remarkPresetLintRecommended = {
   ]
 };
 var remarkPresetLintRecommended$1 = remarkPresetLintRecommended;
+
+const convert$l =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$l
+      }
+      if (typeof test === 'string') {
+        return typeFactory$l(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$l(test) : propsFactory$l(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$l(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$l(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$l(tests[index]);
+  }
+  return castFactory$l(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$l(check) {
+  return castFactory$l(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$l(check) {
+  return castFactory$l(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$l(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$l() {
+  return true
+}
+
+function color$m(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$l = true;
+const EXIT$l = false;
+const SKIP$l = 'skip';
+const visitParents$l =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$l(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$m(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$l(visitor(node, parents));
+            if (result[0] === EXIT$l) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$l) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$l) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$l(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$l, value]
+  }
+  return [value]
+}
+
+const visit$l =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$l(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -14267,7 +16628,7 @@ const remarkLintBlockquoteIndentation = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-blockquote-indentation#readme'
   },
   (tree, file, option = 'consistent') => {
-    visit$1(tree, 'blockquote', (node) => {
+    visit$l(tree, 'blockquote', (node) => {
       if (generated(node) || node.children.length === 0) {
         return
       }
@@ -14295,6 +16656,162 @@ var remarkLintBlockquoteIndentation$1 = remarkLintBlockquoteIndentation;
 function check(node) {
   return pointStart(node.children[0]).column - pointStart(node).column
 }
+
+const convert$k =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$k
+      }
+      if (typeof test === 'string') {
+        return typeFactory$k(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$k(test) : propsFactory$k(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$k(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$k(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$k(tests[index]);
+  }
+  return castFactory$k(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$k(check) {
+  return castFactory$k(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$k(check) {
+  return castFactory$k(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$k(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$k() {
+  return true
+}
+
+function color$l(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$k = true;
+const EXIT$k = false;
+const SKIP$k = 'skip';
+const visitParents$k =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$k(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$l(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$k(visitor(node, parents));
+            if (result[0] === EXIT$k) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$k) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$k) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$k(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$k, value]
+  }
+  return [value]
+}
+
+const visit$k =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$k(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -14411,7 +16928,7 @@ const remarkLintCheckboxCharacterStyle = lintRule(
           "`: use either `'x'`, or `'X'`"
       );
     }
-    visit$1(tree, 'listItem', (node) => {
+    visit$k(tree, 'listItem', (node) => {
       const head = node.children[0];
       const point = pointStart(head);
       if (
@@ -14447,6 +16964,162 @@ const remarkLintCheckboxCharacterStyle = lintRule(
   }
 );
 var remarkLintCheckboxCharacterStyle$1 = remarkLintCheckboxCharacterStyle;
+
+const convert$j =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$j
+      }
+      if (typeof test === 'string') {
+        return typeFactory$j(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$j(test) : propsFactory$j(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$j(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$j(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$j(tests[index]);
+  }
+  return castFactory$j(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$j(check) {
+  return castFactory$j(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$j(check) {
+  return castFactory$j(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$j(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$j() {
+  return true
+}
+
+function color$k(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$j = true;
+const EXIT$j = false;
+const SKIP$j = 'skip';
+const visitParents$j =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$j(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$k(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$j(visitor(node, parents));
+            if (result[0] === EXIT$j) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$j) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$j) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$j(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$j, value]
+  }
+  return [value]
+}
+
+const visit$j =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$j(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -14518,7 +17191,7 @@ const remarkLintCheckboxContentIndent = lintRule(
   (tree, file) => {
     const value = String(file);
     const loc = location(file);
-    visit$1(tree, 'listItem', (node) => {
+    visit$j(tree, 'listItem', (node) => {
       const head = node.children[0];
       const point = pointStart(head);
       if (
@@ -14545,6 +17218,162 @@ const remarkLintCheckboxContentIndent = lintRule(
   }
 );
 var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
+
+const convert$i =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$i
+      }
+      if (typeof test === 'string') {
+        return typeFactory$i(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$i(test) : propsFactory$i(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$i(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$i(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$i(tests[index]);
+  }
+  return castFactory$i(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$i(check) {
+  return castFactory$i(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$i(check) {
+  return castFactory$i(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$i(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$i() {
+  return true
+}
+
+function color$j(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$i = true;
+const EXIT$i = false;
+const SKIP$i = 'skip';
+const visitParents$i =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$i(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$j(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$i(visitor(node, parents));
+            if (result[0] === EXIT$i) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$i) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$i) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$i(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$i, value]
+  }
+  return [value]
+}
+
+const visit$i =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$i(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -14691,7 +17520,7 @@ const remarkLintCodeBlockStyle = lintRule(
           "`: use either `'consistent'`, `'fenced'`, or `'indented'`"
       );
     }
-    visit$1(tree, 'code', (node) => {
+    visit$i(tree, 'code', (node) => {
       if (generated(node)) {
         return
       }
@@ -14710,6 +17539,162 @@ const remarkLintCodeBlockStyle = lintRule(
   }
 );
 var remarkLintCodeBlockStyle$1 = remarkLintCodeBlockStyle;
+
+const convert$h =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$h
+      }
+      if (typeof test === 'string') {
+        return typeFactory$h(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$h(test) : propsFactory$h(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$h(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$h(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$h(tests[index]);
+  }
+  return castFactory$h(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$h(check) {
+  return castFactory$h(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$h(check) {
+  return castFactory$h(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$h(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$h() {
+  return true
+}
+
+function color$i(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$h = true;
+const EXIT$h = false;
+const SKIP$h = 'skip';
+const visitParents$h =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$h(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$i(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$h(visitor(node, parents));
+            if (result[0] === EXIT$h) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$h) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$h) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$h(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$h, value]
+  }
+  return [value]
+}
+
+const visit$h =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$h(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -14759,7 +17744,7 @@ const remarkLintDefinitionSpacing = lintRule(
   },
   (tree, file) => {
     const value = String(file);
-    visit$1(tree, (node) => {
+    visit$h(tree, (node) => {
       if (node.type === 'definition' || node.type === 'footnoteDefinition') {
         const start = pointStart(node).offset;
         const end = pointEnd(node).offset;
@@ -14777,6 +17762,162 @@ const remarkLintDefinitionSpacing = lintRule(
   }
 );
 var remarkLintDefinitionSpacing$1 = remarkLintDefinitionSpacing;
+
+const convert$g =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$g
+      }
+      if (typeof test === 'string') {
+        return typeFactory$g(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$g(test) : propsFactory$g(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$g(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$g(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$g(tests[index]);
+  }
+  return castFactory$g(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$g(check) {
+  return castFactory$g(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$g(check) {
+  return castFactory$g(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$g(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$g() {
+  return true
+}
+
+function color$h(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$g = true;
+const EXIT$g = false;
+const SKIP$g = 'skip';
+const visitParents$g =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$g(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$h(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$g(visitor(node, parents));
+            if (result[0] === EXIT$g) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$g) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$g) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$g(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$g, value]
+  }
+  return [value]
+}
+
+const visit$g =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$g(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -14894,7 +18035,7 @@ const remarkLintFencedCodeFlag = lintRule(
         }
       }
     }
-    visit$1(tree, 'code', (node) => {
+    visit$g(tree, 'code', (node) => {
       if (!generated(node)) {
         if (node.lang) {
           if (allowed.length > 0 && !allowed.includes(node.lang)) {
@@ -14914,6 +18055,162 @@ const remarkLintFencedCodeFlag = lintRule(
   }
 );
 var remarkLintFencedCodeFlag$1 = remarkLintFencedCodeFlag;
+
+const convert$f =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$f
+      }
+      if (typeof test === 'string') {
+        return typeFactory$f(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$f(test) : propsFactory$f(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$f(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$f(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$f(tests[index]);
+  }
+  return castFactory$f(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$f(check) {
+  return castFactory$f(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$f(check) {
+  return castFactory$f(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$f(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$f() {
+  return true
+}
+
+function color$g(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$f = true;
+const EXIT$f = false;
+const SKIP$f = 'skip';
+const visitParents$f =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$f(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$g(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$f(visitor(node, parents));
+            if (result[0] === EXIT$f) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$f) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$f) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$f(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$f, value]
+  }
+  return [value]
+}
+
+const visit$f =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$f(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -15030,7 +18327,7 @@ const remarkLintFencedCodeMarker = lintRule(
           "`: use either `'consistent'`, `` '`' ``, or `'~'`"
       );
     }
-    visit$1(tree, 'code', (node) => {
+    visit$f(tree, 'code', (node) => {
       const start = pointStart(node).offset;
       if (typeof start === 'number') {
         const marker = contents
@@ -15111,6 +18408,162 @@ const remarkLintFileExtension = lintRule(
 );
 var remarkLintFileExtension$1 = remarkLintFileExtension;
 
+const convert$e =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$e
+      }
+      if (typeof test === 'string') {
+        return typeFactory$e(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$e(test) : propsFactory$e(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$e(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$e(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$e(tests[index]);
+  }
+  return castFactory$e(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$e(check) {
+  return castFactory$e(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$e(check) {
+  return castFactory$e(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$e(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$e() {
+  return true
+}
+
+function color$f(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$e = true;
+const EXIT$e = false;
+const SKIP$e = 'skip';
+const visitParents$e =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$e(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$f(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$e(visitor(node, parents));
+            if (result[0] === EXIT$e) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$e) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$e) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$e(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$e, value]
+  }
+  return [value]
+}
+
+const visit$e =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$e(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
+
 /**
  * ## When should I use this?
  *
@@ -15173,7 +18626,7 @@ const remarkLintFinalDefinition = lintRule(
   },
   (tree, file) => {
     let last = 0;
-    visit$1(
+    visit$e(
       tree,
       (node) => {
         if (
@@ -15202,6 +18655,162 @@ const remarkLintFinalDefinition = lintRule(
   }
 );
 var remarkLintFinalDefinition$1 = remarkLintFinalDefinition;
+
+const convert$d =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$d
+      }
+      if (typeof test === 'string') {
+        return typeFactory$d(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$d(test) : propsFactory$d(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$d(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$d(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$d(tests[index]);
+  }
+  return castFactory$d(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$d(check) {
+  return castFactory$d(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$d(check) {
+  return castFactory$d(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$d(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$d() {
+  return true
+}
+
+function color$e(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$d = true;
+const EXIT$d = false;
+const SKIP$d = 'skip';
+const visitParents$d =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$d(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$e(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$d(visitor(node, parents));
+            if (result[0] === EXIT$d) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$d) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$d) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$d(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$d, value]
+  }
+  return [value]
+}
+
+const visit$d =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$d(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -15317,7 +18926,7 @@ const remarkLintFirstHeadingLevel = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-first-heading-level#readme'
   },
   (tree, file, option = 1) => {
-    visit$1(tree, (node) => {
+    visit$d(tree, (node) => {
       if (!generated(node)) {
         let rank;
         if (node.type === 'heading') {
@@ -15329,7 +18938,7 @@ const remarkLintFirstHeadingLevel = lintRule(
           if (rank !== option) {
             file.message('First heading level should be `' + option + '`', node);
           }
-          return EXIT$1
+          return EXIT$d
         }
       }
     });
@@ -15340,6 +18949,162 @@ function infer(node) {
   const results = node.value.match(re$2);
   return results ? Number(results[1]) : undefined
 }
+
+const convert$c =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$c
+      }
+      if (typeof test === 'string') {
+        return typeFactory$c(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$c(test) : propsFactory$c(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$c(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$c(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$c(tests[index]);
+  }
+  return castFactory$c(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$c(check) {
+  return castFactory$c(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$c(check) {
+  return castFactory$c(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$c(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$c() {
+  return true
+}
+
+function color$d(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$c = true;
+const EXIT$c = false;
+const SKIP$c = 'skip';
+const visitParents$c =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$c(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$d(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$c(visitor(node, parents));
+            if (result[0] === EXIT$c) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$c) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$c) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$c(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$c, value]
+  }
+  return [value]
+}
+
+const visit$c =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$c(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -15472,7 +19237,7 @@ const remarkLintHeadingStyle = lintRule(
           "`: use either `'consistent'`, `'atx'`, `'atx-closed'`, or `'setext'`"
       );
     }
-    visit$1(tree, 'heading', (node) => {
+    visit$c(tree, 'heading', (node) => {
       if (!generated(node)) {
         if (option === 'consistent') {
           option = headingStyle(node) || 'consistent';
@@ -15484,6 +19249,162 @@ const remarkLintHeadingStyle = lintRule(
   }
 );
 var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
+
+const convert$b =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$b
+      }
+      if (typeof test === 'string') {
+        return typeFactory$b(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$b(test) : propsFactory$b(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$b(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$b(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$b(tests[index]);
+  }
+  return castFactory$b(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$b(check) {
+  return castFactory$b(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$b(check) {
+  return castFactory$b(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$b(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$b() {
+  return true
+}
+
+function color$c(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$b = true;
+const EXIT$b = false;
+const SKIP$b = 'skip';
+const visitParents$b =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$b(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$c(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$b(visitor(node, parents));
+            if (result[0] === EXIT$b) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$b) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$b) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$b(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$b, value]
+  }
+  return [value]
+}
+
+const visit$b =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$b(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -15601,7 +19522,7 @@ const remarkLintMaximumLineLength = lintRule(
   (tree, file, option = 80) => {
     const value = String(file);
     const lines = value.split(/\r?\n/);
-    visit$1(tree, (node) => {
+    visit$b(tree, (node) => {
       if (
         (node.type === 'heading' ||
           node.type === 'table' ||
@@ -15621,7 +19542,7 @@ const remarkLintMaximumLineLength = lintRule(
         allowList(pointStart(node).line - 1, pointEnd(node).line);
       }
     });
-    visit$1(tree, (node, pos, parent) => {
+    visit$b(tree, (node, pos, parent) => {
       if (
         (node.type === 'link' ||
           node.type === 'image' ||
@@ -15664,6 +19585,162 @@ const remarkLintMaximumLineLength = lintRule(
   }
 );
 var remarkLintMaximumLineLength$1 = remarkLintMaximumLineLength;
+
+const convert$a =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$a
+      }
+      if (typeof test === 'string') {
+        return typeFactory$a(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$a(test) : propsFactory$a(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$a(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$a(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$a(tests[index]);
+  }
+  return castFactory$a(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$a(check) {
+  return castFactory$a(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$a(check) {
+  return castFactory$a(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$a(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$a() {
+  return true
+}
+
+function color$b(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$a = true;
+const EXIT$a = false;
+const SKIP$a = 'skip';
+const visitParents$a =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$a(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$b(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$a(visitor(node, parents));
+            if (result[0] === EXIT$a) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$a) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$a) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$a(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$a, value]
+  }
+  return [value]
+}
+
+const visit$a =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$a(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -15724,7 +19801,7 @@ const remarkLintNoConsecutiveBlankLines = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-consecutive-blank-lines#readme'
   },
   (tree, file) => {
-    visit$1(tree, (node) => {
+    visit$a(tree, (node) => {
       if (!generated(node) && 'children' in node) {
         const head = node.children[0];
         if (head && !generated(head)) {
@@ -15902,6 +19979,162 @@ const remarkLintNofileNameOuterDashes = lintRule(
 );
 var remarkLintNofileNameOuterDashes$1 = remarkLintNofileNameOuterDashes;
 
+const convert$9 =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$9
+      }
+      if (typeof test === 'string') {
+        return typeFactory$9(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$9(test) : propsFactory$9(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$9(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$9(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$9(tests[index]);
+  }
+  return castFactory$9(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$9(check) {
+  return castFactory$9(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$9(check) {
+  return castFactory$9(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$9(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$9() {
+  return true
+}
+
+function color$a(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$9 = true;
+const EXIT$9 = false;
+const SKIP$9 = 'skip';
+const visitParents$9 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$9(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$a(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$9(visitor(node, parents));
+            if (result[0] === EXIT$9) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$9) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$9) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$9(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$9, value]
+  }
+  return [value]
+}
+
+const visit$9 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$9(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
+
 /**
  * ## When should I use this?
  *
@@ -15979,7 +20212,7 @@ const remarkLintNoHeadingIndent = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-heading-indent#readme'
   },
   (tree, file) => {
-    visit$1(tree, 'heading', (node, _, parent) => {
+    visit$9(tree, 'heading', (node, _, parent) => {
       if (generated(node) || (parent && parent.type !== 'root')) {
         return
       }
@@ -15998,6 +20231,187 @@ const remarkLintNoHeadingIndent = lintRule(
   }
 );
 var remarkLintNoHeadingIndent$1 = remarkLintNoHeadingIndent;
+
+const convert$8 =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$8
+      }
+      if (typeof test === 'string') {
+        return typeFactory$8(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$8(test) : propsFactory$8(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$8(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$8(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$8(tests[index]);
+  }
+  return castFactory$8(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$8(check) {
+  return castFactory$8(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$8(check) {
+  return castFactory$8(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$8(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$8() {
+  return true
+}
+
+function color$9(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$8 = true;
+const EXIT$8 = false;
+const SKIP$8 = 'skip';
+const visitParents$8 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$8(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$9(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$8(visitor(node, parents));
+            if (result[0] === EXIT$8) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$8) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$8) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$8(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$8, value]
+  }
+  return [value]
+}
+
+const visit$8 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$8(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
+
+function stringifyPosition(value) {
+  if (!value || typeof value !== 'object') {
+    return ''
+  }
+  if ('position' in value || 'type' in value) {
+    return position(value.position)
+  }
+  if ('start' in value || 'end' in value) {
+    return position(value)
+  }
+  if ('line' in value || 'column' in value) {
+    return point(value)
+  }
+  return ''
+}
+function point(point) {
+  return index(point && point.line) + ':' + index(point && point.column)
+}
+function position(pos) {
+  return point(pos && pos.start) + '-' + point(pos && pos.end)
+}
+function index(value) {
+  return value && typeof value === 'number' ? value : 1
+}
 
 /**
  * ## When should I use this?
@@ -16049,7 +20463,7 @@ const remarkLintNoMultipleToplevelHeadings = lintRule(
   },
   (tree, file, option = 1) => {
     let duplicate;
-    visit$1(tree, 'heading', (node) => {
+    visit$8(tree, 'heading', (node) => {
       if (!generated(node) && node.depth === option) {
         if (duplicate) {
           file.message(
@@ -16057,13 +20471,169 @@ const remarkLintNoMultipleToplevelHeadings = lintRule(
             node
           );
         } else {
-          duplicate = stringifyPosition$2(pointStart(node));
+          duplicate = stringifyPosition(pointStart(node));
         }
       }
     });
   }
 );
 var remarkLintNoMultipleToplevelHeadings$1 = remarkLintNoMultipleToplevelHeadings;
+
+const convert$7 =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$7
+      }
+      if (typeof test === 'string') {
+        return typeFactory$7(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$7(test) : propsFactory$7(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$7(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$7(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$7(tests[index]);
+  }
+  return castFactory$7(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$7(check) {
+  return castFactory$7(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$7(check) {
+  return castFactory$7(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$7(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$7() {
+  return true
+}
+
+function color$8(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$7 = true;
+const EXIT$7 = false;
+const SKIP$7 = 'skip';
+const visitParents$7 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$7(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$8(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$7(visitor(node, parents));
+            if (result[0] === EXIT$7) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$7) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$7) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$7(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$7, value]
+  }
+  return [value]
+}
+
+const visit$7 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$7(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -16154,7 +20724,7 @@ const remarkLintNoShellDollars = lintRule(
     url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-shell-dollars#readme'
   },
   (tree, file) => {
-    visit$1(tree, 'code', (node) => {
+    visit$7(tree, 'code', (node) => {
       if (!generated(node) && node.lang && flags.has(node.lang)) {
         const lines = node.value
           .split('\n')
@@ -16175,6 +20745,162 @@ const remarkLintNoShellDollars = lintRule(
   }
 );
 var remarkLintNoShellDollars$1 = remarkLintNoShellDollars;
+
+const convert$6 =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$6
+      }
+      if (typeof test === 'string') {
+        return typeFactory$6(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$6(test) : propsFactory$6(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$6(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$6(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$6(tests[index]);
+  }
+  return castFactory$6(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$6(check) {
+  return castFactory$6(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$6(check) {
+  return castFactory$6(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$6(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$6() {
+  return true
+}
+
+function color$7(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$6 = true;
+const EXIT$6 = false;
+const SKIP$6 = 'skip';
+const visitParents$6 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$6(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$7(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$6(visitor(node, parents));
+            if (result[0] === EXIT$6) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$6) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$6) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$6(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$6, value]
+  }
+  return [value]
+}
+
+const visit$6 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$6(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -16261,7 +20987,7 @@ const remarkLintNoTableIndentation = lintRule(
   (tree, file) => {
     const value = String(file);
     const loc = location(value);
-    visit$1(tree, 'table', (node, _, parent) => {
+    visit$6(tree, 'table', (node, _, parent) => {
       const end = pointEnd(node).line;
       let line = pointStart(node).line;
       let column = 0;
@@ -16295,7 +21021,7 @@ const remarkLintNoTableIndentation = lintRule(
         }
         line++;
       }
-      return SKIP$1
+      return SKIP$6
     });
   }
 );
@@ -16767,7 +21493,7 @@ function validateLinks(tree, vfile) {
           : "#";
         vfile.message(
           `Self-reference must start with hash (expected "${expected}", got "${node.url}")`,
-          node
+          node,
         );
       }
     }
@@ -16775,7 +21501,7 @@ function validateLinks(tree, vfile) {
       if (previousDefinitionLabel && previousDefinitionLabel > node.label) {
         vfile.message(
           `Unordered reference ("${node.label}" should be before "${previousDefinitionLabel}")`,
-          node
+          node,
         );
       }
       previousDefinitionLabel = node.label;
@@ -16784,7 +21510,7 @@ function validateLinks(tree, vfile) {
 }
 const remarkLintNodejsLinks = lintRule(
   "remark-lint:nodejs-links",
-  validateLinks
+  validateLinks,
 );
 
 /*! js-yaml 4.1.0 https://github.com/nodeca/js-yaml @license MIT */
@@ -20072,7 +24798,7 @@ const allowedKeys = [
 const changesExpectedKeys = ["version", "pr-url", "description"];
 const VERSION_PLACEHOLDER = "REPLACEME";
 const MAX_SAFE_SEMVER_VERSION = semverParse(
-  Array.from({ length: 3 }, () => Number.MAX_SAFE_INTEGER).join(".")
+  Array.from({ length: 3 }, () => Number.MAX_SAFE_INTEGER).join("."),
 );
 const validVersionNumberRegex = /^v\d+\.\d+\.\d+$/;
 const prUrlRegex = new RegExp("^https://github.com/nodejs/node/pull/\\d+$");
@@ -20082,7 +24808,7 @@ let invalidVersionMessage = "version(s) must respect the pattern `vx.x.x` or";
 if (process.env.NODE_RELEASED_VERSIONS) {
   console.log("Using release list from env...");
   releasedVersions = process.env.NODE_RELEASED_VERSIONS.split(",").map(
-    (v) => `v${v}`
+    (v) => `v${v}`,
   );
   invalidVersionMessage = `version not listed in the changelogs, `;
 }
@@ -20120,7 +24846,7 @@ function areVersionsUnordered(versions) {
     if (
       semverLt(
         getValidSemver(versions[index - 1]),
-        getValidSemver(versions[index])
+        getValidSemver(versions[index]),
       )
     ) {
       return true;
@@ -20140,7 +24866,7 @@ function validateSecurityChange(file, node, change, index) {
     if (typeof change.commit !== "string" || isNaN(`0x${change.commit}`)) {
       file.message(
         `changes[${index}]: Ill-formed security change commit ID`,
-        node
+        node,
       );
     }
     if (Object.keys(change)[1] === "commit") {
@@ -20154,7 +24880,7 @@ function validateSecurityChange(file, node, change, index) {
     file.message(
       `changes[${index}]: Invalid keys. Expected keys are: ` +
         securityChangeExpectedKeys.join(", "),
-      node
+      node,
     );
   }
 }
@@ -20176,7 +24902,7 @@ function validateChanges(file, node, changes) {
       file.message(
         `changes[${index}]: Invalid keys. Expected keys are: ` +
           changesExpectedKeys.join(", "),
-        node
+        node,
       );
     }
     if (containsInvalidVersionNumber(change.version)) {
@@ -20187,22 +24913,22 @@ function validateChanges(file, node, changes) {
     if (!isAncient && !isSecurityChange && !prUrlRegex.test(change["pr-url"])) {
       file.message(
         `changes[${index}]: PR-URL does not match the expected pattern`,
-        node
+        node,
       );
     }
     if (typeof change.description !== "string" || !change.description.length) {
       file.message(
         `changes[${index}]: must contain a non-empty description`,
-        node
+        node,
       );
     } else if (!change.description.endsWith(".")) {
       file.message(
         `changes[${index}]: description must end with a period`,
-        node
+        node,
       );
     }
     changesVersions.push(
-      Array.isArray(change.version) ? change.version[0] : change.version
+      Array.isArray(change.version) ? change.version[0] : change.version,
     );
   }
   if (areVersionsUnordered(changesVersions)) {
@@ -20215,14 +24941,14 @@ function validateMeta(node, file, meta) {
       file.message(
         "YAML dictionary contains illegal keys. Accepted values are: " +
           allowedKeys.join(", "),
-        node
+        node,
       );
       break;
     case kWrongKeyOrder:
       file.message(
         "YAML dictionary keys should be in this order: " +
           allowedKeys.join(", "),
-        node
+        node,
       );
       break;
   }
@@ -20234,7 +24960,7 @@ function validateMeta(node, file, meta) {
   if (containsInvalidVersionNumber(meta.deprecated)) {
     file.message(
       `Invalid \`deprecated\` value: ${invalidVersionMessage}`,
-      node
+      node,
     );
   } else if (areVersionsUnordered(meta.deprecated)) {
     file.message("Versions in `deprecated` list are not in order", node);
@@ -20249,11 +24975,11 @@ function validateMeta(node, file, meta) {
   }
 }
 function validateYAMLComments(tree, file) {
-  visit$1(tree, "html", function visitor(node) {
+  visit$A(tree, "html", function visitor(node) {
     if (node.value.startsWith("<!--YAML\n"))
       file.message(
         "Expected `<!-- YAML`, found `<!--YAML`. Please add a space",
-        node
+        node,
       );
     if (!node.value.startsWith("<!-- YAML\n")) return;
     try {
@@ -20266,8 +24992,164 @@ function validateYAMLComments(tree, file) {
 }
 const remarkLintNodejsYamlComments = lintRule(
   "remark-lint:nodejs-yaml-comments",
-  validateYAMLComments
+  validateYAMLComments,
 );
+
+const convert$5 =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$5
+      }
+      if (typeof test === 'string') {
+        return typeFactory$5(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$5(test) : propsFactory$5(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$5(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$5(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$5(tests[index]);
+  }
+  return castFactory$5(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$5(check) {
+  return castFactory$5(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$5(check) {
+  return castFactory$5(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$5(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$5() {
+  return true
+}
+
+function color$6(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$5 = true;
+const EXIT$5 = false;
+const SKIP$5 = 'skip';
+const visitParents$5 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$5(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$6(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$5(visitor(node, parents));
+            if (result[0] === EXIT$5) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$5) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$5) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$5(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$5, value]
+  }
+  return [value]
+}
+
+const visit$5 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$5(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 const remarkLintProhibitedStrings = lintRule('remark-lint:prohibited-strings', prohibitedStrings);
 function testProhibited (val, content) {
@@ -20321,7 +25203,7 @@ function testProhibited (val, content) {
 }
 function prohibitedStrings (ast, file, strings) {
   const myLocation = location(file);
-  visit$1(ast, 'text', checkText);
+  visit$5(ast, 'text', checkText);
   function checkText (node) {
     const content = node.value;
     const initial = pointStart(node).offset;
@@ -20339,6 +25221,162 @@ function prohibitedStrings (ast, file, strings) {
     });
   }
 }
+
+const convert$4 =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$4
+      }
+      if (typeof test === 'string') {
+        return typeFactory$4(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$4(test) : propsFactory$4(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$4(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$4(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$4(tests[index]);
+  }
+  return castFactory$4(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$4(check) {
+  return castFactory$4(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$4(check) {
+  return castFactory$4(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$4(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$4() {
+  return true
+}
+
+function color$5(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$4 = true;
+const EXIT$4 = false;
+const SKIP$4 = 'skip';
+const visitParents$4 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$4(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$5(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$4(visitor(node, parents));
+            if (result[0] === EXIT$4) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$4) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$4) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$4(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$4, value]
+  }
+  return [value]
+}
+
+const visit$4 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$4(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -20427,7 +25465,7 @@ const remarkLintRuleStyle = lintRule(
         "Incorrect preferred rule style: provide a correct markdown rule or `'consistent'`"
       );
     }
-    visit$1(tree, 'thematicBreak', (node) => {
+    visit$4(tree, 'thematicBreak', (node) => {
       const initial = pointStart(node).offset;
       const final = pointEnd(node).offset;
       if (typeof initial === 'number' && typeof final === 'number') {
@@ -20442,6 +25480,162 @@ const remarkLintRuleStyle = lintRule(
   }
 );
 var remarkLintRuleStyle$1 = remarkLintRuleStyle;
+
+const convert$3 =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$3
+      }
+      if (typeof test === 'string') {
+        return typeFactory$3(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$3(test) : propsFactory$3(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$3(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$3(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$3(tests[index]);
+  }
+  return castFactory$3(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$3(check) {
+  return castFactory$3(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$3(check) {
+  return castFactory$3(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$3(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$3() {
+  return true
+}
+
+function color$4(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$3 = true;
+const EXIT$3 = false;
+const SKIP$3 = 'skip';
+const visitParents$3 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$3(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$4(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$3(visitor(node, parents));
+            if (result[0] === EXIT$3) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$3) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$3) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$3(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$3, value]
+  }
+  return [value]
+}
+
+const visit$3 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$3(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -20533,7 +25727,7 @@ const remarkLintStrongMarker = lintRule(
           "`: use either `'consistent'`, `'*'`, or `'_'`"
       );
     }
-    visit$1(tree, 'strong', (node) => {
+    visit$3(tree, 'strong', (node) => {
       const start = pointStart(node).offset;
       if (typeof start === 'number') {
         const marker =  (value.charAt(start));
@@ -20547,6 +25741,162 @@ const remarkLintStrongMarker = lintRule(
   }
 );
 var remarkLintStrongMarker$1 = remarkLintStrongMarker;
+
+const convert$2 =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$2
+      }
+      if (typeof test === 'string') {
+        return typeFactory$2(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$2(test) : propsFactory$2(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$2(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$2(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$2(tests[index]);
+  }
+  return castFactory$2(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$2(check) {
+  return castFactory$2(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$2(check) {
+  return castFactory$2(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$2(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$2() {
+  return true
+}
+
+function color$3(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$2 = true;
+const EXIT$2 = false;
+const SKIP$2 = 'skip';
+const visitParents$2 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$2(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$3(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$2(visitor(node, parents));
+            if (result[0] === EXIT$2) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$2) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$2) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$2(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$2, value]
+  }
+  return [value]
+}
+
+const visit$2 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$2(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -20749,7 +26099,7 @@ const remarkLintTableCellPadding = lintRule(
           "`, expected `'padded'`, `'compact'`, or `'consistent'`"
       );
     }
-    visit$1(tree, 'table', (node) => {
+    visit$2(tree, 'table', (node) => {
       const rows = node.children;
       const align = node.align || [];
       const sizes = [];
@@ -20807,7 +26157,7 @@ const remarkLintTableCellPadding = lintRule(
         checkSide('start', entries[index], style, sizes);
         checkSide('end', entries[index], style, sizes);
       }
-      return SKIP$1
+      return SKIP$2
     });
     function checkSide(side, entry, style, sizes) {
       const cell = entry.node;
@@ -20846,6 +26196,162 @@ function size(node) {
   const tail = pointEnd(node.children[node.children.length - 1]).offset;
   return typeof head === 'number' && typeof tail === 'number' ? tail - head : 0
 }
+
+const convert$1 =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok$1
+      }
+      if (typeof test === 'string') {
+        return typeFactory$1(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory$1(test) : propsFactory$1(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory$1(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory$1(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert$1(tests[index]);
+  }
+  return castFactory$1(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory$1(check) {
+  return castFactory$1(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory$1(check) {
+  return castFactory$1(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory$1(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok$1() {
+  return true
+}
+
+function color$2(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE$1 = true;
+const EXIT$1 = false;
+const SKIP$1 = 'skip';
+const visitParents$1 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert$1(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$2(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$1(visitor(node, parents));
+            if (result[0] === EXIT$1) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP$1) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT$1) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult$1(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE$1, value]
+  }
+  return [value]
+}
+
+const visit$1 =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents$1(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -20930,6 +26436,162 @@ const remarkLintTablePipes = lintRule(
   }
 );
 var remarkLintTablePipes$1 = remarkLintTablePipes;
+
+const convert =
+  (
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok
+      }
+      if (typeof test === 'string') {
+        return typeFactory(test)
+      }
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory(test) : propsFactory(test)
+      }
+      if (typeof test === 'function') {
+        return castFactory(test)
+      }
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+function anyFactory(tests) {
+  const checks = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks[index] = convert(tests[index]);
+  }
+  return castFactory(any)
+  function any(...parameters) {
+    let index = -1;
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+    return false
+  }
+}
+function propsFactory(check) {
+  return castFactory(all)
+  function all(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key]) return false
+    }
+    return true
+  }
+}
+function typeFactory(check) {
+  return castFactory(type)
+  function type(node) {
+    return node && node.type === check
+  }
+}
+function castFactory(check) {
+  return assertion
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
+  }
+}
+function ok() {
+  return true
+}
+
+function color$1(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE = true;
+const EXIT = false;
+const SKIP = 'skip';
+const visitParents =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      const is = convert(test);
+      const step = reverse ? -1 : 1;
+      factory(tree, undefined, [])();
+      function factory(node, index, parents) {
+        const value = node && typeof node === 'object' ? node : {};
+        if (typeof value.type === 'string') {
+          const name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              :
+              typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' + color$1(node.type + (name ? '<' + name + '>' : '')) + ')'
+          });
+        }
+        return visit
+        function visit() {
+          let result = [];
+          let subresult;
+          let offset;
+          let grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult(visitor(node, parents));
+            if (result[0] === EXIT) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE, value]
+  }
+  return [value]
+}
+
+const visit =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      visitParents(tree, test, overload, reverse);
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
 
 /**
  * ## When should I use this?
@@ -21034,7 +26696,7 @@ const remarkLintUnorderedListMarkerStyle = lintRule(
           "`: use either `'-'`, `'*'`, or `'+'`"
       );
     }
-    visit$1(tree, 'list', (node) => {
+    visit(tree, 'list', (node) => {
       if (node.ordered) return
       let index = -1;
       while (++index < node.children.length) {
@@ -21140,35 +26802,10 @@ const plugins = [
 ];
 const settings = {
   emphasis: "_",
-  listItemIndent: 1,
+  listItemIndent: "one",
   tightDefinitions: true,
 };
 const remarkPresetLintNode = { plugins, settings };
-
-function stringifyPosition$1(value) {
-  if (!value || typeof value !== 'object') {
-    return ''
-  }
-  if ('position' in value || 'type' in value) {
-    return position$1(value.position)
-  }
-  if ('start' in value || 'end' in value) {
-    return position$1(value)
-  }
-  if ('line' in value || 'column' in value) {
-    return point$1(value)
-  }
-  return ''
-}
-function point$1(point) {
-  return index$1(point && point.line) + ':' + index$1(point && point.column)
-}
-function position$1(pos) {
-  return point$1(pos && pos.start) + '-' + point$1(pos && pos.end)
-}
-function index$1(value) {
-  return value && typeof value === 'number' ? value : 1
-}
 
 class VFileMessage extends Error {
   constructor(causeOrReason, optionsOrParentOrPlace, origin) {
@@ -21237,7 +26874,7 @@ class VFileMessage extends Error {
     this.file;
     this.message = reason;
     this.line = start ? start.line : undefined;
-    this.name = stringifyPosition$1(options.place) || '1:1';
+    this.name = stringifyPosition$2(options.place) || '1:1';
     this.place = options.place || undefined;
     this.reason = this.message;
     this.ruleId = options.ruleId || undefined;
@@ -21870,31 +27507,6 @@ function stringWidth(string, options) {
 	return width;
 }
 
-function stringifyPosition(value) {
-  if (!value || typeof value !== 'object') {
-    return ''
-  }
-  if ('position' in value || 'type' in value) {
-    return position(value.position)
-  }
-  if ('start' in value || 'end' in value) {
-    return position(value)
-  }
-  if ('line' in value || 'column' in value) {
-    return point(value)
-  }
-  return ''
-}
-function point(point) {
-  return index(point && point.line) + ':' + index(point && point.column)
-}
-function position(pos) {
-  return point(pos && pos.start) + '-' + point(pos && pos.end)
-}
-function index(value) {
-  return value && typeof value === 'number' ? value : 1
-}
-
 function compareFile(a, b) {
   return compareString(a, b, 'path')
 }
@@ -22152,7 +27764,7 @@ function createAncestorsLines(state, ancestors) {
         typeof value.name === 'string'
         ? value.name
         : undefined;
-    const position = stringifyPosition(node.position);
+    const position = stringifyPosition$2(node.position);
     lines.push(
       '    at ' +
         state.yellow +
@@ -22257,7 +27869,7 @@ function createMessageLine(state, message) {
   }
   const place = message.place || message.position;
   const row = [
-    stringifyPosition(place),
+    stringifyPosition$2(place),
     (label === 'error' ? state.red : state.yellow) + label + state.defaultColor,
     formatReason(state, reason),
     message.ruleId || '',
