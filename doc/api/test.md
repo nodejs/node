@@ -877,11 +877,11 @@ to the test runner's output is required, use the events emitted by the
 The reporters are available via the `node:test/reporters` module:
 
 ```mjs
-import { tap, spec, dot, junit } from 'node:test/reporters';
+import { tap, spec, dot, junit, lcov } from 'node:test/reporters';
 ```
 
 ```cjs
-const { tap, spec, dot, junit } = require('node:test/reporters');
+const { tap, spec, dot, junit, lcov } = require('node:test/reporters');
 ```
 
 ### Custom reporters
