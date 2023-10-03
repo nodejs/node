@@ -48,6 +48,11 @@ describe('the type flag should change the interpretation of certain files within
              const { add } = await import(fixtures.fileURL('es-modules/package-type-module/noext-wasm'));
              strictEqual(add(1, 2), 3);
            });
+
+           it('should import an extensionless Wasm file within a "type": "module" scope under node_modules', async () => {
+            const { add } = await import(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json-type-module/noext-wasm'));
+            strictEqual(add(1, 2), 3);
+          });
          });
 
 describe(`the type flag should change the interpretation of certain files within a package scope that lacks a

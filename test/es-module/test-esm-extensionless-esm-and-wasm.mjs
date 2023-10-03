@@ -46,6 +46,11 @@ describe('extensionless Wasm modules within a "type": "module" package scope', {
     const { add } = await import(fixtures.fileURL('es-modules/package-type-module/noext-wasm'));
     strictEqual(add(1, 2), 3);
   });
+
+  it('should be importable from a module scope under node_modules', async () => {
+    const { add } = await import(fixtures.fileURL('es-modules/package-type-module/node_modules/dep-with-package-json-type-module/noext-wasm'));
+    strictEqual(add(1, 2), 3);
+  });
 });
 
 describe('extensionless ES modules within no package scope', { concurrency: true }, () => {
