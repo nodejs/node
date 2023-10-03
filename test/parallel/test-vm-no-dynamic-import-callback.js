@@ -1,11 +1,10 @@
-
 'use strict';
 
 require('../common');
 const { Script } = require('vm');
 const assert = require('assert');
 
-assert.rejects(async() => {
+assert.rejects(async () => {
   const script = new Script('import("fs")');
   const imported = script.runInThisContext();
   await imported;
