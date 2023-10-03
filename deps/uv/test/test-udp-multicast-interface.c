@@ -99,6 +99,6 @@ TEST_IMPL(udp_multicast_interface) {
   ASSERT(client.send_queue_size == 0);
   ASSERT(server.send_queue_size == 0);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

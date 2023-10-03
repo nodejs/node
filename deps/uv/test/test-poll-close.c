@@ -68,6 +68,6 @@ TEST_IMPL(poll_close) {
 
   ASSERT(close_cb_called == NUM_SOCKETS);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

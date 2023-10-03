@@ -40,7 +40,7 @@ int uv__random_readpath(const char* path, void* buf, size_t buflen) {
   if (fd < 0)
     return fd;
 
-  if (uv__fstat(fd, &s)) {
+  if (fstat(fd, &s)) {
     uv__close(fd);
     return UV__ERR(errno);
   }

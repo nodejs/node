@@ -1,6 +1,5 @@
 #!/bin/sh
 set -e
-set -x
 # Shell script to update libuv in the source tree to a specific version
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)

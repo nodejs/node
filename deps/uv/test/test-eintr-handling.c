@@ -87,9 +87,7 @@ TEST_IMPL(eintr_handling) {
   ASSERT(0 == close(pipe_fds[1]));
   uv_close((uv_handle_t*) &signal, NULL);
 
-  ASSERT_EQ(0, uv_thread_join(&thread));
-
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

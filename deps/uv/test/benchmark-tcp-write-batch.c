@@ -139,6 +139,6 @@ BENCHMARK_IMPL(tcp_write_batch) {
          (long)NUM_WRITE_REQS,
          (stop - start) / 1e9);
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

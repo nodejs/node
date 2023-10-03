@@ -144,6 +144,6 @@ TEST_IMPL(udp_mmsg) {
   else
     ASSERT_EQ(alloc_cb_called, recv_cb_called);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

@@ -33,6 +33,7 @@
 #if defined(__APPLE__)          || \
     defined(_AIX)               || \
     defined(__MVS__)            || \
+    defined(__FreeBSD_kernel__) || \
     defined(__NetBSD__)         || \
     defined(__OpenBSD__)
   #define MULTICAST_ADDR "ff02::1%lo0"
@@ -186,7 +187,7 @@ TEST_IMPL(udp_multicast_join6) {
 
   r = uv_udp_set_membership(&server, MULTICAST_ADDR, INTERFACE_ADDR, UV_JOIN_GROUP);
   if (r == UV_ENODEV) {
-    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    MAKE_VALGRIND_HAPPY();
     RETURN_SKIP("No ipv6 multicast route");
   }
 
@@ -213,6 +214,6 @@ TEST_IMPL(udp_multicast_join6) {
   ASSERT(sv_send_cb_called == 2);
   ASSERT(close_cb_called == 2);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

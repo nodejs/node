@@ -33,10 +33,17 @@
 # if defined(__APPLE__) ||                                                    \
      defined(__DragonFly__) ||                                                \
      defined(__FreeBSD__) ||                                                  \
+     defined(__FreeBSD_kernel__) ||                                           \
      defined(__OpenBSD__) ||                                                  \
      defined(__NetBSD__)
 #  define HAVE_KQUEUE 1
 # endif
+#endif
+
+#if defined(__arm__)/* Increase the timeout so the test passes on arm CI bots */
+# define CREATE_TIMEOUT 100
+#else
+# define CREATE_TIMEOUT 1
 #endif
 
 static uv_fs_event_t fs_event;
@@ -156,7 +163,10 @@ static void fs_event_create_files(uv_timer_t* handle) {
   if (++fs_event_created < fs_event_file_count) {
     /* Create another file on a different event loop tick.  We do it this way
      * to avoid fs events coalescing into one fs event. */
-    ASSERT_EQ(0, uv_timer_start(&timer, fs_event_create_files, 100, 0));
+    ASSERT(0 == uv_timer_start(&timer,
+                               fs_event_create_files,
+                               CREATE_TIMEOUT,
+                               0));
   }
 }
 
@@ -232,8 +242,7 @@ static void fs_event_create_files_in_subdir(uv_timer_t* handle) {
   if (++fs_event_created < fs_event_file_count) {
     /* Create another file on a different event loop tick.  We do it this way
      * to avoid fs events coalescing into one fs event. */
-    ASSERT_EQ(0,
-              uv_timer_start(&timer, fs_event_create_files_in_subdir, 100, 0));
+    ASSERT(0 == uv_timer_start(&timer, fs_event_create_files_in_subdir, 1, 0));
   }
 }
 
@@ -432,7 +441,7 @@ TEST_IMPL(fs_event_watch_dir) {
   remove("watch_dir/file1");
   remove("watch_dir/");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -494,7 +503,7 @@ TEST_IMPL(fs_event_watch_dir_recursive) {
   remove("watch_dir/subdir");
   remove("watch_dir/");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 #else
   RETURN_SKIP("Recursive directory watching not supported on this platform.");
@@ -541,7 +550,7 @@ TEST_IMPL(fs_event_watch_dir_short_path) {
   remove("watch_dir/file1");
   remove("watch_dir/");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
 
   if (!has_shortnames)
     RETURN_SKIP("Was not able to address files with 8.3 short name.");
@@ -587,7 +596,7 @@ TEST_IMPL(fs_event_watch_file) {
   remove("watch_dir/file1");
   remove("watch_dir/");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -614,7 +623,7 @@ TEST_IMPL(fs_event_watch_file_exact_path) {
   create_file("watch_dir/file.js");
   create_file("watch_dir/file.jsx");
 #if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_12)
-  /* Empirically, FSEvents seems to (reliably) report the preceding
+  /* Empirically, FSEvents seems to (reliably) report the preceeding
    * create_file events prior to macOS 10.11.6 in the subsequent fs_watch
    * creation, but that behavior hasn't been observed to occur on newer
    * versions. Give a long delay here to let the system settle before running
@@ -640,7 +649,7 @@ TEST_IMPL(fs_event_watch_file_exact_path) {
   remove("watch_dir/file.jsx");
   remove("watch_dir/");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -664,7 +673,7 @@ TEST_IMPL(fs_event_watch_file_twice) {
   ASSERT(0 == uv_timer_start(&timer, timer_cb_watch_twice, 10, 0));
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -682,7 +691,7 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   remove("watch_file");
   create_file("watch_file");
 #if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_12)
-  /* Empirically, kevent seems to (sometimes) report the preceding
+  /* Empirically, kevent seems to (sometimes) report the preceeding
    * create_file events prior to macOS 10.11.6 in the subsequent fs_event_start
    * So let the system settle before running the test. */
   uv_sleep(1100);
@@ -719,7 +728,7 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   /* Cleanup */
   remove("watch_file");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -745,7 +754,7 @@ TEST_IMPL(fs_event_watch_file_root_dir) {
 
   uv_close((uv_handle_t*) &fs_event, NULL);
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 #endif
@@ -784,7 +793,7 @@ TEST_IMPL(fs_event_no_callback_after_close) {
   remove("watch_dir/file1");
   remove("watch_dir/");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -821,7 +830,7 @@ TEST_IMPL(fs_event_no_callback_on_close) {
   remove("watch_dir/file1");
   remove("watch_dir/");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -859,7 +868,7 @@ TEST_IMPL(fs_event_immediate_close) {
 
   ASSERT(close_cb_called == 2);
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -894,7 +903,7 @@ TEST_IMPL(fs_event_close_with_pending_event) {
   remove("watch_dir/file");
   remove("watch_dir/");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -932,7 +941,7 @@ TEST_IMPL(fs_event_close_with_pending_delete_event) {
   /* Clean up */
   remove("watch_dir/");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -973,7 +982,7 @@ TEST_IMPL(fs_event_close_in_callback) {
   fs_event_unlink_files(NULL);
   remove("watch_dir/");
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1008,7 +1017,7 @@ TEST_IMPL(fs_event_start_and_close) {
   ASSERT(close_cb_called == 2);
 
   remove("watch_dir/");
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1061,7 +1070,7 @@ TEST_IMPL(fs_event_getpath) {
   }
 
   remove("watch_dir/");
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1150,7 +1159,7 @@ TEST_IMPL(fs_event_error_reporting) {
   } while (i-- != 0);
 
   remove("watch_dir/");
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1159,7 +1168,7 @@ TEST_IMPL(fs_event_error_reporting) {
 TEST_IMPL(fs_event_error_reporting) {
   /* No-op, needed only for FSEvents backend */
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1182,7 +1191,7 @@ TEST_IMPL(fs_event_watch_invalid_path) {
   r = uv_fs_event_start(&fs_event, fs_event_cb_file, "", 0);
   ASSERT(r != 0);
   ASSERT(uv_is_active((uv_handle_t*) &fs_event) == 0);
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1228,6 +1237,6 @@ TEST_IMPL(fs_event_stop_in_cb) {
 
   remove(path);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

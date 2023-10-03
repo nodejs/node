@@ -60,7 +60,6 @@ static void warmup(const char* path) {
 
 
 static void sync_bench(const char* path) {
-  char fmtbuf[2][32];
   uint64_t before;
   uint64_t after;
   uv_fs_t req;
@@ -75,9 +74,9 @@ static void sync_bench(const char* path) {
   after = uv_hrtime();
 
   printf("%s stats (sync): %.2fs (%s/s)\n",
-         fmt(&fmtbuf[0], 1.0 * NUM_SYNC_REQS),
+         fmt(1.0 * NUM_SYNC_REQS),
          (after - before) / 1e9,
-         fmt(&fmtbuf[1], (1.0 * NUM_SYNC_REQS) / ((after - before) / 1e9)));
+         fmt((1.0 * NUM_SYNC_REQS) / ((after - before) / 1e9)));
   fflush(stdout);
 }
 
@@ -94,7 +93,6 @@ static void stat_cb(uv_fs_t* fs_req) {
 static void async_bench(const char* path) {
   struct async_req reqs[MAX_CONCURRENT_REQS];
   struct async_req* req;
-  char fmtbuf[2][32];
   uint64_t before;
   uint64_t after;
   int count;
@@ -114,10 +112,10 @@ static void async_bench(const char* path) {
     after = uv_hrtime();
 
     printf("%s stats (%d concurrent): %.2fs (%s/s)\n",
-           fmt(&fmtbuf[0], 1.0 * NUM_ASYNC_REQS),
+           fmt(1.0 * NUM_ASYNC_REQS),
            i,
            (after - before) / 1e9,
-           fmt(&fmtbuf[1], (1.0 * NUM_ASYNC_REQS) / ((after - before) / 1e9)));
+           fmt((1.0 * NUM_ASYNC_REQS) / ((after - before) / 1e9)));
     fflush(stdout);
   }
 }
@@ -133,6 +131,6 @@ BENCHMARK_IMPL(fs_stat) {
   warmup(path);
   sync_bench(path);
   async_bench(path);
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

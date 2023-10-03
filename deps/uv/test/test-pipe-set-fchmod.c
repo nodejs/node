@@ -22,7 +22,6 @@
 
 #include "uv.h"
 #include "task.h"
-#include <string.h>
 
 TEST_IMPL(pipe_set_chmod) {
   uv_pipe_t pipe_handle;
@@ -44,13 +43,12 @@ TEST_IMPL(pipe_set_chmod) {
    * successful. */
   r = uv_pipe_chmod(&pipe_handle, UV_READABLE);
   if (r == UV_EPERM) {
-    MAKE_VALGRIND_HAPPY(loop);
+    MAKE_VALGRIND_HAPPY();
     RETURN_SKIP("Insufficient privileges to alter pipe fmode");
   }
   ASSERT(r == 0);
 #ifndef _WIN32
-  memset(&stat_buf, 0, sizeof(stat_buf));
-  ASSERT_EQ(0, stat(TEST_PIPENAME, &stat_buf));
+  stat(TEST_PIPENAME, &stat_buf);
   ASSERT(stat_buf.st_mode & S_IRUSR);
   ASSERT(stat_buf.st_mode & S_IRGRP);
   ASSERT(stat_buf.st_mode & S_IROTH);
@@ -87,6 +85,6 @@ TEST_IMPL(pipe_set_chmod) {
   r = uv_pipe_chmod(&pipe_handle, UV_WRITABLE | UV_READABLE);
   ASSERT(r == UV_EBADF);
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

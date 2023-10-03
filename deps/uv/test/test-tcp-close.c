@@ -131,6 +131,6 @@ TEST_IMPL(tcp_close) {
   ASSERT(write_cb_called == NUM_WRITE_REQS);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

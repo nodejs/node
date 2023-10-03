@@ -138,9 +138,6 @@ static void cl_recv_cb(uv_udp_t* handle,
 
 
 TEST_IMPL(udp_multicast_join) {
-#if defined(__OpenBSD__)
-  RETURN_SKIP("Test does not currently work in OpenBSD");
-#endif
   int r;
   struct sockaddr_in addr;
 
@@ -179,6 +176,6 @@ TEST_IMPL(udp_multicast_join) {
   ASSERT(sv_send_cb_called == 2);
   ASSERT(close_cb_called == 2);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

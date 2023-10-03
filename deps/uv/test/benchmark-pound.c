@@ -306,7 +306,7 @@ static int pound_it(int concurrency,
           conns_failed);
   fflush(stderr);
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

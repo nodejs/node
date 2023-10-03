@@ -62,7 +62,6 @@ static void pummel(void* arg) {
 
 
 static int test_async_pummel(int nthreads) {
-  char fmtbuf[2][32];
   uv_thread_t* tids;
   uv_async_t handle;
   uint64_t time;
@@ -89,13 +88,13 @@ static int test_async_pummel(int nthreads) {
 
   printf("async_pummel_%d: %s callbacks in %.2f seconds (%s/sec)\n",
          nthreads,
-         fmt(&fmtbuf[0], callbacks),
+         fmt(callbacks),
          time / 1e9,
-         fmt(&fmtbuf[1], callbacks / (time / 1e9)));
+         fmt(callbacks / (time / 1e9)));
 
   free(tids);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
