@@ -80,6 +80,10 @@ const lcovTransform = snapshot.transform(
   pickTestFileFromLcov
 );
 
+const skipIfNoInspector = {
+  skip: !process.features.inspector ? 'inspector disabled' : false
+};
+
 const tests = [
   { name: 'test-runner/output/abort.js' },
   { name: 'test-runner/output/abort_suite.js' },
@@ -100,7 +104,7 @@ const tests = [
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter_cli.js', transform: specTransform },
-  { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform },
+  { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform, options: skipIfNoInspector },
   { name: 'test-runner/output/output.js' },
   { name: 'test-runner/output/output_cli.js' },
   { name: 'test-runner/output/name_pattern.js' },
@@ -124,15 +128,16 @@ const tests = [
   process.features.inspector ? { name: 'test-runner/output/coverage_failure.js' } : false,
 ]
 .filter(Boolean)
-.map(({ name, tty, transform }) => ({
+.map(({ name, tty, transform, options }) => ({
   name,
   fn: common.mustCall(async () => {
     await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty });
   }),
+  options
 }));
 
 describe('test runner output', { concurrency: true }, () => {
-  for (const { name, fn } of tests) {
-    it(name, fn);
+  for (const { name, fn, options } of tests) {
+    it(name, fn, options);
   }
 });
