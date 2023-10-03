@@ -12,7 +12,15 @@ const
     { isCommentToken } = require("@eslint-community/eslint-utils"),
     TokenStore = require("./token-store"),
     astUtils = require("../shared/ast-utils"),
-    Traverser = require("../shared/traverser");
+    Traverser = require("../shared/traverser"),
+    globals = require("../../conf/globals"),
+    {
+        directivesPattern
+    } = require("../shared/directives"),
+
+    /* eslint-disable-next-line n/no-restricted-require -- Too messy to figure out right now. */
+    ConfigCommentParser = require("../linter/config-comment-parser"),
+    eslintScope = require("eslint-scope");
 
 //------------------------------------------------------------------------------
 // Type Definitions
@@ -23,6 +31,8 @@ const
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
+
+const commentParser = new ConfigCommentParser();
 
 /**
  * Validates that the given AST has the required information.
@@ -46,6 +56,29 @@ function validate(ast) {
 
     if (!ast.range) {
         throw new Error("AST is missing range information");
+    }
+}
+
+/**
+ * Retrieves globals for the given ecmaVersion.
+ * @param {number} ecmaVersion The version to retrieve globals for.
+ * @returns {Object} The globals for the given ecmaVersion.
+ */
+function getGlobalsForEcmaVersion(ecmaVersion) {
+
+    switch (ecmaVersion) {
+        case 3:
+            return globals.es3;
+
+        case 5:
+            return globals.es5;
+
+        default:
+            if (ecmaVersion < 2015) {
+                return globals[`es${ecmaVersion + 2009}`];
+            }
+
+            return globals[`es${ecmaVersion}`];
     }
 }
 
@@ -81,6 +114,36 @@ function sortedMerge(tokens, comments) {
     }
 
     return result;
+}
+
+/**
+ * Normalizes a value for a global in a config
+ * @param {(boolean|string|null)} configuredValue The value given for a global in configuration or in
+ * a global directive comment
+ * @returns {("readable"|"writeable"|"off")} The value normalized as a string
+ * @throws Error if global value is invalid
+ */
+function normalizeConfigGlobal(configuredValue) {
+    switch (configuredValue) {
+        case "off":
+            return "off";
+
+        case true:
+        case "true":
+        case "writeable":
+        case "writable":
+            return "writable";
+
+        case null:
+        case false:
+        case "false":
+        case "readable":
+        case "readonly":
+            return "readonly";
+
+        default:
+            throw new Error(`'${configuredValue}' is not a valid configuration for a global (use 'readonly', 'writable', or 'off')`);
+    }
 }
 
 /**
@@ -145,6 +208,116 @@ function isSpaceBetween(sourceCode, first, second, checkInsideOfJSXText) {
     return false;
 }
 
+//-----------------------------------------------------------------------------
+// Directive Comments
+//-----------------------------------------------------------------------------
+
+/**
+ * Extract the directive and the justification from a given directive comment and trim them.
+ * @param {string} value The comment text to extract.
+ * @returns {{directivePart: string, justificationPart: string}} The extracted directive and justification.
+ */
+function extractDirectiveComment(value) {
+    const match = /\s-{2,}\s/u.exec(value);
+
+    if (!match) {
+        return { directivePart: value.trim(), justificationPart: "" };
+    }
+
+    const directive = value.slice(0, match.index).trim();
+    const justification = value.slice(match.index + match[0].length).trim();
+
+    return { directivePart: directive, justificationPart: justification };
+}
+
+/**
+ * Ensures that variables representing built-in properties of the Global Object,
+ * and any globals declared by special block comments, are present in the global
+ * scope.
+ * @param {Scope} globalScope The global scope.
+ * @param {Object|undefined} configGlobals The globals declared in configuration
+ * @param {Object|undefined} inlineGlobals The globals declared in the source code
+ * @returns {void}
+ */
+function addDeclaredGlobals(globalScope, configGlobals = {}, inlineGlobals = {}) {
+
+    // Define configured global variables.
+    for (const id of new Set([...Object.keys(configGlobals), ...Object.keys(inlineGlobals)])) {
+
+        /*
+         * `normalizeConfigGlobal` will throw an error if a configured global value is invalid. However, these errors would
+         * typically be caught when validating a config anyway (validity for inline global comments is checked separately).
+         */
+        const configValue = configGlobals[id] === void 0 ? void 0 : normalizeConfigGlobal(configGlobals[id]);
+        const commentValue = inlineGlobals[id] && inlineGlobals[id].value;
+        const value = commentValue || configValue;
+        const sourceComments = inlineGlobals[id] && inlineGlobals[id].comments;
+
+        if (value === "off") {
+            continue;
+        }
+
+        let variable = globalScope.set.get(id);
+
+        if (!variable) {
+            variable = new eslintScope.Variable(id, globalScope);
+
+            globalScope.variables.push(variable);
+            globalScope.set.set(id, variable);
+        }
+
+        variable.eslintImplicitGlobalSetting = configValue;
+        variable.eslintExplicitGlobal = sourceComments !== void 0;
+        variable.eslintExplicitGlobalComments = sourceComments;
+        variable.writeable = (value === "writable");
+    }
+
+    /*
+     * "through" contains all references which definitions cannot be found.
+     * Since we augment the global scope using configuration, we need to update
+     * references and remove the ones that were added by configuration.
+     */
+    globalScope.through = globalScope.through.filter(reference => {
+        const name = reference.identifier.name;
+        const variable = globalScope.set.get(name);
+
+        if (variable) {
+
+            /*
+             * Links the variable and the reference.
+             * And this reference is removed from `Scope#through`.
+             */
+            reference.resolved = variable;
+            variable.references.push(reference);
+
+            return false;
+        }
+
+        return true;
+    });
+}
+
+/**
+ * Sets the given variable names as exported so they won't be triggered by
+ * the `no-unused-vars` rule.
+ * @param {eslint.Scope} globalScope The global scope to define exports in.
+ * @param {Record<string,string>} variables An object whose keys are the variable
+ *      names to export.
+ * @returns {void}
+ */
+function markExportedVariables(globalScope, variables) {
+
+    Object.keys(variables).forEach(name => {
+        const variable = globalScope.set.get(name);
+
+        if (variable) {
+            variable.eslintUsed = true;
+            variable.eslintExported = true;
+        }
+    });
+
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -187,7 +360,9 @@ class SourceCode extends TokenStore {
          * General purpose caching for the class.
          */
         this[caches] = new Map([
-            ["scopes", new WeakMap()]
+            ["scopes", new WeakMap()],
+            ["vars", new Map()],
+            ["configNodes", void 0]
         ]);
 
         /**
@@ -266,7 +441,7 @@ class SourceCode extends TokenStore {
         // Cache for comments found using getComments().
         this._commentCache = new WeakMap();
 
-        // don't allow modification of this object
+        // don't allow further modification of this object
         Object.freeze(this);
         Object.freeze(this.lines);
     }
@@ -723,6 +898,178 @@ class SourceCode extends TokenStore {
         return false;
     }
 
+
+    /**
+     * Returns an array of all inline configuration nodes found in the
+     * source code.
+     * @returns {Array<Token>} An array of all inline configuration nodes.
+     */
+    getInlineConfigNodes() {
+
+        // check the cache first
+        let configNodes = this[caches].get("configNodes");
+
+        if (configNodes) {
+            return configNodes;
+        }
+
+        // calculate fresh config nodes
+        configNodes = this.ast.comments.filter(comment => {
+
+            // shebang comments are never directives
+            if (comment.type === "Shebang") {
+                return false;
+            }
+
+            const { directivePart } = extractDirectiveComment(comment.value);
+
+            const directiveMatch = directivesPattern.exec(directivePart);
+
+            if (!directiveMatch) {
+                return false;
+            }
+
+            // only certain comment types are supported as line comments
+            return comment.type !== "Line" || !!/^eslint-disable-(next-)?line$/u.test(directiveMatch[1]);
+        });
+
+        this[caches].set("configNodes", configNodes);
+
+        return configNodes;
+    }
+
+    /**
+     * Applies language options sent in from the core.
+     * @param {Object} languageOptions The language options for this run.
+     * @returns {void}
+     */
+    applyLanguageOptions(languageOptions) {
+
+        /*
+         * Add configured globals and language globals
+         *
+         * Using Object.assign instead of object spread for performance reasons
+         * https://github.com/eslint/eslint/issues/16302
+         */
+        const configGlobals = Object.assign(
+            {},
+            getGlobalsForEcmaVersion(languageOptions.ecmaVersion),
+            languageOptions.sourceType === "commonjs" ? globals.commonjs : void 0,
+            languageOptions.globals
+        );
+        const varsCache = this[caches].get("vars");
+
+        varsCache.set("configGlobals", configGlobals);
+    }
+
+    /**
+     * Applies configuration found inside of the source code. This method is only
+     * called when ESLint is running with inline configuration allowed.
+     * @returns {{problems:Array<Problem>,configs:{config:FlatConfigArray,node:ASTNode}}} Information
+     *      that ESLint needs to further process the inline configuration.
+     */
+    applyInlineConfig() {
+
+        const problems = [];
+        const configs = [];
+        const exportedVariables = {};
+        const inlineGlobals = Object.create(null);
+
+        this.getInlineConfigNodes().forEach(comment => {
+
+            const { directivePart } = extractDirectiveComment(comment.value);
+            const match = directivesPattern.exec(directivePart);
+            const directiveText = match[1];
+            const directiveValue = directivePart.slice(match.index + directiveText.length);
+
+            switch (directiveText) {
+                case "exported":
+                    Object.assign(exportedVariables, commentParser.parseStringConfig(directiveValue, comment));
+                    break;
+
+                case "globals":
+                case "global":
+                    for (const [id, { value }] of Object.entries(commentParser.parseStringConfig(directiveValue, comment))) {
+                        let normalizedValue;
+
+                        try {
+                            normalizedValue = normalizeConfigGlobal(value);
+                        } catch (err) {
+                            problems.push({
+                                ruleId: null,
+                                loc: comment.loc,
+                                message: err.message
+                            });
+                            continue;
+                        }
+
+                        if (inlineGlobals[id]) {
+                            inlineGlobals[id].comments.push(comment);
+                            inlineGlobals[id].value = normalizedValue;
+                        } else {
+                            inlineGlobals[id] = {
+                                comments: [comment],
+                                value: normalizedValue
+                            };
+                        }
+                    }
+                    break;
+
+                case "eslint": {
+                    const parseResult = commentParser.parseJsonConfig(directiveValue, comment.loc);
+
+                    if (parseResult.success) {
+                        configs.push({
+                            config: {
+                                rules: parseResult.config
+                            },
+                            node: comment
+                        });
+                    } else {
+                        problems.push(parseResult.error);
+                    }
+
+                    break;
+                }
+
+                // no default
+            }
+        });
+
+        // save all the new variables for later
+        const varsCache = this[caches].get("vars");
+
+        varsCache.set("inlineGlobals", inlineGlobals);
+        varsCache.set("exportedVariables", exportedVariables);
+
+        return {
+            configs,
+            problems
+        };
+    }
+
+    /**
+     * Called by ESLint core to indicate that it has finished providing
+     * information. We now add in all the missing variables and ensure that
+     * state-changing methods cannot be called by rules.
+     * @returns {void}
+     */
+    finalize() {
+
+        // Step 1: ensure that all of the necessary variables are up to date
+        const varsCache = this[caches].get("vars");
+        const globalScope = this.scopeManager.scopes[0];
+        const configGlobals = varsCache.get("configGlobals");
+        const inlineGlobals = varsCache.get("inlineGlobals");
+        const exportedVariables = varsCache.get("exportedVariables");
+
+        addDeclaredGlobals(globalScope, configGlobals, inlineGlobals);
+
+        if (exportedVariables) {
+            markExportedVariables(globalScope, exportedVariables);
+        }
+
+    }
 
 }
 

@@ -19,6 +19,7 @@
  */
 
 class FlattedString {
+  public $value = '';
   public function __construct($value) {
     $this->value = $value;
   }
@@ -148,7 +149,6 @@ class Flatted {
       foreach ($keys as $key) {
         $value->$key = self::wrap($value->$key);
       }
-      return $value;
     }
     return $value;
   }

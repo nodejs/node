@@ -659,6 +659,7 @@
 		"MediaStream": false,
 		"MediaStreamAudioDestinationNode": false,
 		"MediaStreamAudioSourceNode": false,
+		"MediaStreamConstraints": false,
 		"MediaStreamEvent": false,
 		"MediaStreamTrack": false,
 		"MediaStreamTrackEvent": false,
