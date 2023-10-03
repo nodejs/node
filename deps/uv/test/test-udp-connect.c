@@ -98,9 +98,6 @@ static void sv_recv_cb(uv_udp_t* handle,
 
 
 TEST_IMPL(udp_connect) {
-#if defined(__OpenBSD__)
-  RETURN_SKIP("Test does not currently work in OpenBSD");
-#endif
   uv_udp_send_t req;
   struct sockaddr_in ext_addr;
   struct sockaddr_in tmp_addr;
@@ -191,6 +188,6 @@ TEST_IMPL(udp_connect) {
   ASSERT(client.send_queue_size == 0);
   ASSERT(server.send_queue_size == 0);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

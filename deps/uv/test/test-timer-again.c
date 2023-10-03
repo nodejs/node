@@ -136,6 +136,6 @@ TEST_IMPL(timer_again) {
           (long int)(uv_now(uv_default_loop()) - start_time));
   fflush(stderr);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

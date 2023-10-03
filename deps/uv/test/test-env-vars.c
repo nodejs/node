@@ -131,10 +131,7 @@ TEST_IMPL(env_vars) {
 
   ASSERT(found == 2);
 #ifdef _WIN32
-  ASSERT_GT(found_win_special, 0);
-#else
-  /* There's no rule saying a key can't start with '='. */
-  (void) &found_win_special;
+  ASSERT(found_win_special > 0);
 #endif
 
   uv_os_free_environ(envitems, envcount);

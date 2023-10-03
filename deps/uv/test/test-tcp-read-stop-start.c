@@ -131,6 +131,6 @@ TEST_IMPL(tcp_read_stop_start) {
 
   ASSERT(read_cb_called >= 2);
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

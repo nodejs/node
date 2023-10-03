@@ -94,7 +94,7 @@ TEST_IMPL(emfile) {
     first_fd += 1;
   }
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

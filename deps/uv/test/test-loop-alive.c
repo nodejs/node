@@ -63,6 +63,5 @@ TEST_IMPL(loop_alive) {
   ASSERT(r == 0);
   ASSERT(!uv_loop_alive(uv_default_loop()));
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

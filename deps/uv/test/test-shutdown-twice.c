@@ -75,11 +75,11 @@ TEST_IMPL(shutdown_twice) {
                      connect_cb);
   ASSERT(r == 0);
 
-  r = uv_run(loop, UV_RUN_DEFAULT);
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(shutdown_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

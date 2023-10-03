@@ -61,9 +61,9 @@ TEST_IMPL(not_writable_after_shutdown) {
                      connect_cb);
   ASSERT(r == 0);
 
-  r = uv_run(loop, UV_RUN_DEFAULT);
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

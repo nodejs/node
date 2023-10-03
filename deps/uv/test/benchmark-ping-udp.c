@@ -153,7 +153,7 @@ static int ping_udp(unsigned pingers) {
   fprintf(stderr, "ping_pongs: %d pingers, ~ %lu roundtrips/s\n",
           completed_pingers, completed_pings / (TIME/1000));
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

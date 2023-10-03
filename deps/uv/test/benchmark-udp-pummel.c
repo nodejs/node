@@ -215,7 +215,7 @@ static int pummel(unsigned int n_senders,
          send_cb_called,
          duration / 1000.0);
 
-  MAKE_VALGRIND_HAPPY(loop);
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

@@ -28,39 +28,16 @@
 #include <errno.h>
 
 
-static int maybe_bind_socket(int fd) {
-  union uv__sockaddr s;
+static int new_socket(uv_tcp_t* handle, int domain, unsigned long flags) {
+  struct sockaddr_storage saddr;
   socklen_t slen;
-
-  slen = sizeof(s);
-  memset(&s, 0, sizeof(s));
-
-  if (getsockname(fd, &s.addr, &slen))
-    return UV__ERR(errno);
-
-  if (s.addr.sa_family == AF_INET)
-    if (s.in.sin_port != 0)
-      return 0;  /* Already bound to a port. */
-
-  if (s.addr.sa_family == AF_INET6)
-    if (s.in6.sin6_port != 0)
-      return 0;  /* Already bound to a port. */
-
-  /* Bind to an arbitrary port. */
-  if (bind(fd, &s.addr, slen))
-    return UV__ERR(errno);
-
-  return 0;
-}
-
-
-static int new_socket(uv_tcp_t* handle, int domain, unsigned int flags) {
   int sockfd;
   int err;
 
-  sockfd = uv__socket(domain, SOCK_STREAM, 0);
-  if (sockfd < 0)
-    return sockfd;
+  err = uv__socket(domain, SOCK_STREAM, 0);
+  if (err < 0)
+    return err;
+  sockfd = err;
 
   err = uv__stream_open((uv_stream_t*) handle, sockfd, flags);
   if (err) {
@@ -68,44 +45,74 @@ static int new_socket(uv_tcp_t* handle, int domain, unsigned int flags) {
     return err;
   }
 
-  if (flags & UV_HANDLE_BOUND)
-    return maybe_bind_socket(sockfd);
+  if (flags & UV_HANDLE_BOUND) {
+    /* Bind this new socket to an arbitrary port */
+    slen = sizeof(saddr);
+    memset(&saddr, 0, sizeof(saddr));
+    if (getsockname(uv__stream_fd(handle), (struct sockaddr*) &saddr, &slen)) {
+      uv__close(sockfd);
+      return UV__ERR(errno);
+    }
+
+    if (bind(uv__stream_fd(handle), (struct sockaddr*) &saddr, slen)) {
+      uv__close(sockfd);
+      return UV__ERR(errno);
+    }
+  }
 
   return 0;
 }
 
 
-static int maybe_new_socket(uv_tcp_t* handle, int domain, unsigned int flags) {
-  int sockfd;
-  int err;
+static int maybe_new_socket(uv_tcp_t* handle, int domain, unsigned long flags) {
+  struct sockaddr_storage saddr;
+  socklen_t slen;
 
-  if (domain == AF_UNSPEC)
-    goto out;
+  if (domain == AF_UNSPEC) {
+    handle->flags |= flags;
+    return 0;
+  }
 
-  sockfd = uv__stream_fd(handle);
-  if (sockfd == -1)
-    return new_socket(handle, domain, flags);
+  if (uv__stream_fd(handle) != -1) {
 
-  if (!(flags & UV_HANDLE_BOUND))
-    goto out;
+    if (flags & UV_HANDLE_BOUND) {
 
-  if (handle->flags & UV_HANDLE_BOUND)
-    goto out;  /* Already bound to a port. */
+      if (handle->flags & UV_HANDLE_BOUND) {
+        /* It is already bound to a port. */
+        handle->flags |= flags;
+        return 0;
+      }
 
-  err = maybe_bind_socket(sockfd);
-  if (err)
-    return err;
+      /* Query to see if tcp socket is bound. */
+      slen = sizeof(saddr);
+      memset(&saddr, 0, sizeof(saddr));
+      if (getsockname(uv__stream_fd(handle), (struct sockaddr*) &saddr, &slen))
+        return UV__ERR(errno);
 
-out:
+      if ((saddr.ss_family == AF_INET6 &&
+          ((struct sockaddr_in6*) &saddr)->sin6_port != 0) ||
+          (saddr.ss_family == AF_INET &&
+          ((struct sockaddr_in*) &saddr)->sin_port != 0)) {
+        /* Handle is already bound to a port. */
+        handle->flags |= flags;
+        return 0;
+      }
 
-  handle->flags |= flags;
-  return 0;
+      /* Bind to arbitrary port */
+      if (bind(uv__stream_fd(handle), (struct sockaddr*) &saddr, slen))
+        return UV__ERR(errno);
+    }
+
+    handle->flags |= flags;
+    return 0;
+  }
+
+  return new_socket(handle, domain, flags);
 }
 
 
 int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* tcp, unsigned int flags) {
   int domain;
-  int err;
 
   /* Use the lower 8 bits for the domain */
   domain = flags & 0xFF;
@@ -122,12 +129,9 @@ int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* tcp, unsigned int flags) {
    */
 
   if (domain != AF_UNSPEC) {
-    err = new_socket(tcp, domain, 0);
+    int err = maybe_new_socket(tcp, domain, 0);
     if (err) {
       QUEUE_REMOVE(&tcp->handle_queue);
-      if (tcp->io_watcher.fd != -1)
-        uv__close(tcp->io_watcher.fd);
-      tcp->io_watcher.fd = -1;
       return err;
     }
   }
@@ -313,7 +317,7 @@ int uv_tcp_close_reset(uv_tcp_t* handle, uv_close_cb close_cb) {
   struct linger l = { 1, 0 };
 
   /* Disallow setting SO_LINGER to zero due to some platform inconsistencies */
-  if (uv__is_stream_shutting(handle))
+  if (handle->flags & UV_HANDLE_SHUTTING)
     return UV_EINVAL;
 
   fd = uv__stream_fd(handle);
@@ -334,11 +338,23 @@ int uv_tcp_close_reset(uv_tcp_t* handle, uv_close_cb close_cb) {
 
 
 int uv__tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
-  unsigned int flags;
+  static int single_accept_cached = -1;
+  unsigned long flags;
+  int single_accept;
   int err;
 
   if (tcp->delayed_error)
     return tcp->delayed_error;
+
+  single_accept = uv__load_relaxed(&single_accept_cached);
+  if (single_accept == -1) {
+    const char* val = getenv("UV_TCP_SINGLE_ACCEPT");
+    single_accept = (val != NULL && atoi(val) != 0);  /* Off by default. */
+    uv__store_relaxed(&single_accept_cached, single_accept);
+  }
+
+  if (single_accept)
+    tcp->flags |= UV_HANDLE_TCP_SINGLE_ACCEPT;
 
   flags = 0;
 #if defined(__MVS__)
@@ -444,6 +460,10 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
 
 
 int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
+  if (enable)
+    handle->flags &= ~UV_HANDLE_TCP_SINGLE_ACCEPT;
+  else
+    handle->flags |= UV_HANDLE_TCP_SINGLE_ACCEPT;
   return 0;
 }
 

@@ -100,7 +100,7 @@
       'conditions': [
         [ 'OS=="win"', {
           'defines': [
-            '_WIN32_WINNT=0x0602',
+            '_WIN32_WINNT=0x0600',
             '_GNU_SOURCE',
           ],
           'sources': [
@@ -141,14 +141,11 @@
           'link_settings': {
             'libraries': [
               '-ladvapi32',
-              '-ldbghelp',
-              '-lole32',
               '-liphlpapi',
               '-lpsapi',
               '-lshell32',
               '-luser32',
               '-luserenv',
-              '-luuid',
               '-lws2_32'
             ],
           },
@@ -244,7 +241,11 @@
         [ 'OS=="linux"', {
           'defines': [ '_GNU_SOURCE' ],
           'sources': [
-            'src/unix/linux.c',
+            'src/unix/epoll.c',
+            'src/unix/linux-core.c',
+            'src/unix/linux-inotify.c',
+            'src/unix/linux-syscalls.c',
+            'src/unix/linux-syscalls.h',
             'src/unix/procfs-exepath.c',
             'src/unix/random-getrandom.c',
             'src/unix/random-sysctl-linux.c',
@@ -258,12 +259,15 @@
             '_GNU_SOURCE',
           ],
           'sources': [
-            'src/unix/linux.c',
+            'src/unix/linux-core.c',
+            'src/unix/linux-inotify.c',
+            'src/unix/linux-syscalls.c',
             'src/unix/procfs-exepath.c',
             'src/unix/pthread-fixes.c',
             'src/unix/random-getentropy.c',
             'src/unix/random-getrandom.c',
             'src/unix/random-sysctl-linux.c',
+            'src/unix/epoll.c',
           ],
           'link_settings': {
             'libraries': [ '-ldl' ],

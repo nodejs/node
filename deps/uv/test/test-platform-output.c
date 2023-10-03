@@ -25,6 +25,11 @@
 
 
 TEST_IMPL(platform_output) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+
   char buffer[512];
   size_t rss;
   size_t size;
@@ -35,10 +40,8 @@ TEST_IMPL(platform_output) {
   uv_cpu_info_t* cpus;
   uv_interface_address_t* interfaces;
   uv_passwd_t pwd;
-  uv_group_t grp;
   uv_utsname_t uname;
   unsigned par;
-  char* const* member;
   int count;
   int i;
   int err;
@@ -149,38 +152,15 @@ TEST_IMPL(platform_output) {
   uv_free_interface_addresses(interfaces, count);
 
   err = uv_os_get_passwd(&pwd);
-  ASSERT_EQ(err, 0);
-
-  err = uv_os_get_group(&grp, pwd.gid);
-#if defined(_WIN32)
-  ASSERT_EQ(err, UV_ENOTSUP);
-  ASSERT_EQ(pwd.uid, (unsigned long) -1);
-  ASSERT_EQ(pwd.gid, (unsigned long) -1);
-  (void) member;
-  grp.groupname = "ENOTSUP";
-#else
-  ASSERT_EQ(err, 0);
-  ASSERT_EQ(pwd.gid, grp.gid);
-#endif
+  ASSERT(err == 0);
 
   printf("uv_os_get_passwd:\n");
   printf("  euid: %ld\n", pwd.uid);
-  printf("  gid: %ld (%s)\n", pwd.gid, grp.groupname);
-#if !defined(_WIN32)
-  printf("    members: [");
-  for (member = grp.members; *member != NULL; member++) {
-    printf(" %s", *member);
-  }
-  printf(" ]\n");
-#endif
+  printf("  gid: %ld\n", pwd.gid);
   printf("  username: %s\n", pwd.username);
-  if (pwd.shell != NULL) /* Not set on Windows */
-    printf("  shell: %s\n", pwd.shell);
+  printf("  shell: %s\n", pwd.shell);
   printf("  home directory: %s\n", pwd.homedir);
   uv_os_free_passwd(&pwd);
-#if !defined(_WIN32)
-  uv_os_free_group(&grp);
-#endif
 
   pid = uv_os_getpid();
   ASSERT(pid > 0);

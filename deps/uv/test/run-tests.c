@@ -85,6 +85,10 @@ int main(int argc, char **argv) {
     fflush(stderr);
     return EXIT_FAILURE;
   }
+
+#ifndef __SUNPRO_C
+  return EXIT_SUCCESS;
+#endif
 }
 
 
