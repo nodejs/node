@@ -1536,21 +1536,21 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 2);
+  CHECK_GE(argc, 1);
 
   CHECK(args[0]->IsInt32());
   const int fd = args[0].As<Int32>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 1);
-  if (req_wrap_async != nullptr) {
+  if (argc > 1) {  // fdatasync(fd, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 1);
+    CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FDATASYNC, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "fdatasync", UTF8, AfterNoArgs,
               uv_fs_fdatasync, fd);
-  } else {
-    CHECK_EQ(argc, 3);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // fdatasync(fd)
+    FSReqWrapSync req_wrap_sync("fdatasync");
     FS_SYNC_TRACE_BEGIN(fdatasync);
-    SyncCall(env, args[2], &req_wrap_sync, "fdatasync", uv_fs_fdatasync, fd);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_fdatasync, fd);
     FS_SYNC_TRACE_END(fdatasync);
   }
 }
