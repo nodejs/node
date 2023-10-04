@@ -1742,6 +1742,9 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50009
+    description: The `flush` option is now supported.
   - version:
       - v15.14.0
       - v14.18.0
@@ -1765,6 +1768,9 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
+  * `flush` {boolean} If all data is successfully written to the file, and
+    `flush` is `true`, `filehandle.sync()` is used to flush the data.
+    **Default:** `false`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
@@ -4879,6 +4885,9 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50009
+    description: The `flush` option is now supported.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42796
     description: Passing to the `string` parameter an object with an own
@@ -4936,6 +4945,9 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
+  * `flush` {boolean} If all data is successfully written to the file, and
+    `flush` is `true`, `fs.fsync()` is used to flush the data.
+    **Default:** `false`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * `callback` {Function}
   * `err` {Error|AggregateError}
@@ -6167,6 +6179,9 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50009
+    description: The `flush` option is now supported.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42796
     description: Passing to the `data` parameter an object with an own
@@ -6201,8 +6216,9 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
-
-Returns `undefined`.
+  * `flush` {boolean} If all data is successfully written to the file, and
+    `flush` is `true`, `fs.fsyncSync()` is used to flush the data.
+    Returns `undefined`.
 
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
