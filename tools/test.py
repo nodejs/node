@@ -378,13 +378,35 @@ class ActionsAnnotationProgressIndicator(DotsProgressIndicator):
 
 class TapProgressIndicator(SimpleProgressIndicator):
 
-  def _printDiagnostic(self):
+  def _printDiagnostic(self, failed_outputs):
     logger.info('  severity: %s', self.severity)
     self.exitcode and logger.info('  exitcode: %s', self.exitcode)
     logger.info('  stack: |-')
 
     for l in self.traceback.splitlines():
       logger.info('    ' + l)
+
+    if not len(failed_outputs):
+      return
+
+    # If test failed after all retries, first failed output can be omitted as it is the test result
+    if self.severity == 'fail':
+      failed_outputs.pop(0)
+
+    logger.info('')
+    logger.info('  retries: %d', len(failed_outputs))
+    counter = 1
+    for failed_output in failed_outputs:
+      logger.info('')
+      logger.info('  run %d: |-', counter)
+      counter += 1
+      logger.info('    exitcode: %d', failed_output.output.exit_code)
+      logger.info('    stdout:')
+      for l in failed_output.output.stdout.splitlines():
+        logger.info('      ' + l)
+      logger.info('    stderr:')
+      for l in failed_output.output.stderr.splitlines():
+        logger.info('      ' + l)
 
   def Starting(self):
     logger.info('TAP version 13')
@@ -459,7 +481,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
     if self.severity != 'ok' or self.traceback != '':
       if output.HasTimedOut():
         self.traceback = 'timeout\n' + output.output.stdout + output.output.stderr
-      self._printDiagnostic()
+      self._printDiagnostic(failed_outputs)
     logger.info('  ...')
 
   def Done(self):
