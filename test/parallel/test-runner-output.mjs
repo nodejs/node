@@ -138,6 +138,6 @@ const tests = [
 
 describe('test runner output', { concurrency: true }, () => {
   for (const { name, fn, options } of tests) {
-    it(name, fn, options);
+    it(name, options, fn);
   }
 });
