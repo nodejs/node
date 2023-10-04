@@ -201,6 +201,7 @@ class ProgressIndicator(object):
       try:
         start = datetime.now()
         output = case.Run()
+        failed_test_outputs = []
         # SmartOS has a bug that causes unexpected ECONNREFUSED errors.
         # See https://smartos.org/bugview/OS-2767
         # If ECONNREFUSED on SmartOS, retry the test one time.
@@ -230,7 +231,7 @@ class ProgressIndicator(object):
           # If flakiness measurement or failures rerunning is wanted, do that first
           if self.measure_flakiness or self.rerun_failures:
             flaky_test_outputs = [output]
-            failed_test_outputs = [output]
+            failed_test_outputs.append(output)
             rerun_succeeded = False
             # This handles running test cases when both measure_flakiness and rerun_failures are active
             for _ in range(min(self.measure_flakiness - 1, self.rerun_failures)):
@@ -272,7 +273,7 @@ class ProgressIndicator(object):
       else:
         self.succeeded += 1
       self.remaining -= 1
-      self.HasRun(output)
+      self.HasRun(output, failed_test_outputs)
       self.lock.release()
 
 
@@ -317,14 +318,17 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     print('Starting %s...' % case.GetLabel())
     sys.stdout.flush()
 
-  def HasRun(self, output):
+  def HasRun(self, output, failed_outputs):
     if output.UnexpectedOutput():
       if output.HasCrashed():
         outcome = 'CRASH'
       else:
         outcome = 'FAIL'
     else:
-      outcome = 'pass'
+      if len(failed_outputs):
+        outcome = 'pass after ' + str(len(failed_outputs)) + ' retries'
+      else:
+        outcome = 'pass'
     print('Done running %s: %s' % (output.test.GetLabel(), outcome))
 
 
@@ -333,7 +337,7 @@ class DotsProgressIndicator(SimpleProgressIndicator):
   def AboutToRun(self, case):
     pass
 
-  def HasRun(self, output):
+  def HasRun(self, output, failed_outputs):
     total = self.succeeded + len(self.failed)
     if (total > 1) and (total % 50 == 1):
       sys.stdout.write('\n')
@@ -390,7 +394,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
   def AboutToRun(self, case):
     pass
 
-  def HasRun(self, output):
+  def HasRun(self, output, failed_outputs):
     self._done += 1
     self.traceback = ''
     self.severity = 'ok'
@@ -428,8 +432,14 @@ class TapProgressIndicator(SimpleProgressIndicator):
           'ok %i %s # skip %s' % (self._done, command, skip.group(1)))
       else:
         status_line = 'ok %i %s' % (self._done, command)
+
         if FLAKY in output.test.outcomes:
           status_line = status_line + ' # TODO : Fix flaky test'
+
+        if len(failed_outputs):
+          status_line = status_line + ' # TODO : Mark flaky test - needed retries to pass'
+          self.severity = 'flaky'
+
         logger.info(status_line)
 
       if output.diagnostic:
@@ -441,6 +451,9 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
 
     duration = output.test.duration
+    if len(failed_outputs):
+      for failed_output in failed_outputs:
+        duration += failed_output.test.duration
     logger.info('  ---')
     logger.info('  duration_ms: %.5f' % (duration  / timedelta(milliseconds=1)))
     if self.severity != 'ok' or self.traceback != '':
@@ -460,7 +473,7 @@ class DeoptsCheckProgressIndicator(SimpleProgressIndicator):
   def AboutToRun(self, case):
     pass
 
-  def HasRun(self, output):
+  def HasRun(self, output, failed_outputs):
     # Print test name as (for example) "parallel/test-assert".  Tests that are
     # scraped from the addons documentation are all named test.js, making it
     # hard to decipher what test is running when only the filename is printed.
@@ -502,7 +515,7 @@ class CompactProgressIndicator(ProgressIndicator):
   def AboutToRun(self, case):
     self.PrintProgress(case.GetLabel())
 
-  def HasRun(self, output):
+  def HasRun(self, output, failed_outputs):
     if output.UnexpectedOutput():
       self.ClearLine(self.last_status_length)
       self.PrintFailureHeader(output.test)
