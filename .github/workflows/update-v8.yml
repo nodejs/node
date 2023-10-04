@@ -20,7 +20,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Cache node modules and update-v8
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8  # v3.3.1
+        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84  # v3.3.2
         id: cache-v8-npm
         env:
           cache-name: cache-v8-npm
