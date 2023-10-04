@@ -43,14 +43,20 @@ function main({ encodingType, duration, concurrent, size }) {
   setTimeout(() => {
     benchEnded = true;
     bench.end(writes);
-    for (let i = 0; i < filesWritten; i++) {
-      try {
-        fs.unlinkSync(`${filename}-${i}`);
-      } catch {
-        // Continue regardless of error.
+
+    // This delay is needed because on windows this can cause
+    // race condition with afterRead, which makes this benchmark
+    // fails to delete the temp file
+    setTimeout(() => {
+      for (let i = 0; i < filesWritten; i++) {
+        try {
+          fs.unlinkSync(`${filename}-${i}`);
+        } catch {
+          // Continue regardless of error.
+        }
       }
-    }
-    process.exit(0);
+      process.exit(0);
+    }, 10);
   }, duration * 1000);
 
   function write() {

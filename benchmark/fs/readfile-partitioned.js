@@ -43,11 +43,17 @@ function main({ len, duration, concurrent, encoding }) {
     const totalOps = reads + zips;
     benchEnded = true;
     bench.end(totalOps);
-    try {
-      fs.unlinkSync(filename);
-    } catch {
-      // Continue regardless of error.
-    }
+
+    // This delay is needed because on windows this can cause
+    // race condition with afterRead, which makes this benchmark
+    // fails to delete the temp file
+    setTimeout(() => {
+      try {
+        fs.unlinkSync(filename);
+      } catch {
+        // Continue regardless of error.
+      }
+    }, 10);
   }, duration * 1000);
 
   function read() {
