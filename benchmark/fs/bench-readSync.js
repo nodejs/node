@@ -53,5 +53,5 @@ function main({ n, type, paramType }) {
   }
   bench.end(n);
 
-  if (fd === 'existing') fs.closeSync(fd);
+  if (type === 'existing') fs.closeSync(fd);
 }

@@ -2376,6 +2376,11 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
     const int bytesRead = SyncCallAndThrowOnError(
         env, &req_wrap_sync, uv_fs_read, fd, &uvbuf, 1, pos);
     FS_SYNC_TRACE_END(read, "bytesRead", bytesRead);
+
+    if (is_uv_error(bytesRead)) {
+      return;
+    }
+
     args.GetReturnValue().Set(bytesRead);
   }
 }
