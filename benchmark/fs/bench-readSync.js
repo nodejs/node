@@ -5,8 +5,19 @@ const fs = require('fs');
 const tmpdir = require('../../test/common/tmpdir');
 tmpdir.refresh();
 
-const tmpfile = tmpdir.resolve(`.existing-file-${process.pid}`);
-fs.writeFileSync(tmpfile, 'this-is-for-a-benchmark', 'utf8');
+const tmpfile = { name: tmpdir.resolve(`.existing-file-1M-${process.pid}`),
+                  len: 1 * 1024 * 1024 };
+const sectorSize = 512;
+
+tmpfile.contents = Buffer.allocUnsafe(tmpfile.len);
+
+for (let offset = 0; offset < tmpfile.len; offset += sectorSize) {
+  const fillByte = 256 * Math.random();
+  const nBytesToFill = Math.min(sectorSize, tmpfile.len - offset);
+  tmpfile.contents.fill(fillByte, offset, offset + nBytesToFill);
+}
+
+fs.writeFileSync(tmpfile.name, tmpfile.contents);
 
 const bench = common.createBenchmark(main, {
   type: ['existing', 'non-existing'],
@@ -19,7 +30,7 @@ function main({ n, type, paramType }) {
 
   switch (type) {
     case 'existing':
-      fd = fs.openSync(tmpfile, 'r', 0o666);
+      fd = fs.openSync(tmpfile.name, 'r', 0o666);
       break;
     case 'non-existing':
       fd = 1 << 30;
@@ -28,12 +39,15 @@ function main({ n, type, paramType }) {
       new Error('Invalid type');
   }
 
+  const length = fs.statSync(tmpfile.name).blksize;
+  const buffer = Buffer.alloc(length);
+
   bench.start();
   switch (paramType) {
     case 'offset-and-length':
       for (let i = 0; i < n; i++) {
         try {
-          fs.readSync(fd, Buffer.alloc(1), 0, 1, 0);
+          fs.readSync(fd, buffer, 0, length, 0);
         } catch {
           // Continue regardless of error.
         }
@@ -42,7 +56,7 @@ function main({ n, type, paramType }) {
     case 'no-offset-and-length':
       for (let i = 0; i < n; i++) {
         try {
-          fs.readSync(fd, Buffer.alloc(1));
+          fs.readSync(fd, buffer);
         } catch {
           // Continue regardless of error.
         }

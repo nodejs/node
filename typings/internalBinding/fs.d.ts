@@ -155,7 +155,6 @@ declare namespace InternalFSBinding {
   function openFileHandle(path: StringOrBuffer, flags: number, mode: number, usePromises: typeof kUsePromises): Promise<FileHandle>;
 
   function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number, req: FSReqCallback<number>): void;
-  function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number, req: undefined, ctx: FSSyncContext): number;
   function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number, usePromises: typeof kUsePromises): Promise<number>;
   function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number): number;
 
