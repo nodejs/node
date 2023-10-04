@@ -795,7 +795,7 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
 
   size_t processing_limit;
   if (mode == MessageProcessingMode::kNormalOperation) {
-    Mutex::ScopedLock(data_->mutex_);
+    Mutex::ScopedLock lock(data_->mutex_);
     processing_limit = std::max(data_->incoming_messages_.size(),
                                 static_cast<size_t>(1000));
   } else {
