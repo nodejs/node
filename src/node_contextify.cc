@@ -771,11 +771,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   bool produce_cached_data = false;
   Local<Context> parsing_context = context;
 
-  bool needs_custom_host_defined_options = false;
+  Local<Symbol> id_symbol;
   if (argc > 2) {
     // new ContextifyScript(code, filename, lineOffset, columnOffset,
     //                      cachedData, produceCachedData, parsingContext,
-    //                      needsCustomHostDefinedOptions)
+    //                      hostDefinedOptionId)
     CHECK_EQ(argc, 8);
     CHECK(args[2]->IsNumber());
     line_offset = args[2].As<Int32>()->Value();
@@ -795,9 +795,8 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
       CHECK_NOT_NULL(sandbox);
       parsing_context = sandbox->context();
     }
-    if (args[7]->IsTrue()) {
-      needs_custom_host_defined_options = true;
-    }
+    CHECK(args[7]->IsSymbol());
+    id_symbol = args[7].As<Symbol>();
   }
 
   ContextifyScript* contextify_script =
@@ -821,12 +820,6 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
 
   Local<PrimitiveArray> host_defined_options =
       PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
-  // We need a default host defined options that's the same for all scripts
-  // not needing custom module callbacks for so that the isolate compilation
-  // cache can be hit.
-  Local<Symbol> id_symbol = needs_custom_host_defined_options
-                                ? Symbol::New(isolate, filename)
-                                : env->default_host_defined_options();
   host_defined_options->Set(
       isolate, loader::HostDefinedOptions::kID, id_symbol);
 
@@ -1200,6 +1193,10 @@ void ContextifyContext::CompileFunction(
     params_buf = args[8].As<Array>();
   }
 
+  // Argument 10: host-defined option symbol
+  CHECK(args[9]->IsSymbol());
+  Local<Symbol> id_symbol = args[9].As<Symbol>();
+
   // Read cache from cached data buffer
   ScriptCompiler::CachedData* cached_data = nullptr;
   if (!cached_data_buf.IsEmpty()) {
@@ -1211,7 +1208,6 @@ void ContextifyContext::CompileFunction(
   // Set host_defined_options
   Local<PrimitiveArray> host_defined_options =
       PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
-  Local<Symbol> id_symbol = Symbol::New(isolate, filename);
   host_defined_options->Set(
       isolate, loader::HostDefinedOptions::kID, id_symbol);
 
