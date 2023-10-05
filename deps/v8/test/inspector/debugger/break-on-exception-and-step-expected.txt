@@ -7,6 +7,17 @@ function b() { c(); };
 
 
 Running test: testStepThrougB
+paused on exception:
+{
+    reasons : [
+        [0] : {
+            reason : step
+        }
+        [1] : {
+            reason : other
+        }
+    ]
+}
 function a() { n(); };
 function b() { #c(); };
 function c() { n(); };
@@ -17,6 +28,17 @@ function d() { x = 1; try { e(); } catch(x) { x = 2; } };
 
 
 Running test: testStepThrougD
+paused on exception:
+{
+    reasons : [
+        [0] : {
+            reason : step
+        }
+        [1] : {
+            reason : other
+        }
+    ]
+}
 function c() { n(); };
 function d() { #x = 1; try { e(); } catch(x) { x = 2; } };
 function e() { n(); };
@@ -39,6 +61,17 @@ function e() { n(); };
 
 
 Running test: testStepThrougDWithBreakOnAllExceptions
+paused on exception:
+{
+    reasons : [
+        [0] : {
+            reason : step
+        }
+        [1] : {
+            reason : other
+        }
+    ]
+}
 function c() { n(); };
 function d() { #x = 1; try { e(); } catch(x) { x = 2; } };
 function e() { n(); };
@@ -74,6 +107,17 @@ function e() { n(); };
 
 
 Running test: testStepThrougF
+paused on exception:
+{
+    reasons : [
+        [0] : {
+            reason : step
+        }
+        [1] : {
+            reason : other
+        }
+    ]
+}
 function e() { n(); };
 function f() { #x = 1; try { g(); } catch(x) { x = 2; } };
 function g() { h(); };
@@ -104,6 +148,17 @@ function g() { h(); };
 
 
 Running test: testStepThrougFWithBreakOnAllExceptions
+paused on exception:
+{
+    reasons : [
+        [0] : {
+            reason : step
+        }
+        [1] : {
+            reason : other
+        }
+    ]
+}
 function e() { n(); };
 function f() { #x = 1; try { g(); } catch(x) { x = 2; } };
 function g() { h(); };

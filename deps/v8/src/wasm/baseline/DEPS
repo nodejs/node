@@ -1,5 +1,0 @@
-# Liftoff (the baseline compiler for WebAssembly) depends on some compiler
-# internals, like the linkage location for parameters and returns.
-include_rules = [
-  "+src/compiler/linkage.h",
-]

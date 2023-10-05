@@ -14,7 +14,8 @@ namespace internal {
 void MemoryChunk::IncrementExternalBackingStoreBytes(
     ExternalBackingStoreType type, size_t amount) {
 #ifndef V8_ENABLE_THIRD_PARTY_HEAP
-  base::CheckedIncrement(&external_backing_store_bytes_[type], amount);
+  base::CheckedIncrement(&external_backing_store_bytes_[static_cast<int>(type)],
+                         amount);
   owner()->IncrementExternalBackingStoreBytes(type, amount);
 #endif
 }
@@ -22,7 +23,8 @@ void MemoryChunk::IncrementExternalBackingStoreBytes(
 void MemoryChunk::DecrementExternalBackingStoreBytes(
     ExternalBackingStoreType type, size_t amount) {
 #ifndef V8_ENABLE_THIRD_PARTY_HEAP
-  base::CheckedDecrement(&external_backing_store_bytes_[type], amount);
+  base::CheckedDecrement(&external_backing_store_bytes_[static_cast<int>(type)],
+                         amount);
   owner()->DecrementExternalBackingStoreBytes(type, amount);
 #endif
 }
@@ -33,8 +35,10 @@ void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                 size_t amount) {
   DCHECK_NOT_NULL(from->owner());
   DCHECK_NOT_NULL(to->owner());
-  base::CheckedDecrement(&(from->external_backing_store_bytes_[type]), amount);
-  base::CheckedIncrement(&(to->external_backing_store_bytes_[type]), amount);
+  base::CheckedDecrement(
+      &(from->external_backing_store_bytes_[static_cast<int>(type)]), amount);
+  base::CheckedIncrement(
+      &(to->external_backing_store_bytes_[static_cast<int>(type)]), amount);
   Space::MoveExternalBackingStoreBytes(type, from->owner(), to->owner(),
                                        amount);
 }

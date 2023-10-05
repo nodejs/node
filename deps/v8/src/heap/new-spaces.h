@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <memory>
+#include <numeric>
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -18,6 +19,7 @@
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
+#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -42,17 +44,12 @@ class SemiSpace final : public Space {
   static void Swap(SemiSpace* from, SemiSpace* to);
 
   SemiSpace(Heap* heap, SemiSpaceId semispace)
-      : Space(heap, NEW_SPACE, new NoFreeList(), allocation_counter_),
-        current_capacity_(0),
-        target_capacity_(0),
-        maximum_capacity_(0),
-        minimum_capacity_(0),
-        age_mark_(kNullAddress),
-        id_(semispace),
-        current_page_(nullptr) {}
+      : Space(heap, NEW_SPACE, nullptr, allocation_counter_), id_(semispace) {}
 
-  inline bool Contains(HeapObject o) const;
-  inline bool Contains(Object o) const;
+  inline bool Contains(Tagged<HeapObject> o) const;
+  inline bool Contains(Tagged<Object> o) const;
+  template <typename T>
+  inline bool Contains(Tagged<T> o) const;
   inline bool ContainsSlow(Address a) const;
 
   void SetUp(size_t initial_capacity, size_t maximum_capacity);
@@ -142,12 +139,8 @@ class SemiSpace final : public Space {
 
   size_t Available() const final { UNREACHABLE(); }
 
-  Page* first_page() final {
-    return reinterpret_cast<Page*>(memory_chunk_list_.front());
-  }
-  Page* last_page() final {
-    return reinterpret_cast<Page*>(memory_chunk_list_.back());
-  }
+  Page* first_page() final { return Page::cast(memory_chunk_list_.front()); }
+  Page* last_page() final { return Page::cast(memory_chunk_list_.back()); }
 
   const Page* first_page() const final {
     return reinterpret_cast<const Page*>(memory_chunk_list_.front());
@@ -194,27 +187,19 @@ class SemiSpace final : public Space {
   void DecrementCommittedPhysicalMemory(size_t decrement_value);
 
   // The currently committed space capacity.
-  size_t current_capacity_;
-
+  size_t current_capacity_ = 0;
   // The targetted committed space capacity.
-  size_t target_capacity_;
-
+  size_t target_capacity_ = 0;
   // The maximum capacity that can be used by this space. A space cannot grow
   // beyond that size.
-  size_t maximum_capacity_;
-
+  size_t maximum_capacity_ = 0;
   // The minimum capacity for the space. A space cannot shrink below this size.
-  size_t minimum_capacity_;
-
+  size_t minimum_capacity_ = 0;
   // Used to govern object promotion during mark-compact collection.
-  Address age_mark_;
-
-  size_t committed_physical_memory_{0};
-
+  Address age_mark_ = kNullAddress;
+  size_t committed_physical_memory_ = 0;
   SemiSpaceId id_;
-
-  Page* current_page_;
-
+  Page* current_page_ = nullptr;
   AllocationCounter allocation_counter_;
 
   friend class SemiSpaceNewSpace;
@@ -228,7 +213,7 @@ class SemiSpaceObjectIterator : public ObjectIterator {
   // Create an iterator over the objects in the given to-space.
   inline explicit SemiSpaceObjectIterator(const SemiSpaceNewSpace* space);
 
-  inline HeapObject Next() final;
+  inline Tagged<HeapObject> Next() final;
 
  private:
   // The current iteration point.
@@ -242,8 +227,8 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   NewSpace(Heap* heap, LinearAllocationArea& allocation_info);
 
-  inline bool Contains(Object o) const;
-  inline bool Contains(HeapObject o) const;
+  inline bool Contains(Tagged<Object> o) const;
+  inline bool Contains(Tagged<HeapObject> o) const;
   virtual bool ContainsSlow(Address a) const = 0;
 
 #if DEBUG
@@ -256,21 +241,16 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   void MaybeFreeUnusedLab(LinearAllocationArea info);
 
-  bool IsAtMaximumCapacity() const {
-    return TotalCapacity() == MaximumCapacity();
-  }
-
   size_t ExternalBackingStoreOverallBytes() const {
     size_t result = 0;
-    for (int i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-      result +=
-          ExternalBackingStoreBytes(static_cast<ExternalBackingStoreType>(i));
-    }
+    ForAll<ExternalBackingStoreType>(
+        [this, &result](ExternalBackingStoreType type, int index) {
+          result += ExternalBackingStoreBytes(type);
+        });
     return result;
   }
 
   void PromotePageToOldSpace(Page* page);
-  virtual void PromotePageInNewSpace(Page* page) = 0;
 
   virtual size_t Capacity() const = 0;
   virtual size_t TotalCapacity() const = 0;
@@ -279,8 +259,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   // Grow the capacity of the space.
   virtual void Grow() = 0;
-
-  virtual bool ShouldBePromoted(Address) const = 0;
 
   // Creates a filler object in the linear allocation area.
   virtual void MakeLinearAllocationAreaIterable() = 0;
@@ -330,7 +308,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
  public:
   static SemiSpaceNewSpace* From(NewSpace* space) {
-    DCHECK(!v8_flags.minor_mc);
+    DCHECK(!v8_flags.minor_ms);
     return static_cast<SemiSpaceNewSpace*>(space);
   }
 
@@ -401,8 +379,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   }
 
   size_t AllocatedSinceLastGC() const final;
-
-  void PromotePageInNewSpace(Page* page) final;
 
   bool EnsureCurrentCapacity() final;
 
@@ -492,7 +468,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   SemiSpace& to_space() { return to_space_; }
   const SemiSpace& to_space() const { return to_space_; }
 
-  bool ShouldBePromoted(Address address) const final;
+  bool ShouldBePromoted(Address address) const;
 
   void Prologue() final;
 
@@ -558,9 +534,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void FinishShrinking();
 
   size_t AllocatedSinceLastGC() const {
-    // allocated since last gc is compiuted as allocated linear areas minus
-    // currently remaining linear area.
-    return allocated_linear_areas_ - (limit() - top());
+    return Size() - size_at_last_gc_ - (original_limit_relaxed() - top());
   }
 
   // Return the maximum capacity of the space.
@@ -576,8 +550,9 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   // Reset the allocation pointer.
   void GarbageCollectionEpilogue() {
-    allocated_linear_areas_ = 0;
+    size_at_last_gc_ = Size();
     force_allocation_success_ = false;
+    last_lab_page_ = nullptr;
   }
 
   // When inline allocation stepping is active, either because of incremental
@@ -591,13 +566,13 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // Returns false if this isn't possible or reasonable (i.e., there
   // are no pages, or the current page is already empty), or true
   // if successful.
-  bool AddFreshPage() { return false; }
+  bool AddFreshPage();
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin,
                         int* out_max_aligned_size) final;
 
-  bool EnsureCurrentCapacity();
+  bool EnsureCurrentCapacity() { return true; }
 
   Page* InitializePage(MemoryChunk* chunk) final;
 
@@ -610,26 +585,28 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
       return heap()->YoungArrayBufferBytes();
-    return external_backing_store_bytes_[type];
+    return external_backing_store_bytes_[static_cast<int>(type)];
   }
 
 #ifdef VERIFY_HEAP
-  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final {
-    PagedSpaceBase::Verify(isolate, visitor);
-
-    DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
-  }
-#endif
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final;
+#endif  // VERIFY_HEAP
 
   void MakeIterable() { free_list()->RepairLists(heap()); }
 
   bool ShouldReleaseEmptyPage() const;
 
-  void RefillFreeList() final;
-
   bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
+  bool WaitForSweepingForAllocation(int size_in_bytes, AllocationOrigin origin);
 
   void ForceAllocationSuccessUntilNextGC() { force_allocation_success_ = true; }
+
+  bool IsPromotionCandidate(const MemoryChunk* page) const;
+
+  // Return the available bytes without growing.
+  size_t Available() const final {
+    return PagedSpaceBase::Available() + limit() - top();
+  }
 
  private:
   size_t UsableCapacity() const {
@@ -637,14 +614,14 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
     return current_capacity_ - free_list_->wasted_bytes();
   }
 
-  bool PreallocatePages();
+  bool AllocatePage();
 
   const size_t initial_capacity_;
   const size_t max_capacity_;
   size_t target_capacity_ = 0;
   size_t current_capacity_ = 0;
 
-  size_t allocated_linear_areas_ = 0;
+  Page* last_lab_page_ = nullptr;
 
   bool force_allocation_success_ = false;
 };
@@ -655,7 +632,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
  public:
   static PagedNewSpace* From(NewSpace* space) {
-    DCHECK(v8_flags.minor_mc);
+    DCHECK(v8_flags.minor_ms);
     return static_cast<PagedNewSpace*>(space);
   }
 
@@ -702,9 +679,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   }
 
   // Return the available bytes without growing.
-  size_t Available() const final {
-    return paged_space_.Available() + limit() - top();
-  }
+  size_t Available() const final { return paged_space_.Available(); }
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     return paged_space_.ExternalBackingStoreBytes(type);
@@ -776,14 +751,12 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return paged_space_.GetObjectIterator(heap);
   }
 
-  bool ShouldBePromoted(Address address) const final { return true; }
-
   void GarbageCollectionEpilogue() final {
     paged_space_.GarbageCollectionEpilogue();
   }
 
   bool IsPromotionCandidate(const MemoryChunk* page) const final {
-    return true;
+    return paged_space_.IsPromotionCandidate(page);
   }
 
   bool EnsureCurrentCapacity() final {
@@ -817,8 +790,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return paged_space_.EnsureAllocation(size_in_bytes, alignment, origin,
                                          out_max_aligned_size);
   }
-
-  void PromotePageInNewSpace(Page* page) final { UNREACHABLE(); }
 
   void RemovePage(Page* page) final { paged_space_.RemovePage(page); }
 

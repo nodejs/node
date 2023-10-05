@@ -3,9 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-bigint-gen.h"
+
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/objects/dictionary.h"
 
 namespace v8 {
 namespace internal {

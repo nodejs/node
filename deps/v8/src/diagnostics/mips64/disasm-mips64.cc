@@ -10,9 +10,9 @@
 //
 //   NameConverter converter;
 //   Disassembler d(converter);
-//   for (byte* pc = begin; pc < end;) {
+//   for (uint8_t* pc = begin; pc < end;) {
 //     v8::base::EmbeddedVector<char, 256> buffer;
-//     byte* prev_pc = pc;
+//     uint8_t* prev_pc = pc;
 //     pc += d.InstructionDecode(buffer, pc);
 //     printf("%p    %08x      %s\n",
 //            prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer);
@@ -59,7 +59,7 @@ class Decoder {
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(byte* instruction);
+  int InstructionDecode(uint8_t* instruction);
 
  private:
   // Bottleneck functions to print into the out_buffer.
@@ -356,10 +356,10 @@ void Decoder::PrintXImm16(Instruction* instr) {
 //      PC + delta_pc + (offset << n_bits)
 void Decoder::PrintPCImm16(Instruction* instr, int delta_pc, int n_bits) {
   int16_t offset = instr->Imm16Value();
-  out_buffer_pos_ +=
-      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-                     converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                              delta_pc + (offset << n_bits)));
+  out_buffer_pos_ += base::SNPrintF(
+      out_buffer_ + out_buffer_pos_, "%s",
+      converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + delta_pc +
+                               (offset << n_bits)));
 }
 
 // Print 18-bit signed immediate value.
@@ -413,10 +413,10 @@ void Decoder::PrintPCImm21(Instruction* instr, int delta_pc, int n_bits) {
   // set sign
   imm21 <<= (32 - kImm21Bits);
   imm21 >>= (32 - kImm21Bits);
-  out_buffer_pos_ +=
-      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-                     converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                              delta_pc + (imm21 << n_bits)));
+  out_buffer_pos_ += base::SNPrintF(
+      out_buffer_ + out_buffer_pos_, "%s",
+      converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + delta_pc +
+                               (imm21 << n_bits)));
 }
 
 // Print 26-bit hex immediate value.
@@ -445,10 +445,10 @@ void Decoder::PrintPCImm26(Instruction* instr, int delta_pc, int n_bits) {
   // set sign
   imm26 <<= (32 - kImm26Bits);
   imm26 >>= (32 - kImm26Bits);
-  out_buffer_pos_ +=
-      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-                     converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                              delta_pc + (imm26 << n_bits)));
+  out_buffer_pos_ += base::SNPrintF(
+      out_buffer_ + out_buffer_pos_, "%s",
+      converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + delta_pc +
+                               (imm26 << n_bits)));
 }
 
 // Print absoulte address for 26-bit offset or immediate value.
@@ -458,9 +458,9 @@ void Decoder::PrintPCImm26(Instruction* instr) {
   int32_t imm26 = instr->Imm26Value();
   uint64_t pc_mask = ~0xFFFFFFF;
   uint64_t pc = ((uint64_t)(instr + 1) & pc_mask) | (imm26 << 2);
-  out_buffer_pos_ +=
-      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-                     converter_.NameOfAddress((reinterpret_cast<byte*>(pc))));
+  out_buffer_pos_ += base::SNPrintF(
+      out_buffer_ + out_buffer_pos_, "%s",
+      converter_.NameOfAddress((reinterpret_cast<uint8_t*>(pc))));
 }
 
 void Decoder::PrintBp2(Instruction* instr) {
@@ -2934,7 +2934,7 @@ void Decoder::DecodeTypeMsa2RF(Instruction* instr) {
 // All instructions are one word long, except for the simulator
 // pseudo-instruction stop(msg). For that one special case, we return
 // size larger than one kInstrSize.
-int Decoder::InstructionDecode(byte* instr_ptr) {
+int Decoder::InstructionDecode(uint8_t* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);
   // Print raw instruction bytes.
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -2966,12 +2966,12 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 
 namespace disasm {
 
-const char* NameConverter::NameOfAddress(byte* addr) const {
+const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
-const char* NameConverter::NameOfConstant(byte* addr) const {
+const char* NameConverter::NameOfConstant(uint8_t* addr) const {
   return NameOfAddress(addr);
 }
 
@@ -2987,7 +2987,7 @@ const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();  // MIPS does not have the concept of a byte register.
 }
 
-const char* NameConverter::NameInCode(byte* addr) const {
+const char* NameConverter::NameInCode(uint8_t* addr) const {
   // The default name converter is called for unknown code. So we will not try
   // to access any memory.
   return "";
@@ -2996,22 +2996,22 @@ const char* NameConverter::NameInCode(byte* addr) const {
 //------------------------------------------------------------------------------
 
 int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
-                                    byte* instruction) {
+                                    uint8_t* instruction) {
   v8::internal::Decoder d(converter_, buffer);
   return d.InstructionDecode(instruction);
 }
 
 // The MIPS assembler does not currently use constant pools.
-int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
+int Disassembler::ConstantPoolSizeAt(uint8_t* instruction) { return -1; }
 
-void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
+void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
                                UnimplementedOpcodeAction unimplemented_action) {
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
-  for (byte* pc = begin; pc < end;) {
+  for (uint8_t* pc = begin; pc < end;) {
     v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
-    byte* prev_pc = pc;
+    uint8_t* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
     v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
                          *reinterpret_cast<int32_t*>(prev_pc), buffer.begin());

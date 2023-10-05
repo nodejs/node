@@ -194,7 +194,7 @@ void RunTests() {
   CHECK(SUCCEEDED(hr));
 
   ULONG type, proc_id, thread_id, desc_used;
-  byte desc[1024];
+  uint8_t desc[1024];
   hr = p_debug_control->GetLastEventInformation(
       &type, &proc_id, &thread_id, nullptr, 0, nullptr,
       reinterpret_cast<PSTR>(desc), 1024, &desc_used);

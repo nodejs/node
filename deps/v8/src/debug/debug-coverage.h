@@ -63,7 +63,8 @@ class Coverage : public std::vector<CoverageScript> {
   static std::unique_ptr<Coverage> CollectBestEffort(Isolate* isolate);
 
   // Select code coverage mode.
-  static void SelectMode(Isolate* isolate, debug::CoverageMode mode);
+  V8_EXPORT_PRIVATE static void SelectMode(Isolate* isolate,
+                                           debug::CoverageMode mode);
 
  private:
   static std::unique_ptr<Coverage> Collect(

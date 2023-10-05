@@ -108,7 +108,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate);
 
 #ifdef DEBUG
-int BytecodeArrayBuilder::CheckBytecodeMatches(BytecodeArray bytecode) {
+int BytecodeArrayBuilder::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
   DisallowGarbageCollection no_gc;
   return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
 }
@@ -438,7 +438,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
-    Token::Value op, Smi literal, int feedback_slot) {
+    Token::Value op, Tagged<Smi> literal, int feedback_slot) {
   switch (op) {
     case Token::Value::ADD:
       OutputAddSmi(literal.value(), feedback_slot);
@@ -614,7 +614,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadConstantPoolEntry(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Smi smi) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Tagged<Smi> smi) {
   int32_t raw_smi = smi.value();
   if (raw_smi == 0) {
     OutputLdaZero();
@@ -1075,13 +1075,24 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ToObject(Register out) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ToName(Register out) {
-  OutputToName(out);
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToName() {
+  OutputToName();
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ToString() {
   OutputToString();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToBoolean(ToBooleanMode mode) {
+  if (mode == ToBooleanMode::kAlreadyBoolean) {
+    // No-op, the accumulator is already a boolean and ToBoolean both reads and
+    // writes the accumulator.
+  } else {
+    DCHECK_EQ(mode, ToBooleanMode::kConvertToBoolean);
+    OutputToBoolean();
+  }
   return *this;
 }
 
@@ -1102,7 +1113,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
 
   // Flush the register optimizer when binding a label to ensure all
   // expected registers are valid when jumping to this label.
-  if (register_optimizer_) register_optimizer_->Flush();
+  if (register_optimizer_) {
+    register_optimizer_->Flush();
+    register_optimizer_->ResetTypeHintForAccumulator();
+  }
   bytecode_array_writer_.BindLabel(label);
   return *this;
 }
@@ -1111,7 +1125,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(
     BytecodeLoopHeader* loop_header) {
   // Flush the register optimizer when starting a loop to ensure all expected
   // registers are valid when jumping to the loop header.
-  if (register_optimizer_) register_optimizer_->Flush();
+  if (register_optimizer_) {
+    register_optimizer_->Flush();
+    register_optimizer_->ResetTypeHintForAccumulator();
+  }
   bytecode_array_writer_.BindLoopHeader(loop_header);
   return *this;
 }
@@ -1120,7 +1137,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeJumpTable* jump_table,
                                                  int case_value) {
   // Flush the register optimizer when binding a jump table entry to ensure
   // all expected registers are valid when jumping to this location.
-  if (register_optimizer_) register_optimizer_->Flush();
+  if (register_optimizer_) {
+    register_optimizer_->Flush();
+    register_optimizer_->ResetTypeHintForAccumulator();
+  }
   bytecode_array_writer_.BindJumpTableEntry(jump_table, case_value);
   return *this;
 }
@@ -1131,6 +1151,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(
   // let control fall through into it.
   DCHECK_IMPLIES(register_optimizer_,
                  register_optimizer_->EnsureAllRegistersAreFlushed());
+  DCHECK_IMPLIES(register_optimizer_,
+                 register_optimizer_->IsAccumulatorReset());
   bytecode_array_writer_.BindHandlerTarget(handler_table_builder(), handler_id);
   handler_table_builder()->SetPrediction(handler_id, catch_prediction);
   return *this;
@@ -1148,6 +1170,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryBegin(int handler_id,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
+  if (register_optimizer_) {
+    register_optimizer_->ResetTypeHintForAccumulator();
+  }
   bytecode_array_writer_.BindTryRegionEnd(handler_table_builder(), handler_id);
   return *this;
 }

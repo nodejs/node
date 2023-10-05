@@ -168,15 +168,31 @@ TEST_F(AccessCheckTest, GetOwnPropertyDescriptor) {
       .FromJust();
 
   Context::Scope context_scope(accessing_context);
-  Local<Value> result =
-      CompileRun(isolate(),
-                 "Object.getOwnPropertyDescriptor(this, 'property')"
-                 "    .get.call(other);")
-          .ToLocalChecked();
-  EXPECT_TRUE(result->IsUndefined());
-  CompileRun(isolate(),
-             "Object.getOwnPropertyDescriptor(this, 'property')"
-             "    .set.call(other, 42);");
+  Local<String> no_access_str = NewString("no access");
+  Local<Value> result;
+  result = CompileRun(isolate(),
+                      "var m = null; "
+                      "try {"
+                      "  Object.getOwnPropertyDescriptor(this, 'property')"
+                      "      .get.call(other);"
+                      "} catch(e) {"
+                      "  m = e.message;"
+                      "};"
+                      "m")
+               .ToLocalChecked();
+  EXPECT_TRUE(no_access_str->Equals(accessing_context, result).FromJust());
+
+  result = CompileRun(isolate(),
+                      "var m = null; "
+                      "try {"
+                      "  Object.getOwnPropertyDescriptor(this, 'property')"
+                      "      .set.call(other, 42);"
+                      "} catch(e) {"
+                      "  m = e.message;"
+                      "};"
+                      "m")
+               .ToLocalChecked();
+  EXPECT_TRUE(no_access_str->Equals(accessing_context, result).FromJust());
 }
 
 class AccessRegressionTest : public AccessCheckTest {
@@ -189,7 +205,7 @@ class AccessRegressionTest : public AccessCheckTest {
 
     i::Handle<i::JSReceiver> r =
         Utils::OpenHandle(*Local<Function>::Cast(getter));
-    EXPECT_TRUE(r->IsJSFunction());
+    EXPECT_TRUE(IsJSFunction(*r));
     return i::Handle<i::JSFunction>::cast(r);
   }
 };

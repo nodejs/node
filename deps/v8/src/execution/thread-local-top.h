@@ -29,7 +29,7 @@ class ThreadLocalTop {
   // TODO(all): This is not particularly beautiful. We should probably
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
-  static constexpr uint32_t kSizeInBytes = 25 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 30 * kSystemPointerSize;
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.
@@ -146,7 +146,24 @@ class ThreadLocalTop {
 
   // Address of the thread-local "thread in wasm" flag.
   Address thread_in_wasm_flag_address_;
+
+  // Wasm Stack Switching: The central stack.
+  // If set, then we are currently executing code on the central stack.
+  bool is_on_central_stack_flag_;
+  // On switching from the central stack these fields are set
+  // to the central stack's SP and stack limit accordingly,
+  // to use for switching from secondary stacks.
+  Address central_stack_sp_;
+  Address central_stack_limit_;
+  // On switching to the central stack these fields are set
+  // to the secondary stack's SP and stack limit accordingly.
+  // It is used if we need to check for the stack overflow condition
+  // on the secondary stack, during execution on the central stack.
+  Address secondary_stack_sp_;
+  Address secondary_stack_limit_;
 };
+
+static_assert(ThreadLocalTop::kSizeInBytes == sizeof(ThreadLocalTop));
 
 }  // namespace internal
 }  // namespace v8

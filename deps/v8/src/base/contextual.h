@@ -71,16 +71,17 @@ class V8_EXPORT_PRIVATE ContextualVariable {
  private:
   inline static thread_local Scope* top_ = nullptr;
 
-  // If there is a linking error for `Top()`, then the contextual variable
-  // probably needs to be exported using EXPORT_CONTEXTUAL_VARIABLE.
 #if defined(USING_V8_SHARED)
-  // Hide the definition from other DLLs/libraries to avoid access to `top_`,
-  // since access to thread_local variables from other DLLs/libraries does not
-  // work correctly.
-  static Scope*& Top();
+  // Hide the access to `top_` from other DLLs/libraries, since access to
+  // thread_local variables from other DLLs/libraries does not work correctly.
+  static Scope*& Top() { return ExportedTop(); }
 #else
   static Scope*& Top() { return top_; }
 #endif
+  // Same as `Top()`, but non-inline and exported to DLLs/libraries.
+  // If there is a linking error for `ExportedTop()`, then the contextual
+  // variable probably needs to be exported using EXPORT_CONTEXTUAL_VARIABLE.
+  static Scope*& ExportedTop();
 };
 
 // Usage: DECLARE_CONTEXTUAL_VARIABLE(VarName, VarType)
@@ -90,13 +91,13 @@ class V8_EXPORT_PRIVATE ContextualVariable {
 // Contextual variables that are accessed in tests need to be
 // exported. For this, place the following macro in the global namespace inside
 // of a .cc file.
-#define EXPORT_CONTEXTUAL_VARIABLE(VarName)                    \
-  namespace v8::base {                                         \
-  template <>                                                  \
-  V8_EXPORT_PRIVATE typename VarName::Scope*&                  \
-  ContextualVariable<VarName, typename VarName::VarT>::Top() { \
-    return top_;                                               \
-  }                                                            \
+#define EXPORT_CONTEXTUAL_VARIABLE(VarName)                            \
+  namespace v8::base {                                                 \
+  template <>                                                          \
+  V8_EXPORT_PRIVATE typename VarName::Scope*&                          \
+  ContextualVariable<VarName, typename VarName::VarT>::ExportedTop() { \
+    return top_;                                                       \
+  }                                                                    \
   }
 
 // By inheriting from {ContextualClass} a class can become a contextual variable

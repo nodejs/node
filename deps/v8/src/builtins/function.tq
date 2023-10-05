@@ -12,9 +12,8 @@ javascript builtin FunctionPrototypeHasInstance(
   return OrdinaryHasInstance(context, receiver, value);
 }
 
-extern transitioning builtin
-FunctionPrototypeBind(implicit context: Context)(
-    JSFunction, JSAny, int32): JSAny;
+extern transitioning builtin FunctionPrototypeBind(
+    implicit context: Context)(JSFunction, JSAny, int32): JSAny;
 
 const kLengthDescriptorIndex: constexpr int32
     generates 'JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex'
@@ -25,8 +24,8 @@ const kNameDescriptorIndex: constexpr int32
 const kMinDescriptorsForFastBindAndWrap: constexpr int31
     generates 'JSFunction::kMinDescriptorsForFastBindAndWrap';
 
-macro CheckAccessor(implicit context: Context)(
-    array: DescriptorArray, index: constexpr int32,
+macro CheckAccessor(
+    implicit context: Context)(array: DescriptorArray, index: constexpr int32,
     name: Name): void labels Slow {
   const descriptor: DescriptorEntry = array.descriptors[index];
   const key: Name|Undefined = descriptor.key;
@@ -37,8 +36,7 @@ macro CheckAccessor(implicit context: Context)(
 }
 
 // ES6 section 19.2.3.2 Function.prototype.bind
-transitioning javascript builtin
-FastFunctionPrototypeBind(
+transitioning javascript builtin FastFunctionPrototypeBind(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(...arguments): JSAny {
   const argc: intptr = arguments.actual_count;

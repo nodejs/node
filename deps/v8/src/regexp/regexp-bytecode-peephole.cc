@@ -115,7 +115,7 @@ class BytecodeSequenceNode {
   // Checks if the current node is valid for the sequence. I.e. all conditions
   // set by IfArgumentEqualsOffset and IfArgumentEquals are fulfilled by this
   // node for the actual bytecode sequence.
-  bool CheckArguments(const byte* bytecode, int pc);
+  bool CheckArguments(const uint8_t* bytecode, int pc);
   // Returns whether this node marks the end of a valid sequence (i.e. can be
   // replaced with an optimized bytecode).
   bool IsSequence() const;
@@ -176,10 +176,10 @@ class RegExpBytecodePeephole {
   // Parses bytecode and fills the internal buffer with the potentially
   // optimized bytecode. Returns true when optimizations were performed, false
   // otherwise.
-  bool OptimizeBytecode(const byte* bytecode, int length);
+  bool OptimizeBytecode(const uint8_t* bytecode, int length);
   // Copies the internal bytecode buffer to another buffer. The caller is
   // responsible for allocating/freeing the memory.
-  void CopyOptimizedBytecode(byte* to_address) const;
+  void CopyOptimizedBytecode(uint8_t* to_address) const;
   int Length() const;
 
  private:
@@ -189,12 +189,12 @@ class RegExpBytecodePeephole {
   BytecodeSequenceNode& CreateSequence(int bytecode);
   // Checks for optimization candidates at pc and emits optimized bytecode to
   // the internal buffer. Returns the length of replaced bytecodes in bytes.
-  int TryOptimizeSequence(const byte* bytecode, int bytecode_length,
+  int TryOptimizeSequence(const uint8_t* bytecode, int bytecode_length,
                           int start_pc);
   // Emits optimized bytecode to the internal buffer. start_pc points to the
   // start of the sequence in bytecode and last_node is the last
   // BytecodeSequenceNode of the matching sequence found.
-  void EmitOptimization(int start_pc, const byte* bytecode,
+  void EmitOptimization(int start_pc, const uint8_t* bytecode,
                         const BytecodeSequenceNode& last_node);
   // Adds a relative jump source fixup at pos.
   // Jump source fixups are used to find offsets in the new bytecode that
@@ -217,14 +217,14 @@ class RegExpBytecodePeephole {
   void EmitValue(T value);
   template <typename T>
   void OverwriteValue(int offset, T value);
-  void CopyRangeToOutput(const byte* orig_bytecode, int start, int length);
-  void SetRange(byte value, int count);
-  void EmitArgument(int start_pc, const byte* bytecode,
+  void CopyRangeToOutput(const uint8_t* orig_bytecode, int start, int length);
+  void SetRange(uint8_t value, int count);
+  void EmitArgument(int start_pc, const uint8_t* bytecode,
                     BytecodeArgumentMapping arg);
   int pc() const;
   Zone* zone() const;
 
-  ZoneVector<byte> optimized_bytecode_buffer_;
+  ZoneVector<uint8_t> optimized_bytecode_buffer_;
   BytecodeSequenceNode* sequences_;
   // Jumps used in old bytecode.
   // Key: Jump source (offset where destination is stored in old bytecode)
@@ -255,15 +255,15 @@ class RegExpBytecodePeephole {
 };
 
 template <typename T>
-T GetValue(const byte* buffer, int pos) {
+T GetValue(const uint8_t* buffer, int pos) {
   DCHECK(IsAligned(reinterpret_cast<Address>(buffer + pos), alignof(T)));
   return *reinterpret_cast<const T*>(buffer + pos);
 }
 
-int32_t GetArgumentValue(const byte* bytecode, int offset, int length) {
+int32_t GetArgumentValue(const uint8_t* bytecode, int offset, int length) {
   switch (length) {
     case 1:
-      return GetValue<byte>(bytecode, offset);
+      return GetValue<uint8_t>(bytecode, offset);
     case 2:
       return GetValue<int16_t>(bytecode, offset);
     case 4:
@@ -386,7 +386,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::IgnoreArgument(
   return *this;
 }
 
-bool BytecodeSequenceNode::CheckArguments(const byte* bytecode, int pc) {
+bool BytecodeSequenceNode::CheckArguments(const uint8_t* bytecode, int pc) {
   bool is_valid = true;
   for (auto check_iter = argument_check_->begin();
        check_iter != argument_check_->end() && is_valid; check_iter++) {
@@ -616,7 +616,7 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
       .IgnoreArgument(4, 4, 4);  // loop jump
 }
 
-bool RegExpBytecodePeephole::OptimizeBytecode(const byte* bytecode,
+bool RegExpBytecodePeephole::OptimizeBytecode(const uint8_t* bytecode,
                                               int length) {
   int old_pc = 0;
   bool did_optimize = false;
@@ -641,7 +641,7 @@ bool RegExpBytecodePeephole::OptimizeBytecode(const byte* bytecode,
   return did_optimize;
 }
 
-void RegExpBytecodePeephole::CopyOptimizedBytecode(byte* to_address) const {
+void RegExpBytecodePeephole::CopyOptimizedBytecode(uint8_t* to_address) const {
   MemCopy(to_address, &(*optimized_bytecode_buffer_.begin()), Length());
 }
 
@@ -654,7 +654,7 @@ BytecodeSequenceNode& RegExpBytecodePeephole::CreateSequence(int bytecode) {
   return sequences_->FollowedBy(bytecode);
 }
 
-int RegExpBytecodePeephole::TryOptimizeSequence(const byte* bytecode,
+int RegExpBytecodePeephole::TryOptimizeSequence(const uint8_t* bytecode,
                                                 int bytecode_length,
                                                 int start_pc) {
   BytecodeSequenceNode* seq_node = sequences_;
@@ -682,7 +682,8 @@ int RegExpBytecodePeephole::TryOptimizeSequence(const byte* bytecode,
 }
 
 void RegExpBytecodePeephole::EmitOptimization(
-    int start_pc, const byte* bytecode, const BytecodeSequenceNode& last_node) {
+    int start_pc, const uint8_t* bytecode,
+    const BytecodeSequenceNode& last_node) {
 #ifdef DEBUG
   int optimized_start_pc = pc();
 #endif
@@ -882,7 +883,7 @@ void RegExpBytecodePeephole::FixJump(int jump_source, int jump_destination) {
 #ifdef DEBUG
   // TODO(pthier): This check could be better if we track the bytecodes
   // actually used and check if we jump to one of them.
-  byte jump_bc = optimized_bytecode_buffer_[fixed_jump_destination];
+  uint8_t jump_bc = optimized_bytecode_buffer_[fixed_jump_destination];
   DCHECK_GT(jump_bc, 0);
   DCHECK_LT(jump_bc, kRegExpBytecodeCount);
 #endif
@@ -901,7 +902,7 @@ template <typename T>
 void RegExpBytecodePeephole::EmitValue(T value) {
   DCHECK(optimized_bytecode_buffer_.begin() + pc() ==
          optimized_bytecode_buffer_.end());
-  byte* value_byte_iter = reinterpret_cast<byte*>(&value);
+  uint8_t* value_byte_iter = reinterpret_cast<uint8_t*>(&value);
   optimized_bytecode_buffer_.insert(optimized_bytecode_buffer_.end(),
                                     value_byte_iter,
                                     value_byte_iter + sizeof(T));
@@ -909,14 +910,14 @@ void RegExpBytecodePeephole::EmitValue(T value) {
 
 template <typename T>
 void RegExpBytecodePeephole::OverwriteValue(int offset, T value) {
-  byte* value_byte_iter = reinterpret_cast<byte*>(&value);
-  byte* value_byte_iter_end = value_byte_iter + sizeof(T);
+  uint8_t* value_byte_iter = reinterpret_cast<uint8_t*>(&value);
+  uint8_t* value_byte_iter_end = value_byte_iter + sizeof(T);
   while (value_byte_iter < value_byte_iter_end) {
     optimized_bytecode_buffer_[offset++] = *value_byte_iter++;
   }
 }
 
-void RegExpBytecodePeephole::CopyRangeToOutput(const byte* orig_bytecode,
+void RegExpBytecodePeephole::CopyRangeToOutput(const uint8_t* orig_bytecode,
                                                int start, int length) {
   DCHECK(optimized_bytecode_buffer_.begin() + pc() ==
          optimized_bytecode_buffer_.end());
@@ -925,20 +926,20 @@ void RegExpBytecodePeephole::CopyRangeToOutput(const byte* orig_bytecode,
                                     orig_bytecode + start + length);
 }
 
-void RegExpBytecodePeephole::SetRange(byte value, int count) {
+void RegExpBytecodePeephole::SetRange(uint8_t value, int count) {
   DCHECK(optimized_bytecode_buffer_.begin() + pc() ==
          optimized_bytecode_buffer_.end());
   optimized_bytecode_buffer_.insert(optimized_bytecode_buffer_.end(), count,
                                     value);
 }
 
-void RegExpBytecodePeephole::EmitArgument(int start_pc, const byte* bytecode,
+void RegExpBytecodePeephole::EmitArgument(int start_pc, const uint8_t* bytecode,
                                           BytecodeArgumentMapping arg) {
   int arg_pos = start_pc + arg.offset;
   switch (arg.length) {
     case 1:
       DCHECK_EQ(arg.new_length, arg.length);
-      EmitValue(GetValue<byte>(bytecode, arg_pos));
+      EmitValue(GetValue<uint8_t>(bytecode, arg_pos));
       break;
     case 2:
       DCHECK_EQ(arg.new_length, arg.length);
@@ -1011,8 +1012,9 @@ Zone* RegExpBytecodePeephole::zone() const { return zone_; }
 
 // static
 Handle<ByteArray> RegExpBytecodePeepholeOptimization::OptimizeBytecode(
-    Isolate* isolate, Zone* zone, Handle<String> source, const byte* bytecode,
-    int length, const ZoneUnorderedMap<int, int>& jump_edges) {
+    Isolate* isolate, Zone* zone, Handle<String> source,
+    const uint8_t* bytecode, int length,
+    const ZoneUnorderedMap<int, int>& jump_edges) {
   RegExpBytecodePeephole peephole(zone, length, jump_edges);
   bool did_optimize = peephole.OptimizeBytecode(bytecode, length);
   Handle<ByteArray> array = isolate->factory()->NewByteArray(peephole.Length());

@@ -75,8 +75,7 @@ class TopTierRegisterAllocationData;
 // easily process a batch of values at the same time as an optimization.
 class SpillPlacer {
  public:
-  SpillPlacer(LiveRangeFinder* finder, TopTierRegisterAllocationData* data,
-              Zone* zone);
+  SpillPlacer(TopTierRegisterAllocationData* data, Zone* zone);
 
   ~SpillPlacer();
 
@@ -143,7 +142,6 @@ class SpillPlacer {
   static constexpr int kValueIndicesPerEntry = 64;
 
   // Objects provided to the constructor, which all outlive this SpillPlacer.
-  LiveRangeFinder* finder_;
   TopTierRegisterAllocationData* data_;
   Zone* zone_;
 

@@ -34,17 +34,14 @@ namespace compiler {
 
 class BytecodeGraphBuilder {
  public:
-  BytecodeGraphBuilder(JSHeapBroker* broker, Zone* local_zone,
-                       NativeContextRef const& native_context,
-                       SharedFunctionInfoRef const& shared_info,
-                       FeedbackCellRef const& feedback_cell,
-                       BytecodeOffset osr_offset, JSGraph* jsgraph,
-                       CallFrequency const& invocation_frequency,
-                       SourcePositionTable* source_positions,
-                       NodeOriginTable* node_origins, int inlining_id,
-                       CodeKind code_kind, BytecodeGraphBuilderFlags flags,
-                       TickCounter* tick_counter,
-                       ObserveNodeInfo const& observe_node_info);
+  BytecodeGraphBuilder(
+      JSHeapBroker* broker, Zone* local_zone, NativeContextRef native_context,
+      SharedFunctionInfoRef shared_info, FeedbackCellRef feedback_cell,
+      BytecodeOffset osr_offset, JSGraph* jsgraph,
+      CallFrequency const& invocation_frequency,
+      SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+      int inlining_id, CodeKind code_kind, BytecodeGraphBuilderFlags flags,
+      TickCounter* tick_counter, ObserveNodeInfo const& observe_node_info);
 
   BytecodeGraphBuilder(const BytecodeGraphBuilder&) = delete;
   BytecodeGraphBuilder& operator=(const BytecodeGraphBuilder&) = delete;
@@ -400,7 +397,7 @@ class BytecodeGraphBuilder {
   }
   Zone* local_zone() const { return local_zone_; }
   BytecodeArrayRef bytecode_array() const { return bytecode_array_; }
-  FeedbackVectorRef const& feedback_vector() const { return feedback_vector_; }
+  FeedbackVectorRef feedback_vector() const { return feedback_vector_; }
   const JSTypeHintLowering& type_hint_lowering() const {
     return type_hint_lowering_;
   }
@@ -1040,11 +1037,10 @@ public GraphDecorator {
 };
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
-    JSHeapBroker* broker, Zone* local_zone,
-    NativeContextRef const& native_context,
-    SharedFunctionInfoRef const& shared_info,
-    FeedbackCellRef const& feedback_cell, BytecodeOffset osr_offset,
-    JSGraph* jsgraph, CallFrequency const& invocation_frequency,
+    JSHeapBroker* broker, Zone* local_zone, NativeContextRef native_context,
+    SharedFunctionInfoRef shared_info, FeedbackCellRef feedback_cell,
+    BytecodeOffset osr_offset, JSGraph* jsgraph,
+    CallFrequency const& invocation_frequency,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
     int inlining_id, CodeKind code_kind, BytecodeGraphBuilderFlags flags,
     TickCounter* tick_counter, ObserveNodeInfo const& observe_node_info)
@@ -2385,7 +2381,7 @@ Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(
     Node* callee, Node* receiver, interpreter::Register first_arg,
     int arg_count) {
   const int arity = JSCallNode::ArityForArgc(arg_count);
-  Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
+  Node** all = local_zone()->AllocateArray<Node*>(static_cast<size_t>(arity));
   int cursor = 0;
 
   static_assert(JSCallNode::TargetIndex() == 0);
@@ -2621,7 +2617,7 @@ Node* BytecodeGraphBuilder::ProcessCallRuntimeArguments(
   int arg_count = static_cast<int>(reg_count);
   // arity is args.
   int arity = arg_count;
-  Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
+  Node** all = local_zone()->AllocateArray<Node*>(static_cast<size_t>(arity));
   int first_arg_index = receiver.index();
   for (int i = 0; i < static_cast<int>(reg_count); ++i) {
     all[i] = environment()->LookupRegister(
@@ -2678,7 +2674,7 @@ Node* const* BytecodeGraphBuilder::GetConstructArgumentsFromRegister(
     Node* target, Node* new_target, interpreter::Register first_arg,
     int arg_count) {
   const int arity = JSConstructNode::ArityForArgc(arg_count);
-  Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
+  Node** all = local_zone()->AllocateArray<Node*>(static_cast<size_t>(arity));
   int cursor = 0;
 
   static_assert(JSConstructNode::TargetIndex() == 0);
@@ -3412,7 +3408,9 @@ void BytecodeGraphBuilder::BuildCastOperator(const Operator* js_op) {
 }
 
 void BytecodeGraphBuilder::VisitToName() {
-  BuildCastOperator(javascript()->ToName());
+  Node* value =
+      NewNode(javascript()->ToName(), environment()->LookupAccumulator());
+  environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitToObject() {
@@ -3422,6 +3420,12 @@ void BytecodeGraphBuilder::VisitToObject() {
 void BytecodeGraphBuilder::VisitToString() {
   Node* value =
       NewNode(javascript()->ToString(), environment()->LookupAccumulator());
+  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+}
+
+void BytecodeGraphBuilder::VisitToBoolean() {
+  Node* value =
+      NewNode(simplified()->ToBoolean(), environment()->LookupAccumulator());
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
@@ -3734,7 +3738,7 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   // register list.
   int value_input_count = 3 + parameter_count_without_receiver + register_count;
 
-  Node** value_inputs = local_zone()->NewArray<Node*>(value_input_count);
+  Node** value_inputs = local_zone()->AllocateArray<Node*>(value_input_count);
   value_inputs[0] = generator;
   value_inputs[1] = suspend_id;
   value_inputs[2] = offset;
@@ -4248,7 +4252,7 @@ void BytecodeGraphBuilder::ApplyEarlyReduction(
 Node** BytecodeGraphBuilder::EnsureInputBufferSize(int size) {
   if (size > input_buffer_size_) {
     size = size + kInputBufferSizeIncrement + input_buffer_size_;
-    input_buffer_ = local_zone()->NewArray<Node*>(size);
+    input_buffer_ = local_zone()->AllocateArray<Node*>(size);
     input_buffer_size_ = size;
   }
   return input_buffer_;
@@ -4460,16 +4464,13 @@ void BytecodeGraphBuilder::UpdateSourceAndBytecodePosition(int offset) {
   }
 }
 
-void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
-                            SharedFunctionInfoRef const& shared_info,
-                            FeedbackCellRef const& feedback_cell,
-                            BytecodeOffset osr_offset, JSGraph* jsgraph,
-                            CallFrequency const& invocation_frequency,
-                            SourcePositionTable* source_positions,
-                            NodeOriginTable* node_origins, int inlining_id,
-                            CodeKind code_kind, BytecodeGraphBuilderFlags flags,
-                            TickCounter* tick_counter,
-                            ObserveNodeInfo const& observe_node_info) {
+void BuildGraphFromBytecode(
+    JSHeapBroker* broker, Zone* local_zone, SharedFunctionInfoRef shared_info,
+    FeedbackCellRef feedback_cell, BytecodeOffset osr_offset, JSGraph* jsgraph,
+    CallFrequency const& invocation_frequency,
+    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+    int inlining_id, CodeKind code_kind, BytecodeGraphBuilderFlags flags,
+    TickCounter* tick_counter, ObserveNodeInfo const& observe_node_info) {
   BytecodeGraphBuilder builder(
       broker, local_zone, broker->target_native_context(), shared_info,
       feedback_cell, osr_offset, jsgraph, invocation_frequency,

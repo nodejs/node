@@ -29,4 +29,9 @@
   'inspector/regress-1297964': [SKIP],
 }], # third_party_heap
 
+##############################################################################
+['no_simd_hardware == True', {
+  'wasm/regress-1464231.wasm': [SKIP],
+}],  # no_simd_hardware == True
+
 ]

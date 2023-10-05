@@ -20,7 +20,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function testWasmToWasmWithDifferentMemory() {
   print(arguments.callee.name);
   const builder1 = new WasmModuleBuilder();
-  builder1.addMemory(1, 1, true);
+  builder1.addMemory(1, 1);
+  builder1.exportMemoryAs('memory');
   builder1.addFunction('store', kSig_v_i)
       .addBody([
         kExprI32Const, 0,        // i32.const 1
@@ -32,7 +33,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   const mem1 = new Int32Array(instance1.exports.memory.buffer);
 
   const builder2 = new WasmModuleBuilder();
-  builder2.addMemory(1, 1, true);
+  builder2.addMemory(1, 1);
+  builder2.exportMemoryAs('memory');
   builder2.addImport('mod', 'store', kSig_v_i);
   builder2.addFunction('call_store', kSig_v_i)
       .addBody([kExprLocalGet, 0, kExprCallFunction, 0])
@@ -71,7 +73,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function exportImportedFunctionWithDifferentMemory() {
   print(arguments.callee.name);
   const builder1 = new WasmModuleBuilder();
-  builder1.addMemory(1, 1, true);
+  builder1.addMemory(1, 1);
+  builder1.exportMemoryAs('memory');
   builder1.addFunction('store', kSig_v_i)
       .addBody([
         kExprI32Const, 0,        // i32.const 1
@@ -83,7 +86,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   const mem1 = new Int32Array(instance1.exports.memory.buffer);
 
   const builder2 = new WasmModuleBuilder();
-  builder2.addMemory(1, 1, true);
+  builder2.addMemory(1, 1);
+  builder2.exportMemoryAs('memory');
   const imp_idx = builder2.addImport('A', 'store', kSig_v_i);
   builder2.addExport('exp_store', imp_idx);
   const instance2 = builder2.instantiate({A: instance1.exports});

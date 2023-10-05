@@ -7,7 +7,8 @@
 namespace typed_array {
 const kBuiltinNameReduce: constexpr string = '%TypedArray%.prototype.reduce';
 
-transitioning macro ReduceAllElements(implicit context: Context)(
+transitioning macro ReduceAllElements(
+    implicit context: Context)(
     attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
     callbackfn: Callable, initialValue: JSAny|TheHole): JSAny {
   let witness =
@@ -47,8 +48,7 @@ transitioning macro ReduceAllElements(implicit context: Context)(
 }
 
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduce
-transitioning javascript builtin
-TypedArrayPrototypeReduce(
+transitioning javascript builtin TypedArrayPrototypeReduce(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // arguments[0] = callback
   // arguments[1] = initialValue.
@@ -65,7 +65,7 @@ TypedArrayPrototypeReduce(
     const initialValue = arguments.length >= 2 ? arguments[1] : TheHole;
     return ReduceAllElements(attachedArrayAndLength, callbackfn, initialValue);
   } label NotCallable deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameReduce);
   } label IsDetachedOrOutOfBounds deferred {

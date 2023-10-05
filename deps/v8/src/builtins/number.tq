@@ -33,17 +33,17 @@ extern enum Operation extends uint31 {
 }
 
 namespace runtime {
-extern transitioning runtime
-DoubleToStringWithRadix(implicit context: Context)(Number, Number): String;
+extern transitioning runtime DoubleToStringWithRadix(
+    implicit context: Context)(Number, Number): String;
 
-extern transitioning runtime StringParseFloat(implicit context: Context)(
-    String): Number;
-extern transitioning runtime StringParseInt(implicit context: Context)(
-    JSAny, JSAny): Number;
+extern transitioning runtime StringParseFloat(
+    implicit context: Context)(String): Number;
+extern transitioning runtime StringParseInt(
+    implicit context: Context)(JSAny, JSAny): Number;
 
 extern runtime BigIntUnaryOp(Context, BigInt, SmiTagged<Operation>): BigInt;
-extern runtime BigIntBinaryOp(
-    Context, Numeric, Numeric, SmiTagged<Operation>): BigInt;
+extern runtime BigIntBinaryOp(Context, Numeric, Numeric, SmiTagged<Operation>):
+    BigInt;
 }  // namespace runtime
 
 namespace number {
@@ -53,8 +53,9 @@ extern macro InfinityStringConstant(): String;
 extern macro MinusInfinityStringConstant(): String;
 extern macro Log10OffsetTable(): RawPtr<uint64>;
 
-transitioning macro ThisNumberValue(implicit context: Context)(
-    receiver: JSAny, method: constexpr string): Number {
+transitioning macro ThisNumberValue(
+    implicit context: Context)(receiver: JSAny,
+    method: constexpr string): Number {
   return UnsafeCast<Number>(
       ToThisValue(receiver, PrimitiveType::kNumber, method));
 }
@@ -177,7 +178,8 @@ macro IntToString(x: int32, radix: uint32): String {
 
 // https://tc39.github.io/ecma262/#sec-number.prototype.tostring
 transitioning javascript builtin NumberPrototypeToString(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   // 1. Let x be ? thisNumberValue(this value).
   const x = ThisNumberValue(receiver, 'Number.prototype.toString');
 
@@ -220,8 +222,8 @@ transitioning javascript builtin NumberPrototypeToString(
 
 // ES6 #sec-number.isfinite
 javascript builtin NumberIsFinite(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(value: JSAny): Boolean {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    value: JSAny): Boolean {
   typeswitch (value) {
     case (Smi): {
       return True;
@@ -238,14 +240,14 @@ javascript builtin NumberIsFinite(
 }
 
 // ES6 #sec-number.isinteger
-javascript builtin NumberIsInteger(js-implicit context: NativeContext)(
-    value: JSAny): Boolean {
+javascript builtin NumberIsInteger(
+    js-implicit context: NativeContext)(value: JSAny): Boolean {
   return SelectBooleanConstant(IsInteger(value));
 }
 
 // ES6 #sec-number.isnan
-javascript builtin NumberIsNaN(js-implicit context: NativeContext)(
-    value: JSAny): Boolean {
+javascript builtin NumberIsNaN(
+    js-implicit context: NativeContext)(value: JSAny): Boolean {
   typeswitch (value) {
     case (Smi): {
       return False;
@@ -261,8 +263,8 @@ javascript builtin NumberIsNaN(js-implicit context: NativeContext)(
 }
 
 // ES6 #sec-number.issafeinteger
-javascript builtin NumberIsSafeInteger(js-implicit context: NativeContext)(
-    value: JSAny): Boolean {
+javascript builtin NumberIsSafeInteger(
+    js-implicit context: NativeContext)(value: JSAny): Boolean {
   return SelectBooleanConstant(IsSafeInteger(value));
 }
 
@@ -308,8 +310,8 @@ transitioning javascript builtin NumberParseFloat(
 
 extern macro TruncateFloat64ToWord32(float64): uint32;
 
-transitioning builtin ParseInt(implicit context: Context)(
-    input: JSAny, radix: JSAny): Number {
+transitioning builtin ParseInt(
+    implicit context: Context)(input: JSAny, radix: JSAny): Number {
   try {
     // Check if radix should be 10 (i.e. undefined, 0 or 10).
     if (radix != Undefined && !TaggedEqual(radix, SmiConstant(10)) &&
@@ -368,21 +370,21 @@ transitioning javascript builtin NumberParseInt(
 extern builtin NonNumberToNumeric(implicit context: Context)(JSAny): Numeric;
 extern builtin Subtract(implicit context: Context)(Number, Number): Number;
 extern builtin Add(implicit context: Context)(Number, Number): Number;
-extern builtin StringAddConvertLeft(implicit context: Context)(
-    JSAny, String): JSAny;
-extern builtin StringAddConvertRight(implicit context: Context)(
-    String, JSAny): JSAny;
+extern builtin StringAddConvertLeft(implicit context: Context)(JSAny, String):
+    JSAny;
+extern builtin StringAddConvertRight(implicit context: Context)(String, JSAny):
+    JSAny;
 
 extern macro BitwiseOp(int32, int32, constexpr Operation): Number;
-extern macro RelationalComparison(
-    constexpr Operation, JSAny, JSAny, Context): Boolean;
+extern macro RelationalComparison(constexpr Operation, JSAny, JSAny, Context):
+    Boolean;
 extern macro TruncateNumberToWord32(Number): int32;
 
 // TODO(bbudge) Use a simpler macro structure that doesn't loop when converting
 // non-numbers, if such a code sequence doesn't make the builtin bigger.
 
-transitioning macro ToNumericOrPrimitive(implicit context: Context)(
-    value: JSAny): JSAny {
+transitioning macro ToNumericOrPrimitive(
+    implicit context: Context)(value: JSAny): JSAny {
   typeswitch (value) {
     case (v: JSReceiver): {
       return NonPrimitiveToPrimitive_Default(context, v);
@@ -393,8 +395,8 @@ transitioning macro ToNumericOrPrimitive(implicit context: Context)(
   }
 }
 
-transitioning builtin Add(implicit context: Context)(
-    leftArg: JSAny, rightArg: JSAny): JSAny {
+transitioning builtin Add(
+    implicit context: Context)(leftArg: JSAny, rightArg: JSAny): JSAny {
   let left: JSAny = leftArg;
   let right: JSAny = rightArg;
   try {
@@ -538,8 +540,8 @@ Smi(Smi), HeapNumber(HeapNumber), BigInt(BigInt) {
 }
 
 // Binary type switch on Number | BigInt.
-macro BinaryOp1(implicit context: Context)(
-    leftVal: JSAny, rightVal: JSAny): never labels
+macro BinaryOp1(implicit context: Context)(leftVal: JSAny, rightVal: JSAny):
+    never labels
 Number(Number, Number), AtLeastOneBigInt(Numeric, Numeric) {
   let left: JSAny = leftVal;
   let right: JSAny = rightVal;
@@ -642,8 +644,8 @@ macro BinaryOp2(implicit context: Context)(leftVal: JSAny, rightVal: JSAny):
   unreachable;
 }
 
-builtin Subtract(implicit context: Context)(
-    left: JSAny, right: JSAny): Numeric {
+builtin Subtract(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
   try {
     BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
   } label Smis(left: Smi, right: Smi) {
@@ -659,8 +661,8 @@ builtin Subtract(implicit context: Context)(
   }
 }
 
-builtin Multiply(implicit context: Context)(
-    left: JSAny, right: JSAny): Numeric {
+builtin Multiply(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
   try {
     BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
   } label Smis(left: Smi, right: Smi) {
@@ -678,7 +680,8 @@ const kMinInt32: constexpr int32 generates 'kMinInt';
 const kMinInt31: constexpr int32 generates 'kMinInt31';
 const kMinimumDividend: int32 = (kSmiValueSize == 32) ? kMinInt32 : kMinInt31;
 
-builtin Divide(implicit context: Context)(left: JSAny, right: JSAny): Numeric {
+builtin Divide(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
   try {
     BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
   } label Smis(left: Smi, right: Smi) {
@@ -712,7 +715,8 @@ builtin Divide(implicit context: Context)(left: JSAny, right: JSAny): Numeric {
   }
 }
 
-builtin Modulus(implicit context: Context)(left: JSAny, right: JSAny): Numeric {
+builtin Modulus(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
   try {
     BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
   } label Smis(left: Smi, right: Smi) {
@@ -724,8 +728,8 @@ builtin Modulus(implicit context: Context)(left: JSAny, right: JSAny): Numeric {
   }
 }
 
-builtin Exponentiate(implicit context: Context)(
-    left: JSAny, right: JSAny): Numeric {
+builtin Exponentiate(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
   try {
     BinaryOp1(left, right) otherwise Numbers, AtLeastOneBigInt;
   } label Numbers(left: Number, right: Number) {
@@ -787,24 +791,24 @@ builtin Increment(implicit context: Context)(value: JSAny): Numeric {
 extern macro BinaryOpAssembler::Generate_BitwiseBinaryOp(
     constexpr Operation, JSAny, JSAny, Context): Object;
 
-builtin ShiftLeft(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
+builtin ShiftLeft(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
   return Generate_BitwiseBinaryOp(Operation::kShiftLeft, left, right, context);
 }
 
-builtin ShiftRight(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
+builtin ShiftRight(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
   return Generate_BitwiseBinaryOp(Operation::kShiftRight, left, right, context);
 }
 
-builtin ShiftRightLogical(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
+builtin ShiftRightLogical(
+    implicit context: Context)(left: JSAny, right: JSAny): Object {
   return Generate_BitwiseBinaryOp(
       Operation::kShiftRightLogical, left, right, context);
 }
 
-builtin BitwiseAnd(implicit context: Context)(
-    left: JSAny, right: JSAny): Numeric {
+builtin BitwiseAnd(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
   try {
     BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
   } label Number(left: Number, right: Number) {
@@ -816,8 +820,8 @@ builtin BitwiseAnd(implicit context: Context)(
   }
 }
 
-builtin BitwiseOr(implicit context: Context)(
-    left: JSAny, right: JSAny): Numeric {
+builtin BitwiseOr(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
   try {
     BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
   } label Number(left: Number, right: Number) {
@@ -829,8 +833,8 @@ builtin BitwiseOr(implicit context: Context)(
   }
 }
 
-builtin BitwiseXor(implicit context: Context)(
-    left: JSAny, right: JSAny): Numeric {
+builtin BitwiseXor(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
   try {
     BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
   } label Number(left: Number, right: Number) {
@@ -844,23 +848,24 @@ builtin BitwiseXor(implicit context: Context)(
 
 // Relational builtins.
 
-builtin LessThan(implicit context: Context)(left: JSAny, right: JSAny): Object {
+builtin LessThan(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
   return RelationalComparison(Operation::kLessThan, left, right, context);
 }
 
-builtin LessThanOrEqual(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
+builtin LessThanOrEqual(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
   return RelationalComparison(
       Operation::kLessThanOrEqual, left, right, context);
 }
 
-builtin GreaterThan(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
+builtin GreaterThan(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
   return RelationalComparison(Operation::kGreaterThan, left, right, context);
 }
 
-builtin GreaterThanOrEqual(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
+builtin GreaterThanOrEqual(
+    implicit context: Context)(left: JSAny, right: JSAny): Object {
   return RelationalComparison(
       Operation::kGreaterThanOrEqual, left, right, context);
 }
@@ -869,8 +874,8 @@ builtin Equal(implicit context: Context)(left: JSAny, right: JSAny): Object {
   return Equal(left, right, context);
 }
 
-builtin StrictEqual(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
+builtin StrictEqual(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
   return ::StrictEqual(left, right);
 }
 

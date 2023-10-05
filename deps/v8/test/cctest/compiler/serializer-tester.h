@@ -34,7 +34,6 @@ class SerializerTester : public HandleAndZoneScope {
   Isolate* isolate() { return main_isolate(); }
 
  private:
-  CanonicalHandleScope canonical_;
   OptionalJSFunctionRef function_;
   std::unique_ptr<JSHeapBroker> broker_;
 };

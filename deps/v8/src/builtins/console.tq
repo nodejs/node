@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 namespace console {
-extern builtin ConsoleAssert(implicit context: Context)(
-    JSFunction, JSAny, int32): JSAny;
+extern builtin ConsoleAssert(
+    implicit context: Context)(JSFunction, JSAny, int32): JSAny;
 
 javascript builtin FastConsoleAssert(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,

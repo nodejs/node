@@ -96,8 +96,7 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
 
   // Allocate and initialize the register file.
   TNode<FixedArrayBase> parameters_and_registers =
-      AllocateFixedArray(HOLEY_ELEMENTS, parameters_and_register_length,
-                         AllocationFlag::kAllowLargeObjectAllocation);
+      AllocateFixedArray(HOLEY_ELEMENTS, parameters_and_register_length);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
                           IntPtrConstant(0), parameters_and_register_length,
                           RootIndex::kUndefinedValue);

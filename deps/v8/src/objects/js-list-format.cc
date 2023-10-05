@@ -204,7 +204,7 @@ Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
   std::vector<icu::UnicodeString> result;
   for (int i = 0; i < length; i++) {
     Handle<Object> item = FixedArray::get(*array, i, isolate);
-    DCHECK(item->IsString());
+    DCHECK(IsString(*item));
     Handle<String> item_str = Handle<String>::cast(item);
     if (!item_str->IsFlat()) item_str = String::Flatten(isolate, item_str);
     result.push_back(Intl::ToICUUnicodeString(isolate, item_str));
@@ -217,13 +217,13 @@ MaybeHandle<T> FormatListCommon(
     Isolate* isolate, Handle<JSListFormat> format, Handle<FixedArray> list,
     const std::function<MaybeHandle<T>(Isolate*, const icu::FormattedValue&)>&
         formatToResult) {
-  DCHECK(!list->IsUndefined());
+  DCHECK(!IsUndefined(*list));
   Maybe<std::vector<icu::UnicodeString>> maybe_array =
       ToUnicodeStringArray(isolate, list);
   MAYBE_RETURN(maybe_array, Handle<T>());
   std::vector<icu::UnicodeString> array = maybe_array.FromJust();
 
-  icu::ListFormatter* formatter = format->icu_formatter().raw();
+  icu::ListFormatter* formatter = format->icu_formatter()->raw();
   DCHECK_NOT_NULL(formatter);
 
   UErrorCode status = U_ZERO_ERROR;

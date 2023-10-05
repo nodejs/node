@@ -12,8 +12,9 @@ const SRC_OFFSET_LEB = [0x90, 0x95, 0x80, 0x80, 0x10];
 const DST_OFFSET = 4294970160n;
 const DST_OFFSET_LEB = [0xb0, 0x96, 0x80, 0x80, 0x10];
 
-var builder = new WasmModuleBuilder();
-builder.addMemory64(5 * GB / kPageSize).exportMemoryAs("memory");
+const builder = new WasmModuleBuilder();
+builder.addMemory64(5 * GB / kPageSize);
+builder.exportMemoryAs('memory');
 
 // Here we make a global of type v128 to be the target
 // for loading lanes and the source for storing lanes.

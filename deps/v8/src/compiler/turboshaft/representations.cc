@@ -6,20 +6,24 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-std::ostream& operator<<(std::ostream& os, RegisterRepresentation rep) {
+std::ostream& operator<<(std::ostream& os, MaybeRegisterRepresentation rep) {
   switch (rep) {
-    case RegisterRepresentation::Word32():
+    case MaybeRegisterRepresentation::Word32():
       return os << "Word32";
-    case RegisterRepresentation::Word64():
+    case MaybeRegisterRepresentation::Word64():
       return os << "Word64";
-    case RegisterRepresentation::Float32():
+    case MaybeRegisterRepresentation::Float32():
       return os << "Float32";
-    case RegisterRepresentation::Float64():
+    case MaybeRegisterRepresentation::Float64():
       return os << "Float64";
-    case RegisterRepresentation::Tagged():
+    case MaybeRegisterRepresentation::Tagged():
       return os << "Tagged";
-    case RegisterRepresentation::Compressed():
+    case MaybeRegisterRepresentation::Compressed():
       return os << "Compressed";
+    case MaybeRegisterRepresentation::Simd128():
+      return os << "Simd128";
+    case MaybeRegisterRepresentation::None():
+      return os << "None";
   }
 }
 
@@ -51,9 +55,12 @@ std::ostream& operator<<(std::ostream& os, MemoryRepresentation rep) {
       return os << "TaggedPointer";
     case MemoryRepresentation::TaggedSigned():
       return os << "TaggedSigned";
+    case MemoryRepresentation::IndirectPointer():
+      return os << "IndirectPointer";
     case MemoryRepresentation::SandboxedPointer():
       return os << "SandboxedPointer";
+    case MemoryRepresentation::Simd128():
+      return os << "Simd128";
   }
 }
-
 }  // namespace v8::internal::compiler::turboshaft

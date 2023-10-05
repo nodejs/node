@@ -10,6 +10,8 @@
 #include "src/objects/scope-info.h"
 #include "src/objects/string.h"
 #include "src/roots/roots-inl.h"
+#include "src/torque/runtime-macro-shims.h"
+#include "src/torque/runtime-support.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -64,16 +66,16 @@ class ScopeInfo::LocalNamesRange {
       return !(a == b);
     }
 
-    String name(PtrComprCageBase cage_base) const {
+    Tagged<String> name(PtrComprCageBase cage_base) const {
       DCHECK_LT(index_, range_->max_index());
       if (range_->inlined()) {
         return scope_info()->ContextInlinedLocalName(cage_base,
                                                      index_.as_int());
       }
-      return String::cast(table().KeyAt(cage_base, index_));
+      return String::cast(table()->KeyAt(cage_base, index_));
     }
 
-    String name() const {
+    Tagged<String> name() const {
       PtrComprCageBase cage_base = GetPtrComprCageBase(*scope_info());
       return name(cage_base);
     }
@@ -82,7 +84,7 @@ class ScopeInfo::LocalNamesRange {
 
     int index() const {
       if (range_->inlined()) return index_.as_int();
-      return table().IndexAt(index_);
+      return table()->IndexAt(index_);
     }
 
    private:
@@ -91,7 +93,7 @@ class ScopeInfo::LocalNamesRange {
 
     ScopeInfoPtr scope_info() const { return range_->scope_info_; }
 
-    NameToIndexHashTable table() const {
+    Tagged<NameToIndexHashTable> table() const {
       return scope_info()->context_local_names_hashtable();
     }
 
@@ -101,8 +103,8 @@ class ScopeInfo::LocalNamesRange {
       InternalIndex max = range_->max_index();
       // Increment until iterator points to a valid key or max.
       while (index_ < max) {
-        Object key = table().KeyAt(index_);
-        if (table().IsKey(roots, key)) break;
+        Tagged<Object> key = table()->KeyAt(index_);
+        if (table()->IsKey(roots, key)) break;
         ++index_;
       }
     }
@@ -115,7 +117,7 @@ class ScopeInfo::LocalNamesRange {
   InternalIndex max_index() const {
     int max = inlined()
                   ? scope_info_->ContextLocalCount()
-                  : scope_info_->context_local_names_hashtable().Capacity();
+                  : scope_info_->context_local_names_hashtable()->Capacity();
     return InternalIndex(max);
   }
 
@@ -136,10 +138,10 @@ ScopeInfo::LocalNamesRange<Handle<ScopeInfo>> ScopeInfo::IterateLocalNames(
 }
 
 // static
-ScopeInfo::LocalNamesRange<ScopeInfo*> ScopeInfo::IterateLocalNames(
-    ScopeInfo* scope_info, const DisallowGarbageCollection& no_gc) {
+ScopeInfo::LocalNamesRange<Tagged<ScopeInfo>> ScopeInfo::IterateLocalNames(
+    Tagged<ScopeInfo> scope_info, const DisallowGarbageCollection& no_gc) {
   USE(no_gc);
-  return LocalNamesRange<ScopeInfo*>(scope_info);
+  return LocalNamesRange<Tagged<ScopeInfo>>(scope_info);
 }
 
 }  // namespace internal

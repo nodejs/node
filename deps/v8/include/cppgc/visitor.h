@@ -5,10 +5,13 @@
 #ifndef INCLUDE_CPPGC_VISITOR_H_
 #define INCLUDE_CPPGC_VISITOR_H_
 
+#include <type_traits>
+
 #include "cppgc/custom-space.h"
 #include "cppgc/ephemeron-pair.h"
 #include "cppgc/garbage-collected.h"
 #include "cppgc/internal/logging.h"
+#include "cppgc/internal/member-storage.h"
 #include "cppgc/internal/pointer-policies.h"
 #include "cppgc/liveness-broker.h"
 #include "cppgc/member.h"
@@ -113,6 +116,30 @@ class V8_EXPORT Visitor {
   }
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
+  template <typename T>
+  void TraceMultiple(const subtle::UncompressedMember<T>* start, size_t len) {
+    static_assert(sizeof(T), "Pointee type must be fully defined.");
+    static_assert(internal::IsGarbageCollectedOrMixinType<T>::value,
+                  "T must be GarbageCollected or GarbageCollectedMixin type");
+    VisitMultipleUncompressedMember(start, len,
+                                    &TraceTrait<T>::GetTraceDescriptor);
+  }
+
+  template <typename T,
+            std::enable_if_t<!std::is_same_v<
+                Member<T>, subtle::UncompressedMember<T>>>* = nullptr>
+  void TraceMultiple(const Member<T>* start, size_t len) {
+    static_assert(sizeof(T), "Pointee type must be fully defined.");
+    static_assert(internal::IsGarbageCollectedOrMixinType<T>::value,
+                  "T must be GarbageCollected or GarbageCollectedMixin type");
+#if defined(CPPGC_POINTER_COMPRESSION)
+    static_assert(std::is_same_v<Member<T>, subtle::CompressedMember<T>>,
+                  "Member and CompressedMember must be the same.");
+    VisitMultipleCompressedMember(start, len,
+                                  &TraceTrait<T>::GetTraceDescriptor);
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
+  }
+
   /**
    * Trace method for inlined objects that are not allocated themselves but
    * otherwise follow managed heap layout and have a Trace() method.
@@ -129,6 +156,26 @@ class V8_EXPORT Visitor {
     CheckObjectNotInConstruction(&object);
 #endif  // V8_ENABLE_CHECKS
     TraceTrait<T>::Trace(this, &object);
+  }
+
+  template <typename T>
+  void TraceMultiple(const T* start, size_t len) {
+#if V8_ENABLE_CHECKS
+    // This object is embedded in potentially multiple nested objects. The
+    // outermost object must not be in construction as such objects are (a) not
+    // processed immediately, and (b) only processed conservatively if not
+    // otherwise possible.
+    CheckObjectNotInConstruction(start);
+#endif  // V8_ENABLE_CHECKS
+    for (size_t i = 0; i < len; ++i) {
+      const T* object = &start[i];
+      if constexpr (std::is_polymorphic_v<T>) {
+        // The object's vtable may be uninitialized in which case the object is
+        // not traced.
+        if (*reinterpret_cast<const uintptr_t*>(object) == 0) continue;
+      }
+      TraceTrait<T>::Trace(this, object);
+    }
   }
 
   /**
@@ -314,6 +361,39 @@ class V8_EXPORT Visitor {
                                   WeakCallback callback, const void* data) {}
   virtual void HandleMovableReference(const void**) {}
 
+  virtual void VisitMultipleUncompressedMember(
+      const void* start, size_t len,
+      TraceDescriptorCallback get_trace_descriptor) {
+    // Default implementation merely delegates to Visit().
+    const char* it = static_cast<const char*>(start);
+    const char* end = it + len * internal::kSizeOfUncompressedMember;
+    for (; it < end; it += internal::kSizeOfUncompressedMember) {
+      const auto* current = reinterpret_cast<const internal::RawPointer*>(it);
+      const void* object = current->LoadAtomic();
+      if (!object) continue;
+
+      Visit(object, get_trace_descriptor(object));
+    }
+  }
+
+#if defined(CPPGC_POINTER_COMPRESSION)
+  virtual void VisitMultipleCompressedMember(
+      const void* start, size_t len,
+      TraceDescriptorCallback get_trace_descriptor) {
+    // Default implementation merely delegates to Visit().
+    const char* it = static_cast<const char*>(start);
+    const char* end = it + len * internal::kSizeofCompressedMember;
+    for (; it < end; it += internal::kSizeofCompressedMember) {
+      const auto* current =
+          reinterpret_cast<const internal::CompressedPointer*>(it);
+      const void* object = current->LoadAtomic();
+      if (!object) continue;
+
+      Visit(object, get_trace_descriptor(object));
+    }
+  }
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
+
  private:
   template <typename T, void (T::*method)(const LivenessBroker&)>
   static void WeakCallbackMethodDelegate(const LivenessBroker& info,
@@ -326,8 +406,7 @@ class V8_EXPORT Visitor {
   template <typename PointerType>
   static void HandleWeak(const LivenessBroker& info, const void* object) {
     const PointerType* weak = static_cast<const PointerType*>(object);
-    auto* raw_ptr = weak->GetFromGC();
-    if (!info.IsHeapObjectAlive(raw_ptr)) {
+    if (!info.IsHeapObjectAlive(weak->GetFromGC())) {
       weak->ClearFromGC();
     }
   }
@@ -413,8 +492,7 @@ class V8_EXPORT RootVisitor {
   template <typename PointerType>
   static void HandleWeak(const LivenessBroker& info, const void* object) {
     const PointerType* weak = static_cast<const PointerType*>(object);
-    auto* raw_ptr = weak->GetFromGC();
-    if (!info.IsHeapObjectAlive(raw_ptr)) {
+    if (!info.IsHeapObjectAlive(weak->GetFromGC())) {
       weak->ClearFromGC();
     }
   }

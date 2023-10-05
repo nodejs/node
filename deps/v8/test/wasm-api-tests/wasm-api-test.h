@@ -60,7 +60,7 @@ class WasmCapiTest : public ::testing::Test {
       size_t size = wire_bytes_.end() - wire_bytes_.begin();
       binary_ = vec<byte_t>::make(
           size,
-          reinterpret_cast<byte_t*>(const_cast<byte*>(wire_bytes_.begin())));
+          reinterpret_cast<byte_t*>(const_cast<uint8_t*>(wire_bytes_.begin())));
     }
 
     return Module::validate(store_.get(), binary_);
@@ -72,7 +72,7 @@ class WasmCapiTest : public ::testing::Test {
       size_t size = wire_bytes_.end() - wire_bytes_.begin();
       binary_ = vec<byte_t>::make(
           size,
-          reinterpret_cast<byte_t*>(const_cast<byte*>(wire_bytes_.begin())));
+          reinterpret_cast<byte_t*>(const_cast<uint8_t*>(wire_bytes_.begin())));
     }
 
     module_ = Module::make(store_.get(), binary_);
@@ -86,7 +86,7 @@ class WasmCapiTest : public ::testing::Test {
     exports_ = instance_->exports();
   }
 
-  void AddExportedFunction(base::Vector<const char> name, byte code[],
+  void AddExportedFunction(base::Vector<const char> name, uint8_t code[],
                            size_t code_size, FunctionSig* sig) {
     WasmFunctionBuilder* fun = builder()->AddFunction(sig);
     fun->EmitCode(code, static_cast<uint32_t>(code_size));
@@ -94,7 +94,7 @@ class WasmCapiTest : public ::testing::Test {
     builder()->AddExport(name, fun);
   }
 
-  void AddFunction(byte code[], size_t code_size, FunctionSig* sig) {
+  void AddFunction(uint8_t code[], size_t code_size, FunctionSig* sig) {
     WasmFunctionBuilder* fun = builder()->AddFunction(sig);
     fun->EmitCode(code, static_cast<uint32_t>(code_size));
     fun->Emit(kExprEnd);

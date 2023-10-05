@@ -13,7 +13,7 @@ namespace internal {
 
 #define __ masm.
 
-// Test the x64 assembler by compiling some simple functions into
+// Test the ia32 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
 // V8 library, create a context, or use any V8 objects.
 
@@ -57,6 +57,60 @@ TEST_F(MacroAssemblerTest, TestCheck) {
   f.Call(0);
   f.Call(18);
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(17); }, "abort: no reason");
+}
+
+TEST_F(MacroAssemblerTest, TestPCRelLea) {
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
+  __ set_root_array_available(false);
+  __ set_abort_hard(true);
+
+  Label pt;
+  __ LoadLabelAddress(ecx, &pt);
+  __ mov(eax, 42);
+  __ call(ecx);
+  __ cmp(eax, 56);
+  __ Check(Condition::equal, AbortReason::kNoReason);
+  __ ret(0);
+  __ bind(&pt);
+  __ mov(eax, 56);
+  __ ret(0);
+
+  CodeDesc desc;
+  masm.GetCode(isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
+
+  f.Call(0);
+}
+
+TEST_F(MacroAssemblerTest, TestDefinedPCRelLea) {
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
+  __ set_root_array_available(false);
+  __ set_abort_hard(true);
+
+  Label pt, start;
+  __ jmp(&start);
+  __ bind(&pt);
+  __ mov(eax, 56);
+  __ ret(0);
+  __ bind(&start);
+  __ LoadLabelAddress(ecx, &pt);
+  __ mov(eax, 42);
+  __ call(ecx);
+  __ cmp(eax, 56);
+  __ Check(Condition::equal, AbortReason::kNoReason);
+  __ ret(0);
+
+  CodeDesc desc;
+  masm.GetCode(isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
+
+  f.Call(0);
 }
 
 #undef __

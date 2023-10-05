@@ -56,7 +56,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // If there are no capture groups, set the groups property to undefined.
   FieldIndex groups_index = FieldIndex::ForDescriptor(
       indices->map(), InternalIndex(kGroupsDescriptorIndex));
-  if (maybe_names->IsUndefined(isolate)) {
+  if (IsUndefined(*maybe_names, isolate)) {
     indices->FastPropertyAtPut(groups_index,
                                ReadOnlyRoots(isolate).undefined_value());
     return indices;
@@ -77,10 +77,10 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     int name_offset = base_offset;
     int index_offset = base_offset + 1;
     Handle<String> name(String::cast(names->get(name_offset)), isolate);
-    Handle<Smi> smi_index(Smi::cast(names->get(index_offset)), isolate);
-    Handle<Object> capture_indices(indices_array->get(smi_index->value()),
+    Tagged<Smi> smi_index = Smi::cast(names->get(index_offset));
+    Handle<Object> capture_indices(indices_array->get(smi_index.value()),
                                    isolate);
-    if (!capture_indices->IsUndefined(isolate)) {
+    if (!IsUndefined(*capture_indices, isolate)) {
       capture_indices = Handle<JSArray>::cast(capture_indices);
     }
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -150,10 +150,10 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
   return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
 }
 
-Object JSRegExp::code(bool is_latin1) const {
+Tagged<Object> JSRegExp::code(bool is_latin1) const {
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  Object value = DataAt(code_index(is_latin1));
-  DCHECK(value.IsSmi() || value.IsCode());
+  Tagged<Object> value = DataAt(code_index(is_latin1));
+  DCHECK(IsSmi(value) || IsCode(value));
   return value;
 }
 
@@ -161,7 +161,7 @@ void JSRegExp::set_code(bool is_latin1, Handle<Code> code) {
   SetDataAt(code_index(is_latin1), *code);
 }
 
-Object JSRegExp::bytecode(bool is_latin1) const {
+Tagged<Object> JSRegExp::bytecode(bool is_latin1) const {
   DCHECK(type_tag() == JSRegExp::IRREGEXP ||
          type_tag() == JSRegExp::EXPERIMENTAL);
   return DataAt(bytecode_index(is_latin1));
@@ -190,7 +190,7 @@ bool JSRegExp::CanTierUp() {
 // An irregexp is considered to be marked for tier up if the tier-up ticks
 // value reaches zero.
 bool JSRegExp::MarkedForTierUp() {
-  DCHECK(data().IsFixedArray());
+  DCHECK(IsFixedArray(data()));
 
   if (!CanTierUp()) {
     return false;
@@ -203,8 +203,8 @@ void JSRegExp::ResetLastTierUpTick() {
   DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) + 1;
-  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                               Smi::FromInt(tier_up_ticks));
+  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                                Smi::FromInt(tier_up_ticks));
 }
 
 void JSRegExp::TierUpTick() {
@@ -214,15 +214,15 @@ void JSRegExp::TierUpTick() {
   if (tier_up_ticks == 0) {
     return;
   }
-  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                               Smi::FromInt(tier_up_ticks - 1));
+  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                                Smi::FromInt(tier_up_ticks - 1));
 }
 
 void JSRegExp::MarkTierUpForNextExec() {
   DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                               Smi::zero());
+  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                                Smi::zero());
 }
 
 // static
@@ -413,10 +413,10 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   regexp->set_source(*escaped_source);
   regexp->set_flags(Smi::FromInt(flags));
 
-  Map map = regexp->map();
-  Object constructor = map.GetConstructor();
-  if (constructor.IsJSFunction() &&
-      JSFunction::cast(constructor).initial_map() == map) {
+  Tagged<Map> map = regexp->map();
+  Tagged<Object> constructor = map->GetConstructor();
+  if (IsJSFunction(constructor) &&
+      JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
     regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                   Smi::FromInt(kInitialLastIndexValue),

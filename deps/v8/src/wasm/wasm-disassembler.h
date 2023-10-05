@@ -27,6 +27,10 @@ void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
                  v8::debug::DisassemblyCollector* collector,
                  std::vector<int>* function_body_offsets);
 
+void Disassemble(base::Vector<const uint8_t> wire_bytes,
+                 v8::debug::DisassemblyCollector* collector,
+                 std::vector<int>* function_body_offsets);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

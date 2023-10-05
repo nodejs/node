@@ -3,10 +3,9 @@
 // found in the LICENSE file.
 
 namespace array {
-transitioning javascript builtin
-ArrayReduceRightPreLoopEagerDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, length: JSAny): JSAny {
+transitioning javascript builtin ArrayReduceRightPreLoopEagerDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    length: JSAny): JSAny {
   // All continuation points in the optimized every implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -26,11 +25,9 @@ ArrayReduceRightPreLoopEagerDeoptContinuation(
       jsreceiver, callbackfn, TheHole, jsreceiver, initialK, numberLength);
 }
 
-transitioning javascript builtin
-ArrayReduceRightLoopEagerDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, initialK: JSAny, length: JSAny,
-    accumulator: JSAny): JSAny {
+transitioning javascript builtin ArrayReduceRightLoopEagerDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    initialK: JSAny, length: JSAny, accumulator: JSAny): JSAny {
   // All continuation points in the optimized every implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -47,10 +44,9 @@ ArrayReduceRightLoopEagerDeoptContinuation(
       jsreceiver, callbackfn, accumulator, jsreceiver, numberK, numberLength);
 }
 
-transitioning javascript builtin
-ArrayReduceRightLoopLazyDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, initialK: JSAny, length: JSAny, result: JSAny): JSAny {
+transitioning javascript builtin ArrayReduceRightLoopLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    initialK: JSAny, length: JSAny, result: JSAny): JSAny {
   // All continuation points in the optimized every implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -66,8 +62,7 @@ ArrayReduceRightLoopLazyDeoptContinuation(
 }
 
 transitioning builtin ArrayReduceRightLoopContinuation(
-    implicit context: Context)(
-    _receiver: JSReceiver, callbackfn: Callable,
+    implicit context: Context)(_receiver: JSReceiver, callbackfn: Callable,
     initialAccumulator: JSAny|TheHole, o: JSReceiver, initialK: Number,
     _length: Number): JSAny {
   let accumulator = initialAccumulator;
@@ -117,10 +112,10 @@ transitioning builtin ArrayReduceRightLoopContinuation(
   }
 }
 
-transitioning macro FastArrayReduceRight(implicit context: Context)(
-    o: JSReceiver, len: Number, callbackfn: Callable,
-    initialAccumulator: JSAny|TheHole): JSAny
-    labels Bailout(Number, JSAny | TheHole) {
+transitioning macro FastArrayReduceRight(
+    implicit context: Context)(o: JSReceiver, len: Number,
+    callbackfn: Callable, initialAccumulator: JSAny|TheHole): JSAny
+    labels Bailout(Number, JSAny|TheHole) {
   let accumulator = initialAccumulator;
   const smiLen = Cast<Smi>(len) otherwise goto Bailout(len - 1, accumulator);
   const fastO = Cast<FastJSArrayForRead>(o)
@@ -158,8 +153,7 @@ transitioning macro FastArrayReduceRight(implicit context: Context)(
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.reduceRight
-transitioning javascript builtin
-ArrayReduceRight(
+transitioning javascript builtin ArrayReduceRight(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {
     RequireObjectCoercible(receiver, 'Array.prototype.reduceRight');
@@ -191,7 +185,7 @@ ArrayReduceRight(
           o, callbackfn, accumulator, o, value, len);
     }
   } label NoCallableError deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   }
 }
 }

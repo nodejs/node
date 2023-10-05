@@ -395,7 +395,7 @@ TEST_F(ConversionsTest, NoHandlesForTryNumberToSize) {
   size_t result = 0;
   {
     SealHandleScope no_handles(i_isolate());
-    Smi smi = Smi::FromInt(1);
+    Tagged<Smi> smi = Smi::FromInt(1);
     CHECK(TryNumberToSize(smi, &result));
     CHECK_EQ(result, 1u);
   }

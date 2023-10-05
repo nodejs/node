@@ -7,8 +7,7 @@
 namespace string {
 
 // https://tc39.es/ecma262/#sec-string.prototype.indexof
-transitioning javascript builtin
-StringPrototypeIndexOf(
+transitioning javascript builtin StringPrototypeIndexOf(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): Smi {
   const methodName: constexpr string = 'String.prototype.indexOf';
   const searchString: JSAny = arguments[0];

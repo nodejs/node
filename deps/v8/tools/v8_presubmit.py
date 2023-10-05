@@ -35,7 +35,7 @@ import json
 import multiprocessing
 import optparse
 import os
-from os.path import abspath, join, dirname, basename, exists
+from os.path import abspath, join, dirname, basename, exists, isfile, isdir
 import pickle
 import re
 import subprocess
@@ -43,8 +43,6 @@ from subprocess import PIPE
 import sys
 
 from testrunner.local import statusfile
-from testrunner.local import testsuite
-from testrunner.local import utils
 
 def decode(arg, encoding="utf-8"):
   return arg.decode(encoding)
@@ -59,6 +57,8 @@ def decode(arg, encoding="utf-8"):
 #   https://google.github.io/styleguide/cppguide.html#Inputs_and_Outputs.
 # whitespace/braces: Doesn't handle {}-initialization for custom types
 #   well; also should be subsumed by clang-format.
+# whitespace/parens: Conflicts with clang-format rule to treat Turboshaft's
+#   IF, IF_NOT, ... as IfMacros and insert a whitespace before the parenthesis.
 
 LINT_RULES = """
 -build/header_guard
@@ -68,6 +68,7 @@ LINT_RULES = """
 -runtime/references
 -whitespace/braces
 -whitespace/comments
+-whitespace/parens
 """.split()
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]')
@@ -91,7 +92,7 @@ def CppLintWorker(command):
     error_count = -1
     while True:
       out_line = decode(process.stderr.readline())
-      if out_line == '' and process.poll() != None:
+      if out_line == '' and process.poll() is not None:
         if error_count == -1:
           print("Failed to process %s" % command.pop())
           return 1
@@ -121,7 +122,7 @@ def TorqueLintWorker(command):
     error_count = 0
     while True:
       out_line = decode(process.stderr.readline())
-      if out_line == '' and process.poll() != None:
+      if out_line == '' and process.poll() is not None:
         break
       out_lines += out_line
       error_count += 1
@@ -338,7 +339,7 @@ class CacheableSourceFileProcessor(SourceFileProcessor):
     count = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(count)
     try:
-      results = pool.map_async(worker, commands).get(timeout=240)
+      results = pool.map_async(worker, commands).get(timeout=360)
     except KeyboardInterrupt:
       print("\nCaught KeyboardInterrupt, terminating workers.")
       pool.terminate()
@@ -393,7 +394,7 @@ class CppLintProcessor(CacheableSourceFileProcessor):
     filters = ','.join([n for n in LINT_RULES])
     arguments = ['--filter', filters]
 
-    cpplint = os.path.join(DEPS_DEPOT_TOOLS_PATH, 'cpplint.py')
+    cpplint = join(DEPS_DEPOT_TOOLS_PATH, 'cpplint.py')
     return cpplint, arguments
 
 
@@ -419,10 +420,10 @@ class TorqueLintProcessor(CacheableSourceFileProcessor):
     return TorqueLintWorker
 
   def GetProcessorScript(self):
-    torque_tools = os.path.join(TOOLS_PATH, "torque")
-    torque_path = os.path.join(torque_tools, "format-torque.py")
+    torque_tools = join(TOOLS_PATH, "torque")
+    torque_path = join(torque_tools, "format-torque.py")
     arguments = ["-il"]
-    if os.path.isfile(torque_path):
+    if isfile(torque_path):
       return torque_path, arguments
 
     return None, arguments
@@ -446,7 +447,7 @@ class JSLintProcessor(CacheableSourceFileProcessor):
     return JSLintWorker
 
   def GetProcessorScript(self):
-    jslint = os.path.join(DEPS_DEPOT_TOOLS_PATH, 'clang_format.py')
+    jslint = join(DEPS_DEPOT_TOOLS_PATH, 'clang_format.py')
     return jslint, []
 
 
@@ -481,16 +482,16 @@ class SourceProcessor(SourceFileProcessor):
 
   # Overwriting the one in the parent class.
   def FindFilesIn(self, path):
-    if os.path.exists(path+'/.git'):
+    if exists(path+'/.git'):
       output = subprocess.Popen('git ls-files --full-name',
                                 stdout=PIPE, cwd=path, shell=True)
       result = []
       for file in decode(output.stdout.read()).split():
-        for dir_part in os.path.dirname(file).replace(os.sep, '/').split('/'):
+        for dir_part in dirname(file).replace(os.sep, '/').split('/'):
           if self.IgnoreDir(dir_part):
             break
         else:
-          if (self.IsRelevant(file) and os.path.exists(file)
+          if (self.IsRelevant(file) and exists(file)
               and not self.IgnoreFile(file)):
             result.append(join(path, file))
       if output.wait() == 0:
@@ -698,10 +699,10 @@ class StatusFilesProcessor(SourceFileProcessor):
     for file_path in files:
       if file_path.startswith(testrunner_path):
         for suitepath in os.listdir(test_path):
-          suitename = os.path.basename(suitepath)
-          status_file = os.path.join(
+          suitename = basename(suitepath)
+          status_file = join(
               test_path, suitename, suitename + ".status")
-          if os.path.exists(status_file):
+          if exists(status_file):
             status_files.add(status_file)
         return status_files
 
@@ -712,10 +713,10 @@ class StatusFilesProcessor(SourceFileProcessor):
         if pieces:
           # Infer affected status file name. Only care for existing status
           # files. Some directories under "test" don't have any.
-          if not os.path.isdir(join(test_path, pieces[0])):
+          if not isdir(join(test_path, pieces[0])):
             continue
           status_file = join(test_path, pieces[0], pieces[0] + ".status")
-          if not os.path.exists(status_file):
+          if not exists(status_file):
             continue
           status_files.add(status_file)
     return status_files
@@ -780,7 +781,7 @@ def FindTests(workspace):
   for root, dirs, files in os.walk(join(workspace, 'tools')):
     for f in files:
       if f.endswith('_test.py'):
-        fullpath = os.path.join(root, f)
+        fullpath = join(root, f)
         scripts.append(fullpath)
   for script in scripts:
     if not any(exc_dir in script for exc_dir in exclude):
@@ -807,37 +808,52 @@ def GetOptions():
   return result
 
 
+def run_checks(checks, workspace):
+  failures = []
+
+  def run(check_function, named_object=None):
+    name = (named_object or check_function).__name__
+    print('__________________')
+    print(f'Running {name}...')
+    if check_function(workspace):
+      print(f'{name} SUCCEDED')
+      return
+    failures.append(name)
+    print(f'!!! {name} FAILED')
+
+  for check in checks:
+    if callable(check):
+      run(check)
+    else:
+      run(check.RunOnPath, check.__class__)
+  return '\n'.join(failures)
+
+
 def Main():
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
   parser = GetOptions()
   (options, args) = parser.parse_args()
-  success = True
-  print("Running checkdeps...")
-  success &= CheckDeps(workspace)
   use_linter_cache = not options.no_linter_cache
+  checks = [
+    CheckDeps,
+    TorqueLintProcessor(use_cache=use_linter_cache),
+    JSLintProcessor(use_cache=use_linter_cache),
+    SourceProcessor(),
+    StatusFilesProcessor(),
+    PyTests,
+    GCMoleProcessor(),
+  ]
   if not options.no_lint:
-    print("Running C++ lint check...")
-    success &= CppLintProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
+    checks.append(CppLintProcessor(use_cache=use_linter_cache))
 
-  print("Running Torque formatting check...")
-  success &= TorqueLintProcessor(use_cache=use_linter_cache).RunOnPath(
-    workspace)
-  print("Running JavaScript formatting check...")
-  success &= JSLintProcessor(use_cache=use_linter_cache).RunOnPath(
-    workspace)
-  print("Running copyright header, trailing whitespaces and " \
-        "two empty lines between declarations check...")
-  success &= SourceProcessor().RunOnPath(workspace)
-  print("Running status-files check...")
-  success &= StatusFilesProcessor().RunOnPath(workspace)
-  print("Running python tests...")
-  success &= PyTests(workspace)
-  print("Running gcmole pattern check...")
-  success &= GCMoleProcessor().RunOnPath(workspace)
-  if success:
-    return 0
-  else:
+
+  failure_lines = run_checks(checks, workspace)
+  if failure_lines:
+    print('__________________')
+    print('==================')
+    print(f'Checks failed:\n{failure_lines}')
     return 1
+  return 0
 
 
 if __name__ == '__main__':

@@ -17,7 +17,7 @@ namespace internal {
 // ES #sec-symbol-constructor
 BUILTIN(SymbolConstructor) {
   HandleScope scope(isolate);
-  if (!args.new_target()->IsUndefined(isolate)) {  // [[Construct]]
+  if (!IsUndefined(*args.new_target(), isolate)) {  // [[Construct]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotConstructor,
                               isolate->factory()->Symbol_string()));
@@ -25,7 +25,7 @@ BUILTIN(SymbolConstructor) {
   // [[Call]]
   Handle<Symbol> result = isolate->factory()->NewSymbol();
   Handle<Object> description = args.atOrUndefined(isolate, 1);
-  if (!description->IsUndefined(isolate)) {
+  if (!IsUndefined(*description, isolate)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, description,
                                        Object::ToString(isolate, description));
     result->set_description(String::cast(*description));
@@ -47,20 +47,20 @@ BUILTIN(SymbolFor) {
 BUILTIN(SymbolKeyFor) {
   HandleScope scope(isolate);
   Handle<Object> obj = args.atOrUndefined(isolate, 1);
-  if (!obj->IsSymbol()) {
+  if (!IsSymbol(*obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kSymbolKeyFor, obj));
   }
   Handle<Symbol> symbol = Handle<Symbol>::cast(obj);
   DisallowGarbageCollection no_gc;
-  Object result;
+  Tagged<Object> result;
   if (symbol->is_in_public_symbol_table()) {
     result = symbol->description();
-    DCHECK(result.IsString());
+    DCHECK(IsString(result));
   } else {
     result = ReadOnlyRoots(isolate).undefined_value();
   }
-  DCHECK_EQ(isolate->heap()->public_symbol_table().SlowReverseLookup(*symbol),
+  DCHECK_EQ(isolate->heap()->public_symbol_table()->SlowReverseLookup(*symbol),
             result);
   return result;
 }

@@ -102,7 +102,7 @@ inline constexpr uint16_t ToLatin1Upper(uint16_t ch) {
 }
 
 template <typename Char>
-bool ToUpperFastASCII(const base::Vector<const Char>& src,
+bool ToUpperFastASCII(base::Vector<const Char> src,
                       Handle<SeqOneByteString> result) {
   // Do a faster loop for the case where all the characters are ASCII.
   uint16_t ored = 0;
@@ -118,7 +118,7 @@ bool ToUpperFastASCII(const base::Vector<const Char>& src,
 const uint16_t sharp_s = 0xDF;
 
 template <typename Char>
-bool ToUpperOneByte(const base::Vector<const Char>& src, uint8_t* dest,
+bool ToUpperOneByte(base::Vector<const Char> src, uint8_t* dest,
                     int* sharp_s_count) {
   // Still pretty-fast path for the input with non-ASCII Latin-1 characters.
 
@@ -144,7 +144,7 @@ bool ToUpperOneByte(const base::Vector<const Char>& src, uint8_t* dest,
 }
 
 template <typename Char>
-void ToUpperWithSharpS(const base::Vector<const Char>& src,
+void ToUpperWithSharpS(base::Vector<const Char> src,
                        Handle<SeqOneByteString> result) {
   int32_t dest_index = 0;
   for (auto it = src.begin(); it != src.end(); ++it) {
@@ -158,9 +158,9 @@ void ToUpperWithSharpS(const base::Vector<const Char>& src,
   }
 }
 
-inline int FindFirstUpperOrNonAscii(String s, int length) {
+inline int FindFirstUpperOrNonAscii(Tagged<String> s, int length) {
   for (int index = 0; index < length; ++index) {
-    uint16_t ch = s.Get(index);
+    uint16_t ch = s->Get(index);
     if (V8_UNLIKELY(IsAsciiUpper(ch) || ch & ~0x7F)) {
       return index;
     }
@@ -288,17 +288,18 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
 // strings and does not allocate. Note that {src} could still be, e.g., a
 // one-byte sliced string with a two-byte parent string.
 // Called from TF builtins.
-String Intl::ConvertOneByteToLower(String src, String dst) {
-  DCHECK_EQ(src.length(), dst.length());
-  DCHECK(src.IsOneByteRepresentation());
-  DCHECK(src.IsFlat());
-  DCHECK(dst.IsSeqOneByteString());
+Tagged<String> Intl::ConvertOneByteToLower(Tagged<String> src,
+                                           Tagged<String> dst) {
+  DCHECK_EQ(src->length(), dst->length());
+  DCHECK(src->IsOneByteRepresentation());
+  DCHECK(src->IsFlat());
+  DCHECK(IsSeqOneByteString(dst));
 
   DisallowGarbageCollection no_gc;
 
-  const int length = src.length();
-  String::FlatContent src_flat = src.GetFlatContent(no_gc);
-  uint8_t* dst_data = SeqOneByteString::cast(dst).GetChars(no_gc);
+  const int length = src->length();
+  String::FlatContent src_flat = src->GetFlatContent(no_gc);
+  uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars(no_gc);
 
   if (src_flat.IsOneByte()) {
     const uint8_t* src_data = src_flat.ToOneByteVector().begin();
@@ -450,8 +451,7 @@ Maybe<icu::Locale> CreateICULocale(const std::string& bcp47_locale) {
   UErrorCode status = U_ZERO_ERROR;
 
   icu::Locale icu_locale = icu::Locale::forLanguageTag(bcp47_locale, status);
-  DCHECK(U_SUCCESS(status));
-  if (icu_locale.isBogus()) {
+  if (U_FAILURE(status) || icu_locale.isBogus()) {
     return Nothing<icu::Locale>();
   }
 
@@ -623,7 +623,8 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, obj_ordinary_has_instance,
       Object::OrdinaryHasInstance(isolate, constructor, receiver), Object);
-  bool ordinary_has_instance = obj_ordinary_has_instance->BooleanValue(isolate);
+  bool ordinary_has_instance =
+      Object::BooleanValue(*obj_ordinary_has_instance, isolate);
 
   // 2. If receiver does not have an [[Initialized...]] internal slot
   //    and ? OrdinaryHasInstance(constructor, receiver) is true, then
@@ -749,9 +750,9 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   // 7c iv. If IsStructurallyValidLanguageTag(tag) is false, throw a
   // RangeError exception.
 
-  if (locale_in->IsString()) {
+  if (IsString(*locale_in)) {
     locale_str = Handle<String>::cast(locale_in);
-  } else if (locale_in->IsJSReceiver()) {
+  } else if (IsJSReceiver(*locale_in)) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, locale_str,
                                      Object::ToString(isolate, locale_in),
                                      Nothing<std::string>());
@@ -775,7 +776,7 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
 Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
     Isolate* isolate, Handle<Object> locales, bool only_return_one_result) {
   // 1. If locales is undefined, then
-  if (locales->IsUndefined(isolate)) {
+  if (IsUndefined(*locales, isolate)) {
     // 1a. Return a new empty List.
     return Just(std::vector<std::string>());
   }
@@ -783,14 +784,14 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
   std::vector<std::string> seen;
   // 3. If Type(locales) is String or locales has an [[InitializedLocale]]
   // internal slot,  then
-  if (locales->IsJSLocale()) {
+  if (IsJSLocale(*locales)) {
     // Since this value came from JSLocale, which is already went though the
     // CanonializeLanguageTag process once, therefore there are no need to
     // call CanonializeLanguageTag again.
     seen.push_back(JSLocale::ToString(Handle<JSLocale>::cast(locales)));
     return Just(seen);
   }
-  if (locales->IsString()) {
+  if (IsString(*locales)) {
     // 3a. Let O be CreateArrayFromList(« locales »).
     // Instead of creating a one-element array and then iterating over it,
     // we inline the body of the iteration:
@@ -816,7 +817,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
   // up to 2^53-1 if {length_obj} says so. Since cases above 2^32 probably
   // don't happen in practice (and would be very slow if they do), we'll keep
   // the code simple for now by using a saturating to-uint32 conversion.
-  double raw_length = length_obj->Number();
+  double raw_length = Object::Number(*length_obj);
   uint32_t len =
       raw_length >= kMaxUInt32 ? kMaxUInt32 : static_cast<uint32_t>(raw_length);
   // 6. Let k be 0.
@@ -838,7 +839,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
     // 7c iii. If Type(kValue) is Object and kValue has an [[InitializedLocale]]
     // internal slot, then
     std::string canonicalized_tag;
-    if (k_value->IsJSLocale()) {
+    if (IsJSLocale(*k_value)) {
       // 7c iii. 1. Let tag be kValue.[[Locale]].
       canonicalized_tag = JSLocale::ToString(Handle<JSLocale>::cast(k_value));
       // 7c iv. Else,
@@ -916,7 +917,7 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
 template <class IsolateT>
 Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
     IsolateT* isolate, Handle<Object> locales, Handle<Object> options) {
-  if (!options->IsUndefined(isolate)) {
+  if (!IsUndefined(*options, isolate)) {
     return CompareStringsOptions::kNone;
   }
 
@@ -934,7 +935,7 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
       "sl",    "sv", "sw", "vi",    "en-DE", "en-GB",
   };
 
-  if (locales->IsUndefined(isolate)) {
+  if (IsUndefined(*locales, isolate)) {
     const std::string& default_locale = isolate->DefaultLocale();
     for (const char* fast_locale : kFastLocales) {
       if (strcmp(fast_locale, default_locale.c_str()) == 0) {
@@ -945,7 +946,7 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
     return CompareStringsOptions::kNone;
   }
 
-  if (!locales->IsString()) return CompareStringsOptions::kNone;
+  if (!IsString(*locales)) return CompareStringsOptions::kNone;
 
   Handle<String> locales_string = Handle<String>::cast(locales);
   for (const char* fast_locale : kFastLocales) {
@@ -970,8 +971,8 @@ base::Optional<int> Intl::StringLocaleCompare(
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
   const bool can_cache =
-      (locales->IsString() || locales->IsUndefined(isolate)) &&
-      options->IsUndefined(isolate);
+      (IsString(*locales) || IsUndefined(*locales, isolate)) &&
+      IsUndefined(*options, isolate);
   // We may be able to take the fast path, depending on the `locales` and
   // `options` arguments.
   const CompareStringsOptions compare_strings_options =
@@ -990,7 +991,7 @@ base::Optional<int> Intl::StringLocaleCompare(
 
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(
-          isolate->context().native_context().intl_collator_function()),
+          isolate->context()->native_context()->intl_collator_function()),
       isolate);
 
   Handle<JSCollator> collator;
@@ -1000,9 +1001,10 @@ base::Optional<int> Intl::StringLocaleCompare(
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator, locales,
-        std::static_pointer_cast<icu::UMemory>(collator->icu_collator().get()));
+        std::static_pointer_cast<icu::UMemory>(
+            collator->icu_collator()->get()));
   }
-  icu::Collator* icu_collator = collator->icu_collator().raw();
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
   return Intl::CompareStrings(isolate, *icu_collator, string1, string2,
                               compare_strings_options);
 }
@@ -1466,8 +1468,8 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   // We only cache the instance when locales is a string/undefined and
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
-  bool can_cache = (locales->IsString() || locales->IsUndefined(isolate)) &&
-                   options->IsUndefined(isolate);
+  bool can_cache = (IsString(*locales) || IsUndefined(*locales, isolate)) &&
+                   IsUndefined(*options, isolate);
   if (can_cache) {
     icu::number::LocalizedNumberFormatter* cached_number_format =
         static_cast<icu::number::LocalizedNumberFormatter*>(
@@ -1482,7 +1484,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
 
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(
-          isolate->context().native_context().intl_number_format_function()),
+          isolate->context()->native_context()->intl_number_format_function()),
       isolate);
   Handle<JSNumberFormat> number_format;
   // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
@@ -1502,23 +1504,52 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultNumberFormat, locales,
         std::static_pointer_cast<icu::UMemory>(
-            number_format->icu_number_formatter().get()));
+            number_format->icu_number_formatter()->get()));
   }
 
   // Return FormatNumber(numberFormat, x).
   icu::number::LocalizedNumberFormatter* icu_number_format =
-      number_format->icu_number_formatter().raw();
+      number_format->icu_number_formatter()->raw();
   return JSNumberFormat::FormatNumeric(isolate, *icu_number_format,
                                        numeric_obj);
 }
 
+namespace {
+
+// 22. is in « 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500,
+// 5000 »
+bool IsValidRoundingIncrement(int value) {
+  switch (value) {
+    case 1:
+    case 2:
+    case 5:
+    case 10:
+    case 20:
+    case 25:
+    case 50:
+    case 100:
+    case 200:
+    case 250:
+    case 500:
+    case 1000:
+    case 2000:
+    case 2500:
+    case 5000:
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
 Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     Isolate* isolate, Handle<JSReceiver> options, int mnfd_default,
-    int mxfd_default, bool notation_is_compact) {
+    int mxfd_default, bool notation_is_compact, const char* service) {
   Factory* factory = isolate->factory();
   Intl::NumberFormatDigitOptions digit_options;
 
-  // 5. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
+  // 1. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
   // 1).
   int mnid = 1;
   if (!GetNumberOption(isolate, options, factory->minimumIntegerDigits_string(),
@@ -1527,7 +1558,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     return Nothing<NumberFormatDigitOptions>();
   }
 
-  // 6. Let mnfd be ? Get(options, "minimumFractionDigits").
+  // 2. Let mnfd be ? Get(options, "minimumFractionDigits").
   Handle<Object> mnfd_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mnfd_obj,
@@ -1535,7 +1566,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
                               factory->minimumFractionDigits_string()),
       Nothing<NumberFormatDigitOptions>());
 
-  // 7. Let mxfd be ? Get(options, "maximumFractionDigits").
+  // 3. Let mxfd be ? Get(options, "maximumFractionDigits").
   Handle<Object> mxfd_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mxfd_obj,
@@ -1543,7 +1574,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
                               factory->maximumFractionDigits_string()),
       Nothing<NumberFormatDigitOptions>());
 
-  // 8.  Let mnsd be ? Get(options, "minimumSignificantDigits").
+  // 4.  Let mnsd be ? Get(options, "minimumSignificantDigits").
   Handle<Object> mnsd_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mnsd_obj,
@@ -1551,7 +1582,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
                               factory->minimumSignificantDigits_string()),
       Nothing<NumberFormatDigitOptions>());
 
-  // 9. Let mxsd be ? Get(options, "maximumSignificantDigits").
+  // 5. Let mxsd be ? Get(options, "maximumSignificantDigits").
   Handle<Object> mxsd_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mxsd_obj,
@@ -1563,158 +1594,224 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   digit_options.minimum_significant_digits = 0;
   digit_options.maximum_significant_digits = 0;
 
-  // 10. Set intlObj.[[MinimumIntegerDigits]] to mnid.
+  // 6. Set intlObj.[[MinimumIntegerDigits]] to mnid.
   digit_options.minimum_integer_digits = mnid;
 
-  if (v8_flags.harmony_intl_number_format_v3) {
-    // 11. Let roundingPriority be ? GetOption(options, "roundingPriority",
-    // "string", « "auto", "morePrecision", "lessPrecision" », "auto").
+  // 7. Let roundingPriority be ? GetOption(options, "roundingPriority",
+  // "string", « "auto", "morePrecision", "lessPrecision" », "auto").
 
-    Maybe<RoundingPriority> maybe_rounding_priority =
-        GetStringOption<RoundingPriority>(
-            isolate, options, "roundingPriority", "SetNumberFormatDigitOptions",
-            {"auto", "morePrecision", "lessPrecision"},
-            {RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
-             RoundingPriority::kLessPrecision},
-            RoundingPriority::kAuto);
-    MAYBE_RETURN(maybe_rounding_priority, Nothing<NumberFormatDigitOptions>());
-    digit_options.rounding_priority = maybe_rounding_priority.FromJust();
+  Maybe<RoundingPriority> maybe_rounding_priority =
+      GetStringOption<RoundingPriority>(
+          isolate, options, "roundingPriority", service,
+          {"auto", "morePrecision", "lessPrecision"},
+          {RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
+           RoundingPriority::kLessPrecision},
+          RoundingPriority::kAuto);
+  MAYBE_RETURN(maybe_rounding_priority, Nothing<NumberFormatDigitOptions>());
+  digit_options.rounding_priority = maybe_rounding_priority.FromJust();
+
+  // 8. Let roundingIncrement be ? GetNumberOption(options, "roundingIncrement",
+  // 1, 5000, 1).
+  Maybe<int> maybe_rounding_increment = GetNumberOption(
+      isolate, options, factory->roundingIncrement_string(), 1, 5000, 1);
+  if (!maybe_rounding_increment.To(&digit_options.rounding_increment)) {
+    return Nothing<NumberFormatDigitOptions>();
+  }
+  // 9. If roundingIncrement is not in « 1, 2, 5, 10, 20, 25, 50, 100, 200, 250,
+  // 500, 1000, 2000, 2500, 5000 », throw a RangeError exception.
+  if (!IsValidRoundingIncrement(digit_options.rounding_increment)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                      factory->roundingIncrement_string()),
+        Nothing<NumberFormatDigitOptions>());
   }
 
-  // 12. If mnsd is not undefined or mxsd is not undefined, then
+  // 10. Let roundingMode be ? GetOption(options, "roundingMode", string, «
+  // "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand",
+  // "halfTrunc", "halfEven" », "halfExpand").
+  Maybe<RoundingMode> maybe_rounding_mode = GetStringOption<RoundingMode>(
+      isolate, options, "roundingMode", service,
+      {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+       "halfExpand", "halfTrunc", "halfEven"},
+      {RoundingMode::kCeil, RoundingMode::kFloor, RoundingMode::kExpand,
+       RoundingMode::kTrunc, RoundingMode::kHalfCeil, RoundingMode::kHalfFloor,
+       RoundingMode::kHalfExpand, RoundingMode::kHalfTrunc,
+       RoundingMode::kHalfEven},
+      RoundingMode::kHalfExpand);
+  MAYBE_RETURN(maybe_rounding_mode, Nothing<NumberFormatDigitOptions>());
+  digit_options.rounding_mode = maybe_rounding_mode.FromJust();
+
+  // 11. Let trailingZeroDisplay be ? GetOption(options, "trailingZeroDisplay",
+  // string, « "auto", "stripIfInteger" », "auto").
+  Maybe<TrailingZeroDisplay> maybe_trailing_zero_display =
+      GetStringOption<TrailingZeroDisplay>(
+          isolate, options, "trailingZeroDisplay", service,
+          {"auto", "stripIfInteger"},
+          {TrailingZeroDisplay::kAuto, TrailingZeroDisplay::kStripIfInteger},
+          TrailingZeroDisplay::kAuto);
+  MAYBE_RETURN(maybe_trailing_zero_display,
+               Nothing<NumberFormatDigitOptions>());
+  digit_options.trailing_zero_display = maybe_trailing_zero_display.FromJust();
+
+  // 12. NOTE: All fields required by SetNumberFormatDigitOptions have now been
+  // read from options. The remainder of this AO interprets the options and may
+  // throw exceptions.
+
+  // 17. If mnsd is not undefined or mxsd is not undefined, then
   // a. Set hasSd to true.
-  // 13. Else,
+  // 18. Else,
   // a. Set hasSd to false.
   bool has_sd =
-      (!mnsd_obj->IsUndefined(isolate)) || (!mxsd_obj->IsUndefined(isolate));
+      (!IsUndefined(*mnsd_obj, isolate)) || (!IsUndefined(*mxsd_obj, isolate));
 
-  // 14. If mnfd is not undefined or mxfd is not undefined, then
+  // 19. If mnfd is not undefined or mxfd is not undefined, then
   // a. Set hasFd to true.
-  // 15. Else,
+  // 22. Else,
   // a. Set hasFd to false.
   bool has_fd =
-      (!mnfd_obj->IsUndefined(isolate)) || (!mxfd_obj->IsUndefined(isolate));
+      (!IsUndefined(*mnfd_obj, isolate)) || (!IsUndefined(*mxfd_obj, isolate));
 
-  // 17. If hasSd or roundingPriority is not "auto", set needSd to true; else,
-  // set needSd to false.
-  bool need_sd =
-      has_sd || (RoundingPriority::kAuto != digit_options.rounding_priority);
-
-  // 18. If ( not hasSd and (hasFd or notation is not "compact") ) or
-  // roundingPriority is not "auto", then a. Set needFd to true.
-  // 19. Else,
-  // a. Set needFd to false.
-  bool need_fd = ((!has_sd) && (has_fd || !notation_is_compact)) ||
-                 (RoundingPriority::kAuto != digit_options.rounding_priority);
-
-  // 20. If needSd, then
+  // 21. Let needSd be true.
+  bool need_sd = true;
+  // 22. Let needFd be true.
+  bool need_fd = true;
+  // 23. If roundingPriority is "auto", then
+  if (RoundingPriority::kAuto == digit_options.rounding_priority) {
+    // a. Set needSd to hasSd.
+    need_sd = has_sd;
+    // b. If needSd is true, or hasFd is false and notation is "compact", then
+    if (need_sd || ((!has_fd) && notation_is_compact)) {
+      // i. Set needFd to false.
+      need_fd = false;
+    }
+  }
+  // 24. If needSd is true, then
   if (need_sd) {
-    // 20.b If hasSd, then
+    // 24.a If hasSd is true, then
     if (has_sd) {
-      // 20.b.i Let mnsd be ? DefaultNumberOption(mnsd, 1, 21, 1).
+      // i. Set intlObj.[[MinimumSignificantDigits]] to ?
+      // DefaultNumberOption(mnsd, 1, 21, 1).
       int mnsd;
       if (!DefaultNumberOption(isolate, mnsd_obj, 1, 21, 1,
                                factory->minimumSignificantDigits_string())
                .To(&mnsd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-      // 20.b.ii Let mxsd be ? DefaultNumberOption(mxsd, mnsd, 21, 21).
+      digit_options.minimum_significant_digits = mnsd;
+      // ii. Set intlObj.[[MaximumSignificantDigits]] to ?
+      // DefaultNumberOption(mxsd, intlObj.[[MinimumSignificantDigits]], 21,
+      // 21).
       int mxsd;
       if (!DefaultNumberOption(isolate, mxsd_obj, mnsd, 21, 21,
                                factory->maximumSignificantDigits_string())
                .To(&mxsd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-      // 20.b.iii Set intlObj.[[MinimumSignificantDigits]] to mnsd.
-      digit_options.minimum_significant_digits = mnsd;
-      // 20.b.iv Set intlObj.[[MaximumSignificantDigits]] to mxsd.
       digit_options.maximum_significant_digits = mxsd;
     } else {
-      // 20.c Else
-      // 20.c.i Set intlObj.[[MinimumSignificantDigits]] to 1.
+      // 24.b Else
+      // 24.b.i Set intlObj.[[MinimumSignificantDigits]] to 1.
       digit_options.minimum_significant_digits = 1;
-      // 20.c.ii Set intlObj.[[MaximumSignificantDigits]] to 21.
+      // 24.b.ii Set intlObj.[[MaximumSignificantDigits]] to 21.
       digit_options.maximum_significant_digits = 21;
     }
   }
 
-  // 21. If needFd, then
+  Handle<String> mxfd_str = factory->maximumFractionDigits_string();
+  // 25. If needFd is true, then
   if (need_fd) {
-    // 21.a If hasFd, then
+    // a. If hasFd is true, then
     if (has_fd) {
       Handle<String> mnfd_str = factory->minimumFractionDigits_string();
-      Handle<String> mxfd_str = factory->maximumFractionDigits_string();
-      // 21.a.i Let mnfd be ? DefaultNumberOption(mnfd, 0, 20, undefined).
+      // i. Let mnfd be ? DefaultNumberOption(mnfd, 0, 100, undefined).
       int mnfd;
-      if (!DefaultNumberOption(isolate, mnfd_obj, 0, 20, -1, mnfd_str)
+      if (!DefaultNumberOption(isolate, mnfd_obj, 0, 100, -1, mnfd_str)
                .To(&mnfd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-      // 21.a.ii Let mxfd be ? DefaultNumberOption(mxfd, 0, 20, undefined).
+      // ii. Let mxfd be ? DefaultNumberOption(mxfd, 0, 100, undefined).
       int mxfd;
-      if (!DefaultNumberOption(isolate, mxfd_obj, 0, 20, -1, mxfd_str)
+      if (!DefaultNumberOption(isolate, mxfd_obj, 0, 100, -1, mxfd_str)
                .To(&mxfd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-      // 21.a.iii If mnfd is undefined, set mnfd to min(mnfdDefault, mxfd).
-      if (mnfd_obj->IsUndefined(isolate)) {
+      // iii. If mnfd is undefined, set mnfd to min(mnfdDefault, mxfd).
+      if (IsUndefined(*mnfd_obj, isolate)) {
         mnfd = std::min(mnfd_default, mxfd);
-      } else if (mxfd_obj->IsUndefined(isolate)) {
-        // 21.a.iv Else if mxfd is undefined, set mxfd to max(mxfdDefault,
+      } else if (IsUndefined(*mxfd_obj, isolate)) {
+        // iv. Else if mxfd is undefined, set mxfd to max(mxfdDefault,
         // mnfd).
         mxfd = std::max(mxfd_default, mnfd);
       } else if (mnfd > mxfd) {
-        // 21.a.v Else if mnfd is greater than mxfd, throw a RangeError
+        // v. Else if mnfd is greater than mxfd, throw a RangeError
         // exception.
         THROW_NEW_ERROR_RETURN_VALUE(
             isolate,
             NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str),
             Nothing<NumberFormatDigitOptions>());
       }
-      // 21.a.vi Set intlObj.[[MinimumFractionDigits]] to mnfd.
+      // vi. Set intlObj.[[MinimumFractionDigits]] to mnfd.
       digit_options.minimum_fraction_digits = mnfd;
-      // 21.a.vii Set intlObj.[[MaximumFractionDigits]] to mxfd.
+      // vii. Set intlObj.[[MaximumFractionDigits]] to mxfd.
       digit_options.maximum_fraction_digits = mxfd;
-    } else {  // 17.b Else
-      // 21.b.i Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
+    } else {  // b. Else
+      // i. Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
       digit_options.minimum_fraction_digits = mnfd_default;
-      // 21.b.ii Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
+      // ii. Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
       digit_options.maximum_fraction_digits = mxfd_default;
     }
   }
 
-  // 22. If needSd or needFd, then
-  if (need_sd || need_fd) {
-    // a. If roundingPriority is "morePrecision", then
-    if (digit_options.rounding_priority == RoundingPriority::kMorePrecision) {
-      // i. Set intlObj.[[RoundingType]] to morePrecision.
-      digit_options.rounding_type = RoundingType::kMorePrecision;
-      // b. Else if roundingPriority is "lessPrecision", then
-    } else if (digit_options.rounding_priority ==
-               RoundingPriority::kLessPrecision) {
-      // i. Set intlObj.[[RoundingType]] to lessPrecision.
-      digit_options.rounding_type = RoundingType::kLessPrecision;
-      // c. Else if hasSd, then
-    } else if (has_sd) {
-      // i. Set intlObj.[[RoundingType]] to significantDigits.
-      digit_options.rounding_type = RoundingType::kSignificantDigits;
-      // d. Else,
-    } else {
-      // i.Set intlObj.[[RoundingType]] to fractionDigits.
-      digit_options.rounding_type = RoundingType::kFractionDigits;
-    }
-    // 23. Else
-  } else {
-    // a. Set intlObj.[[RoundingType]] to morePrecision.
-    digit_options.rounding_type = RoundingType::kMorePrecision;
-    // b. Set intlObj.[[MinimumFractionDigits]] to 0.
+  // 26. If needSd is false and needFd is false, then
+  if ((!need_sd) && (!need_fd)) {
+    // a. Set intlObj.[[MinimumFractionDigits]] to 0.
     digit_options.minimum_fraction_digits = 0;
-    // c. Set intlObj.[[MaximumFractionDigits]] to 0.
+    // b. Set intlObj.[[MaximumFractionDigits]] to 0.
     digit_options.maximum_fraction_digits = 0;
-    // d. Set intlObj.[[MinimumSignificantDigits]] to 1.
+    // c. Set intlObj.[[MinimumSignificantDigits]] to 1.
     digit_options.minimum_significant_digits = 1;
-    // e. Set intlObj.[[MaximumSignificantDigits]] to 2.
+    // d. Set intlObj.[[MaximumSignificantDigits]] to 2.
     digit_options.maximum_significant_digits = 2;
+    // e. Set intlObj.[[RoundingType]] to morePrecision.
+    digit_options.rounding_type = RoundingType::kMorePrecision;
+    // 27. Else if roundingPriority is "morePrecision", then
+  } else if (digit_options.rounding_priority ==
+             RoundingPriority::kMorePrecision) {
+    // i. Set intlObj.[[RoundingType]] to morePrecision.
+    digit_options.rounding_type = RoundingType::kMorePrecision;
+    // 28. Else if roundingPriority is "lessPrecision", then
+  } else if (digit_options.rounding_priority ==
+             RoundingPriority::kLessPrecision) {
+    // i. Set intlObj.[[RoundingType]] to lessPrecision.
+    digit_options.rounding_type = RoundingType::kLessPrecision;
+    // 29. Else if hasSd, then
+  } else if (has_sd) {
+    // i. Set intlObj.[[RoundingType]] to significantDigits.
+    digit_options.rounding_type = RoundingType::kSignificantDigits;
+    // 30. Else,
+  } else {
+    // i.Set intlObj.[[RoundingType]] to fractionDigits.
+    digit_options.rounding_type = RoundingType::kFractionDigits;
+  }
+  // 31. If roundingIncrement is not 1, then
+  if (digit_options.rounding_increment != 1) {
+    // a. If intlObj.[[RoundingType]] is not fractionDigits, throw a TypeError
+    // exception.
+    if (digit_options.rounding_type != RoundingType::kFractionDigits) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate, NewTypeError(MessageTemplate::kBadRoundingType),
+          Nothing<NumberFormatDigitOptions>());
+    }
+    // b. If intlObj.[[MaximumFractionDigits]] is not equal to
+    // intlObj.[[MinimumFractionDigits]], throw a RangeError exception.
+    if (digit_options.maximum_fraction_digits !=
+        digit_options.minimum_fraction_digits) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str),
+          Nothing<NumberFormatDigitOptions>());
+    }
   }
   return Just(digit_options);
 }
@@ -2483,7 +2580,7 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
                                     Handle<Object> form_input) {
   const char* form_name;
   UNormalization2Mode form_mode;
-  if (form_input->IsUndefined(isolate)) {
+  if (IsUndefined(*form_input, isolate)) {
     // default is FNC
     form_name = "nfc";
     form_mode = UNORM2_COMPOSE;

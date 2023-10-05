@@ -109,11 +109,11 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   inline void Emit(uint32_t bc, int32_t arg);
   // Bytecode buffer.
   int length();
-  void Copy(byte* a);
+  void Copy(uint8_t* a);
 
   // The buffer into which code and relocation info are generated.
   static constexpr int kInitialBufferSize = 1024;
-  ZoneVector<byte> buffer_;
+  ZoneVector<uint8_t> buffer_;
 
   // The program counter.
   int pc_;

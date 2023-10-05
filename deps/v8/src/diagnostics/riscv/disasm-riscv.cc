@@ -10,9 +10,9 @@
 //
 //   NameConverter converter;
 //   Disassembler d(converter);
-//   for (byte* pc = begin; pc < end;) {
+//   for (uint8_t* pc = begin; pc < end;) {
 //     v8::base::EmbeddedVector<char, 256> buffer;
-//     byte* prev_pc = pc;
+//     uint8_t* prev_pc = pc;
 //     pc += d.InstructionDecode(buffer, pc);
 //     printf("%p    %08x      %s\n",
 //            prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer);
@@ -56,7 +56,7 @@ class Decoder {
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(byte* instruction);
+  int InstructionDecode(uint8_t* instruction);
 
  private:
   // Bottleneck functions to print into the out_buffer.
@@ -264,7 +264,7 @@ void Decoder::PrintTarget(Instruction* instr) {
       int32_t imm = Assembler::BrachlongOffset((instr - 4)->InstructionBits(),
                                                instr->InstructionBits());
       const char* target =
-          converter_.NameOfAddress(reinterpret_cast<byte*>(instr - 4) + imm);
+          converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr - 4) + imm);
       out_buffer_pos_ +=
           base::SNPrintF(out_buffer_ + out_buffer_pos_, " -> %s", target);
       return;
@@ -275,7 +275,7 @@ void Decoder::PrintTarget(Instruction* instr) {
 void Decoder::PrintBranchOffset(Instruction* instr) {
   int32_t imm = instr->BranchOffset();
   const char* target =
-      converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + imm);
+      converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + imm);
   out_buffer_pos_ +=
       base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d -> %s", imm, target);
 }
@@ -313,7 +313,7 @@ void Decoder::PrintImm20U(Instruction* instr) {
 void Decoder::PrintImm20J(Instruction* instr) {
   int32_t imm = instr->Imm20JValue();
   const char* target =
-      converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + imm);
+      converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + imm);
   out_buffer_pos_ +=
       base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d -> %s", imm, target);
 }
@@ -2114,7 +2114,7 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
       Format(instr, "vslidedown.vi 'vd, 'vs2, 'uimm5'vm");
       break;
     case RO_V_VSLIDEUP_VI:
-      Format(instr, "vslideup.vi   'vd, 'vs2, 'uimm5'vm");
+      Format(instr, "vslideup.vi 'vd, 'vs2, 'uimm5'vm");
       break;
     case RO_V_VSRL_VI:
       Format(instr, "vsrl.vi   'vd, 'vs2, 'uimm5'vm");
@@ -2169,7 +2169,10 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       Format(instr, "vssub.vx  'vd, 'vs2, 'rs1'vm");
       break;
     case RO_V_VRSUB_VX:
-      Format(instr, "vrsub.vx  'vd, 'vs2, 'rs1'vm");
+      if (instr->Rs1Value() == zero_reg.code())
+        Format(instr, "vneg.vv   'vd, 'vs2'vm");
+      else
+        Format(instr, "vrsub.vx  'vd, 'vs2, 'rs1'vm");
       break;
     case RO_V_VMIN_VX:
       Format(instr, "vmin.vx   'vd, 'vs2, 'rs1'vm");
@@ -2228,6 +2231,9 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       break;
     case RO_V_VSLIDEDOWN_VX:
       Format(instr, "vslidedown.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSLIDEUP_VX:
+      Format(instr, "vslideup.vx 'vd, 'vs2, 'rs1'vm");
       break;
     case RO_V_VADC_VX:
       if (!instr->RvvVM()) {
@@ -2386,6 +2392,12 @@ void Decoder::DecodeRvvMVX(Instruction* instr) {
     case RO_V_VWADD_VX:
       Format(instr, "vwadd.vx 'vd, 'vs2, 'rs1'vm");
       break;
+    case RO_V_VSLIDE1DOWN_VX:
+      Format(instr, "vslide1down.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSLIDE1UP_VX:
+      Format(instr, "vslide1up.vx 'vd, 'vs2, 'rs1'vm");
+      break;
     default:
       UNSUPPORTED_RISCV();
   }
@@ -2480,7 +2492,7 @@ void Decoder::DecodeRvvFVV(Instruction* instr) {
       break;
     case RO_V_VFSGNJN_VV:
       if (instr->Vs1Value() == instr->Vs2Value()) {
-        Format(instr, "vneg.vv   'vd, 'vs1'vm");
+        Format(instr, "vfneg.vv  'vd, 'vs1'vm");
       } else {
         Format(instr, "vfsgnjn.vv   'vd, 'vs2, 'vs1'vm");
       }
@@ -2547,10 +2559,10 @@ void Decoder::DecodeRvvFVV(Instruction* instr) {
     case RO_V_VFWSUB_W_VV:
       Format(instr, "vfwsub.wv 'vd, 'vs2, 'vs1'vm");
       break;
-    case RO_V_VFWREDUSUM_VV:
+    case RO_V_VFWREDUSUM_VS:
       Format(instr, "vfwredusum.vs 'vd, 'vs2, 'vs1'vm");
       break;
-    case RO_V_VFWREDOSUM_VV:
+    case RO_V_VFWREDOSUM_VS:
       Format(instr, "vfwredosum.vs 'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VFWMUL_VV:
@@ -2586,7 +2598,11 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
       Format(instr, "vfsgnjn.vf   'vd, 'vs2, 'fs1'vm");
       break;
     case RO_V_VFMV_VF:
-      Format(instr, "vfmv.v.f  'vd, 'fs1");
+      if (instr->RvvVM()) {
+        Format(instr, "vfmv.v.f  'vd, 'fs1");
+      } else {
+        Format(instr, "vfmerge.vfm 'vd, 'vs2, 'fs1, v0");
+      }
       break;
     case RO_V_VFMADD_VF:
       Format(instr, "vfmadd.vf 'vd, 'fs1, 'vs2'vm");
@@ -2641,6 +2657,19 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
       break;
     case RO_V_VFADD_VF:
       Format(instr, "vfadd.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFMV_SF:
+      if (instr->Vs2Value() == 0x0) {
+        Format(instr, "vfmv.s.f   'vd, 'fs1");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    case RO_V_VFSLIDE1DOWN_VF:
+      Format(instr, "vfslide1down.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFSLIDE1UP_VF:
+      Format(instr, "vfslide1up.vf 'vd, 'vs2, 'fs1'vm");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -2722,21 +2751,21 @@ void Decoder::DecodeRvvVL(Instruction* instr) {
   //      (kRvvMopMask | kRvvNfMask | kBaseOpcodeMask)) {
   if (RO_V_VL == instr_temp) {
     if (!(instr->InstructionBits() & (kRvvRs2Mask))) {
-      snprintf(str, sizeof(str), "vle%d.v       'vd, ('rs1)'vm",
+      snprintf(str, sizeof(str), "vle%d.v    'vd, ('rs1)'vm",
                instr->vl_vs_width());
       Format(instr, str);
     } else {
-      snprintf(str, sizeof(str), "vle%dff.v       'vd, ('rs1)'vm",
+      snprintf(str, sizeof(str), "vle%dff.v  'vd, ('rs1)'vm",
                instr->vl_vs_width());
       Format(instr, str);
     }
   } else if (RO_V_VLS == instr_temp) {
-    snprintf(str, sizeof(str), "vlse%d.v       'vd, ('rs1), 'rs2'vm",
+    snprintf(str, sizeof(str), "vlse%d.v   'vd, ('rs1), 'rs2'vm",
              instr->vl_vs_width());
     Format(instr, str);
 
   } else if (RO_V_VLX == instr_temp) {
-    snprintf(str, sizeof(str), "vlxei%d.v       'vd, ('rs1), 'vs2'vm",
+    snprintf(str, sizeof(str), "vlxei%d.v  'vd, ('rs1), 'vs2'vm",
              instr->vl_vs_width());
     Format(instr, str);
   } else if (RO_V_VLSEG2 == instr_temp || RO_V_VLSEG3 == instr_temp ||
@@ -2744,10 +2773,10 @@ void Decoder::DecodeRvvVL(Instruction* instr) {
              RO_V_VLSEG6 == instr_temp || RO_V_VLSEG7 == instr_temp ||
              RO_V_VLSEG8 == instr_temp) {
     if (!(instr->InstructionBits() & (kRvvRs2Mask))) {
-      snprintf(str, sizeof(str), "vlseg%de%d.v       'vd, ('rs1)'vm",
+      snprintf(str, sizeof(str), "vlseg%de%d.v  'vd, ('rs1)'vm",
                switch_nf(instr), instr->vl_vs_width());
     } else {
-      snprintf(str, sizeof(str), "vlseg%de%dff.v       'vd, ('rs1)'vm",
+      snprintf(str, sizeof(str), "vlseg%de%dff.v  'vd, ('rs1)'vm",
                switch_nf(instr), instr->vl_vs_width());
     }
     Format(instr, str);
@@ -2755,14 +2784,14 @@ void Decoder::DecodeRvvVL(Instruction* instr) {
              RO_V_VLSSEG4 == instr_temp || RO_V_VLSSEG5 == instr_temp ||
              RO_V_VLSSEG6 == instr_temp || RO_V_VLSSEG7 == instr_temp ||
              RO_V_VLSSEG8 == instr_temp) {
-    snprintf(str, sizeof(str), "vlsseg%de%d.v       'vd, ('rs1), 'rs2'vm",
+    snprintf(str, sizeof(str), "vlsseg%de%d.v  'vd, ('rs1), 'rs2'vm",
              switch_nf(instr), instr->vl_vs_width());
     Format(instr, str);
   } else if (RO_V_VLXSEG2 == instr_temp || RO_V_VLXSEG3 == instr_temp ||
              RO_V_VLXSEG4 == instr_temp || RO_V_VLXSEG5 == instr_temp ||
              RO_V_VLXSEG6 == instr_temp || RO_V_VLXSEG7 == instr_temp ||
              RO_V_VLXSEG8 == instr_temp) {
-    snprintf(str, sizeof(str), "vlxseg%dei%d.v       'vd, ('rs1), 'vs2'vm",
+    snprintf(str, sizeof(str), "vlxseg%dei%d.v  'vd, ('rs1), 'vs2'vm",
              switch_nf(instr), instr->vl_vs_width());
     Format(instr, str);
   }
@@ -2853,7 +2882,7 @@ void Decoder::DecodeRvvVS(Instruction* instr) {
 // All instructions are one word long, except for the simulator
 // pseudo-instruction stop(msg). For that one special case, we return
 // size larger than one kInstrSize.
-int Decoder::InstructionDecode(byte* instr_ptr) {
+int Decoder::InstructionDecode(uint8_t* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);
   // Print raw instruction bytes.
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -2914,7 +2943,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 #endif
     default:
       Format(instr, "UNSUPPORTED");
-      UNSUPPORTED_RISCV();
+      break;
   }
   return instr->InstructionSize();
 }
@@ -2926,12 +2955,12 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 
 namespace disasm {
 
-const char* NameConverter::NameOfAddress(byte* addr) const {
+const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
-const char* NameConverter::NameOfConstant(byte* addr) const {
+const char* NameConverter::NameOfConstant(uint8_t* addr) const {
   return NameOfAddress(addr);
 }
 
@@ -2948,7 +2977,7 @@ const char* NameConverter::NameOfByteCPURegister(int reg) const {
   // return "nobytereg";
 }
 
-const char* NameConverter::NameInCode(byte* addr) const {
+const char* NameConverter::NameInCode(uint8_t* addr) const {
   // The default name converter is called for unknown code. So we will not try
   // to access any memory.
   return "";
@@ -2957,24 +2986,24 @@ const char* NameConverter::NameInCode(byte* addr) const {
 //------------------------------------------------------------------------------
 
 int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
-                                    byte* instruction) {
+                                    uint8_t* instruction) {
   v8::internal::Decoder d(converter_, buffer);
   return d.InstructionDecode(instruction);
 }
 
-int Disassembler::ConstantPoolSizeAt(byte* instruction) {
+int Disassembler::ConstantPoolSizeAt(uint8_t* instruction) {
   return v8::internal::Assembler::ConstantPoolSizeAt(
       reinterpret_cast<v8::internal::Instruction*>(instruction));
 }
 
-void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
+void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
                                UnimplementedOpcodeAction unimplemented_action) {
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
-  for (byte* pc = begin; pc < end;) {
+  for (uint8_t* pc = begin; pc < end;) {
     v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
-    byte* prev_pc = pc;
+    uint8_t* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
     v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
                          *reinterpret_cast<uint32_t*>(prev_pc), buffer.begin());

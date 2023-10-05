@@ -343,6 +343,7 @@ class ConstantPool {
   size_t entry32_count_ = 0;
   size_t entry64_count_ = 0;
   int next_check_ = 0;
+  int old_next_check_ = 0;
   int blocked_nesting_ = 0;
 };
 

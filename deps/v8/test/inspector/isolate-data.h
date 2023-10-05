@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 
 #include "include/v8-array-buffer.h"
 #include "include/v8-inspector.h"
@@ -24,6 +25,7 @@ class StartupData;
 
 namespace internal {
 
+class FrontendChannelImpl;
 class TaskRunner;
 
 enum WithInspector : bool { kWithInspector = true, kNoInspector = false };
@@ -46,14 +48,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
                        WithInspector with_inspector);
   static InspectorIsolateData* FromContext(v8::Local<v8::Context> context);
 
-  ~InspectorIsolateData() override {
-    // Enter the isolate before destructing this InspectorIsolateData, so that
-    // destructors that run before the Isolate's destructor still see it as
-    // entered. Use a v8::Locker, in case the thread destroying the isolate is
-    // not the last one that entered it.
-    locker_.emplace(isolate());
-    isolate()->Enter();
-  }
+  ~InspectorIsolateData() override;
 
   v8::Isolate* isolate() const { return isolate_.get(); }
   TaskRunner* task_runner() const { return task_runner_; }
@@ -70,10 +65,11 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
                       v8::ScriptCompiler::Source* source);
 
   // Working with V8Inspector api.
-  int ConnectSession(int context_group_id,
-                     const v8_inspector::StringView& state,
-                     v8_inspector::V8Inspector::Channel* channel);
-  std::vector<uint8_t> DisconnectSession(int session_id);
+  base::Optional<int> ConnectSession(
+      int context_group_id, const v8_inspector::StringView& state,
+      std::unique_ptr<FrontendChannelImpl> channel, bool is_fully_trusted);
+  std::vector<uint8_t> DisconnectSession(int session_id,
+                                         TaskRunner* context_task_runner);
   void SendMessage(int session_id, const v8_inspector::StringView& message);
   void BreakProgram(int context_group_id,
                     const v8_inspector::StringView& reason,
@@ -174,6 +170,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   int last_session_id_ = 0;
   std::map<int, std::unique_ptr<v8_inspector::V8InspectorSession>> sessions_;
   std::map<v8_inspector::V8InspectorSession*, int> context_group_by_session_;
+  std::set<int> session_ids_for_cleanup_;
   v8::Global<v8::Value> memory_info_;
   bool current_time_set_ = false;
   double current_time_ = 0.0;
@@ -183,6 +180,24 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   v8::Global<v8::Private> not_inspectable_private_;
   v8::Global<v8::String> resource_name_prefix_;
   v8::Global<v8::String> additional_console_api_;
+};
+
+// Stores all the channels.
+//
+// `InspectorIsolateData` is per isolate and a channel connects
+// the backend Isolate with the frontend Isolate. The backend registers and
+// sets up the isolate, but the frontend needs it to send responses and
+// notifications. This is why we use a separate "class" (just a static wrapper
+// around std::map).
+class ChannelHolder {
+ public:
+  static void AddChannel(int session_id,
+                         std::unique_ptr<FrontendChannelImpl> channel);
+  static FrontendChannelImpl* GetChannel(int session_id);
+  static void RemoveChannel(int session_id);
+
+ private:
+  static std::map<int, std::unique_ptr<FrontendChannelImpl>> channels_;
 };
 
 }  // namespace internal

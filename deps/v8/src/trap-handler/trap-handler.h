@@ -22,8 +22,9 @@ namespace trap_handler {
     ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN || \
      V8_OS_FREEBSD)
 #define V8_TRAP_HANDLER_SUPPORTED true
-// Arm64 (non-simulator) on Mac.
-#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && V8_OS_DARWIN
+// Arm64 (non-simulator) on Mac and Linux.
+#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && \
+    (V8_OS_DARWIN || (V8_OS_LINUX && !V8_OS_ANDROID))
 #define V8_TRAP_HANDLER_SUPPORTED true
 // Arm64 simulator on x64 on Linux, Mac, or Windows.
 //
@@ -106,14 +107,14 @@ void TH_EXPORT_PRIVATE ReleaseHandlerData(int index);
 
 // Initially false, set to true if when trap handlers are enabled. Never goes
 // back to false then.
-extern bool g_is_trap_handler_enabled;
+TH_EXPORT_PRIVATE extern bool g_is_trap_handler_enabled;
 
 // Initially true, set to false when either {IsTrapHandlerEnabled} or
 // {EnableTrapHandler} is called to prevent calling {EnableTrapHandler}
 // repeatedly, or after {IsTrapHandlerEnabled}. Needs to be atomic because
 // {IsTrapHandlerEnabled} can be called from any thread. Updated using relaxed
 // semantics, since it's not used for synchronization.
-extern std::atomic<bool> g_can_enable_trap_handler;
+TH_EXPORT_PRIVATE extern std::atomic<bool> g_can_enable_trap_handler;
 
 // Enables trap handling for WebAssembly bounds checks.
 //

@@ -4,7 +4,9 @@
 
 #include "src/compiler/compilation-dependencies.h"
 
+#include "src/base/hashmap.h"
 #include "src/base/optional.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/allocation-site-inl.h"
@@ -27,6 +29,7 @@ namespace compiler {
   V(GlobalProperty)                     \
   V(InitialMap)                         \
   V(InitialMapInstanceSizePrediction)   \
+  V(NoSlackTrackingChange)              \
   V(OwnConstantDataProperty)            \
   V(OwnConstantDictionaryProperty)      \
   V(OwnConstantElement)                 \
@@ -112,17 +115,18 @@ namespace {
 // them from here.
 class PendingDependencies final {
  public:
-  explicit PendingDependencies(Zone* zone) : deps_(zone) {}
+  explicit PendingDependencies(Zone* zone)
+      : deps_(8, {}, ZoneAllocationPolicy(zone)) {}
 
   void Register(Handle<HeapObject> object,
                 DependentCode::DependencyGroup group) {
     // InstructionStream, which are per-local Isolate, cannot depend on objects
-    // in the shared heap. Shared heap dependencies are designed to never
-    // invalidate assumptions. E.g., maps for shared structs do not have
-    // transitions or change the shape of their fields. See
+    // in the shared or RO heaps. Shared and RO heap dependencies are designed
+    // to never invalidate assumptions. E.g., maps for shared structs do not
+    // have transitions or change the shape of their fields. See
     // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
-    if (object->InWritableSharedSpace()) return;
-    deps_[object] |= group;
+    if (object->InWritableSharedSpace() || object->InReadOnlySpace()) return;
+    deps_.LookupOrInsert(object, HandleValueHash(object))->value |= group;
   }
 
   void InstallAll(Isolate* isolate, Handle<Code> code) {
@@ -134,55 +138,58 @@ class PendingDependencies final {
     // With deduplication done we no longer rely on the object address for
     // hashing.
     AllowGarbageCollection yes_gc;
-    for (const auto& o_and_g : deps_) {
-      DependentCode::InstallDependency(isolate, code, o_and_g.first,
-                                       o_and_g.second);
+    for (auto* entry = deps_.Start(); entry != nullptr;
+         entry = deps_.Next(entry)) {
+      DependentCode::InstallDependency(isolate, code, entry->key, entry->value);
     }
+    deps_.Invalidate();
   }
 
   void InstallAllPredictable(Isolate* isolate, Handle<Code> code) {
     CHECK(v8_flags.predictable);
     // First, guarantee predictable iteration order.
-    using HandleAndGroup =
-        std::pair<Handle<HeapObject>, DependentCode::DependencyGroups>;
-    std::vector<HandleAndGroup> entries(deps_.begin(), deps_.end());
+    using DepsMap = decltype(deps_);
+    std::vector<const DepsMap::Entry*> entries;
+    entries.reserve(deps_.occupancy());
+    for (auto* entry = deps_.Start(); entry != nullptr;
+         entry = deps_.Next(entry)) {
+      entries.push_back(entry);
+    }
 
     std::sort(entries.begin(), entries.end(),
-              [](const HandleAndGroup& lhs, const HandleAndGroup& rhs) {
-                return lhs.first->ptr() < rhs.first->ptr();
+              [](const DepsMap::Entry* lhs, const DepsMap::Entry* rhs) {
+                return lhs->key->ptr() < rhs->key->ptr();
               });
 
     // With deduplication done we no longer rely on the object address for
     // hashing.
     AllowGarbageCollection yes_gc;
-    for (const auto& o_and_g : entries) {
-      DependentCode::InstallDependency(isolate, code, o_and_g.first,
-                                       o_and_g.second);
+    for (const auto* entry : entries) {
+      DependentCode::InstallDependency(isolate, code, entry->key, entry->value);
     }
+    deps_.Invalidate();
   }
 
  private:
-  struct HandleHash {
-    size_t operator()(const Handle<HeapObject>& x) const {
-      return static_cast<size_t>(x->ptr());
+  uint32_t HandleValueHash(Handle<HeapObject> handle) {
+    return static_cast<uint32_t>(base::hash_value(handle->ptr()));
+  }
+  struct HandleValueEqual {
+    bool operator()(uint32_t hash1, uint32_t hash2, Handle<HeapObject> lhs,
+                    Handle<HeapObject> rhs) const {
+      return hash1 == hash2 && lhs.is_identical_to(rhs);
     }
   };
-  struct HandleEqual {
-    bool operator()(const Handle<HeapObject>& lhs,
-                    const Handle<HeapObject>& rhs) const {
-      return lhs.is_identical_to(rhs);
-    }
-  };
-  ZoneUnorderedMap<Handle<HeapObject>, DependentCode::DependencyGroups,
-                   HandleHash, HandleEqual>
+
+  base::TemplateHashMapImpl<Handle<HeapObject>, DependentCode::DependencyGroups,
+                            HandleValueEqual, ZoneAllocationPolicy>
       deps_;
-  const DisallowGarbageCollection no_gc_;
 };
 
 class InitialMapDependency final : public CompilationDependency {
  public:
-  InitialMapDependency(JSHeapBroker* broker, const JSFunctionRef& function,
-                       const MapRef& initial_map)
+  InitialMapDependency(JSHeapBroker* broker, JSFunctionRef function,
+                       MapRef initial_map)
       : CompilationDependency(kInitialMap),
         function_(function),
         initial_map_(initial_map) {}
@@ -217,9 +224,8 @@ class InitialMapDependency final : public CompilationDependency {
 
 class PrototypePropertyDependency final : public CompilationDependency {
  public:
-  PrototypePropertyDependency(JSHeapBroker* broker,
-                              const JSFunctionRef& function,
-                              const ObjectRef& prototype)
+  PrototypePropertyDependency(JSHeapBroker* broker, JSFunctionRef function,
+                              ObjectRef prototype)
       : CompilationDependency(kPrototypeProperty),
         function_(function),
         prototype_(prototype) {
@@ -268,7 +274,7 @@ class PrototypePropertyDependency final : public CompilationDependency {
 
 class StableMapDependency final : public CompilationDependency {
  public:
-  explicit StableMapDependency(const MapRef& map)
+  explicit StableMapDependency(MapRef map)
       : CompilationDependency(kStableMap), map_(map) {}
 
   bool IsValid(JSHeapBroker* broker) const override {
@@ -323,13 +329,13 @@ class ConstantInDictionaryPrototypeChainDependency final
     Handle<Map> map = receiver_map_.object();
 
     while (map->prototype() != *holder) {
-      map = handle(map->prototype().map(), isolate);
-      DCHECK(map->IsJSObjectMap());  // Due to IsValid holding.
+      map = handle(map->prototype()->map(), isolate);
+      DCHECK(IsJSObjectMap(*map));  // Due to IsValid holding.
       deps->Register(map, DependentCode::kPrototypeCheckGroup);
     }
 
-    DCHECK(map->prototype().map().IsJSObjectMap());  // Due to IsValid holding.
-    deps->Register(handle(map->prototype().map(), isolate),
+    DCHECK(IsJSObjectMap(map->prototype()->map()));  // Due to IsValid holding.
+    deps->Register(handle(map->prototype()->map(), isolate),
                    DependentCode::kPrototypeCheckGroup);
   }
 
@@ -344,23 +350,23 @@ class ConstantInDictionaryPrototypeChainDependency final
     Isolate* isolate = broker->isolate();
 
     Handle<Object> holder;
-    HeapObject prototype = receiver_map_.object()->prototype();
+    Tagged<HeapObject> prototype = receiver_map_.object()->prototype();
 
     enum class ValidationResult { kFoundCorrect, kFoundIncorrect, kNotFound };
     auto try_load = [&](auto dictionary) -> ValidationResult {
       InternalIndex entry =
-          dictionary.FindEntry(isolate, property_name_.object());
+          dictionary->FindEntry(isolate, property_name_.object());
       if (entry.is_not_found()) {
         return ValidationResult::kNotFound;
       }
 
-      PropertyDetails details = dictionary.DetailsAt(entry);
+      PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.constness() != PropertyConstness::kConst) {
         return ValidationResult::kFoundIncorrect;
       }
 
-      Object dictionary_value = dictionary.ValueAt(entry);
-      Object value;
+      Tagged<Object> dictionary_value = dictionary->ValueAt(entry);
+      Tagged<Object> value;
       // We must be able to detect the case that the property |property_name_|
       // of |holder_| was originally a plain function |constant_| (when creating
       // this dependency) and has since become an accessor whose getter is
@@ -371,13 +377,13 @@ class ConstantInDictionaryPrototypeChainDependency final
         return ValidationResult::kFoundIncorrect;
       }
       if (kind_ == PropertyKind::kAccessor) {
-        if (!dictionary_value.IsAccessorPair()) {
+        if (!IsAccessorPair(dictionary_value)) {
           return ValidationResult::kFoundIncorrect;
         }
         // Only supporting loading at the moment, so we only ever want the
         // getter.
         value = AccessorPair::cast(dictionary_value)
-                    .get(AccessorComponent::ACCESSOR_GETTER);
+                    ->get(AccessorComponent::ACCESSOR_GETTER);
       } else {
         value = dictionary_value;
       }
@@ -385,20 +391,20 @@ class ConstantInDictionaryPrototypeChainDependency final
                                           : ValidationResult::kFoundIncorrect;
     };
 
-    while (prototype.IsJSObject()) {
+    while (IsJSObject(prototype)) {
       // We only care about JSObjects because that's the only type of holder
       // (and types of prototypes on the chain to the holder) that
       // AccessInfoFactory::ComputePropertyAccessInfo allows.
-      JSObject object = JSObject::cast(prototype);
+      Tagged<JSObject> object = JSObject::cast(prototype);
 
       // We only support dictionary mode prototypes on the chain for this kind
       // of dependency.
-      CHECK(!object.HasFastProperties());
+      CHECK(!object->HasFastProperties());
 
       ValidationResult result =
           V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-              ? try_load(object.property_dictionary_swiss())
-              : try_load(object.property_dictionary());
+              ? try_load(object->property_dictionary_swiss())
+              : try_load(object->property_dictionary());
 
       if (result == ValidationResult::kFoundCorrect) {
         return handle(object, isolate);
@@ -407,7 +413,7 @@ class ConstantInDictionaryPrototypeChainDependency final
       }
 
       // In case of kNotFound, continue walking up the chain.
-      prototype = object.map().prototype();
+      prototype = object->map()->prototype();
     }
 
     return MaybeHandle<JSObject>();
@@ -435,11 +441,9 @@ class ConstantInDictionaryPrototypeChainDependency final
 
 class OwnConstantDataPropertyDependency final : public CompilationDependency {
  public:
-  OwnConstantDataPropertyDependency(JSHeapBroker* broker,
-                                    const JSObjectRef& holder,
-                                    const MapRef& map,
-                                    Representation representation,
-                                    FieldIndex index, const ObjectRef& value)
+  OwnConstantDataPropertyDependency(JSHeapBroker* broker, JSObjectRef holder,
+                                    MapRef map, Representation representation,
+                                    FieldIndex index, ObjectRef value)
       : CompilationDependency(kOwnConstantDataProperty),
         broker_(broker),
         holder_(holder),
@@ -455,13 +459,13 @@ class OwnConstantDataPropertyDependency final : public CompilationDependency {
       return false;
     }
     DisallowGarbageCollection no_heap_allocation;
-    Object current_value = holder_.object()->RawFastPropertyAt(index_);
-    Object used_value = *value_.object();
+    Tagged<Object> current_value = holder_.object()->RawFastPropertyAt(index_);
+    Tagged<Object> used_value = *value_.object();
     if (representation_.IsDouble()) {
       // Compare doubles by bit pattern.
-      if (!current_value.IsHeapNumber() || !used_value.IsHeapNumber() ||
-          HeapNumber::cast(current_value).value_as_bits(kRelaxedLoad) !=
-              HeapNumber::cast(used_value).value_as_bits(kRelaxedLoad)) {
+      if (!IsHeapNumber(current_value) || !IsHeapNumber(used_value) ||
+          HeapNumber::cast(current_value)->value_as_bits(kRelaxedLoad) !=
+              HeapNumber::cast(used_value)->value_as_bits(kRelaxedLoad)) {
         TRACE_BROKER_MISSING(broker_,
                              "Constant Double property value changed in "
                                  << holder_.object() << " at FieldIndex "
@@ -507,9 +511,8 @@ class OwnConstantDictionaryPropertyDependency final
     : public CompilationDependency {
  public:
   OwnConstantDictionaryPropertyDependency(JSHeapBroker* broker,
-                                          const JSObjectRef& holder,
-                                          InternalIndex index,
-                                          const ObjectRef& value)
+                                          JSObjectRef holder,
+                                          InternalIndex index, ObjectRef value)
       : CompilationDependency(kOwnConstantDictionaryProperty),
         holder_(holder),
         map_(holder.map(broker)),
@@ -527,7 +530,7 @@ class OwnConstantDictionaryPropertyDependency final
       return false;
     }
 
-    base::Optional<Object> maybe_value = JSObject::DictionaryPropertyAt(
+    base::Optional<Tagged<Object>> maybe_value = JSObject::DictionaryPropertyAt(
         holder_.object(), index_, broker->isolate()->heap());
 
     if (!maybe_value) {
@@ -573,7 +576,7 @@ class OwnConstantDictionaryPropertyDependency final
 
 class ConsistentJSFunctionViewDependency final : public CompilationDependency {
  public:
-  explicit ConsistentJSFunctionViewDependency(const JSFunctionRef& function)
+  explicit ConsistentJSFunctionViewDependency(JSFunctionRef function)
       : CompilationDependency(kConsistentJSFunctionView), function_(function) {}
 
   bool IsValid(JSHeapBroker* broker) const override {
@@ -600,7 +603,7 @@ class ConsistentJSFunctionViewDependency final : public CompilationDependency {
 
 class TransitionDependency final : public CompilationDependency {
  public:
-  explicit TransitionDependency(const MapRef& map)
+  explicit TransitionDependency(MapRef map)
       : CompilationDependency(kTransition), map_(map) {
     DCHECK(map_.CanBeDeprecated());
   }
@@ -630,8 +633,7 @@ class TransitionDependency final : public CompilationDependency {
 
 class PretenureModeDependency final : public CompilationDependency {
  public:
-  PretenureModeDependency(const AllocationSiteRef& site,
-                          AllocationType allocation)
+  PretenureModeDependency(AllocationSiteRef site, AllocationType allocation)
       : CompilationDependency(kPretenureMode),
         site_(site),
         allocation_(allocation) {}
@@ -662,10 +664,12 @@ class PretenureModeDependency final : public CompilationDependency {
 
 class FieldRepresentationDependency final : public CompilationDependency {
  public:
-  FieldRepresentationDependency(const MapRef& map, InternalIndex descriptor,
+  FieldRepresentationDependency(MapRef map, MapRef owner,
+                                InternalIndex descriptor,
                                 Representation representation)
       : CompilationDependency(kFieldRepresentation),
         map_(map),
+        owner_(owner),
         descriptor_(descriptor),
         representation_(representation) {}
 
@@ -674,18 +678,17 @@ class FieldRepresentationDependency final : public CompilationDependency {
     if (map_.object()->is_deprecated()) return false;
     return representation_.Equals(map_.object()
                                       ->instance_descriptors(broker->isolate())
-                                      .GetDetails(descriptor_)
+                                      ->GetDetails(descriptor_)
                                       .representation());
   }
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
     Isolate* isolate = broker->isolate();
-    Handle<Map> owner(map_.object()->FindFieldOwner(isolate, descriptor_),
-                      isolate);
+    Handle<Map> owner = owner_.object();
     CHECK(!owner->is_deprecated());
     CHECK(representation_.Equals(owner->instance_descriptors(isolate)
-                                     .GetDetails(descriptor_)
+                                     ->GetDetails(descriptor_)
                                      .representation()));
     deps->Register(owner, DependentCode::kFieldRepresentationGroup);
   }
@@ -709,16 +712,18 @@ class FieldRepresentationDependency final : public CompilationDependency {
   }
 
   const MapRef map_;
+  const MapRef owner_;
   const InternalIndex descriptor_;
   const Representation representation_;
 };
 
 class FieldTypeDependency final : public CompilationDependency {
  public:
-  FieldTypeDependency(const MapRef& map, InternalIndex descriptor,
-                      const ObjectRef& type)
+  FieldTypeDependency(MapRef map, MapRef owner, InternalIndex descriptor,
+                      ObjectRef type)
       : CompilationDependency(kFieldType),
         map_(map),
+        owner_(owner),
         descriptor_(descriptor),
         type_(type) {}
 
@@ -727,17 +732,16 @@ class FieldTypeDependency final : public CompilationDependency {
     if (map_.object()->is_deprecated()) return false;
     return *type_.object() == map_.object()
                                   ->instance_descriptors(broker->isolate())
-                                  .GetFieldType(descriptor_);
+                                  ->GetFieldType(descriptor_);
   }
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
     Isolate* isolate = broker->isolate();
-    Handle<Map> owner(map_.object()->FindFieldOwner(isolate, descriptor_),
-                      isolate);
+    Handle<Map> owner = owner_.object();
     CHECK(!owner->is_deprecated());
     CHECK_EQ(*type_.object(),
-             owner->instance_descriptors(isolate).GetFieldType(descriptor_));
+             owner->instance_descriptors(isolate)->GetFieldType(descriptor_));
     deps->Register(owner, DependentCode::kFieldTypeGroup);
   }
 
@@ -754,15 +758,17 @@ class FieldTypeDependency final : public CompilationDependency {
   }
 
   const MapRef map_;
+  const MapRef owner_;
   const InternalIndex descriptor_;
   const ObjectRef type_;
 };
 
 class FieldConstnessDependency final : public CompilationDependency {
  public:
-  FieldConstnessDependency(const MapRef& map, InternalIndex descriptor)
+  FieldConstnessDependency(MapRef map, MapRef owner, InternalIndex descriptor)
       : CompilationDependency(kFieldConstness),
         map_(map),
+        owner_(owner),
         descriptor_(descriptor) {}
 
   bool IsValid(JSHeapBroker* broker) const override {
@@ -771,18 +777,17 @@ class FieldConstnessDependency final : public CompilationDependency {
     return PropertyConstness::kConst ==
            map_.object()
                ->instance_descriptors(broker->isolate())
-               .GetDetails(descriptor_)
+               ->GetDetails(descriptor_)
                .constness();
   }
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
     Isolate* isolate = broker->isolate();
-    Handle<Map> owner(map_.object()->FindFieldOwner(isolate, descriptor_),
-                      isolate);
+    Handle<Map> owner = owner_.object();
     CHECK(!owner->is_deprecated());
     CHECK_EQ(PropertyConstness::kConst, owner->instance_descriptors(isolate)
-                                            .GetDetails(descriptor_)
+                                            ->GetDetails(descriptor_)
                                             .constness());
     deps->Register(owner, DependentCode::kFieldConstGroup);
   }
@@ -799,12 +804,13 @@ class FieldConstnessDependency final : public CompilationDependency {
   }
 
   const MapRef map_;
+  const MapRef owner_;
   const InternalIndex descriptor_;
 };
 
 class GlobalPropertyDependency final : public CompilationDependency {
  public:
-  GlobalPropertyDependency(const PropertyCellRef& cell, PropertyCellType type,
+  GlobalPropertyDependency(PropertyCellRef cell, PropertyCellType type,
                            bool read_only)
       : CompilationDependency(kGlobalProperty),
         cell_(cell),
@@ -818,7 +824,8 @@ class GlobalPropertyDependency final : public CompilationDependency {
     Handle<PropertyCell> cell = cell_.object();
     // The dependency is never valid if the cell is 'invalidated'. This is
     // marked by setting the value to the hole.
-    if (cell->value() == *(broker->isolate()->factory()->the_hole_value())) {
+    if (cell->value() ==
+        *(broker->isolate()->factory()->property_cell_hole_value())) {
       return false;
     }
     return type_ == cell->property_details().cell_type() &&
@@ -848,7 +855,7 @@ class GlobalPropertyDependency final : public CompilationDependency {
 
 class ProtectorDependency final : public CompilationDependency {
  public:
-  explicit ProtectorDependency(const PropertyCellRef& cell)
+  explicit ProtectorDependency(PropertyCellRef cell)
       : CompilationDependency(kProtector), cell_(cell) {}
 
   bool IsValid(JSHeapBroker* broker) const override {
@@ -877,8 +884,8 @@ class ProtectorDependency final : public CompilationDependency {
 // Check that an object slot will not change during compilation.
 class ObjectSlotValueDependency final : public CompilationDependency {
  public:
-  explicit ObjectSlotValueDependency(const HeapObjectRef& object, int offset,
-                                     const ObjectRef& value)
+  explicit ObjectSlotValueDependency(HeapObjectRef object, int offset,
+                                     ObjectRef value)
       : CompilationDependency(kObjectSlotValue),
         object_(object.object()),
         offset_(offset),
@@ -886,7 +893,7 @@ class ObjectSlotValueDependency final : public CompilationDependency {
 
   bool IsValid(JSHeapBroker* broker) const override {
     PtrComprCageBase cage_base = GetPtrComprCageBase(*object_);
-    Object current_value =
+    Tagged<Object> current_value =
         offset_ == HeapObject::kMapOffset
             ? object_->map()
             : TaggedField<Object>::Relaxed_Load(cage_base, *object_, offset_);
@@ -913,7 +920,7 @@ class ObjectSlotValueDependency final : public CompilationDependency {
 
 class ElementsKindDependency final : public CompilationDependency {
  public:
-  ElementsKindDependency(const AllocationSiteRef& site, ElementsKind kind)
+  ElementsKindDependency(AllocationSiteRef site, ElementsKind kind)
       : CompilationDependency(kElementsKind), site_(site), kind_(kind) {
     DCHECK(AllocationSite::ShouldTrack(kind_));
   }
@@ -922,7 +929,7 @@ class ElementsKindDependency final : public CompilationDependency {
     Handle<AllocationSite> site = site_.object();
     ElementsKind kind =
         site->PointsToLiteral()
-            ? site->boilerplate(kAcquireLoad).map().elements_kind()
+            ? site->boilerplate(kAcquireLoad)->map()->elements_kind()
             : site->GetElementsKind();
     return kind_ == kind;
   }
@@ -951,8 +958,8 @@ class ElementsKindDependency final : public CompilationDependency {
 // GetOwnConstantElementFromHeap.
 class OwnConstantElementDependency final : public CompilationDependency {
  public:
-  OwnConstantElementDependency(const JSObjectRef& holder, uint32_t index,
-                               const ObjectRef& element)
+  OwnConstantElementDependency(JSObjectRef holder, uint32_t index,
+                               ObjectRef element)
       : CompilationDependency(kOwnConstantElement),
         holder_(holder),
         index_(index),
@@ -960,10 +967,10 @@ class OwnConstantElementDependency final : public CompilationDependency {
 
   bool IsValid(JSHeapBroker* broker) const override {
     DisallowGarbageCollection no_gc;
-    JSObject holder = *holder_.object();
-    base::Optional<Object> maybe_element =
-        holder_.GetOwnConstantElementFromHeap(broker, holder.elements(),
-                                              holder.GetElementsKind(), index_);
+    Tagged<JSObject> holder = *holder_.object();
+    base::Optional<Tagged<Object>> maybe_element =
+        holder_.GetOwnConstantElementFromHeap(
+            broker, holder->elements(), holder->GetElementsKind(), index_);
     if (!maybe_element.has_value()) return false;
 
     return maybe_element.value() == *element_.object();
@@ -989,10 +996,45 @@ class OwnConstantElementDependency final : public CompilationDependency {
   const ObjectRef element_;
 };
 
+class NoSlackTrackingChangeDependency final : public CompilationDependency {
+ public:
+  explicit NoSlackTrackingChangeDependency(MapRef map)
+      : CompilationDependency(kNoSlackTrackingChange), map_(map) {}
+
+  bool IsValid(JSHeapBroker* broker) const override {
+    if (map_.construction_counter() != 0 &&
+        map_.object()->construction_counter() == 0) {
+      // Slack tracking finished during compilation.
+      return false;
+    }
+    return map_.UnusedPropertyFields() ==
+               map_.object()->UnusedPropertyFields() &&
+           map_.GetInObjectProperties() ==
+               map_.object()->GetInObjectProperties();
+  }
+
+  void PrepareInstall(JSHeapBroker*) const override {}
+  void Install(JSHeapBroker*, PendingDependencies*) const override {}
+
+ private:
+  size_t Hash() const override {
+    ObjectRef::Hash h;
+    return base::hash_combine(h(map_));
+  }
+
+  bool Equals(const CompilationDependency* that) const override {
+    const NoSlackTrackingChangeDependency* const zat =
+        that->AsNoSlackTrackingChange();
+    return map_.equals(zat->map_);
+  }
+
+  const MapRef map_;
+};
+
 class InitialMapInstanceSizePredictionDependency final
     : public CompilationDependency {
  public:
-  InitialMapInstanceSizePredictionDependency(const JSFunctionRef& function,
+  InitialMapInstanceSizePredictionDependency(JSFunctionRef function,
                                              int instance_size)
       : CompilationDependency(kInitialMapInstanceSizePrediction),
         function_(function),
@@ -1014,8 +1056,9 @@ class InitialMapInstanceSizePredictionDependency final
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
-    DCHECK(
-        !function_.object()->initial_map().IsInobjectSlackTrackingInProgress());
+    DCHECK(!function_.object()
+                ->initial_map()
+                ->IsInobjectSlackTrackingInProgress());
   }
 
  private:
@@ -1042,36 +1085,35 @@ void CompilationDependencies::RecordDependency(
   if (dependency != nullptr) dependencies_.insert(dependency);
 }
 
-MapRef CompilationDependencies::DependOnInitialMap(
-    const JSFunctionRef& function) {
+MapRef CompilationDependencies::DependOnInitialMap(JSFunctionRef function) {
   MapRef map = function.initial_map(broker_);
   RecordDependency(zone_->New<InitialMapDependency>(broker_, function, map));
   return map;
 }
 
-ObjectRef CompilationDependencies::DependOnPrototypeProperty(
-    const JSFunctionRef& function) {
-  ObjectRef prototype = function.instance_prototype(broker_);
+HeapObjectRef CompilationDependencies::DependOnPrototypeProperty(
+    JSFunctionRef function) {
+  HeapObjectRef prototype = function.instance_prototype(broker_);
   RecordDependency(
       zone_->New<PrototypePropertyDependency>(broker_, function, prototype));
   return prototype;
 }
 
-void CompilationDependencies::DependOnStableMap(const MapRef& map) {
+void CompilationDependencies::DependOnStableMap(MapRef map) {
   if (map.CanTransition()) {
     RecordDependency(zone_->New<StableMapDependency>(map));
   }
 }
 
 void CompilationDependencies::DependOnConstantInDictionaryPrototypeChain(
-    const MapRef& receiver_map, const NameRef& property_name,
-    const ObjectRef& constant, PropertyKind kind) {
+    MapRef receiver_map, NameRef property_name, ObjectRef constant,
+    PropertyKind kind) {
   RecordDependency(zone_->New<ConstantInDictionaryPrototypeChainDependency>(
       receiver_map, property_name, constant, kind));
 }
 
 AllocationType CompilationDependencies::DependOnPretenureMode(
-    const AllocationSiteRef& site) {
+    AllocationSiteRef site) {
   if (!v8_flags.allocation_site_pretenuring) return AllocationType::kYoung;
   AllocationType allocation = site.GetAllocationType();
   RecordDependency(zone_->New<PretenureModeDependency>(site, allocation));
@@ -1079,7 +1121,7 @@ AllocationType CompilationDependencies::DependOnPretenureMode(
 }
 
 PropertyConstness CompilationDependencies::DependOnFieldConstness(
-    const MapRef& map, InternalIndex descriptor) {
+    MapRef map, MapRef owner, InternalIndex descriptor) {
   PropertyConstness constness =
       map.GetPropertyDetails(broker_, descriptor).constness();
   if (constness == PropertyConstness::kMutable) return constness;
@@ -1096,18 +1138,18 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   }
 
   DCHECK_EQ(constness, PropertyConstness::kConst);
-  RecordDependency(zone_->New<FieldConstnessDependency>(map, descriptor));
+  RecordDependency(
+      zone_->New<FieldConstnessDependency>(map, owner, descriptor));
   return PropertyConstness::kConst;
 }
 
-void CompilationDependencies::DependOnGlobalProperty(
-    const PropertyCellRef& cell) {
+void CompilationDependencies::DependOnGlobalProperty(PropertyCellRef cell) {
   PropertyCellType type = cell.property_details().cell_type();
   bool read_only = cell.property_details().IsReadOnly();
   RecordDependency(zone_->New<GlobalPropertyDependency>(cell, type, read_only));
 }
 
-bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
+bool CompilationDependencies::DependOnProtector(PropertyCellRef cell) {
   cell.CacheAsProtector(broker_);
   if (cell.value(broker_).AsSmi() != Protectors::kProtectorValid) return false;
   RecordDependency(zone_->New<ProtectorDependency>(cell));
@@ -1117,6 +1159,17 @@ bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
 bool CompilationDependencies::DependOnMegaDOMProtector() {
   return DependOnProtector(
       MakeRef(broker_, broker_->isolate()->factory()->mega_dom_protector()));
+}
+
+bool CompilationDependencies::DependOnNoProfilingProtector() {
+  // A shortcut in case profiling was already enabled but the interrupt
+  // request to invalidate NoProfilingProtector wasn't processed yet.
+#ifdef V8_RUNTIME_CALL_STATS
+  if (TracingFlags::is_runtime_stats_enabled()) return false;
+#endif
+  if (broker_->isolate()->is_profiling()) return false;
+  return DependOnProtector(MakeRef(
+      broker_, broker_->isolate()->factory()->no_profiling_protector()));
 }
 
 bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
@@ -1155,8 +1208,7 @@ bool CompilationDependencies::DependOnPromiseThenProtector() {
       broker_, broker_->isolate()->factory()->promise_then_protector()));
 }
 
-void CompilationDependencies::DependOnElementsKind(
-    const AllocationSiteRef& site) {
+void CompilationDependencies::DependOnElementsKind(AllocationSiteRef site) {
   ElementsKind kind =
       site.PointsToLiteral()
           ? site.boilerplate(broker_).value().map(broker_).elements_kind()
@@ -1166,27 +1218,29 @@ void CompilationDependencies::DependOnElementsKind(
   }
 }
 
-void CompilationDependencies::DependOnObjectSlotValue(
-    const HeapObjectRef& object, int offset, const ObjectRef& value) {
+void CompilationDependencies::DependOnObjectSlotValue(HeapObjectRef object,
+                                                      int offset,
+                                                      ObjectRef value) {
   RecordDependency(
       zone_->New<ObjectSlotValueDependency>(object, offset, value));
 }
 
-void CompilationDependencies::DependOnOwnConstantElement(
-    const JSObjectRef& holder, uint32_t index, const ObjectRef& element) {
+void CompilationDependencies::DependOnOwnConstantElement(JSObjectRef holder,
+                                                         uint32_t index,
+                                                         ObjectRef element) {
   RecordDependency(
       zone_->New<OwnConstantElementDependency>(holder, index, element));
 }
 
 void CompilationDependencies::DependOnOwnConstantDataProperty(
-    const JSObjectRef& holder, const MapRef& map, Representation representation,
-    FieldIndex index, const ObjectRef& value) {
+    JSObjectRef holder, MapRef map, Representation representation,
+    FieldIndex index, ObjectRef value) {
   RecordDependency(zone_->New<OwnConstantDataPropertyDependency>(
       broker_, holder, map, representation, index, value));
 }
 
 void CompilationDependencies::DependOnOwnConstantDictionaryProperty(
-    const JSObjectRef& holder, InternalIndex index, const ObjectRef& value) {
+    JSObjectRef holder, InternalIndex index, ObjectRef value) {
   RecordDependency(zone_->New<OwnConstantDictionaryPropertyDependency>(
       broker_, holder, index, value));
 }
@@ -1237,7 +1291,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
   //    compilation saw a self-consistent state of the jsfunction.
   if (v8_flags.stress_gc_during_compilation) {
     broker_->isolate()->heap()->PreciseCollectAllGarbage(
-        Heap::kForcedGC, GarbageCollectionReason::kTesting, kNoGCCallbackFlags);
+        GCFlag::kForced, GarbageCollectionReason::kTesting, kNoGCCallbackFlags);
   }
 #ifdef DEBUG
   for (auto dep : dependencies_) {
@@ -1331,8 +1385,7 @@ void CompilationDependencies::DependOnStablePrototypeChain(
   }
 }
 
-void CompilationDependencies::DependOnElementsKinds(
-    const AllocationSiteRef& site) {
+void CompilationDependencies::DependOnElementsKinds(AllocationSiteRef site) {
   AllocationSiteRef current = site;
   while (true) {
     DependOnElementsKind(current);
@@ -1343,8 +1396,14 @@ void CompilationDependencies::DependOnElementsKinds(
 }
 
 void CompilationDependencies::DependOnConsistentJSFunctionView(
-    const JSFunctionRef& function) {
+    JSFunctionRef function) {
   RecordDependency(zone_->New<ConsistentJSFunctionViewDependency>(function));
+}
+
+void CompilationDependencies::DependOnNoSlackTrackingChange(MapRef map) {
+  if (map.construction_counter() == 0) return;
+  RecordDependency(zone_->New<NoSlackTrackingChangeDependency>(map));
+  return;
 }
 
 SlackTrackingPrediction::SlackTrackingPrediction(MapRef initial_map,
@@ -1356,7 +1415,7 @@ SlackTrackingPrediction::SlackTrackingPrediction(MapRef initial_map,
 
 SlackTrackingPrediction
 CompilationDependencies::DependOnInitialMapInstanceSizePrediction(
-    const JSFunctionRef& function) {
+    JSFunctionRef function) {
   MapRef initial_map = DependOnInitialMap(function);
   int instance_size = function.InitialMapInstanceSizeWithMinSlack(broker_);
   // Currently, we always install the prediction dependency. If this turns out
@@ -1370,7 +1429,7 @@ CompilationDependencies::DependOnInitialMapInstanceSizePrediction(
 
 CompilationDependency const*
 CompilationDependencies::TransitionDependencyOffTheRecord(
-    const MapRef& target_map) const {
+    MapRef target_map) const {
   if (target_map.CanBeDeprecated()) {
     return zone_->New<TransitionDependency>(target_map);
   } else {
@@ -1381,16 +1440,16 @@ CompilationDependencies::TransitionDependencyOffTheRecord(
 
 CompilationDependency const*
 CompilationDependencies::FieldRepresentationDependencyOffTheRecord(
-    const MapRef& map, InternalIndex descriptor,
+    MapRef map, MapRef owner, InternalIndex descriptor,
     Representation representation) const {
-  return zone_->New<FieldRepresentationDependency>(map, descriptor,
+  return zone_->New<FieldRepresentationDependency>(map, owner, descriptor,
                                                    representation);
 }
 
 CompilationDependency const*
 CompilationDependencies::FieldTypeDependencyOffTheRecord(
-    const MapRef& map, InternalIndex descriptor, const ObjectRef& type) const {
-  return zone_->New<FieldTypeDependency>(map, descriptor, type);
+    MapRef map, MapRef owner, InternalIndex descriptor, ObjectRef type) const {
+  return zone_->New<FieldTypeDependency>(map, owner, descriptor, type);
 }
 
 #ifdef DEBUG

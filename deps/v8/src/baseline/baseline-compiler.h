@@ -48,7 +48,7 @@ class BytecodeOffsetTableBuilder {
 
  private:
   size_t previous_pc_ = 0;
-  std::vector<byte> bytes_;
+  std::vector<uint8_t> bytes_;
 };
 
 class BaselineCompiler {
@@ -59,7 +59,7 @@ class BaselineCompiler {
 
   void GenerateCode();
   MaybeHandle<Code> Build(LocalIsolate* local_isolate);
-  static int EstimateInstructionSize(BytecodeArray bytecode);
+  static int EstimateInstructionSize(Tagged<BytecodeArray> bytecode);
 
  private:
   void Prologue();
@@ -81,7 +81,7 @@ class BaselineCompiler {
   // Constant pool operands.
   template <typename Type>
   Handle<Type> Constant(int operand_index);
-  Smi ConstantSmi(int operand_index);
+  Tagged<Smi> ConstantSmi(int operand_index);
   template <typename Type>
   void LoadConstant(Register output, int operand_index);
 
@@ -92,21 +92,25 @@ class BaselineCompiler {
   uint32_t Flag8(int operand_index);
   uint32_t Flag16(int operand_index);
   uint32_t RegisterCount(int operand_index);
-  TaggedIndex IndexAsTagged(int operand_index);
-  TaggedIndex UintAsTagged(int operand_index);
-  Smi IndexAsSmi(int operand_index);
-  Smi IntAsSmi(int operand_index);
-  Smi Flag8AsSmi(int operand_index);
-  Smi Flag16AsSmi(int operand_index);
+  Tagged<TaggedIndex> IndexAsTagged(int operand_index);
+  Tagged<TaggedIndex> UintAsTagged(int operand_index);
+  Tagged<Smi> IndexAsSmi(int operand_index);
+  Tagged<Smi> IntAsSmi(int operand_index);
+  Tagged<Smi> Flag8AsSmi(int operand_index);
+  Tagged<Smi> Flag16AsSmi(int operand_index);
 
   // Jump helpers.
   Label* NewLabel();
   Label* BuildForwardJumpLabel();
-  void UpdateInterruptBudgetAndJumpToLabel(int weight, Label* label,
-                                           Label* skip_interrupt_label);
-  void UpdateInterruptBudgetAndDoInterpreterJump();
-  void UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex root);
-  void UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(RootIndex root);
+  enum StackCheckBehavior {
+    kEnableStackCheck,
+    kDisableStackCheck,
+  };
+  void UpdateInterruptBudgetAndJumpToLabel(
+      int weight, Label* label, Label* skip_interrupt_label,
+      StackCheckBehavior stack_check_behavior);
+  void JumpIfRoot(RootIndex root);
+  void JumpIfNotRoot(RootIndex root);
 
   // Feedback vector.
   MemOperand FeedbackVector();
@@ -195,6 +199,42 @@ class BaselineCompiler {
   }
 
   BaselineLabelPointer* labels_;
+
+#ifdef DEBUG
+  friend class SaveAccumulatorScope;
+
+  struct EffectState {
+    bool may_have_deopted = false;
+    bool accumulator_on_stack = false;
+    bool safe_to_skip = false;
+
+    void MayDeopt() {
+      DCHECK(!accumulator_on_stack);
+      may_have_deopted = true;
+    }
+
+    void CheckEffect() { DCHECK(!may_have_deopted || safe_to_skip); }
+
+    void clear() {
+      DCHECK(!accumulator_on_stack);
+      *this = EffectState();
+    }
+  } effect_state_;
+#endif
+};
+
+class SaveAccumulatorScope final {
+ public:
+  SaveAccumulatorScope(BaselineCompiler* compiler,
+                       BaselineAssembler* assembler);
+
+  ~SaveAccumulatorScope();
+
+ private:
+#ifdef DEBUG
+  BaselineCompiler* compiler_;
+#endif
+  BaselineAssembler* assembler_;
 };
 
 }  // namespace baseline

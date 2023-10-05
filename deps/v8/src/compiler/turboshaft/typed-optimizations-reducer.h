@@ -19,33 +19,32 @@ class TypeInferenceReducer;
 template <typename Next>
 class TypedOptimizationsReducer
     : public UniformReducerAdapter<TypedOptimizationsReducer, Next> {
+#if defined(__clang__)
   // Typed optimizations require a typed graph.
-  // TODO(nicohartmann@): Reenable this in a way that compiles with msvc light.
-  // static_assert(next_contains_reducer<Next, TypeInferenceReducer>::value);
+  static_assert(next_contains_reducer<Next, TypeInferenceReducer>::value);
+#endif
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
   using Adapter = UniformReducerAdapter<TypedOptimizationsReducer, Next>;
 
-  template <typename... Args>
-  explicit TypedOptimizationsReducer(const std::tuple<Args...>& args)
-      : Adapter(args) {}
-
   OpIndex ReduceInputGraphBranch(OpIndex ig_index, const BranchOp& operation) {
-    Type condition_type = GetType(operation.condition());
-    if (!condition_type.IsInvalid()) {
-      if (condition_type.IsNone()) {
-        Asm().Unreachable();
-        return OpIndex::Invalid();
-      }
-      condition_type =
-          Typer::TruncateWord32Input(condition_type, true, Asm().graph_zone());
-      DCHECK(condition_type.IsWord32());
-      if (auto c = condition_type.AsWord32().try_get_constant()) {
-        Block* goto_target = *c == 0 ? operation.if_false : operation.if_true;
-        Asm().Goto(goto_target->MapToNextGraph());
-        return OpIndex::Invalid();
+    if (!ShouldSkipOptimizationStep()) {
+      Type condition_type = GetType(operation.condition());
+      if (!condition_type.IsInvalid()) {
+        if (condition_type.IsNone()) {
+          Asm().Unreachable();
+          return OpIndex::Invalid();
+        }
+        condition_type = Typer::TruncateWord32Input(condition_type, true,
+                                                    Asm().graph_zone());
+        DCHECK(condition_type.IsWord32());
+        if (auto c = condition_type.AsWord32().try_get_constant()) {
+          Block* goto_target = *c == 0 ? operation.if_false : operation.if_true;
+          Asm().Goto(goto_target->MapToNextGraph());
+          return OpIndex::Invalid();
+        }
       }
     }
     return Adapter::ReduceInputGraphBranch(ig_index, operation);
@@ -53,16 +52,19 @@ class TypedOptimizationsReducer
 
   template <typename Op, typename Continuation>
   OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& operation) {
-    Type type = GetType(ig_index);
-    if (type.IsNone()) {
-      // This operation is dead. Remove it.
-      DCHECK(CanBeTyped(operation));
-      return OpIndex::Invalid();
-    } else if (!type.IsInvalid()) {
-      // See if we can replace the operation by a constant.
-      if (OpIndex constant = TryAssembleConstantForType(type);
-          constant.valid()) {
-        return constant;
+    if (!ShouldSkipOptimizationStep()) {
+      Type type = GetType(ig_index);
+      if (type.IsNone()) {
+        // This operation is dead. Remove it.
+        DCHECK(CanBeTyped(operation));
+        Asm().Unreachable();
+        return OpIndex::Invalid();
+      } else if (!type.IsInvalid()) {
+        // See if we can replace the operation by a constant.
+        if (OpIndex constant = TryAssembleConstantForType(type);
+            constant.valid()) {
+          return constant;
+        }
       }
     }
 

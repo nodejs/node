@@ -145,7 +145,7 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc,
   return GetCodeTarget(index);
 }
 
-HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     return HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTagged(
@@ -176,8 +176,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject target,
-                                  WriteBarrierMode write_barrier_mode,
+void RelocInfo::set_target_object(Tagged<HeapObject> target,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
@@ -189,9 +188,6 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     DCHECK(IsFullEmbeddedObject(rmode_));
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                      icache_flush_mode);
-  }
-  if (!instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(instruction_stream(), this, target, write_barrier_mode);
   }
 }
 
@@ -401,9 +397,9 @@ Address Assembler::target_constant_pool_address_at(
 // has already deserialized the mov instructions etc.
 // There is a FIXED_SEQUENCE assumption here
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
+    Address instruction_payload, Tagged<Code> code, Address target) {
   set_target_address_at(instruction_payload,
-                        !code.is_null() ? code.constant_pool() : kNullAddress,
+                        !code.is_null() ? code->constant_pool() : kNullAddress,
                         target);
 }
 

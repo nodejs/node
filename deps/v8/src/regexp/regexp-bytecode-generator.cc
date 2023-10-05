@@ -393,7 +393,7 @@ Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
 
 int RegExpBytecodeGenerator::length() { return pc_; }
 
-void RegExpBytecodeGenerator::Copy(byte* a) {
+void RegExpBytecodeGenerator::Copy(uint8_t* a) {
   MemCopy(a, buffer_.data(), length());
 }
 

@@ -13,8 +13,7 @@ namespace v8::internal::compiler::turboshaft {
 struct RecreateSchedulePhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(RecreateSchedule)
 
-  RecreateScheduleResult Run(PipelineData* data, Zone* temp_zone,
-                             Linkage* linkage);
+  RecreateScheduleResult Run(Zone* temp_zone, Linkage* linkage);
 };
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -130,8 +130,7 @@ EmbeddedTargetOs ToEmbeddedTargetOs(const char* s) {
   }
 
   std::string string(s);
-  // Python 3.9+ on IBM i returns os400 as sys.platform instead of aix
-  if (string == "aix" || string == "os400") {
+  if (string == "aix") {
     return EmbeddedTargetOs::kAIX;
   } else if (string == "chromeos") {
     return EmbeddedTargetOs::kChromeOS;

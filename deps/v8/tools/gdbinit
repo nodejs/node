@@ -21,13 +21,50 @@ Usage: jh internal_handle
 end
 
 # Print content of v8::Local handle.
-define jlh
-call (void) _v8_internal_Print_Object(*((v8::internal::Object**)($arg0).val_))
+python
+import gdb
+
+class PrintV8LocalCommand(gdb.Command):
+  """Print content of v8::Local handle."""
+
+  PRINT_CMD = "call (void) _v8_internal_Print_Object(*(v8::internal::Address**)({0}))"
+
+  def __init__ (self):
+    super(PrintV8LocalCommand, self).__init__ ("print-v8-local", gdb.COMMAND_DATA)
+
+  @staticmethod
+  def get_address_from_local(value):
+    if gdb.types.get_basic_type(value.type).code != gdb.TYPE_CODE_STRUCT:
+      return None
+    # After https://crrev.com/c/4335544, v8::MaybeLocal contains a local_.
+    if gdb.types.has_field(value.type, "local_"):
+      value = value["local_"]
+    # After https://crrev.com/c/4335544, v8::Local contains a location_.
+    if gdb.types.has_field(value.type, "location_"):
+      return value["location_"].format_string()
+    # Before https://crrev.com/c/4335544, v8::Local contained a val_.
+    if gdb.types.has_field(value.type, "val_"):
+      return value["val_"].format_string()
+    # We don't know how to print this...
+    return None
+
+  def invoke (self, arg, from_tty):
+    argv = gdb.string_to_argv(arg)
+    if len(argv) != 1:
+      raise gdb.GdbError("print-local takes exactly one argument.")
+    value = gdb.parse_and_eval(argv[0])
+    indirect_pointer = self.get_address_from_local(value)
+    if indirect_pointer is not None:
+      gdb.execute(self.PRINT_CMD.format(indirect_pointer), from_tty)
+    else:
+      raise gdb.GdbError("print-local cannot print a value of type {}".format(
+        value.type))
+
+PrintV8LocalCommand()
 end
-document jlh
-Print content of a v8::Local handle
-Usage: jlh local_handle
-end
+
+alias jlh = print-v8-local
+alias jl = print-v8-local
 
 # Print Code objects containing given PC.
 define jco
@@ -35,6 +72,23 @@ define jco
     call (void) _v8_internal_Print_Code((void*)($pc))
   else
     call (void) _v8_internal_Print_Code((void*)($arg0))
+  end
+end
+document jco
+Print a v8 Code object from an internal code address
+Usage: jco pc
+end
+
+# Print Code objects assembly code surrounding given PC.
+define jca
+  if $argc == 0
+    call (void) _v8_internal_Print_OnlyCode((void*)($pc), 30)
+  else
+    if $argc == 0
+      call (void) _v8_internal_Print_OnlyCode((void*)($arg0), 30)
+    else
+      call (void) _v8_internal_Print_OnlyCode((void*)($arg0), (size_t)($arg1))
+    end
   end
 end
 document jco

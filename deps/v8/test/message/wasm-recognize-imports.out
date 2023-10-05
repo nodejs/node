@@ -1,5 +1,32 @@
-[function 1: import 0 is well-known built-in String.toLowerCase]
+[import 0 is well-known built-in String.toLowerCase]
+[function 1: call_ref #0 inlineable (monomorphic)]
+[function 1: call to 0 is well-known String.toLowerCase]
+[function 1: node {NUMBER}: not a relocatable constant]
+[function 1: node {NUMBER}: not a relocatable constant]
+[function 1 (wasm-function#1): no inlining candidates]
 Second instance.
+[import 0 is well-known built-in String.toLowerCase]
 Still optimized: true
 Third instance.
 Still optimized: false
+[import 0 is well-known built-in IntToString]
+[import 1 is well-known built-in DoubleToString]
+[import 2 is well-known built-in ParseFloat]
+[import 3 is well-known built-in String.indexOf]
+[import 4 is well-known built-in String.toLocaleLowerCase]
+[import 5 is well-known built-in String.toLocaleLowerCase]
+Testing imported strings
+[import 0 is well-known built-in String.fromWtf16Array]
+[import 1 is well-known built-in String.fromWtf8Array]
+[import 2 is well-known built-in String.toWtf16Array]
+[import 3 is well-known built-in String.fromCharCode]
+[import 4 is well-known built-in String.fromCodePoint]
+[import 5 is well-known built-in String.charCodeAt]
+[import 6 is well-known built-in String.codePointAt]
+[import 7 is well-known built-in String.length]
+[import 8 is well-known built-in String.concat]
+[import 9 is well-known built-in String.substring]
+[import 10 is well-known built-in String.equals]
+[import 11 is well-known built-in String.compare]
+[import 12 is well-known built-in IntToString]
+[import 13 is well-known built-in DoubleToString]

@@ -14,21 +14,19 @@ namespace v8::internal::compiler::turboshaft {
 template <typename T>
 class WordTyperTest : public TestWithNativeContextAndZone {
  public:
-  CanonicalHandleScope canonical;
   using word_t = typename T::word_t;
   static constexpr size_t Bits = sizeof(word_t) * kBitsPerByte;
 
-  WordTyperTest() : TestWithNativeContextAndZone(), canonical(isolate()) {}
+  WordTyperTest() : TestWithNativeContextAndZone() {}
 };
 
 template <typename T>
 class FloatTyperTest : public TestWithNativeContextAndZone {
  public:
-  CanonicalHandleScope canonical;
   using float_t = typename T::float_t;
   static constexpr size_t Bits = sizeof(float_t) * kBitsPerByte;
 
-  FloatTyperTest() : TestWithNativeContextAndZone(), canonical(isolate()) {}
+  FloatTyperTest() : TestWithNativeContextAndZone() {}
 };
 
 template <typename T>

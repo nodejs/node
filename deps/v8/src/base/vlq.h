@@ -23,10 +23,10 @@ static constexpr uint32_t kDataMask = kContinueBit - 1;
 // writing it.
 template <typename Function>
 inline typename std::enable_if<
-    std::is_same<decltype(std::declval<Function>()(0)), byte*>::value,
+    std::is_same<decltype(std::declval<Function>()(0)), uint8_t*>::value,
     void>::type
 VLQEncodeUnsigned(Function&& process_byte, uint32_t value) {
-  byte* written_byte = process_byte(value);
+  uint8_t* written_byte = process_byte(value);
   if (value <= kDataMask) {
     // Value fits in first byte, early return.
     return;
@@ -53,7 +53,7 @@ inline uint32_t VLQConvertToUnsigned(int32_t value) {
 // process_byte function.
 template <typename Function>
 inline typename std::enable_if<
-    std::is_same<decltype(std::declval<Function>()(0)), byte*>::value,
+    std::is_same<decltype(std::declval<Function>()(0)), uint8_t*>::value,
     void>::type
 VLQEncode(Function&& process_byte, int32_t value) {
   uint32_t bits = VLQConvertToUnsigned(value);
@@ -62,9 +62,9 @@ VLQEncode(Function&& process_byte, int32_t value) {
 
 // Wrapper of VLQEncode for std::vector backed storage containers.
 template <typename A>
-inline void VLQEncode(std::vector<byte, A>* data, int32_t value) {
+inline void VLQEncode(std::vector<uint8_t, A>* data, int32_t value) {
   VLQEncode(
-      [data](byte value) {
+      [data](uint8_t value) {
         data->push_back(value);
         return &data->back();
       },
@@ -73,9 +73,9 @@ inline void VLQEncode(std::vector<byte, A>* data, int32_t value) {
 
 // Wrapper of VLQEncodeUnsigned for std::vector backed storage containers.
 template <typename A>
-inline void VLQEncodeUnsigned(std::vector<byte, A>* data, uint32_t value) {
+inline void VLQEncodeUnsigned(std::vector<uint8_t, A>* data, uint32_t value) {
   VLQEncodeUnsigned(
-      [data](byte value) {
+      [data](uint8_t value) {
         data->push_back(value);
         return &data->back();
       },
@@ -86,10 +86,10 @@ inline void VLQEncodeUnsigned(std::vector<byte, A>* data, uint32_t value) {
 // successive calls to the given function.
 template <typename GetNextFunction>
 inline typename std::enable_if<
-    std::is_same<decltype(std::declval<GetNextFunction>()()), byte>::value,
+    std::is_same<decltype(std::declval<GetNextFunction>()()), uint8_t>::value,
     uint32_t>::type
 VLQDecodeUnsigned(GetNextFunction&& get_next) {
-  byte cur_byte = get_next();
+  uint8_t cur_byte = get_next();
   // Single byte fast path; no need to mask.
   if (cur_byte <= kDataMask) {
     return cur_byte;
@@ -106,13 +106,13 @@ VLQDecodeUnsigned(GetNextFunction&& get_next) {
 // Decodes a variable-length encoded unsigned value stored in contiguous memory
 // starting at data_start + index, updating index to where the next encoded
 // value starts.
-inline uint32_t VLQDecodeUnsigned(byte* data_start, int* index) {
+inline uint32_t VLQDecodeUnsigned(uint8_t* data_start, int* index) {
   return VLQDecodeUnsigned([&] { return data_start[(*index)++]; });
 }
 
 // Decodes a variable-length encoded value stored in contiguous memory starting
 // at data_start + index, updating index to where the next encoded value starts.
-inline int32_t VLQDecode(byte* data_start, int* index) {
+inline int32_t VLQDecode(uint8_t* data_start, int* index) {
   uint32_t bits = VLQDecodeUnsigned(data_start, index);
   bool is_negative = (bits & 1) == 1;
   int32_t result = bits >> 1;

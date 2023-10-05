@@ -8359,3 +8359,14 @@ SortCallbackGrows(ArraySortHelper);
                  TypeError);
   });
 })();
+
+(function ArrayBufferSizeNotMultipleOfElementSize() {
+  // The buffer size is a prime, not multiple of anything.
+  const rab = CreateResizableArrayBuffer(11, 20);
+  for (let ctor of ctors) {
+    if (ctor.BYTES_PER_ELEMENT == 1) continue;
+
+    // This should not throw.
+    new ctor(rab);
+  }
+})();

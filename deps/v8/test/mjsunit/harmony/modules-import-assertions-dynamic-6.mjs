@@ -8,6 +8,11 @@ var life;
 import('modules-skip-1.json', { assert: { type: 'json', notARealAssertion: 'value' } }).then(
     namespace => life = namespace.default.life);
 
+var life2;
+import('modules-skip-1.json', { assert: { 0: 'value', type: 'json' } }).then(
+    namespace => life2 = namespace.default.life);
+
 %PerformMicrotaskCheckpoint();
 
 assertEquals(42, life);
+assertEquals(42, life2);
