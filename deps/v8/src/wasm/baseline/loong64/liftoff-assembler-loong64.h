@@ -8,6 +8,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
+#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -310,6 +311,32 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return kind == kS128 || is_reference(kind);
 }
 
+void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+                                   Label* ool_label,
+                                   const FreezeCacheState& frozen) {
+  Register budget_array = kScratchReg;
+
+  Register instance = cache_state_.cached_instance;
+  if (instance == no_reg) {
+    instance = budget_array;  // Reuse the scratch register.
+    LoadInstanceFromFrame(instance);
+  }
+
+  constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
+      WasmInstanceObject::kTieringBudgetArrayOffset);
+  Ld_d(budget_array, MemOperand(instance, kArrayOffset));
+
+  int budget_arr_offset = kInt32Size * declared_func_index;
+
+  Register budget = kScratchReg2;
+  MemOperand budget_addr(budget_array, budget_arr_offset);
+  Ld_w(budget, budget_addr);
+  Sub_w(budget, budget, budget_used);
+  St_w(budget, budget_addr);
+
+  Branch(ool_label, less, budget, Operand(zero_reg));
+}
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   switch (value.type().kind()) {
     case kI32:
@@ -355,6 +382,22 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      Register instance,
                                                      int32_t offset) {
   LoadTaggedField(dst, MemOperand(instance, offset));
+}
+
+void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
+                                           int offset, ExternalPointerTag tag,
+                                           Register /* scratch */) {
+  LoadExternalPointerField(dst, MemOperand(src_addr, offset), tag,
+                           kRootRegister);
+}
+
+void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
+                                           int offset, Register index,
+                                           ExternalPointerTag tag,
+                                           Register /* scratch */) {
+  MemOperand src_op = liftoff::GetMemOp(this, src_addr, index, offset, false,
+                                        V8_ENABLE_SANDBOX_BOOL ? 2 : 3);
+  LoadExternalPointerField(dst, src_op, tag, kRootRegister);
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
@@ -1056,11 +1099,11 @@ void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
   MacroAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
 
   // Check if lhs == kMinInt and rhs == -1, since this case is unrepresentable.
-  MacroAssembler::li(kScratchReg, 1);
-  MacroAssembler::li(kScratchReg2, 1);
-  MacroAssembler::LoadZeroOnCondition(kScratchReg, lhs, Operand(kMinInt), eq);
-  MacroAssembler::LoadZeroOnCondition(kScratchReg2, rhs, Operand(-1), eq);
-  add_d(kScratchReg, kScratchReg, kScratchReg2);
+  rotri_w(kScratchReg, lhs, 31);
+  xori(kScratchReg, kScratchReg, 1);
+  // If lhs == kMinInt, move rhs to kScratchReg.
+  masknez(kScratchReg, rhs, kScratchReg);
+  addi_w(kScratchReg, kScratchReg, 1);
   MacroAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
                          Operand(zero_reg));
 
@@ -1166,12 +1209,11 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
   MacroAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
 
   // Check if lhs == MinInt64 and rhs == -1, since this case is unrepresentable.
-  MacroAssembler::li(kScratchReg, 1);
-  MacroAssembler::li(kScratchReg2, 1);
-  MacroAssembler::LoadZeroOnCondition(
-      kScratchReg, lhs.gp(), Operand(std::numeric_limits<int64_t>::min()), eq);
-  MacroAssembler::LoadZeroOnCondition(kScratchReg2, rhs.gp(), Operand(-1), eq);
-  add_d(kScratchReg, kScratchReg, kScratchReg2);
+  rotri_d(kScratchReg, lhs.gp(), 63);
+  xori(kScratchReg, kScratchReg, 1);
+  // If lhs == MinInt64, move rhs to kScratchReg.
+  masknez(kScratchReg, rhs.gp(), kScratchReg);
+  addi_d(kScratchReg, kScratchReg, 1);
   MacroAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
                          Operand(zero_reg));
 
@@ -1665,13 +1707,6 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
   MacroAssembler::CompareTaggedAndBranch(label, cond, lhs, Operand(imm));
 }
 
-void LiftoffAssembler::emit_i32_subi_jump_negative(
-    Register value, int subtrahend, Label* result_negative,
-    const FreezeCacheState& frozen) {
-  MacroAssembler::Sub_w(value, value, Operand(subtrahend));
-  MacroAssembler::Branch(result_negative, less, value, Operand(zero_reg));
-}
-
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   slli_w(dst, src, 0);
   sltui(dst, dst, 1);
@@ -1679,25 +1714,14 @@ void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
-  Register tmp = dst;
-  if (dst == lhs || dst == rhs) {
-    tmp = GetUnusedRegister(kGpReg, LiftoffRegList{lhs, rhs}).gp();
-  }
-  // Write 1 as result.
-  MacroAssembler::li(tmp, 1);
-
-  // If negative condition is true, write 0 as result.
-  Condition neg_cond = NegateCondition(cond);
   UseScratchRegisterScope temps(this);
   Register scratch0 = temps.Acquire();
   Register scratch1 = kScratchReg;
 
   slli_w(scratch0, lhs, 0);
   slli_w(scratch1, rhs, 0);
-  // Write 1 as result.
-  MacroAssembler::li(dst, 1);
-  MacroAssembler::LoadZeroOnCondition(dst, scratch0, Operand(scratch1),
-                                      neg_cond);
+
+  CompareWord(cond, dst, scratch0, Operand(scratch1));
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
@@ -1707,20 +1731,7 @@ void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
 void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  Register tmp = dst;
-  if (dst == lhs.gp() || dst == rhs.gp()) {
-    tmp = GetUnusedRegister(kGpReg, LiftoffRegList{lhs, rhs}).gp();
-  }
-  // Write 1 as result.
-  MacroAssembler::li(tmp, 1);
-
-  // If negative condition is true, write 0 as result.
-  Condition neg_cond = NegateCondition(cond);
-  MacroAssembler::LoadZeroOnCondition(tmp, lhs.gp(), Operand(rhs.gp()),
-                                      neg_cond);
-
-  // If tmp != dst, result will be moved.
-  MacroAssembler::Move(dst, tmp);
+  CompareWord(cond, dst, lhs.gp(), Operand(rhs.gp()));
 }
 
 namespace liftoff {
@@ -3026,11 +3037,6 @@ void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   MacroAssembler::Branch(ool_code, ule, sp, Operand(limit_address));
 }
 
-void LiftoffAssembler::CallTrapCallbackForTesting() {
-  PrepareCallCFunction(0, GetUnusedRegister(kGpReg, {}).gp());
-  CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(), 0);
-}
-
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   if (v8_flags.debug_code) Abort(reason);
 }
@@ -3089,13 +3095,15 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
 void LiftoffAssembler::RecordSpillsInSafepoint(
     SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
     LiftoffRegList ref_spills, int spill_offset) {
-  int spill_space_size = 0;
-  while (!all_spills.is_empty()) {
-    LiftoffRegister reg = all_spills.GetFirstRegSet();
+  LiftoffRegList fp_spills = all_spills & kFpCacheRegList;
+  int spill_space_size = fp_spills.GetNumRegsSet() * kSimd128Size;
+  LiftoffRegList gp_spills = all_spills & kGpCacheRegList;
+  while (!gp_spills.is_empty()) {
+    LiftoffRegister reg = gp_spills.GetFirstRegSet();
     if (ref_spills.has(reg)) {
       safepoint.DefineTaggedStackSlot(spill_offset);
     }
-    all_spills.clear(reg);
+    gp_spills.clear(reg);
     ++spill_offset;
     spill_space_size += kSystemPointerSize;
   }
@@ -3110,19 +3118,53 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   Ret();
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig,
-                             const LiftoffRegister* args,
-                             const LiftoffRegister* rets,
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             const LiftoffRegister* rets, ValueKind return_kind,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   addi_d(sp, sp, -stack_bytes);
 
-  int arg_bytes = 0;
-  for (ValueKind param_kind : sig->parameters()) {
-    liftoff::Store(this, sp, arg_bytes, *args++, param_kind);
-    arg_bytes += value_kind_size(param_kind);
+  int arg_offset = 0;
+  for (const VarState& arg : args) {
+    if (arg.is_reg()) {
+      liftoff::Store(this, sp, arg_offset, arg.reg(), arg.kind());
+    } else if (arg.is_const()) {
+      if (arg.kind() == kI32) {
+        if (arg.i32_const() == 0) {
+          St_w(zero_reg, MemOperand(sp, arg_offset));
+        } else {
+          UseScratchRegisterScope temps(this);
+          Register src = temps.Acquire();
+          li(src, arg.i32_const());
+          St_w(src, MemOperand(sp, arg_offset));
+        }
+      } else {
+        if (arg.i32_const() == 0) {
+          St_d(zero_reg, MemOperand(sp, arg_offset));
+        } else {
+          UseScratchRegisterScope temps(this);
+          Register src = temps.Acquire();
+          li(src, static_cast<int64_t>(arg.i32_const()));
+          St_d(src, MemOperand(sp, arg_offset));
+        }
+      }
+    } else if (value_kind_size(arg.kind()) == 4) {
+      // Stack to stack move.
+      UseScratchRegisterScope temps(this);
+      Register src = temps.Acquire();
+      Ld_w(src, liftoff::GetStackSlot(arg.offset()));
+      St_w(src, MemOperand(sp, arg_offset));
+    } else {
+      DCHECK_EQ(8, value_kind_size(arg.kind()));
+      // Stack to stack move.
+      UseScratchRegisterScope temps(this);
+      Register src = temps.Acquire();
+      Ld_d(src, liftoff::GetStackSlot(arg.offset()));
+      St_d(src, MemOperand(sp, arg_offset));
+    }
+    arg_offset += value_kind_size(arg.kind());
   }
-  DCHECK_LE(arg_bytes, stack_bytes);
+  DCHECK_LE(arg_offset, stack_bytes);
 
   // Pass a pointer to the buffer with the arguments to the C function.
   // On LoongArch, the first argument is passed in {a0}.
@@ -3136,12 +3178,23 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
 
   // Move return value to the right register.
   const LiftoffRegister* next_result_reg = rets;
-  if (sig->return_count() > 0) {
-    DCHECK_EQ(1, sig->return_count());
+  if (return_kind != kVoid) {
     constexpr Register kReturnReg = a0;
-    if (kReturnReg != next_result_reg->gp()) {
-      Move(*next_result_reg, LiftoffRegister(kReturnReg), sig->GetReturn(0));
+#ifdef USE_SIMULATOR
+    // When call to a host function in simulator, if the function return an
+    // int32 value, the simulator does not sign-extend it to int64 because
+    // in simulator we do not know whether the function returns an int32 or
+    // int64. so we need to sign extend it here.
+    if (return_kind == kI32) {
+      slli_w(next_result_reg->gp(), kReturnReg, 0);
+    } else if (kReturnReg != next_result_reg->gp()) {
+      Move(*next_result_reg, LiftoffRegister(kReturnReg), return_kind);
     }
+#else
+    if (kReturnReg != next_result_reg->gp()) {
+      Move(*next_result_reg, LiftoffRegister(kReturnReg), return_kind);
+    }
+#endif
     ++next_result_reg;
   }
 

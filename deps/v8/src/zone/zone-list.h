@@ -34,7 +34,7 @@ class ZoneList final : public ZoneObject {
   // always zero. The capacity must be non-negative.
   ZoneList(int capacity, Zone* zone) : capacity_(capacity) {
     DCHECK_GE(capacity, 0);
-    data_ = (capacity_ > 0) ? zone->NewArray<T>(capacity_) : nullptr;
+    data_ = (capacity_ > 0) ? zone->AllocateArray<T>(capacity_) : nullptr;
   }
 
   // Construct a new ZoneList by copying the elements of the given ZoneList.
@@ -44,7 +44,7 @@ class ZoneList final : public ZoneObject {
   }
 
   // Construct a new ZoneList by copying the elements of the given vector.
-  ZoneList(const base::Vector<const T>& other, Zone* zone)
+  ZoneList(base::Vector<const T> other, Zone* zone)
       : ZoneList(other.length(), zone) {
     AddAll(other, zone);
   }
@@ -112,7 +112,7 @@ class ZoneList final : public ZoneObject {
   // Add all the elements from the argument list to this list.
   void AddAll(const ZoneList<T>& other, Zone* zone);
   // Add all the elements from the vector to this list.
-  void AddAll(const base::Vector<const T>& other, Zone* zone);
+  void AddAll(base::Vector<const T> other, Zone* zone);
   // Inserts the element at the specific index.
   void InsertAt(int index, const T& element, Zone* zone);
 

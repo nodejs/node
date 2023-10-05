@@ -35,7 +35,8 @@ void StartupDeserializer::DeserializeIntoIsolate() {
     isolate()->heap()->IterateSmiRoots(this);
     isolate()->heap()->IterateRoots(
         this,
-        base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak});
+        base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak,
+                                SkipRoot::kTracedHandles});
     IterateStartupObjectCache(isolate(), this);
 
     isolate()->heap()->IterateWeakRoots(

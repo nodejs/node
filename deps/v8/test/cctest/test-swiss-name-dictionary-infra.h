@@ -199,7 +199,7 @@ class TestSequence {
       CHECK_EQ(*key, data->get(0));
 
       if (expected_value_opt) {
-        CHECK(expected_value_opt.value()->StrictEquals(data->get(1)));
+        CHECK(Object::StrictEquals(*expected_value_opt.value(), data->get(1)));
       }
 
       if (expected_details_opt) {

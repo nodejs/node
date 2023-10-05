@@ -5,8 +5,10 @@
 #ifndef V8_MAGLEV_MAGLEV_PHI_REPRESENTATION_SELECTOR_H_
 #define V8_MAGLEV_MAGLEV_PHI_REPRESENTATION_SELECTOR_H_
 
+#include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-builder.h"
+#include "src/maglev/maglev-graph-processor.h"
 
 namespace v8 {
 namespace internal {
@@ -15,28 +17,47 @@ namespace maglev {
 class Graph;
 
 class MaglevPhiRepresentationSelector {
+  template <class Value>
+  using SnapshotTable = compiler::turboshaft::SnapshotTable<Value>;
+  using Key = SnapshotTable<ValueNode*>::Key;
+  using Snapshot = SnapshotTable<ValueNode*>::Snapshot;
+
  public:
   explicit MaglevPhiRepresentationSelector(MaglevGraphBuilder* builder)
       : builder_(builder),
         new_nodes_current_block_start_(builder->zone()),
-        new_nodes_current_block_end_(builder->zone()) {}
+        new_nodes_current_block_end_(builder->zone()),
+        phi_taggings_(builder->zone()),
+        predecessors_(builder->zone()) {}
 
-  void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) { MergeNewNodesInBlock(current_block_); }
+  void PreProcessGraph(Graph* graph) {
+    if (v8_flags.trace_maglev_phi_untagging) {
+      StdoutStream{} << "\nMaglevPhiRepresentationSelector\n";
+    }
+  }
+  void PostProcessGraph(Graph* graph) {
+    MergeNewNodesInBlock(current_block_);
+
+    if (v8_flags.trace_maglev_phi_untagging) {
+      StdoutStream{} << "\n";
+    }
+  }
   void PreProcessBasicBlock(BasicBlock* block) {
     MergeNewNodesInBlock(current_block_);
+    PreparePhiTaggings(current_block_, block);
     current_block_ = block;
   }
 
-  void Process(Phi* node, const ProcessingState&);
+  ProcessResult Process(Phi* node, const ProcessingState&);
 
-  void Process(JumpLoop* node, const ProcessingState&) {
+  ProcessResult Process(JumpLoop* node, const ProcessingState&) {
     FixLoopPhisBackedge(node->target());
+    return ProcessResult::kContinue;
   }
 
   template <class NodeT>
-  void Process(NodeT* node, const ProcessingState& state) {
-    UpdateNodeInputs(node, state);
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    return UpdateNodeInputs(node, state);
   }
 
  private:
@@ -50,9 +71,10 @@ class MaglevPhiRepresentationSelector {
   // it. UpdateNodeInputs(n) removes such untagging from {n}'s input (and insert
   // new conversions if needed, from Int32 to Float64 for instance).
   template <class NodeT>
-  void UpdateNodeInputs(NodeT* n, const ProcessingState& state) {
+  ProcessResult UpdateNodeInputs(NodeT* n, const ProcessingState& state) {
     NodeBase* node = static_cast<NodeBase*>(n);
 
+    ProcessResult result = ProcessResult::kContinue;
     if (IsUntagging(n->opcode())) {
       if (node->input(0).node()->Is<Phi>() &&
           node->input(0).node()->value_representation() !=
@@ -63,10 +85,9 @@ class MaglevPhiRepresentationSelector {
         // by another untagged->untagged conversion, or it might need to be
         // removed alltogether (or rather, replaced by an identity node).
         UpdateUntaggingOfPhi(n->template Cast<ValueNode>());
-        return;
       }
     } else {
-      UpdateNonUntaggingNodeInputs(n, state);
+      result = UpdateNonUntaggingNodeInputs(n, state);
     }
 
     // It's important to check the properties of {node} rather than the static
@@ -79,10 +100,13 @@ class MaglevPhiRepresentationSelector {
     if (node->properties().can_lazy_deopt()) {
       BypassIdentities(node->lazy_deopt_info());
     }
+
+    return result;
   }
 
   template <class NodeT>
-  void UpdateNonUntaggingNodeInputs(NodeT* n, const ProcessingState& state) {
+  ProcessResult UpdateNonUntaggingNodeInputs(NodeT* n,
+                                             const ProcessingState& state) {
     NodeBase* node = static_cast<NodeBase*>(n);
 
     // It would be bad to re-tag the input of an untagging node, so this
@@ -98,21 +122,31 @@ class MaglevPhiRepresentationSelector {
         // If the input is a Phi and it was used without any untagging, then
         // we need to retag it (with some additional checks/changes for some
         // nodes, cf the overload of UpdateNodePhiInput).
-        UpdateNodePhiInput(n, phi, i, state);
+        ProcessResult result = UpdateNodePhiInput(n, phi, i, state);
+        if (V8_UNLIKELY(result == ProcessResult::kRemove)) {
+          return ProcessResult::kRemove;
+        }
       }
     }
+
+    return ProcessResult::kContinue;
   }
 
-  void UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node, Phi* phi,
-                          int input_index, const ProcessingState& state);
-  void UpdateNodePhiInput(CheckedStoreSmiField* node, Phi* phi, int input_index,
-                          const ProcessingState& state);
-  void UpdateNodePhiInput(StoreFixedArrayElementNoWriteBarrier* node, Phi* phi,
-                          int input_index, const ProcessingState& state);
-  void UpdateNodePhiInput(CheckedStoreFixedArraySmiElement* node, Phi* phi,
-                          int input_index, const ProcessingState& state);
-  void UpdateNodePhiInput(NodeBase* node, Phi* phi, int input_index,
-                          const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(CheckSmi* node, Phi* phi, int input_index,
+                                   const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(CheckNumber* node, Phi* phi, int input_index,
+                                   const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node,
+                                   Phi* phi, int input_index,
+                                   const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(StoreFixedArrayElementNoWriteBarrier* node,
+                                   Phi* phi, int input_index,
+                                   const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(BranchIfToBooleanTrue* node, Phi* phi,
+                                   int input_index,
+                                   const ProcessingState& state);
+  ProcessResult UpdateNodePhiInput(NodeBase* node, Phi* phi, int input_index,
+                                   const ProcessingState& state);
 
   void EnsurePhiInputsTagged(Phi* phi);
 
@@ -127,19 +161,19 @@ class MaglevPhiRepresentationSelector {
   // at the start of a block (kStart), or at the end of a block (kEnd).
   enum class NewNodePosition { kStart, kEnd };
 
-  // Tags {phi} as a Smi.
-  ValueNode* SmiTagPhi(Phi* phi, CheckedStoreSmiField* user_node,
-                       const ProcessingState& state);
-  ValueNode* SmiTagPhi(Phi* phi, CheckedStoreFixedArraySmiElement* user_node,
-                       const ProcessingState& state);
-  template <class ToNodeT, class FromNodeT>
-  ValueNode* SmiTagPhi(Phi*, FromNodeT* user_node,
-                       const ProcessingState& state);
-
   // Returns a tagged node that represents a tagged version of {phi}.
-  ValueNode* EnsurePhiTagged(Phi* phi, BasicBlock* block, NewNodePosition pos);
+  // If we are calling EnsurePhiTagged to ensure a Phi input of a Phi is tagged,
+  // then {predecessor_index} should be set to the id of this input (ie, 0 for
+  // the 1st input, 1 for the 2nd, etc.), so that we can use the SnapshotTable
+  // to find existing tagging for {phi} in the {predecessor_index}th predecessor
+  // of the current block.
+  ValueNode* EnsurePhiTagged(
+      Phi* phi, BasicBlock* block, NewNodePosition pos,
+      base::Optional<int> predecessor_index = base::nullopt);
 
-  ValueNode* AddNode(ValueNode* node, BasicBlock* block, NewNodePosition pos);
+  ValueNode* AddNode(ValueNode* node, BasicBlock* block, NewNodePosition pos,
+                     DeoptFrame* deopt_frame = nullptr);
+  void RegisterNewNode(ValueNode* node);
 
   // Merges the nodes from {new_nodes_current_block_start_} and
   // {new_nodes_current_block_end_} into their destinations.
@@ -153,7 +187,13 @@ class MaglevPhiRepresentationSelector {
 
   // Replaces Identity nodes by their inputs in {deopt_info}
   template <typename DeoptInfoT>
-  void BypassIdentities(const DeoptInfoT* deopt_info);
+  void BypassIdentities(DeoptInfoT* deopt_info);
+
+  void PreparePhiTaggings(BasicBlock* old_block, const BasicBlock* new_block);
+
+  MaglevGraphLabeller* graph_labeller() const {
+    return builder_->graph_labeller();
+  }
 
   MaglevGraphBuilder* builder_ = nullptr;
   BasicBlock* current_block_ = nullptr;
@@ -166,6 +206,13 @@ class MaglevPhiRepresentationSelector {
   // inserted respectively at the begining and the end of the current block.
   ZoneVector<Node*> new_nodes_current_block_start_;
   ZoneVector<Node*> new_nodes_current_block_end_;
+
+  // {phi_taggings_} is a SnapshotTable containing mappings from untagged Phis
+  // to Tagged alternatives for those phis.
+  SnapshotTable<ValueNode*> phi_taggings_;
+  // {predecessors_} is used during merging, but we use an instance variable for
+  // it, in order to save memory and not reallocate it for each merge.
+  ZoneVector<Snapshot> predecessors_;
 
 #ifdef DEBUG
   std::unordered_set<NodeBase*> new_nodes_;

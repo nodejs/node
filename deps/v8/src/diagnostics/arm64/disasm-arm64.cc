@@ -4463,12 +4463,12 @@ void PrintDisassembler::ProcessOutput(Instruction* instr) {
 
 namespace disasm {
 
-const char* NameConverter::NameOfAddress(byte* addr) const {
+const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
-const char* NameConverter::NameOfConstant(byte* addr) const {
+const char* NameConverter::NameOfConstant(uint8_t* addr) const {
   return NameOfAddress(addr);
 }
 
@@ -4492,7 +4492,7 @@ const char* NameConverter::NameOfXMMRegister(int reg) const {
   UNREACHABLE();  // ARM64 does not have any XMM registers
 }
 
-const char* NameConverter::NameInCode(byte* addr) const {
+const char* NameConverter::NameInCode(uint8_t* addr) const {
   // The default name converter is called for unknown code, so we will not try
   // to access any memory.
   return "";
@@ -4517,7 +4517,7 @@ class BufferDisassembler : public v8::internal::DisassemblingDecoder {
 };
 
 int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
-                                    byte* instr) {
+                                    uint8_t* instr) {
   USE(converter_);  // avoid unused field warning
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   BufferDisassembler disasm(buffer);
@@ -4527,18 +4527,18 @@ int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
   return v8::internal::kInstrSize;
 }
 
-int Disassembler::ConstantPoolSizeAt(byte* instr) {
+int Disassembler::ConstantPoolSizeAt(uint8_t* instr) {
   return v8::internal::Assembler::ConstantPoolSizeAt(
       reinterpret_cast<v8::internal::Instruction*>(instr));
 }
 
-void Disassembler::Disassemble(FILE* file, byte* start, byte* end,
+void Disassembler::Disassemble(FILE* file, uint8_t* start, uint8_t* end,
                                UnimplementedOpcodeAction) {
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   v8::internal::PrintDisassembler disasm(file);
   decoder.AppendVisitor(&disasm);
 
-  for (byte* pc = start; pc < end; pc += v8::internal::kInstrSize) {
+  for (uint8_t* pc = start; pc < end; pc += v8::internal::kInstrSize) {
     decoder.Decode(reinterpret_cast<v8::internal::Instruction*>(pc));
   }
 }

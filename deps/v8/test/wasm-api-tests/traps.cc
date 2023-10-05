@@ -39,19 +39,19 @@ TEST_F(WasmCapiTest, Traps) {
   FunctionSig sig(1, 0, i32_type);
   uint32_t callback_index =
       builder()->AddImport(base::CStrVector("callback"), &sig);
-  byte code[] = {WASM_CALL_FUNCTION0(callback_index)};
+  uint8_t code[] = {WASM_CALL_FUNCTION0(callback_index)};
   AddExportedFunction(base::CStrVector("callback"), code, sizeof(code), &sig);
 
-  byte code2[] = {WASM_CALL_FUNCTION0(3)};
+  uint8_t code2[] = {WASM_CALL_FUNCTION0(3)};
   AddExportedFunction(base::CStrVector("unreachable"), code2, sizeof(code2),
                       &sig);
   // The first constant is a 4-byte dummy so that the {unreachable} trap
   // has a more interesting offset. This is called by code2.
-  byte code3[] = {WASM_I32V_3(0), WASM_UNREACHABLE, WASM_I32V_1(1)};
+  uint8_t code3[] = {WASM_I32V_3(0), WASM_UNREACHABLE, WASM_I32V_1(1)};
   AddFunction(code3, sizeof(code3), &sig);
 
   // Check that traps returned from a C callback are uncatchable in Wasm.
-  byte code4[] = {WASM_TRY_CATCH_ALL_T(
+  uint8_t code4[] = {WASM_TRY_CATCH_ALL_T(
       kWasmI32, WASM_CALL_FUNCTION0(callback_index), WASM_I32V(42))};
   AddExportedFunction(base::CStrVector("uncatchable"), code4, sizeof(code4),
                       &sig);

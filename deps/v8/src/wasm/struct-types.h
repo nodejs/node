@@ -134,9 +134,11 @@ class StructType : public ZoneObject {
         : zone_(zone),
           field_count_(field_count),
           cursor_(0),
-          field_offsets_(zone_->NewArray<uint32_t>(field_count_)),
-          buffer_(zone->NewArray<ValueType>(static_cast<int>(field_count))),
-          mutabilities_(zone->NewArray<bool>(static_cast<int>(field_count))) {}
+          field_offsets_(zone_->AllocateArray<uint32_t>(field_count_)),
+          buffer_(
+              zone->AllocateArray<ValueType>(static_cast<int>(field_count))),
+          mutabilities_(
+              zone->AllocateArray<bool>(static_cast<int>(field_count))) {}
 
     void AddField(ValueType type, bool mutability, uint32_t offset = 0) {
       DCHECK_LT(cursor_, field_count_);

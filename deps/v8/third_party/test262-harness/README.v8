@@ -7,6 +7,7 @@ Date: 2022-02-18
 License: BSD
 License File: LICENSE
 Security Critical: no
+Shipped: no
 
 Description:
 Provides the parseTestRecord function in Python for the test262 runner.

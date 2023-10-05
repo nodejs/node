@@ -15,17 +15,17 @@
 #include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-using Variable =
-    SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>>::Key;
 using MaybeVariable = base::Optional<Variable>;
 
 int CountDecimalDigits(uint32_t value);
@@ -34,40 +34,25 @@ struct PaddingSpace {
 };
 std::ostream& operator<<(std::ostream& os, PaddingSpace padding);
 
-struct AnalyzerBase {
-  Zone* phase_zone;
-  const Graph& graph;
-
-  void Run() {}
-  bool OpIsUsed(OpIndex i) const {
-    const Operation& op = graph.Get(i);
-    return op.saturated_use_count > 0 ||
-           op.Properties().is_required_when_unused;
-  }
-
-  explicit AnalyzerBase(const Graph& graph, Zone* phase_zone)
-      : phase_zone(phase_zone), graph(graph) {}
-};
-
-// All operations whose `saturated_use_count` are unused and can be skipped.
-// Analyzers modify the input graph in-place when they want to mark some
-// Operations as removeable. In order to make that work for operations that have
-// no uses such as Goto and Branch, all operations that have the property
-// `is_required_when_unused` have a non-zero `saturated_use_count`.
+// All operations whose `saturated_use_count` is 0 are unused and can be
+// skipped. Analyzers modify the input graph in-place when they want to mark
+// some Operations as removeable. In order to make that work for operations that
+// have no uses such as Goto and Branch, all operations that have the property
+// `IsRequiredWhenUnused()` have a non-zero `saturated_use_count`.
 V8_INLINE bool ShouldSkipOperation(const Operation& op) {
-  return op.saturated_use_count == 0;
+  return op.saturated_use_count.IsZero();
 }
 
 template <template <class> class... Reducers>
 class OptimizationPhaseImpl {
  public:
-  static void Run(Graph* input, Zone* phase_zone, NodeOriginTable* origins,
-                  const typename Assembler<reducer_list<Reducers...>>::ArgT&
-                      reducer_args = std::tuple<>{}) {
+  static void Run(Zone* phase_zone) {
+    PipelineData& data = PipelineData::Get();
+    Graph& input_graph = data.graph();
     Assembler<reducer_list<Reducers...>> phase(
-        *input, input->GetOrCreateCompanion(), phase_zone, origins,
-        reducer_args);
-    if (v8_flags.turboshaft_trace_reduction) {
+        input_graph, input_graph.GetOrCreateCompanion(), phase_zone,
+        data.node_origins());
+    if (data.info()->turboshaft_trace_reduction()) {
       phase.template VisitGraph<true>();
     } else {
       phase.template VisitGraph<false>();
@@ -77,19 +62,16 @@ class OptimizationPhaseImpl {
 
 template <template <typename> typename... Reducers>
 class OptimizationPhase {
-  using impl_t = OptimizationPhaseImpl<Reducers...>;
-
  public:
-  static void Run(Isolate* isolate, Graph* input, Zone* phase_zone,
-                  NodeOriginTable* origins,
-                  const typename Assembler<reducer_list<Reducers...>>::ArgT&
-                      reducer_args = std::tuple<>{}) {
-    impl_t::Run(input, phase_zone, origins, reducer_args);
+  static void Run(Zone* phase_zone) {
+    OptimizationPhaseImpl<Reducers...>::Run(phase_zone);
   }
 };
 
 template <typename Next>
 class ReducerBaseForwarder;
+template <typename Next>
+class VariableReducer;
 
 template <class Assembler>
 class GraphVisitor {
@@ -170,10 +152,6 @@ class GraphVisitor {
     // version of {input_block} that we just cloned.
     blocks_needing_variables.insert(input_block->index());
 
-    // Updating the origin of "current_block", so that translating Phis can
-    // still properly be done (in OptimizationPhase::ReducePhi).
-    assembler().current_block()->SetOrigin(input_block);
-
     ScopedModification<bool> set_true(&current_block_needs_variables_, true);
     for (OpIndex index : input_graph().OperationIndices(*input_block)) {
       if (const PhiOp* phi =
@@ -188,28 +166,40 @@ class GraphVisitor {
     }
   }
 
+  // {InlineOp} introduces two limitations unlike {CloneAndInlineBlock}:
+  // 1. The input operation must not be emitted anymore as part of its
+  // regular input block;
+  // 2. {InlineOp} must not be used multiple times for the same input op.
+  bool InlineOp(OpIndex index, const Block* input_block) {
+    return VisitOp<false>(index, input_block);
+  }
+
   template <bool can_be_invalid = false>
   OpIndex MapToNewGraph(OpIndex old_index, int predecessor_index = -1) {
     DCHECK(old_index.valid());
     OpIndex result = op_mapping_[old_index.id()];
-    if (!result.valid()) {
-      // {op_mapping} doesn't have a mapping for {old_index}. The assembler
-      // should provide the mapping.
-      MaybeVariable var = GetVariableFor(old_index);
-      if constexpr (can_be_invalid) {
-        if (!var.has_value()) {
-          return OpIndex::Invalid();
+
+    if constexpr (reducer_list_contains<typename Assembler::ReducerList,
+                                        VariableReducer>::value) {
+      if (!result.valid()) {
+        // {op_mapping} doesn't have a mapping for {old_index}. The assembler
+        // should provide the mapping.
+        MaybeVariable var = GetVariableFor(old_index);
+        if constexpr (can_be_invalid) {
+          if (!var.has_value()) {
+            return OpIndex::Invalid();
+          }
+        }
+        DCHECK(var.has_value());
+        if (predecessor_index == -1) {
+          result = assembler().GetVariable(var.value());
+        } else {
+          result =
+              assembler().GetPredecessorValue(var.value(), predecessor_index);
         }
       }
-      DCHECK(var.has_value());
-      if (predecessor_index == -1) {
-        result = assembler().Get(var.value());
-      } else {
-        result =
-            assembler().GetPredecessorValue(var.value(), predecessor_index);
-      }
     }
-    DCHECK(result.valid());
+    DCHECK_IMPLIES(!can_be_invalid, result.valid());
     return result;
   }
 
@@ -262,11 +252,7 @@ class GraphVisitor {
     if (auto* final_goto = last_op.TryCast<GotoOp>()) {
       if (final_goto->destination->IsLoop()) {
         if (input_block->index() > final_goto->destination->index()) {
-          Block* new_loop = final_goto->destination->MapToNextGraph();
-          DCHECK(new_loop->IsLoop());
-          if (new_loop->IsLoop() && new_loop->PredecessorCount() == 1) {
-            output_graph_.TurnLoopIntoMerge(new_loop);
-          }
+          assembler().FinalizeLoop(final_goto->destination->MapToNextGraph());
         } else {
           // We have a forward jump to a loop, rather than a backedge. We
           // don't need to do anything.
@@ -280,12 +266,13 @@ class GraphVisitor {
     Block* current_block = assembler().current_block();
     if (!current_block) return false;
     assembler().SetCurrentOrigin(index);
+    current_block->SetOrigin(input_block);
     OpIndex first_output_index =
         assembler().output_graph().next_operation_index();
     USE(first_output_index);
     const Operation& op = input_graph().Get(index);
     if constexpr (trace_reduction) TraceReductionStart(index);
-    if (ShouldSkipOperation(op)) {
+    if (!ShouldSkipOptimizationStep() && ShouldSkipOperation(op)) {
       if constexpr (trace_reduction) TraceOperationSkipped();
       return true;
     }
@@ -312,6 +299,12 @@ class GraphVisitor {
 #ifdef DEBUG
     if (V8_UNLIKELY(v8_flags.turboshaft_verify_reductions)) {
       if (new_index.valid()) {
+        const Operation& new_op = output_graph().Get(new_index);
+        DCHECK_EQ(new_op.outputs_rep().size(), op.outputs_rep().size());
+        for (size_t i = 0; i < new_op.outputs_rep().size(); ++i) {
+          DCHECK(new_op.outputs_rep()[i].AllowImplicitRepresentationChangeTo(
+              op.outputs_rep()[i]));
+        }
         assembler().Verify(index, new_index);
       }
     }
@@ -348,7 +341,7 @@ class GraphVisitor {
       std::cout << prefix << " n" << index.id() << ": "
                 << PaddingSpace{5 - CountDecimalDigits(index.id())}
                 << OperationPrintStyle{output_graph_.Get(index), "#n"} << "\n";
-      if (op.Properties().is_block_terminator && assembler().current_block() &&
+      if (op.IsBlockTerminator() && assembler().current_block() &&
           assembler().current_block() != current_block) {
         current_block = &assembler().output_graph().Get(
             BlockIndex(current_block->index().id() + 1));
@@ -364,11 +357,15 @@ class GraphVisitor {
   // blocks accordingly.
   V8_INLINE OpIndex AssembleOutputGraphGoto(const GotoOp& op) {
     Block* destination = op.destination->MapToNextGraph();
-    assembler().ReduceGoto(destination);
     if (destination->IsBound()) {
       DCHECK(destination->IsLoop());
-      FixLoopPhis(destination);
+      FixLoopPhis(op.destination);
     }
+    // It is important that we first fix loop phis and then reduce the `Goto`,
+    // because reducing the `Goto` can have side effects, in particular, it can
+    // modify affect the SnapshotTable of `VariableReducer`, which is also used
+    // by `FixLoopPhis()`.
+    assembler().ReduceGoto(destination);
     return OpIndex::Invalid();
   }
   V8_INLINE OpIndex AssembleOutputGraphBranch(const BranchOp& op) {
@@ -395,8 +392,7 @@ class GraphVisitor {
         // emit it's 0'th input.
         return MapToNewGraph(op.input(0));
       }
-      return assembler().PendingLoopPhi(MapToNewGraph(op.input(0)), op.rep,
-                                        op.input(PhiOp::kLoopPhiBackEdgeIndex));
+      return assembler().PendingLoopPhi(MapToNewGraph(op.input(0)), op.rep);
     }
 
     base::Vector<const OpIndex> old_inputs = op.inputs();
@@ -428,9 +424,10 @@ class GraphVisitor {
     DCHECK_IMPLIES(new_pred == nullptr, old_pred == nullptr);
 
     if (new_pred != nullptr) {
-      // If {new_pred} is nullptr, then the order of the predecessors changed.
-      // This should only happen with blocks that were introduced in the
-      // previous graph. For instance, consider this (partial) dominator tree:
+      // If {new_pred} is not nullptr, then the order of the predecessors
+      // changed. This should only happen with blocks that were introduced in
+      // the previous graph. For instance, consider this (partial) dominator
+      // tree:
       //
       //     ╠ 7
       //     ║ ╠ 8
@@ -448,17 +445,15 @@ class GraphVisitor {
 
 #ifdef DEBUG
       // To check that indices are set properly, we zap them in debug builds.
-      const uint32_t invalid_custom_data = std::numeric_limits<uint32_t>::max();
       for (auto& block : assembler().modifiable_input_graph().blocks()) {
-        block.custom_data() = invalid_custom_data;
+        block.clear_custom_data();
       }
 #endif
       uint32_t pos = current_input_block_->PredecessorCount() - 1;
       for (old_pred = current_input_block_->LastPredecessor();
            old_pred != nullptr; old_pred = old_pred->NeighboringPredecessor()) {
         // Store the current index of the {old_pred}.
-        DCHECK_EQ(old_pred->custom_data(), invalid_custom_data);
-        old_pred->custom_data() = pos--;
+        old_pred->set_custom_data(pos--, Block::CustomDataKind::kPhiInputIndex);
       }
 
       // Filling {new_inputs}: we iterate the new predecessors, and, for each
@@ -470,8 +465,8 @@ class GraphVisitor {
            new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
         const Block* origin = new_pred->OriginForBlockEnd();
         DCHECK_NOT_NULL(origin);
-        DCHECK_NE(origin->custom_data(), invalid_custom_data);
-        OpIndex input = old_inputs[origin->custom_data()];
+        OpIndex input = old_inputs[origin->get_custom_data(
+            Block::CustomDataKind::kPhiInputIndex)];
         // Phis inputs have to come from predecessors. We thus have to
         // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
         // is from a predecessor rather than one that comes from a Variable
@@ -507,21 +502,58 @@ class GraphVisitor {
     OpIndex frame_state = MapToNewGraphIfValid(op.frame_state());
     auto arguments = MapToNewGraph<16>(op.arguments());
     return assembler().ReduceCall(callee, frame_state,
-                                  base::VectorOf(arguments), op.descriptor);
+                                  base::VectorOf(arguments), op.descriptor,
+                                  op.Effects());
   }
-  OpIndex AssembleOutputGraphCallAndCatchException(
-      const CallAndCatchExceptionOp& op) {
-    OpIndex callee = MapToNewGraph(op.callee());
-    Block* if_success = op.if_success->MapToNextGraph();
-    Block* if_exception = op.if_exception->MapToNextGraph();
-    OpIndex frame_state = MapToNewGraphIfValid(op.frame_state());
-    auto arguments = MapToNewGraph<16>(op.arguments());
-    return assembler().ReduceCallAndCatchException(
-        callee, frame_state, base::VectorOf(arguments), if_success,
-        if_exception, op.descriptor);
+  OpIndex AssembleOutputGraphDidntThrow(const DidntThrowOp& op) {
+    const Operation& throwing_operation =
+        input_graph().Get(op.throwing_operation());
+    OpIndex result;
+    switch (throwing_operation.opcode) {
+#define CASE(Name)                                                           \
+  case Opcode::k##Name:                                                      \
+    result = AssembleOutputGraph##Name(throwing_operation.Cast<Name##Op>()); \
+    break;
+      TURBOSHAFT_THROWING_OPERATIONS_LIST(CASE)
+#undef CASE
+      default:
+        UNREACHABLE();
+    }
+    return result;
   }
-  OpIndex AssembleOutputGraphLoadException(const LoadExceptionOp& op) {
-    return assembler().ReduceLoadException();
+  OpIndex AssembleOutputGraphCheckException(const CheckExceptionOp& op) {
+    Graph::OpIndexIterator it(op.didnt_throw_block->begin(),
+                              &assembler().input_graph());
+    Graph::OpIndexIterator end(op.didnt_throw_block->end(),
+                               &assembler().input_graph());
+    // To translate `CheckException` to the new graph, we reduce the throwing
+    // operation (actually it's `DidntThrow` operation, but that triggers the
+    // actual reduction) with a catch scope. If the reduction replaces the
+    // throwing operation with other throwing operations, all of them will be
+    // connected to the provided catch block. The reduction should automatically
+    // bind a block that represents non-throwing control flow of the original
+    // operation, so we can inline the rest of the `didnt_throw` block.
+    {
+      typename Assembler::CatchScope scope(assembler(),
+                                           op.catch_block->MapToNextGraph());
+      DCHECK(input_graph().Get(*it).template Is<DidntThrowOp>());
+      if (!assembler().InlineOp(*it, op.didnt_throw_block)) {
+        return OpIndex::Invalid();
+      }
+      ++it;
+    }
+    for (; it != end; ++it) {
+      // Using `InlineOp` requires that the inlined operation is not emitted
+      // multiple times. This is the case here because we just removed the
+      // single predecessor of `didnt_throw_block`.
+      if (!assembler().InlineOp(*it, op.didnt_throw_block)) {
+        break;
+      }
+    }
+    return OpIndex::Invalid();
+  }
+  OpIndex AssembleOutputGraphCatchBlockBegin(const CatchBlockBeginOp& op) {
+    return assembler().ReduceCatchBlockBegin();
   }
   OpIndex AssembleOutputGraphTailCall(const TailCallOp& op) {
     OpIndex callee = MapToNewGraph(op.callee());
@@ -573,17 +605,10 @@ class GraphVisitor {
     return assembler().ReduceTryChange(MapToNewGraph(op.input()), op.kind,
                                        op.from, op.to);
   }
-  OpIndex AssembleOutputGraphTag(const TagOp& op) {
-    return assembler().ReduceTag(MapToNewGraph(op.input()), op.kind);
-  }
-  OpIndex AssembleOutputGraphUntag(const UntagOp& op) {
-    return assembler().ReduceUntag(MapToNewGraph(op.input()), op.kind, op.rep);
-  }
-
-  OpIndex AssembleOutputGraphFloat64InsertWord32(
-      const Float64InsertWord32Op& op) {
-    return assembler().ReduceFloat64InsertWord32(
-        MapToNewGraph(op.float64()), MapToNewGraph(op.word32()), op.kind);
+  OpIndex AssembleOutputGraphBitcastWord32PairToFloat64(
+      const BitcastWord32PairToFloat64Op& op) {
+    return assembler().ReduceBitcastWord32PairToFloat64(
+        MapToNewGraph(op.high_word32()), MapToNewGraph(op.low_word32()));
   }
   OpIndex AssembleOutputGraphTaggedBitcast(const TaggedBitcastOp& op) {
     return assembler().ReduceTaggedBitcast(MapToNewGraph(op.input()), op.from,
@@ -597,32 +622,52 @@ class GraphVisitor {
     return assembler().ReduceFloatIs(MapToNewGraph(op.input()), op.kind,
                                      op.input_rep);
   }
-  OpIndex AssembleOutputGraphConvertToObject(const ConvertToObjectOp& op) {
-    return assembler().ReduceConvertToObject(
+  OpIndex AssembleOutputGraphObjectIsNumericValue(
+      const ObjectIsNumericValueOp& op) {
+    return assembler().ReduceObjectIsNumericValue(MapToNewGraph(op.input()),
+                                                  op.kind, op.input_rep);
+  }
+  OpIndex AssembleOutputGraphConvert(const ConvertOp& op) {
+    return assembler().ReduceConvert(MapToNewGraph(op.input()), op.from, op.to);
+  }
+  OpIndex AssembleOutputGraphConvertUntaggedToJSPrimitive(
+      const ConvertUntaggedToJSPrimitiveOp& op) {
+    return assembler().ReduceConvertUntaggedToJSPrimitive(
         MapToNewGraph(op.input()), op.kind, op.input_rep,
         op.input_interpretation, op.minus_zero_mode);
   }
-  OpIndex AssembleOutputGraphConvertToObjectOrDeopt(
-      const ConvertToObjectOrDeoptOp& op) {
-    return assembler().ReduceConvertToObjectOrDeopt(
+  OpIndex AssembleOutputGraphConvertUntaggedToJSPrimitiveOrDeopt(
+      const ConvertUntaggedToJSPrimitiveOrDeoptOp& op) {
+    return assembler().ReduceConvertUntaggedToJSPrimitiveOrDeopt(
         MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()), op.kind,
         op.input_rep, op.input_interpretation, op.feedback);
   }
-  OpIndex AssembleOutputGraphConvertObjectToPrimitive(
-      const ConvertObjectToPrimitiveOp& op) {
-    return assembler().ReduceConvertObjectToPrimitive(
+  OpIndex AssembleOutputGraphConvertJSPrimitiveToUntagged(
+      const ConvertJSPrimitiveToUntaggedOp& op) {
+    return assembler().ReduceConvertJSPrimitiveToUntagged(
         MapToNewGraph(op.input()), op.kind, op.input_assumptions);
   }
-  OpIndex AssembleOutputGraphConvertObjectToPrimitiveOrDeopt(
-      const ConvertObjectToPrimitiveOrDeoptOp& op) {
-    return assembler().ReduceConvertObjectToPrimitiveOrDeopt(
+  OpIndex AssembleOutputGraphConvertJSPrimitiveToUntaggedOrDeopt(
+      const ConvertJSPrimitiveToUntaggedOrDeoptOp& op) {
+    return assembler().ReduceConvertJSPrimitiveToUntaggedOrDeopt(
         MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()),
         op.from_kind, op.to_kind, op.minus_zero_mode, op.feedback);
   }
-  OpIndex AssembleOutputGraphTruncateObjectToPrimitive(
-      const TruncateObjectToPrimitiveOp& op) {
-    return assembler().ReduceTruncateObjectToPrimitive(
+  OpIndex AssembleOutputGraphTruncateJSPrimitiveToUntagged(
+      const TruncateJSPrimitiveToUntaggedOp& op) {
+    return assembler().ReduceTruncateJSPrimitiveToUntagged(
         MapToNewGraph(op.input()), op.kind, op.input_assumptions);
+  }
+  OpIndex AssembleOutputGraphTruncateJSPrimitiveToUntaggedOrDeopt(
+      const TruncateJSPrimitiveToUntaggedOrDeoptOp& op) {
+    return assembler().ReduceTruncateJSPrimitiveToUntaggedOrDeopt(
+        MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()), op.kind,
+        op.input_requirement, op.feedback);
+  }
+  OpIndex AssembleOutputGraphConvertJSPrimitiveToObject(
+      const ConvertJSPrimitiveToObjectOp& op) {
+    return assembler().ReduceConvertJSPrimitiveToObject(
+        MapToNewGraph(op.value()), MapToNewGraph(op.global_proxy()), op.mode);
   }
   OpIndex AssembleOutputGraphSelect(const SelectOp& op) {
     return assembler().ReduceSelect(
@@ -632,6 +677,22 @@ class GraphVisitor {
   OpIndex AssembleOutputGraphConstant(const ConstantOp& op) {
     return assembler().ReduceConstant(op.kind, op.storage);
   }
+  OpIndex AssembleOutputGraphAtomicRMW(const AtomicRMWOp& op) {
+    return assembler().ReduceAtomicRMW(
+        MapToNewGraph(op.base()), MapToNewGraph(op.index()),
+        MapToNewGraph(op.value()), MapToNewGraphIfValid(op.expected()),
+        op.bin_op, op.result_rep, op.input_rep, op.memory_access_kind);
+  }
+
+  OpIndex AssembleOutputGraphAtomicWord32Pair(const AtomicWord32PairOp& op) {
+    return assembler().ReduceAtomicWord32Pair(
+        MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()),
+        MapToNewGraphIfValid(op.value_low()),
+        MapToNewGraphIfValid(op.value_high()),
+        MapToNewGraphIfValid(op.expected_low()),
+        MapToNewGraphIfValid(op.expected_high()), op.op_kind, op.offset);
+  }
+
   OpIndex AssembleOutputGraphLoad(const LoadOp& op) {
     return assembler().ReduceLoad(
         MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()), op.kind,
@@ -641,11 +702,12 @@ class GraphVisitor {
     return assembler().ReduceStore(
         MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()),
         MapToNewGraph(op.value()), op.kind, op.stored_rep, op.write_barrier,
-        op.offset, op.element_size_log2);
+        op.offset, op.element_size_log2,
+        op.maybe_initializing_or_transitioning);
   }
   OpIndex AssembleOutputGraphAllocate(const AllocateOp& op) {
-    return assembler().Allocate(MapToNewGraph(op.size()), op.type,
-                                op.allow_large_objects);
+    return assembler().FinishInitialization(
+        assembler().Allocate(MapToNewGraph(op.size()), op.type));
   }
   OpIndex AssembleOutputGraphDecodeExternalPointer(
       const DecodeExternalPointerOp& op) {
@@ -683,8 +745,9 @@ class GraphVisitor {
                                           op.negated, op.parameters);
   }
   OpIndex AssembleOutputGraphTrapIf(const TrapIfOp& op) {
-    return assembler().ReduceTrapIf(MapToNewGraph(op.condition()), op.negated,
-                                    op.trap_id);
+    return assembler().ReduceTrapIf(MapToNewGraph(op.condition()),
+                                    MapToNewGraphIfValid(op.frame_state()),
+                                    op.negated, op.trap_id);
   }
   OpIndex AssembleOutputGraphTuple(const TupleOp& op) {
     return assembler().ReduceTuple(
@@ -706,7 +769,8 @@ class GraphVisitor {
     return assembler().ReduceUnreachable();
   }
   OpIndex AssembleOutputGraphStaticAssert(const StaticAssertOp& op) {
-    return assembler().ReduceStaticAssert(op.condition(), op.source);
+    return assembler().ReduceStaticAssert(MapToNewGraph(op.condition()),
+                                          op.source);
   }
   OpIndex AssembleOutputGraphCheckTurboshaftTypeOf(
       const CheckTurboshaftTypeOfOp& op) {
@@ -732,6 +796,9 @@ class GraphVisitor {
   }
   OpIndex AssembleOutputGraphDebugBreak(const DebugBreakOp& op) {
     return assembler().ReduceDebugBreak();
+  }
+  OpIndex AssembleOutputGraphDebugPrint(const DebugPrintOp& op) {
+    return assembler().ReduceDebugPrint(MapToNewGraph(op.input()), op.rep);
   }
   OpIndex AssembleOutputGraphBigIntBinop(const BigIntBinopOp& op) {
     return assembler().ReduceBigIntBinop(
@@ -780,6 +847,10 @@ class GraphVisitor {
                                              MapToNewGraph(op.start()),
                                              MapToNewGraph(op.end()));
   }
+  OpIndex AssembleOutputGraphStringConcat(const StringConcatOp& op) {
+    return assembler().ReduceStringConcat(MapToNewGraph(op.left()),
+                                          MapToNewGraph(op.right()));
+  }
   OpIndex AssembleOutputGraphStringEqual(const StringEqualOp& op) {
     return assembler().ReduceStringEqual(MapToNewGraph(op.left()),
                                          MapToNewGraph(op.right()));
@@ -788,23 +859,275 @@ class GraphVisitor {
     return assembler().ReduceStringComparison(
         MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind);
   }
+  OpIndex AssembleOutputGraphArgumentsLength(const ArgumentsLengthOp& op) {
+    return assembler().ReduceArgumentsLength(op.kind,
+                                             op.formal_parameter_count);
+  }
+  OpIndex AssembleOutputGraphNewArgumentsElements(
+      const NewArgumentsElementsOp& op) {
+    return assembler().ReduceNewArgumentsElements(
+        MapToNewGraph(op.arguments_count()), op.type,
+        op.formal_parameter_count);
+  }
+  OpIndex AssembleOutputGraphLoadTypedElement(const LoadTypedElementOp& op) {
+    return assembler().ReduceLoadTypedElement(
+        MapToNewGraph(op.buffer()), MapToNewGraph(op.base()),
+        MapToNewGraph(op.external()), MapToNewGraph(op.index()), op.array_type);
+  }
+  OpIndex AssembleOutputGraphLoadDataViewElement(
+      const LoadDataViewElementOp& op) {
+    return assembler().ReduceLoadDataViewElement(
+        MapToNewGraph(op.object()), MapToNewGraph(op.storage()),
+        MapToNewGraph(op.index()), MapToNewGraph(op.is_little_endian()),
+        op.element_type);
+  }
+  OpIndex AssembleOutputGraphLoadStackArgument(const LoadStackArgumentOp& op) {
+    return assembler().ReduceLoadStackArgument(MapToNewGraph(op.base()),
+                                               MapToNewGraph(op.index()));
+  }
+  OpIndex AssembleOutputGraphStoreTypedElement(const StoreTypedElementOp& op) {
+    return assembler().ReduceStoreTypedElement(
+        MapToNewGraph(op.buffer()), MapToNewGraph(op.base()),
+        MapToNewGraph(op.external()), MapToNewGraph(op.index()),
+        MapToNewGraph(op.value()), op.array_type);
+  }
+  OpIndex AssembleOutputGraphStoreDataViewElement(
+      const StoreDataViewElementOp& op) {
+    return assembler().ReduceStoreDataViewElement(
+        MapToNewGraph(op.object()), MapToNewGraph(op.storage()),
+        MapToNewGraph(op.index()), MapToNewGraph(op.value()),
+        MapToNewGraph(op.is_little_endian()), op.element_type);
+  }
+  OpIndex AssembleOutputGraphTransitionAndStoreArrayElement(
+      const TransitionAndStoreArrayElementOp& op) {
+    return assembler().ReduceTransitionAndStoreArrayElement(
+        MapToNewGraph(op.array()), MapToNewGraph(op.index()),
+        MapToNewGraph(op.value()), op.kind, op.fast_map, op.double_map);
+  }
+  OpIndex AssembleOutputGraphCompareMaps(const CompareMapsOp& op) {
+    return assembler().ReduceCompareMaps(MapToNewGraph(op.heap_object()),
+                                         op.maps);
+  }
+  OpIndex AssembleOutputGraphCheckMaps(const CheckMapsOp& op) {
+    return assembler().ReduceCheckMaps(MapToNewGraph(op.heap_object()),
+                                       MapToNewGraph(op.frame_state()), op.maps,
+                                       op.flags, op.feedback);
+  }
+  OpIndex AssembleOutputGraphAssumeMap(const AssumeMapOp& op) {
+    return assembler().ReduceAssumeMap(MapToNewGraph(op.heap_object()),
+                                       op.maps);
+  }
+  OpIndex AssembleOutputGraphCheckedClosure(const CheckedClosureOp& op) {
+    return assembler().ReduceCheckedClosure(MapToNewGraph(op.input()),
+                                            MapToNewGraph(op.frame_state()),
+                                            op.feedback_cell);
+  }
+  OpIndex AssembleOutputGraphCheckEqualsInternalizedString(
+      const CheckEqualsInternalizedStringOp& op) {
+    return assembler().ReduceCheckEqualsInternalizedString(
+        MapToNewGraph(op.expected()), MapToNewGraph(op.value()),
+        MapToNewGraph(op.frame_state()));
+  }
+  OpIndex AssembleOutputGraphLoadMessage(const LoadMessageOp& op) {
+    return assembler().ReduceLoadMessage(MapToNewGraph(op.offset()));
+  }
+  OpIndex AssembleOutputGraphStoreMessage(const StoreMessageOp& op) {
+    return assembler().ReduceStoreMessage(MapToNewGraph(op.offset()),
+                                          MapToNewGraph(op.object()));
+  }
+  OpIndex AssembleOutputGraphSameValue(const SameValueOp& op) {
+    return assembler().ReduceSameValue(MapToNewGraph(op.left()),
+                                       MapToNewGraph(op.right()), op.mode);
+  }
+  OpIndex AssembleOutputGraphFloat64SameValue(const Float64SameValueOp& op) {
+    return assembler().ReduceFloat64SameValue(MapToNewGraph(op.left()),
+                                              MapToNewGraph(op.right()));
+  }
+  OpIndex AssembleOutputGraphFastApiCall(const FastApiCallOp& op) {
+    auto arguments = MapToNewGraph<8>(op.arguments());
+    return assembler().ReduceFastApiCall(MapToNewGraph(op.data_argument()),
+                                         base::VectorOf(arguments),
+                                         op.parameters);
+  }
+  OpIndex AssembleOutputGraphRuntimeAbort(const RuntimeAbortOp& op) {
+    return assembler().ReduceRuntimeAbort(op.reason);
+  }
+  OpIndex AssembleOutputGraphEnsureWritableFastElements(
+      const EnsureWritableFastElementsOp& op) {
+    return assembler().ReduceEnsureWritableFastElements(
+        MapToNewGraph(op.object()), MapToNewGraph(op.elements()));
+  }
+  OpIndex AssembleOutputGraphMaybeGrowFastElements(
+      const MaybeGrowFastElementsOp& op) {
+    return assembler().ReduceMaybeGrowFastElements(
+        MapToNewGraph(op.object()), MapToNewGraph(op.elements()),
+        MapToNewGraph(op.index()), MapToNewGraph(op.elements_length()),
+        MapToNewGraph(op.frame_state()), op.mode, op.feedback);
+  }
+  OpIndex AssembleOutputGraphTransitionElementsKind(
+      const TransitionElementsKindOp& op) {
+    return assembler().ReduceTransitionElementsKind(MapToNewGraph(op.object()),
+                                                    op.transition);
+  }
+  OpIndex AssembleOutputGraphFindOrderedHashEntry(
+      const FindOrderedHashEntryOp& op) {
+    return assembler().ReduceFindOrderedHashEntry(
+        MapToNewGraph(op.data_structure()), MapToNewGraph(op.key()), op.kind);
+  }
+  OpIndex AssembleOutputGraphWord32PairBinop(const Word32PairBinopOp& op) {
+    return assembler().ReduceWord32PairBinop(op.left_low(), op.left_high(),
+                                             op.right_low(), op.right_high(),
+                                             op.kind);
+  }
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+  OpIndex AssembleOutputGraphGlobalGet(const GlobalGetOp& op) {
+    return assembler().ReduceGlobalGet(MapToNewGraph(op.instance()), op.global);
+  }
+
+  OpIndex AssembleOutputGraphGlobalSet(const GlobalSetOp& op) {
+    return assembler().ReduceGlobalSet(MapToNewGraph(op.instance()),
+                                       MapToNewGraph(op.value()), op.global);
+  }
+
+  OpIndex AssembleOutputGraphNull(const NullOp& op) {
+    return assembler().ReduceNull(op.type);
+  }
+
+  OpIndex AssembleOutputGraphIsNull(const IsNullOp& op) {
+    return assembler().ReduceIsNull(MapToNewGraph(op.object()), op.type);
+  }
+
+  OpIndex AssembleOutputGraphAssertNotNull(const AssertNotNullOp& op) {
+    return assembler().ReduceAssertNotNull(MapToNewGraph(op.object()), op.type,
+                                           op.trap_id);
+  }
+
+  OpIndex AssembleOutputGraphRttCanon(const RttCanonOp& op) {
+    return assembler().ReduceRttCanon(MapToNewGraph(op.instance()),
+                                      op.type_index);
+  }
+
+  OpIndex AssembleOutputGraphWasmTypeCheck(const WasmTypeCheckOp& op) {
+    return assembler().ReduceWasmTypeCheck(
+        MapToNewGraph(op.object()), MapToNewGraphIfValid(op.rtt()), op.config);
+  }
+
+  OpIndex AssembleOutputGraphWasmTypeCast(const WasmTypeCastOp& op) {
+    return assembler().ReduceWasmTypeCast(
+        MapToNewGraph(op.object()), MapToNewGraphIfValid(op.rtt()), op.config);
+  }
+
+  OpIndex AssembleOutputGraphStructGet(const StructGetOp& op) {
+    return assembler().ReduceStructGet(MapToNewGraph(op.object()), op.type,
+                                       op.field_index, op.is_signed,
+                                       op.null_check);
+  }
+
+  OpIndex AssembleOutputGraphStructSet(const StructSetOp& op) {
+    return assembler().ReduceStructSet(MapToNewGraph(op.object()),
+                                       MapToNewGraph(op.value()), op.type,
+                                       op.field_index, op.null_check);
+  }
+
+  OpIndex AssembleOutputGraphArrayGet(const ArrayGetOp& op) {
+    return assembler().ReduceArrayGet(MapToNewGraph(op.array()),
+                                      MapToNewGraph(op.index()),
+                                      op.element_type, op.is_signed);
+  }
+
+  OpIndex AssembleOutputGraphArraySet(const ArraySetOp& op) {
+    return assembler().ReduceArraySet(
+        MapToNewGraph(op.array()), MapToNewGraph(op.index()),
+        MapToNewGraph(op.value()), op.element_type);
+  }
+
+  OpIndex AssembleOutputGraphArrayLength(const ArrayLengthOp& op) {
+    return assembler().ReduceArrayLength(MapToNewGraph(op.array()),
+                                         op.null_check);
+  }
+
+  OpIndex AssembleOutputGraphSimd128Constant(const Simd128ConstantOp& op) {
+    return assembler().ReduceSimd128Constant(op.value);
+  }
+
+  OpIndex AssembleOutputGraphSimd128Binop(const Simd128BinopOp& op) {
+    return assembler().ReduceSimd128Binop(MapToNewGraph(op.left()),
+                                          MapToNewGraph(op.right()), op.kind);
+  }
+
+  OpIndex AssembleOutputGraphSimd128Unary(const Simd128UnaryOp& op) {
+    return assembler().ReduceSimd128Unary(MapToNewGraph(op.input()), op.kind);
+  }
+
+  OpIndex AssembleOutputGraphSimd128Shift(const Simd128ShiftOp& op) {
+    return assembler().ReduceSimd128Shift(MapToNewGraph(op.input()),
+                                          MapToNewGraph(op.shift()), op.kind);
+  }
+
+  OpIndex AssembleOutputGraphSimd128Test(const Simd128TestOp& op) {
+    return assembler().ReduceSimd128Test(MapToNewGraph(op.input()), op.kind);
+  }
+
+  OpIndex AssembleOutputGraphSimd128Splat(const Simd128SplatOp& op) {
+    return assembler().ReduceSimd128Splat(MapToNewGraph(op.input()), op.kind);
+  }
+
+  OpIndex AssembleOutputGraphSimd128Ternary(const Simd128TernaryOp& op) {
+    return assembler().ReduceSimd128Ternary(MapToNewGraph(op.first()),
+                                            MapToNewGraph(op.second()),
+                                            MapToNewGraph(op.third()), op.kind);
+  }
+  OpIndex AssembleOutputGraphSimd128ExtractLane(
+      const Simd128ExtractLaneOp& op) {
+    return assembler().ReduceSimd128ExtractLane(MapToNewGraph(op.input()),
+                                                op.kind, op.lane);
+  }
+  OpIndex AssembleOutputGraphSimd128ReplaceLane(
+      const Simd128ReplaceLaneOp& op) {
+    return assembler().ReduceSimd128ReplaceLane(MapToNewGraph(op.into()),
+                                                MapToNewGraph(op.new_lane()),
+                                                op.kind, op.lane);
+  }
+  OpIndex AssembleOutputGraphSimd128LaneMemory(const Simd128LaneMemoryOp& op) {
+    return assembler().ReduceSimd128LaneMemory(
+        MapToNewGraph(op.base()), MapToNewGraph(op.index()),
+        MapToNewGraph(op.value()), op.mode, op.kind, op.lane_kind, op.lane,
+        op.offset);
+  }
+  OpIndex AssembleOutputGraphSimd128LoadTransform(
+      const Simd128LoadTransformOp& op) {
+    return assembler().ReduceSimd128LoadTransform(
+        MapToNewGraph(op.base()), MapToNewGraph(op.index()), op.load_kind,
+        op.transform_kind, op.offset);
+  }
+  OpIndex AssembleOutputGraphSimd128Shuffle(const Simd128ShuffleOp& op) {
+    return assembler().ReduceSimd128Shuffle(
+        MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.shuffle);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
-    if (current_block_needs_variables_) {
-      MaybeVariable var = GetVariableFor(old_index);
-      if (!var.has_value()) {
-        base::Optional<RegisterRepresentation> rep =
-            input_graph().Get(old_index).outputs_rep().size() == 1
-                ? base::Optional<RegisterRepresentation>{input_graph()
-                                                             .Get(old_index)
-                                                             .outputs_rep()[0]}
-                : base::nullopt;
-        var = assembler().NewFreshVariable(rep);
-        SetVariableFor(old_index, *var);
+    if constexpr (reducer_list_contains<typename Assembler::ReducerList,
+                                        VariableReducer>::value) {
+      if (current_block_needs_variables_) {
+        MaybeVariable var = GetVariableFor(old_index);
+        if (!var.has_value()) {
+          MaybeRegisterRepresentation rep =
+              input_graph().Get(old_index).outputs_rep().size() == 1
+                  ? static_cast<const MaybeRegisterRepresentation&>(
+                        input_graph().Get(old_index).outputs_rep()[0])
+                  : MaybeRegisterRepresentation::None();
+          var = assembler().NewLoopInvariantVariable(rep);
+          SetVariableFor(old_index, *var);
+        }
+        assembler().SetVariable(*var, new_index);
+        return;
       }
-      assembler().Set(*var, new_index);
-      return;
+    } else {
+      DCHECK(!current_block_needs_variables_);
     }
+    DCHECK(!op_mapping_[old_index.id()].valid());
     op_mapping_[old_index.id()] = new_index;
   }
 
@@ -834,16 +1157,23 @@ class GraphVisitor {
     return result;
   }
 
-  void FixLoopPhis(Block* loop) {
-    DCHECK(loop->IsLoop());
-    for (Operation& op : assembler().output_graph().operations(*loop)) {
-      if (auto* pending_phi = op.TryCast<PendingLoopPhiOp>()) {
-        assembler().output_graph().template Replace<PhiOp>(
-            assembler().output_graph().Index(*pending_phi),
-            base::VectorOf(
-                {pending_phi->first(),
-                 MapToNewGraph(pending_phi->data.old_backedge_index)}),
-            pending_phi->rep);
+  void FixLoopPhis(Block* input_graph_loop) {
+    DCHECK(input_graph_loop->IsLoop());
+    Block* output_graph_loop = input_graph_loop->MapToNextGraph();
+    DCHECK(output_graph_loop->IsLoop());
+    for (const Operation& op : assembler().input_graph().operations(
+             input_graph_loop->begin(), input_graph_loop->end())) {
+      if (auto* input_phi = op.TryCast<PhiOp>()) {
+        OpIndex phi_index =
+            MapToNewGraph<true>(assembler().input_graph().Index(*input_phi));
+        if (!phi_index.valid() || !output_graph_loop->Contains(phi_index)) {
+          // Unused phis are skipped, so they are not be mapped to anything in
+          // the new graph. If the phi is reduced to an operation from a
+          // different block, then there is no loop phi in the current loop
+          // header to take care of.
+          continue;
+        }
+        assembler().FixLoopPhi(*input_phi, phi_index, output_graph_loop);
       }
     }
   }

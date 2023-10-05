@@ -22,7 +22,8 @@
 namespace v8 {
 namespace internal {
 
-bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
+bool CanCompileWithBaseline(Isolate* isolate,
+                            Tagged<SharedFunctionInfo> shared) {
   DisallowGarbageCollection no_gc;
 
   // Check that baseline compiler is enabled.
@@ -35,23 +36,22 @@ bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   }
 
   // Check if we actually have bytecode.
-  if (!shared.HasBytecodeArray()) return false;
+  if (!shared->HasBytecodeArray()) return false;
 
   // Do not optimize when debugger needs to hook into every call.
   if (isolate->debug()->needs_check_on_function_call()) return false;
 
-  // Functions with breakpoints have to stay interpreted.
-  if (shared.HasBreakInfo()) return false;
+  if (auto debug_info = shared->TryGetDebugInfo(isolate)) {
+    // Functions with breakpoints have to stay interpreted.
+    if (debug_info.value()->HasBreakInfo()) return false;
 
-  // Functions with instrumented bytecode can't be baseline compiled since the
-  // baseline code's bytecode array pointer is immutable.
-  if (shared.HasDebugInfo() &&
-      shared.GetDebugInfo().HasInstrumentedBytecodeArray()) {
-    return false;
+    // Functions with instrumented bytecode can't be baseline compiled since the
+    // baseline code's bytecode array pointer is immutable.
+    if (debug_info.value()->HasInstrumentedBytecodeArray()) return false;
   }
 
   // Do not baseline compile if function doesn't pass sparkplug_filter.
-  if (!shared.PassesFilter(v8_flags.sparkplug_filter)) return false;
+  if (!shared->PassesFilter(v8_flags.sparkplug_filter)) return false;
 
   return true;
 }
@@ -65,7 +65,7 @@ MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
   compiler.GenerateCode();
   MaybeHandle<Code> code = compiler.Build(local_isolate);
   if (v8_flags.print_code && !code.is_null()) {
-    code.ToHandleChecked()->Print();
+    Print(*code.ToHandleChecked());
   }
   return code;
 }

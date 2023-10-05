@@ -28,7 +28,6 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
-import os
 import shutil
 
 from testrunner.local import command
@@ -41,13 +40,10 @@ SHELL = 'cctest'
 
 class TestLoader(testsuite.TestLoader):
   def _list_test_filenames(self):
-    shell = os.path.abspath(os.path.join(self.test_config.shell_dir, SHELL))
-    if utils.IsWindows():
-      shell += ".exe"
+    args = ["--list"] + self.test_config.extra_flags
+    shell = self.ctx.platform_shell(SHELL, args, self.test_config.shell_dir)
     cmd = self.ctx.command(
-        cmd_prefix=self.test_config.command_prefix,
-        shell=shell,
-        args=["--list"] + self.test_config.extra_flags)
+        cmd_prefix=self.test_config.command_prefix, shell=shell, args=args)
     output = cmd.execute()
     # TODO make errors visible (see duplicated code in 'unittests')
     if output.exit_code != 0:
@@ -62,7 +58,11 @@ class TestLoader(testsuite.TestLoader):
     tests_total = 0
 
     for line in output.stdout.strip().splitlines():
-      if line.startswith(test_prefix):
+      # When the command runs through another executable (e.g. iOS Simulator),
+      # it is possible that the stdout will show something else in the same
+      # line of the actual test output so it's necessary to harness for that
+      # case.
+      if test_prefix in line:
         filtered_output.append(line[len(test_prefix):])
       if line.startswith(test_total_prefix):
         tests_total = int(line[len(test_total_prefix):])
@@ -86,4 +86,4 @@ class TestCase(testcase.TestCase):
     return SHELL
 
   def _get_files_params(self):
-    return [self.path]
+    return [self.name]

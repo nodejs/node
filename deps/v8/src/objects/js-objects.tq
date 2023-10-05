@@ -46,23 +46,21 @@ extern class JSExternalObject extends JSObject {
 
 // A JSObject that may contain EmbedderDataSlots.
 @abstract
-extern class JSObjectWithEmbedderSlots extends JSObject {
-}
+extern class JSObjectWithEmbedderSlots extends JSObject {}
 
 @abstract
 @lowestInstanceTypeWithinParentClassRange
-extern class JSCustomElementsObject extends JSObject {
-}
+extern class JSCustomElementsObject extends JSObject {}
 
 // These may also contain EmbedderDataSlots but can't be a child class of
 // JSObjectWithEmbedderSlots due to type id constraints.
 @abstract
 @lowestInstanceTypeWithinParentClassRange
-extern class JSSpecialObject extends JSCustomElementsObject {
-}
+extern class JSSpecialObject extends JSCustomElementsObject {}
 
-macro GetDerivedMap(implicit context: Context)(
-    target: JSFunction, newTarget: JSReceiver): Map {
+macro GetDerivedMap(
+    implicit context: Context)(target: JSFunction,
+    newTarget: JSReceiver): Map {
   try {
     const constructor =
         Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
@@ -79,13 +77,14 @@ macro GetDerivedMap(implicit context: Context)(
   }
 }
 
-macro GetDerivedRabGsabTypedArrayMap(implicit context: Context)(
-    target: JSFunction, newTarget: JSReceiver): Map {
+macro GetDerivedRabGsabTypedArrayMap(
+    implicit context: Context)(target: JSFunction,
+    newTarget: JSReceiver): Map {
   return runtime::GetDerivedMap(context, target, newTarget, TrueConstant());
 }
 
-macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
-    JSObject {
+macro AllocateFastOrSlowJSObjectFromMap(
+    implicit context: Context)(map: Map): JSObject {
   let properties: EmptyFixedArray|NameDictionary|SwissNameDictionary =
       kEmptyFixedArray;
   if (IsDictionaryMap(map)) {
@@ -129,7 +128,7 @@ extern class JSMessageObject extends JSObject {
   script: Script;
   // [stack_frames]: an array of stack frames for this error object.
   stack_frames: Object;
-  shared_info: SharedFunctionInfo|Undefined;
+  shared_info: SharedFunctionInfo|Smi;
 
   // Raw data fields.
   // TODO(ishell): store as int32 instead of Smi.
@@ -183,9 +182,8 @@ extern class JSValidIteratorWrapper extends JSObject {
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 extern macro AllocateJSObjectFromMap(
     Map,
-    NameDictionary | SwissNameDictionary | EmptyFixedArray |
-        PropertyArray): JSObject;
+    NameDictionary|SwissNameDictionary|EmptyFixedArray|PropertyArray): JSObject;
 extern macro AllocateJSObjectFromMap(
-    Map, NameDictionary | SwissNameDictionary | EmptyFixedArray | PropertyArray,
+    Map, NameDictionary|SwissNameDictionary|EmptyFixedArray|PropertyArray,
     FixedArray, constexpr AllocationFlag,
     constexpr SlackTrackingMode): JSObject;

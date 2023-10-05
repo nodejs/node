@@ -69,6 +69,9 @@ class V8_EXPORT_PRIVATE DecompressionOptimizer final {
   // Change node's load into a compressed one.
   void ChangeLoad(Node* const node);
 
+  // Change node's 64-bit bitwise operator into a compressed one.
+  void ChangeWord64BitwiseOp(Node* const node, const Operator* new_op);
+
   // Go through the already marked nodes and changed the operation for the nodes
   // that can use compressed outputs.
   void ChangeNodes();

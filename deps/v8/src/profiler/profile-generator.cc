@@ -205,13 +205,14 @@ void CodeEntry::set_deopt_info(
   rare_data->deopt_inlined_frames_ = std::move(inlined_frames);
 }
 
-void CodeEntry::FillFunctionInfo(SharedFunctionInfo shared) {
-  if (!shared.script().IsScript()) return;
-  Script script = Script::cast(shared.script());
-  set_script_id(script.id());
-  set_position(shared.StartPosition());
-  if (shared.optimization_disabled()) {
-    set_bailout_reason(GetBailoutReason(shared.disabled_optimization_reason()));
+void CodeEntry::FillFunctionInfo(Tagged<SharedFunctionInfo> shared) {
+  if (!IsScript(shared->script())) return;
+  Tagged<Script> script = Script::cast(shared->script());
+  set_script_id(script->id());
+  set_position(shared->StartPosition());
+  if (shared->optimization_disabled()) {
+    set_bailout_reason(
+        GetBailoutReason(shared->disabled_optimization_reason()));
   }
 }
 

@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_OPTION_UTILS_H_
 #define V8_OBJECTS_OPTION_UTILS_H_
 
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/objects/objects.h"
+#include "src/objects/js-objects.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -86,15 +88,15 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
       Object::GetPropertyOrElement(isolate, options, property_str),
       Nothing<T>());
   // 2. If value is undefined, then return fallback.
-  if (value->IsUndefined(isolate)) {
+  if (IsUndefined(*value, isolate)) {
     return Just(fallback_value);
   }
   // 3. If value is true, then return trueValue.
-  if (value->IsTrue(isolate)) {
+  if (IsTrue(*value, isolate)) {
     return Just(true_value);
   }
   // 4. Let valueBoolean be ToBoolean(value).
-  bool valueBoolean = value->BooleanValue(isolate);
+  bool valueBoolean = Object::BooleanValue(*value, isolate);
   // 5. If valueBoolean is false, then return valueBoolean.
   if (!valueBoolean) {
     return Just(false_value);

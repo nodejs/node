@@ -31,6 +31,14 @@ class BytecodeJumpTable;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
+  enum TypeHint : uint8_t {
+    kBoolean = 1 << 0,
+    kInternalizedString = 1 << 1,
+    kString = kInternalizedString | (1 << 2),
+    kAny = kBoolean | kString,
+    kUnknown = 0xFFu
+  };
+
   explicit BytecodeGenerator(
       LocalIsolate* local_isolate, Zone* zone, UnoptimizedCompilationInfo* info,
       const AstStringConstants* ast_string_constants,
@@ -44,8 +52,17 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   template <typename IsolateT>
   Handle<ByteArray> FinalizeSourcePositionTable(IsolateT* isolate);
 
+  // Check if hint2 is same or the subtype of hint1.
+  static bool IsSameOrSubTypeHint(TypeHint hint1, TypeHint hint2) {
+    return hint1 == (hint1 | hint2);
+  }
+
+  static bool IsStringTypeHint(TypeHint hint) {
+    return IsSameOrSubTypeHint(TypeHint::kString, hint);
+  }
+
 #ifdef DEBUG
-  int CheckBytecodeMatches(BytecodeArray bytecode);
+  int CheckBytecodeMatches(Tagged<BytecodeArray> bytecode);
 #endif
 
 #define DECLARE_VISIT(type) void Visit##type(type* node);
@@ -71,6 +88,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class EffectResultScope;
   class ExpressionResultScope;
   class FeedbackSlotCache;
+  class HoleCheckElisionScope;
+  class HoleCheckElisionMergeScope;
   class IteratorRecord;
   class MultipleEntryBlockContextScope;
   class LoopScope;
@@ -84,7 +103,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
   enum class TestFallthrough { kThen, kElse, kNone };
-  enum class TypeHint { kAny, kBoolean, kString };
   enum class AccumulatorPreservingMode { kNone, kPreserve };
 
   // An assignment has to evaluate its LHS before its RHS, but has to assign to
@@ -274,6 +292,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildAsyncReturn(int source_position);
   void BuildAsyncGeneratorReturn();
   void BuildReThrow();
+  void RememberHoleCheckInCurrentBlock(Variable* variable);
+  bool VariableNeedsHoleCheckInCurrentBlock(Variable* variable,
+                                            HoleCheckMode hole_check_mode);
+  bool VariableNeedsHoleCheckInCurrentBlockForAssignment(
+      Variable* variable, Token::Value op, HoleCheckMode hole_check_mode);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
   void BuildThrowIfHole(Variable* variable);
 
@@ -430,9 +453,20 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                            BytecodeLabels* test_next_labels,
                            BytecodeLabels* else_labels);
 
+  // Convenience visitors that put a HoleCheckElisionScope on stack.
+  template <typename T>
+  void VisitInHoleCheckElisionScope(T* node);
+  void VisitIterationBodyInHoleCheckElisionScope(IterationStatement* stmt,
+                                                 LoopBuilder* loop_builder);
+  TypeHint VisitInHoleCheckElisionScopeForAccumulatorValue(Expression* expr);
+
   void VisitInSameTestExecutionScope(Expression* expr);
 
   Register GetRegisterForLocalVariable(Variable* variable);
+
+  bool IsLocalVariableWithInternalizedStringHint(Expression* expr);
+
+  TypeHint GetTypeHintForLocalVariable(Variable* variable);
 
   // Returns the runtime function id for a store to super for the function's
   // language mode.
@@ -540,6 +574,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       array_literals_;
   ZoneVector<std::pair<ClassLiteral*, size_t>> class_literals_;
   ZoneVector<std::pair<GetTemplateObject*, size_t>> template_objects_;
+  ZoneVector<Variable*> vars_in_hole_check_bitmap_;
 
   ControlScope* execution_control_;
   ContextScope* execution_context_;
@@ -557,6 +592,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   int suspend_count_;
   // TODO(solanes): assess if we can move loop_depth_ into LoopScope.
   int loop_depth_;
+
+  // Variables for which hole checks have been emitted in the current basic
+  // block. Managed by HoleCheckElisionScope and HoleCheckElisionMergeScope.
+  Variable::HoleCheckBitmap hole_check_bitmap_;
 
   LoopScope* current_loop_scope_;
 

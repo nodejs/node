@@ -10,7 +10,12 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
-ADDITIONAL_VARIANTS = set(["minor_mc"])
+ADDITIONAL_VARIANTS = set([
+    "maglev",
+    "minor_ms",
+    "stress_maglev",
+])
+SHELL = "v8_unittests"
 
 
 class VariantsGenerator(testsuite.VariantsGenerator):
@@ -29,17 +34,12 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 
 class TestLoader(testsuite.TestLoader):
   def _list_test_filenames(self):
-    shell = os.path.abspath(
-      os.path.join(self.test_config.shell_dir, "v8_unittests"))
-    if utils.IsWindows():
-      shell += ".exe"
-
+    args = ['--gtest_list_tests'] + self.test_config.extra_flags
+    shell = self.ctx.platform_shell(SHELL, args, self.test_config.shell_dir)
     output = None
     for i in range(3): # Try 3 times in case of errors.
       cmd = self.ctx.command(
-          cmd_prefix=self.test_config.command_prefix,
-          shell=shell,
-          args=['--gtest_list_tests'] + self.test_config.extra_flags)
+          cmd_prefix=self.test_config.command_prefix, shell=shell, args=args)
       output = cmd.execute()
       if output.exit_code == 0:
         break
@@ -59,6 +59,12 @@ class TestLoader(testsuite.TestLoader):
     test_names = []
     test_case = ''
     for line in output.stdout.splitlines():
+      # When the command runs through another executable (e.g. iOS Simulator),
+      # it is possible that the stdout will show something else besides the
+      # actual test output, so it is necessary to harness this case by checking
+      # whether the line exists here.
+      if not line.strip().split():
+        continue
       test_desc = line.strip().split()[0]
       if test_desc.endswith('.'):
         test_case = test_desc
@@ -82,22 +88,22 @@ class TestSuite(testsuite.TestSuite):
 class TestCase(testcase.TestCase):
   def _get_suite_flags(self):
     return (
-        ["--gtest_filter=" + self.path] +
-        ["--gtest_random_seed=%s" % self.random_seed] +
+        [f"--gtest_filter={self.name}"] +
+        [f"--gtest_random_seed={self.random_seed}"] +
         ["--gtest_print_time=0"]
     )
 
   def get_shell(self):
-    return 'v8_' + self.suite.name
+    return SHELL
 
   def get_android_resources(self):
     # Bytecode-generator tests are the only ones requiring extra files on
     # Android.
     parts = self.name.split('.')
     if parts[0] == 'BytecodeGeneratorTest':
-      expectation_file = os.path.join(self.suite.root, 'interpreter',
-                                      'bytecode_expectations',
-                                      '%s.golden' % parts[1])
-      if os.path.exists(expectation_file):
+      expectation_file = (
+          self.suite.root / 'interpreter' / 'bytecode_expectations' /
+          f'{parts[1]}.golden')
+      if expectation_file.exists():
         return [expectation_file]
     return []

@@ -2,8 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/toolchain/toolchain.gni")
-
+import("../../../gni/v8.gni")
 config("vtune_ittapi") {
   include_dirs = [
     "//third_party/ittapi/include",
@@ -11,7 +10,7 @@ config("vtune_ittapi") {
   ]
 }
 
-static_library("v8_vtune") {
+v8_source_set("v8_vtune") {
   sources = [
     "//third_party/ittapi/include/jitprofiling.h",
     "//third_party/ittapi/src/ittnotify/ittnotify_config.h",
@@ -21,25 +20,21 @@ static_library("v8_vtune") {
     "vtune-jit.cc",
     "vtune-jit.h",
   ]
-  configs += [ ":vtune_ittapi" ]
-
-  # TODO(delphick): Consider changing these to be v8_source_sets
-  if (!build_with_chromium && is_clang) {
-    configs -= [ "//build/config/clang:find_bad_constructs" ]
-  }
+  configs = [ ":vtune_ittapi" ]
   deps = [ "../../..:v8" ]
 }
 
-static_library("v8_vtune_trace_mark") {
+v8_source_set("v8_vtune_trace_mark") {
   sources = [
     "//third_party/ittapi/include/ittnotify.h",
     "vtuneapi.cc",
     "vtuneapi.h",
   ]
   deps = [ ":ittnotify" ]
+  configs = []
 }
 
-static_library("ittnotify") {
+v8_source_set("ittnotify") {
   sources = [
     "//third_party/ittapi/include/ittnotify.h",
     "//third_party/ittapi/include/legacy/ittnotify.h",
@@ -49,4 +44,5 @@ static_library("ittnotify") {
   ]
   include_dirs = [ "//third_party/ittapi/include" ]
   deps = []
+  configs = []
 }

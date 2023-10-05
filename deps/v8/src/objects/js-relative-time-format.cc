@@ -253,7 +253,7 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
     Isolate* isolate, Handle<JSRelativeTimeFormat> format_holder) {
   Factory* factory = isolate->factory();
   icu::RelativeDateTimeFormatter* formatter =
-      format_holder->icu_formatter().raw();
+      format_holder->icu_formatter()->raw();
   DCHECK_NOT_NULL(formatter);
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   Handle<String> locale(format_holder->locale(), isolate);
@@ -350,7 +350,7 @@ MaybeHandle<T> FormatCommon(
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              Object::ToNumber(isolate, value_obj), T);
-  double number = value->Number();
+  double number = Object::Number(*value);
   // 4. Let unit be ? ToString(unit).
   Handle<String> unit;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, unit, Object::ToString(isolate, unit_obj),
@@ -363,7 +363,7 @@ MaybeHandle<T> FormatCommon(
                       isolate->factory()->NewStringFromAsciiChecked(func_name)),
         T);
   }
-  icu::RelativeDateTimeFormatter* formatter = format->icu_formatter().raw();
+  icu::RelativeDateTimeFormatter* formatter = format->icu_formatter()->raw();
   DCHECK_NOT_NULL(formatter);
   URelativeDateTimeUnit unit_enum;
   if (!GetURelativeDateTimeUnit(unit, &unit_enum)) {
@@ -383,7 +383,7 @@ MaybeHandle<T> FormatCommon(
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
   }
   return formatToResult(isolate, formatted, UnitAsString(isolate, unit_enum),
-                        value->IsNaN());
+                        IsNaN(*value));
 }
 
 MaybeHandle<String> FormatToString(

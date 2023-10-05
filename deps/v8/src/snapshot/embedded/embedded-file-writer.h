@@ -182,7 +182,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
  private:
-  std::vector<byte> source_positions_[Builtins::kBuiltinCount];
+  std::vector<uint8_t> source_positions_[Builtins::kBuiltinCount];
   std::vector<LabelInfo> label_info_[Builtins::kBuiltinCount];
 
 #if defined(V8_OS_WIN64)

@@ -24,9 +24,10 @@ class ExperimentalRegExpInterpreter final : public AllStatic {
   // are written to `matches_out`.  Provided in variants for one-byte and
   // two-byte strings.
   static int FindMatches(Isolate* isolate, RegExp::CallOrigin call_origin,
-                         ByteArray bytecode, int capture_count, String input,
-                         int start_index, int32_t* output_registers,
-                         int output_register_count, Zone* zone);
+                         Tagged<ByteArray> bytecode, int capture_count,
+                         Tagged<String> input, int start_index,
+                         int32_t* output_registers, int output_register_count,
+                         Zone* zone);
 };
 
 }  // namespace internal

@@ -6,8 +6,9 @@ namespace symbol {
 extern runtime SymbolDescriptiveString(implicit context: Context)(Symbol):
     String;
 
-transitioning macro ThisSymbolValue(implicit context: Context)(
-    receiver: JSAny, method: constexpr string): Symbol {
+transitioning macro ThisSymbolValue(
+    implicit context: Context)(receiver: JSAny,
+    method: constexpr string): Symbol {
   return UnsafeCast<Symbol>(
       ToThisValue(receiver, PrimitiveType::kSymbol, method));
 }

@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "src/base/bit-field.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -95,15 +96,33 @@ class PatternMap {
   std::string value;
 };
 
+#define BIT_FIELDS(V, _)      \
+  V(Era, bool, 1, _)          \
+  V(Year, bool, 1, _)         \
+  V(Month, bool, 1, _)        \
+  V(Weekday, bool, 1, _)      \
+  V(Day, bool, 1, _)          \
+  V(DayPeriod, bool, 1, _)    \
+  V(Hour, bool, 1, _)         \
+  V(Minute, bool, 1, _)       \
+  V(Second, bool, 1, _)       \
+  V(TimeZoneName, bool, 1, _) \
+  V(FractionalSecondDigits, bool, 1, _)
+DEFINE_BIT_FIELDS(BIT_FIELDS)
+#undef BIT_FIELDS
+
 class PatternItem {
  public:
-  PatternItem(const std::string property, std::vector<PatternMap> pairs,
+  PatternItem(int32_t shift, const std::string property,
+              std::vector<PatternMap> pairs,
               std::vector<const char*> allowed_values)
-      : property(std::move(property)),
+      : bitShift(shift),
+        property(std::move(property)),
         pairs(std::move(pairs)),
         allowed_values(allowed_values) {}
   virtual ~PatternItem() = default;
 
+  int32_t bitShift;
   const std::string property;
   // It is important for the pattern in the pairs from longer one to shorter one
   // if the longer one contains substring of an shorter one.
@@ -118,7 +137,7 @@ static std::vector<PatternItem> BuildPatternItems() {
   const std::vector<const char*> kNarrowLongShort2DigitNumeric = {
       "narrow", "long", "short", "2-digit", "numeric"};
   std::vector<PatternItem> items = {
-      PatternItem("weekday",
+      PatternItem(Weekday::kShift, "weekday",
                   {{"EEEEE", "narrow"},
                    {"EEEE", "long"},
                    {"EEE", "short"},
@@ -126,13 +145,13 @@ static std::vector<PatternItem> BuildPatternItems() {
                    {"cccc", "long"},
                    {"ccc", "short"}},
                   kNarrowLongShort),
-      PatternItem("era",
+      PatternItem(Era::kShift, "era",
                   {{"GGGGG", "narrow"}, {"GGGG", "long"}, {"GGG", "short"}},
                   kNarrowLongShort),
-      PatternItem("year", {{"yy", "2-digit"}, {"y", "numeric"}},
+      PatternItem(Year::kShift, "year", {{"yy", "2-digit"}, {"y", "numeric"}},
                   k2DigitNumeric)};
   // Sometimes we get L instead of M for month - standalone name.
-  items.push_back(PatternItem("month",
+  items.push_back(PatternItem(Month::kShift, "month",
                               {{"MMMMM", "narrow"},
                                {"MMMM", "long"},
                                {"MMM", "short"},
@@ -144,9 +163,10 @@ static std::vector<PatternItem> BuildPatternItems() {
                                {"LL", "2-digit"},
                                {"L", "numeric"}},
                               kNarrowLongShort2DigitNumeric));
-  items.push_back(PatternItem("day", {{"dd", "2-digit"}, {"d", "numeric"}},
+  items.push_back(PatternItem(Day::kShift, "day",
+                              {{"dd", "2-digit"}, {"d", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem("dayPeriod",
+  items.push_back(PatternItem(DayPeriod::kShift, "dayPeriod",
                               {{"BBBBB", "narrow"},
                                {"bbbbb", "narrow"},
                                {"BBBB", "long"},
@@ -154,7 +174,7 @@ static std::vector<PatternItem> BuildPatternItems() {
                                {"B", "short"},
                                {"b", "short"}},
                               kNarrowLongShort));
-  items.push_back(PatternItem("hour",
+  items.push_back(PatternItem(Hour::kShift, "hour",
                               {{"HH", "2-digit"},
                                {"H", "numeric"},
                                {"hh", "2-digit"},
@@ -164,23 +184,25 @@ static std::vector<PatternItem> BuildPatternItems() {
                                {"KK", "2-digit"},
                                {"K", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem("minute", {{"mm", "2-digit"}, {"m", "numeric"}},
+  items.push_back(PatternItem(Minute::kShift, "minute",
+                              {{"mm", "2-digit"}, {"m", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem("second", {{"ss", "2-digit"}, {"s", "numeric"}},
+  items.push_back(PatternItem(Second::kShift, "second",
+                              {{"ss", "2-digit"}, {"s", "numeric"}},
                               k2DigitNumeric));
 
-    const std::vector<const char*> kTimezone = {"long",        "short",
-                                                "longOffset",  "shortOffset",
-                                                "longGeneric", "shortGeneric"};
-    items.push_back(PatternItem("timeZoneName",
-                                {{"zzzz", "long"},
-                                 {"z", "short"},
-                                 {"OOOO", "longOffset"},
-                                 {"O", "shortOffset"},
-                                 {"vvvv", "longGeneric"},
-                                 {"v", "shortGeneric"}},
-                                kTimezone));
-    return items;
+  const std::vector<const char*> kTimezone = {"long",        "short",
+                                              "longOffset",  "shortOffset",
+                                              "longGeneric", "shortGeneric"};
+  items.push_back(PatternItem(TimeZoneName::kShift, "timeZoneName",
+                              {{"zzzz", "long"},
+                               {"z", "short"},
+                               {"OOOO", "longOffset"},
+                               {"O", "shortOffset"},
+                               {"vvvv", "longGeneric"},
+                               {"v", "shortGeneric"}},
+                              kTimezone));
+  return items;
 }
 
 class PatternItems {
@@ -201,15 +223,19 @@ static const std::vector<PatternItem>& GetPatternItems() {
 
 class PatternData {
  public:
-  PatternData(const std::string property, std::vector<PatternMap> pairs,
+  PatternData(int32_t shift, const std::string property,
+              std::vector<PatternMap> pairs,
               std::vector<const char*> allowed_values)
-      : property(std::move(property)), allowed_values(allowed_values) {
+      : bitShift(shift),
+        property(std::move(property)),
+        allowed_values(allowed_values) {
     for (const auto& pair : pairs) {
       map.insert(std::make_pair(pair.value, pair.pattern));
     }
   }
   virtual ~PatternData() = default;
 
+  int32_t bitShift;
   const std::string property;
   std::map<const std::string, const std::string> map;
   std::vector<const char*> allowed_values;
@@ -221,8 +247,8 @@ const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
     if (item.property == "hour") {
       build.push_back(hour_data);
     } else {
-      build.push_back(
-          PatternData(item.property, item.pairs, item.allowed_values));
+      build.push_back(PatternData(item.bitShift, item.property, item.pairs,
+                                  item.allowed_values));
     }
   }
   return build;
@@ -230,9 +256,9 @@ const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
 
 const std::vector<PatternData> CreateData(const char* digit2,
                                           const char* numeric) {
-  return CreateCommonData(
-      PatternData("hour", {{digit2, "2-digit"}, {numeric, "numeric"}},
-                  {"2-digit", "numeric"}));
+  return CreateCommonData(PatternData(
+      Hour::kShift, "hour", {{digit2, "2-digit"}, {numeric, "numeric"}},
+      {"2-digit", "numeric"}));
 }
 
 // According to "Date Field Symbol Table" in
@@ -530,8 +556,7 @@ Handle<Object> JSDateTimeFormat::TimeZoneId(Isolate* isolate,
 
 namespace {
 Handle<String> GetCalendar(Isolate* isolate,
-                           const icu::SimpleDateFormat& simple_date_format,
-                           bool is_alt_calendar = false) {
+                           const icu::SimpleDateFormat& simple_date_format) {
   // getType() returns legacy calendar type name instead of LDML/BCP47 calendar
   // key values. intl.js maps them to BCP47 values for key "ca".
   // TODO(jshin): Consider doing it here, instead.
@@ -542,17 +567,9 @@ Handle<String> GetCalendar(Isolate* isolate,
   // and
   // http://www.unicode.org/repos/cldr/tags/latest/common/bcp47/calendar.xml
   if (calendar_str == "gregorian") {
-    if (is_alt_calendar) {
-      calendar_str = "iso8601";
-    } else {
-      calendar_str = "gregory";
-    }
+    calendar_str = "gregory";
   } else if (calendar_str == "ethiopic-amete-alem") {
     calendar_str = "ethioaa";
-  } else if (calendar_str == "islamic") {
-    if (is_alt_calendar) {
-      calendar_str = "islamic-rgsa";
-    }
   }
   return isolate->factory()->NewStringFromAsciiChecked(calendar_str.c_str());
 }
@@ -567,14 +584,13 @@ Handle<Object> GetTimeZone(Isolate* isolate,
 Handle<String> JSDateTimeFormat::Calendar(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format) {
   return GetCalendar(isolate,
-                     *(date_time_format->icu_simple_date_format().raw()),
-                     date_time_format->alt_calendar());
+                     *(date_time_format->icu_simple_date_format()->raw()));
 }
 
 Handle<Object> JSDateTimeFormat::TimeZone(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format) {
   return GetTimeZone(isolate,
-                     *(date_time_format->icu_simple_date_format().raw()));
+                     *(date_time_format->icu_simple_date_format()->raw()));
 }
 
 // ecma402 #sec-intl.datetimeformat.prototype.resolvedoptions
@@ -588,11 +604,11 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
 
   Handle<String> locale = Handle<String>(date_time_format->locale(), isolate);
   DCHECK(!date_time_format->icu_locale().is_null());
-  DCHECK_NOT_NULL(date_time_format->icu_locale().raw());
-  icu::Locale* icu_locale = date_time_format->icu_locale().raw();
+  DCHECK_NOT_NULL(date_time_format->icu_locale()->raw());
+  icu::Locale* icu_locale = date_time_format->icu_locale()->raw();
 
   icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   Handle<Object> timezone =
       JSDateTimeFormat::TimeZone(isolate, date_time_format);
 
@@ -745,7 +761,7 @@ namespace {
 // #sec-temporal-istemporalobject
 bool IsTemporalObject(Handle<Object> value) {
   // 1. If Type(value) is not Object, then
-  if (!value->IsJSReceiver()) {
+  if (!IsJSReceiver(*value)) {
     // a. Return false.
     return false;
   }
@@ -754,11 +770,11 @@ bool IsTemporalObject(Handle<Object> value) {
   // [[InitializedTemporalZonedDateTime]], [[InitializedTemporalYearMonth]],
   // [[InitializedTemporalMonthDay]], or [[InitializedTemporalInstant]] internal
   // slot, then
-  if (!value->IsJSTemporalPlainDate() && !value->IsJSTemporalPlainTime() &&
-      !value->IsJSTemporalPlainDateTime() &&
-      !value->IsJSTemporalZonedDateTime() &&
-      !value->IsJSTemporalPlainYearMonth() &&
-      !value->IsJSTemporalPlainMonthDay() && !value->IsJSTemporalInstant()) {
+  if (!IsJSTemporalPlainDate(*value) && !IsJSTemporalPlainTime(*value) &&
+      !IsJSTemporalPlainDateTime(*value) &&
+      !IsJSTemporalZonedDateTime(*value) &&
+      !IsJSTemporalPlainYearMonth(*value) &&
+      !IsJSTemporalPlainMonthDay(*value) && !IsJSTemporalInstant(*value)) {
     // a. Return false.
     return false;
   }
@@ -774,33 +790,33 @@ bool SameTemporalType(Handle<Object> x, Handle<Object> y) {
   if (!IsTemporalObject(y)) return false;
   // 2. If x has an [[InitializedTemporalDate]] internal slot and y does not,
   // return false.
-  if (x->IsJSTemporalPlainDate() && !y->IsJSTemporalPlainDate()) return false;
+  if (IsJSTemporalPlainDate(*x) && !IsJSTemporalPlainDate(*y)) return false;
   // 3. If x has an [[InitializedTemporalTime]] internal slot and y does not,
   // return false.
-  if (x->IsJSTemporalPlainTime() && !y->IsJSTemporalPlainTime()) return false;
+  if (IsJSTemporalPlainTime(*x) && !IsJSTemporalPlainTime(*y)) return false;
   // 4. If x has an [[InitializedTemporalDateTime]] internal slot and y does
   // not, return false.
-  if (x->IsJSTemporalPlainDateTime() && !y->IsJSTemporalPlainDateTime()) {
+  if (IsJSTemporalPlainDateTime(*x) && !IsJSTemporalPlainDateTime(*y)) {
     return false;
   }
   // 5. If x has an [[InitializedTemporalZonedDateTime]] internal slot and y
   // does not, return false.
-  if (x->IsJSTemporalZonedDateTime() && !y->IsJSTemporalZonedDateTime()) {
+  if (IsJSTemporalZonedDateTime(*x) && !IsJSTemporalZonedDateTime(*y)) {
     return false;
   }
   // 6. If x has an [[InitializedTemporalYearMonth]] internal slot and y does
   // not, return false.
-  if (x->IsJSTemporalPlainYearMonth() && !y->IsJSTemporalPlainYearMonth()) {
+  if (IsJSTemporalPlainYearMonth(*x) && !IsJSTemporalPlainYearMonth(*y)) {
     return false;
   }
   // 7. If x has an [[InitializedTemporalMonthDay]] internal slot and y does
   // not, return false.
-  if (x->IsJSTemporalPlainMonthDay() && !y->IsJSTemporalPlainMonthDay()) {
+  if (IsJSTemporalPlainMonthDay(*x) && !IsJSTemporalPlainMonthDay(*y)) {
     return false;
   }
   // 8. If x has an [[InitializedTemporalInstant]] internal slot and y does not,
   // return false.
-  if (x->IsJSTemporalInstant() && !y->IsJSTemporalInstant()) return false;
+  if (IsJSTemporalInstant(*x) && !IsJSTemporalInstant(*y)) return false;
   // 9. Return true.
   return true;
 }
@@ -839,7 +855,7 @@ Maybe<DateTimeValueRecord> TemporalPlainDateTimeToRecord(
   Handle<Object> time_zone_obj = GetTimeZone(isolate, date_time_format);
   // TODO(ftang): we should change the return type of GetTimeZone() to
   // Handle<String> by ensure it will not return undefined.
-  CHECK(time_zone_obj->IsString());
+  CHECK(IsString(*time_zone_obj));
   Handle<JSTemporalTimeZone> time_zone =
       temporal::CreateTemporalTimeZone(isolate,
                                        Handle<String>::cast(time_zone_obj))
@@ -1002,7 +1018,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalZonedDateTime(
   // timeZone is not equal to dateTimeFormat.[[TimeZone]], then
   Handle<Object> date_time_format_time_zone =
       GetTimeZone(isolate, date_time_format);
-  DCHECK(date_time_format_time_zone->IsString());
+  DCHECK(IsString(*date_time_format_time_zone));
   Handle<String> date_time_format_time_zone_string =
       Handle<String>::cast(date_time_format_time_zone);
   if (!String::Equals(isolate, date_time_format_time_zone_string,
@@ -1133,7 +1149,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeOthers(
 
   // 4. If x is undefined, then
   double x;
-  if (x_obj->IsUndefined()) {
+  if (IsUndefined(*x_obj)) {
     // a. Set x to ! Call(%Date.now%, undefined).
     x = static_cast<double>(JSDate::CurrentTimeValue(isolate));
     // 5. Else,
@@ -1142,7 +1158,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeOthers(
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, x_obj,
                                      Object::ToNumber(isolate, x_obj),
                                      Nothing<DateTimeValueRecord>());
-    x = x_obj->Number();
+    x = Object::Number(*x_obj);
   }
   // 6. Set x to TimeClip(x).
   x = DateCache::TimeClip(x);
@@ -1167,49 +1183,49 @@ Maybe<DateTimeValueRecord> HandleDateTimeValue(
     const char* method_name) {
   if (IsTemporalObject(x)) {
     // a. If x has an [[InitializedTemporalDate]] internal slot, then
-    if (x->IsJSTemporalPlainDate()) {
+    if (IsJSTemporalPlainDate(*x)) {
       // i. Return ? HandleDateTimeTemporalDate(dateTimeFormat, x).
       return HandleDateTimeTemporalDate(
           isolate, date_time_format, date_time_format_calendar,
           Handle<JSTemporalPlainDate>::cast(x), method_name);
     }
     // b. If x has an [[InitializedTemporalYearMonth]] internal slot, then
-    if (x->IsJSTemporalPlainYearMonth()) {
+    if (IsJSTemporalPlainYearMonth(*x)) {
       // i. Return ? HandleDateTimeTemporalYearMonth(dateTimeFormat, x).
       return HandleDateTimeTemporalYearMonth(
           isolate, date_time_format, date_time_format_calendar,
           Handle<JSTemporalPlainYearMonth>::cast(x), method_name);
     }
     // c. If x has an [[InitializedTemporalMonthDay]] internal slot, then
-    if (x->IsJSTemporalPlainMonthDay()) {
+    if (IsJSTemporalPlainMonthDay(*x)) {
       // i. Return ? HandleDateTimeTemporalMonthDay(dateTimeFormat, x).
       return HandleDateTimeTemporalMonthDay(
           isolate, date_time_format, date_time_format_calendar,
           Handle<JSTemporalPlainMonthDay>::cast(x), method_name);
     }
     // d. If x has an [[InitializedTemporalTime]] internal slot, then
-    if (x->IsJSTemporalPlainTime()) {
+    if (IsJSTemporalPlainTime(*x)) {
       // i. Return ? HandleDateTimeTemporalTime(dateTimeFormat, x).
       return HandleDateTimeTemporalTime(isolate, date_time_format,
                                         Handle<JSTemporalPlainTime>::cast(x),
                                         method_name);
     }
     // e. If x has an [[InitializedTemporalDateTime]] internal slot, then
-    if (x->IsJSTemporalPlainDateTime()) {
+    if (IsJSTemporalPlainDateTime(*x)) {
       // i. Return ? HandleDateTimeTemporalDateTime(dateTimeFormat, x).
       return HandleDateTimeTemporalDateTime(
           isolate, date_time_format, date_time_format_calendar,
           Handle<JSTemporalPlainDateTime>::cast(x), method_name);
     }
     // f. If x has an [[InitializedTemporalInstant]] internal slot, then
-    if (x->IsJSTemporalInstant()) {
+    if (IsJSTemporalInstant(*x)) {
       // i. Return ? HandleDateTimeTemporalInstant(dateTimeFormat, x).
       return HandleDateTimeTemporalInstant(isolate, date_time_format,
                                            Handle<JSTemporalInstant>::cast(x),
                                            method_name);
     }
     // g. Assert: x has an [[InitializedTemporalZonedDateTime]] internal slot.
-    DCHECK(x->IsJSTemporalZonedDateTime());
+    DCHECK(IsJSTemporalZonedDateTime(*x));
     // h. Return ? HandleDateTimeTemporalZonedDateTime(dateTimeFormat, x).
     return HandleDateTimeTemporalZonedDateTime(
         isolate, date_time_format, date_time_format_calendar,
@@ -1431,7 +1447,7 @@ MaybeHandle<String> FormatDateTimeWithTemporalSupport(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
     Handle<Object> x, const char* method_name) {
   return FormatDateTimeWithTemporalSupport(
-      isolate, *(date_time_format->icu_simple_date_format().raw()),
+      isolate, *(date_time_format->icu_simple_date_format()->raw()),
       JSDateTimeFormat::Calendar(isolate, date_time_format), x, method_name);
 }
 
@@ -1451,7 +1467,7 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
 
   // 3. If date is not provided or is undefined, then
   double x;
-  if (date->IsUndefined()) {
+  if (IsUndefined(*date)) {
     // 3.a Let x be Call(%Date_now%, undefined).
     x = static_cast<double>(JSDate::CurrentTimeValue(isolate));
   } else {
@@ -1459,12 +1475,12 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
     //    a. Let x be ? ToNumber(date).
     ASSIGN_RETURN_ON_EXCEPTION(isolate, date, Object::ToNumber(isolate, date),
                                String);
-    DCHECK(date->IsNumber());
-    x = date->Number();
+    DCHECK(IsNumber(*date));
+    x = Object::Number(*date);
   }
   // 5. Return FormatDateTime(dtf, x).
   icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -1491,13 +1507,13 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
 
   Factory* factory = isolate->factory();
   // 1. Let x be ? thisTimeValue(this value);
-  if (!date->IsJSDate()) {
+  if (!IsJSDate(*date)) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
                                  factory->Date_string()),
                     String);
   }
-  double const x = Handle<JSDate>::cast(date)->value().Number();
+  double const x = Object::Number(Handle<JSDate>::cast(date)->value());
   // 2. If x is NaN, return "Invalid Date"
   if (std::isnan(x)) {
     return factory->Invalid_Date_string();
@@ -1506,8 +1522,8 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   // We only cache the instance when locales is a string/undefined and
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
-  bool can_cache = (locales->IsString() || locales->IsUndefined(isolate)) &&
-                   options->IsUndefined(isolate);
+  bool can_cache = (IsString(*locales) || IsUndefined(*locales, isolate)) &&
+                   IsUndefined(*options, isolate);
   if (can_cache) {
     // Both locales and options are undefined, check the cache.
     icu::SimpleDateFormat* cached_icu_simple_date_format =
@@ -1517,16 +1533,11 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
       return FormatDateTime(isolate, *cached_icu_simple_date_format, x);
     }
   }
-  // 3. Let options be ? ToDateTimeOptions(options, required, defaults).
-  Handle<JSObject> internal_options;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, internal_options,
-      ToDateTimeOptions(isolate, options, required, defaults), String);
-
   // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
   Handle<JSFunction> constructor = Handle<JSFunction>(
-      JSFunction::cast(
-          isolate->context().native_context().intl_date_time_format_function()),
+      JSFunction::cast(isolate->context()
+                           ->native_context()
+                           ->intl_date_time_format_function()),
       isolate);
   Handle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -1535,19 +1546,19 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   Handle<JSDateTimeFormat> date_time_format;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time_format,
-      JSDateTimeFormat::New(isolate, map, locales, internal_options,
-                            method_name),
+      JSDateTimeFormat::CreateDateTimeFormat(isolate, map, locales, options,
+                                             required, defaults, method_name),
       String);
 
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         cache_type, locales,
         std::static_pointer_cast<icu::UMemory>(
-            date_time_format->icu_simple_date_format().get()));
+            date_time_format->icu_simple_date_format()->get()));
   }
   // 5. Return FormatDateTime(dateFormat, x).
   icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -1556,7 +1567,7 @@ MaybeHandle<String> JSDateTimeFormat::TemporalToLocaleString(
     Handle<Object> options, const char* method_name) {
   // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
   Handle<JSFunction> constructor(
-      isolate->context().native_context().intl_date_time_format_function(),
+      isolate->context()->native_context()->intl_date_time_format_function(),
       isolate);
   Handle<Map> map = JSFunction::GetDerivedMap(isolate, constructor, constructor)
                         .ToHandleChecked();
@@ -1571,162 +1582,10 @@ MaybeHandle<String> JSDateTimeFormat::TemporalToLocaleString(
                                            method_name);
 }
 
-namespace {
-
-Maybe<bool> IsPropertyUndefined(Isolate* isolate, Handle<JSObject> options,
-                                Handle<String> property) {
-  // i. Let prop be the property name.
-  // ii. Let value be ? Get(options, prop).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, Object::GetPropertyOrElement(isolate, options, property),
-      Nothing<bool>());
-  return Just(value->IsUndefined(isolate));
-}
-
-Maybe<bool> NeedsDefault(Isolate* isolate, Handle<JSObject> options,
-                         const std::vector<Handle<String>>& props) {
-  bool needs_default = true;
-  for (const auto& prop : props) {
-    //  i. Let prop be the property name.
-    // ii. Let value be ? Get(options, prop)
-    Maybe<bool> maybe_undefined = IsPropertyUndefined(isolate, options, prop);
-    MAYBE_RETURN(maybe_undefined, Nothing<bool>());
-    // iii. If value is not undefined, let needDefaults be false.
-    if (!maybe_undefined.FromJust()) {
-      needs_default = false;
-    }
-  }
-  return Just(needs_default);
-}
-
-Maybe<bool> CreateDefault(Isolate* isolate, Handle<JSObject> options,
-                          const std::vector<std::string>& props) {
-  Factory* factory = isolate->factory();
-  // i. Perform ? CreateDataPropertyOrThrow(options, prop, "numeric").
-  for (const auto& prop : props) {
-    MAYBE_RETURN(
-        JSReceiver::CreateDataProperty(
-            isolate, options, factory->NewStringFromAsciiChecked(prop.c_str()),
-            factory->numeric_string(), Just(kThrowOnError)),
-        Nothing<bool>());
-  }
-  return Just(true);
-}
-
-}  // namespace
-
-// ecma-402/#sec-todatetimeoptions
-MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
-    Isolate* isolate, Handle<Object> input_options, RequiredOption required,
-    DefaultsOption defaults) {
-  Factory* factory = isolate->factory();
-  // 1. If options is undefined, let options be null; otherwise let options be ?
-  //    ToObject(options).
-  Handle<JSObject> options;
-  if (input_options->IsUndefined(isolate)) {
-    options = factory->NewJSObjectWithNullProto();
-  } else {
-    Handle<JSReceiver> options_obj;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
-                               Object::ToObject(isolate, input_options),
-                               JSObject);
-    // 2. Let options be ObjectCreate(options).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                               JSObject::ObjectCreate(isolate, options_obj),
-                               JSObject);
-  }
-
-  // 3. Let needDefaults be true.
-  bool needs_default = true;
-
-  // 4. If required is "date" or "any", then
-  if (required == RequiredOption::kAny || required == RequiredOption::kDate) {
-    // a. For each of the property names "weekday", "year", "month",
-    // "day", do
-    std::vector<Handle<String>> list(
-        {factory->weekday_string(), factory->year_string()});
-    list.push_back(factory->month_string());
-    list.push_back(factory->day_string());
-    Maybe<bool> maybe_needs_default = NeedsDefault(isolate, options, list);
-    MAYBE_RETURN(maybe_needs_default, Handle<JSObject>());
-    needs_default = maybe_needs_default.FromJust();
-  }
-
-  // 5. If required is "time" or "any", then
-  if (required == RequiredOption::kAny || required == RequiredOption::kTime) {
-    // a. For each of the property names "dayPeriod", "hour", "minute",
-    // "second", "fractionalSecondDigits", do
-    std::vector<Handle<String>> list;
-    list.push_back(factory->dayPeriod_string());
-    list.push_back(factory->hour_string());
-    list.push_back(factory->minute_string());
-    list.push_back(factory->second_string());
-    list.push_back(factory->fractionalSecondDigits_string());
-    Maybe<bool> maybe_needs_default = NeedsDefault(isolate, options, list);
-    MAYBE_RETURN(maybe_needs_default, Handle<JSObject>());
-    needs_default &= maybe_needs_default.FromJust();
-  }
-
-  // 6. Let dateStyle be ? Get(options, "dateStyle").
-  Maybe<bool> maybe_datestyle_undefined =
-      IsPropertyUndefined(isolate, options, factory->dateStyle_string());
-  MAYBE_RETURN(maybe_datestyle_undefined, Handle<JSObject>());
-  // 7. Let timeStyle be ? Get(options, "timeStyle").
-  Maybe<bool> maybe_timestyle_undefined =
-      IsPropertyUndefined(isolate, options, factory->timeStyle_string());
-  MAYBE_RETURN(maybe_timestyle_undefined, Handle<JSObject>());
-  // 8. If dateStyle is not undefined or timeStyle is not undefined, let
-  // needDefaults be false.
-  if (!maybe_datestyle_undefined.FromJust() ||
-      !maybe_timestyle_undefined.FromJust()) {
-    needs_default = false;
-  }
-  // 9. If required is "date" and timeStyle is not undefined,
-  if (required == RequiredOption::kDate &&
-      !maybe_timestyle_undefined.FromJust()) {
-    //  a. Throw a TypeError exception.
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalid,
-                     factory->NewStringFromStaticChars("option"),
-                     factory->NewStringFromStaticChars("timeStyle")),
-        JSObject);
-  }
-  // 10. If required is "time" and dateStyle is not undefined,
-  if (required == RequiredOption::kTime &&
-      !maybe_datestyle_undefined.FromJust()) {
-    //  a. Throw a TypeError exception.
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalid,
-                     factory->NewStringFromStaticChars("option"),
-                     factory->NewStringFromStaticChars("dateStyle")),
-        JSObject);
-  }
-
-  // 11. If needDefaults is true and defaults is either "date" or "all", then
-  if (needs_default) {
-    if (defaults == DefaultsOption::kAll || defaults == DefaultsOption::kDate) {
-      // a. For each of the property names "year", "month", "day", do)
-      const std::vector<std::string> list({"year", "month", "day"});
-      MAYBE_RETURN(CreateDefault(isolate, options, list), Handle<JSObject>());
-    }
-    // 12. If needDefaults is true and defaults is either "time" or "all", then
-    if (defaults == DefaultsOption::kAll || defaults == DefaultsOption::kTime) {
-      // a. For each of the property names "hour", "minute", "second", do
-      const std::vector<std::string> list({"hour", "minute", "second"});
-      MAYBE_RETURN(CreateDefault(isolate, options, list), Handle<JSObject>());
-    }
-  }
-  // 13. Return options.
-  return options;
-}
-
 MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
     Isolate* isolate, Handle<JSReceiver> format_holder) {
   Handle<Context> native_context =
-      Handle<Context>(isolate->context().native_context(), isolate);
+      Handle<Context>(isolate->context()->native_context(), isolate);
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(native_context->intl_date_time_format_function()),
       isolate);
@@ -1734,11 +1593,11 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, dtf,
       Intl::LegacyUnwrapReceiver(isolate, format_holder, constructor,
-                                 format_holder->IsJSDateTimeFormat()),
+                                 IsJSDateTimeFormat(*format_holder)),
       JSDateTimeFormat);
   // 2. If Type(dtf) is not Object or dtf does not have an
   //    [[InitializedDateTimeFormat]] internal slot, then
-  if (!dtf->IsJSDateTimeFormat()) {
+  if (!IsJSDateTimeFormat(*dtf)) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
@@ -1795,7 +1654,8 @@ class CalendarCache {
     DCHECK_NOT_NULL(calendar.get());
 
     if (calendar->getDynamicClassID() ==
-        icu::GregorianCalendar::getStaticClassID()) {
+            icu::GregorianCalendar::getStaticClassID() ||
+        strcmp(calendar->getType(), "iso8601") == 0) {
       icu::GregorianCalendar* gc =
           static_cast<icu::GregorianCalendar*>(calendar.get());
       status = U_ZERO_ERROR;
@@ -1957,15 +1817,15 @@ std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormatFromCache(
 std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
     PatternKind kind) {
-  Managed<icu::DateIntervalFormat> managed_format =
+  Tagged<Managed<icu::DateIntervalFormat>> managed_format =
       date_time_format->icu_date_interval_format();
-  if (kind == PatternKind::kDate && managed_format.get()) {
+  if (kind == PatternKind::kDate && managed_format->get()) {
     return std::unique_ptr<icu::DateIntervalFormat>(
-        managed_format.raw()->clone());
+        managed_format->raw()->clone());
   }
   UErrorCode status = U_ZERO_ERROR;
 
-  icu::Locale loc = *(date_time_format->icu_locale().raw());
+  icu::Locale loc = *(date_time_format->icu_locale()->raw());
   // We need to pass in the hc to DateIntervalFormat by using Unicode 'hc'
   // extension.
   std::string hcString = ToHourCycleString(date_time_format->hour_cycle());
@@ -1974,7 +1834,7 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
   }
 
   icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
 
   icu::UnicodeString skeleton = GetSkeletonForPatternKind(
       SkeletonFromDateFormat(*icu_simple_date_format), kind);
@@ -1991,7 +1851,7 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
           isolate, 0, std::move(date_interval_format));
   date_time_format->set_icu_date_interval_format(*managed_interval_format);
   return std::unique_ptr<icu::DateIntervalFormat>(
-      (*managed_interval_format).raw()->clone());
+      managed_interval_format->raw()->clone());
 }
 
 JSDateTimeFormat::HourCycle HourCycleFromPattern(
@@ -2210,6 +2070,15 @@ enum FormatMatcherOption { kBestFit, kBasic };
 MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     Isolate* isolate, Handle<Map> map, Handle<Object> locales,
     Handle<Object> input_options, const char* service) {
+  return JSDateTimeFormat::CreateDateTimeFormat(
+      isolate, map, locales, input_options, RequiredOption::kAny,
+      DefaultsOption::kDate, service);
+}
+
+MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
+    Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+    Handle<Object> input_options, RequiredOption required,
+    DefaultsOption defaults, const char* service) {
   Factory* factory = isolate->factory();
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
@@ -2217,12 +2086,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   MAYBE_RETURN(maybe_requested_locales, Handle<JSDateTimeFormat>());
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
-  // 2. Let options be ? ToDateTimeOptions(options, "any", "date").
-  Handle<JSObject> options;
+  // 2. Let options be ? CoerceOptionsToObject(_options_).
+  Handle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options,
-      JSDateTimeFormat::ToDateTimeOptions(
-          isolate, input_options, RequiredOption::kAny, DefaultsOption::kDate),
+      isolate, options, CoerceOptionsToObject(isolate, input_options, service),
       JSDateTimeFormat);
 
   // 4. Let matcher be ? GetOption(options, "localeMatcher", "string",
@@ -2327,9 +2194,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
     DCHECK(U_SUCCESS(status));
   }
-  bool alt_calendar =
-      strstr(icu_locale.getName(), "calendar=iso8601") != nullptr ||
-      strstr(icu_locale.getName(), "calendar=islamic-rgsa") != nullptr;
 
   if (numbering_system_str != nullptr &&
       Intl::IsValidNumberingSystem(numbering_system_str.get())) {
@@ -2423,7 +2287,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   DateTimeStyle time_style = DateTimeStyle::kUndefined;
   std::unique_ptr<icu::SimpleDateFormat> icu_date_format;
 
-  // 28. For each row of Table 1, except the header row, do
+  // 35. Let hasExplicitFormatComponents be false.
+  int32_t explicit_format_components =
+      0;  // The fields which are not undefined.
+  // 36. For each row of Table 1, except the header row, do
   bool has_hour_option = false;
   std::string skeleton;
   for (const PatternData& item : GetPatternData(hc)) {
@@ -2437,6 +2304,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
           GetNumberOption(isolate, options,
                           factory->fractionalSecondDigits_string(), 1, 3, 0),
           Handle<JSDateTimeFormat>());
+      if (fsd > 0) {
+        explicit_format_components =
+            FractionalSecondDigits::update(explicit_format_components, true);
+      }
       // Convert fractionalSecondDigits to skeleton.
       for (int i = 0; i < fsd; i++) {
         skeleton += "S";
@@ -2451,12 +2322,16 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
                         item.allowed_values, service, &input);
     MAYBE_RETURN(maybe_get_option, Handle<JSDateTimeFormat>());
     if (maybe_get_option.FromJust()) {
+      // Record which fields are not undefined into explicit_format_components.
       if (item.property == "hour") {
         has_hour_option = true;
       }
       DCHECK_NOT_NULL(input.get());
       // iii. Set opt.[[<prop>]] to value.
       skeleton += item.map.find(input.get())->second;
+      // e. If value is not undefined, then
+      // i. Set hasExplicitFormatComponents to true.
+      explicit_format_components |= 1 << static_cast<int32_t>(item.bitShift);
     }
   }
 
@@ -2510,38 +2385,34 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // 37. If dateStyle or timeStyle are not undefined, then
   if (date_style != DateTimeStyle::kUndefined ||
       time_style != DateTimeStyle::kUndefined) {
-    // a. For each row in Table 1, except the header row, do
-    //    i. Let prop be the name given in the Property column of the row.
-    //   ii. Let p be opt.[[<prop>]].
-    //  iii. If p is not undefined, then
-    //      1. Throw a TypeError exception.
-    if (skeleton.length() > 0) {
-      std::string prop;
-      for (const auto& item : GetPatternItems()) {
-        for (const auto& pair : item.pairs) {
-          if (skeleton.find(pair.pattern) != std::string::npos) {
-            prop.assign(item.property);
-            break;
-          }
-        }
-        if (!prop.empty()) {
-          break;
-        }
-      }
-      if (prop.empty() && skeleton.find("S") != std::string::npos) {
-        prop.assign("fractionalSecondDigits");
-      }
-      if (!prop.empty()) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewTypeError(MessageTemplate::kCantSetOptionXWhenYIsUsed,
-                         factory->NewStringFromAsciiChecked(prop.c_str()),
-                         date_style != DateTimeStyle::kUndefined
-                             ? factory->dateStyle_string()
-                             : factory->timeStyle_string()),
-            JSDateTimeFormat);
-      }
-      UNREACHABLE();
+    // a. If hasExplicitFormatComponents is true, then
+    if (explicit_format_components != 0) {
+      // i. Throw a TypeError exception.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kInvalid,
+                                   factory->NewStringFromStaticChars("option"),
+                                   factory->NewStringFromStaticChars("option")),
+                      JSDateTimeFormat);
+    }
+    // b. If required is ~date~ and timeStyle is not *undefined*, then
+    if (required == RequiredOption::kDate &&
+        time_style != DateTimeStyle::kUndefined) {
+      // i. Throw a *TypeError* exception.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kInvalid,
+                                   factory->NewStringFromStaticChars("option"),
+                                   factory->timeStyle_string()),
+                      JSDateTimeFormat);
+    }
+    // c. If required is ~time~ and dateStyle is not *undefined*, then
+    if (required == RequiredOption::kTime &&
+        date_style != DateTimeStyle::kUndefined) {
+      // i. Throw a *TypeError* exception.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kInvalid,
+                                   factory->NewStringFromStaticChars("option"),
+                                   factory->dateStyle_string()),
+                      JSDateTimeFormat);
     }
     // b. Let pattern be DateTimeStylePattern(dateStyle, timeStyle,
     // dataLocaleData, hc).
@@ -2556,6 +2427,66 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
                       JSDateTimeFormat);
     }
   } else {
+    // a. Let needDefaults be *true*.
+    bool needDefaults = true;
+    // b. If required is ~date~ or ~any~, then
+    if (required == RequiredOption::kDate || required == RequiredOption::kAny) {
+      // 1. For each property name prop of << *"weekday"*, *"year"*, *"month"*,
+      // *"day"* >>, do
+      //    1. Let value be formatOptions.[[<prop>]].
+      //    1. If value is not *undefined*, let needDefaults be *false*.
+
+      needDefaults &= !Weekday::decode(explicit_format_components);
+      needDefaults &= !Year::decode(explicit_format_components);
+      needDefaults &= !Month::decode(explicit_format_components);
+      needDefaults &= !Day::decode(explicit_format_components);
+    }
+    // c. If required is ~time~ or ~any~, then
+    if (required == RequiredOption::kTime || required == RequiredOption::kAny) {
+      // 1. For each property name prop of &laquo; *"dayPeriod"*, *"hour"*,
+      // *"minute"*, *"second"*, *"fractionalSecondDigits"* &raquo;, do
+      //    1. Let value be formatOptions.[[&lt;_prop_&gt;]].
+      //    1. If value is not *undefined*, let _needDefaults_ be *false*.
+      needDefaults &= !DayPeriod::decode(explicit_format_components);
+      needDefaults &= !Hour::decode(explicit_format_components);
+      needDefaults &= !Minute::decode(explicit_format_components);
+      needDefaults &= !Second::decode(explicit_format_components);
+      needDefaults &=
+          !FractionalSecondDigits::decode(explicit_format_components);
+    }
+    // 1. If needDefaults is *true* and _defaults_ is either ~date~ or ~all~,
+    // then
+    if (needDefaults && ((DefaultsOption::kDate == defaults) ||
+                         (DefaultsOption::kAll == defaults))) {
+      // 1. For each property name prop of <<*"year"*, *"month"*, *"day"* >>, do
+      // 1. Set formatOptions.[[<<prop>>]] to *"numeric"*.
+      skeleton += "yMd";
+    }
+    // 1. If _needDefaults_ is *true* and defaults is either ~time~ or ~all~,
+    // then
+    if (needDefaults && ((DefaultsOption::kTime == defaults) ||
+                         (DefaultsOption::kAll == defaults))) {
+      // 1. For each property name prop of << *"hour"*, *"minute"*, *"second"*
+      // >>, do
+      // 1. Set _formatOptions_.[[<<prop>>]] to *"numeric"*.
+      // See
+      // https://unicode.org/reports/tr35/tr35.html#UnicodeHourCycleIdentifier
+      switch (hc) {
+        case HourCycle::kH12:
+          skeleton += "hms";
+          break;
+        case HourCycle::kH23:
+        case HourCycle::kUndefined:
+          skeleton += "Hms";
+          break;
+        case HourCycle::kH11:
+          skeleton += "Kms";
+          break;
+        case HourCycle::kH24:
+          skeleton += "kms";
+          break;
+      }
+    }
     // e. If dateTimeFormat.[[Hour]] is not undefined, then
     if (has_hour_option) {
       // v. Set dateTimeFormat.[[HourCycle]] to hc.
@@ -2639,7 +2570,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     date_time_format->set_time_style(time_style);
   }
   date_time_format->set_hour_cycle(dateTimeFormatHourCycle);
-  date_time_format->set_alt_calendar(alt_calendar);
   date_time_format->set_locale(*locale_str);
   date_time_format->set_icu_locale(*managed_locale);
   date_time_format->set_icu_simple_date_format(*managed_format);
@@ -2734,17 +2664,15 @@ MaybeHandle<JSArray> FormatToPartsWithTemporalSupport(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
     Handle<Object> x, bool output_source, const char* method_name) {
   icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   DCHECK_NOT_NULL(format);
 
   // 1. Let x be ? HandleDateTimeValue(dateTimeFormat, x).
   DateTimeValueRecord x_record;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, x_record,
-      HandleDateTimeValue(
-          isolate, *format,
-          GetCalendar(isolate, *format, date_time_format->alt_calendar()), x,
-          method_name),
+      HandleDateTimeValue(isolate, *format, GetCalendar(isolate, *format), x,
+                          method_name),
       Handle<JSArray>());
 
   return FormatMillisecondsByKindToArray(isolate, *format, x_record.kind,
@@ -2780,20 +2708,20 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
                                             output_source, method_name);
   }
 
-  if (x->IsUndefined(isolate)) {
+  if (IsUndefined(*x, isolate)) {
     x = factory->NewNumberFromInt64(JSDate::CurrentTimeValue(isolate));
   } else {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, x, Object::ToNumber(isolate, x),
                                JSArray);
   }
 
-  double date_value = DateCache::TimeClip(x->Number());
+  double date_value = DateCache::TimeClip(Object::Number(*x));
   if (std::isnan(date_value)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
                     JSArray);
   }
   return FormatMillisecondsToArray(
-      isolate, *(date_time_format->icu_simple_date_format().raw()), date_value,
+      isolate, *(date_time_format->icu_simple_date_format()->raw()), date_value,
       output_source);
 }
 
@@ -3020,7 +2948,7 @@ base::Optional<MaybeHandle<T>> PartitionDateTimeRangePattern(
   }
 
   icu::SimpleDateFormat* date_format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   const icu::Calendar* calendar = date_format->getCalendar();
 
   return CallICUFormatRange<T, Format>(isolate, format.get(), calendar, x, y);
@@ -3068,9 +2996,9 @@ MaybeHandle<T> FormatRangeCommonWithTemporalSupport(
   }
   // 6. Let x be ? HandleDateTimeValue(dateTimeFormat, x).
   icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format().raw();
-  Handle<String> date_time_format_calendar = GetCalendar(
-      isolate, *icu_simple_date_format, date_time_format->alt_calendar());
+      date_time_format->icu_simple_date_format()->raw();
+  Handle<String> date_time_format_calendar =
+      GetCalendar(isolate, *icu_simple_date_format);
   DateTimeValueRecord x_record;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, x_record,
@@ -3093,7 +3021,7 @@ MaybeHandle<T> FormatRangeCommonWithTemporalSupport(
   }
 
   const icu::Calendar* calendar =
-      date_time_format->icu_simple_date_format().raw()->getCalendar();
+      date_time_format->icu_simple_date_format()->raw()->getCalendar();
 
   base::Optional<MaybeHandle<T>> result = CallICUFormatRange<T, Format>(
       isolate, format.get(), calendar, x_record.epoch_milliseconds,
@@ -3115,17 +3043,17 @@ MaybeHandle<T> FormatRangeCommon(Isolate* isolate,
   // 4. Let x be ? ToNumber(startDate).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, x_obj, Object::ToNumber(isolate, x_obj),
                              T);
-  double x = x_obj->Number();
+  double x = Object::Number(*x_obj);
   // 5. Let y be ? ToNumber(endDate).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, y_obj, Object::ToNumber(isolate, y_obj),
                              T);
-  double y = y_obj->Number();
+  double y = Object::Number(*y_obj);
 
   base::Optional<MaybeHandle<T>> result =
       PartitionDateTimeRangePattern<T, Format>(isolate, date_time_format, x, y,
                                                method_name);
   if (result.has_value()) return *result;
-  return Fallback(isolate, *(date_time_format->icu_simple_date_format().raw()),
+  return Fallback(isolate, *(date_time_format->icu_simple_date_format()->raw()),
                   x);
 }
 

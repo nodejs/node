@@ -16,7 +16,8 @@ macro IsFastRegExpForMatch(implicit context: Context)(o: HeapObject): bool {
 extern macro RegExpBuiltinsAssembler::BranchIfFastRegExpForSearch(
     implicit context: Context)(HeapObject): never labels IsFast,
     IsSlow;
-macro IsFastRegExpForSearch(implicit context: Context)(o: HeapObject): bool {
+macro IsFastRegExpForSearch(implicit context: Context)(o: HeapObject):
+    bool {
   BranchIfFastRegExpForSearch(o) otherwise return true, return false;
 }
 
@@ -32,14 +33,15 @@ extern macro RegExpBuiltinsAssembler::BranchIfFastRegExp_Permissive(
     IsSlow;
 
 @export
-macro IsFastRegExpPermissive(implicit context: Context)(o: HeapObject): bool {
+macro IsFastRegExpPermissive(implicit context: Context)(o: HeapObject):
+    bool {
   BranchIfFastRegExp_Permissive(o) otherwise return true, return false;
 }
 
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
 @export
-transitioning macro RegExpExec(implicit context: Context)(
-    receiver: JSReceiver, string: String): JSAny {
+transitioning macro RegExpExec(
+    implicit context: Context)(receiver: JSReceiver, string: String): JSAny {
   // Take the slow path of fetching the exec property, calling it, and
   // verifying its return value.
 
@@ -65,15 +67,15 @@ transitioning macro RegExpExec(implicit context: Context)(
 }
 
 extern macro RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
-    implicit context: Context)(JSRegExp, RegExpMatchInfo, String, Number):
-    JSRegExpResult|JSRegExpResultWithIndices;
+    implicit context: Context)(JSRegExp, RegExpMatchInfo, String,
+    Number): JSRegExpResult|JSRegExpResultWithIndices;
 
 const kGlobalOrSticky: constexpr int31
     generates 'JSRegExp::kGlobal | JSRegExp::kSticky';
 
 extern macro RegExpBuiltinsAssembler::RegExpExecInternal(
-    implicit context: Context)(
-    JSRegExp, String, Number, RegExpMatchInfo): HeapObject;
+    implicit context: Context)(JSRegExp, String, Number,
+    RegExpMatchInfo): HeapObject;
 
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
@@ -82,8 +84,8 @@ extern macro RegExpBuiltinsAssembler::RegExpExecInternal(
 // indices as returned by RegExpExecStub on successful match, and jumps to
 // IfDidNotMatch otherwise.
 transitioning macro RegExpPrototypeExecBodyWithoutResult(
-    implicit context: Context)(
-    regexp: JSRegExp, string: String, regexpLastIndex: Number,
+    implicit context: Context)(regexp: JSRegExp, string: String,
+    regexpLastIndex: Number,
     isFastPath: constexpr bool): RegExpMatchInfo labels IfDidNotMatch {
   if (isFastPath) {
     dcheck(HasInitialRegExpMap(regexp));
@@ -135,16 +137,15 @@ transitioning macro RegExpPrototypeExecBodyWithoutResult(
 
 @export
 transitioning macro RegExpPrototypeExecBodyWithoutResultFast(
-    implicit context: Context)(regexp: JSRegExp, string: String):
-    RegExpMatchInfo labels IfDidNotMatch {
+    implicit context: Context)(regexp: JSRegExp,
+    string: String): RegExpMatchInfo labels IfDidNotMatch {
   const lastIndex = LoadLastIndexAsLength(regexp, true);
   return RegExpPrototypeExecBodyWithoutResult(regexp, string, lastIndex, true)
       otherwise IfDidNotMatch;
 }
 
 transitioning macro RegExpPrototypeExecBodyWithoutResultFast(
-    implicit context: Context)(
-    regexp: JSRegExp, string: String,
+    implicit context: Context)(regexp: JSRegExp, string: String,
     lastIndex: Number): RegExpMatchInfo labels IfDidNotMatch {
   return RegExpPrototypeExecBodyWithoutResult(regexp, string, lastIndex, true)
       otherwise IfDidNotMatch;
@@ -152,8 +153,9 @@ transitioning macro RegExpPrototypeExecBodyWithoutResultFast(
 
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
-transitioning macro RegExpPrototypeExecBody(implicit context: Context)(
-    receiver: JSReceiver, string: String, isFastPath: constexpr bool): JSAny {
+transitioning macro RegExpPrototypeExecBody(
+    implicit context: Context)(receiver: JSReceiver, string: String,
+    isFastPath: constexpr bool): JSAny {
   let regexp: JSRegExp;
   if constexpr (isFastPath) {
     regexp = UnsafeCast<JSRegExp>(receiver);
@@ -182,8 +184,8 @@ macro HasInitialRegExpMap(implicit context: Context)(o: HeapObject): bool {
   return initialMap == o.map;
 }
 
-macro IsReceiverInitialRegExpPrototype(implicit context: Context)(
-    receiver: Object): bool {
+macro IsReceiverInitialRegExpPrototype(
+    implicit context: Context)(receiver: Object): bool {
   const nativeContext = LoadNativeContext(context);
   const regexpFun = LoadRegExpFunction(nativeContext);
   const initialMap = UnsafeCast<Map>(regexpFun.prototype_or_initial_map);
@@ -210,13 +212,13 @@ const kRegExpPrototypeStickyGetter: constexpr int31
 const kRegExpPrototypeUnicodeGetter: constexpr int31
     generates 'v8::Isolate::kRegExpPrototypeUnicodeGetter';
 
-extern macro RegExpBuiltinsAssembler::FastFlagGetter(
-    JSRegExp, constexpr Flag): bool;
+extern macro RegExpBuiltinsAssembler::FastFlagGetter(JSRegExp, constexpr Flag):
+    bool;
 extern runtime IncrementUseCounter(Context, Smi): void;
 
-macro FlagGetter(implicit context: Context)(
-    receiver: Object, flag: constexpr Flag, counter: constexpr int31,
-    methodName: constexpr string): JSAny {
+macro FlagGetter(
+    implicit context: Context)(receiver: Object, flag: constexpr Flag,
+    counter: constexpr int31, methodName: constexpr string): JSAny {
   typeswitch (receiver) {
     case (receiver: JSRegExp): {
       return SelectBooleanConstant(FastFlagGetter(receiver, flag));
@@ -306,17 +308,16 @@ transitioning javascript builtin RegExpPrototypeUnicodeSetsGetter(
       'RegExp.prototype.unicodeSets');
 }
 
-extern transitioning macro
-RegExpBuiltinsAssembler::FlagsGetter(implicit context: Context)(
-    Object, constexpr bool): String;
+extern transitioning macro RegExpBuiltinsAssembler::FlagsGetter(
+    implicit context: Context)(Object, constexpr bool): String;
 
-transitioning macro
-FastFlagsGetter(implicit context: Context)(receiver: FastJSRegExp): String {
+transitioning macro FastFlagsGetter(
+    implicit context: Context)(receiver: FastJSRegExp): String {
   return FlagsGetter(receiver, true);
 }
 
-transitioning macro SlowFlagsGetter(implicit context: Context)(receiver: JSAny):
-    String {
+transitioning macro SlowFlagsGetter(
+    implicit context: Context)(receiver: JSAny): String {
   return FlagsGetter(receiver, false);
 }
 
@@ -344,15 +345,17 @@ extern macro RegExpBuiltinsAssembler::FastLoadLastIndex(JSRegExp): Smi;
 extern macro RegExpBuiltinsAssembler::FastStoreLastIndex(JSRegExp, Smi): void;
 
 @export
-transitioning macro LoadLastIndex(implicit context: Context)(
-    regexp: JSAny, isFastPath: constexpr bool): JSAny {
+transitioning macro LoadLastIndex(
+    implicit context: Context)(regexp: JSAny,
+    isFastPath: constexpr bool): JSAny {
   return isFastPath ? FastLoadLastIndex(UnsafeCast<JSRegExp>(regexp)) :
                       SlowLoadLastIndex(regexp);
 }
 
 @export
-transitioning macro LoadLastIndexAsLength(implicit context: Context)(
-    regexp: JSRegExp, isFastPath: constexpr bool): Number {
+transitioning macro LoadLastIndexAsLength(
+    implicit context: Context)(regexp: JSRegExp,
+    isFastPath: constexpr bool): Number {
   const lastIndex = LoadLastIndex(regexp, isFastPath);
   if (isFastPath) {
     // ToLength on a positive smi is a nop and can be skipped.
@@ -371,8 +374,9 @@ transitioning macro LoadLastIndexAsLength(implicit context: Context)(
 }
 
 @export
-transitioning macro StoreLastIndex(implicit context: Context)(
-    regexp: JSAny, value: Number, isFastPath: constexpr bool): void {
+transitioning macro StoreLastIndex(
+    implicit context: Context)(regexp: JSAny, value: Number,
+    isFastPath: constexpr bool): void {
   if (isFastPath) {
     FastStoreLastIndex(UnsafeCast<JSRegExp>(regexp), UnsafeCast<Smi>(value));
   } else {
@@ -382,13 +386,13 @@ transitioning macro StoreLastIndex(implicit context: Context)(
 
 extern macro RegExpBuiltinsAssembler::AdvanceStringIndex(
     String, Number, bool, constexpr bool): Number;
-extern macro
-RegExpBuiltinsAssembler::AdvanceStringIndexFast(String, Smi, bool): Smi;
-extern macro
-RegExpBuiltinsAssembler::AdvanceStringIndexSlow(String, Number, bool): Smi;
+extern macro RegExpBuiltinsAssembler::AdvanceStringIndexFast(
+    String, Smi, bool): Smi;
+extern macro RegExpBuiltinsAssembler::AdvanceStringIndexSlow(
+    String, Number, bool): Smi;
 
 type UseCounterFeature extends int31
-constexpr 'v8::Isolate::UseCounterFeature';
+    constexpr 'v8::Isolate::UseCounterFeature';
 const kRegExpMatchIsTrueishOnNonJSRegExp: constexpr UseCounterFeature
     generates 'v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp';
 const kRegExpMatchIsFalseishOnJSRegExp: constexpr UseCounterFeature
@@ -425,20 +429,22 @@ transitioning macro IsRegExp(implicit context: Context)(obj: JSAny): bool {
   return false;
 }
 
-extern runtime RegExpInitializeAndCompile(
-    Context, JSRegExp, String, String): JSAny;
+extern runtime RegExpInitializeAndCompile(Context, JSRegExp, String, String):
+    JSAny;
 
 @export
-transitioning macro RegExpCreate(implicit context: Context)(
-    nativeContext: NativeContext, maybeString: JSAny, flags: String): JSAny {
+transitioning macro RegExpCreate(
+    implicit context: Context)(nativeContext: NativeContext,
+    maybeString: JSAny, flags: String): JSAny {
   const regexpFun = LoadRegExpFunction(nativeContext);
   const initialMap = UnsafeCast<Map>(regexpFun.prototype_or_initial_map);
   return RegExpCreate(initialMap, maybeString, flags);
 }
 
 @export
-transitioning macro RegExpCreate(implicit context: Context)(
-    initialMap: Map, maybeString: JSAny, flags: String): JSAny {
+transitioning macro RegExpCreate(
+    implicit context: Context)(initialMap: Map, maybeString: JSAny,
+    flags: String): JSAny {
   const pattern: String =
       maybeString == Undefined ? kEmptyString : ToString_Inline(maybeString);
   const regexp =

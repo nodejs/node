@@ -41,7 +41,7 @@ function STACK() {
 
 var builder = new WasmModuleBuilder();
 
-builder.addMemory(0, 1, false);
+builder.addMemory(0, 1);
 
 builder.addImport("mod", "func", kSig_v_v);
 

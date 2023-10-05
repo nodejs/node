@@ -5,6 +5,7 @@
 #include "src/api/api-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
@@ -36,8 +37,8 @@ bool IsTracked(i::Heap* heap, i::ArrayBufferExtension* extension) {
   return in_young || in_old;
 }
 
-bool IsTracked(i::Heap* heap, i::JSArrayBuffer buffer) {
-  return IsTracked(heap, buffer.extension());
+bool IsTracked(i::Heap* heap, i::Tagged<i::JSArrayBuffer> buffer) {
+  return IsTracked(heap, buffer->extension());
 }
 
 }  // namespace
@@ -68,12 +69,12 @@ TEST(ArrayBuffer_OnlyMC) {
     extension = buf->extension();
     CHECK(v8_flags.single_generation ? IsTrackedOld(heap, extension)
                                      : IsTrackedYoung(heap, extension));
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
     CHECK(IsTrackedOld(heap, extension));
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
     CHECK(IsTrackedOld(heap, extension));
   }
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
   CHECK(!IsTracked(heap, extension));
 }
 
@@ -96,12 +97,12 @@ TEST(ArrayBuffer_OnlyScavenge) {
     Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
     extension = buf->extension();
     CHECK(IsTrackedYoung(heap, extension));
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::InvokeAtomicMinorGC(heap);
     CHECK(IsTrackedYoung(heap, extension));
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
     CHECK(IsTrackedOld(heap, extension));
   }
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
   CHECK(!IsTracked(heap, extension));
 }
 
@@ -124,23 +125,24 @@ TEST(ArrayBuffer_ScavengeAndMC) {
     Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
     extension = buf->extension();
     CHECK(IsTrackedYoung(heap, extension));
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::InvokeAtomicMinorGC(heap);
     CHECK(IsTrackedYoung(heap, extension));
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
     CHECK(IsTrackedOld(heap, extension));
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::InvokeAtomicMinorGC(heap);
     CHECK(IsTrackedOld(heap, extension));
   }
-  heap::GcAndSweep(heap, NEW_SPACE);
+  heap::InvokeAtomicMinorGC(heap);
   CHECK(IsTrackedOld(heap, extension));
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
   CHECK(!IsTracked(heap, extension));
 }
 
 TEST(ArrayBuffer_Compaction) {
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
@@ -152,13 +154,15 @@ TEST(ArrayBuffer_Compaction) {
   Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
   Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
   CHECK(IsTracked(heap, *buf1));
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
 
   Page* page_before_gc = Page::FromHeapObject(*buf1);
   heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(heap, *buf1));
 
-  CcTest::CollectAllGarbage();
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+  heap::InvokeMajorGC(heap);
 
   Page* page_after_gc = Page::FromHeapObject(*buf1);
   CHECK(IsTracked(heap, *buf1));
@@ -198,14 +202,14 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
       Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf2 = v8::Utils::OpenHandle(*ab2);
       CHECK(IsTracked(heap, *buf));
-      heap::GcAndSweep(heap, NEW_SPACE);
+      heap::InvokeAtomicMinorGC(heap);
       CHECK(IsTracked(heap, *buf));
-      heap::GcAndSweep(heap, NEW_SPACE);
+      heap::InvokeAtomicMinorGC(heap);
       CHECK(IsTracked(heap, *buf));
       CHECK(IsTracked(heap, *buf2));
     }
 
-    CcTest::CollectGarbage(OLD_SPACE);
+    heap::InvokeMajorGC(heap);
     // |Detach| will cause the buffer to be |Unregister|ed. Without
     // barriers and proper synchronization this will trigger a data race on
     // TSAN.
@@ -238,15 +242,15 @@ TEST(ArrayBuffer_NonLivePromotion) {
     }
     heap::SimulateIncrementalMarking(heap, false);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::InvokeAtomicMinorGC(heap);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::InvokeAtomicMinorGC(heap);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
     ArrayBufferExtension* extension =
-        JSArrayBuffer::cast(root->get(0)).extension();
+        JSArrayBuffer::cast(root->get(0))->extension();
     root->set(0, ReadOnlyRoots(heap).undefined_value());
     heap::SimulateIncrementalMarking(heap, true);
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
     CHECK(!IsTracked(heap, extension));
   }
 }
@@ -262,7 +266,7 @@ TEST(ArrayBuffer_LivePromotion) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer raw_ab;
+  Tagged<JSArrayBuffer> raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Handle<FixedArray> root =
@@ -279,21 +283,23 @@ TEST(ArrayBuffer_LivePromotion) {
                                   Utils::ToLocal(Handle<Object>::cast(root)));
     heap::SimulateIncrementalMarking(heap, true);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::InvokeMinorGC(heap);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::InvokeMinorGC(heap);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
     raw_ab = JSArrayBuffer::cast(root->get(0));
     root->set(0, ReadOnlyRoots(heap).undefined_value());
     // Prohibit page from being released.
     Page::FromHeapObject(raw_ab)->MarkNeverEvacuate();
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeMajorGC(heap);
+    CHECK(!heap->array_buffer_sweeper()->sweeping_in_progress());
     CHECK(IsTracked(heap, raw_ab));
   }
 }
 
 TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   if (!i::v8_flags.incremental_marking) return;
+  if (v8_flags.minor_ms) return;
   v8_flags.concurrent_array_buffer_sweeping = false;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved across semispace
@@ -321,9 +327,9 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
     // processing during newspace evacuation.
     heap::FillCurrentPage(heap->new_space(), &handles);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::InvokeAtomicMinorGC(heap);
     heap::SimulateIncrementalMarking(heap, true);
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
   }
 }
@@ -358,7 +364,7 @@ TEST(ArrayBuffer_PagePromotion) {
     heap::FillCurrentPage(heap->new_space(), &handles);
     CHECK(IsTrackedYoung(heap, extension));
     heap::SimulateIncrementalMarking(heap, true);
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
     CHECK(IsTrackedOld(heap, extension));
   }
 }
@@ -381,8 +387,8 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     Heap* heap = i_isolate->heap();
 
     // Ensure heap is in a clean state.
-    CcTest::CollectAllGarbage(i_isolate);
-    CcTest::CollectAllGarbage(i_isolate);
+    heap::InvokeMajorGC(heap);
+    heap::InvokeMajorGC(heap);
 
     Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
     Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
@@ -390,7 +396,7 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, 100);
     Handle<JSArrayBuffer> buf2 = v8::Utils::OpenHandle(*ab2);
     CHECK_NE(Page::FromHeapObject(*buf1), Page::FromHeapObject(*buf2));
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
   }
   isolate->Dispose();
 }
@@ -434,7 +440,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
     USE(ab);
   }
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
   const size_t backing_store_after =
       heap->new_space()->ExternalBackingStoreBytes(type);
   CHECK_EQ(0, backing_store_after - backing_store_before);
@@ -443,7 +449,8 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
@@ -451,6 +458,9 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
+
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   const size_t backing_store_before =
       heap->old_space()->ExternalBackingStoreBytes(type);
@@ -462,20 +472,20 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
         v8::ArrayBuffer::New(isolate, kArraybufferSize);
     Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
     CHECK(IsTracked(heap, *buf1));
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
 
     Page* page_before_gc = Page::FromHeapObject(*buf1);
     heap::ForceEvacuationCandidate(page_before_gc);
     CHECK(IsTracked(heap, *buf1));
 
-    CcTest::CollectAllGarbage();
+    heap::InvokeMajorGC(heap);
 
     const size_t backing_store_after =
         heap->old_space()->ExternalBackingStoreBytes(type);
     CHECK_EQ(kArraybufferSize, backing_store_after - backing_store_before);
   }
 
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
   const size_t backing_store_after =
       heap->old_space()->ExternalBackingStoreBytes(type);
   CHECK_EQ(0, backing_store_after - backing_store_before);

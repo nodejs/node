@@ -1652,6 +1652,11 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE bool ParsingDynamicFunctionDeclaration() const { return false; }
 
+  V8_INLINE FunctionLiteral::EagerCompileHint GetEmbedderCompileHint(
+      FunctionLiteral::EagerCompileHint current_compile_hint, int position) {
+    return current_compile_hint;
+  }
+
 // Generate empty functions here as the preparser does not collect source
 // ranges for block coverage.
 #define DEFINE_RECORD_SOURCE_RANGE(Name) \

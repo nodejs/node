@@ -305,7 +305,7 @@ UNINITIALIZED_TEST(TwoIsolatesShareNativeModule) {
 
 UNINITIALIZED_TEST(TwoIsolatesShareNativeModuleWithPku) {
   v8_flags.wasm_lazy_compilation = false;
-  v8_flags.wasm_memory_protection_keys = true;
+  v8_flags.memory_protection_keys = true;
   TestModuleSharingBetweenIsolates();
 }
 

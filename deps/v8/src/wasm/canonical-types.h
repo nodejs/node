@@ -64,6 +64,8 @@ class TypeCanonicalizer {
                                             const WasmModule* sub_module,
                                             const WasmModule* super_module);
 
+  size_t EstimateCurrentMemoryConsumption() const;
+
  private:
   using TypeInModule = std::pair<const WasmModule*, uint32_t>;
   struct CanonicalType {

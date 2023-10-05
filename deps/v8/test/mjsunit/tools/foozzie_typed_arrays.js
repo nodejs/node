@@ -56,6 +56,12 @@ function testArrayType(type) {
   testLength(1, new type(buffer, bytes(maxElem - 1), 1));
   testLength(1, new type(buffer, bytes(maxElem - 1), 2));
 
+  // Length works or is capped despite bogus offset.
+  testLength(1, new type(buffer, "bad", 1));
+  testLength(maxElem, new type(buffer, "bad", maxElem + 1));
+  testLength(1, new type(buffer, {"x": 4}, 1));
+  testLength(maxElem, new type(buffer, {"x": 4}, maxElem + 1));
+
   // Insertion with "set" works or is capped.
   let set0 = 0;
   let set1 = 1;

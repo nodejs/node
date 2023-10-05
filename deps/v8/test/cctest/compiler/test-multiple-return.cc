@@ -187,7 +187,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
           handles.main_isolate(), code->instruction_size());
       wasm::WasmCodeRefScope wasm_code_ref_scope;
-      byte* code_start =
+      uint8_t* code_start =
           module->AddCodeForTesting(code)->instructions().begin();
 
       RawMachineAssemblerTester<int32_t> mt(CodeKind::JS_TO_WASM_FUNCTION);
@@ -284,7 +284,8 @@ void ReturnLastValue(MachineType type) {
     std::shared_ptr<wasm::NativeModule> module =
         AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
+    uint8_t* code_start =
+        module->AddCodeForTesting(code)->instructions().begin();
 
     // Generate caller.
     int expect = return_count - 1;
@@ -347,7 +348,8 @@ void ReturnSumOfReturns(MachineType type) {
     std::shared_ptr<wasm::NativeModule> module =
         AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
+    uint8_t* code_start =
+        module->AddCodeForTesting(code)->instructions().begin();
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;

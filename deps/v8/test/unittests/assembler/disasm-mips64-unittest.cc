@@ -44,7 +44,7 @@ using DisasmMips64Test = TestWithIsolate;
 
 bool prev_instr_compact_branch = false;
 
-bool DisassembleAndCompare(byte* pc, const char* compare_string) {
+bool DisassembleAndCompare(uint8_t* pc, const char* compare_string) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
   base::EmbeddedVector<char, 128> disasm_buffer;
@@ -71,11 +71,11 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SET_UP()                                             \
-  HandleScope scope(isolate());                              \
-  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
-  Assembler assm(AssemblerOptions{},                         \
-                 ExternalAssemblerBuffer(buffer, 4 * 1024)); \
+#define SET_UP()                                                  \
+  HandleScope scope(isolate());                                   \
+  uint8_t* buffer = reinterpret_cast<uint8_t*>(malloc(4 * 1024)); \
+  Assembler assm(AssemblerOptions{},                              \
+                 ExternalAssemblerBuffer(buffer, 4 * 1024));      \
   bool failure = false;
 
 // This macro assembles one instruction using the preallocated assembler and
@@ -85,7 +85,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 #define COMPARE(asm_, compare_string)                                        \
   {                                                                          \
     int pc_offset = assm.pc_offset();                                        \
-    byte* progcounter = &buffer[pc_offset];                                  \
+    uint8_t* progcounter = &buffer[pc_offset];                               \
     assm.asm_;                                                               \
     if (!DisassembleAndCompare(progcounter, compare_string)) failure = true; \
   }
@@ -100,7 +100,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 #define COMPARE_PC_REL_COMPACT(asm_, compare_string, offset)                   \
   {                                                                            \
     int pc_offset = assm.pc_offset();                                          \
-    byte* progcounter = &buffer[pc_offset];                                    \
+    uint8_t* progcounter = &buffer[pc_offset];                                 \
     char str_with_address[100];                                                \
     prev_instr_compact_branch = assm.IsPrevInstrCompactBranch();               \
     if (prev_instr_compact_branch) {                                           \
@@ -119,7 +119,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 #define COMPARE_PC_REL(asm_, compare_string, offset)                           \
   {                                                                            \
     int pc_offset = assm.pc_offset();                                          \
-    byte* progcounter = &buffer[pc_offset];                                    \
+    uint8_t* progcounter = &buffer[pc_offset];                                 \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
              compare_string, static_cast<void*>(progcounter + (offset * 4)));  \
@@ -130,7 +130,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 #define COMPARE_MSA_BRANCH(asm_, compare_string, offset)                       \
   {                                                                            \
     int pc_offset = assm.pc_offset();                                          \
-    byte* progcounter = &buffer[pc_offset];                                    \
+    uint8_t* progcounter = &buffer[pc_offset];                                 \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
              compare_string,                                                   \
@@ -142,7 +142,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 #define COMPARE_PC_JUMP(asm_, compare_string, target)                          \
   {                                                                            \
     int pc_offset = assm.pc_offset();                                          \
-    byte* progcounter = &buffer[pc_offset];                                    \
+    uint8_t* progcounter = &buffer[pc_offset];                                 \
     char str_with_address[100];                                                \
     int instr_index = (target >> 2) & kImm26Mask;                              \
     snprintf(                                                                  \
@@ -157,7 +157,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 #define GET_PC_REGION(pc_region)                                         \
   {                                                                      \
     int pc_offset = assm.pc_offset();                                    \
-    byte* progcounter = &buffer[pc_offset];                              \
+    uint8_t* progcounter = &buffer[pc_offset];                           \
     pc_region = reinterpret_cast<int64_t>(progcounter + 4) & ~0xFFFFFFF; \
   }
 

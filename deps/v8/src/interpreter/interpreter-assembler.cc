@@ -826,13 +826,26 @@ TNode<Object> InterpreterAssembler::Construct(
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   TVARIABLE(Object, var_result);
   TVARIABLE(AllocationSite, var_site);
-  Label return_result(this), construct_generic(this),
+  Label return_result(this), try_fast_construct(this), construct_generic(this),
       construct_array(this, &var_site);
 
   TNode<Word32T> args_count = JSParameterCount(args.reg_count());
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
                            slot_id, UpdateFeedbackMode::kOptionalFeedback,
-                           &construct_generic, &construct_array, &var_site);
+                           &try_fast_construct, &construct_array, &var_site);
+
+  BIND(&try_fast_construct);
+  {
+    Comment("call using FastConstruct builtin");
+    GotoIf(TaggedIsSmi(target), &construct_generic);
+    GotoIfNot(IsJSFunction(CAST(target)), &construct_generic);
+    Callable callable = Builtins::CallableFor(
+        isolate(), Builtin::kInterpreterPushArgsThenFastConstructFunction);
+    var_result =
+        CallStub(callable, context, args_count, args.base_reg_location(),
+                 target, new_target, UndefinedConstant());
+    Goto(&return_result);
+  }
 
   BIND(&construct_generic);
   {
@@ -1021,56 +1034,48 @@ InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
                                    const RegListNodePair& args,
                                    int return_count);
 
-void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
-                                                 bool backward) {
-  Comment("[ UpdateInterruptBudget");
-
-  // Assert that the weight is positive (negative weights should be implemented
-  // as backward updates).
-  CSA_DCHECK(this, Int32GreaterThanOrEqual(weight, Int32Constant(0)));
-
-  Label load_budget_from_bytecode(this), load_budget_done(this);
+TNode<Int32T> InterpreterAssembler::UpdateInterruptBudget(
+    TNode<Int32T> weight) {
   TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
   TNode<FeedbackCell> feedback_cell =
       LoadObjectField<FeedbackCell>(function, JSFunction::kFeedbackCellOffset);
   TNode<Int32T> old_budget = LoadObjectField<Int32T>(
       feedback_cell, FeedbackCell::kInterruptBudgetOffset);
 
-  // Make sure we include the current bytecode in the budget calculation.
-  TNode<Int32T> budget_after_bytecode =
-      Int32Sub(old_budget, Int32Constant(CurrentBytecodeSize()));
-
-  Label done(this);
-  TVARIABLE(Int32T, new_budget);
-  if (backward) {
-    // Update budget by |weight| and check if it reaches zero.
-    new_budget = Int32Sub(budget_after_bytecode, weight);
-    TNode<BoolT> condition =
-        Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
-    Label ok(this), interrupt_check(this, Label::kDeferred);
-    Branch(condition, &ok, &interrupt_check);
-
-    BIND(&interrupt_check);
-    // JumpLoop should do a stack check as part of the interrupt.
-    CallRuntime(bytecode() == Bytecode::kJumpLoop
-                    ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Ignition
-                    : Runtime::kBytecodeBudgetInterrupt_Ignition,
-                GetContext(), function);
-    Goto(&done);
-
-    BIND(&ok);
-  } else {
-    // For a forward jump, we know we only increase the interrupt budget, so
-    // no need to check if it's below zero.
-    new_budget = Int32Add(budget_after_bytecode, weight);
-  }
-
+  // Update budget by |weight| and check if it reaches zero.
+  TNode<Int32T> new_budget = Int32Sub(old_budget, weight);
   // Update budget.
   StoreObjectFieldNoWriteBarrier(
-      feedback_cell, FeedbackCell::kInterruptBudgetOffset, new_budget.value());
+      feedback_cell, FeedbackCell::kInterruptBudgetOffset, new_budget);
+  return new_budget;
+}
+
+void InterpreterAssembler::DecreaseInterruptBudget(
+    TNode<Int32T> weight, StackCheckBehavior stack_check_behavior) {
+  Comment("[ DecreaseInterruptBudget");
+  Label done(this), interrupt_check(this);
+
+  // Assert that the weight is positive.
+  CSA_DCHECK(this, Int32GreaterThanOrEqual(weight, Int32Constant(0)));
+
+  // Make sure we include the current bytecode in the budget calculation.
+  TNode<Int32T> weight_after_bytecode =
+      Int32Add(weight, Int32Constant(CurrentBytecodeSize()));
+  TNode<Int32T> new_budget = UpdateInterruptBudget(weight_after_bytecode);
+  Branch(Int32GreaterThanOrEqual(new_budget, Int32Constant(0)), &done,
+         &interrupt_check);
+
+  BIND(&interrupt_check);
+  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  CallRuntime(stack_check_behavior == kEnableStackCheck
+                  ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Ignition
+                  : Runtime::kBytecodeBudgetInterrupt_Ignition,
+              GetContext(), function);
   Goto(&done);
+
   BIND(&done);
-  Comment("] UpdateInterruptBudget");
+
+  Comment("] DecreaseInterruptBudget");
 }
 
 TNode<IntPtrT> InterpreterAssembler::Advance() {
@@ -1081,33 +1086,31 @@ TNode<IntPtrT> InterpreterAssembler::Advance(int delta) {
   return Advance(IntPtrConstant(delta));
 }
 
-TNode<IntPtrT> InterpreterAssembler::Advance(TNode<IntPtrT> delta,
-                                             bool backward) {
-#ifdef V8_TRACE_UNOPTIMIZED
-  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeExit);
-#endif
-  TNode<IntPtrT> next_offset = backward ? IntPtrSub(BytecodeOffset(), delta)
-                                        : IntPtrAdd(BytecodeOffset(), delta);
+TNode<IntPtrT> InterpreterAssembler::Advance(TNode<IntPtrT> delta) {
+  TNode<IntPtrT> next_offset = IntPtrAdd(BytecodeOffset(), delta);
   bytecode_offset_ = next_offset;
   return next_offset;
 }
 
-void InterpreterAssembler::Jump(TNode<IntPtrT> jump_offset, bool backward) {
+void InterpreterAssembler::JumpToOffset(TNode<IntPtrT> new_bytecode_offset) {
   DCHECK(!Bytecodes::IsStarLookahead(bytecode_, operand_scale_));
-
-  UpdateInterruptBudget(TruncateIntPtrToInt32(jump_offset), backward);
-  TNode<IntPtrT> new_bytecode_offset = Advance(jump_offset, backward);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeExit);
+#endif
+  bytecode_offset_ = new_bytecode_offset;
   TNode<RawPtrT> target_bytecode =
       UncheckedCast<RawPtrT>(LoadBytecode(new_bytecode_offset));
   DispatchToBytecode(target_bytecode, new_bytecode_offset);
 }
 
 void InterpreterAssembler::Jump(TNode<IntPtrT> jump_offset) {
-  Jump(jump_offset, false);
+  JumpToOffset(IntPtrAdd(BytecodeOffset(), jump_offset));
 }
 
 void InterpreterAssembler::JumpBackward(TNode<IntPtrT> jump_offset) {
-  Jump(jump_offset, true);
+  DecreaseInterruptBudget(TruncateIntPtrToInt32(jump_offset),
+                          kEnableStackCheck);
+  JumpToOffset(IntPtrSub(BytecodeOffset(), jump_offset));
 }
 
 void InterpreterAssembler::JumpConditional(TNode<BoolT> condition,
@@ -1334,7 +1337,7 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   TNode<Int32T> profiling_weight =
       Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()),
                Int32Constant(kFirstBytecodeOffset));
-  UpdateInterruptBudget(profiling_weight, true);
+  DecreaseInterruptBudget(profiling_weight, kDisableStackCheck);
 }
 
 TNode<Int8T> InterpreterAssembler::LoadOsrState(
@@ -1370,13 +1373,13 @@ void InterpreterAssembler::OnStackReplacement(
     OnStackReplacementParams params) {
   // Three cases may cause us to attempt OSR, in the following order:
   //
-  // 1) Presence of cached OSR Turbofan code.
+  // 1) Presence of cached OSR Turbofan/Maglev code.
   // 2) Presence of cached OSR Sparkplug code.
   // 3) The OSR urgency exceeds the current loop depth - in that case, trigger
   //    a Turbofan OSR compilation.
 
   TVARIABLE(Object, maybe_target_code, SmiConstant(0));
-  Label osr_to_turbofan(this), osr_to_sparkplug(this);
+  Label osr_to_opt(this), osr_to_sparkplug(this);
 
   // Case 1).
   {
@@ -1388,7 +1391,7 @@ void InterpreterAssembler::OnStackReplacement(
 
     // Is it marked_for_deoptimization? If yes, clear the slot.
     GotoIfNot(IsMarkedForDeoptimization(CAST(maybe_target_code.value())),
-              &osr_to_turbofan);
+              &osr_to_opt);
     StoreFeedbackVectorSlot(feedback_vector, Unsigned(feedback_slot),
                             ClearedValue(), UNSAFE_SKIP_WRITE_BARRIER);
     maybe_target_code = SmiConstant(0);
@@ -1414,15 +1417,21 @@ void InterpreterAssembler::OnStackReplacement(
       static_assert(FeedbackVector::OsrUrgencyBits::kShift == 0);
       TNode<Int32T> osr_urgency = Word32And(
           osr_state, Int32Constant(FeedbackVector::OsrUrgencyBits::kMask));
-      GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_turbofan);
+      GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_opt);
       JumpBackward(relative_jump);
     }
   }
 
-  BIND(&osr_to_turbofan);
+  BIND(&osr_to_opt);
   {
+    TNode<Uint32T> length =
+        LoadAndUntagFixedArrayBaseLengthAsUint32(BytecodeArrayTaggedPointer());
+    TNode<Uint32T> weight =
+        Uint32Mul(length, Uint32Constant(v8_flags.osr_to_tierup));
+    DecreaseInterruptBudget(Signed(weight), kDisableStackCheck);
     Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
     CallStub(callable, context, maybe_target_code.value());
+    UpdateInterruptBudget(Int32Mul(Signed(weight), Int32Constant(-1)));
     JumpBackward(relative_jump);
   }
 

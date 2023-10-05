@@ -11,7 +11,7 @@ var debug = false;
 function SimpleDataSegmentTest(offset) {
   print("SimpleDataSegmentTest(" + offset + ")...");
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   builder.addFunction("load", kSig_i_i)
     .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
     .exportAs("load");
@@ -34,7 +34,7 @@ SimpleDataSegmentTest(1064);
 function GlobalImportedInitTest(pad) {
   print("GlobaleImportedInitTest(" + pad + ")...");
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
 
   var g = builder.addImportedGlobal("mod", "offset", kWasmI32);
 

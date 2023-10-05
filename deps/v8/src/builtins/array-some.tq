@@ -3,10 +3,9 @@
 // found in the LICENSE file.
 
 namespace array {
-transitioning javascript builtin
-ArraySomeLoopEagerDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
+transitioning javascript builtin ArraySomeLoopEagerDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
   // All continuation points in the optimized some implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -24,11 +23,9 @@ ArraySomeLoopEagerDeoptContinuation(
       numberLength, Undefined);
 }
 
-transitioning javascript builtin
-ArraySomeLoopLazyDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny,
-    result: JSAny): JSAny {
+transitioning javascript builtin ArraySomeLoopLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, initialK: JSAny, length: JSAny, result: JSAny): JSAny {
   // All continuation points in the optimized some implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -51,9 +48,10 @@ ArraySomeLoopLazyDeoptContinuation(
       numberLength, Undefined);
 }
 
-transitioning builtin ArraySomeLoopContinuation(implicit context: Context)(
-    _receiver: JSReceiver, callbackfn: Callable, thisArg: JSAny, _array: JSAny,
-    o: JSReceiver, initialK: Number, length: Number, _initialTo: JSAny): JSAny {
+transitioning builtin ArraySomeLoopContinuation(
+    implicit context: Context)(_receiver: JSReceiver, callbackfn: Callable,
+    thisArg: JSAny, _array: JSAny, o: JSReceiver, initialK: Number,
+    length: Number, _initialTo: JSAny): JSAny {
   // 5. Let k be 0.
   // 6. Repeat, while k < len
   for (let k: Number = initialK; k < length; k++) {
@@ -83,8 +81,9 @@ transitioning builtin ArraySomeLoopContinuation(implicit context: Context)(
   return False;
 }
 
-transitioning macro FastArraySome(implicit context: Context)(
-    o: JSReceiver, len: Number, callbackfn: Callable, thisArg: JSAny): JSAny
+transitioning macro FastArraySome(
+    implicit context: Context)(o: JSReceiver, len: Number,
+    callbackfn: Callable, thisArg: JSAny): JSAny
     labels Bailout(Smi) {
   let k: Smi = 0;
   const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
@@ -108,8 +107,7 @@ transitioning macro FastArraySome(implicit context: Context)(
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.some
-transitioning javascript builtin
-ArraySome(
+transitioning javascript builtin ArraySome(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {
     RequireObjectCoercible(receiver, 'Array.prototype.some');
@@ -138,7 +136,7 @@ ArraySome(
           o, callbackfn, thisArg, Undefined, o, kValue, len, Undefined);
     }
   } label TypeError deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   }
 }
 }

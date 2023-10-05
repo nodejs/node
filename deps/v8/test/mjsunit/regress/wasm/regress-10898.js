@@ -7,7 +7,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(1, 1, false, true);
+builder.addMemory(1, 1, true);
 builder.addDataSegment(2, [0x12, 0x00, 0x1c]);
 builder.addDataSegment(17,
     [0x00, 0x00, 0x96, 0x00, 0x00, 0x00, 0xc2, 0x00, 0xb33, 0x03, 0xf6, 0x0e]);

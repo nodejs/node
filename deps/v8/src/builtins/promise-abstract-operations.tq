@@ -6,20 +6,20 @@
 #include 'src/builtins/builtins-promise-gen.h'
 
 namespace runtime {
-extern transitioning runtime
-RejectPromise(implicit context: Context)(JSPromise, JSAny, Boolean): JSAny;
+extern transitioning runtime RejectPromise(
+    implicit context: Context)(JSPromise, JSAny, Boolean): JSAny;
 
-extern transitioning runtime
-PromiseRevokeReject(implicit context: Context)(JSPromise): JSAny;
+extern transitioning runtime PromiseRevokeReject(
+    implicit context: Context)(JSPromise): JSAny;
 
-extern transitioning runtime
-PromiseRejectAfterResolved(implicit context: Context)(JSPromise, JSAny): JSAny;
+extern transitioning runtime PromiseRejectAfterResolved(
+    implicit context: Context)(JSPromise, JSAny): JSAny;
 
-extern transitioning runtime
-PromiseResolveAfterResolved(implicit context: Context)(JSPromise, JSAny): JSAny;
+extern transitioning runtime PromiseResolveAfterResolved(
+    implicit context: Context)(JSPromise, JSAny): JSAny;
 
-extern transitioning runtime
-PromiseRejectEventFromStack(implicit context: Context)(JSPromise, JSAny): JSAny;
+extern transitioning runtime PromiseRejectEventFromStack(
+    implicit context: Context)(JSPromise, JSAny): JSAny;
 }
 
 // https://tc39.es/ecma262/#sec-promise-abstract-operations
@@ -40,14 +40,12 @@ extern macro AllocateFunctionWithMapAndContext(
 extern macro PromiseReactionMapConstant(): Map;
 extern macro PromiseFulfillReactionJobTaskMapConstant(): Map;
 extern macro PromiseRejectReactionJobTaskMapConstant(): Map;
-extern transitioning builtin
-ResolvePromise(Context, JSPromise, JSAny): JSAny;
+extern transitioning builtin ResolvePromise(Context, JSPromise, JSAny): JSAny;
 
-extern transitioning builtin
-EnqueueMicrotask(Context, Microtask): Undefined;
+extern transitioning builtin EnqueueMicrotask(Context, Microtask): Undefined;
 
-macro
-ExtractHandlerContextInternal(implicit context: Context)(
+macro ExtractHandlerContextInternal(
+    implicit context: Context)(
     handler: Callable|Undefined): Context labels NotFound {
   let iter: JSAny = handler;
   while (true) {
@@ -69,9 +67,8 @@ ExtractHandlerContextInternal(implicit context: Context)(
   goto NotFound;
 }
 
-macro
-ExtractHandlerContext(implicit context: Context)(handler: Callable|
-                                                 Undefined): Context {
+macro ExtractHandlerContext(
+    implicit context: Context)(handler: Callable|Undefined): Context {
   try {
     return ExtractHandlerContextInternal(handler) otherwise NotFound;
   } label NotFound deferred {
@@ -79,9 +76,9 @@ ExtractHandlerContext(implicit context: Context)(handler: Callable|
   }
 }
 
-macro
-ExtractHandlerContext(implicit context: Context)(
-    primary: Callable|Undefined, secondary: Callable|Undefined): Context {
+macro ExtractHandlerContext(
+    implicit context: Context)(primary: Callable|Undefined,
+    secondary: Callable|Undefined): Context {
   try {
     return ExtractHandlerContextInternal(primary) otherwise NotFound;
   } label NotFound deferred {
@@ -91,9 +88,9 @@ ExtractHandlerContext(implicit context: Context)(
   }
 }
 
-transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
-    promiseReaction: PromiseReaction, argument: JSAny,
-    reactionType: constexpr PromiseReactionType): void {
+transitioning macro MorphAndEnqueuePromiseReaction(
+    implicit context: Context)(promiseReaction: PromiseReaction,
+    argument: JSAny, reactionType: constexpr PromiseReactionType): void {
   let primaryHandler: Callable|Undefined;
   let secondaryHandler: Callable|Undefined;
   if constexpr (reactionType == kPromiseReactionFulfill) {
@@ -148,9 +145,9 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
 }
 
 // https://tc39.es/ecma262/#sec-triggerpromisereactions
-transitioning macro TriggerPromiseReactions(implicit context: Context)(
-    reactions: Zero|PromiseReaction, argument: JSAny,
-    reactionType: constexpr PromiseReactionType): void {
+transitioning macro TriggerPromiseReactions(
+    implicit context: Context)(reactions: Zero|PromiseReaction,
+    argument: JSAny, reactionType: constexpr PromiseReactionType): void {
   // We need to reverse the {reactions} here, since we record them on the
   // JSPromise in the reverse order.
   let current = reactions;
@@ -190,9 +187,8 @@ transitioning macro TriggerPromiseReactions(implicit context: Context)(
 }
 
 // https://tc39.es/ecma262/#sec-fulfillpromise
-transitioning builtin
-FulfillPromise(implicit context: Context)(
-    promise: JSPromise, value: JSAny): Undefined {
+transitioning builtin FulfillPromise(
+    implicit context: Context)(promise: JSPromise, value: JSAny): Undefined {
   // Assert: The value of promise.[[PromiseState]] is "pending".
   dcheck(promise.Status() == PromiseState::kPending);
 
@@ -223,9 +219,9 @@ extern macro PromiseBuiltinsAssembler::
         bool;
 
 // https://tc39.es/ecma262/#sec-rejectpromise
-transitioning builtin
-RejectPromise(implicit context: Context)(
-    promise: JSPromise, reason: JSAny, debugEvent: Boolean): JSAny {
+transitioning builtin RejectPromise(
+    implicit context: Context)(promise: JSPromise, reason: JSAny,
+    debugEvent: Boolean): JSAny {
   const promiseHookFlags = PromiseHookFlags();
 
   // If promise hook is enabled or the debugger is active, let
@@ -266,7 +262,7 @@ const kPromiseCapabilitySize:
 
 type PromiseResolvingFunctionContext extends FunctionContext;
 extern enum PromiseResolvingFunctionContextSlot extends intptr
-constexpr 'PromiseBuiltins::PromiseResolvingFunctionContextSlot' {
+    constexpr 'PromiseBuiltins::PromiseResolvingFunctionContextSlot' {
   kPromiseSlot: Slot<PromiseResolvingFunctionContext, JSPromise>,
   kAlreadyResolvedSlot: Slot<PromiseResolvingFunctionContext, Boolean>,
   kDebugEventSlot: Slot<PromiseResolvingFunctionContext, Boolean>,
@@ -275,15 +271,15 @@ constexpr 'PromiseBuiltins::PromiseResolvingFunctionContextSlot' {
 
 type PromiseCapabilitiesExecutorContext extends FunctionContext;
 extern enum FunctionContextSlot extends intptr
-constexpr 'PromiseBuiltins::FunctionContextSlot' {
+    constexpr 'PromiseBuiltins::FunctionContextSlot' {
   kCapabilitySlot: Slot<PromiseCapabilitiesExecutorContext, PromiseCapability>,
   kCapabilitiesContextLength
 }
 
 @export
 macro CreatePromiseCapabilitiesExecutorContext(
-    nativeContext: NativeContext, capability: PromiseCapability):
-    PromiseCapabilitiesExecutorContext {
+    nativeContext: NativeContext,
+    capability: PromiseCapability): PromiseCapabilitiesExecutorContext {
   const executorContext = %RawDownCast<PromiseCapabilitiesExecutorContext>(
       AllocateSyntheticFunctionContext(
           nativeContext, FunctionContextSlot::kCapabilitiesContextLength));
@@ -312,9 +308,9 @@ struct PromiseResolvingFunctions {
 }
 
 @export
-macro CreatePromiseResolvingFunctions(implicit context: Context)(
-    promise: JSPromise, debugEvent: Boolean, nativeContext: NativeContext):
-    PromiseResolvingFunctions {
+macro CreatePromiseResolvingFunctions(
+    implicit context: Context)(promise: JSPromise, debugEvent: Boolean,
+    nativeContext: NativeContext): PromiseResolvingFunctions {
   const promiseContext = CreatePromiseResolvingFunctionsContext(
       promise, debugEvent, nativeContext);
   const map = *NativeContextSlot(
@@ -329,9 +325,9 @@ macro CreatePromiseResolvingFunctions(implicit context: Context)(
   return PromiseResolvingFunctions{resolve: resolve, reject: reject};
 }
 
-transitioning macro
-InnerNewPromiseCapability(implicit context: Context)(
-    constructor: HeapObject, debugEvent: Boolean): PromiseCapability {
+transitioning macro InnerNewPromiseCapability(
+    implicit context: Context)(constructor: HeapObject,
+    debugEvent: Boolean): PromiseCapability {
   const nativeContext = LoadNativeContext(context);
   if (constructor ==
       *NativeContextSlot(nativeContext, ContextSlot::PROMISE_FUNCTION_INDEX)) {
@@ -368,9 +364,9 @@ InnerNewPromiseCapability(implicit context: Context)(
 }
 
 // https://tc39.es/ecma262/#sec-newpromisecapability
-transitioning builtin
-NewPromiseCapability(implicit context: Context)(
-    maybeConstructor: Object, debugEvent: Boolean): PromiseCapability {
+transitioning builtin NewPromiseCapability(
+    implicit context: Context)(maybeConstructor: Object,
+    debugEvent: Boolean): PromiseCapability {
   typeswitch (maybeConstructor) {
     case (Smi): {
       ThrowTypeError(MessageTemplate::kNotConstructor, maybeConstructor);
@@ -385,8 +381,7 @@ NewPromiseCapability(implicit context: Context)(
 }
 
 // https://tc39.es/ecma262/#sec-promise-reject-functions
-transitioning javascript builtin
-PromiseCapabilityDefaultReject(
+transitioning javascript builtin PromiseCapabilityDefaultReject(
     js-implicit context: Context, receiver: JSAny)(reason: JSAny): JSAny {
   const context = %RawDownCast<PromiseResolvingFunctionContext>(context);
   // 2. Let promise be F.[[Promise]].
@@ -414,8 +409,7 @@ PromiseCapabilityDefaultReject(
 }
 
 // https://tc39.es/ecma262/#sec-promise-resolve-functions
-transitioning javascript builtin
-PromiseCapabilityDefaultResolve(
+transitioning javascript builtin PromiseCapabilityDefaultResolve(
     js-implicit context: Context, receiver: JSAny)(resolution: JSAny): JSAny {
   const context = %RawDownCast<PromiseResolvingFunctionContext>(context);
   // 2. Let promise be F.[[Promise]].
@@ -442,9 +436,9 @@ PromiseCapabilityDefaultResolve(
 }
 
 @export
-transitioning macro PerformPromiseThenImpl(implicit context: Context)(
-    promise: JSPromise, onFulfilled: Callable|Undefined,
-    onRejected: Callable|Undefined,
+transitioning macro PerformPromiseThenImpl(
+    implicit context: Context)(promise: JSPromise,
+    onFulfilled: Callable|Undefined, onRejected: Callable|Undefined,
     resultPromiseOrCapability: JSPromise|PromiseCapability|Undefined): void {
   if (promise.Status() == PromiseState::kPending) {
     // The {promise} is still in "Pending" state, so we just record a new
@@ -484,18 +478,18 @@ transitioning macro PerformPromiseThenImpl(implicit context: Context)(
 }
 
 // https://tc39.es/ecma262/#sec-performpromisethen
-transitioning builtin
-PerformPromiseThen(implicit context: Context)(
-    promise: JSPromise, onFulfilled: Callable|Undefined,
-    onRejected: Callable|Undefined, resultPromise: JSPromise|Undefined): JSAny {
+transitioning builtin PerformPromiseThen(
+    implicit context: Context)(promise: JSPromise,
+    onFulfilled: Callable|Undefined, onRejected: Callable|Undefined,
+    resultPromise: JSPromise|Undefined): JSAny {
   PerformPromiseThenImpl(promise, onFulfilled, onRejected, resultPromise);
   return resultPromise;
 }
 
 // https://tc39.es/ecma262/#sec-promise-reject-functions
-transitioning javascript builtin
-PromiseReject(
-    js-implicit context: NativeContext, receiver: JSAny)(reason: JSAny): JSAny {
+transitioning javascript builtin PromiseReject(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    reason: JSAny): JSAny {
   // 1. Let C be the this value.
   // 2. If Type(C) is not Object, throw a TypeError exception.
   const receiver = Cast<JSReceiver>(receiver) otherwise
@@ -523,9 +517,9 @@ const kPromiseExecutorAlreadyInvoked: constexpr MessageTemplate
     generates 'MessageTemplate::kPromiseExecutorAlreadyInvoked';
 
 // https://tc39.es/ecma262/#sec-getcapabilitiesexecutor-functions
-transitioning javascript builtin
-PromiseGetCapabilitiesExecutor(js-implicit context: Context, receiver: JSAny)(
-    resolve: JSAny, reject: JSAny): JSAny {
+transitioning javascript builtin PromiseGetCapabilitiesExecutor(
+    js-implicit context: Context, receiver: JSAny)(resolve: JSAny,
+    reject: JSAny): JSAny {
   const context = %RawDownCast<PromiseCapabilitiesExecutorContext>(context);
   const capability: PromiseCapability =
       *ContextSlot(context, FunctionContextSlot::kCapabilitySlot);
@@ -539,8 +533,9 @@ PromiseGetCapabilitiesExecutor(js-implicit context: Context, receiver: JSAny)(
   return Undefined;
 }
 
-macro IsPromiseResolveLookupChainIntact(implicit context: Context)(
-    nativeContext: NativeContext, constructor: JSReceiver): bool {
+macro IsPromiseResolveLookupChainIntact(
+    implicit context: Context)(nativeContext: NativeContext,
+    constructor: JSReceiver): bool {
   if (IsForceSlowPath()) return false;
   const promiseFun =
       *NativeContextSlot(nativeContext, ContextSlot::PROMISE_FUNCTION_INDEX);
@@ -548,8 +543,9 @@ macro IsPromiseResolveLookupChainIntact(implicit context: Context)(
 }
 
 // https://tc39.es/ecma262/#sec-getpromiseresolve
-transitioning macro GetPromiseResolve(implicit context: Context)(
-    nativeContext: NativeContext, constructor: Constructor): JSAny {
+transitioning macro GetPromiseResolve(
+    implicit context: Context)(nativeContext: NativeContext,
+    constructor: Constructor): JSAny {
   // 1. Assert: IsConstructor(constructor) is true.
 
   // We can skip the "resolve" lookup on {constructor} if it's the
@@ -574,8 +570,9 @@ transitioning macro GetPromiseResolve(implicit context: Context)(
   return promiseResolveFunction;
 }
 
-transitioning macro CallResolve(implicit context: Context)(
-    constructor: Constructor, resolve: JSAny, value: JSAny): JSAny {
+transitioning macro CallResolve(
+    implicit context: Context)(constructor: Constructor, resolve: JSAny,
+    value: JSAny): JSAny {
   // Undefined can never be a valid value for the resolve function,
   // instead it is used as a special marker for the fast path.
   if (resolve == Undefined) {
@@ -586,11 +583,9 @@ transitioning macro CallResolve(implicit context: Context)(
     }
 }
 
-transitioning javascript builtin
-PromiseConstructorLazyDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    promise: JSAny, reject: JSAny, exception: JSAny|TheHole,
-    _result: JSAny): JSAny {
+transitioning javascript builtin PromiseConstructorLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(promise: JSAny,
+    reject: JSAny, exception: JSAny|TheHole, _result: JSAny): JSAny {
   typeswitch (exception) {
     case (TheHole): {
     }

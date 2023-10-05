@@ -224,7 +224,7 @@ void SharedMacroAssemblerBase::F32x4Min(XMMRegister dst, XMMRegister lhs,
   // Canonicalize NaNs by quieting and clearing the payload.
   Cmpunordps(dst, dst, scratch);
   Orps(scratch, dst);
-  Psrld(dst, dst, byte{10});
+  Psrld(dst, dst, uint8_t{10});
   Andnps(dst, dst, scratch);
 }
 
@@ -256,7 +256,7 @@ void SharedMacroAssemblerBase::F32x4Max(XMMRegister dst, XMMRegister lhs,
   Subps(scratch, scratch, dst);
   // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
   Cmpunordps(dst, dst, scratch);
-  Psrld(dst, dst, byte{10});
+  Psrld(dst, dst, uint8_t{10});
   Andnps(dst, dst, scratch);
 }
 
@@ -274,7 +274,7 @@ void SharedMacroAssemblerBase::F64x2Min(XMMRegister dst, XMMRegister lhs,
     // Canonicalize NaNs by quieting and clearing the payload.
     vcmpunordpd(dst, dst, scratch);
     vorpd(scratch, scratch, dst);
-    vpsrlq(dst, dst, byte{13});
+    vpsrlq(dst, dst, uint8_t{13});
     vandnpd(dst, dst, scratch);
   } else {
     // Compare lhs with rhs, and rhs with lhs, and have the results in scratch
@@ -293,7 +293,7 @@ void SharedMacroAssemblerBase::F64x2Min(XMMRegister dst, XMMRegister lhs,
     orpd(scratch, dst);
     cmpunordpd(dst, scratch);
     orpd(scratch, dst);
-    psrlq(dst, byte{13});
+    psrlq(dst, uint8_t{13});
     andnpd(dst, scratch);
   }
 }
@@ -315,7 +315,7 @@ void SharedMacroAssemblerBase::F64x2Max(XMMRegister dst, XMMRegister lhs,
     vsubpd(scratch, scratch, dst);
     // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
     vcmpunordpd(dst, dst, scratch);
-    vpsrlq(dst, dst, byte{13});
+    vpsrlq(dst, dst, uint8_t{13});
     vandnpd(dst, dst, scratch);
   } else {
     if (dst == lhs || dst == rhs) {
@@ -333,7 +333,7 @@ void SharedMacroAssemblerBase::F64x2Max(XMMRegister dst, XMMRegister lhs,
     orpd(scratch, dst);
     subpd(scratch, dst);
     cmpunordpd(dst, scratch);
-    psrlq(dst, byte{13});
+    psrlq(dst, uint8_t{13});
     andnpd(dst, scratch);
   }
 }
@@ -436,7 +436,7 @@ void SharedMacroAssemblerBase::I8x16Shl(XMMRegister dst, XMMRegister src1,
   }
 
   uint8_t shift = truncate_to_int3(src2);
-  Psllw(dst, src1, byte{shift});
+  Psllw(dst, src1, uint8_t{shift});
 
   uint8_t bmask = static_cast<uint8_t>(0xff << shift);
   uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
@@ -526,7 +526,7 @@ void SharedMacroAssemblerBase::I8x16ShrU(XMMRegister dst, XMMRegister src1,
   uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
   Move(tmp1, mask);
   Movd(tmp2, tmp1);
-  Pshufd(tmp2, tmp2, byte{0});
+  Pshufd(tmp2, tmp2, uint8_t{0});
   Pand(dst, tmp2);
 }
 
@@ -723,7 +723,7 @@ void SharedMacroAssemblerBase::I16x8Q15MulRSatS(XMMRegister dst,
   ASM_CODE_COMMENT(this);
   // k = i16x8.splat(0x8000)
   Pcmpeqd(scratch, scratch);
-  Psllw(scratch, scratch, byte{15});
+  Psllw(scratch, scratch, uint8_t{15});
 
   if (!CpuFeatures::IsSupported(AVX) && (dst != src1)) {
     movaps(dst, src1);
@@ -756,7 +756,7 @@ void SharedMacroAssemblerBase::I32x4DotI8x16I7x16AddS(
   ASM_CODE_COMMENT(this);
   // k = i16x8.splat(1)
   Pcmpeqd(splat_reg, splat_reg);
-  Psrlw(splat_reg, splat_reg, byte{15});
+  Psrlw(splat_reg, splat_reg, uint8_t{15});
 
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);
@@ -802,14 +802,14 @@ void SharedMacroAssemblerBase::I32x4ExtAddPairwiseI16x8U(XMMRegister dst,
     // src = |a|b|c|d|e|f|g|h|
     // tmp = i32x4.splat(0x0000FFFF)
     pcmpeqd(tmp, tmp);
-    psrld(tmp, byte{16});
+    psrld(tmp, uint8_t{16});
     // tmp =|0|b|0|d|0|f|0|h|
     andps(tmp, src);
     // dst = |0|a|0|c|0|e|0|g|
     if (dst != src) {
       movaps(dst, src);
     }
-    psrld(dst, byte{16});
+    psrld(dst, uint8_t{16});
     // dst = |a+b|c+d|e+f|g+h|
     paddd(dst, tmp);
   }
@@ -1010,7 +1010,7 @@ void SharedMacroAssemblerBase::I64x2ShrS(XMMRegister dst, XMMRegister src,
 
   // xmm_tmp = wasm_i64x2_const(0x80000000'00000000).
   Pcmpeqd(xmm_tmp, xmm_tmp);
-  Psllq(xmm_tmp, byte{63});
+  Psllq(xmm_tmp, uint8_t{63});
 
   if (!CpuFeatures::IsSupported(AVX) && (dst != src)) {
     movaps(dst, src);
@@ -1039,7 +1039,7 @@ void SharedMacroAssemblerBase::I64x2ShrS(XMMRegister dst, XMMRegister src,
 
   // See I64x2ShrS with constant shift for explanation of this algorithm.
   Pcmpeqd(xmm_tmp, xmm_tmp);
-  Psllq(xmm_tmp, byte{63});
+  Psllq(xmm_tmp, uint8_t{63});
 
   // Shift modulo 64.
   Move(tmp_shift, shift);
@@ -1067,14 +1067,14 @@ void SharedMacroAssemblerBase::I64x2Mul(XMMRegister dst, XMMRegister lhs,
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);
     // 1. Multiply high dword of each qword of left with right.
-    vpsrlq(tmp1, lhs, byte{32});
+    vpsrlq(tmp1, lhs, uint8_t{32});
     vpmuludq(tmp1, tmp1, rhs);
     // 2. Multiply high dword of each qword of right with left.
-    vpsrlq(tmp2, rhs, byte{32});
+    vpsrlq(tmp2, rhs, uint8_t{32});
     vpmuludq(tmp2, tmp2, lhs);
     // 3. Add 1 and 2, then shift left by 32 (this is the high dword of result).
     vpaddq(tmp2, tmp2, tmp1);
-    vpsllq(tmp2, tmp2, byte{32});
+    vpsllq(tmp2, tmp2, uint8_t{32});
     // 4. Multiply low dwords (this is the low dword of result).
     vpmuludq(dst, lhs, rhs);
     // 5. Add 3 and 4.
@@ -1083,12 +1083,12 @@ void SharedMacroAssemblerBase::I64x2Mul(XMMRegister dst, XMMRegister lhs,
     // Same algorithm as AVX version, but with moves to not overwrite inputs.
     movaps(tmp1, lhs);
     movaps(tmp2, rhs);
-    psrlq(tmp1, byte{32});
+    psrlq(tmp1, uint8_t{32});
     pmuludq(tmp1, rhs);
-    psrlq(tmp2, byte{32});
+    psrlq(tmp2, uint8_t{32});
     pmuludq(tmp2, lhs);
     paddq(tmp2, tmp1);
-    psllq(tmp2, byte{32});
+    psllq(tmp2, uint8_t{32});
     if (dst == rhs) {
       // pmuludq is commutative
       pmuludq(dst, lhs);
@@ -1266,7 +1266,7 @@ void SharedMacroAssemblerBase::S128Load32Splat(XMMRegister dst, Operand src) {
     vbroadcastss(dst, src);
   } else {
     movss(dst, src);
-    shufps(dst, dst, byte{0});
+    shufps(dst, dst, uint8_t{0});
   }
 }
 

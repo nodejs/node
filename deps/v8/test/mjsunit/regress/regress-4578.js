@@ -37,59 +37,14 @@ function g(f) {
 setTimeout(() => {
   // Since the function inlined by g no longer exists, it should deopt and
   // release the inner function.
-  gc();
+  // We need to invoke GC asynchronously and wait for it to finish, so that
+  // it doesn't need to scan the stack. Otherwise, the objects may not be
+  // reclaimed because of conservative stack scanning and the test may not
+  // work as intended.
+  (async function () {
+    await gc({ type: 'major', execution: 'async' });
 
-  // Check that the memory leak described in v8:4578 no longer happens.
-  assertEquals(undefined, weak.deref());
-
-  // Next, let's check the opposite case: if an optimized function's Code is
-  // currently running at the time of gc, then it must keep its deoptimization
-  // data alive.
-
-  // Another simple wrapper function, but this one causes a GC internally.
-  function h(f) {
-    gcAndCheckState();  // Non-inlined call
-    f();  // Inlined call
-  }
-
-  var doCheck = false;
-  function gcAndCheckState() {
-    if (!doCheck) return;
-
-    // It's possible that h has already deoptimized by this point if
-    // --stress-incremental-marking caused additional gc cycles.
-    var optimized = isOptimized(h);
-
-    gc();
-
-    // If the optimized code for h is still on the stack, then it must not clear
-    // out its own deoptimization data. Eventually h will deopt due to the wrong
-    // function being passed, but only after this function has returned.
-    if (optimized) {
-      assertNotEquals(undefined, weak.deref());
-    } else {
-      assertEquals(undefined, weak.deref());
-    }
-  }
-
-  // Don't inline gcAndCheckState, to avoid the possibility that its content
-  // could cause h to deoptimize.
-  %NeverOptimizeFunction(gcAndCheckState);
-
-  // Optimize h to inline a specific function instance, and then drop all
-  // user-visible references to that inlined function.
-  (function () {
-    var fn = makeFn();
-    %PrepareFunctionForOptimization(h);
-    %PrepareFunctionForOptimization(fn);
-    h(fn);
-    %OptimizeFunctionOnNextCall(h);
-    h(fn);
+    // Check that the memory leak described in v8:4578 no longer happens.
+    assertEquals(undefined, weak.deref());
   })();
-
-  // Defer again so the WeakRef can expire.
-  setTimeout(() => {
-    doCheck = true;
-    h(() => {});
-  }, 0);
 }, 0);
