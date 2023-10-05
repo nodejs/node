@@ -1,7 +1,7 @@
 'use strict';
 
-require('../common');
-const { Script } = require('vm');
+const common = require('../common');
+const { Script, compileFunction } = require('vm');
 const assert = require('assert');
 
 assert.rejects(async () => {
@@ -10,4 +10,11 @@ assert.rejects(async () => {
   await imported;
 }, {
   code: 'ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING'
-});
+}).then(common.mustCall());
+
+assert.rejects(async () => {
+  const imported = compileFunction('return import("fs")')();
+  await imported;
+}, {
+  code: 'ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING'
+}).then(common.mustCall());
