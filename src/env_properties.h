@@ -33,6 +33,7 @@
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
 #define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                       \
+  V(default_host_defined_options, "default_host_defined_options")              \
   V(fs_use_promises_symbol, "fs_use_promises_symbol")                          \
   V(async_id_symbol, "async_id_symbol")                                        \
   V(handle_onclose_symbol, "handle_onclose")                                   \
