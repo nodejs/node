@@ -46,7 +46,8 @@
   V(owner_symbol, "owner_symbol")                                              \
   V(onpskexchange_symbol, "onpskexchange")                                     \
   V(resource_symbol, "resource_symbol")                                        \
-  V(trigger_async_id_symbol, "trigger_async_id_symbol")
+  V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
+  V(vm_dynamic_import_missing_flag, "vm_dynamic_import_missing_flag")
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
