@@ -771,10 +771,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   bool produce_cached_data = false;
   Local<Context> parsing_context = context;
 
+  bool needs_custom_host_defined_options = false;
   if (argc > 2) {
     // new ContextifyScript(code, filename, lineOffset, columnOffset,
-    //                      cachedData, produceCachedData, parsingContext)
-    CHECK_EQ(argc, 7);
+    //                      cachedData, produceCachedData, parsingContext,
+    //                      needsCustomHostDefinedOptions)
+    CHECK_EQ(argc, 8);
     CHECK(args[2]->IsNumber());
     line_offset = args[2].As<Int32>()->Value();
     CHECK(args[3]->IsNumber());
@@ -792,6 +794,9 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
               env, args[6].As<Object>());
       CHECK_NOT_NULL(sandbox);
       parsing_context = sandbox->context();
+    }
+    if (args[7]->IsTrue()) {
+      needs_custom_host_defined_options = true;
     }
   }
 
@@ -816,7 +821,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
 
   Local<PrimitiveArray> host_defined_options =
       PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
-  Local<Symbol> id_symbol = Symbol::New(isolate, filename);
+  // We need a default host defined options that's the same for all scripts
+  // not needing custom module callbacks for so that the isolate compilation
+  // cache can be hit.
+  Local<Symbol> id_symbol = needs_custom_host_defined_options
+                                ? Symbol::New(isolate, filename)
+                                : env->default_host_defined_options();
   host_defined_options->Set(
       isolate, loader::HostDefinedOptions::kID, id_symbol);
 
