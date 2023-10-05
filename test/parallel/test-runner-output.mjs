@@ -8,6 +8,8 @@ const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
 
+const skipIfNoInspector = !process.features.inspector;
+
 function replaceTestDuration(str) {
   return str
     .replaceAll(/duration_ms: [0-9.]+/g, 'duration_ms: *')
@@ -80,9 +82,6 @@ const lcovTransform = snapshot.transform(
   pickTestFileFromLcov
 );
 
-const skipIfNoInspector = {
-  skip: !process.features.inspector ? 'inspector disabled' : false
-};
 
 const tests = [
   { name: 'test-runner/output/abort.js' },
@@ -104,7 +103,7 @@ const tests = [
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter_cli.js', transform: specTransform },
-  { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform, options: skipIfNoInspector },
+  skipIfNoInspector ? false : { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform },
   { name: 'test-runner/output/output.js' },
   { name: 'test-runner/output/output_cli.js' },
   { name: 'test-runner/output/name_pattern.js' },
@@ -128,16 +127,15 @@ const tests = [
   process.features.inspector ? { name: 'test-runner/output/coverage_failure.js' } : false,
 ]
 .filter(Boolean)
-.map(({ name, tty, transform, options }) => ({
+.map(({ name, tty, transform }) => ({
   name,
   fn: common.mustCall(async () => {
     await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty });
   }),
-  options
 }));
 
 describe('test runner output', { concurrency: true }, () => {
-  for (const { name, fn, options } of tests) {
-    it(name, options, fn);
+  for (const { name, fn } of tests) {
+    it(name, fn);
   }
 });
