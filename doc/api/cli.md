@@ -25,14 +25,16 @@ For more info about `node inspect`, see the [debugger][] documentation.
 
 The program entry point is a specifier-like string. If the string is not an
 absolute path, it's resolved as a relative path from the current working
-directory. That path is then resolved by [CommonJS][] module loader. If no
-corresponding file is found, an error is thrown.
+directory. That path is then resolved by [CommonJS][] module loader, or by the
+[ES module loader][Modules loaders] if [`--experimental-default-type=module`][]
+is passed. If no corresponding file is found, an error is thrown.
 
 If a file is found, its path will be passed to the
 [ES module loader][Modules loaders] under any of the following conditions:
 
 * The program was started with a command-line flag that forces the entry
-  point to be loaded with ECMAScript module loader.
+  point to be loaded with ECMAScript module loader, such as `--import` or
+  [`--experimental-default-type=module`][].
 * The file has an `.mjs` extension.
 * The file does not have a `.cjs` extension, and the nearest parent
   `package.json` file contains a top-level [`"type"`][] field with a value of
@@ -45,8 +47,9 @@ Otherwise, the file is loaded using the CommonJS module loader. See
 
 When loading, the [ES module loader][Modules loaders] loads the program
 entry point, the `node` command will accept as input only files with `.js`,
-`.mjs`, or `.cjs` extensions; and with `.wasm` extensions when
-[`--experimental-wasm-modules`][] is enabled.
+`.mjs`, or `.cjs` extensions; with `.wasm` extensions when
+[`--experimental-wasm-modules`][] is enabled; and with no extension when
+[`--experimental-default-type=module`][] is passed.
 
 ## Options
 
@@ -2741,6 +2744,7 @@ done
 [`--allow-worker`]: #--allow-worker
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
+[`--experimental-default-type=module`]: #--experimental-default-typetype
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
 [`--experimental-wasm-modules`]: #--experimental-wasm-modules
 [`--heap-prof-dir`]: #--heap-prof-dir
