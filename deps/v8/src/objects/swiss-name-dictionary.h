@@ -86,7 +86,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
       Isolate* isolate, Handle<SwissNameDictionary> table, InternalIndex entry);
 
   template <typename IsolateT>
-  inline InternalIndex FindEntry(IsolateT* isolate, Object key);
+  inline InternalIndex FindEntry(IsolateT* isolate, Tagged<Object> key);
 
   // This is to make the interfaces of NameDictionary::FindEntry and
   // OrderedNameDictionary::FindEntry compatible.
@@ -96,17 +96,18 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   template <typename IsolateT>
   inline InternalIndex FindEntry(IsolateT* isolate, Handle<Object> key);
 
-  static inline bool IsKey(ReadOnlyRoots roots, Object key_candidate);
-  inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry, Object* out_key);
+  static inline bool IsKey(ReadOnlyRoots roots, Tagged<Object> key_candidate);
+  inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry,
+                    Tagged<Object>* out_key);
 
-  inline Object KeyAt(InternalIndex entry);
-  inline Name NameAt(InternalIndex entry);
-  inline Object ValueAt(InternalIndex entry);
+  inline Tagged<Object> KeyAt(InternalIndex entry);
+  inline Tagged<Name> NameAt(InternalIndex entry);
+  inline Tagged<Object> ValueAt(InternalIndex entry);
   // Returns {} if we would be reading out of the bounds of the object.
-  inline base::Optional<Object> TryValueAt(InternalIndex entry);
+  inline base::Optional<Tagged<Object>> TryValueAt(InternalIndex entry);
   inline PropertyDetails DetailsAt(InternalIndex entry);
 
-  inline void ValueAtPut(InternalIndex entry, Object value);
+  inline void ValueAtPut(InternalIndex entry, Tagged<Object> value);
   inline void DetailsAtPut(InternalIndex entry, PropertyDetails value);
 
   inline int NumberOfElements();
@@ -118,8 +119,8 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   int NumberOfEnumerableProperties();
 
   // TODO(pthier): Add flags (similar to NamedDictionary) also for swiss dicts.
-  inline bool may_have_interesting_symbols() { UNREACHABLE(); }
-  inline void set_may_have_interesting_symbols(bool value) { UNREACHABLE(); }
+  inline bool may_have_interesting_properties() { UNREACHABLE(); }
+  inline void set_may_have_interesting_properties(bool value) { UNREACHABLE(); }
 
   static Handle<SwissNameDictionary> ShallowCopy(
       Isolate* isolate, Handle<SwissNameDictionary> table);
@@ -128,10 +129,11 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   // |this| and |other| is the same. The only exceptions are the meta table
   // pointer (which must differ  between the two tables) and PropertyDetails of
   // deleted entries (which reside in initialized memory, but are not compared).
-  bool EqualsForTesting(SwissNameDictionary other);
+  bool EqualsForTesting(Tagged<SwissNameDictionary> other);
 
   template <typename IsolateT>
-  void Initialize(IsolateT* isolate, ByteArray meta_table, int capacity);
+  void Initialize(IsolateT* isolate, Tagged<ByteArray> meta_table,
+                  int capacity);
 
   template <typename IsolateT>
   static Handle<SwissNameDictionary> Rehash(IsolateT* isolate,
@@ -143,7 +145,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   inline void SetHash(int hash);
   inline int Hash();
 
-  Object SlowReverseLookup(Isolate* isolate, Object value);
+  Tagged<Object> SlowReverseLookup(Isolate* isolate, Tagged<Object> value);
 
   class IndexIterator {
    public:
@@ -280,23 +282,24 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
 
   // Sets key and value to the hole for the given entry.
   inline void ClearDataTableEntry(Isolate* isolate, int entry);
-  inline void SetKey(int entry, Object key);
+  inline void SetKey(int entry, Tagged<Object> key);
 
   inline void DetailsAtPut(int entry, PropertyDetails value);
-  inline void ValueAtPut(int entry, Object value);
+  inline void ValueAtPut(int entry, Tagged<Object> value);
 
   inline PropertyDetails DetailsAt(int entry);
-  inline Object ValueAtRaw(int entry);
-  inline Object KeyAt(int entry);
+  inline Tagged<Object> ValueAtRaw(int entry);
+  inline Tagged<Object> KeyAt(int entry);
 
-  inline bool ToKey(ReadOnlyRoots roots, int entry, Object* out_key);
+  inline bool ToKey(ReadOnlyRoots roots, int entry, Tagged<Object>* out_key);
 
   inline int FindFirstEmpty(uint32_t hash);
   // Adds |key| ->  (|value|, |details|) as a new mapping to the table, which
   // must have sufficient room. Returns the entry (= bucket) used by the new
   // mapping. Does not update the number of present entries or the
   // enumeration table.
-  inline int AddInternal(Name key, Object value, PropertyDetails details);
+  inline int AddInternal(Tagged<Name> key, Tagged<Object> value,
+                         PropertyDetails details);
 
   // Use |set_ctrl| for modifications whenever possible, since that function
   // correctly maintains the copy of the first group at the end of the ctrl
@@ -313,12 +316,12 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   inline void SetCtrl(int entry, ctrl_t h);
   inline ctrl_t GetCtrl(int entry);
 
-  inline Object LoadFromDataTable(int entry, int data_offset);
-  inline Object LoadFromDataTable(PtrComprCageBase cage_base, int entry,
-                                  int data_offset);
-  inline void StoreToDataTable(int entry, int data_offset, Object data);
+  inline Tagged<Object> LoadFromDataTable(int entry, int data_offset);
+  inline Tagged<Object> LoadFromDataTable(PtrComprCageBase cage_base, int entry,
+                                          int data_offset);
+  inline void StoreToDataTable(int entry, int data_offset, Tagged<Object> data);
   inline void StoreToDataTableNoBarrier(int entry, int data_offset,
-                                        Object data);
+                                        Tagged<Object> data);
 
   inline void SetCapacity(int capacity);
   inline void SetNumberOfElements(int elements);
@@ -331,15 +334,16 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   // given bucket of the data table.
   inline void SetEntryForEnumerationIndex(int enumeration_index, int entry);
 
-  DECL_ACCESSORS(meta_table, ByteArray)
+  DECL_ACCESSORS(meta_table, Tagged<ByteArray>)
   inline void SetMetaTableField(int field_index, int value);
   inline int GetMetaTableField(int field_index);
 
   template <typename T>
-  inline static void SetMetaTableField(ByteArray meta_table, int field_index,
-                                       int value);
+  inline static void SetMetaTableField(Tagged<ByteArray> meta_table,
+                                       int field_index, int value);
   template <typename T>
-  inline static int GetMetaTableField(ByteArray meta_table, int field_index);
+  inline static int GetMetaTableField(Tagged<ByteArray> meta_table,
+                                      int field_index);
 };
 
 }  // namespace internal

@@ -1,0 +1,8 @@
+# Copyright 2023 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# See build/ios/update_bundle_filelist.py for details on how .globlist
+# files are used to update their .filelist counterparts.
+test/data/**
+test/data/test/foo/bar/.hidden

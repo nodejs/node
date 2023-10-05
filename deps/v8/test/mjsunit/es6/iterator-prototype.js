@@ -7,8 +7,8 @@ var iteratorPrototype = arrayIteratorPrototype.__proto__;
 
 assertSame(Object.prototype, Object.getPrototypeOf(iteratorPrototype));
 assertTrue(Object.isExtensible(iteratorPrototype));
-assertSame(0, Object.getOwnPropertyNames(iteratorPrototype).length);
-assertSame(1, Object.getOwnPropertySymbols(iteratorPrototype).length);
+assertSame(12, Object.getOwnPropertyNames(iteratorPrototype).length);
+assertSame(2, Object.getOwnPropertySymbols(iteratorPrototype).length);
 assertSame(Symbol.iterator,
              Object.getOwnPropertySymbols(iteratorPrototype)[0]);
 

@@ -28,8 +28,8 @@ bytecodes: [
   /*   77 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["c"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["b"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["c"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["b"],
 ]
 handlers: [
 ]

@@ -298,7 +298,7 @@ class LoopFinderImpl {
   void ResizeBackwardMarks() {
     int new_width = width_ + 1;
     int max = num_nodes();
-    uint32_t* new_backward = zone_->NewArray<uint32_t>(new_width * max);
+    uint32_t* new_backward = zone_->AllocateArray<uint32_t>(new_width * max);
     memset(new_backward, 0, new_width * max * sizeof(uint32_t));
     if (width_ > 0) {  // copy old matrix data.
       for (int i = 0; i < max; i++) {
@@ -313,7 +313,7 @@ class LoopFinderImpl {
 
   void ResizeForwardMarks() {
     int max = num_nodes();
-    forward_ = zone_->NewArray<uint32_t>(width_ * max);
+    forward_ = zone_->AllocateArray<uint32_t>(width_ * max);
     memset(forward_, 0, width_ * max * sizeof(uint32_t));
   }
 
@@ -650,8 +650,6 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
       case IrOpcode::kWasmStructGet: {
         // When a chained load occurs in the loop, assume that peeling might
         // help.
-        // Extending this idea to array.get/array.len has been found to hurt
-        // more than it helps (tested on Sheets, Feb 2023).
         Node* object = node->InputAt(0);
         if (object->opcode() == IrOpcode::kWasmStructGet &&
             visited->find(object) != visited->end()) {
@@ -660,7 +658,13 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
         ENQUEUE_USES(use, true);
         break;
       }
+      case IrOpcode::kWasmArrayGet:
+        // Rationale for array.get: loops that contain an array.get also
+        // contain a bounds check, which needs to load the array's length,
+        // which benefits from load elimination after peeling.
       case IrOpcode::kStringPrepareForGetCodeunit:
+        // Rationale for PrepareForGetCodeunit: this internal operation is
+        // specifically designed for being hoisted out of loops.
         has_instruction_worth_peeling = true;
         V8_FALLTHROUGH;
       default:
@@ -696,8 +700,8 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
   }
 
   // Only peel functions containing instructions for which loop peeling is known
-  // to be useful. TODO(7748): Add more instructions to get more benefits out of
-  // loop peeling.
+  // to be useful. TODO(14034): Add more instructions to get more benefits out
+  // of loop peeling.
   if (purpose == Purpose::kLoopPeeling && !has_instruction_worth_peeling) {
     return nullptr;
   }

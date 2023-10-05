@@ -27,14 +27,15 @@ OperationTyper::OperationTyper(JSHeapBroker* broker, Zone* zone)
   singleton_zero_string_ = Type::Constant(broker, broker->zero_string(), zone);
   singleton_false_ = Type::Constant(broker, broker->false_value(), zone);
   singleton_true_ = Type::Constant(broker, broker->true_value(), zone);
-  singleton_the_hole_ = Type::Hole();
   signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
 
+  // TODO(chromium:1445008): when splitting the hole into different holes,
+  // figure which ones of them are falsish.
   falsish_ = Type::Union(
       Type::Undetectable(),
       Type::Union(Type::Union(singleton_false_, cache_->kZeroish, zone),
-                  Type::Union(singleton_empty_string_, Type::Hole(), zone),
+                  Type::Union(singleton_empty_string_, Type::TheHole(), zone),
                   zone),
       zone);
   truish_ = Type::Union(
@@ -1322,7 +1323,7 @@ Type OperationTyper::CheckBounds(Type index, Type length) {
 }
 
 Type OperationTyper::CheckFloat64Hole(Type type) {
-  if (type.Maybe(Type::Hole())) {
+  if (type.Maybe(Type::TheHole())) {
     // Turn "the hole" into undefined.
     type = Type::Intersect(type, Type::Number(), zone());
     type = Type::Union(type, Type::Undefined(), zone());
@@ -1339,7 +1340,7 @@ Type OperationTyper::TypeTypeGuard(const Operator* sigma_op, Type input) {
 }
 
 Type OperationTyper::ConvertTaggedHoleToUndefined(Type input) {
-  if (input.Maybe(Type::Hole())) {
+  if (input.Maybe(Type::TheHole())) {
     // Turn "the hole" into undefined.
     Type type = Type::Intersect(input, Type::NonInternal(), zone());
     return Type::Union(type, Type::Undefined(), zone());

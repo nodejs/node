@@ -361,6 +361,15 @@ Convert<float32, float64>(f: float64): float32 {
 Convert<float32, Number>(n: Number): float32 {
   return Convert<float32>(ChangeNumberToFloat64(n));
 }
+Convert<float32, int32>(n: int32): float32 {
+  return RoundInt32ToFloat32(n);
+}
+Convert<float32, HeapNumber>(h: HeapNumber): float32 {
+  return Convert<float32>(LoadHeapNumberValue(h));
+}
+Convert<Number, float32>(d: float32): Number {
+  return ChangeFloat32ToTagged(d);
+}
 Convert<Number, float64>(d: float64): Number {
   return ChangeFloat64ToTagged(d);
 }
@@ -391,6 +400,7 @@ Convert<intptr, Number>(n: Number): intptr {
 Convert<bint, int32>(v: int32): bint {
   return IntPtrToBInt(Convert<intptr>(v));
 }
+
 FromConstexpr<float64, constexpr IntegerLiteral>(v: constexpr IntegerLiteral):
     float64 {
   return ConstexprIntegerLiteralToFloat64(v);

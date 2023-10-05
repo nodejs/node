@@ -9,7 +9,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function InstanceMaker(offset) {
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false /* exported */);
+  builder.addMemory(1, 1);
 
   var sig_index = builder.addType(makeSig(
       [kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32,

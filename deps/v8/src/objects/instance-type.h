@@ -5,12 +5,12 @@
 #ifndef V8_OBJECTS_INSTANCE_TYPE_H_
 #define V8_OBJECTS_INSTANCE_TYPE_H_
 
-#include "src/objects/elements-kind.h"
+#include "include/v8-internal.h"
 #include "src/objects/objects-definitions.h"
+#include "torque-generated/instance-types.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
-#include "torque-generated/instance-types.h"
 
 namespace v8 {
 namespace internal {
@@ -111,47 +111,52 @@ static inline bool IsShortcutCandidate(int type) {
 
 enum InstanceType : uint16_t {
   // String types.
-  INTERNALIZED_STRING_TYPE =
+  INTERNALIZED_TWO_BYTE_STRING_TYPE =
       kTwoByteStringTag | kSeqStringTag | kInternalizedTag,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE =
+  INTERNALIZED_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kSeqStringTag | kInternalizedTag,
-  EXTERNAL_INTERNALIZED_STRING_TYPE =
+  EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE =
       kTwoByteStringTag | kExternalStringTag | kInternalizedTag,
-  EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE =
+  EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kExternalStringTag | kInternalizedTag,
-  UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE =
-      EXTERNAL_INTERNALIZED_STRING_TYPE | kUncachedExternalStringTag |
+  UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE =
+      EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE | kUncachedExternalStringTag |
       kInternalizedTag,
-  UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE =
-      EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kUncachedExternalStringTag |
+  UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE =
+      EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE | kUncachedExternalStringTag |
       kInternalizedTag,
-  STRING_TYPE = INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
-  ONE_BYTE_STRING_TYPE =
-      ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
-  CONS_STRING_TYPE = kTwoByteStringTag | kConsStringTag | kNotInternalizedTag,
+  SEQ_TWO_BYTE_STRING_TYPE =
+      INTERNALIZED_TWO_BYTE_STRING_TYPE | kNotInternalizedTag,
+  SEQ_ONE_BYTE_STRING_TYPE =
+      INTERNALIZED_ONE_BYTE_STRING_TYPE | kNotInternalizedTag,
+  CONS_TWO_BYTE_STRING_TYPE =
+      kTwoByteStringTag | kConsStringTag | kNotInternalizedTag,
   CONS_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kConsStringTag | kNotInternalizedTag,
-  SLICED_STRING_TYPE =
+  SLICED_TWO_BYTE_STRING_TYPE =
       kTwoByteStringTag | kSlicedStringTag | kNotInternalizedTag,
   SLICED_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kSlicedStringTag | kNotInternalizedTag,
-  EXTERNAL_STRING_TYPE =
-      EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  EXTERNAL_TWO_BYTE_STRING_TYPE =
+      EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE | kNotInternalizedTag,
   EXTERNAL_ONE_BYTE_STRING_TYPE =
-      EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
-  UNCACHED_EXTERNAL_STRING_TYPE =
-      UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+      EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE | kNotInternalizedTag,
+  UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE =
+      UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE | kNotInternalizedTag,
   UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE =
-      UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
-  // Mark thin strings as two-byte just to be on the safe side.
-  THIN_STRING_TYPE = kTwoByteStringTag | kThinStringTag | kNotInternalizedTag,
-  SHARED_STRING_TYPE = STRING_TYPE | kSharedStringTag,
-  SHARED_ONE_BYTE_STRING_TYPE = ONE_BYTE_STRING_TYPE | kSharedStringTag,
-  SHARED_EXTERNAL_STRING_TYPE = EXTERNAL_STRING_TYPE | kSharedStringTag,
+      UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE | kNotInternalizedTag,
+  THIN_TWO_BYTE_STRING_TYPE =
+      kTwoByteStringTag | kThinStringTag | kNotInternalizedTag,
+  THIN_ONE_BYTE_STRING_TYPE =
+      kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
+  SHARED_SEQ_TWO_BYTE_STRING_TYPE = SEQ_TWO_BYTE_STRING_TYPE | kSharedStringTag,
+  SHARED_SEQ_ONE_BYTE_STRING_TYPE = SEQ_ONE_BYTE_STRING_TYPE | kSharedStringTag,
+  SHARED_EXTERNAL_TWO_BYTE_STRING_TYPE =
+      EXTERNAL_TWO_BYTE_STRING_TYPE | kSharedStringTag,
   SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE =
       EXTERNAL_ONE_BYTE_STRING_TYPE | kSharedStringTag,
-  SHARED_UNCACHED_EXTERNAL_STRING_TYPE =
-      UNCACHED_EXTERNAL_STRING_TYPE | kSharedStringTag,
+  SHARED_UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE =
+      UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE | kSharedStringTag,
   SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE =
       UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE | kSharedStringTag,
 
@@ -170,7 +175,7 @@ enum InstanceType : uint16_t {
 #undef MAKE_TORQUE_INSTANCE_TYPE
 
   // Pseudo-types
-  FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_STRING_TYPE,
+  FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_TWO_BYTE_STRING_TYPE,
   LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
   // Callable JS Functions are all JS Functions except class constructors.
@@ -257,39 +262,6 @@ static_assert(LAST_TYPE < 1 << 15);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            InstanceType instance_type);
-
-// List of object types that have a single unique instance type.
-#define INSTANCE_TYPE_CHECKERS_SINGLE(V)           \
-  TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(V) \
-  TORQUE_INSTANCE_CHECKERS_SINGLE_ONLY_DECLARED(V) \
-  V(BigInt, BIGINT_TYPE)                           \
-  V(FixedArrayExact, FIXED_ARRAY_TYPE)
-
-#define INSTANCE_TYPE_CHECKERS_RANGE(V)           \
-  TORQUE_INSTANCE_CHECKERS_RANGE_FULLY_DEFINED(V) \
-  TORQUE_INSTANCE_CHECKERS_RANGE_ONLY_DECLARED(V)
-
-#define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \
-  V(AbstractCode)                        \
-  V(ExternalString)                      \
-  V(FreeSpaceOrFiller)                   \
-  V(GcSafeCode)                          \
-  V(InternalizedString)
-
-#define INSTANCE_TYPE_CHECKERS(V)  \
-  INSTANCE_TYPE_CHECKERS_SINGLE(V) \
-  INSTANCE_TYPE_CHECKERS_RANGE(V)  \
-  INSTANCE_TYPE_CHECKERS_CUSTOM(V)
-
-namespace InstanceTypeChecker {
-#define IS_TYPE_FUNCTION_DECL(Type, ...)                         \
-  V8_INLINE constexpr bool Is##Type(InstanceType instance_type); \
-  V8_INLINE bool Is##Type(Map map);
-
-INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
-
-#undef IS_TYPE_FUNCTION_DECL
-}  // namespace InstanceTypeChecker
 
 // This list must contain only maps that are shared by all objects of their
 // instance type AND respective object must not represent a parent class for

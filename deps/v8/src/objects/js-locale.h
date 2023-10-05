@@ -40,19 +40,19 @@ class JSLocale : public TorqueGeneratedJSLocale<JSLocale, JSObject> {
   static MaybeHandle<JSLocale> Minimize(Isolate* isolate,
                                         Handle<JSLocale> locale);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> Calendars(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetCalendars(
       Isolate* isolate, Handle<JSLocale> locale);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> Collations(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetCollations(
       Isolate* isolate, Handle<JSLocale> locale);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> HourCycles(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetHourCycles(
       Isolate* isolate, Handle<JSLocale> locale);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> NumberingSystems(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetNumberingSystems(
       Isolate* isolate, Handle<JSLocale> locale);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> TextInfo(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> GetTextInfo(
       Isolate* isolate, Handle<JSLocale> locale);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> TimeZones(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetTimeZones(
       Isolate* isolate, Handle<JSLocale> locale);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> WeekInfo(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> GetWeekInfo(
       Isolate* isolate, Handle<JSLocale> locale);
 
   static Handle<Object> Language(Isolate* isolate, Handle<JSLocale> locale);
@@ -79,7 +79,7 @@ class JSLocale : public TorqueGeneratedJSLocale<JSLocale, JSObject> {
   // Help function to check well-formed "3alpha"
   static bool Is3Alpha(const std::string& value);
 
-  DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
+  DECL_ACCESSORS(icu_locale, Tagged<Managed<icu::Locale>>)
 
   DECL_PRINTER(JSLocale)
 

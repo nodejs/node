@@ -9,9 +9,9 @@ const kBuiltinNameOf: constexpr string = '%TypedArray%.of';
 
 // %TypedArray%.of ( ...items )
 // https://tc39.github.io/ecma262/#sec-%typedarray%.of
-transitioning javascript builtin
-TypedArrayOf(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
-    JSTypedArray {
+transitioning javascript builtin TypedArrayOf(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSTypedArray {
   try {
     // 1. Let len be the actual number of arguments passed to this function.
     const len: uintptr = Unsigned(arguments.length);

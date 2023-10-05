@@ -57,9 +57,9 @@ class ProfilerExtension : public v8::Extension {
   static v8::CpuProfile* last_profile;
 
  private:
-  static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CollectSample(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void CollectSample(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static v8::CpuProfiler* profiler_;
   static const char* kSource;

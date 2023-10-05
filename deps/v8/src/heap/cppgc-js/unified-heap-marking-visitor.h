@@ -13,8 +13,6 @@
 
 namespace cppgc {
 
-class SourceLocation;
-
 namespace internal {
 class ConcurrentMarkingState;
 class BasicMarkingState;
@@ -23,10 +21,13 @@ class MutatorMarkingState;
 }  // namespace cppgc
 
 namespace v8 {
+
+class SourceLocation;
+
 namespace internal {
 
-using cppgc::SourceLocation;
 using cppgc::TraceDescriptor;
+using cppgc::TraceDescriptorCallback;
 using cppgc::WeakCallback;
 using cppgc::internal::HeapBase;
 using cppgc::internal::MutatorMarkingState;
@@ -42,6 +43,12 @@ class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitorBase : public JSVisitor {
  protected:
   // C++ handling.
   void Visit(const void*, TraceDescriptor) final;
+  void VisitMultipleUncompressedMember(const void*, size_t,
+                                       TraceDescriptorCallback) final;
+#if defined(CPPGC_POINTER_COMPRESSION)
+  void VisitMultipleCompressedMember(const void*, size_t,
+                                     TraceDescriptorCallback) final;
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
   void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
   void VisitEphemeron(const void*, const void*, TraceDescriptor) final;
   void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,

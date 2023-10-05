@@ -20,16 +20,16 @@ extern macro IteratorBuiltinsAssembler::FastIterableToList(
 
 extern macro IteratorBuiltinsAssembler::GetIteratorMethod(
     implicit context: Context)(JSAny): JSAny;
-extern macro IteratorBuiltinsAssembler::GetIterator(implicit context: Context)(
-    JSAny): IteratorRecord;
-extern macro IteratorBuiltinsAssembler::GetIterator(implicit context: Context)(
-    JSAny, JSAny): IteratorRecord;
+extern macro IteratorBuiltinsAssembler::GetIterator(
+    implicit context: Context)(JSAny): IteratorRecord;
+extern macro IteratorBuiltinsAssembler::GetIterator(
+    implicit context: Context)(JSAny, JSAny): IteratorRecord;
 
-extern macro IteratorBuiltinsAssembler::IteratorStep(implicit context: Context)(
-    IteratorRecord): JSReceiver
+extern macro IteratorBuiltinsAssembler::IteratorStep(
+    implicit context: Context)(IteratorRecord): JSReceiver
     labels Done;
-extern macro IteratorBuiltinsAssembler::IteratorStep(implicit context: Context)(
-    IteratorRecord, Map): JSReceiver
+extern macro IteratorBuiltinsAssembler::IteratorStep(
+    implicit context: Context)(IteratorRecord, Map): JSReceiver
     labels Done;
 
 extern macro IteratorBuiltinsAssembler::IteratorValue(
@@ -43,8 +43,8 @@ extern macro IteratorBuiltinsAssembler::IterableToList(
 extern macro IteratorBuiltinsAssembler::StringListFromIterable(
     implicit context: Context)(JSAny): JSArray;
 
-extern builtin IterableToListWithSymbolLookup(implicit context: Context)(JSAny):
-    JSArray;
+extern builtin IterableToListWithSymbolLookup(
+    implicit context: Context)(JSAny): JSArray;
 extern builtin IterableToFixedArrayWithSymbolLookupSlow(
     implicit context: Context)(JSAny): FixedArray;
 
@@ -120,8 +120,8 @@ transitioning builtin CallIteratorWithFeedback(
 // IteratorCloseOnException should be used to close iterators due to exceptions
 // being thrown.
 @export
-transitioning macro IteratorCloseOnException(implicit context: Context)(
-    iterator: IteratorRecord): void {
+transitioning macro IteratorCloseOnException(
+    implicit context: Context)(iterator: IteratorRecord): void {
   try {
     // 3. Let innerResult be GetMethod(iterator, "return").
     const method = GetProperty(iterator.object, kReturnString);
@@ -142,8 +142,8 @@ transitioning macro IteratorCloseOnException(implicit context: Context)(
 }
 
 @export
-transitioning macro IteratorClose(implicit context: Context)(
-    iterator: IteratorRecord): void {
+transitioning macro IteratorClose(
+    implicit context: Context)(iterator: IteratorRecord): void {
   // 3. Let innerResult be GetMethod(iterator, "return").
   const method = GetProperty(iterator.object, kReturnString);
 
@@ -160,7 +160,7 @@ transitioning macro IteratorClose(implicit context: Context)(
 
   // 7. If innerResult.[[Value]] is not an Object, throw a TypeError
   // exception.
-  Cast<Object>(result)
+  Cast<JSReceiver>(result)
       otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'return');
 }
 

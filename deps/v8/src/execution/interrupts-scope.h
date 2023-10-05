@@ -17,7 +17,7 @@ class Isolate;
 // not affect other interrupts.
 class V8_NODISCARD InterruptsScope {
  public:
-  enum Mode : byte { kPostponeInterrupts, kRunInterrupts, kNoop };
+  enum Mode : uint8_t { kPostponeInterrupts, kRunInterrupts, kNoop };
 
   V8_EXPORT_PRIVATE InterruptsScope(Isolate* isolate, uint32_t intercept_mask,
                                     Mode mode)

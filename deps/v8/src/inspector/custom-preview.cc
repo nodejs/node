@@ -15,6 +15,7 @@
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console-message.h"
+#include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 
@@ -118,9 +119,9 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
       return false;
     }
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapper;
-    protocol::Response response =
-        injectedScript->wrapObject(originValue, groupName, WrapMode::kNoPreview,
-                                   configValue, maxDepth - 1, &wrapper);
+    protocol::Response response = injectedScript->wrapObject(
+        originValue, groupName, WrapOptions({WrapMode::kIdOnly}), configValue,
+        maxDepth - 1, &wrapper);
     if (!response.IsSuccess() || !wrapper) {
       reportError(context, tryCatch, "cannot wrap value");
       return false;

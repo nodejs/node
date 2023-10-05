@@ -14,8 +14,7 @@ namespace v8::internal::compiler::turboshaft {
 struct BuildGraphPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(BuildGraph)
 
-  base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
-                                    Linkage* linkage);
+  base::Optional<BailoutReason> Run(Zone* temp_zone, Linkage* linkage);
 };
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -57,7 +57,7 @@ template <int N>
 void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
                          const ExceptionInfo (&excInfos)[N]) {
   // Check that it's indeed an Error object.
-  CHECK(exc->IsJSError());
+  CHECK(IsJSError(*exc));
 
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
 
@@ -94,6 +94,7 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   CHECK(i_isolate->ComputeLocationFromSimpleStackTrace(&loc, exc));
   printf("loc start: %d, end: %d\n", loc.start_pos(), loc.end_pos());
   Handle<JSMessageObject> message = i_isolate->CreateMessage(exc, nullptr);
+  JSMessageObject::EnsureSourcePositionsAvailable(i_isolate, message);
   printf("msg start: %d, end: %d, line: %d, col: %d\n",
          message->GetStartPosition(), message->GetEndPosition(),
          message->GetLineNumber(), message->GetColumnNumber());
@@ -106,12 +107,12 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   //               whether Script::PositionInfo.column should be the offset
   //               relative to the module or relative to the function.
   // CHECK_EQ(topLocation.column - 1, message->GetColumnNumber());
-  String scriptSource = message->GetSource();
-  CHECK(scriptSource.IsString());
+  Tagged<String> scriptSource = message->GetSource();
+  CHECK(IsString(scriptSource));
   if (stackFrame->IsWasm()) {
-    CHECK_EQ(scriptSource.length(), 0);
+    CHECK_EQ(scriptSource->length(), 0);
   } else {
-    CHECK_GT(scriptSource.length(), 0);
+    CHECK_GT(scriptSource->length(), 0);
   }
 }
 
@@ -149,7 +150,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
                                                      v8::StackTrace::kOverview);
-  Handle<Object> global(isolate->context().global_object(), isolate);
+  Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
@@ -171,10 +172,9 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 // Trigger a trap in wasm, stack should contain a source url.
 WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   // Create a WasmRunner with stack checks and traps enabled.
-  WasmRunner<int> r(execution_tier, kWasmOrigin, nullptr, "main",
-                    kRuntimeExceptionSupport);
+  WasmRunner<int> r(execution_tier, kWasmOrigin, nullptr, "main");
 
-  std::vector<byte> trap_code(1, kExprUnreachable);
+  std::vector<uint8_t> trap_code(1, kExprUnreachable);
   r.Build(trap_code.data(), trap_code.data() + trap_code.size());
 
   WasmFunctionCompiler& f = r.NewFunction<int>("call_main");
@@ -195,11 +195,11 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   const char* url = "http://example.com/example.wasm";
   const Handle<String> source_url =
       isolate->factory()->InternalizeUtf8String(url);
-  r.builder().instance_object()->module_object().script().set_source_url(
+  r.builder().instance_object()->module_object()->script()->set_source_url(
       *source_url);
 
   // Run the js wrapper.
-  Handle<Object> global(isolate->context().global_object(), isolate);
+  Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> maybe_return_obj =
@@ -233,10 +233,9 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     int unreachable_pos = 1 << (8 * pos_shift);
     TestSignatures sigs;
     // Create a WasmRunner with stack checks and traps enabled.
-    WasmRunner<int> r(execution_tier, kWasmOrigin, nullptr, "main",
-                      kRuntimeExceptionSupport);
+    WasmRunner<int> r(execution_tier, kWasmOrigin, nullptr, "main");
 
-    std::vector<byte> trap_code(unreachable_pos + 1, kExprNop);
+    std::vector<uint8_t> trap_code(unreachable_pos + 1, kExprNop);
     trap_code[unreachable_pos] = kExprUnreachable;
     r.Build(trap_code.data(), trap_code.data() + trap_code.size());
 
@@ -255,7 +254,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     Isolate* isolate = js_wasm_wrapper->GetIsolate();
     isolate->SetCaptureStackTraceForUncaughtExceptions(
         true, 10, v8::StackTrace::kOverview);
-    Handle<Object> global(isolate->context().global_object(), isolate);
+    Handle<Object> global(isolate->context()->global_object(), isolate);
     MaybeHandle<Object> maybe_exc;
     Handle<Object> args[] = {js_wasm_wrapper};
     MaybeHandle<Object> maybe_return_obj =

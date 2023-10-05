@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 
+class Oddball;
 class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/template-objects-tq.inc"

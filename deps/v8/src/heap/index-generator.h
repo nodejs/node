@@ -7,7 +7,6 @@
 
 #include <cstddef>
 #include <queue>
-#include <stack>
 
 #include "src/base/macros.h"
 #include "src/base/optional.h"
@@ -25,16 +24,12 @@ class V8_EXPORT_PRIVATE IndexGenerator {
   IndexGenerator& operator=(const IndexGenerator&) = delete;
 
   base::Optional<size_t> GetNext();
-  void GiveBack(size_t index);
 
  private:
   base::Mutex lock_;
-  // Pending indices that are ready to be handed out, prioritized over
-  // |pending_ranges_| when non-empty.
-  std::stack<size_t> pending_indices_;
-  // Pending [start, end] (exclusive) ranges to split and hand out indices from.
+  bool first_use_;
+  // Pending [start, end) ranges to split and hand out indices from.
   std::queue<std::pair<size_t, size_t>> ranges_to_split_;
-  const size_t size_;
 };
 
 }  // namespace internal

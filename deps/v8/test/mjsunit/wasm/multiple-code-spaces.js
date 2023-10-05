@@ -25,7 +25,7 @@ while (true) {
     throw new Error('We should have hit four code spaces by now');
   }
   const builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   builder.addFunction('f0', kSig_i_i).addBody([kExprLocalGet, 0]);
   // Generate some code per function to fill the code space.
   // Each function contains a number of loads that will not be executed

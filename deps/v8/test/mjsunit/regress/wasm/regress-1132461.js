@@ -11,7 +11,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(16, 32, false, true);
+builder.addMemory(16, 32, true);
 builder.addFunction(undefined, makeSig([], [kWasmI32]))
   .addBodyWithEnd([
 kExprI32Const, 0x00,

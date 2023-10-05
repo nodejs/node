@@ -3,6 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from pathlib import Path
+
 from testrunner.local import testsuite, statusfile
 from testrunner.objects.testcase import TestCase
 
@@ -12,8 +14,8 @@ class TestLoader(testsuite.TestLoader):
 
   def list_tests(self):
     self.test_count_estimation = 2
-    fast = self._create_test("fast", self.suite)
-    slow = self._create_test("slow", self.suite)
+    fast = self._create_test(Path("fast"), self.suite)
+    slow = self._create_test(Path("slow"), self.suite)
 
     slow._statusfile_outcomes.append(statusfile.SLOW)
     yield fast

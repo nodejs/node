@@ -8,19 +8,12 @@
 #include <memory>
 
 #include "include/v8-primitive.h"
+#include "src/common/globals.h"
 
 namespace v8 {
-
-class Isolate;
-
 namespace internal {
 
-class Object;
-template <typename T>
-class Handle;
-class Isolate;
 class SharedFunctionInfo;
-class String;
 class Utf16CharacterStream;
 
 namespace test {

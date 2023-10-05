@@ -12,6 +12,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/new-spaces.h"
+#include "src/heap/page-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/free-space-inl.h"
 
@@ -20,7 +21,7 @@ namespace internal {
 
 void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
                                                    bool force_completion) {
-  constexpr double kStepSizeInMs = 100;
+  static constexpr auto kStepSize = v8::base::TimeDelta::FromMilliseconds(100);
   CHECK(v8_flags.incremental_marking);
   i::IncrementalMarking* marking = heap->incremental_marking();
 
@@ -31,14 +32,14 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
   }
 
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                   i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMajorMarking());
   if (!force_completion) return;
 
   while (!marking->IsMajorMarkingComplete()) {
-    marking->AdvanceForTesting(kStepSizeInMs);
+    marking->AdvanceForTesting(kStepSize);
   }
 }
 
@@ -52,6 +53,7 @@ int FixedArrayLenFromSize(int size) {
 void FillPageInPagedSpace(Page* page,
                           std::vector<Handle<FixedArray>>* out_handles) {
   Heap* heap = page->heap();
+  ManualGCScope manual_gc_scope(heap->isolate());
   DCHECK(page->SweepingDone());
   PagedSpaceBase* paged_space = static_cast<PagedSpaceBase*>(page->owner());
   // Make sure the LAB is empty to guarantee that all free space is accounted
@@ -63,7 +65,7 @@ void FillPageInPagedSpace(Page* page,
   CollectionEpoch full_epoch =
       heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::MARK_COMPACTOR);
   CollectionEpoch young_epoch = heap->tracer()->CurrentEpoch(
-      GCTracer::Scope::ScopeId::MINOR_MARK_COMPACTOR);
+      GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER);
 
   for (Page* p : *paged_space) {
     if (p != page) paged_space->UnlinkFreeListCategories(p);
@@ -79,12 +81,13 @@ void FillPageInPagedSpace(Page* page,
   // Collect all free list block sizes
   page->ForAllFreeListCategories(
       [&available_sizes](FreeListCategory* category) {
-        category->IterateNodesForTesting([&available_sizes](FreeSpace node) {
-          int node_size = node.Size();
-          if (node_size >= kMaxRegularHeapObjectSize) {
-            available_sizes.push_back(node_size);
-          }
-        });
+        category->IterateNodesForTesting(
+            [&available_sizes](Tagged<FreeSpace> node) {
+              int node_size = node->Size();
+              if (node_size >= kMaxRegularHeapObjectSize) {
+                available_sizes.push_back(node_size);
+              }
+            });
       });
 
   Isolate* isolate = heap->isolate();
@@ -112,11 +115,12 @@ void FillPageInPagedSpace(Page* page,
         remaining_sizes.push_back({});
         std::vector<int>& sizes_in_category =
             remaining_sizes[remaining_sizes.size() - 1];
-        category->IterateNodesForTesting([&sizes_in_category](FreeSpace node) {
-          int node_size = node.Size();
-          DCHECK_LT(0, FixedArrayLenFromSize(node_size));
-          sizes_in_category.push_back(node_size);
-        });
+        category->IterateNodesForTesting(
+            [&sizes_in_category](Tagged<FreeSpace> node) {
+              int node_size = node->Size();
+              DCHECK_LT(0, FixedArrayLenFromSize(node_size));
+              sizes_in_category.push_back(node_size);
+            });
       });
   for (auto it = remaining_sizes.rbegin(); it != remaining_sizes.rend(); ++it) {
     std::vector<int> sizes_in_category = *it;
@@ -141,7 +145,7 @@ void FillPageInPagedSpace(Page* page,
   CHECK_EQ(full_epoch, heap->tracer()->CurrentEpoch(
                            GCTracer::Scope::ScopeId::MARK_COMPACTOR));
   CHECK_EQ(young_epoch, heap->tracer()->CurrentEpoch(
-                            GCTracer::Scope::ScopeId::MINOR_MARK_COMPACTOR));
+                            GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER));
 }
 
 }  // namespace
@@ -156,11 +160,12 @@ void HeapInternalsBase::SimulateFullSpace(
   space->heap()->EnsureSweepingCompleted(
       Heap::SweepingForcedFinalizationMode::kV8Only);
   space->FreeLinearAllocationArea();
-  if (v8_flags.minor_mc) {
+  if (v8_flags.minor_ms) {
+    while (space->AddFreshPage()) {}
     for (Page* page : *space) {
       FillPageInPagedSpace(page, out_handles);
     }
-    DCHECK_EQ(0, space->free_list()->Available());
+    DCHECK_IMPLIES(space->free_list(), space->free_list()->Available() == 0);
   } else {
     do {
       FillCurrentPage(space, out_handles);
@@ -174,7 +179,6 @@ void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   Heap* heap = space->heap();
-  CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -271,25 +275,69 @@ void HeapInternalsBase::FillCurrentPage(
     v8::internal::NewSpace* space,
     std::vector<Handle<FixedArray>>* out_handles) {
   PauseAllocationObserversScope pause_observers(space->heap());
-  if (v8_flags.minor_mc)
+  if (v8_flags.minor_ms)
     FillCurrenPagedSpacePage(space, out_handles);
   else
     FillCurrentSemiSpacePage(space, out_handles);
 }
 
-bool IsNewObjectInCorrectGeneration(HeapObject object) {
+bool IsNewObjectInCorrectGeneration(Tagged<HeapObject> object) {
   return v8_flags.single_generation ? !i::Heap::InYoungGeneration(object)
                                     : i::Heap::InYoungGeneration(object);
 }
 
-void FinalizeGCIfRunning(Isolate* isolate) {
-  if (!isolate) {
-    return;
+ManualGCScope::ManualGCScope(Isolate* isolate)
+    : isolate_(isolate),
+      flag_concurrent_marking_(v8_flags.concurrent_marking),
+      flag_concurrent_sweeping_(v8_flags.concurrent_sweeping),
+      flag_concurrent_minor_ms_marking_(v8_flags.concurrent_minor_ms_marking),
+      flag_stress_concurrent_allocation_(v8_flags.stress_concurrent_allocation),
+      flag_stress_incremental_marking_(v8_flags.stress_incremental_marking),
+      flag_parallel_marking_(v8_flags.parallel_marking),
+      flag_detect_ineffective_gcs_near_heap_limit_(
+          v8_flags.detect_ineffective_gcs_near_heap_limit),
+      flag_cppheap_concurrent_marking_(v8_flags.cppheap_concurrent_marking) {
+  // Some tests run threaded (back-to-back) and thus the GC may already be
+  // running by the time a ManualGCScope is created. Finalizing existing marking
+  // prevents any undefined/unexpected behavior.
+  if (isolate) {
+    auto* heap = isolate->heap();
+    if (heap->incremental_marking()->IsMarking()) {
+      InvokeAtomicMajorGC(isolate);
+    }
   }
-  auto* heap = isolate->heap();
-  if (heap->incremental_marking()->IsMarking()) {
-    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
-    heap->CompleteSweepingFull();
+
+  v8_flags.concurrent_marking = false;
+  v8_flags.concurrent_sweeping = false;
+  v8_flags.concurrent_minor_ms_marking = false;
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.stress_concurrent_allocation = false;
+  // Parallel marking has a dependency on concurrent marking.
+  v8_flags.parallel_marking = false;
+  v8_flags.detect_ineffective_gcs_near_heap_limit = false;
+  // CppHeap concurrent marking has a dependency on concurrent marking.
+  v8_flags.cppheap_concurrent_marking = false;
+
+  if (isolate_ && isolate_->heap()->cpp_heap()) {
+    CppHeap::From(isolate_->heap()->cpp_heap())
+        ->UpdateGCCapabilitiesFromFlagsForTesting();
+  }
+}
+
+ManualGCScope::~ManualGCScope() {
+  v8_flags.concurrent_marking = flag_concurrent_marking_;
+  v8_flags.concurrent_sweeping = flag_concurrent_sweeping_;
+  v8_flags.concurrent_minor_ms_marking = flag_concurrent_minor_ms_marking_;
+  v8_flags.stress_concurrent_allocation = flag_stress_concurrent_allocation_;
+  v8_flags.stress_incremental_marking = flag_stress_incremental_marking_;
+  v8_flags.parallel_marking = flag_parallel_marking_;
+  v8_flags.detect_ineffective_gcs_near_heap_limit =
+      flag_detect_ineffective_gcs_near_heap_limit_;
+  v8_flags.cppheap_concurrent_marking = flag_cppheap_concurrent_marking_;
+
+  if (isolate_ && isolate_->heap()->cpp_heap()) {
+    CppHeap::From(isolate_->heap()->cpp_heap())
+        ->UpdateGCCapabilitiesFromFlagsForTesting();
   }
 }
 

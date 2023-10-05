@@ -15,7 +15,7 @@ namespace internal {
 
 // Values must be contiguous and start at 0 since they're directly used as
 // array indices.
-enum class SnapshotSpace : byte {
+enum class SnapshotSpace : uint8_t {
   kReadOnlyHeap = 0,
   kOld = 1,
   kCode = 2,
@@ -104,7 +104,7 @@ class SerializerReferenceMap {
   explicit SerializerReferenceMap(Isolate* isolate)
       : map_(isolate->heap()), attached_reference_index_(0) {}
 
-  const SerializerReference* LookupReference(HeapObject object) const {
+  const SerializerReference* LookupReference(Tagged<HeapObject> object) const {
     return map_.Find(object);
   }
 
@@ -118,7 +118,7 @@ class SerializerReferenceMap {
     return &it->second;
   }
 
-  void Add(HeapObject object, SerializerReference reference) {
+  void Add(Tagged<HeapObject> object, SerializerReference reference) {
     DCHECK_NULL(LookupReference(object));
     map_.Insert(object, reference);
   }
@@ -128,7 +128,7 @@ class SerializerReferenceMap {
     backing_store_map_.emplace(backing_store, reference);
   }
 
-  SerializerReference AddAttachedReference(HeapObject object) {
+  SerializerReference AddAttachedReference(Tagged<HeapObject> object) {
     SerializerReference reference =
         SerializerReference::AttachedReference(attached_reference_index_++);
     map_.Insert(object, reference);

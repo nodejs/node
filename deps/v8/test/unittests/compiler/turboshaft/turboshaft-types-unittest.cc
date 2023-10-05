@@ -12,10 +12,8 @@ namespace v8::internal::compiler::turboshaft {
 class TurboshaftTypesTest : public TestWithNativeContextAndZone {
  public:
   using Kind = Type::Kind;
-  CanonicalHandleScope canonical;
 
-  TurboshaftTypesTest()
-      : TestWithNativeContextAndZone(), canonical(isolate()) {}
+  TurboshaftTypesTest() : TestWithNativeContextAndZone() {}
 };
 
 TEST_F(TurboshaftTypesTest, Word32) {

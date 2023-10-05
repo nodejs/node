@@ -5,7 +5,7 @@
 #include 'src/objects/js-relative-time-format.h'
 
 type JSRelativeTimeFormatNumeric extends int32
-constexpr 'JSRelativeTimeFormat::Numeric';
+    constexpr 'JSRelativeTimeFormat::Numeric';
 bitfield struct JSRelativeTimeFormatFlags extends uint31 {
   numeric: JSRelativeTimeFormatNumeric: 1 bit;
 }

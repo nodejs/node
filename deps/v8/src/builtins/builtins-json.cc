@@ -49,7 +49,7 @@ BUILTIN(JsonRawJson) {
 BUILTIN(JsonIsRawJson) {
   HandleScope scope(isolate);
   Handle<Object> text = args.atOrUndefined(isolate, 1);
-  return isolate->heap()->ToBoolean(text->IsJSRawJson());
+  return isolate->heap()->ToBoolean(IsJSRawJson(*text));
 }
 
 }  // namespace internal

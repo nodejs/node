@@ -22,7 +22,7 @@ ReadOnlyHeap* LocalIsolate::read_only_heap() const {
   return isolate_->read_only_heap();
 }
 
-Object LocalIsolate::root(RootIndex index) const {
+Tagged<Object> LocalIsolate::root(RootIndex index) const {
   DCHECK(RootsTable::IsImmortalImmovable(index));
   return isolate_->root(index);
 }
@@ -30,6 +30,11 @@ Object LocalIsolate::root(RootIndex index) const {
 Handle<Object> LocalIsolate::root_handle(RootIndex index) const {
   DCHECK(RootsTable::IsImmortalImmovable(index));
   return isolate_->root_handle(index);
+}
+
+template <typename Callback>
+V8_INLINE void LocalIsolate::BlockMainThreadWhileParked(Callback callback) {
+  heap_.BlockMainThreadWhileParked(callback);
 }
 
 }  // namespace internal

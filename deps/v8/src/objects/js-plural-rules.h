@@ -69,9 +69,9 @@ class JSPluralRules
   static_assert(Type::CARDINAL <= TypeBit::kMax);
   static_assert(Type::ORDINAL <= TypeBit::kMax);
 
-  DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
+  DECL_ACCESSORS(icu_plural_rules, Tagged<Managed<icu::PluralRules>>)
   DECL_ACCESSORS(icu_number_formatter,
-                 Managed<icu::number::LocalizedNumberFormatter>)
+                 Tagged<Managed<icu::number::LocalizedNumberFormatter>>)
 
   TQ_OBJECT_CONSTRUCTORS(JSPluralRules)
 };

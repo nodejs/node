@@ -19,9 +19,29 @@
 namespace v8::internal::wasm {
 
 enum class WellKnownImport : uint8_t {
+  // Generic:
   kUninstantiated,
   kGeneric,
+
+  // Functions:
+  kDoubleToString,
+  kIntToString,
+  kParseFloat,
+  kStringCharCodeAt,
+  kStringCodePointAt,
+  kStringCompare,
+  kStringConcat,
+  kStringEquals,
+  kStringFromCharCode,
+  kStringFromCodePoint,
+  kStringFromWtf16Array,
+  kStringFromWtf8Array,
+  kStringIndexOf,
+  kStringLength,
+  kStringSubstring,
+  kStringToLocaleLowerCaseStringref,
   kStringToLowerCaseStringref,
+  kStringToWtf16Array,
 };
 
 class NativeModule;

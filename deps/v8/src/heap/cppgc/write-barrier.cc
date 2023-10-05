@@ -128,7 +128,7 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
                                            HeapHandle* heap_handle) {
   DCHECK(slot);
   DCHECK(heap_handle);
-  DCHECK_GT(kCagedHeapReservationSize, value_offset);
+  DCHECK_GT(api_constants::kCagedHeapMaxReservationSize, value_offset);
   // A write during atomic pause (e.g. pre-finalizer) may trigger the slow path
   // of the barrier. This is a result of the order of bailouts where not marking
   // results in applying the generational barrier.
@@ -148,7 +148,7 @@ void WriteBarrier::GenerationalBarrierForUncompressedSlotSlow(
     const void* slot, uintptr_t value_offset, HeapHandle* heap_handle) {
   DCHECK(slot);
   DCHECK(heap_handle);
-  DCHECK_GT(kCagedHeapReservationSize, value_offset);
+  DCHECK_GT(api_constants::kCagedHeapMaxReservationSize, value_offset);
   // A write during atomic pause (e.g. pre-finalizer) may trigger the slow path
   // of the barrier. This is a result of the order of bailouts where not marking
   // results in applying the generational barrier.

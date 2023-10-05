@@ -30,128 +30,119 @@ Runtime.callFunctionOn
     type : string
     value : foo
 }
-testing expression: [true, false]
+testing expression: true
 Runtime.evaluate
 {
-    type : array
-    value : [
-        [0] : {
-            type : boolean
-            value : true
-        }
-        [1] : {
-            type : boolean
-            value : false
-        }
-    ]
+    type : boolean
+    value : true
 }
 Runtime.callFunctionOn
 {
-    type : array
-    value : [
-        [0] : {
-            type : boolean
-            value : true
-        }
-        [1] : {
-            type : boolean
-            value : false
-        }
-    ]
+    type : boolean
+    value : true
+}
+testing expression: false
+Runtime.evaluate
+{
+    type : boolean
+    value : false
+}
+Runtime.callFunctionOn
+{
+    type : boolean
+    value : false
 }
 
 Running test: Number
-testing expression: [123, 0.56, -0, +Infinity, -Infinity, NaN]
+testing expression: 123
 Runtime.evaluate
 {
-    type : array
-    value : [
-        [0] : {
-            type : number
-            value : 123
-        }
-        [1] : {
-            type : number
-            value : 0.56
-        }
-        [2] : {
-            type : number
-            value : -0
-        }
-        [3] : {
-            type : number
-            value : Infinity
-        }
-        [4] : {
-            type : number
-            value : -Infinity
-        }
-        [5] : {
-            type : number
-            value : NaN
-        }
-    ]
+    type : number
+    value : 123
 }
 Runtime.callFunctionOn
 {
-    type : array
-    value : [
-        [0] : {
-            type : number
-            value : 123
-        }
-        [1] : {
-            type : number
-            value : 0.56
-        }
-        [2] : {
-            type : number
-            value : -0
-        }
-        [3] : {
-            type : number
-            value : Infinity
-        }
-        [4] : {
-            type : number
-            value : -Infinity
-        }
-        [5] : {
-            type : number
-            value : NaN
-        }
-    ]
+    type : number
+    value : 123
+}
+testing expression: 0.56
+Runtime.evaluate
+{
+    type : number
+    value : 0.56
+}
+Runtime.callFunctionOn
+{
+    type : number
+    value : 0.56
+}
+testing expression: -0
+Runtime.evaluate
+{
+    type : number
+    value : -0
+}
+Runtime.callFunctionOn
+{
+    type : number
+    value : -0
+}
+testing expression: +Infinity
+Runtime.evaluate
+{
+    type : number
+    value : Infinity
+}
+Runtime.callFunctionOn
+{
+    type : number
+    value : Infinity
+}
+testing expression: -Infinity
+Runtime.evaluate
+{
+    type : number
+    value : -Infinity
+}
+Runtime.callFunctionOn
+{
+    type : number
+    value : -Infinity
+}
+testing expression: NaN
+Runtime.evaluate
+{
+    type : number
+    value : NaN
+}
+Runtime.callFunctionOn
+{
+    type : number
+    value : NaN
 }
 
 Running test: BigInt
-testing expression: [123n, 1234567890n]
+testing expression: 123n
 Runtime.evaluate
 {
-    type : array
-    value : [
-        [0] : {
-            type : bigint
-            value : 123
-        }
-        [1] : {
-            type : bigint
-            value : 1234567890
-        }
-    ]
+    type : bigint
+    value : 123
 }
 Runtime.callFunctionOn
 {
-    type : array
-    value : [
-        [0] : {
-            type : bigint
-            value : 123
-        }
-        [1] : {
-            type : bigint
-            value : 1234567890
-        }
-    ]
+    type : bigint
+    value : 123
+}
+testing expression: 1234567890n
+Runtime.evaluate
+{
+    type : bigint
+    value : 1234567890
+}
+Runtime.callFunctionOn
+{
+    type : bigint
+    value : 1234567890
 }
 
 Running test: Symbol
@@ -166,30 +157,23 @@ Runtime.callFunctionOn
 }
 
 Running test: Function
-testing expression: [function qwe(){}, ()=>{}]
+testing expression: function qwe(){}
 Runtime.evaluate
 {
-    type : array
-    value : [
-        [0] : {
-            type : function
-        }
-        [1] : {
-            type : function
-        }
-    ]
+    type : function
 }
 Runtime.callFunctionOn
 {
-    type : array
-    value : [
-        [0] : {
-            type : function
-        }
-        [1] : {
-            type : function
-        }
-    ]
+    type : function
+}
+testing expression: ()=>{}
+Runtime.evaluate
+{
+    type : function
+}
+Runtime.callFunctionOn
+{
+    type : function
 }
 
 Running test: Array
@@ -265,44 +249,37 @@ Runtime.callFunctionOn
 }
 
 Running test: RegExp
-testing expression: [new RegExp('ab+c'), new RegExp('ab+c', 'ig')]
+testing expression: new RegExp('ab+c')
 Runtime.evaluate
 {
-    type : array
-    value : [
-        [0] : {
-            type : regexp
-            value : {
-                pattern : ab+c
-            }
-        }
-        [1] : {
-            type : regexp
-            value : {
-                flags : gi
-                pattern : ab+c
-            }
-        }
-    ]
+    type : regexp
+    value : {
+        pattern : ab+c
+    }
 }
 Runtime.callFunctionOn
 {
-    type : array
-    value : [
-        [0] : {
-            type : regexp
-            value : {
-                pattern : ab+c
-            }
-        }
-        [1] : {
-            type : regexp
-            value : {
-                flags : gi
-                pattern : ab+c
-            }
-        }
-    ]
+    type : regexp
+    value : {
+        pattern : ab+c
+    }
+}
+testing expression: new RegExp('ab+c', 'ig')
+Runtime.evaluate
+{
+    type : regexp
+    value : {
+        flags : gi
+        pattern : ab+c
+    }
+}
+Runtime.callFunctionOn
+{
+    type : regexp
+    value : {
+        flags : gi
+        pattern : ab+c
+    }
 }
 
 Running test: Date
@@ -341,30 +318,23 @@ Runtime.callFunctionOn
 }
 
 Running test: Error
-testing expression: [new Error(), new Error('qwe')]
+testing expression: new Error()
 Runtime.evaluate
 {
-    type : array
-    value : [
-        [0] : {
-            type : error
-        }
-        [1] : {
-            type : error
-        }
-    ]
+    type : error
 }
 Runtime.callFunctionOn
 {
-    type : array
-    value : [
-        [0] : {
-            type : error
-        }
-        [1] : {
-            type : error
-        }
-    ]
+    type : error
+}
+testing expression: new Error('qwe')
+Runtime.evaluate
+{
+    type : error
+}
+Runtime.callFunctionOn
+{
+    type : error
 }
 
 Running test: Map
@@ -529,6 +499,93 @@ Runtime.evaluate
 Runtime.callFunctionOn
 {
     type : arraybuffer
+}
+
+Running test: Duplicate
+testing expression: (()=>{const foo={a: []}; const bar=[1,2]; const result={1: foo, 2: foo, 3: bar, 4: bar}; result.self=result; return result; })()
+Runtime.evaluate
+{
+    type : object
+    value : [
+        [0] : [
+            [0] : 1
+            [1] : {
+                type : object
+                weakLocalObjectReference : 1
+            }
+        ]
+        [1] : [
+            [0] : 2
+            [1] : {
+                type : object
+                weakLocalObjectReference : 1
+            }
+        ]
+        [2] : [
+            [0] : 3
+            [1] : {
+                type : array
+                weakLocalObjectReference : 2
+            }
+        ]
+        [3] : [
+            [0] : 4
+            [1] : {
+                type : array
+                weakLocalObjectReference : 2
+            }
+        ]
+        [4] : [
+            [0] : self
+            [1] : {
+                type : object
+                weakLocalObjectReference : 3
+            }
+        ]
+    ]
+    weakLocalObjectReference : 3
+}
+Runtime.callFunctionOn
+{
+    type : object
+    value : [
+        [0] : [
+            [0] : 1
+            [1] : {
+                type : object
+                weakLocalObjectReference : 1
+            }
+        ]
+        [1] : [
+            [0] : 2
+            [1] : {
+                type : object
+                weakLocalObjectReference : 1
+            }
+        ]
+        [2] : [
+            [0] : 3
+            [1] : {
+                type : array
+                weakLocalObjectReference : 2
+            }
+        ]
+        [3] : [
+            [0] : 4
+            [1] : {
+                type : array
+                weakLocalObjectReference : 2
+            }
+        ]
+        [4] : [
+            [0] : self
+            [1] : {
+                type : object
+                weakLocalObjectReference : 3
+            }
+        ]
+    ]
+    weakLocalObjectReference : 3
 }
 
 Running test: Object

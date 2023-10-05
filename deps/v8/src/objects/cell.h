@@ -20,7 +20,7 @@ class Cell : public TorqueGeneratedCell<Cell, HeapObject> {
   inline Address ValueAddress() { return address() + kValueOffset; }
 
   using TorqueGeneratedCell::value;
-  DECL_RELAXED_GETTER(value, Object)
+  DECL_RELAXED_GETTER(value, Tagged<Object>)
 
   using BodyDescriptor = FixedBodyDescriptor<kValueOffset, kSize, kSize>;
 

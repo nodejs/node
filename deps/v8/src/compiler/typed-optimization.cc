@@ -176,12 +176,17 @@ Reduction TypedOptimization::ReduceMaybeGrowFastElements(Node* node) {
 
   if (!index_type.IsNone() && !length_type.IsNone() &&
       index_type.Max() < length_type.Min()) {
-    Node* check_bounds = graph()->NewNode(
-        simplified()->CheckBounds(FeedbackSource{},
-                                  CheckBoundsFlag::kAbortOnOutOfBounds),
-        index, length, effect, control);
-    ReplaceWithValue(node, elements, check_bounds);
-    return Replace(check_bounds);
+    if (v8_flags.turbo_typer_hardening) {
+      Node* check_bounds = graph()->NewNode(
+          simplified()->CheckBounds(FeedbackSource{},
+                                    CheckBoundsFlag::kAbortOnOutOfBounds),
+          index, length, effect, control);
+      ReplaceWithValue(node, elements, check_bounds);
+      return Replace(check_bounds);
+    } else {
+      RelaxEffectsAndControls(node);
+      return Replace(elements);
+    }
   }
 
   return NoChange();
@@ -207,7 +212,7 @@ Reduction TypedOptimization::ReduceCheckBounds(Node* node) {
 Reduction TypedOptimization::ReduceCheckNotTaggedHole(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type const input_type = NodeProperties::GetType(input);
-  if (!input_type.Maybe(Type::Hole())) {
+  if (!input_type.Maybe(Type::TheHole())) {
     ReplaceWithValue(node, input);
     return Replace(input);
   }
@@ -318,6 +323,7 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
     Type const lhs_type = NodeProperties::GetType(lhs);
     Node* const rhs = NodeProperties::GetValueInput(input, 1);
     Type const rhs_type = NodeProperties::GetType(rhs);
+    if (lhs_type.IsNone() || rhs_type.IsNone()) return NoChange();
     if (lhs_type.Is(Type::Unsigned32()) && rhs_type.Is(Type::Unsigned32())) {
       // We can replace
       //
@@ -439,7 +445,7 @@ const Operator* TypedOptimization::NumberComparisonFor(const Operator* op) {
 
 Reduction TypedOptimization::
     TryReduceStringComparisonOfStringFromSingleCharCodeToConstant(
-        Node* comparison, const StringRef& string, bool inverted) {
+        Node* comparison, StringRef string, bool inverted) {
   switch (comparison->opcode()) {
     case IrOpcode::kStringEqual:
       if (string.length() != 1) {
@@ -871,7 +877,7 @@ Reduction TypedOptimization::ReduceSpeculativeNumberBinop(Node* node) {
   NumberOperationHint hint = NumberOperationHintOf(node->op());
   if ((hint == NumberOperationHint::kNumber ||
        hint == NumberOperationHint::kNumberOrOddball) &&
-      BothAre(lhs_type, rhs_type, Type::NumberOrUndefinedOrNullOrBoolean())) {
+      BothAre(lhs_type, rhs_type, Type::NumberOrOddball())) {
     // We intentionally do this only in the Number and NumberOrOddball hint case
     // because simplified lowering of these speculative ops may do some clever
     // reductions in the other cases.

@@ -199,7 +199,8 @@ static int LookupMapping(const int32_t* table, uint16_t size,
 
 // This method decodes an UTF-8 value according to RFC 3629 and
 // https://encoding.spec.whatwg.org/#utf-8-decoder .
-uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
+uchar Utf8::CalculateValue(const uint8_t* str, size_t max_length,
+                           size_t* cursor) {
   DCHECK_GT(max_length, 0);
   DCHECK_GT(str[0], kMaxOneByteChar);
 
@@ -207,8 +208,8 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   Utf8IncrementalBuffer buffer = 0;
   uchar t;
 
-  const byte* start = str;
-  const byte* end = str + max_length;
+  const uint8_t* start = str;
+  const uint8_t* end = str + max_length;
 
   do {
     t = ValueOfIncremental(&str, &state, &buffer);
@@ -230,7 +231,7 @@ uchar Utf8::ValueOfIncrementalFinish(State* state) {
   }
 }
 
-bool Utf8::ValidateEncoding(const byte* bytes, size_t length) {
+bool Utf8::ValidateEncoding(const uint8_t* bytes, size_t length) {
   State state = State::kAccept;
   Utf8IncrementalBuffer throw_away = 0;
   for (size_t i = 0; i < length && state != State::kReject; i++) {
@@ -271,7 +272,7 @@ void Utf16::ReplaceUnpairedSurrogates(const uint16_t* source_code_units,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-bool Wtf8::ValidateEncoding(const byte* bytes, size_t length) {
+bool Wtf8::ValidateEncoding(const uint8_t* bytes, size_t length) {
   using State = GeneralizedUtf8DfaDecoder::State;
   auto state = State::kAccept;
   uint32_t current = 0;
@@ -292,7 +293,7 @@ bool Wtf8::ValidateEncoding(const byte* bytes, size_t length) {
 }
 
 // Precondition: valid WTF-8.
-void Wtf8::ScanForSurrogates(const v8::base::Vector<const byte>& wtf8,
+void Wtf8::ScanForSurrogates(v8::base::Vector<const uint8_t> wtf8,
                              std::vector<size_t>* surrogate_offsets) {
   // A surrogate codepoint is encoded in a three-byte sequence:
   //
@@ -303,8 +304,8 @@ void Wtf8::ScanForSurrogates(const v8::base::Vector<const byte>& wtf8,
   // three-byte non-surrogates starting with 0xED whose second byte is in
   // [0x80,0x9F].)  Could speed this up with SWAR; most likely case is that no
   // byte in the array is 0xED.
-  const byte kWtf8SurrogateFirstByte = 0xED;
-  const byte kWtf8SurrogateSecondByteHighBit = 0x20;
+  const uint8_t kWtf8SurrogateFirstByte = 0xED;
+  const uint8_t kWtf8SurrogateSecondByteHighBit = 0x20;
 
   for (size_t i = 0; i < wtf8.size(); i++) {
     if (wtf8[i] == kWtf8SurrogateFirstByte &&

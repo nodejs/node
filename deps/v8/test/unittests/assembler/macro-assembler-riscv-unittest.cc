@@ -29,7 +29,7 @@ TEST_F(MacroAssemblerTest, TestHardAbort) {
   __ Abort(AbortReason::kNoReason);
 
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
   buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
@@ -48,7 +48,7 @@ TEST_F(MacroAssemblerTest, TestCheck) {
   __ Ret();
 
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
   buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());

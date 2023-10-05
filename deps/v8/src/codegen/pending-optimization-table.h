@@ -31,12 +31,12 @@ class ManualOptimizationTable {
   // via the intrinsics. This will check whether
   // MarkFunctionForManualOptimization was called with this function.
   static void CheckMarkedForManualOptimization(Isolate* isolate,
-                                               JSFunction function);
+                                               Tagged<JSFunction> function);
 
   // Returns true if MarkFunctionForManualOptimization was called with this
   // function.
   static bool IsMarkedForManualOptimization(Isolate* isolate,
-                                            JSFunction function);
+                                            Tagged<JSFunction> function);
 };
 
 }  // namespace internal

@@ -35,6 +35,13 @@ struct fast_hash {
   }
 };
 
+template <typename T1, typename T2>
+struct fast_hash<std::pair<T1, T2>> {
+  size_t operator()(const std::pair<T1, T2>& v) const {
+    return fast_hash_combine(v.first, v.second);
+  }
+};
+
 template <class... Ts>
 struct fast_hash<std::tuple<Ts...>> {
   size_t operator()(const std::tuple<Ts...>& v) const {

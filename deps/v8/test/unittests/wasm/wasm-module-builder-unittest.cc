@@ -28,7 +28,7 @@ TEST_F(WasmModuleBuilderTest, Regression_647329) {
   // Test crashed with asan.
   ZoneBuffer buffer(zone());
   const size_t kSize = ZoneBuffer::kInitialSize * 3 + 4096 + 100;
-  byte data[kSize] = {0};
+  uint8_t data[kSize] = {0};
   buffer.write(data, kSize);
 }
 

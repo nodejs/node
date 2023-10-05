@@ -229,17 +229,16 @@ class ToolTipTableBuilder {
   }
 
   addRow(name, subtypeName, entries) {
-      const tr = DOM.tr();
-      tr.appendChild(DOM.td(name));
-      tr.appendChild(DOM.td(subtypeName));
-      tr.appendChild(DOM.td(entries.length));
-      const button =
-          DOM.button('🔎', this._scriptPanel.showToolTipEntriesHandler);
-      button.title =
-          `Show all ${entries.length} ${name || subtypeName} entries.`
-      button.data = entries;
-      tr.appendChild(DOM.td(button));
-      this.tableNode.appendChild(tr);
+    const tr = DOM.tr();
+    tr.appendChild(DOM.td(name));
+    tr.appendChild(DOM.td(subtypeName));
+    tr.appendChild(DOM.td(entries.length));
+    const button =
+        DOM.button('🔎', this._scriptPanel.showToolTipEntriesHandler);
+    button.title = `Show all ${entries.length} ${name || subtypeName} entries.`
+    button.data = entries;
+    tr.appendChild(DOM.td(button));
+    this.tableNode.appendChild(tr);
   }
 }
 
@@ -247,33 +246,33 @@ class SourcePositionIterator {
   _entries;
   _index = 0;
   constructor(sourcePositions) {
-      this._entries = sourcePositions;
+    this._entries = sourcePositions;
   }
 
   * forLine(lineIndex) {
-      this._findStart(lineIndex);
-      while (!this._done() && this._current().line === lineIndex) {
-        yield this._current();
-        this._next();
-      }
+    this._findStart(lineIndex);
+    while (!this._done() && this._current().line === lineIndex) {
+      yield this._current();
+      this._next();
+    }
   }
 
   _findStart(lineIndex) {
-      while (!this._done() && this._current().line < lineIndex) {
-        this._next();
-      }
+    while (!this._done() && this._current().line < lineIndex) {
+      this._next();
+    }
   }
 
   _current() {
-      return this._entries[this._index];
+    return this._entries[this._index];
   }
 
   _done() {
-      return this._index >= this._entries.length;
+    return this._index >= this._entries.length;
   }
 
   _next() {
-      this._index++;
+    this._index++;
   }
 }
 
@@ -281,11 +280,11 @@ function* lineIterator(source, startLine) {
   let current = 0;
   let line = startLine;
   while (current < source.length) {
-      const next = source.indexOf('\n', current);
-      if (next === -1) break;
-      yield [line, source.substring(current, next)];
-      line++;
-      current = next + 1;
+    const next = source.indexOf('\n', current);
+    if (next === -1) break;
+    yield [line, source.substring(current, next)];
+    line++;
+    current = next + 1;
   }
   if (current < source.length) yield [line, source.substring(current)];
 }
@@ -300,7 +299,7 @@ class LineBuilder {
     return map;
   })();
   static get colorMap() {
-      return this._colorMap;
+    return this._colorMap;
   }
 
   _script;
@@ -309,77 +308,75 @@ class LineBuilder {
   _sourcePositionToMarkers = new Map();
 
   constructor(panel, script) {
-      this._script = script;
-      this._clickHandler = panel.handleSourcePositionClick.bind(panel);
-      this._mouseoverHandler = panel.handleSourcePositionMouseOver.bind(panel);
+    this._script = script;
+    this._clickHandler = panel.handleSourcePositionClick.bind(panel);
+    this._mouseoverHandler = panel.handleSourcePositionMouseOver.bind(panel);
   }
 
   get sourcePositionToMarkers() {
-      return this._sourcePositionToMarkers;
+    return this._sourcePositionToMarkers;
   }
 
   async createScriptNode(startLine) {
-      const scriptNode = DOM.div('scriptNode');
+    const scriptNode = DOM.div('scriptNode');
 
-      // TODO: sort on script finalization.
-      this._script.sourcePositions.sort((a, b) => {
-        if (a.line === b.line) return a.column - b.column;
-        return a.line - b.line;
-      });
+    // TODO: sort on script finalization.
+    this._script.sourcePositions.sort((a, b) => {
+      if (a.line === b.line) return a.column - b.column;
+      return a.line - b.line;
+    });
 
-      const sourcePositionsIterator =
-          new SourcePositionIterator(this._script.sourcePositions);
-      scriptNode.style.counterReset = `sourceLineCounter ${startLine - 1}`;
-      for (let [lineIndex, line] of lineIterator(
-               this._script.source, startLine)) {
-        scriptNode.appendChild(
-            this._createLineNode(sourcePositionsIterator, lineIndex, line));
-      }
-      if (this._script.sourcePositions.length !=
-          this._sourcePositionToMarkers.size) {
-        console.error('Not all SourcePositions were processed.');
-      }
-      return scriptNode;
+    const sourcePositionsIterator =
+        new SourcePositionIterator(this._script.sourcePositions);
+    scriptNode.style.counterReset = `sourceLineCounter ${startLine - 1}`;
+    for (let [lineIndex, line] of lineIterator(
+             this._script.source, startLine)) {
+      scriptNode.appendChild(
+          this._createLineNode(sourcePositionsIterator, lineIndex, line));
+    }
+    if (this._script.sourcePositions.length !=
+        this._sourcePositionToMarkers.size) {
+      console.error('Not all SourcePositions were processed.');
+    }
+    return scriptNode;
   }
 
   _createLineNode(sourcePositionsIterator, lineIndex, line) {
-      const lineNode = DOM.span();
-      let columnIndex = 0;
-      for (const sourcePosition of sourcePositionsIterator.forLine(lineIndex)) {
-        const nextColumnIndex = sourcePosition.column - 1;
-        lineNode.appendChild(document.createTextNode(
-            line.substring(columnIndex, nextColumnIndex)));
-        columnIndex = nextColumnIndex;
+    const lineNode = DOM.span();
+    let columnIndex = 0;
+    for (const sourcePosition of sourcePositionsIterator.forLine(lineIndex)) {
+      const nextColumnIndex = sourcePosition.column - 1;
+      lineNode.appendChild(document.createTextNode(
+          line.substring(columnIndex, nextColumnIndex)));
+      columnIndex = nextColumnIndex;
 
-        lineNode.appendChild(
-            this._createMarkerNode(line[columnIndex], sourcePosition));
-        columnIndex++;
-      }
       lineNode.appendChild(
-          document.createTextNode(line.substring(columnIndex) + '\n'));
-      return lineNode;
+          this._createMarkerNode(line[columnIndex], sourcePosition));
+      columnIndex++;
+    }
+    lineNode.appendChild(
+        document.createTextNode(line.substring(columnIndex) + '\n'));
+    return lineNode;
   }
 
   _createMarkerNode(text, sourcePosition) {
-      const marker = document.createElement('mark');
-      this._sourcePositionToMarkers.set(sourcePosition, marker);
-      marker.textContent = text;
-      marker.sourcePosition = sourcePosition;
-      marker.onclick = this._clickHandler;
-      marker.onmouseover = this._mouseoverHandler;
+    const marker = document.createElement('mark');
+    this._sourcePositionToMarkers.set(sourcePosition, marker);
+    marker.textContent = text;
+    marker.sourcePosition = sourcePosition;
+    marker.onclick = this._clickHandler;
+    marker.onmouseover = this._mouseoverHandler;
 
-      const entries = sourcePosition.entries;
-      const groups = groupBy(entries, entry => entry.constructor);
-      if (groups.length > 1) {
-        const stops = gradientStopsFromGroups(
-            entries.length, '%', groups,
-            type => LineBuilder.colorMap.get(type));
-        marker.style.backgroundImage =
-            `linear-gradient(0deg,${stops.join(',')})`
-      } else {
-        marker.style.backgroundColor = LineBuilder.colorMap.get(groups[0].key)
-      }
+    const entries = sourcePosition.entries;
+    const groups = groupBy(entries, entry => entry.constructor);
+    if (groups.length > 1) {
+      const stops = gradientStopsFromGroups(
+          entries.length, '%', groups, type => LineBuilder.colorMap.get(type));
+      marker.style.backgroundImage = `linear-gradient(0deg,${stops.join(',')})`
+    } else {
+      marker.style.backgroundColor = LineBuilder.colorMap.get(groups[0].key)
+    }
 
-      return marker;
+    return marker;
   }
 }

@@ -36,13 +36,13 @@ class RegExpMatchInfo
   inline void SetNumberOfCaptureRegisters(int value);
 
   // Returns the subject string of the last match.
-  inline String LastSubject();
-  inline void SetLastSubject(String value,
+  inline Tagged<String> LastSubject();
+  inline void SetLastSubject(Tagged<String> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Like LastSubject, but modifiable by the user.
-  inline Object LastInput();
-  inline void SetLastInput(Object value,
+  inline Tagged<Object> LastInput();
+  inline void SetLastInput(Tagged<Object> value,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Returns the i'th capture index, 0 <= i < NumberOfCaptures(). Capture(0) and

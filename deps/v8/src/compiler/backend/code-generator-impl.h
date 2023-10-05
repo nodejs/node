@@ -108,12 +108,12 @@ class InstructionOperandConverter {
     return ToRegister(instr_->TempAt(index));
   }
 
-  FloatRegister OutputFloatRegister() {
-    return ToFloatRegister(instr_->Output());
+  FloatRegister OutputFloatRegister(size_t index = 0) {
+    return ToFloatRegister(instr_->OutputAt(index));
   }
 
-  DoubleRegister OutputDoubleRegister() {
-    return ToDoubleRegister(instr_->Output());
+  DoubleRegister OutputDoubleRegister(size_t index = 0) {
+    return ToDoubleRegister(instr_->OutputAt(index));
   }
 
   DoubleRegister TempDoubleRegister(size_t index) {

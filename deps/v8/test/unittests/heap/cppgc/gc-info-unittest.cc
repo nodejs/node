@@ -19,7 +19,7 @@ namespace internal {
 
 namespace {
 
-constexpr GCInfo GetEmptyGCInfo() { return {nullptr, nullptr, nullptr, false}; }
+constexpr GCInfo GetEmptyGCInfo() { return {nullptr, nullptr, nullptr}; }
 
 class GCInfoTableTest : public ::testing::Test {
  public:

@@ -2887,14 +2887,19 @@ Reduction MachineOperatorReducer::SimplifyBranch(Node* node) {
         case IrOpcode::kBranch:
           SwapBranches(node);
           break;
-        case IrOpcode::kTrapIf:
-          NodeProperties::ChangeOp(node,
-                                   common()->TrapUnless(TrapIdOf(node->op())));
+        case IrOpcode::kTrapIf: {
+          const bool has_frame_state = node->op()->ValueInputCount() > 1;
+          NodeProperties::ChangeOp(
+              node,
+              common()->TrapUnless(TrapIdOf(node->op()), has_frame_state));
           break;
-        case IrOpcode::kTrapUnless:
-          NodeProperties::ChangeOp(node,
-                                   common()->TrapIf(TrapIdOf(node->op())));
+        }
+        case IrOpcode::kTrapUnless: {
+          const bool has_frame_state = node->op()->ValueInputCount() > 1;
+          NodeProperties::ChangeOp(
+              node, common()->TrapIf(TrapIdOf(node->op()), has_frame_state));
           break;
+        }
         case IrOpcode::kDeoptimizeIf: {
           DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
           NodeProperties::ChangeOp(

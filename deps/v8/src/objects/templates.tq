@@ -56,7 +56,7 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   rare_data: FunctionTemplateRareData|Undefined;
   shared_function_info: SharedFunctionInfo|Undefined;
   // Internal field to store a flag bitfield.
-  flag: SmiTagged<FunctionTemplateInfoFlags>;
+  @cppRelaxedLoad @cppRelaxedStore flag: SmiTagged<FunctionTemplateInfoFlags>;
   // "length" property of the final JSFunction.
   length: Smi;
   // Either the_hole or a private symbol. Used to cache the result on

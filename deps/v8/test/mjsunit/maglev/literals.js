@@ -30,6 +30,7 @@
 
   %PrepareFunctionForOptimization(f);
   f();
+  f();
 
   %OptimizeMaglevOnNextCall(f);
   assertEquals(42, f().a);
@@ -43,6 +44,7 @@
   }
 
   %PrepareFunctionForOptimization(f);
+  f();
   f();
 
   %OptimizeMaglevOnNextCall(f);

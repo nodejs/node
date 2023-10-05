@@ -4,14 +4,14 @@
 //
 // Flags: --harmony-struct --expose-gc --expose-externalize-string
 
-const str = String.fromCharCode(849206214);
+const str = String.fromCharCode(849206214, 00, 00);
 gc();
 const Bar = this.SharedStructType("a");
 const bar = Bar();
 bar.a = str;
 externalizeString(str);
 bar[str] = 'foo';
-const str2 = String.fromCharCode(849206214);
+const str2 = String.fromCharCode(849206214, 00, 00);
 gc();
 const bar2 = Bar();
 bar2.a = str2;

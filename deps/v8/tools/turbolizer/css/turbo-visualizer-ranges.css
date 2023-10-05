@@ -283,6 +283,13 @@ input.range-toggle-setting {
   background-color: rgb(86, 235, 72);
 }
 
+.focused.range-block-id,
+.focused.range-instruction-id,
+.focused.range-reg,
+.focused.range-position {
+  background-color: rgb(45, 126, 202);
+}
+
 .range-type-header,
 .range-block-id,
 .range-instruction-id,
@@ -412,6 +419,14 @@ input.range-toggle-setting {
   border-bottom: none;
 }
 
+.range-block-id.selected.focused:hover,
+.range-instruction-id.selected.focused:hover,
+.range-reg.selected.focused:hover,
+.range-position.selected.focused:hover,
+.focused:hover {
+  background-color: rgb(50, 158, 221);
+}
+
 .range,
 .range-interval,
 .range-interval-wrapper,
@@ -481,4 +496,14 @@ input.range-toggle-setting {
   width: 100%;
   border: var(--range-position-border) solid transparent;
   color: transparent;
+}
+
+.range-background-canvas-div {
+  float: left;
+  position: absolute;
+  z-index: -1;
+}
+
+.range-background-div {
+  --range-position-border: 0px;
 }

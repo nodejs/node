@@ -5,8 +5,8 @@
 #include 'src/builtins/builtins-regexp-gen.h'
 
 namespace runtime {
-extern transitioning runtime
-RegExpSplit(implicit context: Context)(JSReceiver, String, Object): JSAny;
+extern transitioning runtime RegExpSplit(
+    implicit context: Context)(JSReceiver, String, Object): JSAny;
 }  // namespace runtime
 
 namespace regexp {
@@ -18,9 +18,9 @@ extern transitioning macro RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
     implicit context: Context)(JSRegExp, String, Smi): JSArray;
 
 // Helper that skips a few initial checks.
-transitioning builtin
-RegExpSplit(implicit context: Context)(
-    regexp: FastJSRegExp, string: String, limit: JSAny): JSAny {
+transitioning builtin RegExpSplit(
+    implicit context: Context)(regexp: FastJSRegExp, string: String,
+    limit: JSAny): JSAny {
   let sanitizedLimit: Smi;
 
   // We need to be extra-strict and require the given limit to be either

@@ -47,8 +47,8 @@ class SeqOneByteString;
 // StringTable::Data for details.
 class V8_EXPORT_PRIVATE StringTable {
  public:
-  static constexpr Smi empty_element() { return Smi::FromInt(0); }
-  static constexpr Smi deleted_element() { return Smi::FromInt(1); }
+  static constexpr Tagged<Smi> empty_element() { return Smi::FromInt(0); }
+  static constexpr Tagged<Smi> deleted_element() { return Smi::FromInt(1); }
 
   explicit StringTable(Isolate* isolate);
   ~StringTable();

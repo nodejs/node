@@ -24,7 +24,7 @@ bytecodes: [
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(1),
                 B(JumpIfTrue), U8(16),
-                B(Wide), B(LdaSmi), I16(303),
+                B(Wide), B(LdaSmi), I16(307),
                 B(Star2),
                 B(LdaConstant), U8(0),
                 B(Star3),
@@ -36,7 +36,7 @@ bytecodes: [
   /*   73 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["A"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["A"],
 ]
 handlers: [
 ]
@@ -61,13 +61,13 @@ bytecodes: [
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
-                B(Wide), B(LdaSmi), I16(303),
+                B(Wide), B(LdaSmi), I16(307),
                 B(Star2),
                 B(LdaConstant), U8(0),
                 B(Star3),
   /*   61 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
-                B(Wide), B(LdaSmi), I16(309),
+                B(Wide), B(LdaSmi), I16(313),
                 B(Star2),
                 B(LdaConstant), U8(1),
                 B(Star3),
@@ -75,8 +75,8 @@ bytecodes: [
                 B(Throw),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["B"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["#b"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["B"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["#b"],
 ]
 handlers: [
 ]
@@ -99,13 +99,13 @@ bytecodes: [
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
-                B(Wide), B(LdaSmi), I16(303),
+                B(Wide), B(LdaSmi), I16(307),
                 B(Star1),
                 B(LdaConstant), U8(0),
                 B(Star2),
   /*   61 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
                 B(Throw),
-                B(Wide), B(LdaSmi), I16(309),
+                B(Wide), B(LdaSmi), I16(313),
                 B(Star1),
                 B(LdaConstant), U8(1),
                 B(Star2),
@@ -113,8 +113,8 @@ bytecodes: [
                 B(Throw),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["C"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["#c"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["C"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["#c"],
 ]
 handlers: [
 ]
@@ -145,7 +145,7 @@ bytecodes: [
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
-                B(Wide), B(LdaSmi), I16(303),
+                B(Wide), B(LdaSmi), I16(307),
                 B(Star2),
                 B(LdaConstant), U8(0),
                 B(Star3),
@@ -167,7 +167,7 @@ bytecodes: [
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
-                B(Wide), B(LdaSmi), I16(303),
+                B(Wide), B(LdaSmi), I16(307),
                 B(Star3),
                 B(LdaConstant), U8(0),
                 B(Star4),
@@ -182,7 +182,7 @@ bytecodes: [
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
-                B(Wide), B(LdaSmi), I16(303),
+                B(Wide), B(LdaSmi), I16(307),
                 B(Star2),
                 B(LdaConstant), U8(0),
                 B(Star3),
@@ -194,7 +194,7 @@ bytecodes: [
   /*  137 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["D"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["D"],
 ]
 handlers: [
 ]
@@ -216,13 +216,13 @@ bytecodes: [
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
-                B(Wide), B(LdaSmi), I16(303),
+                B(Wide), B(LdaSmi), I16(307),
                 B(Star1),
                 B(LdaConstant), U8(0),
                 B(Star2),
   /*   65 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
                 B(Throw),
-                B(Wide), B(LdaSmi), I16(311),
+                B(Wide), B(LdaSmi), I16(315),
                 B(Star1),
                 B(LdaConstant), U8(1),
                 B(Star2),
@@ -230,8 +230,8 @@ bytecodes: [
                 B(Throw),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["E"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["#e"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["E"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["#e"],
 ]
 handlers: [
 ]
@@ -253,13 +253,13 @@ bytecodes: [
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
-                B(Wide), B(LdaSmi), I16(303),
+                B(Wide), B(LdaSmi), I16(307),
                 B(Star1),
                 B(LdaConstant), U8(0),
                 B(Star2),
   /*   58 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
                 B(Throw),
-                B(Wide), B(LdaSmi), I16(310),
+                B(Wide), B(LdaSmi), I16(314),
                 B(Star1),
                 B(LdaConstant), U8(1),
                 B(Star2),
@@ -267,8 +267,8 @@ bytecodes: [
                 B(Throw),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["F"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["#f"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["F"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["#f"],
 ]
 handlers: [
 ]
@@ -292,13 +292,13 @@ bytecodes: [
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
-                B(Wide), B(LdaSmi), I16(303),
+                B(Wide), B(LdaSmi), I16(307),
                 B(Star2),
                 B(LdaConstant), U8(0),
                 B(Star3),
   /*   65 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
-                B(Wide), B(LdaSmi), I16(311),
+                B(Wide), B(LdaSmi), I16(315),
                 B(Star2),
                 B(LdaConstant), U8(1),
                 B(Star3),
@@ -306,8 +306,8 @@ bytecodes: [
                 B(Throw),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["G"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["#d"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["G"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["#d"],
 ]
 handlers: [
 ]
@@ -327,7 +327,7 @@ bytecode array length: 19
 bytecodes: [
   /*   46 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
   /*   51 E> */ B(GetKeyedProperty), R(this), U8(0),
-                B(Wide), B(LdaSmi), I16(310),
+                B(Wide), B(LdaSmi), I16(314),
                 B(Star1),
                 B(LdaConstant), U8(0),
                 B(Star2),
@@ -335,7 +335,7 @@ bytecodes: [
                 B(Throw),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["#h"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["#h"],
 ]
 handlers: [
 ]

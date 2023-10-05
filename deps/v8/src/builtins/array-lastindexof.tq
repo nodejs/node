@@ -7,8 +7,8 @@ macro LoadWithHoleCheck<Elements : type extends FixedArrayBase>(
     elements: FixedArrayBase, index: Smi): JSAny
     labels IfHole;
 
-LoadWithHoleCheck<FixedArray>(implicit context: Context)(
-    elements: FixedArrayBase, index: Smi): JSAny
+LoadWithHoleCheck<FixedArray>(
+    implicit context: Context)(elements: FixedArrayBase, index: Smi): JSAny
     labels IfHole {
   const elements: FixedArray = UnsafeCast<FixedArray>(elements);
   const element: Object = elements.objects[index];
@@ -16,8 +16,8 @@ LoadWithHoleCheck<FixedArray>(implicit context: Context)(
   return UnsafeCast<JSAny>(element);
 }
 
-LoadWithHoleCheck<FixedDoubleArray>(implicit context: Context)(
-    elements: FixedArrayBase, index: Smi): JSAny
+LoadWithHoleCheck<FixedDoubleArray>(
+    implicit context: Context)(elements: FixedArrayBase, index: Smi): JSAny
     labels IfHole {
   const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
   const element: float64 = elements.floats[index].Value() otherwise IfHole;
@@ -56,8 +56,8 @@ macro FastArrayLastIndexOf<Elements : type extends FixedArrayBase>(
   return -1;
 }
 
-transitioning macro
-GetFromIndex(context: Context, length: Number, arguments: Arguments): Number {
+transitioning macro GetFromIndex(
+    context: Context, length: Number, arguments: Arguments): Number {
   // 4. If fromIndex is present, let n be ? ToInteger(fromIndex);
   //    else let n be len - 1.
   const n: Number =

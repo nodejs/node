@@ -11,7 +11,6 @@ namespace v8 {
 namespace internal {
 
 class HeapObject;
-class ReadOnlySerializer;
 
 // SharedHeapSerializer serializes objects that should be in the shared heap in
 // the shared Isolate during startup. Currently the shared heap is only in use
@@ -19,8 +18,7 @@ class ReadOnlySerializer;
 // contents are deserialized into each Isolate.
 class V8_EXPORT_PRIVATE SharedHeapSerializer : public RootsSerializer {
  public:
-  SharedHeapSerializer(Isolate* isolate, Snapshot::SerializerFlags flags,
-                       ReadOnlySerializer* read_only_serializer);
+  SharedHeapSerializer(Isolate* isolate, Snapshot::SerializerFlags flags);
   ~SharedHeapSerializer() override;
   SharedHeapSerializer(const SharedHeapSerializer&) = delete;
   SharedHeapSerializer& operator=(const SharedHeapSerializer&) = delete;
@@ -29,13 +27,6 @@ class V8_EXPORT_PRIVATE SharedHeapSerializer : public RootsSerializer {
   // serialize the string table..
   void FinalizeSerialization();
 
-  // If |obj| can be serialized in the read-only snapshot then add it to the
-  // read-only object cache if not already present and emit a
-  // ReadOnlyObjectCache bytecode into |sink|. Returns whether this was
-  // successful.
-  bool SerializeUsingReadOnlyObjectCache(SnapshotByteSink* sink,
-                                         Handle<HeapObject> obj);
-
   // If |obj| can be serialized in the shared heap snapshot then add it to the
   // shared heap object cache if not already present and emit a
   // SharedHeapObjectCache bytecode into |sink|. Returns whether this was
@@ -43,9 +34,9 @@ class V8_EXPORT_PRIVATE SharedHeapSerializer : public RootsSerializer {
   bool SerializeUsingSharedHeapObjectCache(SnapshotByteSink* sink,
                                            Handle<HeapObject> obj);
 
-  static bool CanBeInSharedOldSpace(HeapObject obj);
+  static bool CanBeInSharedOldSpace(Tagged<HeapObject> obj);
 
-  static bool ShouldBeInSharedHeapObjectCache(HeapObject obj);
+  static bool ShouldBeInSharedHeapObjectCache(Tagged<HeapObject> obj);
 
  private:
   bool ShouldReconstructSharedHeapObjectCacheForTesting() const;
@@ -54,9 +45,7 @@ class V8_EXPORT_PRIVATE SharedHeapSerializer : public RootsSerializer {
 
   void SerializeStringTable(StringTable* string_table);
 
-  void SerializeObjectImpl(Handle<HeapObject> obj) override;
-
-  ReadOnlySerializer* read_only_serializer_;
+  void SerializeObjectImpl(Handle<HeapObject> obj, SlotType slot_type) override;
 
 #ifdef DEBUG
   IdentityMap<int, base::DefaultAllocationPolicy> serialized_objects_;

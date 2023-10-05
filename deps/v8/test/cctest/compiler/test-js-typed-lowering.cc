@@ -17,19 +17,19 @@
 #include "src/heap/factory-inl.h"
 #include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/compiler/js-heap-broker-base.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class JSTypedLoweringTester : public HandleAndZoneScope {
+class JSTypedLoweringTester : public HandleAndZoneScope,
+                              public JSHeapBrokerTestBase {
  public:
   explicit JSTypedLoweringTester(int num_parameters = 0)
       : HandleAndZoneScope(kCompressGraphZone),
+        JSHeapBrokerTestBase(main_isolate(), main_zone()),
         isolate(main_isolate()),
-        canonical(isolate),
-        js_heap_broker(isolate, main_zone()),
-        current_broker(&js_heap_broker),
         binop(nullptr),
         unop(nullptr),
         javascript(main_zone()),
@@ -37,9 +37,9 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         simplified(main_zone()),
         common(main_zone()),
         graph(main_zone()),
-        typer(&js_heap_broker, Typer::kNoFlags, &graph, &tick_counter),
+        typer(broker(), Typer::kNoFlags, &graph, &tick_counter),
         context_node(nullptr),
-        deps(&js_heap_broker, main_zone()) {
+        deps(broker(), main_zone()) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
     graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
     typer.Run();
@@ -47,9 +47,6 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Isolate* isolate;
   TickCounter tick_counter;
-  CanonicalHandleScope canonical;
-  JSHeapBroker js_heap_broker;
-  CurrentHeapBrokerScope current_broker;
   const Operator* binop;
   const Operator* unop;
   JSOperatorBuilder javascript;
@@ -95,10 +92,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   Node* reduce(Node* node) {
     JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &simplified,
                     &machine);
-    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter,
-                               &js_heap_broker);
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, &js_heap_broker,
-                            main_zone());
+    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter, broker());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, broker(), main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;

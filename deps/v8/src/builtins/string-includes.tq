@@ -7,8 +7,8 @@
 namespace string {
 
 // https://tc39.es/ecma262/#sec-string.prototype.includes
-transitioning javascript builtin
-StringPrototypeIncludes(js-implicit context: NativeContext, receiver: JSAny)(
+transitioning javascript builtin StringPrototypeIncludes(
+    js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): Boolean {
   const methodName: constexpr string = 'String.prototype.includes';
   const searchString: JSAny = arguments[0];

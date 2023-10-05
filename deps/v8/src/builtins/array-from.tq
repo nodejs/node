@@ -5,9 +5,9 @@
 namespace array {
 // Array.from( items [, mapfn [, thisArg ] ] )
 // ES #sec-array.from
-transitioning javascript builtin
-ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
-    JSReceiver {
+transitioning javascript builtin ArrayFrom(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSReceiver {
   const c = HasBuiltinSubclassingFlag() ? receiver : GetArrayFunction();
 
   // Use fast path if:
@@ -35,7 +35,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
   } else {
     // a. If IsCallable(mapfn) is false, throw a TypeError exception.
     if (!Is<Callable>(mapfn)) deferred {
-        ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfn);
+        ThrowCalledNonCallable(mapfn);
       }
     // b. Let mapping be true.
     mapping = true;
@@ -78,7 +78,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       // done to true and a target array which somehow never ran out of
       // memory, e.g. a proxy that discarded the values. Ignoring this case
       // just means we would repeatedly call CreateDataProperty with index =
-      // 2^53
+      // 2^53.
       dcheck(k < kMaxSafeInteger);
 
       // ii. Let Pk be ! ToString(k).
@@ -149,8 +149,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       const capacity: intptr = Convert<intptr>(len);
       const map: Map = GetFastPackedSmiElementsJSArrayMap();
       a = AllocateJSArray(
-          ElementsKind::PACKED_SMI_ELEMENTS, map, capacity, smiLen,
-          AllocationFlag::kAllowLargeObjectAllocation);
+          ElementsKind::PACKED_SMI_ELEMENTS, map, capacity, smiLen);
     } label CreateWithConstructor {
       typeswitch (c) {
         case (c: Constructor): {

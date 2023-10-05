@@ -33,12 +33,12 @@ class V8_EXPORT_PRIVATE StringsStorage {
   // Returns a formatted string, de-duplicated via the storage.
   PRINTF_FORMAT(2, 3) const char* GetFormatted(const char* format, ...);
   // Returns a stored string resulting from name, or "<symbol>" for a symbol.
-  const char* GetName(Name name);
+  const char* GetName(Tagged<Name> name);
   // Returns the string representation of the int from the store.
   const char* GetName(int index);
   // Appends string resulting from name to prefix, then returns the stored
   // result.
-  const char* GetConsName(const char* prefix, Name name);
+  const char* GetConsName(const char* prefix, Tagged<Name> name);
   // Reduces the refcount of the given string, freeing it if no other
   // references are made to it. Returns true if the string was successfully
   // unref'd, or false if the string was not present in the table.
@@ -61,7 +61,7 @@ class V8_EXPORT_PRIVATE StringsStorage {
   base::CustomMatcherHashMap::Entry* GetEntry(const char* str, int len);
   PRINTF_FORMAT(2, 0)
   const char* GetVFormatted(const char* format, va_list args);
-  const char* GetSymbol(Symbol sym);
+  const char* GetSymbol(Tagged<Symbol> sym);
 
   base::CustomMatcherHashMap names_;
   base::Mutex mutex_;

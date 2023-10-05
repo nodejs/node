@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_TEMPLATES_H_
 #define V8_OBJECTS_TEMPLATES_H_
 
+#include "src/handles/handles.h"
 #include "src/objects/struct.h"
 #include "torque-generated/bit-fields.h"
 
@@ -22,8 +23,6 @@ namespace internal {
 
 class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
   // While we could grow the slow cache until we run out of memory, we put
@@ -40,6 +39,9 @@ class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
 
   inline bool should_cache() const;
   inline bool is_cached() const;
+
+  inline bool TryGetIsolate(Isolate** isolate) const;
+  inline Isolate* GetIsolateChecked() const;
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -64,7 +66,7 @@ class FunctionTemplateInfo
                                                  TemplateInfo> {
  public:
 #define DECL_RARE_ACCESSORS(Name, CamelName, Type)                           \
-  DECL_GETTER(Get##CamelName, Type)                                          \
+  DECL_GETTER(Get##CamelName, Tagged<Type>)                                  \
   static inline void Set##CamelName(                                         \
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info, \
       Handle<Type> Name);
@@ -135,9 +137,6 @@ class FunctionTemplateInfo
   DECL_INT16_ACCESSORS(allowed_receiver_instance_type_range_end)
   // End flag bits ---------------------
 
-  // Dispatched behavior.
-  DECL_PRINTER(FunctionTemplateInfo)
-
   inline int InstanceType() const;
   inline void SetInstanceType(int instance_type);
 
@@ -154,22 +153,22 @@ class FunctionTemplateInfo
   }
 
   // Returns parent function template or a null FunctionTemplateInfo.
-  inline FunctionTemplateInfo GetParent(Isolate* isolate);
+  inline Tagged<FunctionTemplateInfo> GetParent(Isolate* isolate);
   // Returns true if |object| is an instance of this function template.
-  inline bool IsTemplateFor(JSObject object);
-  bool IsTemplateFor(Map map) const;
+  inline bool IsTemplateFor(Tagged<JSObject> object) const;
+  bool IsTemplateFor(Tagged<Map> map) const;
   // Returns true if |object| is an API object and is constructed by this
   // particular function template (skips walking up the chain of inheriting
   // functions that is done by IsTemplateFor).
-  bool IsLeafTemplateForApiObject(Object object) const;
+  bool IsLeafTemplateForApiObject(Tagged<Object> object) const;
   inline bool instantiated();
 
-  bool BreakAtEntry();
+  bool BreakAtEntry(Isolate* isolate);
   bool HasInstanceType();
 
   // Helper function for cached accessors.
-  static base::Optional<Name> TryGetCachedPropertyName(Isolate* isolate,
-                                                       Object getter);
+  static base::Optional<Tagged<Name>> TryGetCachedPropertyName(
+      Isolate* isolate, Tagged<Object> getter);
   // Fast API overloads.
   int GetCFunctionsCount() const;
   Address GetCFunction(int index) const;
@@ -185,11 +184,15 @@ class FunctionTemplateInfo
   using BodyDescriptor = StructBodyDescriptor;
 
  private:
+  // For ease of use of the BITFIELD macro.
+  inline int32_t relaxed_flag() const;
+  inline void set_relaxed_flag(int32_t flags);
+
   static constexpr int kNoJSApiObjectType = 0;
-  static inline FunctionTemplateRareData EnsureFunctionTemplateRareData(
+  static inline Tagged<FunctionTemplateRareData> EnsureFunctionTemplateRareData(
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
 
-  static FunctionTemplateRareData AllocateFunctionTemplateRareData(
+  static Tagged<FunctionTemplateRareData> AllocateFunctionTemplateRareData(
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
 
   TQ_OBJECT_CONSTRUCTORS(FunctionTemplateInfo)
@@ -199,16 +202,15 @@ class ObjectTemplateInfo
     : public TorqueGeneratedObjectTemplateInfo<ObjectTemplateInfo,
                                                TemplateInfo> {
  public:
+  NEVER_READ_ONLY_SPACE
+
   DECL_INT_ACCESSORS(embedder_field_count)
   DECL_BOOLEAN_ACCESSORS(immutable_proto)
   DECL_BOOLEAN_ACCESSORS(code_like)
 
-  // Dispatched behavior.
-  DECL_PRINTER(ObjectTemplateInfo)
-
   // Starting from given object template's constructor walk up the inheritance
   // chain till a function template that has an instance template is found.
-  inline ObjectTemplateInfo GetParent(Isolate* isolate);
+  inline Tagged<ObjectTemplateInfo> GetParent(Isolate* isolate);
 
   using BodyDescriptor = StructBodyDescriptor;
 

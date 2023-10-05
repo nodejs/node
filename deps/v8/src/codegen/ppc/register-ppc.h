@@ -136,6 +136,13 @@ ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
+
 #define DEFINE_REGISTER(R) \
   constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DEFINE_REGISTER)
@@ -151,6 +158,12 @@ constexpr Register kPtrComprCageBaseRegister = r27;  // callee save
 #else
 constexpr Register kPtrComprCageBaseRegister = no_reg;
 #endif
+
+// PPC64 calling convention
+constexpr Register arg_reg_1 = r3;
+constexpr Register arg_reg_2 = r4;
+constexpr Register arg_reg_3 = r5;
+constexpr Register arg_reg_4 = r6;
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {

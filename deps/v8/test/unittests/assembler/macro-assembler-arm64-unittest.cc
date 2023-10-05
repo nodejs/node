@@ -103,8 +103,9 @@ TEST_F(MacroAssemblerTest, CompareAndBranch) {
         Label start, lab;
         __ Bind(&start);
         __ CompareAndBranch(x0, Immediate(imm), cond, &lab);
-        if (imm == 0 && ((cond == eq) || (cond == ne) || (cond == hi) ||
-                         (cond == ls))) {  // One instruction generated
+        if (imm == 0 &&
+            ((cond == eq) || (cond == ne) || (cond == hi) || (cond == ls) ||
+             (cond == lt) || (cond == ge))) {  // One instruction generated
           ASSERT_EQ(kInstrSize, __ SizeOfCodeGeneratedSince(&start));
         } else {  // Two instructions generated
           ASSERT_EQ(static_cast<uint8_t>(2 * kInstrSize),
@@ -215,22 +216,22 @@ TEST_P(MacroAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
       __ Ret();
 
       CodeDesc desc;
-      masm.GetCode(nullptr, &desc);
+      masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
       if (v8_flags.print_code) {
         Handle<Code> code =
             Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING)
                 .Build();
         StdoutStream os;
-        code->Print(os);
+        Print(*code, os);
       }
     }
 
     // We need an isolate here to execute in the simulator.
-    auto f = GeneratedCode<void, byte**, byte*>::FromBuffer(isolate(),
-                                                            buffer->start());
+    auto f = GeneratedCode<void, uint8_t**, uint8_t*>::FromBuffer(
+        isolate(), buffer->start());
 
-    byte* object = new byte[offset];
-    byte* result[] = {nullptr, nullptr};
+    uint8_t* object = new uint8_t[offset];
+    uint8_t* result[] = {nullptr, nullptr};
 
     f.Call(result, object);
 

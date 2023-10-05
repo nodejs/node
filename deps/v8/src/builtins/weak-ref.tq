@@ -6,16 +6,15 @@
 
 namespace runtime {
 
-extern runtime JSWeakRefAddToKeptObjects(implicit context: Context)(
-    JSReceiver | Symbol): void;
+extern runtime JSWeakRefAddToKeptObjects(
+    implicit context: Context)(JSReceiver|Symbol): void;
 
 }  // namespace runtime
 
 namespace weakref {
 
-// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-weak-ref-target
-transitioning javascript builtin
-WeakRefConstructor(
+// https://tc39.es/ecma262/#sec-weak-ref-target
+transitioning javascript builtin WeakRefConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(weakTarget: JSAny): JSWeakRef {
   // 1. If NewTarget is undefined, throw a TypeError exception.
@@ -40,8 +39,8 @@ WeakRefConstructor(
   return weakRef;
 }
 
-transitioning javascript builtin
-WeakRefDeref(js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+transitioning javascript builtin WeakRefDeref(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   // 1. Let weakRef be the this value.
   // 2. Perform ? RequireInternalSlot(weakRef, [[WeakRefTarget]]).
   const weakRef = Cast<JSWeakRef>(receiver) otherwise

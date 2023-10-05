@@ -7,7 +7,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function TestPassiveDataSegment() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   builder.addPassiveDataSegment([0, 1, 2]);
   builder.addPassiveDataSegment([3, 4]);
 

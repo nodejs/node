@@ -30,6 +30,8 @@ import os
 import re
 import shlex
 
+from pathlib import Path
+
 from testrunner.outproc import base as outproc
 from testrunner.local import command
 from testrunner.local import statusfile
@@ -60,9 +62,11 @@ MODULE_FROM_RESOURCES_PATTERN = re.compile(
 # Pattern to detect files to push on Android for statements like:
 # import "path/to/file.js"
 # import("module.mjs").catch()...
+# Require the matched path in one line. Note this might include some
+# false matches, which is safe, since files are tested for existence.
 MODULE_IMPORT_RESOURCES_PATTERN = re.compile(
-    r"import\s*\(?['\"]([^'\"]+)['\"]",
-    re.MULTILINE | re.DOTALL)
+    r"import\s*\(?['\"]([^'\"\n]+)['\"]",
+    re.MULTILINE)
 # Pattern to detect files to push on Android for expressions like:
 # shadowRealm.importValue("path/to/file.js", "obj")
 SHADOWREALM_IMPORTVALUE_RESOURCES_PATTERN = re.compile(
@@ -80,14 +84,23 @@ def read_file(file):
 class TestCase(object):
 
   def __init__(self, suite, path, name):
-    self.suite = suite        # TestSuite object
+    self.suite = suite
 
-    self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
-    self.name = name          # string that identifies test in the status file
-    self.subtest_id = None    # string that identifies subtests
+    # Path (pathlib) with the relative test path, e.g. 'test-api/foo'.
+    self.path = Path(path)
 
-    self.variant = None       # name of the used testing variant
-    self.variant_flags = []   # list of strings, flags specific to this test
+    # Sting with a posix path to identify test in the status file and
+    # at the command line.
+    self.name = name
+
+    # String that identifies subtests.
+    self.subtest_id = None
+
+    # Name of the used testing variant.
+    self.variant = None
+
+    # List of strings, flags specific to this test.
+    self.variant_flags = []
 
     # Fields used by the test processors.
     self.origin = None # Test that this test is subtest of.
@@ -314,15 +327,19 @@ class TestCase(object):
   def only_standard_variant(self):
     return statusfile.NO_VARIANTS in self._statusfile_outcomes
 
+  @property
+  def shell(self):
+    return self.get_shell()
+
+  def skip_rdb(self, result):
+    return False
+
   def get_command(self, ctx):
     params = self._get_cmd_params()
     env = self._get_cmd_env()
-    shell = self.get_shell()
-    if utils.IsWindows():
-      shell += '.exe'
     shell_flags = self._get_shell_flags()
     timeout = self._get_timeout(params)
-    return self._create_cmd(ctx, shell, shell_flags + params, env, timeout)
+    return self._create_cmd(ctx, shell_flags + params, env, timeout)
 
   def _get_cmd_params(self):
     """Gets all command parameters and combines them in the following order:
@@ -412,13 +429,22 @@ class TestCase(object):
   def get_shell(self):
     raise NotImplementedError()
 
-  def _get_suffix(self):
-    return '.js'
+  def path_and_suffix(self, suffix):
+    return self.path.with_name(self.path.name + suffix)
 
-  def _create_cmd(self, ctx, shell, params, env, timeout):
+  @property
+  def path_js(self):
+    return self.path_and_suffix('.js')
+
+  @property
+  def path_mjs(self):
+    return self.path_and_suffix('.mjs')
+
+  def _create_cmd(self, ctx, params, env, timeout):
     return ctx.command(
         cmd_prefix=self.test_config.command_prefix,
-        shell=os.path.abspath(os.path.join(self.test_config.shell_dir, shell)),
+        shell=ctx.platform_shell(self.get_shell(), params,
+                                 self.test_config.shell_dir),
         args=params,
         env=env,
         timeout=timeout,
@@ -494,10 +520,9 @@ class TestCase(object):
     source = read_file(file)
     result = []
     def add_path(path):
-      result.append(os.path.abspath(path.replace('/', os.path.sep)))
+      result.append(Path(path).resolve())
     def add_import_path(import_path):
-      add_path(os.path.normpath(
-        os.path.join(os.path.dirname(file), import_path)))
+      add_path(file.parent / import_path)
     def strip_test262_frontmatter(input):
       return TEST262_FRONTMATTER_PATTERN.sub('', input)
     for match in RESOURCES_PATTERN.finditer(source):
@@ -536,7 +561,7 @@ class TestCase(object):
       for resource in self._get_resources_for_file(next_resource):
         # Only add files that exist on disc. The pattens we check for give some
         # false positives otherwise.
-        if resource not in result and os.path.exists(resource):
+        if resource not in result and resource.exists():
           to_check.append(resource)
     return sorted(list(result))
 

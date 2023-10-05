@@ -247,11 +247,10 @@ Reduction DeadCodeElimination::ReduceEffectPhi(Node* node) {
       // phi nodes.
       Node* control = NodeProperties::GetControlInput(merge, i);
       Node* throw_node = graph_->NewNode(common_->Throw(), effect, control);
-      NodeProperties::MergeControlToEnd(graph_, common_, throw_node);
+      MergeControlToEnd(graph_, common_, throw_node);
       NodeProperties::ReplaceEffectInput(node, dead_, i);
       NodeProperties::ReplaceControlInput(merge, dead_, i);
       Revisit(merge);
-      Revisit(graph_->end());
       reduction = Changed(node);
     }
   }
@@ -356,7 +355,7 @@ Reduction DeadCodeElimination::ReduceBranchOrSwitch(Node* node) {
     // control chain, they might still appear in reachable code. Remove them by
     // always choosing the first projection.
     size_t const projection_cnt = node->op()->ControlOutputCount();
-    Node** projections = zone_->NewArray<Node*>(projection_cnt);
+    Node** projections = zone_->AllocateArray<Node*>(projection_cnt);
     NodeProperties::CollectControlProjections(node, projections,
                                               projection_cnt);
     Replace(projections[0], NodeProperties::GetControlInput(node));

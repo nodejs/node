@@ -269,6 +269,13 @@ ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
+
 // Stack frame alignment and padding.
 constexpr int ArgumentPaddingSlots(int argument_count) {
   // Stack frames are aligned to 16 bytes.
@@ -524,6 +531,12 @@ ALIAS_REGISTER(VRegister, fp_scratch1, d30);
 ALIAS_REGISTER(VRegister, fp_scratch2, d31);
 
 #undef ALIAS_REGISTER
+
+// Arm64 calling convention
+constexpr Register arg_reg_1 = x0;
+constexpr Register arg_reg_2 = x1;
+constexpr Register arg_reg_3 = x2;
+constexpr Register arg_reg_4 = x3;
 
 // AreAliased returns true if any of the named registers overlap. Arguments set
 // to NoReg are ignored. The system stack pointer may be specified.

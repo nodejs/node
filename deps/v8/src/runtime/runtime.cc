@@ -231,6 +231,21 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
   }
 }
 
+bool Runtime::SwitchToTheCentralStackForTarget(FunctionId id) {
+  // Runtime functions called from Wasm directly or
+  // from Wasm runtime stubs should execute on the central stack.
+  switch (id) {
+#if V8_ENABLE_WEBASSEMBLY
+#define WASM_CASE(Name, ...) case Runtime::k##Name:
+    FOR_EACH_INTRINSIC_WASM(WASM_CASE, WASM_CASE)
+#undef WASM_CASE
+    return true;
+#endif  // V8_ENABLE_WEBASSEMBLY
+    default:
+      return false;
+  }
+}
+
 const Runtime::Function* Runtime::FunctionForName(const unsigned char* name,
                                                   int length) {
   base::CallOnce(&initialize_function_name_map_once,

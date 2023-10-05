@@ -65,11 +65,12 @@ static_assert(RegisterConfiguration::kMaxFPRegisters >=
 
 static int get_num_simd128_registers() {
   return
-#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
       Simd128Register::kNumRegisters;
 #else
       0;
-#endif  // V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
+#endif  // V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 ||
+        // V8_TARGET_ARCH_PPC64
 }
 
 static int get_num_simd256_registers() { return 0; }

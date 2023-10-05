@@ -10,12 +10,49 @@ namespace v8::internal::wasm {
 
 const char* WellKnownImportName(WellKnownImport wki) {
   switch (wki) {
+    // Generic:
     case WellKnownImport::kUninstantiated:
       return "uninstantiated";
     case WellKnownImport::kGeneric:
       return "generic";
+
+    // Functions:
+    case WellKnownImport::kDoubleToString:
+      return "DoubleToString";
+    case WellKnownImport::kIntToString:
+      return "IntToString";
+    case WellKnownImport::kParseFloat:
+      return "ParseFloat";
+    case WellKnownImport::kStringCharCodeAt:
+      return "String.charCodeAt";
+    case WellKnownImport::kStringCodePointAt:
+      return "String.codePointAt";
+    case WellKnownImport::kStringCompare:
+      return "String.compare";
+    case WellKnownImport::kStringConcat:
+      return "String.concat";
+    case WellKnownImport::kStringEquals:
+      return "String.equals";
+    case WellKnownImport::kStringFromCharCode:
+      return "String.fromCharCode";
+    case WellKnownImport::kStringFromCodePoint:
+      return "String.fromCodePoint";
+    case WellKnownImport::kStringFromWtf16Array:
+      return "String.fromWtf16Array";
+    case WellKnownImport::kStringFromWtf8Array:
+      return "String.fromWtf8Array";
+    case WellKnownImport::kStringIndexOf:
+      return "String.indexOf";
+    case WellKnownImport::kStringLength:
+      return "String.length";
+    case WellKnownImport::kStringSubstring:
+      return "String.substring";
+    case WellKnownImport::kStringToLocaleLowerCaseStringref:
+      return "String.toLocaleLowerCase";
     case WellKnownImport::kStringToLowerCaseStringref:
       return "String.toLowerCase";
+    case WellKnownImport::kStringToWtf16Array:
+      return "String.toWtf16Array";
   }
 }
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-sharedarraybuffer
+// Flags: --allow-natives-syntax
 
 'use strict';
 
@@ -155,7 +155,9 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
   var waitMs = 100;
   var startTime = new Date();
-  assertEquals(2, WasmI32AtomicWait(memory, 0, 0, 0, waitMs*1000000));
+  assertEquals(
+      kAtomicWaitTimedOut,
+      WasmI32AtomicWait(memory, 0, 0, 0, waitMs * 1000000));
   var endTime = new Date();
   assertTrue(endTime - startTime >= waitMs);
 })();
@@ -165,7 +167,9 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
   var waitMs = 100;
   var startTime = new Date();
-  assertEquals(2, WasmI64AtomicWait(memory, 0, 0, 0, 0, waitMs*1000000));
+  assertEquals(
+      kAtomicWaitTimedOut,
+      WasmI64AtomicWait(memory, 0, 0, 0, 0, waitMs * 1000000));
   var endTime = new Date();
   assertTrue(endTime - startTime >= waitMs);
 })();
@@ -173,28 +177,28 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
 (function TestI32WaitNotEqual() {
   if (!%IsAtomicsWaitAllowed()) return;
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
-  assertEquals(1, WasmI32AtomicWait(memory, 0, 0, 42, -1));
+  assertEquals(kAtomicWaitNotEqual, WasmI32AtomicWait(memory, 0, 0, 42, -1));
 
-  assertEquals(2, WasmI32AtomicWait(memory, 0, 0, 0, 0));
+  assertEquals(kAtomicWaitTimedOut, WasmI32AtomicWait(memory, 0, 0, 0, 0));
 
   let i32a = new Int32Array(memory.buffer);
   i32a[0] = 1;
-  assertEquals(1, WasmI32AtomicWait(memory, 0, 0, 0, -1));
-  assertEquals(2, WasmI32AtomicWait(memory, 0, 0, 1, 0));
+  assertEquals(kAtomicWaitNotEqual, WasmI32AtomicWait(memory, 0, 0, 0, -1));
+  assertEquals(kAtomicWaitTimedOut, WasmI32AtomicWait(memory, 0, 0, 1, 0));
 })();
 
 (function TestI64WaitNotEqual() {
   if (!%IsAtomicsWaitAllowed()) return;
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
-  assertEquals(1, WasmI64AtomicWait(memory, 0, 0, 42, 0, -1));
+  assertEquals(kAtomicWaitNotEqual, WasmI64AtomicWait(memory, 0, 0, 42, 0, -1));
 
-  assertEquals(2, WasmI64AtomicWait(memory, 0, 0, 0, 0, 0));
+  assertEquals(kAtomicWaitTimedOut, WasmI64AtomicWait(memory, 0, 0, 0, 0, 0));
 
   let i32a = new Int32Array(memory.buffer);
   i32a[0] = 1;
   i32a[1] = 2;
-  assertEquals(1, WasmI64AtomicWait(memory, 0, 0, 0, 0, -1));
-  assertEquals(2, WasmI64AtomicWait(memory, 0, 0, 1, 2, 0));
+  assertEquals(kAtomicWaitNotEqual, WasmI64AtomicWait(memory, 0, 0, 0, 0, -1));
+  assertEquals(kAtomicWaitTimedOut, WasmI64AtomicWait(memory, 0, 0, 1, 2, 0));
 })();
 
 (function TestWakeCounts() {
@@ -327,21 +331,21 @@ if (this.Worker) {
   wasmWakeCheck(8, numWorkers + 1, workers, "ok");
   wasmWakeCheck(16, numWorkers - 1, workers, "ok");
 
-  jsWakeCheck(24, numWorkers, workers, 0);
-  jsWakeCheck(32, numWorkers + 1, workers, 0);
-  jsWakeCheck(40, numWorkers - 1, workers, 0);
+  jsWakeCheck(24, numWorkers, workers, kAtomicWaitOk);
+  jsWakeCheck(32, numWorkers + 1, workers, kAtomicWaitOk);
+  jsWakeCheck(40, numWorkers - 1, workers, kAtomicWaitOk);
 
-  wasmWakeCheck(48, numWorkers, workers, 0);
-  wasmWakeCheck(56, numWorkers + 1, workers, 0);
-  wasmWakeCheck(64, numWorkers - 1, workers, 0);
+  wasmWakeCheck(48, numWorkers, workers, kAtomicWaitOk);
+  wasmWakeCheck(56, numWorkers + 1, workers, kAtomicWaitOk);
+  wasmWakeCheck(64, numWorkers - 1, workers, kAtomicWaitOk);
 
-  jsWakeCheck(72, numWorkers, workers, 0);
-  jsWakeCheck(80, numWorkers + 1, workers, 0);
-  jsWakeCheck(88, numWorkers - 1, workers, 0);
+  jsWakeCheck(72, numWorkers, workers, kAtomicWaitOk);
+  jsWakeCheck(80, numWorkers + 1, workers, kAtomicWaitOk);
+  jsWakeCheck(88, numWorkers - 1, workers, kAtomicWaitOk);
 
-  wasmWakeCheck(96, numWorkers, workers, 0);
-  wasmWakeCheck(104, numWorkers + 1, workers, 0);
-  wasmWakeCheck(112, numWorkers - 1, workers, 0);
+  wasmWakeCheck(96, numWorkers, workers, kAtomicWaitOk);
+  wasmWakeCheck(104, numWorkers + 1, workers, kAtomicWaitOk);
+  wasmWakeCheck(112, numWorkers - 1, workers, kAtomicWaitOk);
 
   for (let id = 0; id < numWorkers; id++) {
     workers[id].terminate();

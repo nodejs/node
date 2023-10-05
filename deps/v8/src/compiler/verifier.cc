@@ -1259,13 +1259,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kNumberIsFloat64Hole:
-      CheckValueInputIs(node, 0, Type::NumberOrHole());
+      CheckValueInputIs(node, 0, Type::NumberOrTheHole());
       CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kNumberIsFinite:
-      CheckValueInputIs(node, 0, Type::Number());
-      CheckTypeIs(node, Type::Boolean());
-      break;
     case IrOpcode::kNumberIsMinusZero:
     case IrOpcode::kNumberIsNaN:
       CheckValueInputIs(node, 0, Type::Number());
@@ -1585,7 +1582,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Number());
       break;
     case IrOpcode::kCheckFloat64Hole:
-      CheckValueInputIs(node, 0, Type::NumberOrHole());
+      CheckValueInputIs(node, 0, Type::NumberOrTheHole());
       CheckTypeIs(node, Type::NumberOrUndefined());
       break;
     case IrOpcode::kCheckNotTaggedHole:
@@ -1682,14 +1679,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kTypeGuard:
       CheckTypeIs(node, TypeGuardTypeOf(node->op()));
       break;
-    case IrOpcode::kFoldConstant:
-      if (typing == TYPED) {
-        Type type = NodeProperties::GetType(node);
-        CHECK(type.IsSingleton());
-        CHECK(type.Equals(NodeProperties::GetType(node->InputAt(0))));
-        CHECK(type.Equals(NodeProperties::GetType(node->InputAt(1))));
-      }
-      break;
     case IrOpcode::kDateNow:
       CHECK_EQ(0, value_count);
       CheckTypeIs(node, Type::Number());
@@ -1717,7 +1706,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());  // callee
       break;
     case IrOpcode::kWasmTypeCheck:
+    case IrOpcode::kWasmTypeCheckAbstract:
     case IrOpcode::kWasmTypeCast:
+    case IrOpcode::kWasmTypeCastAbstract:
     case IrOpcode::kRttCanon:
     case IrOpcode::kNull:
     case IrOpcode::kIsNull:
@@ -1733,7 +1724,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWasmArrayInitializeLength:
     case IrOpcode::kStringAsWtf16:
     case IrOpcode::kStringPrepareForGetCodeunit:
-      // TODO(manoskouk): What are the constraints here?
+      // TODO(7748): What are the constraints here?
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1746,6 +1737,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kLoadTrapOnNull:
     case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kStore:
+    case IrOpcode::kStorePair:
     case IrOpcode::kStackSlot:
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Or:

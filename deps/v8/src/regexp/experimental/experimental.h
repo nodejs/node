@@ -41,7 +41,7 @@ class ExperimentalRegExp final : public AllStatic {
       int index, Handle<RegExpMatchInfo> last_match_info,
       RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
   static int32_t ExecRaw(Isolate* isolate, RegExp::CallOrigin call_origin,
-                         JSRegExp regexp, String subject,
+                         Tagged<JSRegExp> regexp, Tagged<String> subject,
                          int32_t* output_registers,
                          int32_t output_register_count, int32_t subject_index);
 

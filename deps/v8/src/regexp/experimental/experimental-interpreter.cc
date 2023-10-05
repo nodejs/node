@@ -56,32 +56,32 @@ bool SatisfiesAssertion(RegExpAssertion::Type type,
 }
 
 base::Vector<RegExpInstruction> ToInstructionVector(
-    ByteArray raw_bytes, const DisallowGarbageCollection& no_gc) {
+    Tagged<ByteArray> raw_bytes, const DisallowGarbageCollection& no_gc) {
   RegExpInstruction* inst_begin =
-      reinterpret_cast<RegExpInstruction*>(raw_bytes.GetDataStartAddress());
-  int inst_num = raw_bytes.length() / sizeof(RegExpInstruction);
-  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes.length());
+      reinterpret_cast<RegExpInstruction*>(raw_bytes->GetDataStartAddress());
+  int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
+  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes->length());
   return base::Vector<RegExpInstruction>(inst_begin, inst_num);
 }
 
 template <class Character>
 base::Vector<const Character> ToCharacterVector(
-    String str, const DisallowGarbageCollection& no_gc);
+    Tagged<String> str, const DisallowGarbageCollection& no_gc);
 
 template <>
 base::Vector<const uint8_t> ToCharacterVector<uint8_t>(
-    String str, const DisallowGarbageCollection& no_gc) {
-  DCHECK(str.IsFlat());
-  String::FlatContent content = str.GetFlatContent(no_gc);
+    Tagged<String> str, const DisallowGarbageCollection& no_gc) {
+  DCHECK(str->IsFlat());
+  String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsOneByte());
   return content.ToOneByteVector();
 }
 
 template <>
 base::Vector<const base::uc16> ToCharacterVector<base::uc16>(
-    String str, const DisallowGarbageCollection& no_gc) {
-  DCHECK(str.IsFlat());
-  String::FlatContent content = str.GetFlatContent(no_gc);
+    Tagged<String> str, const DisallowGarbageCollection& no_gc) {
+  DCHECK(str->IsFlat());
+  String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsTwoByte());
   return content.ToUC16Vector();
 }
@@ -137,8 +137,8 @@ class NfaInterpreter {
   // ACCEPTing thread with highest priority.
  public:
   NfaInterpreter(Isolate* isolate, RegExp::CallOrigin call_origin,
-                 ByteArray bytecode, int register_count_per_match, String input,
-                 int32_t input_index, Zone* zone)
+                 Tagged<ByteArray> bytecode, int register_count_per_match,
+                 Tagged<String> input, int32_t input_index, Zone* zone)
       : isolate_(isolate),
         call_origin_(call_origin),
         bytecode_object_(bytecode),
@@ -147,8 +147,8 @@ class NfaInterpreter {
         input_object_(input),
         input_(ToCharacterVector<Character>(input, no_gc_)),
         input_index_(input_index),
-        pc_last_input_index_(zone->NewArray<int>(bytecode.length()),
-                             bytecode.length()),
+        pc_last_input_index_(zone->AllocateArray<int>(bytecode->length()),
+                             bytecode->length()),
         active_threads_(0, zone),
         blocked_threads_(0, zone),
         register_array_allocator_(zone),
@@ -256,12 +256,12 @@ class NfaInterpreter {
         const bool was_one_byte =
             String::IsOneByteRepresentationUnderneath(input_object_);
 
-        Object result;
+        Tagged<Object> result;
         {
           AllowGarbageCollection yes_gc;
           result = isolate_->stack_guard()->HandleInterrupts();
         }
-        if (result.IsException(isolate_)) {
+        if (IsException(result, isolate_)) {
           return RegExp::kInternalRegExpException;
         }
 
@@ -557,19 +557,20 @@ class NfaInterpreter {
 }  // namespace
 
 int ExperimentalRegExpInterpreter::FindMatches(
-    Isolate* isolate, RegExp::CallOrigin call_origin, ByteArray bytecode,
-    int register_count_per_match, String input, int start_index,
-    int32_t* output_registers, int output_register_count, Zone* zone) {
-  DCHECK(input.IsFlat());
+    Isolate* isolate, RegExp::CallOrigin call_origin,
+    Tagged<ByteArray> bytecode, int register_count_per_match,
+    Tagged<String> input, int start_index, int32_t* output_registers,
+    int output_register_count, Zone* zone) {
+  DCHECK(input->IsFlat());
   DisallowGarbageCollection no_gc;
 
-  if (input.GetFlatContent(no_gc).IsOneByte()) {
+  if (input->GetFlatContent(no_gc).IsOneByte()) {
     NfaInterpreter<uint8_t> interpreter(isolate, call_origin, bytecode,
                                         register_count_per_match, input,
                                         start_index, zone);
     return interpreter.FindMatches(output_registers, output_register_count);
   } else {
-    DCHECK(input.GetFlatContent(no_gc).IsTwoByte());
+    DCHECK(input->GetFlatContent(no_gc).IsTwoByte());
     NfaInterpreter<base::uc16> interpreter(isolate, call_origin, bytecode,
                                            register_count_per_match, input,
                                            start_index, zone);

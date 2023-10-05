@@ -134,7 +134,7 @@ TEST(GetObjectProperties) {
   v8::Local<v8::Value> v = CompileRun("42");
   Handle<Object> o = v8::Utils::OpenHandle(*v);
   d::ObjectPropertiesResultPtr props =
-      d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+      d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kSmi);
   CHECK(props->brief == std::string("42 (0x2a)"));
   CHECK(props->type == std::string("v8::internal::Smi"));
@@ -142,7 +142,7 @@ TEST(GetObjectProperties) {
 
   v = CompileRun("[\"a\", \"bc\"]");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
   CHECK(props->type == std::string("v8::internal::JSArray"));
   CHECK_EQ(props->num_properties, 4);
@@ -155,7 +155,7 @@ TEST(GetObjectProperties) {
 
   // We need to supply some valid address for decompression before reading the
   // elements from the JSArray.
-  heap_addresses.any_heap_pointer = o->ptr();
+  heap_addresses.any_heap_pointer = (*o).ptr();
 
   i::Tagged_t properties_or_hash =
       *reinterpret_cast<i::Tagged_t*>(props->properties[1]->address);
@@ -293,7 +293,7 @@ TEST(GetObjectProperties) {
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
     alphabet.substr(3,20) + alphabet.toUpperCase().substr(5,15) + "7")");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST7\""));
 
   // Cause a failure when reading the "second" pointer within the top-level
@@ -302,33 +302,38 @@ TEST(GetObjectProperties) {
     CheckProp(*props->properties[4], "v8::internal::String", "second");
     uintptr_t second_address = props->properties[4]->address;
     MemoryFailureRegion failure(second_address, second_address + 4);
-    props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+    props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
     CHECK(Contains(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST...\""));
   }
 
   // Build a very long string.
   v = CompileRun("'a'.repeat(1000)");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"" + std::string(80, 'a') + "...\""));
 
   // GetObjectProperties can read cacheable external strings.
+  StringResource* string_resource = new StringResource(true);
   auto external_string =
-      v8::String::NewExternalTwoByte(isolate, new StringResource(true));
+      v8::String::NewExternalTwoByte(isolate, string_resource);
   o = v8::Utils::OpenHandle(*external_string.ToLocalChecked());
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"abcde\""));
+  CheckProp(*props->properties[5], "char16_t", "raw_characters",
+            d::PropertyKind::kArrayOfKnownSize, string_resource->length());
+  CHECK_EQ(props->properties[5]->address,
+           reinterpret_cast<uintptr_t>(string_resource->data()));
   // GetObjectProperties cannot read uncacheable external strings.
   external_string =
       v8::String::NewExternalTwoByte(isolate, new StringResource(false));
   o = v8::Utils::OpenHandle(*external_string.ToLocalChecked());
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK_EQ(std::string(props->brief).find("\""), std::string::npos);
 
   // Build a basic JS object and get its properties.
   v = CompileRun("({a: 1, b: 2})");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
 
   // Objects constructed from literals get their properties placed inline, so
   // the GetObjectProperties response should include an array.
@@ -379,7 +384,7 @@ TEST(GetObjectProperties) {
   // exercise bitfield functionality.
   v = CompileRun("(function () {})");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   props = d::GetObjectProperties(
       ReadProp<i::Tagged_t>(*props, "shared_function_info"), &ReadMemory,
       heap_addresses);
@@ -436,16 +441,16 @@ static void FrameIterationCheck(
       auto js_function = js_frame->function();
       CheckProp(*props->properties[0], "v8::internal::JSFunction",
                 "currently_executing_jsfunction", js_function.ptr());
-      auto shared_function_info = js_function.shared();
-      auto script = i::Script::cast(shared_function_info.script());
+      auto shared_function_info = js_function->shared();
+      auto script = i::Script::cast(shared_function_info->script());
       CheckProp(*props->properties[1], "v8::internal::Object", "script_name",
-                static_cast<i::Tagged_t>(script.name().ptr()));
+                static_cast<i::Tagged_t>(script->name().ptr()));
       CheckProp(*props->properties[2], "v8::internal::Object", "script_source",
-                static_cast<i::Tagged_t>(script.source().ptr()));
+                static_cast<i::Tagged_t>(script->source().ptr()));
 
-      auto scope_info = shared_function_info.scope_info();
+      auto scope_info = shared_function_info->scope_info();
       CheckProp(*props->properties[3], "v8::internal::Object", "function_name",
-                static_cast<i::Tagged_t>(scope_info.FunctionName().ptr()));
+                static_cast<i::Tagged_t>(scope_info->FunctionName().ptr()));
 
       CheckProp(*props->properties[4], "", "function_character_offset");
       const d::ObjectProperty& function_character_offset =

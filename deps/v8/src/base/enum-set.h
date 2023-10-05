@@ -5,8 +5,10 @@
 #ifndef V8_BASE_ENUM_SET_H_
 #define V8_BASE_ENUM_SET_H_
 
+#include <ostream>
 #include <type_traits>
 
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 
 namespace v8 {
@@ -21,7 +23,7 @@ class EnumSet {
  public:
   constexpr EnumSet() = default;
 
-  explicit constexpr EnumSet(std::initializer_list<E> init) {
+  constexpr EnumSet(std::initializer_list<E> init) {
     T bits = 0;
     for (E e : init) bits |= Mask(e);
     bits_ = bits;
@@ -33,6 +35,12 @@ class EnumSet {
   }
   constexpr bool contains_any(EnumSet set) const {
     return (bits_ & set.bits_) != 0;
+  }
+  constexpr bool contains_only(E element) const {
+    return bits_ == Mask(element);
+  }
+  constexpr bool is_subset_of(EnumSet set) const {
+    return (bits_ & set.bits_) == bits_;
   }
   void Add(E element) { bits_ |= Mask(element); }
   void Add(EnumSet set) { bits_ |= set.bits_; }
@@ -85,6 +93,23 @@ class EnumSet {
 
   T bits_ = 0;
 };
+
+template <typename E, typename T>
+std::ostream& operator<<(std::ostream& os, EnumSet<E, T> set) {
+  os << "{";
+  bool first = true;
+  while (!set.empty()) {
+    if (!first) os << ", ";
+    first = false;
+
+    T bits = set.ToIntegral();
+    E element = static_cast<E>(bits::CountTrailingZerosNonZero(bits));
+    os << element;
+    set.Remove(element);
+  }
+  os << "}";
+  return os;
+}
 
 }  // namespace base
 }  // namespace v8

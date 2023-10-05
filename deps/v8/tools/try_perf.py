@@ -12,14 +12,15 @@ import subprocess
 import sys
 
 BOTS = {
-  '--linux32': 'v8_linux32_perf_try',
+  '--linux32': 'v8_linux_perf_try',
   '--linux64': 'v8_linux64_perf_try',
-  '--nexus5': 'v8_nexus5_perf_try',
-  '--pixel2': 'v8_pixel2_perf_try',
+  '--m1': 'v8_mac_arm64_perf_try',
+  '--nexus5': 'v8_android_arm_perf_try',
+  '--pixel4': 'v8_android_arm64_perf_try',
 }
 
 DEFAULT_BOTS = [
-  'v8_linux32_perf_try',
+  'v8_linux_perf_try',
   'v8_linux64_perf_try',
 ]
 
@@ -87,7 +88,7 @@ def main():
       print ('%s not found in our benchmark list. The respective trybot might '
             'fail, unless you run something this script isn\'t aware of. '
             'Available public benchmarks: %s' % (benchmark, PUBLIC_BENCHMARKS))
-      print('Proceed anyways? [Y/n] ', end=' ')
+      print('Proceed anyways? [Y/n] ', end=' ', flush=True)
       answer = sys.stdin.readline().strip()
       if answer != "" and answer != "Y" and answer != "y":
         return 1
@@ -99,7 +100,8 @@ def main():
   subprocess.check_output(
       'update_depot_tools', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
 
-  cmd = ['git cl try', '-B', 'luci.v8-internal.try']
+  # Trigger the perf try bots.
+  cmd = ['git cl try', '-B', 'v8-internal/try']
   cmd += ['-b %s' % bot for bot in options.bots]
   if options.revision:
     cmd.append('-r %s' % options.revision)
@@ -113,6 +115,12 @@ def main():
     cmd.append('-vv')
     print('Running %s' % ' '.join(cmd))
   subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
+
+  # Show a hint to report bugs.
+  print('To file a bug or new feature:    %s' % (
+      'https://bugs.chromium.org/p/v8/issues/entry?summary=[perf-trybots]%20%'
+      '3CIssue%3E&components=Infrastructure'
+  ))
 
 if __name__ == '__main__':  # pragma: no cover
   sys.exit(main())

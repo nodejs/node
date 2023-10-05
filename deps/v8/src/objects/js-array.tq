@@ -37,9 +37,9 @@ extern class JSArrayIterator extends JSObject {
 
 // Perform CreateArrayIterator (ES #sec-createarrayiterator).
 @export
-macro CreateArrayIterator(implicit context: NativeContext)(
-    array: JSReceiver, kind: constexpr IterationKind, nextIndex: Number):
-    JSArrayIterator {
+macro CreateArrayIterator(
+    implicit context: NativeContext)(array: JSReceiver,
+    kind: constexpr IterationKind, nextIndex: Number): JSArrayIterator {
   return new JSArrayIterator{
     map: *NativeContextSlot(ContextSlot::INITIAL_ARRAY_ITERATOR_MAP_INDEX),
     properties_or_hash: kEmptyFixedArray,
@@ -52,8 +52,9 @@ macro CreateArrayIterator(implicit context: NativeContext)(
 
 // Perform CreateArrayIterator (ES #sec-createarrayiterator).
 @export
-macro CreateArrayIterator(implicit context: NativeContext)(
-    array: JSReceiver, kind: constexpr IterationKind): JSArrayIterator {
+macro CreateArrayIterator(
+    implicit context: NativeContext)(array: JSReceiver,
+    kind: constexpr IterationKind): JSArrayIterator {
   return CreateArrayIterator(array, kind, 0);
 }
 
@@ -76,8 +77,8 @@ extern class TemplateLiteralObject extends JSArray {
 extern class JSArrayConstructor extends JSFunction
     generates 'TNode<JSFunction>';
 
-macro NewJSArray(implicit context: Context)(
-    map: Map, elements: FixedArrayBase): JSArray {
+macro NewJSArray(
+    implicit context: Context)(map: Map, elements: FixedArrayBase): JSArray {
   return new JSArray{
     map,
     properties_or_hash: kEmptyFixedArray,
@@ -95,15 +96,14 @@ macro NewJSArray(implicit context: Context)(): JSArray {
   };
 }
 
-macro NewJSArrayFilledWithZero(implicit context: Context)(length: intptr):
-    JSArray labels Slow {
+macro NewJSArrayFilledWithZero(
+    implicit context: Context)(length: intptr): JSArray labels Slow {
   if (length == 0) return NewJSArray();
   if (length > kMaxFastArrayLength) goto Slow;
 
   const map: Map = GetFastPackedSmiElementsJSArrayMap();
-  const elements: FixedArrayBase = AllocateFixedArray(
-      ElementsKind::PACKED_SMI_ELEMENTS, length,
-      AllocationFlag::kAllowLargeObjectAllocation);
+  const elements: FixedArrayBase =
+      AllocateFixedArray(ElementsKind::PACKED_SMI_ELEMENTS, length);
   FillFixedArrayWithSmiZero(
       ElementsKind::PACKED_SMI_ELEMENTS, UnsafeCast<FixedArray>(elements), 0,
       length);
@@ -137,7 +137,8 @@ transient type FastJSArrayForReadWithNoCustomIteration extends
 extern macro AllocateJSArray(
     constexpr ElementsKind, Map, intptr, Smi,
     constexpr AllocationFlag): JSArray;
-extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
+extern macro AllocateJSArray(
+    constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 extern macro AllocateJSArray(Map, FixedArrayBase, Smi): JSArray;
 
@@ -145,8 +146,8 @@ macro LoadElementNoHole<T : type extends FixedArrayBase>(
     a: JSArray, index: Smi): JSAny
     labels IfHole;
 
-LoadElementNoHole<FixedArray>(implicit context: Context)(
-    a: JSArray, index: Smi): JSAny
+LoadElementNoHole<FixedArray>(
+    implicit context: Context)(a: JSArray, index: Smi): JSAny
     labels IfHole {
   const elements: FixedArray =
       Cast<FixedArray>(a.elements) otherwise unreachable;
@@ -161,8 +162,8 @@ LoadElementNoHole<FixedArray>(implicit context: Context)(
   }
 }
 
-LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
-    a: JSArray, index: Smi): JSAny
+LoadElementNoHole<FixedDoubleArray>(
+    implicit context: Context)(a: JSArray, index: Smi): JSAny
     labels IfHole {
   const elements: FixedDoubleArray =
       Cast<FixedDoubleArray>(a.elements) otherwise unreachable;

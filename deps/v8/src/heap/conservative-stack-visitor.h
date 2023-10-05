@@ -24,17 +24,22 @@ class V8_EXPORT_PRIVATE ConservativeStackVisitor
 
   // This method finds an object header based on a `maybe_inner_ptr`. It returns
   // `kNullAddress` if the parameter does not point to (the interior of) a valid
-  // heap object, or if it points to (the interior of) some object that is
-  // already marked as live (black or grey).
-  // The GarbageCollector parameter is only used to determine which kind of
-  // heap objects we are interested in. For MARK_COMPACTOR all heap objects are
-  // considered, whereas for young generation collectors we only consider
-  // objects in the young generation.
-  static Address FindBasePtrForMarking(Address maybe_inner_ptr,
-                                       MemoryAllocator* allocator,
-                                       GarbageCollector collector);
+  // heap object. The allocator_ field is used to provide the set of valid heap
+  // pages. The collector_ field is used to determine which kind of heap objects
+  // we are interested in. For MARK_COMPACTOR all heap objects are considered,
+  // whereas for young generation collectors we only consider objects in the
+  // young generation.
+  Address FindBasePtr(Address maybe_inner_ptr) const;
+
+  static ConservativeStackVisitor ForTesting(Isolate* isolate,
+                                             GarbageCollector collector) {
+    return ConservativeStackVisitor(isolate, collector);
+  }
 
  private:
+  ConservativeStackVisitor(Isolate* isolate, GarbageCollector collector);
+
+  template <bool is_known_to_be_in_cage>
   void VisitConservativelyIfPointer(Address address);
 
   const PtrComprCageBase cage_base_;

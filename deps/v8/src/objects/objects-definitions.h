@@ -32,28 +32,29 @@ namespace internal {
 // HeapObject::Size, HeapObject::IterateBody, the typeof operator, and
 // Object::IsString.
 #define INSTANCE_TYPE_LIST_BASE(V)                       \
-  V(INTERNALIZED_STRING_TYPE)                            \
-  V(EXTERNAL_INTERNALIZED_STRING_TYPE)                   \
-  V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                   \
-  V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)          \
-  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE)          \
-  V(UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE) \
-  V(STRING_TYPE)                                         \
-  V(CONS_STRING_TYPE)                                    \
-  V(EXTERNAL_STRING_TYPE)                                \
-  V(SLICED_STRING_TYPE)                                  \
-  V(THIN_STRING_TYPE)                                    \
-  V(ONE_BYTE_STRING_TYPE)                                \
+  V(INTERNALIZED_TWO_BYTE_STRING_TYPE)                   \
+  V(EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE)          \
+  V(INTERNALIZED_ONE_BYTE_STRING_TYPE)                   \
+  V(EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE)          \
+  V(UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE) \
+  V(UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE) \
+  V(SEQ_TWO_BYTE_STRING_TYPE)                            \
+  V(CONS_TWO_BYTE_STRING_TYPE)                           \
+  V(EXTERNAL_TWO_BYTE_STRING_TYPE)                       \
+  V(SLICED_TWO_BYTE_STRING_TYPE)                         \
+  V(THIN_TWO_BYTE_STRING_TYPE)                           \
+  V(SEQ_ONE_BYTE_STRING_TYPE)                            \
   V(CONS_ONE_BYTE_STRING_TYPE)                           \
   V(EXTERNAL_ONE_BYTE_STRING_TYPE)                       \
   V(SLICED_ONE_BYTE_STRING_TYPE)                         \
-  V(UNCACHED_EXTERNAL_STRING_TYPE)                       \
+  V(THIN_ONE_BYTE_STRING_TYPE)                           \
+  V(UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE)              \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)              \
-  V(SHARED_STRING_TYPE)                                  \
-  V(SHARED_EXTERNAL_STRING_TYPE)                         \
-  V(SHARED_ONE_BYTE_STRING_TYPE)                         \
+  V(SHARED_SEQ_TWO_BYTE_STRING_TYPE)                     \
+  V(SHARED_EXTERNAL_TWO_BYTE_STRING_TYPE)                \
+  V(SHARED_SEQ_ONE_BYTE_STRING_TYPE)                     \
   V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE)                \
-  V(SHARED_UNCACHED_EXTERNAL_STRING_TYPE)                \
+  V(SHARED_UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE)       \
   V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)
 
 #define INSTANCE_TYPE_LIST(V) \
@@ -63,59 +64,69 @@ namespace internal {
 // Since string types are not consecutive, this macro is used to iterate over
 // them. The order matters for read only heap layout. The maps are placed such
 // that string types map to address ranges of maps.
-#define STRING_TYPE_LIST(V)                                                    \
-  V(STRING_TYPE, kVariableSizeSentinel, string, String)                        \
-  V(ONE_BYTE_STRING_TYPE, kVariableSizeSentinel, one_byte_string,              \
-    OneByteString)                                                             \
-  V(CONS_STRING_TYPE, ConsString::kSize, cons_string, ConsString)              \
-  V(CONS_ONE_BYTE_STRING_TYPE, ConsString::kSize, cons_one_byte_string,        \
-    ConsOneByteString)                                                         \
-  V(SLICED_STRING_TYPE, SlicedString::kSize, sliced_string, SlicedString)      \
-  V(SLICED_ONE_BYTE_STRING_TYPE, SlicedString::kSize, sliced_one_byte_string,  \
-    SlicedOneByteString)                                                       \
-  V(EXTERNAL_STRING_TYPE, ExternalTwoByteString::kSize, external_string,       \
-    ExternalString)                                                            \
-  V(EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,               \
-    external_one_byte_string, ExternalOneByteString)                           \
-  V(UNCACHED_EXTERNAL_STRING_TYPE, ExternalTwoByteString::kUncachedSize,       \
-    uncached_external_string, UncachedExternalString)                          \
-  V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                                    \
-    ExternalOneByteString::kUncachedSize, uncached_external_one_byte_string,   \
-    UncachedExternalOneByteString)                                             \
-                                                                               \
-  V(SHARED_EXTERNAL_STRING_TYPE, ExternalTwoByteString::kSize,                 \
-    shared_external_string, SharedExternalString)                              \
-  V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,        \
-    shared_external_one_byte_string, SharedExternalOneByteString)              \
-  V(SHARED_UNCACHED_EXTERNAL_STRING_TYPE,                                      \
-    ExternalTwoByteString::kUncachedSize, shared_uncached_external_string,     \
-    SharedUncachedExternalString)                                              \
-  V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                             \
-    ExternalOneByteString::kUncachedSize,                                      \
-    shared_uncached_external_one_byte_string,                                  \
-    SharedUncachedExternalOneByteString)                                       \
-                                                                               \
-  V(EXTERNAL_INTERNALIZED_STRING_TYPE, ExternalTwoByteString::kSize,           \
-    external_internalized_string, ExternalInternalizedString)                  \
-  V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE, ExternalOneByteString::kSize,  \
-    external_one_byte_internalized_string, ExternalOneByteInternalizedString)  \
-  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE,                                \
-    ExternalTwoByteString::kUncachedSize,                                      \
-    uncached_external_internalized_string, UncachedExternalInternalizedString) \
-  V(UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE,                       \
-    ExternalOneByteString::kUncachedSize,                                      \
-    uncached_external_one_byte_internalized_string,                            \
-    UncachedExternalOneByteInternalizedString)                                 \
-                                                                               \
-  V(INTERNALIZED_STRING_TYPE, kVariableSizeSentinel, internalized_string,      \
-    InternalizedString)                                                        \
-  V(ONE_BYTE_INTERNALIZED_STRING_TYPE, kVariableSizeSentinel,                  \
-    one_byte_internalized_string, OneByteInternalizedString)                   \
-                                                                               \
-  V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)              \
-  V(SHARED_STRING_TYPE, kVariableSizeSentinel, shared_string, SharedString)    \
-  V(SHARED_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel,                        \
-    shared_one_byte_string, SharedOneByteString)
+#define STRING_TYPE_LIST(V)                                                   \
+  V(SEQ_TWO_BYTE_STRING_TYPE, kVariableSizeSentinel, seq_two_byte_string,     \
+    SeqTwoByteString)                                                         \
+  V(SEQ_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel, seq_one_byte_string,     \
+    SeqOneByteString)                                                         \
+  V(CONS_TWO_BYTE_STRING_TYPE, ConsString::kSize, cons_two_byte_string,       \
+    ConsTwoByteString)                                                        \
+  V(CONS_ONE_BYTE_STRING_TYPE, ConsString::kSize, cons_one_byte_string,       \
+    ConsOneByteString)                                                        \
+  V(SLICED_TWO_BYTE_STRING_TYPE, SlicedString::kSize, sliced_two_byte_string, \
+    SlicedTwoByteString)                                                      \
+  V(SLICED_ONE_BYTE_STRING_TYPE, SlicedString::kSize, sliced_one_byte_string, \
+    SlicedOneByteString)                                                      \
+  V(EXTERNAL_TWO_BYTE_STRING_TYPE, ExternalTwoByteString::kSize,              \
+    external_two_byte_string, ExternalTwoByteString)                          \
+  V(EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,              \
+    external_one_byte_string, ExternalOneByteString)                          \
+  V(UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE,                                   \
+    ExternalTwoByteString::kUncachedSize, uncached_external_two_byte_string,  \
+    UncachedExternalTwoByteString)                                            \
+  V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                                   \
+    ExternalOneByteString::kUncachedSize, uncached_external_one_byte_string,  \
+    UncachedExternalOneByteString)                                            \
+                                                                              \
+  V(SHARED_EXTERNAL_TWO_BYTE_STRING_TYPE, ExternalTwoByteString::kSize,       \
+    shared_external_two_byte_string, SharedExternalTwoByteString)             \
+  V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,       \
+    shared_external_one_byte_string, SharedExternalOneByteString)             \
+  V(SHARED_UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE,                            \
+    ExternalTwoByteString::kUncachedSize,                                     \
+    shared_uncached_external_two_byte_string,                                 \
+    SharedUncachedExternalTwoByteString)                                      \
+  V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                            \
+    ExternalOneByteString::kUncachedSize,                                     \
+    shared_uncached_external_one_byte_string,                                 \
+    SharedUncachedExternalOneByteString)                                      \
+                                                                              \
+  V(EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE, ExternalTwoByteString::kSize, \
+    external_internalized_two_byte_string, ExternalInternalizedTwoByteString) \
+  V(EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize, \
+    external_internalized_one_byte_string, ExternalInternalizedOneByteString) \
+  V(UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE,                      \
+    ExternalTwoByteString::kUncachedSize,                                     \
+    uncached_external_internalized_two_byte_string,                           \
+    UncachedExternalInternalizedTwoByteString)                                \
+  V(UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE,                      \
+    ExternalOneByteString::kUncachedSize,                                     \
+    uncached_external_internalized_one_byte_string,                           \
+    UncachedExternalInternalizedOneByteString)                                \
+                                                                              \
+  V(INTERNALIZED_TWO_BYTE_STRING_TYPE, kVariableSizeSentinel,                 \
+    internalized_two_byte_string, InternalizedTwoByteString)                  \
+  V(INTERNALIZED_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel,                 \
+    internalized_one_byte_string, InternalizedOneByteString)                  \
+                                                                              \
+  V(THIN_TWO_BYTE_STRING_TYPE, ThinString::kSize, thin_two_byte_string,       \
+    ThinTwoByteString)                                                        \
+  V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,       \
+    ThinOneByteString)                                                        \
+  V(SHARED_SEQ_TWO_BYTE_STRING_TYPE, kVariableSizeSentinel,                   \
+    shared_seq_two_byte_string, SharedSeqTwoByteString)                       \
+  V(SHARED_SEQ_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel,                   \
+    shared_seq_one_byte_string, SharedSeqOneByteString)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate

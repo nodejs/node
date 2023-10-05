@@ -38,8 +38,6 @@ try:
 except ImportError:
   from urllib2 import urlopen
 
-from collections import OrderedDict
-
 CHROMIUM_SRC_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))
 sys.path = [os.path.join(CHROMIUM_SRC_DIR, 'build')] + sys.path

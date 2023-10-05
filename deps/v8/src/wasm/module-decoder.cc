@@ -76,11 +76,6 @@ ModuleResult DecodeWasmModule(
     std::shared_ptr<metrics::Recorder> metrics_recorder,
     v8::metrics::Recorder::ContextId context_id,
     DecodingMethod decoding_method) {
-  size_t max_size = max_module_size();
-  if (wire_bytes.size() > max_size) {
-    return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
-                                  max_size, wire_bytes.size()}};
-  }
   if (counters) {
     auto size_counter =
         SELECT_WASM_COUNTER(counters, origin, wasm, module_size_bytes);
@@ -117,12 +112,14 @@ ModuleResult DecodeWasmModule(
   return result;
 }
 
-ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
-                              base::Vector<const uint8_t> wire_bytes,
-                              bool validate_functions, ModuleOrigin origin) {
+ModuleResult DecodeWasmModule(
+    WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin,
+    PopulateExplicitRecGroups populate_explicit_rec_groups) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.DecodeWasmModule");
-  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin};
+  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin,
+                            populate_explicit_rec_groups};
   return decoder.DecodeModule(validate_functions);
 }
 
@@ -143,9 +140,8 @@ const std::shared_ptr<WasmModule>& ModuleDecoder::shared_module() const {
   return impl_->shared_module();
 }
 
-void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes,
-                                       uint32_t offset) {
-  impl_->DecodeModuleHeader(bytes, offset);
+void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes) {
+  impl_->DecodeModuleHeader(bytes);
 }
 
 void ModuleDecoder::DecodeSection(SectionCode section_code,
@@ -226,7 +222,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
       continue;
     }
     DCHECK(decoder.checkAvailable(size));
-    const byte* table_end = decoder.pc() + size;
+    const uint8_t* table_end = decoder.pc() + size;
     uint32_t locals_size = decoder.consume_u32v("locals size");
     int function_start_position = decoder.consume_u32v("function start pos");
     int function_end_position = function_start_position;
@@ -274,7 +270,7 @@ std::vector<CustomSectionOffset> DecodeCustomSections(
   std::vector<CustomSectionOffset> result;
 
   while (decoder.more()) {
-    byte section_code = decoder.consume_u8("section code");
+    uint8_t section_code = decoder.consume_u8("section code");
     uint32_t section_length = decoder.consume_u32v("section length");
     uint32_t section_start = decoder.pc_offset();
     if (section_code != 0) {
@@ -450,6 +446,7 @@ class ValidateFunctionsTask : public JobTask {
   bool ValidateFunction(int func_index) {
     WasmFeatures unused_detected_features;
     const WasmFunction& function = module_->functions[func_index];
+    DCHECK_LT(0, function.code.offset());
     FunctionBody body{function.sig, function.code.offset(),
                       wire_bytes_.begin() + function.code.offset(),
                       wire_bytes_.begin() + function.code.end_offset()};

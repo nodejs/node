@@ -31,7 +31,7 @@ bytecodes: [
   /*   80 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["string"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["string"],
 ]
 handlers: [
 ]
@@ -62,7 +62,7 @@ bytecodes: [
   /*   80 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["string"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["string"],
 ]
 handlers: [
 ]
@@ -93,7 +93,7 @@ bytecodes: [
   /*   80 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["string"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["string"],
 ]
 handlers: [
 ]
@@ -134,9 +134,9 @@ bytecodes: [
   /*   87 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["foo"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["bar"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["baz"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["foo"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["bar"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["baz"],
 ]
 handlers: [
 ]
@@ -170,7 +170,7 @@ bytecodes: [
   /*   91 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["string"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["string"],
 ]
 handlers: [
 ]
@@ -209,7 +209,7 @@ bytecodes: [
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["string"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["string"],
 ]
 handlers: [
 ]

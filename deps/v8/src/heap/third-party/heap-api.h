@@ -30,7 +30,7 @@ class Heap {
 
   const base::AddressRegion& GetCodeRange();
 
-  bool IsPendingAllocation(HeapObject object);
+  bool IsPendingAllocation(Tagged<HeapObject> object);
 
   static bool InSpace(Address address, AllocationSpace space);
 
@@ -40,14 +40,14 @@ class Heap {
 
   static bool InLargeObjectSpace(Address address);
 
-  static bool IsValidHeapObject(HeapObject object);
+  static bool IsValidHeapObject(Tagged<HeapObject> object);
 
-  static bool IsImmovable(HeapObject object);
+  static bool IsImmovable(Tagged<HeapObject> object);
 
-  static bool IsValidCodeObject(HeapObject object);
+  static bool IsValidCodeObject(Tagged<HeapObject> object);
 
   void ResetIterator();
-  HeapObject NextObject();
+  Tagged<HeapObject> NextObject();
 
   bool CollectGarbage();
 

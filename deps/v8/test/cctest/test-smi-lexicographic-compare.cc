@@ -21,7 +21,7 @@ void AddSigned(std::set<Smi>* smis, int64_t x) {
 }
 
 // Uses std::lexicographical_compare twice to convert the result to -1, 0 or 1.
-int ExpectedCompareResult(Smi a, Smi b) {
+int ExpectedCompareResult(Tagged<Smi> a, Tagged<Smi> b) {
   std::string str_a = std::to_string(a.value());
   std::string str_b = std::to_string(b.value());
   bool expected_a_lt_b = std::lexicographical_compare(
@@ -39,7 +39,7 @@ int ExpectedCompareResult(Smi a, Smi b) {
   }
 }
 
-bool Test(Isolate* isolate, Smi a, Smi b) {
+bool Test(Isolate* isolate, Tagged<Smi> a, Tagged<Smi> b) {
   int actual = Smi(Smi::LexicographicCompare(isolate, a, b)).value();
   int expected = ExpectedCompareResult(a, b);
 
@@ -68,8 +68,8 @@ TEST(TestSmiLexicographicCompare) {
     }
   }
 
-  for (Smi a : smis) {
-    for (Smi b : smis) {
+  for (Tagged<Smi> a : smis) {
+    for (Tagged<Smi> b : smis) {
       CHECK(Test(isolate, a, b));
     }
   }

@@ -46,7 +46,7 @@ class JSCollator : public TorqueGeneratedJSCollator<JSCollator, JSObject> {
 
   DECL_PRINTER(JSCollator)
 
-  DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
+  DECL_ACCESSORS(icu_collator, Tagged<Managed<icu::Collator>>)
 
   TQ_OBJECT_CONSTRUCTORS(JSCollator)
 };

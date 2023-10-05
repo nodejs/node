@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-speculative-inlining --experimental-wasm-typed-funcref
+// Flags: --experimental-wasm-inlining --experimental-wasm-typed-funcref
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

@@ -157,8 +157,8 @@ void ControlEquivalence::RunUndirectedDFS(Node* exit) {
     // Pop node from stack when done with all inputs and uses.
     DCHECK(entry.input == node->input_edges().end());
     DCHECK(entry.use == node->use_edges().end());
-    DFSPop(stack, node);
     VisitPost(node, entry.parent_node, entry.direction);
+    DFSPop(stack, node);
   }
 }
 

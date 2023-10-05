@@ -63,6 +63,8 @@
 /test/wasm-spec-tests/tests.tar.gz
 /third_party/*
 !/third_party/antlr4
+!/third_party/cpu_features
+/third_party/cpu_features/src
 !/third_party/inspector_protocol
 !/third_party/jsoncpp
 /third_party/jsoncpp/source
@@ -94,6 +96,7 @@
 /tools/turbolizer/build
 /tools/turbolizer/.rpt2_cache
 /tools/turbolizer/deploy
+/tools/v8heapconst.py
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
 /v8.log.ll

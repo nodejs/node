@@ -67,7 +67,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
 
   // Insert an object into the constants array if it is not already present.
   // Returns the array index associated with the object.
-  size_t Insert(Smi smi);
+  size_t Insert(Tagged<Smi> smi);
   size_t Insert(double number);
   size_t Insert(const AstRawString* raw_string);
   size_t Insert(AstBigInt bigint);
@@ -91,7 +91,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
 
   // Sets the jump table entry at |index| to |smi|. Note that |index| is the
   // constant pool index, not the switch case value.
-  void SetJumpTableSmi(size_t index, Smi smi);
+  void SetJumpTableSmi(size_t index, Tagged<Smi> smi);
 
   // Creates a reserved entry in the constant pool and returns
   // the size of the operand that'll be required to hold the entry
@@ -100,7 +100,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
 
   // Commit reserved entry and returns the constant pool index for the
   // SMI value.
-  size_t CommitReservedEntry(OperandSize operand_size, Smi value);
+  size_t CommitReservedEntry(OperandSize operand_size, Tagged<Smi> value);
 
   // Discards constant pool reservation.
   void DiscardReservedEntry(OperandSize operand_size);
@@ -115,7 +115,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
     enum class Tag : uint8_t;
 
    public:
-    explicit Entry(Smi smi) : smi_(smi), tag_(Tag::kSmi) {}
+    explicit Entry(Tagged<Smi> smi) : smi_(smi), tag_(Tag::kSmi) {}
     explicit Entry(double heap_number)
         : heap_number_(heap_number), tag_(Tag::kHeapNumber) {}
     explicit Entry(const AstRawString* raw_string)
@@ -147,7 +147,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
       handle_ = handle;
     }
 
-    void SetJumpTableSmi(Smi smi) {
+    void SetJumpTableSmi(Tagged<Smi> smi) {
       DCHECK_EQ(tag_, Tag::kUninitializedJumpTableSmi);
       tag_ = Tag::kJumpTableSmi;
       smi_ = smi;
@@ -191,7 +191,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
 
   index_t AllocateIndex(Entry constant_entry);
   index_t AllocateIndexArray(Entry constant_entry, size_t size);
-  index_t AllocateReservedEntry(Smi value);
+  index_t AllocateReservedEntry(Tagged<Smi> value);
 
   struct ConstantArraySlice final : public ZoneObject {
     ConstantArraySlice(Zone* zone, size_t start_index, size_t capacity,

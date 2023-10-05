@@ -50,11 +50,11 @@ ValueOrError EvaluateConstantExpression(Zone* zone, ConstantExpression expr,
     case ConstantExpression::kWireBytesRef: {
       WireBytesRef ref = expr.wire_bytes_ref();
 
-      base::Vector<const byte> module_bytes =
-          instance->module_object().native_module()->wire_bytes();
+      base::Vector<const uint8_t> module_bytes =
+          instance->module_object()->native_module()->wire_bytes();
 
-      const byte* start = module_bytes.begin() + ref.offset();
-      const byte* end = module_bytes.begin() + ref.end_offset();
+      const uint8_t* start = module_bytes.begin() + ref.offset();
+      const uint8_t* end = module_bytes.begin() + ref.end_offset();
 
       auto sig = FixedSizeSignature<ValueType>::Returns(expected);
       FunctionBody body(&sig, ref.offset(), start, end);

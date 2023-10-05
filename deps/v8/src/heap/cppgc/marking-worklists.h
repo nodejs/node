@@ -109,6 +109,10 @@ class MarkingWorklists {
   WeakCustomCallbackWorklist* weak_custom_callback_worklist() {
     return &weak_custom_callback_worklist_;
   }
+  const ConcurrentMarkingBailoutWorklist* concurrent_marking_bailout_worklist()
+      const {
+    return &concurrent_marking_bailout_worklist_;
+  }
   ConcurrentMarkingBailoutWorklist* concurrent_marking_bailout_worklist() {
     return &concurrent_marking_bailout_worklist_;
   }

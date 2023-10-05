@@ -124,7 +124,7 @@ class Immediate {
       : Immediate(ext.address(), RelocInfo::EXTERNAL_REFERENCE) {}
   inline explicit Immediate(Handle<HeapObject> handle)
       : Immediate(handle.address(), RelocInfo::FULL_EMBEDDED_OBJECT) {}
-  inline explicit Immediate(Smi value)
+  inline explicit Immediate(Tagged<Smi> value)
       : Immediate(static_cast<intptr_t>(value.ptr())) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
@@ -247,7 +247,7 @@ class V8_EXPORT_PRIVATE Operand {
   explicit Operand(Register base, int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NO_INFO);
 
-  // [rip + disp/r]
+  // [disp/r]
   explicit Operand(Label* label) {
     set_modrm(0, ebp);
     set_dispr(reinterpret_cast<intptr_t>(label), RelocInfo::INTERNAL_REFERENCE);
@@ -281,7 +281,7 @@ class V8_EXPORT_PRIVATE Operand {
   // register.
   Register reg() const;
 
-  base::Vector<const byte> encoded_bytes() const { return {buf_, len_}; }
+  base::Vector<const uint8_t> encoded_bytes() const { return {buf_, len_}; }
   RelocInfo::Mode rmode() { return rmode_; }
 
  private:
@@ -308,7 +308,7 @@ class V8_EXPORT_PRIVATE Operand {
            && ((buf_[0] & 0x07) == reg_code);  // register codes match.
   }
 
-  byte buf_[6];
+  uint8_t buf_[6];
   // The number of bytes in buf_.
   uint8_t len_ = 0;
   // Only valid if len_ > 4.
@@ -397,12 +397,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
-  void GetCode(Isolate* isolate, CodeDesc* desc,
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc,
                SafepointTableBuilder* safepoint_table_builder,
                int handler_table_offset);
 
+  // Convenience wrapper for allocating with an Isolate.
+  void GetCode(Isolate* isolate, CodeDesc* desc);
   // Convenience wrapper for code without safepoint or handler tables.
-  void GetCode(Isolate* isolate, CodeDesc* desc) {
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
@@ -421,7 +423,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the instruction on x86).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code code, Address target);
+      Address instruction_payload, Tagged<Code> code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -435,18 +437,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static constexpr int kSpecialTargetSize = kSystemPointerSize;
 
   // One byte opcode for test al, 0xXX.
-  static constexpr byte kTestAlByte = 0xA8;
+  static constexpr uint8_t kTestAlByte = 0xA8;
   // One byte opcode for nop.
-  static constexpr byte kNopByte = 0x90;
+  static constexpr uint8_t kNopByte = 0x90;
 
   // One byte opcode for a short unconditional jump.
-  static constexpr byte kJmpShortOpcode = 0xEB;
+  static constexpr uint8_t kJmpShortOpcode = 0xEB;
   // One byte prefix for a short conditional jump.
-  static constexpr byte kJccShortPrefix = 0x70;
-  static constexpr byte kJncShortOpcode = kJccShortPrefix | not_carry;
-  static constexpr byte kJcShortOpcode = kJccShortPrefix | carry;
-  static constexpr byte kJnzShortOpcode = kJccShortPrefix | not_zero;
-  static constexpr byte kJzShortOpcode = kJccShortPrefix | zero;
+  static constexpr uint8_t kJccShortPrefix = 0x70;
+  static constexpr uint8_t kJncShortOpcode = kJccShortPrefix | not_carry;
+  static constexpr uint8_t kJcShortOpcode = kJccShortPrefix | carry;
+  static constexpr uint8_t kJnzShortOpcode = kJccShortPrefix | not_zero;
+  static constexpr uint8_t kJzShortOpcode = kJccShortPrefix | zero;
 
   // ---------------------------------------------------------------------------
   // InstructionStream generation
@@ -640,6 +642,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void inc(Operand dst);
 
   void lea(Register dst, Operand src);
+  void lea(Register dst, Register src, Label* lbl);
 
   // Unsigned multiply instruction.
   void mul(Register src);  // edx:eax = eax * reg.
@@ -778,7 +781,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Conditional jumps
   void j(Condition cc, Label* L, Label::Distance distance = Label::kFar);
-  void j(Condition cc, byte* entry, RelocInfo::Mode rmode);
+  void j(Condition cc, uint8_t* entry, RelocInfo::Mode rmode);
   void j(Condition cc, Handle<Code> code,
          RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
@@ -880,8 +883,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movups(XMMRegister dst, XMMRegister src) { movups(dst, Operand(src)); }
   void movups(XMMRegister dst, Operand src);
   void movups(Operand dst, XMMRegister src);
-  void shufps(XMMRegister dst, XMMRegister src, byte imm8);
-  void shufpd(XMMRegister dst, XMMRegister src, byte imm8);
+  void shufps(XMMRegister dst, XMMRegister src, uint8_t imm8);
+  void shufpd(XMMRegister dst, XMMRegister src, uint8_t imm8);
 
   void movhlps(XMMRegister dst, XMMRegister src);
   void movlhps(XMMRegister dst, XMMRegister src);
@@ -1006,8 +1009,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movss(Operand dst, XMMRegister src);
   void movss(XMMRegister dst, XMMRegister src) { movss(dst, Operand(src)); }
 
-  void extractps(Operand dst, XMMRegister src, byte imm8);
-  void extractps(Register dst, XMMRegister src, byte imm8);
+  void extractps(Operand dst, XMMRegister src, uint8_t imm8);
+  void extractps(Register dst, XMMRegister src, uint8_t imm8);
 
   void pcmpgtq(XMMRegister dst, XMMRegister src);
 
@@ -1125,7 +1128,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vsqrtss(XMMRegister dst, XMMRegister src1, Operand src2) {
     vss(0x51, dst, src1, src2);
   }
-  void vss(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
+  void vss(uint8_t op, XMMRegister dst, XMMRegister src1, Operand src2);
 
   void vhaddps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vhaddps(dst, src1, Operand(src2));
@@ -1156,7 +1159,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x10, dst, xmm0, src, kF2, k0F, kWIG);
   }
 
-  void vextractps(Operand dst, XMMRegister src, byte imm8);
+  void vextractps(Operand dst, XMMRegister src, uint8_t imm8);
 
   void vpcmpgtq(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
@@ -1168,14 +1171,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovups(XMMRegister dst, XMMRegister src) { vmovups(dst, Operand(src)); }
   void vmovups(XMMRegister dst, Operand src) { vps(0x10, dst, xmm0, src); }
   void vmovupd(XMMRegister dst, Operand src) { vpd(0x10, dst, xmm0, src); }
-  void vshufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8) {
+  void vshufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+               uint8_t imm8) {
     vshufps(dst, src1, Operand(src2), imm8);
   }
-  void vshufps(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8);
-  void vshufpd(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8) {
+  void vshufps(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
+  void vshufpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+               uint8_t imm8) {
     vshufpd(dst, src1, Operand(src2), imm8);
   }
-  void vshufpd(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8);
+  void vshufpd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
 
   void vmovhlps(XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vmovlhps(XMMRegister dst, XMMRegister src1, XMMRegister src2);
@@ -1429,15 +1434,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void shrx(Register dst, Operand src1, Register src2) {
     bmi2(kF2, 0xf7, dst, src2, src1);
   }
-  void rorx(Register dst, Register src, byte imm8) {
+  void rorx(Register dst, Register src, uint8_t imm8) {
     rorx(dst, Operand(src), imm8);
   }
-  void rorx(Register dst, Operand src, byte imm8);
+  void rorx(Register dst, Operand src, uint8_t imm8);
 
   // Implementation of packed single-precision floating-point SSE instructions.
-  void ps(byte op, XMMRegister dst, Operand src);
+  void ps(uint8_t op, XMMRegister dst, Operand src);
   // Implementation of packed double-precision floating-point SSE instructions.
-  void pd(byte op, XMMRegister dst, Operand src);
+  void pd(uint8_t op, XMMRegister dst, Operand src);
 
 #define PACKED_OP_LIST(V) \
   V(unpckl, 0x14)         \
@@ -1483,8 +1488,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #undef AVX_PACKED_OP_DECLARE
 #undef PACKED_OP_LIST
 
-  void vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
-  void vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
+  void vps(uint8_t op, XMMRegister dst, XMMRegister src1, Operand src2);
+  void vpd(uint8_t op, XMMRegister dst, XMMRegister src1, Operand src2);
 
   void vcmpps(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t cmp);
   void vcmppd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t cmp);
@@ -1650,11 +1655,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
-    dd(data, rmode);
-  }
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dd(data); }
   void dd(Label* label);
 
   // Check if there is less than kGap bytes available in the buffer.
@@ -1676,8 +1679,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Avoid overflows for displacements etc.
   static constexpr int kMaximalBufferSize = 512 * MB;
 
-  byte byte_at(int pos) { return buffer_start_[pos]; }
-  void set_byte_at(int pos, byte value) { buffer_start_[pos] = value; }
+  uint8_t byte_at(int pos) { return buffer_start_[pos]; }
+  void set_byte_at(int pos, uint8_t value) { buffer_start_[pos] = value; }
 
  protected:
   void emit_sse_operand(XMMRegister reg, Operand adr);
@@ -1750,29 +1753,30 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void emit_disp(Label* L, Displacement::Type type);
   inline void emit_near_disp(Label* L);
 
-  void sse_instr(XMMRegister dst, Operand src, byte prefix, byte opcode);
-  void sse2_instr(XMMRegister dst, Operand src, byte prefix, byte escape,
-                  byte opcode);
-  void ssse3_instr(XMMRegister dst, Operand src, byte prefix, byte escape1,
-                   byte escape2, byte opcode);
-  void sse4_instr(XMMRegister dst, Operand src, byte prefix, byte escape1,
-                  byte escape2, byte opcode);
-  void vinstr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
+  void sse_instr(XMMRegister dst, Operand src, uint8_t prefix, uint8_t opcode);
+  void sse2_instr(XMMRegister dst, Operand src, uint8_t prefix, uint8_t escape,
+                  uint8_t opcode);
+  void ssse3_instr(XMMRegister dst, Operand src, uint8_t prefix,
+                   uint8_t escape1, uint8_t escape2, uint8_t opcode);
+  void sse4_instr(XMMRegister dst, Operand src, uint8_t prefix, uint8_t escape1,
+                  uint8_t escape2, uint8_t opcode);
+  void vinstr(uint8_t op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature = AVX);
-  void vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
+  void vinstr(uint8_t op, XMMRegister dst, XMMRegister src1, Operand src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature = AVX);
-  void vinstr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
+  void vinstr(uint8_t op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
               VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w,
               CpuFeature = AVX);
-  void vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
+  void vinstr(uint8_t op, XMMRegister dst, XMMRegister src1, Operand src2,
               VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w,
               CpuFeature = AVX);
   // Most BMI instructions are similar.
-  void bmi1(byte op, Register reg, Register vreg, Operand rm);
-  void bmi2(SIMDPrefix pp, byte op, Register reg, Register vreg, Operand rm);
-  void fma_instr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w);
-  void fma_instr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
+  void bmi1(uint8_t op, Register reg, Register vreg, Operand rm);
+  void bmi2(SIMDPrefix pp, uint8_t op, Register reg, Register vreg, Operand rm);
+  void fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
+                 XMMRegister src2, VectorLength l, SIMDPrefix pp,
+                 LeadingOpcode m, VexW w);
+  void fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1, Operand src2,
                  VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w);
 
   // record reloc info for current pc_
@@ -1783,7 +1787,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
-  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
 
   int WriteCodeComments();
 
@@ -1796,11 +1800,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // code generation
   RelocInfoWriter reloc_info_writer;
-
-  // Variables for this instance of assembler
-  int farjmp_num_ = 0;
-  std::deque<int> farjmp_positions_;
-  std::map<Label*, std::vector<int>> label_farjmp_maps_;
 };
 
 // Helper class that ensures that there is enough space for generating

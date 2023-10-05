@@ -4,6 +4,10 @@
 
 import("//build_overrides/build.gni")
 
+if (build_with_chromium && is_ios) {
+  import("//build/config/ios/bundle_data_from_filelist.gni")
+}
+
 if (build_with_chromium) {
   static_library("zip") {
     sources = [
@@ -34,6 +38,13 @@ if (build_with_chromium) {
       "//base",
     ]
     public_deps = [ ":compression_utils_portable" ]
+  }
+
+  if (is_ios) {
+    bundle_data_from_filelist("zlib_pak_bundle_data") {
+      testonly = true
+      filelist_name = "test_data.filelist"
+    }
   }
 }
 

@@ -55,11 +55,6 @@ namespace internal {
   V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
 // clang-format on
 
-// The ARM ABI does not specify the usage of register r9, which may be reserved
-// as the static base or thread register on some platforms, in which case we
-// leave it alone. Adjust the value of kR9Available accordingly:
-const int kR9Available = 1;  // 1 if available to us, 0 if reserved
-
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
   GENERAL_REGISTERS(REGISTER_CODE)
@@ -77,12 +72,25 @@ ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
+
 // r7: context register
 #define DECLARE_REGISTER(R) \
   constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr Register no_reg = Register::no_reg();
+
+// ARM calling convention
+constexpr Register arg_reg_1 = r0;
+constexpr Register arg_reg_2 = r1;
+constexpr Register arg_reg_3 = r2;
+constexpr Register arg_reg_4 = r3;
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
@@ -320,6 +328,8 @@ constexpr Register r11 = fp;
 constexpr Register kRootRegister = r10;  // Roots array pointer.
 
 constexpr DoubleRegister kFPReturnRegister0 = d0;
+
+constexpr Register kMaglevExtraScratchRegister = r9;
 
 }  // namespace internal
 }  // namespace v8

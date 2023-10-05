@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
+V8_INLINE Heap* GetHeapFromWritableObject(Tagged<HeapObject> object) {
   // Avoid using the below GetIsolateFromWritableObject because we want to be
   // able to get the heap, but not the isolate, for off-thread objects.
 
@@ -26,7 +26,7 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 #endif  // V8_ENABLE_THIRD_PARTY_HEAP
 }
 
-V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
+V8_INLINE Isolate* GetIsolateFromWritableObject(Tagged<HeapObject> object) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object);
 #else
@@ -34,7 +34,8 @@ V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
 #endif  // V8_ENABLE_THIRD_PARTY_HEAP
 }
 
-V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
+V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
+                                        Isolate** isolate) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   *isolate = Heap::GetIsolateFromWritableObject(object);
   return true;
@@ -52,35 +53,13 @@ V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
 
 // Use this function instead of Internals::GetIsolateForSandbox for internal
 // code, as this function is fully inlinable.
-V8_INLINE static Isolate* GetIsolateForSandbox(HeapObject object) {
+V8_INLINE static Isolate* GetIsolateForSandbox(Tagged<HeapObject> object) {
 #ifdef V8_ENABLE_SANDBOX
   return GetIsolateFromWritableObject(object);
 #else
   // Not used in non-sandbox mode.
   return nullptr;
 #endif
-}
-
-// This is an external code space friendly version of GetPtrComprCageBase(..)
-// which also works for objects located in external code space.
-//
-// NOTE: it's supposed to be used only for the cases where performance doesn't
-// matter. For example, in debug only code or in debugging macros.
-// In production code the preferred way is to use precomputed cage base value
-// which is a result of PtrComprCageBase{isolate} or GetPtrComprCageBase()
-// applied to a heap object which is known to not be a part of external code
-// space.
-V8_INLINE PtrComprCageBase GetPtrComprCageBaseSlow(HeapObject object) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    Isolate* isolate;
-    if (GetIsolateFromHeapObject(object, &isolate)) {
-      return PtrComprCageBase{isolate};
-    }
-    // If the Isolate can't be obtained then the heap object is a read-only
-    // one and therefore not a InstructionStream object, so fallback to
-    // auto-computing cage base value.
-  }
-  return GetPtrComprCageBase(object);
 }
 
 }  // namespace internal

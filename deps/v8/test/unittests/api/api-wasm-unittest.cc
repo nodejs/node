@@ -15,6 +15,7 @@
 #include "src/handles/global-handles.h"
 #include "src/wasm/wasm-features.h"
 #include "test/common/flag-utils.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -53,53 +54,59 @@ void WasmStreamingTestFinalizer(const WeakCallbackInfo<void>& data) {
 }
 
 void WasmStreamingCallbackTestCallbackIsCalled(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CHECK(!wasm_streaming_callback_got_called);
   wasm_streaming_callback_got_called = true;
 
   i::Handle<i::Object> global_handle =
-      reinterpret_cast<i::Isolate*>(args.GetIsolate())
+      reinterpret_cast<i::Isolate*>(info.GetIsolate())
           ->global_handles()
-          ->Create(*Utils::OpenHandle(*args.Data()));
+          ->Create(*Utils::OpenHandle(*info.Data()));
   i::GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
                              WasmStreamingTestFinalizer,
                              WeakCallbackType::kParameter);
 }
 
 void WasmStreamingCallbackTestFinishWithSuccess(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->OnBytesReceived(kMinimalWasmModuleBytes,
                              arraysize(kMinimalWasmModuleBytes));
   streaming->Finish();
 }
 
 void WasmStreamingCallbackTestFinishWithFailure(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Finish();
 }
 
 void WasmStreamingCallbackTestAbortWithReject(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
-  streaming->Abort(Object::New(args.GetIsolate()));
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+  streaming->Abort(Object::New(info.GetIsolate()));
 }
 
 void WasmStreamingCallbackTestAbortNoReject(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Abort({});
 }
 
 void WasmStreamingCallbackTestOnBytesReceived(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
 
   // The first bytes of the WebAssembly magic word.
   const uint8_t bytes[]{0x00, 0x61, 0x73};
@@ -107,9 +114,10 @@ void WasmStreamingCallbackTestOnBytesReceived(
 }
 
 void WasmStreamingMoreFunctionsCanBeSerializedCallback(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});
 }
 
@@ -117,7 +125,7 @@ TEST_F(ApiWasmTest, WasmStreamingCallback) {
   TestWasmStreaming(WasmStreamingCallbackTestCallbackIsCalled,
                     Promise::kPending);
   CHECK(wasm_streaming_callback_got_called);
-  CollectAllAvailableGarbage();
+  InvokeMemoryReducingMajorGCs(i_isolate());
   CHECK(wasm_streaming_data_got_collected);
 }
 
@@ -161,7 +169,7 @@ TEST_F(ApiWasmTest, WasmStreamingSetCallback) {
 TEST_F(ApiWasmTest, WasmEnableDisableGC) {
   Local<Context> context_local = Context::New(isolate());
   Context::Scope context_scope(context_local);
-  i::Handle<i::Context> context = v8::Utils::OpenHandle(*context_local);
+  i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
   // When using the flags, stringref and GC are controlled independently.
   {
     i::FlagScope<bool> flag_gc(&i::v8_flags.experimental_wasm_gc, false);
@@ -193,17 +201,44 @@ TEST_F(ApiWasmTest, WasmEnableDisableGC) {
   isolate()->SetWasmGCEnabledCallback([](auto) { return false; });
   EXPECT_FALSE(i_isolate()->IsWasmGCEnabled(context));
   EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
-  // TODO(crbug.com/1424350): Change (or just drop) this expectation when
-  // we enable inlining by default.
-  EXPECT_FALSE(i_isolate()->IsWasmInliningEnabled(context));
+  // Inlining is enabled in --future.
+  // TODO(chromium:1424350): Change this once inlining is enabled by default.
+  const bool expect_inlining = i::v8_flags.future;
+  EXPECT_EQ(expect_inlining, i_isolate()->IsWasmInliningEnabled(context));
   {
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
     EXPECT_FALSE(enabled_features.has_gc());
     EXPECT_FALSE(enabled_features.has_stringref());
     EXPECT_FALSE(enabled_features.has_typed_funcref());
-    EXPECT_FALSE(enabled_features.has_inlining());
+    EXPECT_EQ(expect_inlining, enabled_features.has_inlining());
   }
   isolate()->SetWasmGCEnabledCallback(nullptr);
+}
+
+TEST_F(ApiWasmTest, WasmEnableDisableImportedStrings) {
+  Local<Context> context_local = Context::New(isolate());
+  Context::Scope context_scope(context_local);
+  i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
+  // Test enabling/disabling via flag.
+  {
+    i::FlagScope<bool> flag_strings(
+        &i::v8_flags.experimental_wasm_imported_strings, true);
+    EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+  }
+  {
+    i::FlagScope<bool> flag_strings(
+        &i::v8_flags.experimental_wasm_imported_strings, false);
+    EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
+  }
+  // Test enabling/disabling via callback.
+  isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return true; });
+  EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+  EXPECT_TRUE(
+      i::wasm::WasmFeatures::FromIsolate(i_isolate()).has_imported_strings());
+  isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return false; });
+  EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
+  EXPECT_FALSE(
+      i::wasm::WasmFeatures::FromIsolate(i_isolate()).has_imported_strings());
 }
 
 }  // namespace v8

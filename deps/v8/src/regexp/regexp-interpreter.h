@@ -49,17 +49,18 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
                                    RegExp::CallOrigin call_origin,
                                    Isolate* isolate, Address regexp);
 
-  static Result MatchInternal(Isolate* isolate, ByteArray code_array,
-                              String subject_string, int* output_registers,
-                              int output_register_count,
+  static Result MatchInternal(Isolate* isolate, Tagged<ByteArray> code_array,
+                              Tagged<String> subject_string,
+                              int* output_registers, int output_register_count,
                               int total_register_count, int start_position,
                               RegExp::CallOrigin call_origin,
                               uint32_t backtrack_limit);
 
  private:
-  static Result Match(Isolate* isolate, JSRegExp regexp, String subject_string,
-                      int* output_registers, int output_register_count,
-                      int start_position, RegExp::CallOrigin call_origin);
+  static Result Match(Isolate* isolate, Tagged<JSRegExp> regexp,
+                      Tagged<String> subject_string, int* output_registers,
+                      int output_register_count, int start_position,
+                      RegExp::CallOrigin call_origin);
 };
 
 }  // namespace internal

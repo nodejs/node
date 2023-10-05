@@ -15,10 +15,14 @@
 
 #define V8_COMPILER_TURBOSHAFT_ASSEMBLER_MACROS_DEFINED 1
 
-#define BIND(label, ...)                                         \
-  auto [CONCAT(is_bound_, __LINE__), ##__VA_ARGS__] =            \
-    Asm().ControlFlowHelper_Bind(label);                         \
-    (detail::SuppressUnusedWarning(CONCAT(is_bound_, __LINE__)))
+#define LIKELY(...) ConditionWithHint(__VA_ARGS__, BranchHint::kTrue)
+#define UNLIKELY(...) ConditionWithHint(__VA_ARGS__, BranchHint::kFalse)
+
+#define BIND(label, ...)                                                  \
+  auto [CONCAT(is_bound_, __LINE__), ##__VA_ARGS__] =                     \
+    Asm().ControlFlowHelper_Bind(label);                                  \
+    (::v8::internal::compiler::turboshaft::detail::SuppressUnusedWarning( \
+        CONCAT(is_bound_, __LINE__)))
 #define LOOP(loop_label, ...) \
   for(auto [CONCAT(run_loop_, __LINE__), ##__VA_ARGS__] =                      \
     Asm().ControlFlowHelper_BindLoop(loop_label); CONCAT(run_loop_, __LINE__); \
@@ -27,43 +31,43 @@
 #define GOTO(label, ...)                             \
   Asm().ControlFlowHelper_Goto(label, {__VA_ARGS__})
 #define GOTO_IF(cond, label, ...)                            \
-  Asm().ControlFlowHelper_GotoIf(cond, label, {__VA_ARGS__}, \
-                                 BranchHint::kNone)
-#define GOTO_IF_LIKELY(cond, label, ...)                     \
-  Asm().ControlFlowHelper_GotoIf(cond, label, {__VA_ARGS__}, \
-                                 BranchHint::kTrue)
-#define GOTO_IF_UNLIKELY(cond, label, ...)                   \
-  Asm().ControlFlowHelper_GotoIf(cond, label, {__VA_ARGS__}, \
-                                 BranchHint::kFalse)
+  Asm().ControlFlowHelper_GotoIf(cond, label, {__VA_ARGS__})
 #define GOTO_IF_NOT(cond, label, ...)                           \
-  Asm().ControlFlowHelper_GotoIfNot(cond, label, {__VA_ARGS__}, \
-                                    BranchHint::kNone)
-#define GOTO_IF_NOT_LIKELY(cond, label, ...)                    \
-  Asm().ControlFlowHelper_GotoIfNot(cond, label, {__VA_ARGS__}, \
-                                    BranchHint::kFalse)
-#define GOTO_IF_NOT_UNLIKELY(cond, label, ...)                  \
-  Asm().ControlFlowHelper_GotoIfNot(cond, label, {__VA_ARGS__}, \
-                                    BranchHint::kTrue)
+  Asm().ControlFlowHelper_GotoIfNot(cond, label, {__VA_ARGS__})
 
-#define IF_WITH_HINT(cond, if_not, hint)                                   \
-  for (bool bound = Asm().ControlFlowHelper_If(cond, if_not, hint); bound; \
+#define IF(...)                                                            \
+  for (bool bound = Asm().ControlFlowHelper_If(__VA_ARGS__, false); bound; \
        (bound = false), Asm().ControlFlowHelper_GotoEnd())
-#define IF(cond) IF_WITH_HINT(cond, false, BranchHint::kNone)
-#define IF_LIKELY(cond) IF_WITH_HINT(cond, false, BranchHint::kTrue)
-#define IF_UNLIKELY(cond) IF_WITH_HINT(cond, false, BranchHint::kFalse)
-#define IF_NOT(cond) IF_WITH_HINT(cond, true, BranchHint::kNone)
-#define IF_NOT_LIKELY(cond) IF_WITH_HINT(cond, true, BranchHint::kFalse)
-#define IF_NOT_UNLIKELY(cond) IF_WITH_HINT(cond, true, BranchHint::kTrue)
-#define ELSE_IF_WITH_HINT(cond, hint)                             \
-  for (bool bound = Asm().ControlFlowHelper_ElseIf(               \
-          [&]() { return cond; }, hint);                          \
-       bound; (bound = false), Asm().ControlFlowHelper_GotoEnd())
-#define ELSE_IF(cond) ELSE_IF_WITH_HINT(cond, BranchHint::kNone)
-#define ELSE_IF_LIKELY(cond) ELSE_IF_WITH_HINT(cond, BranchHint::kTrue)
-#define ELSE_IF_UNLIKELY(cond) ELSE_IF_WITH_HINT(cond, BranchHint::kFalse)
+#define IF_NOT(...)                                                       \
+  for (bool bound = Asm().ControlFlowHelper_If(__VA_ARGS__, true); bound; \
+       (bound = false), Asm().ControlFlowHelper_GotoEnd())
+#define ELSE_IF(...)                                               \
+   for (bool bound = Asm().ControlFlowHelper_ElseIf(               \
+                                   [&]() { return __VA_ARGS__; }); \
+        bound; (bound = false), Asm().ControlFlowHelper_GotoEnd())
 #define ELSE                                               \
   for (bool bound = Asm().ControlFlowHelper_Else(); bound; \
        (bound = false), Asm().ControlFlowHelper_GotoEnd())
 #define END_IF Asm().ControlFlowHelper_EndIf();
+
+#ifdef DEBUG
+// In debug builds, `Reduce(operation)` makes sure that `operation##Op` exists by using this name in an expression. This will detect typos in the name which would otherwise stay unnoticed potentially.
+#define REDUCE(operation) \
+  CONCAT(CHECK_Reduce, operation)                                             \
+      = (::v8::internal::compiler::turboshaft::detail::SuppressUnusedWarning( \
+            std::is_same_v<operation##Op, operation##Op>),                    \
+         OpIndex{});                                                          \
+  decltype(CONCAT(CHECK_Reduce, operation)) Reduce##operation
+#define REDUCE_INPUT_GRAPH(operation)                                         \
+  CONCAT(CHECK_ReduceInputGraph, operation)                                   \
+      = (::v8::internal::compiler::turboshaft::detail::SuppressUnusedWarning( \
+            std::is_same_v<operation##Op, operation##Op>),                    \
+            OpIndex{});                                                       \
+  decltype(CONCAT(CHECK_ReduceInputGraph, operation))                         \
+          ReduceInputGraph##operation
+#else
+#define REDUCE(operation) Reduce##operation
+#define REDUCE_INPUT_GRAPH(operation) ReduceInputGraph##operation
+#endif  // DEBUG
 
 #define __ Asm().

@@ -141,12 +141,12 @@ class V8_EXPORT_PRIVATE CppHeap final
       CollectionType,
       GarbageCollectionFlags = GarbageCollectionFlagValues::kNoFlags);
   void StartTracing();
-  bool AdvanceTracing(double max_duration);
+  bool AdvanceTracing(v8::base::TimeDelta max_duration);
   bool IsTracingDone() const;
   void TraceEpilogue();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
-  void WriteBarrier(JSObject);
+  void WriteBarrier(Tagged<JSObject>);
 
   bool ShouldFinalizeIncrementalMarking() const;
 
@@ -180,7 +180,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   size_t epoch() const override;
 
   V8_INLINE void RememberCrossHeapReferenceIfNeeded(
-      v8::internal::JSObject host_obj, void* value);
+      v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value);
   template <typename F>
   inline void VisitCrossHeapRememberedSetIfNeeded(F f);
   void ResetCrossHeapRememberedSet();
@@ -188,10 +188,10 @@ class V8_EXPORT_PRIVATE CppHeap final
   // Testing-only APIs.
   void EnableDetachedGarbageCollectionsForTesting();
   void CollectGarbageForTesting(CollectionType, StackState);
-  void ReduceGCCapabilitiesFromFlagsForTesting();
+  void UpdateGCCapabilitiesFromFlagsForTesting();
 
  private:
-  void ReduceGCCapabilitiesFromFlags();
+  void UpdateGCCapabilitiesFromFlags();
 
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {
@@ -209,6 +209,9 @@ class V8_EXPORT_PRIVATE CppHeap final
   SweepingType SelectSweepingType() const;
 
   bool TracingInitialized() const { return collection_type_.has_value(); }
+
+  bool IsGCAllowed() const override;
+  bool IsDetachedGCAllowed() const;
 
   Heap* heap() const { return heap_; }
 
@@ -249,7 +252,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 };
 
 void CppHeap::RememberCrossHeapReferenceIfNeeded(
-    v8::internal::JSObject host_obj, void* value) {
+    v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value) {
   if (!generational_gc_supported()) return;
   DCHECK(isolate_);
   cross_heap_remembered_set_.RememberReferenceIfNeeded(*isolate_, host_obj,

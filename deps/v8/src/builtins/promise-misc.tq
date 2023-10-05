@@ -6,13 +6,13 @@
 #include 'src/builtins/builtins-promise-gen.h'
 
 namespace runtime {
-extern transitioning runtime
-AllowDynamicFunction(implicit context: Context)(JSAny): JSAny;
+extern transitioning runtime AllowDynamicFunction(
+    implicit context: Context)(JSAny): JSAny;
 
 extern transitioning runtime ThrowNoAccess(implicit context: Context)(): never;
 
-extern transitioning runtime
-ReportMessageFromMicrotask(implicit context: Context)(JSAny): JSAny;
+extern transitioning runtime ReportMessageFromMicrotask(
+    implicit context: Context)(JSAny): JSAny;
 }
 
 // Unsafe functions that should be used very carefully.
@@ -22,14 +22,13 @@ extern macro PromiseBuiltinsAssembler::ZeroOutEmbedderOffsets(JSPromise): void;
 extern macro PromiseBuiltinsAssembler::AllocateJSPromise(Context): HeapObject;
 }
 
-extern macro
-PromiseBuiltinsAssembler::IsContextPromiseHookEnabled(uint32): bool;
+extern macro PromiseBuiltinsAssembler::IsContextPromiseHookEnabled(uint32):
+    bool;
 
-extern macro
-PromiseBuiltinsAssembler::IsIsolatePromiseHookEnabled(uint32): bool;
+extern macro PromiseBuiltinsAssembler::IsIsolatePromiseHookEnabled(uint32):
+    bool;
 
-extern macro
-PromiseBuiltinsAssembler::PromiseHookFlags(): uint32;
+extern macro PromiseBuiltinsAssembler::PromiseHookFlags(): uint32;
 
 namespace promise {
 extern macro IsFunctionWithPrototypeSlotMap(Map): bool;
@@ -72,8 +71,9 @@ macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
   return promise;
 }
 
-macro NewPromiseFulfillReactionJobTask(implicit context: Context)(
-    handlerContext: Context, argument: Object, handler: Callable|Undefined,
+macro NewPromiseFulfillReactionJobTask(
+    implicit context: Context)(handlerContext: Context, argument: Object,
+    handler: Callable|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|
     Undefined): PromiseFulfillReactionJobTask {
   const nativeContext = LoadNativeContext(handlerContext);
@@ -89,8 +89,9 @@ macro NewPromiseFulfillReactionJobTask(implicit context: Context)(
   };
 }
 
-macro NewPromiseRejectReactionJobTask(implicit context: Context)(
-    handlerContext: Context, argument: Object, handler: Callable|Undefined,
+macro NewPromiseRejectReactionJobTask(
+    implicit context: Context)(handlerContext: Context, argument: Object,
+    handler: Callable|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|
     Undefined): PromiseRejectReactionJobTask {
   const nativeContext = LoadNativeContext(handlerContext);
@@ -107,8 +108,8 @@ macro NewPromiseRejectReactionJobTask(implicit context: Context)(
 }
 
 @export
-transitioning macro RunContextPromiseHookInit(implicit context: Context)(
-    promise: JSPromise, parent: Object): void {
+transitioning macro RunContextPromiseHookInit(
+    implicit context: Context)(promise: JSPromise, parent: Object): void {
   const maybeHook = *NativeContextSlot(
       ContextSlot::PROMISE_HOOK_INIT_FUNCTION_INDEX);
   const hook = Cast<Callable>(maybeHook) otherwise return;
@@ -123,8 +124,8 @@ transitioning macro RunContextPromiseHookInit(implicit context: Context)(
 }
 
 @export
-transitioning macro RunContextPromiseHookResolve(implicit context: Context)(
-    promise: JSPromise): void {
+transitioning macro RunContextPromiseHookResolve(
+    implicit context: Context)(promise: JSPromise): void {
   // Use potentially unused variables.
   const _unusedPromise = promise;
   @if(V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS) {
@@ -135,14 +136,15 @@ transitioning macro RunContextPromiseHookResolve(implicit context: Context)(
 }
 
 @export
-transitioning macro RunContextPromiseHookResolve(implicit context: Context)(
-    promise: JSPromise, flags: uint32): void {
+transitioning macro RunContextPromiseHookResolve(
+    implicit context: Context)(promise: JSPromise, flags: uint32): void {
   RunContextPromiseHook(
       ContextSlot::PROMISE_HOOK_RESOLVE_FUNCTION_INDEX, promise, flags);
 }
 
 @export
-transitioning macro RunContextPromiseHookBefore(implicit context: Context)(
+transitioning macro RunContextPromiseHookBefore(
+    implicit context: Context)(
     promiseOrCapability: JSPromise|PromiseCapability|Undefined): void {
   // Use potentially unused variables.
   const _unusedPromiseOrCapability = promiseOrCapability;
@@ -154,16 +156,18 @@ transitioning macro RunContextPromiseHookBefore(implicit context: Context)(
 }
 
 @export
-transitioning macro RunContextPromiseHookBefore(implicit context: Context)(
-    promiseOrCapability: JSPromise|PromiseCapability|Undefined, flags: uint32):
-    void {
+transitioning macro RunContextPromiseHookBefore(
+    implicit context: Context)(
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined,
+    flags: uint32): void {
   RunContextPromiseHook(
       ContextSlot::PROMISE_HOOK_BEFORE_FUNCTION_INDEX, promiseOrCapability,
       flags);
 }
 
 @export
-transitioning macro RunContextPromiseHookAfter(implicit context: Context)(
+transitioning macro RunContextPromiseHookAfter(
+    implicit context: Context)(
     promiseOrCapability: JSPromise|PromiseCapability|Undefined): void {
   // Use potentially unused variables.
   const _unusedPromiseOrCapability = promiseOrCapability;
@@ -175,16 +179,17 @@ transitioning macro RunContextPromiseHookAfter(implicit context: Context)(
 }
 
 @export
-transitioning macro RunContextPromiseHookAfter(implicit context: Context)(
-    promiseOrCapability: JSPromise|PromiseCapability|Undefined, flags: uint32):
-    void {
+transitioning macro RunContextPromiseHookAfter(
+    implicit context: Context)(
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined,
+    flags: uint32): void {
   RunContextPromiseHook(
       ContextSlot::PROMISE_HOOK_AFTER_FUNCTION_INDEX, promiseOrCapability,
       flags);
 }
 
-transitioning macro RunContextPromiseHook(implicit context: Context)(
-    slot: Slot<NativeContext, Undefined|Callable>,
+transitioning macro RunContextPromiseHook(
+    implicit context: Context)(slot: Slot<NativeContext, Undefined|Callable>,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined,
     flags: uint32): void {
   // Use potentially unused variables.
@@ -217,8 +222,8 @@ transitioning macro RunContextPromiseHook(implicit context: Context)(
   }
 }
 
-transitioning macro RunAnyPromiseHookInit(implicit context: Context)(
-    promise: JSPromise, parent: Object): void {
+transitioning macro RunAnyPromiseHookInit(
+    implicit context: Context)(promise: JSPromise, parent: Object): void {
   const promiseHookFlags = PromiseHookFlags();
   // Fast return if no hooks are set.
   if (promiseHookFlags == 0) return;
@@ -256,8 +261,9 @@ transitioning macro NewJSPromise(implicit context: Context)(): JSPromise {
 // This allocates and initializes a promise with the given state and
 // fields.
 @export
-transitioning macro NewJSPromise(implicit context: Context)(
-    status: constexpr PromiseState, result: JSAny): JSPromise {
+transitioning macro NewJSPromise(
+    implicit context: Context)(status: constexpr PromiseState,
+    result: JSAny): JSPromise {
   dcheck(status != PromiseState::kPending);
 
   const instance = InnerNewJSPromise();
@@ -268,8 +274,9 @@ transitioning macro NewJSPromise(implicit context: Context)(
   return instance;
 }
 
-macro NewPromiseReaction(implicit context: Context)(
-    handlerContext: Context, next: Zero|PromiseReaction,
+macro NewPromiseReaction(
+    implicit context: Context)(handlerContext: Context,
+    next: Zero|PromiseReaction,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined,
     fulfillHandler: Callable|Undefined,
     rejectHandler: Callable|Undefined): PromiseReaction {
@@ -289,9 +296,9 @@ macro NewPromiseReaction(implicit context: Context)(
 extern macro PromiseResolveThenableJobTaskMapConstant(): Map;
 
 // https://tc39.es/ecma262/#sec-newpromiseresolvethenablejob
-macro NewPromiseResolveThenableJobTask(implicit context: Context)(
-    promiseToResolve: JSPromise, thenable: JSReceiver,
-    then: Callable): PromiseResolveThenableJobTask {
+macro NewPromiseResolveThenableJobTask(
+    implicit context: Context)(promiseToResolve: JSPromise,
+    thenable: JSReceiver, then: Callable): PromiseResolveThenableJobTask {
   // 2. Let getThenRealmResult be GetFunctionRealm(then).
   // 3. If getThenRealmResult is a normal completion, then let thenRealm be
   //    getThenRealmResult.[[Value]].
@@ -317,8 +324,7 @@ macro NewPromiseResolveThenableJobTask(implicit context: Context)(
 }
 
 struct InvokeThenOneArgFunctor {
-  transitioning
-  macro Call(
+  transitioning macro Call(
       nativeContext: NativeContext, then: JSAny, receiver: JSAny, arg1: JSAny,
       _arg2: JSAny): JSAny {
     return Call(nativeContext, then, receiver, arg1);
@@ -326,18 +332,16 @@ struct InvokeThenOneArgFunctor {
 }
 
 struct InvokeThenTwoArgFunctor {
-  transitioning
-  macro Call(
+  transitioning macro Call(
       nativeContext: NativeContext, then: JSAny, receiver: JSAny, arg1: JSAny,
       arg2: JSAny): JSAny {
     return Call(nativeContext, then, receiver, arg1, arg2);
   }
 }
 
-transitioning
-macro InvokeThen<F: type>(implicit context: Context)(
-    nativeContext: NativeContext, receiver: JSAny, arg1: JSAny, arg2: JSAny,
-    callFunctor: F): JSAny {
+transitioning macro InvokeThen<F: type>(
+    implicit context: Context)(nativeContext: NativeContext, receiver: JSAny,
+    arg1: JSAny, arg2: JSAny, callFunctor: F): JSAny {
   // We can skip the "then" lookup on {receiver} if it's [[Prototype]]
   // is the (initial) Promise.prototype and the Promise#then protector
   // is intact, as that guards the lookup path for the "then" property
@@ -355,25 +359,23 @@ macro InvokeThen<F: type>(implicit context: Context)(
     }
 }
 
-transitioning
-macro InvokeThen(implicit context: Context)(
-    nativeContext: NativeContext, receiver: JSAny, arg: JSAny): JSAny {
+transitioning macro InvokeThen(
+    implicit context: Context)(nativeContext: NativeContext, receiver: JSAny,
+    arg: JSAny): JSAny {
   return InvokeThen(
       nativeContext, receiver, arg, Undefined, InvokeThenOneArgFunctor{});
 }
 
-transitioning
-macro InvokeThen(implicit context: Context)(
-    nativeContext: NativeContext, receiver: JSAny, arg1: JSAny,
-    arg2: JSAny): JSAny {
+transitioning macro InvokeThen(
+    implicit context: Context)(nativeContext: NativeContext, receiver: JSAny,
+    arg1: JSAny, arg2: JSAny): JSAny {
   return InvokeThen(
       nativeContext, receiver, arg1, arg2, InvokeThenTwoArgFunctor{});
 }
 
-transitioning
-macro BranchIfAccessCheckFailed(implicit context: Context)(
-    nativeContext: NativeContext, promiseConstructor: JSAny,
-    executor: JSAny): void labels IfNoAccess {
+transitioning macro BranchIfAccessCheckFailed(
+    implicit context: Context)(nativeContext: NativeContext,
+    promiseConstructor: JSAny, executor: JSAny): void labels IfNoAccess {
   try {
     // If executor is a bound function, load the bound function until we've
     // reached an actual function.

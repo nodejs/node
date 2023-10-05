@@ -102,6 +102,7 @@ class StatsTable {
 class StatsCounter {
  public:
   void Set(int value) { GetPtr()->store(value, std::memory_order_relaxed); }
+  int Get() { return GetPtr()->load(); }
 
   void Increment(int value = 1) {
     GetPtr()->fetch_add(value, std::memory_order_relaxed);
@@ -122,8 +123,10 @@ class StatsCounter {
 
  private:
   friend class Counters;
+  friend class CountersInitializer;
+  friend class StatsCounterResetter;
 
-  void Init(Counters* counters, const char* name) {
+  void Initialize(const char* name, Counters* counters) {
     DCHECK_NULL(counters_);
     DCHECK_NOT_NULL(counters);
     // Counter names always start with "c:V8.".
@@ -205,6 +208,8 @@ class Histogram {
 
  private:
   friend class Counters;
+  friend class CountersInitializer;
+  friend class HistogramResetter;
 
   V8_EXPORT_PRIVATE void* CreateHistogram() const;
 
@@ -216,6 +221,11 @@ class Histogram {
   Counters* counters_;
   base::Mutex mutex_;
 };
+
+// Dummy classes for better visiting.
+
+class PercentageHistogram : public Histogram {};
+class LegacyMemoryHistogram : public Histogram {};
 
 enum class TimedHistogramResolution { MILLISECOND, MICROSECOND };
 
@@ -244,6 +254,8 @@ class TimedHistogram : public Histogram {
   void LogEnd(Isolate* isolate);
 
   friend class Counters;
+  friend class CountersInitializer;
+
   TimedHistogramResolution resolution_;
 
   TimedHistogram() = default;
@@ -550,18 +562,18 @@ class Counters : public std::enable_shared_from_this<Counters> {
   AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
 #undef AHT
 
-#define HP(name, caption)    \
-  Histogram* name() {        \
-    name##_.EnsureCreated(); \
-    return &name##_;         \
+#define HP(name, caption)       \
+  PercentageHistogram* name() { \
+    name##_.EnsureCreated();    \
+    return &name##_;            \
   }
   HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
 
-#define HM(name, caption)    \
-  Histogram* name() {        \
-    name##_.EnsureCreated(); \
-    return &name##_;         \
+#define HM(name, caption)         \
+  LegacyMemoryHistogram* name() { \
+    name##_.EnsureCreated();      \
+    return &name##_;              \
   }
   HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
@@ -599,10 +611,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
     kSizeOfCODE_TYPE_##name,
     CODE_KIND_LIST(COUNTER_ID)
 #undef COUNTER_ID
-#define COUNTER_ID(name) kCountOfFIXED_ARRAY__##name, \
-    kSizeOfFIXED_ARRAY__##name,
-    FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COUNTER_ID)
-#undef COUNTER_ID
     stats_counter_count
   };
   // clang-format on
@@ -622,10 +630,11 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #endif  // V8_RUNTIME_CALL_STATS
 
  private:
-  friend class StatsTable;
-  friend class StatsCounter;
+  friend class CountersVisitor;
   friend class Histogram;
   friend class NestedTimedHistogramScope;
+  friend class StatsCounter;
+  friend class StatsTable;
 
   int* FindLocation(const char* name) {
     return stats_table_.FindLocation(name);
@@ -658,35 +667,17 @@ class Counters : public std::enable_shared_from_this<Counters> {
   AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
 #undef AHT
 
-#define HP(name, caption) Histogram name##_;
+#define HP(name, caption) PercentageHistogram name##_;
   HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
 
-#define HM(name, caption) Histogram name##_;
+#define HM(name, caption) LegacyMemoryHistogram name##_;
   HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
 
 #define SC(name, caption) StatsCounter name##_;
   STATS_COUNTER_LIST(SC)
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
-#undef SC
-
-#define SC(name)                  \
-  StatsCounter size_of_##name##_; \
-  StatsCounter count_of_##name##_;
-  INSTANCE_TYPE_LIST(SC)
-#undef SC
-
-#define SC(name)                            \
-  StatsCounter size_of_CODE_TYPE_##name##_; \
-  StatsCounter count_of_CODE_TYPE_##name##_;
-  CODE_KIND_LIST(SC)
-#undef SC
-
-#define SC(name)                              \
-  StatsCounter size_of_FIXED_ARRAY_##name##_; \
-  StatsCounter count_of_FIXED_ARRAY_##name##_;
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 
 #ifdef V8_RUNTIME_CALL_STATS
@@ -699,6 +690,70 @@ class Counters : public std::enable_shared_from_this<Counters> {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
 
+class CountersVisitor {
+ public:
+  explicit CountersVisitor(Counters* counters) : counters_(counters) {}
+
+  void Start();
+  Counters* counters() { return counters_; }
+
+ protected:
+  virtual void VisitHistograms();
+  virtual void VisitStatsCounters();
+
+  virtual void VisitHistogram(Histogram* histogram, const char* caption) {}
+  virtual void VisitStatsCounter(StatsCounter* counter, const char* caption) {}
+
+  virtual void Visit(Histogram* histogram, const char* caption, int min,
+                     int max, int num_buckets);
+  virtual void Visit(TimedHistogram* histogram, const char* caption, int max,
+                     TimedHistogramResolution res);
+  virtual void Visit(NestedTimedHistogram* histogram, const char* caption,
+                     int max, TimedHistogramResolution res);
+  virtual void Visit(AggregatableHistogramTimer* histogram,
+                     const char* caption);
+  virtual void Visit(PercentageHistogram* histogram, const char* caption);
+  virtual void Visit(LegacyMemoryHistogram* histogram, const char* caption);
+  virtual void Visit(StatsCounter* counter, const char* caption);
+
+ private:
+  Counters* counters_;
+};
+
+class CountersInitializer : public CountersVisitor {
+ public:
+  using CountersVisitor::CountersVisitor;
+
+ protected:
+  void Visit(Histogram* histogram, const char* caption, int min, int max,
+             int num_buckets) final;
+  void Visit(TimedHistogram* histogram, const char* caption, int max,
+             TimedHistogramResolution res) final;
+  void Visit(NestedTimedHistogram* histogram, const char* caption, int max,
+             TimedHistogramResolution res) final;
+  void Visit(AggregatableHistogramTimer* histogram, const char* caption) final;
+  void Visit(PercentageHistogram* histogram, const char* caption) final;
+  void Visit(LegacyMemoryHistogram* histogram, const char* caption) final;
+  void Visit(StatsCounter* counter, const char* caption) final;
+};
+
+class StatsCounterResetter : public CountersVisitor {
+ public:
+  using CountersVisitor::CountersVisitor;
+
+ protected:
+  void VisitHistograms() final {}
+  void VisitStatsCounter(StatsCounter* counter, const char* caption) final;
+};
+
+class HistogramResetter : public CountersVisitor {
+ public:
+  using CountersVisitor::CountersVisitor;
+
+ protected:
+  void VisitStatsCounters() final {}
+  void VisitHistogram(Histogram* histogram, const char* caption) final;
+};
 
 }  // namespace internal
 }  // namespace v8

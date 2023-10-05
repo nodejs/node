@@ -12,6 +12,7 @@
 #include "include/v8-object.h"
 #include "include/v8-primitive.h"
 #include "src/base/vlq-base64.h"
+#include "src/wasm/std-object-sizes.h"
 
 namespace v8 {
 
@@ -155,6 +156,19 @@ bool WasmModuleSourceMap::DecodeMapping(const std::string& s) {
     offsets.push_back(gen_col);
   }
   return true;
+}
+
+size_t WasmModuleSourceMap::EstimateCurrentMemoryConsumption() const {
+  UPDATE_WHEN_CLASS_CHANGES(WasmModuleSourceMap, 104);
+  size_t result = sizeof(WasmModuleSourceMap);
+  result += ContentSize(offsets);
+  result += ContentSize(filenames);
+  for (const std::string& s : filenames) {
+    result += s.length();
+  }
+  result += ContentSize(file_idxs);
+  result += ContentSize(source_row);
+  return result;
 }
 
 }  // namespace wasm

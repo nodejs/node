@@ -62,7 +62,7 @@ class AllocationBuilder final {
       AllocationType allocation = AllocationType::kYoung);
 
   // Compound store of a constant into a field.
-  void Store(const FieldAccess& access, const ObjectRef& value) {
+  void Store(const FieldAccess& access, ObjectRef value) {
     Store(access, jsgraph()->Constant(value, broker_));
   }
 

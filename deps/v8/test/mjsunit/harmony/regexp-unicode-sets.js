@@ -159,6 +159,7 @@ check(/[[2-57-8]--[0-3]--[5-7]]/v, Array.from('48'));
 check(/[[0-57-8]--[1-34]--[5-7]]/v, Array.from('08'));
 check(/[\d--[^02468]]/v, Array.from('02468'));
 check(/[\d--[^13579]]/v, Array.from('13579'));
+check(/[[a-c]--\0]/v, Array.from('abc'));
 
 // Ignore-Case
 check(/[Ā-č]/v, Array.from('ĀāĂăĄąĆć'), Array.from('abc'));
@@ -166,21 +167,26 @@ check(/[ĀĂĄĆ]/vi, Array.from('ĀāĂăĄąĆć'), Array.from('abc'));
 check(/[āăąć]/vi, Array.from('ĀāĂăĄąĆć'), Array.from('abc'));
 
 // String disjunctions
-check(/[\q{foo|bar|0|5}]/v, ['foo', 'bar', 0, 5], ['fo', 'baz'], false)
-check(/[\q{foo|bar}[05]]/v, ['foo', 'bar', 0, 5], ['fo', 'baz'], false)
-check(/[\q{foo|bar|0|5}&&\q{bar}]/v, ['bar'], ['foo', 0, 5, 'fo', 'baz'], false)
+check(/[\q{foo|bar|0|5}]/v, ['foo', 'bar', 0, 5], ['fo', 'baz'], false);
+check(/[\q{foo|bar}[05]]/v, ['foo', 'bar', 0, 5], ['fo', 'baz'], false);
+check(
+    /[\q{foo|bar|0|5}&&\q{bar}]/v, ['bar'], ['foo', 0, 5, 'fo', 'baz'], false);
 // The second operand of the intersection doesn't contain strings, so the result
 // will not contain strings and therefore negation is valid.
-check(/[\q{foo|bar|0|5}&&\d]/v, [0, 5], ['foo', 'bar', 'fo', 'baz'], true)
-check(/[\q{foo|bar|0|5}--\q{foo}]/v, ['bar', 0, 5], ['foo', 'fo', 'baz'], false)
-check(/[\q{foo|bar|0|5}--\d]/v, ['foo', 'bar'], [0, 5, 'fo', 'baz'], false)
+check(/[\q{foo|bar|0|5}&&\d]/v, [0, 5], ['foo', 'bar', 'fo', 'baz'], true);
+check(
+    /[\q{foo|bar|0|5}--\q{foo}]/v, ['bar', 0, 5], ['foo', 'fo', 'baz'], false);
+check(/[\q{foo|bar|0|5}--\d]/v, ['foo', 'bar'], [0, 5, 'fo', 'baz'], false);
+check(
+    /[\q{foo|bar|3|2|0}--\d]/v, ['foo', 'bar'], [0, 1, 2, 3, 4, 5, 'fo', 'baz'],
+    false);
 
 check(
     /[\q{foo|bar|0|5}&&\q{bAr}]/vi, ['bar', 'bAr', 'BAR'],
-    ['foo', 0, 5, 'fo', 'baz'], false)
+    ['foo', 0, 5, 'fo', 'baz'], false);
 check(
     /[\q{foo|bar|0|5}--\q{FoO}]/vi, ['bar', 'bAr', 'BAR', 0, 5],
-    ['foo', 'FOO', 'fo', 'baz'], false)
+    ['foo', 'FOO', 'fo', 'baz'], false);
 
 check(/[\q{ĀĂĄĆ|AaAc}&&\q{āăąć}]/vi, ['ĀĂĄĆ', 'āăąć'], ['AaAc'], false);
 check(
@@ -201,11 +207,11 @@ assertEquals(1, res.length);
 assertEquals('', res[0]);
 
 // Ensure longest strings are matched first.
-assertEquals(['xyz'], /[a-c\q{W|xy|xyz}]/v.exec('xyzabc'))
-assertEquals(['xyz'], /[a-c\q{W|xyz|xy}]/v.exec('xyzabc'))
-assertEquals(['xyz'], /[\q{W|xyz|xy}a-c]/v.exec('xyzabc'))
+assertEquals(['xyz'], /[a-c\q{W|xy|xyz}]/v.exec('xyzabc'));
+assertEquals(['xyz'], /[a-c\q{W|xyz|xy}]/v.exec('xyzabc'));
+assertEquals(['xyz'], /[\q{W|xyz|xy}a-c]/v.exec('xyzabc'));
 // Empty string is last.
-assertEquals(['a'], /[\q{W|}a-c]/v.exec('abc'))
+assertEquals(['a'], /[\q{W|}a-c]/v.exec('abc'));
 
 // Some more sophisticated tests taken from
 // https://v8.dev/features/regexp-v-flag
@@ -247,5 +253,9 @@ assertTrue(
     /[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test('🇨🇭'));
 assertTrue(/[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test(
     '🏴󠁧󠁢󠁷󠁬󠁳󠁿'));
+
+// Check new case-folding semantics.
 assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/\p{Lowercase_Letter}/giv, 'X'));
 assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/[^\P{Lowercase_Letter}]/giv, 'X'));
+assertFalse(/\P{ASCII}/iv.test('K'));
+assertFalse(/^\P{Lowercase}/iv.test('A'));

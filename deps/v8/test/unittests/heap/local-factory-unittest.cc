@@ -126,14 +126,14 @@ TEST_F(LocalFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
   }
 
   EXPECT_TRUE(string->IsOneByteEqualTo(base::CStrVector("foo")));
-  EXPECT_TRUE(string->IsInternalizedString());
+  EXPECT_TRUE(IsInternalizedString(*string));
 
   Handle<String> same_string = isolate()
                                    ->factory()
                                    ->NewStringFromOneByte(string_vector)
                                    .ToHandleChecked();
   EXPECT_NE(*string, *same_string);
-  EXPECT_FALSE(same_string->IsInternalizedString());
+  EXPECT_FALSE(IsInternalizedString(*same_string));
 
   Handle<String> internalized_string =
       isolate()->factory()->InternalizeString(same_string);
@@ -158,7 +158,7 @@ TEST_F(LocalFactoryTest, OneByteInternalizedString_DuplicateIsDeduplicated) {
   }
 
   EXPECT_TRUE(string_1->IsOneByteEqualTo(base::CStrVector("foo")));
-  EXPECT_TRUE(string_1->IsInternalizedString());
+  EXPECT_TRUE(IsInternalizedString(*string_1));
   EXPECT_EQ(*string_1, *string_2);
 }
 
@@ -178,7 +178,7 @@ TEST_F(LocalFactoryTest, AstRawString_IsInternalized) {
   }
 
   EXPECT_TRUE(string->IsOneByteEqualTo(base::CStrVector("foo")));
-  EXPECT_TRUE(string->IsInternalizedString());
+  EXPECT_TRUE(IsInternalizedString(*string));
 }
 
 TEST_F(LocalFactoryTest, AstConsString_CreatesConsString) {
@@ -201,7 +201,7 @@ TEST_F(LocalFactoryTest, AstConsString_CreatesConsString) {
         foobar_string->GetString(local_isolate()));
   }
 
-  EXPECT_TRUE(string->IsConsString());
+  EXPECT_TRUE(IsConsString(*string));
   EXPECT_TRUE(string->Equals(*isolate()->factory()->NewStringFromStaticChars(
       "foobar-plus-padding-for-length")));
 }
@@ -240,7 +240,7 @@ TEST_F(LocalFactoryTest, LazyFunction) {
   Handle<SharedFunctionInfo> lazy_sfi = shared;
 
   EXPECT_EQ(lazy_sfi->function_literal_id(), 1);
-  EXPECT_TRUE(lazy_sfi->Name().IsOneByteEqualTo(base::CStrVector("lazy")));
+  EXPECT_TRUE(lazy_sfi->Name()->IsOneByteEqualTo(base::CStrVector("lazy")));
   EXPECT_FALSE(lazy_sfi->is_compiled());
   EXPECT_TRUE(lazy_sfi->HasUncompiledDataWithoutPreparseData());
 }
@@ -267,7 +267,7 @@ TEST_F(LocalFactoryTest, EagerFunction) {
   Handle<SharedFunctionInfo> eager_sfi = shared;
 
   EXPECT_EQ(eager_sfi->function_literal_id(), 1);
-  EXPECT_TRUE(eager_sfi->Name().IsOneByteEqualTo(base::CStrVector("eager")));
+  EXPECT_TRUE(eager_sfi->Name()->IsOneByteEqualTo(base::CStrVector("eager")));
   EXPECT_FALSE(eager_sfi->HasUncompiledData());
   // TODO(leszeks): Add compilation support and enable these checks.
   // EXPECT_TRUE(eager_sfi->is_compiled());
@@ -298,7 +298,7 @@ TEST_F(LocalFactoryTest, ImplicitNameFunction) {
   Handle<SharedFunctionInfo> implicit_name_sfi = shared;
 
   EXPECT_EQ(implicit_name_sfi->function_literal_id(), 1);
-  EXPECT_TRUE(implicit_name_sfi->Name().IsOneByteEqualTo(
+  EXPECT_TRUE(implicit_name_sfi->Name()->IsOneByteEqualTo(
       base::CStrVector("implicit_name")));
 }
 
@@ -326,7 +326,7 @@ TEST_F(LocalFactoryTest, GCDuringPublish) {
   Handle<SharedFunctionInfo> implicit_name_sfi = shared;
 
   EXPECT_EQ(implicit_name_sfi->function_literal_id(), 1);
-  EXPECT_TRUE(implicit_name_sfi->Name().IsOneByteEqualTo(
+  EXPECT_TRUE(implicit_name_sfi->Name()->IsOneByteEqualTo(
       base::CStrVector("implicit_name")));
 }
 

@@ -165,7 +165,7 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
   __ cmpq(value, operand);
   __ j(cc, target, distance);
 }
-void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Smi smi,
+void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Tagged<Smi> smi,
                                   Label* target, Label::Distance distance) {
   __ SmiCompare(lhs, smi);
   __ j(cc, target, distance);
@@ -205,7 +205,7 @@ void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 void BaselineAssembler::Move(interpreter::Register output, Register source) {
   return __ movq(RegisterFrameOperand(output), source);
 }
-void BaselineAssembler::Move(Register output, TaggedIndex value) {
+void BaselineAssembler::Move(Register output, Tagged<TaggedIndex> value) {
   __ Move(output, value);
 }
 void BaselineAssembler::Move(MemOperand output, Register source) {
@@ -232,10 +232,12 @@ inline void PushSingle(MacroAssembler* masm, RootIndex source) {
   masm->PushRoot(source);
 }
 inline void PushSingle(MacroAssembler* masm, Register reg) { masm->Push(reg); }
-inline void PushSingle(MacroAssembler* masm, TaggedIndex value) {
+inline void PushSingle(MacroAssembler* masm, Tagged<TaggedIndex> value) {
   masm->Push(value);
 }
-inline void PushSingle(MacroAssembler* masm, Smi value) { masm->Push(value); }
+inline void PushSingle(MacroAssembler* masm, Tagged<Smi> value) {
+  masm->Push(value);
+}
 inline void PushSingle(MacroAssembler* masm, Handle<HeapObject> object) {
   masm->Push(object);
 }
@@ -336,7 +338,7 @@ void BaselineAssembler::LoadWord8Field(Register output, Register source,
   __ movb(output, FieldOperand(source, offset));
 }
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
-                                               Smi value) {
+                                               Tagged<Smi> value) {
   __ StoreTaggedSignedField(FieldOperand(target, offset), value);
 }
 void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
@@ -386,8 +388,9 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
                                                 FeedbackSlot slot,
                                                 Label* on_result,
                                                 Label::Distance distance) {
-  __ MacroAssembler::TryLoadOptimizedOsrCode(
-      scratch_and_result, feedback_vector, slot, on_result, distance);
+  __ MacroAssembler::TryLoadOptimizedOsrCode(scratch_and_result,
+                                             CodeKind::MAGLEV, feedback_vector,
+                                             slot, on_result, distance);
 }
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
@@ -516,7 +519,7 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
   StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
 }
 
-void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
+void BaselineAssembler::AddSmi(Register lhs, Tagged<Smi> rhs) {
   if (rhs.value() == 0) return;
   if (SmiValuesAre31Bits()) {
     __ addl(lhs, Immediate(rhs));

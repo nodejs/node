@@ -13,6 +13,8 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/s390/assembler-s390.h"
 #include "src/common/globals.h"
+#include "src/execution/frame-constants.h"
+#include "src/execution/isolate-data.h"
 #include "src/objects/contexts.h"
 
 namespace v8 {
@@ -131,22 +133,21 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void Call(Label* target);
 
-  // Load the builtin given by the Smi in |builtin_index| into the same
-  // register.
-  void LoadEntryFromBuiltinIndex(Register builtin_index);
+  // Load the builtin given by the Smi in |builtin_index| into |target|.
+  void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);
   void LoadEntryFromBuiltin(Builtin builtin, Register destination);
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
-  void CallBuiltinByIndex(Register builtin_index);
+  void CallBuiltinByIndex(Register builtin_index, Register target);
 
   // Register move. May do nothing if the registers are identical.
-  void Move(Register dst, Smi smi) { LoadSmiLiteral(dst, smi); }
+  void Move(Register dst, Tagged<Smi> smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> source,
             RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
   void Move(Register dst, ExternalReference reference);
@@ -626,7 +627,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Push a handle.
   void Push(Handle<HeapObject> handle);
-  void Push(Smi smi);
+  void Push(Tagged<Smi> smi);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -731,6 +732,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     mov(kRootRegister, Operand(isolate_root));
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    LoadRootRelative(kPtrComprCageBaseRegister,
+                     IsolateData::cage_base_offset());
+#endif
   }
 
   // If the value is a NaN, canonicalize the value else, do nothing.
@@ -1126,6 +1131,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Define an exception handler and bind a label.
   void BindExceptionHandler(Label* label) { bind(label); }
 
+  // Convenience functions to call/jmp to the code of a JSFunction object.
+  void CallJSFunction(Register function_object);
+  void JumpJSFunction(Register function_object,
+                      JumpMode jump_mode = JumpMode::kJump);
+
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
@@ -1214,7 +1224,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                Simd128Register scratch);
   void I8x16Swizzle(Simd128Register dst, Simd128Register src1,
                     Simd128Register src2, Register scratch1, Register scratch2,
-                    Simd128Register scratch3, Simd128Register scratch4);
+                    Simd128Register scratch3);
   void S128Const(Simd128Register dst, uint64_t high, uint64_t low,
                  Register scratch1, Register scratch2);
   void I8x16Shuffle(Simd128Register dst, Simd128Register src1,
@@ -1505,17 +1515,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                              Register scratch_pair = r0);
 
   void LoadStackLimit(Register destination, StackLimitKind kind);
-  // It assumes that the arguments are located below the stack pointer.
-  // argc is the number of arguments not including the receiver.
-  // TODO(victorgomes): Remove this function once we stick with the reversed
-  // arguments order.
-  void LoadReceiver(Register dest, Register argc) {
-    LoadU64(dest, MemOperand(sp, 0));
-  }
 
-  void StoreReceiver(Register rec, Register argc, Register scratch) {
-    StoreU64(rec, MemOperand(sp, 0));
-  }
+  // It assumes that the arguments are located below the stack pointer.
+  void LoadReceiver(Register dest) { LoadU64(dest, MemOperand(sp, 0)); }
+  void StoreReceiver(Register rec) { StoreU64(rec, MemOperand(sp, 0)); }
 
   void CallRuntime(const Runtime::Function* f, int num_arguments);
 
@@ -1731,6 +1734,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void AssertUndefinedOrAllocationSite(Register object,
                                        Register scratch) NOOP_UNLESS_DEBUG_CODE;
 
+  void AssertJSAny(Register object, Register map_tmp, Register tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
+
   template <typename Field>
   void DecodeField(Register dst, Register src) {
     ExtractBitRange(dst, src, Field::kShift + Field::kSize - 1, Field::kShift);
@@ -1807,6 +1813,34 @@ struct MoveCycleState {
   // Whether a move in the cycle needs a double scratch register.
   bool pending_double_scratch_register_use = false;
 };
+
+// Provides access to exit frame parameters (GC-ed).
+inline MemOperand ExitFrameStackSlotOperand(int offset) {
+  // The slot at [sp] is reserved in all ExitFrames for storing the return
+  // address before doing the actual call, it's necessary for frame iteration
+  // (see StoreReturnAddressAndCall for details).
+  static constexpr int kSPOffset = 1 * kSystemPointerSize;
+  return MemOperand(sp, (kStackFrameExtraParamSlot * kSystemPointerSize) +
+                            offset + kSPOffset);
+}
+
+// Provides access to exit frame stack space (not GC-ed).
+inline MemOperand ExitFrameCallerStackSlotOperand(int index) {
+  return MemOperand(
+      fp, (BuiltinExitFrameConstants::kFixedSlotCountAboveFp + index) *
+              kSystemPointerSize);
+}
+
+// Calls an API function.  Allocates HandleScope, extracts returned value
+// from handle and propagates exceptions.  Restores context.  On return removes
+// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
+// (GCed, includes the call JS arguments space and the additional space
+// allocated for the fast call).
+void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
+                              Register function_address,
+                              ExternalReference thunk_ref, Register thunk_arg,
+                              int stack_space, MemOperand* stack_space_operand,
+                              MemOperand return_value_operand);
 
 #define ACCESS_MASM(masm) masm->
 

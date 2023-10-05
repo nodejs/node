@@ -28,15 +28,14 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(CallHandlerInfo)
 
-EXTERNAL_POINTER_ACCESSORS(AccessorInfo, maybe_redirected_getter, Address,
-                           kMaybeRedirectedGetterOffset, kAccessorInfoGetterTag)
-EXTERNAL_POINTER_ACCESSORS(AccessorInfo, setter, Address, kSetterOffset,
-                           kAccessorInfoSetterTag)
-
-Address AccessorInfo::getter() const {
-  i::Isolate* isolate_for_sandbox = GetIsolateForSandbox(*this);
-  return AccessorInfo::getter(isolate_for_sandbox);
-}
+EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(AccessorInfo,
+                                                maybe_redirected_getter,
+                                                Address,
+                                                kMaybeRedirectedGetterOffset,
+                                                kAccessorInfoGetterTag)
+EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(AccessorInfo, setter, Address,
+                                                kSetterOffset,
+                                                kAccessorInfoSetterTag)
 
 Address AccessorInfo::getter(i::Isolate* isolate_for_sandbox) const {
   Address result = maybe_redirected_getter(isolate_for_sandbox);
@@ -74,11 +73,13 @@ void AccessorInfo::remove_getter_redirection(i::Isolate* isolate) {
   set_maybe_redirected_getter(isolate, value);
 }
 
-bool AccessorInfo::has_getter() {
-  return maybe_redirected_getter() != kNullAddress;
+bool AccessorInfo::has_getter(Isolate* isolate) {
+  return maybe_redirected_getter(isolate) != kNullAddress;
 }
 
-bool AccessorInfo::has_setter() { return setter() != kNullAddress; }
+bool AccessorInfo::has_setter(Isolate* isolate) {
+  return setter(isolate) != kNullAddress;
+}
 
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_read,
                     AccessorInfo::AllCanReadBit)
@@ -125,41 +126,22 @@ BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
 bool CallHandlerInfo::IsSideEffectFreeCallHandlerInfo() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(map() == roots.side_effect_call_handler_info_map() ||
-         map() == roots.side_effect_free_call_handler_info_map() ||
-         map() == roots.next_call_side_effect_free_call_handler_info_map());
+         map() == roots.side_effect_free_call_handler_info_map());
   return map() == roots.side_effect_free_call_handler_info_map();
 }
 
 bool CallHandlerInfo::IsSideEffectCallHandlerInfo() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(map() == roots.side_effect_call_handler_info_map() ||
-         map() == roots.side_effect_free_call_handler_info_map() ||
-         map() == roots.next_call_side_effect_free_call_handler_info_map());
+         map() == roots.side_effect_free_call_handler_info_map());
   return map() == roots.side_effect_call_handler_info_map();
 }
 
-void CallHandlerInfo::SetNextCallHasNoSideEffect() {
-  set_map(
-      GetReadOnlyRoots().next_call_side_effect_free_call_handler_info_map());
-}
-
-bool CallHandlerInfo::NextCallHasNoSideEffect() {
-  ReadOnlyRoots roots = GetReadOnlyRoots();
-  if (map() == roots.next_call_side_effect_free_call_handler_info_map()) {
-    set_map(roots.side_effect_call_handler_info_map());
-    return true;
-  }
-  return false;
-}
-
-EXTERNAL_POINTER_ACCESSORS(CallHandlerInfo, maybe_redirected_callback, Address,
-                           kMaybeRedirectedCallbackOffset,
-                           kCallHandlerInfoCallbackTag)
-
-Address CallHandlerInfo::callback() const {
-  i::Isolate* isolate_for_sandbox = GetIsolateForSandbox(*this);
-  return CallHandlerInfo::callback(isolate_for_sandbox);
-}
+EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(CallHandlerInfo,
+                                                maybe_redirected_callback,
+                                                Address,
+                                                kMaybeRedirectedCallbackOffset,
+                                                kCallHandlerInfoCallbackTag)
 
 Address CallHandlerInfo::callback(i::Isolate* isolate_for_sandbox) const {
   Address result = maybe_redirected_callback(isolate_for_sandbox);

@@ -21,23 +21,24 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator)
 TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateLiteralObject)
 
-DEF_GETTER(JSArray, length, Object) {
+DEF_GETTER(JSArray, length, Tagged<Object>) {
   return TaggedField<Object, kLengthOffset>::load(cage_base, *this);
 }
 
-void JSArray::set_length(Object value, WriteBarrierMode mode) {
+void JSArray::set_length(Tagged<Object> value, WriteBarrierMode mode) {
   // Note the relaxed atomic store.
   TaggedField<Object, kLengthOffset>::Relaxed_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kLengthOffset, value, mode);
 }
 
-Object JSArray::length(PtrComprCageBase cage_base, RelaxedLoadTag tag) const {
+Tagged<Object> JSArray::length(PtrComprCageBase cage_base,
+                               RelaxedLoadTag tag) const {
   return TaggedField<Object, kLengthOffset>::Relaxed_Load(cage_base, *this);
 }
 
-void JSArray::set_length(Smi length) {
+void JSArray::set_length(Tagged<Smi> length) {
   // Don't need a write barrier for a Smi.
-  set_length(Object(length.ptr()), SKIP_WRITE_BARRIER);
+  set_length(Tagged<Object>(length.ptr()), SKIP_WRITE_BARRIER);
 }
 
 bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
@@ -61,7 +62,7 @@ void JSArray::SetContent(Handle<JSArray> array,
 }
 
 bool JSArray::HasArrayPrototype(Isolate* isolate) {
-  return map().prototype() == *isolate->initial_array_prototype();
+  return map()->prototype() == *isolate->initial_array_prototype();
 }
 
 SMI_ACCESSORS(JSArrayIterator, raw_kind, kKindOffset)

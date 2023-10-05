@@ -196,8 +196,8 @@ function dummy_func() {
 (function TestExternRefGlobalObjectDefaultValue() {
   print(arguments.callee.name);
   let default_init = new WebAssembly.Global({ value: 'externref', mutable: true });
-  assertSame(null, default_init.value);
-  assertSame(null, default_init.valueOf());
+  assertSame(undefined, default_init.value);
+  assertSame(undefined, default_init.valueOf());
 })();
 
 (function TestAnyFuncGlobalObjectDefaultValue() {

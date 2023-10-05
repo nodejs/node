@@ -11,18 +11,18 @@ from . import base
 EXTRA_FLAGS = [
     (0.1, '--always-turbofan'),
     (0.1, '--assert-types'),
-    (0.1, '--interrupt-budget-for-feedback-allocation=0'),
     (0.1, '--cache=code'),
     (0.1, '--force-slow-path'),
     (0.2, '--future'),
     # TODO(v8:13524): Enable when issue is fixed
     # TODO(v8:13528): Enable when issue is fixed
     # (0.1, '--harmony-struct'),
-    (0.1, '--interrupt-budget=100'),
-    (0.1, '--interrupt-budget-for-maglev=100'),
+    (0.1, '--jit-fuzzing'),
     (0.1, '--liftoff'),
     (0.1, '--maglev'),
-    (0.1, '--minor-mc'),
+    (0.1, '--maglev-future'),
+    (0.25, '--minor-ms'),
+    (0.1, '--concurrent-minor-ms-marking'),
     (0.2, '--no-analyze-environment-liveness'),
     # TODO(machenbach): Enable when it doesn't collide with crashing on missing
     # simd features.
@@ -42,6 +42,7 @@ EXTRA_FLAGS = [
     (0.1, '--no-turbofan'),
     (0.2, '--no-regexp-tier-up'),
     (0.1, '--no-wasm-tier-up'),
+    (0.1, '--optimize-on-next-call-optimizes-to-maglev'),
     (0.1, '--regexp-interpret-all'),
     (0.1, '--regexp-tier-up-ticks=10'),
     (0.1, '--regexp-tier-up-ticks=100'),
@@ -49,6 +50,7 @@ EXTRA_FLAGS = [
     (0.1, '--stress-background-compile'),
     (0.1, '--stress-flush-code'),
     (0.1, '--stress-lazy-source-positions'),
+    (0.1, '--stress-maglev'),
     (0.1, '--stress-wasm-code-gc'),
     (0.2, '--turboshaft'),
     (0.1, '--turbo-instruction-scheduling'),
@@ -337,14 +339,12 @@ class InterruptBudgetFuzzer(Fuzzer):
       # overwrites potential flag negations from the extra flags list.
       flag1 = rng.choice(
           ['--lazy-feedback-allocation', '--no-lazy-feedback-allocation'])
-      flag2 = '--interrupt-budget=%d' % rng.randint(0, 135168)
-      flag3 = '--interrupt-budget-for-maglev=%d' % rng.randint(0, 40960)
-      flag4 = '--interrupt-budget-for-feedback-allocation=%d' % rng.randint(
-          0, 940)
-      flag5 = '--interrupt-budget-factor-for-feedback-allocation=%d' % rng.randint(
-          1, 8)
+      flag2 = '--invocation-count-for-turbofan=%d' % rng.randint(0, 240)
+      flag3 = '--invocation-count-for-maglev=%d' % rng.randint(0, 120)
+      flag4 = '--invocation-count-for-feedback-allocation=%d' % rng.randint(
+          0, 8)
 
-      yield [flag1, flag2, flag3, flag4, flag5]
+      yield [flag1, flag2, flag3, flag4]
 
 
 class StackSizeFuzzer(Fuzzer):

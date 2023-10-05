@@ -22,7 +22,8 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSCollator)
 
-ACCESSORS(JSCollator, icu_collator, Managed<icu::Collator>, kIcuCollatorOffset)
+ACCESSORS(JSCollator, icu_collator, Tagged<Managed<icu::Collator>>,
+          kIcuCollatorOffset)
 
 }  // namespace internal
 }  // namespace v8

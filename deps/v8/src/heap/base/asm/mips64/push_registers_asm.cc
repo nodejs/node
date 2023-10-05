@@ -35,9 +35,9 @@ asm(".text                                               \n"
     // Pass 1st parameter (a0) unchanged (Stack*).
     // Pass 2nd parameter (a1) unchanged (StackVisitor*).
     // Save 3rd parameter (a2; IterateStackCallback).
-    "  move $a3, $a2                                     \n"
+    "  move $t9, $a2                                     \n"
     // Call the callback.
-    "  jalr $a3                                          \n"
+    "  jalr $t9                                          \n"
     // Delay slot: Pass 3rd parameter as sp (stack pointer).
     "  move $a2, $sp                                     \n"
     // Load return address.

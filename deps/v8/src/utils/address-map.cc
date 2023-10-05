@@ -17,7 +17,7 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
   for (RootIndex root_index = RootIndex::kFirstStrongOrReadOnlyRoot;
        root_index <= RootIndex::kLastStrongOrReadOnlyRoot; ++root_index) {
     Object root = isolate->root(root_index);
-    if (!root.IsHeapObject()) continue;
+    if (!IsHeapObject(root)) continue;
     // Omit root entries that can be written after initialization. They must
     // not be referenced through the root list in the snapshot.
     // Since we map the raw address of an root item to its root list index, the

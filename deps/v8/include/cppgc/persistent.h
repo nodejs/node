@@ -92,6 +92,7 @@ class BasicPersistent final : public PersistentBase,
   template <typename U, typename OtherWeaknessPolicy,
             typename OtherLocationPolicy, typename OtherCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+  // NOLINTNEXTLINE
   BasicPersistent(
       const BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
                             OtherCheckingPolicy>& other,
@@ -116,6 +117,7 @@ class BasicPersistent final : public PersistentBase,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
             typename MemberStorageType,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+  // NOLINTNEXTLINE
   BasicPersistent(const internal::BasicMember<
                       U, MemberBarrierPolicy, MemberWeaknessTag,
                       MemberCheckingPolicy, MemberStorageType>& member,
@@ -180,6 +182,8 @@ class BasicPersistent final : public PersistentBase,
   }
 
   explicit operator bool() const { return Get(); }
+  // Historically we allow implicit conversions to T*.
+  // NOLINTNEXTLINE
   operator T*() const { return Get(); }
   T* operator->() const { return Get(); }
   T& operator*() const { return *Get(); }

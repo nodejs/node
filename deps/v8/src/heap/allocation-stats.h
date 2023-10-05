@@ -8,6 +8,7 @@
 #include <atomic>
 #include <unordered_map>
 
+#include "src/base/functional.h"
 #include "src/base/macros.h"
 #include "src/heap/basic-memory-chunk.h"
 
@@ -108,7 +109,8 @@ class AllocationStats {
   std::atomic<size_t> size_;
 
 #ifdef DEBUG
-  std::unordered_map<const BasicMemoryChunk*, size_t, BasicMemoryChunk::Hasher>
+  std::unordered_map<const BasicMemoryChunk*, size_t,
+                     base::hash<const BasicMemoryChunk*>>
       allocated_on_page_;
 #endif
 };

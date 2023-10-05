@@ -7,20 +7,19 @@
 namespace regexp {
 
 @export
-transitioning macro RegExpPrototypeExecBodyFast(implicit context: Context)(
-    receiver: JSReceiver, string: String): JSAny {
+transitioning macro RegExpPrototypeExecBodyFast(
+    implicit context: Context)(receiver: JSReceiver, string: String): JSAny {
   return RegExpPrototypeExecBody(receiver, string, true);
 }
 
-transitioning macro RegExpPrototypeExecBodySlow(implicit context: Context)(
-    receiver: JSReceiver, string: String): JSAny {
+transitioning macro RegExpPrototypeExecBodySlow(
+    implicit context: Context)(receiver: JSReceiver, string: String): JSAny {
   return RegExpPrototypeExecBody(receiver, string, false);
 }
 
 // Slow path stub for RegExpPrototypeExec to decrease code size.
-transitioning builtin
-RegExpPrototypeExecSlow(implicit context: Context)(
-    regexp: JSRegExp, string: String): JSAny {
+transitioning builtin RegExpPrototypeExecSlow(
+    implicit context: Context)(regexp: JSRegExp, string: String): JSAny {
   return RegExpPrototypeExecBodySlow(regexp, string);
 }
 
@@ -30,7 +29,8 @@ extern macro RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 transitioning javascript builtin RegExpPrototypeExec(
-    js-implicit context: NativeContext, receiver: JSAny)(string: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    string: JSAny): JSAny {
   // Ensure {receiver} is a JSRegExp.
   const receiver = Cast<JSRegExp>(receiver) otherwise ThrowTypeError(
       MessageTemplate::kIncompatibleMethodReceiver, 'RegExp.prototype.exec',

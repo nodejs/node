@@ -28,12 +28,12 @@ class MaglevSafepointEntry : public SafepointEntryBase {
 
   MaglevSafepointEntry(int pc, int deopt_index, uint32_t num_tagged_slots,
                        uint32_t num_untagged_slots,
-                       uint8_t num_pushed_registers,
+                       uint8_t num_extra_spill_slots,
                        uint32_t tagged_register_indexes, int trampoline_pc)
       : SafepointEntryBase(pc, deopt_index, trampoline_pc),
         num_tagged_slots_(num_tagged_slots),
         num_untagged_slots_(num_untagged_slots),
-        num_pushed_registers_(num_pushed_registers),
+        num_extra_spill_slots_(num_extra_spill_slots),
         tagged_register_indexes_(tagged_register_indexes) {
     DCHECK(is_initialized());
   }
@@ -42,13 +42,13 @@ class MaglevSafepointEntry : public SafepointEntryBase {
     return this->SafepointEntryBase::operator==(other) &&
            num_tagged_slots_ == other.num_tagged_slots_ &&
            num_untagged_slots_ == other.num_untagged_slots_ &&
-           num_pushed_registers_ == other.num_pushed_registers_ &&
+           num_extra_spill_slots_ == other.num_extra_spill_slots_ &&
            tagged_register_indexes_ == other.tagged_register_indexes_;
   }
 
   uint32_t num_tagged_slots() const { return num_tagged_slots_; }
   uint32_t num_untagged_slots() const { return num_untagged_slots_; }
-  uint8_t num_pushed_registers() const { return num_pushed_registers_; }
+  uint8_t num_extra_spill_slots() const { return num_extra_spill_slots_; }
   uint32_t tagged_register_indexes() const { return tagged_register_indexes_; }
 
   uint32_t register_input_count() const { return tagged_register_indexes_; }
@@ -56,7 +56,7 @@ class MaglevSafepointEntry : public SafepointEntryBase {
  private:
   uint32_t num_tagged_slots_ = 0;
   uint32_t num_untagged_slots_ = 0;
-  uint8_t num_pushed_registers_ = 0;
+  uint8_t num_extra_spill_slots_ = 0;
   uint32_t tagged_register_indexes_ = 0;
 };
 
@@ -66,7 +66,8 @@ class MaglevSafepointTable {
  public:
   // The isolate and pc arguments are used for figuring out whether pc
   // belongs to the embedded or un-embedded code blob.
-  explicit MaglevSafepointTable(Isolate* isolate, Address pc, Code code);
+  explicit MaglevSafepointTable(Isolate* isolate, Address pc,
+                                Tagged<Code> code);
   MaglevSafepointTable(const MaglevSafepointTable&) = delete;
   MaglevSafepointTable& operator=(const MaglevSafepointTable&) = delete;
 
@@ -96,24 +97,24 @@ class MaglevSafepointTable {
       DCHECK(trampoline_pc >= 0 ||
              trampoline_pc == MaglevSafepointEntry::kNoTrampolinePC);
     }
-    uint8_t num_pushed_registers = read_byte(&entry_ptr);
+    uint8_t num_extra_spill_slots = read_byte(&entry_ptr);
     int tagged_register_indexes =
         read_bytes(&entry_ptr, register_indexes_size());
 
     return MaglevSafepointEntry(pc, deopt_index, num_tagged_slots_,
-                                num_untagged_slots_, num_pushed_registers,
+                                num_untagged_slots_, num_extra_spill_slots,
                                 tagged_register_indexes, trampoline_pc);
   }
 
   // Returns the entry for the given pc.
   MaglevSafepointEntry FindEntry(Address pc) const;
-  static MaglevSafepointEntry FindEntry(Isolate* isolate, GcSafeCode code,
-                                        Address pc);
+  static MaglevSafepointEntry FindEntry(Isolate* isolate,
+                                        Tagged<GcSafeCode> code, Address pc);
 
   void Print(std::ostream&) const;
 
  private:
-  MaglevSafepointTable(Isolate* isolate, Address pc, GcSafeCode code);
+  MaglevSafepointTable(Isolate* isolate, Address pc, Tagged<GcSafeCode> code);
 
   // Layout information.
   static constexpr int kLengthOffset = 0;
@@ -187,7 +188,7 @@ class MaglevSafepointTableBuilder : public SafepointTableBuilderBase {
     int pc;
     int deopt_index = MaglevSafepointEntry::kNoDeoptIndex;
     int trampoline = MaglevSafepointEntry::kNoTrampolinePC;
-    uint8_t num_pushed_registers = 0;
+    uint8_t num_extra_spill_slots = 0;
     uint32_t tagged_register_indexes = 0;
     explicit EntryBuilder(int pc) : pc(pc) {}
   };
@@ -210,8 +211,8 @@ class MaglevSafepointTableBuilder : public SafepointTableBuilderBase {
                 kBitsPerByte * sizeof(EntryBuilder::tagged_register_indexes));
       entry_->tagged_register_indexes |= 1u << reg_code;
     }
-    void SetNumPushedRegisters(uint8_t num_registers) {
-      entry_->num_pushed_registers = num_registers;
+    void SetNumExtraSpillSlots(uint8_t num_slots) {
+      entry_->num_extra_spill_slots = num_slots;
     }
 
    private:

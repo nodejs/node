@@ -14,6 +14,7 @@ struct Arguments {
 }
 
 extern operator '[]' macro GetArgumentValue(Arguments, intptr): JSAny;
+extern operator '[]=' macro SetArgumentValue(Arguments, intptr, Object): void;
 extern macro GetFrameArguments(FrameWithArguments, intptr): Arguments;
 
 struct ArgumentsIterator {

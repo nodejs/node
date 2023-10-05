@@ -34,8 +34,6 @@ extern class DebugInfo extends Struct {
   shared: SharedFunctionInfo;
   // Bit field containing various information collected for debugging.
   debugger_hints: SmiTagged<DebuggerHints>;
-  // Script field from shared function info.
-  script: Undefined|Script;
   // The original uninstrumented bytecode array for functions with break
   // points - the instrumented bytecode is held in the shared function info.
   @cppAcquireLoad

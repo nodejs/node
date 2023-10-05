@@ -11,6 +11,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/spaces.h"
 #include "src/libsampler/sampler.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -76,11 +77,11 @@ bool PagesHasExactPage(std::vector<MemoryRange>* pages, Address search_page,
 
 bool PagesContainsRange(std::vector<MemoryRange>* pages, Address search_address,
                         size_t size) {
-  byte* addr = reinterpret_cast<byte*>(search_address);
+  uint8_t* addr = reinterpret_cast<uint8_t*>(search_address);
   auto it =
       std::find_if(pages->begin(), pages->end(), [=](const MemoryRange& r) {
-        const byte* page_start = reinterpret_cast<const byte*>(r.start);
-        const byte* page_end = page_start + r.length_in_bytes;
+        const uint8_t* page_start = reinterpret_cast<const uint8_t*>(r.start);
+        const uint8_t* page_end = page_start + r.length_in_bytes;
         return addr >= page_start && (addr + size) <= page_end;
       });
   return it != pages->end();
@@ -149,11 +150,11 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
   Handle<JSFunction> foo =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
-  Code code = foo->code();
+  Tagged<Code> code = foo->code();
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
-  if (!code.is_optimized_code()) return;
-  InstructionStream foo_code = FromCode(code);
+  if (!code->is_optimized_code()) return;
+  Tagged<InstructionStream> foo_code = code->instruction_stream();
 
   EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 
@@ -195,21 +196,21 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
       // If there is baseline code, check that it's only due to
       // --always-sparkplug (if this check fails, we'll have to re-think this
       // test).
-      if (foo->shared().HasBaselineCode()) {
+      if (foo->shared()->HasBaselineCode()) {
         EXPECT_TRUE(v8_flags.always_sparkplug);
         return;
       }
-      Code code = foo->code();
+      Tagged<Code> code = foo->code();
       // We don't produce optimized code when run with --no-turbofan and
       // --no-maglev.
-      if (!code.is_optimized_code()) return;
-      InstructionStream foo_code = FromCode(code);
+      if (!code->is_optimized_code()) return;
+      Tagged<InstructionStream> foo_code = code->instruction_stream();
 
       EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 
       // Check that the generated code ended up in one of the code pages
       // returned by GetCodePages().
-      byte* foo_code_ptr = reinterpret_cast<byte*>(foo_code.address());
+      uint8_t* foo_code_ptr = reinterpret_cast<uint8_t*>(foo_code.address());
       std::vector<MemoryRange>* pages = i_isolate()->GetCodePages();
 
       // Wait until after we have created the first function to take the initial
@@ -224,8 +225,9 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
       // by GetCodePages().
       auto it = std::find_if(
           pages->begin(), pages->end(), [foo_code_ptr](const MemoryRange& r) {
-            const byte* page_start = reinterpret_cast<const byte*>(r.start);
-            const byte* page_end = page_start + r.length_in_bytes;
+            const uint8_t* page_start =
+                reinterpret_cast<const uint8_t*>(r.start);
+            const uint8_t* page_end = page_start + r.length_in_bytes;
             return foo_code_ptr >= page_start && foo_code_ptr < page_end;
           });
       EXPECT_NE(it, pages->end());
@@ -250,12 +252,12 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
       snprintf(foo_name, sizeof(foo_name), "foo%d", n);
       context()
           ->Global()
-          ->Set(context(), NewString(foo_name), Undefined(isolate()))
+          ->Set(context(), NewString(foo_name), v8::Undefined(isolate()))
           .Check();
     }
   }
 
-  CollectGarbage(CODE_SPACE);
+  InvokeMajorGC();
 
   std::vector<MemoryRange>* pages = i_isolate()->GetCodePages();
   auto it = std::find_if(
@@ -276,7 +278,7 @@ TEST_F(CodePagesTest, LargeCodeObject) {
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size = Page::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
-  std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
   CodeDesc desc;
   desc.buffer = instructions.get();
@@ -312,7 +314,7 @@ TEST_F(CodePagesTest, LargeCodeObject) {
   }
 
   // Delete the large code object.
-  CollectGarbage(CODE_LO_SPACE);
+  InvokeMajorGC();
   EXPECT_TRUE(
       !i_isolate()->heap()->InSpaceSlow(stale_code_address, CODE_LO_SPACE));
 
@@ -395,7 +397,7 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size = Page::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
-  std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
   CodeDesc desc;
   desc.buffer = instructions.get();
@@ -449,7 +451,7 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   sampling_thread.StartSynchronously();
 
   // Delete the large code object.
-  CollectGarbage(CODE_LO_SPACE);
+  InvokeMajorGC();
   EXPECT_TRUE(
       !i_isolate()->heap()->InSpaceSlow(stale_code_address, CODE_LO_SPACE));
 
@@ -475,7 +477,7 @@ TEST_F(CodePagesTest, Sorted) {
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size = Page::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
-  std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
   CodeDesc desc;
   desc.buffer = instructions.get();
@@ -552,7 +554,7 @@ TEST_F(CodePagesTest, Sorted) {
     EXPECT_TRUE(
         i_isolate()->heap()->InSpaceSlow(code3->address(), CODE_LO_SPACE));
     // Delete code2.
-    CollectGarbage(CODE_LO_SPACE);
+    InvokeMajorGC();
     EXPECT_TRUE(
         i_isolate()->heap()->InSpaceSlow(code1->address(), CODE_LO_SPACE));
     EXPECT_TRUE(

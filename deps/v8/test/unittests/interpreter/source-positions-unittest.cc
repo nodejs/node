@@ -161,7 +161,7 @@ Handle<BytecodeArray> SourcePositionTest::MakeBytecode(
           .As<Function>();
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
-  return handle(function->shared().GetBytecodeArray(i_isolate()), i_isolate());
+  return handle(function->shared()->GetBytecodeArray(i_isolate()), i_isolate());
 }
 
 void SourcePositionTest::SetOptimizationFlags(int optimization_bitmap) {

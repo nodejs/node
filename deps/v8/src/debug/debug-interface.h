@@ -273,6 +273,13 @@ class WasmScript : public Script {
   int CodeOffset() const;
   int CodeLength() const;
 };
+
+// "Static" version of WasmScript::Disassemble, for use with cached scripts
+// where we only have raw wire bytes available.
+void Disassemble(base::Vector<const uint8_t> wire_bytes,
+                 DisassemblyCollector* collector,
+                 std::vector<int>* function_body_offsets);
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 V8_EXPORT_PRIVATE void GetLoadedScripts(

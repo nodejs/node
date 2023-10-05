@@ -41,7 +41,7 @@ TEST_F(WasmCallDescriptorTest, TestExternRefIsGrouped) {
     int min_untagged_stack_location = std::numeric_limits<int>::max();
     for (size_t i = 1; i < desc->ParameterCount(); ++i) {
       // InputLocation i + 1, because target is the first input.
-      compiler::LinkageLocation location = desc->GetInputLocation(i + 1);
+      LinkageLocation location = desc->GetInputLocation(i + 1);
       if (desc->GetParameterType(i).IsTagged()) {
         if (location.IsRegister()) {
           has_tagged_register_param = true;
@@ -90,7 +90,7 @@ TEST_F(WasmCallDescriptorTest, Regress_1174500) {
 
   // Get the location of our stack parameter slot. Skip the implicit Wasm
   // instance parameter.
-  compiler::LinkageLocation last_param = desc->GetInputLocation(kParams + 1);
+  LinkageLocation last_param = desc->GetInputLocation(kParams + 1);
   EXPECT_TRUE(last_param.IsCallerFrameSlot());
   EXPECT_EQ(MachineType::Float32(), last_param.GetType());
   EXPECT_EQ(-1, last_param.GetLocation());
@@ -99,8 +99,7 @@ TEST_F(WasmCallDescriptorTest, Regress_1174500) {
   // argument padding slots. The return slot itself should not be padded.
   const int padding = ShouldPadArguments(1);
   const int first_return_slot = -1 - (padding + 1);
-  compiler::LinkageLocation return_location =
-      desc->GetReturnLocation(kReturns - 1);
+  LinkageLocation return_location = desc->GetReturnLocation(kReturns - 1);
   EXPECT_TRUE(return_location.IsCallerFrameSlot());
   EXPECT_EQ(MachineType::Simd128(), return_location.GetType());
   EXPECT_EQ(first_return_slot, return_location.GetLocation());
