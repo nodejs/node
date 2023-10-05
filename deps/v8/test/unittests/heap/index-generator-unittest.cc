@@ -32,19 +32,5 @@ TEST(IndexGeneratorTest, GetNext) {
   EXPECT_EQ(base::nullopt, gen.GetNext());
 }
 
-TEST(IndexGeneratorTest, GiveBack) {
-  IndexGenerator gen(4);
-
-  EXPECT_EQ(0U, gen.GetNext());
-  EXPECT_EQ(2U, gen.GetNext());
-  EXPECT_EQ(1U, gen.GetNext());
-  gen.GiveBack(2);
-  gen.GiveBack(0);
-  EXPECT_EQ(0U, gen.GetNext());
-  EXPECT_EQ(2U, gen.GetNext());
-  EXPECT_EQ(3U, gen.GetNext());
-  EXPECT_EQ(base::nullopt, gen.GetNext());
-}
-
 }  // namespace internal
 }  // namespace v8

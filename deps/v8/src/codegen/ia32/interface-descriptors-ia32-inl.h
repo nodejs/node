@@ -18,6 +18,24 @@ constexpr auto CallInterfaceDescriptor::DefaultRegisterArray() {
   return registers;
 }
 
+constexpr auto CallInterfaceDescriptor::DefaultDoubleRegisterArray() {
+  // xmm0 isn't allocatable.
+  auto registers = DoubleRegisterArray(xmm1, xmm2, xmm3, xmm4, xmm5, xmm6);
+  return registers;
+}
+
+constexpr auto CallInterfaceDescriptor::DefaultReturnRegisterArray() {
+  auto registers =
+      RegisterArray(kReturnRegister0, kReturnRegister1, kReturnRegister2);
+  return registers;
+}
+
+constexpr auto CallInterfaceDescriptor::DefaultReturnDoubleRegisterArray() {
+  // Padding to have as many double return registers as GP return registers.
+  auto registers = DoubleRegisterArray(kFPReturnRegister0, no_dreg, no_dreg);
+  return registers;
+}
+
 #if DEBUG
 template <typename DerivedDescriptor>
 void StaticCallInterfaceDescriptor<DerivedDescriptor>::
@@ -261,11 +279,36 @@ constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
 }
 
 // static
-constexpr auto ApiCallbackDescriptor::registers() {
-  return RegisterArray(edx,   // kApiFunctionAddress
-                       ecx,   // kArgc
-                       eax,   // kCallData
-                       edi);  // kHolder
+constexpr Register
+CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister() {
+  return eax;
+}
+// static
+constexpr Register
+CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister() {
+  return ecx;
+}
+// static
+constexpr Register CallApiCallbackOptimizedDescriptor::CallDataRegister() {
+  return edx;
+}
+// static
+constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
+  return edi;
+}
+
+// static
+constexpr Register
+CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
+  return ecx;
+}
+// static
+constexpr Register CallApiCallbackGenericDescriptor::CallHandlerInfoRegister() {
+  return edx;
+}
+// static
+constexpr Register CallApiCallbackGenericDescriptor::HolderRegister() {
+  return edi;
 }
 
 // static
@@ -299,41 +342,10 @@ constexpr auto RunMicrotasksEntryDescriptor::registers() {
   return RegisterArray();
 }
 
-// static
-constexpr auto WasmFloat32ToNumberDescriptor::registers() {
-  // Work around using eax, whose register code is 0, and leads to the FP
-  // parameter being passed via xmm0, which is not allocatable on ia32.
-  return RegisterArray(ecx);
+constexpr auto WasmJSToWasmWrapperDescriptor::registers() {
+  // Arbitrarily picked register.
+  return RegisterArray(edi);
 }
-
-// static
-constexpr auto WasmFloat64ToNumberDescriptor::registers() {
-  // Work around using eax, whose register code is 0, and leads to the FP
-  // parameter being passed via xmm0, which is not allocatable on ia32.
-  return RegisterArray(ecx);
-}
-
-// static
-constexpr auto NewHeapNumberDescriptor::registers() {
-  // Work around using eax, whose register code is 0, and leads to the FP
-  // parameter being passed via xmm0, which is not allocatable on ia32.
-  return RegisterArray(ecx);
-}
-
-// static
-constexpr auto CheckTurboshaftFloat32TypeDescriptor::registers() {
-  // Work around using eax, whose register code is 0, and leads to the FP
-  // parameter being passed via xmm0, which is not allocatable on ia32.
-  return RegisterArray(ecx);
-}
-
-// static
-constexpr auto CheckTurboshaftFloat64TypeDescriptor::registers() {
-  // Work around using eax, whose register code is 0, and leads to the FP
-  // parameter being passed via xmm0, which is not allocatable on ia32.
-  return RegisterArray(ecx);
-}
-
 }  // namespace internal
 }  // namespace v8
 

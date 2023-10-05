@@ -15,8 +15,9 @@ SharedObjectConveyorHandles::SharedObjectConveyorHandles(Isolate* isolate)
     : persistent_handles_(
           isolate->shared_space_isolate()->NewPersistentHandles()) {}
 
-uint32_t SharedObjectConveyorHandles::Persist(HeapObject shared_object) {
-  DCHECK(shared_object.IsShared());
+uint32_t SharedObjectConveyorHandles::Persist(
+    Tagged<HeapObject> shared_object) {
+  DCHECK(IsShared(shared_object));
   uint32_t id = static_cast<uint32_t>(shared_objects_.size());
   shared_objects_.push_back(persistent_handles_->NewHandle(shared_object));
   return id;

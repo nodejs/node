@@ -79,7 +79,7 @@ class JSMapIterator
 
   // Returns the current value of the iterator. This should only be called when
   // |HasMore| returns true.
-  inline Object CurrentValue();
+  inline Tagged<Object> CurrentValue();
 
   OBJECT_CONSTRUCTORS(JSMapIterator,
                       OrderedHashTableIterator<JSMapIterator, OrderedHashMap>);

@@ -47,7 +47,8 @@ class V8_EXPORT_PRIVATE TypeCache final {
   Type const kBigInt64 = Type::SignedBigInt64();
   Type const kBigUint64 = Type::UnsignedBigInt64();
 
-  Type const kHoleySmi = Type::Union(Type::SignedSmall(), Type::Hole(), zone());
+  Type const kHoleySmi =
+      Type::Union(Type::SignedSmall(), Type::TheHole(), zone());
 
   Type const kSingletonZero = CreateRange(0.0, 0.0);
   Type const kSingletonOne = CreateRange(1.0, 1.0);

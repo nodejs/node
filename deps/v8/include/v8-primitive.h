@@ -491,12 +491,6 @@ class V8_EXPORT String : public Name {
   bool MakeExternal(ExternalOneByteStringResource* resource);
 
   /**
-   * Returns true if this string can be made external.
-   */
-  V8_DEPRECATE_SOON("Use the version that takes an encoding as argument.")
-  bool CanMakeExternal() const;
-
-  /**
    * Returns true if this string can be made external, given the encoding for
    * the external string resource.
    */
@@ -645,9 +639,19 @@ class V8_EXPORT Symbol : public Name {
 };
 
 /**
+ * A JavaScript numeric value (either Number or BigInt).
+ * https://tc39.es/ecma262/#sec-numeric-types
+ */
+class V8_EXPORT Numeric : public Primitive {
+ private:
+  Numeric();
+  static void CheckCast(v8::Data* that);
+};
+
+/**
  * A JavaScript number value (ECMA-262, 4.3.20)
  */
-class V8_EXPORT Number : public Primitive {
+class V8_EXPORT Number : public Numeric {
  public:
   double Value() const;
   static Local<Number> New(Isolate* isolate, double value);
@@ -722,7 +726,7 @@ class V8_EXPORT Uint32 : public Integer {
 /**
  * A JavaScript BigInt value (https://tc39.github.io/proposal-bigint)
  */
-class V8_EXPORT BigInt : public Primitive {
+class V8_EXPORT BigInt : public Numeric {
  public:
   static Local<BigInt> New(Isolate* isolate, int64_t value);
   static Local<BigInt> NewFromUnsigned(Isolate* isolate, uint64_t value);

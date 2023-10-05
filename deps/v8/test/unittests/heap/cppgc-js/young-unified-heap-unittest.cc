@@ -67,14 +67,14 @@ class Wrappable final : public cppgc::GarbageCollected<Wrappable> {
 
 size_t Wrappable::destructor_callcount = 0;
 
-class MinorMCEnabler {
+class MinorMSEnabler {
  public:
-  MinorMCEnabler()
-      : minor_mc_(&v8_flags.minor_mc, true),
+  MinorMSEnabler()
+      : minor_ms_(&v8_flags.minor_ms, true),
         cppgc_young_generation_(&v8_flags.cppgc_young_generation, true) {}
 
  private:
-  FlagScope<bool> minor_mc_;
+  FlagScope<bool> minor_ms_;
   FlagScope<bool> cppgc_young_generation_;
 };
 
@@ -159,7 +159,7 @@ class ExpectCppGCToV8NoGenerationalBarrier {
 
 }  // namespace
 
-class YoungUnifiedHeapTest : public MinorMCEnabler, public UnifiedHeapTest {
+class YoungUnifiedHeapTest : public MinorMSEnabler, public UnifiedHeapTest {
  public:
   YoungUnifiedHeapTest() {
     // Enable young generation flag and run GC. After the first run the heap
@@ -240,7 +240,7 @@ TEST_F(YoungUnifiedHeapTest, GenerationalBarrierV8ToCppGCReference) {
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(api_object));
 
   EXPECT_TRUE(Heap::InYoungGeneration(*handle_api_object));
-  CollectAllAvailableGarbage();
+  InvokeMemoryReducingMajorGCs();
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   EXPECT_FALSE(Heap::InYoungGeneration(*handle_api_object));
 
@@ -289,7 +289,7 @@ TEST_F(YoungUnifiedHeapTest, GenerationalBarrierCppGCToV8ReferenceReset) {
       cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
 
   EXPECT_TRUE(IsHeapObjectYoung(wrappable_object.Get()));
-  CollectAllAvailableGarbage();
+  InvokeMemoryReducingMajorGCs();
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   EXPECT_TRUE(IsHeapObjectOld(wrappable_object.Get()));
 
@@ -321,7 +321,7 @@ TEST_F(YoungUnifiedHeapTest, GenerationalBarrierCppGCToV8ReferenceCopy) {
       cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
 
   EXPECT_TRUE(IsHeapObjectYoung(wrappable_object.Get()));
-  CollectAllAvailableGarbage();
+  InvokeMemoryReducingMajorGCs();
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   EXPECT_TRUE(IsHeapObjectOld(wrappable_object.Get()));
 
@@ -364,7 +364,7 @@ TEST_F(YoungUnifiedHeapTest, GenerationalBarrierCppGCToV8ReferenceMove) {
       cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
 
   EXPECT_TRUE(IsHeapObjectYoung(wrappable_object.Get()));
-  CollectAllAvailableGarbage();
+  InvokeMemoryReducingMajorGCs();
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   EXPECT_TRUE(IsHeapObjectOld(wrappable_object.Get()));
 

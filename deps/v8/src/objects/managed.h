@@ -50,6 +50,13 @@ class Managed : public Foreign {
  public:
   Managed() : Foreign() {}
   explicit Managed(Address ptr) : Foreign(ptr) {}
+  explicit constexpr Managed(Address ptr, SkipTypeCheckTag)
+      : Foreign(ptr, SkipTypeCheckTag{}) {}
+
+  // For every object, add a `->` operator which returns a pointer to this
+  // object. This will allow smoother transition between T and Tagged<T>.
+  Managed* operator->() { return this; }
+  const Managed* operator->() const { return this; }
 
   // Get a raw pointer to the C++ object.
   V8_INLINE CppType* raw() { return GetSharedPtrPtr()->get(); }
@@ -57,9 +64,11 @@ class Managed : public Foreign {
   // Get a reference to the shared pointer to the C++ object.
   V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
 
-  static Managed cast(Object obj) { return Managed(obj.ptr()); }
-  static Managed unchecked_cast(Object obj) {
-    return base::bit_cast<Managed>(obj);
+  static Tagged<Managed> cast(Tagged<Object> obj) {
+    return Tagged<Managed>(Managed(obj.ptr()).ptr());
+  }
+  static constexpr Tagged<Managed> unchecked_cast(Tagged<Object> obj) {
+    return Tagged<Managed>(obj.ptr());
   }
 
   // Allocate a new {CppType} and wrap it in a {Managed<CppType>}.
@@ -89,6 +98,8 @@ class Managed : public Foreign {
       AllocationType allocation_type = AllocationType::kYoung);
 
  private:
+  friend class Tagged<Managed>;
+
   // Internally this {Foreign} object stores a pointer to a new
   // std::shared_ptr<CppType>.
   std::shared_ptr<CppType>* GetSharedPtrPtr() {

@@ -16,6 +16,7 @@ namespace internal {
   V(CowArrayElementsChanged, "copy-on-write array's elements changed")         \
   V(CouldNotGrowElements, "failed to grow elements store")                     \
   V(PrepareForOnStackReplacement, "prepare for on stack replacement (OSR)")    \
+  V(OSREarlyExit, "exit from OSR'd inner loop")                                \
   V(DeoptimizeNow, "%_DeoptimizeNow")                                          \
   V(DivisionByZero, "division by zero")                                        \
   V(Hole, "hole")                                                              \
@@ -30,10 +31,18 @@ namespace internal {
     "Insufficient type feedback for compare operation")                        \
   V(InsufficientTypeFeedbackForGenericNamedAccess,                             \
     "Insufficient type feedback for generic named access")                     \
+  V(InsufficientTypeFeedbackForGenericGlobalAccess,                            \
+    "Insufficient type feedback for generic global access")                    \
   V(InsufficientTypeFeedbackForGenericKeyedAccess,                             \
     "Insufficient type feedback for generic keyed access")                     \
   V(InsufficientTypeFeedbackForUnaryOperation,                                 \
     "Insufficient type feedback for unary operation")                          \
+  V(InsufficientTypeFeedbackForArrayLiteral,                                   \
+    "Insufficient type feedback for array literal")                            \
+  V(InsufficientTypeFeedbackForObjectLiteral,                                  \
+    "Insufficient type feedback for object literal")                           \
+  V(InsufficientTypeFeedbackForInstanceOf,                                     \
+    "Insufficient type feedback for instanceof")                               \
   V(LostPrecision, "lost precision")                                           \
   V(LostPrecisionOrNaN, "lost precision or NaN")                               \
   V(MinusZero, "minus zero")                                                   \
@@ -59,8 +68,6 @@ namespace internal {
   V(Smi, "Smi")                                                                \
   V(StoreToConstant, "Storing to a constant field")                            \
   V(SuspendGeneratorIsDead, "SuspendGenerator is in a dead branch")            \
-  V(TransitionedToMonomorphicIC, "IC transitioned to monomorphic")             \
-  V(TransitionedToMegamorphicIC, "IC transitioned to megamorphic")             \
   V(Unknown, "(unknown)")                                                      \
   V(ValueMismatch, "value mismatch")                                           \
   V(WrongCallTarget, "wrong call target")                                      \
@@ -68,9 +75,7 @@ namespace internal {
   V(WrongFeedbackCell, "wrong feedback cell")                                  \
   V(WrongInstanceType, "wrong instance type")                                  \
   V(WrongMap, "wrong map")                                                     \
-  V(MissingMap, "missing map")                                                 \
   V(DeprecatedMap, "deprecated map")                                           \
-  V(WrongHandler, "wrong handler")                                             \
   V(WrongName, "wrong name")                                                   \
   V(WrongValue, "wrong value")                                                 \
   V(NoInitialElement, "no initial element")                                    \
@@ -102,7 +107,8 @@ constexpr bool IsDeoptimizationWithoutCodeInvalidation(
   // unoptimized frame layout. Since no actual assumptions in the Maglev code
   // object are violated, it (and any associated cached optimized code) should
   // not be invalidated s.t. we may reenter it in the future.
-  return reason == DeoptimizeReason::kPrepareForOnStackReplacement;
+  return reason == DeoptimizeReason::kPrepareForOnStackReplacement ||
+         reason == DeoptimizeReason::kOSREarlyExit;
 }
 
 }  // namespace internal

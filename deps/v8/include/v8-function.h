@@ -88,6 +88,12 @@ class V8_EXPORT Function : public Object {
   int GetScriptColumnNumber() const;
 
   /**
+   * Returns zero based start position (character offset) of function body and
+   * kLineOffsetNotFound if no information available.
+   */
+  int GetScriptStartPosition() const;
+
+  /**
    * Returns scriptId.
    */
   int ScriptId() const;

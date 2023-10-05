@@ -44,40 +44,40 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
 
 // static
 UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
-    Isolate* isolate, SharedFunctionInfo shared) {
-  Script script = Script::cast(shared.script());
+    Isolate* isolate, Tagged<SharedFunctionInfo> shared) {
+  Tagged<Script> script = Script::cast(shared->script());
 
-  UnoptimizedCompileFlags flags(isolate, script.id());
+  UnoptimizedCompileFlags flags(isolate, script->id());
 
-  flags.SetFlagsFromFunction(&shared);
   flags.SetFlagsForFunctionFromScript(script);
+  flags.SetFlagsFromFunction(shared);
   flags.set_allow_lazy_parsing(true);
   flags.set_is_lazy_compile(true);
 
 #if V8_ENABLE_WEBASSEMBLY
-  flags.set_is_asm_wasm_broken(shared.is_asm_wasm_broken());
+  flags.set_is_asm_wasm_broken(shared->is_asm_wasm_broken());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  flags.set_is_repl_mode(shared.is_repl_mode());
+  flags.set_is_repl_mode(shared->is_repl_mode());
 
   // Do not support re-parsing top-level function of a wrapped script.
-  DCHECK_IMPLIES(flags.is_toplevel(), !script.is_wrapped());
+  DCHECK_IMPLIES(flags.is_toplevel(), !script->is_wrapped());
 
   return flags;
 }
 
 // static
 UnoptimizedCompileFlags UnoptimizedCompileFlags::ForScriptCompile(
-    Isolate* isolate, Script script) {
-  UnoptimizedCompileFlags flags(isolate, script.id());
+    Isolate* isolate, Tagged<Script> script) {
+  UnoptimizedCompileFlags flags(isolate, script->id());
 
   flags.SetFlagsForFunctionFromScript(script);
   flags.SetFlagsForToplevelCompile(
-      script.IsUserJavaScript(), flags.outer_language_mode(),
-      construct_repl_mode(script.is_repl_mode()),
-      script.origin_options().IsModule() ? ScriptType::kModule
-                                         : ScriptType::kClassic,
+      script->IsUserJavaScript(), flags.outer_language_mode(),
+      construct_repl_mode(script->is_repl_mode()),
+      script->origin_options().IsModule() ? ScriptType::kModule
+                                          : ScriptType::kClassic,
       v8_flags.lazy);
-  if (script.is_wrapped()) {
+  if (script->is_wrapped()) {
     flags.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
   }
 
@@ -91,6 +91,8 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelCompile(
   UnoptimizedCompileFlags flags(isolate, isolate->GetNextScriptId());
   flags.SetFlagsForToplevelCompile(is_user_javascript, language_mode, repl_mode,
                                    type, lazy);
+  flags.set_compile_hints_magic_enabled(v8_flags.compile_hints_magic ||
+                                        isolate->allow_compile_hints_magic());
 
   LOG(isolate, ScriptEvent(ScriptEventType::kReserveId, flags.script_id()));
   return flags;
@@ -145,15 +147,20 @@ void UnoptimizedCompileFlags::SetFlagsForToplevelCompile(
   set_block_coverage_enabled(block_coverage_enabled() && is_user_javascript);
 }
 
-void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(Script script) {
-  DCHECK_EQ(script_id(), script.id());
+void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(
+    Tagged<Script> script) {
+  DCHECK_EQ(script_id(), script->id());
 
-  set_is_eval(script.compilation_type() == Script::COMPILATION_TYPE_EVAL);
-  set_is_module(script.origin_options().IsModule());
+  set_is_eval(script->compilation_type() == Script::CompilationType::kEval);
+  if (is_eval()) {
+    DCHECK(script->has_eval_from_shared());
+    set_outer_language_mode(script->eval_from_shared()->language_mode());
+  }
+  set_is_module(script->origin_options().IsModule());
   DCHECK_IMPLIES(is_eval(), !is_module());
 
   set_block_coverage_enabled(block_coverage_enabled() &&
-                             script.IsUserJavaScript());
+                             script->IsUserJavaScript());
 }
 
 ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
@@ -253,26 +260,26 @@ Handle<Script> ParseInfo::CreateScript(
   Handle<Script> script =
       isolate->factory()->NewScriptWithId(source, flags().script_id(), event);
   DisallowGarbageCollection no_gc;
-  auto raw_script = *script;
+  Tagged<Script> raw_script = *script;
   switch (natives) {
     case EXTENSION_CODE:
-      raw_script.set_type(Script::TYPE_EXTENSION);
+      raw_script->set_type(Script::Type::kExtension);
       break;
     case INSPECTOR_CODE:
-      raw_script.set_type(Script::TYPE_INSPECTOR);
+      raw_script->set_type(Script::Type::kInspector);
       break;
     case NOT_NATIVES_CODE:
       break;
   }
-  raw_script.set_origin_options(origin_options);
-  raw_script.set_is_repl_mode(flags().is_repl_mode());
+  raw_script->set_origin_options(origin_options);
+  raw_script->set_is_repl_mode(flags().is_repl_mode());
 
   DCHECK_EQ(is_wrapped_as_function(), !maybe_wrapped_arguments.is_null());
   if (is_wrapped_as_function()) {
-    raw_script.set_wrapped_arguments(
+    raw_script->set_wrapped_arguments(
         *maybe_wrapped_arguments.ToHandleChecked());
   } else if (flags().is_eval()) {
-    raw_script.set_compilation_type(Script::COMPILATION_TYPE_EVAL);
+    raw_script->set_compilation_type(Script::CompilationType::kEval);
   }
   CheckFlagsForToplevelCompileFromScript(raw_script);
 
@@ -304,24 +311,24 @@ void ParseInfo::set_character_stream(
   character_stream_.swap(character_stream);
 }
 
-void ParseInfo::CheckFlagsForToplevelCompileFromScript(Script script) {
+void ParseInfo::CheckFlagsForToplevelCompileFromScript(Tagged<Script> script) {
   CheckFlagsForFunctionFromScript(script);
   DCHECK(flags().is_toplevel());
-  DCHECK_EQ(flags().is_repl_mode(), script.is_repl_mode());
+  DCHECK_EQ(flags().is_repl_mode(), script->is_repl_mode());
 
-  if (script.is_wrapped()) {
+  if (script->is_wrapped()) {
     DCHECK_EQ(flags().function_syntax_kind(), FunctionSyntaxKind::kWrapped);
   }
 }
 
-void ParseInfo::CheckFlagsForFunctionFromScript(Script script) {
-  DCHECK_EQ(flags().script_id(), script.id());
+void ParseInfo::CheckFlagsForFunctionFromScript(Tagged<Script> script) {
+  DCHECK_EQ(flags().script_id(), script->id());
   // We set "is_eval" for wrapped scripts to get an outer declaration scope.
   // This is a bit hacky, but ok since we can't be both eval and wrapped.
-  DCHECK_EQ(flags().is_eval() && !script.is_wrapped(),
-            script.compilation_type() == Script::COMPILATION_TYPE_EVAL);
-  DCHECK_EQ(flags().is_module(), script.origin_options().IsModule());
-  DCHECK_IMPLIES(flags().block_coverage_enabled() && script.IsUserJavaScript(),
+  DCHECK_EQ(flags().is_eval() && !script->is_wrapped(),
+            script->compilation_type() == Script::CompilationType::kEval);
+  DCHECK_EQ(flags().is_module(), script->origin_options().IsModule());
+  DCHECK_IMPLIES(flags().block_coverage_enabled() && script->IsUserJavaScript(),
                  source_range_map() != nullptr);
 }
 

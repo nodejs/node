@@ -16,11 +16,12 @@ const kAtomPatternIndex: constexpr int31
 extern transitioning macro RegExpBuiltinsAssembler::FlagGetter(
     implicit context: Context)(Object, constexpr Flag, constexpr bool): bool;
 
-extern macro UnsafeLoadFixedArrayElement(
-    RegExpMatchInfo, constexpr int31): Object;
+extern macro UnsafeLoadFixedArrayElement(RegExpMatchInfo, constexpr int31):
+    Object;
 
-transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
-    regexp: JSReceiver, string: String, isFastPath: constexpr bool): JSAny {
+transitioning macro RegExpPrototypeMatchBody(
+    implicit context: Context)(regexp: JSReceiver, string: String,
+    isFastPath: constexpr bool): JSAny {
   if constexpr (isFastPath) {
     dcheck(Is<FastJSRegExp>(regexp));
   }
@@ -120,28 +121,29 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
   VerifiedUnreachable();
 }
 
-transitioning macro FastRegExpPrototypeMatchBody(implicit context: Context)(
-    receiver: FastJSRegExp, string: String): JSAny {
+transitioning macro FastRegExpPrototypeMatchBody(
+    implicit context: Context)(receiver: FastJSRegExp, string: String): JSAny {
   return RegExpPrototypeMatchBody(receiver, string, true);
 }
 
-transitioning macro SlowRegExpPrototypeMatchBody(implicit context: Context)(
-    receiver: JSReceiver, string: String): JSAny {
+transitioning macro SlowRegExpPrototypeMatchBody(
+    implicit context: Context)(receiver: JSReceiver, string: String): JSAny {
   return RegExpPrototypeMatchBody(receiver, string, false);
 }
 
 // Helper that skips a few initial checks. and assumes...
 // 1) receiver is a "fast" RegExp
 // 2) pattern is a string
-transitioning builtin RegExpMatchFast(implicit context: Context)(
-    receiver: FastJSRegExp, string: String): JSAny {
+transitioning builtin RegExpMatchFast(
+    implicit context: Context)(receiver: FastJSRegExp, string: String): JSAny {
   return FastRegExpPrototypeMatchBody(receiver, string);
 }
 
 // ES#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
 transitioning javascript builtin RegExpPrototypeMatch(
-    js-implicit context: NativeContext, receiver: JSAny)(string: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    string: JSAny): JSAny {
   ThrowIfNotJSReceiver(
       receiver, MessageTemplate::kIncompatibleMethodReceiver,
       'RegExp.prototype.@@match');

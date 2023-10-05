@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+class Oddball;
+
 #include "torque-generated/src/objects/torque-defined-classes-tq.inc"
 
 }  // namespace internal

@@ -5,46 +5,82 @@
 #include "src/compiler/add-type-assertions-reducer.h"
 
 #include "src/compiler/node-properties.h"
+#include "src/compiler/schedule.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-AddTypeAssertionsReducer::AddTypeAssertionsReducer(Editor* editor,
-                                                   JSGraph* jsgraph, Zone* zone)
-    : AdvancedReducer(editor),
-      jsgraph_(jsgraph),
-      visited_(jsgraph->graph()->NodeCount(), zone) {}
+namespace {
+struct AddTypeAssertionsImpl {
+  JSGraph* jsgraph;
+  Schedule* schedule;
+  Zone* phase_zone;
 
-AddTypeAssertionsReducer::~AddTypeAssertionsReducer() = default;
+  SimplifiedOperatorBuilder* simplified = jsgraph->simplified();
+  Graph* graph = jsgraph->graph();
 
-Reduction AddTypeAssertionsReducer::Reduce(Node* node) {
-  if (node->opcode() == IrOpcode::kAssertType ||
-      node->opcode() == IrOpcode::kAllocate ||
-      node->opcode() == IrOpcode::kObjectState ||
-      node->opcode() == IrOpcode::kObjectId ||
-      node->opcode() == IrOpcode::kPhi || !NodeProperties::IsTyped(node) ||
-      node->opcode() == IrOpcode::kUnreachable || visited_.Get(node)) {
-    return NoChange();
+  void Run();
+  void ProcessBlock(BasicBlock* block);
+  void InsertAssertion(Node* asserted, Node* effect_successor);
+};
+
+void AddTypeAssertionsImpl::Run() {
+  for (BasicBlock* block : *(schedule->rpo_order())) {
+    ProcessBlock(block);
   }
-  visited_.Set(node, true);
+}
 
-  Type type = NodeProperties::GetType(node);
-  if (!type.CanBeAsserted()) return NoChange();
-
-  Node* assertion = graph()->NewNode(simplified()->AssertType(type), node);
-  NodeProperties::SetType(assertion, type);
-
-  for (Edge edge : node->use_edges()) {
-    Node* const user = edge.from();
-    DCHECK(!user->IsDead());
-    if (NodeProperties::IsValueEdge(edge) && user != assertion) {
-      edge.UpdateTo(assertion);
-      Revisit(user);
+void AddTypeAssertionsImpl::ProcessBlock(BasicBlock* block) {
+  // To keep things simple, this only inserts type assertions for nodes that are
+  // followed by an effectful operation in the same basic block. We could build
+  // a proper new effect chain like in the EffectControlLinearizer, but right
+  // now, this doesn't quite seem worth the effort.
+  std::vector<Node*> pending;
+  bool inside_of_region = false;
+  for (Node* node : *block) {
+    if (node->opcode() == IrOpcode::kBeginRegion) {
+      inside_of_region = true;
+    } else if (inside_of_region) {
+      if (node->opcode() == IrOpcode::kFinishRegion) {
+        inside_of_region = false;
+      }
+      continue;
+    }
+    if (node->op()->EffectOutputCount() == 1 &&
+        node->op()->EffectInputCount() == 1) {
+      for (Node* pending_node : pending) {
+        InsertAssertion(pending_node, node);
+      }
+      pending.clear();
+    }
+    if (node->opcode() == IrOpcode::kAssertType ||
+        node->opcode() == IrOpcode::kAllocate ||
+        node->opcode() == IrOpcode::kObjectState ||
+        node->opcode() == IrOpcode::kObjectId ||
+        node->opcode() == IrOpcode::kPhi || !NodeProperties::IsTyped(node) ||
+        node->opcode() == IrOpcode::kUnreachable) {
+      continue;
+    }
+    Type type = NodeProperties::GetType(node);
+    if (type.CanBeAsserted()) {
+      pending.push_back(node);
     }
   }
+}
 
-  return NoChange();
+void AddTypeAssertionsImpl::InsertAssertion(Node* asserted,
+                                            Node* effect_successor) {
+  Node* assertion = graph->NewNode(
+      simplified->AssertType(NodeProperties::GetType(asserted)), asserted,
+      NodeProperties::GetEffectInput(effect_successor));
+  NodeProperties::ReplaceEffectInput(effect_successor, assertion);
+}
+
+}  // namespace
+
+void AddTypeAssertions(JSGraph* jsgraph, Schedule* schedule, Zone* phase_zone) {
+  AddTypeAssertionsImpl{jsgraph, schedule, phase_zone}.Run();
 }
 
 }  // namespace compiler

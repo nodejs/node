@@ -16,12 +16,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class ExternalReference;
-template <typename T>
-class Handle;
-class HeapObject;
 class Type;
-enum class TypeofMode;
 
 namespace compiler {
 

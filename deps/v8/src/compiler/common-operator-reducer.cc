@@ -172,9 +172,7 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
   } else {
     control = graph()->NewNode(common()->Deoptimize(p.reason(), p.feedback()),
                                frame_state, effect, control);
-    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-    NodeProperties::MergeControlToEnd(graph(), common(), control);
-    Revisit(graph()->end());
+    MergeControlToEnd(graph(), common(), control);
   }
   return Replace(dead());
 }
@@ -287,6 +285,35 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
             return Change(node, machine()->Float64Abs(), vtrue);
           }
         }
+      } else if (cond->opcode() == IrOpcode::kInt32LessThan) {
+        Int32BinopMatcher mcond(cond);
+        if (mcond.left().Is(0) && mcond.right().Equals(vtrue) &&
+            (vfalse->opcode() == IrOpcode::kInt32Sub)) {
+          Int32BinopMatcher mvfalse(vfalse);
+          if (mvfalse.left().Is(0) && mvfalse.right().Equals(vtrue)) {
+            // We might now be able to further reduce the {merge} node.
+            Revisit(merge);
+
+            if (machine()->Word32Select().IsSupported()) {
+              // Select positive value with conditional move if is supported.
+              Node* abs = graph()->NewNode(machine()->Word32Select().op(), cond,
+                                           vtrue, vfalse);
+              return Replace(abs);
+            } else {
+              // Generate absolute integer value.
+              //
+              //    let sign = input >> 31 in
+              //    (input ^ sign) - sign
+              Node* sign = graph()->NewNode(
+                  machine()->Word32Sar(), vtrue,
+                  graph()->NewNode(common()->Int32Constant(31)));
+              Node* abs = graph()->NewNode(
+                  machine()->Int32Sub(),
+                  graph()->NewNode(machine()->Word32Xor(), vtrue, sign), sign);
+              return Replace(abs);
+            }
+          }
+        }
       }
     }
   }
@@ -365,7 +392,7 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
         // the reducer logic will visit {end} again.
         Node* ret = graph()->NewNode(node->op(), pop_count, value_inputs[i],
                                      effect, control_inputs[i]);
-        NodeProperties::MergeControlToEnd(graph(), common(), ret);
+        MergeControlToEnd(graph(), common(), ret);
       }
       // Mark the Merge {control} and Return {node} as {dead}.
       Replace(control, dead());
@@ -381,7 +408,7 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
         // the reducer logic will visit {end} again.
         Node* ret = graph()->NewNode(node->op(), pop_count, value_inputs[i],
                                      effect_inputs[i], control_inputs[i]);
-        NodeProperties::MergeControlToEnd(graph(), common(), ret);
+        MergeControlToEnd(graph(), common(), ret);
       }
       // Mark the Merge {control} and Return {node} as {dead}.
       Replace(control, dead());
@@ -448,7 +475,7 @@ Reduction CommonOperatorReducer::ReduceSwitch(Node* node) {
     bool matched = false;
 
     size_t const projection_count = node->op()->ControlOutputCount();
-    Node** projections = zone_->NewArray<Node*>(projection_count);
+    Node** projections = zone_->AllocateArray<Node*>(projection_count);
     NodeProperties::CollectControlProjections(node, projections,
                                               projection_count);
     for (size_t i = 0; i < projection_count - 1; i++) {
@@ -497,8 +524,7 @@ Reduction CommonOperatorReducer::ReduceTrapConditional(Node* trap) {
     // graph()->end().
     ReplaceWithValue(trap, dead(), dead(), dead());
     Node* control = graph()->NewNode(common()->Throw(), trap, trap);
-    NodeProperties::MergeControlToEnd(graph(), common(), control);
-    Revisit(graph()->end());
+    MergeControlToEnd(graph(), common(), control);
     return Changed(trap);
   } else {
     // This will not trap, remove it by relaxing effect/control.

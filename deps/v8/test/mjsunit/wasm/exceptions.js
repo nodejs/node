@@ -25,8 +25,10 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   let instance = builder.instantiate();
 
   assertEquals(1, instance.exports.throw_if_param_not_zero(0));
-  assertWasmThrows(instance, except, [], () => instance.exports.throw_if_param_not_zero(10));
-  assertWasmThrows(instance, except, [], () => instance.exports.throw_if_param_not_zero(-1));
+  assertWasmThrows(instance, except, [],
+                   () => instance.exports.throw_if_param_not_zero(10));
+  assertWasmThrows(instance, except, [],
+                   () => instance.exports.throw_if_param_not_zero(-1));
 })();
 
 // Test that empty try/catch blocks work.
@@ -274,7 +276,8 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
   assertEquals(3, instance.exports.catch_complex(0));
   assertEquals(4, instance.exports.catch_complex(1));
-  assertWasmThrows(instance, except3, [], () => instance.exports.catch_complex(2));
+  assertWasmThrows(instance, except3, [],
+                   () => instance.exports.catch_complex(2));
 })();
 
 // Test that we can distinguish which exception was thrown by using a single
@@ -313,7 +316,8 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
   assertEquals(3, instance.exports.catch_complex(0));
   assertEquals(4, instance.exports.catch_complex(1));
-  assertWasmThrows(instance, except3, [], () => instance.exports.catch_complex(2));
+  assertWasmThrows(instance, except3, [],
+                   () => instance.exports.catch_complex(2));
 })();
 
 // Test throwing an exception with multiple values.
@@ -329,7 +333,8 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(instance, except, [0, 1, 0, 2], () => instance.exports.throw_1_2());
+  assertWasmThrows(instance, except, [0, 1, 0, 2],
+                   () => instance.exports.throw_1_2());
 })();
 
 // Test throwing/catching the i32 parameter value.
@@ -366,8 +371,10 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(instance, except, [0, 5], () => instance.exports.throw_param(5));
-  assertWasmThrows(instance, except, [6, 31026], () => instance.exports.throw_param(424242));
+  assertWasmThrows(instance, except, [0, 5],
+                   () => instance.exports.throw_param(5));
+  assertWasmThrows(instance, except, [6, 31026],
+                   () => instance.exports.throw_param(424242));
 })();
 
 // Test throwing/catching the f32 parameter value.
@@ -403,8 +410,10 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(instance, except, [16544, 0], () => instance.exports.throw_param(5.0));
-  assertWasmThrows(instance, except, [16680, 0], () => instance.exports.throw_param(10.5));
+  assertWasmThrows(instance, except, [16544, 0],
+                   () => instance.exports.throw_param(5.0));
+  assertWasmThrows(instance, except, [16680, 0],
+                   () => instance.exports.throw_param(10.5));
 })();
 
 // Test throwing/catching an I64 value
@@ -457,8 +466,10 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(instance, except, [0, 10, 0, 5], () => instance.exports.throw_param(10, 5));
-  assertWasmThrows(instance, except, [65535, 65535, 0, 13], () => instance.exports.throw_param(-1, 13));
+  assertWasmThrows(instance, except, [0, 10, 0, 5],
+                   () => instance.exports.throw_param(10, 5));
+  assertWasmThrows(instance, except, [65535, 65535, 0, 13],
+                   () => instance.exports.throw_param(-1, 13));
 })();
 
 // Test throwing/catching the F64 parameter value
@@ -495,8 +506,10 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(instance, except, [16404, 0, 0, 0], () => instance.exports.throw_param(5.0));
-  assertWasmThrows(instance, except, [16739, 4816, 0, 0], () => instance.exports.throw_param(10000000.5));
+  assertWasmThrows(instance, except, [16404, 0, 0, 0],
+                   () => instance.exports.throw_param(5.0));
+  assertWasmThrows(instance, except, [16739, 4816, 0, 0],
+                   () => instance.exports.throw_param(10000000.5));
 })();
 
 // Test the encoding of a computed parameter value.
@@ -521,8 +534,10 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc()
   let instance = builder.instantiate();
 
-  assertWasmThrows(instance, except, [65535, 65536-8], () => instance.exports.throw_expr_with_params(1.5, 2.5, 4));
-  assertWasmThrows(instance, except, [0, 12], () => instance.exports.throw_expr_with_params(5.7, 2.5, 4));
+  assertWasmThrows(instance, except, [65535, 65536-8],
+                   () => instance.exports.throw_expr_with_params(1.5, 2.5, 4));
+  assertWasmThrows(instance, except, [0, 12],
+                   () => instance.exports.throw_expr_with_params(5.7, 2.5, 4));
 })();
 
 // Now that we know catching works locally, we test catching exceptions that
@@ -1071,7 +1086,8 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
   let instance = builder.instantiate();
   assertDoesNotThrow(() => instance.exports.catchless_try(0));
-  assertWasmThrows(instance, except, [], () => instance.exports.catchless_try(1));
+  assertWasmThrows(instance, except, [],
+                   () => instance.exports.catchless_try(1));
 })();
 
 // Delegate to a regular block inside a try block.

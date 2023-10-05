@@ -6,6 +6,7 @@
 
 #include "src/strings/unicode-decoder.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/std-object-sizes.h"
 #include "src/wasm/string-builder.h"
 
 namespace v8 {
@@ -118,7 +119,7 @@ static constexpr char kIdentifierChar[] = {
 // code unit.
 // We could decide that we don't care much how exactly non-ASCII names are
 // rendered and simplify this to "one '_' per invalid UTF8 byte".
-void SanitizeUnicodeName(StringBuilder& out, const byte* utf8_src,
+void SanitizeUnicodeName(StringBuilder& out, const uint8_t* utf8_src,
                          size_t length) {
   base::Vector<const uint8_t> utf8_data(utf8_src, length);
   Utf8Decoder decoder(utf8_data);
@@ -136,9 +137,9 @@ void SanitizeUnicodeName(StringBuilder& out, const byte* utf8_src,
 
 void NamesProvider::ComputeImportName(const WasmImport& import,
                                       std::map<uint32_t, std::string>& target) {
-  const byte* mod_start = wire_bytes_.begin() + import.module_name.offset();
+  const uint8_t* mod_start = wire_bytes_.begin() + import.module_name.offset();
   size_t mod_length = import.module_name.length();
-  const byte* field_start = wire_bytes_.begin() + import.field_name.offset();
+  const uint8_t* field_start = wire_bytes_.begin() + import.field_name.offset();
   size_t field_length = import.field_name.length();
   StringBuilder buffer;
   buffer << '$';
@@ -371,6 +372,11 @@ void NamesProvider::PrintTagName(StringBuilder& out, uint32_t tag_index,
     WriteRef(out, ref);
     return MaybeAddComment(out, tag_index, index_as_comment);
   }
+  auto it = import_export_tag_names_.find(tag_index);
+  if (it != import_export_tag_names_.end()) {
+    out << it->second;
+    return MaybeAddComment(out, tag_index, index_as_comment);
+  }
   out << "$tag" << tag_index;
 }
 
@@ -402,6 +408,43 @@ void NamesProvider::PrintValueType(StringBuilder& out, ValueType type) {
     default:
       out << wasm::name(type.kind());
   }
+}
+
+namespace {
+size_t StringMapSize(const std::map<uint32_t, std::string>& map) {
+  size_t result = ContentSize(map);
+  for (const auto& entry : map) {
+    result += entry.second.size();
+  }
+  return result;
+}
+}  // namespace
+
+size_t NamesProvider::EstimateCurrentMemoryConsumption() const {
+  UPDATE_WHEN_CLASS_CHANGES(NamesProvider, 208);
+  size_t result = sizeof(NamesProvider);
+  if (name_section_names_) {
+    DecodedNameSection* names = name_section_names_.get();
+    result += names->local_names_.EstimateCurrentMemoryConsumption();
+    result += names->label_names_.EstimateCurrentMemoryConsumption();
+    result += names->type_names_.EstimateCurrentMemoryConsumption();
+    result += names->table_names_.EstimateCurrentMemoryConsumption();
+    result += names->memory_names_.EstimateCurrentMemoryConsumption();
+    result += names->global_names_.EstimateCurrentMemoryConsumption();
+    result += names->element_segment_names_.EstimateCurrentMemoryConsumption();
+    result += names->data_segment_names_.EstimateCurrentMemoryConsumption();
+    result += names->field_names_.EstimateCurrentMemoryConsumption();
+    result += names->tag_names_.EstimateCurrentMemoryConsumption();
+  }
+  result += StringMapSize(import_export_function_names_);
+  result += StringMapSize(import_export_table_names_);
+  result += StringMapSize(import_export_memory_names_);
+  result += StringMapSize(import_export_global_names_);
+  result += StringMapSize(import_export_tag_names_);
+  if (v8_flags.trace_wasm_offheap_memory) {
+    PrintF("NamesProvider: %zu\n", result);
+  }
+  return result;
 }
 
 }  // namespace wasm

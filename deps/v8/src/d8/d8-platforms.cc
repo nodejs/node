@@ -48,7 +48,9 @@ class PredictablePlatform final : public Platform {
     return platform_->NumberOfWorkerThreads();
   }
 
-  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
+  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) override {
     // We post worker tasks on the foreground task runner of the
     // {kProcessGlobalPredictablePlatformWorkerTaskQueue} isolate. The task
     // queue of the {kProcessGlobalPredictablePlatformWorkerTaskQueue} isolate
@@ -58,12 +60,15 @@ class PredictablePlatform final : public Platform {
     // background thread. The reason is that code is executed sequentially with
     // the PredictablePlatform, and that the {DefaultPlatform} does not access
     // the isolate but only uses it as the key in a HashMap.
-    GetForegroundTaskRunner(kProcessGlobalPredictablePlatformWorkerTaskQueue)
+    platform_
+        ->GetForegroundTaskRunner(
+            kProcessGlobalPredictablePlatformWorkerTaskQueue)
         ->PostTask(std::move(task));
   }
 
-  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                 double delay_in_seconds) override {
+  void PostDelayedTaskOnWorkerThreadImpl(
+      TaskPriority priority, std::unique_ptr<Task> task,
+      double delay_in_seconds, const SourceLocation& location) override {
     // Never run delayed tasks.
   }
 

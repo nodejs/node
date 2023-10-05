@@ -215,7 +215,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void setScriptInstrumentationBreakpointIfNeeded(V8DebuggerScript* script);
 
   Response processSkipList(
-      protocol::Array<protocol::Debugger::LocationRange>* skipList);
+      protocol::Array<protocol::Debugger::LocationRange>& skipList);
 
   using ScriptsMap =
       std::unordered_map<String16, std::unique_ptr<V8DebuggerScript>>;

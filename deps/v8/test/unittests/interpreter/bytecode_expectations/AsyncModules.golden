@@ -140,7 +140,7 @@ constant pool: [
   Smi [71],
   Smi [10],
   Smi [7],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["foo"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["foo"],
   SCOPE_INFO_TYPE,
 ]
 handlers: [
@@ -295,7 +295,7 @@ constant pool: [
   Smi [81],
   Smi [10],
   Smi [7],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["goo"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["goo"],
   SCOPE_INFO_TYPE,
 ]
 handlers: [

@@ -122,7 +122,7 @@ struct BytecodeLiveness {
 class V8_EXPORT_PRIVATE BytecodeLivenessMap {
  public:
   BytecodeLivenessMap(int bytecode_size, Zone* zone)
-      : liveness_(zone->NewArray<BytecodeLiveness>(bytecode_size))
+      : liveness_(zone->AllocateArray<BytecodeLiveness>(bytecode_size))
 #ifdef DEBUG
         ,
         size_(bytecode_size)

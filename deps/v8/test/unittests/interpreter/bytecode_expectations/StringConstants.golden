@@ -17,7 +17,7 @@ bytecodes: [
   /*   60 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["This is a string"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["This is a string"],
 ]
 handlers: [
 ]
@@ -36,8 +36,8 @@ bytecodes: [
   /*   81 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["First string"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["Second string"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["First string"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["Second string"],
 ]
 handlers: [
 ]
@@ -56,7 +56,7 @@ bytecodes: [
   /*   78 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["Same string"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["Same string"],
 ]
 handlers: [
 ]

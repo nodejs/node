@@ -8,8 +8,8 @@ namespace proxy {
 
 // ES #sec-proxy-object-internal-methods-and-internal-slots-isextensible
 // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-isextensible
-transitioning builtin ProxyIsExtensible(implicit context: Context)(
-    proxy: JSProxy): JSAny {
+transitioning builtin ProxyIsExtensible(
+    implicit context: Context)(proxy: JSProxy): JSAny {
   PerformStackCheck();
   const kTrapName: constexpr string = 'isExtensible';
   try {

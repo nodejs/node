@@ -16,7 +16,7 @@ namespace baseline {
 
 namespace detail {
 
-static constexpr Register kScratchRegisters[] = {r8, r9, ip, r1};
+static constexpr Register kScratchRegisters[] = {r8, ip, r1};
 static constexpr int kNumScratchRegisters = arraysize(kScratchRegisters);
 
 #ifdef DEBUG
@@ -194,7 +194,7 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
   JumpIfHelper(masm_, cc, value, tmp, target);
 }
 
-void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
+void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Tagged<Smi> smi,
                                   Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
   __ AssertSmi(value);
@@ -255,7 +255,7 @@ void BaselineAssembler::Move(interpreter::Register output, Register source) {
   Move(RegisterFrameOperand(output), source);
 }
 
-void BaselineAssembler::Move(Register output, TaggedIndex value) {
+void BaselineAssembler::Move(Register output, Tagged<TaggedIndex> value) {
   ASM_CODE_COMMENT(masm_);
   __ mov(output, Operand(value.ptr()));
 }
@@ -432,7 +432,7 @@ void BaselineAssembler::LoadWord8Field(Register output, Register source,
 }
 
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
-                                               Smi value) {
+                                               Tagged<Smi> value) {
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
@@ -580,7 +580,7 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
   StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
 }
 
-void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
+void BaselineAssembler::AddSmi(Register lhs, Tagged<Smi> rhs) {
   if (rhs.value() == 0) return;
   __ LoadSmiLiteral(r0, rhs);
   if (SmiValuesAre31Bits()) {

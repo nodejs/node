@@ -12,6 +12,12 @@
 #include "src/parsing/parser.h"
 #include "src/zone/zone-list-inl.h"
 
+// Use this macro when `replacement_` or other data produced by Visit() is used
+// in a non-trivial way (needs to be valid) after calling Visit().
+#define VISIT_AND_RETURN_IF_STACK_OVERFLOW(param) \
+  Visit(param);                                   \
+  if (CheckStackOverflow()) return;
+
 namespace v8 {
 namespace internal {
 
@@ -226,12 +232,12 @@ void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
   // Rewrite both try and catch block.
   bool set_after = is_set_;
 
-  Visit(node->try_block());
+  VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->try_block());
   node->set_try_block(static_cast<Block*>(replacement_));
   bool set_in_try = is_set_;
 
   is_set_ = set_after;
-  Visit(node->catch_block());
+  VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->catch_block());
   node->set_catch_block(static_cast<Block*>(replacement_));
 
   replacement_ = is_set_ && set_in_try ? node : AssignUndefinedBefore(node);
@@ -245,7 +251,7 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   if (breakable_) {
     // Only set result before a 'break' or 'continue'.
     is_set_ = true;
-    Visit(node->finally_block());
+    VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->finally_block());
     node->set_finally_block(replacement_->AsBlock());
     CHECK_NOT_NULL(closure_scope());
     if (is_set_) {
@@ -285,7 +291,7 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
     // reset is_set_ before visiting the try-block.
     is_set_ = false;
   }
-  Visit(node->try_block());
+  VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->try_block());
   node->set_try_block(replacement_->AsBlock());
 
   replacement_ = is_set_ ? node : AssignUndefinedBefore(node);
@@ -437,6 +443,8 @@ base::Optional<VariableProxy*> Rewriter::RewriteBody(
   }
   return nullptr;
 }
+
+#undef VISIT_AND_RETURN_IF_STACK_OVERFLOW
 
 }  // namespace internal
 }  // namespace v8

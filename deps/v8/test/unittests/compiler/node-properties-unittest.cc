@@ -2,19 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/common-operator.h"
 #include "src/compiler/node-properties.h"
+
+#include "src/compiler/common-operator.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
-
-using testing::AnyOf;
-using testing::ElementsAre;
-using testing::IsNull;
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 namespace node_properties_unittest {
+
+using testing::AnyOf;
+using testing::ElementsAre;
+using testing::IsNull;
 
 class NodePropertiesTest : public TestWithZone {
  public:

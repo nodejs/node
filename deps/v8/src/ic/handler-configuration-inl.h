@@ -25,7 +25,7 @@ OBJECT_CONSTRUCTORS_IMPL(LoadHandler, DataHandler)
 CAST_ACCESSOR(LoadHandler)
 
 // Decodes kind from Smi-handler.
-LoadHandler::Kind LoadHandler::GetHandlerKind(Smi smi_handler) {
+LoadHandler::Kind LoadHandler::GetHandlerKind(Tagged<Smi> smi_handler) {
   return KindBits::decode(smi_handler.value());
 }
 
@@ -220,7 +220,7 @@ Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {
   return handle(StoreProxy(), isolate);
 }
 
-Smi StoreHandler::StoreProxy() {
+Tagged<Smi> StoreHandler::StoreProxy() {
   int config = KindBits::encode(Kind::kProxy);
   return Smi::FromInt(config);
 }

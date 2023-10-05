@@ -7,7 +7,8 @@
 namespace typed_array {
 const kBuiltinNameForEach: constexpr string = '%TypedArray%.prototype.forEach';
 
-transitioning macro ForEachAllElements(implicit context: Context)(
+transitioning macro ForEachAllElements(
+    implicit context: Context)(
     attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
     callbackfn: Callable, thisArg: JSAny): Undefined {
   let witness =
@@ -44,8 +45,8 @@ transitioning macro ForEachAllElements(implicit context: Context)(
 }
 
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.every
-transitioning javascript builtin
-TypedArrayPrototypeForEach(js-implicit context: NativeContext, receiver: JSAny)(
+transitioning javascript builtin TypedArrayPrototypeForEach(
+    js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): Undefined {
   // arguments[0] = callback
   // arguments[1] = this_arg.
@@ -63,7 +64,7 @@ TypedArrayPrototypeForEach(js-implicit context: NativeContext, receiver: JSAny)(
     const thisArg = arguments[1];
     return ForEachAllElements(attachedArrayAndLength, callbackfn, thisArg);
   } label NotCallable deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameForEach);
   } label IsDetachedOrOutOfBounds deferred {

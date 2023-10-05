@@ -3,8 +3,9 @@ Short Name: utf8-decoder
 URL: http://bjoern.hoehrmann.de/utf-8/decoder/dfa/
 Version: 0
 License: MIT
-License File: NOT_SHIPPED
-Security Critical: no
+License File: LICENSE
+Security Critical: yes
+Shipped: yes
 
 Description:
 Decodes UTF-8 bytes using a fast and simple definite finite automata.

@@ -53,7 +53,7 @@ TEST(SimpleSmiReturn) {
   CodeAssembler m(asm_tester.state());
   m.Return(SmiTag(&m, m.IntPtrConstant(37)));
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(37, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(37, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(SimpleIntPtrReturn) {
@@ -65,7 +65,7 @@ TEST(SimpleIntPtrReturn) {
       m.IntPtrConstant(reinterpret_cast<intptr_t>(&test))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(reinterpret_cast<Address>(&test), result.ToHandleChecked()->ptr());
+  CHECK_EQ(reinterpret_cast<Address>(&test), (*result.ToHandleChecked()).ptr());
 }
 
 TEST(SimpleDoubleReturn) {
@@ -86,7 +86,7 @@ TEST(SimpleCallRuntime1Arg) {
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.Return(m.CallRuntime(Runtime::kIsSmi, context, b));
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK(ft.CallChecked<Oddball>().is_identical_to(
+  CHECK(ft.CallChecked<Boolean>().is_identical_to(
       isolate->factory()->true_value()));
 }
 
@@ -99,7 +99,7 @@ TEST(SimpleTailCallRuntime1Arg) {
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.TailCallRuntime(Runtime::kIsSmi, context, b);
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK(ft.CallChecked<Oddball>().is_identical_to(
+  CHECK(ft.CallChecked<Boolean>().is_identical_to(
       isolate->factory()->true_value()));
 }
 
@@ -113,7 +113,7 @@ TEST(SimpleCallRuntime2Arg) {
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(6, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(6, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(SimpleTailCallRuntime2Arg) {
@@ -126,7 +126,7 @@ TEST(SimpleTailCallRuntime2Arg) {
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.TailCallRuntime(Runtime::kAdd, context, a, b);
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(6, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(6, (*ft.CallChecked<Smi>()).value());
 }
 
 namespace {
@@ -460,7 +460,7 @@ TEST(ExceptionHandler) {
   m.Return(var.value());
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(2, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(2, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(TestCodeAssemblerCodeComment) {

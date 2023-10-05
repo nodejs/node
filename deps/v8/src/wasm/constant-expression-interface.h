@@ -32,6 +32,7 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
  public:
   using ValidationTag = Decoder::FullValidationTag;
   static constexpr DecodingMode decoding_mode = kConstantExpression;
+  static constexpr bool kUsesPoppedArgs = true;
 
   struct Value : public ValueBase<ValidationTag> {
     WasmValue runtime_value;

@@ -50,10 +50,10 @@ class MapInference {
 
   // These queries require a guard. (Even instance types are generally not
   // reliable because of how the representation of a string can change.)
-  V8_WARN_UNUSED_RESULT ZoneVector<MapRef> const& GetMaps();
+  V8_WARN_UNUSED_RESULT ZoneRefSet<Map> const& GetMaps();
   V8_WARN_UNUSED_RESULT bool AllOfInstanceTypes(
       std::function<bool(InstanceType)> f);
-  V8_WARN_UNUSED_RESULT bool Is(const MapRef& expected_map);
+  V8_WARN_UNUSED_RESULT bool Is(MapRef expected_map);
 
   // These methods provide a guard.
   //
@@ -81,7 +81,7 @@ class MapInference {
   JSHeapBroker* const broker_;
   Node* const object_;
 
-  ZoneVector<MapRef> maps_;
+  ZoneRefSet<Map> maps_;
   enum {
     kReliableOrGuarded,
     kUnreliableDontNeedGuard,

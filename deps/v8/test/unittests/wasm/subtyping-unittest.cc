@@ -89,8 +89,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     /* 12 */ DefineSignature(module, {kWasmI32, kWasmI32}, {kWasmI32});
     /* 13 */ DefineSignature(module, {ref(1)}, {kWasmI32});
     /* 14 */ DefineSignature(module, {ref(0)}, {kWasmI32}, 13);
-    /* 15 */ DefineSignature(module, {ref(0)}, {ref(4)}, 16);
-    /* 16 */ DefineSignature(module, {ref(0)}, {ref(0)});
+    /* 15 */ DefineSignature(module, {ref(0)}, {ref(0)});
+    /* 16 */ DefineSignature(module, {ref(0)}, {ref(4)}, 15);
     /* 17 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))});
 
     // Rec. group.
@@ -310,7 +310,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // Parameter contravariance holds.
     VALID_SUBTYPE(ref(14), ref(13));
     // Return type covariance holds.
-    VALID_SUBTYPE(ref(15), ref(16));
+    VALID_SUBTYPE(ref(16), ref(15));
     // Identical types are subtype-related.
     VALID_SUBTYPE(ref(10), ref(10));
     VALID_SUBTYPE(ref(11), ref(11));

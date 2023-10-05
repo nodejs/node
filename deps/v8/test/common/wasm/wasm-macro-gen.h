@@ -7,11 +7,11 @@
 
 #include "src/wasm/wasm-opcodes.h"
 
-#define U32_LE(v)                                    \
-  static_cast<byte>(v), static_cast<byte>((v) >> 8), \
-      static_cast<byte>((v) >> 16), static_cast<byte>((v) >> 24)
+#define U32_LE(v)                                          \
+  static_cast<uint8_t>(v), static_cast<uint8_t>((v) >> 8), \
+      static_cast<uint8_t>((v) >> 16), static_cast<uint8_t>((v) >> 24)
 
-#define U16_LE(v) static_cast<byte>(v), static_cast<byte>((v) >> 8)
+#define U16_LE(v) static_cast<uint8_t>(v), static_cast<uint8_t>((v) >> 8)
 
 #define WASM_MODULE_HEADER U32_LE(kWasmMagic), U32_LE(kWasmVersion)
 
@@ -33,8 +33,8 @@
 // The table index field in an element segment was repurposed as a flags field.
 // To specify a table index, we have to set the flag value to 2, followed by
 // the table index.
-#define TABLE_INDEX0 static_cast<byte>(ACTIVE_NO_INDEX)
-#define TABLE_INDEX(v) static_cast<byte>(ACTIVE_WITH_INDEX), U32V_1(v)
+#define TABLE_INDEX0 static_cast<uint8_t>(ACTIVE_NO_INDEX)
+#define TABLE_INDEX(v) static_cast<uint8_t>(ACTIVE_WITH_INDEX), U32V_1(v)
 
 #define ZERO_ALIGNMENT 0
 #define ZERO_OFFSET 0
@@ -46,24 +46,25 @@
 #define MASK_21 ((1 << 21) - 1)
 #define MASK_28 ((1 << 28) - 1)
 
-#define U32V_1(x) static_cast<byte>((x)&MASK_7)
-#define U32V_2(x) \
-  static_cast<byte>(((x)&MASK_7) | 0x80), static_cast<byte>(((x) >> 7) & MASK_7)
-#define U32V_3(x)                                      \
-  static_cast<byte>((((x)) & MASK_7) | 0x80),          \
-      static_cast<byte>((((x) >> 7) & MASK_7) | 0x80), \
-      static_cast<byte>(((x) >> 14) & MASK_7)
-#define U32V_4(x)                                       \
-  static_cast<byte>(((x)&MASK_7) | 0x80),               \
-      static_cast<byte>((((x) >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>((((x) >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>(((x) >> 21) & MASK_7)
-#define U32V_5(x)                                       \
-  static_cast<byte>(((x)&MASK_7) | 0x80),               \
-      static_cast<byte>((((x) >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>((((x) >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>((((x) >> 21) & MASK_7) | 0x80), \
-      static_cast<byte>((((x) >> 28) & MASK_7))
+#define U32V_1(x) static_cast<uint8_t>((x)&MASK_7)
+#define U32V_2(x)                            \
+  static_cast<uint8_t>(((x)&MASK_7) | 0x80), \
+      static_cast<uint8_t>(((x) >> 7) & MASK_7)
+#define U32V_3(x)                                         \
+  static_cast<uint8_t>((((x)) & MASK_7) | 0x80),          \
+      static_cast<uint8_t>((((x) >> 7) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((x) >> 14) & MASK_7)
+#define U32V_4(x)                                          \
+  static_cast<uint8_t>(((x)&MASK_7) | 0x80),               \
+      static_cast<uint8_t>((((x) >> 7) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>((((x) >> 14) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((x) >> 21) & MASK_7)
+#define U32V_5(x)                                          \
+  static_cast<uint8_t>(((x)&MASK_7) | 0x80),               \
+      static_cast<uint8_t>((((x) >> 7) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>((((x) >> 14) & MASK_7) | 0x80), \
+      static_cast<uint8_t>((((x) >> 21) & MASK_7) | 0x80), \
+      static_cast<uint8_t>((((x) >> 28) & MASK_7))
 
 #define U64V_1(x) U32V_1(static_cast<uint32_t>(x))
 #define U64V_2(x) U32V_2(static_cast<uint32_t>(x))
@@ -109,7 +110,8 @@
 #define DEPTH_1 1
 #define DEPTH_2 2
 
-#define WASM_HEAP_TYPE(heap_type) static_cast<byte>((heap_type).code() & 0x7f)
+#define WASM_HEAP_TYPE(heap_type) \
+  static_cast<uint8_t>((heap_type).code() & 0x7f)
 
 #define WASM_REF_TYPE(type)                        \
   (type).kind() == kRef ? kRefCode : kRefNullCode, \
@@ -121,13 +123,13 @@
 #define WASM_BLOCK_F(...) kExprBlock, kF32Code, __VA_ARGS__, kExprEnd
 #define WASM_BLOCK_D(...) kExprBlock, kF64Code, __VA_ARGS__, kExprEnd
 #define WASM_BLOCK_T(t, ...) \
-  kExprBlock, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
+  kExprBlock, static_cast<uint8_t>((t).value_type_code()), __VA_ARGS__, kExprEnd
 
 #define WASM_BLOCK_R(type, ...) \
   kExprBlock, WASM_REF_TYPE(type), __VA_ARGS__, kExprEnd
 
 #define WASM_BLOCK_X(index, ...) \
-  kExprBlock, static_cast<byte>(index), __VA_ARGS__, kExprEnd
+  kExprBlock, static_cast<uint8_t>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_INFINITE_LOOP kExprLoop, kVoidCode, kExprBr, DEPTH_0, kExprEnd
 
@@ -138,23 +140,24 @@
 #define WASM_LOOP_D(...) kExprLoop, kF64Code, __VA_ARGS__, kExprEnd
 
 #define WASM_LOOP_T(t, ...) \
-  kExprLoop, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
+  kExprLoop, static_cast<uint8_t>((t).value_type_code()), __VA_ARGS__, kExprEnd
 
 #define WASM_LOOP_R(t, ...) kExprLoop, TYPE_IMM(t), __VA_ARGS__, kExprEnd
 
 #define WASM_LOOP_X(index, ...) \
-  kExprLoop, static_cast<byte>(index), __VA_ARGS__, kExprEnd
+  kExprLoop, static_cast<uint8_t>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_IF(cond, ...) cond, kExprIf, kVoidCode, __VA_ARGS__, kExprEnd
 
-#define WASM_IF_T(t, cond, ...) \
-  cond, kExprIf, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
+#define WASM_IF_T(t, cond, ...)                                            \
+  cond, kExprIf, static_cast<uint8_t>((t).value_type_code()), __VA_ARGS__, \
+      kExprEnd
 
 #define WASM_IF_R(t, cond, ...) \
   cond, kExprIf, TYPE_IMM(t), __VA_ARGS__, kExprEnd
 
 #define WASM_IF_X(index, cond, ...) \
-  cond, kExprIf, static_cast<byte>(index), __VA_ARGS__, kExprEnd
+  cond, kExprIf, static_cast<uint8_t>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_IF_ELSE(cond, tstmt, fstmt) \
   cond, kExprIf, kVoidCode, tstmt, kExprElse, fstmt, kExprEnd
@@ -168,35 +171,35 @@
 #define WASM_IF_ELSE_D(cond, tstmt, fstmt) \
   cond, kExprIf, kF64Code, tstmt, kExprElse, fstmt, kExprEnd
 
-#define WASM_IF_ELSE_T(t, cond, tstmt, fstmt)                                \
-  cond, kExprIf, static_cast<byte>((t).value_type_code()), tstmt, kExprElse, \
-      fstmt, kExprEnd
+#define WASM_IF_ELSE_T(t, cond, tstmt, fstmt)                        \
+  cond, kExprIf, static_cast<uint8_t>((t).value_type_code()), tstmt, \
+      kExprElse, fstmt, kExprEnd
 
 #define WASM_IF_ELSE_R(t, cond, tstmt, fstmt) \
   cond, kExprIf, WASM_REF_TYPE(t), tstmt, kExprElse, fstmt, kExprEnd
 
-#define WASM_IF_ELSE_X(index, cond, tstmt, fstmt)                            \
-  cond, kExprIf, static_cast<byte>(index), tstmt, kExprElse, fstmt, kExprEnd
+#define WASM_IF_ELSE_X(index, cond, tstmt, fstmt) \
+  cond, kExprIf, static_cast<uint8_t>(index), tstmt, kExprElse, fstmt, kExprEnd
 
 #define WASM_TRY_T(t, trystmt) \
-  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprEnd
-#define WASM_TRY_CATCH_T(t, trystmt, catchstmt, except)                    \
-  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatch, \
+  kExprTry, static_cast<uint8_t>((t).value_type_code()), trystmt, kExprEnd
+#define WASM_TRY_CATCH_T(t, trystmt, catchstmt, except)                       \
+  kExprTry, static_cast<uint8_t>((t).value_type_code()), trystmt, kExprCatch, \
       except, catchstmt, kExprEnd
-#define WASM_TRY_CATCH_CATCH_T(t, trystmt, except1, catchstmt1, except2,   \
-                               catchstmt2)                                 \
-  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatch, \
+#define WASM_TRY_CATCH_CATCH_T(t, trystmt, except1, catchstmt1, except2,      \
+                               catchstmt2)                                    \
+  kExprTry, static_cast<uint8_t>((t).value_type_code()), trystmt, kExprCatch, \
       except1, catchstmt1, kExprCatch, except2, catchstmt2, kExprEnd
 #define WASM_TRY_CATCH_R(t, trystmt, catchstmt) \
   kExprTry, WASM_REF_TYPE(t), trystmt, kExprCatch, catchstmt, kExprEnd
-#define WASM_TRY_CATCH_ALL_T(t, trystmt, catchstmt)                           \
-  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatchAll, \
-      catchstmt, kExprEnd
+#define WASM_TRY_CATCH_ALL_T(t, trystmt, catchstmt)               \
+  kExprTry, static_cast<uint8_t>((t).value_type_code()), trystmt, \
+      kExprCatchAll, catchstmt, kExprEnd
 #define WASM_TRY_DELEGATE(trystmt, depth) \
   kExprTry, kVoidCode, trystmt, kExprDelegate, depth
-#define WASM_TRY_DELEGATE_T(t, trystmt, depth)                                \
-  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprDelegate, \
-      depth
+#define WASM_TRY_DELEGATE_T(t, trystmt, depth)                    \
+  kExprTry, static_cast<uint8_t>((t).value_type_code()), trystmt, \
+      kExprDelegate, depth
 
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
 #define WASM_SELECT_I(tval, fval, cond) \
@@ -212,11 +215,11 @@
 #define WASM_SELECT_A(tval, fval, cond) \
   tval, fval, cond, kExprSelectWithType, U32V_1(1), kFuncRefCode
 
-#define WASM_BR(depth) kExprBr, static_cast<byte>(depth)
-#define WASM_BR_IF(depth, cond) cond, kExprBrIf, static_cast<byte>(depth)
+#define WASM_BR(depth) kExprBr, static_cast<uint8_t>(depth)
+#define WASM_BR_IF(depth, cond) cond, kExprBrIf, static_cast<uint8_t>(depth)
 #define WASM_BR_IFD(depth, val, cond) \
-  val, cond, kExprBrIf, static_cast<byte>(depth), kExprDrop
-#define WASM_CONTINUE(depth) kExprBr, static_cast<byte>(depth)
+  val, cond, kExprBrIf, static_cast<uint8_t>(depth), kExprDrop
+#define WASM_CONTINUE(depth) kExprBr, static_cast<uint8_t>(depth)
 #define WASM_UNREACHABLE kExprUnreachable
 #define WASM_RETURN(...) __VA_ARGS__, kExprReturn
 #define WASM_RETURN0 kExprReturn
@@ -224,7 +227,7 @@
 #define WASM_BR_TABLE(key, count, ...) \
   key, kExprBrTable, U32V_1(count), __VA_ARGS__
 
-#define WASM_THROW(index) kExprThrow, static_cast<byte>(index)
+#define WASM_THROW(index) kExprThrow, static_cast<uint8_t>(index)
 
 //------------------------------------------------------------------------------
 // Misc expressions.
@@ -319,240 +322,309 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_I32V(val) kExprI32Const, U32V_5(val)
 
 #define WASM_I32V_1(val) \
-  static_cast<byte>(CheckI32v((val), 1), kExprI32Const), U32V_1(val)
+  static_cast<uint8_t>(CheckI32v((val), 1), kExprI32Const), U32V_1(val)
 #define WASM_I32V_2(val) \
-  static_cast<byte>(CheckI32v((val), 2), kExprI32Const), U32V_2(val)
+  static_cast<uint8_t>(CheckI32v((val), 2), kExprI32Const), U32V_2(val)
 #define WASM_I32V_3(val) \
-  static_cast<byte>(CheckI32v((val), 3), kExprI32Const), U32V_3(val)
+  static_cast<uint8_t>(CheckI32v((val), 3), kExprI32Const), U32V_3(val)
 #define WASM_I32V_4(val) \
-  static_cast<byte>(CheckI32v((val), 4), kExprI32Const), U32V_4(val)
+  static_cast<uint8_t>(CheckI32v((val), 4), kExprI32Const), U32V_4(val)
 #define WASM_I32V_5(val) \
-  static_cast<byte>(CheckI32v((val), 5), kExprI32Const), U32V_5(val)
+  static_cast<uint8_t>(CheckI32v((val), 5), kExprI32Const), U32V_5(val)
 
 //------------------------------------------------------------------------------
 // Int64 Const operations
 //------------------------------------------------------------------------------
-#define WASM_I64V(val)                                                        \
-  kExprI64Const,                                                              \
-      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 35) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 42) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 49) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 56) & MASK_7) | 0x80), \
-      static_cast<byte>((static_cast<int64_t>(val) >> 63) & MASK_7)
+#define WASM_I64V(val)                                                    \
+  kExprI64Const,                                                          \
+      static_cast<uint8_t>((static_cast<int64_t>(val) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 7) & MASK_7) |  \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 14) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 21) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 28) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 35) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 42) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 49) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 56) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>((static_cast<int64_t>(val) >> 63) & MASK_7)
 
-#define WASM_I64V_1(val)                                                     \
-  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 1), kExprI64Const), \
-      static_cast<byte>(static_cast<int64_t>(val) & MASK_7)
-#define WASM_I64V_2(val)                                                     \
-  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 2), kExprI64Const), \
-      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),        \
-      static_cast<byte>((static_cast<int64_t>(val) >> 7) & MASK_7)
-#define WASM_I64V_3(val)                                                     \
-  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 3), kExprI64Const), \
-      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),        \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80), \
-      static_cast<byte>((static_cast<int64_t>(val) >> 14) & MASK_7)
-#define WASM_I64V_4(val)                                                      \
-  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 4), kExprI64Const),  \
-      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>((static_cast<int64_t>(val) >> 21) & MASK_7)
-#define WASM_I64V_5(val)                                                      \
-  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 5), kExprI64Const),  \
-      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
-      static_cast<byte>((static_cast<int64_t>(val) >> 28) & MASK_7)
-#define WASM_I64V_6(val)                                                      \
-  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 6), kExprI64Const),  \
-      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
-      static_cast<byte>((static_cast<int64_t>(val) >> 35) & MASK_7)
-#define WASM_I64V_7(val)                                                      \
-  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 7), kExprI64Const),  \
-      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 35) & MASK_7) | 0x80), \
-      static_cast<byte>((static_cast<int64_t>(val) >> 42) & MASK_7)
-#define WASM_I64V_8(val)                                                      \
-  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 8), kExprI64Const),  \
-      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 35) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 42) & MASK_7) | 0x80), \
-      static_cast<byte>((static_cast<int64_t>(val) >> 49) & MASK_7)
-#define WASM_I64V_9(val)                                                      \
-  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 9), kExprI64Const),  \
-      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 35) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 42) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 49) & MASK_7) | 0x80), \
-      static_cast<byte>((static_cast<int64_t>(val) >> 56) & MASK_7)
-#define WASM_I64V_10(val)                                                     \
-  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 10), kExprI64Const), \
-      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 35) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 42) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 49) & MASK_7) | 0x80), \
-      static_cast<byte>(((static_cast<int64_t>(val) >> 56) & MASK_7) | 0x80), \
-      static_cast<byte>((static_cast<int64_t>(val) >> 63) & MASK_7)
+#define WASM_I64V_1(val)                                        \
+  static_cast<uint8_t>(CheckI64v(static_cast<int64_t>(val), 1), \
+                       kExprI64Const),                          \
+      static_cast<uint8_t>(static_cast<int64_t>(val) & MASK_7)
+#define WASM_I64V_2(val)                                                 \
+  static_cast<uint8_t>(CheckI64v(static_cast<int64_t>(val), 2),          \
+                       kExprI64Const),                                   \
+      static_cast<uint8_t>((static_cast<int64_t>(val) & MASK_7) | 0x80), \
+      static_cast<uint8_t>((static_cast<int64_t>(val) >> 7) & MASK_7)
+#define WASM_I64V_3(val)                                                 \
+  static_cast<uint8_t>(CheckI64v(static_cast<int64_t>(val), 3),          \
+                       kExprI64Const),                                   \
+      static_cast<uint8_t>((static_cast<int64_t>(val) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 7) & MASK_7) | \
+                           0x80),                                        \
+      static_cast<uint8_t>((static_cast<int64_t>(val) >> 14) & MASK_7)
+#define WASM_I64V_4(val)                                                  \
+  static_cast<uint8_t>(CheckI64v(static_cast<int64_t>(val), 4),           \
+                       kExprI64Const),                                    \
+      static_cast<uint8_t>((static_cast<int64_t>(val) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 7) & MASK_7) |  \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 14) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>((static_cast<int64_t>(val) >> 21) & MASK_7)
+#define WASM_I64V_5(val)                                                  \
+  static_cast<uint8_t>(CheckI64v(static_cast<int64_t>(val), 5),           \
+                       kExprI64Const),                                    \
+      static_cast<uint8_t>((static_cast<int64_t>(val) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 7) & MASK_7) |  \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 14) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 21) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>((static_cast<int64_t>(val) >> 28) & MASK_7)
+#define WASM_I64V_6(val)                                                  \
+  static_cast<uint8_t>(CheckI64v(static_cast<int64_t>(val), 6),           \
+                       kExprI64Const),                                    \
+      static_cast<uint8_t>((static_cast<int64_t>(val) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 7) & MASK_7) |  \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 14) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 21) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 28) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>((static_cast<int64_t>(val) >> 35) & MASK_7)
+#define WASM_I64V_7(val)                                                  \
+  static_cast<uint8_t>(CheckI64v(static_cast<int64_t>(val), 7),           \
+                       kExprI64Const),                                    \
+      static_cast<uint8_t>((static_cast<int64_t>(val) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 7) & MASK_7) |  \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 14) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 21) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 28) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 35) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>((static_cast<int64_t>(val) >> 42) & MASK_7)
+#define WASM_I64V_8(val)                                                  \
+  static_cast<uint8_t>(CheckI64v(static_cast<int64_t>(val), 8),           \
+                       kExprI64Const),                                    \
+      static_cast<uint8_t>((static_cast<int64_t>(val) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 7) & MASK_7) |  \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 14) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 21) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 28) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 35) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 42) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>((static_cast<int64_t>(val) >> 49) & MASK_7)
+#define WASM_I64V_9(val)                                                  \
+  static_cast<uint8_t>(CheckI64v(static_cast<int64_t>(val), 9),           \
+                       kExprI64Const),                                    \
+      static_cast<uint8_t>((static_cast<int64_t>(val) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 7) & MASK_7) |  \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 14) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 21) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 28) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 35) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 42) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 49) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>((static_cast<int64_t>(val) >> 56) & MASK_7)
+#define WASM_I64V_10(val)                                                 \
+  static_cast<uint8_t>(CheckI64v(static_cast<int64_t>(val), 10),          \
+                       kExprI64Const),                                    \
+      static_cast<uint8_t>((static_cast<int64_t>(val) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 7) & MASK_7) |  \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 14) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 21) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 28) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 35) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 42) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 49) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>(((static_cast<int64_t>(val) >> 56) & MASK_7) | \
+                           0x80),                                         \
+      static_cast<uint8_t>((static_cast<int64_t>(val) >> 63) & MASK_7)
 
-#define WASM_F32(val)                                                        \
-  kExprF32Const,                                                             \
-      static_cast<byte>(base::bit_cast<int32_t>(static_cast<float>(val))),   \
-      static_cast<byte>(base::bit_cast<uint32_t>(static_cast<float>(val)) >> \
-                        8),                                                  \
-      static_cast<byte>(base::bit_cast<uint32_t>(static_cast<float>(val)) >> \
-                        16),                                                 \
-      static_cast<byte>(base::bit_cast<uint32_t>(static_cast<float>(val)) >> \
-                        24)
-#define WASM_F64(val)                                                         \
-  kExprF64Const,                                                              \
-      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val))),  \
-      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
-                        8),                                                   \
-      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
-                        16),                                                  \
-      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
-                        24),                                                  \
-      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
-                        32),                                                  \
-      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
-                        40),                                                  \
-      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
-                        48),                                                  \
-      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
-                        56)
+#define WASM_F32(val)                                                         \
+  kExprF32Const,                                                              \
+      static_cast<uint8_t>(base::bit_cast<int32_t>(static_cast<float>(val))), \
+      static_cast<uint8_t>(                                                   \
+          base::bit_cast<uint32_t>(static_cast<float>(val)) >> 8),            \
+      static_cast<uint8_t>(                                                   \
+          base::bit_cast<uint32_t>(static_cast<float>(val)) >> 16),           \
+      static_cast<uint8_t>(                                                   \
+          base::bit_cast<uint32_t>(static_cast<float>(val)) >> 24)
+#define WASM_F64(val)                                                \
+  kExprF64Const,                                                     \
+      static_cast<uint8_t>(                                          \
+          base::bit_cast<uint64_t>(static_cast<double>(val))),       \
+      static_cast<uint8_t>(                                          \
+          base::bit_cast<uint64_t>(static_cast<double>(val)) >> 8),  \
+      static_cast<uint8_t>(                                          \
+          base::bit_cast<uint64_t>(static_cast<double>(val)) >> 16), \
+      static_cast<uint8_t>(                                          \
+          base::bit_cast<uint64_t>(static_cast<double>(val)) >> 24), \
+      static_cast<uint8_t>(                                          \
+          base::bit_cast<uint64_t>(static_cast<double>(val)) >> 32), \
+      static_cast<uint8_t>(                                          \
+          base::bit_cast<uint64_t>(static_cast<double>(val)) >> 40), \
+      static_cast<uint8_t>(                                          \
+          base::bit_cast<uint64_t>(static_cast<double>(val)) >> 48), \
+      static_cast<uint8_t>(                                          \
+          base::bit_cast<uint64_t>(static_cast<double>(val)) >> 56)
 
-#define WASM_LOCAL_GET(index) kExprLocalGet, static_cast<byte>(index)
-#define WASM_LOCAL_SET(index, val) val, kExprLocalSet, static_cast<byte>(index)
-#define WASM_LOCAL_TEE(index, val) val, kExprLocalTee, static_cast<byte>(index)
+#define WASM_LOCAL_GET(index) kExprLocalGet, static_cast<uint8_t>(index)
+#define WASM_LOCAL_SET(index, val) \
+  val, kExprLocalSet, static_cast<uint8_t>(index)
+#define WASM_LOCAL_TEE(index, val) \
+  val, kExprLocalTee, static_cast<uint8_t>(index)
 #define WASM_DROP kExprDrop
-#define WASM_GLOBAL_GET(index) kExprGlobalGet, static_cast<byte>(index)
+#define WASM_GLOBAL_GET(index) kExprGlobalGet, static_cast<uint8_t>(index)
 #define WASM_GLOBAL_SET(index, val) \
-  val, kExprGlobalSet, static_cast<byte>(index)
+  val, kExprGlobalSet, static_cast<uint8_t>(index)
 #define WASM_TABLE_GET(table_index, index) \
-  index, kExprTableGet, static_cast<byte>(table_index)
+  index, kExprTableGet, static_cast<uint8_t>(table_index)
 #define WASM_TABLE_SET(table_index, index, val) \
-  index, val, kExprTableSet, static_cast<byte>(table_index)
-#define WASM_LOAD_MEM(type, index)                                           \
-  index,                                                                     \
-      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
+  index, val, kExprTableSet, static_cast<uint8_t>(table_index)
+#define WASM_LOAD_MEM(type, index)                             \
+  index,                                                       \
+      static_cast<uint8_t>(                                    \
+          v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
       ZERO_ALIGNMENT, ZERO_OFFSET
-#define WASM_STORE_MEM(type, index, val)                                    \
-  index, val,                                                               \
-      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
+#define WASM_STORE_MEM(type, index, val)                                       \
+  index, val,                                                                  \
+      static_cast<uint8_t>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
       ZERO_ALIGNMENT, ZERO_OFFSET
-#define WASM_LOAD_MEM_OFFSET(type, offset, index)                            \
-  index,                                                                     \
-      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
+#define WASM_LOAD_MEM_OFFSET(type, offset, index)              \
+  index,                                                       \
+      static_cast<uint8_t>(                                    \
+          v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
       ZERO_ALIGNMENT, offset
-#define WASM_STORE_MEM_OFFSET(type, offset, index, val)                     \
-  index, val,                                                               \
-      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
+#define WASM_STORE_MEM_OFFSET(type, offset, index, val)                        \
+  index, val,                                                                  \
+      static_cast<uint8_t>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
       ZERO_ALIGNMENT, offset
-#define WASM_LOAD_MEM_ALIGNMENT(type, index, alignment)                      \
-  index,                                                                     \
-      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
+#define WASM_LOAD_MEM_ALIGNMENT(type, index, alignment)        \
+  index,                                                       \
+      static_cast<uint8_t>(                                    \
+          v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
       alignment, ZERO_OFFSET
-#define WASM_STORE_MEM_ALIGNMENT(type, index, alignment, val)               \
-  index, val,                                                               \
-      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
+#define WASM_STORE_MEM_ALIGNMENT(type, index, alignment, val)                  \
+  index, val,                                                                  \
+      static_cast<uint8_t>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
       alignment, ZERO_OFFSET
-#define WASM_RETHROW(index) kExprRethrow, static_cast<byte>(index)
+#define WASM_RETHROW(index) kExprRethrow, static_cast<uint8_t>(index)
 
-#define WASM_CALL_FUNCTION0(index) kExprCallFunction, static_cast<byte>(index)
+#define WASM_CALL_FUNCTION0(index) \
+  kExprCallFunction, static_cast<uint8_t>(index)
 #define WASM_CALL_FUNCTION(index, ...) \
-  __VA_ARGS__, kExprCallFunction, static_cast<byte>(index)
+  __VA_ARGS__, kExprCallFunction, static_cast<uint8_t>(index)
 
 #define WASM_RETURN_CALL_FUNCTION0(index) \
-  kExprReturnCall, static_cast<byte>(index)
+  kExprReturnCall, static_cast<uint8_t>(index)
 #define WASM_RETURN_CALL_FUNCTION(index, ...) \
-  __VA_ARGS__, kExprReturnCall, static_cast<byte>(index)
+  __VA_ARGS__, kExprReturnCall, static_cast<uint8_t>(index)
 
 #define TABLE_ZERO 0
 
 //------------------------------------------------------------------------------
 // Heap-allocated object operations.
 //------------------------------------------------------------------------------
-#define WASM_GC_OP(op) kGCPrefix, static_cast<byte>(op)
+#define WASM_GC_OP(op) kGCPrefix, static_cast<uint8_t>(op)
 #define WASM_STRUCT_NEW(index, ...) \
-  __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<byte>(index)
+  __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<uint8_t>(index)
 #define WASM_STRUCT_NEW_DEFAULT(index) \
-  WASM_GC_OP(kExprStructNewDefault), static_cast<byte>(index)
-#define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                \
-  struct_obj, WASM_GC_OP(kExprStructGet), static_cast<byte>(typeidx), \
-      static_cast<byte>(fieldidx)
-#define WASM_STRUCT_GET_S(typeidx, fieldidx, struct_obj)               \
-  struct_obj, WASM_GC_OP(kExprStructGetS), static_cast<byte>(typeidx), \
-      static_cast<byte>(fieldidx)
-#define WASM_STRUCT_GET_U(typeidx, fieldidx, struct_obj)               \
-  struct_obj, WASM_GC_OP(kExprStructGetU), static_cast<byte>(typeidx), \
-      static_cast<byte>(fieldidx)
-#define WASM_STRUCT_SET(typeidx, fieldidx, struct_obj, value)                \
-  struct_obj, value, WASM_GC_OP(kExprStructSet), static_cast<byte>(typeidx), \
-      static_cast<byte>(fieldidx)
+  WASM_GC_OP(kExprStructNewDefault), static_cast<uint8_t>(index)
+#define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                   \
+  struct_obj, WASM_GC_OP(kExprStructGet), static_cast<uint8_t>(typeidx), \
+      static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_GET_S(typeidx, fieldidx, struct_obj)                  \
+  struct_obj, WASM_GC_OP(kExprStructGetS), static_cast<uint8_t>(typeidx), \
+      static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_GET_U(typeidx, fieldidx, struct_obj)                  \
+  struct_obj, WASM_GC_OP(kExprStructGetU), static_cast<uint8_t>(typeidx), \
+      static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_SET(typeidx, fieldidx, struct_obj, value) \
+  struct_obj, value, WASM_GC_OP(kExprStructSet),              \
+      static_cast<uint8_t>(typeidx), static_cast<uint8_t>(fieldidx)
 #define WASM_REF_NULL(type_encoding) kExprRefNull, type_encoding
 #define WASM_REF_FUNC(index) kExprRefFunc, index
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 #define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
 #define WASM_REF_EQ(lhs, rhs) lhs, rhs, kExprRefEq
 #define WASM_REF_TEST_DEPRECATED(ref, typeidx) \
-  ref, WASM_GC_OP(kExprRefTestDeprecated), static_cast<byte>(typeidx)
+  ref, WASM_GC_OP(kExprRefTestDeprecated), static_cast<uint8_t>(typeidx)
 #define WASM_REF_TEST(ref, typeidx) \
-  ref, WASM_GC_OP(kExprRefTest), static_cast<byte>(typeidx)
+  ref, WASM_GC_OP(kExprRefTest), static_cast<uint8_t>(typeidx)
 #define WASM_REF_TEST_NULL(ref, typeidx) \
-  ref, WASM_GC_OP(kExprRefTestNull), static_cast<byte>(typeidx)
+  ref, WASM_GC_OP(kExprRefTestNull), static_cast<uint8_t>(typeidx)
 #define WASM_REF_CAST_DEPRECATED(ref, typeidx) \
-  ref, WASM_GC_OP(kExprRefCastDeprecated), static_cast<byte>(typeidx)
+  ref, WASM_GC_OP(kExprRefCastDeprecated), static_cast<uint8_t>(typeidx)
 #define WASM_REF_CAST(ref, typeidx) \
-  ref, WASM_GC_OP(kExprRefCast), static_cast<byte>(typeidx)
+  ref, WASM_GC_OP(kExprRefCast), static_cast<uint8_t>(typeidx)
 #define WASM_REF_CAST_NULL(ref, typeidx) \
-  ref, WASM_GC_OP(kExprRefCastNull), static_cast<byte>(typeidx)
+  ref, WASM_GC_OP(kExprRefCastNull), static_cast<uint8_t>(typeidx)
 // Takes a reference value from the value stack to allow sequences of
 // conditional branches.
-#define WASM_BR_ON_CAST(depth, typeidx)                \
-  WASM_GC_OP(kExprBrOnCast), static_cast<byte>(depth), \
-      static_cast<byte>(typeidx)
-#define WASM_BR_ON_CAST_NULL(depth, typeidx)               \
-  WASM_GC_OP(kExprBrOnCastNull), static_cast<byte>(depth), \
-      static_cast<byte>(typeidx)
-#define WASM_BR_ON_CAST_DEPRECATED(depth, typeidx)               \
-  WASM_GC_OP(kExprBrOnCastDeprecated), static_cast<byte>(depth), \
-      static_cast<byte>(typeidx)
-#define WASM_BR_ON_CAST_FAIL(depth, typeidx)               \
-  WASM_GC_OP(kExprBrOnCastFail), static_cast<byte>(depth), \
-      static_cast<byte>(typeidx)
-#define WASM_BR_ON_CAST_FAIL_NULL(depth, typeidx)              \
-  WASM_GC_OP(kExprBrOnCastFailNull), static_cast<byte>(depth), \
-      static_cast<byte>(typeidx)
-#define WASM_BR_ON_CAST_FAIL_DEPRECATED(depth, typeidx)              \
-  WASM_GC_OP(kExprBrOnCastFailDeprecated), static_cast<byte>(depth), \
-      static_cast<byte>(typeidx)
+#define WASM_BR_ON_CAST(depth, sourcetype, targettype)               \
+  WASM_GC_OP(kExprBrOnCastGeneric),                                  \
+      static_cast<uint8_t>(0b01), /*source is nullable*/             \
+      static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
+      static_cast<uint8_t>(targettype)
+#define WASM_BR_ON_CAST_NULL(depth, sourcetype, targettype)          \
+  WASM_GC_OP(kExprBrOnCastGeneric),                                  \
+      static_cast<uint8_t>(0b11) /*source & target nullable*/,       \
+      static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
+      static_cast<uint8_t>(targettype)
+#define WASM_BR_ON_CAST_DEPRECATED(depth, typeidx)                  \
+  WASM_GC_OP(kExprBrOnCastDeprecated), static_cast<uint8_t>(depth), \
+      static_cast<uint8_t>(typeidx)
+#define WASM_BR_ON_CAST_FAIL(depth, sourcetype, targettype)          \
+  WASM_GC_OP(kExprBrOnCastFailGeneric),                              \
+      static_cast<uint8_t>(0b01), /*source is nullable*/             \
+      static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
+      static_cast<uint8_t>(targettype)
+#define WASM_BR_ON_CAST_FAIL_NULL(depth, sourcetype, targettype)     \
+  WASM_GC_OP(kExprBrOnCastFailGeneric),                              \
+      static_cast<uint8_t>(0b11), /*source, target nullable*/        \
+      static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
+      static_cast<uint8_t>(targettype)
+#define WASM_BR_ON_CAST_FAIL_DEPRECATED(depth, typeidx)                 \
+  WASM_GC_OP(kExprBrOnCastFailDeprecated), static_cast<uint8_t>(depth), \
+      static_cast<uint8_t>(typeidx)
 
 #define WASM_GC_INTERNALIZE(extern) extern, WASM_GC_OP(kExprExternInternalize)
 #define WASM_GC_EXTERNALIZE(ref) ref, WASM_GC_OP(kExprExternExternalize)
@@ -564,57 +636,59 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_REF_AS_ARRAY(ref) ref, WASM_GC_OP(kExprRefAsArray)
 #define WASM_REF_AS_I31(ref) ref, WASM_GC_OP(kExprRefAsI31)
 #define WASM_BR_ON_ARRAY(depth) \
-  WASM_GC_OP(kExprBrOnArray), static_cast<byte>(depth)
+  WASM_GC_OP(kExprBrOnArray), static_cast<uint8_t>(depth)
 #define WASM_BR_ON_STRUCT(depth) \
-  WASM_GC_OP(kExprBrOnStruct), static_cast<byte>(depth)
-#define WASM_BR_ON_I31(depth) WASM_GC_OP(kExprBrOnI31), static_cast<byte>(depth)
+  WASM_GC_OP(kExprBrOnStruct), static_cast<uint8_t>(depth)
+#define WASM_BR_ON_I31(depth) \
+  WASM_GC_OP(kExprBrOnI31), static_cast<uint8_t>(depth)
 #define WASM_BR_ON_NON_ARRAY(depth) \
-  WASM_GC_OP(kExprBrOnNonArray), static_cast<byte>(depth)
+  WASM_GC_OP(kExprBrOnNonArray), static_cast<uint8_t>(depth)
 #define WASM_BR_ON_NON_STRUCT(depth) \
-  WASM_GC_OP(kExprBrOnNonStruct), static_cast<byte>(depth)
+  WASM_GC_OP(kExprBrOnNonStruct), static_cast<uint8_t>(depth)
 #define WASM_BR_ON_NON_I31(depth) \
-  WASM_GC_OP(kExprBrOnNonI31), static_cast<byte>(depth)
+  WASM_GC_OP(kExprBrOnNonI31), static_cast<uint8_t>(depth)
 
 #define WASM_ARRAY_NEW(index, default_value, length) \
-  default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)
+  default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<uint8_t>(index)
 #define WASM_ARRAY_NEW_DEFAULT(index, length) \
-  length, WASM_GC_OP(kExprArrayNewDefault), static_cast<byte>(index)
+  length, WASM_GC_OP(kExprArrayNewDefault), static_cast<uint8_t>(index)
 #define WASM_ARRAY_GET(typeidx, array, index) \
-  array, index, WASM_GC_OP(kExprArrayGet), static_cast<byte>(typeidx)
+  array, index, WASM_GC_OP(kExprArrayGet), static_cast<uint8_t>(typeidx)
 #define WASM_ARRAY_GET_U(typeidx, array, index) \
-  array, index, WASM_GC_OP(kExprArrayGetU), static_cast<byte>(typeidx)
+  array, index, WASM_GC_OP(kExprArrayGetU), static_cast<uint8_t>(typeidx)
 #define WASM_ARRAY_GET_S(typeidx, array, index) \
-  array, index, WASM_GC_OP(kExprArrayGetS), static_cast<byte>(typeidx)
+  array, index, WASM_GC_OP(kExprArrayGetS), static_cast<uint8_t>(typeidx)
 #define WASM_ARRAY_SET(typeidx, array, index, value) \
-  array, index, value, WASM_GC_OP(kExprArraySet), static_cast<byte>(typeidx)
+  array, index, value, WASM_GC_OP(kExprArraySet), static_cast<uint8_t>(typeidx)
 #define WASM_ARRAY_LEN(array) array, WASM_GC_OP(kExprArrayLen)
 #define WASM_ARRAY_COPY(dst_idx, src_idx, dst_array, dst_index, src_array, \
                         src_index, length)                                 \
   dst_array, dst_index, src_array, src_index, length,                      \
-      WASM_GC_OP(kExprArrayCopy), static_cast<byte>(dst_idx),              \
-      static_cast<byte>(src_idx)
-#define WASM_ARRAY_NEW_FIXED(index, length, ...)                         \
-  __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixed), static_cast<byte>(index), \
-      static_cast<byte>(length)
+      WASM_GC_OP(kExprArrayCopy), static_cast<uint8_t>(dst_idx),           \
+      static_cast<uint8_t>(src_idx)
+#define WASM_ARRAY_NEW_FIXED(index, length, ...)                            \
+  __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixed), static_cast<uint8_t>(index), \
+      static_cast<uint8_t>(length)
 
 #define WASM_I31_NEW(val) val, WASM_GC_OP(kExprI31New)
 #define WASM_I31_GET_S(val) val, WASM_GC_OP(kExprI31GetS)
 #define WASM_I31_GET_U(val) val, WASM_GC_OP(kExprI31GetU)
 
 #define WASM_BR_ON_NULL(depth, ref_object) \
-  ref_object, kExprBrOnNull, static_cast<byte>(depth)
+  ref_object, kExprBrOnNull, static_cast<uint8_t>(depth)
 
 #define WASM_BR_ON_NON_NULL(depth, ref_object) \
-  ref_object, kExprBrOnNonNull, static_cast<byte>(depth)
+  ref_object, kExprBrOnNonNull, static_cast<uint8_t>(depth)
 
 // Pass: sig_index, ...args, func_index
 #define WASM_CALL_INDIRECT(sig_index, ...) \
-  __VA_ARGS__, kExprCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
-#define WASM_CALL_INDIRECT_TABLE(table, sig_index, ...)         \
-  __VA_ARGS__, kExprCallIndirect, static_cast<byte>(sig_index), \
-      static_cast<byte>(table)
-#define WASM_RETURN_CALL_INDIRECT(sig_index, ...) \
-  __VA_ARGS__, kExprReturnCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
+  __VA_ARGS__, kExprCallIndirect, static_cast<uint8_t>(sig_index), TABLE_ZERO
+#define WASM_CALL_INDIRECT_TABLE(table, sig_index, ...)            \
+  __VA_ARGS__, kExprCallIndirect, static_cast<uint8_t>(sig_index), \
+      static_cast<uint8_t>(table)
+#define WASM_RETURN_CALL_INDIRECT(sig_index, ...)                        \
+  __VA_ARGS__, kExprReturnCallIndirect, static_cast<uint8_t>(sig_index), \
+      TABLE_ZERO
 
 #define WASM_CALL_REF(func_ref, sig_index, ...) \
   __VA_ARGS__, func_ref, kExprCallRef, sig_index
@@ -631,19 +705,19 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_WHILE(x, y)                                                      \
   kExprLoop, kVoidCode, x, kExprIf, kVoidCode, y, kExprBr, DEPTH_1, kExprEnd, \
       kExprEnd
-#define WASM_INC_LOCAL(index)                                             \
-  kExprLocalGet, static_cast<byte>(index), kExprI32Const, 1, kExprI32Add, \
-      kExprLocalTee, static_cast<byte>(index)
-#define WASM_INC_LOCAL_BYV(index, count)                    \
-  kExprLocalGet, static_cast<byte>(index), kExprI32Const,   \
-      static_cast<byte>(count), kExprI32Add, kExprLocalTee, \
-      static_cast<byte>(index)
-#define WASM_INC_LOCAL_BY(index, count)                     \
-  kExprLocalGet, static_cast<byte>(index), kExprI32Const,   \
-      static_cast<byte>(count), kExprI32Add, kExprLocalSet, \
-      static_cast<byte>(index)
-#define WASM_UNOP(opcode, x) x, static_cast<byte>(opcode)
-#define WASM_BINOP(opcode, x, y) x, y, static_cast<byte>(opcode)
+#define WASM_INC_LOCAL(index)                                                \
+  kExprLocalGet, static_cast<uint8_t>(index), kExprI32Const, 1, kExprI32Add, \
+      kExprLocalTee, static_cast<uint8_t>(index)
+#define WASM_INC_LOCAL_BYV(index, count)                       \
+  kExprLocalGet, static_cast<uint8_t>(index), kExprI32Const,   \
+      static_cast<uint8_t>(count), kExprI32Add, kExprLocalTee, \
+      static_cast<uint8_t>(index)
+#define WASM_INC_LOCAL_BY(index, count)                        \
+  kExprLocalGet, static_cast<uint8_t>(index), kExprI32Const,   \
+      static_cast<uint8_t>(count), kExprI32Add, kExprLocalSet, \
+      static_cast<uint8_t>(index)
+#define WASM_UNOP(opcode, x) x, static_cast<uint8_t>(opcode)
+#define WASM_BINOP(opcode, x, y) x, y, static_cast<uint8_t>(opcode)
 
 //------------------------------------------------------------------------------
 // Int32 operations
@@ -799,7 +873,7 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 //------------------------------------------------------------------------------
 // Numeric operations
 //------------------------------------------------------------------------------
-#define WASM_NUMERIC_OP(op) kNumericPrefix, static_cast<byte>(op)
+#define WASM_NUMERIC_OP(op) kNumericPrefix, static_cast<uint8_t>(op)
 #define WASM_I32_SCONVERT_SAT_F32(x) x, WASM_NUMERIC_OP(kExprI32SConvertSatF32)
 #define WASM_I32_UCONVERT_SAT_F32(x) x, WASM_NUMERIC_OP(kExprI32UConvertSatF32)
 #define WASM_I32_SCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI32SConvertSatF64)
@@ -820,18 +894,19 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   dst, val, size, WASM_NUMERIC_OP(kExprMemoryFill), MEMORY_ZERO
 #define WASM_TABLE_INIT(table, seg, dst, src, size)             \
   dst, src, size, WASM_NUMERIC_OP(kExprTableInit), U32V_1(seg), \
-      static_cast<byte>(table)
+      static_cast<uint8_t>(table)
 #define WASM_ELEM_DROP(seg) WASM_NUMERIC_OP(kExprElemDrop), U32V_1(seg)
 #define WASM_TABLE_COPY(table_dst, table_src, dst, src, size) \
   dst, src, size, WASM_NUMERIC_OP(kExprTableCopy),            \
-      static_cast<byte>(table_dst), static_cast<byte>(table_src)
+      static_cast<uint8_t>(table_dst), static_cast<uint8_t>(table_src)
 #define WASM_TABLE_GROW(table, initial_value, delta)     \
   initial_value, delta, WASM_NUMERIC_OP(kExprTableGrow), \
-      static_cast<byte>(table)
+      static_cast<uint8_t>(table)
 #define WASM_TABLE_SIZE(table) \
-  WASM_NUMERIC_OP(kExprTableSize), static_cast<byte>(table)
-#define WASM_TABLE_FILL(table, times, value, start) \
-  times, value, start, WASM_NUMERIC_OP(kExprTableFill), static_cast<byte>(table)
+  WASM_NUMERIC_OP(kExprTableSize), static_cast<uint8_t>(table)
+#define WASM_TABLE_FILL(table, times, value, start)     \
+  times, value, start, WASM_NUMERIC_OP(kExprTableFill), \
+      static_cast<uint8_t>(table)
 
 //------------------------------------------------------------------------------
 // Memory Operations.
@@ -860,28 +935,28 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define SIZEOF_SIG_ENTRY_xx_xx 7
 #define SIZEOF_SIG_ENTRY_x_xxx 7
 
-#define WASM_BRV(depth, ...) __VA_ARGS__, kExprBr, static_cast<byte>(depth)
+#define WASM_BRV(depth, ...) __VA_ARGS__, kExprBr, static_cast<uint8_t>(depth)
 #define WASM_BRV_IF(depth, val, cond) \
-  val, cond, kExprBrIf, static_cast<byte>(depth)
+  val, cond, kExprBrIf, static_cast<uint8_t>(depth)
 #define WASM_BRV_IFD(depth, val, cond) \
-  val, cond, kExprBrIf, static_cast<byte>(depth), kExprDrop
+  val, cond, kExprBrIf, static_cast<uint8_t>(depth), kExprDrop
 
 //------------------------------------------------------------------------------
 // Atomic Operations.
 //------------------------------------------------------------------------------
-#define WASM_ATOMICS_OP(op) kAtomicPrefix, static_cast<byte>(op)
+#define WASM_ATOMICS_OP(op) kAtomicPrefix, static_cast<uint8_t>(op)
 #define WASM_ATOMICS_BINOP(op, x, y, representation) \
   x, y, WASM_ATOMICS_OP(op),                         \
-      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
+      static_cast<uint8_t>(ElementSizeLog2Of(representation)), ZERO_OFFSET
 #define WASM_ATOMICS_TERNARY_OP(op, x, y, z, representation) \
   x, y, z, WASM_ATOMICS_OP(op),                              \
-      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
+      static_cast<uint8_t>(ElementSizeLog2Of(representation)), ZERO_OFFSET
 #define WASM_ATOMICS_LOAD_OP(op, x, representation) \
   x, WASM_ATOMICS_OP(op),                           \
-      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
+      static_cast<uint8_t>(ElementSizeLog2Of(representation)), ZERO_OFFSET
 #define WASM_ATOMICS_STORE_OP(op, x, y, representation) \
   x, y, WASM_ATOMICS_OP(op),                            \
-      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
+      static_cast<uint8_t>(ElementSizeLog2Of(representation)), ZERO_OFFSET
 #define WASM_ATOMICS_WAIT(op, index, value, timeout, offset) \
   index, value, timeout, WASM_ATOMICS_OP(op), ZERO_ALIGNMENT, offset
 #define WASM_ATOMICS_FENCE WASM_ATOMICS_OP(kExprAtomicFence), ZERO_OFFSET
@@ -898,7 +973,7 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 //------------------------------------------------------------------------------
 // SIMD Operations.
 //------------------------------------------------------------------------------
-#define TO_BYTE(val) static_cast<byte>(val)
+#define TO_BYTE(val) static_cast<uint8_t>(val)
 // Encode all simd ops as a 2-byte LEB.
 #define WASM_SIMD_OP(op) kSimdPrefix, U32V_2(ExtractPrefixedOpcodeBytes(op))
 #define WASM_SIMD_OPN(op, ...) __VA_ARGS__, WASM_SIMD_OP(op)

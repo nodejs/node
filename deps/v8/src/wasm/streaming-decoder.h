@@ -30,8 +30,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   virtual ~StreamingProcessor() = default;
   // Process the first 8 bytes of a WebAssembly module. Returns true if the
   // processing finished successfully and the decoding should continue.
-  virtual bool ProcessModuleHeader(base::Vector<const uint8_t> bytes,
-                                   uint32_t offset) = 0;
+  virtual bool ProcessModuleHeader(base::Vector<const uint8_t> bytes) = 0;
 
   // Process all sections but the code section. Returns true if the processing
   // finished successfully and the decoding should continue.

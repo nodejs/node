@@ -8,9 +8,9 @@ namespace proxy {
 
 // ES #sec-proxy-object-internal-methods-and-internal-slots-delete-p
 // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-delete-p
-transitioning builtin
-ProxyDeleteProperty(implicit context: Context)(
-    proxy: JSProxy, name: PropertyKey, languageMode: LanguageModeSmi): JSAny {
+transitioning builtin ProxyDeleteProperty(
+    implicit context: Context)(proxy: JSProxy, name: PropertyKey,
+    languageMode: LanguageModeSmi): JSAny {
   const kTrapName: constexpr string = 'deleteProperty';
   // Handle deeply nested proxy.
   PerformStackCheck();

@@ -88,6 +88,10 @@ struct ExternalPointerHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 
+struct IndirectPointerHandleT : Uint32T {
+  static constexpr MachineType kMachineType = MachineType::Uint32();
+};
+
 #ifdef V8_ENABLE_SANDBOX
 struct ExternalPointerT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
@@ -117,7 +121,9 @@ using TaggedT = IntPtrT;
 #endif
 
 // Result of a comparison operation.
-struct BoolT : Word32T {};
+struct BoolT : Word32T {
+  static constexpr MachineType kMachineType = MachineType::Int32();
+};
 
 // Value type of a Turbofan node with two results.
 template <class T1, class T2>
@@ -360,11 +366,11 @@ class TNode {
  public:
   template <class U,
             typename std::enable_if<is_subtype<U, T>::value, int>::type = 0>
-  TNode(const TNode<U>& other) V8_NOEXCEPT : node_(other) {
+  TNode(const TNode<U>& other) V8_NOEXCEPT : node_(other.node_) {
     LazyTemplateChecks();
   }
-  TNode(const TNode& other) V8_NOEXCEPT : node_(other) { LazyTemplateChecks(); }
-  TNode() : TNode(nullptr) {}
+  TNode(const TNode& other) V8_NOEXCEPT : node_(other.node_) {}
+  TNode() : node_(nullptr) {}
 
   TNode operator=(TNode other) {
     DCHECK_NOT_NULL(other.node_);
@@ -374,12 +380,17 @@ class TNode {
 
   operator compiler::Node*() const { return node_; }
 
+  explicit operator bool() const { return node_ != nullptr; }
+
   static TNode UncheckedCast(compiler::Node* node) { return TNode(node); }
 
  protected:
+  template <typename U>
+  friend class TNode;
+
   explicit TNode(compiler::Node* node) : node_(node) { LazyTemplateChecks(); }
   // These checks shouldn't be checked before TNode is actually used.
-  void LazyTemplateChecks() {
+  void LazyTemplateChecks() const {
     static_assert(is_valid_type_tag<T>::value, "invalid type tag");
   }
 

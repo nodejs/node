@@ -13,6 +13,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -92,6 +93,39 @@ inline void MemCopy(void* dest, const void* src, size_t size) {
       return;
   }
 }
+#if V8_TARGET_BIG_ENDIAN
+inline void MemCopyAndSwitchEndianness(void* dst, void* src,
+                                       size_t num_elements,
+                                       size_t element_size) {
+#define COPY_LOOP(type, reverse)                            \
+  {                                                         \
+    for (uint32_t i = 0; i < num_elements; i++) {           \
+      type t;                                               \
+      type* s = reinterpret_cast<type*>(src) + i;           \
+      type* d = reinterpret_cast<type*>(dst) + i;           \
+      memcpy(&t, reinterpret_cast<void*>(s), element_size); \
+      t = reverse(t);                                       \
+      memcpy(reinterpret_cast<void*>(d), &t, element_size); \
+    }                                                       \
+    return;                                                 \
+  }
+
+  switch (element_size) {
+    case 1:
+      MemCopy(dst, src, num_elements);
+      return;
+    case 2:
+      COPY_LOOP(uint16_t, ByteReverse16);
+    case 4:
+      COPY_LOOP(uint32_t, ByteReverse32);
+    case 8:
+      COPY_LOOP(uint64_t, ByteReverse64);
+    default:
+      UNREACHABLE();
+  }
+#undef COPY_LOOP
+}
+#endif
 V8_EXPORT_PRIVATE inline void MemMove(void* dest, const void* src,
                                       size_t size) {
   // Fast path for small sizes. The compiler will expand the {memmove} for small

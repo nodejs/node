@@ -30,11 +30,9 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
 
 bool IsJSCompatibleSignature(const FunctionSig* sig) {
   for (auto type : sig->all()) {
-    // Structs and arrays may only be passed via externref.
-    // Rtts are implicit and can not be used explicitly.
-    if (type == kWasmS128 || type.is_rtt()) {
-      return false;
-    }
+    // Rtts are internal-only. They should never be part of a signature.
+    DCHECK(!type.is_rtt());
+    if (type == kWasmS128) return false;
     if (type.is_object_reference()) {
       switch (type.heap_type().representation()) {
         case HeapType::kStringViewWtf8:

@@ -36,7 +36,8 @@ SnapshotData SnapshotCompression::Compress(
   snapshot_data.AllocateData(
       static_cast<uint32_t>(sizeof(payload_length) + compressed_data_size));
 
-  byte* compressed_data = const_cast<byte*>(snapshot_data.RawData().begin());
+  uint8_t* compressed_data =
+      const_cast<uint8_t*>(snapshot_data.RawData().begin());
   // Since we are doing raw compression (no zlib or gzip headers), we need to
   // manually store the uncompressed size.
   MemCopy(compressed_data, &payload_length, sizeof(payload_length));
@@ -63,7 +64,7 @@ SnapshotData SnapshotCompression::Compress(
 }
 
 SnapshotData SnapshotCompression::Decompress(
-    base::Vector<const byte> compressed_data) {
+    base::Vector<const uint8_t> compressed_data) {
   SnapshotData snapshot_data;
   base::ElapsedTimer timer;
   if (v8_flags.profile_deserialization) timer.Start();

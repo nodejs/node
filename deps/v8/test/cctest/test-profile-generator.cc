@@ -874,7 +874,7 @@ int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
           (*env)->Global()->Get(env->local(), v8_str(name)).ToLocalChecked())));
   PtrComprCageBase cage_base(isolate);
   CodeEntry* func_entry = instruction_stream_map->FindEntry(
-      func->abstract_code(isolate).InstructionStart(cage_base));
+      func->abstract_code(isolate)->InstructionStart(cage_base));
   if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }

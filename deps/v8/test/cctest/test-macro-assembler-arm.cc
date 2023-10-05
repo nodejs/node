@@ -150,7 +150,7 @@ TEST(ExtractLane) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   f.Call(&t, 0, 0, 0, 0);
@@ -281,7 +281,7 @@ TEST(ReplaceLane) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   f.Call(&t, 0, 0, 0, 0);

@@ -158,6 +158,11 @@ class V8_EXPORT_PRIVATE BasicBlock final
 
   NodeVector* nodes() { return &nodes_; }
 
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+  uint64_t pgo_execution_count() { return pgo_execution_count_; }
+  void set_pgo_execution_count(uint64_t count) { pgo_execution_count_ = count; }
+#endif
+
   // Loop membership helpers.
   inline bool IsLoopHeader() const { return loop_end_ != nullptr; }
   bool LoopContains(BasicBlock* block) const;
@@ -187,6 +192,9 @@ class V8_EXPORT_PRIVATE BasicBlock final
   BasicBlockVector predecessors_;
 #if DEBUG
   AssemblerDebugInfo debug_info_;
+#endif
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+  uint64_t pgo_execution_count_;
 #endif
   Id id_;
 };

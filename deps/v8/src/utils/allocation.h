@@ -79,7 +79,7 @@ char* StrNDup(const char* str, int n);
 class FreeStoreAllocationPolicy {
  public:
   template <typename T, typename TypeTag = T[]>
-  V8_INLINE T* NewArray(size_t length) {
+  V8_INLINE T* AllocateArray(size_t length) {
     return static_cast<T*>(Malloced::operator new(length * sizeof(T)));
   }
   template <typename T, typename TypeTag = T[]>

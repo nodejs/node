@@ -12,16 +12,14 @@
 #include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
+#include "src/deoptimizer/translated-state.h"
 #include "src/diagnostics/eh-frame.h"
 #include "src/execution/frames.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/smi.h"
 #include "src/utils/address-map.h"
-
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/assembler-buffer-cache.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -44,14 +42,16 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(
-    Zone* codegen_zone, Frame* frame, Linkage* linkage,
-    InstructionSequence* instructions, OptimizedCompilationInfo* info,
-    Isolate* isolate, base::Optional<OsrHelper> osr_helper,
-    int start_source_position, JumpOptimizationInfo* jump_opt,
-    const AssemblerOptions& options, wasm::AssemblerBufferCache* buffer_cache,
-    Builtin builtin, size_t max_unoptimized_frame_height,
-    size_t max_pushed_argument_count, const char* debug_name)
+CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
+                             InstructionSequence* instructions,
+                             OptimizedCompilationInfo* info, Isolate* isolate,
+                             base::Optional<OsrHelper> osr_helper,
+                             int start_source_position,
+                             JumpOptimizationInfo* jump_opt,
+                             const AssemblerOptions& options, Builtin builtin,
+                             size_t max_unoptimized_frame_height,
+                             size_t max_pushed_argument_count,
+                             const char* debug_name)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -59,18 +59,13 @@ CodeGenerator::CodeGenerator(
       instructions_(instructions),
       unwinding_info_writer_(codegen_zone),
       info_(info),
-      labels_(
-          codegen_zone->NewArray<Label>(instructions->InstructionBlockCount())),
+      labels_(codegen_zone->AllocateArray<Label>(
+          instructions->InstructionBlockCount())),
       current_block_(RpoNumber::Invalid()),
       start_source_position_(start_source_position),
       current_source_position_(SourcePosition::Unknown()),
       masm_(isolate, options, CodeObjectRequired::kNo,
-#if V8_ENABLE_WEBASSEMBLY
-            buffer_cache ? buffer_cache->GetAssemblerBuffer(
-                               AssemblerBase::kDefaultBufferSize)
-                         :
-#endif  // V8_ENABLE_WEBASSEMBLY
-                         std::unique_ptr<AssemblerBuffer>{}),
+            std::unique_ptr<AssemblerBuffer>{}),
       resolver_(this),
       safepoints_(codegen_zone),
       handlers_(codegen_zone),
@@ -107,11 +102,6 @@ CodeGenerator::CodeGenerator(
     masm_.set_abort_hard(true);
   }
   masm_.set_builtin(builtin);
-}
-
-bool CodeGenerator::wasm_runtime_exception_support() const {
-  DCHECK_NOT_NULL(info_);
-  return info_->wasm_runtime_exception_support();
 }
 
 void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
@@ -256,7 +246,13 @@ void CodeGenerator::AssembleCode() {
   }
   for (OptimizedCompilationInfo::InlinedFunctionHolder& inlined :
        info->inlined_functions()) {
-    DefineDeoptimizationLiteral(DeoptimizationLiteral(inlined.bytecode_array));
+    if (!inlined.bytecode_array.is_null()) {
+      DefineDeoptimizationLiteral(
+          DeoptimizationLiteral(inlined.bytecode_array));
+    } else {
+      // Inlined wasm functions do not have a bytecode array.
+      DCHECK(info->inline_js_wasm_calls());
+    }
   }
 
   unwinding_info_writer_.SetNumberOfInstructionBlocks(
@@ -270,20 +266,19 @@ void CodeGenerator::AssembleCode() {
   offsets_info_.blocks_start = masm()->pc_offset();
   for (const InstructionBlock* block : instructions()->ao_blocks()) {
     // Align loop headers on vendor recommended boundaries.
-    if (!masm()->jump_optimization_info()) {
-      if (block->ShouldAlignLoopHeader()) {
-        masm()->LoopHeaderAlign();
-      } else if (block->ShouldAlignCodeTarget()) {
-        masm()->CodeTargetAlign();
-      }
+    if (block->ShouldAlignLoopHeader()) {
+      masm()->LoopHeaderAlign();
+    } else if (block->ShouldAlignCodeTarget()) {
+      masm()->CodeTargetAlign();
     }
+
     if (info->trace_turbo_json()) {
       block_starts_[block->rpo_number().ToInt()] = masm()->pc_offset();
     }
     // Bind a label for a block.
     current_block_ = block->rpo_number();
     unwinding_info_writer_.BeginInstructionBlock(masm()->pc_offset(), block);
-    if (v8_flags.code_comments) {
+    if (v8_flags.code_comments && !block->omitted_by_jump_threading()) {
       std::ostringstream buffer;
       buffer << "-- B" << block->rpo_number().ToInt() << " start";
       if (block->IsDeferred()) buffer << " (deferred)";
@@ -315,7 +310,7 @@ void CodeGenerator::AssembleCode() {
         masm()->InitializeRootRegister();
       }
     }
-#ifdef V8_TARGET_ARCH_RISCV64
+#ifdef CAN_USE_RVV_INSTRUCTIONS
     // RVV uses VectorUnit to emit vset{i}vl{i}, reducing the static and dynamic
     // overhead of the vset{i}vl{i} instruction. However there are some jumps
     // back between blocks. the Rvv instruction may get an incorrect vtype. so
@@ -465,14 +460,14 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
     AssembleArchJumpRegardlessOfAssemblyOrder(target);
 }
 
-base::OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
+base::OwnedVector<uint8_t> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTableVector();
 }
 
-base::OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
+base::OwnedVector<uint8_t> CodeGenerator::GetProtectedInstructionsData() {
 #if V8_ENABLE_WEBASSEMBLY
-  return base::OwnedVector<byte>::Of(
-      base::Vector<byte>::cast(base::VectorOf(protected_instructions_)));
+  return base::OwnedVector<uint8_t>::Of(
+      base::Vector<uint8_t>::cast(base::VectorOf(protected_instructions_)));
 #else
   return {};
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -493,7 +488,8 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
 
   // Allocate and install the code.
   CodeDesc desc;
-  masm()->GetCode(isolate(), &desc, safepoints(), handler_table_offset_);
+  masm()->GetCode(isolate()->main_thread_local_isolate(), &desc, safepoints(),
+                  handler_table_offset_);
 
 #if defined(V8_OS_WIN64)
   if (Builtins::IsBuiltinId(info_->builtin())) {
@@ -523,9 +519,9 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
     return {};
   }
 
-  LOG_CODE_EVENT(isolate(), CodeLinePosInfoRecordEvent(code->InstructionStart(),
-                                                       *source_positions,
-                                                       JitCodeEvent::JIT_CODE));
+  LOG_CODE_EVENT(isolate(), CodeLinePosInfoRecordEvent(
+                                code->instruction_start(), *source_positions,
+                                JitCodeEvent::JIT_CODE));
 
   return code;
 }
@@ -921,10 +917,11 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   Handle<DeoptimizationData> data =
       DeoptimizationData::New(isolate(), deopt_count, AllocationType::kOld);
 
-  Handle<TranslationArray> translation_array =
-      translations_.ToTranslationArray(isolate()->factory());
+  Handle<DeoptimizationFrameTranslation> translation_array =
+      translations_.ToFrameTranslation(
+          isolate()->main_thread_local_isolate()->factory());
 
-  data->SetTranslationByteArray(*translation_array);
+  data->SetFrameTranslation(*translation_array);
   data->SetInlinedFunctionCount(
       Smi::FromInt(static_cast<int>(inlined_function_count_)));
   data->SetOptimizationId(Smi::FromInt(info->optimization_id()));
@@ -977,6 +974,9 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
 #endif  // DEBUG
   }
 
+#ifdef DEBUG
+  data->Verify(info->bytecode_array());
+#endif  // DEBUG
   return data;
 }
 
@@ -999,7 +999,6 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
   }
 
   if (needs_frame_state) {
-    MarkLazyDeoptSite();
     // If the frame state is present, it starts at argument 1 - after
     // the code address.
     size_t frame_state_offset = 1;
@@ -1101,9 +1100,11 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
     case FrameStateType::kInlinedExtraArguments:
       translations_.BeginInlinedExtraArguments(shared_info_id, height);
       break;
-    case FrameStateType::kConstructStub:
-      DCHECK(bailout_id.IsValidForConstructStub());
-      translations_.BeginConstructStubFrame(bailout_id, shared_info_id, height);
+    case FrameStateType::kConstructCreateStub:
+      translations_.BeginConstructCreateStubFrame(shared_info_id, height);
+      break;
+    case FrameStateType::kConstructInvokeStub:
+      translations_.BeginConstructInvokeStubFrame(shared_info_id);
       break;
     case FrameStateType::kBuiltinContinuation: {
       translations_.BeginBuiltinContinuationFrame(bailout_id, shared_info_id,
@@ -1111,6 +1112,10 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kWasmInlinedIntoJS:
+      translations_.BeginWasmInlinedIntoJSFrame(bailout_id, shared_info_id,
+                                                height);
+      break;
     case FrameStateType::kJSToWasmBuiltinContinuation: {
       const JSToWasmFrameStateDescriptor* js_to_wasm_descriptor =
           static_cast<const JSToWasmFrameStateDescriptor*>(descriptor);
@@ -1258,8 +1263,8 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
           // When pointers are 4 bytes, we can use int32 constants to represent
           // Smis.
           DCHECK_EQ(4, kSystemPointerSize);
-          Smi smi(static_cast<Address>(constant.ToInt32()));
-          DCHECK(smi.IsSmi());
+          Tagged<Smi> smi(static_cast<Address>(constant.ToInt32()));
+          DCHECK(IsSmi(smi));
           literal = DeoptimizationLiteral(static_cast<double>(smi.value()));
         } else if (type.representation() == MachineRepresentation::kBit) {
           if (constant.ToInt32() == 0) {
@@ -1302,8 +1307,8 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
           // When pointers are 8 bytes, we can use int64 constants to represent
           // Smis.
           DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
-          Smi smi(static_cast<Address>(constant.ToInt64()));
-          DCHECK(smi.IsSmi());
+          Tagged<Smi> smi(static_cast<Address>(constant.ToInt64()));
+          DCHECK(IsSmi(smi));
           literal = DeoptimizationLiteral(static_cast<double>(smi.value()));
         }
         break;
@@ -1336,10 +1341,6 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       translations_.StoreLiteral(literal_id);
     }
   }
-}
-
-void CodeGenerator::MarkLazyDeoptSite() {
-  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(

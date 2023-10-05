@@ -257,6 +257,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
                 node->ReplaceInput(0, n.left().node());
                 node->ReplaceInput(1, jsgraph()->Int32Constant(val));
                 RelaxEffectsAndControls(checked_int32_add);
+                checked_int32_add->Kill();
                 return Changed(node);
               }
             }

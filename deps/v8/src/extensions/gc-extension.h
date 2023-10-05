@@ -38,7 +38,7 @@ class GCExtension : public v8::Extension {
                       BuildSource(buffer_, sizeof(buffer_), fun_name)) {}
   v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) override;
-  static void GC(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GC(const v8::FunctionCallbackInfo<v8::Value>& info);
 
  private:
   static const char* BuildSource(char* buf, size_t size, const char* fun_name) {

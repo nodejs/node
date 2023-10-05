@@ -111,7 +111,7 @@ TEST_F(BackgroundCompileTaskTest, CompileAndRun) {
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());
 
-  Smi value = Smi::cast(*RunJS("f(100);"));
+  Tagged<Smi> value = Smi::cast(*RunJS("f(100);"));
   ASSERT_TRUE(value == Smi::FromInt(160));
 }
 
@@ -209,7 +209,7 @@ TEST_F(BackgroundCompileTaskTest, EagerInnerFunctions) {
 
   Handle<JSFunction> e = RunJS<JSFunction>("f();");
 
-  ASSERT_TRUE(e->shared().is_compiled());
+  ASSERT_TRUE(e->shared()->is_compiled());
 }
 
 TEST_F(BackgroundCompileTaskTest, LazyInnerFunctions) {
@@ -239,7 +239,7 @@ TEST_F(BackgroundCompileTaskTest, LazyInnerFunctions) {
 
   Handle<JSFunction> e = RunJS<JSFunction>("f();");
 
-  ASSERT_FALSE(e->shared().is_compiled());
+  ASSERT_FALSE(e->shared()->is_compiled());
 }
 
 }  // namespace internal

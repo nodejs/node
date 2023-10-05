@@ -54,12 +54,6 @@ bool LocalIsolate::has_active_deserializer() const {
 
 int LocalIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }
 
-#if V8_SFI_HAS_UNIQUE_ID
-int LocalIsolate::GetNextUniqueSharedFunctionInfoId() {
-  return isolate_->GetNextUniqueSharedFunctionInfoId();
-}
-#endif  // V8_SFI_HAS_UNIQUE_ID
-
 // Used for lazy initialization, based on an assumption that most
 // LocalIsolates won't be used to parse any BigInt literals.
 void LocalIsolate::InitializeBigIntProcessor() {

@@ -7,7 +7,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
 
-builder.addMemory(1, 1, /* exported = */ false);
+builder.addMemory(1, 1);
 
 builder.addFunction("main", kSig_i_i).addBody([
     kExprLocalGet, 0,

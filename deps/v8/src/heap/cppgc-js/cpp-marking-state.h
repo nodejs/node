@@ -43,13 +43,12 @@ class CppMarkingState final {
 
   void Publish() { marking_state_.Publish(); }
 
-  inline bool ExtractEmbedderDataSnapshot(Map, JSObject, EmbedderDataSnapshot&);
+  inline bool ExtractEmbedderDataSnapshot(Tagged<Map>, Tagged<JSObject>,
+                                          EmbedderDataSnapshot&);
 
   inline void MarkAndPush(const EmbedderDataSnapshot&);
   inline void MarkAndPush(const EmbedderDataSlot type_slot,
                           const EmbedderDataSlot instance_slot);
-  inline void MarkAndPushForWriteBarrier(const EmbedderDataSlot type_slot,
-                                         const EmbedderDataSlot instance_slot);
 
   bool IsLocalEmpty() {
     return marking_state_.marking_worklist().IsLocalEmpty();

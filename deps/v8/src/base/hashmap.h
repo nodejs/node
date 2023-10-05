@@ -22,7 +22,7 @@ namespace base {
 class DefaultAllocationPolicy {
  public:
   template <typename T, typename TypeTag = T[]>
-  V8_INLINE T* NewArray(size_t length) {
+  V8_INLINE T* AllocateArray(size_t length) {
     return static_cast<T*>(base::Malloc(length * sizeof(T)));
   }
   template <typename T, typename TypeTag = T[]>
@@ -197,7 +197,7 @@ TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::
     : impl_(original->impl_.match(), std::move(allocator)) {
   impl_.capacity_ = original->capacity();
   impl_.occupancy_ = original->occupancy();
-  impl_.map_ = impl_.allocator().template NewArray<Entry>(capacity());
+  impl_.map_ = impl_.allocator().template AllocateArray<Entry>(capacity());
   memcpy(impl_.map_, original->impl_.map_, capacity() * sizeof(Entry));
 }
 
@@ -398,7 +398,7 @@ template <typename Key, typename Value, typename MatchFun,
 void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Initialize(
     uint32_t capacity) {
   DCHECK(base::bits::IsPowerOfTwo(capacity));
-  impl_.map_ = impl_.allocator().template NewArray<Entry>(capacity);
+  impl_.map_ = impl_.allocator().template AllocateArray<Entry>(capacity);
   if (impl_.map_ == nullptr) {
     FATAL("Out of memory: HashMap::Initialize");
     return;

@@ -65,7 +65,7 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
   // Returns a Pair of Nodes, whose first element is the value of the "value"
   // property, and whose second element is the value of the "done" property,
   // converted to a Boolean if needed.
-  std::pair<TNode<Object>, TNode<Oddball>> LoadIteratorResult(
+  std::pair<TNode<Object>, TNode<Boolean>> LoadIteratorResult(
       const TNode<Context> context, const TNode<NativeContext> native_context,
       const TNode<Object> iter_result, Label* if_exception,
       TVariable<Object>* var_exception);
@@ -154,7 +154,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   }
 
   TNode<Object> value;
-  TNode<Oddball> done;
+  TNode<Boolean> done;
   std::tie(value, done) =
       LoadIteratorResult(context, native_context, iter_result.value(),
                          &reject_promise, &var_exception);
@@ -193,7 +193,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   }
 }
 
-std::pair<TNode<Object>, TNode<Oddball>>
+std::pair<TNode<Object>, TNode<Boolean>>
 AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
     const TNode<Context> context, const TNode<NativeContext> native_context,
     const TNode<Object> iter_result, Label* if_exception,

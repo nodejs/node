@@ -24,6 +24,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
 
 #if V8_OS_WIN
@@ -33,11 +34,6 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler-simulator.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-#if defined(_MSC_VER)
-// define full memory barrier for msvc
-#define __sync_synchronize _ReadWriteBarrier
-#endif
 
 namespace v8 {
 namespace internal {
@@ -318,9 +314,17 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
     return get_sp();
   }
 
-  // Otherwise the limit is the JS stack. Leave a safety margin of 4 KiB
-  // to prevent overrunning the stack when pushing values.
-  return stack_limit_ + 4 * KB;
+  // Otherwise the limit is the JS stack. Leave a safety margin to prevent
+  // overrunning the stack when pushing values.
+  return stack_limit_ + kAdditionalStackMargin;
+}
+
+base::Vector<uint8_t> Simulator::GetCurrentStackView() const {
+  // We do not add an additional safety margin as above in
+  // Simulator::StackLimit, as users of this method are expected to add their
+  // own margin.
+  return base::VectorOf(reinterpret_cast<uint8_t*>(stack_limit_),
+                        UsableStackSize());
 }
 
 void Simulator::SetRedirectInstruction(Instruction* instruction) {
@@ -361,10 +365,11 @@ void Simulator::Init(FILE* stream) {
   ResetState();
 
   // Allocate and setup the simulator stack.
-  stack_size_ = (v8_flags.sim_stack_size * KB) + (2 * stack_protection_size_);
-  stack_ = reinterpret_cast<uintptr_t>(new byte[stack_size_]);
-  stack_limit_ = stack_ + stack_protection_size_;
-  uintptr_t tos = stack_ + stack_size_ - stack_protection_size_;
+  size_t stack_size = AllocatedStackSize();
+
+  stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size]);
+  stack_limit_ = stack_ + kStackProtectionSize;
+  uintptr_t tos = stack_ + stack_size - kStackProtectionSize;
   // The stack pointer must be 16-byte aligned.
   set_sp(tos & ~0xFULL);
 
@@ -403,7 +408,7 @@ void Simulator::ResetState() {
 
 Simulator::~Simulator() {
   GlobalMonitor::Get()->RemoveProcessor(&global_monitor_processor_);
-  delete[] reinterpret_cast<byte*>(stack_);
+  delete[] reinterpret_cast<uint8_t*>(stack_);
   delete disassembler_decoder_;
   delete print_disasm_;
   delete decoder_;
@@ -464,16 +469,17 @@ using SimulatorRuntimeCompareCall = int64_t (*)(double arg1, double arg2);
 using SimulatorRuntimeFPFPCall = double (*)(double arg1, double arg2);
 using SimulatorRuntimeFPCall = double (*)(double arg1);
 using SimulatorRuntimeFPIntCall = double (*)(double arg1, int32_t arg2);
+// Define four args for future flexibility; at the time of this writing only
+// one is ever used.
+using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
+                                                int64_t arg2, int64_t arg3);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(int64_t arg0);
-using SimulatorRuntimeProfilingApiCall = void (*)(int64_t arg0, void* arg1);
 
 // This signature supports direct call to accessor getter callback.
 using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
-using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
-                                                     void* arg2);
 
 // Separate for fine-grained UBSan blocklisting. Casting any given C++
 // function to {SimulatorRuntimeCall} is undefined behavior; but since
@@ -490,21 +496,6 @@ ObjectPair UnsafeGenericFunctionCall(
   return target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
                 arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18,
                 arg19);
-}
-void UnsafeDirectApiCall(int64_t function, int64_t arg0) {
-  SimulatorRuntimeDirectApiCall target =
-      reinterpret_cast<SimulatorRuntimeDirectApiCall>(function);
-  target(arg0);
-}
-void UnsafeProfilingApiCall(int64_t function, int64_t arg0, void* arg1) {
-  SimulatorRuntimeProfilingApiCall target =
-      reinterpret_cast<SimulatorRuntimeProfilingApiCall>(function);
-  target(arg0, arg1);
-}
-void UnsafeDirectGetterCall(int64_t function, int64_t arg0, int64_t arg1) {
-  SimulatorRuntimeDirectGetterCall target =
-      reinterpret_cast<SimulatorRuntimeDirectGetterCall>(function);
-  target(arg0, arg1);
 }
 
 using MixedRuntimeCall_0 = AnyCType (*)();
@@ -789,18 +780,6 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       break;
     }
 
-    case ExternalReference::DIRECT_API_CALL: {
-      // void f(v8::FunctionCallbackInfo&)
-      TraceSim("Type: DIRECT_API_CALL\n");
-      TraceSim("Arguments: 0x%016" PRIx64 "\n", xreg(0));
-      UnsafeDirectApiCall(external, xreg(0));
-      TraceSim("No return value.");
-#ifdef DEBUG
-      CorruptAllCallerSavedCPURegisters();
-#endif
-      break;
-    }
-
     case ExternalReference::BUILTIN_COMPARE_CALL: {
       // int f(double, double)
       TraceSim("Type: BUILTIN_COMPARE_CALL\n");
@@ -861,42 +840,45 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       break;
     }
 
+    case ExternalReference::BUILTIN_FP_POINTER_CALL: {
+      // double f(Address tagged_ptr)
+      TraceSim("Type: BUILTIN_FP_POINTER_CALL\n");
+      SimulatorRuntimeFPTaggedCall target =
+          reinterpret_cast<SimulatorRuntimeFPTaggedCall>(external);
+      TraceSim(
+          "Arguments: "
+          "0x%016" PRIx64 ", 0x%016" PRIx64 ", 0x%016" PRIx64 ", 0x%016" PRIx64,
+          arg0, arg1, arg2, arg3);
+      double result = target(arg0, arg1, arg2, arg3);
+      TraceSim("Returned: %f\n", result);
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      set_dreg(0, result);
+      break;
+    }
+
+    case ExternalReference::DIRECT_API_CALL: {
+      // void f(v8::FunctionCallbackInfo&)
+      TraceSim("Type: DIRECT_API_CALL\n");
+      TraceSim("Arguments: 0x%016" PRIx64 "\n", arg0);
+      SimulatorRuntimeDirectApiCall target =
+          reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
+      target(arg0);
+      TraceSim("No return value.");
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      break;
+    }
+
     case ExternalReference::DIRECT_GETTER_CALL: {
-      // void f(Local<String> property, PropertyCallbackInfo& info)
+      // void f(v8::Local<String> property, v8::PropertyCallbackInfo& info)
       TraceSim("Type: DIRECT_GETTER_CALL\n");
-      TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n", xreg(0),
-               xreg(1));
-      UnsafeDirectGetterCall(external, xreg(0), xreg(1));
-      TraceSim("No return value.");
-#ifdef DEBUG
-      CorruptAllCallerSavedCPURegisters();
-#endif
-      break;
-    }
-
-    case ExternalReference::PROFILING_API_CALL: {
-      // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
-      TraceSim("Type: PROFILING_API_CALL\n");
-      void* arg1 = Redirection::UnwrapRedirection(xreg(1));
-      TraceSim("Arguments: 0x%016" PRIx64 ", %p\n", xreg(0), arg1);
-      UnsafeProfilingApiCall(external, xreg(0), arg1);
-      TraceSim("No return value.");
-#ifdef DEBUG
-      CorruptAllCallerSavedCPURegisters();
-#endif
-      break;
-    }
-
-    case ExternalReference::PROFILING_GETTER_CALL: {
-      // void f(Local<String> property, PropertyCallbackInfo& info,
-      //        AccessorNameGetterCallback callback)
-      TraceSim("Type: PROFILING_GETTER_CALL\n");
-      SimulatorRuntimeProfilingGetterCall target =
-          reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-      void* arg2 = Redirection::UnwrapRedirection(xreg(2));
-      TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 ", %p\n", xreg(0),
-               xreg(1), arg2);
-      target(xreg(0), xreg(1), arg2);
+      TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n", arg0, arg1);
+      SimulatorRuntimeDirectGetterCall target =
+          reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
+      target(arg0, arg1);
       TraceSim("No return value.");
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
@@ -2558,7 +2540,7 @@ void Simulator::CompareAndSwapHelper(const Instruction* instr) {
   T data = MemoryRead<T>(address);
   if (is_acquire) {
     // Approximate load-acquire by issuing a full barrier after the load.
-    __sync_synchronize();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
   if (data == comparevalue) {
@@ -2568,7 +2550,7 @@ void Simulator::CompareAndSwapHelper(const Instruction* instr) {
       local_monitor_.NotifyStore();
       GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
       // Approximate store-release by issuing a full barrier before the store.
-      __sync_synchronize();
+      std::atomic_thread_fence(std::memory_order_seq_cst);
     }
 
     MemoryWrite<T>(address, newvalue);
@@ -2614,7 +2596,7 @@ void Simulator::CompareAndSwapPairHelper(const Instruction* instr) {
 
   if (is_acquire) {
     // Approximate load-acquire by issuing a full barrier after the load.
-    __sync_synchronize();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
   bool same =
@@ -2626,7 +2608,7 @@ void Simulator::CompareAndSwapPairHelper(const Instruction* instr) {
       local_monitor_.NotifyStore();
       GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
       // Approximate store-release by issuing a full barrier before the store.
-      __sync_synchronize();
+      std::atomic_thread_fence(std::memory_order_seq_cst);
     }
 
     MemoryWrite<T>(address, newvalue_low);
@@ -2670,7 +2652,7 @@ void Simulator::AtomicMemorySimpleHelper(const Instruction* instr) {
 
   if (is_acquire) {
     // Approximate load-acquire by issuing a full barrier after the load.
-    __sync_synchronize();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
   T result = 0;
@@ -2707,7 +2689,7 @@ void Simulator::AtomicMemorySimpleHelper(const Instruction* instr) {
     local_monitor_.NotifyStore();
     GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
     // Approximate store-release by issuing a full barrier before the store.
-    __sync_synchronize();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
   MemoryWrite<T>(address, result);
@@ -2738,7 +2720,7 @@ void Simulator::AtomicMemorySwapHelper(const Instruction* instr) {
   T data = MemoryRead<T>(address);
   if (is_acquire) {
     // Approximate load-acquire by issuing a full barrier after the load.
-    __sync_synchronize();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
   if (is_release) {
@@ -2746,7 +2728,7 @@ void Simulator::AtomicMemorySwapHelper(const Instruction* instr) {
     local_monitor_.NotifyStore();
     GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
     // Approximate store-release by issuing a full barrier before the store.
-    __sync_synchronize();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
   }
   MemoryWrite<T>(address, reg<T>(rs));
 
@@ -3743,11 +3725,7 @@ void Simulator::VisitSystem(Instruction* instr) {
         UNIMPLEMENTED();
     }
   } else if (instr->Mask(MemBarrierFMask) == MemBarrierFixed) {
-#if defined(V8_OS_WIN)
-    MemoryBarrier();
-#else
-    __sync_synchronize();
-#endif
+    std::atomic_thread_fence(std::memory_order_seq_cst);
   } else {
     UNIMPLEMENTED();
   }
@@ -3967,10 +3945,10 @@ bool Simulator::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       int64_t value;
       StdoutStream os;
       if (GetValue(arg1, &value)) {
-        Object obj(value);
+        Tagged<Object> obj(value);
         os << arg1 << ": \n";
 #ifdef DEBUG
-        obj.Print(os);
+        Print(obj, os);
         os << "\n";
 #else
         os << Brief(obj) << "\n";
@@ -4025,15 +4003,15 @@ bool Simulator::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       PrintF("  0x%016" PRIx64 ":  0x%016" PRIx64 " %10" PRId64,
              reinterpret_cast<uint64_t>(cur), *cur, *cur);
       if (!skip_obj_print) {
-        Object obj(*cur);
+        Tagged<Object> obj(*cur);
         Heap* current_heap = isolate_->heap();
-        if (obj.IsSmi() ||
+        if (IsSmi(obj) ||
             IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
           PrintF(" (");
-          if (obj.IsSmi()) {
+          if (IsSmi(obj)) {
             PrintF("smi %" PRId32, Smi::ToInt(obj));
           } else {
-            obj.ShortPrint();
+            ShortPrint(obj);
           }
           PrintF(")");
         }
@@ -4192,6 +4170,13 @@ void Simulator::VisitException(Instruction* instr) {
             PrintF(stream_, "# %sDebugger hit %d.%s\n", clr_debug_number, code,
                    clr_normal);
           }
+          Builtin maybe_builtin = OffHeapInstructionStream::TryLookupCode(
+              Isolate::Current(), reinterpret_cast<Address>(pc_));
+          if (Builtins::IsBuiltinId(maybe_builtin)) {
+            char const* name = Builtins::name(maybe_builtin);
+            PrintF(stream_, "# %s                %sLOCATION: %s%s\n",
+                   clr_debug_number, clr_debug_message, name, clr_normal);
+          }
         }
 
         // Other options.
@@ -4242,7 +4227,8 @@ void Simulator::VisitException(Instruction* instr) {
         DoRuntimeCall(instr);
       } else if (instr->ImmException() == kImmExceptionIsPrintf) {
         DoPrintf(instr);
-
+      } else if (instr->ImmException() == kImmExceptionIsSwitchStackLimit) {
+        DoSwitchStackLimit(instr);
       } else if (instr->ImmException() == kImmExceptionIsUnreachable) {
         fprintf(stream_, "Hit UNREACHABLE marker at PC=%p.\n",
                 reinterpret_cast<void*>(pc_));
@@ -6395,6 +6381,11 @@ void Simulator::VisitNEONPerm(Instruction* instr) {
   }
 }
 
+void Simulator::DoSwitchStackLimit(Instruction* instr) {
+  const int64_t stack_limit = xreg(16);
+  stack_limit_ = static_cast<uintptr_t>(stack_limit);
+}
+
 void Simulator::DoPrintf(Instruction* instr) {
   DCHECK((instr->Mask(ExceptionMask) == HLT) &&
          (instr->ImmException() == kImmExceptionIsPrintf));
@@ -6719,6 +6710,7 @@ void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
 //
 // The following functions are used by our gdb macros.
 //
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern bool _v8_internal_Simulator_ExecDebugCommand(
     const char* command) {
   i::Isolate* isolate = i::Isolate::Current();

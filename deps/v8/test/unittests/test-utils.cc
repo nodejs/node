@@ -88,28 +88,5 @@ SaveFlags::~SaveFlags() {
 #undef FLAG_MODE_APPLY
 }
 
-ManualGCScope::ManualGCScope(i::Isolate* isolate) {
-  // Some tests run threaded (back-to-back) and thus the GC may already be
-  // running by the time a ManualGCScope is created. Finalizing existing marking
-  // prevents any undefined/unexpected behavior.
-  FinalizeGCIfRunning(isolate);
-
-  i::v8_flags.concurrent_marking = false;
-  i::v8_flags.concurrent_sweeping = false;
-  i::v8_flags.concurrent_minor_mc_marking = false;
-  i::v8_flags.stress_incremental_marking = false;
-  i::v8_flags.stress_concurrent_allocation = false;
-  // Parallel marking has a dependency on concurrent marking.
-  i::v8_flags.parallel_marking = false;
-  i::v8_flags.detect_ineffective_gcs_near_heap_limit = false;
-  // CppHeap concurrent marking has a dependency on concurrent marking.
-  i::v8_flags.cppheap_concurrent_marking = false;
-
-  if (isolate && isolate->heap()->cpp_heap()) {
-    CppHeap::From(isolate->heap()->cpp_heap())
-        ->ReduceGCCapabilitiesFromFlagsForTesting();
-  }
-}
-
 }  // namespace internal
 }  // namespace v8

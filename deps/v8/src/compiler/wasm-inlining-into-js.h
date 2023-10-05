@@ -23,6 +23,7 @@ struct WasmModule;
 namespace compiler {
 class MachineGraph;
 class Node;
+class SourcePositionTable;
 
 // The WasmIntoJsInliner provides support for inlining very small wasm functions
 // which only contain very specific supported instructions into JS.
@@ -30,7 +31,9 @@ class WasmIntoJSInliner {
  public:
   static bool TryInlining(Zone* zone, const wasm::WasmModule* module,
                           MachineGraph* mcgraph, const wasm::FunctionBody& body,
-                          const base::Vector<const byte>& bytes);
+                          base::Vector<const uint8_t> bytes,
+                          SourcePositionTable* source_position_table,
+                          int inlining_id);
 };
 
 }  // namespace compiler

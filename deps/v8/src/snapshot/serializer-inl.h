@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-bool Serializer::IsNotMappedSymbol(HeapObject obj) const {
+bool Serializer::IsNotMappedSymbol(Tagged<HeapObject> obj) const {
   Object not_mapped_symbol = ReadOnlyRoots(isolate()).not_mapped_symbol();
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     // It's possible that a InstructionStream object might have the same

@@ -127,17 +127,18 @@ TEST(ReduceJSCreateBoundFunction) {
       IrOpcode::kPhi);
 }
 
-static void SumF(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void SumF(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
-  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
-  int this_x = args.This()
+  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+  int this_x = info.This()
                    ->Get(context, v8_str("x"))
                    .ToLocalChecked()
                    ->Int32Value(context)
                    .FromJust();
-  args.GetReturnValue().Set(v8_num(
-      args[0]->Int32Value(args.GetIsolate()->GetCurrentContext()).FromJust() +
-      args[1]->Int32Value(args.GetIsolate()->GetCurrentContext()).FromJust() +
+  info.GetReturnValue().Set(v8_num(
+      info[0]->Int32Value(info.GetIsolate()->GetCurrentContext()).FromJust() +
+      info[1]->Int32Value(info.GetIsolate()->GetCurrentContext()).FromJust() +
       this_x));
 }
 

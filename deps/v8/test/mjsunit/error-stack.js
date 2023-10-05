@@ -59,7 +59,7 @@
 
 (function TestPrepareStackTraceCallbackInstallsSetter() {
   Error.prepareStackTrace = (error, frames) => {
-    Object.defineProperty(error, "stack", { set: (x) => {
+    Object.defineProperty(error, "stack", { get: undefined, set: (x) => {
       error[42] = x;
     }});
     return "<formatted stack trace>";

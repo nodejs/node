@@ -40,6 +40,7 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.inspector")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats")),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.maglev")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling")),

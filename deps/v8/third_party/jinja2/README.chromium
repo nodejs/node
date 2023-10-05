@@ -5,6 +5,7 @@ Version: 3.1.2
 License: BSD 3-Clause
 License File: LICENSE.rst
 Security Critical: no
+Shipped: no
 
 Description:
 Template engine for code generation in Blink.

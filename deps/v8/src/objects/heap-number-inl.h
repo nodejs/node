@@ -6,8 +6,6 @@
 #define V8_OBJECTS_HEAP_NUMBER_INL_H_
 
 #include "src/objects/heap-number.h"
-
-#include "src/objects/objects-inl.h"
 #include "src/objects/primitive-heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):

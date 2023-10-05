@@ -16,7 +16,7 @@ namespace internal {
 
 BUILTIN(BigIntConstructor) {
   HandleScope scope(isolate);
-  if (!args.new_target()->IsUndefined(isolate)) {  // [[Construct]]
+  if (!IsUndefined(*args.new_target(), isolate)) {  // [[Construct]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotConstructor,
                               isolate->factory()->BigInt_string()));
@@ -24,14 +24,14 @@ BUILTIN(BigIntConstructor) {
   // [[Call]]
   Handle<Object> value = args.atOrUndefined(isolate, 1);
 
-  if (value->IsJSReceiver()) {
+  if (IsJSReceiver(*value)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, value,
         JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(value),
                                 ToPrimitiveHint::kNumber));
   }
 
-  if (value->IsNumber()) {
+  if (IsNumber(*value)) {
     RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, value));
   } else {
     RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, value));
@@ -52,8 +52,8 @@ BUILTIN(BigIntAsUintN) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, bigint_obj));
 
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           BigInt::AsUintN(isolate, bits->Number(), bigint));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, BigInt::AsUintN(isolate, Object::Number(*bits), bigint));
 }
 
 BUILTIN(BigIntAsIntN) {
@@ -70,7 +70,7 @@ BUILTIN(BigIntAsIntN) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, bigint_obj));
 
-  return *BigInt::AsIntN(isolate, bits->Number(), bigint);
+  return *BigInt::AsIntN(isolate, Object::Number(*bits), bigint);
 }
 
 namespace {
@@ -78,13 +78,13 @@ namespace {
 MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
                                     const char* caller) {
   // 1. If Type(value) is BigInt, return value.
-  if (value->IsBigInt()) return Handle<BigInt>::cast(value);
+  if (IsBigInt(*value)) return Handle<BigInt>::cast(value);
   // 2. If Type(value) is Object and value has a [[BigIntData]] internal slot:
-  if (value->IsJSPrimitiveWrapper()) {
+  if (IsJSPrimitiveWrapper(*value)) {
     // 2a. Assert: value.[[BigIntData]] is a BigInt value.
     // 2b. Return value.[[BigIntData]].
-    Object data = JSPrimitiveWrapper::cast(*value).value();
-    if (data.IsBigInt()) return handle(BigInt::cast(data), isolate);
+    Tagged<Object> data = JSPrimitiveWrapper::cast(*value)->value();
+    if (IsBigInt(data)) return handle(BigInt::cast(data), isolate);
   }
   // 3. Throw a TypeError exception.
   THROW_NEW_ERROR(
@@ -95,8 +95,8 @@ MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
       BigInt);
 }
 
-Object BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
-                          Isolate* isolate, const char* builtin_name) {
+Tagged<Object> BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
+                                  Isolate* isolate, const char* builtin_name) {
   // 1. Let x be ? thisBigIntValue(this value).
   Handle<BigInt> x;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -104,11 +104,11 @@ Object BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
   // 2. If radix is not present, let radixNumber be 10.
   // 3. Else if radix is undefined, let radixNumber be 10.
   int radix_number = 10;
-  if (!radix->IsUndefined(isolate)) {
+  if (!IsUndefined(*radix, isolate)) {
     // 4. Else, let radixNumber be ? ToInteger(radix).
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix,
                                        Object::ToInteger(isolate, radix));
-    double radix_double = radix->Number();
+    double radix_double = Object::Number(*radix);
     // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
     if (radix_double < 2 || radix_double > 36) {
       THROW_NEW_ERROR_RETURN_FAILURE(

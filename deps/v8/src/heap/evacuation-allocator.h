@@ -49,7 +49,7 @@ class EvacuationAllocator {
   inline AllocationResult Allocate(AllocationSpace space, int object_size,
                                    AllocationOrigin origin,
                                    AllocationAlignment alignment);
-  inline void FreeLast(AllocationSpace space, HeapObject object,
+  inline void FreeLast(AllocationSpace space, Tagged<HeapObject> object,
                        int object_size);
 
  private:
@@ -59,9 +59,10 @@ class EvacuationAllocator {
   inline bool NewLocalAllocationBuffer();
   inline AllocationResult AllocateInLAB(int object_size,
                                         AllocationAlignment alignment);
-  inline void FreeLastInNewSpace(HeapObject object, int object_size);
+  inline void FreeLastInNewSpace(Tagged<HeapObject> object, int object_size);
   inline void FreeLastInCompactionSpace(AllocationSpace space,
-                                        HeapObject object, int object_size);
+                                        Tagged<HeapObject> object,
+                                        int object_size);
 
   Heap* const heap_;
   NewSpace* const new_space_;

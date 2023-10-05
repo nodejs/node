@@ -28,7 +28,7 @@ class AllocationResult final {
  public:
   static AllocationResult Failure() { return AllocationResult(); }
 
-  static AllocationResult FromObject(HeapObject heap_object) {
+  static AllocationResult FromObject(Tagged<HeapObject> heap_object) {
     return AllocationResult(heap_object);
   }
 
@@ -45,12 +45,12 @@ class AllocationResult final {
     return true;
   }
 
-  HeapObject ToObjectChecked() const {
+  Tagged<HeapObject> ToObjectChecked() const {
     CHECK(!IsFailure());
     return HeapObject::cast(object_);
   }
 
-  HeapObject ToObject() const {
+  Tagged<HeapObject> ToObject() const {
     DCHECK(!IsFailure());
     return HeapObject::cast(object_);
   }
@@ -61,7 +61,8 @@ class AllocationResult final {
   }
 
  private:
-  explicit AllocationResult(HeapObject heap_object) : object_(heap_object) {}
+  explicit AllocationResult(Tagged<HeapObject> heap_object)
+      : object_(heap_object) {}
 
   HeapObject object_;
 };

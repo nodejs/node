@@ -37,6 +37,11 @@ export const FLIPPED_REGISTER_WIDTH_BUFFER = 5;
 // to 1000 places. Regardless of this, a limit is required at some point due
 // to performance issues.
 export const MAX_NUM_POSITIONS = 999;
+export const RANGES_REG_GRID_COLUMN = -1;
+export const RANGES_NUM_POS_HEADER_ROWS = 3;
+export const RANGES_BLOCK_GRID_ROW = -RANGES_NUM_POS_HEADER_ROWS;
+export const RANGES_INSTR_GRID_ROW = RANGES_BLOCK_GRID_ROW + 1;
+export const RANGES_POS_GRID_ROW = RANGES_INSTR_GRID_ROW + 1;
 export const SESSION_STORAGE_PREFIX = "ranges-setting-";
 export const INTERVAL_TEXT_FOR_NONE = "none";
 export const INTERVAL_TEXT_FOR_CONST = "const";
@@ -72,3 +77,9 @@ export const PROF_COLS = [
   { perc: 15, col: { r: 255, g: 0, b: 0 } },
   { perc: 100, col: { r: 0, g: 0, b: 0 } }
 ];
+export const RANGE_BACKGROUND_BORDER_COLOR = "#6D6B6B";
+export const RANGE_BACKGROUND_SELECT_COLOR = "#FFFF33";
+export const RANGE_BACKGROUND_FOCUS_COLOR = "#2D7ECA";
+export const RANGE_POSITION_BORDER_WIDTH = 1;
+export const RANGE_REGISTER_BORDER_WIDTH = 1;
+export const RANGE_REGISTER_BORDER_WIDTH_X2 = 2 * RANGE_REGISTER_BORDER_WIDTH;

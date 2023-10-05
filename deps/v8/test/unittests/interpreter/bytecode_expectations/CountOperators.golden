@@ -108,7 +108,7 @@ bytecodes: [
 ]
 constant pool: [
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["val"],
 ]
 handlers: [
 ]
@@ -132,7 +132,7 @@ bytecodes: [
 ]
 constant pool: [
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["val"],
 ]
 handlers: [
 ]
@@ -160,7 +160,7 @@ bytecodes: [
   /*   89 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["var"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["var"],
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
@@ -187,7 +187,7 @@ bytecodes: [
   /*   89 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["var"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["var"],
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [

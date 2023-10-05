@@ -22,7 +22,7 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmenter)
 
 // Base segmenter accessors.
-ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
+ACCESSORS(JSSegmenter, icu_break_iterator, Tagged<Managed<icu::BreakIterator>>,
           kIcuBreakIteratorOffset)
 
 inline void JSSegmenter::set_granularity(Granularity granularity) {

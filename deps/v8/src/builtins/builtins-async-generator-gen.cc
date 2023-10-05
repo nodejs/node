@@ -619,7 +619,7 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
 TF_BUILTIN(AsyncGeneratorYieldWithAwait, AsyncGeneratorBuiltinsAssembler) {
   const auto generator = Parameter<JSGeneratorObject>(Descriptor::kGenerator);
   const auto value = Parameter<Object>(Descriptor::kValue);
-  const auto is_caught = Parameter<Oddball>(Descriptor::kIsCaught);
+  const auto is_caught = Parameter<Boolean>(Descriptor::kIsCaught);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<AsyncGeneratorRequest> request =
@@ -671,7 +671,7 @@ TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
   const auto generator =
       Parameter<JSAsyncGeneratorObject>(Descriptor::kGenerator);
   const auto value = Parameter<Object>(Descriptor::kValue);
-  const auto is_caught = Parameter<Oddball>(Descriptor::kIsCaught);
+  const auto is_caught = Parameter<Boolean>(Descriptor::kIsCaught);
   const TNode<AsyncGeneratorRequest> req =
       CAST(LoadFirstAsyncGeneratorRequestFromQueue(generator));
 

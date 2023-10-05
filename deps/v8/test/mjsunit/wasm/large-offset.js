@@ -7,7 +7,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 function testMemoryGrowOutOfBoundsOffset() {
   print("testMemoryGrowOutOfBoundsOffset2");
   var builder = new WasmModuleBuilder();
-  builder.addMemory(16, 128, false);
+  builder.addMemory(16, 128);
   builder.addFunction("main", kSig_v_v)
       .addBody([
           kExprI32Const, 20,

@@ -58,7 +58,7 @@ function test(length) {
     strLower += String.fromCharCode(charCodeToLower(c));
     strUpper += String.fromCharCode(charCodeToUpper(c));
   }
-  str = %FlattenString(str);
+  str = createExternalizableString(str);
   strLower = %FlattenString(strLower);
   strUpper = %FlattenString(strUpper);
   // Sequential string.
@@ -71,7 +71,7 @@ function test(length) {
   assertEquals(strLower.substring(1), str.substring(1).toLowerCase());
   assertEquals(strUpper.substring(1), str.substring(1).toUpperCase());
   // External string.
-  externalizeString(str, false);
+  externalizeString(str);
   assertEquals(strLower, str.toLowerCase());
   assertEquals(strUpper, str.toUpperCase());
 }

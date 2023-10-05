@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-number-format-v3
-
 // Check the rounding behavior.
 // Based on https://tc39.es/proposal-intl-numberformat-v3/out/numberformat/diff.html#table-intl-rounding-modes
 let inputs = [-1.5, 0.4, 0.5, 0.6, 1.5];

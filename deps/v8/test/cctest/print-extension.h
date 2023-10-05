@@ -42,7 +42,7 @@ class PrintExtension : public v8::Extension {
   PrintExtension() : v8::Extension("v8/print", "native function print();") { }
   v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) override;
-  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Print(const v8::FunctionCallbackInfo<v8::Value>& info);
 };
 
 }  // namespace internal

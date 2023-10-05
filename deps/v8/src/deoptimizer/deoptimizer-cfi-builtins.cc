@@ -43,7 +43,7 @@ constexpr function_ptr builtins[] = {
 };
 
 bool Deoptimizer::IsValidReturnAddress(Address address, Isolate* isolate) {
-  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, address);
+  EmbeddedData d = EmbeddedData::FromBlobForPc(isolate, address);
   Address code_start = reinterpret_cast<Address>(d.code());
   Address offset = address - code_start;
   if (offset >= v8_Default_embedded_blob_code_size_) return false;

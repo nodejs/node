@@ -13,10 +13,9 @@ namespace string {
 extern macro StringBuiltinsAssembler::HasUnpairedSurrogate(String):
     bool labels Indirect;
 
-transitioning javascript builtin
-StringPrototypeIsWellFormed(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(...arguments): Boolean {
+transitioning javascript builtin StringPrototypeIsWellFormed(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): Boolean {
   const methodName: constexpr string = 'String.prototype.isWellFormed';
 
   // 1. Let O be ? RequireObjectCoercible(this value).
@@ -27,9 +26,7 @@ StringPrototypeIsWellFormed(
 
   // Fast path: one-byte strings cannot have unpaired surrogates and are
   // definitionally well-formed.
-  //
-  // See note in String::IsWellFormedUnicode.
-  if (s.IsOneByteRepresentation()) return True;
+  if (s.StringInstanceType().is_one_byte) return True;
 
   // Slow path: flatten the string and look for unpaired surrogates.
   //

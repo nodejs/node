@@ -133,13 +133,13 @@ void RunJSSelectTest(TestExecutionTier tier, int which) {
     WasmFunctionCompiler& t = r.NewFunction(&sig);
 
     {
-      std::vector<byte> code;
+      std::vector<uint8_t> code;
 
       for (int i = 0; i < num_params; i++) {
         ADD_CODE(code, WASM_F64(inputs.arg_d(i)));
       }
 
-      ADD_CODE(code, kExprCallFunction, static_cast<byte>(js_index));
+      ADD_CODE(code, kExprCallFunction, static_cast<uint8_t>(js_index));
 
       size_t end = code.size();
       code.push_back(0);
@@ -371,7 +371,7 @@ void RunJSSelectAlignTest(TestExecutionTier tier, int num_args,
   Zone zone(&allocator, ZONE_NAME);
 
   // Build the calling code.
-  std::vector<byte> code;
+  std::vector<uint8_t> code;
 
   for (int i = 0; i < num_params; i++) {
     ADD_CODE(code, WASM_LOCAL_GET(i));
@@ -499,7 +499,7 @@ void RunPickerTest(TestExecutionTier tier, bool indirect) {
   WasmFunctionCompiler& rc_fn = r.NewFunction(sigs.i_i(), "rc");
 
   if (indirect) {
-    byte sig_index = r.builder().AddSignature(sigs.i_iii());
+    uint8_t sig_index = r.builder().AddSignature(sigs.i_iii());
     uint16_t indirect_function_table[] = {static_cast<uint16_t>(js_index)};
 
     r.builder().AddIndirectFunctionTable(indirect_function_table,

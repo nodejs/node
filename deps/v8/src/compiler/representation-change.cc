@@ -253,6 +253,7 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kSandboxedPointer:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
@@ -786,7 +787,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       op = simplified()->ChangeTaggedToFloat64();
     } else if ((output_type.Is(Type::NumberOrOddball()) &&
                 use_info.truncation().TruncatesOddballAndBigIntToNumber()) ||
-               output_type.Is(Type::NumberOrHole())) {
+               output_type.Is(Type::NumberOrTheHole())) {
       // JavaScript 'null' is an Oddball that results in +0 when truncated to
       // Number. In a context like -0 == null, which must evaluate to false,
       // this truncation must not happen. For this reason we restrict this
@@ -947,7 +948,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type.Is(Type::Unsigned32())) {
       op = simplified()->ChangeTaggedToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
-      if (output_type.Is(Type::NumberOrOddball())) {
+      if (output_type.Is(Type::NumberOrOddballOrTheHole())) {
         op = simplified()->TruncateTaggedToWord32();
       } else if (use_info.type_check() == TypeCheckKind::kNumber) {
         op = simplified()->CheckedTruncateTaggedToWord32(

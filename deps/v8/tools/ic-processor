@@ -12,18 +12,29 @@ done
 tools_path=`cd $(dirname "$0");pwd`
 if [ ! "$D8_PATH" ]; then
   d8_public=`which d8`
-  if [ -x "$d8_public" ]; then D8_PATH=$(dirname "$d8_public"); fi
+  if [ -x "$d8_public" ]; then
+    D8_PATH=$(dirname "$d8_public");
+  fi
 fi
-[ -n "$D8_PATH" ] || D8_PATH=$tools_path/..
-d8_exec=$D8_PATH/d8
-
-if [ ! -x "$d8_exec" ]; then
-  D8_PATH=`pwd`/out/native
+if [ -z ${D8_PATH##*/d8} ]; then
+  d8_exec=$D8_PATH
+else
   d8_exec=$D8_PATH/d8
 fi
 
 if [ ! -x "$d8_exec" ]; then
-  d8_exec=`grep -m 1 -o '".*/d8"' $log_file | sed 's/"//g'`
+  for platform in x64 arm64 ia32; do
+    for release in release optdebug debug; do
+      if [ -x "$d8_exec" ]; then
+        continue
+      fi
+      d8_exec="${tools_path}/../out/${platform}.${release}/d8";
+    done
+  done
+fi
+
+if [ ! -x "$d8_exec" ]; then
+  d8_exec=`grep -m 1 -o '".*/d8"' $log_file | sed 's/"//g'`;
 fi
 
 if [ ! -x "$d8_exec" ]; then

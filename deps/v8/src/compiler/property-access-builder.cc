@@ -95,10 +95,10 @@ void PropertyAccessBuilder::BuildCheckMaps(Node* object, Effect* effect,
       }
     }
   }
-  ZoneHandleSet<Map> map_set;
+  ZoneRefSet<Map> map_set;
   CheckMapsFlags flags = CheckMapsFlag::kNone;
   for (MapRef map : maps) {
-    map_set.insert(map.object(), graph()->zone());
+    map_set.insert(map, graph()->zone());
     if (map.is_migration_target()) {
       flags |= CheckMapsFlag::kTryMigrateInstance;
     }
@@ -160,17 +160,17 @@ base::Optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
     Handle<Map> map_handle = map.object();
     // Non-JSReceivers that passed AccessInfoFactory::ComputePropertyAccessInfo
     // must have different lookup start map.
-    if (!map_handle->IsJSReceiverMap()) {
+    if (!IsJSReceiverMap(*map_handle)) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
-      JSFunction constructor =
+      Tagged<JSFunction> constructor =
           Map::GetConstructorFunction(
               *map_handle, *broker()->target_native_context().object())
               .value();
       // {constructor.initial_map()} is loaded/stored with acquire-release
       // semantics for constructors.
-      map = MakeRefAssumeMemoryFence(broker(), constructor.initial_map());
-      DCHECK(map.object()->IsJSObjectMap());
+      map = MakeRefAssumeMemoryFence(broker(), constructor->initial_map());
+      DCHECK(IsJSObjectMap(*map.object()));
     }
     dependencies()->DependOnConstantInDictionaryPrototypeChain(
         map, access_info.name(), value.value(), PropertyKind::kData);
@@ -180,7 +180,7 @@ base::Optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
 }
 
 Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
-    NameRef const& name, PropertyAccessInfo const& access_info,
+    NameRef name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object) {
   if (!access_info.IsFastDataConstant()) return nullptr;
 
@@ -214,8 +214,7 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
   return value.has_value() ? jsgraph()->Constant(*value, broker()) : nullptr;
 }
 
-Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
-                                                Node* holder,
+Node* PropertyAccessBuilder::BuildLoadDataField(NameRef name, Node* holder,
                                                 FieldAccess& field_access,
                                                 bool is_inobject, Node** effect,
                                                 Node** control) {
@@ -232,7 +231,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
       FieldAccess const storage_access = {kTaggedBase,
                                           field_access.offset,
                                           name.object(),
-                                          MaybeHandle<Map>(),
+                                          OptionalMapRef(),
                                           Type::Any(),
                                           MachineType::AnyTagged(),
                                           kPointerWriteBarrier,
@@ -260,7 +259,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
       FieldAccess const storage_access = {kTaggedBase,
                                           field_access.offset,
                                           name.object(),
-                                          MaybeHandle<Map>(),
+                                          OptionalMapRef(),
                                           Type::OtherInternal(),
                                           MachineType::TaggedPointer(),
                                           kPointerWriteBarrier,
@@ -278,7 +277,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
 }
 
 Node* PropertyAccessBuilder::BuildLoadDataField(
-    NameRef const& name, PropertyAccessInfo const& access_info,
+    NameRef name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object, Node** effect, Node** control) {
   DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
 
@@ -295,7 +294,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       kTaggedBase,
       access_info.field_index().offset(),
       name.object(),
-      MaybeHandle<Map>(),
+      OptionalMapRef(),
       access_info.field_type(),
       MachineType::TypeForRepresentation(field_representation),
       kFullWriteBarrier,
@@ -309,7 +308,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
     if (field_map.has_value()) {
       if (field_map->is_stable()) {
         dependencies()->DependOnStableMap(field_map.value());
-        field_access.map = field_map->object();
+        field_access.map = field_map;
       }
     }
   }

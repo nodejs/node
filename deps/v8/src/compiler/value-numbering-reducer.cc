@@ -32,7 +32,7 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
     DCHECK_EQ(0, capacity_);
     // Allocate the initial entries and insert the first entry.
     capacity_ = kInitialCapacity;
-    entries_ = temp_zone()->NewArray<Node*>(kInitialCapacity);
+    entries_ = temp_zone()->AllocateArray<Node*>(kInitialCapacity);
     memset(entries_, 0, sizeof(*entries_) * kInitialCapacity);
     entries_[hash & (kInitialCapacity - 1)] = node;
     size_ = 1;
@@ -152,7 +152,7 @@ void ValueNumberingReducer::Grow() {
   Node** const old_entries = entries_;
   size_t const old_capacity = capacity_;
   capacity_ *= 2;
-  entries_ = temp_zone()->NewArray<Node*>(capacity_);
+  entries_ = temp_zone()->AllocateArray<Node*>(capacity_);
   memset(entries_, 0, sizeof(*entries_) * capacity_);
   size_ = 0;
   size_t const mask = capacity_ - 1;

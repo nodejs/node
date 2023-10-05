@@ -25,8 +25,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataViewOrRabGsabDataView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRabGsabDataView)
 
-ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
-RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Object,
+ACCESSORS(JSTypedArray, base_pointer, Tagged<Object>, kBasePointerOffset)
+RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Tagged<Object>,
                           kBasePointerOffset)
 
 size_t JSArrayBuffer::byte_length() const {
@@ -116,8 +116,8 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
 
     // We need Release semantics here, see above.
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-        isolate, reinterpret_cast<Address>(extension),
-        kArrayBufferExtensionTag);
+        isolate->heap()->external_pointer_space(),
+        reinterpret_cast<Address>(extension), kArrayBufferExtensionTag);
     base::AsAtomic32::Release_Store(extension_handle_location(), handle);
   } else {
     // This special handling of nullptr is required as it is used to initialize
@@ -153,7 +153,7 @@ void JSArrayBuffer::clear_padding() {
   }
 }
 
-ACCESSORS(JSArrayBuffer, detach_key, Object, kDetachKeyOffset)
+ACCESSORS(JSArrayBuffer, detach_key, Tagged<Object>, kDetachKeyOffset)
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
   RELAXED_WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);
@@ -170,8 +170,6 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_detachable,
                     JSArrayBuffer::IsDetachableBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_detached,
                     JSArrayBuffer::WasDetachedBit)
-BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_asmjs_memory,
-                    JSArrayBuffer::IsAsmJsMemoryBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable_by_js,
@@ -201,7 +199,7 @@ void JSArrayBufferView::set_byte_length(size_t value) {
 }
 
 bool JSArrayBufferView::WasDetached() const {
-  return JSArrayBuffer::cast(buffer()).was_detached();
+  return JSArrayBuffer::cast(buffer())->was_detached();
 }
 
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_length_tracking,
@@ -366,7 +364,7 @@ bool JSTypedArray::is_on_heap(AcquireLoadTag tag) const {
 MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
                                                  Handle<Object> receiver,
                                                  const char* method_name) {
-  if (V8_UNLIKELY(!receiver->IsJSTypedArray())) {
+  if (V8_UNLIKELY(!IsJSTypedArray(*receiver))) {
     const MessageTemplate message = MessageTemplate::kNotTypedArray;
     THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
   }
@@ -409,7 +407,7 @@ size_t JSRabGsabDataView::GetByteLength() const {
   if (is_length_tracking()) {
     // Invariant: byte_length of length tracking DataViews is 0.
     DCHECK_EQ(0, byte_length());
-    return buffer().GetByteLength() - byte_offset();
+    return buffer()->GetByteLength() - byte_offset();
   }
   return byte_length();
 }
@@ -419,9 +417,9 @@ bool JSRabGsabDataView::IsOutOfBounds() const {
     return false;
   }
   if (is_length_tracking()) {
-    return byte_offset() > buffer().GetByteLength();
+    return byte_offset() > buffer()->GetByteLength();
   }
-  return byte_offset() + byte_length() > buffer().GetByteLength();
+  return byte_offset() + byte_length() > buffer()->GetByteLength();
 }
 
 }  // namespace internal

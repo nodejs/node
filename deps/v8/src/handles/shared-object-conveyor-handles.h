@@ -34,13 +34,13 @@ class SharedObjectConveyorHandles {
   SharedObjectConveyorHandles& operator=(const SharedObjectConveyorHandles&) =
       delete;
 
-  uint32_t Persist(HeapObject shared_object);
+  uint32_t Persist(Tagged<HeapObject> shared_object);
 
   bool HasPersisted(uint32_t object_id) const {
     return object_id < shared_objects_.size();
   }
 
-  HeapObject GetPersisted(uint32_t object_id) const {
+  Tagged<HeapObject> GetPersisted(uint32_t object_id) const {
     DCHECK(HasPersisted(object_id));
     return *shared_objects_[object_id];
   }

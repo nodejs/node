@@ -14,7 +14,7 @@ namespace internal {
 BUILTIN(ShadowRealmConstructor) {
   HandleScope scope(isolate);
   // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+  if (IsUndefined(*args.new_target(), isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               isolate->factory()->ShadowRealm_string()));
@@ -63,12 +63,12 @@ MaybeHandle<Object> GetWrappedValue(Isolate* isolate,
                                     Handle<NativeContext> creation_context,
                                     Handle<Object> value) {
   // 1. If Type(value) is Object, then
-  if (!value->IsJSReceiver()) {
+  if (!IsJSReceiver(*value)) {
     // 2. Return value.
     return value;
   }
   // 1a. If IsCallable(value) is false, throw a TypeError exception.
-  if (!value->IsCallable()) {
+  if (!IsCallable(*value)) {
     // The TypeError thrown is created with creation Realm's TypeError
     // constructor instead of the executing Realm's.
     THROW_NEW_ERROR_RETURN_VALUE(
@@ -96,14 +96,14 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
   Factory* factory = isolate->factory();
 
   // 2. Perform ? ValidateShadowRealmObject(O).
-  if (!receiver->IsJSShadowRealm()) {
+  if (!IsJSShadowRealm(*receiver)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver));
   }
   Handle<JSShadowRealm> shadow_realm = Handle<JSShadowRealm>::cast(receiver);
 
   // 3. If Type(sourceText) is not String, throw a TypeError exception.
-  if (!source_text->IsString()) {
+  if (!IsString(*source_text)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kInvalidShadowRealmEvaluateSourceText));

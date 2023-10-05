@@ -40,16 +40,13 @@ using BytecodeGraphBuilderFlags = base::Flags<BytecodeGraphBuilderFlag>;
 
 // Note: {invocation_frequency} is taken by reference to work around a GCC bug
 // on AIX (v8:8193).
-void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
-                            SharedFunctionInfoRef const& shared_info,
-                            FeedbackCellRef const& feedback_cell,
-                            BytecodeOffset osr_offset, JSGraph* jsgraph,
-                            CallFrequency const& invocation_frequency,
-                            SourcePositionTable* source_positions,
-                            NodeOriginTable* node_origins, int inlining_id,
-                            CodeKind code_kind, BytecodeGraphBuilderFlags flags,
-                            TickCounter* tick_counter,
-                            ObserveNodeInfo const& observe_node_info = {});
+void BuildGraphFromBytecode(
+    JSHeapBroker* broker, Zone* local_zone, SharedFunctionInfoRef shared_info,
+    FeedbackCellRef feedback_cell, BytecodeOffset osr_offset, JSGraph* jsgraph,
+    CallFrequency const& invocation_frequency,
+    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+    int inlining_id, CodeKind code_kind, BytecodeGraphBuilderFlags flags,
+    TickCounter* tick_counter, ObserveNodeInfo const& observe_node_info = {});
 
 }  // namespace compiler
 }  // namespace internal

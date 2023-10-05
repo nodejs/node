@@ -43,7 +43,18 @@ class Deoptimizer : public Malloced {
     const int deopt_id;
   };
 
-  static DeoptInfo GetDeoptInfo(Code code, Address from);
+  // Whether the deopt exit is contained by the outermost loop containing the
+  // osr'd loop. For example:
+  //
+  //  for (;;) {
+  //    for (;;) {
+  //    }  // OSR is triggered on this backedge.
+  //  }  // This is the outermost loop containing the osr'd loop.
+  static bool DeoptExitIsInsideOsrLoop(Isolate* isolate,
+                                       Tagged<JSFunction> function,
+                                       BytecodeOffset deopt_exit_offset,
+                                       BytecodeOffset osr_offset);
+  static DeoptInfo GetDeoptInfo(Tagged<Code> code, Address from);
   DeoptInfo GetDeoptInfo() const {
     return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
   }
@@ -75,7 +86,8 @@ class Deoptimizer : public Malloced {
   // again and any activations of the optimized code will get deoptimized when
   // execution returns. If {code} is specified then the given code is targeted
   // instead of the function code (e.g. OSR code not installed on function).
-  static void DeoptimizeFunction(JSFunction function, Code code = {});
+  static void DeoptimizeFunction(Tagged<JSFunction> function,
+                                 Tagged<Code> code = {});
 
   // Deoptimize all code in the given isolate.
   V8_EXPORT_PRIVATE static void DeoptimizeAll(Isolate* isolate);
@@ -130,18 +142,18 @@ class Deoptimizer : public Malloced {
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
 
   // Tracing.
-  static void TraceMarkForDeoptimization(Isolate* isolate, Code code,
+  static void TraceMarkForDeoptimization(Isolate* isolate, Tagged<Code> code,
                                          const char* reason);
   static void TraceEvictFromOptimizedCodeCache(Isolate* isolate,
-                                               SharedFunctionInfo sfi,
+                                               Tagged<SharedFunctionInfo> sfi,
                                                const char* reason);
 
  private:
-  void QueueValueForMaterialization(Address output_address, Object obj,
+  void QueueValueForMaterialization(Address output_address, Tagged<Object> obj,
                                     const TranslatedFrame::iterator& iterator);
 
-  Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
-              Address from, int fp_to_sp_delta);
+  Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
+              DeoptimizeKind kind, Address from, int fp_to_sp_delta);
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
@@ -149,8 +161,10 @@ class Deoptimizer : public Malloced {
                                  int frame_index, bool goto_catch_handler);
   void DoComputeInlinedExtraArguments(TranslatedFrame* translated_frame,
                                       int frame_index);
-  void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
-                                   int frame_index);
+  void DoComputeConstructCreateStubFrame(TranslatedFrame* translated_frame,
+                                         int frame_index);
+  void DoComputeConstructInvokeStubFrame(TranslatedFrame* translated_frame,
+                                         int frame_index);
 
   static Builtin TrampolineForBuiltinContinuation(BuiltinContinuationMode mode,
                                                   bool must_handle_result);
@@ -167,7 +181,8 @@ class Deoptimizer : public Malloced {
   unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;
 
-  static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo shared);
+  static unsigned ComputeIncomingArgumentSize(
+      Tagged<SharedFunctionInfo> shared);
 
   // Tracing.
   bool tracing_enabled() const { return trace_scope_ != nullptr; }
@@ -181,7 +196,8 @@ class Deoptimizer : public Malloced {
   void TraceDeoptBegin(int optimization_id, BytecodeOffset bytecode_offset);
   void TraceDeoptEnd(double deopt_duration);
 #ifdef DEBUG
-  static void TraceFoundActivation(Isolate* isolate, JSFunction function);
+  static void TraceFoundActivation(Isolate* isolate,
+                                   Tagged<JSFunction> function);
 #endif
   static void TraceDeoptAll(Isolate* isolate);
 

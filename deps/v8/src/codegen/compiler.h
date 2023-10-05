@@ -47,6 +47,13 @@ struct ScriptStreamingData;
 
 namespace maglev {
 class MaglevCompilationJob;
+
+static inline bool IsMaglevEnabled() { return v8_flags.maglev; }
+
+static inline bool IsMaglevOsrEnabled() {
+  return IsMaglevEnabled() && v8_flags.maglev_osr;
+}
+
 }  // namespace maglev
 
 // The V8 compiler API.
@@ -97,7 +104,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // a future OSR request will pick up the resulting code object).
   V8_WARN_UNUSED_RESULT static MaybeHandle<Code> CompileOptimizedOSR(
       Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-      ConcurrencyMode mode);
+      ConcurrencyMode mode, CodeKind code_kind);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
   CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
@@ -130,7 +137,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
   // offer this chance, optimized closure instantiation will not call this.
-  static void PostInstantiation(Handle<JSFunction> function);
+  static void PostInstantiation(Handle<JSFunction> function,
+                                IsCompiledScope* is_compiled_scope);
 
   // ===========================================================================
   // The following family of methods instantiates new functions for scripts or
@@ -161,17 +169,18 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Create a (bound) function for a String source within a context for eval.
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
-      Handle<Context> context, Handle<i::Object> source,
+      Handle<NativeContext> context, Handle<i::Object> source,
       ParseRestriction restriction, int parameters_end_pos, bool is_code_like);
 
   // Decompose GetFunctionFromString into two functions, to allow callers to
   // deal seperately with a case of object not handled by the embedder.
   V8_WARN_UNUSED_RESULT static std::pair<MaybeHandle<String>, bool>
-  ValidateDynamicCompilationSource(Isolate* isolate, Handle<Context> context,
+  ValidateDynamicCompilationSource(Isolate* isolate,
+                                   Handle<NativeContext> context,
                                    Handle<i::Object> source_object,
                                    bool is_code_like = false);
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction>
-  GetFunctionFromValidatedString(Handle<Context> context,
+  GetFunctionFromValidatedString(Handle<NativeContext> context,
                                  MaybeHandle<String> source,
                                  ParseRestriction restriction,
                                  int parameters_end_pos);
@@ -249,6 +258,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                      Handle<FeedbackVector> vector,
                                      Handle<AbstractCode> abstract_code,
                                      CodeKind kind, double time_taken_ms);
+
+  static void InstallInterpreterTrampolineCopy(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+      LogEventListener::CodeTag log_tag);
 };
 
 // A base class for compilation jobs intended to run concurrent to the main
@@ -264,18 +277,12 @@ class V8_EXPORT_PRIVATE CompilationJob {
     kFailed,
   };
 
-  explicit CompilationJob(State initial_state) : state_(initial_state) {
-    timer_.Start();
-  }
+  explicit CompilationJob(State initial_state) : state_(initial_state) {}
   virtual ~CompilationJob() = default;
 
   State state() const { return state_; }
 
  protected:
-  V8_WARN_UNUSED_RESULT base::TimeDelta ElapsedTime() const {
-    return timer_.Elapsed();
-  }
-
   V8_WARN_UNUSED_RESULT Status UpdateState(Status status, State next_state) {
     switch (status) {
       case SUCCEEDED:
@@ -293,7 +300,6 @@ class V8_EXPORT_PRIVATE CompilationJob {
 
  private:
   State state_;
-  base::ElapsedTimer timer_;
 };
 
 // A base class for unoptimized compilation jobs.
@@ -378,7 +384,9 @@ class UnoptimizedCompilationJob : public CompilationJob {
 class OptimizedCompilationJob : public CompilationJob {
  public:
   OptimizedCompilationJob(const char* compiler_name, State initial_state)
-      : CompilationJob(initial_state), compiler_name_(compiler_name) {}
+      : CompilationJob(initial_state), compiler_name_(compiler_name) {
+    timer_.Start();
+  }
 
   // Prepare the compile job. Must be called on the main thread.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status PrepareJob(Isolate* isolate);
@@ -389,6 +397,11 @@ class OptimizedCompilationJob : public CompilationJob {
 
   // Finalizes the compile job. Must be called on the main thread.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
+
+  // Registers weak object to optimized code dependencies.
+  void RegisterWeakObjectsInOptimizedCode(Isolate* isolate,
+                                          Handle<NativeContext> context,
+                                          Handle<Code> code);
 
   const char* compiler_name() const { return compiler_name_; }
 
@@ -402,6 +415,10 @@ class OptimizedCompilationJob : public CompilationJob {
     return time_taken_to_finalize_.InMillisecondsF();
   }
 
+  V8_WARN_UNUSED_RESULT base::TimeDelta ElapsedTime() const {
+    return timer_.Elapsed();
+  }
+
  protected:
   // Overridden by the actual implementation.
   virtual Status PrepareJobImpl(Isolate* isolate) = 0;
@@ -412,6 +429,8 @@ class OptimizedCompilationJob : public CompilationJob {
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;
   base::TimeDelta time_taken_to_finalize_;
+
+  base::ElapsedTimer timer_;
 
  private:
   const char* const compiler_name_;
@@ -440,6 +459,9 @@ class TurbofanCompilationJob : public OptimizedCompilationJob {
   void RecordCompilationStats(ConcurrencyMode mode, Isolate* isolate) const;
   void RecordFunctionCompilation(LogEventListener::CodeTag code_type,
                                  Isolate* isolate) const;
+
+  // Intended for use as a globally unique id in trace events.
+  uint64_t trace_id() const;
 
  private:
   OptimizedCompilationInfo* const compilation_info_;
@@ -533,7 +555,9 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // Note: does not take ownership of |data|.
   BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate,
                         v8::ScriptType type,
-                        ScriptCompiler::CompileOptions options);
+                        ScriptCompiler::CompileOptions options,
+                        CompileHintCallback compile_hint_callback = nullptr,
+                        void* compile_hint_callback_data = nullptr);
   BackgroundCompileTask(const BackgroundCompileTask&) = delete;
   BackgroundCompileTask& operator=(const BackgroundCompileTask&) = delete;
   ~BackgroundCompileTask();
@@ -595,6 +619,9 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   int start_position_;
   int end_position_;
   int function_literal_id_;
+
+  CompileHintCallback compile_hint_callback_ = nullptr;
+  void* compile_hint_callback_data_ = nullptr;
 };
 
 // Contains all data which needs to be transmitted between threads for

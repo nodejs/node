@@ -204,6 +204,10 @@ void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
   Verifier::VerifyNode(node);
 }
 
+// static
+void NodeProperties::ChangeOpUnchecked(Node* node, const Operator* new_op) {
+  node->set_op(new_op);
+}
 
 // static
 Node* NodeProperties::FindFrameStateBefore(Node* node,
@@ -391,32 +395,10 @@ OptionalMapRef NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
   return base::nullopt;
 }
 
-namespace {
-
-// TODO(jgruber): Remove the intermediate ZoneHandleSet and then this function.
-ZoneRefUnorderedSet<MapRef> ToRefSet(JSHeapBroker* broker,
-                                     const ZoneHandleSet<Map>& handles) {
-  ZoneRefUnorderedSet<MapRef> refs =
-      ZoneRefUnorderedSet<MapRef>(broker->zone());
-  for (Handle<Map> handle : handles) {
-    refs.insert(MakeRefAssumeMemoryFence(broker, *handle));
-  }
-  return refs;
-}
-
-ZoneRefUnorderedSet<MapRef> RefSetOf(JSHeapBroker* broker, const MapRef& ref) {
-  ZoneRefUnorderedSet<MapRef> refs =
-      ZoneRefUnorderedSet<MapRef>(broker->zone());
-  refs.insert(ref);
-  return refs;
-}
-
-}  // namespace
-
 // static
 NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
     JSHeapBroker* broker, Node* receiver, Effect effect,
-    ZoneRefUnorderedSet<MapRef>* maps_out) {
+    ZoneRefSet<Map>* maps_out) {
   HeapObjectMatcher m(receiver);
   if (m.HasResolvedValue()) {
     HeapObjectRef ref = m.Ref(broker);
@@ -432,7 +414,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       if (ref.map(broker).is_stable()) {
         // The {receiver_map} is only reliable when we install a stability
         // code dependency.
-        *maps_out = RefSetOf(broker, ref.map(broker));
+        *maps_out = ZoneRefSet<Map>{ref.map(broker)};
         return kUnreliableMaps;
       }
     }
@@ -443,7 +425,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       case IrOpcode::kMapGuard: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
-          *maps_out = ToRefSet(broker, MapGuardMapsOf(effect->op()));
+          *maps_out = MapGuardMapsOf(effect->op());
           return result;
         }
         break;
@@ -451,8 +433,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       case IrOpcode::kCheckMaps: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
-          *maps_out =
-              ToRefSet(broker, CheckMapsParametersOf(effect->op()).maps());
+          *maps_out = CheckMapsParametersOf(effect->op()).maps();
           return result;
         }
         break;
@@ -461,7 +442,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
         if (IsSame(receiver, effect)) {
           OptionalMapRef initial_map = GetJSCreateMap(broker, receiver);
           if (initial_map.has_value()) {
-            *maps_out = RefSetOf(broker, initial_map.value());
+            *maps_out = ZoneRefSet<Map>{initial_map.value()};
             return result;
           }
           // We reached the allocation of the {receiver}.
@@ -472,9 +453,9 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       }
       case IrOpcode::kJSCreatePromise: {
         if (IsSame(receiver, effect)) {
-          *maps_out = RefSetOf(broker, broker->target_native_context()
-                                           .promise_function(broker)
-                                           .initial_map(broker));
+          *maps_out = ZoneRefSet<Map>{broker->target_native_context()
+                                          .promise_function(broker)
+                                          .initial_map(broker)};
           return result;
         }
         break;
@@ -489,7 +470,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
             Node* const value = GetValueInput(effect, 1);
             HeapObjectMatcher m2(value);
             if (m2.HasResolvedValue()) {
-              *maps_out = RefSetOf(broker, m2.Ref(broker).AsMap());
+              *maps_out = ZoneRefSet<Map>{m2.Ref(broker).AsMap()};
               return result;
             }
           }

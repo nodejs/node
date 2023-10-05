@@ -13,6 +13,7 @@
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
+#include "src/inspector/v8-heap-profiler-agent-impl.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
@@ -178,7 +179,6 @@ void V8Debugger::setBreakpointsActive(bool active) {
 
 void V8Debugger::removeBreakpoint(v8::debug::BreakpointId id) {
   v8::debug::RemoveBreakpoint(m_isolate, id);
-  m_throwingConditionReported.erase(id);
 }
 
 v8::debug::ExceptionBreakState V8Debugger::getPauseOnExceptionsState() {
@@ -527,6 +527,14 @@ void V8Debugger::handleProgramBreak(
       });
   {
     v8::Context::Scope scope(pausedContext);
+
+    m_inspector->forEachSession(
+        contextGroupId, [](V8InspectorSessionImpl* session) {
+          if (session->heapProfilerAgent()) {
+            session->heapProfilerAgent()->takePendingHeapSnapshots();
+          }
+        });
+
     m_inspector->client()->runMessageLoopOnPause(contextGroupId);
     m_pausedContextGroupId = 0;
   }
@@ -712,24 +720,7 @@ bool V8Debugger::ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
 void V8Debugger::BreakpointConditionEvaluated(
     v8::Local<v8::Context> context, v8::debug::BreakpointId breakpoint_id,
     bool exception_thrown, v8::Local<v8::Value> exception) {
-  auto it = m_throwingConditionReported.find(breakpoint_id);
-
-  if (!exception_thrown) {
-    // Successful evaluation, clear out the bit: we report exceptions should
-    // this breakpoint throw again.
-    if (it != m_throwingConditionReported.end()) {
-      m_throwingConditionReported.erase(it);
-    }
-    return;
-  }
-
-  CHECK(exception_thrown);
-  if (it != m_throwingConditionReported.end() || exception.IsEmpty()) {
-    // Already reported this breakpoint or no exception to report.
-    return;
-  }
-
-  CHECK(!exception.IsEmpty());
+  if (!exception_thrown || exception.IsEmpty()) return;
 
   v8::Local<v8::Message> message =
       v8::debug::CreateMessageFromException(isolate(), exception);
@@ -747,7 +738,6 @@ void V8Debugger::BreakpointConditionEvaluated(
       message->GetLineNumber(context).FromMaybe(0),
       message->GetStartColumn() + 1, createStackTrace(message->GetStackTrace()),
       origin.ScriptId());
-  m_throwingConditionReported.insert(breakpoint_id);
 }
 
 void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,

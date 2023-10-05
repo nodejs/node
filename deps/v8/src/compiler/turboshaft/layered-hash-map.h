@@ -85,7 +85,7 @@ LayeredHashMap<Key, Value>::LayeredHashMap(Zone* zone,
   initial_capacity = base::bits::RoundUpToPowerOfTwo32(initial_capacity);
   mask_ = initial_capacity - 1;
   // Allocating the table_
-  table_ = zone_->NewVector(initial_capacity, Entry());
+  table_ = zone_->NewVector<Entry>(initial_capacity);
 }
 
 template <class Key, class Value>
@@ -97,6 +97,7 @@ template <class Key, class Value>
 void LayeredHashMap<Key, Value>::DropLastLayer() {
   DCHECK_GT(depths_heads_.size(), 0);
   for (Entry* entry = depths_heads_.back(); entry != nullptr;) {
+    entry_count_--;
     Entry* next = entry->depth_neighboring_entry;
     *entry = Entry();
     entry = next;
@@ -121,6 +122,7 @@ void LayeredHashMap<Key, Value>::InsertNewKey(Key key, Value value) {
   DCHECK_EQ(destination->hash, 0);
   *destination = Entry{hash, key, value, depths_heads_.back()};
   depths_heads_.back() = destination;
+  entry_count_++;
 }
 
 template <class Key, class Value>
@@ -139,7 +141,7 @@ template <class Key, class Value>
 void LayeredHashMap<Key, Value>::ResizeIfNeeded() {
   if (table_.size() * kNeedResizePercentage > entry_count_) return;
   CHECK_LE(table_.size(), std::numeric_limits<size_t>::max() / kGrowthFactor);
-  table_ = zone_->NewVector<Entry>(table_.size() * kGrowthFactor, Entry());
+  table_ = zone_->NewVector<Entry>(table_.size() * kGrowthFactor);
   mask_ = table_.size() - 1;
   DCHECK_EQ(base::bits::CountPopulation(mask_),
             sizeof(mask_) * 8 - base::bits::CountLeadingZeros(mask_));

@@ -10,9 +10,6 @@
 namespace v8 {
 namespace internal {
 
-constexpr ExternalPointer_t kNullExternalPointer = 0;
-constexpr ExternalPointerHandle kNullExternalPointerHandle = 0;
-
 // Creates and initializes an entry in the external pointer table and writes the
 // handle for that entry to the field.
 template <ExternalPointerTag tag>
@@ -22,6 +19,11 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 // If the sandbox is enabled: reads the ExternalPointerHandle from the field and
 // loads the corresponding external pointer from the external pointer table. If
 // the sandbox is disabled: load the external pointer from the field.
+//
+// This can be used for both regular and lazily-initialized external pointer
+// fields since lazily-initialized field will initially contain
+// kNullExternalPointerHandle, which is guaranteed to result in kNullAddress
+// being returned from the external pointer table.
 template <ExternalPointerTag tag>
 V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            const Isolate* isolate);
@@ -34,7 +36,7 @@ template <ExternalPointerTag tag>
 V8_INLINE void WriteExternalPointerField(Address field_address,
                                          Isolate* isolate, Address value);
 
-// Writes and possibly initialized a lazily initialized external pointer field.
+// Writes and possibly initializes a lazily-initialized external pointer field.
 // When the sandbox is enabled, a lazily initialized external pointer field
 // initially contains the kNullExternalPointerHandle and will only be properly
 // initialized (i.e. allocate an entry in the external pointer table) once a
@@ -44,6 +46,14 @@ template <ExternalPointerTag tag>
 V8_INLINE void WriteLazilyInitializedExternalPointerField(Address field_address,
                                                           Isolate* isolate,
                                                           Address value);
+
+// Resets a lazily-initialized external pointer field. Afterwards, it is
+// guaranteed that reading the pointer stored in this field will return
+// kNullAddress. If the sandbox is enabled, this will replace the handle with
+// the kNullExternalPointerHandle, otherwise it will simply write kNullAddress
+// to the slot.
+V8_INLINE void ResetLazilyInitializedExternalPointerField(
+    Address field_address);
 
 }  // namespace internal
 }  // namespace v8

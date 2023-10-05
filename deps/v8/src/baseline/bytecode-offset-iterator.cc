@@ -4,7 +4,9 @@
 
 #include "src/baseline/bytecode-offset-iterator.h"
 
-#include "src/objects/code-inl.h"
+#include "src/execution/isolate.h"
+#include "src/heap/local-heap.h"
+#include "src/objects/bytecode-array-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -24,10 +26,10 @@ BytecodeOffsetIterator::BytecodeOffsetIterator(Handle<ByteArray> mapping_table,
   Initialize();
 }
 
-BytecodeOffsetIterator::BytecodeOffsetIterator(ByteArray mapping_table,
-                                               BytecodeArray bytecodes)
-    : data_start_address_(mapping_table.GetDataStartAddress()),
-      data_length_(mapping_table.length()),
+BytecodeOffsetIterator::BytecodeOffsetIterator(Tagged<ByteArray> mapping_table,
+                                               Tagged<BytecodeArray> bytecodes)
+    : data_start_address_(mapping_table->GetDataStartAddress()),
+      data_length_(mapping_table->length()),
       current_index_(0),
       bytecode_handle_storage_(bytecodes),
       // In the non-handlified version, no GC is allowed. We use a "dummy"

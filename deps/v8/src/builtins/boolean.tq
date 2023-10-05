@@ -3,14 +3,14 @@
 // found in the LICENSE file.
 
 namespace boolean {
-transitioning macro ThisBooleanValue(implicit context: Context)(
-    receiver: JSAny, method: constexpr string): Boolean {
+transitioning macro ThisBooleanValue(
+    implicit context: Context)(receiver: JSAny,
+    method: constexpr string): Boolean {
   return UnsafeCast<Boolean>(
       ToThisValue(receiver, PrimitiveType::kBoolean, method));
 }
 
-javascript builtin
-BooleanConstructor(
+javascript builtin BooleanConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(...arguments): JSAny {
   const value = SelectBooleanConstant(ToBoolean(arguments[0]));

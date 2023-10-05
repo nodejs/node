@@ -71,9 +71,11 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   ~GlobalHandles();
 
   // Creates a new global handle that is alive until Destroy is called.
-  Handle<Object> Create(Object value);
+  Handle<Object> Create(Tagged<Object> value);
   Handle<Object> Create(Address value);
 
+  template <typename T>
+  inline Handle<T> Create(Tagged<T> value);
   template <typename T>
   inline Handle<T> Create(T value);
 
@@ -197,7 +199,8 @@ class EternalHandles final {
   EternalHandles& operator=(const EternalHandles&) = delete;
 
   // Create an EternalHandle, overwriting the index.
-  V8_EXPORT_PRIVATE void Create(Isolate* isolate, Object object, int* index);
+  V8_EXPORT_PRIVATE void Create(Isolate* isolate, Tagged<Object> object,
+                                int* index);
 
   // Grab the handle for an existing EternalHandle.
   inline Handle<Object> Get(int index) {

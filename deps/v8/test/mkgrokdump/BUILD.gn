@@ -27,6 +27,5 @@ v8_executable("mkgrokdump") {
   data = [
     "mkgrokdump.status",
     "testcfg.py",
-    "../../tools/v8heapconst.py",
   ]
 }

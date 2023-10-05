@@ -37,8 +37,8 @@ Managed<Smi> CauseGCManaged(int i, Isolate* isolate) {
 }
 
 void TwoArgumentsFunction(Object a, Object b) {
-  a.Print();
-  b.Print();
+  Print(a);
+  Print(b);
 }
 
 void TestTwoArguments(Isolate* isolate) {
@@ -65,10 +65,10 @@ void TestTwoSizeTArguments(Isolate* isolate) {
 
 class SomeObject : public Object {
  public:
-  void Method(Object a) { a.Print(); }
+  void Method(Object a) { Print(a); }
 
   SomeObject& operator=(const Object& b) {
-    this->Print();
+    Print(*this);
     return *this;
   }
 
@@ -161,7 +161,7 @@ void TestDeadVarAnalysis(Isolate* isolate) {
   CauseGCRaw(raw_obj, isolate);
 
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestDeadVarBecauseOfSafepointAnalysis(Isolate* isolate) {
@@ -169,7 +169,7 @@ void TestDeadVarBecauseOfSafepointAnalysis(Isolate* isolate) {
   Safepoint();
 
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedDeadVarAnalysis(Isolate* isolate) {
@@ -182,7 +182,7 @@ void TestGuardedDeadVarAnalysis(Isolate* isolate) {
   CauseGCRaw(raw_obj, isolate);
 
   // Shouldn't cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedDeadVarAnalysis2(Isolate* isolate) {
@@ -195,7 +195,7 @@ void TestGuardedDeadVarAnalysis2(Isolate* isolate) {
   CauseGCRaw(raw_obj, isolate);
 
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedAgainstSafepointDeadVarAnalysis(Isolate* isolate) {
@@ -208,7 +208,7 @@ void TestGuardedAgainstSafepointDeadVarAnalysis(Isolate* isolate) {
   Safepoint();
 
   // Shouldn't cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedAgainstSafepointDeadVarAnalysis2(Isolate* isolate) {
@@ -221,7 +221,7 @@ void TestGuardedAgainstSafepointDeadVarAnalysis2(Isolate* isolate) {
   Safepoint();
 
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedAgainstSafepointDeadVarAnalysis3(Isolate* isolate) {
@@ -232,14 +232,14 @@ void TestGuardedAgainstSafepointDeadVarAnalysis3(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   Safepoint();
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
   {
     DisableGCMole no_gc_mole;
     // Shouldn't cause warning.
-    raw_obj.Print();
+    Print(raw_obj);
   }
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestOnlyHeapGuardedDeadVarAnalysisInCompound(Isolate* isolate) {
@@ -249,7 +249,7 @@ void TestOnlyHeapGuardedDeadVarAnalysisInCompound(Isolate* isolate) {
   DisallowHeapAccess no_gc;
   CauseGCRaw(raw_obj, isolate);
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestOnlyHeapGuardedDeadVarAnalysisInCompound2(Isolate* isolate) {
@@ -259,16 +259,16 @@ void TestOnlyHeapGuardedDeadVarAnalysisInCompound2(Isolate* isolate) {
   DisallowHeapAccess no_gc;
   CauseGCRaw(raw_obj, isolate);
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
   DisableGCMole no_gc_mole;
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedDeadVarAnalysisNested(JSObject raw_obj, Isolate* isolate) {
   CauseGCRaw(raw_obj, isolate);
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedDeadVarAnalysisCaller(Isolate* isolate) {
@@ -276,7 +276,7 @@ void TestGuardedDeadVarAnalysisCaller(Isolate* isolate) {
   JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
   // Shouldn't cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedDeadVarAnalysisCaller2(Isolate* isolate) {
@@ -284,7 +284,7 @@ void TestGuardedDeadVarAnalysisCaller2(Isolate* isolate) {
   JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedDeadVarAnalysisCaller3(Isolate* isolate) {
@@ -292,14 +292,14 @@ void TestGuardedDeadVarAnalysisCaller3(Isolate* isolate) {
   JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedDeadVarAnalysisCaller4(Isolate* isolate) {
   JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 JSObject GuardedAllocation(Isolate* isolate) {
@@ -316,7 +316,7 @@ void TestNestedDeadVarAnalysis(Isolate* isolate) {
   JSObject raw_obj = GuardedAllocation(isolate);
   CauseGCRaw(raw_obj, isolate);
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestNestedDeadVarAnalysis2(Isolate* isolate) {
@@ -324,7 +324,7 @@ void TestNestedDeadVarAnalysis2(Isolate* isolate) {
   JSObject raw_obj = GuardedAllocation(isolate);
   CauseGCRaw(raw_obj, isolate);
   // Shouldn't cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 // Test that putting a guard in the middle of the function doesn't
@@ -335,7 +335,7 @@ void TestGuardedDeadVarAnalysisMidFunction(Isolate* isolate) {
   // Guarding the rest of the function from triggering a GC.
   DisallowGarbageCollection no_gc;
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 // Test that putting a guard in the middle of the function doesn't
@@ -346,7 +346,7 @@ void TestGuardedDeadVarAnalysisMidFunction2(Isolate* isolate) {
   // Guarding the rest of the function from triggering a GC.
   DisableGCMole no_gc_mole;
   // Should cause warning.
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 void TestGuardedDeadVarAnalysisMultipleSafepoints(Isolate* isolate) {
@@ -356,7 +356,7 @@ void TestGuardedDeadVarAnalysisMultipleSafepoints(Isolate* isolate) {
   JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
   DisallowGarbageCollection no_gc;
   Safepoint();
-  raw_obj.Print();
+  Print(raw_obj);
 }
 
 }  // namespace internal

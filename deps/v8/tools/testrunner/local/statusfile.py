@@ -28,6 +28,7 @@
 import os
 import re
 
+from testrunner.build_config import INITIALIZATION_ERROR
 from testrunner.local.variants import ALL_VARIANTS
 from testrunner.local.utils import Freeze
 
@@ -162,7 +163,8 @@ def _EvalExpression(exp, variables):
     return eval(exp, variables)
   except NameError as e:
     identifier = re.match("name '(.*)' is not defined", str(e)).group(1)
-    assert identifier == "variant", "Unknown identifier: %s" % identifier
+    # If it's not a variant expression, it points to a missing build flag.
+    assert identifier == "variant", INITIALIZATION_ERROR % identifier
     return VARIANT_EXPRESSION
 
 

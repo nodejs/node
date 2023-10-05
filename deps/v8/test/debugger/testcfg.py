@@ -45,11 +45,9 @@ class TestCase(testcase.D8TestCase):
         break
 
     files = []
-    files.append(os.path.normpath(os.path.join(
-        self.suite.root, "..", "mjsunit", "mjsunit.js")))
-    files.append(os.path.join(self.suite.root, "test-api.js"))
-    files.extend([os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
-                  for f in files_list])
+    files.append(self.suite.root.parent / "mjsunit" / "mjsunit.js")
+    files.append(self.suite.root / "test-api.js")
+    files.extend([self.suite.root.parents[1] / f for f in files_list])
     files.append(self._get_source_path())
     return files
 
@@ -66,10 +64,10 @@ class TestCase(testcase.D8TestCase):
     return ['--enable-inspector', '--allow-natives-syntax']
 
   def _get_source_path(self):
-    base_path = os.path.join(self.suite.root, self.path)
     # Try .js first, and fall back to .mjs.
     # TODO(v8:9406): clean this up by never separating the path from
     # the extension in the first place.
-    if os.path.exists(base_path + self._get_suffix()):
-      return base_path + self._get_suffix()
-    return base_path + '.mjs'
+    js_file = self.suite.root / self.path_js
+    if js_file.exists():
+      return js_file
+    return self.suite.root / self.path_mjs

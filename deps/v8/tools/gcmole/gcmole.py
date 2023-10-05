@@ -91,7 +91,7 @@ def make_clang_command_line(plugin, plugin_args, options):
   log("Using generated files in {}", options.v8_build_dir / 'gen')
   return ([
       options.clang_bin_dir / "clang++",
-      "-std=c++17",
+      "-std=c++20",
       "-c",
       "-Xclang",
       "-load",

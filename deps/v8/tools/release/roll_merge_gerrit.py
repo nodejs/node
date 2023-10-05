@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import time
+import datetime
 import urllib.parse
 
 # Add depot tools to the sys path, for gerrit_util
@@ -23,6 +24,8 @@ import gerrit_util
 from common_includes import VERSION_FILE
 
 GERRIT_HOST = 'chromium-review.googlesource.com'
+
+ROLLER_BOT_EMAIL = "v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com"
 
 
 def ExtractVersion(include_file_text):
@@ -51,9 +54,10 @@ def main():
       "--author",
       default="",
       help="The author email used for code review.")
-
-  group = parser.add_mutually_exclusive_group(required=True)
-  group.add_argument("--branch", help="The branch to merge to (e.g. 10.3.171)")
+  parser.add_argument(
+      "--branch",
+      help="The branch to merge to (e.g. 10.3.171). Detected automatically from the latest roll CL if not provided",
+      required=False)
   # TODO(leszeks): Add support for more than one revision. This will need to
   # cherry pick one of them using the gerrit API, then somehow applying the rest
   # onto it as additional patches.
@@ -61,15 +65,45 @@ def main():
 
   options = parser.parse_args()
 
+  branch = options.branch
+  if branch is None:
+    print("Looking for latest roll CL...")
+    changes = gerrit_util.QueryChanges(
+        GERRIT_HOST, [
+            ("owner", ROLLER_BOT_EMAIL),
+            ("project", "chromium/src"),
+            ("status", "NEW"),
+        ],
+        "Update V8 to version",
+        limit=1)
+    if len(changes) < 1:
+      print("Didn't find a CL that looks like an active roll")
+      return 1
+    if len(changes) > 1:
+      print("Found multiple CLs that look like an active roll:")
+      for change in changes:
+        print("  * %s: https://%s/c/%s" %
+              (change['subject'], GERRIT_HOST, change['_number']))
+      return 1
+
+    roll_change = changes[0]
+    subject = roll_change['subject']
+    print("Found: %s" % subject)
+    m = re.match(r"Update V8 to version ([0-9]+\.[0-9]+\.[0-9]+)", subject)
+    if not m:
+      print("CL subject is not of the form \"Update V8 to version 1.2.3\"")
+      return 1
+    branch = m.group(1)
+
   # Get the original commit.
   revision = options.revision[0]
-  if not re.match(r"[0-9]+\.[0-9]+\.[0-9]+", options.branch):
+  if not re.match(r"[0-9]+\.[0-9]+\.[0-9]+", branch):
     print("Branch is not of the form 1.2.3")
-    exit(1)
-  print("Cherry-picking %s onto %s" % (revision, options.branch))
+    return 1
+  print("Cherry-picking %s onto %s" % (revision, branch))
 
   # Create a cherry pick commit from the original commit.
-  cherry_pick = gerrit_util.CherryPick(GERRIT_HOST, revision, options.branch)
+  cherry_pick = gerrit_util.CherryPick(GERRIT_HOST, revision, branch)
   # Use the cherry pick number to refer to it, rather than the 'id', because
   # cherry picks end up having the same Change-Id as the original CL.
   cherry_pick_id = cherry_pick['_number']
@@ -131,7 +165,7 @@ def main():
     gerrit_util.SetReview(
         GERRIT_HOST, cherry_pick_id, labels={"Owners-Override": 1})
   except:
-    logging.WARNING("Could not set Owners-Override +1")
+    logging.warning("Could not set Owners-Override +1")
 
   print("Adding Rubber Stamper as a reviewer...")
   gerrit_util.AddReviewers(
@@ -170,6 +204,37 @@ def main():
   gerrit_util.CreateGerritTag(GERRIT_HOST,
                               urllib.parse.quote_plus(cherry_pick["project"]),
                               version_string, cherry_pick_commit['commit'])
+
+  print("Waiting for PGO profile tag (%s-pgo), this can take 15-20 minutes..." %
+        version_string)
+  pgo_tag = None
+  waiting_start_time = time.time()
+  while True:
+    # Print the waiting time so far
+    elapsed_time = time.time() - waiting_start_time
+    print(
+        "\r - waiting time: %s" %
+        datetime.timedelta(seconds=round(elapsed_time)),
+        end="",
+        flush=True)
+
+    pgo_tag = gerrit_util.CallGerritApi(
+        GERRIT_HOST,
+        'projects/%s/tags/%s-pgo' %
+        (urllib.parse.quote_plus(cherry_pick["project"]), version_string),
+        reqtype='GET',
+        accept_statuses=[200, 404])
+    if pgo_tag is not None:
+      # New line after progress printing.
+      print("")
+      break
+
+    time.sleep(5)
+
+  if pgo_tag['revision'] != cherry_pick_commit['commit']:
+    logging.fatal("PGO tagged revision %s does not match tagged cherry-pick %s",
+                  pgo_tag['revision'], cherry_pick_commit['commit'])
+    return 1
 
   print("Done.")
 

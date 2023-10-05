@@ -156,17 +156,17 @@ class BenchmarkRunner(object):
     # Kraken or Sunspider?
     g = re.match("(?P<test_name>\w+(-\w+)*)\(RunTime\): (?P<score>\d+) ms\.", \
         line)
-    if g == None:
+    if g is None:
       # Octane?
       g = re.match("(?P<test_name>\w+): (?P<score>\d+)", line)
-      if g == None:
+      if g is None:
         g = re.match("Score \(version [0-9]+\): (?P<score>\d+)", line)
-        if g != None:
+        if g is not None:
           return ('Octane', g.group('score'))
         else:
           # Generic?
           g = re.match("(?P<test_name>\w+)\W+(?P<score>\d+)", line)
-          if g == None:
+          if g is None:
             return (None, None)
     return (g.group('test_name'), g.group('score'))
 
@@ -177,7 +177,7 @@ class BenchmarkRunner(object):
       with open(outfile, 'r') as f:
         for line in f:
           (test, result) = self.ProcessLine(line)
-          if test != None:
+          if test is not None:
             suite.RecordResult(test, result)
 
     suite.ProcessResults(self.opts)

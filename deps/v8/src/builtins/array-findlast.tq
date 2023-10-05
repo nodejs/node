@@ -4,9 +4,9 @@
 
 namespace array {
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlast
-transitioning builtin ArrayFindLastLoopContinuation(implicit context: Context)(
-    predicate: Callable, thisArg: JSAny, o: JSReceiver,
-    initialK: Number): JSAny {
+transitioning builtin ArrayFindLastLoopContinuation(
+    implicit context: Context)(predicate: Callable, thisArg: JSAny,
+    o: JSReceiver, initialK: Number): JSAny {
   // 5. Repeat, while k >= 0
   for (let k: Number = initialK; k >= 0; k--) {
     // 5a. Let Pk be ! ToString(𝔽(k)).
@@ -33,8 +33,9 @@ transitioning builtin ArrayFindLastLoopContinuation(implicit context: Context)(
 }
 
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlast
-transitioning macro FastArrayFindLast(implicit context: Context)(
-    o: JSReceiver, len: Number, predicate: Callable, thisArg: JSAny): JSAny
+transitioning macro FastArrayFindLast(
+    implicit context: Context)(o: JSReceiver, len: Number, predicate: Callable,
+    thisArg: JSAny): JSAny
     labels Bailout(Number) {
   const smiLen = Cast<Smi>(len) otherwise goto Bailout(len - 1);
   // 4. Let k be len - 1.
@@ -73,8 +74,7 @@ transitioning macro FastArrayFindLast(implicit context: Context)(
 }
 
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlast
-transitioning javascript builtin
-ArrayPrototypeFindLast(
+transitioning javascript builtin ArrayPrototypeFindLast(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {
     RequireObjectCoercible(receiver, 'Array.prototype.findLast');
@@ -104,7 +104,7 @@ ArrayPrototypeFindLast(
       return ArrayFindLastLoopContinuation(predicate, thisArg, o, k);
     }
   } label NotCallableError deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   }
 }
 }

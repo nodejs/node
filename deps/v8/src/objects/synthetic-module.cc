@@ -25,14 +25,14 @@ Maybe<bool> SyntheticModule::SetExport(Isolate* isolate,
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   Handle<Object> export_object(exports->Lookup(export_name), isolate);
 
-  if (!export_object->IsCell()) {
+  if (!IsCell(*export_object)) {
     isolate->Throw(*isolate->factory()->NewReferenceError(
         MessageTemplate::kModuleExportUndefined, export_name));
     return Nothing<bool>();
   }
 
   // Spec step 2: Set the mutable binding of export_name to export_value
-  Cell::cast(*export_object).set_value(*export_value);
+  Cell::cast(*export_object)->set_value(*export_value);
 
   return Just(true);
 }
@@ -43,7 +43,7 @@ void SyntheticModule::SetExportStrict(Isolate* isolate,
                                       Handle<Object> export_value) {
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   Handle<Object> export_object(exports->Lookup(export_name), isolate);
-  CHECK(export_object->IsCell());
+  CHECK(IsCell(*export_object));
   Maybe<bool> set_export_result =
       SetExport(isolate, module, export_name, export_value);
   CHECK(set_export_result.FromJust());
@@ -55,8 +55,8 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
     Isolate* isolate, Handle<SyntheticModule> module,
     Handle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve) {
-  Handle<Object> object(module->exports().Lookup(export_name), isolate);
-  if (object->IsCell()) return Handle<Cell>::cast(object);
+  Handle<Object> object(module->exports()->Lookup(export_name), isolate);
+  if (IsCell(*object)) return Handle<Cell>::cast(object);
 
   if (!must_resolve) return MaybeHandle<Cell>();
 
@@ -79,7 +79,7 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
     // Spec step 7.2: Initialize the new mutable binding to undefined.
     Handle<Cell> cell = isolate->factory()->NewCell();
     Handle<String> name(String::cast(export_names->get(i)), isolate);
-    CHECK(exports->Lookup(name).IsTheHole(isolate));
+    CHECK(IsTheHole(exports->Lookup(name), isolate));
     exports = ObjectHashTable::Put(exports, name, cell);
   }
   module->set_exports(*exports);
@@ -103,11 +103,10 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
 
   v8::Module::SyntheticModuleEvaluationSteps evaluation_steps =
       FUNCTION_CAST<v8::Module::SyntheticModuleEvaluationSteps>(
-          module->evaluation_steps().foreign_address());
+          module->evaluation_steps()->foreign_address());
   v8::Local<v8::Value> result;
-  if (!evaluation_steps(
-           Utils::ToLocal(Handle<Context>::cast(isolate->native_context())),
-           Utils::ToLocal(Handle<Module>::cast(module)))
+  if (!evaluation_steps(Utils::ToLocal(isolate->native_context()),
+                        Utils::ToLocal(Handle<Module>::cast(module)))
            .ToLocal(&result)) {
     isolate->PromoteScheduledException();
     module->RecordError(isolate, isolate->pending_exception());
@@ -119,7 +118,7 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
   Handle<Object> result_from_callback = Utils::OpenHandle(*result);
 
   Handle<JSPromise> capability;
-  if (result_from_callback->IsJSPromise()) {
+  if (IsJSPromise(*result_from_callback)) {
     capability = Handle<JSPromise>::cast(result_from_callback);
   } else {
     // The host's evaluation steps should have returned a resolved Promise,

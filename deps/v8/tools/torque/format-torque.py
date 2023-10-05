@@ -7,9 +7,9 @@
 """This program either generates the parser files for Torque, generating
 the source and header files directly in V8's src directory."""
 
-import subprocess
 import sys
 import re
+import json
 from subprocess import Popen, PIPE
 
 def decode(arg, encoding="utf-8"):
@@ -32,25 +32,66 @@ def preprocess(input):
   input = re.sub(r'([^/])\*([a-zA-Z(])', r'\1' + kDerefEscape + r'\2', input)
   input = re.sub(r'&([a-zA-Z(])', kAddressofEscape + r'\1', input)
 
-
   input = re.sub(r'(if\s+)constexpr(\s*\()', r'\1/*COxp*/\2', input)
-  input = re.sub(r'(\s+)operator\s*(\'[^\']+\')', r'\1/*_OPE \2*/', input)
   input = re.sub(r'\btypeswitch\s*(\([^{]*\))\s{', r' if /*tPsW*/ \1 {', input)
   input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*deferred\s*{', r' if /*cAsEdEfF*/ \1 {', input)
   input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*{', r' if /*cA*/ \1 {', input)
 
   input = re.sub(r'\bgenerates\s+\'([^\']+)\'\s*',
       r'_GeNeRaTeS00_/*\1@*/', input)
-  input = re.sub(r'\bconstexpr\s+\'([^\']+)\'\s*',
-      r' _CoNsExP_/*\1@*/', input)
+  input = re.sub(r'\bconstexpr\s+\'([^\']+)\'\s*', r'_CoNsExP_/*\1@*/', input)
+
+  def createFunctionReplacement(m):
+    torque_def = m.group(1)
+    torque_def = re.sub('\s+', ' ', torque_def)
+    function_len = len("function")
+    function_and_comment_len = len("function /**/")
+    if len(torque_def) < function_len:
+      return f'// !!torquefunc {torque_def}\nfunction '
+    else:
+      return f'// !!torquefunc {torque_def}\nfunction /*{"-" * (len(torque_def) - function_and_comment_len)}*/ '
+
+  input = re.sub(
+      r'^[ \t]*((?:extern\s+)?(?:transitioning\s+)?(?:javascript\s+)?(?:operator\s*\'[^\']+\'\s*)?(?:macro|builtin|runtime))\s+',
+      createFunctionReplacement,
+      input,
+      flags=re.MULTILINE)
+
+  def createClassReplacement(m):
+    torque_def = m.group(1)
+    class_len = len("class")
+    class_and_comment_len = len("class /**/")
+    if len(torque_def) < class_len:
+      return f'// !!torqueclass {torque_def}\nclass '
+    else:
+      return f'// !!torqueclass {torque_def}\nclass /*{"-" * (len(torque_def) - class_and_comment_len)}*/ '
+
+  input = re.sub(
+      r'^[ \t]*((?:extern\s+)?(?:bitfield\s+)?(?:struct|class|shape))\s+',
+      createClassReplacement,
+      input,
+      flags=re.MULTILINE)
+
   input = re.sub(r'\notherwise',
       r'\n otherwise', input)
   input = re.sub(r'(\n\s*\S[^\n]*\s)otherwise',
       r'\1_OtheSaLi', input)
-  input = re.sub(r'@if\(', r'@iF(', input)
-  input = re.sub(r'@export', r'@eXpOrT', input)
-  input = re.sub(r'js-implicit[ \n]+', r'jS_iMpLiCiT_', input)
-  input = re.sub(r'^(\s*namespace\s+[a-zA-Z_0-9]+\s*{)(\s*)$', r'\1}\2', input, flags = re.MULTILINE)
+  input = re.sub(r'@if(not)?\(', r'if /*!if\1*/ (', input)
+  input = re.sub(
+      r'(js-)?implicit\s+([^)]*?)\s*\)\(\s*\)',
+      r'/*\1ImPl*/\2Ǝ)',
+      input,
+      flags=re.DOTALL)
+  input = re.sub(
+      r'(js-)?implicit\s+([^)]*?)\s*\)\(\s*',
+      r'/*\1ImPl*/\2Ǝ,',
+      input,
+      flags=re.DOTALL)
+
+  # clang-format doesn't like decorators, so change them into line comments.
+  input = re.sub(
+      r'^(\s*)@([a-zA-Z]+)\n', r'\1//@\2\n', input, flags=re.MULTILINE)
+  input = re.sub(r'^(\s*)@export\b', r'\1//@eXpOrT', input, flags=re.MULTILINE)
 
   # includes are not recognized, change them into comments so that the
   # formatter ignores them first, until we can figure out a way to format cpp
@@ -60,10 +101,14 @@ def preprocess(input):
   return input
 
 def postprocess(output):
+  output = re.sub(
+      r'^(\s*)//@eXpOrT\b', r'\1@export', output, flags=re.MULTILINE)
+  output = re.sub(
+      r'^(\s*)//@([a-zA-Z]+)\n', r"\1@\2\n", output, flags=re.MULTILINE)
+
   output = re.sub(r'\/\*COxp\*\/', r'constexpr', output)
   output = re.sub(r'(\S+)\s*: type([,>])', r'\1: type\2', output)
   output = re.sub(r'(\n\s*)labels( [A-Z])', r'\1    labels\2', output)
-  output = re.sub(r'\/\*_OPE \'([^\']+)\'\*\/', r"operator '\1'", output)
   output = re.sub(r'\bif\s*\/\*tPsW\*\/', r'typeswitch', output)
   output = re.sub(r'\bif\s*\/\*cA\*\/\s*(\([^{]*\))\s*{', r'case \1: {', output)
   output = re.sub(r'\bif\s*\/\*cAsEdEfF\*\/\s*(\([^{]*\))\s*{', r'case \1: deferred {', output)
@@ -71,26 +116,33 @@ def postprocess(output):
       r"\n    generates '\1'", output)
   output = re.sub(r'_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',
       r"generates '\1'", output)
+  output = re.sub(r'\n_CoNsExP_\s*\/\*([^@]+)@\*\/', r"\n    constexpr '\1'",
+                  output)
   output = re.sub(r'_CoNsExP_\s*\/\*([^@]+)@\*\/',
       r"constexpr '\1'", output)
-  output = re.sub(r'\n(\s+)otherwise',
-      r"\n\1    otherwise", output)
-  output = re.sub(r'\n(\s+)_OtheSaLi',
-      r"\n\1otherwise", output)
-  output = re.sub(r'_OtheSaLi',
-      r"otherwise", output)
-  output = re.sub(r'@iF\(', r'@if(', output)
-  output = re.sub(r'@eXpOrT',
-      r"@export", output)
-  output = re.sub(r'jS_iMpLiCiT_',
-      r"js-implicit ", output)
+  output = re.sub(r'// !!torqueclass (.*)\n\s*class(?:\s*/\*-*\*/)?', r"\1",
+                  output)
+  output = re.sub(r'// !!torquefunc (.*)\n\s*function(?:\s*/\*-*\*/)?', r"\1",
+                  output)
+  output = re.sub(r'\n(\s+)otherwise', r"\n\1    otherwise", output)
+  output = re.sub(r'\n(\s+)_OtheSaLi', r"\n\1otherwise", output)
+  output = re.sub(r'_OtheSaLi', r"otherwise", output)
+  output = re.sub(r'if\s*/\*!if(not)?\*/\s*\(', r'@if\1(', output)
+  output = re.sub(
+      r'/\*\s*(js-)?ImPl\s*\*/\s*([^Ǝ]*?)Ǝ\s*\)',
+      r'\1implicit \2)()',
+      output,
+      flags=re.DOTALL)
+  output = re.sub(
+      r'/\*\s*(js-)?ImPl\s*\*/\s*([^Ǝ]*?)Ǝ\s*, *',
+      r'\1implicit \2)(',
+      output,
+      flags=re.DOTALL)
   output = re.sub(r'}\n *label ', r'} label ', output);
-  output = re.sub(r'^(\s*namespace\s+[a-zA-Z_0-9]+\s*{)}(\s*)$', r'\1\2', output, flags = re.MULTILINE);
 
   output = re.sub(kPercentEscape, r'%', output)
   output = re.sub(kDerefEscape, r'*', output)
   output = re.sub(kAddressofEscape, r'&', output)
-
 
   output = re.sub( r'^// InClUdE',r'#include', output, flags=re.MULTILINE)
 
@@ -102,10 +154,21 @@ def process(filename, lint, should_format):
 
   original_input = content
 
+  style = {"BasedOnStyle": "Google", "NamespaceIndentation": "None"}
+
   if sys.platform.startswith('win'):
-    p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
+    p = Popen(
+        ['clang-format', '-assume-filename=.ts', '-style=' + json.dumps(style)],
+        stdin=PIPE,
+        stdout=PIPE,
+        stderr=PIPE,
+        shell=True)
   else:
-    p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    p = Popen(
+        ['clang-format', '-assume-filename=.ts', '-style=' + json.dumps(style)],
+        stdin=PIPE,
+        stdout=PIPE,
+        stderr=PIPE)
   output, err = p.communicate(encode(preprocess(content)))
   output = postprocess(decode(output))
   rc = p.returncode
@@ -138,7 +201,6 @@ def Main():
     return arg in ['-i', '-l', '-il']
 
   should_format = lint = False
-  use_stdout = True
 
   flag, files = sys.argv[1], sys.argv[2:]
   if is_option(flag):

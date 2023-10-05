@@ -23,9 +23,9 @@ constexpr uintptr_t kHeapNeedle = 0x14;
 [[noreturn]] void CustomHandler(const std::string&, const SourceLocation&,
                                 HeapBase* heap) {
   if (heap == reinterpret_cast<HeapBase*>(kHeapNeedle)) {
-    FATAL("cust0m h4ndl3r with matching heap");
+    GRACEFUL_FATAL("cust0m h4ndl3r with matching heap");
   }
-  FATAL("cust0m h4ndl3r");
+  GRACEFUL_FATAL("cust0m h4ndl3r");
 }
 
 }  // namespace

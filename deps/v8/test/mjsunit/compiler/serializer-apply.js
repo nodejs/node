@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --turboshaft-enable-debug-features
 
 function apply(arg) {
   "use strict";

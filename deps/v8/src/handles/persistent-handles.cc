@@ -169,5 +169,11 @@ std::unique_ptr<PersistentHandles> PersistentHandlesScope::Detach() {
   return ph;
 }
 
+// static
+bool PersistentHandlesScope::IsActive(Isolate* isolate) {
+  return isolate->handle_scope_implementer()
+             ->last_handle_before_deferred_block_ != nullptr;
+}
+
 }  // namespace internal
 }  // namespace v8

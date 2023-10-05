@@ -74,7 +74,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
         MapHandles maps;
         nexus.ExtractMaps(&maps);
         for (unsigned int j = 0; j < maps.size(); j++) {
-          EXPECT_TRUE(maps[j]->IsMap());
+          EXPECT_TRUE(IsMap(*maps[j]));
         }
       }
 
@@ -109,7 +109,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
         EXPECT_EQ(state, InlineCacheState::MONOMORPHIC);
         MapHandles maps;
         nexus.ExtractMaps(&maps);
-        EXPECT_TRUE(maps[0]->IsMap());
+        EXPECT_TRUE(IsMap(*maps[0]));
       }
       vector_consumed_->Signal();
       vector_ready_->Wait();
@@ -121,7 +121,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
         MapHandles maps;
         nexus.ExtractMaps(&maps);
         for (unsigned int i = 0; i < maps.size(); i++) {
-          EXPECT_TRUE(maps[i]->IsMap());
+          EXPECT_TRUE(IsMap(*maps[i]));
         }
       }
       vector_consumed_->Signal();

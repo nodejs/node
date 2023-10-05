@@ -14,6 +14,7 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/type-inference-reducer.h"
@@ -23,29 +24,23 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-struct AssertTypesReducerArgs {
-  Isolate* isolate;
-};
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <class Next>
 class AssertTypesReducer
     : public UniformReducerAdapter<AssertTypesReducer, Next> {
-  // TODO(nicohartmann@): Reenable this in a way that compiles with msvc light.
-  // static_assert(next_contains_reducer<Next, TypeInferenceReducer>::value);
+#if defined(__clang__)
+  static_assert(next_contains_reducer<Next, TypeInferenceReducer>::value);
+#endif
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
   using Adapter = UniformReducerAdapter<AssertTypesReducer, Next>;
-  using ArgT =
-      base::append_tuple_type<typename Next::ArgT, AssertTypesReducerArgs>;
 
-  template <typename... Args>
-  explicit AssertTypesReducer(const std::tuple<Args...>& args)
-      : Adapter(args),
-        isolate_(std::get<AssertTypesReducerArgs>(args).isolate) {}
-
-  uint32_t NoContextConstant() { return IntToSmi(Context::kNoContext); }
+  i::Tagged<Smi> NoContextConstant() {
+    return Smi::FromInt(Context::kNoContext);
+  }
 
   template <typename Op, typename Continuation>
   OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& operation) {
@@ -54,12 +49,12 @@ class AssertTypesReducer
     if (!CanBeTyped(operation)) return og_index;
     // Unfortunately, we cannot insert assertions after block terminators, so we
     // skip them here.
-    if (operation.Properties().is_block_terminator) return og_index;
+    if (operation.IsBlockTerminator()) return og_index;
 
     auto reps = operation.outputs_rep();
     DCHECK_GT(reps.size(), 0);
     if (reps.size() == 1) {
-      Type type = Asm().GetInputGraphType(ig_index);
+      Type type = __ GetInputGraphType(ig_index);
       InsertTypeAssert(reps[0], og_index, type);
     }
     return og_index;
@@ -69,7 +64,7 @@ class AssertTypesReducer
                         const Type& type) {
     DCHECK(!type.IsInvalid());
     if (type.IsNone()) {
-      Asm().Unreachable();
+      __ Unreachable();
       return;
     }
 
@@ -82,22 +77,21 @@ class AssertTypesReducer
         [this](Builtin builtin, OpIndex original_value,
                base::SmallVector<OpIndex, 6> actual_value_indices,
                const Type& type) {
-          uint32_t op_id = static_cast<uint32_t>(IntToSmi(original_value.id()));
+          i::Tagged<Smi> op_id = Smi::FromInt(original_value.id());
           // Add expected type and operation id.
           Handle<TurboshaftType> expected_type = type.AllocateOnHeap(factory());
-          actual_value_indices.push_back(Asm().HeapConstant(expected_type));
-          actual_value_indices.push_back(Asm().Word32Constant(op_id));
-          actual_value_indices.push_back(
-              Asm().Word32Constant(NoContextConstant()));
-          Asm().CallBuiltin(
+          actual_value_indices.push_back(__ HeapConstant(expected_type));
+          actual_value_indices.push_back(__ SmiConstant(op_id));
+          actual_value_indices.push_back(__ SmiConstant(NoContextConstant()));
+          __ CallBuiltin(
               builtin, OpIndex::Invalid(),
               {actual_value_indices.data(), actual_value_indices.size()},
-              isolate_);
+              CanThrow::kNo, isolate_);
 #ifdef DEBUG
           // Used for debugging
           if (v8_flags.turboshaft_trace_typing) {
             PrintF("Inserted assert for %3d:%-40s (%s)\n", original_value.id(),
-                   Asm().output_graph().Get(original_value).ToString().c_str(),
+                   __ output_graph().Get(original_value).ToString().c_str(),
                    type.ToString().c_str());
           }
 #endif
@@ -113,9 +107,9 @@ class AssertTypesReducer
       }
       case RegisterRepresentation::Word64(): {
         DCHECK(type.IsWord64());
-        OpIndex value_high = Asm().Word64ShiftRightLogical(
-            value, Asm().Word64Constant(static_cast<uint64_t>(32)));
-        OpIndex value_low = value;  // Use implicit truncation to word32.
+        OpIndex value_high =
+            __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(value, 32));
+        OpIndex value_low = __ TruncateWord64ToWord32(value);
         base::SmallVector<OpIndex, 6> actual_value_indices = {value_high,
                                                               value_low};
         GenerateBuiltinCall(Builtin::kCheckTurboshaftWord64Type, value,
@@ -138,6 +132,7 @@ class AssertTypesReducer
       }
       case RegisterRepresentation::Tagged():
       case RegisterRepresentation::Compressed():
+      case RegisterRepresentation::Simd128():
         // TODO(nicohartmann@): Handle remaining cases.
         break;
     }
@@ -145,8 +140,10 @@ class AssertTypesReducer
 
  private:
   Factory* factory() { return isolate_->factory(); }
-  Isolate* isolate_;
+  Isolate* isolate_ = PipelineData::Get().isolate();
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

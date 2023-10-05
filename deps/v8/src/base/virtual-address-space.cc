@@ -214,6 +214,10 @@ VirtualAddressSubspace::VirtualAddressSubspace(
 }
 
 VirtualAddressSubspace::~VirtualAddressSubspace() {
+  // TODO(chromium:1218005) here or in the RegionAllocator destructor we should
+  // assert that all allocations have been freed. Otherwise we may end up
+  // leaking memory on Windows because VirtualFree(subspace_base, 0) will then
+  // only free the first allocation in the subspace, not the entire subspace.
   parent_space_->FreeSubspace(this);
 }
 

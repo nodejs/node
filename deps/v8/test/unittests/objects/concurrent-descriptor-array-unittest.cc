@@ -49,7 +49,7 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
     for (Handle<JSObject> handle : handles_) {
       // Lookup the named property on the {map}.
-      EXPECT_TRUE(name_->IsUniqueName());
+      EXPECT_TRUE(IsUniqueName(*name_));
       Handle<Map> map(handle->map(), &local_heap);
 
       Handle<DescriptorArray> descriptors(
@@ -114,7 +114,7 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject) {
                                                       filler_value, NONE)
         .Check();
   }
-  EXPECT_EQ(js_object->map().NumberOfOwnDescriptors(), 8);
+  EXPECT_EQ(js_object->map()->NumberOfOwnDescriptors(), 8);
 
   thread->Join();
 }
@@ -148,7 +148,7 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject_ManyElements) {
                                                       filler_value, NONE)
         .Check();
   }
-  EXPECT_GT(js_object->map().NumberOfOwnDescriptors(), 8);
+  EXPECT_GT(js_object->map()->NumberOfOwnDescriptors(), 8);
 
   for (int i = 0; i < kNumHandles; i++) {
     handles.push_back(ph->NewHandle(js_object));

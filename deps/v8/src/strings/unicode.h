@@ -19,7 +19,6 @@
 namespace unibrow {
 
 using uchar = unsigned int;
-using byte = unsigned char;
 
 /**
  * The max length of the result of converting the case of a single
@@ -181,7 +180,8 @@ class V8_EXPORT_PRIVATE Utf8 {
   static inline unsigned EncodeOneByte(char* out, uint8_t c);
   static inline unsigned Encode(char* out, uchar c, int previous,
                                 bool replace_invalid = false);
-  static uchar CalculateValue(const byte* str, size_t length, size_t* cursor);
+  static uchar CalculateValue(const uint8_t* str, size_t length,
+                              size_t* cursor);
 
   // The unicode replacement character, used to signal invalid unicode
   // sequences (e.g. an orphan surrogate) when converting to a UTF-8 encoding.
@@ -204,10 +204,11 @@ class V8_EXPORT_PRIVATE Utf8 {
   // The maximum size a single UTF-16 code unit known to be in the range
   // [0,0xff] may take up when encoded as UTF-8.
   static const unsigned kMax8BitCodeUnitSize = 2;
-  static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
+  static inline uchar ValueOf(const uint8_t* str, size_t length,
+                              size_t* cursor);
 
   using Utf8IncrementalBuffer = uint32_t;
-  static inline uchar ValueOfIncremental(const byte** cursor, State* state,
+  static inline uchar ValueOfIncremental(const uint8_t** cursor, State* state,
                                          Utf8IncrementalBuffer* buffer);
   static uchar ValueOfIncrementalFinish(State* state);
 
@@ -222,7 +223,7 @@ class V8_EXPORT_PRIVATE Utf8 {
   // - valid utf-8 endcoding (e.g. no over-long encodings),
   // - absence of surrogates,
   // - valid code point range.
-  static bool ValidateEncoding(const byte* str, size_t length);
+  static bool ValidateEncoding(const uint8_t* str, size_t length);
 };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -238,9 +239,9 @@ class V8_EXPORT_PRIVATE Wtf8 {
   // In terms of the WTF-8 specification (https://simonsapin.github.io/wtf-8/),
   // this function checks for a valid "generalized UTF-8" sequence, with the
   // additional constraint that surrogate pairs are not allowed.
-  static bool ValidateEncoding(const byte* str, size_t length);
+  static bool ValidateEncoding(const uint8_t* str, size_t length);
 
-  static void ScanForSurrogates(const v8::base::Vector<const byte>& wtf8,
+  static void ScanForSurrogates(v8::base::Vector<const uint8_t> wtf8,
                                 std::vector<size_t>* surrogate_offsets);
 };
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -8,22 +8,23 @@ extern transitioning runtime ToString(Context, BigInt): String;
 
 extern enum OrdinaryToPrimitiveHint { kString, kNumber }
 
-extern macro OrdinaryToPrimitive(implicit context: Context)(
-    JSAny, constexpr OrdinaryToPrimitiveHint): JSPrimitive;
+extern macro OrdinaryToPrimitive(
+    implicit context: Context)(JSAny,
+    constexpr OrdinaryToPrimitiveHint): JSPrimitive;
 
 namespace conversion {
 
-builtin StringToNumber(implicit context: Context)(input: String): Number {
+builtin StringToNumber(input: String): Number {
   return ::StringToNumber(input);
 }
 
-transitioning builtin NonNumberToNumber(implicit context: Context)(
-    input: JSAnyNotNumber): Number {
+transitioning builtin NonNumberToNumber(
+    implicit context: Context)(input: JSAnyNotNumber): Number {
   return ::NonNumberToNumber(input);
 }
 
-transitioning builtin NonNumberToNumeric(implicit context: Context)(
-    input: JSAnyNotNumber): Numeric {
+transitioning builtin NonNumberToNumeric(
+    implicit context: Context)(input: JSAnyNotNumber): Numeric {
   return ::NonNumberToNumeric(input);
 }
 
@@ -40,7 +41,7 @@ transitioning builtin ToNumeric(implicit context: Context)(input: JSAny):
 }
 
 // ES section #sec-tostring-applied-to-the-number-type
-builtin NumberToString(implicit context: Context)(input: Number): String {
+builtin NumberToString(input: Number): String {
   return ::NumberToString(input);
 }
 
@@ -59,7 +60,8 @@ struct ToBooleanForBaselineJumpResult {
 //      to save it in the caller, and
 //   b) returns the true/false value as a Smi, to make the baseline-side
 //      comparison cheaper.
-builtin ToBooleanForBaselineJump(input: JSAny): ToBooleanForBaselineJumpResult {
+builtin ToBooleanForBaselineJump(input: JSAny):
+    ToBooleanForBaselineJumpResult {
   try {
     BranchIfToBooleanIsTrue(input) otherwise IsTrue, IsFalse;
   } label IsTrue {
@@ -157,17 +159,20 @@ transitioning builtin ToObject(implicit context: Context)(input: JSAny):
 
 // ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
 
-transitioning macro TryGetExoticToPrimitive(implicit context: Context)(
-    input: JSAny): JSAny labels OrdinaryToPrimitive {
+transitioning macro TryGetExoticToPrimitive(
+    implicit context: Context)(
+    input: JSReceiver): JSAny labels OrdinaryToPrimitive {
   // Look up the @@toPrimitive property.
   const exoticToPrimitive: JSAny =
-      GetProperty(input, ToPrimitiveSymbolConstant());
+      GetInterestingProperty(context, input, ToPrimitiveSymbolConstant())
+      otherwise OrdinaryToPrimitive;
   if (IsNullOrUndefined(exoticToPrimitive)) goto OrdinaryToPrimitive;
   return exoticToPrimitive;
 }
 
-transitioning macro CallExoticToPrimitive(implicit context: Context)(
-    input: JSAny, exoticToPrimitive: JSAny, hint: String): JSPrimitive {
+transitioning macro CallExoticToPrimitive(
+    implicit context: Context)(input: JSAny, exoticToPrimitive: JSAny,
+    hint: String): JSPrimitive {
   // Invoke the exoticToPrimitive method on the input with a string
   // representation of the hint.
   const result: JSAny = Call(context, exoticToPrimitive, input, hint);
@@ -192,8 +197,8 @@ transitioning builtin NonPrimitiveToPrimitive_Default(
       input, exoticToPrimitive, DefaultStringConstant());
 }
 
-transitioning builtin NonPrimitiveToPrimitive_Number(implicit context: Context)(
-    input: JSReceiver): JSPrimitive {
+transitioning builtin NonPrimitiveToPrimitive_Number(
+    implicit context: Context)(input: JSReceiver): JSPrimitive {
   const exoticToPrimitive: JSAny = TryGetExoticToPrimitive(input)
       otherwise return OrdinaryToPrimitive_Number_Inline(input);
   return CallExoticToPrimitive(
@@ -208,15 +213,16 @@ transitioning macro NonPrimitiveToPrimitive_String_Inline(
       input, exoticToPrimitive, StringStringConstant());
 }
 
-transitioning builtin NonPrimitiveToPrimitive_String(implicit context: Context)(
-    input: JSReceiver): JSPrimitive {
+transitioning builtin NonPrimitiveToPrimitive_String(
+    implicit context: Context)(input: JSReceiver): JSPrimitive {
   return NonPrimitiveToPrimitive_String_Inline(input);
 }
 
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )
 
-transitioning macro TryToPrimitiveMethod(implicit context: Context)(
-    input: JSAny, name: String): JSPrimitive labels Continue {
+transitioning macro TryToPrimitiveMethod(
+    implicit context: Context)(input: JSAny,
+    name: String): JSPrimitive labels Continue {
   const method: JSAny = GetProperty(input, name);
   typeswitch (method) {
     case (Callable): {
@@ -229,8 +235,8 @@ transitioning macro TryToPrimitiveMethod(implicit context: Context)(
   }
 }
 
-transitioning builtin OrdinaryToPrimitive_Number(implicit context: Context)(
-    input: JSAny): JSPrimitive {
+transitioning builtin OrdinaryToPrimitive_Number(
+    implicit context: Context)(input: JSAny): JSPrimitive {
   return OrdinaryToPrimitive_Number_Inline(input);
 }
 
@@ -247,8 +253,8 @@ transitioning builtin OrdinaryToPrimitive_Number_Inline(
   }
 }
 
-transitioning builtin OrdinaryToPrimitive_String(implicit context: Context)(
-    input: JSAny): JSPrimitive {
+transitioning builtin OrdinaryToPrimitive_String(
+    implicit context: Context)(input: JSAny): JSPrimitive {
   return OrdinaryToPrimitive_String_Inline(input);
 }
 

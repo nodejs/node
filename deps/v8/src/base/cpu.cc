@@ -410,6 +410,7 @@ CPU::CPU()
       has_non_stop_time_stamp_counter_(false),
       is_running_in_vm_(false),
       has_msa_(false),
+      riscv_mmu_(RV_MMU_MODE::kRiscvSV48),
       has_rvv_(false) {
   memcpy(vendor_, "Unknown", 8);
 
@@ -868,6 +869,7 @@ CPU::CPU()
 #endif  // !USE_SIMULATOR
 
 #elif V8_HOST_ARCH_RISCV64
+#if V8_OS_LINUX
   CPUInfo cpu_info;
   char* features = cpu_info.ExtractField("isa");
 
@@ -878,6 +880,17 @@ CPU::CPU()
     has_fpu_ = true;
     has_rvv_ = true;
   }
+  char* mmu = cpu_info.ExtractField("mmu");
+  if (HasListItem(mmu, "sv48")) {
+    riscv_mmu_ = RV_MMU_MODE::kRiscvSV48;
+  }
+  if (HasListItem(mmu, "sv39")) {
+    riscv_mmu_ = RV_MMU_MODE::kRiscvSV39;
+  }
+  if (HasListItem(mmu, "sv57")) {
+    riscv_mmu_ = RV_MMU_MODE::kRiscvSV57;
+  }
+#endif
 #endif  // V8_HOST_ARCH_RISCV64
 }
 

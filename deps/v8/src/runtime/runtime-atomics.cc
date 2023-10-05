@@ -629,6 +629,36 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructOrArray) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+template <typename WriteOperation>
+Object AtomicFieldWrite(Isolate* isolate, Handle<JSObject> object,
+                        Handle<Name> field_name, Handle<Object> value,
+                        WriteOperation write_operation) {
+  LookupIterator it(isolate, object, PropertyKey(isolate, field_name),
+                    LookupIterator::OWN);
+  Maybe<bool> result = Nothing<bool>();
+  if (it.IsFound()) {
+    if (!it.IsReadOnly()) {
+      return write_operation(it);
+    }
+    // Shared structs and arrays are non-extensible and have non-configurable,
+    // writable, enumerable properties. The only exception is SharedArrays'
+    // "length" property, which is non-writable.
+    result = Object::WriteToReadOnlyProperty(&it, value, Just(kThrowOnError));
+  } else {
+    // Shared structs are non-extensible. Instead of duplicating logic, call
+    // Object::AddDataProperty to handle the error case.
+    result = Object::AddDataProperty(&it, value, NONE, Just(kThrowOnError),
+                                     StoreOrigin::kMaybeKeyed);
+  }
+  // Treat as strict code and always throw an error.
+  DCHECK(result.IsNothing());
+  USE(result);
+  return ReadOnlyRoots(isolate).exception();
+}
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -639,21 +669,12 @@ RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
   Handle<Object> shared_value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
-  // Shared structs are prototypeless.
-  LookupIterator it(isolate, shared_struct_or_shared_array,
-                    PropertyKey(isolate, field_name), LookupIterator::OWN);
-  if (it.IsFound()) {
-    it.WriteDataValue(shared_value, kSeqCstAccess);
-    return *shared_value;
-  }
-  // Shared structs are non-extensible. Instead of duplicating logic, call
-  // Object::AddDataProperty to handle the error case.
-  Maybe<bool> result =
-      Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
-                              StoreOrigin::kMaybeKeyed);
-  DCHECK(result.IsNothing());
-  USE(result);
-  return ReadOnlyRoots(isolate).exception();
+
+  return AtomicFieldWrite(isolate, shared_struct_or_shared_array, field_name,
+                          shared_value, [=](LookupIterator it) {
+                            it.WriteDataValue(shared_value, kSeqCstAccess);
+                            return *shared_value;
+                          });
 }
 
 RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
@@ -666,18 +687,35 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
   Handle<Object> shared_value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
-  // Shared structs are prototypeless.
-  LookupIterator it(isolate, shared_struct_or_shared_array,
-                    PropertyKey(isolate, field_name), LookupIterator::OWN);
-  if (it.IsFound()) return *it.SwapDataValue(shared_value, kSeqCstAccess);
-  // Shared structs are non-extensible. Instead of duplicating logic, call
-  // Object::AddDataProperty to handle the error case.
-  Maybe<bool> result =
-      Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
-                              StoreOrigin::kMaybeKeyed);
-  DCHECK(result.IsNothing());
-  USE(result);
-  return ReadOnlyRoots(isolate).exception();
+
+  return AtomicFieldWrite(isolate, shared_struct_or_shared_array, field_name,
+                          shared_value, [=](LookupIterator it) {
+                            return *it.SwapDataValue(shared_value,
+                                                     kSeqCstAccess);
+                          });
 }
+
+RUNTIME_FUNCTION(Runtime_AtomicsCompareExchangeSharedStructOrArray) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
+  Handle<Name> field_name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
+                                     Object::ToName(isolate, args.at(1)));
+  Handle<Object> shared_expected;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, shared_expected,
+      Object::Share(isolate, args.at(2), kThrowOnError));
+  Handle<Object> shared_value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, shared_value, Object::Share(isolate, args.at(3), kThrowOnError));
+
+  return AtomicFieldWrite(isolate, shared_struct_or_shared_array, field_name,
+                          shared_value, [=](LookupIterator it) {
+                            return *it.CompareAndSwapDataValue(
+                                shared_expected, shared_value, kSeqCstAccess);
+                          });
+}
+
 }  // namespace internal
 }  // namespace v8

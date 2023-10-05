@@ -163,7 +163,7 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   void ProcessModuleHeader() {
     if (!ok()) return;
-    if (!processor_->ProcessModuleHeader(state_->buffer(), 0)) Fail();
+    if (!processor_->ProcessModuleHeader(state_->buffer())) Fail();
   }
 
   void ProcessSection(SectionBuffer* buffer) {

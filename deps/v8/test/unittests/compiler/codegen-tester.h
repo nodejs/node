@@ -60,14 +60,14 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
 
   ~RawMachineAssemblerTester() override = default;
 
-  void CheckNumber(double expected, Object number) {
-    CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
+  void CheckNumber(double expected, Tagged<Object> number) {
+    CHECK(Object::SameValue(*this->isolate()->factory()->NewNumber(expected),
+                            number));
   }
 
-  void CheckString(const char* expected, Object string) {
-    CHECK(
-        this->isolate()->factory()->InternalizeUtf8String(expected)->SameValue(
-            string));
+  void CheckString(const char* expected, Tagged<Object> string) {
+    CHECK(Object::SameValue(
+        *this->isolate()->factory()->InternalizeUtf8String(expected), string));
   }
 
   void GenerateCode() { Generate(); }
@@ -86,7 +86,7 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
           &info, isolate_, call_descriptor(), graph(),
           AssemblerOptions::Default(isolate_), schedule);
     }
-    return code_.ToHandleChecked()->code_entry_point();
+    return code_.ToHandleChecked()->instruction_start();
   }
 
   Zone* zone() { return zone_; }

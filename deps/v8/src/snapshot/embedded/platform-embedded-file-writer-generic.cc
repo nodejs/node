@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cinttypes>
 
-#include "src/objects/code.h"
+#include "src/objects/instruction-stream.h"
 
 namespace v8 {
 namespace internal {

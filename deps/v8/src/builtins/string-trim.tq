@@ -92,9 +92,9 @@ macro IsWhiteSpaceOrLineTerminator(charCode: char16|char8): bool {
   return false;
 }
 
-transitioning macro StringTrimLoop<T: type>(implicit context: Context)(
-    stringSlice: ConstSlice<T>, startIndex: intptr, endIndex: intptr,
-    increment: intptr): intptr {
+transitioning macro StringTrimLoop<T: type>(
+    implicit context: Context)(stringSlice: ConstSlice<T>, startIndex: intptr,
+    endIndex: intptr, increment: intptr): intptr {
   let index = startIndex;
   while (true) {
     if (index == endIndex) {
@@ -110,8 +110,9 @@ transitioning macro StringTrimLoop<T: type>(implicit context: Context)(
   unreachable;
 }
 
-transitioning macro StringTrimBody<T: type>(implicit context: Context)(
-    string: String, slice: ConstSlice<T>, variant: constexpr TrimMode): String {
+transitioning macro StringTrimBody<T: type>(
+    implicit context: Context)(string: String, slice: ConstSlice<T>,
+    variant: constexpr TrimMode): String {
   const stringLength: intptr = string.length_intptr;
 
   let startIndex: intptr = 0;
@@ -133,9 +134,9 @@ transitioning macro StringTrimBody<T: type>(implicit context: Context)(
   return SubString(string, Unsigned(startIndex), Unsigned(endIndex + 1));
 }
 
-transitioning macro StringTrim(implicit context: Context)(
-    receiver: JSAny, _arguments: Arguments, methodName: constexpr string,
-    variant: constexpr TrimMode): String {
+transitioning macro StringTrim(
+    implicit context: Context)(receiver: JSAny, _arguments: Arguments,
+    methodName: constexpr string, variant: constexpr TrimMode): String {
   const receiverString: String = ToThisString(receiver, methodName);
 
   try {
@@ -148,25 +149,25 @@ transitioning macro StringTrim(implicit context: Context)(
 }
 
 // ES6 #sec-string.prototype.trim
-transitioning javascript builtin
-StringPrototypeTrim(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+transitioning javascript builtin StringPrototypeTrim(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   const methodName: constexpr string = 'String.prototype.trim';
   return StringTrim(receiver, arguments, methodName, TrimMode::kTrim);
 }
 
 // https://github.com/tc39/proposal-string-left-right-trim
-transitioning javascript builtin
-StringPrototypeTrimStart(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+transitioning javascript builtin StringPrototypeTrimStart(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   const methodName: constexpr string = 'String.prototype.trimLeft';
   return StringTrim(receiver, arguments, methodName, TrimMode::kTrimStart);
 }
 
 // https://github.com/tc39/proposal-string-left-right-trim
-transitioning javascript builtin
-StringPrototypeTrimEnd(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+transitioning javascript builtin StringPrototypeTrimEnd(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   const methodName: constexpr string = 'String.prototype.trimRight';
   return StringTrim(receiver, arguments, methodName, TrimMode::kTrimEnd);
 }

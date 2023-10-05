@@ -11,9 +11,9 @@ extern macro ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
 
 // Proxy.revocable(target, handler)
 // https://tc39.github.io/ecma262/#sec-proxy.revocable
-transitioning javascript builtin
-ProxyRevocable(js-implicit context: NativeContext)(
-    target: JSAny, handler: JSAny): JSProxyRevocableResult {
+transitioning javascript builtin ProxyRevocable(
+    js-implicit context: NativeContext)(target: JSAny,
+    handler: JSAny): JSProxyRevocableResult {
   try {
     // 1. Let p be ? ProxyCreate(target, handler).
     const targetJSReceiver =

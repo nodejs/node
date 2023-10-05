@@ -30,7 +30,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // accessibly from the root list.
   RootIndex root_list_index;
   DCHECK(!isolate_->roots_table().IsRootHandle(object, &root_list_index));
-  DCHECK_IMPLIES(object->IsMap(), !HeapObject::cast(*object).InReadOnlySpace());
+  DCHECK_IMPLIES(IsMap(*object), !HeapObject::cast(*object).InReadOnlySpace());
 
   // Not yet finalized.
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
@@ -44,12 +44,12 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
 
   // All code objects should be loaded through the root register or use
   // pc-relative addressing.
-  DCHECK(!object->IsInstructionStream());
+  DCHECK(!IsInstructionStream(*object));
 #endif
 
   auto find_result = map_.FindOrInsert(object);
   if (!find_result.already_exists) {
-    DCHECK(object->IsHeapObject());
+    DCHECK(IsHeapObject(*object));
     *find_result.entry = map_.size() - 1;
   }
   return *find_result.entry;
@@ -76,13 +76,13 @@ void CheckPreconditionsForPatching(Isolate* isolate,
 void BuiltinsConstantsTableBuilder::PatchSelfReference(
     Handle<Object> self_reference, Handle<InstructionStream> code_object) {
   CheckPreconditionsForPatching(isolate_, code_object);
-  DCHECK(self_reference->IsOddball());
-  DCHECK(Oddball::cast(*self_reference).kind() ==
+  DCHECK(IsOddball(*self_reference));
+  DCHECK(Oddball::cast(*self_reference)->kind() ==
          Oddball::kSelfReferenceMarker);
 
   uint32_t key;
   if (map_.Delete(self_reference, &key)) {
-    DCHECK(code_object->IsInstructionStream());
+    DCHECK(IsInstructionStream(*code_object));
     map_.Insert(code_object, key);
   }
 }
@@ -115,21 +115,21 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   ConstantsMap::IteratableScope it_scope(&map_);
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     uint32_t index = *it.entry();
-    Object value = it.key();
-    if (value.IsCode() && Code::cast(value).kind() == CodeKind::BUILTIN) {
+    Tagged<Object> value = it.key();
+    if (IsCode(value) && Code::cast(value)->kind() == CodeKind::BUILTIN) {
       // Replace placeholder code objects with the real builtin.
       // See also: SetupIsolateDelegate::PopulateWithPlaceholders.
       // TODO(jgruber): Deduplicate placeholders and their corresponding
       // builtin.
-      value = builtins->code(Code::cast(value).builtin_id());
+      value = builtins->code(Code::cast(value)->builtin_id());
     }
-    DCHECK(value.IsHeapObject());
+    DCHECK(IsHeapObject(value));
     table->set(index, value);
   }
 
 #ifdef DEBUG
   for (int i = 0; i < map_.size(); i++) {
-    DCHECK(table->get(i).IsHeapObject());
+    DCHECK(IsHeapObject(table->get(i)));
     DCHECK_NE(ReadOnlyRoots(isolate_).undefined_value(), table->get(i));
     DCHECK_NE(ReadOnlyRoots(isolate_).self_reference_marker(), table->get(i));
     DCHECK_NE(ReadOnlyRoots(isolate_).basic_block_counters_marker(),

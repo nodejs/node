@@ -60,10 +60,10 @@
   0xd0, 0x65, 0x0b,        // ref.null none
 
   0x0a,                    // section kind: Code
-  0x99, 0x01,              // section length 153
+  0x9d, 0x01,              // section length 157
   0x01,                    // functions count 1
                            // function #0 $func0
-  0x96, 0x01,              // body size 150
+  0x9a, 0x01,              // body size 154
   0x00,                    // 0 entries in locals list
   0xfb, 0x08, 0x01,        // struct.new_default $type1
   0xfb, 0x03, 0x01, 0x00,  // struct.get $type1 $field0
@@ -124,10 +124,13 @@
   0x20, 0x00,              // local.get $var0
   0xd6, 0x00,              // br_on_non_null $label0
   0x20, 0x00,              // local.get $var0
-  0xfb, 0x46, 0x00, 0x01,  // br_on_cast $label0 $type1
+  0xfb, 0x4e, 0x01, 0x00, 0x00, 0x01,
+                           // br_on_cast $label0 (ref null $type0) (ref $type1)
   0x1a,                    // drop
   0x20, 0x00,              // local.get $var0
-  0xfb, 0x47, 0x00, 0x01,  // br_on_cast_fail $label0 $type1
+  0xfb, 0x4f, 0x02, 0x00, 0x00, 0x01,
+                           // br_on_cast_fail $label0 (ref $type0)
+                           //   (ref null $type1)
   0x1a,                    // drop
   0x20, 0x00,              // local.get $var0
   0x0b,                    // end $label0

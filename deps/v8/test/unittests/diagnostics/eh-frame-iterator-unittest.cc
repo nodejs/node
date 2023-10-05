@@ -20,7 +20,7 @@ class EhFrameIteratorTest : public testing::Test {};
 
 TEST_F(EhFrameIteratorTest, Values) {
   // Assuming little endian.
-  static const byte kEncoded[] = {0xDE, 0xC0, 0xAD, 0xDE, 0xEF, 0xBE, 0xFF};
+  static const uint8_t kEncoded[] = {0xDE, 0xC0, 0xAD, 0xDE, 0xEF, 0xBE, 0xFF};
   EhFrameIterator iterator(&kEncoded[0], &kEncoded[0] + sizeof(kEncoded));
   EXPECT_EQ(0xDEADC0DE, iterator.GetNextUInt32());
   EXPECT_EQ(0xBEEF, iterator.GetNextUInt16());
@@ -29,7 +29,7 @@ TEST_F(EhFrameIteratorTest, Values) {
 }
 
 TEST_F(EhFrameIteratorTest, Skip) {
-  static const byte kEncoded[] = {0xDE, 0xAD, 0xC0, 0xDE};
+  static const uint8_t kEncoded[] = {0xDE, 0xAD, 0xC0, 0xDE};
   EhFrameIterator iterator(&kEncoded[0], &kEncoded[0] + sizeof(kEncoded));
   iterator.Skip(2);
   EXPECT_EQ(2, iterator.GetCurrentOffset());
@@ -39,21 +39,21 @@ TEST_F(EhFrameIteratorTest, Skip) {
 }
 
 TEST_F(EhFrameIteratorTest, ULEB128Decoding) {
-  static const byte kEncoded[] = {0xE5, 0x8E, 0x26};
+  static const uint8_t kEncoded[] = {0xE5, 0x8E, 0x26};
   EhFrameIterator iterator(&kEncoded[0], &kEncoded[0] + sizeof(kEncoded));
   EXPECT_EQ(624485u, iterator.GetNextULeb128());
   EXPECT_TRUE(iterator.Done());
 }
 
 TEST_F(EhFrameIteratorTest, SLEB128DecodingPositive) {
-  static const byte kEncoded[] = {0xE5, 0x8E, 0x26};
+  static const uint8_t kEncoded[] = {0xE5, 0x8E, 0x26};
   EhFrameIterator iterator(&kEncoded[0], &kEncoded[0] + sizeof(kEncoded));
   EXPECT_EQ(624485, iterator.GetNextSLeb128());
   EXPECT_TRUE(iterator.Done());
 }
 
 TEST_F(EhFrameIteratorTest, SLEB128DecodingNegative) {
-  static const byte kEncoded[] = {0x9B, 0xF1, 0x59};
+  static const uint8_t kEncoded[] = {0x9B, 0xF1, 0x59};
   EhFrameIterator iterator(&kEncoded[0], &kEncoded[0] + sizeof(kEncoded));
   EXPECT_EQ(-624485, iterator.GetNextSLeb128());
   EXPECT_TRUE(iterator.Done());

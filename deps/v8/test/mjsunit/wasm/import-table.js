@@ -180,7 +180,7 @@ function addConstFuncUsingMemory(builder, val) {
     builder.address = 8;
     let signums = addSigs(builder, 1);
 
-    builder.addMemory(1, 1, false);
+    builder.addMemory(1, 1);
     builder.addImportedTable("m", "table", kTableSize, kTableSize);
     let f13 = addConstFuncUsingMemory(builder, 13);
     let call = builder.addFunction("call", kSig_i_i)
@@ -203,7 +203,7 @@ function addConstFuncUsingMemory(builder, val) {
     builder.address = 8;
     let signums = addSigs(builder, 4);  // ensure different sigids
 
-    builder.addMemory(1, 1, false);
+    builder.addMemory(1, 1);
     builder.addImportedTable("m", "table", kTableSize, kTableSize);
     let f13 = builder.addImport("m", "f13", kSig_i_v);
     let f19 = builder.addImport("m", "f19", kSig_i_v);

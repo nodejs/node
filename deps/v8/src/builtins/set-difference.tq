@@ -1,0 +1,192 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace collections {
+
+// https://tc39.es/proposal-set-methods/#sec-set.prototype.difference
+transitioning javascript builtin SetPrototypeDifference(
+    js-implicit context: NativeContext, receiver: JSAny)(other: JSAny): JSSet {
+  const methodName: constexpr string = 'Set.prototype.difference';
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+  const o = Cast<JSSet>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
+
+  // 3. Let otherRec be ? GetSetRecord(other).
+  let otherRec = GetSetRecord(other, methodName);
+
+  const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
+
+  // 4. Let resultSetData be a copy of O.[[SetData]].
+  let resultSetData = Cast<OrderedHashSet>(CloneFixedArray(
+      table, ExtractFixedArrayFlag::kFixedArrays)) otherwise unreachable;
+
+  // 5. Let thisSize be the number of elements in O.[[SetData]].
+  const thisSize =
+      LoadOrderedHashTableMetadata(table, kOrderedHashSetNumberOfElementsIndex);
+
+  let numberOfElements = Convert<Smi>(thisSize);
+
+  try {
+    typeswitch (other) {
+      case (otherSet: JSSetWithNoCustomIteration): {
+        CheckSetRecordHasJSSetMethods(otherRec) otherwise SlowPath;
+
+        const otherTable =
+            Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
+
+        const otherSize = LoadOrderedHashTableMetadata(
+            otherTable, kOrderedHashSetNumberOfElementsIndex);
+
+        if (thisSize <= otherSize) {
+          numberOfElements =
+              FastDifference<OrderedHashSet>(table, otherTable, resultSetData);
+        } else {
+          numberOfElements = FastDifference<OrderedHashSet>(
+              otherTable, resultSetData, resultSetData);
+        }
+        goto Done;
+      }
+      case (otherMap: JSMapWithNoCustomIteration): {
+        CheckSetRecordHasJSMapMethods(otherRec) otherwise SlowPath;
+
+        const otherTable =
+            Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;
+
+        const otherSize = LoadOrderedHashTableMetadata(
+            otherTable, kOrderedHashSetNumberOfElementsIndex);
+
+        if (thisSize <= otherSize) {
+          numberOfElements =
+              FastDifference<OrderedHashMap>(table, otherTable, resultSetData);
+          goto Done;
+        } else {
+          // TODO(13556): Change `FastDifference` macro to be able to handle
+          // this case as well.
+          let otherIterator =
+              collections::NewUnmodifiedOrderedHashMapIterator(otherTable);
+
+          // c. Repeat, while next is not false,
+          while (true) {
+            const nextValue = otherIterator.Next() otherwise Done;
+
+            if (TableHasKey(resultSetData, nextValue.key)) {
+              //   a. Remove nextValue from resultSetData.
+              numberOfElements =
+                  DeleteFromSetTable(resultSetData, nextValue.key)
+                  otherwise unreachable;
+            }
+          }
+        }
+      }
+      case (JSAny): {
+        goto SlowPath;
+      }
+    }
+  } label SlowPath {
+    // 6. If thisSize ≤ otherRec.[[Size]], then
+    if (thisSize <= Convert<int32>(otherRec.size)) {
+      // a. Let index be 0.
+      let thisIter = collections::NewOrderedHashSetIterator(table);
+
+      // b. Repeat, while index < thisSize,
+      while (true) {
+        // i. Let e be O.[[SetData]][index].
+        const key = thisIter.Next() otherwise Done;
+
+        // ii. Set index to index + 1.
+        // iii. If e is not empty, then
+        //   1. Let inOther be ToBoolean(? Call(otherRec.[[Has]],
+        // otherRec.[[Set]], « e »)).
+        const inOther =
+            ToBoolean(Call(context, otherRec.has, otherRec.object, key));
+
+        //   2. If inOther is true, then
+        if (inOther) {
+          try {
+            // a. Set resultSetData[index] to empty.
+            numberOfElements = DeleteFromSetTable(resultSetData, key)
+                otherwise NotFound;
+          } label NotFound {
+            // Do nothing and go back to the while loop.
+          }
+        }
+      }
+    } else {
+      // a. Let keysIter be ? GetKeysIterator(otherRec).
+      let keysIter =
+          GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
+
+      // b. Let next be true.
+      let nextRecord: JSReceiver;
+
+      // c. Repeat, while next is not false,
+      while (true) {
+        // i. Set next to ? IteratorStep(keysIter).
+        nextRecord = iterator::IteratorStep(keysIter, fastIteratorResultMap)
+            otherwise Done;
+        // ii. If next is not false, then
+        //   1. Let nextValue be ? IteratorValue(next).
+        let nextValue =
+            iterator::IteratorValue(nextRecord, fastIteratorResultMap);
+
+        //   2. If nextValue is -0𝔽, set nextValue to +0𝔽.
+        nextValue = collections::NormalizeNumberKey(nextValue);
+
+        //   3. If SetDataHas(resultSetData, nextValue) is true, then
+
+        if (TableHasKey(resultSetData, nextValue)) {
+          //   a. Remove nextValue from resultSetData.
+          numberOfElements = DeleteFromSetTable(resultSetData, nextValue)
+              otherwise unreachable;
+        }
+      }
+    }
+  } label Done {
+    resultSetData =
+        ShrinkOrderedHashSetIfNeeded(numberOfElements, resultSetData);
+    return new JSSet{
+      map: *NativeContextSlot(ContextSlot::JS_SET_MAP_INDEX),
+      properties_or_hash: kEmptyFixedArray,
+      elements: kEmptyFixedArray,
+      table: resultSetData
+    };
+  }
+  unreachable;
+}
+
+// This macro creates an iterator from a collection that need to be iterated
+// (collectionToIterate), lookup each value of the iterator in a table that
+// needs to be checked (tableToLookup), and delete the value from result
+// (resultSetData) if it exists in the table.
+macro FastDifference<T : type extends FixedArray>(
+    implicit context: Context)(collectionToIterate: OrderedHashSet,
+    tableToLookup: T, resultSetData: OrderedHashSet): Smi {
+  let iter =
+      collections::NewUnmodifiedOrderedHashSetIterator(collectionToIterate);
+
+  let numberOfElements = UnsafeCast<Smi>(
+      resultSetData.objects[kOrderedHashSetNumberOfElementsIndex]);
+  try {
+    while (true) {
+      const nextValue = iter.Next() otherwise Done;
+
+      if (TableHasKey(tableToLookup, nextValue)) {
+        try {
+          numberOfElements = DeleteFromSetTable(resultSetData, nextValue)
+              otherwise NotFound;
+        } label NotFound {
+          // Do nothing and go back to the while loop.
+        }
+      }
+    }
+  } label Done {
+    return numberOfElements;
+  }
+  unreachable;
+}
+}

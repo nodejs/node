@@ -67,13 +67,27 @@ class GraphTest : public TestWithNativeContextAndZone {
   SourcePositionTable* source_positions() { return &source_positions_; }
   NodeOriginTable* node_origins() { return &node_origins_; }
   JSHeapBroker* broker() { return &broker_; }
+  template <typename T>
+  Handle<T> CanonicalHandle(T object) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return CanonicalHandle(Tagged<T>(object));
+  }
+  template <typename T>
+  Handle<T> CanonicalHandle(Tagged<T> object) {
+    return broker()->CanonicalPersistentHandle(object);
+  }
+  template <typename T>
+  Handle<T> CanonicalHandle(Handle<T> handle) {
+    return CanonicalHandle(*handle);
+  }
   TickCounter* tick_counter() { return &tick_counter_; }
 
  private:
-  CanonicalHandleScope canonical_;
   CommonOperatorBuilder common_;
   Graph graph_;
   JSHeapBroker broker_;
+  JSHeapBrokerScopeForTesting broker_scope_;
+  std::unique_ptr<PersistentHandlesScope> persistent_scope_;
   CurrentHeapBrokerScope current_broker_;
   SourcePositionTable source_positions_;
   NodeOriginTable node_origins_;

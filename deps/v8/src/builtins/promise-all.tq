@@ -16,8 +16,8 @@ const kPromiseBuiltinsPromiseContextLength: constexpr int31
 // closures), and we also need to have a separate marker for when the closure
 // was called already (we slap the native context onto the closure in that
 // case to mark it's done).
-macro CreatePromiseAllResolveElementContext(implicit context: Context)(
-    capability: PromiseCapability,
+macro CreatePromiseAllResolveElementContext(
+    implicit context: Context)(capability: PromiseCapability,
     nativeContext: NativeContext): PromiseAllResolveElementContext {
   const resolveContext = %RawDownCast<
       PromiseAllResolveElementContext>(AllocateSyntheticFunctionContext(
@@ -40,7 +40,8 @@ macro CreatePromiseAllResolveElementContext(implicit context: Context)(
   return resolveContext;
 }
 
-macro CreatePromiseAllResolveElementFunction(implicit context: Context)(
+macro CreatePromiseAllResolveElementFunction(
+    implicit context: Context)(
     resolveElementContext: PromiseAllResolveElementContext, index: Smi,
     nativeContext: NativeContext,
     resolveFunction: SharedFunctionInfo): JSFunction {
@@ -58,9 +59,9 @@ macro CreatePromiseAllResolveElementFunction(implicit context: Context)(
 }
 
 @export
-macro CreatePromiseResolvingFunctionsContext(implicit context: Context)(
-    promise: JSPromise, debugEvent: Boolean, nativeContext: NativeContext):
-    PromiseResolvingFunctionContext {
+macro CreatePromiseResolvingFunctionsContext(
+    implicit context: Context)(promise: JSPromise, debugEvent: Boolean,
+    nativeContext: NativeContext): PromiseResolvingFunctionContext {
   const resolveContext = %RawDownCast<PromiseResolvingFunctionContext>(
       AllocateSyntheticFunctionContext(
           nativeContext,
@@ -80,8 +81,9 @@ macro CreatePromiseResolvingFunctionsContext(implicit context: Context)(
   return resolveContext;
 }
 
-macro IsPromiseThenLookupChainIntact(implicit context: Context)(
-    nativeContext: NativeContext, receiverMap: Map): bool {
+macro IsPromiseThenLookupChainIntact(
+    implicit context: Context)(nativeContext: NativeContext,
+    receiverMap: Map): bool {
   if (IsForceSlowPath()) return false;
   if (!IsJSPromiseMap(receiverMap)) return false;
   if (receiverMap.prototype != *NativeContextSlot(
@@ -92,7 +94,8 @@ macro IsPromiseThenLookupChainIntact(implicit context: Context)(
 }
 
 struct PromiseAllResolveElementFunctor {
-  macro Call(implicit context: Context)(
+  macro Call(
+      implicit context: Context)(
       resolveElementContext: PromiseAllResolveElementContext,
       nativeContext: NativeContext, index: Smi,
       _capability: PromiseCapability): Callable {
@@ -103,7 +106,8 @@ struct PromiseAllResolveElementFunctor {
 }
 
 struct PromiseAllRejectElementFunctor {
-  macro Call(implicit context: Context)(
+  macro Call(
+      implicit context: Context)(
       _resolveElementContext: PromiseAllResolveElementContext,
       _nativeContext: NativeContext, _index: Smi,
       capability: PromiseCapability): Callable {
@@ -112,7 +116,8 @@ struct PromiseAllRejectElementFunctor {
 }
 
 struct PromiseAllSettledResolveElementFunctor {
-  macro Call(implicit context: Context)(
+  macro Call(
+      implicit context: Context)(
       resolveElementContext: PromiseAllResolveElementContext,
       nativeContext: NativeContext, index: Smi,
       _capability: PromiseCapability): Callable {
@@ -123,7 +128,8 @@ struct PromiseAllSettledResolveElementFunctor {
 }
 
 struct PromiseAllSettledRejectElementFunctor {
-  macro Call(implicit context: Context)(
+  macro Call(
+      implicit context: Context)(
       resolveElementContext: PromiseAllResolveElementContext,
       nativeContext: NativeContext, index: Smi,
       _capability: PromiseCapability): Callable {
@@ -134,11 +140,10 @@ struct PromiseAllSettledRejectElementFunctor {
 }
 
 transitioning macro PerformPromiseAll<F1: type, F2: type>(
-    implicit context: Context)(
-    nativeContext: NativeContext, iter: iterator::IteratorRecord,
-    constructor: Constructor, capability: PromiseCapability,
-    promiseResolveFunction: JSAny, createResolveElementFunctor: F1,
-    createRejectElementFunctor: F2,
+    implicit context: Context)(nativeContext: NativeContext,
+    iter: iterator::IteratorRecord, constructor: Constructor,
+    capability: PromiseCapability, promiseResolveFunction: JSAny,
+    createResolveElementFunctor: F1, createRejectElementFunctor: F2,
     hasResolveAndRejectClosures: constexpr bool): JSAny labels
 Reject(JSAny) {
   const promise = capability.promise;
@@ -278,15 +283,16 @@ Reject(JSAny) {
 
   check(remainingElementsCount >= 0);
 
+  const valuesRef:&FixedArray = ContextSlot(
+      resolveElementContext,
+      PromiseAllResolveElementContextSlots::
+          kPromiseAllResolveElementValuesSlot);
+  const values = *valuesRef;
+
   if (remainingElementsCount > 0) {
     // Pre-allocate the backing store for the {values} to the desired
     // capacity. We may already have elements in "values" - this happens
     // when the Thenable calls the resolve callback immediately.
-    const valuesRef:&FixedArray = ContextSlot(
-        resolveElementContext,
-        PromiseAllResolveElementContextSlots::
-            kPromiseAllResolveElementValuesSlot);
-    const values = *valuesRef;
     // 'index' is a 1-based index and incremented after every Promise. Later we
     // use 'values' as a 0-based array, so capacity 'index - 1' is enough.
     const newCapacity = SmiUntag(index) - 1;
@@ -301,19 +307,23 @@ Reject(JSAny) {
       //     Let valuesArray be CreateArrayFromList(values).
       //     Perform ? Call(resultCapability.[[Resolve]], undefined,
       //                    « valuesArray »).
-
-      const values: FixedArray = *ContextSlot(
-          resolveElementContext,
-          PromiseAllResolveElementContextSlots::
-              kPromiseAllResolveElementValuesSlot);
       const arrayMap =
           *NativeContextSlot(
           nativeContext, ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
 
+      // After this point, values escapes to user code.
+      //
       // If resolve and reject handlers close over values to keep track of
       // whether an input promise is already settled, mark the values array as
-      // COW before letting it escape to user code.
-      if (hasResolveAndRejectClosures) MakeFixedArrayCOW(values);
+      // COW. The original values array is still needed to guard against resolve
+      // or reject being called multiple times for an element.
+      //
+      // Otherwise, clear the slot.
+      if (hasResolveAndRejectClosures) {
+        MakeFixedArrayCOW(values);
+      } else {
+        *valuesRef = kEmptyFixedArray;
+      }
 
       const valuesArray = NewJSArray(arrayMap, values);
       Call(nativeContext, UnsafeCast<JSAny>(resolve), Undefined, valuesArray);
@@ -324,9 +334,9 @@ Reject(JSAny) {
 }
 
 transitioning macro GeneratePromiseAll<F1: type, F2: type>(
-    implicit context: Context)(
-    receiver: JSAny, iterable: JSAny, createResolveElementFunctor: F1,
-    createRejectElementFunctor: F2, message: constexpr string,
+    implicit context: Context)(receiver: JSAny, iterable: JSAny,
+    createResolveElementFunctor: F1, createRejectElementFunctor: F2,
+    message: constexpr string,
     hasResolveAndRejectClosures: constexpr bool): JSAny {
   const nativeContext = LoadNativeContext(context);
   // Let C be the this value.

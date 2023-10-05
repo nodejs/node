@@ -153,6 +153,24 @@ class ElapsedTimer final {
 #endif
 };
 
+// Helper that times a scoped region and records the elapsed time.
+struct ScopedTimer {
+  explicit ScopedTimer(TimeDelta* location) : location_(location) {
+    if (location_) {
+      timer_.Start();
+    }
+  }
+
+  ~ScopedTimer() {
+    if (location_) {
+      *location_ += timer_.Elapsed();
+    }
+  }
+
+  ElapsedTimer timer_;
+  TimeDelta* location_;
+};
+
 }  // namespace base
 }  // namespace v8
 

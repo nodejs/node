@@ -71,8 +71,8 @@ int ComputeStringTableCapacityWithShrink(int current_capacity,
 
 template <typename IsolateT, typename StringTableKey>
 bool KeyIsMatch(IsolateT* isolate, StringTableKey* key, String string) {
-  if (string.hash() != key->hash()) return false;
-  if (string.length() != key->length()) return false;
+  if (string->hash() != key->hash()) return false;
+  if (string->length() != key->length()) return false;
   return key->IsMatch(isolate, string);
 }
 
@@ -238,7 +238,7 @@ std::unique_ptr<StringTable::Data> StringTable::Data::Resize(
     Object element = data->Get(cage_base, i);
     if (element == empty_element() || element == deleted_element()) continue;
     String string = String::cast(element);
-    uint32_t hash = string.hash();
+    uint32_t hash = string->hash();
     InternalIndex insertion_index =
         new_data->FindInsertionEntry(cage_base, hash);
     new_data->Set(insertion_index, string);
@@ -350,7 +350,7 @@ class InternalizedStringKey final : public StringTableKey {
     // internalized the key, in which case StringTable::LookupKey will perform a
     // redundant lookup and return the already internalized copy.
     DCHECK_IMPLIES(!v8_flags.shared_string_table,
-                   !string->IsInternalizedString());
+                   !IsInternalizedString(*string));
     DCHECK(string->IsFlat());
     DCHECK(String::IsHashFieldComputed(hash));
   }
@@ -426,7 +426,7 @@ class InternalizedStringKey final : public StringTableKey {
       // Migrations to thin are impossible, as we only call this method on table
       // misses inside the critical section.
       string_->set_map_safe_transition_no_write_barrier(*internalized_map);
-      DCHECK(string_->IsInternalizedString());
+      DCHECK(IsInternalizedString(*string_));
       return string_;
     }
     // We prepared an internalized copy for the string or the string was already
@@ -454,12 +454,12 @@ namespace {
 
 void SetInternalizedReference(Isolate* isolate, String string,
                               String internalized) {
-  DCHECK(!string.IsThinString());
-  DCHECK(!string.IsInternalizedString());
-  DCHECK(internalized.IsInternalizedString());
-  DCHECK(!internalized.HasInternalizedForwardingIndex(kAcquireLoad));
-  if (string.IsShared() || v8_flags.always_use_string_forwarding_table) {
-    uint32_t field = string.raw_hash_field(kAcquireLoad);
+  DCHECK(!IsThinString(string));
+  DCHECK(!IsInternalizedString(string));
+  DCHECK(IsInternalizedString(internalized));
+  DCHECK(!internalized->HasInternalizedForwardingIndex(kAcquireLoad));
+  if (string->IsShared() || v8_flags.always_use_string_forwarding_table) {
+    uint32_t field = string->raw_hash_field(kAcquireLoad);
     // Don't use the forwarding table for strings that have an integer index.
     // Using the hash field for the integer index is more beneficial than
     // using it to store the forwarding index to the internalized string.
@@ -479,18 +479,18 @@ void SetInternalizedReference(Isolate* isolate, String string,
                                                               internalized);
       // Update the forwarding index type to include internalized.
       field = Name::IsInternalizedForwardingIndexBit::update(field, true);
-      string.set_raw_hash_field(field, kReleaseStore);
+      string->set_raw_hash_field(field, kReleaseStore);
     } else {
       const int forwarding_index =
           isolate->string_forwarding_table()->AddForwardString(string,
                                                                internalized);
-      string.set_raw_hash_field(
+      string->set_raw_hash_field(
           String::CreateInternalizedForwardingIndex(forwarding_index),
           kReleaseStore);
     }
   } else {
-    DCHECK(!string.HasForwardingIndex(kAcquireLoad));
-    string.MakeThin(isolate, internalized);
+    DCHECK(!string->HasForwardingIndex(kAcquireLoad));
+    string->MakeThin(isolate, internalized);
   }
 }
 
@@ -527,7 +527,7 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   // For lookup hits, we use the StringForwardingTable for shared strings to
   // delay the transition into a ThinString to the next stop-the-world GC.
   Handle<String> result = String::Flatten(isolate, string);
-  if (!result->IsInternalizedString()) {
+  if (!IsInternalizedString(*result)) {
     uint32_t raw_hash_field = result->raw_hash_field(kAcquireLoad);
 
     if (String::IsInternalizedForwardingIndex(raw_hash_field)) {
@@ -544,7 +544,7 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
       result = LookupKey(isolate, &key);
     }
   }
-  if (*string != *result && !string->IsThinString()) {
+  if (*string != *result && !IsThinString(*string)) {
     SetInternalizedReference(isolate, *string, *result);
   }
   return result;
@@ -599,7 +599,7 @@ Handle<String> StringTable::LookupKey(IsolateT* isolate, StringTableKey* key) {
   if (entry.is_found()) {
     Handle<String> result(String::cast(current_data->Get(isolate, entry)),
                           isolate);
-    DCHECK_IMPLIES(v8_flags.shared_string_table, result->InSharedHeap());
+    DCHECK_IMPLIES(v8_flags.shared_string_table, Object::InSharedHeap(*result));
     return result;
   }
 
@@ -712,14 +712,14 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
 
   DisallowGarbageCollection no_gc;
 
-  int length = string.length();
+  int length = string->length();
   // The source hash is usable if it is not from a sliced string.
   // For sliced strings we need to recalculate the hash from the given offset
   // with the correct length.
-  const bool is_source_hash_usable = start == 0 && length == source.length();
+  const bool is_source_hash_usable = start == 0 && length == source->length();
 
   // First check if the string constains a forwarding index.
-  uint32_t raw_hash_field = source.raw_hash_field(kAcquireLoad);
+  uint32_t raw_hash_field = source->raw_hash_field(kAcquireLoad);
   if (Name::IsInternalizedForwardingIndex(raw_hash_field) &&
       is_source_hash_usable) {
     const int index = Name::ForwardingIndexValueBits::decode(raw_hash_field);
@@ -734,8 +734,8 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   const Char* chars;
 
   SharedStringAccessGuardIfNeeded access_guard(isolate);
-  if (source.IsConsString(isolate)) {
-    DCHECK(!source.IsFlat(isolate));
+  if (IsConsString(source, isolate)) {
+    DCHECK(!source->IsFlat(isolate));
     buffer.reset(new Char[length]);
     String::WriteToFlat(source, buffer.get(), 0, length, isolate, access_guard);
     chars = buffer.get();
@@ -778,7 +778,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   // If we found and entry in the string table and string is not internalized,
   // there is no way that it can transition to internalized later on. So a last
   // check here is sufficient.
-  if (!string.IsInternalizedString()) {
+  if (!IsInternalizedString(string)) {
     SetInternalizedReference(isolate, string, internalized);
   } else {
     DCHECK(v8_flags.shared_string_table);
@@ -790,7 +790,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
 Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                       Address raw_string) {
   String string = String::cast(Object(raw_string));
-  if (string.IsInternalizedString()) {
+  if (IsInternalizedString(string)) {
     // string could be internalized, if the string table is shared and another
     // thread internalized it.
     DCHECK(v8_flags.shared_string_table);
@@ -806,21 +806,21 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
 
   size_t start = 0;
   String source = string;
-  if (source.IsSlicedString()) {
+  if (IsSlicedString(source)) {
     SlicedString sliced = SlicedString::cast(source);
-    start = sliced.offset();
-    source = sliced.parent();
-  } else if (source.IsConsString() && source.IsFlat()) {
-    source = ConsString::cast(source).first();
+    start = sliced->offset();
+    source = sliced->parent();
+  } else if (IsConsString(source) && source->IsFlat()) {
+    source = ConsString::cast(source)->first();
   }
-  if (source.IsThinString()) {
-    source = ThinString::cast(source).actual();
-    if (string.length() == source.length()) {
+  if (IsThinString(source)) {
+    source = ThinString::cast(source)->actual();
+    if (string->length() == source->length()) {
       return source.ptr();
     }
   }
 
-  if (source.IsOneByteRepresentation()) {
+  if (source->IsOneByteRepresentation()) {
     return StringTable::Data::TryStringToIndexOrLookupExisting<uint8_t>(
         isolate, string, source, start);
   }

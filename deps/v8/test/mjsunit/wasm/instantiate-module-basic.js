@@ -10,7 +10,8 @@ let kReturnValue = 17;
 
 let buffer = (() => {
   let builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
+  builder.exportMemoryAs('memory');
   builder.addFunction('main', kSig_i_v)
       .addBody([kExprI32Const, kReturnValue])
       .exportFunc();
@@ -231,7 +232,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 
 (function TestNoMemoryToExport() {
   let builder = new WasmModuleBuilder();
-  builder.exportMemoryAs('memory');
+  builder.exportMemoryAs('memory', 0);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError);
 })();
 

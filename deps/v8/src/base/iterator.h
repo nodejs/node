@@ -93,7 +93,7 @@ struct DerefPtrIterator : base::iterator<std::bidirectional_iterator_tag, T> {
 // The signature avoids binding to temporaries (T&& / const T&) on purpose. The
 // lifetime of a temporary would not extend to a range-based for loop using it.
 template <typename T>
-auto Reversed(T& t) {  // NOLINT(runtime/references): match {rbegin} and {rend}
+auto Reversed(T& t) {
   return make_iterator_range(std::rbegin(t), std::rend(t));
 }
 
@@ -103,6 +103,31 @@ auto Reversed(T& t) {  // NOLINT(runtime/references): match {rbegin} and {rend}
 template <typename T>
 auto Reversed(const iterator_range<T>& t) {
   return make_iterator_range(std::rbegin(t), std::rend(t));
+}
+
+// {IterateWithoutLast} returns a container adapter usable in a range-based
+// "for" statement for iterating all elements without the last in a forward
+// order. It performs a check whether the container is empty.
+//
+// Example:
+//
+//   std::vector<int> v = ...;
+//   for (int i : base::IterateWithoutLast(v)) {
+//     // iterates through v front to --back
+//   }
+//
+// The signature avoids binding to temporaries, see the remark in {Reversed}.
+template <typename T>
+auto IterateWithoutLast(T& t) {
+  DCHECK_NE(std::begin(t), std::end(t));
+  auto new_end = std::end(t);
+  return make_iterator_range(std::begin(t), --new_end);
+}
+
+template <typename T>
+auto IterateWithoutLast(const iterator_range<T>& t) {
+  iterator_range<T> range_copy = {t.begin(), t.end()};
+  return IterateWithoutLast(range_copy);
 }
 
 }  // namespace base

@@ -7,6 +7,7 @@ Date: 2019-08-08
 License: Apache 2.0
 License File: LICENSE
 Security Critical: yes
+Shipped: yes
 
 Description:
 Provides a "black box" API for embedding a Wasm engine in C/C++ applications.

@@ -30,11 +30,21 @@ V8_INLINE Address PointerAuthentication::AuthenticatePC(
       "  mov x17, %[pc]\n"
       "  mov x16, %[stack_ptr]\n"
       "  autib1716\n"
-      "  ldr xzr, [x17]\n"
       "  mov %[pc], x17\n"
+      // Save LR.
+      "  mov x16, x30\n"
+      // Check if authentication was successful, otherwise crash.
+      "  mov x30, x17\n"
+      "  xpaclri\n"
+      "  cmp x30, x17\n"
+      // Restore LR.
+      "  mov x30, x16\n"
+      "  b.eq 1f\n"
+      "  brk #0\n"
+      "1:\n"
       : [pc] "+r"(pc)
       : [stack_ptr] "r"(sp)
-      : "x16", "x17");
+      : "x16", "x17", "x30");
 #endif
   return pc;
 }
@@ -86,10 +96,20 @@ V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
       "  mov %[new_pc], x17\n"
       "  mov x17, %[old_pc]\n"
       "  autib1716\n"
-      "  ldr xzr, [x17]\n"
+      // Save LR.
+      "  mov x16, x30\n"
+      // Check if authentication was successful, otherwise crash.
+      "  mov x30, x17\n"
+      "  xpaclri\n"
+      "  cmp x30, x17\n"
+      // Restore LR.
+      "  mov x30, x16\n"
+      "  b.eq 1f\n"
+      "  brk #0\n"
+      "1:\n"
       : [new_pc] "+&r"(new_pc)
       : [sp] "r"(sp), [old_pc] "r"(old_pc)
-      : "x16", "x17");
+      : "x16", "x17", "x30");
 #endif
   *pc_address = new_pc;
 }

@@ -388,13 +388,19 @@ struct FastOneByteString {
 
 class V8_EXPORT CFunctionInfo {
  public:
+  enum class Int64Representation : uint8_t {
+    kNumber = 0,  // Use numbers to represent 64 bit integers.
+    kBigInt = 1,  // Use BigInts to represent 64 bit integers.
+  };
+
   // Construct a struct to hold a CFunction's type information.
   // |return_info| describes the function's return type.
   // |arg_info| is an array of |arg_count| CTypeInfos describing the
   //   arguments. Only the last argument may be of the special type
   //   CTypeInfo::kCallbackOptionsType.
   CFunctionInfo(const CTypeInfo& return_info, unsigned int arg_count,
-                const CTypeInfo* arg_info);
+                const CTypeInfo* arg_info,
+                Int64Representation repr = Int64Representation::kNumber);
 
   const CTypeInfo& ReturnInfo() const { return return_info_; }
 
@@ -403,6 +409,8 @@ class V8_EXPORT CFunctionInfo {
   unsigned int ArgumentCount() const {
     return HasOptions() ? arg_count_ - 1 : arg_count_;
   }
+
+  Int64Representation GetInt64Representation() const { return repr_; }
 
   // |index| must be less than ArgumentCount().
   //  Note: if the last argument passed on construction of CFunctionInfo
@@ -418,6 +426,7 @@ class V8_EXPORT CFunctionInfo {
 
  private:
   const CTypeInfo return_info_;
+  const Int64Representation repr_;
   const unsigned int arg_count_;
   const CTypeInfo* arg_info_;
 };
@@ -469,6 +478,9 @@ class V8_EXPORT CFunction {
   unsigned int ArgumentCount() const { return type_info_->ArgumentCount(); }
 
   const void* GetAddress() const { return address_; }
+  CFunctionInfo::Int64Representation GetInt64Representation() const {
+    return type_info_->GetInt64Representation();
+  }
   const CFunctionInfo* GetTypeInfo() const { return type_info_; }
 
   enum class OverloadResolution { kImpossible, kAtRuntime, kAtCompileTime };
@@ -598,7 +610,8 @@ struct count<T, T, Args...>
 template <typename T, typename U, typename... Args>
 struct count<T, U, Args...> : count<T, Args...> {};
 
-template <typename RetBuilder, typename... ArgBuilders>
+template <CFunctionInfo::Int64Representation Representation,
+          typename RetBuilder, typename... ArgBuilders>
 class CFunctionInfoImpl : public CFunctionInfo {
   static constexpr int kOptionsArgCount =
       count<FastApiCallbackOptions&, ArgBuilders...>();
@@ -613,18 +626,20 @@ class CFunctionInfoImpl : public CFunctionInfo {
  public:
   constexpr CFunctionInfoImpl()
       : CFunctionInfo(RetBuilder::Build(), sizeof...(ArgBuilders),
-                      arg_info_storage_),
+                      arg_info_storage_, Representation),
         arg_info_storage_{ArgBuilders::Build()...} {
     constexpr CTypeInfo::Type kReturnType = RetBuilder::Build().GetType();
     static_assert(kReturnType == CTypeInfo::Type::kVoid ||
                       kReturnType == CTypeInfo::Type::kBool ||
                       kReturnType == CTypeInfo::Type::kInt32 ||
                       kReturnType == CTypeInfo::Type::kUint32 ||
+                      kReturnType == CTypeInfo::Type::kInt64 ||
+                      kReturnType == CTypeInfo::Type::kUint64 ||
                       kReturnType == CTypeInfo::Type::kFloat32 ||
                       kReturnType == CTypeInfo::Type::kFloat64 ||
                       kReturnType == CTypeInfo::Type::kPointer ||
                       kReturnType == CTypeInfo::Type::kAny,
-                  "64-bit int, string and api object values are not currently "
+                  "String and api object values are not currently "
                   "supported return types.");
   }
 
@@ -845,8 +860,11 @@ class CFunctionBuilderWithFunction {
     return *this;
   }
 
+  template <CFunctionInfo::Int64Representation Representation =
+                CFunctionInfo::Int64Representation::kNumber>
   auto Build() {
-    static CFunctionInfoImpl<RetBuilder, ArgBuilders...> instance;
+    static CFunctionInfoImpl<Representation, RetBuilder, ArgBuilders...>
+        instance;
     return CFunction(fn_, &instance);
   }
 

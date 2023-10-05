@@ -119,8 +119,8 @@
 
 /* gz* functions always use library allocation functions */
 #ifndef STDC
-  extern voidp  malloc OF((uInt size));
-  extern void   free   OF((voidpf ptr));
+  extern voidp  malloc(uInt size);
+  extern void   free(voidpf ptr);
 #endif
 
 /* get errno and strerror definition */
@@ -138,10 +138,10 @@
 
 /* provide prototypes for these when building zlib without LFS */
 #if !defined(_LARGEFILE64_SOURCE) || _LFS64_LARGEFILE-0 == 0
-    ZEXTERN gzFile ZEXPORT gzopen64 OF((const char *, const char *));
-    ZEXTERN z_off64_t ZEXPORT gzseek64 OF((gzFile, z_off64_t, int));
-    ZEXTERN z_off64_t ZEXPORT gztell64 OF((gzFile));
-    ZEXTERN z_off64_t ZEXPORT gzoffset64 OF((gzFile));
+    ZEXTERN gzFile ZEXPORT gzopen64(const char *, const char *);
+    ZEXTERN z_off64_t ZEXPORT gzseek64(gzFile, z_off64_t, int);
+    ZEXTERN z_off64_t ZEXPORT gztell64(gzFile);
+    ZEXTERN z_off64_t ZEXPORT gzoffset64(gzFile);
 #endif
 
 /* default memLevel */
@@ -203,9 +203,9 @@ typedef struct {
 typedef gz_state FAR *gz_statep;
 
 /* shared functions */
-void ZLIB_INTERNAL gz_error OF((gz_statep, int, const char *));
+void ZLIB_INTERNAL gz_error(gz_statep, int, const char *);
 #if defined UNDER_CE
-char ZLIB_INTERNAL *gz_strwinerror OF((DWORD error));
+char ZLIB_INTERNAL *gz_strwinerror(DWORD error);
 #endif
 
 /* GT_OFF(x), where x is an unsigned value, is true if x > maximum z_off64_t
@@ -214,6 +214,6 @@ char ZLIB_INTERNAL *gz_strwinerror OF((DWORD error));
 #ifdef INT_MAX
 #  define GT_OFF(x) (sizeof(int) == sizeof(z_off64_t) && (x) > INT_MAX)
 #else
-unsigned ZLIB_INTERNAL gz_intmax OF((void));
+unsigned ZLIB_INTERNAL gz_intmax(void);
 #  define GT_OFF(x) (sizeof(int) == sizeof(z_off64_t) && (x) > gz_intmax())
 #endif

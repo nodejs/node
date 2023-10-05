@@ -30,8 +30,8 @@ class TestingAssemblerBuffer : public AssemblerBuffer {
 
   ~TestingAssemblerBuffer() override { reservation_.Free(); }
 
-  byte* start() const override {
-    return reinterpret_cast<byte*>(reservation_.address());
+  uint8_t* start() const override {
+    return reinterpret_cast<uint8_t*>(reservation_.address());
   }
 
   int size() const override { return static_cast<int>(reservation_.size()); }

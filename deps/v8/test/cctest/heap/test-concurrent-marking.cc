@@ -19,7 +19,7 @@ TEST(ConcurrentMarkingMarkedBytes) {
   Heap* heap = CcTest::heap();
   HandleScope sc(isolate);
   Handle<FixedArray> root = isolate->factory()->NewFixedArray(1000000);
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
   if (!heap->incremental_marking()->IsStopped()) return;
 
   // Store array in Global such that it is part of the root set when
@@ -28,6 +28,9 @@ TEST(ConcurrentMarkingMarkedBytes) {
                                 Utils::ToLocal(Handle<Object>::cast(root)));
 
   heap::SimulateIncrementalMarking(heap, false);
+  // Ensure that objects are published to the global marking worklist such that
+  // the concurrent markers can pick it up.
+  heap->mark_compact_collector()->local_marking_worklists()->Publish();
   heap->concurrent_marking()->Join();
   CHECK_GE(heap->concurrent_marking()->TotalMarkedBytes(), root->Size());
 }

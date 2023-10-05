@@ -30,6 +30,9 @@ BasicBlock::BasicBlock(Zone* zone, Id id)
 #if DEBUG
       debug_info_(AssemblerDebugInfo(nullptr, nullptr, -1)),
 #endif
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+      pgo_execution_count_(0),
+#endif
       id_(id) {
 }
 
@@ -461,6 +464,9 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
        ((s.RpoBlockCount() == 0) ? *s.all_blocks() : *s.rpo_order())) {
     if (block == nullptr) continue;
     os << "--- BLOCK B" << block->rpo_number() << " id" << block->id();
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+    os << " PGO Execution Count:" << block->pgo_execution_count();
+#endif
     if (block->deferred()) os << " (deferred)";
     if (block->PredecessorCount() != 0) os << " <- ";
     bool comma = false;

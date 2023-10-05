@@ -134,8 +134,8 @@ void CSATestRunner::Add(Handle<Name> key, Handle<Object> value,
       SwissNameDictionary::Add(isolate_, reference_, key, value, details);
 
   Handle<Smi> details_smi = handle(details.AsSmi(), isolate_);
-  Handle<Oddball> success =
-      add_ft_.CallChecked<Oddball>(table, key, value, details_smi);
+  Handle<Boolean> success =
+      add_ft_.CallChecked<Boolean>(table, key, value, details_smi);
 
   if (*success == roots.false_value()) {
     // |add_ft_| does not resize and indicates the need to do so by returning
@@ -155,7 +155,7 @@ void CSATestRunner::Allocate(Handle<Smi> capacity) {
   // We must handle |capacity| == 0 specially, because
   // AllocateSwissNameDictionary (just like AllocateNameDictionary) always
   // returns a non-zero sized table.
-  if (capacity->value() == 0) {
+  if ((*capacity).value() == 0) {
     table = ReadOnlyRoots(isolate_).empty_swiss_property_dictionary_handle();
   } else {
     table = allocate_ft_.CallChecked<SwissNameDictionary>(capacity);
@@ -165,11 +165,11 @@ void CSATestRunner::Allocate(Handle<Smi> capacity) {
 }
 
 InternalIndex CSATestRunner::FindEntry(Handle<Name> key) {
-  Handle<Smi> index = find_entry_ft_.CallChecked<Smi>(table, key);
-  if (index->value() == SwissNameDictionary::kNotFoundSentinel) {
+  Tagged<Smi> index = *find_entry_ft_.CallChecked<Smi>(table, key);
+  if (index.value() == SwissNameDictionary::kNotFoundSentinel) {
     return InternalIndex::NotFound();
   } else {
-    return InternalIndex(index->value());
+    return InternalIndex(index.value());
   }
 }
 

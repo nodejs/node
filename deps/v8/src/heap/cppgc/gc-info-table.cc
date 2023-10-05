@@ -132,7 +132,7 @@ GCInfoIndex GCInfoTable::RegisterNewGCInfo(
 
   // Check the registered index again after taking the lock as some other
   // thread may have registered the info at the same time.
-  GCInfoIndex index = registered_index.load(std::memory_order_relaxed);
+  const GCInfoIndex index = registered_index.load(std::memory_order_relaxed);
   if (index) {
     return index;
   }
@@ -141,7 +141,7 @@ GCInfoIndex GCInfoTable::RegisterNewGCInfo(
     Resize();
   }
 
-  GCInfoIndex new_index = current_index_++;
+  const GCInfoIndex new_index = current_index_++;
   CHECK_LT(new_index, GCInfoTable::kMaxIndex);
   table_[new_index] = info;
   registered_index.store(new_index, std::memory_order_release);

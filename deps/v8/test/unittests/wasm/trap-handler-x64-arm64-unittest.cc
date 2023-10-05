@@ -35,7 +35,7 @@
 
 #if V8_TRAP_HANDLER_SUPPORTED
 
-#if V8_HOST_ARCH_ARM64 && !V8_OS_DARWIN
+#if V8_HOST_ARCH_ARM64 && (!V8_OS_LINUX && !V8_OS_DARWIN)
 #error Unsupported platform
 #endif
 
@@ -173,7 +173,7 @@ class TrapHandlerTest : public TestWithIsolate,
 #endif
     __ Ret();
     CodeDesc desc;
-    masm.GetCode(nullptr, &desc);
+    masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
     recovery_buffer_->MakeExecutable();
     g_recovery_address =
         reinterpret_cast<Address>(desc.buffer + recovery_offset);
@@ -206,6 +206,8 @@ class TrapHandlerTest : public TestWithIsolate,
     uc->uc_mcontext->__ss.__pc = g_recovery_address;
 #elif V8_OS_DARWIN && V8_HOST_ARCH_X64
     uc->uc_mcontext->__ss.__rip = g_recovery_address;
+#elif V8_OS_LINUX && V8_HOST_ARCH_ARM64
+    uc->uc_mcontext.pc = g_recovery_address;
 #elif V8_OS_LINUX && V8_HOST_ARCH_X64
     uc->uc_mcontext.gregs[REG_RIP] = g_recovery_address;
 #elif V8_OS_FREEBSD
@@ -351,7 +353,7 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
 #endif
   __ Ret();
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
   trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
                                                                recovery_offset};
@@ -389,7 +391,7 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
 #endif
   __ Ret();
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
   trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
                                                                recovery_offset};
@@ -430,7 +432,7 @@ TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
 #endif
   __ Ret();
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
   trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
                                                                recovery_offset};
@@ -470,7 +472,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
 #endif
   __ Ret();
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
   trap_handler::ProtectedInstructionData protected_instruction{no_crash_offset,
                                                                recovery_offset};
@@ -508,7 +510,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
 #endif
   __ Ret();
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
   trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
                                                                recovery_offset};
@@ -578,7 +580,7 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
 #endif
   __ Ret();
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
   trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
                                                                recovery_offset};

@@ -62,8 +62,9 @@ class SafepointTable {
  public:
   // The isolate and pc arguments are used for figuring out whether pc
   // belongs to the embedded or un-embedded code blob.
-  explicit SafepointTable(Isolate* isolate, Address pc, InstructionStream code);
-  explicit SafepointTable(Isolate* isolate, Address pc, Code code);
+  explicit SafepointTable(Isolate* isolate, Address pc,
+                          Tagged<InstructionStream> code);
+  explicit SafepointTable(Isolate* isolate, Address pc, Tagged<Code> code);
 #if V8_ENABLE_WEBASSEMBLY
   explicit SafepointTable(const wasm::WasmCode* code);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -115,13 +116,13 @@ class SafepointTable {
 
   // Returns the entry for the given pc.
   SafepointEntry FindEntry(Address pc) const;
-  static SafepointEntry FindEntry(Isolate* isolate, GcSafeCode code,
+  static SafepointEntry FindEntry(Isolate* isolate, Tagged<GcSafeCode> code,
                                   Address pc);
 
   void Print(std::ostream&) const;
 
  private:
-  SafepointTable(Isolate* isolate, Address pc, GcSafeCode code);
+  SafepointTable(Isolate* isolate, Address pc, Tagged<GcSafeCode> code);
 
   // Layout information.
   static constexpr int kLengthOffset = 0;

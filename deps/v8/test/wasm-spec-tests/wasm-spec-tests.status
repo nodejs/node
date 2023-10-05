@@ -7,23 +7,23 @@
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
-  # "data" is supposed to fail for "data segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "data" is supposed to fail for "data segment does not fit"; missing rebase
+  # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/data': [FAIL],
-  # "elem" is supposed to fail for "elements segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "elem" is supposed to fail for "elements segment does not fit"; missing
+  # rebase on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/elem': [FAIL],
   # "imports" is supposed to fail for "multiple tables"; missing rebase on
   # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/imports': [FAIL],
-  # "linking" is supposed to fail for "elements segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "linking" is supposed to fail for "elements segment does not fit"; missing
+  # rebase on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/linking': [FAIL],
   # "table" is supposed to fail for "multiple tables"; missing rebase on
   # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/table': [FAIL],
-  # "unreached-invalid" is supposed to fail for "type mismatch"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "unreached-invalid" is supposed to fail for "type mismatch"; missing rebase
+  # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/unreached-invalid': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
@@ -34,6 +34,48 @@
   'simd_f64x2*': [PASS, HEAVY],
   'f32*': [PASS, HEAVY],
   'f64*': [PASS, HEAVY],
+
+  # TODO(7748): Make these pass.
+  'proposals/gc/unreached-valid': [FAIL],
+  'proposals/gc/type-subtyping': [FAIL],
+  'proposals/gc/type-rec': [FAIL],
+  'proposals/gc/type-canon': [FAIL],
+  'proposals/gc/ref': [FAIL],
+  'proposals/gc/table-sub': [FAIL],
+  'proposals/gc/return_call_ref': [FAIL],
+  'proposals/gc/ref_as_non_null': [FAIL],
+  'proposals/gc/br_on_non_null': [FAIL],
+  'proposals/gc/call_ref': [FAIL],
+  'proposals/gc/br_on_null': [FAIL],
+  'proposals/gc/type-equivalence': [FAIL],
+  # Binary encoding mismatch (official repo vs. M6 prototype spec):
+  'proposals/gc/array': [FAIL],  # Also bogus test assertion.
+  'proposals/gc/array_copy': [FAIL],
+  'proposals/gc/array_fill': [FAIL],
+  'proposals/gc/array_init_data': [FAIL],
+  'proposals/gc/array_init_elem': [FAIL],
+  'proposals/gc/br_on_cast': [FAIL],  # Also has the "hostref" issue.
+  'proposals/gc/br_on_cast_fail': [FAIL],  # Also has the "hostref" issue.
+  'proposals/gc/extern': [FAIL],  # Also has the "hostref" issue.
+  'proposals/gc/ref_cast': [FAIL],  # Also has the "hostref" issue.
+  'proposals/gc/ref_eq': [FAIL],
+  'proposals/gc/ref_test': [FAIL],  # Also has the "hostref" issue.
+  'proposals/gc/struct': [FAIL],  # Also bogus test assertion.
+  # Missing '[i]' after `actual` in `assert_return`:
+  'proposals/gc/ref_null': [FAIL],
+  'proposals/gc/table': [FAIL],
+  # "hostref is not defined":
+  'proposals/gc/br_table': [FAIL],
+  'proposals/gc/elem': [FAIL],
+  'proposals/gc/local_init': [FAIL],
+  'proposals/gc/ref_is_null': [FAIL],
+  # Missing support for i31ref in `assert_return`:
+  'proposals/gc/i31': [FAIL],
+  # Broken generated Wasm binary in the test:
+  'proposals/gc/linking': [FAIL],
+  # Broken test: single standalone type definitions are in an implicit
+  # one-entry recgroup and can hence refer to themselves.
+  'proposals/function-references/type-equivalence': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
@@ -104,9 +146,6 @@
    'skip-stack-guard-page': '--sim-stack-size=8192',
    'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
 
-   # SIMD is not fully implemented yet.
-   'simd*': [SKIP],
-
    'func': ['variant == stress', SKIP],
 }],  # 'arch == riscv32'
 
@@ -150,7 +189,7 @@
   '*': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
-################################################################################
+##############################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],  # variant == stress_snapshot
@@ -159,8 +198,9 @@
 ['no_simd_hardware == True', {
   'linking': [SKIP],
   'simd*': [SKIP],
-  'proposals/tail-call/simd_lane': [SKIP],
   'proposals/js-types/linking': [SKIP],
+  'proposals/multi-memory/simd_memory-multi': [SKIP],
+  'proposals/tail-call/simd_lane': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################

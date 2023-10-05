@@ -31,11 +31,11 @@ class PrototypeIterator {
                            WhereToStart where_to_start = kStartAtPrototype,
                            WhereToEnd where_to_end = END_AT_NULL);
 
-  inline PrototypeIterator(Isolate* isolate, JSReceiver receiver,
+  inline PrototypeIterator(Isolate* isolate, Tagged<JSReceiver> receiver,
                            WhereToStart where_to_start = kStartAtPrototype,
                            WhereToEnd where_to_end = END_AT_NULL);
 
-  inline explicit PrototypeIterator(Isolate* isolate, Map receiver_map,
+  inline explicit PrototypeIterator(Isolate* isolate, Tagged<Map> receiver_map,
                                     WhereToEnd where_to_end = END_AT_NULL);
 
   inline explicit PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,

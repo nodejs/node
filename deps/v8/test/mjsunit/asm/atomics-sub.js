@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sharedarraybuffer
-
 function Module(stdlib, foreign, heap, offset) {
   "use asm";
   var MEM8 = new stdlib.Int8Array(heap, offset);

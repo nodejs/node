@@ -57,6 +57,8 @@ const char* MachineReprToString(MachineRepresentation rep) {
       return "kRepCompressedPointer";
     case MachineRepresentation::kCompressed:
       return "kRepCompressed";
+    case MachineRepresentation::kIndirectPointer:
+      return "kRepIndirectPointer";
     case MachineRepresentation::kMapWord:
       return "kRepMapWord";
     case MachineRepresentation::kSandboxedPointer:

@@ -89,14 +89,14 @@ class Annotations {
     if (start < 0) start = 0;
     if (end > rawFlames.length) end = rawFlames.length;
     const logEntry = this._logEntry;
-    // Also compare against the function, if any.
-    const func = logEntry.entry?.func ?? -1;
+    // Also compare against the SFI , if any.
+    const sfi = logEntry.entry?.sfi ?? -1;
     for (let i = start; i < end; i++) {
       const flame = rawFlames[i];
       const flameLogEntry = flame.logEntry;
       if (!flameLogEntry) continue;
       if (flameLogEntry !== logEntry) {
-        if (flameLogEntry.entry?.func !== func) continue;
+        if (flameLogEntry.entry?.sfi !== sfi) continue;
       }
       this._buffer += this._track._drawItem(flame, i, true);
     }

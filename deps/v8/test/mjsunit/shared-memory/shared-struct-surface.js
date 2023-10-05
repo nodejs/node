@@ -153,3 +153,20 @@ let S = new SharedStructType(['field']);
     Ctor.prototype = ps;
   }
 })();
+
+(function TestElements() {
+  const largeIndex = 2 ** 32;
+  const anotherLargeIndex = 2 ** 31;
+  const StructWithElements =
+      new SharedStructType([1, 42, largeIndex, anotherLargeIndex]);
+  let s = new StructWithElements();
+  s[1] = 0.1;
+  s[42] = 42;
+  s[largeIndex] = 'whatever';
+  s[anotherLargeIndex] = 'whatever2';
+  assertEquals(0.1, s[1]);
+  assertEquals(42, s[42]);
+  assertEquals('whatever', s[largeIndex]);
+  assertEquals('whatever2', s[anotherLargeIndex]);
+  assertThrows(() => s[80] = 0.2);
+})();

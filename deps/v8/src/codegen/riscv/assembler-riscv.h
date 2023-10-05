@@ -188,12 +188,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
-  void GetCode(Isolate* isolate, CodeDesc* desc,
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc,
                SafepointTableBuilder* safepoint_table_builder,
                int handler_table_offset);
 
+  // Convenience wrapper for allocating with an Isolate.
+  void GetCode(Isolate* isolate, CodeDesc* desc);
   // Convenience wrapper for code without safepoint or handler tables.
-  void GetCode(Isolate* isolate, CodeDesc* desc) {
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
@@ -455,11 +457,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
-    dq(data, rmode);
-  }
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dq(data); }
   void dd(Label* label);
 
   Instruction* pc() const { return reinterpret_cast<Instruction*>(pc_); }
@@ -825,7 +825,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
  private:
   ConstantPool constpool_;
 
-  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
 
   int WriteCodeComments();
 
@@ -841,12 +841,33 @@ class EnsureSpace {
   explicit inline EnsureSpace(Assembler* assembler);
 };
 
+// This scope utility allows scratch registers to be managed safely. The
+// Assembler's GetScratchRegisterList() is used as a pool of scratch
+// registers. These registers can be allocated on demand, and will be returned
+// at the end of the scope.
+//
+// When the scope ends, the Assembler's list will be restored to its original
+// state, even if the list is modified by some other means. Note that this scope
+// can be nested but the destructors need to run in the opposite order as the
+// constructors. We do not have assertions for this.
 class V8_EXPORT_PRIVATE UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(Assembler* assembler);
-  ~UseScratchRegisterScope();
+  explicit UseScratchRegisterScope(Assembler* assembler)
+      : available_(assembler->GetScratchRegisterList()),
+        old_available_(*available_) {}
 
-  Register Acquire();
+  ~UseScratchRegisterScope() { *available_ = old_available_; }
+
+  // Take a register from the list and return it.
+  Register Acquire() {
+    DCHECK_NOT_NULL(available_);
+    DCHECK(!available_->is_empty());
+    int index =
+        static_cast<int>(base::bits::CountTrailingZeros32(available_->bits()));
+    *available_ &= RegList::FromBits(~(1U << index));
+
+    return Register::from_code(index);
+  }
   bool hasAvailable() const;
   void Include(const RegList& list) { *available_ |= list; }
   void Exclude(const RegList& list) {

@@ -76,7 +76,7 @@ class V8_EXPORT_PRIVATE Operand {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value) : rmode_(RelocInfo::NO_INFO) {
+  V8_INLINE explicit Operand(Tagged<Smi> value) : rmode_(RelocInfo::NO_INFO) {
     value_.immediate = static_cast<intptr_t>(value.ptr());
   }
   // rm
@@ -184,13 +184,15 @@ class Assembler : public AssemblerBase {
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
-  void GetCode(Isolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
+  // Convenience wrapper for allocating with an Isolate.
+  void GetCode(Isolate* isolate, CodeDesc* desc);
   // Convenience wrapper for code without safepoint or handler tables.
-  void GetCode(Isolate* isolate, CodeDesc* desc) {
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
@@ -276,7 +278,7 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code code, Address target);
+      Address instruction_payload, Tagged<Code>, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -472,15 +474,31 @@ class Assembler : public AssemblerBase {
 #undef DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS
 #undef DECLARE_PPC_XX2_SCALAR_INSTRUCTIONS
 
-#define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS(name, instr_name, instr_value) \
-  inline void name(const Simd128Register rt, const Simd128Register ra,     \
-                   const Simd128Register rb) {                             \
-    xx3_form(instr_name, rt, ra, rb);                                      \
+#define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_A_FORM(name, instr_name,     \
+                                                   instr_value)          \
+  inline void name(const Simd128Register rt, const Simd128Register ra,   \
+                   const Simd128Register rb, const RCBit rc = LeaveRC) { \
+    xx3_form(instr_name, rt, ra, rb, rc);                                \
+  }
+#define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_B_FORM(name, instr_name,   \
+                                                   instr_value)        \
+  inline void name(const Simd128Register rt, const Simd128Register ra, \
+                   const Simd128Register rb) {                         \
+    xx3_form(instr_name, rt, ra, rb);                                  \
   }
 #define DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS(name, instr_name, instr_value) \
   inline void name(const DoubleRegister rt, const DoubleRegister ra,       \
                    const DoubleRegister rb) {                              \
     xx3_form(instr_name, rt, ra, rb);                                      \
+  }
+
+  inline void xx3_form(Instr instr, Simd128Register t, Simd128Register a,
+                       Simd128Register b, int rc) {
+    // Using VR (high VSR) registers.
+    int AX = 1, BX = 1, TX = 1;
+
+    emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 |
+         (b.code() & 0x1F) * B11 | rc * B10 | AX * B2 | BX * B1 | TX);
   }
 
   template <typename T>
@@ -499,9 +517,11 @@ class Assembler : public AssemblerBase {
          (b.code() & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
   }
 
-  PPC_XX3_OPCODE_VECTOR_LIST(DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS)
+  PPC_XX3_OPCODE_VECTOR_A_FORM_LIST(DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_A_FORM)
+  PPC_XX3_OPCODE_VECTOR_B_FORM_LIST(DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_B_FORM)
   PPC_XX3_OPCODE_SCALAR_LIST(DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS)
-#undef DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS
+#undef DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_A_FORM
+#undef DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_B_FORM
 #undef DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS
 
 #define DECLARE_PPC_VX_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
@@ -1245,9 +1265,9 @@ class Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data);
 
   // Read/patch instructions
   Instr instr_at(int pos) {
@@ -1533,7 +1553,7 @@ class Assembler : public AssemblerBase {
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
 
-  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
 
   int WriteCodeComments();
 
@@ -1551,17 +1571,24 @@ class EnsureSpace {
 
 class PatchingAssembler : public Assembler {
  public:
-  PatchingAssembler(const AssemblerOptions& options, byte* address,
+  PatchingAssembler(const AssemblerOptions& options, uint8_t* address,
                     int instructions);
   ~PatchingAssembler();
 };
 
 class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(Assembler* assembler);
-  ~UseScratchRegisterScope();
+  explicit UseScratchRegisterScope(Assembler* assembler)
+      : assembler_(assembler),
+        old_available_(*assembler->GetScratchRegisterList()) {}
 
-  Register Acquire();
+  ~UseScratchRegisterScope() {
+    *assembler_->GetScratchRegisterList() = old_available_;
+  }
+
+  Register Acquire() {
+    return assembler_->GetScratchRegisterList()->PopFirst();
+  }
 
   // Check if we have registers available to acquire.
   bool CanAcquire() const {

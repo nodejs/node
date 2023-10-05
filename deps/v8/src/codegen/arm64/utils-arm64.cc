@@ -73,14 +73,6 @@ int float16classify(float16 value) {
   return FP_NORMAL;
 }
 
-int CountLeadingZeros(uint64_t value, int width) {
-  DCHECK(base::bits::IsPowerOfTwo(width) && (width <= 64));
-  if (value == 0) {
-    return width;
-  }
-  return base::bits::CountLeadingZeros64(value << (64 - width));
-}
-
 int CountLeadingSignBits(int64_t value, int width) {
   DCHECK(base::bits::IsPowerOfTwo(width) && (width <= 64));
   if (value >= 0) {
@@ -107,12 +99,6 @@ int LowestSetBitPosition(uint64_t value) {
 int HighestSetBitPosition(uint64_t value) {
   DCHECK_NE(value, 0U);
   return 63 - CountLeadingZeros(value, 64);
-}
-
-uint64_t LargestPowerOf2Divisor(uint64_t value) {
-  // Simulate two's complement (instead of casting to signed and negating) to
-  // avoid undefined behavior on signed overflow.
-  return value & ((~value) + 1);
 }
 
 int MaskToBit(uint64_t mask) {

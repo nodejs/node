@@ -92,6 +92,7 @@
 
 ['variant == nooptimization and mode == debug', {
   # Too slow for nooptimization mode and debug.
+  'kraken/imaging-desaturate': [SKIP],
   'kraken/imaging-gaussian-blur': [SKIP],
 }],
 
@@ -99,6 +100,7 @@
   # Too slow for stress_incremental_marking.
   'octane/box2d': [SKIP],
   'octane/typescript': [SKIP],
+  'octane/earley-boyer' : [PASS, SLOW, ['mode == debug', FAIL]],
 }],
 
 ['gc_fuzzer', {
@@ -114,14 +116,16 @@
   'octane/gbemu-part1': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer
 
-['predictable', {
+['verify_predictable', {
   # https://crbug.com/v8/8537
   'octane/typescript': [SKIP],
 
   # https://crbug.com/v8/13234
   'octane/box2d': [SKIP],
   'octane/earley-boyer': [SKIP],
-}],  # 'predictable'
+  'octane/gbemu-part1': [SKIP],
+  'octane/pdfjs': [SKIP],
+}],  # 'verify_predictable'
 
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
@@ -135,5 +139,23 @@
   'kraken/audio-oscillator': [SLOW],
   'octane/pdfjs': [SLOW],
 }],  # 'tsan'
+
+##############################################################################
+['gc_fuzzer or deopt_fuzzer or interrupt_fuzzer', {
+  # BUG(v8:13808) Skipped until bug is fixed.
+  'octane/pdfjs': [SKIP],
+}], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
+
+##############################################################################
+['variant == jitless and mode == debug and tsan', {
+  # Too slow for jitless mode in tsan debug.
+  'kraken/ai-astar': [SKIP],
+  'kraken/audio-beat-detection': [SKIP],
+  'kraken/audio-dft': [SKIP],
+  'kraken/audio-oscillator': [SKIP],
+  'kraken/imaging-darkroom': [SKIP],
+  'octane/box2d': [SKIP],
+  'octane/crypto': [SKIP],
+}], # 'variant == jitless and mode == debug and tsan'
 
 ]

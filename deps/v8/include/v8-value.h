@@ -16,6 +16,8 @@
  */
 namespace v8 {
 
+class Primiitive;
+class Numeric;
 class BigInt;
 class Int32;
 class Integer;
@@ -354,6 +356,18 @@ class V8_EXPORT Value : public Data {
    */
   bool IsModuleNamespaceObject() const;
 
+  /**
+   * Perform `ToPrimitive(value)` as specified in:
+   * https://tc39.es/ecma262/#sec-toprimitive.
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<Primitive> ToPrimitive(
+      Local<Context> context) const;
+  /**
+   * Perform `ToNumeric(value)` as specified in:
+   * https://tc39.es/ecma262/#sec-tonumeric.
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<Numeric> ToNumeric(
+      Local<Context> context) const;
   /**
    * Perform the equivalent of `BigInt(value)` in JS.
    */

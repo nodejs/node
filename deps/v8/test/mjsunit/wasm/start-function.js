@@ -70,7 +70,8 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
   print("testRun1");
   var builder = new WasmModuleBuilder();
 
-  builder.addMemory(12, 12, true);
+  builder.addMemory(12, 12);
+  builder.exportMemoryAs("memory");
 
   var func = builder.addFunction("", kSig_v_v)
     .addBody([kExprI32Const, 0, kExprI32Const, 55, kExprI32StoreMem, 0, 0]);
@@ -87,7 +88,8 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
   print("testRun2");
   var builder = new WasmModuleBuilder();
 
-  builder.addMemory(12, 12, true);
+  builder.addMemory(12, 12);
+  builder.exportMemoryAs("memory");
 
   var func = builder.addFunction("", kSig_v_v)
     .addBody([kExprI32Const, 0, kExprI32Const, 22, kExprI32Const, 55, kExprI32Add, kExprI32StoreMem, 0, 0]);

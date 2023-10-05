@@ -26,33 +26,33 @@ SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
 RELEASE_ACQUIRE_SMI_ACCESSORS(PropertyArray, length_and_hash,
                               kLengthAndHashOffset)
 
-Object PropertyArray::get(int index) const {
+Tagged<Object> PropertyArray::get(int index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return get(cage_base, index);
 }
 
-Object PropertyArray::get(PtrComprCageBase cage_base, int index) const {
+Tagged<Object> PropertyArray::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length(kAcquireLoad)));
   return TaggedField<Object>::Relaxed_Load(cage_base, *this,
                                            OffsetOfElementAt(index));
 }
 
-Object PropertyArray::get(int index, SeqCstAccessTag tag) const {
+Tagged<Object> PropertyArray::get(int index, SeqCstAccessTag tag) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return get(cage_base, index, tag);
 }
 
-Object PropertyArray::get(PtrComprCageBase cage_base, int index,
-                          SeqCstAccessTag tag) const {
+Tagged<Object> PropertyArray::get(PtrComprCageBase cage_base, int index,
+                                  SeqCstAccessTag tag) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length(kAcquireLoad)));
   return TaggedField<Object>::SeqCst_Load(cage_base, *this,
                                           OffsetOfElementAt(index));
 }
 
-void PropertyArray::set(int index, Object value) {
-  DCHECK(IsPropertyArray());
+void PropertyArray::set(int index, Tagged<Object> value) {
+  DCHECK(IsPropertyArray(*this));
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length(kAcquireLoad)));
   int offset = OffsetOfElementAt(index);
@@ -60,7 +60,8 @@ void PropertyArray::set(int index, Object value) {
   WRITE_BARRIER(*this, offset, value);
 }
 
-void PropertyArray::set(int index, Object value, WriteBarrierMode mode) {
+void PropertyArray::set(int index, Tagged<Object> value,
+                        WriteBarrierMode mode) {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length(kAcquireLoad)));
   int offset = OffsetOfElementAt(index);
@@ -68,31 +69,48 @@ void PropertyArray::set(int index, Object value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-void PropertyArray::set(int index, Object value, SeqCstAccessTag tag) {
-  DCHECK(IsPropertyArray());
+void PropertyArray::set(int index, Tagged<Object> value, SeqCstAccessTag tag) {
+  DCHECK(IsPropertyArray(*this));
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length(kAcquireLoad)));
-  DCHECK(value.IsShared());
+  DCHECK(IsShared(value));
   int offset = OffsetOfElementAt(index);
   SEQ_CST_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, UPDATE_WRITE_BARRIER);
 }
 
-Object PropertyArray::Swap(int index, Object value, SeqCstAccessTag tag) {
+Tagged<Object> PropertyArray::Swap(int index, Tagged<Object> value,
+                                   SeqCstAccessTag tag) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return Swap(cage_base, index, value, tag);
 }
 
-Object PropertyArray::Swap(PtrComprCageBase cage_base, int index, Object value,
-                           SeqCstAccessTag tag) {
-  DCHECK(IsPropertyArray());
+Tagged<Object> PropertyArray::Swap(PtrComprCageBase cage_base, int index,
+                                   Tagged<Object> value, SeqCstAccessTag tag) {
+  DCHECK(IsPropertyArray(*this));
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length(kAcquireLoad)));
-  DCHECK(value.IsShared());
-  Object result = TaggedField<Object>::SeqCst_Swap(
+  DCHECK(IsShared(value));
+  Tagged<Object> result = TaggedField<Object>::SeqCst_Swap(
       cage_base, *this, OffsetOfElementAt(index), value);
   CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value,
                             UPDATE_WRITE_BARRIER);
+  return result;
+}
+
+Tagged<Object> PropertyArray::CompareAndSwap(int index, Tagged<Object> expected,
+                                             Tagged<Object> value,
+                                             SeqCstAccessTag tag) {
+  DCHECK(IsPropertyArray(*this));
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length(kAcquireLoad)));
+  DCHECK(IsShared(value));
+  Tagged<Object> result = TaggedField<Object>::SeqCst_CompareAndSwap(
+      *this, OffsetOfElementAt(index), expected, value);
+  if (result == expected) {
+    CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value,
+                              UPDATE_WRITE_BARRIER);
+  }
   return result;
 }
 
@@ -120,13 +138,13 @@ void PropertyArray::SetHash(int hash) {
 }
 
 void PropertyArray::CopyElements(Isolate* isolate, int dst_index,
-                                 PropertyArray src, int src_index, int len,
-                                 WriteBarrierMode mode) {
+                                 Tagged<PropertyArray> src, int src_index,
+                                 int len, WriteBarrierMode mode) {
   if (len == 0) return;
   DisallowGarbageCollection no_gc;
 
   ObjectSlot dst_slot(data_start() + dst_index);
-  ObjectSlot src_slot(src.data_start() + src_index);
+  ObjectSlot src_slot(src->data_start() + src_index);
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 

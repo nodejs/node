@@ -9,6 +9,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker-inl.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -814,7 +815,7 @@ Reduction JSCreateLowering::ReduceJSCreateAsyncFunctionObject(Node* node) {
 namespace {
 
 MapRef MapForCollectionIterationKind(JSHeapBroker* broker,
-                                     const NativeContextRef& native_context,
+                                     NativeContextRef native_context,
                                      CollectionKind collection_kind,
                                      IterationKind iteration_kind) {
   switch (collection_kind) {
@@ -1490,7 +1491,7 @@ Node* JSCreateLowering::TryAllocateRestArguments(Node* effect, Node* control,
 // given {context}. Serves as backing store for JSCreateArguments nodes.
 Node* JSCreateLowering::TryAllocateAliasedArguments(
     Node* effect, Node* control, FrameState frame_state, Node* context,
-    const SharedFunctionInfoRef& shared, bool* has_aliased_arguments) {
+    SharedFunctionInfoRef shared, bool* has_aliased_arguments) {
   FrameStateInfo state_info = frame_state.frame_state_info();
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
@@ -1561,7 +1562,7 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
 // Serves as backing store for JSCreateArguments nodes.
 Node* JSCreateLowering::TryAllocateAliasedArguments(
     Node* effect, Node* control, Node* context, Node* arguments_length,
-    const SharedFunctionInfoRef& shared, bool* has_aliased_arguments) {
+    SharedFunctionInfoRef shared, bool* has_aliased_arguments) {
   // If there is no aliasing, the arguments object elements are not
   // special in any way, we can just return an unmapped backing store.
   int parameter_count =
@@ -1728,11 +1729,11 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     NameRef property_name = boilerplate_map.GetPropertyKey(broker(), i);
     FieldIndex index =
         FieldIndex::ForDetails(*boilerplate_map.object(), property_details);
-    ConstFieldInfo const_field_info(boilerplate_map.object());
+    ConstFieldInfo const_field_info(boilerplate_map);
     FieldAccess access = {kTaggedBase,
                           index.offset(),
                           property_name.object(),
-                          MaybeHandle<Map>(),
+                          OptionalMapRef(),
                           Type::Any(),
                           MachineType::AnyTagged(),
                           kFullWriteBarrier,

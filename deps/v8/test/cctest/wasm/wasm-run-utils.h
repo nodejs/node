@@ -38,16 +38,12 @@
 #include "test/common/call-tester.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
-#include "test/common/wasm/wasm-interpreter.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 enum class TestExecutionTier : int8_t {
   kLiftoff = static_cast<int8_t>(ExecutionTier::kLiftoff),
   kTurbofan = static_cast<int8_t>(ExecutionTier::kTurbofan),
-  kInterpreter,
   kLiftoffForFuzzing
 };
 static_assert(
@@ -84,7 +80,7 @@ using compiler::Node;
 
 #define ADD_CODE(vec, ...)                           \
   do {                                               \
-    byte __buf[] = {__VA_ARGS__};                    \
+    uint8_t __buf[] = {__VA_ARGS__};                 \
     for (size_t __i = 0; __i < sizeof(__buf); __i++) \
       vec.push_back(__buf[__i]);                     \
   } while (false)
@@ -101,22 +97,22 @@ bool IsSameNan(double expected, double actual);
 
 // A  Wasm module builder. Globals are pre-set, however, memory and code may be
 // progressively added by a test. In turn, we piecemeal update the runtime
-// objects, i.e. {WasmInstanceObject}, {WasmModuleObject} and, if necessary,
-// the interpreter.
+// objects, i.e. {WasmInstanceObject} and {WasmModuleObject}.
 class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, ModuleOrigin origin, ManuallyImportedJSFunction*,
-                       TestExecutionTier, RuntimeExceptionSupport,
-                       TestingModuleMemoryType, Isolate* isolate);
+                       TestExecutionTier, Isolate* isolate);
   ~TestingModuleBuilder();
 
-  byte* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
+  uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
+                     TestingModuleMemoryType = kMemory32);
 
   size_t CodeTableLength() const { return native_module_->num_functions(); }
 
   template <typename T>
-  T* AddMemoryElems(uint32_t count) {
-    AddMemory(count * sizeof(T));
+  T* AddMemoryElems(uint32_t count,
+                    TestingModuleMemoryType mem_type = kMemory32) {
+    AddMemory(count * sizeof(T), SharedFlag::kNotShared, mem_type);
     return raw_mem_start<T>();
   }
 
@@ -126,40 +122,43 @@ class TestingModuleBuilder {
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }
 
-  // TODO(7748): Allow selecting type finality.
-  byte AddSignature(const FunctionSig* sig) {
+  // TODO(14034): Allow selecting type finality.
+  uint8_t AddSignature(const FunctionSig* sig) {
     test_module_->add_signature(sig, kNoSuperType, v8_flags.wasm_final_types);
     GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
     instance_object_->set_isorecursive_canonical_types(
         test_module_->isorecursive_canonical_type_ids.data());
     size_t size = test_module_->types.size();
     CHECK_GT(127, size);
-    return static_cast<byte>(size - 1);
+    return static_cast<uint8_t>(size - 1);
   }
 
-  uint32_t mem_size() { return mem_size_; }
-
-  template <typename T>
-  T* raw_mem_start() {
-    DCHECK(mem_start_);
-    return reinterpret_cast<T*>(mem_start_);
+  uint32_t mem_size() const {
+    CHECK_EQ(1, test_module_->memories.size());
+    return mem0_size_;
   }
 
   template <typename T>
-  T* raw_mem_end() {
-    DCHECK(mem_start_);
-    return reinterpret_cast<T*>(mem_start_ + mem_size_);
+  T* raw_mem_start() const {
+    DCHECK_NOT_NULL(mem0_start_);
+    return reinterpret_cast<T*>(mem0_start_);
+  }
+
+  template <typename T>
+  T* raw_mem_end() const {
+    DCHECK_NOT_NULL(mem0_start_);
+    return reinterpret_cast<T*>(mem0_start_ + mem0_size_);
   }
 
   template <typename T>
   T raw_mem_at(int i) {
-    DCHECK(mem_start_);
-    return ReadMemory(&(reinterpret_cast<T*>(mem_start_)[i]));
+    DCHECK_NOT_NULL(mem0_start_);
+    return ReadMemory(&(reinterpret_cast<T*>(mem0_start_)[i]));
   }
 
   template <typename T>
   T raw_val_at(int i) {
-    return ReadMemory(reinterpret_cast<T*>(mem_start_ + i));
+    return ReadMemory(reinterpret_cast<T*>(mem0_start_ + i));
   }
 
   template <typename T>
@@ -174,27 +173,31 @@ class TestingModuleBuilder {
 
   // Zero-initialize the memory.
   void BlankMemory() {
-    byte* raw = raw_mem_start<byte>();
-    memset(raw, 0, mem_size_);
+    uint8_t* raw = raw_mem_start<uint8_t>();
+    memset(raw, 0, mem0_size_);
   }
 
   // Pseudo-randomly initialize the memory.
   void RandomizeMemory(unsigned int seed = 88) {
-    byte* raw = raw_mem_start<byte>();
-    byte* end = raw_mem_end<byte>();
+    uint8_t* raw = raw_mem_start<uint8_t>();
+    uint8_t* end = raw_mem_end<uint8_t>();
     v8::base::RandomNumberGenerator rng;
     rng.SetSeed(seed);
     rng.NextBytes(raw, end - raw);
   }
 
   void SetMaxMemPages(uint32_t maximum_pages) {
-    test_module_->maximum_pages = maximum_pages;
-    if (instance_object()->has_memory_object()) {
-      instance_object()->memory_object().set_maximum_pages(maximum_pages);
-    }
+    CHECK_EQ(1, test_module_->memories.size());
+    test_module_->memories[0].maximum_pages = maximum_pages;
+    DCHECK_EQ(instance_object_->memory_objects()->length(),
+              test_module_->memories.size());
+    instance_object_->memory_object(0)->set_maximum_pages(maximum_pages);
   }
 
-  void SetHasSharedMemory() { test_module_->has_shared_memory = true; }
+  void SetMemoryShared() {
+    CHECK_EQ(1, test_module_->memories.size());
+    test_module_->memories[0].is_shared = true;
+  }
 
   enum FunctionType { kImport, kWasm };
   uint32_t AddFunction(const FunctionSig* sig, const char* name,
@@ -213,18 +216,16 @@ class TestingModuleBuilder {
                                 uint32_t table_size,
                                 ValueType table_type = kWasmFuncRef);
 
-  uint32_t AddBytes(base::Vector<const byte> bytes);
+  uint32_t AddBytes(base::Vector<const uint8_t> bytes);
 
   uint32_t AddException(const FunctionSig* sig);
 
-  uint32_t AddPassiveDataSegment(base::Vector<const byte> bytes);
+  uint32_t AddPassiveDataSegment(base::Vector<const uint8_t> bytes);
 
   WasmFunction* GetFunctionAt(int index) {
     return &test_module_->functions[index];
   }
 
-  WasmInterpreter* interpreter() const { return interpreter_.get(); }
-  bool interpret() const { return interpreter_ != nullptr; }
   Isolate* isolate() const { return isolate_; }
   Handle<WasmInstanceObject> instance_object() const {
     return instance_object_;
@@ -262,10 +263,6 @@ class TestingModuleBuilder {
     }
   }
 
-  RuntimeExceptionSupport runtime_exception_support() const {
-    return runtime_exception_support_;
-  }
-
   void set_max_steps(int n) { max_steps_ = n; }
   int* max_steps_ptr() { return &max_steps_; }
   int32_t nondeterminism() { return nondeterminism_; }
@@ -278,22 +275,20 @@ class TestingModuleBuilder {
   Isolate* isolate_;
   WasmFeatures enabled_features_;
   uint32_t global_offset = 0;
-  byte* mem_start_ = nullptr;
-  uint32_t mem_size_ = 0;
-  byte* globals_data_ = nullptr;
-  std::unique_ptr<WasmInterpreter> interpreter_;
+  // The TestingModuleBuilder only supports one memory currently.
+  uint8_t* mem0_start_ = nullptr;
+  uint32_t mem0_size_ = 0;
+  uint8_t* globals_data_ = nullptr;
   TestExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
-  RuntimeExceptionSupport runtime_exception_support_;
   int32_t max_steps_ = kMaxNumSteps;
   int32_t nondeterminism_ = 0;
 
   // Data segment arrays that are normally allocated on the instance.
-  std::vector<byte> data_segment_data_;
+  std::vector<uint8_t> data_segment_data_;
   std::vector<Address> data_segment_starts_;
   std::vector<uint32_t> data_segment_sizes_;
-  std::vector<byte> dropped_elem_segments_;
 
   const WasmGlobal* AddGlobal(ValueType type);
 
@@ -303,67 +298,15 @@ class TestingModuleBuilder {
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
                        CompilationEnv* env, const FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
-                       const byte* start, const byte* end);
-
-class WasmFunctionWrapper : private compiler::GraphAndBuilders {
- public:
-  WasmFunctionWrapper(Zone* zone, int num_params);
-
-  void Init(CallDescriptor* call_descriptor, MachineType return_type,
-            base::Vector<MachineType> param_types);
-
-  template <typename ReturnType, typename... ParamTypes>
-  void Init(CallDescriptor* call_descriptor) {
-    std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
-        {MachineTypeForC<ParamTypes>()...}};
-    base::Vector<MachineType> param_vec(param_machine_types.data(),
-                                        param_machine_types.size());
-    Init(call_descriptor, MachineTypeForC<ReturnType>(), param_vec);
-  }
-
-  void SetInnerCode(WasmCode* code) {
-    intptr_t address = static_cast<intptr_t>(code->instruction_start());
-    compiler::NodeProperties::ChangeOp(
-        inner_code_node_,
-        common()->ExternalConstant(ExternalReference::FromRawAddress(address)));
-  }
-
-  const compiler::Operator* IntPtrConstant(intptr_t value) {
-    return machine()->Is32()
-               ? common()->Int32Constant(static_cast<int32_t>(value))
-               : common()->Int64Constant(static_cast<int64_t>(value));
-  }
-
-  void SetInstance(Handle<WasmInstanceObject> instance) {
-    compiler::NodeProperties::ChangeOp(context_address_,
-                                       common()->HeapConstant(instance));
-  }
-
-  Handle<Code> GetWrapperCode(Isolate* isolate = nullptr);
-
-  Signature<MachineType>* signature() const { return signature_; }
-
- private:
-  Node* inner_code_node_;
-  Node* context_address_;
-  MaybeHandle<Code> code_;
-  Signature<MachineType>* signature_;
-};
+                       const uint8_t* start, const uint8_t* end);
 
 // A helper for compiling wasm functions for testing.
-// It contains the internal state for compilation (i.e. TurboFan graph) and
-// interpretation (by adding to the interpreter manually).
-class WasmFunctionCompiler : public compiler::GraphAndBuilders {
+// It contains the internal state for compilation (i.e. TurboFan graph).
+class WasmFunctionCompiler {
  public:
   ~WasmFunctionCompiler();
 
   Isolate* isolate() { return builder_->isolate(); }
-  CallDescriptor* descriptor() {
-    if (descriptor_ == nullptr) {
-      descriptor_ = compiler::GetWasmCallDescriptor(zone(), sig);
-    }
-    return descriptor_;
-  }
   uint32_t function_index() { return function_->func_index; }
   uint32_t sig_index() { return function_->sig_index; }
 
@@ -372,9 +315,9 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
   }
   void Build(base::Vector<const uint8_t> bytes);
 
-  byte AllocateLocal(ValueType type) {
-    uint32_t index = local_decls.AddLocals(1, type);
-    byte result = static_cast<byte>(index);
+  uint8_t AllocateLocal(ValueType type) {
+    uint32_t index = local_decls_.AddLocals(1, type);
+    uint8_t result = static_cast<uint8_t>(index);
     DCHECK_EQ(index, result);
     return result;
   }
@@ -387,15 +330,10 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
   WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,
                        TestingModuleBuilder* builder, const char* name);
 
-  compiler::JSGraph jsgraph;
-  const FunctionSig* sig;
-  // The call descriptor is initialized when the function is compiled.
-  CallDescriptor* descriptor_;
+  Zone* zone_;
   TestingModuleBuilder* builder_;
   WasmFunction* function_;
-  LocalDeclEncoder local_decls;
-  compiler::SourcePositionTable source_position_table_;
-  WasmInterpreter* interpreter_;
+  LocalDeclEncoder local_decls_;
 };
 
 // A helper class to build a module around Wasm bytecode, generate machine
@@ -404,24 +342,10 @@ class WasmRunnerBase : public InitializedHandleScope {
  public:
   WasmRunnerBase(ManuallyImportedJSFunction* maybe_import, ModuleOrigin origin,
                  TestExecutionTier execution_tier, int num_params,
-                 RuntimeExceptionSupport runtime_exception_support =
-                     kNoRuntimeExceptionSupport,
-                 TestingModuleMemoryType mem_type = kMemory32,
                  Isolate* isolate = nullptr)
       : InitializedHandleScope(isolate),
         zone_(&allocator_, ZONE_NAME, kCompressGraphZone),
-        builder_(&zone_, origin, maybe_import, execution_tier,
-                 runtime_exception_support, mem_type, isolate),
-        wrapper_(&zone_, num_params) {}
-
-  static void SetUpTrapCallback() {
-    WasmRunnerBase::trap_happened = false;
-    auto trap_callback = []() -> void {
-      WasmRunnerBase::trap_happened = true;
-      set_trap_callback_for_testing(nullptr);
-    };
-    set_trap_callback_for_testing(trap_callback);
-  }
+        builder_(&zone_, origin, maybe_import, execution_tier, isolate) {}
 
   // Builds a graph from the given Wasm code and generates the machine
   // code and call wrapper for that graph. This method must not be called
@@ -452,26 +376,20 @@ class WasmRunnerBase : public InitializedHandleScope {
                                     const char* name = nullptr) {
     functions_.emplace_back(
         new WasmFunctionCompiler(&zone_, sig, &builder_, name));
-    byte sig_index = builder().AddSignature(sig);
+    uint8_t sig_index = builder().AddSignature(sig);
     functions_.back()->SetSigIndex(sig_index);
     return *functions_.back();
   }
 
-  byte AllocateLocal(ValueType type) {
+  uint8_t AllocateLocal(ValueType type) {
     return functions_[0]->AllocateLocal(type);
   }
 
   uint32_t function_index() { return functions_[0]->function_index(); }
   WasmFunction* function() { return functions_[0]->function_; }
-  WasmInterpreter* interpreter() {
-    DCHECK(interpret());
-    return functions_[0]->interpreter_;
-  }
   bool possible_nondeterminism() { return possible_nondeterminism_; }
   TestingModuleBuilder& builder() { return builder_; }
   Zone* zone() { return &zone_; }
-
-  bool interpret() { return builder_.interpret(); }
 
   void SwitchToDebug() { builder_.SwitchToDebug(); }
 
@@ -489,10 +407,32 @@ class WasmRunnerBase : public InitializedHandleScope {
     return CreateSig(zone, MachineTypeForC<ReturnType>(), param_vec);
   }
 
+  // TODO(clemensb): Remove, use {CallViaJS} directly.
   void CheckCallApplyViaJS(double expected, uint32_t function_index,
                            Handle<Object>* buffer, int count) {
-    Isolate* isolate = builder_.isolate();
-    SetUpTrapCallback();
+    MaybeHandle<Object> retval =
+        CallViaJS(function_index, base::VectorOf(buffer, count));
+
+    if (retval.is_null()) {
+      CHECK_EQ(expected, static_cast<double>(0xDEADBEEF));
+    } else {
+      Handle<Object> result = retval.ToHandleChecked();
+      if (IsSmi(*result)) {
+        CHECK_EQ(expected, Smi::ToInt(*result));
+      } else {
+        CHECK(IsHeapNumber(*result));
+        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result)->value());
+      }
+    }
+  }
+
+  MaybeHandle<Object> CallViaJS(uint32_t function_index,
+                                base::Vector<Handle<Object>> parameters) {
+    Isolate* isolate = main_isolate();
+    // Save the original context, because CEntry (for runtime calls) will
+    // reset / invalidate it when returning.
+    SaveContext save_context(isolate);
+
     if (jsfuncs_.size() <= function_index) {
       jsfuncs_.resize(function_index + 1);
     }
@@ -500,30 +440,10 @@ class WasmRunnerBase : public InitializedHandleScope {
       jsfuncs_[function_index] = builder_.WrapCode(function_index);
     }
     Handle<JSFunction> jsfunc = jsfuncs_[function_index];
-    Handle<Object> global(isolate->context().global_object(), isolate);
-    MaybeHandle<Object> retval =
-        Execution::TryCall(isolate, jsfunc, global, count, buffer,
-                           Execution::MessageHandling::kReport, nullptr);
-
-    if (retval.is_null() || WasmRunnerBase::trap_happened) {
-      CHECK_EQ(expected, static_cast<double>(0xDEADBEEF));
-    } else {
-      Handle<Object> result = retval.ToHandleChecked();
-      if (result->IsSmi()) {
-        CHECK_EQ(expected, Smi::ToInt(*result));
-      } else {
-        CHECK(result->IsHeapNumber());
-        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result).value());
-      }
-    }
-
-    if (builder_.interpret()) {
-      CHECK_GT(builder_.interpreter()->NumInterpretedCalls(), 0);
-    }
-  }
-
-  Handle<Code> GetWrapperCode() {
-    return wrapper_.GetWrapperCode(main_isolate());
+    Handle<Object> global(isolate->context()->global_object(), isolate);
+    return Execution::TryCall(
+        isolate, jsfunc, global, static_cast<int>(parameters.size()),
+        parameters.data(), Execution::MessageHandling::kReport, nullptr);
   }
 
  private:
@@ -538,7 +458,6 @@ class WasmRunnerBase : public InitializedHandleScope {
   Zone zone_;
   TestingModuleBuilder builder_;
   std::vector<std::unique_ptr<WasmFunctionCompiler>> functions_;
-  WasmFunctionWrapper wrapper_;
   bool compiled_ = false;
   bool possible_nondeterminism_ = false;
   int32_t main_fn_index_ = 0;
@@ -552,11 +471,6 @@ class WasmRunnerBase : public InitializedHandleScope {
     *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
         false;
   }
-
- public:
-  // This field has to be static. Otherwise, gcc complains about the use in
-  // the lambda context below.
-  static bool trap_happened;
 };
 
 template <typename T>
@@ -579,84 +493,88 @@ class WasmRunner : public WasmRunnerBase {
                       ModuleOrigin origin = kWasmOrigin,
                       ManuallyImportedJSFunction* maybe_import = nullptr,
                       const char* main_fn_name = "main",
-                      RuntimeExceptionSupport runtime_exception_support =
-                          kNoRuntimeExceptionSupport,
-                      TestingModuleMemoryType mem_type = kMemory32,
                       Isolate* isolate = nullptr)
       : WasmRunnerBase(maybe_import, origin, execution_tier,
-                       sizeof...(ParamTypes), runtime_exception_support,
-                       mem_type, isolate) {
+                       sizeof...(ParamTypes), isolate) {
     WasmFunctionCompiler& main_fn =
         NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     // Non-zero if there is an import.
     main_fn_index_ = main_fn.function_index();
+  }
 
-    if (!interpret()) {
-      wrapper_.Init<ReturnType, ParamTypes...>(main_fn.descriptor());
+  template <typename T>
+  Handle<Object> MakeParam(T t) {
+    Factory* factory = builder_.isolate()->factory();
+    if constexpr (std::is_integral_v<T> && std::is_signed_v<T> &&
+                  sizeof(T) <= sizeof(int)) {
+      return factory->NewNumberFromInt(t);
     }
+    if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T> &&
+                  sizeof(T) <= sizeof(int)) {
+      return factory->NewNumberFromUint(t);
+    }
+    if constexpr (std::is_same_v<T, int64_t>) {
+      return BigInt::FromInt64(builder_.isolate(), t);
+    }
+    if constexpr (std::is_same_v<T, uint64_t>) {
+      return BigInt::FromUint64(builder_.isolate(), t);
+    }
+    if constexpr (std::is_same_v<T, float>) {
+      return factory->NewNumber(t);
+    }
+    if constexpr (std::is_same_v<T, double>) {
+      return factory->NewNumber(t);
+    }
+    UNIMPLEMENTED();
   }
 
   ReturnType Call(ParamTypes... p) {
-    // Save the original context, because CEntry (for runtime calls) will
-    // reset / invalidate it when returning.
-    SaveContext save_context(main_isolate());
+    std::array<Handle<Object>, sizeof...(p)> param_objs = {MakeParam(p)...};
+    MaybeHandle<Object> retval =
+        CallViaJS(function()->func_index, base::VectorOf(param_objs));
 
-    DCHECK(compiled_);
-    if (interpret()) return CallInterpreter(p...);
-
-    ReturnType return_value = static_cast<ReturnType>(0xDEADBEEFDEADBEEF);
-    SetUpTrapCallback();
-
-    wrapper_.SetInnerCode(builder_.GetFunctionCode(main_fn_index_));
-    wrapper_.SetInstance(builder_.instance_object());
-    Handle<Code> wrapper_code = GetWrapperCode();
-    compiler::CodeRunner<int32_t> runner(main_isolate(), wrapper_code,
-                                         wrapper_.signature());
-    int32_t result;
-    {
-      SetThreadInWasmFlag();
-
-      result = runner.Call(static_cast<void*>(&p)...,
-                           static_cast<void*>(&return_value));
-
-      ClearThreadInWasmFlag();
+    if (retval.is_null()) {
+      return static_cast<ReturnType>(0xDEADBEEFDEADBEEF);
     }
-    CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
-    return WasmRunnerBase::trap_happened
-               ? static_cast<ReturnType>(0xDEADBEEFDEADBEEF)
-               : return_value;
-  }
 
-  ReturnType CallInterpreter(ParamTypes... p) {
-    interpreter()->Reset();
-    std::array<WasmValue, sizeof...(p)> args{{WasmValueInitializer(p)...}};
-    interpreter()->InitFrame(function(), args.data());
-    interpreter()->Run();
-    CHECK_GT(interpreter()->NumInterpretedCalls(), 0);
-    if (interpreter()->state() == WasmInterpreter::FINISHED) {
-      WasmValue val = interpreter()->GetReturnValue();
-      possible_nondeterminism_ |= interpreter()->PossibleNondeterminism();
-      return val.to<ReturnType>();
-    } else if (interpreter()->state() == WasmInterpreter::TRAPPED) {
-      // TODO(titzer): return the correct trap code
-      int64_t result = 0xDEADBEEFDEADBEEF;
-      return static_cast<ReturnType>(result);
-    } else {
-      // TODO(titzer): falling off end
-      return ReturnType{0};
+    Handle<Object> result = retval.ToHandleChecked();
+    // For int64_t and uint64_t returns we will get a BigInt.
+    if constexpr (std::is_integral_v<ReturnType> &&
+                  sizeof(ReturnType) == sizeof(int64_t)) {
+      CHECK(IsBigInt(*result));
+      return BigInt::cast(*result)->AsInt64();
     }
+
+    // Otherwise it must be a number (Smi or HeapNumber).
+    CHECK(IsNumber(*result));
+    double value = Object::Number(*result);
+    // The JS API interprets all Wasm values as signed, hence we cast via the
+    // signed equivalent type to avoid undefined behaviour in the casting.
+    if constexpr (std::is_integral_v<ReturnType> &&
+                  std::is_unsigned_v<ReturnType>) {
+      using signed_t = std::make_signed_t<ReturnType>;
+      return static_cast<ReturnType>(static_cast<signed_t>(value));
+    }
+    return static_cast<ReturnType>(value);
   }
 
   void CheckCallViaJS(double expected, ParamTypes... p) {
-    Isolate* isolate = builder_.isolate();
-    // MSVC doesn't allow empty arrays, so include a dummy at the end.
-    Handle<Object> buffer[] = {isolate->factory()->NewNumber(p)...,
-                               Handle<Object>()};
-    CheckCallApplyViaJS(expected, function()->func_index, buffer, sizeof...(p));
+    // TODO(clemensb): Inline into callers; use {Call} and {CHECK_EQ} directly.
+    ReturnType result = Call(p...);
+    if constexpr (std::is_floating_point_v<ReturnType>) {
+      if (std::isnan(result)) {
+        CHECK(IsSameNan(static_cast<ReturnType>(expected), result));
+        return;
+      }
+    }
+    CHECK_EQ(expected, result);
   }
 
   void CheckCallViaJSTraps(ParamTypes... p) {
-    CheckCallViaJS(static_cast<double>(0xDEADBEEF), p...);
+    std::array<Handle<Object>, sizeof...(p)> param_objs = {MakeParam(p)...};
+    MaybeHandle<Object> retval =
+        CallViaJS(function()->func_index, base::VectorOf(param_objs));
+    CHECK(retval.is_null());
   }
 
   void SetMaxSteps(int n) { builder_.set_max_steps(n); }
@@ -670,9 +588,6 @@ class WasmRunner : public WasmRunnerBase {
     RunWasm_##name(TestExecutionTier::kTurbofan);                              \
   }                                                                            \
   TEST(RunWasmLiftoff_##name) { RunWasm_##name(TestExecutionTier::kLiftoff); } \
-  TEST(RunWasmInterpreter_##name) {                                            \
-    RunWasm_##name(TestExecutionTier::kInterpreter);                           \
-  }                                                                            \
   void RunWasm_##name(TestExecutionTier execution_tier)
 
 #define UNINITIALIZED_WASM_EXEC_TEST(name)               \
@@ -682,9 +597,6 @@ class WasmRunner : public WasmRunnerBase {
   }                                                      \
   UNINITIALIZED_TEST(RunWasmLiftoff_##name) {            \
     RunWasm_##name(TestExecutionTier::kLiftoff);         \
-  }                                                      \
-  UNINITIALIZED_TEST(RunWasmInterpreter_##name) {        \
-    RunWasm_##name(TestExecutionTier::kInterpreter);     \
   }                                                      \
   void RunWasm_##name(TestExecutionTier execution_tier)
 
@@ -696,8 +608,6 @@ class WasmRunner : public WasmRunnerBase {
   TEST(RunWasmLiftoff_##name) { RunWasm_##name(TestExecutionTier::kLiftoff); } \
   void RunWasm_##name(TestExecutionTier execution_tier)
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif

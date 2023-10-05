@@ -20,7 +20,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-display-names-tq-inl.inc"
 
-ACCESSORS(JSDisplayNames, internal, Managed<DisplayNamesInternal>,
+ACCESSORS(JSDisplayNames, internal, Tagged<Managed<DisplayNamesInternal>>,
           kInternalOffset)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDisplayNames)
 

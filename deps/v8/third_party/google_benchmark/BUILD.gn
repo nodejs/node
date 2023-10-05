@@ -59,8 +59,6 @@ if (v8_enable_google_benchmark) {
       "src/src/perf_counters.h",
       "src/src/re.h",
       "src/src/reporter.cc",
-      "src/src/sleep.cc",
-      "src/src/sleep.h",
       "src/src/statistics.cc",
       "src/src/statistics.h",
       "src/src/string_util.cc",

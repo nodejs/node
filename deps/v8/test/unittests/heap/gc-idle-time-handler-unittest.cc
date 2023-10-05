@@ -35,41 +35,6 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
 
 }  // namespace
 
-
-TEST(GCIdleTimeHandler, EstimateMarkingStepSizeInitial) {
-  size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(1, 0);
-  EXPECT_EQ(
-      static_cast<size_t>(GCIdleTimeHandler::kInitialConservativeMarkingSpeed *
-                          GCIdleTimeHandler::kConservativeTimeRatio),
-      step_size);
-}
-
-
-TEST(GCIdleTimeHandler, EstimateMarkingStepSizeNonZero) {
-  size_t marking_speed_in_bytes_per_millisecond = 100;
-  size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-      1, marking_speed_in_bytes_per_millisecond);
-  EXPECT_EQ(static_cast<size_t>(marking_speed_in_bytes_per_millisecond *
-                                GCIdleTimeHandler::kConservativeTimeRatio),
-            step_size);
-}
-
-
-TEST(GCIdleTimeHandler, EstimateMarkingStepSizeOverflow1) {
-  size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-      10, static_cast<double>(std::numeric_limits<size_t>::max()));
-  EXPECT_EQ(static_cast<size_t>(GCIdleTimeHandler::kMaximumMarkingStepSize),
-            step_size);
-}
-
-
-TEST(GCIdleTimeHandler, EstimateMarkingStepSizeOverflow2) {
-  size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-      static_cast<double>(std::numeric_limits<size_t>::max()), 10);
-  EXPECT_EQ(static_cast<size_t>(GCIdleTimeHandler::kMaximumMarkingStepSize),
-            step_size);
-}
-
 TEST_F(GCIdleTimeHandlerTest, IncrementalMarking1) {
   if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();

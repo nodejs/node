@@ -10,7 +10,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-FrameElider::FrameElider(InstructionSequence* code) : code_(code) {}
+FrameElider::FrameElider(InstructionSequence* code, bool has_dummy_end_block)
+    : code_(code), has_dummy_end_block_(has_dummy_end_block) {}
 
 void FrameElider::Run() {
   MarkBlocks();
@@ -107,9 +108,13 @@ bool FrameElider::PropagateIntoBlock(InstructionBlock* block) {
   // Already marked, nothing to do...
   if (block->needs_frame()) return false;
 
-  // Never mark the dummy end node, otherwise we might incorrectly decide to
-  // put frame deconstruction code there later,
-  if (block->successors().empty()) return false;
+  // Turbofan does have an empty dummy end block, which we need to ignore here.
+  // However, Turboshaft does not have such a block.
+  if (has_dummy_end_block_) {
+    // Never mark the dummy end node, otherwise we might incorrectly decide to
+    // put frame deconstruction code there later,
+    if (block->successors().empty()) return false;
+  }
 
   // Propagate towards the end ("downwards") if there is a predecessor needing
   // a frame, but don't "bleed" from deferred code to non-deferred code.

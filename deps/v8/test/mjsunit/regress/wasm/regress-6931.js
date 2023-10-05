@@ -15,7 +15,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function() {
   let builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   builder.addFunction('test', kSig_v_v)
       .addBody([
         kExprI32Const, 0x7c, // address = -4

@@ -57,7 +57,7 @@ class ZoneAllocator {
   template <typename U>
   friend class ZoneAllocator;
 
-  T* allocate(size_t length) { return zone_->NewArray<T>(length); }
+  T* allocate(size_t length) { return zone_->AllocateArray<T>(length); }
   void deallocate(T* p, size_t length) { zone_->DeleteArray<T>(p, length); }
 
   size_t max_size() const {

@@ -134,12 +134,6 @@ class CharacterRange {
   static void AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges,
                                         Zone* zone);
 
-#ifdef V8_INTL_SUPPORT
-  // Creates the closeOver of the given UnicodeSet, removing all
-  // characters/strings that can't be derived via simple case folding.
-  static void UnicodeSimpleCloseOver(icu::UnicodeSet& set);
-#endif  // V8_INTL_SUPPORT
-
   bool Contains(base::uc32 i) const { return from_ <= i && i <= to_; }
   base::uc32 from() const { return from_; }
   base::uc32 to() const { return to_; }
@@ -315,9 +309,12 @@ class RegExpClassRanges final : public RegExpTree {
   //     the specified ranges.
   // CONTAINS_SPLIT_SURROGATE: The character class contains part of a split
   //     surrogate and should not be unicode-desugared (crbug.com/641091).
+  // IS_CASE_FOLDED: If case folding is required (/i), it was already
+  //     performed on individual ranges and should not be applied again.
   enum Flag {
     NEGATED = 1 << 0,
     CONTAINS_SPLIT_SURROGATE = 1 << 1,
+    IS_CASE_FOLDED = 1 << 2,
   };
   using ClassRangesFlags = base::Flags<Flag>;
 
@@ -360,6 +357,9 @@ class RegExpClassRanges final : public RegExpTree {
   bool contains_split_surrogate() const {
     return (class_ranges_flags_ & CONTAINS_SPLIT_SURROGATE) != 0;
   }
+  bool is_case_folded() const {
+    return (class_ranges_flags_ & IS_CASE_FOLDED) != 0;
+  }
 
  private:
   CharacterSet set_;
@@ -367,8 +367,8 @@ class RegExpClassRanges final : public RegExpTree {
 };
 
 struct CharacterClassStringLess {
-  bool operator()(const base::Vector<const base::uc32>& lhs,
-                  const base::Vector<const base::uc32>& rhs) const {
+  bool operator()(base::Vector<const base::uc32> lhs,
+                  base::Vector<const base::uc32> rhs) const {
     // Longer strings first so we generate matches for the largest string
     // possible.
     if (lhs.length() != rhs.length()) {
@@ -464,7 +464,7 @@ class RegExpClassSetExpression final : public RegExpTree {
       RegExpTree* root, ZoneList<CharacterRange>* temp_ranges, Zone* zone);
 
   const OperationType operation_;
-  const bool is_negated_;
+  bool is_negated_;
   const bool may_contain_strings_;
   ZoneList<RegExpTree*>* operands_ = nullptr;
   int max_match_;

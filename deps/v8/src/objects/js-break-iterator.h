@@ -50,13 +50,13 @@ class JSV8BreakIterator
                               Handle<JSV8BreakIterator> break_iterator);
   static Handle<Object> Next(Isolate* isolate,
                              Handle<JSV8BreakIterator> break_iterator);
-  static String BreakType(Isolate* isolate,
-                          Handle<JSV8BreakIterator> break_iterator);
+  static Tagged<String> BreakType(Isolate* isolate,
+                                  Handle<JSV8BreakIterator> break_iterator);
 
   DECL_PRINTER(JSV8BreakIterator)
 
-  DECL_ACCESSORS(break_iterator, Managed<icu::BreakIterator>)
-  DECL_ACCESSORS(unicode_string, Managed<icu::UnicodeString>)
+  DECL_ACCESSORS(break_iterator, Tagged<Managed<icu::BreakIterator>>)
+  DECL_ACCESSORS(unicode_string, Tagged<Managed<icu::UnicodeString>>)
 
   TQ_OBJECT_CONSTRUCTORS(JSV8BreakIterator)
 };

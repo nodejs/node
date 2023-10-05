@@ -395,7 +395,7 @@ Local<Value> Context::GetEmbedderData(int index) {
 #ifndef V8_ENABLE_CHECKS
   using A = internal::Address;
   using I = internal::Internals;
-  A ctx = *reinterpret_cast<const A*>(this);
+  A ctx = internal::ValueHelper::ValueAsAddress(this);
   A embedder_data =
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset =
@@ -407,15 +407,9 @@ Local<Value> Context::GetEmbedderData(int index) {
   value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
 #endif
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  return Local<Value>(reinterpret_cast<Value*>(value));
-#else
-  internal::Isolate* isolate = internal::IsolateFromNeverReadOnlySpaceObject(
-      *reinterpret_cast<A*>(this));
-  A* result = HandleScope::CreateHandle(isolate, value);
-  return Local<Value>(reinterpret_cast<Value*>(result));
-#endif
-
+  auto isolate = reinterpret_cast<v8::Isolate*>(
+      internal::IsolateFromNeverReadOnlySpaceObject(ctx));
+  return Local<Value>::New(isolate, value);
 #else
   return SlowGetEmbedderData(index);
 #endif
@@ -442,9 +436,12 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
 
 template <class T>
 MaybeLocal<T> Context::GetDataFromSnapshotOnce(size_t index) {
-  T* data = reinterpret_cast<T*>(GetDataFromSnapshotOnce(index));
-  if (data) internal::PerformCastCheck(data);
-  return Local<T>(data);
+  auto slot = GetDataFromSnapshotOnce(index);
+  if (slot) {
+    internal::PerformCastCheck(
+        internal::ValueHelper::SlotAsValue<T, false>(slot));
+  }
+  return Local<T>::FromSlot(slot);
 }
 
 Context* Context::Cast(v8::Data* data) {

@@ -22,25 +22,25 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackCell)
 
-RELEASE_ACQUIRE_ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
+RELEASE_ACQUIRE_ACCESSORS(FeedbackCell, value, Tagged<HeapObject>, kValueOffset)
 
 void FeedbackCell::clear_padding() {
   if (FeedbackCell::kAlignedSize == FeedbackCell::kUnalignedSize) return;
   DCHECK_GE(FeedbackCell::kAlignedSize, FeedbackCell::kUnalignedSize);
-  memset(reinterpret_cast<byte*>(address() + FeedbackCell::kUnalignedSize), 0,
-         FeedbackCell::kAlignedSize - FeedbackCell::kUnalignedSize);
+  memset(reinterpret_cast<uint8_t*>(address() + FeedbackCell::kUnalignedSize),
+         0, FeedbackCell::kAlignedSize - FeedbackCell::kUnalignedSize);
 }
 
 void FeedbackCell::reset_feedback_vector(
-    base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
-                                      HeapObject target)>>
+    base::Optional<std::function<void(
+        Tagged<HeapObject> object, ObjectSlot slot, Tagged<HeapObject> target)>>
         gc_notify_updated_slot) {
-  SetInitialInterruptBudget();
-  if (value().IsUndefined() || value().IsClosureFeedbackCellArray()) return;
+  clear_interrupt_budget();
+  if (IsUndefined(value()) || IsClosureFeedbackCellArray(value())) return;
 
-  CHECK(value().IsFeedbackVector());
-  ClosureFeedbackCellArray closure_feedback_cell_array =
-      FeedbackVector::cast(value()).closure_feedback_cell_array();
+  CHECK(IsFeedbackVector(value()));
+  Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array =
+      FeedbackVector::cast(value())->closure_feedback_cell_array();
   set_value(closure_feedback_cell_array, kReleaseStore);
   if (gc_notify_updated_slot) {
     (*gc_notify_updated_slot)(*this, RawField(FeedbackCell::kValueOffset),
@@ -48,10 +48,10 @@ void FeedbackCell::reset_feedback_vector(
   }
 }
 
-void FeedbackCell::SetInitialInterruptBudget() {
-  set_interrupt_budget(TieringManager::InitialInterruptBudget());
+void FeedbackCell::clear_interrupt_budget() {
+  // This value is always reset to a proper budget before it's used.
+  set_interrupt_budget(0);
 }
-
 
 void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
   ReadOnlyRoots r(isolate);

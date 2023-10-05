@@ -25,22 +25,22 @@ BUILTIN(NumberPrototypeToExponential) {
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSPrimitiveWrapper()) {
+  if (IsJSPrimitiveWrapper(*value)) {
     value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
-  if (!value->IsNumber()) {
+  if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   "Number.prototype.toExponential"),
                               isolate->factory()->Number_string()));
   }
-  double const value_number = value->Number();
+  double const value_number = Object::Number(*value);
 
   // Convert the {fraction_digits} to an integer first.
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, fraction_digits, Object::ToInteger(isolate, fraction_digits));
-  double const fraction_digits_number = fraction_digits->Number();
+  double const fraction_digits_number = Object::Number(*fraction_digits);
 
   if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {
@@ -54,7 +54,7 @@ BUILTIN(NumberPrototypeToExponential) {
                                isolate->factory()->NewStringFromAsciiChecked(
                                    "toExponential()")));
   }
-  int const f = args.atOrUndefined(isolate, 1)->IsUndefined(isolate)
+  int const f = IsUndefined(*args.atOrUndefined(isolate, 1), isolate)
                     ? -1
                     : static_cast<int>(fraction_digits_number);
   char* const str = DoubleToExponentialCString(value_number, f);
@@ -70,22 +70,22 @@ BUILTIN(NumberPrototypeToFixed) {
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSPrimitiveWrapper()) {
+  if (IsJSPrimitiveWrapper(*value)) {
     value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
-  if (!value->IsNumber()) {
+  if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   "Number.prototype.toFixed"),
                               isolate->factory()->Number_string()));
   }
-  double const value_number = value->Number();
+  double const value_number = Object::Number(*value);
 
   // Convert the {fraction_digits} to an integer first.
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, fraction_digits, Object::ToInteger(isolate, fraction_digits));
-  double const fraction_digits_number = fraction_digits->Number();
+  double const fraction_digits_number = Object::Number(*fraction_digits);
 
   // Check if the {fraction_digits} are in the supported range.
   if (fraction_digits_number < 0.0 ||
@@ -118,11 +118,11 @@ BUILTIN(NumberPrototypeToLocaleString) {
   Handle<Object> value = args.at(0);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSPrimitiveWrapper()) {
+  if (IsJSPrimitiveWrapper(*value)) {
     value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   // 1. Let x be ? thisNumberValue(this value)
-  if (!value->IsNumber()) {
+  if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kNotGeneric,
@@ -148,27 +148,27 @@ BUILTIN(NumberPrototypeToPrecision) {
   Handle<Object> precision = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSPrimitiveWrapper()) {
+  if (IsJSPrimitiveWrapper(*value)) {
     value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
-  if (!value->IsNumber()) {
+  if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   "Number.prototype.toPrecision"),
                               isolate->factory()->Number_string()));
   }
-  double const value_number = value->Number();
+  double const value_number = Object::Number(*value);
 
   // If no {precision} was specified, just return ToString of {value}.
-  if (precision->IsUndefined(isolate)) {
+  if (IsUndefined(*precision, isolate)) {
     return *isolate->factory()->NumberToString(value);
   }
 
   // Convert the {precision} to an integer first.
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, precision,
                                      Object::ToInteger(isolate, precision));
-  double const precision_number = precision->Number();
+  double const precision_number = Object::Number(*precision);
 
   if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {

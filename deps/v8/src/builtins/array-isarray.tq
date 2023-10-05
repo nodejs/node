@@ -8,8 +8,8 @@ extern runtime ArrayIsArray(implicit context: Context)(JSAny): JSAny;
 
 namespace array {
 // ES #sec-array.isarray
-javascript builtin ArrayIsArray(js-implicit context: NativeContext)(arg: JSAny):
-    JSAny {
+javascript builtin ArrayIsArray(
+    js-implicit context: NativeContext)(arg: JSAny): JSAny {
   // 1. Return ? IsArray(arg).
   typeswitch (arg) {
     case (JSArray): {

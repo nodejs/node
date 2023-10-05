@@ -105,8 +105,8 @@ function listener(event, exec_state, event_data, data) {
     success("g", "get_a.bind(0).name = 'g'");
     success(1, "get_a.bind(0).length = 1");
     success(null, "(function(){}).prototype = null");
-    success(true, "(new Error()).stack.length > 1");
-    success("a", "(new Error()).stack = 'a'");
+    fail("(new Error()).stack.length > 1");
+    fail("(new Error()).stack = 'a'");
     // Eval is not allowed.
     fail("eval('Math.sin(1)')");
     fail("eval('exception = 1')");

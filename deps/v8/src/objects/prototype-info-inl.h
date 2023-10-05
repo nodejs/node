@@ -31,8 +31,8 @@ DEF_GETTER(PrototypeInfo, object_create_map, MaybeObject) {
 RELEASE_ACQUIRE_WEAK_ACCESSORS(PrototypeInfo, object_create_map,
                                kObjectCreateMapOffset)
 
-Map PrototypeInfo::ObjectCreateMap() {
-  return Map::cast(object_create_map()->GetHeapObjectAssumeWeak());
+Tagged<Map> PrototypeInfo::ObjectCreateMap() {
+  return Map::cast(object_create_map().GetHeapObjectAssumeWeak());
 }
 
 // static
@@ -46,30 +46,31 @@ bool PrototypeInfo::HasObjectCreateMap() {
   return cache->IsWeak();
 }
 
-bool PrototypeInfo::IsPrototypeInfoFast(Object object) {
+bool PrototypeInfo::IsPrototypeInfoFast(Tagged<Object> object) {
   bool is_proto_info = object != Smi::zero();
-  DCHECK_EQ(is_proto_info, object.IsPrototypeInfo());
+  DCHECK_EQ(is_proto_info, IsPrototypeInfo(object));
   return is_proto_info;
 }
 
 BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map,
                ShouldBeFastBit::kShift)
 
-void PrototypeUsers::MarkSlotEmpty(WeakArrayList array, int index) {
+void PrototypeUsers::MarkSlotEmpty(Tagged<WeakArrayList> array, int index) {
   DCHECK_GT(index, 0);
-  DCHECK_LT(index, array.length());
+  DCHECK_LT(index, array->length());
   // Chain the empty slots into a linked list (each empty slot contains the
   // index of the next empty slot).
-  array.Set(index, MaybeObject::FromObject(empty_slot_index(array)));
+  array->Set(index, MaybeObject::FromObject(empty_slot_index(array)));
   set_empty_slot_index(array, index);
 }
 
-Smi PrototypeUsers::empty_slot_index(WeakArrayList array) {
-  return array.Get(kEmptySlotIndex).ToSmi();
+Tagged<Smi> PrototypeUsers::empty_slot_index(Tagged<WeakArrayList> array) {
+  return array->Get(kEmptySlotIndex).ToSmi();
 }
 
-void PrototypeUsers::set_empty_slot_index(WeakArrayList array, int index) {
-  array.Set(kEmptySlotIndex, MaybeObject::FromObject(Smi::FromInt(index)));
+void PrototypeUsers::set_empty_slot_index(Tagged<WeakArrayList> array,
+                                          int index) {
+  array->Set(kEmptySlotIndex, MaybeObject::FromObject(Smi::FromInt(index)));
 }
 
 }  // namespace internal

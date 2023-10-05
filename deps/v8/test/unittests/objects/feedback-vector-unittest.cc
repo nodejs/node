@@ -85,8 +85,8 @@ TEST_F(FeedbackVectorTest, VectorStructure) {
     spec.AddForInSlot();
     vector = NewFeedbackVector(isolate, &spec);
     FeedbackVectorHelper helper(vector);
-    FeedbackCell cell = *vector->GetClosureFeedbackCell(0);
-    CHECK_EQ(cell.value(), *factory->undefined_value());
+    Tagged<FeedbackCell> cell = *vector->GetClosureFeedbackCell(0);
+    CHECK_EQ(cell->value(), *factory->undefined_value());
   }
 }
 
@@ -167,7 +167,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStates) {
   CHECK_EQ(InlineCacheState::GENERIC, nexus.ic_state());
 
   // After a collection, state should remain GENERIC.
-  CollectAllGarbage();
+  InvokeMajorGC();
   CHECK_EQ(InlineCacheState::GENERIC, nexus.ic_state());
 }
 
@@ -194,8 +194,8 @@ TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
   FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
-  HeapObject heap_object;
-  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  Tagged<HeapObject> heap_object;
+  CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*F, heap_object);
 
   TryRunJS(
@@ -203,7 +203,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
       "foo();");
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   CHECK_EQ(CallFeedbackContent::kTarget, nexus.GetCallFeedbackContent());
-  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->function_prototype_apply(), heap_object);
 
   TryRunJS(
@@ -233,11 +233,11 @@ TEST_F(FeedbackVectorTest, VectorCallFeedback) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
-  HeapObject heap_object;
-  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  Tagged<HeapObject> heap_object;
+  CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*foo, heap_object);
 
-  CollectAllGarbage();
+  InvokeMajorGC();
   // It should stay monomorphic even after a GC.
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
@@ -265,9 +265,9 @@ TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
-  HeapObject heap_object;
-  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
-  CHECK(heap_object.IsFeedbackCell(isolate));
+  Tagged<HeapObject> heap_object;
+  CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
+  CHECK(IsFeedbackCell(heap_object, isolate));
   // Ensure this is the feedback cell for the closure returned by
   // foo_maker.
   CHECK_EQ(heap_object, a_foo->raw_feedback_cell());
@@ -293,11 +293,11 @@ TEST_F(FeedbackVectorTest, VectorCallFeedbackForArray) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
-  HeapObject heap_object;
-  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  Tagged<HeapObject> heap_object;
+  CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->array_function(), heap_object);
 
-  CollectAllGarbage();
+  InvokeMajorGC();
   // It should stay monomorphic even after a GC.
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
@@ -484,7 +484,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICStates) {
   CHECK(nexus.GetFirstMap().is_null());
 
   // After a collection, state should not be reset to PREMONOMORPHIC.
-  CollectAllGarbage();
+  InvokeMajorGC();
   CHECK_EQ(InlineCacheState::MEGAMORPHIC, nexus.ic_state());
 }
 
@@ -546,7 +546,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
   FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   // Verify that the monomorphic map is the one we expect.
-  Map number_map = ReadOnlyRoots(heap).heap_number_map();
+  Tagged<Map> number_map = ReadOnlyRoots(heap).heap_number_map();
   CHECK_EQ(number_map, nexus.GetFirstMap());
 
   // Now go polymorphic on o.

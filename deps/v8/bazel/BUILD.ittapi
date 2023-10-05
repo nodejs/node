@@ -1,0 +1,15 @@
+cc_library(
+    name = "lib_ittapi",
+    srcs = [
+        "third_party/ittapi/include/ittnotify.h",
+        "third_party/ittapi/include/jitprofiling.h",
+        "third_party/ittapi/src/ittnotify/ittnotify_config.h",
+        "third_party/ittapi/src/ittnotify/jitprofiling.c",
+    ],
+    hdrs = [
+        "third_party/ittapi/include/ittnotify.h",
+        "third_party/ittapi/src/ittnotify/ittnotify_types.h",
+    ],
+    copts = ["-Iexternal/intel_ittapi/third_party/ittapi/include"],
+    visibility = ["//visibility:public"],
+)

@@ -3,6 +3,8 @@
 # found in the LICENSE file.
 
 from contextlib import contextmanager
+from pathlib import Path
+
 import logging
 import os
 import re
@@ -16,8 +18,7 @@ from ..local.android import (Driver, CommandFailedException, TimeoutException)
 from ..objects import output
 from ..local.pool import AbortException
 
-BASE_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..' , '..', '..'))
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 SEM_INVALID_VALUE = -1
 SEM_NOGPFAULTERRORBOX = 0x0002  # Microsoft Platform SDK WinBase.h
@@ -88,13 +89,16 @@ class BaseCommand(object):
     """
     assert(timeout > 0)
 
-    self.shell = shell
-    self.args = args or []
+    self.shell = Path(shell)
+    self.args = list(map(str, args or []))
     self.cmd_prefix = cmd_prefix or []
     self.timeout = timeout
     self.env = env or {}
     self.verbose = verbose
     self.handle_sigterm = handle_sigterm
+
+  def _result_overrides(self, returncode):
+    pass
 
   def execute(self):
     if self.verbose:
@@ -115,6 +119,7 @@ class BaseCommand(object):
 
       timer.cancel()
 
+    self._result_overrides(process)
     return output.Output(
       process.returncode,
       timeout_occured[0],
@@ -180,7 +185,7 @@ class BaseCommand(object):
     return cmd
 
   def _to_args_list(self):
-    return self.cmd_prefix + [self.shell] + self.args
+    return list(map(str, self.cmd_prefix + [self.shell])) + self.args
 
 
 class PosixCommand(BaseCommand):
@@ -229,6 +234,64 @@ def taskkill_windows(process, verbose=False, force=True):
     logging.info(stdout.decode('utf-8', errors='ignore'))
     logging.info(stderr.decode('utf-8', errors='ignore'))
     logging.info('Return code: %d', tk.returncode)
+
+
+class IOSCommand(BaseCommand):
+
+  def __init__(self,
+               shell,
+               args=None,
+               cmd_prefix=None,
+               timeout=120,
+               env=None,
+               verbose=False,
+               test_case=None,
+               handle_sigterm=False):
+    """Initialize the command and set a large enough timeout required for runs
+    through the iOS Simulator.
+    """
+    super(IOSCommand, self).__init__(
+        shell,
+        args=args,
+        cmd_prefix=cmd_prefix,
+        timeout=timeout,
+        env=env,
+        verbose=verbose,
+        handle_sigterm=handle_sigterm)
+
+  def _result_overrides(self, process):
+    # TODO(crbug.com/1445694): if iossim returns with code 65, force a
+    # successful exit instead.
+    if (process.returncode == 65):
+      process.returncode = 0
+
+  def _start_process(self):
+    try:
+      return subprocess.Popen(
+          args=self._get_popen_args(),
+          stdout=subprocess.PIPE,
+          stderr=subprocess.PIPE,
+          env=self._get_env(),
+          shell=True,
+          # Make the new shell create its own process group. This allows to kill
+          # all spawned processes reliably (https://crbug.com/v8/8292).
+          preexec_fn=os.setsid,
+      )
+    except Exception as e:
+      sys.stderr.write('Error executing: %s\n' % self)
+      raise e
+
+  def _kill_process(self, process):
+    # Kill the whole process group (PID == GPID after setsid).
+    # First try a soft term to allow some feedback
+    os.killpg(process.pid, signal.SIGTERM)
+    # Give the process some time to cleanly terminate.
+    time.sleep(0.1)
+    # Forcefully kill processes.
+    os.killpg(process.pid, signal.SIGKILL)
+
+  def _to_args_list(self):
+    return list(map(str, self.cmd_prefix + [self.shell]))
 
 
 class WindowsCommand(BaseCommand):
@@ -291,8 +354,8 @@ class AndroidCommand(BaseCommand):
     if self.verbose:
       print('# %s' % self)
 
-    shell_name = os.path.basename(self.shell)
-    shell_dir = os.path.dirname(self.shell)
+    shell_name = self.shell.name
+    shell_dir = self.shell.parent
 
     self.driver.push_executable(shell_dir, 'bin', shell_name)
     self.push_test_resources()
@@ -324,22 +387,22 @@ class AndroidCommand(BaseCommand):
 
   def push_test_resources(self):
     for abs_file in self.files_to_push:
-      abs_dir = os.path.dirname(abs_file)
-      file_name = os.path.basename(abs_file)
-      rel_dir = os.path.relpath(abs_dir, BASE_DIR)
+      abs_dir = abs_file.parent
+      file_name = abs_file.name
+      rel_dir = abs_dir.relative_to(BASE_DIR)
       self.driver.push_file(abs_dir, file_name, rel_dir)
 
 
 def args_with_relative_paths(args):
+  base_dir_str = re.escape(BASE_DIR.as_posix())
   rel_args = []
   files_to_push = []
-  find_path_re = re.compile(r'.*(%s/[^\'"]+).*' % re.escape(BASE_DIR))
+  find_path_re = re.compile(r'.*(%s/[^\'"]+).*' % base_dir_str)
   for arg in (args or []):
-    match = find_path_re.match(arg)
+    match = find_path_re.match(str(arg))
     if match:
-      files_to_push.append(match.group(1))
-    rel_args.append(
-        re.sub(r'(.*)%s/(.*)' % re.escape(BASE_DIR), r'\1\2', arg))
+      files_to_push.append(Path(match.group(1)).resolve())
+    rel_args.append(re.sub(r'(.*)%s/(.*)' % base_dir_str, r'\1\2', str(arg)))
   return rel_args, files_to_push
 
 
@@ -353,6 +416,8 @@ def setup(target_os, device):
   if target_os == 'android':
     AndroidCommand.driver = Driver.instance(device)
     Command = AndroidCommand
+  elif target_os == 'ios':
+    Command = IOSCommand
   elif target_os == 'windows':
     Command = WindowsCommand
   else:

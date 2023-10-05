@@ -48,6 +48,7 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
   void set_abort_hard(bool v) { hard_abort_ = v; }
 
   void set_builtin(Builtin builtin) { maybe_builtin_ = builtin; }
+  Builtin builtin() const { return maybe_builtin_; }
 
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }

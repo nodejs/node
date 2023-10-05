@@ -26,16 +26,16 @@ extern class JSRegExp extends JSObject {
 // validate the lastIndex is positive smi when used in fast paths.
 transient type FastJSRegExp extends JSRegExp;
 
-extern operator '.global' macro
-RegExpBuiltinsAssembler::FastFlagGetterGlobal(FastJSRegExp): bool;
-extern operator '.unicode' macro
-RegExpBuiltinsAssembler::FastFlagGetterUnicode(FastJSRegExp): bool;
+extern operator '.global' macro RegExpBuiltinsAssembler::FastFlagGetterGlobal(
+    FastJSRegExp): bool;
+extern operator '.unicode' macro RegExpBuiltinsAssembler::FastFlagGetterUnicode(
+    FastJSRegExp): bool;
 extern operator '.unicodeSets' macro
-RegExpBuiltinsAssembler::FastFlagGetterUnicodeSets(FastJSRegExp): bool;
-extern operator '.lastIndex' macro
-RegExpBuiltinsAssembler::FastLoadLastIndex(FastJSRegExp): Smi;
-extern operator '.lastIndex=' macro
-RegExpBuiltinsAssembler::FastStoreLastIndex(FastJSRegExp, Smi): void;
+    RegExpBuiltinsAssembler::FastFlagGetterUnicodeSets(FastJSRegExp): bool;
+extern operator '.lastIndex' macro RegExpBuiltinsAssembler::FastLoadLastIndex(
+    FastJSRegExp): Smi;
+extern operator '.lastIndex=' macro RegExpBuiltinsAssembler::FastStoreLastIndex(
+    FastJSRegExp, Smi): void;
 
 @doNotGenerateCast
 extern class JSRegExpConstructor extends JSFunction

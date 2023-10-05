@@ -30,7 +30,7 @@ bitfield struct MapBitFields3 extends uint32 {
   is_unstable: bool: 1 bit;
   is_migration_target: bool: 1 bit;
   is_extensible: bool: 1 bit;
-  may_have_interesting_symbols: bool: 1 bit;
+  may_have_interesting_properties: bool: 1 bit;
   construction_counter: int32: 3 bit;
 }
 

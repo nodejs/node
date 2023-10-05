@@ -233,9 +233,11 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     CHECK_EQ(reserved_area, 0);
     void* base = reinterpret_cast<void*>(page_allocator_->begin());
     size_t size = page_allocator_->size();
-    CHECK(params.page_allocator->SetPermissions(
-        base, size, PageAllocator::kReadWriteExecute));
-    CHECK(params.page_allocator->DiscardSystemPages(base, size));
+    if (!params.page_allocator->SetPermissions(
+            base, size, PageAllocator::kReadWriteExecute)) {
+      return false;
+    }
+    if (!params.page_allocator->DiscardSystemPages(base, size)) return false;
   }
   return true;
 }
@@ -362,7 +364,7 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   embedded_blob_code_copy =
       reinterpret_cast<uint8_t*>(page_allocator()->AllocatePages(
           hint, allocate_code_size, kAllocatePageSize,
-          PageAllocator::kNoAccess));
+          PageAllocator::kNoAccessWillJitLater));
 
   if (!embedded_blob_code_copy) {
     V8::FatalProcessOutOfMemory(

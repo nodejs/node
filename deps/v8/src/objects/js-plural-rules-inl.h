@@ -23,10 +23,10 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSPluralRules)
 
-ACCESSORS(JSPluralRules, icu_plural_rules, Managed<icu::PluralRules>,
+ACCESSORS(JSPluralRules, icu_plural_rules, Tagged<Managed<icu::PluralRules>>,
           kIcuPluralRulesOffset)
 ACCESSORS(JSPluralRules, icu_number_formatter,
-          Managed<icu::number::LocalizedNumberFormatter>,
+          Tagged<Managed<icu::number::LocalizedNumberFormatter>>,
           kIcuNumberFormatterOffset)
 
 inline void JSPluralRules::set_type(Type type) {

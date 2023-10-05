@@ -55,7 +55,7 @@ class Bootstrapper final {
 
   // Creates a JavaScript Global Context with initial object graph.
   // The returned value is a global handle casted to V8Environment*.
-  Handle<Context> CreateEnvironment(
+  Handle<NativeContext> CreateEnvironment(
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
@@ -64,7 +64,7 @@ class Bootstrapper final {
 
   // Used for testing context deserialization. No code runs in the generated
   // context. It only needs to pass heap verification.
-  Handle<Context> CreateEnvironmentForTesting() {
+  Handle<NativeContext> CreateEnvironmentForTesting() {
     MaybeHandle<JSGlobalProxy> no_global_proxy;
     v8::Local<v8::ObjectTemplate> no_global_object_template;
     ExtensionConfiguration no_extensions;

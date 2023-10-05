@@ -911,19 +911,18 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
         __ Daddu(a2, a2, num_saved_registers_ * kIntSize);
         __ Sd(a2, MemOperand(frame_pointer(), kRegisterOutputOffset));
 
-        // Prepare a0 to initialize registers with its value in the next run.
-        __ Ld(a0, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
-
         // Restore the original regexp stack pointer value (effectively, pop the
         // stored base pointer).
         PopRegExpBasePointer(backtrack_stackpointer(), a2);
+
+        Label reload_string_start_minus_one;
 
         if (global_with_zero_length_check()) {
           // Special case for zero-length matches.
           // t3: capture start index
           // Not a zero-length match, restart.
-          __ Branch(
-              &load_char_start_regexp, ne, current_input_offset(), Operand(t3));
+          __ Branch(&reload_string_start_minus_one, ne, current_input_offset(),
+                    Operand(t3));
           // Offset from the end is zero if we already reached the end.
           __ Branch(&exit_label_, eq, current_input_offset(),
                     Operand(zero_reg));
@@ -934,6 +933,11 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
                    Operand((mode_ == UC16) ? 2 : 1));
           if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
         }
+
+        __ bind(&reload_string_start_minus_one);
+        // Prepare a0 to initialize registers with its value in the next run.
+        // Must be immediately before the jump to avoid clobbering.
+        __ Ld(a0, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
 
         __ Branch(&load_char_start_regexp);
       } else {
@@ -1217,7 +1221,7 @@ void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
 
   EmbeddedData d = EmbeddedData::FromBlob();
   CHECK(Builtins::IsIsolateIndependent(Builtin::kDirectCEntry));
-  Address entry = d.InstructionStartOfBuiltin(Builtin::kDirectCEntry);
+  Address entry = d.InstructionStartOf(Builtin::kDirectCEntry);
   __ li(kScratchReg, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   __ Call(kScratchReg);
 
@@ -1259,8 +1263,8 @@ int64_t RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
           frame_entry<int64_t>(re_frame, kDirectCallOffset)),
       return_address, re_code,
       frame_entry_address<Address>(re_frame, kInputStringOffset),
-      frame_entry_address<const byte*>(re_frame, kInputStartOffset),
-      frame_entry_address<const byte*>(re_frame, kInputEndOffset));
+      frame_entry_address<const uint8_t*>(re_frame, kInputStartOffset),
+      frame_entry_address<const uint8_t*>(re_frame, kInputEndOffset));
 }
 
 MemOperand RegExpMacroAssemblerMIPS::register_location(int register_index) {

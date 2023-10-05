@@ -497,10 +497,6 @@ class BytecodeOffset {
   //  - {ConstructStubInvoke} maps to {construct_stub_invoke_deopt_pc_offset}.
   static BytecodeOffset ConstructStubCreate() { return BytecodeOffset(1); }
   static BytecodeOffset ConstructStubInvoke() { return BytecodeOffset(2); }
-  bool IsValidForConstructStub() const {
-    return id_ == ConstructStubCreate().ToInt() ||
-           id_ == ConstructStubInvoke().ToInt();
-  }
 
   constexpr bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BytecodeOffset& other) const {
@@ -552,7 +548,7 @@ int WriteChars(const char* filename, const char* str, int size,
 
 // Write size bytes to the file given by filename.
 // The file is overwritten. Returns the number of bytes written.
-int WriteBytes(const char* filename, const byte* bytes, int size,
+int WriteBytes(const char* filename, const uint8_t* bytes, int size,
                bool verbose = true);
 
 // Simple support to read a file into std::string.

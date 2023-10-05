@@ -47,20 +47,18 @@ transitioning macro ToString_Inline(context: Context, o: JSAny): String {
   return ToStringImpl(context, o);
 }
 
-extern macro StringBuiltinsAssembler::SubString(
-    String, uintptr, uintptr): String;
+extern macro StringBuiltinsAssembler::SubString(String, uintptr, uintptr):
+    String;
 
 // ES6 #sec-string.prototype.tostring
-transitioning javascript builtin
-StringPrototypeToString(
+transitioning javascript builtin StringPrototypeToString(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return ToThisValue(
       receiver, PrimitiveType::kString, 'String.prototype.toString');
 }
 
 // ES6 #sec-string.prototype.valueof
-transitioning javascript builtin
-StringPrototypeValueOf(
+transitioning javascript builtin StringPrototypeValueOf(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return ToThisValue(
       receiver, PrimitiveType::kString, 'String.prototype.valueOf');
@@ -79,9 +77,8 @@ transitioning builtin StringToList(implicit context: Context)(string: String):
 
   const nativeContext = LoadNativeContext(context);
   const map: Map = LoadJSArrayElementsMap(kind, nativeContext);
-  const array: JSArray = AllocateJSArray(
-      kind, map, stringLength, SmiTag(stringLength),
-      AllocationFlag::kAllowLargeObjectAllocation);
+  const array: JSArray =
+      AllocateJSArray(kind, map, stringLength, SmiTag(stringLength));
   const elements = UnsafeCast<FixedArray>(array.elements);
   const encoding = UnicodeEncoding::UTF16;
   let arrayLength: Smi = 0;
@@ -101,8 +98,8 @@ transitioning builtin StringToList(implicit context: Context)(string: String):
   return array;
 }
 
-transitioning macro GenerateStringAt(implicit context: Context)(
-    receiver: JSAny, position: JSAny,
+transitioning macro GenerateStringAt(
+    implicit context: Context)(receiver: JSAny, position: JSAny,
     methodName: constexpr string): never labels
 IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
   // 1. Let O be ? RequireObjectCoercible(this value).
@@ -135,8 +132,8 @@ IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
 
 // ES6 #sec-string.prototype.charat
 transitioning javascript builtin StringPrototypeCharAt(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(position: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    position: JSAny): JSAny {
   try {
     GenerateStringAt(receiver, position, 'String.prototype.charAt')
         otherwise IfInBounds, IfOutOfBounds;
@@ -150,8 +147,8 @@ transitioning javascript builtin StringPrototypeCharAt(
 
 // ES6 #sec-string.prototype.charcodeat
 transitioning javascript builtin StringPrototypeCharCodeAt(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(position: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    position: JSAny): JSAny {
   try {
     GenerateStringAt(receiver, position, 'String.prototype.charCodeAt')
         otherwise IfInBounds, IfOutOfBounds;
@@ -165,8 +162,8 @@ transitioning javascript builtin StringPrototypeCharCodeAt(
 
 // ES6 #sec-string.prototype.codepointat
 transitioning javascript builtin StringPrototypeCodePointAt(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(position: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    position: JSAny): JSAny {
   try {
     GenerateStringAt(receiver, position, 'String.prototype.codePointAt')
         otherwise IfInBounds, IfOutOfBounds;
@@ -197,8 +194,8 @@ transitioning javascript builtin StringPrototypeConcat(
   return string;
 }
 
-extern transitioning runtime
-SymbolDescriptiveString(implicit context: Context)(Symbol): String;
+extern transitioning runtime SymbolDescriptiveString(
+    implicit context: Context)(Symbol): String;
 
 // ES #sec-string-constructor
 // https://tc39.github.io/ecma262/#sec-string-constructor
@@ -239,18 +236,18 @@ transitioning javascript builtin StringConstructor(
   return obj;
 }
 
-transitioning builtin StringAddConvertLeft(implicit context: Context)(
-    left: JSAny, right: String): String {
+transitioning builtin StringAddConvertLeft(
+    implicit context: Context)(left: JSAny, right: String): String {
   return ToStringImpl(context, ToPrimitiveDefault(left)) + right;
 }
 
-transitioning builtin StringAddConvertRight(implicit context: Context)(
-    left: String, right: JSAny): String {
+transitioning builtin StringAddConvertRight(
+    implicit context: Context)(left: String, right: JSAny): String {
   return left + ToStringImpl(context, ToPrimitiveDefault(right));
 }
 
-builtin StringCharAt(implicit context: Context)(
-    receiver: String, position: uintptr): String {
+builtin StringCharAt(
+    implicit context: Context)(receiver: String, position: uintptr): String {
   // Load the character code at the {position} from the {receiver}.
   const code: char16 = StringCharCodeAt(receiver, position);
   // And return the single character string with only that {code}

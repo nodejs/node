@@ -16,21 +16,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-constexpr Builtin WasmRuntimeStubIdToBuiltinName(
-    wasm::WasmCode::RuntimeStubId runtime_stub_id) {
-  switch (runtime_stub_id) {
-#define DEF_CASE(name)          \
-  case wasm::WasmCode::k##name: \
-    return Builtin::k##name;
-#define DEF_TRAP_CASE(name) DEF_CASE(ThrowWasm##name)
-    WASM_RUNTIME_STUB_LIST(DEF_CASE, DEF_TRAP_CASE)
-#undef DEF_CASE
-#undef DEF_TRAP_CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
 CallDescriptor* GetBuiltinCallDescriptor(
     Builtin name, Zone* zone, StubCallMode stub_mode,
     bool needs_frame_state = false,
@@ -44,11 +29,14 @@ class WasmGraphAssembler : public GraphAssembler {
       : GraphAssembler(mcgraph, zone, BranchSemantics::kMachine),
         simplified_(zone) {}
 
+  // TODOC(mliedtke): What is the difference between CallRuntimeStub and
+  // CallBuiltin and what are the considerations to take into account when
+  // choosing between them?
   template <typename... Args>
   Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id,
                         Operator::Properties properties, Args... args) {
     auto* call_descriptor = GetBuiltinCallDescriptor(
-        WasmRuntimeStubIdToBuiltinName(stub_id), temp_zone(),
+        RuntimeStubIdToBuiltinName(stub_id), temp_zone(),
         StubCallMode::kCallWasmRuntimeStub, false, properties);
     // A direct call to a wasm runtime stub defined in this module.
     // Just encode the stub index. This will be patched at relocation.
@@ -65,11 +53,14 @@ class WasmGraphAssembler : public GraphAssembler {
   template <typename... Args>
   Node* CallBuiltin(Builtin name, Operator::Properties properties,
                     Args... args) {
-    auto* call_descriptor = GetBuiltinCallDescriptor(
-        name, temp_zone(), StubCallMode::kCallBuiltinPointer, false,
-        properties);
-    Node* call_target = GetBuiltinPointerTarget(name);
-    return Call(call_descriptor, call_target, args...);
+    return CallBuiltinImpl(name, false, properties, args...);
+  }
+
+  template <typename... Args>
+  Node* CallBuiltinWithFrameState(Builtin name, Operator::Properties properties,
+                                  Node* frame_state, Args... args) {
+    DCHECK_EQ(frame_state->opcode(), IrOpcode::kFrameState);
+    return CallBuiltinImpl(name, true, properties, frame_state, args...);
   }
 
   // Sets {true_node} and {false_node} to their corresponding Branch outputs.
@@ -121,8 +112,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* Allocate(int size);
 
-  Node* Allocate(Node* size,
-                 AllowLargeObjects allow_large = AllowLargeObjects::kTrue);
+  Node* Allocate(Node* size);
 
   Node* LoadFromObject(MachineType type, Node* base, Node* offset);
 
@@ -159,8 +149,15 @@ class WasmGraphAssembler : public GraphAssembler {
                                        value);
   }
 
+  Node* BuildDecodeSandboxedExternalPointer(Node* handle,
+                                            ExternalPointerTag tag,
+                                            Node* isolate_root);
   Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
                                            ExternalPointerTag tag,
+                                           Node* isolate_root);
+
+  Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
+                                           Node* index, ExternalPointerTag tag,
                                            Node* isolate_root);
 
   Node* IsSmi(Node* object);
@@ -199,6 +196,13 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* LoadFixedArrayElementAny(Node* array, int index) {
     return LoadFixedArrayElement(array, index, MachineType::AnyTagged());
   }
+
+  Node* LoadByteArrayElement(Node* byte_array, Node* index_intptr,
+                             MachineType type);
+
+  Node* LoadExternalPointerArrayElement(Node* array, Node* index_intptr,
+                                        ExternalPointerTag tag,
+                                        Node* isolate_root);
 
   Node* StoreFixedArrayElement(Node* array, int index, Node* value,
                                ObjectAccess access);
@@ -243,8 +247,10 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* IsDataRefMap(Node* map);
 
   Node* WasmTypeCheck(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  Node* WasmTypeCheckAbstract(Node* object, WasmTypeCheckConfig config);
 
   Node* WasmTypeCast(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  Node* WasmTypeCastAbstract(Node* object, WasmTypeCheckConfig config);
 
   Node* Null(wasm::ValueType type);
 
@@ -274,6 +280,8 @@ class WasmGraphAssembler : public GraphAssembler {
 
   void ArrayInitializeLength(Node* array, Node* length);
 
+  Node* LoadStringLength(Node* string);
+
   Node* StringAsWtf16(Node* string);
 
   Node* StringPrepareForGetCodeunit(Node* string);
@@ -283,13 +291,19 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* HasInstanceType(Node* heap_object, InstanceType type);
 
   void TrapIf(Node* condition, TrapId reason) {
-    AddNode(graph()->NewNode(mcgraph()->common()->TrapIf(reason), condition,
-                             effect(), control()));
+    // Initially wasm traps don't have a FrameState.
+    const bool has_frame_state = false;
+    AddNode(
+        graph()->NewNode(mcgraph()->common()->TrapIf(reason, has_frame_state),
+                         condition, effect(), control()));
   }
 
   void TrapUnless(Node* condition, TrapId reason) {
-    AddNode(graph()->NewNode(mcgraph()->common()->TrapUnless(reason), condition,
-                             effect(), control()));
+    // Initially wasm traps don't have a FrameState.
+    const bool has_frame_state = false;
+    AddNode(graph()->NewNode(
+        mcgraph()->common()->TrapUnless(reason, has_frame_state), condition,
+        effect(), control()));
   }
 
   Node* LoadRootRegister() {
@@ -299,6 +313,16 @@ class WasmGraphAssembler : public GraphAssembler {
   SimplifiedOperatorBuilder* simplified() override { return &simplified_; }
 
  private:
+  template <typename... Args>
+  Node* CallBuiltinImpl(Builtin name, bool needs_frame_state,
+                        Operator::Properties properties, Args... args) {
+    auto* call_descriptor = GetBuiltinCallDescriptor(
+        name, temp_zone(), StubCallMode::kCallBuiltinPointer, needs_frame_state,
+        properties);
+    Node* call_target = GetBuiltinPointerTarget(name);
+    return Call(call_descriptor, call_target, args...);
+  }
+
   SimplifiedOperatorBuilder simplified_;
 };
 

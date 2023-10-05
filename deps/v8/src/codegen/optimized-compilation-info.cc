@@ -34,6 +34,8 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   bytecode_array_ = handle(shared->GetBytecodeArray(isolate), isolate);
   shared_info_ = shared;
   closure_ = closure;
+  canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
+      isolate->heap(), ZoneAllocationPolicy(zone));
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
@@ -80,6 +82,10 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       if (v8_flags.turbo_splitting) set_splitting();
       break;
     case CodeKind::BUILTIN:
+#ifdef V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
+      set_switch_jump_table();
+#endif  // V8_TARGET_ARCH_X64
+      V8_FALLTHROUGH;
     case CodeKind::FOR_TESTING:
       if (v8_flags.turbo_splitting) set_splitting();
       if (v8_flags.enable_allocation_folding) set_allocation_folding();
@@ -111,15 +117,16 @@ OptimizedCompilationInfo::~OptimizedCompilationInfo() {
   }
 }
 
-void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
+void OptimizedCompilationInfo::ReopenAndCanonicalizeHandlesInNewScope(
+    Isolate* isolate) {
   if (!shared_info_.is_null()) {
-    shared_info_ = Handle<SharedFunctionInfo>(*shared_info_, isolate);
+    shared_info_ = CanonicalHandle(*shared_info_, isolate);
   }
   if (!bytecode_array_.is_null()) {
-    bytecode_array_ = Handle<BytecodeArray>(*bytecode_array_, isolate);
+    bytecode_array_ = CanonicalHandle(*bytecode_array_, isolate);
   }
   if (!closure_.is_null()) {
-    closure_ = Handle<JSFunction>(*closure_, isolate);
+    closure_ = CanonicalHandle(*closure_, isolate);
   }
   DCHECK(code_.is_null());
 }
@@ -194,7 +201,7 @@ bool OptimizedCompilationInfo::has_context() const {
   return !closure().is_null();
 }
 
-Context OptimizedCompilationInfo::context() const {
+Tagged<Context> OptimizedCompilationInfo::context() const {
   DCHECK(has_context());
   return closure()->context();
 }
@@ -203,7 +210,7 @@ bool OptimizedCompilationInfo::has_native_context() const {
   return !closure().is_null() && !closure()->native_context().is_null();
 }
 
-NativeContext OptimizedCompilationInfo::native_context() const {
+Tagged<NativeContext> OptimizedCompilationInfo::native_context() const {
   DCHECK(has_native_context());
   return closure()->native_context();
 }
@@ -212,9 +219,9 @@ bool OptimizedCompilationInfo::has_global_object() const {
   return has_native_context();
 }
 
-JSGlobalObject OptimizedCompilationInfo::global_object() const {
+Tagged<JSGlobalObject> OptimizedCompilationInfo::global_object() const {
   DCHECK(has_global_object());
-  return native_context().global_object();
+  return native_context()->global_object();
 }
 
 int OptimizedCompilationInfo::AddInlinedFunction(
@@ -233,6 +240,7 @@ void OptimizedCompilationInfo::SetTracingFlags(bool passes_filter) {
   if (v8_flags.trace_turbo_scheduled) set_trace_turbo_scheduled();
   if (v8_flags.trace_turbo_alloc) set_trace_turbo_allocation();
   if (v8_flags.trace_heap_broker) set_trace_heap_broker();
+  if (v8_flags.turboshaft_trace_reduction) set_turboshaft_trace_reduction();
 }
 
 OptimizedCompilationInfo::InlinedFunctionHolder::InlinedFunctionHolder(

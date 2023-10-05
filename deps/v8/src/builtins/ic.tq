@@ -23,8 +23,8 @@ macro CollectInstanceOfFeedback(
 }
 
 @export
-macro CollectConstructFeedback(implicit context: Context)(
-    target: JSAny, newTarget: JSAny,
+macro CollectConstructFeedback(
+    implicit context: Context)(target: JSAny, newTarget: JSAny,
     maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr,
     updateFeedbackMode: constexpr UpdateFeedbackMode):
     never labels ConstructGeneric,
@@ -51,19 +51,19 @@ macro IsUninitialized(feedback: MaybeObject): bool {
 }
 
 extern macro LoadFeedbackVectorSlot(FeedbackVector, uintptr): MaybeObject;
-extern macro LoadFeedbackVectorSlot(
-    FeedbackVector, uintptr, constexpr int32): MaybeObject;
-extern operator '[]' macro LoadFeedbackVectorSlot(
-    FeedbackVector, intptr): MaybeObject;
-extern macro StoreFeedbackVectorSlot(
-    FeedbackVector, uintptr, MaybeObject): void;
+extern macro LoadFeedbackVectorSlot(FeedbackVector, uintptr, constexpr int32):
+    MaybeObject;
+extern operator '[]' macro LoadFeedbackVectorSlot(FeedbackVector, intptr):
+    MaybeObject;
+extern macro StoreFeedbackVectorSlot(FeedbackVector, uintptr, MaybeObject):
+    void;
 extern macro StoreFeedbackVectorSlot(
     FeedbackVector, uintptr, MaybeObject, constexpr WriteBarrierMode,
     constexpr int32): void;
 extern macro StoreWeakReferenceInFeedbackVector(
     FeedbackVector, uintptr, HeapObject): MaybeObject;
-extern macro ReportFeedbackUpdate(
-    FeedbackVector, uintptr, constexpr string): void;
+extern macro ReportFeedbackUpdate(FeedbackVector, uintptr, constexpr string):
+    void;
 extern operator '.length_intptr' macro LoadFeedbackVectorLength(FeedbackVector):
     intptr;
 

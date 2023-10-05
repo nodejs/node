@@ -5,7 +5,9 @@
 #include <cstring>
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/common.h"
 #include "include/cppgc/cross-thread-persistent.h"
+#include "include/cppgc/custom-space.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/name-provider.h"
 #include "include/cppgc/persistent.h"
@@ -23,6 +25,51 @@
 #include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
 
+namespace cppgc {
+
+class CompactableCustomSpace : public CustomSpace<CompactableCustomSpace> {
+ public:
+  static constexpr size_t kSpaceIndex = 0;
+  static constexpr bool kSupportsCompaction = true;
+};
+
+}  // namespace cppgc
+
+namespace v8::internal {
+
+struct CompactableGCed : public cppgc::GarbageCollected<CompactableGCed>,
+                         public cppgc::NameProvider {
+ public:
+  static constexpr const char kExpectedName[] = "CompactableGCed";
+  void Trace(cppgc::Visitor* v) const {}
+  const char* GetHumanReadableName() const final { return "CompactableGCed"; }
+  size_t data = 0;
+};
+
+struct CompactableHolder : public cppgc::GarbageCollected<CompactableHolder> {
+ public:
+  explicit CompactableHolder(cppgc::AllocationHandle& allocation_handle) {
+    object = cppgc::MakeGarbageCollected<CompactableGCed>(allocation_handle);
+  }
+
+  void Trace(cppgc::Visitor* visitor) const {
+    cppgc::internal::VisitorBase::TraceRawForTesting(
+        visitor, const_cast<const CompactableGCed*>(object));
+    visitor->RegisterMovableReference(
+        const_cast<const CompactableGCed**>(&object));
+  }
+  CompactableGCed* object = nullptr;
+};
+
+}  // namespace v8::internal
+
+namespace cppgc {
+template <>
+struct SpaceTrait<v8::internal::CompactableGCed> {
+  using Space = CompactableCustomSpace;
+};
+}  // namespace cppgc
+
 namespace v8 {
 namespace internal {
 
@@ -30,10 +77,23 @@ namespace {
 
 class UnifiedHeapSnapshotTest : public UnifiedHeapTest {
  public:
-  const v8::HeapSnapshot* TakeHeapSnapshot() {
+  UnifiedHeapSnapshotTest() = default;
+  explicit UnifiedHeapSnapshotTest(
+      std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces)
+      : UnifiedHeapTest(std::move(custom_spaces)) {}
+  const v8::HeapSnapshot* TakeHeapSnapshot(
+      cppgc::EmbedderStackState stack_state =
+          cppgc::EmbedderStackState::kMayContainHeapPointers) {
     v8::HeapProfiler* heap_profiler = v8_isolate()->GetHeapProfiler();
-    return heap_profiler->TakeHeapSnapshot(nullptr, nullptr,
-                                           false /* hide internals */);
+
+    v8::HeapProfiler::HeapSnapshotOptions options;
+    options.control = nullptr;
+    options.global_object_name_resolver = nullptr;
+    options.snapshot_mode =
+        v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
+    options.numerics_mode = v8::HeapProfiler::NumericsMode::kHideNumericValues;
+    options.stack_state = stack_state;
+    return heap_profiler->TakeHeapSnapshot(options);
   }
 };
 
@@ -52,6 +112,20 @@ bool IsValidSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
     }
   }
   return unretained_entries_count == 0;
+}
+
+// Returns the IDs of all entries in the snapshot with the given name.
+std::vector<SnapshotObjectId> GetIds(const v8::HeapSnapshot& snapshot,
+                                     std::string name) {
+  const HeapSnapshot& heap_snapshot =
+      reinterpret_cast<const HeapSnapshot&>(snapshot);
+  std::vector<SnapshotObjectId> result;
+  for (const HeapEntry& entry : heap_snapshot.entries()) {
+    if (entry.name() == name) {
+      result.push_back(entry.id());
+    }
+  }
+  return result;
 }
 
 bool ContainsRetainingPath(const v8::HeapSnapshot& snapshot,
@@ -114,9 +188,11 @@ class GCed final : public BaseWithoutName, public cppgc::NameProvider {
 // static
 constexpr const char GCed::kExpectedName[];
 
-constexpr const char kExpectedCppRootsName[] = "C++ roots";
-constexpr const char kExpectedCppCrossThreadRootsName[] =
-    "C++ cross-thread roots";
+static constexpr const char kExpectedCppRootsName[] = "C++ Persistent roots";
+static constexpr const char kExpectedCppCrossThreadRootsName[] =
+    "C++ CrossThreadPersistent roots";
+static constexpr const char kExpectedCppStackRootsName[] =
+    "C++ native stack roots";
 
 template <typename T>
 constexpr const char* GetExpectedName() {
@@ -144,6 +220,86 @@ TEST_F(UnifiedHeapSnapshotTest, RetainedByCppRoot) {
       *snapshot, {kExpectedCppRootsName, GetExpectedName<GCed>()}));
 }
 
+TEST_F(UnifiedHeapSnapshotTest, ConsistentId) {
+  cppgc::Persistent<GCed> gced =
+      cppgc::MakeGarbageCollected<GCed>(allocation_handle());
+  const v8::HeapSnapshot* snapshot1 = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot1));
+  const v8::HeapSnapshot* snapshot2 = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot2));
+  std::vector<SnapshotObjectId> ids1 =
+      GetIds(*snapshot1, GetExpectedName<GCed>());
+  std::vector<SnapshotObjectId> ids2 =
+      GetIds(*snapshot2, GetExpectedName<GCed>());
+  EXPECT_EQ(ids1.size(), size_t{1});
+  EXPECT_EQ(ids2.size(), size_t{1});
+  EXPECT_EQ(ids1[0], ids2[0]);
+}
+
+class UnifiedHeapWithCustomSpaceSnapshotTest : public UnifiedHeapSnapshotTest {
+ public:
+  static std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>
+  GetCustomSpaces() {
+    std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces;
+    custom_spaces.emplace_back(
+        std::make_unique<cppgc::CompactableCustomSpace>());
+    return custom_spaces;
+  }
+  UnifiedHeapWithCustomSpaceSnapshotTest()
+      : UnifiedHeapSnapshotTest(GetCustomSpaces()) {}
+};
+
+TEST_F(UnifiedHeapWithCustomSpaceSnapshotTest, ConsistentIdAfterCompaction) {
+  // Ensure that only things held by Persistent handles will remain after GC.
+  DisableConservativeStackScanningScopeForTesting no_css(isolate()->heap());
+
+  // Allocate an object that will be thrown away by the GC, so that there's
+  // somewhere for the compactor to move stuff to.
+  cppgc::Persistent<CompactableGCed> trash =
+      cppgc::MakeGarbageCollected<CompactableGCed>(allocation_handle());
+
+  // Create the object which we'll actually test.
+  cppgc::Persistent<CompactableHolder> gced =
+      cppgc::MakeGarbageCollected<CompactableHolder>(allocation_handle(),
+                                                     allocation_handle());
+
+  // Release the persistent reference to the other object.
+  trash.Release();
+
+  void* original_pointer = gced->object;
+
+  // This first snapshot should not trigger compaction of the cppgc heap because
+  // the heap is still very small.
+  const v8::HeapSnapshot* snapshot1 =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot1));
+  EXPECT_EQ(original_pointer, gced->object);
+
+  // Manually run a GC with compaction. The GCed object should move.
+  CppHeap::From(isolate()->heap()->cpp_heap())
+      ->compactor()
+      .EnableForNextGCForTesting();
+  i::InvokeMajorGC(isolate(), i::GCFlag::kReduceMemoryFootprint);
+  EXPECT_NE(original_pointer, gced->object);
+
+  // In the second heap snapshot, the moved object should still have the same
+  // ID.
+  const v8::HeapSnapshot* snapshot2 =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot2));
+  std::vector<SnapshotObjectId> ids1 =
+      GetIds(*snapshot1, GetExpectedName<CompactableGCed>());
+  std::vector<SnapshotObjectId> ids2 =
+      GetIds(*snapshot2, GetExpectedName<CompactableGCed>());
+  // Depending on build config, GetIds might have returned only the ID for the
+  // CompactableGCed instance or it might have also returned the ID for the
+  // CompactableHolder.
+  EXPECT_TRUE(ids1.size() == 1 || ids1.size() == 2);
+  std::sort(ids1.begin(), ids1.end());
+  std::sort(ids2.begin(), ids2.end());
+  EXPECT_EQ(ids1, ids2);
+}
+
 TEST_F(UnifiedHeapSnapshotTest, RetainedByCppCrossThreadRoot) {
   cppgc::subtle::CrossThreadPersistent<GCed> gced =
       cppgc::MakeGarbageCollected<GCed>(allocation_handle());
@@ -151,6 +307,16 @@ TEST_F(UnifiedHeapSnapshotTest, RetainedByCppCrossThreadRoot) {
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
       *snapshot, {kExpectedCppCrossThreadRootsName, GetExpectedName<GCed>()}));
+}
+
+TEST_F(UnifiedHeapSnapshotTest, RetainedByStackRoots) {
+  auto* volatile gced = cppgc::MakeGarbageCollected<GCed>(allocation_handle());
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot, {kExpectedCppStackRootsName, GetExpectedName<GCed>()}));
+  EXPECT_STREQ(gced->GetHumanReadableName(), GetExpectedName<GCed>());
 }
 
 TEST_F(UnifiedHeapSnapshotTest, RetainingUnnamedType) {

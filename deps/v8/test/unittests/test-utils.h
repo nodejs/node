@@ -21,6 +21,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/handles/handles.h"
 #include "src/heap/parked-scope.h"
+#include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/zone/accounting-allocator.h"
@@ -89,6 +90,28 @@ class IsolateWrapper final {
   std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
   std::unique_ptr<CounterMap> counter_map_;
   v8::Isolate* isolate_;
+};
+
+class IsolateWithContextWrapper final {
+ public:
+  IsolateWithContextWrapper()
+      : isolate_wrapper_(kNoCounters),
+        isolate_scope_(isolate_wrapper_.isolate()),
+        handle_scope_(isolate_wrapper_.isolate()),
+        context_(v8::Context::New(isolate_wrapper_.isolate())),
+        context_scope_(context_) {}
+
+  v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
+  i::Isolate* isolate() const {
+    return reinterpret_cast<i::Isolate*>(v8_isolate());
+  }
+
+ private:
+  IsolateWrapper isolate_wrapper_;
+  v8::Isolate::Scope isolate_scope_;
+  v8::HandleScope handle_scope_;
+  v8::Local<v8::Context> context_;
+  v8::Context::Scope context_scope_;
 };
 
 //
@@ -185,28 +208,16 @@ class WithIsolateScopeMixin : public TMixin {
         .ToLocalChecked();
   }
 
-  // By default, the GC methods do not scan the stack conservatively.
-  void CollectGarbage(i::AllocationSpace space, i::Isolate* isolate = nullptr) {
+  void InvokeMajorGC(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
+    iso->heap()->CollectGarbage(i::OLD_SPACE,
+                                i::GarbageCollectionReason::kTesting);
   }
 
-  void CollectAllGarbage(i::Isolate* isolate = nullptr) {
+  void InvokeMinorGC(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                   i::GarbageCollectionReason::kTesting);
-  }
-
-  void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr) {
-    i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->CollectAllAvailableGarbage(
-        i::GarbageCollectionReason::kTesting);
-  }
-
-  void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr) {
-    i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
-                                          i::GarbageCollectionReason::kTesting);
+    iso->heap()->CollectGarbage(i::NEW_SPACE,
+                                i::GarbageCollectionReason::kTesting);
   }
 
   v8::Local<v8::String> NewString(const char* string) {
@@ -306,11 +317,12 @@ class PrintExtension : public v8::Extension {
       v8::Isolate* isolate, v8::Local<v8::String> name) override {
     return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
   }
-  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    for (int i = 0; i < args.Length(); i++) {
+  static void Print(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
+    for (int i = 0; i < info.Length(); i++) {
       if (i != 0) printf(" ");
-      v8::HandleScope scope(args.GetIsolate());
-      v8::String::Utf8Value str(args.GetIsolate(), args[i]);
+      v8::HandleScope scope(info.GetIsolate());
+      v8::String::Utf8Value str(info.GetIsolate(), info[i]);
       if (*str == nullptr) return;
       printf("%s", *str);
     }
@@ -499,22 +511,12 @@ class V8_NODISCARD SaveFlags {
 };
 
 // For GTest.
-inline void PrintTo(Object o, ::std::ostream* os) {
+inline void PrintTo(Tagged<Object> o, ::std::ostream* os) {
   *os << reinterpret_cast<void*>(o.ptr());
 }
-inline void PrintTo(Smi o, ::std::ostream* os) {
+inline void PrintTo(Tagged<Smi> o, ::std::ostream* os) {
   *os << reinterpret_cast<void*>(o.ptr());
 }
-
-// ManualGCScope allows for disabling GC heuristics. This is useful for tests
-// that want to check specific corner cases around GC.
-//
-// The scope will finalize any ongoing GC on the provided Isolate.
-class V8_NODISCARD ManualGCScope final : private SaveFlags {
- public:
-  explicit ManualGCScope(i::Isolate* isolate);
-  ~ManualGCScope() = default;
-};
 
 static inline uint16_t* AsciiToTwoByteString(const char* source) {
   size_t array_length = strlen(source) + 1;
@@ -525,7 +527,7 @@ static inline uint16_t* AsciiToTwoByteString(const char* source) {
 
 class TestTransitionsAccessor : public TransitionsAccessor {
  public:
-  TestTransitionsAccessor(Isolate* isolate, Map map)
+  TestTransitionsAccessor(Isolate* isolate, Tagged<Map> map)
       : TransitionsAccessor(isolate, map) {}
   TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
       : TransitionsAccessor(isolate, *map) {}
@@ -540,7 +542,9 @@ class TestTransitionsAccessor : public TransitionsAccessor {
 
   int Capacity() { return TransitionsAccessor::Capacity(); }
 
-  TransitionArray transitions() { return TransitionsAccessor::transitions(); }
+  Tagged<TransitionArray> transitions() {
+    return TransitionsAccessor::transitions();
+  }
 };
 
 // Helper class that allows to write tests in a slot size independent manner.
@@ -576,17 +580,26 @@ Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
   return FeedbackVector::NewForTesting(isolate, spec);
 }
 
-class ParkingThread : public v8::base::Thread {
+class FakeCodeEventLogger : public i::CodeEventLogger {
  public:
-  explicit ParkingThread(const Options& options) : v8::base::Thread(options) {}
+  explicit FakeCodeEventLogger(i::Isolate* isolate)
+      : CodeEventLogger(isolate) {}
 
-  void ParkedJoin(const ParkedScope& scope) {
-    USE(scope);
-    Join();
-  }
+  void CodeMoveEvent(i::Tagged<i::InstructionStream> from,
+                     i::Tagged<i::InstructionStream> to) override {}
+  void BytecodeMoveEvent(i::Tagged<i::BytecodeArray> from,
+                         i::Tagged<i::BytecodeArray> to) override {}
+  void CodeDisableOptEvent(i::Handle<i::AbstractCode> code,
+                           i::Handle<i::SharedFunctionInfo> shared) override {}
 
  private:
-  using v8::base::Thread::Join;
+  void LogRecordedBuffer(i::Tagged<i::AbstractCode> code,
+                         i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
+                         const char* name, int length) override {}
+#if V8_ENABLE_WEBASSEMBLY
+  void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
+                         int length) override {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 #ifdef V8_CC_GNU

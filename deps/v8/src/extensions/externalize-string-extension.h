@@ -16,13 +16,19 @@ namespace internal {
 
 class ExternalizeStringExtension : public v8::Extension {
  public:
-  ExternalizeStringExtension() : v8::Extension("v8/externalize", kSource) {}
+  ExternalizeStringExtension()
+      : v8::Extension("v8/externalize", BuildSource(buffer_, sizeof(buffer_))) {
+  }
   v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) override;
-  static void Externalize(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsOneByte(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Externalize(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void CreateExternalizableString(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void IsOneByte(const v8::FunctionCallbackInfo<v8::Value>& info);
 
  private:
+  static const char* BuildSource(char* buf, size_t size);
+  char buffer_[300];
   static const char* const kSource;
 };
 

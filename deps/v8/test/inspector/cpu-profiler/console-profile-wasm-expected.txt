@@ -31,3 +31,17 @@ Running fib with increasing input until it shows up in the profile.
 Found expected functions in profile.
 Wasm script id is set.
 Wasm position: wasm://wasm/07da49be@0:47
+
+Running test: testRunningCodeInDifferentIsolate
+Building wasm module with sentinel 5.
+Instantiating in inspector isolate.
+Instantiating in the debugged isolate.
+Compiling wasm.
+Enabling profiler in the debugged isolate.
+Running in the inspector isolate.
+Running in the debugged isolate.
+Running fib with increasing input until it shows up in the profile.
+Found expected functions in profile.
+Wasm script id is set.
+Wasm position: wasm://wasm/ba5e5b4e@0:47
+Disabling profiler.

@@ -31,12 +31,22 @@ double double_pack(uint64_t sign, uint64_t exp, uint64_t mantissa);
 int float16classify(float16 value);
 
 // Bit counting.
-int CountLeadingZeros(uint64_t value, int width);
+inline static int CountLeadingZeros(uint64_t value, int width) {
+  DCHECK(base::bits::IsPowerOfTwo(width) && (width <= 64));
+  if (value == 0) {
+    return width;
+  }
+  return base::bits::CountLeadingZeros64(value << (64 - width));
+}
 int CountLeadingSignBits(int64_t value, int width);
 V8_EXPORT_PRIVATE int CountSetBits(uint64_t value, int width);
 int LowestSetBitPosition(uint64_t value);
 int HighestSetBitPosition(uint64_t value);
-uint64_t LargestPowerOf2Divisor(uint64_t value);
+inline static uint64_t LargestPowerOf2Divisor(uint64_t value) {
+  // Simulate two's complement (instead of casting to signed and negating) to
+  // avoid undefined behavior on signed overflow.
+  return value & ((~value) + 1);
+}
 int MaskToBit(uint64_t mask);
 
 template <typename T>

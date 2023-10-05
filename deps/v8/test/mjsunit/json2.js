@@ -127,6 +127,11 @@ assertThrows(function() { JSON.stringify(tojson_ex, null, 0); });
 var obj = { toJSON: function(key) { return this.a + key; }, a: "x" };
 TestStringify('{"y":"xy"}', {y: obj});
 
+// Test invalid string length exception.
+assertThrows(function() {
+  JSON.stringify('a'.repeat(%StringMaxLength() - 1));
+});
+
 // Test holes in arrays.
 var fast_smi = [1, 2, 3, 4];
 fast_smi.__proto__ = [7, 7, 7, 7];
@@ -180,9 +185,9 @@ Object.defineProperty(non_enum, "b", { value: 2, enumerable: false });
 non_enum.c = 3;
 TestStringify('{"a":1,"c":3}', non_enum);
 
-var str = "external";
+var str = createExternalizableString('external');
 try {
-  externalizeString(str, true);
+  externalizeString(str);
 } catch (e) { }
 TestStringify("\"external\"", str, null, 0);
 

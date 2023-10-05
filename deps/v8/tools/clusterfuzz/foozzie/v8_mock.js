@@ -193,8 +193,9 @@ Object.defineProperty(
           args[1] = min(args[1], buffer.byteLength || 0);
           if (args.length > 2) {
             // If also length is given, limit it to the maximum that's possible
-            // given buffer and offset.
-            const maxBytesLeft = buffer.byteLength - args[1];
+            // given buffer and offset. Avoid NaN offset turning the length
+            // NaN, too.
+            const maxBytesLeft = buffer.byteLength - (args[1] || 0);
             const maxLengthLeft = maxBytesLeft / type.BYTES_PER_ELEMENT;
             args[2] = min(Number(args[2]), maxLengthLeft);
           }
@@ -290,3 +291,6 @@ Atomics.waitAsync = function() {
   // immediately.
   return {'value': {'then': function (f) { f(); }}};
 }
+
+// Mock serializer API with no-ops.
+d8.serializer = {'serialize': (x) => x, 'deserialize': (x) => x}

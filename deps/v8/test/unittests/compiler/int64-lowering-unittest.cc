@@ -1028,60 +1028,6 @@ TEST_F(Int64LoweringTest, LoopExitValue) {
                         start(), start()));
 }
 
-TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseBigIntToI64) {
-  Node* target = Int32Constant(1);
-  Node* context = Int32Constant(2);
-  Node* bigint = Int32Constant(4);
-  WasmCallDescriptors* descriptors = wasm::GetWasmEngine()->call_descriptors();
-
-  CallDescriptor* bigint_to_i64_call_descriptor =
-      descriptors->GetBigIntToI64Descriptor(StubCallMode::kCallBuiltinPointer,
-                                            false);
-
-  CallDescriptor* bigint_to_i32_pair_call_descriptor =
-      descriptors->GetLoweredCallDescriptor(bigint_to_i64_call_descriptor);
-
-  Node* call_node =
-      graph()->NewNode(common()->Call(bigint_to_i64_call_descriptor), target,
-                       bigint, context, start(), start());
-
-  LowerGraphWithSpecialCase(call_node, MachineRepresentation::kWord64);
-
-  Capture<Node*> call;
-  Matcher<Node*> call_matcher =
-      IsCall(bigint_to_i32_pair_call_descriptor, target, bigint, context,
-             start(), start());
-
-  EXPECT_THAT(graph()->end()->InputAt(1),
-              IsReturn2(IsProjection(0, AllOf(CaptureEq(&call), call_matcher)),
-                        IsProjection(1, AllOf(CaptureEq(&call), call_matcher)),
-                        start(), start()));
-}
-
-TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseI64ToBigInt) {
-  Node* target = Int32Constant(1);
-  Node* i64 = Int64Constant(value(0));
-  WasmCallDescriptors* descriptors = wasm::GetWasmEngine()->call_descriptors();
-
-  CallDescriptor* i64_to_bigint_call_descriptor =
-      descriptors->GetI64ToBigIntDescriptor(StubCallMode::kCallBuiltinPointer);
-
-  CallDescriptor* i32_pair_to_bigint_call_descriptor =
-      descriptors->GetLoweredCallDescriptor(i64_to_bigint_call_descriptor);
-
-  Node* call = graph()->NewNode(common()->Call(i64_to_bigint_call_descriptor),
-                                target, i64, start(), start());
-
-  LowerGraphWithSpecialCase(call, MachineRepresentation::kTaggedPointer);
-
-  EXPECT_THAT(
-      graph()->end()->InputAt(1),
-      IsReturn(IsCall(i32_pair_to_bigint_call_descriptor, target,
-                      IsInt32Constant(low_word_value(0)),
-                      IsInt32Constant(high_word_value(0)), start(), start()),
-               start(), start()));
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

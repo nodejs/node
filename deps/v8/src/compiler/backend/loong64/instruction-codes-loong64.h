@@ -133,6 +133,8 @@ namespace compiler {
   V(Loong64LoadDecompressTaggedSigned)       \
   V(Loong64LoadDecompressTagged)             \
   V(Loong64StoreCompressTagged)              \
+  V(Loong64LoadDecodeSandboxedPointer)       \
+  V(Loong64StoreEncodeSandboxedPointer)      \
   V(Loong64Fld_s)                            \
   V(Loong64Fst_s)                            \
   V(Loong64Fld_d)                            \

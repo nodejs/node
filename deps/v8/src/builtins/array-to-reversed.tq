@@ -4,13 +4,13 @@
 
 namespace array {
 
-macro FastPackedDoubleArrayToReversed(implicit context: Context)(
-    elements: FixedDoubleArray, length: Smi): JSArray {
+macro FastPackedDoubleArrayToReversed(
+    implicit context: Context)(elements: FixedDoubleArray,
+    length: Smi): JSArray {
   // 3. Let A be ? ArrayCreate(𝔽(len)).
   const copy: FixedDoubleArray =
       UnsafeCast<FixedDoubleArray>(AllocateFixedArray(
-          ElementsKind::PACKED_DOUBLE_ELEMENTS, SmiUntag(length),
-          AllocationFlag::kAllowLargeObjectAllocation));
+          ElementsKind::PACKED_DOUBLE_ELEMENTS, SmiUntag(length)));
 
   // 4. Let k be 0.
   let k: Smi = 0;
@@ -39,12 +39,11 @@ macro FastPackedDoubleArrayToReversed(implicit context: Context)(
 }
 
 macro FastArrayToReversed<FromElements : type extends FixedArrayBase>(
-    implicit context: Context)(
-    kind: constexpr ElementsKind, elements: FromElements, length: Smi,
+    implicit context: Context)(kind: constexpr ElementsKind,
+    elements: FromElements, length: Smi,
     initializeArray: constexpr bool): JSArray {
   // 3. Let A be ? ArrayCreate(𝔽(len)).
-  const copy: FixedArrayBase = AllocateFixedArray(
-      kind, SmiUntag(length), AllocationFlag::kAllowLargeObjectAllocation);
+  const copy: FixedArrayBase = AllocateFixedArray(kind, SmiUntag(length));
 
   // Reversing HOLEY_DOUBLE_ELEMENTS array may allocate heap numbers.
   // We need to initialize the array to avoid running GC with garbage values.
@@ -115,8 +114,8 @@ macro TryFastArrayToReversed(implicit context: Context)(receiver: JSAny):
   }
 }
 
-transitioning builtin GenericArrayToReversed(implicit context: Context)(
-    receiver: JSAny): JSAny {
+transitioning builtin GenericArrayToReversed(
+    implicit context: Context)(receiver: JSAny): JSAny {
   // 1. Let O be ? ToObject(this value).
   const object: JSReceiver = ToObject_Inline(context, receiver);
 

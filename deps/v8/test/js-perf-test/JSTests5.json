@@ -286,10 +286,13 @@
       "tests": [
         {"name": "Babel"},
         {"name": "BabelAndOverwrite"},
+        {"name": "BabelAndExtend"},
         {"name": "ObjectAssign"},
         {"name": "ObjectAssignAndOverwrite"},
+        {"name": "ObjectAssignAndExtend"},
         {"name": "ObjectSpread"},
-        {"name": "ObjectSpreadAndOverwrite"}
+        {"name": "ObjectSpreadAndOverwrite"},
+        {"name": "ObjectSpreadAndExtend"}
       ]
     },
     {
@@ -617,12 +620,31 @@
     {
       "name": "TurboFan",
       "path": ["TurboFan"],
-      "main": "run.js",
-      "flags": [],
-      "resources": [ "typedLowering.js"],
-      "results_regexp": "^%s\\-TurboFan\\(Score\\): (.+)$",
       "tests": [
-        {"name": "NumberToString"}
+        {
+          "name": "NumberToString",
+          "main": "run.js",
+          "flags": [],
+          "resources": ["typedLowering.js"],
+          "test_flags": ["typedLowering"],
+          "results_regexp": "^NumberToString\\-TurboFan\\(Score\\): (.+)$"
+        },
+        {
+          "name": "WasmInliningLoopArray",
+          "main": "run.js",
+          "flags": [
+            "--experimental-wasm-gc",
+            "--experimental-wasm-js-inlining"
+          ],
+          "resources": ["wasm-inlining-loop-array.js"],
+          "test_flags": ["wasm-inlining-loop-array"],
+          "results_regexp": "^%s\\-TurboFan\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "WasmLoop"},
+            {"name": "JSLoop"},
+            {"name": "PureJSLoop"}
+          ]
+        }
       ]
     },
     {

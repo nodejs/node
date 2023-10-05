@@ -345,7 +345,7 @@ InstructionOperand InstructionSequenceTest::Unallocated(
 InstructionOperand* InstructionSequenceTest::ConvertInputs(
     size_t input_size, TestOperand* inputs) {
   InstructionOperand* mapped_inputs =
-      zone()->NewArray<InstructionOperand>(static_cast<int>(input_size));
+      zone()->AllocateArray<InstructionOperand>(static_cast<int>(input_size));
   for (size_t i = 0; i < input_size; ++i) {
     mapped_inputs[i] = ConvertInputOp(inputs[i]);
   }

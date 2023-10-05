@@ -22,10 +22,14 @@ namespace internal {
 // GCInfo contains metadata for objects that are instantiated from classes that
 // inherit from GarbageCollected.
 struct GCInfo final {
+  constexpr GCInfo(FinalizationCallback finalize, TraceCallback trace,
+                   NameCallback name)
+      : finalize(finalize), trace(trace), name(name) {}
+
   FinalizationCallback finalize;
   TraceCallback trace;
   NameCallback name;
-  bool has_v_table;
+  size_t padding = 0;
 };
 
 class V8_EXPORT GCInfoTable final {

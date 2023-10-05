@@ -56,21 +56,21 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
                                           Handle<String> source,
                                           Handle<String> flags_string);
 
-  DECL_ACCESSORS(last_index, Object)
+  DECL_ACCESSORS(last_index, Tagged<Object>)
 
   // Instance fields accessors.
-  inline String source() const;
+  inline Tagged<String> source() const;
   inline Flags flags() const;
 
   // Data array field accessors.
 
   inline Type type_tag() const;
-  inline String atom_pattern() const;
+  inline Tagged<String> atom_pattern() const;
   // This could be a Smi kUninitializedValue or InstructionStream.
-  V8_EXPORT_PRIVATE Object code(bool is_latin1) const;
+  V8_EXPORT_PRIVATE Tagged<Object> code(bool is_latin1) const;
   V8_EXPORT_PRIVATE void set_code(bool is_unicode, Handle<Code> code);
   // This could be a Smi kUninitializedValue or ByteArray.
-  V8_EXPORT_PRIVATE Object bytecode(bool is_latin1) const;
+  V8_EXPORT_PRIVATE Tagged<Object> bytecode(bool is_latin1) const;
   // Sets the bytecode as well as initializing trampoline slots to the
   // RegExpInterpreterTrampoline.
   void set_bytecode_and_trampoline(Isolate* isolate,
@@ -78,7 +78,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   inline int max_register_count() const;
   // Number of captures (without the match itself).
   inline int capture_count() const;
-  inline Object capture_name_map();
+  inline Tagged<Object> capture_name_map();
   inline void set_capture_name_map(Handle<FixedArray> capture_name_map);
   uint32_t backtrack_limit() const;
 
@@ -122,7 +122,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   V8_EXPORT_PRIVATE static Handle<String> StringFromFlags(Isolate* isolate,
                                                           Flags flags);
 
-  inline String EscapedPattern();
+  inline Tagged<String> EscapedPattern();
 
   bool CanTierUp();
   bool MarkedForTierUp();
@@ -252,8 +252,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   using FlagsBuffer = base::EmbeddedVector<char, kFlagCount + 1>;
   inline static const char* FlagsToString(Flags flags, FlagsBuffer* out_buffer);
 
-  inline Object DataAt(int index) const;
-  inline void SetDataAt(int index, Object value);
+  inline Tagged<Object> DataAt(int index) const;
+  inline void SetDataAt(int index, Tagged<Object> value);
 
   TQ_OBJECT_CONSTRUCTORS(JSRegExp)
 };

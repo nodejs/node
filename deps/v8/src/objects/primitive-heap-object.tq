@@ -3,5 +3,4 @@
 // found in the LICENSE file.
 
 @abstract
-extern class PrimitiveHeapObject extends HeapObject {
-}
+extern class PrimitiveHeapObject extends HeapObject {}

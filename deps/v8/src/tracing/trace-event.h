@@ -654,8 +654,8 @@ class CallStatsScopedTracer {
           }                                                                \
         });                                                                \
       }                                                                    \
-      v8::internal::Isolate* isolate_;                                     \
-      bool has_parent_scope_;                                              \
+      v8::internal::Isolate* isolate_ = nullptr;                           \
+      bool has_parent_scope_ = false;                                      \
     } stats;                                                               \
   } PERFETTO_UID(scoped_event) {                                           \
     { isolate, 0 }                                                         \

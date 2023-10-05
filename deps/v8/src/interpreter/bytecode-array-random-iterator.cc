@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/interpreter/bytecode-array-random-iterator.h"
-#include "src/objects/code-inl.h"
+
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

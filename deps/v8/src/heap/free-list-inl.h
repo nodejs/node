@@ -30,6 +30,14 @@ Page* FreeList::GetPageForCategoryType(FreeListCategoryType type) {
   }
 }
 
+bool FreeList::IsEmpty() {
+  bool empty = true;
+  ForAllFreeListCategories([&empty](FreeListCategory* category) {
+    if (!category->is_empty()) empty = false;
+  });
+  return empty;
+}
+
 }  // namespace internal
 }  // namespace v8
 

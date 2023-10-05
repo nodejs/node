@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 @abstract
-extern class Microtask extends Struct {
-}
+extern class Microtask extends Struct {}
 
 extern class CallbackTask extends Microtask {
   callback: Foreign;

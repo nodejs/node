@@ -5,6 +5,7 @@
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 
 #include "src/base/logging.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
 
 namespace v8 {
@@ -14,6 +15,9 @@ UnifiedHeapMarkingState::UnifiedHeapMarkingState(
     Heap* heap, MarkingWorklists::Local* local_marking_worklist,
     cppgc::internal::CollectionType collection_type)
     : heap_(heap),
+      has_shared_space_(heap && heap->isolate()->has_shared_space()),
+      is_shared_space_isolate_(heap &&
+                               heap->isolate()->is_shared_space_isolate()),
       marking_state_(heap_ ? heap_->marking_state() : nullptr),
       local_marking_worklist_(local_marking_worklist),
       track_retaining_path_(v8_flags.track_retaining_path),

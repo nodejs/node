@@ -26,15 +26,16 @@ class FieldIndex final {
   FieldIndex() : bit_field_(0) {}
 
   static inline FieldIndex ForPropertyIndex(
-      Map map, int index,
+      Tagged<Map> map, int index,
       Representation representation = Representation::Tagged());
   static inline FieldIndex ForInObjectOffset(int offset, Encoding encoding);
-  static inline FieldIndex ForSmiLoadHandler(Map map, int32_t handler);
-  static inline FieldIndex ForDescriptor(Map map,
+  static inline FieldIndex ForSmiLoadHandler(Tagged<Map> map, int32_t handler);
+  static inline FieldIndex ForDescriptor(Tagged<Map> map,
                                          InternalIndex descriptor_index);
-  static inline FieldIndex ForDescriptor(PtrComprCageBase cage_base, Map map,
+  static inline FieldIndex ForDescriptor(PtrComprCageBase cage_base,
+                                         Tagged<Map> map,
                                          InternalIndex descriptor_index);
-  static inline FieldIndex ForDetails(Map map, PropertyDetails details);
+  static inline FieldIndex ForDetails(Tagged<Map> map, PropertyDetails details);
 
   inline int GetLoadByFieldIndex() const;
 

@@ -102,7 +102,7 @@ export class TurboshaftGraphPhase extends Phase {
       }
 
       const node = new TurboshaftGraphNode(nodeJson.id, nodeJson.title, block, sourcePosition,
-        bytecodePosition, origin, nodeJson.op_properties_type);
+        bytecodePosition, origin, nodeJson.op_effects);
 
       block.nodes.push(node);
       this.data.nodes.push(node);

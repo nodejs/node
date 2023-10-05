@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-symbol-as-weakmap-key --expose-gc
+// Flags: --expose-gc
 
 // Register an object in a FinalizationRegistry with a Symbol as the unregister
 // token.

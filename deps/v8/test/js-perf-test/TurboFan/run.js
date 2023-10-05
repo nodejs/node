@@ -7,7 +7,7 @@ d8.file.execute("../base.js");
 
 const iterations = 100;
 
-d8.file.execute("typedLowering.js");
+d8.file.execute(arguments[0] + '.js');
 
 var success = true;
 

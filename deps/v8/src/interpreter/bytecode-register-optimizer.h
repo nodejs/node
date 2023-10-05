@@ -8,6 +8,7 @@
 #include "src/ast/variables.h"
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
+#include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
@@ -24,6 +25,8 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
     : public NON_EXPORTED_BASE(BytecodeRegisterAllocator::Observer),
       public NON_EXPORTED_BASE(ZoneObject) {
  public:
+  using TypeHint = BytecodeGenerator::TypeHint;
+
   class BytecodeWriter {
    public:
     BytecodeWriter() = default;
@@ -96,6 +99,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
     // clobbered when the bytecode is dispatched.
     if (BytecodeOperands::WritesOrClobbersAccumulator(implicit_register_use)) {
       PrepareOutputRegister(accumulator_);
+      DCHECK_EQ(GetTypeHint(accumulator_), TypeHint::kAny);
     }
   }
 
@@ -120,6 +124,11 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
 
   // Return true if the var is in the reg.
   bool IsVariableInRegister(Variable* var, Register reg);
+
+  TypeHint GetTypeHint(Register reg);
+  void SetTypeHintForAccumulator(TypeHint hint);
+  void ResetTypeHintForAccumulator();
+  bool IsAccumulatorReset();
 
   int maxiumum_register_index() const { return max_register_index_; }
 

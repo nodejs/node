@@ -47,7 +47,7 @@ var kV8MaxPages = 65536;
   var i1;
   {
     let builder = new WasmModuleBuilder();
-    builder.addMemory(1, 1, false);
+    builder.addMemory(1, 1);
     builder.exportMemoryAs("exported_mem");
     builder.addFunction("foo", kSig_i_i)
       .addBody([
@@ -205,7 +205,7 @@ var kV8MaxPages = 65536;
   var exp_instance;
   {
     let builder = new WasmModuleBuilder();
-    builder.addMemory(initial_size, maximum_size, true);
+    builder.addMemory(initial_size, maximum_size);
     builder.exportMemoryAs("exported_mem");
     exp_instance = builder.instantiate();
   }
@@ -331,7 +331,7 @@ var kV8MaxPages = 65536;
   var instance;
   {
     let builder = new WasmModuleBuilder();
-    builder.addMemory(1, 11, true);
+    builder.addMemory(1, 11);
     builder.exportMemoryAs("exported_mem");
     builder.addFunction("mem_size", kSig_i_v)
       .addBody([kExprMemorySize, kMemoryZero])
@@ -376,7 +376,7 @@ var kV8MaxPages = 65536;
   var instance_1, instance_2;
   {
     let builder = new WasmModuleBuilder();
-    builder.addMemory(1, kSpecMaxPages, true);
+    builder.addMemory(1, kSpecMaxPages);
     builder.exportMemoryAs("exported_mem");
     builder.addFunction("grow", kSig_i_i)
       .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
@@ -401,7 +401,7 @@ var kV8MaxPages = 65536;
 (function TestExportGrow() {
   print("TestExportGrow");
   let builder = new WasmModuleBuilder();
-  builder.addMemory(1, 5, true);
+  builder.addMemory(1, 5);
   builder.exportMemoryAs("exported_mem");
   builder.addFunction("mem_size", kSig_i_v)
     .addBody([kExprMemorySize, kMemoryZero])

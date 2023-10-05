@@ -42,6 +42,7 @@ enum class MachineRepresentation : uint8_t {
   kTagged,             // (uncompressed) Object (Smi or HeapObject)
   kCompressedPointer,  // (compressed) HeapObject
   kCompressed,         // (compressed) Object (Smi or HeapObject)
+  kIndirectPointer,    // (indirect) HeapObject
   // A 64-bit pointer encoded in a way (e.g. as offset) that guarantees it will
   // point into the sandbox.
   kSandboxedPointer,
@@ -154,6 +155,9 @@ class MachineType {
   constexpr bool IsCompressedPointer() const {
     return representation() == MachineRepresentation::kCompressedPointer;
   }
+  constexpr bool IsIndirectPointer() const {
+    return representation() == MachineRepresentation::kIndirectPointer;
+  }
   constexpr static MachineRepresentation PointerRepresentation() {
     return (kSystemPointerSize == 4) ? MachineRepresentation::kWord32
                                      : MachineRepresentation::kWord64;
@@ -242,6 +246,10 @@ class MachineType {
     return MachineType(MachineRepresentation::kSandboxedPointer,
                        MachineSemantic::kInt64);
   }
+  constexpr static MachineType IndirectPointer() {
+    return MachineType(MachineRepresentation::kIndirectPointer,
+                       MachineSemantic::kInt32);
+  }
   constexpr static MachineType Bool() {
     return MachineType(MachineRepresentation::kBit, MachineSemantic::kBool);
   }
@@ -280,6 +288,8 @@ class MachineType {
         return MachineType::TaggedPointer();
       case MachineRepresentation::kCompressed:
         return MachineType::AnyCompressed();
+      case MachineRepresentation::kIndirectPointer:
+        return MachineType::IndirectPointer();
       case MachineRepresentation::kCompressedPointer:
         return MachineType::CompressedPointer();
       case MachineRepresentation::kSandboxedPointer:
@@ -327,7 +337,7 @@ class MachineType {
     return ElementSizeLog2Of(this->representation()) <= kSystemPointerSizeLog2;
   }
 
-  constexpr byte MemSize() const {
+  constexpr uint8_t MemSize() const {
     return 1 << i::ElementSizeLog2Of(this->representation());
   }
 
@@ -350,44 +360,55 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 std::ostream& operator<<(std::ostream& os, MachineSemantic type);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, MachineType type);
 
-inline bool IsIntegral(MachineRepresentation rep) {
+constexpr inline bool IsIntegral(MachineRepresentation rep) {
   return rep >= MachineRepresentation::kWord8 &&
          rep <= MachineRepresentation::kWord64;
 }
 
-inline bool IsFloatingPoint(MachineRepresentation rep) {
+constexpr inline bool IsFloatingPoint(MachineRepresentation rep) {
   return rep >= MachineRepresentation::kFirstFPRepresentation;
 }
 
-inline bool IsSimd128(MachineRepresentation rep) {
+constexpr inline bool IsSimd128(MachineRepresentation rep) {
   return rep == MachineRepresentation::kSimd128;
 }
 
-inline bool CanBeTaggedPointer(MachineRepresentation rep) {
+constexpr inline bool CanBeTaggedPointer(MachineRepresentation rep) {
   return rep == MachineRepresentation::kTagged ||
          rep == MachineRepresentation::kTaggedPointer ||
          rep == MachineRepresentation::kMapWord;
 }
 
-inline bool CanBeTaggedSigned(MachineRepresentation rep) {
+constexpr inline bool CanBeTaggedSigned(MachineRepresentation rep) {
   return rep == MachineRepresentation::kTagged ||
          rep == MachineRepresentation::kTaggedSigned;
 }
 
-inline bool IsAnyTagged(MachineRepresentation rep) {
+constexpr inline bool IsAnyTagged(MachineRepresentation rep) {
   return CanBeTaggedPointer(rep) || rep == MachineRepresentation::kTaggedSigned;
 }
 
-inline bool CanBeCompressedPointer(MachineRepresentation rep) {
+constexpr inline bool CanBeCompressedPointer(MachineRepresentation rep) {
   return rep == MachineRepresentation::kCompressed ||
          rep == MachineRepresentation::kCompressedPointer;
 }
 
-inline bool CanBeTaggedOrCompressedPointer(MachineRepresentation rep) {
+constexpr inline bool CanBeIndirectPointer(MachineRepresentation rep) {
+  return rep == MachineRepresentation::kIndirectPointer;
+}
+
+constexpr inline bool CanBeTaggedOrCompressedPointer(
+    MachineRepresentation rep) {
   return CanBeTaggedPointer(rep) || CanBeCompressedPointer(rep);
 }
 
-inline bool IsAnyCompressed(MachineRepresentation rep) {
+constexpr inline bool CanBeTaggedOrCompressedOrIndirectPointer(
+    MachineRepresentation rep) {
+  return CanBeTaggedPointer(rep) || CanBeCompressedPointer(rep) ||
+         CanBeIndirectPointer(rep);
+}
+
+constexpr inline bool IsAnyCompressed(MachineRepresentation rep) {
   return CanBeCompressedPointer(rep);
 }
 
@@ -402,6 +423,7 @@ V8_EXPORT_PRIVATE inline constexpr int ElementSizeLog2Of(
       return 1;
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kIndirectPointer:
       return 2;
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat64:

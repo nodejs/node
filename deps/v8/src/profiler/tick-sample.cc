@@ -32,7 +32,7 @@ bool IsSamePage(i::Address ptr1, i::Address ptr2) {
 bool IsNoFrameRegion(i::Address address) {
   struct Pattern {
     int bytes_count;
-    i::byte bytes[8];
+    uint8_t bytes[8];
     int offsets[4];
   };
   static Pattern patterns[] = {
@@ -59,7 +59,7 @@ bool IsNoFrameRegion(i::Address address) {
 #endif
     {0, {}, {}}
   };
-  i::byte* pc = reinterpret_cast<i::byte*>(address);
+  uint8_t* pc = reinterpret_cast<uint8_t*>(address);
   for (Pattern* pattern = patterns; pattern->bytes_count; ++pattern) {
     for (int* offset_ptr = pattern->offsets; *offset_ptr != -1; ++offset_ptr) {
       int offset = *offset_ptr;
@@ -210,6 +210,10 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   timestamp = base::TimeTicks::Now();
 }
 
+// IMPORTANT: 'GetStackSample' is sensitive to stack overflows. For this reason
+// we try not to use any function/method marked as V8_EXPORT_PRIVATE with their
+// only use-site in 'GetStackSample': The resulting linker stub needs quite
+// a bit of stack space and has caused stack overflow crashes in the past.
 bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
                                 RecordCEntryFrame record_c_entry_frame,
                                 void** frames, size_t frames_limit,
@@ -233,10 +237,10 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
     sample_info->embedder_state = embedder_state->GetState();
   }
 
-  Context top_context = isolate->context();
+  Tagged<Context> top_context = isolate->context();
   if (top_context.ptr() != i::Context::kNoContext &&
       top_context.ptr() != i::Context::kInvalidContext) {
-    NativeContext top_native_context = top_context.native_context();
+    Tagged<NativeContext> top_native_context = top_context->native_context();
     sample_info->context = reinterpret_cast<void*>(top_native_context.ptr());
   }
 
@@ -313,8 +317,16 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   if (record_c_entry_frame == kIncludeCEntryFrame &&
       (it.top_frame_type() == internal::StackFrame::EXIT ||
        it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT)) {
-    frames[i] = reinterpret_cast<void*>(isolate->c_function());
-    i++;
+    // While BUILTIN_EXIT definitely represents a call to CEntry the EXIT frame
+    // might represent either a call to CEntry or an optimized call to
+    // Api callback. In the latter case the ExternalCallbackScope points to
+    // the same function, so skip adding a frame in that case in order to avoid
+    // double-reporting.
+    void* c_function = reinterpret_cast<void*>(isolate->c_function());
+    if (sample_info->external_callback_entry != c_function) {
+      frames[i] = c_function;
+      i++;
+    }
   }
 #ifdef V8_RUNTIME_CALL_STATS
   i::RuntimeCallTimer* timer =

@@ -21,6 +21,7 @@
 (function () {
   "use strict";
   var log_got_interpreted = true;
+  %NeverOptimizeFunction(assertEquals);
 
   function log(a) {
     assertEquals(1, arguments.length);

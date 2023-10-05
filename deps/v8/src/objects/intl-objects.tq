@@ -99,9 +99,9 @@ macro LocaleCompareFastPath<T1: type, T2: type>(
   VerifiedUnreachable();
 }
 
-transitioning builtin StringFastLocaleCompare(implicit context: Context)(
-    localeCompareFn: JSFunction, left: JSAny, right: JSAny,
-    locales: JSAny): JSAny {
+transitioning builtin StringFastLocaleCompare(
+    implicit context: Context)(localeCompareFn: JSFunction, left: JSAny,
+    right: JSAny, locales: JSAny): JSAny {
   try {
     const left = Cast<String>(left) otherwise Bailout;
     if (TaggedEqual(left, right)) return SmiConstant(0);

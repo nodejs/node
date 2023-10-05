@@ -718,10 +718,11 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   g(); g();
   let total = g();
   %OptimizeFunctionOnNextCall(g);
+  var turbofan = willBeTurbofanned(g);
   g();
   g();
   assertEquals(total, g());
-  assertOptimized(g);
+  if (turbofan) assertOptimized(g);
 })();
 
 (function ReduceThrow() {
@@ -1089,10 +1090,11 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   g(); g();
   let total = g();
   %OptimizeFunctionOnNextCall(g);
+  var turbofan = willBeTurbofanned(g);
   g();
   g();
   assertEquals(total, g());
-  assertOptimized(g);
+  if (turbofan) assertOptimized(g);
 })();
 
 (function ReduceThrow() {

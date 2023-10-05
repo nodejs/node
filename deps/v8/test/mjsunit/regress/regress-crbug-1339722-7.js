@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --noop-on-failed-access-check
-
 d8.file.execute('test/mjsunit/regress/regress-crbug-1321899.js');
 
 const realm = Realm.createAllowCrossRealmAccess();
@@ -13,4 +11,4 @@ checkHasAccess(globalProxy);
 
 Realm.navigate(realm);
 
-checkNoAccessNoThrow(globalProxy);
+checkNoAccess(globalProxy);

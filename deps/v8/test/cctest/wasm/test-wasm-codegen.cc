@@ -12,8 +12,8 @@
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
-
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
 
 namespace v8 {
@@ -61,8 +61,7 @@ void BuildTrivialModule(Zone* zone, ZoneBuffer* buffer) {
 bool TestModule(Isolate* isolate, v8::MemorySpan<const uint8_t> wire_bytes) {
   HandleScope scope(isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Local<v8::Context> context =
-      Utils::ToLocal(Handle<Context>::cast(isolate->native_context()));
+  v8::Local<v8::Context> context = Utils::ToLocal(isolate->native_context());
 
   // Get the "WebAssembly.Module" function.
   auto get_property = [context, v8_isolate](
@@ -113,7 +112,7 @@ TEST(PropertiesOfCodegenCallbacks) {
       bool found = TestModule(isolate, wire_bytes);
       bool expected = ExpectedResults[codegen][wasm_codegen];
       CHECK_EQ(expected, found);
-      CcTest::CollectAllAvailableGarbage();
+      heap::InvokeMemoryReducingMajorGCs(isolate->heap());
     }
   }
 }

@@ -6,15 +6,14 @@
 
 namespace proxy {
 
-extern transitioning builtin GetPropertyWithReceiver(implicit context: Context)(
-    JSAny, Name, JSAny, Smi): JSAny;
+extern transitioning builtin GetPropertyWithReceiver(
+    implicit context: Context)(JSAny, Name, JSAny, Smi): JSAny;
 
 // ES #sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
 // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
-transitioning builtin
-ProxyGetProperty(implicit context: Context)(
-    proxy: JSProxy, name: PropertyKey, receiverValue: JSAny,
-    onNonExistent: Smi): JSAny {
+transitioning builtin ProxyGetProperty(
+    implicit context: Context)(proxy: JSProxy, name: PropertyKey,
+    receiverValue: JSAny, onNonExistent: Smi): JSAny {
   PerformStackCheck();
   // 1. Assert: IsPropertyKey(P) is true.
   dcheck(TaggedIsNotSmi(name));
@@ -40,7 +39,7 @@ ProxyGetProperty(implicit context: Context)(
   // 6. Let trap be ? GetMethod(handler, "get").
   // 7. If trap is undefined, then (see 7.a below).
   // 7.a. Return ? target.[[Get]](P, Receiver).
-  const trap: Callable = GetMethod(handler, 'get')
+  const trap: Callable = GetInterestingMethod(handler, GetStringConstant())
       otherwise return GetPropertyWithReceiver(
       target, name, receiverValue, onNonExistent);
 

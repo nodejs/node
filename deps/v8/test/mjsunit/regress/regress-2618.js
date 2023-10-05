@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --use-osr --allow-natives-syntax --turbofan
-// Flags: --no-always-turbofan
+// Flags: --no-always-turbofan --no-maglev-osr
 
 // Can't OSR with always-turbofan or in Lite mode.
 if (isNeverOptimizeLiteMode()) {

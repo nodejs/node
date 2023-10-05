@@ -4,6 +4,7 @@
 
 #include "src/compiler/backend/instruction-scheduler.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
 #include "test/cctest/cctest.h"
 
@@ -11,12 +12,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+using FlagsContinuation = FlagsContinuationT<TurbofanAdapter>;
+
 // Create InstructionBlocks with a single block.
 InstructionBlocks* CreateSingleBlock(Zone* zone) {
   InstructionBlock* block = zone->New<InstructionBlock>(
       zone, RpoNumber::FromInt(0), RpoNumber::Invalid(), RpoNumber::Invalid(),
       RpoNumber::Invalid(), false, false);
-  InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
+  InstructionBlocks* blocks = zone->AllocateArray<InstructionBlocks>(1);
   new (blocks) InstructionBlocks(1, block, zone);
   return blocks;
 }

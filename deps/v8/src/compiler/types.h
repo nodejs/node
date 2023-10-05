@@ -128,21 +128,22 @@ namespace compiler {
   V(CallableFunction,         uint64_t{1} << 20)  \
   V(ClassConstructor,         uint64_t{1} << 21)  \
   V(BoundFunction,            uint64_t{1} << 22)  \
-  V(Hole,                     uint64_t{1} << 23)  \
-  V(OtherInternal,            uint64_t{1} << 24)  \
-  V(ExternalPointer,          uint64_t{1} << 25)  \
-  V(Array,                    uint64_t{1} << 26)  \
-  V(UnsignedBigInt63,         uint64_t{1} << 27)  \
-  V(OtherUnsignedBigInt64,    uint64_t{1} << 28)  \
-  V(NegativeBigInt63,         uint64_t{1} << 29)  \
-  V(OtherBigInt,              uint64_t{1} << 30)  \
-  V(WasmObject,               uint64_t{1} << 31)
+  V(OtherInternal,            uint64_t{1} << 23)  \
+  V(ExternalPointer,          uint64_t{1} << 24)  \
+  V(Array,                    uint64_t{1} << 25)  \
+  V(UnsignedBigInt63,         uint64_t{1} << 26)  \
+  V(OtherUnsignedBigInt64,    uint64_t{1} << 27)  \
+  V(NegativeBigInt63,         uint64_t{1} << 28)  \
+  V(OtherBigInt,              uint64_t{1} << 29)  \
+  V(WasmObject,               uint64_t{1} << 30)  \
+  V(SandboxedPointer,         uint64_t{1} << 31)
 
 // We split the macro list into two parts because the Torque equivalent in
 // turbofan-types.tq uses two 32bit bitfield structs.
-#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V) \
-  V(SandboxedPointer,         uint64_t{1} << 32) \
-  V(Machine,                  uint64_t{1} << 33)
+#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V)                             \
+  V(Machine,                  uint64_t{1} << 32)                           \
+  V(TheHole,                  uint64_t{1} << 33)                           \
+  V(PropertyCellHole,         uint64_t{1} << 34)
 
 #define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                     uint64_t{0}) \
@@ -178,17 +179,15 @@ namespace compiler {
   V(BooleanOrNumber,              kBoolean | kNumber) \
   V(BooleanOrNullOrNumber,        kBooleanOrNumber | kNull) \
   V(BooleanOrNullOrUndefined,     kBoolean | kNull | kUndefined) \
-  V(Oddball,                      kBooleanOrNullOrUndefined | kHole) \
+  V(Hole,                         kTheHole | kPropertyCellHole) \
   V(NullOrNumber,                 kNull | kNumber) \
   V(NullOrUndefined,              kNull | kUndefined) \
   V(Undetectable,                 kNullOrUndefined | kOtherUndetectable) \
-  V(NumberOrHole,                 kNumber | kHole) \
-  V(NumberOrOddball,              kNumber | kNullOrUndefined | kBoolean | \
-                                  kHole) \
+  V(NumberOrTheHole,              kNumber | kTheHole) \
+  V(NumberOrOddball,              kNumber | kBooleanOrNullOrUndefined ) \
+  V(NumberOrOddballOrTheHole,              kNumberOrOddball| kTheHole ) \
   V(NumericOrString,              kNumeric | kString) \
   V(NumberOrUndefined,            kNumber | kUndefined) \
-  V(NumberOrUndefinedOrNullOrBoolean,  \
-                                  kNumber | kNullOrUndefined | kBoolean) \
   V(PlainPrimitive,               kNumber | kString | kBoolean | \
                                   kNullOrUndefined) \
   V(NonBigIntPrimitive,           kSymbol | kPlainPrimitive) \
@@ -282,7 +281,7 @@ class V8_EXPORT_PRIVATE BitsetType {
   static bitset Lub(HeapObjectType const& type, JSHeapBroker* broker) {
     return Lub<HeapObjectType>(type, broker);
   }
-  static bitset Lub(MapRef const& map, JSHeapBroker* broker) {
+  static bitset Lub(MapRef map, JSHeapBroker* broker) {
     return Lub<MapRef>(map, broker);
   }
   static bitset Lub(double value);
@@ -308,7 +307,7 @@ class V8_EXPORT_PRIVATE BitsetType {
   static inline size_t BoundariesSize();
 
   template <typename MapRefLike>
-  static bitset Lub(MapRefLike const& map, JSHeapBroker* broker);
+  static bitset Lub(MapRefLike map, JSHeapBroker* broker);
 };
 
 // -----------------------------------------------------------------------------
@@ -397,9 +396,17 @@ class WasmType : public TypeBase {
   const wasm::WasmModule* module() const { return module_; }
 
  private:
+  friend class Type;
   friend Zone;
+
   explicit WasmType(wasm::ValueType value_type, const wasm::WasmModule* module)
       : TypeBase(kWasm), value_type_(value_type), module_(module) {}
+
+  BitsetType::bitset Lub() const {
+    // TODO(manoskouk): Specify more concrete types.
+    return BitsetType::kAny;
+  }
+
   wasm::ValueType value_type_;
   const wasm::WasmModule* module_;
 };
@@ -439,7 +446,7 @@ class V8_EXPORT_PRIVATE Type {
   static Type Wasm(wasm::TypeInModule type_in_module, Zone* zone);
 #endif
 
-  static Type For(MapRef const& type, JSHeapBroker* broker) {
+  static Type For(MapRef type, JSHeapBroker* broker) {
     return NewBitset(
         BitsetType::ExpandInternals(BitsetType::Lub(type, broker)));
   }
@@ -480,7 +487,9 @@ class V8_EXPORT_PRIVATE Type {
   const OtherNumberConstantType* AsOtherNumberConstant() const;
   const RangeType* AsRange() const;
   const TupleType* AsTuple() const;
+#ifdef V8_ENABLE_WEBASSEMBLY
   wasm::TypeInModule AsWasm() const;
+#endif
 
   // Minimum and maximum of a numeric type.
   // These functions do not distinguish between -0 and +0.  NaN is ignored.
@@ -559,7 +568,7 @@ class V8_EXPORT_PRIVATE Type {
 
   static Type Range(RangeType::Limits lims, Zone* zone);
   static Type OtherNumberConstant(double value, Zone* zone);
-  static Type HeapConstant(const HeapObjectRef& value, JSHeapBroker* broker,
+  static Type HeapConstant(HeapObjectRef value, JSHeapBroker* broker,
                            Zone* zone);
 
   static bool Overlap(const RangeType* lhs, const RangeType* rhs);
@@ -618,19 +627,19 @@ class OtherNumberConstantType : public TypeBase {
 class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
  public:
   Handle<HeapObject> Value() const;
-  const HeapObjectRef& Ref() const { return heap_ref_; }
+  HeapObjectRef Ref() const { return heap_ref_; }
 
  private:
   friend class Type;
   friend class BitsetType;
   friend Zone;
 
-  static HeapConstantType* New(const HeapObjectRef& heap_ref,
+  static HeapConstantType* New(HeapObjectRef heap_ref,
                                BitsetType::bitset bitset, Zone* zone) {
     return zone->New<HeapConstantType>(bitset, heap_ref);
   }
 
-  HeapConstantType(BitsetType::bitset bitset, const HeapObjectRef& heap_ref);
+  HeapConstantType(BitsetType::bitset bitset, HeapObjectRef heap_ref);
 
   BitsetType::bitset Lub() const { return bitset_; }
 
@@ -666,7 +675,7 @@ class StructuralType : public TypeBase {
 
   StructuralType(Kind kind, int length, Zone* zone)
       : TypeBase(kind), length_(length) {
-    elements_ = zone->NewArray<Type>(length);
+    elements_ = zone->AllocateArray<Type>(length);
   }
 
  private:

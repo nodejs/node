@@ -65,6 +65,10 @@ extern "C" unsigned long __readfsdword(unsigned long);  // NOLINT(runtime/int)
 
 namespace v8 {
 
+namespace internal {
+class HandleHelper;
+}
+
 namespace base {
 
 // ----------------------------------------------------------------------------
@@ -519,18 +523,26 @@ class V8_BASE_EXPORT Thread {
   using LocalStorageKey = int32_t;
 #endif
 
+  // Priority class for the thread. Use kDefault to keep the priority
+  // unchanged.
+  enum class Priority { kBestEffort, kUserVisible, kUserBlocking, kDefault };
+
   class Options {
    public:
-    Options() : name_("v8:<unknown>"), stack_size_(0) {}
+    Options() : Options("v8:<unknown>") {}
     explicit Options(const char* name, int stack_size = 0)
-        : name_(name), stack_size_(stack_size) {}
+        : Options(name, Priority::kDefault, stack_size) {}
+    Options(const char* name, Priority priority, int stack_size = 0)
+        : name_(name), priority_(priority), stack_size_(stack_size) {}
 
     const char* name() const { return name_; }
     int stack_size() const { return stack_size_; }
+    Priority priority() const { return priority_; }
 
    private:
     const char* name_;
-    int stack_size_;
+    const Priority priority_;
+    const int stack_size_;
   };
 
   // Create new thread.
@@ -590,6 +602,7 @@ class V8_BASE_EXPORT Thread {
 
   class PlatformData;
   PlatformData* data() { return data_; }
+  Priority priority() const { return priority_; }
 
   void NotifyStartedAndRun() {
     if (start_semaphore_) start_semaphore_->Signal();
@@ -603,6 +616,7 @@ class V8_BASE_EXPORT Thread {
 
   char name_[kMaxThreadNameLength];
   int stack_size_;
+  Priority priority_;
   Semaphore* start_semaphore_;
 };
 
@@ -662,8 +676,11 @@ class V8_BASE_EXPORT Stack {
   }
 
  private:
-  // Returns the current thread stack start pointer.
+  // Return the current thread stack start pointer.
+  static StackSlot GetStackStartUnchecked();
   static Stack::StackSlot ObtainCurrentThreadStackStart();
+
+  friend v8::internal::HandleHelper;
 };
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT

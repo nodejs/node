@@ -36,6 +36,8 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // Creates a new (unique) Int32Constant node.
   Node* UniqueInt32Constant(int32_t value);
 
+  Node* UniqueInt64Constant(int64_t value);
+
   // Creates a Int32Constant node, usually canonicalized.
   Node* Int32Constant(int32_t value);
   Node* Uint32Constant(uint32_t value) {
@@ -54,6 +56,7 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // constants is probably not serializable.
   Node* IntPtrConstant(intptr_t value);
   Node* UintPtrConstant(uintptr_t value);
+  Node* UniqueIntPtrConstant(intptr_t value);
 
   Node* TaggedIndexConstant(intptr_t value);
 

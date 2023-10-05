@@ -6,7 +6,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 
-builder.addMemory(1, 1, /*exp*/ false, /*shared*/ true);
+builder.addMemory(1, 1, /*shared*/ true);
 
 builder.addFunction('test', kSig_v_v).addBody([
   kExprI32Const, 0,                         //

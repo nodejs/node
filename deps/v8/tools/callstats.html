@@ -757,6 +757,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     let selectedGroup;
 
+    function cleanUpFileName(name) {
+      return name.replace(/(\.rcs)?\.txt|\.json$/, "")
+    }
+
     class ChartRow {
       static kSortFirstValueRelative(chartRow) {
         if (selectedGroup?.isTotal) return chartRow.total;
@@ -1422,7 +1426,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function handleLoadTXT(txt, append, fileName) {
-      fileName = window.prompt('Version name:', fileName);
+      fileName = window.prompt('Version name:', cleanUpFileName(fileName));
       let isFirstLoad = pages === undefined;
       // Load raw RCS output which contains a single page
       if (!append || isFirstLoad) {
@@ -1549,7 +1553,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       };
       const maybeMetrics = firstProperty(json);
       const maybeMetric = firstProperty(maybeMetrics);
-      const tempName = name ? name : new Date().toISOString();
+      let tempName = new Date().toISOString();
+      if (name) tempName = cleanUpFileName(name);
       const getFileName =
           () => window.prompt('Enter a name for the loaded file:', tempName);
       if ('count' in maybeMetric && 'duration' in maybeMetric) {
@@ -1939,6 +1944,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           Group.groups.get('parse-background').entry(),
           Group.groups.get('parse').entry(),
           Group.groups.get('blink').entry(),
+          Group.groups.get('network-data').entry(),
           Group.groups.get('callback').entry(),
           Group.groups.get('api').entry(),
           Group.groups.get('gc-custom').entry(),
@@ -2089,7 +2095,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           if (line.startsWith(kCommentStart)) {
             // Check for page names
             if (line.startsWith(kPageNameIdentifier)) {
-              const name = line.split(kPageNameIdentifier)[1];
+              const name = line.split(kPageNameIdentifier)[1].trim();
               pageVersion = new PageVersion(version, pages.get(name));
               result.push(pageVersion);
             }
@@ -2270,6 +2276,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     Group.add('parse-background',
       new Group('Parse-Background', /.*Parse-?Background.*/, "#c05000"));
     Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));
+    Group.add('network-data',
+      new Group('Network Data', /.*GetMoreDataCallback.*/, "#103366"));
     Group.add('callback',
       new Group('Blink C++', /.*(Callback)|(Blink C\+\+).*/, "#109618"));
     Group.add('api', new Group('API', /.*API.*/, "#990099"));

@@ -253,7 +253,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
   TNode<Code> lazy_builtin = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
+  StoreMaybeIndirectPointerField(result, JSFunction::kCodeOffset, lazy_builtin);
   Return(result);
 }
 

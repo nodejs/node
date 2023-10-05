@@ -18,15 +18,17 @@ namespace v8 {
 
 namespace {
 std::shared_ptr<AsyncHooksWrap> UnwrapHook(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  HandleScope scope(isolate);
-  Local<Object> hook = args.This();
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* v8_isolate = info.GetIsolate();
+  HandleScope scope(v8_isolate);
+  Local<Object> hook = info.This();
 
-  AsyncHooks* hooks = PerIsolateData::Get(isolate)->GetAsyncHooks();
+  AsyncHooks* hooks = PerIsolateData::Get(v8_isolate)->GetAsyncHooks();
 
-  if (!hooks->async_hook_ctor.Get(isolate)->HasInstance(hook)) {
-    isolate->ThrowError("Invalid 'this' passed instead of AsyncHooks instance");
+  if (!hooks->async_hook_ctor.Get(v8_isolate)->HasInstance(hook)) {
+    v8_isolate->ThrowError(
+        "Invalid 'this' passed instead of AsyncHooks instance");
     return nullptr;
   }
 
@@ -34,48 +36,51 @@ std::shared_ptr<AsyncHooksWrap> UnwrapHook(
   return i::Handle<i::Managed<AsyncHooksWrap>>::cast(handle)->get();
 }
 
-void EnableHook(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  auto wrap = UnwrapHook(args);
+void EnableHook(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  auto wrap = UnwrapHook(info);
   if (wrap) wrap->Enable();
 }
 
-void DisableHook(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  auto wrap = UnwrapHook(args);
+void DisableHook(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  auto wrap = UnwrapHook(info);
   if (wrap) wrap->Disable();
 }
 
 }  // namespace
 
-AsyncHooks::AsyncHooks(Isolate* isolate) : isolate_(isolate) {
+AsyncHooks::AsyncHooks(v8::Isolate* v8_isolate) : v8_isolate_(v8_isolate) {
   AsyncContext ctx;
   ctx.execution_async_id = 1;
   ctx.trigger_async_id = 0;
   asyncContexts.push(ctx);
   current_async_id = 1;
 
-  HandleScope handle_scope(isolate_);
+  HandleScope handle_scope(v8_isolate_);
 
-  async_hook_ctor.Reset(isolate_, FunctionTemplate::New(isolate_));
-  async_hook_ctor.Get(isolate_)->SetClassName(
-      String::NewFromUtf8Literal(isolate_, "AsyncHook"));
+  async_hook_ctor.Reset(v8_isolate_, FunctionTemplate::New(v8_isolate_));
+  async_hook_ctor.Get(v8_isolate_)
+      ->SetClassName(String::NewFromUtf8Literal(v8_isolate_, "AsyncHook"));
 
-  async_hooks_templ.Reset(isolate_,
-                          async_hook_ctor.Get(isolate_)->InstanceTemplate());
-  async_hooks_templ.Get(isolate_)->SetInternalFieldCount(1);
-  async_hooks_templ.Get(isolate_)->Set(
-      isolate_, "enable", FunctionTemplate::New(isolate_, EnableHook));
-  async_hooks_templ.Get(isolate_)->Set(
-      isolate_, "disable", FunctionTemplate::New(isolate_, DisableHook));
+  async_hooks_templ.Reset(v8_isolate_,
+                          async_hook_ctor.Get(v8_isolate_)->InstanceTemplate());
+  async_hooks_templ.Get(v8_isolate_)->SetInternalFieldCount(1);
+  async_hooks_templ.Get(v8_isolate_)
+      ->Set(v8_isolate_, "enable",
+            FunctionTemplate::New(v8_isolate_, EnableHook));
+  async_hooks_templ.Get(v8_isolate_)
+      ->Set(v8_isolate_, "disable",
+            FunctionTemplate::New(v8_isolate_, DisableHook));
 
-  async_id_symbol.Reset(isolate_, Private::New(isolate_));
-  trigger_id_symbol.Reset(isolate_, Private::New(isolate_));
+  async_id_symbol.Reset(v8_isolate_, Private::New(v8_isolate_));
+  trigger_id_symbol.Reset(v8_isolate_, Private::New(v8_isolate_));
 
-  isolate_->SetPromiseHook(ShellPromiseHook);
+  v8_isolate_->SetPromiseHook(ShellPromiseHook);
 }
 
 AsyncHooks::~AsyncHooks() {
-  isolate_->SetPromiseHook(nullptr);
-  base::RecursiveMutexGuard lock_guard(&async_wraps_mutex_);
+  v8_isolate_->SetPromiseHook(nullptr);
   async_wraps_.clear();
 }
 
@@ -118,28 +123,33 @@ async_id_t AsyncHooks::GetTriggerAsyncId() const {
 }
 
 Local<Object> AsyncHooks::CreateHook(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  EscapableHandleScope handle_scope(isolate);
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* v8_isolate = info.GetIsolate();
+  EscapableHandleScope handle_scope(v8_isolate);
 
-  Local<Context> currentContext = isolate->GetCurrentContext();
+  if (v8_isolate->IsExecutionTerminating()) {
+    return Local<Object>();
+  }
 
-  if (args.Length() != 1 || !args[0]->IsObject()) {
-    isolate->ThrowError("Invalid arguments passed to createHook");
+  Local<Context> currentContext = v8_isolate->GetCurrentContext();
+
+  if (info.Length() != 1 || !info[0]->IsObject()) {
+    v8_isolate->ThrowError("Invalid arguments passed to createHook");
     return Local<Object>();
   }
 
   std::shared_ptr<AsyncHooksWrap> wrap =
-      std::make_shared<AsyncHooksWrap>(isolate);
+      std::make_shared<AsyncHooksWrap>(v8_isolate);
 
-  Local<Object> fn_obj = args[0].As<Object>();
+  Local<Object> fn_obj = info[0].As<Object>();
 
-#define SET_HOOK_FN(name)                                                      \
-  MaybeLocal<Value> name##_maybe_func =                                        \
-      fn_obj->Get(currentContext, String::NewFromUtf8Literal(isolate, #name)); \
-  Local<Value> name##_func;                                                    \
-  if (name##_maybe_func.ToLocal(&name##_func) && name##_func->IsFunction()) {  \
-    wrap->set_##name##_function(name##_func.As<Function>());                   \
+#define SET_HOOK_FN(name)                                                     \
+  MaybeLocal<Value> name##_maybe_func = fn_obj->Get(                          \
+      currentContext, String::NewFromUtf8Literal(v8_isolate, #name));         \
+  Local<Value> name##_func;                                                   \
+  if (name##_maybe_func.ToLocal(&name##_func) && name##_func->IsFunction()) { \
+    wrap->set_##name##_function(name##_func.As<Function>());                  \
   }
 
   SET_HOOK_FN(init);
@@ -148,29 +158,29 @@ Local<Object> AsyncHooks::CreateHook(
   SET_HOOK_FN(promiseResolve);
 #undef SET_HOOK_FN
 
-  Local<Object> obj = async_hooks_templ.Get(isolate)
+  Local<Object> obj = async_hooks_templ.Get(v8_isolate)
                           ->NewInstance(currentContext)
                           .ToLocalChecked();
   i::Handle<i::Object> managed = i::Managed<AsyncHooksWrap>::FromSharedPtr(
-      reinterpret_cast<i::Isolate*>(isolate), sizeof(AsyncHooksWrap), wrap);
+      reinterpret_cast<i::Isolate*>(v8_isolate), sizeof(AsyncHooksWrap), wrap);
   obj->SetInternalField(0, Utils::ToLocal(managed));
 
-  {
-    base::RecursiveMutexGuard lock_guard(&async_wraps_mutex_);
-    async_wraps_.push_back(std::move(wrap));
-  }
+  async_wraps_.push_back(std::move(wrap));
 
   return handle_scope.Escape(obj);
 }
 
 void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
                                   Local<Value> parent) {
-  v8::Isolate* isolate = promise->GetIsolate();
-  if (isolate->IsExecutionTerminating()) return;
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::Isolate* v8_isolate = promise->GetIsolate();
+  AsyncHooks* hooks = PerIsolateData::Get(v8_isolate)->GetAsyncHooks();
+  if (v8_isolate->IsExecutionTerminating() || hooks->skip_after_termination_) {
+    hooks->skip_after_termination_ = true;
+    return;
+  }
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
 
-  AsyncHooks* hooks = PerIsolateData::Get(isolate)->GetAsyncHooks();
-  HandleScope handle_scope(isolate);
+  HandleScope handle_scope(v8_isolate);
   // Temporarily clear any scheduled_exception to allow evaluating JS that can
   // throw.
   i::Handle<i::Object> scheduled_exception;
@@ -179,50 +189,52 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
     i_isolate->clear_scheduled_exception();
   }
   {
-    TryCatch try_catch(isolate);
+    TryCatch try_catch(v8_isolate);
     try_catch.SetVerbose(true);
 
-    Local<Context> currentContext = isolate->GetCurrentContext();
+    Local<Context> currentContext = v8_isolate->GetCurrentContext();
     DCHECK(!currentContext.IsEmpty());
 
     if (type == PromiseHookType::kInit) {
       ++hooks->current_async_id;
-      Local<Integer> async_id = Integer::New(isolate, hooks->current_async_id);
-      CHECK(
-          !promise
-               ->HasPrivate(currentContext, hooks->async_id_symbol.Get(isolate))
-               .ToChecked());
-      promise->SetPrivate(currentContext, hooks->async_id_symbol.Get(isolate),
-                          async_id);
+      Local<Integer> async_id =
+          Integer::New(v8_isolate, hooks->current_async_id);
+      CHECK(!promise
+                 ->HasPrivate(currentContext,
+                              hooks->async_id_symbol.Get(v8_isolate))
+                 .ToChecked());
+      promise->SetPrivate(currentContext,
+                          hooks->async_id_symbol.Get(v8_isolate), async_id);
 
       if (parent->IsPromise()) {
         Local<Promise> parent_promise = parent.As<Promise>();
         Local<Value> parent_async_id =
             parent_promise
                 ->GetPrivate(currentContext,
-                             hooks->async_id_symbol.Get(isolate))
+                             hooks->async_id_symbol.Get(v8_isolate))
                 .ToLocalChecked();
         promise->SetPrivate(currentContext,
-                            hooks->trigger_id_symbol.Get(isolate),
+                            hooks->trigger_id_symbol.Get(v8_isolate),
                             parent_async_id);
       } else {
         CHECK(parent->IsUndefined());
         promise->SetPrivate(currentContext,
-                            hooks->trigger_id_symbol.Get(isolate),
-                            Integer::New(isolate, 0));
+                            hooks->trigger_id_symbol.Get(v8_isolate),
+                            Integer::New(v8_isolate, 0));
       }
     } else if (type == PromiseHookType::kBefore) {
       AsyncContext ctx;
       ctx.execution_async_id =
           promise
-              ->GetPrivate(currentContext, hooks->async_id_symbol.Get(isolate))
+              ->GetPrivate(currentContext,
+                           hooks->async_id_symbol.Get(v8_isolate))
               .ToLocalChecked()
               .As<Integer>()
               ->Value();
       ctx.trigger_async_id =
           promise
               ->GetPrivate(currentContext,
-                           hooks->trigger_id_symbol.Get(isolate))
+                           hooks->trigger_id_symbol.Get(v8_isolate))
               .ToLocalChecked()
               .As<Integer>()
               ->Value();
@@ -231,12 +243,12 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
       hooks->asyncContexts.pop();
     }
     if (!i::StackLimitCheck{i_isolate}.HasOverflowed()) {
-      base::RecursiveMutexGuard lock_guard(&hooks->async_wraps_mutex_);
-      for (const auto& wrap : hooks->async_wraps_) {
+      for (size_t i = 0; i < hooks->async_wraps_.size(); ++i) {
+        std::shared_ptr<AsyncHooksWrap> wrap = hooks->async_wraps_[i];
         PromiseHookDispatch(type, promise, parent, *wrap, hooks);
         if (try_catch.HasCaught()) break;
       }
-      if (try_catch.HasCaught()) Shell::ReportException(isolate, &try_catch);
+      if (try_catch.HasCaught()) Shell::ReportException(v8_isolate, &try_catch);
     }
   }
   if (!scheduled_exception.is_null()) {
@@ -250,7 +262,7 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
                                      const AsyncHooksWrap& wrap,
                                      AsyncHooks* hooks) {
   if (!wrap.IsEnabled()) return;
-  v8::Isolate* v8_isolate = hooks->isolate_;
+  v8::Isolate* v8_isolate = hooks->v8_isolate_;
   if (v8_isolate->IsExecutionTerminating()) return;
   HandleScope handle_scope(v8_isolate);
 

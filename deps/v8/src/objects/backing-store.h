@@ -144,8 +144,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Send asynchronous updates to attached memory objects in other isolates
   // after the backing store has been grown. Memory objects in this
   // isolate are updated synchronously.
-  static void BroadcastSharedWasmMemoryGrow(Isolate* isolate,
-                                            std::shared_ptr<BackingStore>);
+  void BroadcastSharedWasmMemoryGrow(Isolate* isolate) const;
 
   // Remove all memory objects in the given isolate that refer to this
   // backing store.
@@ -187,6 +186,10 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);
 
+  // Accessors for type-specific data.
+  v8::ArrayBuffer::Allocator* get_v8_api_array_buffer_allocator();
+  SharedWasmMemoryData* get_shared_wasm_memory_data() const;
+
   void* buffer_start_ = nullptr;
   std::atomic<size_t> byte_length_;
   // Max byte length of the corresponding JSArrayBuffer(s).
@@ -196,11 +199,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Unique ID of this backing store. Currently only used by DevTools, to
   // identify stores used by several ArrayBuffers or WebAssembly memories
   // (reported by the inspector as [[ArrayBufferData]] internal property)
-  uint32_t id_;
-  struct DeleterInfo {
-    v8::BackingStore::DeleterCallback callback;
-    void* data;
-  };
+  const uint32_t id_;
 
   union TypeSpecificData {
     TypeSpecificData() : v8_api_array_buffer_allocator(nullptr) {}
@@ -223,26 +222,22 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
     // Custom deleter for the backing stores that wrap memory blocks that are
     // allocated with a custom allocator.
-    DeleterInfo deleter;
+    struct DeleterInfo {
+      v8::BackingStore::DeleterCallback callback;
+      void* data;
+    } deleter;
   } type_specific_data_;
 
-  bool is_shared_ : 1;
+  const bool is_shared_ : 1;
   // Backing stores for (Resizable|GrowableShared)ArrayBuffer
-  bool is_resizable_by_js_ : 1;
-  bool is_wasm_memory_ : 1;
+  const bool is_resizable_by_js_ : 1;
+  const bool is_wasm_memory_ : 1;
   bool holds_shared_ptr_to_allocator_ : 1;
-  bool free_on_destruct_ : 1;
-  bool has_guard_regions_ : 1;
+  const bool free_on_destruct_ : 1;
+  const bool has_guard_regions_ : 1;
   bool globally_registered_ : 1;
-  bool custom_deleter_ : 1;
-  bool empty_deleter_ : 1;
-
-  // Accessors for type-specific data.
-  v8::ArrayBuffer::Allocator* get_v8_api_array_buffer_allocator();
-  SharedWasmMemoryData* get_shared_wasm_memory_data();
-
-  void FreeResizableMemory();  // Free the reserved region for resizable memory
-  void Clear();  // Internally clears fields after deallocation.
+  const bool custom_deleter_ : 1;
+  const bool empty_deleter_ : 1;
 };
 
 // A global, per-process mapping from buffer addresses to backing stores
@@ -270,8 +265,8 @@ class GlobalBackingStoreRegistry {
   static void Purge(Isolate* isolate);
 
   // Broadcast updates to all attached memory objects.
-  static void BroadcastSharedWasmMemoryGrow(
-      Isolate* isolate, std::shared_ptr<BackingStore> backing_store);
+  static void BroadcastSharedWasmMemoryGrow(Isolate* isolate,
+                                            const BackingStore* backing_store);
 
   // Update all shared memory objects in the given isolate.
   static void UpdateSharedWasmMemoryObjects(Isolate* isolate);

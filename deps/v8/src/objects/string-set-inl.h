@@ -17,20 +17,21 @@ namespace internal {
 CAST_ACCESSOR(StringSet)
 
 StringSet::StringSet(Address ptr) : HashTable<StringSet, StringSetShape>(ptr) {
-  SLOW_DCHECK(IsStringSet());
+  SLOW_DCHECK(IsStringSet(*this));
 }
 
-bool StringSetShape::IsMatch(String key, Object value) {
-  DCHECK(value.IsString());
-  return key.Equals(String::cast(value));
+bool StringSetShape::IsMatch(Tagged<String> key, Tagged<Object> value) {
+  DCHECK(IsString(value));
+  return key->Equals(String::cast(value));
 }
 
-uint32_t StringSetShape::Hash(ReadOnlyRoots roots, String key) {
-  return key.EnsureHash();
+uint32_t StringSetShape::Hash(ReadOnlyRoots roots, Tagged<String> key) {
+  return key->EnsureHash();
 }
 
-uint32_t StringSetShape::HashForObject(ReadOnlyRoots roots, Object object) {
-  return String::cast(object).EnsureHash();
+uint32_t StringSetShape::HashForObject(ReadOnlyRoots roots,
+                                       Tagged<Object> object) {
+  return String::cast(object)->EnsureHash();
 }
 
 }  // namespace internal

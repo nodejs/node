@@ -331,7 +331,6 @@ TEST(PagedNewSpace) {
       CcTest::heap()->InitialSemiSpaceSize(), allocation_info);
   CHECK(new_space->MaximumCapacity());
   CHECK(new_space->EnsureCurrentCapacity());
-  CHECK_LT(0, new_space->Capacity());
   CHECK_LT(0, new_space->TotalCapacity());
 
   AllocationResult allocation_result;
@@ -378,10 +377,10 @@ TEST(OldLargeObjectSpace) {
 
   int lo_size = Page::kPageSize;
 
-  Object obj = lo->AllocateRaw(lo_size).ToObjectChecked();
-  CHECK(obj.IsHeapObject());
+  Tagged<Object> obj = lo->AllocateRaw(lo_size).ToObjectChecked();
+  CHECK(IsHeapObject(obj));
 
-  HeapObject ho = HeapObject::cast(obj);
+  Tagged<HeapObject> ho = HeapObject::cast(obj);
 
   CHECK(lo->Contains(HeapObject::cast(obj)));
 
@@ -468,28 +467,29 @@ TEST(SizeOfInitialHeap) {
 }
 #endif  // DEBUG
 
-static HeapObject AllocateUnaligned(NewSpace* space, int size) {
+static Tagged<HeapObject> AllocateUnaligned(NewSpace* space, int size) {
   AllocationResult allocation = space->AllocateRaw(size, kTaggedAligned);
   CHECK(!allocation.IsFailure());
-  HeapObject filler;
+  Tagged<HeapObject> filler;
   CHECK(allocation.To(&filler));
   space->heap()->CreateFillerObjectAt(filler.address(), size);
   return filler;
 }
 
-static HeapObject AllocateUnaligned(PagedSpace* space, int size) {
+static Tagged<HeapObject> AllocateUnaligned(PagedSpace* space, int size) {
   AllocationResult allocation = space->AllocateRaw(size, kTaggedAligned);
   CHECK(!allocation.IsFailure());
-  HeapObject filler;
+  Tagged<HeapObject> filler;
   CHECK(allocation.To(&filler));
   space->heap()->CreateFillerObjectAt(filler.address(), size);
   return filler;
 }
 
-static HeapObject AllocateUnaligned(OldLargeObjectSpace* space, int size) {
+static Tagged<HeapObject> AllocateUnaligned(OldLargeObjectSpace* space,
+                                            int size) {
   AllocationResult allocation = space->AllocateRaw(size);
   CHECK(!allocation.IsFailure());
-  HeapObject filler;
+  Tagged<HeapObject> filler;
   CHECK(allocation.To(&filler));
   return filler;
 }
@@ -613,7 +613,7 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
 
     // Clear out any pre-existing garbage to make the test consistent
     // across snapshot/no-snapshot builds.
-    CcTest::CollectAllGarbage(i_isolate);
+    heap::InvokeMajorGC(i_isolate->heap());
 
     NewSpace* new_space = i_isolate->heap()->new_space();
 
@@ -655,7 +655,7 @@ HEAP_TEST(Regress777177) {
     heap::SimulateFullSpace(old_space);
     AllocationResult result =
         old_space->AllocateRaw(filler_size, kTaggedAligned);
-    HeapObject obj = result.ToObjectChecked();
+    Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), filler_size);
   }
 
@@ -664,7 +664,7 @@ HEAP_TEST(Regress777177) {
     // top_on_previous_step_ to the next page.
     AllocationResult result =
         old_space->AllocateRaw(max_object_size, kTaggedAligned);
-    HeapObject obj = result.ToObjectChecked();
+    Tagged<HeapObject> obj = result.ToObjectChecked();
     // Simulate allocation folding moving the top pointer back.
     old_space->SetTopAndLimit(obj.address(), old_space->limit(),
                               old_space->limit());
@@ -674,7 +674,7 @@ HEAP_TEST(Regress777177) {
     // This triggers assert in crbug.com/777177.
     AllocationResult result =
         old_space->AllocateRaw(filler_size, kTaggedAligned);
-    HeapObject obj = result.ToObjectChecked();
+    Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), filler_size);
   }
   old_space->RemoveAllocationObserver(&observer);
@@ -704,7 +704,7 @@ HEAP_TEST(Regress791582) {
   {
     AllocationResult result =
         new_space->AllocateRaw(until_page_end, kTaggedAligned);
-    HeapObject obj = result.ToObjectChecked();
+    Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), until_page_end);
     // Simulate allocation folding moving the top pointer back.
     *new_space->allocation_top_address() = obj.address();
@@ -713,7 +713,7 @@ HEAP_TEST(Regress791582) {
   {
     // This triggers assert in crbug.com/791582
     AllocationResult result = new_space->AllocateRaw(256, kTaggedAligned);
-    HeapObject obj = result.ToObjectChecked();
+    Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), 256);
   }
   new_space->RemoveAllocationObserver(&observer);
@@ -739,8 +739,9 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
   old_space->FreeLinearAllocationArea();
   old_space->ResetFreeList();
 
-  HeapObject filler = HeapObject::FromAddress(array->address() + array->Size());
-  CHECK(filler.IsFreeSpace());
+  Tagged<HeapObject> filler =
+      HeapObject::FromAddress(array->address() + array->Size());
+  CHECK(IsFreeSpace(filler));
   size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
   size_t should_have_shrunk = RoundDown(
       static_cast<size_t>(MemoryChunkLayout::AllocatableMemoryInDataPage() -
@@ -792,8 +793,9 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
   old_space->FreeLinearAllocationArea();
   old_space->ResetFreeList();
 
-  HeapObject filler = HeapObject::FromAddress(array->address() + array->Size());
-  CHECK_EQ(filler.map(),
+  Tagged<HeapObject> filler =
+      HeapObject::FromAddress(array->address() + array->Size());
+  CHECK_EQ(filler->map(),
            ReadOnlyRoots(CcTest::heap()).one_pointer_filler_map());
 
   size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
@@ -820,8 +822,9 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   old_space->FreeLinearAllocationArea();
   old_space->ResetFreeList();
 
-  HeapObject filler = HeapObject::FromAddress(array->address() + array->Size());
-  CHECK_EQ(filler.map(),
+  Tagged<HeapObject> filler =
+      HeapObject::FromAddress(array->address() + array->Size());
+  CHECK_EQ(filler->map(),
            ReadOnlyRoots(CcTest::heap()).two_pointer_filler_map());
 
   size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
@@ -953,7 +956,7 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
 
   int alignment = USE_ALLOCATION_ALIGNMENT_BOOL ? kDoubleSize : kTaggedSize;
 
-  HeapObject object =
+  Tagged<HeapObject> object =
       faked_space->AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
   CHECK_EQ(object.address() % alignment, 0);
   object =

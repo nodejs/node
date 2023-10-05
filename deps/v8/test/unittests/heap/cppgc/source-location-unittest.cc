@@ -30,7 +30,7 @@ void TestSourceLocationCurrent() {
   static constexpr char kFunctionName[] = "TestSourceLocationCurrent";
   static constexpr size_t kNextLine = __LINE__ + 1;
   constexpr auto loc = SourceLocation::Current();
-#if !CPPGC_SUPPORTS_SOURCE_LOCATION
+#if !V8_SUPPORTS_SOURCE_LOCATION
   EXPECT_EQ(nullptr, loc.Function());
   EXPECT_EQ(nullptr, loc.FileName());
   EXPECT_EQ(0u, loc.Line());
@@ -53,7 +53,7 @@ void TestToString() {
   EXPECT_EQ(kDescriptor, string);
 }
 
-#if CPPGC_SUPPORTS_SOURCE_LOCATION
+#if V8_SUPPORTS_SOURCE_LOCATION
 TEST(SourceLocationTest, ToString) { TestToString(); }
 #endif
 

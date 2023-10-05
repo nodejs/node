@@ -43,7 +43,7 @@ TEST(NondeterminismUnopF64) {
 TEST(NondeterminismUnopF32x4AllNaN) {
   WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoffForFuzzing);
 
-  byte value = 0;
+  uint8_t value = 0;
   r.Build({WASM_SIMD_UNOP(kExprF32x4Ceil,
                           WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value))),
            kExprDrop, WASM_ONE});
@@ -55,7 +55,7 @@ TEST(NondeterminismUnopF32x4AllNaN) {
 }
 
 TEST(NondeterminismUnopF32x4OneNaN) {
-  for (byte lane = 0; lane < 4; ++lane) {
+  for (uint8_t lane = 0; lane < 4; ++lane) {
     WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoffForFuzzing);
     r.Build({WASM_SIMD_F32x4_SPLAT(WASM_F32(0)), WASM_LOCAL_GET(0),
              WASM_SIMD_OP(kExprF32x4ReplaceLane), lane,
@@ -71,7 +71,7 @@ TEST(NondeterminismUnopF32x4OneNaN) {
 TEST(NondeterminismUnopF64x2AllNaN) {
   WasmRunner<int32_t, double> r(TestExecutionTier::kLiftoffForFuzzing);
 
-  byte value = 0;
+  uint8_t value = 0;
   r.Build({WASM_SIMD_UNOP(kExprF64x2Ceil,
                           WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value))),
            kExprDrop, WASM_ONE});
@@ -83,7 +83,7 @@ TEST(NondeterminismUnopF64x2AllNaN) {
 }
 
 TEST(NondeterminismUnopF64x2OneNaN) {
-  for (byte lane = 0; lane < 2; ++lane) {
+  for (uint8_t lane = 0; lane < 2; ++lane) {
     WasmRunner<int32_t, double> r(TestExecutionTier::kLiftoffForFuzzing);
     r.Build({WASM_SIMD_F64x2_SPLAT(WASM_F64(0)), WASM_LOCAL_GET(0),
              WASM_SIMD_OP(kExprF64x2ReplaceLane), lane,

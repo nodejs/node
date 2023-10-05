@@ -156,7 +156,7 @@ class V8_EXPORT_PRIVATE DateCache {
   // We increment the stamp each time when the timezone information changes.
   // JSDate objects perform stamp check and invalidate their caches if
   // their saved stamp is not equal to the current stamp.
-  Smi stamp() { return stamp_; }
+  Tagged<Smi> stamp() { return stamp_; }
   void* stamp_address() { return &stamp_; }
 
   // These functions are virtual so that we can override them when testing.

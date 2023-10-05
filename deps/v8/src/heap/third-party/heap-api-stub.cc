@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-Isolate* Heap::GetIsolateFromWritableObject(HeapObject object) {
+Isolate* Heap::GetIsolateFromWritableObject(Tagged<HeapObject> object) {
   return GetHeapFromWritableObject(object)->isolate();
 }
 
@@ -39,7 +39,7 @@ const base::AddressRegion& Heap::GetCodeRange() {
   return no_region;
 }
 
-bool Heap::IsPendingAllocation(HeapObject) { return false; }
+bool Heap::IsPendingAllocation(Tagged<HeapObject>) { return false; }
 
 // static
 bool Heap::InSpace(Address, AllocationSpace) { return false; }
@@ -54,17 +54,17 @@ bool Heap::InReadOnlySpace(Address) { return false; }
 bool Heap::InLargeObjectSpace(Address address) { return false; }
 
 // static
-bool Heap::IsValidHeapObject(HeapObject) { return false; }
+bool Heap::IsValidHeapObject(Tagged<HeapObject>) { return false; }
 
 // static
-bool Heap::IsImmovable(HeapObject) { return false; }
+bool Heap::IsImmovable(Tagged<HeapObject>) { return false; }
 
 // static
-bool Heap::IsValidCodeObject(HeapObject) { return false; }
+bool Heap::IsValidCodeObject(Tagged<HeapObject>) { return false; }
 
 void Heap::ResetIterator() {}
 
-HeapObject Heap::NextObject() { return HeapObject(); }
+Tagged<HeapObject> Heap::NextObject() { return HeapObject(); }
 
 bool Heap::CollectGarbage() { return false; }
 

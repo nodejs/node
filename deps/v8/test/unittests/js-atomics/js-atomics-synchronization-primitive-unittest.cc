@@ -4,7 +4,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/heap/parked-scope.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -18,26 +18,6 @@ using JSAtomicsMutexTest = TestJSSharedMemoryWithNativeContext;
 using JSAtomicsConditionTest = TestJSSharedMemoryWithNativeContext;
 
 namespace {
-
-class IsolateWithContextWrapper final {
- public:
-  IsolateWithContextWrapper()
-      : isolate_wrapper_(kNoCounters),
-        isolate_scope_(isolate_wrapper_.isolate()),
-        handle_scope_(isolate_wrapper_.isolate()),
-        context_(v8::Context::New(isolate_wrapper_.isolate())),
-        context_scope_(context_) {}
-
-  v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
-  Isolate* isolate() const { return reinterpret_cast<Isolate*>(v8_isolate()); }
-
- private:
-  IsolateWrapper isolate_wrapper_;
-  v8::Isolate::Scope isolate_scope_;
-  v8::HandleScope handle_scope_;
-  v8::Local<v8::Context> context_;
-  v8::Context::Scope context_scope_;
-};
 
 class LockingThread final : public ParkingThread {
  public:
@@ -103,10 +83,7 @@ TEST_F(JSAtomicsMutexTest, Contention) {
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 
   EXPECT_FALSE(contended_mutex->IsHeld());
 }
@@ -199,10 +176,7 @@ TEST_F(JSAtomicsConditionTest, NotifyAll) {
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 
   EXPECT_EQ(0U, waiting_threads_count);
   EXPECT_FALSE(mutex->IsHeld());

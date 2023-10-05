@@ -10,20 +10,17 @@ namespace internal {
 
 TEST(ProgressBar, DefaultDisabled) {
   ProgressBar progress_bar;
-  progress_bar.Initialize();
   EXPECT_FALSE(progress_bar.IsEnabled());
 }
 
 TEST(ProgressBar, EnabledAfterExplicitEnable) {
   ProgressBar progress_bar;
-  progress_bar.Initialize();
   progress_bar.Enable();
   EXPECT_TRUE(progress_bar.IsEnabled());
 }
 
 TEST(ProgressBar, ZeroValueAfterEnable) {
   ProgressBar progress_bar;
-  progress_bar.Initialize();
   progress_bar.Enable();
   ASSERT_TRUE(progress_bar.IsEnabled());
   EXPECT_EQ(0u, progress_bar.Value());
@@ -31,7 +28,6 @@ TEST(ProgressBar, ZeroValueAfterEnable) {
 
 TEST(ProgressBar, TrySetValue) {
   ProgressBar progress_bar;
-  progress_bar.Initialize();
   progress_bar.Enable();
   ASSERT_TRUE(progress_bar.IsEnabled());
   EXPECT_TRUE(progress_bar.TrySetNewValue(0, 17));
@@ -40,7 +36,6 @@ TEST(ProgressBar, TrySetValue) {
 
 TEST(ProgressBar, MultipleTrySetValue) {
   ProgressBar progress_bar;
-  progress_bar.Initialize();
   progress_bar.Enable();
   ASSERT_TRUE(progress_bar.IsEnabled());
   EXPECT_TRUE(progress_bar.TrySetNewValue(0, 23));
@@ -51,14 +46,12 @@ TEST(ProgressBar, MultipleTrySetValue) {
 
 TEST(ProgressBar, ResetIfEnabledOnDisabled) {
   ProgressBar progress_bar;
-  progress_bar.Initialize();
   progress_bar.ResetIfEnabled();
   EXPECT_FALSE(progress_bar.IsEnabled());
 }
 
 TEST(ProgressBar, ResetIfEnabledOnEnabled) {
   ProgressBar progress_bar;
-  progress_bar.Initialize();
   progress_bar.Enable();
   ASSERT_TRUE(progress_bar.TrySetNewValue(0, 1));
   progress_bar.ResetIfEnabled();
@@ -70,7 +63,6 @@ TEST(ProgressBar, ResetIfEnabledOnEnabled) {
 
 TEST(ProgressBarDeathTest, DiesOnTrySetValueOnDisabled) {
   ProgressBar progress_bar;
-  progress_bar.Initialize();
   EXPECT_DEATH_IF_SUPPORTED(progress_bar.TrySetNewValue(0, 1), "");
 }
 

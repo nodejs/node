@@ -30,7 +30,7 @@ own<Trap> Stage2(void* env, const Val args[], Val results[]) {
 own<Trap> Stage4_GC(void* env, const Val args[], Val results[]) {
   printf("Stage4...\n");
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env);
-  isolate->heap()->PreciseCollectAllGarbage(Heap::kForcedGC,
+  isolate->heap()->PreciseCollectAllGarbage(GCFlag::kForced,
                                             GarbageCollectionReason::kTesting);
   results[0] = Val::i32(args[0].i32() + 1);
   return nullptr;
@@ -43,14 +43,14 @@ class WasmCapiCallbacksTest : public WasmCapiTest {
     // int32 stage1(int32 arg0) { return stage2(arg0); }
     uint32_t stage2_index =
         builder()->AddImport(base::CStrVector("stage2"), wasm_i_i_sig());
-    byte code[] = {WASM_CALL_FUNCTION(stage2_index, WASM_LOCAL_GET(0))};
+    uint8_t code[] = {WASM_CALL_FUNCTION(stage2_index, WASM_LOCAL_GET(0))};
     AddExportedFunction(base::CStrVector("stage1"), code, sizeof(code));
 
     stage2_ = Func::make(store(), cpp_i_i_sig(), Stage2, this);
   }
 
   Func* stage2() { return stage2_.get(); }
-  void AddExportedFunction(base::Vector<const char> name, byte code[],
+  void AddExportedFunction(base::Vector<const char> name, uint8_t code[],
                            size_t code_size) {
     WasmCapiTest::AddExportedFunction(name, code, code_size, wasm_i_i_sig());
   }
@@ -64,7 +64,7 @@ class WasmCapiCallbacksTest : public WasmCapiTest {
 TEST_F(WasmCapiCallbacksTest, Trap) {
   // Build the following function:
   // int32 stage3_trap(int32 arg0) { unreachable(); }
-  byte code[] = {WASM_UNREACHABLE};
+  uint8_t code[] = {WASM_UNREACHABLE};
   AddExportedFunction(base::CStrVector("stage3_trap"), code, sizeof(code));
 
   Extern* imports[] = {stage2()};
@@ -81,7 +81,7 @@ TEST_F(WasmCapiCallbacksTest, GC) {
   // int32 stage3_to4(int32 arg0) { return stage4(arg0); }
   uint32_t stage4_index =
       builder()->AddImport(base::CStrVector("stage4"), wasm_i_i_sig());
-  byte code[] = {WASM_CALL_FUNCTION(stage4_index, WASM_LOCAL_GET(0))};
+  uint8_t code[] = {WASM_CALL_FUNCTION(stage4_index, WASM_LOCAL_GET(0))};
   AddExportedFunction(base::CStrVector("stage3_to4"), code, sizeof(code));
 
   i::Isolate* isolate =
@@ -134,7 +134,7 @@ TEST_F(WasmCapiTest, Recursion) {
   // }
   uint32_t fibo_c_index =
       builder()->AddImport(base::CStrVector("fibonacci_c"), wasm_i_i_sig());
-  byte code_fibo[] = {
+  uint8_t code_fibo[] = {
       WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_ZERO),
               WASM_RETURN(WASM_ZERO)),
       WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_ONE), WASM_RETURN(WASM_ONE)),

@@ -78,7 +78,7 @@ TEST_F(LocalHandlesTest, CreateLocalHandles) {
   {
     HandleScope handle_scope(isolate);
     Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
-    object = (*number).address();
+    object = number->address();
   }
 
   base::Semaphore sema_started(0);
@@ -90,7 +90,7 @@ TEST_F(LocalHandlesTest, CreateLocalHandles) {
 
   sema_started.Wait();
 
-  CollectAllGarbage();
+  InvokeMajorGC();
   sema_gc_finished.Signal();
 
   thread->Join();

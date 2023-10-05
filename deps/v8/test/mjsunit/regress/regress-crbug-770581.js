@@ -16,7 +16,7 @@ function message_of_f() {
   }
 }
 
-assertEquals("TypeError: a teapot is not a function", message_of_f());
-assertEquals("TypeError: a teapot is not a function", message_of_f());
+assertEquals("TypeError: string \"a teapot\" is not a function", message_of_f());
+assertEquals("TypeError: string \"a teapot\" is not a function", message_of_f());
 %OptimizeFunctionOnNextCall(f);
-assertEquals("TypeError: a teapot is not a function", message_of_f());
+assertEquals("TypeError: string \"a teapot\" is not a function", message_of_f());
