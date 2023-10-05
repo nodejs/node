@@ -98,7 +98,9 @@ changes:
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     This option is part of the experimental modules API. We do not recommend
-    using it in a production environment.
+    using it in a production environment. If `--experimental-vm-modules` isn't
+    set, this callback will be ignored and calls to `import()` will reject with
+    [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
     * `importAttributes` {Object} The `"with"` value passed to the
@@ -767,6 +769,9 @@ changes:
   * `importModuleDynamically` {Function} Called during evaluation of this module
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    If `--experimental-vm-modules` isn't set, this callback will be ignored
+    and calls to `import()` will reject with
+    [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `module` {vm.Module}
     * `importAttributes` {Object} The `"with"` value passed to the
@@ -1025,7 +1030,9 @@ changes:
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     This option is part of the experimental modules API, and should not be
-    considered stable.
+    considered stable.  If `--experimental-vm-modules` isn't
+    set, this callback will be ignored and calls to `import()` will reject with
+    [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `function` {Function}
     * `importAttributes` {Object} The `"with"` value passed to the
@@ -1249,7 +1256,9 @@ changes:
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     This option is part of the experimental modules API. We do not recommend
-    using it in a production environment.
+    using it in a production environment.  If `--experimental-vm-modules` isn't
+    set, this callback will be ignored and calls to `import()` will reject with
+    [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
     * `importAttributes` {Object} The `"with"` value passed to the
@@ -1348,7 +1357,9 @@ changes:
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     This option is part of the experimental modules API. We do not recommend
-    using it in a production environment.
+    using it in a production environment. If `--experimental-vm-modules` isn't
+    set, this callback will be ignored and calls to `import()` will reject with
+    [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
     * `importAttributes` {Object} The `"with"` value passed to the
@@ -1428,7 +1439,9 @@ changes:
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     This option is part of the experimental modules API. We do not recommend
-    using it in a production environment.
+    using it in a production environment. If `--experimental-vm-modules` isn't
+    set, this callback will be ignored and calls to `import()` will reject with
+    [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
     * `importAttributes` {Object} The `"with"` value passed to the
@@ -1592,6 +1605,7 @@ are not controllable through the timeout either.
 [Source Text Module Record]: https://tc39.es/ecma262/#sec-source-text-module-records
 [Synthetic Module Record]: https://heycam.github.io/webidl/#synthetic-module-records
 [V8 Embedder's Guide]: https://v8.dev/docs/embed#contexts
+[`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`]: errors.md#err_vm_dynamic_import_callback_missing_flag
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.md#err_vm_dynamic_import_callback_missing
 [`ERR_VM_MODULE_STATUS`]: errors.md#err_vm_module_status
 [`Error`]: errors.md#class-error
