@@ -571,6 +571,10 @@ There are constraints you need to know before using this system:
 * When creating symlinks the target (first argument) should have read and
   write access.
 * Permission changes are not retroactively applied to existing resources.
+* The Permission Model is initialized after the Node.js environment is set up.
+  However, certain flags such as `--env-file` or `--openssl-config` are designed
+  to read files before environment initialization. As a result, such flags are
+  not subject to the rules of the Permission Model.
 
 [Import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
