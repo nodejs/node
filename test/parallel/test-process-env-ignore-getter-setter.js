@@ -40,7 +40,7 @@ assert.throws(
 
 const attributes = ['configurable', 'writable', 'enumerable'];
 
-for(const attribute of attributes) {
+for (const attribute of attributes) {
   assert.throws(
     () => {
       Object.defineProperty(process.env, 'goo', {
