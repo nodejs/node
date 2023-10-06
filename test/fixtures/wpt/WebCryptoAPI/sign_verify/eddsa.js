@@ -167,6 +167,7 @@ function run_test() {
           promise_test(function(test) {
               return subtle.sign(algorithm, vector.privateKey, vector.data)
               .then(function(signature) {
+                  assert_true(equalBuffers(signature, vector.signature), "Signing did not give the expected output");
                   // Can we verify the signature?
                   return subtle.verify(algorithm, vector.publicKey, signature, vector.data)
                   .then(function(is_verified) {
