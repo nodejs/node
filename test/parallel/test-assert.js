@@ -476,7 +476,7 @@ assert.throws(() => {
 {
   // Bad args to AssertionError constructor should throw TypeError.
   const args = [1, true, false, '', null, Infinity, Symbol('test'), undefined];
-  args.forEach((input) => {
+  for (const input of args) {
     assert.throws(
       () => new assert.AssertionError(input),
       {
@@ -485,7 +485,7 @@ assert.throws(() => {
         message: 'The "options" argument must be of type object.' +
                  common.invalidArgTypeHelper(input)
       });
-  });
+  }
 }
 
 assert.throws(
@@ -965,11 +965,8 @@ assert.throws(
   }
 );
 
-[
-  1,
-  false,
-  Symbol(),
-].forEach((input) => {
+const inputs = [1, false, Symbol()];
+for (const input of inputs) {
   assert.throws(
     () => assert.throws(() => {}, input),
     {
@@ -979,7 +976,7 @@ assert.throws(
                common.invalidArgTypeHelper(input)
     }
   );
-});
+}
 
 {
 
