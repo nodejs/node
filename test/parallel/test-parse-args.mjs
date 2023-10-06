@@ -451,7 +451,7 @@ const candidateGreedyOptions = [
   '--foo',
 ];
 
-for(const value of candidateGreedyOptions) {
+for (const value of candidateGreedyOptions) {
   test(`greedy: when short option with value '${value}' then eaten`, () => {
     const args = ['-w', value];
     const options = { with: { type: 'string', short: 'w' } };
