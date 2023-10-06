@@ -8,8 +8,6 @@ const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
 
-const skipIfNoInspector = !process.features.inspector;
-
 function replaceTestDuration(str) {
   return str
     .replaceAll(/duration_ms: [0-9.]+/g, 'duration_ms: *')
@@ -103,7 +101,7 @@ const tests = [
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter_cli.js', transform: specTransform },
-  skipIfNoInspector ? false : { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform },
+  process.features.inspector ? { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform } : false,
   { name: 'test-runner/output/output.js' },
   { name: 'test-runner/output/output_cli.js' },
   { name: 'test-runner/output/name_pattern.js' },
