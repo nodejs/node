@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.18.1">18.18.1</a><br/>
 <a href="#18.18.0">18.18.0</a><br/>
 <a href="#18.17.1">18.17.1</a><br/>
 <a href="#18.17.0">18.17.0</a><br/>
@@ -61,6 +62,29 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.18.1"></a>
+
+## 2023-10-10, Version 18.18.1 'Hydrogen' (LTS), @richardlau
+
+### Notable Changes
+
+This release addresses some regressions that appeared in Node.js 18.18.0:
+
+* (Windows) FS can not handle certain characters in file name [#48673](https://github.com/nodejs/node/issues/48673)
+* 18 and 20 node images give error - Text file busy (after re-build images) [nodejs/docker-node#1968](https://github.com/nodejs/docker-node/issues/1968)
+* libuv update in 18.18.0 breaks webpack's thread-loader [#49911](https://github.com/nodejs/node/issues/49911)
+
+The libuv 1.45.0 and 1.46.0 updates that were released in Node.js 18.18.0 have been temporarily reverted.
+
+### Commits
+
+* \[[`3e3a75cc46`](https://github.com/nodejs/node/commit/3e3a75cc46)] - _**Revert**_ "**build**: sync libuv header change" (Richard Lau) [#50036](https://github.com/nodejs/node/pull/50036)
+* \[[`14ece2c479`](https://github.com/nodejs/node/commit/14ece2c479)] - _**Revert**_ "**deps**: upgrade to libuv 1.45.0" (Richard Lau) [#50036](https://github.com/nodejs/node/pull/50036)
+* \[[`022352acbe`](https://github.com/nodejs/node/commit/022352acbe)] - _**Revert**_ "**deps**: upgrade to libuv 1.46.0" (Richard Lau) [#50036](https://github.com/nodejs/node/pull/50036)
+* \[[`d9f138189c`](https://github.com/nodejs/node/commit/d9f138189c)] - _**Revert**_ "**deps**: add missing thread-common.c in uv.gyp" (Richard Lau) [#50036](https://github.com/nodejs/node/pull/50036)
+* \[[`7a3e1ffbb8`](https://github.com/nodejs/node/commit/7a3e1ffbb8)] - **fs**: make sure to write entire buffer (Robert Nagy) [#49211](https://github.com/nodejs/node/pull/49211)
+* \[[`04cba95a67`](https://github.com/nodejs/node/commit/04cba95a67)] - **test**: add `tmpdir.resolve()` (Livia Medeiros) [#49079](https://github.com/nodejs/node/pull/49079)
 
 <a id="18.18.0"></a>
 
