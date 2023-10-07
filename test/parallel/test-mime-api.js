@@ -164,4 +164,4 @@ assert.throws(() => params.set('x', `x${NOT_HTTP_QUOTED_STRING_CODE_POINT}`), /p
 assert.strictEqual(toASCIILower('someThing'), 'something');
 assert.strictEqual(toASCIILower('SomeThing'), 'something');
 assert.strictEqual(toASCIILower('SomeThing3'), 'something3');
-assert.strictEqual(toASCIILower('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.toLowerCase());
+assert.strictEqual(toASCIILower('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'abcdefghijklmnopqrstuvwxyz');
