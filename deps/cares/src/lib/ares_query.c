@@ -1,17 +1,28 @@
-
-/* Copyright 1998 by the Massachusetts Institute of Technology.
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this
- * software and its documentation for any purpose and without
- * fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in
- * advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 1998 Massachusetts Institute of Technology
+ * Copyright (c) The c-ares project and its contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ares_setup.h"
@@ -33,24 +44,6 @@ struct qquery {
 
 static void qcallback(void *arg, int status, int timeouts, unsigned char *abuf, int alen);
 
-static struct query* find_query_by_id(ares_channel channel, unsigned short id)
-{
-  unsigned short qid;
-  struct list_node* list_head;
-  struct list_node* list_node;
-  DNS_HEADER_SET_QID(((unsigned char*)&qid), id);
-
-  /* Find the query corresponding to this packet. */
-  list_head = &(channel->queries_by_qid[qid % ARES_QID_TABLE_SIZE]);
-  for (list_node = list_head->next; list_node != list_head;
-       list_node = list_node->next)
-    {
-       struct query *q = list_node->data;
-       if (q->qid == qid)
-	  return q;
-    }
-  return NULL;
-}
 
 /* a unique query id is generated using an rc4 key. Since the id may already
    be used by a running query (as infrequent as it may be), a lookup is
@@ -63,30 +56,30 @@ static unsigned short generate_unique_id(ares_channel channel)
 
   do {
     id = ares__generate_new_id(channel->rand_state);
-  } while (find_query_by_id(channel, id));
+  } while (ares__htable_stvp_get(channel->queries_by_qid, id, NULL));
 
   return (unsigned short)id;
 }
 
-void ares_query(ares_channel channel, const char *name, int dnsclass,
-                int type, ares_callback callback, void *arg)
+int ares_query_qid(ares_channel channel, const char *name,
+                   int dnsclass, int type, ares_callback callback,
+                   void *arg, unsigned short *qid)
 {
   struct qquery *qquery;
   unsigned char *qbuf;
   int qlen, rd, status;
+  unsigned short id = generate_unique_id(channel);
 
   /* Compose the query. */
   rd = !(channel->flags & ARES_FLAG_NORECURSE);
-  status = ares_create_query(name, dnsclass, type, channel->next_id, rd, &qbuf,
+  status = ares_create_query(name, dnsclass, type, id, rd, &qbuf,
               &qlen, (channel->flags & ARES_FLAG_EDNS) ? channel->ednspsz : 0);
   if (status != ARES_SUCCESS)
     {
       if (qbuf != NULL) ares_free(qbuf);
       callback(arg, status, 0, NULL, 0);
-      return;
+      return status;
     }
-
-  channel->next_id = generate_unique_id(channel);
 
   /* Allocate and fill in the query structure. */
   qquery = ares_malloc(sizeof(struct qquery));
@@ -94,15 +87,27 @@ void ares_query(ares_channel channel, const char *name, int dnsclass,
     {
       ares_free_string(qbuf);
       callback(arg, ARES_ENOMEM, 0, NULL, 0);
-      return;
+      return ARES_ENOMEM;
     }
   qquery->callback = callback;
   qquery->arg = arg;
 
   /* Send it off.  qcallback will be called when we get an answer. */
-  ares_send(channel, qbuf, qlen, qcallback, qquery);
+  status = ares_send_ex(channel, qbuf, qlen, qcallback, qquery);
   ares_free_string(qbuf);
+
+  if (status == ARES_SUCCESS && qid)
+    *qid = id;
+
+  return status;
 }
+
+void ares_query(ares_channel channel, const char *name, int dnsclass,
+                int type, ares_callback callback, void *arg)
+{
+  ares_query_qid(channel, name, dnsclass, type, callback, arg, NULL);
+}
+
 
 static void qcallback(void *arg, int status, int timeouts, unsigned char *abuf, int alen)
 {

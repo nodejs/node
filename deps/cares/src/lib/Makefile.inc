@@ -1,10 +1,18 @@
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 
 CSOURCES = ares__addrinfo2hostent.c	\
-  ares__addrinfo_localhost.c	\
-  ares__close_sockets.c	\
+  ares__addrinfo_localhost.c		\
+  ares__close_sockets.c			\
   ares__get_hostent.c			\
+  ares__htable.c			\
+  ares__htable_asvp.c			\
+  ares__htable_stvp.c			\
+  ares__llist.c				\
   ares__parse_into_addrinfo.c		\
+  ares__buf.c				\
   ares__readaddrinfo.c			\
+  ares__slist.c			\
   ares__sortaddrinfo.c			\
   ares__read_line.c			\
   ares__timeval.c			\
@@ -26,7 +34,6 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_getsock.c			\
   ares_init.c				\
   ares_library_init.c			\
-  ares_llist.c				\
   ares_mkquery.c			\
   ares_create_query.c			\
   ares_nowarn.c				\
@@ -54,26 +61,29 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_strsplit.c			\
   ares_timeout.c			\
   ares_version.c			\
-  ares_writev.c				\
   bitncmp.c				\
   inet_net_pton.c			\
   inet_ntop.c				\
   windows_port.c
 
-HHEADERS = ares_android.h	\
+HHEADERS = ares__htable.h		\
+  ares__htable_asvp.h			\
+  ares__htable_stvp.h			\
+  ares__llist.h				\
+  ares__buf.h				\
+  ares__slist.h				\
+  ares_android.h			\
   ares_data.h				\
   ares_getenv.h				\
   ares_inet_net_pton.h			\
   ares_iphlpapi.h			\
   ares_ipv6.h				\
-  ares_llist.h				\
   ares_nowarn.h				\
   ares_platform.h			\
   ares_private.h			\
   ares_strcasecmp.h			\
   ares_strdup.h				\
   ares_strsplit.h			\
-  ares_writev.h				\
   bitncmp.h				\
   ares_setup.h				\
   setup_once.h
