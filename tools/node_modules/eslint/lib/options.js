@@ -55,6 +55,7 @@ const optionator = require("optionator");
  * @property {string} [stdinFilename] Specify filename to process STDIN as
  * @property {boolean} quiet Report errors only
  * @property {boolean} [version] Output the version number
+ * @property {boolean} warnIgnored Show warnings when the file list includes ignored files
  * @property {string[]} _ Positional filenames or patterns
  */
 
@@ -136,6 +137,17 @@ module.exports = function(usingFlatConfig) {
             option: "ignore-path",
             type: "path::String",
             description: "Specify path of ignore file"
+        };
+    }
+
+    let warnIgnoredFlag;
+
+    if (usingFlatConfig) {
+        warnIgnoredFlag = {
+            option: "warn-ignored",
+            type: "Boolean",
+            default: "true",
+            description: "Suppress warnings when the file list includes ignored files"
         };
     }
 
@@ -349,6 +361,7 @@ module.exports = function(usingFlatConfig) {
                 default: "false",
                 description: "Exit with exit code 2 in case of fatal error"
             },
+            warnIgnoredFlag,
             {
                 option: "debug",
                 type: "Boolean",

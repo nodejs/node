@@ -84,6 +84,7 @@ const LintResultCache = require("../cli-engine/lint-result-cache");
  *      when a string.
  * @property {Record<string,Plugin>} [plugins] An array of plugin implementations.
  * @property {"error" | "warn" | "off"} [reportUnusedDisableDirectives] the severity to report unused eslint-disable directives.
+ * @property {boolean} warnIgnored Show warnings when the file list includes ignored files
  */
 
 //------------------------------------------------------------------------------
@@ -749,7 +750,8 @@ class FlatESLint {
             fixTypes,
             reportUnusedDisableDirectives,
             globInputPaths,
-            errorOnUnmatchedPattern
+            errorOnUnmatchedPattern,
+            warnIgnored
         } = eslintOptions;
         const startTime = Date.now();
         const fixTypesSet = fixTypes ? new Set(fixTypes) : null;
@@ -795,7 +797,11 @@ class FlatESLint {
                  * pattern, then notify the user.
                  */
                 if (ignored) {
-                    return createIgnoreResult(filePath, cwd);
+                    if (warnIgnored) {
+                        return createIgnoreResult(filePath, cwd);
+                    }
+
+                    return void 0;
                 }
 
                 const config = configs.getConfig(filePath);
@@ -908,7 +914,7 @@ class FlatESLint {
 
         const {
             filePath,
-            warnIgnored = false,
+            warnIgnored,
             ...unknownOptions
         } = options || {};
 
@@ -922,7 +928,7 @@ class FlatESLint {
             throw new Error("'options.filePath' must be a non-empty string or undefined");
         }
 
-        if (typeof warnIgnored !== "boolean") {
+        if (typeof warnIgnored !== "boolean" && typeof warnIgnored !== "undefined") {
             throw new Error("'options.warnIgnored' must be a boolean or undefined");
         }
 
@@ -937,7 +943,8 @@ class FlatESLint {
             allowInlineConfig,
             cwd,
             fix,
-            reportUnusedDisableDirectives
+            reportUnusedDisableDirectives,
+            warnIgnored: constructorWarnIgnored
         } = eslintOptions;
         const results = [];
         const startTime = Date.now();
@@ -945,7 +952,9 @@ class FlatESLint {
 
         // Clear the last used config arrays.
         if (resolvedFilename && await this.isPathIgnored(resolvedFilename)) {
-            if (warnIgnored) {
+            const shouldWarnIgnored = typeof warnIgnored === "boolean" ? warnIgnored : constructorWarnIgnored;
+
+            if (shouldWarnIgnored) {
                 results.push(createIgnoreResult(resolvedFilename, cwd));
             }
         } else {
