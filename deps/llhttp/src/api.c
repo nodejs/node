@@ -126,7 +126,7 @@ void llhttp_reset(llhttp_t* parser) {
   llhttp_type_t type = parser->type;
   const llhttp_settings_t* settings = parser->settings;
   void* data = parser->data;
-  uint8_t lenient_flags = parser->lenient_flags;
+  uint16_t lenient_flags = parser->lenient_flags;
 
   llhttp__internal_init(parser);
 
