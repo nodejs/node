@@ -1,19 +1,29 @@
-
-/* Copyright 1998, 2011, 2013 by the Massachusetts Institute of Technology.
- * Copyright (C) 2017 - 2018 by Christian Ammer
- * Copyright (C) 2019 by Andrew Selivanov
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this
- * software and its documentation for any purpose and without
- * fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in
- * advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 1998, 2011, 2013 Massachusetts Institute of Technology
+ * Copyright (c) 2017 Christian Ammer
+ * Copyright (c) 2019 Andrew Selivanov
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ares_setup.h"
@@ -49,6 +59,7 @@
 #include "ares.h"
 #include "bitncmp.h"
 #include "ares_private.h"
+#include "ares_dns.h"
 
 #ifdef WATT32
 #undef WIN32
@@ -70,9 +81,12 @@ struct host_query
   const char *remaining_lookups; /* types of lookup we need to perform ("fb" by
                                     default, file and dns respectively) */
   struct ares_addrinfo *ai;      /* store results between lookups */
+  unsigned short qid_a;    /* qid for A request */
+  unsigned short qid_aaaa; /* qid for AAAA request */
   int remaining;   /* number of DNS answers waiting for */
   int next_domain; /* next search domain to try */
   int nodata_cnt; /* Track nodata responses to possibly override final result */
+
 };
 
 static const struct ares_addrinfo_hints default_hints = {
@@ -113,7 +127,7 @@ static int as_is_first(const struct host_query *hquery);
 static int as_is_only(const struct host_query* hquery);
 static int next_dns_lookup(struct host_query *hquery);
 
-struct ares_addrinfo_cname *ares__malloc_addrinfo_cname()
+static struct ares_addrinfo_cname *ares__malloc_addrinfo_cname(void)
 {
   struct ares_addrinfo_cname *cname = ares_malloc(sizeof(struct ares_addrinfo_cname));
   if (!cname)
@@ -160,7 +174,7 @@ void ares__addrinfo_cat_cnames(struct ares_addrinfo_cname **head,
   last->next = tail;
 }
 
-struct ares_addrinfo *ares__malloc_addrinfo()
+static struct ares_addrinfo *ares__malloc_addrinfo(void)
 {
   struct ares_addrinfo *ai = ares_malloc(sizeof(struct ares_addrinfo));
   if (!ai)
@@ -170,10 +184,10 @@ struct ares_addrinfo *ares__malloc_addrinfo()
   return ai;
 }
 
-struct ares_addrinfo_node *ares__malloc_addrinfo_node()
+static struct ares_addrinfo_node *ares__malloc_addrinfo_node(void)
 {
   struct ares_addrinfo_node *node =
-      ares_malloc(sizeof(struct ares_addrinfo_node));
+      ares_malloc(sizeof(*node));
   if (!node)
     return NULL;
 
@@ -375,6 +389,7 @@ static void end_hquery(struct host_query *hquery, int status)
 {
   struct ares_addrinfo_node sentinel;
   struct ares_addrinfo_node *next;
+
   if (status == ARES_SUCCESS)
     {
       if (!(hquery->hints.ai_flags & ARES_AI_NOSORT) && hquery->ai->nodes)
@@ -563,59 +578,68 @@ static void next_lookup(struct host_query *hquery, int status)
     }
 }
 
+
+static void terminate_retries(struct host_query *hquery, unsigned short qid)
+{
+  unsigned short term_qid = (qid == hquery->qid_a)?hquery->qid_aaaa:hquery->qid_a;
+  ares_channel   channel  = hquery->channel;
+  struct query  *query    = NULL;
+
+  /* No other outstanding queries, nothing to do */
+  if (!hquery->remaining)
+    return;
+
+  query = ares__htable_stvp_get_direct(channel->queries_by_qid, term_qid);
+  if (query == NULL)
+    return;
+
+  query->no_retries = 1;
+}
+
+
 static void host_callback(void *arg, int status, int timeouts,
                           unsigned char *abuf, int alen)
 {
   struct host_query *hquery = (struct host_query*)arg;
   int addinfostatus = ARES_SUCCESS;
+  unsigned short qid = 0;
   hquery->timeouts += timeouts;
   hquery->remaining--;
 
-  if (status == ARES_SUCCESS)
-    {
-      addinfostatus = ares__parse_into_addrinfo(abuf, alen, 1, hquery->port, hquery->ai);
+  if (status == ARES_SUCCESS) {
+    addinfostatus = ares__parse_into_addrinfo(abuf, alen, 1, hquery->port,
+                                              hquery->ai);
+    if (addinfostatus == ARES_SUCCESS && alen >= HFIXEDSZ) {
+      qid = DNS_HEADER_QID(abuf); /* Converts to host byte order */
+      terminate_retries(hquery, qid);
     }
+  }
 
-  if (!hquery->remaining)
-    {
-      if (addinfostatus != ARES_SUCCESS && addinfostatus != ARES_ENODATA)
-        {
-          /* error in parsing result e.g. no memory */
-          if (addinfostatus == ARES_EBADRESP && hquery->ai->nodes)
-            {
-              /* We got a bad response from server, but at least one query
-               * ended with ARES_SUCCESS */
-              end_hquery(hquery, ARES_SUCCESS);
-            }
-          else
-            {
-              end_hquery(hquery, addinfostatus);
-            }
-        }
-      else if (hquery->ai->nodes)
-        {
-          /* at least one query ended with ARES_SUCCESS */
-          end_hquery(hquery, ARES_SUCCESS);
-        }
-      else if (status == ARES_ENOTFOUND || status == ARES_ENODATA ||
-               addinfostatus == ARES_ENODATA)
-        {
-          if (status == ARES_ENODATA || addinfostatus == ARES_ENODATA)
-            hquery->nodata_cnt++;
-          next_lookup(hquery, hquery->nodata_cnt?ARES_ENODATA:status);
-        }
-      else if (status == ARES_EDESTRUCTION)
-        {
-          /* NOTE: Could also be ARES_EDESTRUCTION.  We need to only call this
-           * once all queries (there can be multiple for getaddrinfo) are
-           * terminated.  */
-          end_hquery(hquery, status);
-        }
-      else
-        {
-          end_hquery(hquery, status);
-        }
+  if (!hquery->remaining) {
+    if (addinfostatus != ARES_SUCCESS && addinfostatus != ARES_ENODATA) {
+      /* error in parsing result e.g. no memory */
+      if (addinfostatus == ARES_EBADRESP && hquery->ai->nodes) {
+        /* We got a bad response from server, but at least one query
+         * ended with ARES_SUCCESS */
+        end_hquery(hquery, ARES_SUCCESS);
+      } else {
+        end_hquery(hquery, addinfostatus);
+      }
+    } else if (hquery->ai->nodes) {
+      /* at least one query ended with ARES_SUCCESS */
+      end_hquery(hquery, ARES_SUCCESS);
+    } else if (status == ARES_EDESTRUCTION || status == ARES_ECANCELLED) {
+      /* must make sure we don't do next_lookup() on destroy or cancel */
+      end_hquery(hquery, status);
+    } else if (status == ARES_ENOTFOUND || status == ARES_ENODATA ||
+               addinfostatus == ARES_ENODATA) {
+      if (status == ARES_ENODATA || addinfostatus == ARES_ENODATA)
+        hquery->nodata_cnt++;
+      next_lookup(hquery, hquery->nodata_cnt?ARES_ENODATA:status);
+    } else {
+      end_hquery(hquery, status);
     }
+  }
 
   /* at this point we keep on waiting for the next query to finish */
 }
@@ -715,7 +739,7 @@ void ares_getaddrinfo(ares_channel channel,
     }
 
   /* Allocate and fill in the host query structure. */
-  hquery = ares_malloc(sizeof(struct host_query));
+  hquery = ares_malloc(sizeof(*hquery));
   if (!hquery)
     {
       ares_free(alias_name);
@@ -723,7 +747,7 @@ void ares_getaddrinfo(ares_channel channel,
       callback(arg, ARES_ENOMEM, 0, NULL);
       return;
     }
-
+  memset(hquery, 0, sizeof(*hquery));
   hquery->name = ares_strdup(name);
   ares_free(alias_name);
   if (!hquery->name)
@@ -741,11 +765,8 @@ void ares_getaddrinfo(ares_channel channel,
   hquery->callback = callback;
   hquery->arg = arg;
   hquery->remaining_lookups = channel->lookups;
-  hquery->timeouts = 0;
   hquery->ai = ai;
   hquery->next_domain = -1;
-  hquery->remaining = 0;
-  hquery->nodata_cnt = 0;
 
   /* Start performing lookups according to channel->lookups. */
   next_lookup(hquery, ARES_ECONNREFUSED /* initial error code */);
@@ -790,20 +811,26 @@ static int next_dns_lookup(struct host_query *hquery)
 
   if (s)
     {
+      /* NOTE: hquery may be invalidated during the call to ares_query_qid(),
+       *       so should not be referenced after this point */
       switch (hquery->hints.ai_family)
         {
           case AF_INET:
             hquery->remaining += 1;
-            ares_query(hquery->channel, s, C_IN, T_A, host_callback, hquery);
+            ares_query_qid(hquery->channel, s, C_IN, T_A, host_callback, hquery,
+                           &hquery->qid_a);
             break;
           case AF_INET6:
             hquery->remaining += 1;
-            ares_query(hquery->channel, s, C_IN, T_AAAA, host_callback, hquery);
+            ares_query_qid(hquery->channel, s, C_IN, T_AAAA, host_callback,
+                           hquery, &hquery->qid_aaaa);
             break;
           case AF_UNSPEC:
             hquery->remaining += 2;
-            ares_query(hquery->channel, s, C_IN, T_A, host_callback, hquery);
-            ares_query(hquery->channel, s, C_IN, T_AAAA, host_callback, hquery);
+            ares_query_qid(hquery->channel, s, C_IN, T_A, host_callback,
+                           hquery, &hquery->qid_a);
+            ares_query_qid(hquery->channel, s, C_IN, T_AAAA, host_callback,
+                           hquery, &hquery->qid_aaaa);
             break;
           default: break;
         }
@@ -825,7 +852,7 @@ static int as_is_first(const struct host_query* hquery)
   char* p;
   int ndots = 0;
   size_t nname = hquery->name?strlen(hquery->name):0;
-  for (p = hquery->name; *p; p++)
+  for (p = hquery->name; p && *p; p++)
     {
       if (*p == '.')
         {
