@@ -1,3 +1,5 @@
+# Copyright (C) Daniel Stenberg
+# SPDX-License-Identifier: MIT
 AUTOMAKE_OPTIONS = foreign nostdinc 1.9.6
 ACLOCAL_AMFLAGS = -I m4 --install
 

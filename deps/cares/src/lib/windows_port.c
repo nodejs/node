@@ -1,3 +1,11 @@
+/**********************************************************************
+ *
+ * Copyright (c) 1998 Massachusetts Institute of Technology
+ * Copyright (C) Daniel Stenberg
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ */
 #include "ares_setup.h"
 
 

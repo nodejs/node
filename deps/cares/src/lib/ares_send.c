@@ -1,17 +1,28 @@
-
-/* Copyright 1998 by the Massachusetts Institute of Technology.
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this
- * software and its documentation for any purpose and without
- * fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in
- * advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 1998 Massachusetts Institute of Technology
+ * Copyright (c) The c-ares project and its contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ares_setup.h"
@@ -26,8 +37,8 @@
 #include "ares_dns.h"
 #include "ares_private.h"
 
-void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
-               ares_callback callback, void *arg)
+int ares_send_ex(ares_channel channel, const unsigned char *qbuf, int qlen,
+                 ares_callback callback, void *arg)
 {
   struct query *query;
   int i, packetsz;
@@ -37,26 +48,28 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
   if (qlen < HFIXEDSZ || qlen >= (1 << 16))
     {
       callback(arg, ARES_EBADQUERY, 0, NULL, 0);
-      return;
+      return ARES_EBADQUERY;
     }
   if (channel->nservers < 1)
     {
       callback(arg, ARES_ESERVFAIL, 0, NULL, 0);
-      return;
+      return ARES_ESERVFAIL;
     }
   /* Allocate space for query and allocated fields. */
   query = ares_malloc(sizeof(struct query));
   if (!query)
     {
       callback(arg, ARES_ENOMEM, 0, NULL, 0);
-      return;
+      return ARES_ENOMEM;
     }
+  memset(query, 0, sizeof(*query));
+  query->channel = channel;
   query->tcpbuf = ares_malloc(qlen + 2);
   if (!query->tcpbuf)
     {
       ares_free(query);
       callback(arg, ARES_ENOMEM, 0, NULL, 0);
-      return;
+      return ARES_ENOMEM;
     }
   query->server_info = ares_malloc(channel->nservers *
                                    sizeof(query->server_info[0]));
@@ -65,7 +78,7 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
       ares_free(query->tcpbuf);
       ares_free(query);
       callback(arg, ARES_ENOMEM, 0, NULL, 0);
-      return;
+      return ARES_ENOMEM;
     }
 
   /* Compute the query ID.  Start with no timeout. */
@@ -109,21 +122,33 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
   query->timeouts = 0;
 
   /* Initialize our list nodes. */
-  ares__init_list_node(&(query->queries_by_qid),     query);
-  ares__init_list_node(&(query->queries_by_timeout), query);
-  ares__init_list_node(&(query->queries_to_server),  query);
-  ares__init_list_node(&(query->all_queries),        query);
+  query->node_queries_by_timeout = NULL;
+  query->node_queries_to_conn    = NULL;
 
   /* Chain the query into the list of all queries. */
-  ares__insert_in_list(&(query->all_queries), &(channel->all_queries));
+  query->node_all_queries = ares__llist_insert_last(channel->all_queries, query);
+  if (query->node_all_queries == NULL) {
+    callback(arg, ARES_ENOMEM, 0, NULL, 0);
+    ares__free_query(query);
+    return ARES_ENOMEM;
+  }
+
   /* Keep track of queries bucketed by qid, so we can process DNS
    * responses quickly.
    */
-  ares__insert_in_list(
-    &(query->queries_by_qid),
-    &(channel->queries_by_qid[query->qid % ARES_QID_TABLE_SIZE]));
+  if (!ares__htable_stvp_insert(channel->queries_by_qid, query->qid, query)) {
+    callback(arg, ARES_ENOMEM, 0, NULL, 0);
+    ares__free_query(query);
+    return ARES_ENOMEM;
+  }
 
   /* Perform the first query action. */
   now = ares__tvnow();
-  ares__send_query(channel, query, &now);
+  return ares__send_query(channel, query, &now);
+}
+
+void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
+               ares_callback callback, void *arg)
+{
+  ares_send_ex(channel, qbuf, qlen, callback, arg);
 }

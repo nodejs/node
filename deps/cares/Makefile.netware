@@ -1,9 +1,10 @@
 #################################################################
 #
-## Makefile for building libcares (NetWare version - gnu make)
-## Use: make -f Makefile.netware
-##
-## Comments to: Guenter Knauf http://www.gknw.de/phpbb
+# Makefile for building libcares (NetWare version - gnu make)
+# Use: make -f Makefile.netware
+#
+# Copyright (C) Guenter Knauf
+# SPDX-License-Identifier: MIT
 #
 #################################################################
 
@@ -17,7 +18,7 @@ INSTDIR	= ../ares-$(LIBCARES_VERSION_STR)-bin-nw
 endif
 
 # Edit the vars below to change NLM target settings.
-TARGETS = adig.nlm ahost.nlm acountry.nlm
+TARGETS = adig.nlm ahost.nlm
 LTARGET = libcares.$(LIBEXT)
 VERSION	= $(LIBCARES_VERSION)
 COPYR	= $(LIBCARES_COPYRIGHT_STR)
