@@ -109,7 +109,7 @@ If this flag is passed, the behavior can still be set to not abort through
 added: v20.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 When using the [Permission Model][], the process will not be able to spawn any
 child process by default.
@@ -154,7 +154,7 @@ changes:
     description: Paths delimited by comma (`,`) are no longer allowed.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 This flag configures file system read permissions using
 the [Permission Model][].
@@ -208,7 +208,7 @@ changes:
     description: Paths delimited by comma (`,`) are no longer allowed.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 This flag configures file system write permissions using
 the [Permission Model][].
@@ -232,7 +232,7 @@ Relative paths are NOT supported through the CLI flag.
 added: v20.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 When using the [Permission Model][], the process will not be able to create any
 worker threads by default.
@@ -675,7 +675,7 @@ Enable experimental support for the `https:` protocol in `import` specifiers.
 added: v20.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
