@@ -5,8 +5,6 @@
 
 const common = require('../common.js');
 const fs = require('fs');
-const assert = require('assert');
-const { performance } = require('perf_hooks');
 
 const tmpdir = require('../../test/common/tmpdir');
 tmpdir.refresh();
@@ -62,7 +60,7 @@ function main({ len, duration, concurrent, encoding }) {
       throw new Error('wrong number of bytes returned');
 
     reads++;
-    let benchEnded = Date.now() >= endAt;
+    const benchEnded = Date.now() >= endAt;
 
     if (benchEnded && (++waitConcurrent) === concurrent) {
       stop();

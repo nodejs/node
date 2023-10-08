@@ -35,9 +35,9 @@ function main({ len, duration, concurrent, encoding }) {
   const zipData = Buffer.alloc(1024, 'a');
 
   let waitConcurrent = 0;
-  // plus one because of zip
-  let targetConcurrency = concurrent + 1;
 
+  // Plus one because of zip
+  const targetConcurrency = concurrent + 1;
   const startedAt = Date.now();
   const endAt = startedAt + (duration * 1000);
 
@@ -45,7 +45,7 @@ function main({ len, duration, concurrent, encoding }) {
   let zips = 0;
 
   bench.start();
-  
+
   function stop() {
     const totalOps = reads + zips;
     bench.end(totalOps);
@@ -70,7 +70,7 @@ function main({ len, duration, concurrent, encoding }) {
       throw new Error('wrong number of bytes returned');
 
     reads++;
-    let benchEnded = Date.now() >= endAt;
+    const benchEnded = Date.now() >= endAt;
 
     if (benchEnded && (++waitConcurrent) === targetConcurrency) {
       stop();
@@ -88,7 +88,7 @@ function main({ len, duration, concurrent, encoding }) {
       throw er;
 
     zips++;
-    let benchEnded = Date.now() >= endAt;
+    const benchEnded = Date.now() >= endAt;
 
     if (benchEnded && (++waitConcurrent) === targetConcurrency) {
       stop();

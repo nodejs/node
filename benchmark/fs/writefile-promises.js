@@ -5,7 +5,6 @@
 
 const common = require('../common.js');
 const fs = require('fs');
-const assert = require('assert');
 const tmpdir = require('../../test/common/tmpdir');
 
 tmpdir.refresh();
@@ -44,7 +43,7 @@ function main({ encodingType, duration, concurrent, size }) {
   const endAt = startedAt + (duration * 1000);
 
   bench.start();
-  
+
   function stop() {
     bench.end(writes);
 
@@ -67,16 +66,11 @@ function main({ encodingType, duration, concurrent, size }) {
 
   function afterWrite(er) {
     if (er) {
-      if (er.code === 'ENOENT') {
-        // Only OK if unlinked by the timer from main.
-        assert.ok(benchEnded);
-        return;
-      }
       throw er;
     }
 
     writes++;
-    let benchEnded = Date.now() >= endAt;
+    const benchEnded = Date.now() >= endAt;
 
     if (benchEnded && (++waitConcurrent) === concurrent) {
       stop();

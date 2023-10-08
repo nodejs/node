@@ -5,7 +5,6 @@
 
 const common = require('../common.js');
 const fs = require('fs');
-const assert = require('assert');
 
 const tmpdir = require('../../test/common/tmpdir');
 tmpdir.refresh();
@@ -42,7 +41,7 @@ function main({ len, duration, concurrent, encoding }) {
   const endAt = startedAt + (duration * 1000);
 
   bench.start();
-  
+
   function stop() {
     bench.end(reads);
 
@@ -68,7 +67,7 @@ function main({ len, duration, concurrent, encoding }) {
       throw new Error('wrong number of bytes returned');
 
     reads++;
-    let benchEnded = Date.now() >= endAt;
+    const benchEnded = Date.now() >= endAt;
 
     if (benchEnded && (++waitConcurrent) === concurrent) {
       stop();
