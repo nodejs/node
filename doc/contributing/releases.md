@@ -1279,6 +1279,12 @@ The commits in the generated changelog must then be organized:
 * Remove all reverted commits and their reverts
 * Separate all SEMVER-MAJOR, SEMVER-MINOR, and SEMVER-PATCH commits into lists
 
+```console
+$ branch-diff upstream/vN-1.x upstream/vN.x --require-label=semver-major --group --filter-release  # get all majors
+$ branch-diff upstream/vN-1.x upstream/vN.x --require-label=semver-minor --group --filter-release  # get all minors
+$ branch-diff upstream/vN-1.x upstream/vN.x --exclude-label=semver-major,semver-minor --group --filter-release  # get all patches
+```
+
 #### Generate the notable changes
 
 For a major release, all SEMVER-MAJOR commits that are not strictly internal,
