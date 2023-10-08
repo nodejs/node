@@ -80,8 +80,10 @@ By default, Node.js will treat the following as CommonJS modules:
 * Files with a `.js` extension when the nearest parent `package.json` file
   contains a top-level field [`"type"`][] with a value of `"commonjs"`.
 
-* Files with a `.js` extension when the nearest parent `package.json` file
-  doesn't contain a top-level field [`"type"`][]. Package authors should include
+* Files with a `.js` extension or without an extension, when the nearest parent
+  `package.json` file doesn't contain a top-level field [`"type"`][] or there is
+  no `package.json` in any parent folder; unless the file contains syntax that
+  errors unless it is evaluated as an ES module. Package authors should include
   the [`"type"`][] field, even in packages where all sources are CommonJS. Being
   explicit about the `type` of the package will make things easier for build
   tools and loaders to determine how the files in the package should be
