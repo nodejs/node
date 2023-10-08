@@ -1046,6 +1046,7 @@
 		"TextTrackCueList": false,
 		"TextTrackList": false,
 		"TimeRanges": false,
+		"ToggleEvent": false,
 		"toolbar": false,
 		"top": false,
 		"Touch": false,

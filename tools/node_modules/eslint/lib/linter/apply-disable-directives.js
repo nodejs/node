@@ -87,7 +87,7 @@ function createIndividualDirectivesRemoval(directives, commentToken) {
     return directives.map(directive => {
         const { ruleId } = directive;
 
-        const regex = new RegExp(String.raw`(?:^|\s*,\s*)${escapeRegExp(ruleId)}(?:\s*,\s*|$)`, "u");
+        const regex = new RegExp(String.raw`(?:^|\s*,\s*)(?<quote>['"]?)${escapeRegExp(ruleId)}\k<quote>(?:\s*,\s*|$)`, "u");
         const match = regex.exec(listText);
         const matchedText = match[0];
         const matchStartOffset = listStartOffset + match.index;

@@ -139,7 +139,7 @@ module.exports = class ConfigCommentParser {
         const items = {};
 
         string.split(",").forEach(name => {
-            const trimmedName = name.trim();
+            const trimmedName = name.trim().replace(/^(?<quote>['"]?)(?<ruleId>.*)\k<quote>$/us, "$<ruleId>");
 
             if (trimmedName) {
                 items[trimmedName] = true;
