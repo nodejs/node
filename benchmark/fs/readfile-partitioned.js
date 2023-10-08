@@ -14,7 +14,6 @@ const filename = path.resolve(__dirname,
                               `.removeme-benchmark-garbage-${process.pid}`);
 const fs = require('fs');
 const zlib = require('zlib');
-const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   duration: [5],
