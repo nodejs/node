@@ -468,7 +468,7 @@ Additionally, import maps only work on `import` so it may be desirable to add a
 
 <!-- type=misc -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 <!-- name=permission-model -->
 
