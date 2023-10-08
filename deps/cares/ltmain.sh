@@ -31,7 +31,7 @@
 
 PROGRAM=libtool
 PACKAGE=libtool
-VERSION="2.4.7 Debian-2.4.7-4"
+VERSION="2.4.7 Debian-2.4.7-5"
 package_revision=2.4.7
 
 
@@ -2308,7 +2308,7 @@ include the following information:
        compiler:       $LTCC
        compiler flags: $LTCFLAGS
        linker:         $LD (gnu? $with_gnu_ld)
-       version:        $progname $scriptversion Debian-2.4.7-4
+       version:        $progname $scriptversion Debian-2.4.7-5
        automake:       `($AUTOMAKE --version) 2>/dev/null |$SED 1q`
        autoconf:       `($AUTOCONF --version) 2>/dev/null |$SED 1q`
 

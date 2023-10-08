@@ -1,17 +1,28 @@
-
-/* Copyright 1998 by the Massachusetts Institute of Technology.
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this
- * software and its documentation for any purpose and without
- * fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in
- * advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 1998 Massachusetts Institute of Technology
+ * Copyright (c) The c-ares project and its contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ares_setup.h"
@@ -30,59 +41,47 @@ static long timeoffset(struct timeval *now, struct timeval *check)
          (check->tv_usec - now->tv_usec)/1000;
 }
 
-/* WARNING: Beware that this is linear in the number of outstanding
- * requests! You are probably far better off just calling ares_process()
- * once per second, rather than calling ares_timeout() to figure out
- * when to next call ares_process().
- */
 struct timeval *ares_timeout(ares_channel channel, struct timeval *maxtv,
                              struct timeval *tvbuf)
 {
-  struct query *query;
-  struct list_node* list_head;
-  struct list_node* list_node;
-  struct timeval now;
-  struct timeval nextstop;
-  long offset, min_offset;
+  struct query       *query;
+  ares__slist_node_t *node;
+  struct timeval      now;
+  long                offset;
 
-  /* No queries, no timeout (and no fetch of the current time). */
-  if (ares__is_list_empty(&(channel->all_queries)))
+  /* The minimum timeout of all queries is always the first entry in
+   * channel->queries_by_timeout */
+  node = ares__slist_node_first(channel->queries_by_timeout);
+  /* no queries/timeout */
+  if (node == NULL) {
+    return maxtv; /* <-- maxtv can be null though, hrm */
+  }
+
+  query = ares__slist_node_val(node);
+
+  now = ares__tvnow();
+
+  offset = timeoffset(&now, &query->timeout);
+  if (offset < 0)
+    offset = 0;
+  if (offset > (long)INT_MAX)
+    offset = INT_MAX;
+
+  tvbuf->tv_sec = offset / 1000;
+  tvbuf->tv_usec = (offset % 1000) * 1000;
+
+  if (maxtv == NULL)
+    return tvbuf;
+
+  /* Return the minimum time between maxtv and tvbuf */
+
+  if (tvbuf->tv_sec > maxtv->tv_sec)
+    return maxtv;
+  if (tvbuf->tv_sec < maxtv->tv_sec)
+    return tvbuf;
+
+  if (tvbuf->tv_usec > maxtv->tv_usec)
     return maxtv;
 
-  /* Find the minimum timeout for the current set of queries. */
-  now = ares__tvnow();
-  min_offset = -1;
-
-  list_head = &(channel->all_queries);
-  for (list_node = list_head->next; list_node != list_head;
-       list_node = list_node->next)
-    {
-      query = list_node->data;
-      if (query->timeout.tv_sec == 0)
-        continue;
-      offset = timeoffset(&now, &query->timeout);
-      if (offset < 0)
-        offset = 0;
-      if (min_offset == -1 || offset < min_offset)
-        min_offset = offset;
-    }
-
-  /* If we found a minimum timeout and it's sooner than the one specified in
-   * maxtv (if any), return it.  Otherwise go with maxtv.
-   */
-  if (min_offset != -1)
-    {
-      int ioffset = (min_offset > (long)INT_MAX) ? INT_MAX : (int)min_offset;
-
-      nextstop.tv_sec = ioffset/1000;
-      nextstop.tv_usec = (ioffset%1000)*1000;
-
-      if (!maxtv || ares__timedout(maxtv, &nextstop))
-        {
-          *tvbuf = nextstop;
-          return tvbuf;
-        }
-    }
-
-  return maxtv;
+  return tvbuf;
 }

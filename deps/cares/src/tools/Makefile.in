@@ -124,43 +124,31 @@ CONFIG_HEADER = $(top_builddir)/src/lib/ares_config.h \
 	$(top_builddir)/include/ares_build.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-am__EXEEXT_1 = ahost$(EXEEXT) adig$(EXEEXT) acountry$(EXEEXT)
+am__EXEEXT_1 = ahost$(EXEEXT) adig$(EXEEXT)
 PROGRAMS = $(noinst_PROGRAMS)
 am__dirstamp = $(am__leading_dot)dirstamp
-am__objects_1 = acountry-ares_getopt.$(OBJEXT) \
-	../lib/acountry-ares_nowarn.$(OBJEXT) \
-	../lib/acountry-ares_strcasecmp.$(OBJEXT)
+am__objects_1 = adig-ares_getopt.$(OBJEXT) \
+	../lib/adig-ares_nowarn.$(OBJEXT) \
+	../lib/adig-ares_strcasecmp.$(OBJEXT)
 am__objects_2 =
-am_acountry_OBJECTS = acountry-acountry.$(OBJEXT) $(am__objects_1) \
+am_adig_OBJECTS = adig-adig.$(OBJEXT) $(am__objects_1) \
 	$(am__objects_2)
-acountry_OBJECTS = $(am_acountry_OBJECTS)
-acountry_LDADD = $(LDADD)
+adig_OBJECTS = $(am_adig_OBJECTS)
+adig_LDADD = $(LDADD)
 am__DEPENDENCIES_1 =
-acountry_DEPENDENCIES = $(top_builddir)/src/lib/libcares.la \
+adig_DEPENDENCIES = $(top_builddir)/src/lib/libcares.la \
 	$(am__DEPENDENCIES_1)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
-acountry_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(acountry_CFLAGS) \
-	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-am__objects_3 = adig-ares_getopt.$(OBJEXT) \
-	../lib/adig-ares_nowarn.$(OBJEXT) \
-	../lib/adig-ares_strcasecmp.$(OBJEXT)
-am_adig_OBJECTS = adig-adig.$(OBJEXT) $(am__objects_3) \
-	$(am__objects_2)
-adig_OBJECTS = $(am_adig_OBJECTS)
-adig_LDADD = $(LDADD)
-adig_DEPENDENCIES = $(top_builddir)/src/lib/libcares.la \
-	$(am__DEPENDENCIES_1)
 adig_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(adig_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-am__objects_4 = ahost-ares_getopt.$(OBJEXT) \
+am__objects_3 = ahost-ares_getopt.$(OBJEXT) \
 	../lib/ahost-ares_nowarn.$(OBJEXT) \
 	../lib/ahost-ares_strcasecmp.$(OBJEXT)
-am_ahost_OBJECTS = ahost-ahost.$(OBJEXT) $(am__objects_4) \
+am_ahost_OBJECTS = ahost-ahost.$(OBJEXT) $(am__objects_3) \
 	$(am__objects_2)
 ahost_OBJECTS = $(am_ahost_OBJECTS)
 ahost_LDADD = $(LDADD)
@@ -184,16 +172,12 @@ am__v_at_1 =
 DEFAULT_INCLUDES = 
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ../lib/$(DEPDIR)/acountry-ares_nowarn.Po \
-	../lib/$(DEPDIR)/acountry-ares_strcasecmp.Po \
-	../lib/$(DEPDIR)/adig-ares_nowarn.Po \
+am__depfiles_remade = ../lib/$(DEPDIR)/adig-ares_nowarn.Po \
 	../lib/$(DEPDIR)/adig-ares_strcasecmp.Po \
 	../lib/$(DEPDIR)/ahost-ares_nowarn.Po \
 	../lib/$(DEPDIR)/ahost-ares_strcasecmp.Po \
-	./$(DEPDIR)/acountry-acountry.Po \
-	./$(DEPDIR)/acountry-ares_getopt.Po ./$(DEPDIR)/adig-adig.Po \
-	./$(DEPDIR)/adig-ares_getopt.Po ./$(DEPDIR)/ahost-ahost.Po \
-	./$(DEPDIR)/ahost-ares_getopt.Po
+	./$(DEPDIR)/adig-adig.Po ./$(DEPDIR)/adig-ares_getopt.Po \
+	./$(DEPDIR)/ahost-ahost.Po ./$(DEPDIR)/ahost-ares_getopt.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -213,8 +197,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(acountry_SOURCES) $(adig_SOURCES) $(ahost_SOURCES)
-DIST_SOURCES = $(acountry_SOURCES) $(adig_SOURCES) $(ahost_SOURCES)
+SOURCES = $(adig_SOURCES) $(ahost_SOURCES)
+DIST_SOURCES = $(adig_SOURCES) $(ahost_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -386,8 +370,11 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 AUTOMAKE_OPTIONS = foreign subdir-objects nostdinc 1.9.6
-PROGS = ahost adig acountry
+PROGS = ahost adig
 EXTRA_DIST = CMakeLists.txt Makefile.inc
 
 # Specify our include paths here, and do it relative to $(top_srcdir) and
@@ -397,6 +384,9 @@ EXTRA_DIST = CMakeLists.txt Makefile.inc
 AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_builddir)/src/lib \
 	-I$(top_srcdir)/include -I$(top_srcdir)/src/lib \
 	$(am__append_1)
+
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 SAMPLESOURCES = ares_getopt.c		\
   ../lib/ares_nowarn.c				\
   ../lib/ares_strcasecmp.c
@@ -415,9 +405,6 @@ ahost_CPPFLAGS = $(AM_CPPFLAGS)
 adig_SOURCES = adig.c $(SAMPLESOURCES) $(SAMPLEHEADERS)
 adig_CFLAGS = $(AM_CFLAGS)
 adig_CPPFLAGS = $(AM_CPPFLAGS)
-acountry_SOURCES = acountry.c $(SAMPLESOURCES) $(SAMPLEHEADERS)
-acountry_CFLAGS = $(AM_CFLAGS)
-acountry_CPPFLAGS = $(AM_CPPFLAGS)
 all: all-am
 
 .SUFFIXES:
@@ -467,14 +454,6 @@ clean-noinstPROGRAMS:
 ../lib/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) ../lib/$(DEPDIR)
 	@: > ../lib/$(DEPDIR)/$(am__dirstamp)
-../lib/acountry-ares_nowarn.$(OBJEXT): ../lib/$(am__dirstamp) \
-	../lib/$(DEPDIR)/$(am__dirstamp)
-../lib/acountry-ares_strcasecmp.$(OBJEXT): ../lib/$(am__dirstamp) \
-	../lib/$(DEPDIR)/$(am__dirstamp)
-
-acountry$(EXEEXT): $(acountry_OBJECTS) $(acountry_DEPENDENCIES) $(EXTRA_acountry_DEPENDENCIES) 
-	@rm -f acountry$(EXEEXT)
-	$(AM_V_CCLD)$(acountry_LINK) $(acountry_OBJECTS) $(acountry_LDADD) $(LIBS)
 ../lib/adig-ares_nowarn.$(OBJEXT): ../lib/$(am__dirstamp) \
 	../lib/$(DEPDIR)/$(am__dirstamp)
 ../lib/adig-ares_strcasecmp.$(OBJEXT): ../lib/$(am__dirstamp) \
@@ -499,14 +478,10 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@../lib/$(DEPDIR)/acountry-ares_nowarn.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@../lib/$(DEPDIR)/acountry-ares_strcasecmp.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../lib/$(DEPDIR)/adig-ares_nowarn.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../lib/$(DEPDIR)/adig-ares_strcasecmp.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../lib/$(DEPDIR)/ahost-ares_nowarn.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../lib/$(DEPDIR)/ahost-ares_strcasecmp.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/acountry-acountry.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/acountry-ares_getopt.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/adig-adig.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/adig-ares_getopt.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ahost-ahost.Po@am__quote@ # am--include-marker
@@ -541,62 +516,6 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
-
-acountry-acountry.o: acountry.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -MT acountry-acountry.o -MD -MP -MF $(DEPDIR)/acountry-acountry.Tpo -c -o acountry-acountry.o `test -f 'acountry.c' || echo '$(srcdir)/'`acountry.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/acountry-acountry.Tpo $(DEPDIR)/acountry-acountry.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='acountry.c' object='acountry-acountry.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -c -o acountry-acountry.o `test -f 'acountry.c' || echo '$(srcdir)/'`acountry.c
-
-acountry-acountry.obj: acountry.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -MT acountry-acountry.obj -MD -MP -MF $(DEPDIR)/acountry-acountry.Tpo -c -o acountry-acountry.obj `if test -f 'acountry.c'; then $(CYGPATH_W) 'acountry.c'; else $(CYGPATH_W) '$(srcdir)/acountry.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/acountry-acountry.Tpo $(DEPDIR)/acountry-acountry.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='acountry.c' object='acountry-acountry.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -c -o acountry-acountry.obj `if test -f 'acountry.c'; then $(CYGPATH_W) 'acountry.c'; else $(CYGPATH_W) '$(srcdir)/acountry.c'; fi`
-
-acountry-ares_getopt.o: ares_getopt.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -MT acountry-ares_getopt.o -MD -MP -MF $(DEPDIR)/acountry-ares_getopt.Tpo -c -o acountry-ares_getopt.o `test -f 'ares_getopt.c' || echo '$(srcdir)/'`ares_getopt.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/acountry-ares_getopt.Tpo $(DEPDIR)/acountry-ares_getopt.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_getopt.c' object='acountry-ares_getopt.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -c -o acountry-ares_getopt.o `test -f 'ares_getopt.c' || echo '$(srcdir)/'`ares_getopt.c
-
-acountry-ares_getopt.obj: ares_getopt.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -MT acountry-ares_getopt.obj -MD -MP -MF $(DEPDIR)/acountry-ares_getopt.Tpo -c -o acountry-ares_getopt.obj `if test -f 'ares_getopt.c'; then $(CYGPATH_W) 'ares_getopt.c'; else $(CYGPATH_W) '$(srcdir)/ares_getopt.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/acountry-ares_getopt.Tpo $(DEPDIR)/acountry-ares_getopt.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_getopt.c' object='acountry-ares_getopt.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -c -o acountry-ares_getopt.obj `if test -f 'ares_getopt.c'; then $(CYGPATH_W) 'ares_getopt.c'; else $(CYGPATH_W) '$(srcdir)/ares_getopt.c'; fi`
-
-../lib/acountry-ares_nowarn.o: ../lib/ares_nowarn.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -MT ../lib/acountry-ares_nowarn.o -MD -MP -MF ../lib/$(DEPDIR)/acountry-ares_nowarn.Tpo -c -o ../lib/acountry-ares_nowarn.o `test -f '../lib/ares_nowarn.c' || echo '$(srcdir)/'`../lib/ares_nowarn.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ../lib/$(DEPDIR)/acountry-ares_nowarn.Tpo ../lib/$(DEPDIR)/acountry-ares_nowarn.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='../lib/ares_nowarn.c' object='../lib/acountry-ares_nowarn.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -c -o ../lib/acountry-ares_nowarn.o `test -f '../lib/ares_nowarn.c' || echo '$(srcdir)/'`../lib/ares_nowarn.c
-
-../lib/acountry-ares_nowarn.obj: ../lib/ares_nowarn.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -MT ../lib/acountry-ares_nowarn.obj -MD -MP -MF ../lib/$(DEPDIR)/acountry-ares_nowarn.Tpo -c -o ../lib/acountry-ares_nowarn.obj `if test -f '../lib/ares_nowarn.c'; then $(CYGPATH_W) '../lib/ares_nowarn.c'; else $(CYGPATH_W) '$(srcdir)/../lib/ares_nowarn.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ../lib/$(DEPDIR)/acountry-ares_nowarn.Tpo ../lib/$(DEPDIR)/acountry-ares_nowarn.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='../lib/ares_nowarn.c' object='../lib/acountry-ares_nowarn.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -c -o ../lib/acountry-ares_nowarn.obj `if test -f '../lib/ares_nowarn.c'; then $(CYGPATH_W) '../lib/ares_nowarn.c'; else $(CYGPATH_W) '$(srcdir)/../lib/ares_nowarn.c'; fi`
-
-../lib/acountry-ares_strcasecmp.o: ../lib/ares_strcasecmp.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -MT ../lib/acountry-ares_strcasecmp.o -MD -MP -MF ../lib/$(DEPDIR)/acountry-ares_strcasecmp.Tpo -c -o ../lib/acountry-ares_strcasecmp.o `test -f '../lib/ares_strcasecmp.c' || echo '$(srcdir)/'`../lib/ares_strcasecmp.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ../lib/$(DEPDIR)/acountry-ares_strcasecmp.Tpo ../lib/$(DEPDIR)/acountry-ares_strcasecmp.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='../lib/ares_strcasecmp.c' object='../lib/acountry-ares_strcasecmp.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -c -o ../lib/acountry-ares_strcasecmp.o `test -f '../lib/ares_strcasecmp.c' || echo '$(srcdir)/'`../lib/ares_strcasecmp.c
-
-../lib/acountry-ares_strcasecmp.obj: ../lib/ares_strcasecmp.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -MT ../lib/acountry-ares_strcasecmp.obj -MD -MP -MF ../lib/$(DEPDIR)/acountry-ares_strcasecmp.Tpo -c -o ../lib/acountry-ares_strcasecmp.obj `if test -f '../lib/ares_strcasecmp.c'; then $(CYGPATH_W) '../lib/ares_strcasecmp.c'; else $(CYGPATH_W) '$(srcdir)/../lib/ares_strcasecmp.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ../lib/$(DEPDIR)/acountry-ares_strcasecmp.Tpo ../lib/$(DEPDIR)/acountry-ares_strcasecmp.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='../lib/ares_strcasecmp.c' object='../lib/acountry-ares_strcasecmp.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(acountry_CPPFLAGS) $(CPPFLAGS) $(acountry_CFLAGS) $(CFLAGS) -c -o ../lib/acountry-ares_strcasecmp.obj `if test -f '../lib/ares_strcasecmp.c'; then $(CYGPATH_W) '../lib/ares_strcasecmp.c'; else $(CYGPATH_W) '$(srcdir)/../lib/ares_strcasecmp.c'; fi`
 
 adig-adig.o: adig.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(adig_CPPFLAGS) $(CPPFLAGS) $(adig_CFLAGS) $(CFLAGS) -MT adig-adig.o -MD -MP -MF $(DEPDIR)/adig-adig.Tpo -c -o adig-adig.o `test -f 'adig.c' || echo '$(srcdir)/'`adig.c
@@ -842,14 +761,10 @@ clean-am: clean-generic clean-libtool clean-noinstPROGRAMS \
 	mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ../lib/$(DEPDIR)/acountry-ares_nowarn.Po
-	-rm -f ../lib/$(DEPDIR)/acountry-ares_strcasecmp.Po
-	-rm -f ../lib/$(DEPDIR)/adig-ares_nowarn.Po
+		-rm -f ../lib/$(DEPDIR)/adig-ares_nowarn.Po
 	-rm -f ../lib/$(DEPDIR)/adig-ares_strcasecmp.Po
 	-rm -f ../lib/$(DEPDIR)/ahost-ares_nowarn.Po
 	-rm -f ../lib/$(DEPDIR)/ahost-ares_strcasecmp.Po
-	-rm -f ./$(DEPDIR)/acountry-acountry.Po
-	-rm -f ./$(DEPDIR)/acountry-ares_getopt.Po
 	-rm -f ./$(DEPDIR)/adig-adig.Po
 	-rm -f ./$(DEPDIR)/adig-ares_getopt.Po
 	-rm -f ./$(DEPDIR)/ahost-ahost.Po
@@ -899,14 +814,10 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ../lib/$(DEPDIR)/acountry-ares_nowarn.Po
-	-rm -f ../lib/$(DEPDIR)/acountry-ares_strcasecmp.Po
-	-rm -f ../lib/$(DEPDIR)/adig-ares_nowarn.Po
+		-rm -f ../lib/$(DEPDIR)/adig-ares_nowarn.Po
 	-rm -f ../lib/$(DEPDIR)/adig-ares_strcasecmp.Po
 	-rm -f ../lib/$(DEPDIR)/ahost-ares_nowarn.Po
 	-rm -f ../lib/$(DEPDIR)/ahost-ares_strcasecmp.Po
-	-rm -f ./$(DEPDIR)/acountry-acountry.Po
-	-rm -f ./$(DEPDIR)/acountry-ares_getopt.Po
 	-rm -f ./$(DEPDIR)/adig-adig.Po
 	-rm -f ./$(DEPDIR)/adig-ares_getopt.Po
 	-rm -f ./$(DEPDIR)/ahost-ahost.Po

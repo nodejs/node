@@ -1,18 +1,28 @@
-
-/* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2007-2013 by Daniel Stenberg
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this
- * software and its documentation for any purpose and without
- * fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in
- * advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) Massachusetts Institute of Technology
+ * Copyright (c) Daniel Stenberg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #ifndef ARES__H
@@ -157,25 +167,26 @@ extern "C" {
 #define ARES_FLAG_EDNS          (1 << 8)
 
 /* Option mask values */
-#define ARES_OPT_FLAGS          (1 << 0)
-#define ARES_OPT_TIMEOUT        (1 << 1)
-#define ARES_OPT_TRIES          (1 << 2)
-#define ARES_OPT_NDOTS          (1 << 3)
-#define ARES_OPT_UDP_PORT       (1 << 4)
-#define ARES_OPT_TCP_PORT       (1 << 5)
-#define ARES_OPT_SERVERS        (1 << 6)
-#define ARES_OPT_DOMAINS        (1 << 7)
-#define ARES_OPT_LOOKUPS        (1 << 8)
-#define ARES_OPT_SOCK_STATE_CB  (1 << 9)
-#define ARES_OPT_SORTLIST       (1 << 10)
-#define ARES_OPT_SOCK_SNDBUF    (1 << 11)
-#define ARES_OPT_SOCK_RCVBUF    (1 << 12)
-#define ARES_OPT_TIMEOUTMS      (1 << 13)
-#define ARES_OPT_ROTATE         (1 << 14)
-#define ARES_OPT_EDNSPSZ        (1 << 15)
-#define ARES_OPT_NOROTATE       (1 << 16)
-#define ARES_OPT_RESOLVCONF     (1 << 17)
-#define ARES_OPT_HOSTS_FILE     (1 << 18)
+#define ARES_OPT_FLAGS           (1 << 0)
+#define ARES_OPT_TIMEOUT         (1 << 1)
+#define ARES_OPT_TRIES           (1 << 2)
+#define ARES_OPT_NDOTS           (1 << 3)
+#define ARES_OPT_UDP_PORT        (1 << 4)
+#define ARES_OPT_TCP_PORT        (1 << 5)
+#define ARES_OPT_SERVERS         (1 << 6)
+#define ARES_OPT_DOMAINS         (1 << 7)
+#define ARES_OPT_LOOKUPS         (1 << 8)
+#define ARES_OPT_SOCK_STATE_CB   (1 << 9)
+#define ARES_OPT_SORTLIST        (1 << 10)
+#define ARES_OPT_SOCK_SNDBUF     (1 << 11)
+#define ARES_OPT_SOCK_RCVBUF     (1 << 12)
+#define ARES_OPT_TIMEOUTMS       (1 << 13)
+#define ARES_OPT_ROTATE          (1 << 14)
+#define ARES_OPT_EDNSPSZ         (1 << 15)
+#define ARES_OPT_NOROTATE        (1 << 16)
+#define ARES_OPT_RESOLVCONF      (1 << 17)
+#define ARES_OPT_HOSTS_FILE      (1 << 18)
+#define ARES_OPT_UDP_MAX_QUERIES (1 << 19)
 
 /* Nameinfo flag values */
 #define ARES_NI_NOFQDN                  (1 << 0)
@@ -286,6 +297,7 @@ struct ares_options {
   int ednspsz;
   char *resolvconf_path;
   char *hosts_path;
+  int udp_max_queries;
 };
 
 struct hostent;

@@ -1,17 +1,27 @@
-
-/* Copyright 2005 by Dominick Meglio
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this
- * software and its documentation for any purpose and without
- * fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in
- * advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 2005, 2013 Dominick Meglio
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 #include "ares_setup.h"
 
@@ -327,7 +337,7 @@ static char *lookup_service(unsigned short port, int flags,
       else
         {
           /* get port as a string */
-          sprintf(tmpbuf, "%u", (unsigned int)ntohs(port));
+          snprintf(tmpbuf, sizeof(tmpbuf), "%u", (unsigned int)ntohs(port));
           name = tmpbuf;
         }
       name_len = strlen(name);
@@ -364,11 +374,11 @@ static void append_scopeid(struct sockaddr_in6 *addr6, unsigned int flags,
     {
       if (is_scope_long)
         {
-          sprintf(&tmpbuf[1], "%lu", (unsigned long)addr6->sin6_scope_id);
+          snprintf(&tmpbuf[1], sizeof(tmpbuf)-1, "%lu", (unsigned long)addr6->sin6_scope_id);
         }
       else
         {
-          sprintf(&tmpbuf[1], "%u", (unsigned int)addr6->sin6_scope_id);
+          snprintf(&tmpbuf[1], sizeof(tmpbuf)-1, "%u", (unsigned int)addr6->sin6_scope_id);
         }
     }
   else
@@ -377,22 +387,22 @@ static void append_scopeid(struct sockaddr_in6 *addr6, unsigned int flags,
         {
           if (is_scope_long)
             {
-              sprintf(&tmpbuf[1], "%lu", (unsigned long)addr6->sin6_scope_id);
+              snprintf(&tmpbuf[1], sizeof(tmpbuf)-1, "%lu", (unsigned long)addr6->sin6_scope_id);
             }
           else
             {
-              sprintf(&tmpbuf[1], "%u", (unsigned int)addr6->sin6_scope_id);
+              snprintf(&tmpbuf[1], sizeof(tmpbuf)-1, "%u", (unsigned int)addr6->sin6_scope_id);
             }
         }
     }
 #else
   if (is_scope_long)
     {
-      sprintf(&tmpbuf[1], "%lu", (unsigned long)addr6->sin6_scope_id);
+      snprintf(&tmpbuf[1], sizeof(tmpbuf)-1, "%lu", (unsigned long)addr6->sin6_scope_id);
     }
   else
     {
-      sprintf(&tmpbuf[1], "%u", (unsigned int)addr6->sin6_scope_id);
+      snprintf(&tmpbuf[1], sizeof(tmpbuf)-1, "%u", (unsigned int)addr6->sin6_scope_id);
     }
   (void) flags;
 #endif

@@ -15,7 +15,10 @@
 @SET_MAKE@
 
 # aminclude_static.am generated automatically by Autoconf
-# from AX_AM_MACROS_STATIC on Mon May 22 13:34:17 CEST 2023
+# from AX_AM_MACROS_STATIC on Sat Oct  7 13:47:45 CEST 2023
+
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 
 VPATH = @srcdir@
 am__is_gnu_make = { \
@@ -164,10 +167,12 @@ libcares_la_LIBADD =
 am__objects_1 = libcares_la-ares__addrinfo2hostent.lo \
 	libcares_la-ares__addrinfo_localhost.lo \
 	libcares_la-ares__close_sockets.lo \
-	libcares_la-ares__get_hostent.lo \
+	libcares_la-ares__get_hostent.lo libcares_la-ares__htable.lo \
+	libcares_la-ares__htable_asvp.lo \
+	libcares_la-ares__htable_stvp.lo libcares_la-ares__llist.lo \
 	libcares_la-ares__parse_into_addrinfo.lo \
-	libcares_la-ares__readaddrinfo.lo \
-	libcares_la-ares__sortaddrinfo.lo \
+	libcares_la-ares__buf.lo libcares_la-ares__readaddrinfo.lo \
+	libcares_la-ares__slist.lo libcares_la-ares__sortaddrinfo.lo \
 	libcares_la-ares__read_line.lo libcares_la-ares__timeval.lo \
 	libcares_la-ares_android.lo libcares_la-ares_cancel.lo \
 	libcares_la-ares_data.lo libcares_la-ares_destroy.lo \
@@ -181,9 +186,9 @@ am__objects_1 = libcares_la-ares__addrinfo2hostent.lo \
 	libcares_la-ares_gethostbyname.lo \
 	libcares_la-ares_getnameinfo.lo libcares_la-ares_getsock.lo \
 	libcares_la-ares_init.lo libcares_la-ares_library_init.lo \
-	libcares_la-ares_llist.lo libcares_la-ares_mkquery.lo \
-	libcares_la-ares_create_query.lo libcares_la-ares_nowarn.lo \
-	libcares_la-ares_options.lo libcares_la-ares_parse_a_reply.lo \
+	libcares_la-ares_mkquery.lo libcares_la-ares_create_query.lo \
+	libcares_la-ares_nowarn.lo libcares_la-ares_options.lo \
+	libcares_la-ares_parse_a_reply.lo \
 	libcares_la-ares_parse_aaaa_reply.lo \
 	libcares_la-ares_parse_caa_reply.lo \
 	libcares_la-ares_parse_mx_reply.lo \
@@ -200,9 +205,8 @@ am__objects_1 = libcares_la-ares__addrinfo2hostent.lo \
 	libcares_la-ares_strcasecmp.lo libcares_la-ares_strdup.lo \
 	libcares_la-ares_strerror.lo libcares_la-ares_strsplit.lo \
 	libcares_la-ares_timeout.lo libcares_la-ares_version.lo \
-	libcares_la-ares_writev.lo libcares_la-bitncmp.lo \
-	libcares_la-inet_net_pton.lo libcares_la-inet_ntop.lo \
-	libcares_la-windows_port.lo
+	libcares_la-bitncmp.lo libcares_la-inet_net_pton.lo \
+	libcares_la-inet_ntop.lo libcares_la-windows_port.lo
 am__objects_2 =
 am_libcares_la_OBJECTS = $(am__objects_1) $(am__objects_2)
 libcares_la_OBJECTS = $(am_libcares_la_OBJECTS)
@@ -231,11 +235,17 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade =  \
 	./$(DEPDIR)/libcares_la-ares__addrinfo2hostent.Plo \
 	./$(DEPDIR)/libcares_la-ares__addrinfo_localhost.Plo \
+	./$(DEPDIR)/libcares_la-ares__buf.Plo \
 	./$(DEPDIR)/libcares_la-ares__close_sockets.Plo \
 	./$(DEPDIR)/libcares_la-ares__get_hostent.Plo \
+	./$(DEPDIR)/libcares_la-ares__htable.Plo \
+	./$(DEPDIR)/libcares_la-ares__htable_asvp.Plo \
+	./$(DEPDIR)/libcares_la-ares__htable_stvp.Plo \
+	./$(DEPDIR)/libcares_la-ares__llist.Plo \
 	./$(DEPDIR)/libcares_la-ares__parse_into_addrinfo.Plo \
 	./$(DEPDIR)/libcares_la-ares__read_line.Plo \
 	./$(DEPDIR)/libcares_la-ares__readaddrinfo.Plo \
+	./$(DEPDIR)/libcares_la-ares__slist.Plo \
 	./$(DEPDIR)/libcares_la-ares__sortaddrinfo.Plo \
 	./$(DEPDIR)/libcares_la-ares__timeval.Plo \
 	./$(DEPDIR)/libcares_la-ares_android.Plo \
@@ -257,7 +267,6 @@ am__depfiles_remade =  \
 	./$(DEPDIR)/libcares_la-ares_getsock.Plo \
 	./$(DEPDIR)/libcares_la-ares_init.Plo \
 	./$(DEPDIR)/libcares_la-ares_library_init.Plo \
-	./$(DEPDIR)/libcares_la-ares_llist.Plo \
 	./$(DEPDIR)/libcares_la-ares_mkquery.Plo \
 	./$(DEPDIR)/libcares_la-ares_nowarn.Plo \
 	./$(DEPDIR)/libcares_la-ares_options.Plo \
@@ -284,7 +293,6 @@ am__depfiles_remade =  \
 	./$(DEPDIR)/libcares_la-ares_strsplit.Plo \
 	./$(DEPDIR)/libcares_la-ares_timeout.Plo \
 	./$(DEPDIR)/libcares_la-ares_version.Plo \
-	./$(DEPDIR)/libcares_la-ares_writev.Plo \
 	./$(DEPDIR)/libcares_la-bitncmp.Plo \
 	./$(DEPDIR)/libcares_la-inet_net_pton.Plo \
 	./$(DEPDIR)/libcares_la-inet_ntop.Plo \
@@ -526,6 +534,9 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 AUTOMAKE_OPTIONS = foreign subdir-objects nostdinc 1.9.6
 ACLOCAL_AMFLAGS = -I m4 --install
 
@@ -575,11 +586,17 @@ libcares_la_LIBS = $(CODE_COVERAGE_LIBS)
 libcares_la_CFLAGS = $(AM_CFLAGS) $(libcares_la_CFLAGS_EXTRA)
 libcares_la_CPPFLAGS = $(AM_CPPFLAGS) $(libcares_la_CPPFLAGS_EXTRA)
 CSOURCES = ares__addrinfo2hostent.c	\
-  ares__addrinfo_localhost.c	\
-  ares__close_sockets.c	\
+  ares__addrinfo_localhost.c		\
+  ares__close_sockets.c			\
   ares__get_hostent.c			\
+  ares__htable.c			\
+  ares__htable_asvp.c			\
+  ares__htable_stvp.c			\
+  ares__llist.c				\
   ares__parse_into_addrinfo.c		\
+  ares__buf.c				\
   ares__readaddrinfo.c			\
+  ares__slist.c			\
   ares__sortaddrinfo.c			\
   ares__read_line.c			\
   ares__timeval.c			\
@@ -601,7 +618,6 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_getsock.c			\
   ares_init.c				\
   ares_library_init.c			\
-  ares_llist.c				\
   ares_mkquery.c			\
   ares_create_query.c			\
   ares_nowarn.c				\
@@ -620,7 +636,7 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_platform.c			\
   ares_process.c			\
   ares_query.c				\
-  ares_rand.c \
+  ares_rand.c				\
   ares_search.c				\
   ares_send.c				\
   ares_strcasecmp.c			\
@@ -629,26 +645,29 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_strsplit.c			\
   ares_timeout.c			\
   ares_version.c			\
-  ares_writev.c				\
   bitncmp.c				\
   inet_net_pton.c			\
   inet_ntop.c				\
   windows_port.c
 
-HHEADERS = ares_android.h                        \
+HHEADERS = ares__htable.h		\
+  ares__htable_asvp.h			\
+  ares__htable_stvp.h			\
+  ares__llist.h				\
+  ares__buf.h				\
+  ares__slist.h				\
+  ares_android.h			\
   ares_data.h				\
   ares_getenv.h				\
   ares_inet_net_pton.h			\
   ares_iphlpapi.h			\
   ares_ipv6.h				\
-  ares_llist.h				\
   ares_nowarn.h				\
   ares_platform.h			\
   ares_private.h			\
   ares_strcasecmp.h			\
   ares_strdup.h				\
   ares_strsplit.h			\
-  ares_writev.h				\
   bitncmp.h				\
   ares_setup.h				\
   setup_once.h
@@ -753,11 +772,17 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__addrinfo2hostent.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__addrinfo_localhost.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__buf.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__close_sockets.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__get_hostent.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__htable.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__htable_asvp.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__htable_stvp.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__llist.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__parse_into_addrinfo.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__read_line.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__readaddrinfo.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__slist.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__sortaddrinfo.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares__timeval.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_android.Plo@am__quote@ # am--include-marker
@@ -779,7 +804,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_getsock.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_init.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_library_init.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_llist.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_mkquery.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_nowarn.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_options.Plo@am__quote@ # am--include-marker
@@ -806,7 +830,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_strsplit.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_timeout.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_version.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_writev.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-bitncmp.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-inet_net_pton.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-inet_ntop.Plo@am__quote@ # am--include-marker
@@ -870,6 +893,34 @@ libcares_la-ares__get_hostent.lo: ares__get_hostent.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares__get_hostent.lo `test -f 'ares__get_hostent.c' || echo '$(srcdir)/'`ares__get_hostent.c
 
+libcares_la-ares__htable.lo: ares__htable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares__htable.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares__htable.Tpo -c -o libcares_la-ares__htable.lo `test -f 'ares__htable.c' || echo '$(srcdir)/'`ares__htable.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares__htable.Tpo $(DEPDIR)/libcares_la-ares__htable.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares__htable.c' object='libcares_la-ares__htable.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares__htable.lo `test -f 'ares__htable.c' || echo '$(srcdir)/'`ares__htable.c
+
+libcares_la-ares__htable_asvp.lo: ares__htable_asvp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares__htable_asvp.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares__htable_asvp.Tpo -c -o libcares_la-ares__htable_asvp.lo `test -f 'ares__htable_asvp.c' || echo '$(srcdir)/'`ares__htable_asvp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares__htable_asvp.Tpo $(DEPDIR)/libcares_la-ares__htable_asvp.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares__htable_asvp.c' object='libcares_la-ares__htable_asvp.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares__htable_asvp.lo `test -f 'ares__htable_asvp.c' || echo '$(srcdir)/'`ares__htable_asvp.c
+
+libcares_la-ares__htable_stvp.lo: ares__htable_stvp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares__htable_stvp.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares__htable_stvp.Tpo -c -o libcares_la-ares__htable_stvp.lo `test -f 'ares__htable_stvp.c' || echo '$(srcdir)/'`ares__htable_stvp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares__htable_stvp.Tpo $(DEPDIR)/libcares_la-ares__htable_stvp.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares__htable_stvp.c' object='libcares_la-ares__htable_stvp.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares__htable_stvp.lo `test -f 'ares__htable_stvp.c' || echo '$(srcdir)/'`ares__htable_stvp.c
+
+libcares_la-ares__llist.lo: ares__llist.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares__llist.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares__llist.Tpo -c -o libcares_la-ares__llist.lo `test -f 'ares__llist.c' || echo '$(srcdir)/'`ares__llist.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares__llist.Tpo $(DEPDIR)/libcares_la-ares__llist.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares__llist.c' object='libcares_la-ares__llist.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares__llist.lo `test -f 'ares__llist.c' || echo '$(srcdir)/'`ares__llist.c
+
 libcares_la-ares__parse_into_addrinfo.lo: ares__parse_into_addrinfo.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares__parse_into_addrinfo.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares__parse_into_addrinfo.Tpo -c -o libcares_la-ares__parse_into_addrinfo.lo `test -f 'ares__parse_into_addrinfo.c' || echo '$(srcdir)/'`ares__parse_into_addrinfo.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares__parse_into_addrinfo.Tpo $(DEPDIR)/libcares_la-ares__parse_into_addrinfo.Plo
@@ -877,12 +928,26 @@ libcares_la-ares__parse_into_addrinfo.lo: ares__parse_into_addrinfo.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares__parse_into_addrinfo.lo `test -f 'ares__parse_into_addrinfo.c' || echo '$(srcdir)/'`ares__parse_into_addrinfo.c
 
+libcares_la-ares__buf.lo: ares__buf.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares__buf.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares__buf.Tpo -c -o libcares_la-ares__buf.lo `test -f 'ares__buf.c' || echo '$(srcdir)/'`ares__buf.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares__buf.Tpo $(DEPDIR)/libcares_la-ares__buf.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares__buf.c' object='libcares_la-ares__buf.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares__buf.lo `test -f 'ares__buf.c' || echo '$(srcdir)/'`ares__buf.c
+
 libcares_la-ares__readaddrinfo.lo: ares__readaddrinfo.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares__readaddrinfo.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares__readaddrinfo.Tpo -c -o libcares_la-ares__readaddrinfo.lo `test -f 'ares__readaddrinfo.c' || echo '$(srcdir)/'`ares__readaddrinfo.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares__readaddrinfo.Tpo $(DEPDIR)/libcares_la-ares__readaddrinfo.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares__readaddrinfo.c' object='libcares_la-ares__readaddrinfo.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares__readaddrinfo.lo `test -f 'ares__readaddrinfo.c' || echo '$(srcdir)/'`ares__readaddrinfo.c
+
+libcares_la-ares__slist.lo: ares__slist.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares__slist.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares__slist.Tpo -c -o libcares_la-ares__slist.lo `test -f 'ares__slist.c' || echo '$(srcdir)/'`ares__slist.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares__slist.Tpo $(DEPDIR)/libcares_la-ares__slist.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares__slist.c' object='libcares_la-ares__slist.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares__slist.lo `test -f 'ares__slist.c' || echo '$(srcdir)/'`ares__slist.c
 
 libcares_la-ares__sortaddrinfo.lo: ares__sortaddrinfo.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares__sortaddrinfo.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares__sortaddrinfo.Tpo -c -o libcares_la-ares__sortaddrinfo.lo `test -f 'ares__sortaddrinfo.c' || echo '$(srcdir)/'`ares__sortaddrinfo.c
@@ -1030,13 +1095,6 @@ libcares_la-ares_library_init.lo: ares_library_init.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_library_init.c' object='libcares_la-ares_library_init.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_library_init.lo `test -f 'ares_library_init.c' || echo '$(srcdir)/'`ares_library_init.c
-
-libcares_la-ares_llist.lo: ares_llist.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_llist.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_llist.Tpo -c -o libcares_la-ares_llist.lo `test -f 'ares_llist.c' || echo '$(srcdir)/'`ares_llist.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares_llist.Tpo $(DEPDIR)/libcares_la-ares_llist.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_llist.c' object='libcares_la-ares_llist.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_llist.lo `test -f 'ares_llist.c' || echo '$(srcdir)/'`ares_llist.c
 
 libcares_la-ares_mkquery.lo: ares_mkquery.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_mkquery.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_mkquery.Tpo -c -o libcares_la-ares_mkquery.lo `test -f 'ares_mkquery.c' || echo '$(srcdir)/'`ares_mkquery.c
@@ -1226,13 +1284,6 @@ libcares_la-ares_version.lo: ares_version.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_version.c' object='libcares_la-ares_version.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_version.lo `test -f 'ares_version.c' || echo '$(srcdir)/'`ares_version.c
-
-libcares_la-ares_writev.lo: ares_writev.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_writev.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_writev.Tpo -c -o libcares_la-ares_writev.lo `test -f 'ares_writev.c' || echo '$(srcdir)/'`ares_writev.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares_writev.Tpo $(DEPDIR)/libcares_la-ares_writev.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_writev.c' object='libcares_la-ares_writev.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_writev.lo `test -f 'ares_writev.c' || echo '$(srcdir)/'`ares_writev.c
 
 libcares_la-bitncmp.lo: bitncmp.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-bitncmp.lo -MD -MP -MF $(DEPDIR)/libcares_la-bitncmp.Tpo -c -o libcares_la-bitncmp.lo `test -f 'bitncmp.c' || echo '$(srcdir)/'`bitncmp.c
@@ -1471,11 +1522,17 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 distclean: distclean-recursive
 		-rm -f ./$(DEPDIR)/libcares_la-ares__addrinfo2hostent.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__addrinfo_localhost.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__buf.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__close_sockets.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__get_hostent.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__htable.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__htable_asvp.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__htable_stvp.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__llist.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__parse_into_addrinfo.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__read_line.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__readaddrinfo.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__slist.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__sortaddrinfo.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__timeval.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_android.Plo
@@ -1497,7 +1554,6 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_getsock.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_init.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_library_init.Plo
-	-rm -f ./$(DEPDIR)/libcares_la-ares_llist.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_mkquery.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_nowarn.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_options.Plo
@@ -1524,7 +1580,6 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_strsplit.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_timeout.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_version.Plo
-	-rm -f ./$(DEPDIR)/libcares_la-ares_writev.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-bitncmp.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-inet_net_pton.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-inet_ntop.Plo
@@ -1576,11 +1631,17 @@ installcheck-am:
 maintainer-clean: maintainer-clean-recursive
 		-rm -f ./$(DEPDIR)/libcares_la-ares__addrinfo2hostent.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__addrinfo_localhost.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__buf.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__close_sockets.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__get_hostent.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__htable.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__htable_asvp.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__htable_stvp.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__llist.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__parse_into_addrinfo.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__read_line.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__readaddrinfo.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares__slist.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__sortaddrinfo.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares__timeval.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_android.Plo
@@ -1602,7 +1663,6 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_getsock.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_init.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_library_init.Plo
-	-rm -f ./$(DEPDIR)/libcares_la-ares_llist.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_mkquery.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_nowarn.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_options.Plo
@@ -1629,7 +1689,6 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_strsplit.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_timeout.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_version.Plo
-	-rm -f ./$(DEPDIR)/libcares_la-ares_writev.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-bitncmp.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-inet_net_pton.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-inet_ntop.Plo

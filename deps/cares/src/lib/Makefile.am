@@ -1,3 +1,5 @@
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 AUTOMAKE_OPTIONS = foreign subdir-objects nostdinc 1.9.6
 ACLOCAL_AMFLAGS = -I m4 --install
 

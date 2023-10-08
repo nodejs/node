@@ -6,6 +6,9 @@ REM systems where there is no autotools support (i.e. Microsoft).
 REM
 REM This file is not included nor needed for c-ares' release
 REM archives, neither for c-ares' daily snapshot archives.
+REM
+REM Copyright (C) The c-ares project and its contributors
+REM SPDX-License-Identifier: MIT
 
 if exist GIT-INFO goto start_doing
 ECHO ERROR: This file shall only be used with a c-ares git checkout.

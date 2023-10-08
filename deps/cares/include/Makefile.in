@@ -336,6 +336,9 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+
+# Copyright (C) Daniel Stenberg
+# SPDX-License-Identifier: MIT
 AUTOMAKE_OPTIONS = foreign nostdinc 1.9.6
 ACLOCAL_AMFLAGS = -I m4 --install
 

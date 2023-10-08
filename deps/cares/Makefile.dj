@@ -1,6 +1,7 @@
 #
 # c-ares Makefile for djgpp/gcc/Watt-32.
-#   By Gisle Vanem <gvanem@yahoo.no> 2004 - 2020.
+# Copyright (C) Gisle Vanem <gvanem@yahoo.no>
+# SPDX-License-Identifier: MIT
 #
 include src/lib/Makefile.inc
 
@@ -46,7 +47,7 @@ OBJECTS = $(addprefix $(OBJ_DIR)/, \
 GENERATED = src/lib/ares_config.h \
             include/ares_build.h
 
-TARGETS = libcares.a acountry.exe adig.exe ahost.exe
+TARGETS = libcares.a adig.exe ahost.exe
 
 .SECONDARY: $(OBJ_DIR)/ares_getopt.o
 

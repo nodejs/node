@@ -1,17 +1,27 @@
-/* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2007-2013 by Daniel Stenberg
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this
- * software and its documentation for any purpose and without
- * fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in
- * advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 2023 Brad House
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ares_setup.h"
@@ -20,11 +30,23 @@
 #include "ares_nowarn.h"
 #include <stdlib.h>
 
+#if !defined(HAVE_ARC4RANDOM_BUF) && !defined(HAVE_GETRANDOM) && !defined(_WIN32)
+#  define ARES_NEEDS_RC4 1
+#endif
+
 typedef enum  {
   ARES_RAND_OS   = 1,  /* OS-provided such as RtlGenRandom or arc4random */
   ARES_RAND_FILE = 2,  /* OS file-backed random number generator */
+#ifdef ARES_NEEDS_RC4
   ARES_RAND_RC4  = 3   /* Internal RC4 based PRNG */
+#endif
 } ares_rand_backend;
+
+
+/* Don't build RC4 code if it goes unused as it will generate dead code
+ * warnings */
+#ifdef ARES_NEEDS_RC4
+#  define ARES_RC4_KEY_LEN 32 /* 256 bits */
 
 typedef struct ares_rand_rc4
 {
@@ -33,36 +55,13 @@ typedef struct ares_rand_rc4
   size_t        j;
 } ares_rand_rc4;
 
-struct ares_rand_state
-{
-  ares_rand_backend type;
-  union {
-    FILE *rand_file;
-    ares_rand_rc4 rc4;
-  } state;
-};
-
-
-/* Define RtlGenRandom = SystemFunction036.  This is in advapi32.dll.  There is
- * no need to dynamically load this, other software used widely does not.
- * http://blogs.msdn.com/michael_howard/archive/2005/01/14/353379.aspx
- * https://docs.microsoft.com/en-us/windows/win32/api/ntsecapi/nf-ntsecapi-rtlgenrandom
- */
-#ifdef _WIN32
-BOOLEAN WINAPI SystemFunction036(PVOID RandomBuffer, ULONG RandomBufferLength);
-#  ifndef RtlGenRandom
-#    define RtlGenRandom(a,b) SystemFunction036(a,b)
-#  endif
-#endif
-
-
-#define ARES_RC4_KEY_LEN 32 /* 256 bits */
 
 #ifdef _MSC_VER
 typedef unsigned __int64 cares_u64;
 #else
 typedef unsigned long long cares_u64;
 #endif
+
 
 static unsigned int ares_u32_from_ptr(void *addr)
 {
@@ -130,6 +129,7 @@ static void ares_rc4_init(ares_rand_rc4 *rc4_state)
   rc4_state->j = 0;
 }
 
+
 /* Just outputs the key schedule, no need to XOR with any data since we have none */
 static void ares_rc4_prng(ares_rand_rc4 *rc4_state, unsigned char *buf, size_t len)
 {
@@ -150,12 +150,47 @@ static void ares_rc4_prng(ares_rand_rc4 *rc4_state, unsigned char *buf, size_t l
   rc4_state->j = j;
 }
 
+#endif /* ARES_NEEDS_RC4 */
+
+
+struct ares_rand_state
+{
+  ares_rand_backend type;
+  union {
+    FILE *rand_file;
+#ifdef ARES_NEEDS_RC4
+    ares_rand_rc4 rc4;
+#endif
+  } state;
+
+  /* Since except for RC4, random data will likely result in a syscall, lets
+   * pre-pull 256 bytes at a time.  Every query will pull 2 bytes off this so
+   * that means we should only need a syscall every 128 queries. 256bytes
+   * appears to be a sweet spot that may be able to be served without
+   * interruption */
+  unsigned char     cache[256];
+  size_t            cache_remaining;
+};
+
+
+/* Define RtlGenRandom = SystemFunction036.  This is in advapi32.dll.  There is
+ * no need to dynamically load this, other software used widely does not.
+ * http://blogs.msdn.com/michael_howard/archive/2005/01/14/353379.aspx
+ * https://docs.microsoft.com/en-us/windows/win32/api/ntsecapi/nf-ntsecapi-rtlgenrandom
+ */
+#ifdef _WIN32
+BOOLEAN WINAPI SystemFunction036(PVOID RandomBuffer, ULONG RandomBufferLength);
+#  ifndef RtlGenRandom
+#    define RtlGenRandom(a,b) SystemFunction036(a,b)
+#  endif
+#endif
+
 
 static int ares__init_rand_engine(ares_rand_state *state)
 {
   memset(state, 0, sizeof(*state));
 
-#if defined(HAVE_ARC4RANDOM_BUF) || defined(_WIN32)
+#if defined(HAVE_ARC4RANDOM_BUF) || defined(HAVE_GETRANDOM) || defined(_WIN32)
   state->type = ARES_RAND_OS;
   return 1;
 #elif defined(CARES_RANDOM_FILE)
@@ -168,15 +203,17 @@ static int ares__init_rand_engine(ares_rand_state *state)
   /* Fall-Thru on failure to RC4 */
 #endif
 
+#ifdef ARES_NEEDS_RC4
   state->type = ARES_RAND_RC4;
   ares_rc4_init(&state->state.rc4);
 
   /* Currently cannot fail */
   return 1;
+#endif
 }
 
 
-ares_rand_state *ares__init_rand_state()
+ares_rand_state *ares__init_rand_state(void)
 {
   ares_rand_state *state = NULL;
 
@@ -204,8 +241,10 @@ static void ares__clear_rand_state(ares_rand_state *state)
     case ARES_RAND_FILE:
       fclose(state->state.rand_file);
       break;
+#ifdef ARES_NEEDS_RC4
     case ARES_RAND_RC4:
       break;
+#endif
   }
 }
 
@@ -227,7 +266,8 @@ void ares__destroy_rand_state(ares_rand_state *state)
 }
 
 
-static void ares__rand_bytes(ares_rand_state *state, unsigned char *buf, size_t len)
+static void ares__rand_bytes_fetch(ares_rand_state *state, unsigned char *buf,
+                                   size_t len)
 {
 
   while (1) {
@@ -241,6 +281,21 @@ static void ares__rand_bytes(ares_rand_state *state, unsigned char *buf, size_t 
 #elif defined(HAVE_ARC4RANDOM_BUF)
         arc4random_buf(buf, len);
         return;
+#elif defined(HAVE_GETRANDOM)
+        while (1) {
+          size_t n = len - bytes_read;
+          /* getrandom() on Linux always succeeds and is never
+           * interrupted by a signal when requesting <= 256 bytes.
+           */
+          ssize_t rv = getrandom(buf + bytes_read, n > 256 ? 256 : n, 0);
+          if (rv <= 0)
+            continue; /* Just retry. */
+
+          bytes_read += rv;
+          if (bytes_read == len)
+            return;
+        }
+        break;
 #else
         /* Shouldn't be possible to be here */
         break;
@@ -258,9 +313,11 @@ static void ares__rand_bytes(ares_rand_state *state, unsigned char *buf, size_t 
         }
         break;
 
+#ifdef ARES_NEEDS_RC4
       case ARES_RAND_RC4:
         ares_rc4_prng(&state->state.rc4, buf, len);
         return;
+#endif
     }
 
     /* If we didn't return before we got here, that means we had a critical rand
@@ -268,6 +325,30 @@ static void ares__rand_bytes(ares_rand_state *state, unsigned char *buf, size_t 
     ares__reinit_rand(state);
   }
 }
+
+
+void ares__rand_bytes(ares_rand_state *state, unsigned char *buf, size_t len)
+{
+  /* See if we need to refill the cache to serve the request, but if len is
+   * excessive, we're not going to update our cache or serve from cache */
+  if (len > state->cache_remaining && len < sizeof(state->cache)) {
+    size_t fetch_size = sizeof(state->cache) - state->cache_remaining;
+    ares__rand_bytes_fetch(state, state->cache, fetch_size);
+    state->cache_remaining = sizeof(state->cache);
+  }
+
+  /* Serve from cache */
+  if (len <= state->cache_remaining) {
+    size_t offset = sizeof(state->cache) - state->cache_remaining;
+    memcpy(buf, state->cache + offset, len);
+    state->cache_remaining -= len;
+    return;
+  }
+
+  /* Serve direct due to excess size of request */
+  ares__rand_bytes_fetch(state, buf, len);
+}
+
 
 unsigned short ares__generate_new_id(ares_rand_state *state)
 {

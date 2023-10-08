@@ -1,3 +1,5 @@
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 IF (CARES_BUILD_TOOLS)
 	# Transform Makefile.inc
 	transform_makefile_inc("Makefile.inc" "${PROJECT_BINARY_DIR}/src/tools/Makefile.inc.cmake")
@@ -34,22 +36,5 @@ IF (CARES_BUILD_TOOLS)
 	TARGET_LINK_LIBRARIES (adig PRIVATE ${PROJECT_NAME})
 	IF (CARES_INSTALL)
 		INSTALL (TARGETS adig COMPONENT Tools ${TARGETS_INST_DEST})
-	ENDIF ()
-
-
-	# Build acountry
-	ADD_EXECUTABLE (acountry acountry.c ${SAMPLESOURCES})
-	TARGET_INCLUDE_DIRECTORIES (acountry
-		PUBLIC "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>"
-		       "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
-		       "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/lib>"
-		       "$<BUILD_INTERFACE:${CARES_TOPLEVEL_DIR}/include>"
-		       "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-		PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
-	)
-	TARGET_COMPILE_DEFINITIONS (acountry PRIVATE HAVE_CONFIG_H=1)
-	TARGET_LINK_LIBRARIES (acountry PRIVATE ${PROJECT_NAME})
-	IF (CARES_INSTALL)
-		INSTALL (TARGETS acountry COMPONENT Tools ${TARGETS_INST_DEST})
 	ENDIF ()
 ENDIF ()

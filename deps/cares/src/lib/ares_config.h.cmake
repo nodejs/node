@@ -1,3 +1,7 @@
+/* Copyright (C) The c-ares project and its contributors
+ * SPDX-License-Identifier: MIT
+ */
+
 /* Generated from ares_config.h.cmake */
 
 /* Define if building universal (internal helper macro) */
@@ -122,6 +126,9 @@
 
 /* Define to 1 if you have the getnameinfo function. */
 #cmakedefine HAVE_GETNAMEINFO
+
+/* Define to 1 if you have the getrandom function. */
+#cmakedefine HAVE_GETRANDOM
 
 /* Define to 1 if you have the getservbyport_r function. */
 #cmakedefine HAVE_GETSERVBYPORT_R

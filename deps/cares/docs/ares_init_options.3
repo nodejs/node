@@ -14,6 +14,8 @@
 .\" this software for any purpose.  It is provided "as is"
 .\" without express or implied warranty.
 .\"
+.\" SPDX-License-Identifier: MIT
+.\"
 .TH ARES_INIT 3 "5 March 2010"
 .SH NAME
 ares_init_options \- Initialize a resolver channel
@@ -42,6 +44,7 @@ struct ares_options {
   int ednspsz;
   char *resolvconf_path;
   char *hosts_path;
+  int udp_max_queries;
 };
 
 int ares_init_options(ares_channel *\fIchannelptr\fP,
@@ -71,7 +74,7 @@ description of possible flag values.
 The number of seconds each name server is given to respond to a query on the
 first try.  (After the first try, the timeout algorithm becomes more
 complicated, but scales linearly with the value of \fItimeout\fP.)  The
-default is five seconds. This option is being deprecated by
+default is two seconds. This option is being deprecated by
 \fIARES_OPT_TIMEOUTMS\fP starting in c-ares 1.5.2.
 .TP 18
 .B ARES_OPT_TIMEOUTMS
@@ -80,7 +83,7 @@ default is five seconds. This option is being deprecated by
 The number of milliseconds each name server is given to respond to a query on
 the first try.  (After the first try, the timeout algorithm becomes more
 complicated, but scales linearly with the value of \fItimeout\fP.)  The
-default is five seconds. Note that this option is specified with the same
+default is two seconds. Note that this option is specified with the same
 struct field as the former \fIARES_OPT_TIMEOUT\fP, it is but the option bits
 that tell c-ares how to interpret the number. This option was added in c-ares
 1.5.2.
@@ -89,7 +92,7 @@ that tell c-ares how to interpret the number. This option was added in c-ares
 .B int \fItries\fP;
 .br
 The number of tries the resolver will try contacting each name server
-before giving up.  The default is four tries.
+before giving up.  The default is three tries.
 .TP 18
 .B ARES_OPT_NDOTS
 .B int \fIndots\fP;
@@ -203,6 +206,14 @@ The path to use for reading the hosts file. The
 should be set to a path string, and will be honoured on *nix like systems. The
 default is
 .B /etc/hosts
+.br
+.TP 18
+.B ARES_OPT_UDP_MAX_QUERIES
+.B int \fIudp_max_queries\fP;
+.br
+The maximum number of udp queries that can be sent on a single ephemeral port
+to a given DNS server before a new ephemeral port is assigned.  Any value of 0
+or less will be considered unlimited, and is the default.
 .br
 .PP
 The \fIoptmask\fP parameter also includes options without a corresponding

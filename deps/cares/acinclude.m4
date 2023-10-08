@@ -1,4 +1,5 @@
-
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 
 dnl CURL_CHECK_DEF (SYMBOL, [INCLUDES], [SILENT])
 dnl -------------------------------------------------

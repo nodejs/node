@@ -1,15 +1,27 @@
-
-/* Copyright (C) 2004 by Daniel Stenberg et al
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this software and its
- * documentation for any purpose and without fee is hereby granted, provided
- * that the above copyright notice appear in all copies and that both that
- * copyright notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in advertising or
- * publicity pertaining to distribution of the software without specific,
- * written prior permission.  M.I.T. makes no representations about the
- * suitability of this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 2004 Daniel Stenberg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ares_setup.h"
@@ -25,39 +37,51 @@
  */
 void ares_cancel(ares_channel channel)
 {
-  struct query *query;
-  struct list_node list_head_copy;
-  struct list_node* list_head;
-  struct list_node* list_node;
-  int i;
-
-  if (!ares__is_list_empty(&(channel->all_queries)))
+  if (ares__llist_len(channel->all_queries) > 0)
   {
+    ares__llist_node_t *node = NULL;
+    ares__llist_node_t *next = NULL;
+
     /* Swap list heads, so that only those queries which were present on entry
      * into this function are cancelled. New queries added by callbacks of
      * queries being cancelled will not be cancelled themselves.
      */
-    list_head = &(channel->all_queries);
-    list_head_copy.prev = list_head->prev;
-    list_head_copy.next = list_head->next;
-    list_head_copy.prev->next = &list_head_copy;
-    list_head_copy.next->prev = &list_head_copy;
-    list_head->prev = list_head;
-    list_head->next = list_head;
-    for (list_node = list_head_copy.next; list_node != &list_head_copy; )
-    {
-      query = list_node->data;
-      list_node = list_node->next;  /* since we're deleting the query */
+    ares__llist_t *list_copy = channel->all_queries;
+    channel->all_queries = ares__llist_create(NULL);
+
+    /* Out of memory, this function doesn't return a result code though so we
+     * can't report to caller */
+    if (channel->all_queries == NULL) {
+      channel->all_queries = list_copy;
+      return;
+    }
+
+    node = ares__llist_node_first(list_copy);
+    while (node != NULL) {
+      struct query *query;
+      ares_socket_t fd = ARES_SOCKET_BAD;
+
+      /* Cache next since this node is being deleted */
+      next = ares__llist_node_next(node);
+
+      query = ares__llist_node_claim(node);
+      query->node_all_queries = NULL;
+
+      /* Cache file descriptor for connection so we can clean it up possibly */
+      if (query->conn)
+        fd = query->conn->fd;
+
+      /* NOTE: its possible this may enqueue new queries */
       query->callback(query->arg, ARES_ECANCELLED, 0, NULL, 0);
       ares__free_query(query);
+
+      /* See if the connection should be cleaned up */
+      if (fd != ARES_SOCKET_BAD)
+        ares__check_cleanup_conn(channel, fd);
+
+      node = next;
     }
-  }
-  if (!(channel->flags & ARES_FLAG_STAYOPEN) && ares__is_list_empty(&(channel->all_queries)))
-  {
-    if (channel->servers)
-    {
-      for (i = 0; i < channel->nservers; i++)
-        ares__close_sockets(channel, &channel->servers[i]);
-    }
+
+    ares__llist_destroy(list_copy);
   }
 }

@@ -28,7 +28,7 @@
   depends on the MSVC compiler version being used to build c-ares.
 
   Below the MSVCXX folder there will exist four folders named 'cares',
-  'ahost', 'acountry', and 'adig'. The 'cares' folder is the one that
+  'ahost', and 'adig'. The 'cares' folder is the one that
   holds the c-ares libraries you have just generated, the other three
   hold sample programs that use the libraries.
 

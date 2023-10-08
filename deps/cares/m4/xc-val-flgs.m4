@@ -2,7 +2,7 @@
 #
 # xc-val-flgs.m4
 #
-# Copyright (c) 2013 Daniel Stenberg <daniel@haxx.se>
+# Copyright (c) Daniel Stenberg <daniel@haxx.se>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -16,6 +16,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+#
+# SPDX-License-Identifier: MIT
 #---------------------------------------------------------------------------
 
 # serial 1

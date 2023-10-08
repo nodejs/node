@@ -14,9 +14,8 @@
 
 @SET_MAKE@
 
-#***************************************************************************
-
-###########################################################################
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -327,6 +326,9 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign subdir-objects no-dependencies
+
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 MANPAGES = ares_cancel.3		\
   ares_create_query.3			\
   ares_destroy.3			\
@@ -388,7 +390,7 @@ MANPAGES = ares_cancel.3		\
   ares_version.3
 
 man_MANS = $(MANPAGES)
-EXTRA_DIST = $(MANPAGES) ahost.1 adig.1 acountry.1 Makefile.inc CMakeLists.txt
+EXTRA_DIST = $(MANPAGES) ahost.1 adig.1 Makefile.inc CMakeLists.txt
 all: all-am
 
 .SUFFIXES:
