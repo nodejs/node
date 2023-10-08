@@ -105,7 +105,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(readable), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(readable, [readable]);
@@ -155,7 +157,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(readable), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(readable, [readable]);
@@ -206,7 +210,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(writable), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(writable, [writable]);
@@ -292,7 +298,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(transform), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(transform, [transform]);
