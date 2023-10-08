@@ -36,17 +36,18 @@ function main({ len, duration, concurrent, encoding }) {
   const zipData = Buffer.alloc(1024, 'a');
 
   let waitConcurrent = 0;
+  // plus one because of zip
+  let targetConcurrency = concurrent + 1;
+
+  const startedAt = Date.now();
+  const endAt = startedAt + (duration * 1000);
+
   let reads = 0;
   let zips = 0;
-  let benchEnded = false;
+
   bench.start();
-  setTimeout(() => {
-    benchEnded = true;
-
-    if (++waitConcurrent !== concurrent) {
-      return;
-    }
-
+  
+  function stop() {
     const totalOps = reads + zips;
     bench.end(totalOps);
 
@@ -55,7 +56,7 @@ function main({ len, duration, concurrent, encoding }) {
     } catch {
       // Continue regardless of error.
     }
-  }, duration * 1000);
+  }
 
   function read() {
     fs.readFile(filename, encoding, afterRead);
@@ -63,11 +64,6 @@ function main({ len, duration, concurrent, encoding }) {
 
   function afterRead(er, data) {
     if (er) {
-      if (er.code === 'ENOENT') {
-        // Only OK if unlinked by the timer from main.
-        assert.ok(benchEnded);
-        return;
-      }
       throw er;
     }
 
@@ -75,8 +71,13 @@ function main({ len, duration, concurrent, encoding }) {
       throw new Error('wrong number of bytes returned');
 
     reads++;
-    if (!benchEnded)
+    let benchEnded = Date.now() >= endAt;
+
+    if (benchEnded && (++waitConcurrent) === targetConcurrency) {
+      stop();
+    } else if (!benchEnded) {
       read();
+    }
   }
 
   function zip() {
@@ -88,8 +89,13 @@ function main({ len, duration, concurrent, encoding }) {
       throw er;
 
     zips++;
-    if (!benchEnded)
+    let benchEnded = Date.now() >= endAt;
+
+    if (benchEnded && (++waitConcurrent) === targetConcurrency) {
+      stop();
+    } else if (!benchEnded) {
       zip();
+    }
   }
 
   // Start reads
