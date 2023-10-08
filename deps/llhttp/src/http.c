@@ -43,13 +43,15 @@ int llhttp__after_headers_complete(llhttp_t* parser, const char* p,
       (parser->upgrade && (parser->method == HTTP_CONNECT ||
                           (parser->flags & F_SKIPBODY) || !hasBody)) ||
       /* See RFC 2616 section 4.4 - 1xx e.g. Continue */
-      (
-        parser->type == HTTP_RESPONSE &&
-        (parser->status_code == 100 || parser->status_code == 101)
-      )
+      (parser->type == HTTP_RESPONSE && parser->status_code == 101)
   ) {
     /* Exit, the rest of the message is in a different protocol. */
     return 1;
+  }
+
+  if (parser->type == HTTP_RESPONSE && parser->status_code == 100) {
+    /* No body, restart as the message is complete */
+    return 0;
   }
 
   /* See RFC 2616 section 4.4 */
