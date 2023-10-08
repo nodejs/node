@@ -93,6 +93,14 @@ function getErrorMessage(error) {
 }
 
 /**
+ * Tracks error messages that are shown to the user so we only ever show the
+ * same message once.
+ * @type {Set<string>}
+ */
+
+const displayedErrors = new Set();
+
+/**
  * Catch and report unexpected error.
  * @param {any} error The thrown error object.
  * @returns {void}
@@ -101,14 +109,17 @@ function onFatalError(error) {
     process.exitCode = 2;
 
     const { version } = require("../package.json");
-    const message = getErrorMessage(error);
-
-    console.error(`
+    const message = `
 Oops! Something went wrong! :(
 
 ESLint: ${version}
 
-${message}`);
+${getErrorMessage(error)}`;
+
+    if (!displayedErrors.has(message)) {
+        console.error(message);
+        displayedErrors.add(message);
+    }
 }
 
 //------------------------------------------------------------------------------

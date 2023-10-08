@@ -179,9 +179,7 @@ class InvalidRuleSeverityError extends Error {
  * @throws {InvalidRuleSeverityError} If the value isn't a valid rule severity.
  */
 function assertIsRuleSeverity(ruleId, value) {
-    const severity = typeof value === "string"
-        ? ruleSeverities.get(value.toLowerCase())
-        : ruleSeverities.get(value);
+    const severity = ruleSeverities.get(value);
 
     if (typeof severity === "undefined") {
         throw new InvalidRuleSeverityError(ruleId, value);
