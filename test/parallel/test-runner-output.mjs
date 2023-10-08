@@ -46,10 +46,14 @@ function replaceTestLocationLine(str) {
 // file.
 function pickTestFileFromLcov(str) {
   const lines = str.split(/\n/);
-  const firstLineOfTestFile = lines.findIndex((line) => line === 'SF:test/fixtures/test-runner/output/output.js');
-  const lastLineOfTestFile = lines.findIndex((line, index) => index > line && line === 'end_of_record');
+  const firstLineOfTestFile = lines.findIndex(
+    (line) => line.startsWith('SF:') && line.trim().endsWith('output.js')
+  );
+  const lastLineOfTestFile = lines.findIndex(
+    (line, index) => index > firstLineOfTestFile && line.trim() === 'end_of_record'
+  );
   return (
-    lines[0] + '\n' + lines.slice(firstLineOfTestFile, lastLineOfTestFile).join('\n') + '\n'
+    lines[0] + '\n' + lines.slice(firstLineOfTestFile, lastLineOfTestFile + 1).join('\n') + '\n'
   );
 }
 
