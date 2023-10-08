@@ -74,6 +74,10 @@
   V(channel_string, "channel")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
   V(clone_unsupported_type_str, "Cannot clone object of unsupported type.")    \
+  V(clone_transfer_needed_str,                                                 \
+    "Object that needs transfer was found in message but not listed in "       \
+    "transferList")                                                            \
+  V(clone_untransferable_str, "Found invalid value in transferList.")          \
   V(code_string, "code")                                                       \
   V(commonjs_string, "commonjs")                                               \
   V(config_string, "config")                                                   \

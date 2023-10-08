@@ -75,13 +75,11 @@ void AppendExceptionLine(Environment* env,
   V(ERR_INVALID_MODULE, Error)                                                 \
   V(ERR_INVALID_STATE, Error)                                                  \
   V(ERR_INVALID_THIS, TypeError)                                               \
-  V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                    \
   V(ERR_INVALID_URL, TypeError)                                                \
   V(ERR_INVALID_URL_SCHEME, TypeError)                                         \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
   V(ERR_MISSING_ARGS, TypeError)                                               \
-  V(ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST, TypeError)                      \
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                    \
   V(ERR_MODULE_NOT_FOUND, Error)                                               \
@@ -168,16 +166,12 @@ ERRORS_WITH_CODE(V)
   V(ERR_INVALID_MODULE, "No such module")                                      \
   V(ERR_INVALID_STATE, "Invalid state")                                        \
   V(ERR_INVALID_THIS, "Value of \"this\" is the wrong type")                   \
-  V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")       \
   V(ERR_INVALID_URL_SCHEME, "The URL must be of scheme file:")                 \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
   V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                        \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE,                                    \
     "A message object could not be deserialized successfully in the target "   \
     "vm.Context")                                                              \
-  V(ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST,                                 \
-    "Object that needs transfer was found in message but not listed "          \
-    "in transferList")                                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER,                                           \
     "The V8 platform used by this instance of Node does not support "          \
     "creating Workers")                                                        \

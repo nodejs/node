@@ -431,7 +431,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
           return Just(true);
         }
       }
-      THROW_ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST(env_);
+      ThrowDataCloneError(env_->clone_transfer_needed_str());
       return Nothing<bool>();
     }
 
@@ -475,7 +475,7 @@ Maybe<bool> Message::Serialize(Environment* env,
     Local<Value> entry_val = transfer_list_v[i];
     if (!entry_val->IsObject()) {
       // Only object can be transferred.
-      THROW_ERR_INVALID_TRANSFER_OBJECT(env);
+      ThrowDataCloneException(context, env->clone_untransferable_str());
       return Nothing<bool>();
     }
     Local<Object> entry = entry_val.As<Object>();
@@ -533,7 +533,7 @@ Maybe<bool> Message::Serialize(Environment* env,
       host_object = BaseObjectPtr<BaseObject>{Unwrap<BaseObject>(entry)};
     } else {
       if (!JSTransferable::IsJSTransferable(env, context, entry)) {
-        THROW_ERR_INVALID_TRANSFER_OBJECT(env);
+        ThrowDataCloneException(context, env->clone_untransferable_str());
         return Nothing<bool>();
       }
       JSTransferable* js_transferable = JSTransferable::Wrap(env, entry);
