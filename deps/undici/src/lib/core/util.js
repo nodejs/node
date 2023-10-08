@@ -58,31 +58,31 @@ function parseURL (url) {
     throw new InvalidArgumentError('Invalid URL: The URL argument must be a non-null object.')
   }
 
-  if (url.port != null && url.port !== '' && !Number.isFinite(parseInt(url.port))) {
-    throw new InvalidArgumentError('Invalid URL: port must be a valid integer or a string representation of an integer.')
-  }
-
-  if (url.path != null && typeof url.path !== 'string') {
-    throw new InvalidArgumentError('Invalid URL path: the path must be a string or null/undefined.')
-  }
-
-  if (url.pathname != null && typeof url.pathname !== 'string') {
-    throw new InvalidArgumentError('Invalid URL pathname: the pathname must be a string or null/undefined.')
-  }
-
-  if (url.hostname != null && typeof url.hostname !== 'string') {
-    throw new InvalidArgumentError('Invalid URL hostname: the hostname must be a string or null/undefined.')
-  }
-
-  if (url.origin != null && typeof url.origin !== 'string') {
-    throw new InvalidArgumentError('Invalid URL origin: the origin must be a string or null/undefined.')
-  }
-
   if (!/^https?:/.test(url.origin || url.protocol)) {
     throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
   }
 
   if (!(url instanceof URL)) {
+    if (url.port != null && url.port !== '' && !Number.isFinite(parseInt(url.port))) {
+      throw new InvalidArgumentError('Invalid URL: port must be a valid integer or a string representation of an integer.')
+    }
+
+    if (url.path != null && typeof url.path !== 'string') {
+      throw new InvalidArgumentError('Invalid URL path: the path must be a string or null/undefined.')
+    }
+
+    if (url.pathname != null && typeof url.pathname !== 'string') {
+      throw new InvalidArgumentError('Invalid URL pathname: the pathname must be a string or null/undefined.')
+    }
+
+    if (url.hostname != null && typeof url.hostname !== 'string') {
+      throw new InvalidArgumentError('Invalid URL hostname: the hostname must be a string or null/undefined.')
+    }
+
+    if (url.origin != null && typeof url.origin !== 'string') {
+      throw new InvalidArgumentError('Invalid URL origin: the origin must be a string or null/undefined.')
+    }
+
     const port = url.port != null
       ? url.port
       : (url.protocol === 'https:' ? 443 : 80)
