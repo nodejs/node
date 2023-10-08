@@ -38,26 +38,26 @@ function main({ encodingType, duration, concurrent, size }) {
   }
 
   let writes = 0;
-  let benchEnded = false;
+  let waitConcurrent = 0;
+
+  const startedAt = Date.now();
+  const endAt = startedAt + (duration * 1000);
+
   bench.start();
-  setTimeout(() => {
-    benchEnded = true;
+  
+  function stop() {
     bench.end(writes);
 
-    // This delay is needed because on windows this can cause
-    // race condition with afterRead, which makes this benchmark
-    // fails to delete the temp file
-    setTimeout(() => {
-      for (let i = 0; i < filesWritten; i++) {
-        try {
-          fs.unlinkSync(`${filename}-${i}`);
-        } catch {
-          // Continue regardless of error.
-        }
+    for (let i = 0; i < filesWritten; i++) {
+      try {
+        fs.unlinkSync(`${filename}-${i}`);
+      } catch {
+        // Continue regardless of error.
       }
-      process.exit(0);
-    }, 10);
-  }, duration * 1000);
+    }
+
+    process.exit(0);
+  }
 
   function write() {
     fs.promises.writeFile(`${filename}-${filesWritten++}`, chunk, encoding)
@@ -76,9 +76,14 @@ function main({ encodingType, duration, concurrent, size }) {
     }
 
     writes++;
-    if (!benchEnded)
+    let benchEnded = Date.now() >= endAt;
+
+    if (benchEnded && (++waitConcurrent) === concurrent) {
+      stop();
+    } else if (!benchEnded) {
       write();
+    }
   }
 
-  while (concurrent--) write();
+  for (let i = 0; i < concurrent; i++) write();
 }

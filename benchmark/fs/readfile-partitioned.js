@@ -35,25 +35,26 @@ function main({ len, duration, concurrent, encoding }) {
 
   const zipData = Buffer.alloc(1024, 'a');
 
+  let waitConcurrent = 0;
   let reads = 0;
   let zips = 0;
   let benchEnded = false;
   bench.start();
   setTimeout(() => {
-    const totalOps = reads + zips;
     benchEnded = true;
+
+    if (++waitConcurrent !== concurrent) {
+      return;
+    }
+
+    const totalOps = reads + zips;
     bench.end(totalOps);
 
-    // This delay is needed because on windows this can cause
-    // race condition with afterRead, which makes this benchmark
-    // fails to delete the temp file
-    setTimeout(() => {
-      try {
-        fs.unlinkSync(filename);
-      } catch {
-        // Continue regardless of error.
-      }
-    }, 10);
+    try {
+      fs.unlinkSync(filename);
+    } catch {
+      // Continue regardless of error.
+    }
   }, duration * 1000);
 
   function read() {
@@ -92,7 +93,7 @@ function main({ len, duration, concurrent, encoding }) {
   }
 
   // Start reads
-  while (concurrent-- > 0) read();
+  for (let i = 0; i < concurrent; i++) read();
 
   // Start a competing zip
   zip();
