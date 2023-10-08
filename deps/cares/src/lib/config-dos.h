@@ -2,9 +2,12 @@
 #define HEADER_CONFIG_DOS_H
 
 
-/* ================================================================ */
-/*       ares/config-dos.h - Hand crafted config file for DOS       */
-/* ================================================================ */
+/* ================================================================
+ *       ares/config-dos.h - Hand crafted config file for DOS
+ *
+ * Copyright (C) The c-ares project and its contributors
+ * SPDX-License-Identifier: MIT
+ * ================================================================ */
 
 #define PACKAGE  "c-ares"
 

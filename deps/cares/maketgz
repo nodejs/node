@@ -1,4 +1,6 @@
 #!/usr/bin/env perl
+# Copyright (C) Daniel Stenberg
+# SPDX-License-Identifier: MIT
 
 $version = $ARGV[0];
 

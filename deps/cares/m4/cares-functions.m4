@@ -1,6 +1,6 @@
 #***************************************************************************
 #
-# Copyright (C) 2008 - 2012 by Daniel Stenberg et al
+# Copyright (C) Daniel Stenberg et al
 #
 # Permission to use, copy, modify, and distribute this software and its
 # documentation for any purpose and without fee is hereby granted, provided
@@ -12,6 +12,7 @@
 # suitability of this software for any purpose.  It is provided "as is"
 # without express or implied warranty.
 #
+# SPDX-License-Identifier: MIT
 #***************************************************************************
 
 # File version for 'aclocal' use. Keep it a single number.
@@ -183,6 +184,24 @@ cares_includes_stropts="\
   AC_CHECK_HEADERS(
     sys/types.h unistd.h sys/socket.h sys/ioctl.h stropts.h,
     [], [], [$cares_includes_stropts])
+])
+
+
+dnl CARES_INCLUDES_SYS_RANDOM
+dnl -------------------------------------------------
+dnl Set up variable with list of headers that must be
+dnl included when sys/random.h is to be included.
+
+AC_DEFUN([CARES_INCLUDES_SYS_RANDOM], [
+cares_includes_sys_random="\
+/* includes start */
+#ifdef HAVE_SYS_RANDOM_H
+#  include <sys/random.h>
+#endif
+/* includes end */"
+  AC_CHECK_HEADERS(
+    sys/random.h,
+    [], [], [$cares_includes_sys_random])
 ])
 
 
@@ -1517,6 +1536,90 @@ AC_DEFUN([CARES_CHECK_FUNC_GETHOSTNAME], [
   else
     AC_MSG_RESULT([no])
     ac_cv_func_gethostname="no"
+  fi
+])
+
+dnl CARES_CHECK_FUNC_GETRANDOM
+dnl -------------------------------------------------
+dnl Verify if getrandom is available, prototyped, and
+dnl can be compiled. If all of these are true, and
+dnl usage has not been previously disallowed with
+dnl shell variable cares_disallow_getrandom, then
+dnl HAVE_GETRANDOM will be defined.
+
+AC_DEFUN([CARES_CHECK_FUNC_GETRANDOM], [
+  AC_REQUIRE([CARES_INCLUDES_SYS_RANDOM])dnl
+  #
+  tst_links_getrandom="unknown"
+  tst_proto_getrandom="unknown"
+  tst_compi_getrandom="unknown"
+  tst_allow_getrandom="unknown"
+  #
+  AC_MSG_CHECKING([if getrandom can be linked])
+  AC_LINK_IFELSE([
+    AC_LANG_FUNC_LINK_TRY([getrandom])
+  ],[
+    AC_MSG_RESULT([yes])
+    tst_links_getrandom="yes"
+  ],[
+    AC_MSG_RESULT([no])
+    tst_links_getrandom="no"
+  ])
+  #
+  if test "$tst_links_getrandom" = "yes"; then
+    AC_MSG_CHECKING([if getrandom is prototyped])
+    AC_EGREP_CPP([getrandom],[
+      $cares_includes_sys_random
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_proto_getrandom="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_proto_getrandom="no"
+    ])
+  fi
+  #
+  if test "$tst_proto_getrandom" = "yes"; then
+    AC_MSG_CHECKING([if getrandom is compilable])
+    AC_COMPILE_IFELSE([
+      AC_LANG_PROGRAM([[
+        $cares_includes_sys_random
+      ]],[[
+        if(0 != getrandom(0, 0, 0))
+          return 1;
+      ]])
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_compi_getrandom="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_compi_getrandom="no"
+    ])
+  fi
+  #
+  if test "$tst_compi_getrandom" = "yes"; then
+    AC_MSG_CHECKING([if getrandom usage allowed])
+    if test "x$cares_disallow_getrandom" != "xyes"; then
+      AC_MSG_RESULT([yes])
+      tst_allow_getrandom="yes"
+    else
+      AC_MSG_RESULT([no])
+      tst_allow_getrandom="no"
+    fi
+  fi
+  #
+  AC_MSG_CHECKING([if getrandom might be used])
+  if test "$tst_links_getrandom" = "yes" &&
+     test "$tst_proto_getrandom" = "yes" &&
+     test "$tst_compi_getrandom" = "yes" &&
+     test "$tst_allow_getrandom" = "yes"; then
+    AC_MSG_RESULT([yes])
+    AC_DEFINE_UNQUOTED(HAVE_GETRANDOM, 1,
+      [Define to 1 if you have the getrandom function.])
+    ac_cv_func_getrandom="yes"
+  else
+    AC_MSG_RESULT([no])
+    ac_cv_func_getrandom="no"
   fi
 ])
 
