@@ -91,7 +91,8 @@ async function translateOptions({
     reportUnusedDisableDirectives,
     resolvePluginsRelativeTo,
     rule,
-    rulesdir
+    rulesdir,
+    warnIgnored
 }, configType) {
 
     let overrideConfig, overrideConfigFile;
@@ -182,6 +183,7 @@ async function translateOptions({
 
     if (configType === "flat") {
         options.ignorePatterns = ignorePattern;
+        options.warnIgnored = warnIgnored;
     } else {
         options.resolvePluginsRelativeTo = resolvePluginsRelativeTo;
         options.rulePaths = rulesdir;
@@ -385,7 +387,9 @@ const cli = {
         if (useStdin) {
             results = await engine.lintText(text, {
                 filePath: options.stdinFilename,
-                warnIgnored: true
+
+                // flatConfig respects CLI flag and constructor warnIgnored, eslintrc forces true for backwards compatibility
+                warnIgnored: usingFlatConfig ? void 0 : true
             });
         } else {
             results = await engine.lintFiles(files);
