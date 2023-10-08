@@ -31,6 +31,14 @@ class CompatFinalizer {
 }
 
 module.exports = function () {
+  // FIXME: remove workaround when the Node bug is fixed
+  // https://github.com/nodejs/node/issues/49344#issuecomment-1741776308
+  if (process.env.NODE_V8_COVERAGE) {
+    return {
+      WeakRef: CompatWeakRef,
+      FinalizationRegistry: CompatFinalizer
+    }
+  }
   return {
     WeakRef: global.WeakRef || CompatWeakRef,
     FinalizationRegistry: global.FinalizationRegistry || CompatFinalizer

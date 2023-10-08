@@ -13,7 +13,9 @@ let tls // include tls conditionally since it is not always available
 // re-use is enabled.
 
 let SessionCache
-if (global.FinalizationRegistry) {
+// FIXME: remove workaround when the Node bug is fixed
+// https://github.com/nodejs/node/issues/49344#issuecomment-1741776308
+if (global.FinalizationRegistry && !process.env.NODE_V8_COVERAGE) {
   SessionCache = class WeakSessionCache {
     constructor (maxCachedSessions) {
       this._maxCachedSessions = maxCachedSessions
