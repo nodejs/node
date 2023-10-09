@@ -842,19 +842,6 @@ void AfterOpenFileHandle(uv_fs_t* req) {
   }
 }
 
-// Reverse the logic applied by path.toNamespacedPath() to create a
-// namespace-prefixed path.
-void FromNamespacedPath(std::string* path) {
-#ifdef _WIN32
-  if (path->compare(0, 8, "\\\\?\\UNC\\", 8) == 0) {
-    *path = path->substr(8);
-    path->insert(0, "\\\\");
-  } else if (path->compare(0, 4, "\\\\?\\", 4) == 0) {
-    *path = path->substr(4);
-  }
-#endif
-}
-
 void AfterMkdirp(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
@@ -864,7 +851,7 @@ void AfterMkdirp(uv_fs_t* req) {
     std::string first_path(req_wrap->continuation_data()->first_path());
     if (first_path.empty())
       return req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
-    FromNamespacedPath(&first_path);
+    node::url::FromNamespacedPath(&first_path);
     Local<Value> path;
     Local<Value> error;
     if (!StringBytes::Encode(req_wrap->env()->isolate(), first_path.c_str(),
@@ -1825,7 +1812,7 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
       if (!req_wrap_sync.continuation_data()->first_path().empty()) {
         Local<Value> error;
         std::string first_path(req_wrap_sync.continuation_data()->first_path());
-        FromNamespacedPath(&first_path);
+        node::url::FromNamespacedPath(&first_path);
         MaybeLocal<Value> path = StringBytes::Encode(env->isolate(),
                                                      first_path.c_str(),
                                                      UTF8, &error);
@@ -2935,7 +2922,7 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    FromNamespacedPath(&initial_file_path.value());
+    node::url::FromNamespacedPath(&initial_file_path.value());
 
     for (int i = 0; i < legacy_main_extensions_with_main_end; i++) {
       file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
@@ -2970,7 +2957,7 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  FromNamespacedPath(&initial_file_path.value());
+  node::url::FromNamespacedPath(&initial_file_path.value());
 
   for (int i = legacy_main_extensions_with_main_end;
        i < legacy_main_extensions_package_fallback_end;
