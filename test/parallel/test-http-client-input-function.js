@@ -8,9 +8,9 @@ const assert = require('assert');
   const server = http.createServer(common.mustCall((req, res) => {
     res.writeHead(200);
     res.end('hello world');
-  })).listen(80, '127.0.0.1');
+  })).listen(8080, '127.0.0.1');
 
-  const req = new http.ClientRequest(common.mustCall((response) => {
+  const req = new http.ClientRequest('http://127.0.0.1:8080', common.mustCall((response) => {
     let body = '';
     response.setEncoding('utf8');
     response.on('data', (chunk) => {
