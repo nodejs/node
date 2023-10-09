@@ -50,8 +50,6 @@ int main(int argc, char* argv[]) {
   setvbuf(stderr, nullptr, _IONBF, 0);
 #endif  // _WIN32
 
-  v8::V8::SetFlagsFromString("--random_seed=42");
-  v8::V8::SetFlagsFromString("--harmony-import-assertions");
   return BuildSnapshot(argc, argv);
 }
 
@@ -65,7 +63,8 @@ int BuildSnapshot(int argc, char* argv[]) {
 
   std::unique_ptr<node::InitializationResult> result =
       node::InitializeOncePerProcess(
-          std::vector<std::string>(argv, argv + argc));
+          std::vector<std::string>(argv, argv + argc),
+          node::ProcessInitializationFlags::kGeneratePredictableSnapshot);
 
   CHECK(!result->early_return());
   CHECK_EQ(result->exit_code(), 0);

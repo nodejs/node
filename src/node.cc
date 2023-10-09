@@ -838,6 +838,12 @@ static ExitCode InitializeNodeWithArgsInternal(
   V8::SetFlagsFromString(NODE_V8_OPTIONS, sizeof(NODE_V8_OPTIONS) - 1);
 #endif
 
+  if (!!(flags & ProcessInitializationFlags::kGeneratePredictableSnapshot) ||
+      per_process::cli_options->per_isolate->build_snapshot) {
+    v8::V8::SetFlagsFromString("--predictable");
+    v8::V8::SetFlagsFromString("--random_seed=42");
+  }
+
   // Specify this explicitly to avoid being affected by V8 changes to the
   // default value.
   V8::SetFlagsFromString("--rehash-snapshot");
