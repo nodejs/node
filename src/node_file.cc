@@ -2904,45 +2904,41 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   Environment* env = Environment::GetCurrent(args);
+  auto isolate = env->isolate();
 
-  Utf8Value utf8_package_json_url(env->isolate(), args[0].As<String>());
+  Utf8Value utf8_package_json_url(isolate, args[0]);
   auto package_json_url =
       ada::parse<ada::url_aggregator>(utf8_package_json_url.ToStringView());
 
   if (!package_json_url) {
-    env->isolate()->ThrowException(
-        ERR_INVALID_URL(env->isolate(), "Invalid URL"));
-
+    THROW_ERR_INVALID_URL(isolate, "Invalid URL");
     return;
   }
 
   ada::result<ada::url_aggregator> file_path_url;
-  std::string initial_file_path;
+  std::optional<std::string> initial_file_path;
   std::string file_path;
 
-  if (args.Length() >= 2 && !args[1]->IsNullOrUndefined() &&
-      args[1]->IsString()) {
-    std::string package_config_main =
-        Utf8Value(env->isolate(), args[1].As<String>()).ToString();
+  if (args.Length() >= 2 && args[1]->IsString()) {
+    auto package_config_main = Utf8Value(isolate, args[1]).ToString();
 
     file_path_url = ada::parse<ada::url_aggregator>(
         std::string("./") + package_config_main, &package_json_url.value());
 
     if (!file_path_url) {
-      env->isolate()->ThrowException(
-          ERR_INVALID_URL(env->isolate(), "Invalid URL"));
-
+      THROW_ERR_INVALID_URL(isolate, "Invalid URL");
       return;
     }
 
-    if (!node::url::FileURLToPath(
-            env, file_path_url.value(), initial_file_path))
+    initial_file_path = node::url::FileURLToPath(env, *file_path_url);
+    if (!initial_file_path.has_value()) {
       return;
+    }
 
-    FromNamespacedPath(&initial_file_path);
+    FromNamespacedPath(&initial_file_path.value());
 
     for (int i = 0; i < legacy_main_extensions_with_main_end; i++) {
-      file_path = initial_file_path + std::string(legacy_main_extensions[i]);
+      file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
 
       switch (FilePathIsFile(env, file_path)) {
         case BindingData::FilePathIsFileReturnType::kIsFile:
@@ -2965,21 +2961,21 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
       ada::parse<ada::url_aggregator>("./index", &package_json_url.value());
 
   if (!file_path_url) {
-    env->isolate()->ThrowException(
-        ERR_INVALID_URL(env->isolate(), "Invalid URL"));
-
+    THROW_ERR_INVALID_URL(isolate, "Invalid URL");
     return;
   }
 
-  if (!node::url::FileURLToPath(env, file_path_url.value(), initial_file_path))
+  initial_file_path = node::url::FileURLToPath(env, *file_path_url);
+  if (!initial_file_path.has_value()) {
     return;
+  }
 
-  FromNamespacedPath(&initial_file_path);
+  FromNamespacedPath(&initial_file_path.value());
 
   for (int i = legacy_main_extensions_with_main_end;
        i < legacy_main_extensions_package_fallback_end;
        i++) {
-    file_path = initial_file_path + std::string(legacy_main_extensions[i]);
+    file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
 
     switch (FilePathIsFile(env, file_path)) {
       case BindingData::FilePathIsFileReturnType::kIsFile:
@@ -2996,39 +2992,39 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  std::string module_path;
-  std::string module_base;
+  std::optional<std::string> module_path =
+      node::url::FileURLToPath(env, *package_json_url);
+  std::optional<std::string> module_base;
 
-  if (!node::url::FileURLToPath(env, package_json_url.value(), module_path))
+  if (!module_path.has_value()) {
     return;
+  }
 
-  if (args.Length() >= 3 && !args[2]->IsNullOrUndefined() &&
-      args[2]->IsString()) {
-    Utf8Value utf8_base_path(env->isolate(), args[2].As<String>());
+  if (args.Length() >= 3 && args[2]->IsString()) {
+    Utf8Value utf8_base_path(isolate, args[2]);
     auto base_url =
         ada::parse<ada::url_aggregator>(utf8_base_path.ToStringView());
 
     if (!base_url) {
-      env->isolate()->ThrowException(
-          ERR_INVALID_URL(env->isolate(), "Invalid URL"));
-
+      THROW_ERR_INVALID_URL(isolate, "Invalid URL");
       return;
     }
 
-    if (!node::url::FileURLToPath(env, base_url.value(), module_base)) return;
+    module_base = node::url::FileURLToPath(env, *base_url);
+    if (!module_base.has_value()) {
+      return;
+    }
   } else {
-    std::string err_arg_message =
-        "The \"base\" argument must be of type string or an instance of URL.";
-    env->isolate()->ThrowException(
-        ERR_INVALID_ARG_TYPE(env->isolate(), err_arg_message.c_str()));
+    THROW_ERR_INVALID_ARG_TYPE(
+        isolate,
+        "The \"base\" argument must be of type string or an instance of URL.");
     return;
   }
 
-  env->isolate()->ThrowException(
-      ERR_MODULE_NOT_FOUND(env->isolate(),
-                           "Cannot find package '%s' imported from %s",
-                           module_path,
-                           module_base));
+  THROW_ERR_MODULE_NOT_FOUND(isolate,
+                             "Cannot find package '%s' imported from %s",
+                             *module_path,
+                             *module_base);
 }
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
