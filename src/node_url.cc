@@ -437,16 +437,11 @@ std::string FromFilePath(std::string_view file_path) {
   return ada::href_from_file(escaped_file_path);
 }
 
-bool FileURLToPath(Environment* env,
-                   const ada::url_aggregator& file_url,
-                   /* The linter can't detect the assign for result_file_path
-                      So we need to ignore since it suggest to put const */
-                   // NOLINTNEXTLINE(runtime/references)
-                   std::string& result_file_path) {
+std::optional<std::string> FileURLToPath(Environment* env,
+                                         const ada::url_aggregator& file_url) {
   if (file_url.type != ada::scheme::FILE) {
-    env->isolate()->ThrowException(ERR_INVALID_URL_SCHEME(env->isolate()));
-
-    return false;
+    THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+    return std::nullopt;
   }
 
   std::string_view pathname = file_url.get_pathname();
@@ -479,11 +474,10 @@ bool FileURLToPath(Environment* env,
 
     if (!is_slash && !is_forward_slash) continue;
 
-    env->isolate()->ThrowException(ERR_INVALID_FILE_URL_PATH(
+    THROW_ERR_INVALID_FILE_URL_PATH(
         env->isolate(),
-        "File URL path must not include encoded \\ or / characters"));
-
-    return false;
+        "File URL path must not include encoded \\ or / characters");
+    return std::nullopt;
   }
 
   std::string_view hostname = file_url.get_hostname();
@@ -497,10 +491,7 @@ bool FileURLToPath(Environment* env,
     // about percent encoding because the URL parser will have
     // already taken care of that for us. Note that this only
     // causes IDNs with an appropriate `xn--` prefix to be decoded.
-    result_file_path =
-        "\\\\" + ada::unicode::to_unicode(hostname) + decoded_pathname;
-
-    return true;
+    return "\\\\" + ada::unicode::to_unicode(hostname) + decoded_pathname;
   }
 
   char letter = decoded_pathname[1] | 0x20;
@@ -508,26 +499,21 @@ bool FileURLToPath(Environment* env,
 
   // a..z A..Z
   if (letter < 'a' || letter > 'z' || sep != ':') {
-    env->isolate()->ThrowException(ERR_INVALID_FILE_URL_PATH(
-        env->isolate(), "File URL path must be absolute"));
-
-    return false;
+    THROW_ERR_INVALID_FILE_URL_PATH(env->isolate(),
+                                    "File URL path must be absolute");
+    return std::nullopt;
   }
 
-  result_file_path = decoded_pathname.substr(1);
-
-  return true;
+  return decoded_pathname.substr(1);
 #else   // _WIN32
   std::string_view hostname = file_url.get_hostname();
 
   if (hostname.size() > 0) {
-    std::string error_message =
-        std::string("File URL host must be \"localhost\" or empty on ") +
-        std::string(per_process::metadata.platform);
-    env->isolate()->ThrowException(
-        ERR_INVALID_FILE_URL_HOST(env->isolate(), error_message.c_str()));
-
-    return false;
+    THROW_ERR_INVALID_FILE_URL_HOST(
+        env->isolate(),
+        "File URL host must be \"localhost\" or empty on ",
+        std::string(per_process::metadata.platform));
+    return std::nullopt;
   }
 
   size_t first_percent = std::string::npos;
@@ -539,17 +525,14 @@ bool FileURLToPath(Environment* env,
     }
 
     if (pathname[i + 1] == '2' && (pathname[i + 2] | 0x20) == 102) {
-      env->isolate()->ThrowException(ERR_INVALID_FILE_URL_PATH(
+      THROW_ERR_INVALID_FILE_URL_PATH(
           env->isolate(),
-          "File URL path must not include encoded / characters"));
-
-      return false;
+          "File URL path must not include encoded / characters");
+      return std::nullopt;
     }
   }
 
-  result_file_path = ada::unicode::percent_decode(pathname, first_percent);
-
-  return true;
+  return ada::unicode::percent_decode(pathname, first_percent);
 #endif  // _WIN32
 }
 
