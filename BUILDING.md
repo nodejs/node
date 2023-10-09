@@ -153,7 +153,7 @@ Depending on the host platform, the selection of toolchains may vary.
 | Operating System | Compiler Versions                                              |
 | ---------------- | -------------------------------------------------------------- |
 | Linux            | GCC >= 10.1                                                    |
-| Windows          | Visual Studio >= 2019 with the Windows 10 SDK on a 64-bit host |
+| Windows          | Visual Studio >= 2022 with the Windows 10 SDK on a 64-bit host |
 | macOS            | Xcode >= 13 (Apple LLVM >= 12)                                 |
 
 ### Official binary platforms and toolchains
@@ -170,7 +170,7 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | linux-ppc64le           | RHEL 8 with gcc-toolset-10[^6]                                                                              |
 | linux-s390x             | RHEL 8 with gcc-toolset-10[^6]                                                                              |
 | linux-x64               | RHEL 8 with gcc-toolset-10[^6]                                                                              |
-| win-x64 and win-x86     | Windows 2012 R2 (x64) with Visual Studio 2019                                                               |
+| win-x64 and win-x86     | Windows Server 2022 (x64) with Visual Studio 2022                                                           |
 
 [^6]: Binaries produced on these systems are compatible with glibc >= 2.28
     and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
