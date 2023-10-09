@@ -37,7 +37,7 @@ const v4not = [
   '192.168.0.2000000000',
 ];
 
-for(const ip of v4) {
+for (const ip of v4) {
   assert.strictEqual(net.isIPv4(ip), true);
 }
 
