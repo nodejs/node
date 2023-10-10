@@ -7,19 +7,6 @@ tmpdir.refresh();
 
 const bufferSize = 1024;
 const sectorSize = 512;
-const tmpfile = { name: tmpdir.resolve(`.existing-file-${process.pid}`),
-                  len: bufferSize * 1e4 };
-
-
-tmpfile.contents = Buffer.allocUnsafe(tmpfile.len);
-
-for (let offset = 0; offset < tmpfile.len; offset += sectorSize) {
-  const fillByte = 256 * Math.random();
-  const nBytesToFill = Math.min(sectorSize, tmpfile.len - offset);
-  tmpfile.contents.fill(fillByte, offset, offset + nBytesToFill);
-}
-
-fs.writeFileSync(tmpfile.name, tmpfile.contents);
 
 const bench = common.createBenchmark(main, {
   type: ['existing', 'non-existing'],
@@ -28,6 +15,20 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, type }) {
   let fd;
+
+  const tmpfile = { name: tmpdir.resolve(`.existing-file-${process.pid}`),
+                    len: bufferSize * n };
+
+
+  tmpfile.contents = Buffer.allocUnsafe(tmpfile.len);
+
+  for (let offset = 0; offset < tmpfile.len; offset += sectorSize) {
+    const fillByte = 256 * Math.random();
+    const nBytesToFill = Math.min(sectorSize, tmpfile.len - offset);
+    tmpfile.contents.fill(fillByte, offset, offset + nBytesToFill);
+  }
+
+  fs.writeFileSync(tmpfile.name, tmpfile.contents);
 
   switch (type) {
     case 'existing':
