@@ -14,9 +14,9 @@
     "vfile-reporter": "^8.1.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^25.0.4",
-    "@rollup/plugin-node-resolve": "^15.2.1",
-    "rollup": "^3.29.4",
+    "@rollup/plugin-commonjs": "^25.0.5",
+    "@rollup/plugin-node-resolve": "^15.2.2",
+    "rollup": "^4.0.2",
     "rollup-plugin-cleanup": "^3.2.1"
   }
 }
