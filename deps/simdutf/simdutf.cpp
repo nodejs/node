@@ -1,4 +1,4 @@
-/* auto-generated on 2023-08-11 13:30:54 -0400. Do not edit! */
+/* auto-generated on 2023-10-08 13:48:09 -0400. Do not edit! */
 // dofile: invoked with prepath=/Users/dlemire/CVS/github/simdutf/src, filename=simdutf.cpp
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
@@ -1119,9 +1119,12 @@ simdutf_really_inline simd16<int16_t>::operator simd16<uint16_t>() const { retur
 #endif
 
 #ifdef _MSC_VER
-#if _MSC_VER >= 1920
-// Visual Studio 2019 and up support VBMI2 under x64 even if the header
+#if _MSC_VER >= 1930
+// Visual Studio 2022 and up support VBMI2 under x64 even if the header
 // avx512vbmi2intrin.h is not found.
+// Visual Studio 2019 technically supports VBMI2, but the implementation
+// might be unreliable. Search for visualstudio2019icelakeissue in our
+// tests.
 #define SIMDUTF_COMPILER_SUPPORTS_VBMI2 1
 #endif
 #endif
