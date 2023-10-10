@@ -1308,6 +1308,9 @@ closed after the iterator exits.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49255
+    description: Extended `recursive` option to allow a function for filtering.
   - version:
     - v20.1.0
     - v18.17.0
@@ -1322,7 +1325,12 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
-  * `recursive` {boolean} **Default:** `false`
+  * `recursive` {boolean|Function} **Default:** `false`
+    * `directory` {string|fs.Dirent} A given directory file system artifact
+      name.
+    * `depth` {integer} The number of steps traversed from the supplied base
+      path.
+    * Returns: {boolean}
 * Returns: {Promise}  Fulfills with an array of the names of the files in
   the directory excluding `'.'` and `'..'`.
 
@@ -1336,6 +1344,13 @@ will be passed as {Buffer} objects.
 If `options.withFileTypes` is set to `true`, the returned array will contain
 {fs.Dirent} objects.
 
+When passing a function to `options.recursive` the first argument populates
+with the name of a directory, or {fs.Dirent} object if `options.withFileTypes`
+is true, and directory depth relative to the base path as the second argument.
+This function expects to return a boolean which determines the descendant
+directories to traverse. Filtering using this function does not limit what
+populates in the resultant list, only which descendant directories to traverse.
+
 ```mjs
 import { readdir } from 'node:fs/promises';
 
@@ -1346,6 +1361,68 @@ try {
 } catch (err) {
   console.error(err);
 }
+```
+
+Example with unfiltered recursion.
+
+```mjs
+import { readdir } from 'node:fs/promises';
+
+try {
+  // Will traverse all descendant directories, fully recursive
+  const files = await readdir(path, { recursive: true });
+  for (const file of files)
+    console.log(file);
+} catch (err) {
+  console.error(err);
+}
+```
+
+Example with filtered recursion.
+
+```mjs
+import { readdir } from 'node:fs/promises';
+
+try {
+  const files = await readdir(path, { recursive: function(directory, depth) {
+    // Will not traverse directories with a depth greater than 4 and
+    // will traverse directories only that contain 'system' in the
+    // directory's name
+    return (directory.includes('system') && depth < 5);
+  } });
+  for (const file of files)
+    console.log(file);
+} catch (err) {
+  console.error(err);
+}
+```
+
+Example with filtered recursion and dirent.
+
+```mjs
+import { readdir } from 'node:fs/promises';
+
+try {
+  const files = await readdir(path, {
+    withFileTypes: true,
+    recursive: function(directory, depth) {
+    // Will not traverse directories with a depth greater than 4 and
+    // will traverse directories only that contain 'system' in the
+    // directory's name and 'games' in the path string
+      return (
+        directory.name.includes('system') &&
+        depth < 5
+      );
+    },
+  });
+  for (const file of files)
+    console.log(file);
+} catch (err) {
+  console.error(err);
+}
+// Should expect result: 'games/combat/system'
+// Should not expect result: 'action/q/v/games/combat/system'
+// Should not expect result: 'games/action'
 ```
 
 ### `fsPromises.readFile(path[, options])`
@@ -3610,6 +3687,9 @@ above values.
 <!-- YAML
 added: v0.1.8
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49255
+    description: Extended `recursive` option to allow a function for filtering.
   - version:
     - v20.1.0
     - v18.17.0
@@ -3644,7 +3724,12 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
-  * `recursive` {boolean} **Default:** `false`
+  * `recursive` {boolean|Function} **Default:** `false`
+    * `directory` {string|fs.Dirent} A given directory file system artifact
+      name.
+    * `depth` {integer} The number of steps traversed from the supplied base
+      path.
+    * Returns: {boolean}
 * `callback` {Function}
   * `err` {Error}
   * `files` {string\[]|Buffer\[]|fs.Dirent\[]}
@@ -3662,6 +3747,85 @@ the filenames returned will be passed as {Buffer} objects.
 
 If `options.withFileTypes` is set to `true`, the `files` array will contain
 {fs.Dirent} objects.
+
+When passing a function to `options.recursive` the first argument populates
+with the name of a directory, or {fs.Dirent} object if `options.withFileTypes`
+is true, and directory depth relative to the base path as the second argument.
+This function expects to return a boolean which determines the descendant
+directories to traverse. Filtering using this function does not limit what
+populates in the resultant list, only which descendant directories to traverse.
+
+```mjs
+import { readdir } from 'node:fs';
+
+function callback(err, files) {
+  if (err === null) {
+    console.log(files);
+  }
+}
+fs.readdir(path, callback);
+```
+
+Example with unfiltered recursion.
+
+```mjs
+import { readdir } from 'node:fs';
+
+function callback(err, files) {
+  if (err === null) {
+    console.log(files);
+  }
+}
+// Will traverse all descendant directories, fully recursive
+fs.readdir(path, { recursion: true }, callback);
+```
+
+Example with filtered recursion.
+
+```mjs
+import { readdir } from 'node:fs';
+
+function callback(err, files) {
+  if (err === null) {
+    console.log(files);
+  }
+}
+fs.readdir(path, {
+  recursion: function(directory, depth) {
+    // Will not traverse directories with a depth greater than 4 and
+    // will traverse directories only that contain 'system' in the
+    // directory's name
+    return (directory.includes('system') && depth < 5);
+  },
+}, callback);
+```
+
+Example with filtered recursion and dirent.
+
+```mjs
+import { readdir } from 'node:fs';
+
+function callback(err, files) {
+  if (err === null) {
+    console.log(files);
+  }
+}
+fs.readdir(path, {
+  withFileTypes: true,
+  recursion: function(directory, depth) {
+    // Will not traverse directories with a depth greater than 4 and
+    // will traverse directories only that contain 'system' in the
+    // directory's name and 'games' in the path string
+    return (
+      directory.name.includes('system') &&
+      depth < 5
+    );
+  },
+}, callback);
+// Should expect result: 'games/combat/system'
+// Should not expect result: 'action/q/v/games/combat/system'
+// Should not expect result: 'games/action'
+```
 
 ### `fs.readFile(path[, options], callback)`
 
@@ -5699,6 +5863,9 @@ this API: [`fs.open()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/49255
+    description: Extended `recursive` option to allow a function for filtering.
   - version:
     - v20.1.0
     - v18.17.0
@@ -5717,7 +5884,12 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
-  * `recursive` {boolean} **Default:** `false`
+  * `recursive` {boolean|Function} **Default:** `false`
+    * `directory` {string|fs.Dirent} A given directory file system artifact
+      name.
+    * `depth` {integer} The number of steps traversed from the supplied base
+      path.
+    * Returns: {boolean}
 * Returns: {string\[]|Buffer\[]|fs.Dirent\[]}
 
 Reads the contents of the directory.
@@ -5731,6 +5903,65 @@ the filenames returned will be passed as {Buffer} objects.
 
 If `options.withFileTypes` is set to `true`, the result will contain
 {fs.Dirent} objects.
+
+When passing a function to `options.recursive` the first argument populates
+with the name of a directory, or {fs.Dirent} object if `options.withFileTypes`
+is true, and directory depth relative to the base path as the second argument.
+This function expects to return a boolean which determines the descendant
+directories to traverse. Filtering using this function does not limit what
+populates in the resultant list, only which descendant directories to traverse.
+
+```mjs
+import { readdir } from 'node:fs';
+
+const files = fs.readdirSync(path);
+```
+
+Example with unfiltered recursion.
+
+```mjs
+import { readdir } from 'node:fs';
+
+// Will traverse all descendant directories, fully recursive
+const files = fs.readdirSync(path, { recursion: true });
+```
+
+Example with filtered recursion.
+
+```mjs
+import { readdir } from 'node:fs';
+
+const files = fs.readdirSync(path, {
+  recursion: function(directory, depth) {
+    // Will not traverse directories with a depth greater than 4 and
+    // will traverse directories only that contain 'system' in the
+    // directory's name
+    return (directory.includes('system') && depth < 5);
+  },
+});
+```
+
+Example with filtered recursion and dirent.
+
+```mjs
+import { readdir } from 'node:fs';
+
+const files = fs.readdirSync(path, {
+  withFileTypes: true,
+  recursion: function(directory, depth) {
+    // Will not traverse directories with a depth greater than 4 and
+    // will traverse directories only that contain 'system' in the
+    // directory's name and 'games' in the path string
+    return (
+      directory.name.includes('system') &&
+      depth < 5
+    );
+  },
+});
+// Should expect result: 'games/combat/system'
+// Should not expect result: 'action/q/v/games/combat/system'
+// Should not expect result: 'games/action'
+```
 
 ### `fs.readFileSync(path[, options])`
 
