@@ -24,6 +24,7 @@ check_include_file(stddef.h    HAVE_STDDEF_H)
 option(ENABLE_SIMD_OPTIMIZATIONS "Enable all SIMD optimizations" OFF)
 option(ENABLE_SIMD_AVX512 "Enable SIMD AXV512 optimizations" OFF)
 option(USE_ZLIB_RABIN_KARP_HASH "Enable bitstream compatibility with canonical zlib" OFF)
+option(BUILD_UNITTESTS "Enable standalone unit tests build" OFF)
 
 if (USE_ZLIB_RABIN_KARP_HASH)
    add_definitions(-DUSE_ZLIB_RABIN_KARP_ROLLING_HASH)
@@ -243,6 +244,58 @@ enable_language(CXX)
 set(CMAKE_CXX_STANDARD 14) # workaround for older compilers (e.g. g++ 5.4).
 add_executable(zlib_bench contrib/bench/zlib_bench.cc)
 target_link_libraries(zlib_bench zlib)
+
+#============================================================================
+# Unit Tests
+#============================================================================
+if (BUILD_UNITTESTS)
+    include (ExternalProject)
+    set_directory_properties(PROPERTIES EP_PREFIX ${CMAKE_BINARY_DIR}/third_party)
+    ExternalProject_add(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG d1467f5813f4d363cfd11aba99c4e9fe47a85e99
+        UPDATE_COMMAND ""
+        INSTALL_COMMAND ""
+        LOG_DOWNLOAD ON
+        LOG_CONFIGURE ON
+        LOG_BUILD ON
+    )
+
+    # gtest includedir
+    ExternalProject_Get_Property(googletest source_dir)
+    set(GTEST_INCLUDE_DIRS
+        ${source_dir}/googletest/include
+        ${source_dir}/googletest/include/gtest
+    )
+
+    # gtest library
+    ExternalProject_Get_Property(googletest binary_dir)
+    set(GTEST_LIBRARY_PATH ${binary_dir}/lib/${CMAKE_FIND_LIBRARY_PREFIXES}gtest.a)
+    set(GTEST_LIBRARY gtest)
+    add_library(${GTEST_LIBRARY} UNKNOWN IMPORTED)
+    set_property(TARGET ${GTEST_LIBRARY} PROPERTY IMPORTED_LOCATION ${GTEST_LIBRARY_PATH})
+    add_dependencies(${GTEST_LIBRARY} googletest)
+
+    set(UTEST_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/contrib/tests/infcover.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/contrib/tests/infcover.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/contrib/tests/utils_unittest.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/contrib/tests/standalone_test_runner.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/google/compression_utils_portable.cc
+    )
+
+    add_compile_definitions(CMAKE_STANDALONE_UNITTESTS)
+
+    add_executable(zlib_unittests ${UTEST_SRC})
+    target_include_directories(zlib_unittests PUBLIC ${GTEST_INCLUDE_DIRS})
+    target_include_directories(zlib_unittests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/google)
+
+    target_link_libraries(zlib_unittests ${GTEST_LIBRARY})
+    target_link_libraries(zlib_unittests zlib)
+    # Needed by gtest
+    target_link_libraries(zlib_unittests pthread)
+endif()
 
 #============================================================================
 # Minigzip tool
