@@ -70,12 +70,18 @@ typedef enum {
   NGHTTP2_OPT_MAX_SETTINGS = 1 << 12,
   NGHTTP2_OPT_SERVER_FALLBACK_RFC7540_PRIORITIES = 1 << 13,
   NGHTTP2_OPT_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION = 1 << 14,
+  NGHTTP2_OPT_STREAM_RESET_RATE_LIMIT = 1 << 15,
 } nghttp2_option_flag;
 
 /**
  * Struct to store option values for nghttp2_session.
  */
 struct nghttp2_option {
+  /**
+   * NGHTTP2_OPT_STREAM_RESET_RATE_LIMIT
+   */
+  uint64_t stream_reset_burst;
+  uint64_t stream_reset_rate;
   /**
    * NGHTTP2_OPT_MAX_SEND_HEADER_BLOCK_LENGTH
    */
