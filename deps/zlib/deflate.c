@@ -457,15 +457,9 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
     s->w_size = 1 << s->w_bits;
     s->w_mask = s->w_size - 1;
 
+    s->chromium_zlib_hash = 1;
+#if defined(USE_ZLIB_RABIN_KARP_ROLLING_HASH)
     s->chromium_zlib_hash = 0;
-#if !defined(USE_ZLIB_RABIN_KARP_ROLLING_HASH)
-  #if defined(TARGET_CPU_WITH_CRC) && defined(CRC32_SIMD_SSE42_PCLMUL)
-    if (x86_cpu_enable_simd)
-      s->chromium_zlib_hash = 1;
-  #elif defined(TARGET_CPU_WITH_CRC) && defined(CRC32_ARMV8_CRC32)
-    if (arm_cpu_enable_crc32)
-      s->chromium_zlib_hash = 1;
-  #endif
 #endif
 
     s->hash_bits = memLevel + 7;

@@ -7,12 +7,17 @@
 #include <cstddef>
 #include <vector>
 
-#include "base/files/file_path.h"
-#include "base/files/scoped_temp_dir.h"
 #include "compression_utils_portable.h"
 #include "gtest.h"
+
+#if !defined(CMAKE_STANDALONE_UNITTESTS)
+#include "base/files/file_path.h"
+#include "base/files/scoped_temp_dir.h"
+
 #include "third_party/zlib/contrib/minizip/unzip.h"
 #include "third_party/zlib/contrib/minizip/zip.h"
+#endif
+
 #include "zlib.h"
 
 void TestPayloads(size_t input_size, zlib_internal::WrapperType type) {
@@ -1020,6 +1025,9 @@ TEST(ZlibTest, DeflateZFixedCorruption) {
       0);
 }
 
+// TODO(gustavoa): make these tests run standalone.
+#ifndef CMAKE_STANDALONE_UNITTESTS
+
 TEST(ZlibTest, ZipFilenameCommentSize) {
   // Check that minizip rejects zip member filenames or comments longer than
   // the zip format can represent.
@@ -1138,3 +1146,5 @@ TEST(ZlibTest, ZipExtraFieldSize) {
   EXPECT_EQ(unzGoToNextFile(uzf), UNZ_END_OF_LIST_OF_FILE);
   EXPECT_EQ(unzClose(uzf), UNZ_OK);
 }
+
+#endif
