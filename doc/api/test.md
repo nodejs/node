@@ -1851,7 +1851,7 @@ import { mock } from 'node:test';
 mock.timers.enable({ apis: ['Date'], now: 1000 });
 ```
 
-```js
+```cjs
 const { mock } = require('node:test');
 mock.timers.enable({ apis: ['Date'], now: 1000 });
 ```
@@ -1863,7 +1863,7 @@ import { mock } from 'node:test';
 mock.timers.enable({ apis: ['Date'], now: new Date() });
 ```
 
-```js
+```cjs
 const { mock } = require('node:test');
 mock.timers.enable({ apis: ['Date'], now: new Date() });
 ```
