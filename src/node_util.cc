@@ -157,15 +157,6 @@ static void GetCallerLocation(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Array::New(args.GetIsolate(), ret, arraysize(ret)));
 }
 
-static void IsArrayBufferDetached(const FunctionCallbackInfo<Value>& args) {
-  if (args[0]->IsArrayBuffer()) {
-    auto buffer = args[0].As<v8::ArrayBuffer>();
-    args.GetReturnValue().Set(buffer->WasDetached());
-    return;
-  }
-  args.GetReturnValue().Set(false);
-}
-
 static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject())
     return;
@@ -278,7 +269,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
   registry->Register(GetCallerLocation);
-  registry->Register(IsArrayBufferDetached);
   registry->Register(PreviewEntries);
   registry->Register(GetOwnNonIndexProperties);
   registry->Register(GetConstructorName);
@@ -377,8 +367,6 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
   SetMethodNoSideEffect(
       context, target, "getCallerLocation", GetCallerLocation);
-  SetMethodNoSideEffect(
-      context, target, "isArrayBufferDetached", IsArrayBufferDetached);
   SetMethodNoSideEffect(context, target, "previewEntries", PreviewEntries);
   SetMethodNoSideEffect(
       context, target, "getOwnNonIndexProperties", GetOwnNonIndexProperties);
