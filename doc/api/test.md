@@ -496,7 +496,7 @@ test('spies on an object method', (t) => {
 ### Timers
 
 Mocking timers is a technique commonly used in software testing to simulate and
-control the behavior of timers, such as `setInterval` and `setTimeout`
+control the behavior of timers, such as `setInterval` and `setTimeout`,
 without actually waiting for the specified time intervals.
 
 Refer to the [`MockTimers`][] class for a full list of methods and features.
@@ -2024,7 +2024,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -2310,7 +2310,7 @@ test('runAll functions following the given order', (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -2352,7 +2352,7 @@ test('runAll functions following the given order', (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
