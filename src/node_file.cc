@@ -1509,7 +1509,7 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 3);
+  CHECK_GE(argc, 2);
 
   CHECK(args[0]->IsInt32());
   const int fd = args[0].As<Int32>()->Value();
@@ -1517,17 +1517,15 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsSafeJsInt(args[1]));
   const int64_t len = args[1].As<Integer>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {
+  if (argc > 2) {
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FTRUNCATE, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "ftruncate", UTF8, AfterNoArgs,
               uv_fs_ftruncate, fd, len);
   } else {
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+    FSReqWrapSync req_wrap_sync("ftruncate");
     FS_SYNC_TRACE_BEGIN(ftruncate);
-    SyncCall(env, args[3], &req_wrap_sync, "ftruncate", uv_fs_ftruncate, fd,
-             len);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_ftruncate, fd, len);
     FS_SYNC_TRACE_END(ftruncate);
   }
 }
