@@ -458,9 +458,11 @@ register('./path-to-my-hooks.js', {
 
 <!-- YAML
 changes:
-  - version: REAPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
-    description: `importAssertions` is replaced with `importAttributes`.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50140
+    description: The property `context.importAssertions` is replaced with
+                 `context.importAttributes`. Using the old name is still
+                 supported and will emit an experimental warning.
   - version:
     - v18.6.0
     - v16.17.0

@@ -7,8 +7,8 @@
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: v20.0.0
-    pr-url: https://github.com/nodejs/node/pull/00000
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50140
     description: Add experimental support for import attributes.
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/44710
@@ -246,7 +246,7 @@ added:
   - v16.14.0
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/50140
     description: Switch from Import Assertions to Import Attributes.
 -->
 
