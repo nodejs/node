@@ -753,6 +753,12 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                 "--no-harmony-import-assertions") == v8_args.end()) {
     v8_args.emplace_back("--harmony-import-assertions");
   }
+  // TODO(aduh95): remove this when the harmony-import-attributes flag
+  // is removed in V8.
+  if (std::find(v8_args.begin(), v8_args.end(),
+                "--no-harmony-import-attributes") == v8_args.end()) {
+    v8_args.emplace_back("--harmony-import-attributes");
+  }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
   if (std::find(v8_args.begin(), v8_args.end(),

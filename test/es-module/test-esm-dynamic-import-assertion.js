@@ -5,7 +5,7 @@ const { strictEqual } = require('assert');
 async function test() {
   {
     const results = await Promise.allSettled([
-      import('../fixtures/empty.js', { assert: { type: 'json' } }),
+      import('../fixtures/empty.js', { with: { type: 'json' } }),
       import('../fixtures/empty.js'),
     ]);
 
@@ -16,7 +16,7 @@ async function test() {
   {
     const results = await Promise.allSettled([
       import('../fixtures/empty.js'),
-      import('../fixtures/empty.js', { assert: { type: 'json' } }),
+      import('../fixtures/empty.js', { with: { type: 'json' } }),
     ]);
 
     strictEqual(results[0].status, 'fulfilled');
@@ -25,7 +25,7 @@ async function test() {
 
   {
     const results = await Promise.allSettled([
-      import('../fixtures/empty.json', { assert: { type: 'json' } }),
+      import('../fixtures/empty.json', { with: { type: 'json' } }),
       import('../fixtures/empty.json'),
     ]);
 
@@ -36,7 +36,7 @@ async function test() {
   {
     const results = await Promise.allSettled([
       import('../fixtures/empty.json'),
-      import('../fixtures/empty.json', { assert: { type: 'json' } }),
+      import('../fixtures/empty.json', { with: { type: 'json' } }),
     ]);
 
     strictEqual(results[0].status, 'rejected');
