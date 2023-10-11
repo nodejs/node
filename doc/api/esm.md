@@ -255,8 +255,8 @@ changes:
 > Stability: 1.1 - Active development
 
 > This feature was previously named "Import assertions", and using the `assert`
-> keyword instead of `with`. Any uses in code of the prior `assert` keyword should
-> be updated to use `with` instead.
+> keyword instead of `with`. Any uses in code of the prior `assert` keyword
+> should be updated to use `with` instead.
 
 The [Import Attributes proposal][] adds an inline syntax for module import
 statements to pass on more information alongside the module specifier.
