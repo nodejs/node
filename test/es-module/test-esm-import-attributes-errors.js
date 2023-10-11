@@ -12,6 +12,11 @@ async function test() {
   );
 
   await rejects(
+    import('data:text/css,', { with: { unsupportedAttribute: 'value' } }),
+    { code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED' }
+  );
+
+  await rejects(
     import(`data:text/javascript,import${JSON.stringify(jsModuleDataUrl)}with{type:"json"}`),
     { code: 'ERR_IMPORT_ASSERTION_TYPE_FAILED' }
   );

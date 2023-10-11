@@ -18,6 +18,14 @@ assert.throws(() => validateAttributes(url, 'json', {}), {
   code: 'ERR_IMPORT_ASSERTION_TYPE_MISSING',
 });
 
+assert.throws(() => validateAttributes(url, 'json', { type: 'json', unsupportedAttribute: 'value' }), {
+  code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED',
+});
+
+assert.throws(() => validateAttributes(url, 'module', { unsupportedAttribute: 'value' }), {
+  code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED',
+});
+
 assert.throws(() => validateAttributes(url, 'module', { type: 'json' }), {
   code: 'ERR_IMPORT_ASSERTION_TYPE_FAILED',
 });

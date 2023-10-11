@@ -1786,6 +1786,16 @@ added:
 
 An import attribute is not supported by this version of Node.js.
 
+<a id="ERR_IMPORT_ATTRIBUTE_UNSUPPORTED"></a>
+
+### `ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An import attribute is not supported by this version of Node.js.
+
 <a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
 
 ### `ERR_INCOMPATIBLE_OPTION_PAIR`
