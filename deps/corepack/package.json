@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -10,13 +10,13 @@
     "url": "https://github.com/nodejs/corepack.git"
   },
   "engines": {
-    "node": ">=16.20.0"
+    "node": ">=18.17.1"
   },
   "exports": {
     "./package.json": "./package.json"
   },
   "license": "MIT",
-  "packageManager": "yarn@4.0.0-rc.44+sha224.6526204ca38ed0105e81ba52d83dc0c7b8ee63600a13dc332914fde0",
+  "packageManager": "yarn@4.0.0-rc.50+sha256.6663791fa05e15176880da500c334caf1699541f834302e6df085d20ef06069d",
   "devDependencies": {
     "@babel/core": "^7.14.3",
     "@babel/plugin-transform-modules-commonjs": "^7.14.0",
@@ -52,7 +52,7 @@
   },
   "scripts": {
     "build": "rm -rf dist shims && run build:bundle && ts-node ./mkshims.ts",
-    "build:bundle": "esbuild ./sources/_lib.ts --bundle --platform=node --target=node16.20.0 --external:corepack --outfile='./dist/lib/corepack.cjs' --resolve-extensions='.ts,.mjs,.js'",
+    "build:bundle": "esbuild ./sources/_lib.ts --bundle --platform=node --target=node18.17.0 --external:corepack --outfile='./dist/lib/corepack.cjs' --resolve-extensions='.ts,.mjs,.js'",
     "corepack": "ts-node ./sources/_cli.ts",
     "lint": "eslint .",
     "prepack": "yarn build",

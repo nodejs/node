@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.21.0](https://github.com/nodejs/corepack/compare/v0.20.0...v0.21.0) (2023-10-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove support for Node.js 16.x
+
+### Features
+
+* update package manager versions ([#297](https://github.com/nodejs/corepack/issues/297)) ([503e135](https://github.com/nodejs/corepack/commit/503e135878935cc881ebd94b48d5eca94ec4c27b))
+
+
+### Miscellaneous Chores
+
+* update supported Node.js versions ([#309](https://github.com/nodejs/corepack/issues/309)) ([787e24d](https://github.com/nodejs/corepack/commit/787e24df609513702eafcd8c6a5f03544d7d45cc))
+
 ## [0.20.0](https://github.com/nodejs/corepack/compare/v0.19.0...v0.20.0) (2023-08-29)
 
 
