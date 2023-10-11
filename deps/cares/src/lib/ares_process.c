@@ -444,7 +444,7 @@ static void read_udp_packets_fd(ares_channel channel,
         continue;
 
       handle_error(conn, now);
-
+      return;
 #ifdef HAVE_RECVFROM
     } else if (!same_address(&from.sa, &conn->server->addr)) {
       /* The address the response comes from does not match the address we
@@ -682,9 +682,10 @@ static void process_answer(ares_channel channel, const unsigned char *abuf,
 static void handle_error(struct server_connection *conn,
                          struct timeval *now)
 {
-  ares_channel        channel = conn->server->channel;
-  ares__llist_t      *list_copy;
-  ares__llist_node_t *node;
+  ares_channel         channel = conn->server->channel;
+  struct server_state *server = conn->server;
+  ares__llist_t       *list_copy;
+  ares__llist_node_t  *node;
 
   /* We steal the list from the connection then close the connection, then
    * iterate across the list to requeue any inflight queries with the broken
@@ -697,8 +698,8 @@ static void handle_error(struct server_connection *conn,
   while ((node = ares__llist_node_first(list_copy)) != NULL) {
     struct query       *query = ares__llist_node_val(node);
 
-    assert(query->server == (int)conn->server->idx);
-    skip_server(channel, query, conn->server);
+    assert(query->server == (int)server->idx);
+    skip_server(channel, query, server);
     /* next_server will remove the current node from the list */
     next_server(channel, query, now);
   }
