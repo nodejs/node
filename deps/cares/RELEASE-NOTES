@@ -1,4 +1,16 @@
-c-ares version 1.20.0
+c-ares version 1.20.1
+
+This release resolves a significant issue in the 1.20.0 release.
+
+Bug fixes:
+ o Resolve use-after-free issue when TCP connection is terminated before a
+   response is returned [17]
+ o Reduce number of queries for a load test case to prevent overloading some
+   build systems
+ o Fix fuzz test build target [18]
+
+
+c-ares 1.20.0 notes below:
 
 This is a feature and bugfix release with some significant internal changes.
 
@@ -58,3 +70,5 @@ References to bug reports and discussions on issues:
  [14] = https://github.com/c-ares/c-ares/pull/526
  [15] = https://github.com/c-ares/c-ares/pull/525
  [16] = https://github.com/c-ares/c-ares/pull/524
+ [17] = https://github.com/c-ares/c-ares/pull/562
+ [18] = https://github.com/c-ares/c-ares/pull/559

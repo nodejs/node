@@ -1,5 +1,45 @@
    Changelog for the c-ares project. Generated with git2changes.pl
 
+Version 1.20.1 (8 Oct 2023)
+
+GitHub (8 Oct 2023)
+- [Daniel Stenberg brought this change]
+
+  ares-test:  silence warning (#564)
+  
+  warning: comparison of integer expressions of different signedness
+  
+  Fix By: Daniel Stenberg (@bagder)
+
+Brad House (8 Oct 2023)
+- fix README.md
+
+GitHub (8 Oct 2023)
+- [Brad House brought this change]
+
+  1.20.1 release (#563)
+
+- [Brad House brought this change]
+
+  fix reference to freed memory (#562)
+  
+  Issue #561 shows free'd memory could be accessed in some error conditions.
+  
+  Fixes Issue #561
+  Fix By: Brad House (@bradh352)
+
+Brad House (8 Oct 2023)
+- reported build/test systems may timeout on intensive tests. reduce test case to still be relevant but to reduce false positive errors
+
+GitHub (8 Oct 2023)
+- [Gregor Jasny brought this change]
+
+  Regression: Fix typo in fuzzcheck target name (#559)
+  
+  This seems to be a vim'esque typo introduced with c1b00c41.
+  
+  Fix By: Gregor Jasny (@gjasny)
+
 Version 1.20.0 (6 Oct 2023)
 
 Brad House (6 Oct 2023)
@@ -5665,32 +5705,3 @@ Ben Greear (30 Jul 2010)
 - ipv6: Fix some build issues related to the local-bind feature.
   
   Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-Guenter Knauf (29 Jul 2010)
-- Replaced uint32_t with unsigned int to fix broken builds on a couple of platforms.
-
-Daniel Stenberg (18 Jul 2010)
-- [Ben Greear brought this change]
-
-  local-bind:  Support binding to local interface/IPs
-  
-  Add 3 new functions to set the local binding for the out-going
-  socket connection, and add ares_set_servers_csv() to set a
-  list of servers at once as a comma-separated string.
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-- version: now start on 1.7.4
-
-- [Andrew C. Morrow brought this change]
-
-  fix memory leak in ares_getnameinfo
-
-Version 1.7.3 (11 Jun 2010)
-
-Daniel Stenberg (11 Jun 2010)
-- changelogs: updated for 1.7.3
-
-- [BogDan Vatra brought this change]
-
-  init: allow c-ares to work on Android OS
