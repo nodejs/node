@@ -22,11 +22,13 @@ class CompatFinalizer {
   }
 
   register (dispatcher, key) {
-    dispatcher.on('disconnect', () => {
-      if (dispatcher[kConnected] === 0 && dispatcher[kSize] === 0) {
-        this.finalizer(key)
-      }
-    })
+    if (dispatcher.on) {
+      dispatcher.on('disconnect', () => {
+        if (dispatcher[kConnected] === 0 && dispatcher[kSize] === 0) {
+          this.finalizer(key)
+        }
+      })
+    }
   }
 }
 

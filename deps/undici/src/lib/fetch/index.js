@@ -1344,7 +1344,7 @@ async function httpNetworkOrCacheFetch (
   //    user agents should append `User-Agent`/default `User-Agent` value to
   //    httpRequest’s header list.
   if (!httpRequest.headersList.contains('user-agent')) {
-    httpRequest.headersList.append('user-agent', 'undici')
+    httpRequest.headersList.append('user-agent', __filename.endsWith('index.js') ? 'undici' : 'node')
   }
 
   //    15. If httpRequest’s cache mode is "default" and httpRequest’s header
@@ -1405,6 +1405,8 @@ async function httpNetworkOrCacheFetch (
       httpRequest.headersList.append('accept-encoding', 'gzip, deflate')
     }
   }
+
+  httpRequest.headersList.delete('host')
 
   //    20. If includeCredentials is true, then:
   if (includeCredentials) {

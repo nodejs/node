@@ -4778,11 +4778,13 @@ var require_dispatcher_weakref = __commonJS({
         this.finalizer = finalizer;
       }
       register(dispatcher, key) {
-        dispatcher.on("disconnect", () => {
-          if (dispatcher[kConnected] === 0 && dispatcher[kSize] === 0) {
-            this.finalizer(key);
-          }
-        });
+        if (dispatcher.on) {
+          dispatcher.on("disconnect", () => {
+            if (dispatcher[kConnected] === 0 && dispatcher[kSize] === 0) {
+              this.finalizer(key);
+            }
+          });
+        }
       }
     };
     module2.exports = function() {
@@ -6126,7 +6128,10 @@ var require_request2 = __commonJS({
         }
       } else if (request.contentType === null && key.length === 12 && key.toLowerCase() === "content-type") {
         request.contentType = val;
-        request.headers += processHeaderValue(key, val);
+        if (skipAppend)
+          request.headers[key] = processHeaderValue(key, val, skipAppend);
+        else
+          request.headers += processHeaderValue(key, val);
       } else if (key.length === 17 && key.toLowerCase() === "transfer-encoding") {
         throw new InvalidArgumentError("invalid transfer-encoding header");
       } else if (key.length === 10 && key.toLowerCase() === "connection") {
@@ -6841,6 +6846,7 @@ var require_client = __commonJS({
     "use strict";
     var assert = require("assert");
     var net = require("net");
+    var http = require("http");
     var { pipeline } = require("stream");
     var util = require_util();
     var timers = require_timers();
@@ -6923,6 +6929,7 @@ var require_client = __commonJS({
         HTTP2_HEADER_AUTHORITY,
         HTTP2_HEADER_METHOD,
         HTTP2_HEADER_PATH,
+        HTTP2_HEADER_SCHEME,
         HTTP2_HEADER_CONTENT_LENGTH,
         HTTP2_HEADER_EXPECT,
         HTTP2_HEADER_STATUS
@@ -7054,7 +7061,7 @@ var require_client = __commonJS({
         this[kConnector] = connect2;
         this[kSocket] = null;
         this[kPipelining] = pipelining != null ? pipelining : 1;
-        this[kMaxHeadersSize] = maxHeaderSize || 16384;
+        this[kMaxHeadersSize] = maxHeaderSize || http.maxHeaderSize;
         this[kKeepAliveDefaultTimeout] = keepAliveTimeout == null ? 4e3 : keepAliveTimeout;
         this[kKeepAliveMaxTimeout] = keepAliveMaxTimeout == null ? 6e5 : keepAliveMaxTimeout;
         this[kKeepAliveTimeoutThreshold] = keepAliveTimeoutThreshold == null ? 1e3 : keepAliveTimeoutThreshold;
@@ -8094,7 +8101,7 @@ upgrade: ${upgrade}\r
       let stream;
       const h2State = client[kHTTP2SessionState];
       headers[HTTP2_HEADER_AUTHORITY] = host || client[kHost];
-      headers[HTTP2_HEADER_PATH] = path;
+      headers[HTTP2_HEADER_METHOD] = method;
       if (method === "CONNECT") {
         session.ref();
         stream = session.request(headers, { endStream: false, signal });
@@ -8113,9 +8120,9 @@ upgrade: ${upgrade}\r
             session.unref();
         });
         return true;
-      } else {
-        headers[HTTP2_HEADER_METHOD] = method;
       }
+      headers[HTTP2_HEADER_PATH] = path;
+      headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8192,6 +8199,7 @@ upgrade: ${upgrade}\r
           stream.cork();
           stream.write(body);
           stream.uncork();
+          stream.end();
           request.onBodySent(body);
           request.onRequestSent();
         } else if (util.isBlobLike(body)) {
@@ -8374,13 +8382,17 @@ upgrade: ${upgrade}\r
             if (socket[kError]) {
               throw socket[kError];
             }
-            if (!h2stream.write(chunk)) {
+            const res = h2stream.write(chunk);
+            request.onBodySent(chunk);
+            if (!res) {
               await waitForDrain();
             }
           }
         } catch (err) {
           h2stream.destroy(err);
         } finally {
+          request.onRequestSent();
+          h2stream.end();
           h2stream.off("close", onDrain).off("drain", onDrain);
         }
         return;
@@ -9353,7 +9365,7 @@ var require_fetch = __commonJS({
       appendRequestOriginHeader(httpRequest);
       appendFetchMetadata(httpRequest);
       if (!httpRequest.headersList.contains("user-agent")) {
-        httpRequest.headersList.append("user-agent", "undici");
+        httpRequest.headersList.append("user-agent", __filename.endsWith("index.js") ? "undici" : "node");
       }
       if (httpRequest.cache === "default" && (httpRequest.headersList.contains("if-modified-since") || httpRequest.headersList.contains("if-none-match") || httpRequest.headersList.contains("if-unmodified-since") || httpRequest.headersList.contains("if-match") || httpRequest.headersList.contains("if-range"))) {
         httpRequest.cache = "no-store";
@@ -9379,6 +9391,7 @@ var require_fetch = __commonJS({
           httpRequest.headersList.append("accept-encoding", "gzip, deflate");
         }
       }
+      httpRequest.headersList.delete("host");
       if (includeCredentials) {
       }
       if (httpCache == null) {
