@@ -34,6 +34,7 @@ rm -f deps/undici/undici.js
 
     "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "undici@$NEW_VERSION"
     cd node_modules/undici
+    "$NODE" "$NPM" install
     "$NODE" "$NPM" run build:node
 )
 
