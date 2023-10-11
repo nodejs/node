@@ -203,7 +203,7 @@ declare namespace InternalFSBinding {
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, usePromises: typeof kUsePromises): Promise<void>;
 
   function unlink(path: string, req: FSReqCallback): void;
-  function unlink(path: string, req: undefined, ctx: FSSyncContext): void;
+  function unlink(path: string): void;
   function unlink(path: string, usePromises: typeof kUsePromises): Promise<void>;
 
   function utimes(path: string, atime: number, mtime: number, req: FSReqCallback): void;
