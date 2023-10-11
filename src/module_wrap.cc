@@ -252,13 +252,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 static Local<Object> createImportAttributesContainer(Environment* env,
   Isolate* isolate, Local<FixedArray> raw_attributes) {
   Local<Object> attributes =
-        Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
+      Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
   for (int i = 0; i < raw_attributes->Length(); i += 3) {
-      attributes
-          ->Set(env->context(),
-                raw_attributes->Get(env->context(), i).As<String>(),
-                raw_attributes->Get(env->context(), i + 1).As<Value>())
-          .ToChecked();
+    attributes
+      ->Set(env->context(),
+            raw_attributes->Get(env->context(), i).As<String>(),
+            raw_attributes->Get(env->context(), i + 1).As<Value>())
+      .ToChecked();
   }
 
   return attributes;
@@ -299,7 +299,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
 
     Local<FixedArray> raw_attributes = module_request->GetImportAssertions();
     Local<Object> attributes =
-      createImportAttributesContainer(env, isolate, raw_attributes);
+        createImportAttributesContainer(env, isolate, raw_attributes);
 
     Local<Value> argv[] = {
         specifier,
@@ -581,7 +581,7 @@ static MaybeLocal<Promise> ImportModuleDynamically(
       options->Get(context, HostDefinedOptions::kID).As<Symbol>();
 
   Local<Object> attributes =
-    createImportAttributesContainer(env, isolate, import_attributes);
+      createImportAttributesContainer(env, isolate, import_attributes);
 
   Local<Value> import_args[] = {
       id,
