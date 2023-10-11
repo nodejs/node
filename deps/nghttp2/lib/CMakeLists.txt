@@ -24,6 +24,8 @@ set(NGHTTP2_SOURCES
   nghttp2_http.c
   nghttp2_rcbuf.c
   nghttp2_extpri.c
+  nghttp2_ratelim.c
+  nghttp2_time.c
   nghttp2_debug.c
   sfparse.c
 )

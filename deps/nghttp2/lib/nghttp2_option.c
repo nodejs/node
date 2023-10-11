@@ -143,3 +143,10 @@ void nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation(
       NGHTTP2_OPT_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION;
   option->no_rfc9113_leading_and_trailing_ws_validation = val;
 }
+
+void nghttp2_option_set_stream_reset_rate_limit(nghttp2_option *option,
+                                                uint64_t burst, uint64_t rate) {
+  option->opt_set_mask |= NGHTTP2_OPT_STREAM_RESET_RATE_LIMIT;
+  option->stream_reset_burst = burst;
+  option->stream_reset_rate = rate;
+}

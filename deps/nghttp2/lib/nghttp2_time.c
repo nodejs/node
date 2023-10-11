@@ -1,7 +1,7 @@
 /*
  * nghttp2 - HTTP/2 C Library
  *
- * Copyright (c) 2012, 2013 Tatsuhiro Tsujikawa
+ * Copyright (c) 2023 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,21 +22,41 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGHTTP2VER_H
-#define NGHTTP2VER_H
+#include "nghttp2_time.h"
 
-/**
- * @macro
- * Version number of the nghttp2 library release
- */
-#define NGHTTP2_VERSION "1.57.0"
+#ifdef HAVE_TIME_H
+#  include <time.h>
+#endif /* HAVE_TIME_H */
 
-/**
- * @macro
- * Numerical representation of the version number of the nghttp2 library
- * release. This is a 24 bit number with 8 bits for major number, 8 bits
- * for minor and 8 bits for patch. Version 1.2.3 becomes 0x010203.
- */
-#define NGHTTP2_VERSION_NUM 0x013900
+#ifdef HAVE_SYSINFOAPI_H
+#  include <sysinfoapi.h>
+#endif /* HAVE_SYSINFOAPI_H */
 
-#endif /* NGHTTP2VER_H */
+#ifndef HAVE_GETTICKCOUNT64
+static uint64_t time_now_sec(void) {
+  time_t t = time(NULL);
+
+  if (t == -1) {
+    return 0;
+  }
+
+  return (uint64_t)t;
+}
+#endif /* HAVE_GETTICKCOUNT64 */
+
+#ifdef HAVE_CLOCK_GETTIME
+uint64_t nghttp2_time_now_sec(void) {
+  struct timespec tp;
+  int rv = clock_gettime(CLOCK_MONOTONIC, &tp);
+
+  if (rv == -1) {
+    return time_now_sec();
+  }
+
+  return (uint64_t)tp.tv_sec;
+}
+#elif defined(HAVE_GETTICKCOUNT64)
+uint64_t nghttp2_time_now_sec(void) { return GetTickCount64() / 1000; }
+#else  /* !HAVE_CLOCK_GETTIME && !HAVE_GETTICKCOUNT64 */
+uint64_t nghttp2_time_now_sec(void) { return time_now_sec(); }
+#endif /* !HAVE_CLOCK_GETTIME && !HAVE_GETTICKCOUNT64 */
