@@ -249,8 +249,8 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(that);
 }
 
-static Local<Object> createImportAttributesContainer(Environment* env,
-  Isolate* isolate, Local<FixedArray> raw_attributes) {
+static Local<Object> createImportAttributesContainer(
+    Environment* env, Isolate* isolate, Local<FixedArray> raw_attributes) {
   Local<Object> attributes =
       Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
   for (int i = 0; i < raw_attributes->Length(); i += 3) {
