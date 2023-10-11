@@ -12,7 +12,7 @@ This a list of all the dependencies:
 * [ada 2.7.2][]
 * [base64][]
 * [brotli][]
-* [c-ares 1.20.0][]
+* [c-ares 1.20.1][]
 * [cjs-module-lexer][]
 * [corepack][]
 * [googletest][]
@@ -165,7 +165,7 @@ length-delimited strings.
 The [brotli](https://github.com/google/brotli) dependency is
 used for the homonym generic-purpose lossless compression algorithm.
 
-### c-ares 1.20.0
+### c-ares 1.20.1
 
 The [c-ares](https://github.com/c-ares/c-ares) is a C library
 for asynchronous DNS requests.
@@ -315,7 +315,7 @@ performance improvements not currently available in standard zlib.
 [ada 2.7.2]: #ada-272
 [base64]: #base64
 [brotli]: #brotli
-[c-ares 1.20.0]: #c-ares-1200
+[c-ares 1.20.1]: #c-ares-1200
 [cjs-module-lexer]: #cjs-module-lexer
 [corepack]: #corepack
 [dependency-update-action]: ../../../.github/workflows/tools.yml
