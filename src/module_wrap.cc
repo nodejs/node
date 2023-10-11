@@ -255,10 +255,10 @@ static Local<Object> createImportAttributesContainer(Environment* env,
       Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
   for (int i = 0; i < raw_attributes->Length(); i += 3) {
     attributes
-      ->Set(env->context(),
-            raw_attributes->Get(env->context(), i).As<String>(),
-            raw_attributes->Get(env->context(), i + 1).As<Value>())
-      .ToChecked();
+        ->Set(env->context(),
+              raw_attributes->Get(env->context(), i).As<String>(),
+              raw_attributes->Get(env->context(), i + 1).As<Value>())
+        .ToChecked();
   }
 
   return attributes;
