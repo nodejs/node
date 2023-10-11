@@ -22,7 +22,7 @@ changes:
     - v17.1.0
     - v16.14.0
     pr-url: https://github.com/nodejs/node/pull/40250
-    description: Add experimental support for import attributes.
+    description: Add experimental support for import assertions.
   - version:
     - v17.0.0
     - v16.12.0
