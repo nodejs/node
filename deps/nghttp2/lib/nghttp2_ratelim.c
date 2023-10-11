@@ -1,7 +1,7 @@
 /*
  * nghttp2 - HTTP/2 C Library
  *
- * Copyright (c) 2012, 2013 Tatsuhiro Tsujikawa
+ * Copyright (c) 2023 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,21 +22,54 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGHTTP2VER_H
-#define NGHTTP2VER_H
+#include "nghttp2_ratelim.h"
+#include "nghttp2_helper.h"
 
-/**
- * @macro
- * Version number of the nghttp2 library release
- */
-#define NGHTTP2_VERSION "1.57.0"
+void nghttp2_ratelim_init(nghttp2_ratelim *rl, uint64_t burst, uint64_t rate) {
+  rl->val = rl->burst = burst;
+  rl->rate = rate;
+  rl->tstamp = 0;
+}
 
-/**
- * @macro
- * Numerical representation of the version number of the nghttp2 library
- * release. This is a 24 bit number with 8 bits for major number, 8 bits
- * for minor and 8 bits for patch. Version 1.2.3 becomes 0x010203.
- */
-#define NGHTTP2_VERSION_NUM 0x013900
+void nghttp2_ratelim_update(nghttp2_ratelim *rl, uint64_t tstamp) {
+  uint64_t d, gain;
 
-#endif /* NGHTTP2VER_H */
+  if (tstamp == rl->tstamp) {
+    return;
+  }
+
+  if (tstamp > rl->tstamp) {
+    d = tstamp - rl->tstamp;
+  } else {
+    d = 1;
+  }
+
+  rl->tstamp = tstamp;
+
+  if (UINT64_MAX / d < rl->rate) {
+    rl->val = rl->burst;
+
+    return;
+  }
+
+  gain = rl->rate * d;
+
+  if (UINT64_MAX - gain < rl->val) {
+    rl->val = rl->burst;
+
+    return;
+  }
+
+  rl->val += gain;
+  rl->val = nghttp2_min(rl->val, rl->burst);
+}
+
+int nghttp2_ratelim_drain(nghttp2_ratelim *rl, uint64_t n) {
+  if (rl->val < n) {
+    return -1;
+  }
+
+  rl->val -= n;
+
+  return 0;
+}

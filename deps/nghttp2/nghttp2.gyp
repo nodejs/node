@@ -19,10 +19,12 @@
       'lib/nghttp2_pq.c',
       'lib/nghttp2_priority_spec.c',
       'lib/nghttp2_queue.c',
+      'lib/nghttp2_ratelim.c',
       'lib/nghttp2_rcbuf.c',
       'lib/nghttp2_session.c',
       'lib/nghttp2_stream.c',
       'lib/nghttp2_submit.c',
+      'lib/nghttp2_time.c',
       'lib/nghttp2_version.c',
       'lib/sfparse.c',
     ]
