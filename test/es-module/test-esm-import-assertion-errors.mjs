@@ -1,4 +1,4 @@
-import { expectWarning } from '../common/index.mjs';
+import '../common/index.mjs';
 import { rejects } from 'assert';
 
 const jsModuleDataUrl = 'data:text/javascript,export{}';
