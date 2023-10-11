@@ -543,7 +543,8 @@ export CC="ccache cc"    # add to ~/.zshrc or other shell config file
 export CXX="ccache c++"  # add to ~/.zshrc or other shell config file
 ```
 
-This will allow for near-instantaneous rebuilds even when switching branches.
+This will allow for near-instantaneous rebuilds when switching branches back
+and forth that were built with cache.
 
 When modifying only the JS layer in `lib`, it is possible to externally load it
 without modifying the executable:
