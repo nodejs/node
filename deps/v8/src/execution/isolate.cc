@@ -2503,6 +2503,7 @@ void Isolate::PrintCurrentStackTrace(std::ostream& out) {
   for (int i = 0; i < frames->length(); ++i) {
     Handle<CallSiteInfo> frame(CallSiteInfo::cast(frames->get(i)), this);
     SerializeCallSiteInfo(this, frame, &builder);
+    if (i != frames->length() - 1) builder.AppendCharacter('\n');
   }
 
   Handle<String> stack_trace = builder.Finish().ToHandleChecked();
