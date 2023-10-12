@@ -2203,18 +2203,29 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
     iovs[i] = uv_buf_init(Buffer::Data(chunk), Buffer::Length(chunk));
   }
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // writeBuffers(fd, chunks, pos, req)
+  if (argc > 3) {  // writeBuffers(fd, chunks, pos, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_WRITE, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "write", UTF8, AfterInteger,
-              uv_fs_write, fd, *iovs, iovs.length(), pos);
-  } else {  // writeBuffers(fd, chunks, pos, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+    AsyncCall(env,
+              req_wrap_async,
+              args,
+              "write",
+              UTF8,
+              AfterInteger,
+              uv_fs_write,
+              fd,
+              *iovs,
+              iovs.length(),
+              pos);
+  } else {  // writeBuffers(fd, chunks, pos)
+    FSReqWrapSync req_wrap_sync("write");
     FS_SYNC_TRACE_BEGIN(write);
-    int bytesWritten = SyncCall(env, args[4], &req_wrap_sync, "write",
-                                uv_fs_write, fd, *iovs, iovs.length(), pos);
+    int bytesWritten = SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_write, fd, *iovs, iovs.length(), pos);
     FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
+    if (is_uv_error(bytesWritten)) {
+      return;
+    }
     args.GetReturnValue().Set(bytesWritten);
   }
 }
