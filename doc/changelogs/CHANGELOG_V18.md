@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.18.2">18.18.2</a><br/>
 <a href="#18.18.1">18.18.1</a><br/>
 <a href="#18.18.0">18.18.0</a><br/>
 <a href="#18.17.1">18.17.1</a><br/>
@@ -60,6 +61,36 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.18.2"></a>
+
+## 2023-10-13, Version 18.18.2 'Hydrogen' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* [CVE-2023-44487](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-44487): `nghttp2` Security Release (High)
+* [CVE-2023-45143](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-45143): `undici` Security Release (High)
+* [CVE-2023-38552](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-38552):  Integrity checks according to policies can be circumvented (Medium)
+* [CVE-2023-39333](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-39333): Code injection via WebAssembly export names (Low)
+
+More detailed information on each of the vulnerabilities can be found in [October 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/october-2023-security-releases/) blog post.
+
+### Commits
+
+* \[[`55028468db`](https://github.com/nodejs/node/commit/55028468db)] - **deps**: update undici to v5.26.3 (Matteo Collina) [#50153](https://github.com/nodejs/node/pull/50153)
+* \[[`a792bbc515`](https://github.com/nodejs/node/commit/a792bbc515)] - **deps**: update nghttp2 to 1.57.0 (James M Snell) [#50121](https://github.com/nodejs/node/pull/50121)
+* \[[`f6444defa4`](https://github.com/nodejs/node/commit/f6444defa4)] - **deps**: update nghttp2 to 1.56.0 (Node.js GitHub Bot) [#49582](https://github.com/nodejs/node/pull/49582)
+* \[[`7e9b08dfd4`](https://github.com/nodejs/node/commit/7e9b08dfd4)] - **deps**: update nghttp2 to 1.55.1 (Node.js GitHub Bot) [#48790](https://github.com/nodejs/node/pull/48790)
+* \[[`85672c153f`](https://github.com/nodejs/node/commit/85672c153f)] - **deps**: update nghttp2 to 1.55.0 (Node.js GitHub Bot) [#48746](https://github.com/nodejs/node/pull/48746)
+* \[[`300a902422`](https://github.com/nodejs/node/commit/300a902422)] - **deps**: update nghttp2 to 1.53.0 (Node.js GitHub Bot) [#47997](https://github.com/nodejs/node/pull/47997)
+* \[[`7d83ed0bf6`](https://github.com/nodejs/node/commit/7d83ed0bf6)] - _**Revert**_ "**deps**: update nghttp2 to 1.55.0" (Richard Lau) [#50151](https://github.com/nodejs/node/pull/50151)
+* \[[`1193ca5fdb`](https://github.com/nodejs/node/commit/1193ca5fdb)] - **lib**: let deps require `node` prefixed modules (Matthew Aitken) [#50047](https://github.com/nodejs/node/pull/50047)
+* \[[`eaf9083cf1`](https://github.com/nodejs/node/commit/eaf9083cf1)] - **module**: fix code injection through export names (Tobias Nießen) [nodejs-private/node-private#461](https://github.com/nodejs-private/node-private/pull/461)
+* \[[`1c538938cc`](https://github.com/nodejs/node/commit/1c538938cc)] - **policy**: use tamper-proof integrity check function (Tobias Nießen) [nodejs-private/node-private#462](https://github.com/nodejs-private/node-private/pull/462)
 
 <a id="18.18.1"></a>
 
