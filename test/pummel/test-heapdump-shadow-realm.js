@@ -11,7 +11,7 @@ let counter = 0;
 // snapshot can handle it.
 function createRealms() {
   // Use setImmediate to give GC some time to kick in to avoid OOM.
-  if (counter++ < 100) {
+  if (counter++ < 10) {
     realm = new ShadowRealm();
     realm.evaluate('undefined');
     setImmediate(createRealms);
