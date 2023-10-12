@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.8.1">20.8.1</a><br/>
 <a href="#20.8.0">20.8.0</a><br/>
 <a href="#20.7.0">20.7.0</a><br/>
 <a href="#20.6.1">20.6.1</a><br/>
@@ -45,6 +46,35 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.8.1"></a>
+
+## 2023-10-13, Version 20.8.1 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* [CVE-2023-44487](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-44487): `nghttp2` Security Release (High)
+* [CVE-2023-45143](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-45143): `undici` Security Release (High)
+* [CVE-2023-39332](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-39332): Path traversal through path stored in Uint8Array (High)
+* [CVE-2023-39331](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-39331): Permission model improperly protects against path traversal (High)
+* [CVE-2023-38552](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-38552):  Integrity checks according to policies can be circumvented (Medium)
+* [CVE-2023-39333](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-39333): Code injection via WebAssembly export names (Low)
+
+More detailed information on each of the vulnerabilities can be found in [October 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/october-2023-security-releases/) blog post.
+
+### Commits
+
+* \[[`c86883e844`](https://github.com/nodejs/node/commit/c86883e844)] - **deps**: update nghttp2 to 1.57.0 (James M Snell) [#50121](https://github.com/nodejs/node/pull/50121)
+* \[[`2860631359`](https://github.com/nodejs/node/commit/2860631359)] - **deps**: update undici to v5.26.3 (Matteo Collina) [#50153](https://github.com/nodejs/node/pull/50153)
+* \[[`cd37838bf8`](https://github.com/nodejs/node/commit/cd37838bf8)] - **lib**: let deps require `node` prefixed modules (Matthew Aitken) [#50047](https://github.com/nodejs/node/pull/50047)
+* \[[`f5c90b2951`](https://github.com/nodejs/node/commit/f5c90b2951)] - **module**: fix code injection through export names (Tobias Nießen) [nodejs-private/node-private#461](https://github.com/nodejs-private/node-private/pull/461)
+* \[[`fa5dae1944`](https://github.com/nodejs/node/commit/fa5dae1944)] - **permission**: fix Uint8Array path traversal (Tobias Nießen) [nodejs-private/node-private#456](https://github.com/nodejs-private/node-private/pull/456)
+* \[[`cd35275111`](https://github.com/nodejs/node/commit/cd35275111)] - **permission**: improve path traversal protection (Tobias Nießen) [nodejs-private/node-private#456](https://github.com/nodejs-private/node-private/pull/456)
+* \[[`a4cb7fc7c0`](https://github.com/nodejs/node/commit/a4cb7fc7c0)] - **policy**: use tamper-proof integrity check function (Tobias Nießen) [nodejs-private/node-private#462](https://github.com/nodejs-private/node-private/pull/462)
 
 <a id="20.8.0"></a>
 
