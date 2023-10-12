@@ -381,7 +381,8 @@ function processHeader (request, key, val, skipAppend = false) {
     key.toLowerCase() === 'content-type'
   ) {
     request.contentType = val
-    request.headers += processHeaderValue(key, val)
+    if (skipAppend) request.headers[key] = processHeaderValue(key, val, skipAppend)
+    else request.headers += processHeaderValue(key, val)
   } else if (
     key.length === 17 &&
     key.toLowerCase() === 'transfer-encoding'

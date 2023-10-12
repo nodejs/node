@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.25.4",
+  "version": "5.26.3",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -67,15 +67,16 @@
     "index-fetch.js",
     "lib",
     "types",
-    "docs"
+    "docs",
+    "scripts/esbuild-build.mjs"
   ],
   "scripts": {
-    "build:node": "npx esbuild@0.14.38 index-fetch.js --bundle --platform=node --outfile=undici-fetch.js",
+    "build:node": "node scripts/esbuild-build.mjs",
     "prebuild:wasm": "node build/wasm.js --prebuild",
     "build:wasm": "node build/wasm.js --docker",
     "lint": "standard | snazzy",
     "lint:fix": "standard --fix | snazzy",
-    "test": "npm run test:tap && npm run test:node-fetch && npm run test:fetch && npm run test:cookies && npm run test:wpt && npm run test:websocket && npm run test:jest && npm run test:typescript",
+    "test": "node scripts/generate-pem && npm run test:tap && npm run test:node-fetch && npm run test:fetch && npm run test:cookies && npm run test:wpt && npm run test:websocket && npm run test:jest && npm run test:typescript",
     "test:cookies": "node scripts/verifyVersion 16 || tap test/cookie/*.js",
     "test:node-fetch": "node scripts/verifyVersion.js 16 || mocha --exit test/node-fetch",
     "test:fetch": "node scripts/verifyVersion.js 16 || (npm run build:node && tap --expose-gc test/fetch/*.js && tap test/webidl/*.js)",
@@ -109,6 +110,7 @@
     "delay": "^5.0.0",
     "dns-packet": "^5.4.0",
     "docsify-cli": "^4.4.3",
+    "esbuild": "^0.19.4",
     "form-data": "^4.0.0",
     "formdata-node": "^4.3.1",
     "https-pem": "^3.0.0",
@@ -122,7 +124,8 @@
     "pre-commit": "^1.2.2",
     "proxy": "^1.0.2",
     "proxyquire": "^2.1.3",
-    "sinon": "^15.0.0",
+    "semver": "^7.5.4",
+    "sinon": "^16.1.0",
     "snazzy": "^9.0.0",
     "standard": "^17.0.0",
     "table": "^6.8.0",

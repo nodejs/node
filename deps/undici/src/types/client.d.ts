@@ -23,7 +23,7 @@ export declare namespace Client {
   export interface Options {
     /** TODO */
     interceptors?: OptionsInterceptors;
-    /** The maximum length of request headers in bytes. Default: `16384` (16KiB). */
+    /** The maximum length of request headers in bytes. Default: Node.js' `--max-http-header-size` or `16384` (16KiB). */
     maxHeaderSize?: number;
     /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). */
     headersTimeout?: number;
