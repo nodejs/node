@@ -120,7 +120,8 @@ The google groups UI does not support adding a CC, until we figure
 out a better way, forward the email you receive to
 `oss-security@lists.openwall.com` as a CC.
 
-* [ ] Send a message to `#nodejs-social` in OpenJS Foundation slack
+* [ ] Post in the [nodejs-social channel][]
+  in the OpenJS slack asking for amplication of the blog post.
 
   ```text
   Security release pre-alert:
@@ -179,7 +180,8 @@ out a better way, forward the email you receive to
   For more information see: https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
   ```
 
-* [ ] Create a new issue in [nodejs/tweet][]
+* [ ] Post in the [nodejs-social channel][]
+  in the OpenJS slack asking for amplication of the blog post.
   ```text
   Security release:
 
@@ -238,5 +240,5 @@ The steps to correct CVE information are:
 [H1 CVE requests]: https://hackerone.com/nodejs/cve_requests
 [docker-node]: https://github.com/nodejs/docker-node/issues
 [email]: https://groups.google.com/forum/#!forum/nodejs-sec
+[nodejs-social channel]: https://openjs-foundation.slack.com/archives/C0142A39BNE
 [nodejs/build]: https://github.com/nodejs/build/issues
-[nodejs/tweet]: https://github.com/nodejs/tweet/issues
