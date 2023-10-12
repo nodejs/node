@@ -26,7 +26,7 @@ This a list of all the dependencies:
 * [openssl][]
 * [postject][]
 * [simdutf][]
-* [undici][]
+* [undici 5.26.3][]
 * [uv][]
 * [uvwasi][]
 * [V8][]
@@ -278,7 +278,7 @@ The [postject](https://github.com/nodejs/postject) dependency is used for the
 The [simdutf](https://github.com/simdutf/simdutf) dependency is
 a C++ library for fast UTF-8 decoding and encoding.
 
-### undici
+### undici 5.26.3
 
 The [undici](https://github.com/nodejs/undici) dependency is an HTTP/1.1 client,
 written from scratch for Node.js..
@@ -336,7 +336,7 @@ performance improvements not currently available in standard zlib.
 [openssl]: #openssl
 [postject]: #postject
 [simdutf]: #simdutf
-[undici]: #undici
+[undici 5.26.3]: #undici-5263
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uv]: #uv
 [uvwasi]: #uvwasi

@@ -35,7 +35,10 @@ rm -f deps/undici/undici.js
 
     "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "undici@$NEW_VERSION"
     cd node_modules/undici
+    "$NODE" "$NPM" install --no-bin-link --ignore-scripts
     "$NODE" "$NPM" run build:node
+    "$NODE" "$NPM" prune --production
+    rm node_modules/.package-lock.json
 )
 
 # update version information in src/undici_version.h
