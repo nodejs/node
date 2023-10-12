@@ -62,9 +62,9 @@ async function testInvalid(code, position) {
   await testValid(1n);
   await testValid(9);
   await testValid(9n);
-  await testValid(Number.MAX_SAFE_INTEGER, [ 'EFBIG' ]);
+  await testValid(Number.MAX_SAFE_INTEGER, [ 'EFBIG', 'EOVERFLOW']);
 
-  await testValid(2n ** 63n - 1n - BigInt(length), [ 'EFBIG' ]);
+  await testValid(2n ** 63n - 1n - BigInt(length), [ 'EFBIG', 'EOVERFLOW']);
   await testInvalid('ERR_OUT_OF_RANGE', 2n ** 63n);
   await testInvalid('ERR_OUT_OF_RANGE', 2n ** 63n - BigInt(length));
 
