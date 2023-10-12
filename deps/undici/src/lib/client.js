@@ -6,6 +6,7 @@
 
 const assert = require('assert')
 const net = require('net')
+const http = require('http')
 const { pipeline } = require('stream')
 const util = require('./core/util')
 const timers = require('./timers')
@@ -93,6 +94,7 @@ const {
     HTTP2_HEADER_AUTHORITY,
     HTTP2_HEADER_METHOD,
     HTTP2_HEADER_PATH,
+    HTTP2_HEADER_SCHEME,
     HTTP2_HEADER_CONTENT_LENGTH,
     HTTP2_HEADER_EXPECT,
     HTTP2_HEADER_STATUS
@@ -269,7 +271,7 @@ class Client extends DispatcherBase {
     this[kConnector] = connect
     this[kSocket] = null
     this[kPipelining] = pipelining != null ? pipelining : 1
-    this[kMaxHeadersSize] = maxHeaderSize || 16384
+    this[kMaxHeadersSize] = maxHeaderSize || http.maxHeaderSize
     this[kKeepAliveDefaultTimeout] = keepAliveTimeout == null ? 4e3 : keepAliveTimeout
     this[kKeepAliveMaxTimeout] = keepAliveMaxTimeout == null ? 600e3 : keepAliveMaxTimeout
     this[kKeepAliveTimeoutThreshold] = keepAliveTimeoutThreshold == null ? 1e3 : keepAliveTimeoutThreshold
@@ -1689,7 +1691,7 @@ function writeH2 (client, session, request) {
   const h2State = client[kHTTP2SessionState]
 
   headers[HTTP2_HEADER_AUTHORITY] = host || client[kHost]
-  headers[HTTP2_HEADER_PATH] = path
+  headers[HTTP2_HEADER_METHOD] = method
 
   if (method === 'CONNECT') {
     session.ref()
@@ -1716,9 +1718,13 @@ function writeH2 (client, session, request) {
     })
 
     return true
-  } else {
-    headers[HTTP2_HEADER_METHOD] = method
   }
+
+  // https://tools.ietf.org/html/rfc7540#section-8.3
+  // :path and :scheme headers must be omited when sending CONNECT
+
+  headers[HTTP2_HEADER_PATH] = path
+  headers[HTTP2_HEADER_SCHEME] = 'https'
 
   // https://tools.ietf.org/html/rfc7231#section-4.3.1
   // https://tools.ietf.org/html/rfc7231#section-4.3.2
@@ -1856,6 +1862,7 @@ function writeH2 (client, session, request) {
       stream.cork()
       stream.write(body)
       stream.uncork()
+      stream.end()
       request.onBodySent(body)
       request.onRequestSent()
     } else if (util.isBlobLike(body)) {
@@ -2090,13 +2097,17 @@ async function writeIterable ({ h2stream, body, client, request, socket, content
           throw socket[kError]
         }
 
-        if (!h2stream.write(chunk)) {
+        const res = h2stream.write(chunk)
+        request.onBodySent(chunk)
+        if (!res) {
           await waitForDrain()
         }
       }
     } catch (err) {
       h2stream.destroy(err)
     } finally {
+      request.onRequestSent()
+      h2stream.end()
       h2stream
         .off('close', onDrain)
         .off('drain', onDrain)
