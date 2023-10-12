@@ -239,11 +239,30 @@ available to the module code.
 
 ## Node-API version matrix
 
-Node-API versions are additive and versioned independently from Node.js.
-Version 4 is an extension to version 3 in that it has all of the APIs
-from version 3 with some additions. This means that it is not necessary
-to recompile for new versions of Node.js which are
-listed as supporting a later version.
+Up until version 9, Node-API versions are additive and versioned
+independently from Node.js. For example, version 4 is an extension to version
+3 in that it has all of the APIs from version 3 with some additions. Each
+Node.js version only supported a single Node-API version. For example
+For example v18.15.0 supports only Node-API version 8. ABI stability was
+achieved because 8 was a strict superset of all previous versions.
+
+As of version 9, while Node-API versions continue to be versioned independently
+an add-on that ran with Node-API version 9 may need updates to run with
+Node-API version 10. ABI stability is maintained, however, because Node.js
+versions that support Node-API versions higher than 8 will support all
+versions between 8 and the highest version they support and will default
+to providing the version 8 APIs unless an addon opts into a
+higher Node-API version. This approach provides the flexibility
+of better optimizing existing Node-API functions while maintaing ABI stability.
+Existing addons can continue to run without recompilation using an earlier
+version of Node-API. If an addon needs functionality from a newer Node-API
+version, changes to existing code and recompilation will be needed to use
+those new functions anyway.
+
+In versions of Node.js that support Node-API version 9 and later, defining
+NAPI\_VERSION=X and using the existing addon initialization macros will bake
+in the requested Node-API version that will be used at runtime into the addon.
+If NAPI\_VERSION is not set it will default to 8.
 
 This table may not be up to date in older streams, the most up to date
 information is in the latest API documentation in:
