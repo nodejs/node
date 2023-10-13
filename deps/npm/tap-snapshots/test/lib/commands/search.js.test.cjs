@@ -21,7 +21,7 @@ NAME                      | DESCRIPTION          | AUTHOR          | DATE       
 [31mlibnpm[0mhook                | programmatic API…    | =nlf…           | 2020-11-03 | 6.0.1    | npm hooks registry npm api
 [31mlibnpm[0mpublish             | Programmatic API…    | =nlf…           | 2020-11-03 | 4.0.0    |
 [31mlibnpm[0mfund                | Programmatic API…    | =nlf…           | 2020-12-08 | 1.0.2    | npm npmcli [31mlibnpm[0m cli git fund gitfund
-@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli [31mlibnpm[0m cli workspaces map-workspaces
+@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm  bad map npmcli [31mlibnpm[0m cli workspaces map-workspaces
 [31mlibnpm[0mversion             | library to do the…   | =nlf…           | 2020-11-04 | 1.0.7    |
 @types/[31mlibnpm[0msearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
 pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
@@ -39,7 +39,7 @@ NAME                      | DESCRIPTION          | AUTHOR          | DATE       
 [31mlibnpm[0mhook                | programmatic API…    | =nlf…           | 2020-11-03 | 6.0.1    | npm hooks registry npm api[31m[0m
 [31mlibnpm[0mpublish             | Programmatic API…    | =nlf…           | 2020-11-03 | 4.0.0    | [31m[0m
 [31mlibnpm[0mfund                | Programmatic API…    | =nlf…           | 2020-12-08 | 1.0.2    | npm npmcli [31mlibnpm[0m cli git fund gitfund[31m[0m
-@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli [31mlibnpm[0m cli workspaces map-workspaces[31m[0m
+@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm  bad map npmcli [31mlibnpm[0m cli workspaces map-workspaces[31m[0m
 [31mlibnpm[0mversion             | library to do the…   | =nlf…           | 2020-11-04 | 1.0.7    | [31m[0m
 @types/[31mlibnpm[0msearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    | [31m[0m
 pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    | [31m[0m
@@ -56,7 +56,7 @@ libnpmteam	npm Team management APIs	=nlf =ruyadorno =darcyclarke =isaacs	2020-11
 libnpmhook	programmatic API for managing npm registry hooks	=nlf =ruyadorno =darcyclarke =isaacs	2020-11-03 	6.0.1	npm hooks registry npm api
 libnpmpublish	Programmatic API for the bits behind npm publish and unpublish	=nlf =ruyadorno =darcyclarke =isaacs	2020-11-03 	4.0.0
 libnpmfund	Programmatic API for npm fund	=nlf =ruyadorno =darcyclarke =isaacs	2020-12-08 	1.0.2	npm npmcli libnpm cli git fund gitfund
-@npmcli/map-workspaces	Retrieves a name:pathname Map for a given workspaces config	=nlf =ruyadorno =darcyclarke =isaacs	2020-09-30 	1.0.1	npm npmcli libnpm cli workspaces map-workspaces
+@npmcli/map-workspaces	Retrieves a name:pathname Map for a given workspaces config	=nlf =ruyadorno =darcyclarke =isaacs	2020-09-30 	1.0.1	npm  bad map npmcli libnpm cli workspaces map-workspaces
 libnpmversion	library to do the things that 'npm version' does	=nlf =ruyadorno =darcyclarke =isaacs	2020-11-04 	1.0.7
 @types/libnpmsearch	TypeScript definitions for libnpmsearch	=types	2019-09-26 	2.0.1
 pkg-no-desc		=lukekarrys	2019-09-26 	1.0.0
@@ -80,7 +80,7 @@ libnpmteam                | npm Team management… | =nlf…           | 2020-11
 libnpmhook                | programmatic API…    | =nlf…           | 2020-11-03 | 6.0.1    | npm hooks registry npm api
 libnpmpublish             | Programmatic API…    | =nlf…           | 2020-11-03 | 4.0.0    |
 libnpmfund                | Programmatic API…    | =nlf…           | 2020-12-08 | 1.0.2    | npm npmcli libnpm cli git fund gitfund
-@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli libnpm cli workspaces map-workspaces
+@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm  bad map npmcli libnpm cli workspaces map-workspaces
 libnpmversion             | library to do the…   | =nlf…           | 2020-11-04 | 1.0.7    |
 @types/libnpmsearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
 pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
@@ -98,7 +98,7 @@ libnpmteam                | npm Team management… | =nlf…           | 2020-11
 libnpmhook                | programmatic API…    | =nlf…           | 2020-11-03 | 6.0.1    | npm hooks registry npm api
 libnpmpublish             | Programmatic API…    | =nlf…           | 2020-11-03 | 4.0.0    |
 libnpmfund                | Programmatic API…    | =nlf…           | 2020-12-08 | 1.0.2    | npm npmcli libnpm cli git fund gitfund
-@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli libnpm cli workspaces map-workspaces
+@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm  bad map npmcli libnpm cli workspaces map-workspaces
 @types/libnpmsearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
 pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
 `
@@ -115,7 +115,7 @@ libnpmteam                | npm Team management… | =nlf…           | 2020-11
 libnpmhook                | programmatic API…    | =nlf…           | 2020-11-03 | 6.0.1    | npm hooks registry npm api
 libnpmpublish             | Programmatic API…    | =nlf…           | 2020-11-03 | 4.0.0    |
 libnpmfund                | Programmatic API…    | =nlf…           | 2020-12-08 | 1.0.2    | npm npmcli libnpm cli git fund gitfund
-@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli libnpm cli workspaces map-workspaces
+@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm  bad map npmcli libnpm cli workspaces map-workspaces
 @types/libnpmsearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
 pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
 `
@@ -132,7 +132,7 @@ libnpmteam                | npm Team management… | =nlf…           | 2020-11
 libnpmhook                | programmatic API…    | =nlf…           | 2020-11-03 | 6.0.1    | npm hooks registry npm api
 libnpmpublish             | Programmatic API…    | =nlf…           | 2020-11-03 | 4.0.0    |
 libnpmfund                | Programmatic API…    | =nlf…           | 2020-12-08 | 1.0.2    | npm npmcli libnpm cli git fund gitfund
-@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm npmcli libnpm cli workspaces map-workspaces
+@npmcli/map-workspaces    | Retrieves a…         | =nlf…           | 2020-09-30 | 1.0.1    | npm  bad map npmcli libnpm cli workspaces map-workspaces
 @types/libnpmsearch       | TypeScript…          | =types          | 2019-09-26 | 2.0.1    |
 pkg-no-desc               |                      | =lukekarrys     | 2019-09-26 | 1.0.0    |
 `

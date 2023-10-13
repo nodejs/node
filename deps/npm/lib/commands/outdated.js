@@ -6,7 +6,7 @@ const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
-const ansiTrim = require('../utils/ansi-trim.js')
+const ansiTrim = require('strip-ansi')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 class Outdated extends ArboristWorkspaceCmd {

@@ -1,14 +1,13 @@
 const t = require('tap')
 const { spawnSync } = require('child_process')
 const { resolve, join, extname, basename, sep } = require('path')
-const { readFileSync, chmodSync, readdirSync } = require('fs')
+const { copyFileSync, readFileSync, chmodSync, readdirSync, rmSync } = require('fs')
 const Diff = require('diff')
 const { sync: which } = require('which')
 const { version } = require('../../package.json')
 
 const ROOT = resolve(__dirname, '../..')
 const BIN = join(ROOT, 'bin')
-const NODE = readFileSync(process.execPath)
 const SHIMS = readdirSync(BIN).reduce((acc, shim) => {
   if (extname(shim) !== '.js') {
     acc[shim] = readFileSync(join(BIN, shim), 'utf-8')
@@ -67,7 +66,6 @@ t.test('shim contents', t => {
 t.test('run shims', t => {
   const path = t.testdir({
     ...SHIMS,
-    'node.exe': NODE,
     // simulate the state where one version of npm is installed
     // with node, but we should load the globally installed one
     'global-prefix': {
@@ -90,6 +88,16 @@ t.test('run shims', t => {
         },
       },
     },
+  })
+
+  // hacky fix to decrease flakes of this test from `NOTEMPTY: directory not empty, rmdir`
+  // this should get better in tap@18 and we can try removing it then
+  copyFileSync(process.execPath, join(path, 'node.exe'))
+  t.teardown(async () => {
+    rmSync(join(path, 'node.exe'))
+    await new Promise(res => setTimeout(res, 100))
+    // this is superstition
+    rmSync(join(path, 'node.exe'), { force: true })
   })
 
   const spawnPath = (cmd, args, { log, stdioString = true, ...opts } = {}) => {
