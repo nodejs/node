@@ -242,7 +242,7 @@ available to the module code.
 Up until version 9, Node-API versions are additive and versioned
 independently from Node.js. For example, version 4 is an extension to version
 3 in that it has all of the APIs from version 3 with some additions. Each
-Node.js version only supported a single Node-API version. 
+Node.js version only supported a single Node-API version.
 For example v18.15.0 supports only Node-API version 8. ABI stability was
 achieved because 8 was a strict superset of all previous versions.
 
@@ -260,9 +260,9 @@ version, changes to existing code and recompilation will be needed to use
 those new functions anyway.
 
 In versions of Node.js that support Node-API version 9 and later, defining
-NAPI_VERSION=X and using the existing addon initialization macros will bake
+`NAPI_VERSION=X` and using the existing addon initialization macros will bake
 in the requested Node-API version that will be used at runtime into the addon.
-If NAPI_VERSION is not set it will default to 8.
+If `NAPI_VERSION` is not set it will default to 8.
 
 This table may not be up to date in older streams, the most up to date
 information is in the latest API documentation in:
