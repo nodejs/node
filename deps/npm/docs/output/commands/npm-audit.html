@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#audit-signatures">Audit Signatures</a></li><li><a href="#audit-endpoints">Audit Endpoints</a></li><ul><li><a href="#bulk-advisory-endpoint">Bulk Advisory Endpoint</a></li><li><a href="#quick-audit-endpoint">Quick Audit Endpoint</a></li><li><a href="#scrubbing">Scrubbing</a></li><li><a href="#calculating-meta-vulnerabilities-and-remediations">Calculating Meta-Vulnerabilities and Remediations</a></li></ul><li><a href="#exit-code">Exit Code</a></li><li><a href="#examples">Examples</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#package-lock">Package lock</a></li><li><a href="#audit-signatures">Audit Signatures</a></li><li><a href="#audit-endpoints">Audit Endpoints</a></li><ul><li><a href="#bulk-advisory-endpoint">Bulk Advisory Endpoint</a></li><li><a href="#quick-audit-endpoint">Quick Audit Endpoint</a></li><li><a href="#scrubbing">Scrubbing</a></li><li><a href="#calculating-meta-vulnerabilities-and-remediations">Calculating Meta-Vulnerabilities and Remediations</a></li></ul><li><a href="#exit-code">Exit Code</a></li><li><a href="#examples">Examples</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#package-lock2"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -164,6 +164,11 @@ vulnerability is found. It may be useful in CI environments to include the
 <code>--audit-level</code> parameter to specify the minimum vulnerability level that
 will cause the command to fail. This option does not filter the report
 output, it simply changes the command's failure threshold.</p>
+<h3 id="package-lock">Package lock</h3>
+<p>By default npm requires a package-lock or shrinkwrap in order to run the
+audit.  You can bypass the package lock with <code>--no-package-lock</code> but be
+aware the results may be different with every run, since npm will
+re-build the dependency tree each time.</p>
 <h3 id="audit-signatures">Audit Signatures</h3>
 <p>To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI.</p>
 <p>Registry signatures can be verified using the following <code>audit</code> command:</p>
@@ -373,6 +378,13 @@ ignoring <code>node_modules</code>.</p>
 instead of checking <code>node_modules</code> and downloading dependencies.</p>
 <p>For <code>list</code> this means the output will be based on the tree described by the
 <code>package-lock.json</code>, rather than the contents of <code>node_modules</code>.</p>
+<h4 id="package-lock2"><code>package-lock</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to false, then ignore <code>package-lock.json</code> files when installing. This
+will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save</code> is true.</p>
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
@@ -387,6 +399,15 @@ physically installed on disk.</p>
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
 variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<h4 id="include"><code>include</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: "prod", "dev", "optional", or "peer" (can be set multiple times)</li>
+</ul>
+<p>Option that allows for defining which types of dependencies to install.</p>
+<p>This is the inverse of <code>--omit=&lt;type&gt;</code>.</p>
+<p>Dependency types specified in <code>--include</code> will not be omitted, regardless of
+the order in which omit/include are specified on the command-line.</p>
 <h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
 <ul>
 <li>Default: false</li>

@@ -13,7 +13,7 @@ module.exports = (opt_, files, cb) => {
     throw new TypeError('file is required')
   }
 
-  if (opt.gzip) {
+  if (opt.gzip || opt.brotli || opt.file.endsWith('.br') || opt.file.endsWith('.tbr')) {
     throw new TypeError('cannot append to compressed archives')
   }
 

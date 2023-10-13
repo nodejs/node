@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -220,6 +220,15 @@ physically installed on disk.</p>
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
 variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<h4 id="include"><code>include</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: "prod", "dev", "optional", or "peer" (can be set multiple times)</li>
+</ul>
+<p>Option that allows for defining which types of dependencies to install.</p>
+<p>This is the inverse of <code>--omit=&lt;type&gt;</code>.</p>
+<p>Dependency types specified in <code>--include</code> will not be omitted, regardless of
+the order in which omit/include are specified on the command-line.</p>
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
 <ul>
 <li>Default: false</li>

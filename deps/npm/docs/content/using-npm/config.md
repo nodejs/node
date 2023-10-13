@@ -1358,6 +1358,26 @@ or `--save-optional` are true.
 
 
 
+#### `sbom-format`
+
+* Default: null
+* Type: "cyclonedx" or "spdx"
+
+SBOM format to use when generating SBOMs.
+
+
+
+#### `sbom-type`
+
+* Default: "library"
+* Type: "library", "application", or "framework"
+
+The type of package described by the generated SBOM. For SPDX, this is the
+value for the `primaryPackagePurpose` fieled. For CycloneDX, this is the
+value for the `type` field.
+
+
+
 #### `scope`
 
 * Default: the scope of the current project, if any, or ""

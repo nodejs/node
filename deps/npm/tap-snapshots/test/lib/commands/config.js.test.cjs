@@ -89,6 +89,8 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "legacy-peer-deps": false,
   "link": false,
   "local-address": null,
+  "sbom-format": null,
+  "sbom-type": "library",
   "location": "user",
   "lockfile-version": null,
   "loglevel": "notice",
@@ -290,6 +292,8 @@ save-optional = false
 save-peer = false
 save-prefix = "^"
 save-prod = false
+sbom-format = null
+sbom-type = "library"
 scope = ""
 script-shell = null
 searchexclude = ""

@@ -32,6 +32,7 @@ class LS extends ArboristWorkspaceCmd {
     'global',
     'depth',
     'omit',
+    'include',
     'link',
     'package-lock-only',
     'unicode',
