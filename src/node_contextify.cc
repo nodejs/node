@@ -1222,7 +1222,8 @@ void ContextifyContext::CompileFunction(
                       false,             // is ES Module
                       host_defined_options);
 
-  ScriptCompiler::Source source(code, origin, cached_data);
+  ScriptCompiler::Source source =
+      ScriptCompiler::Source(code, origin, cached_data);
   ScriptCompiler::CompileOptions options;
   if (source.GetCachedData() == nullptr) {
     options = ScriptCompiler::kNoCompileOptions;
@@ -1230,7 +1231,6 @@ void ContextifyContext::CompileFunction(
     options = ScriptCompiler::kConsumeCodeCache;
   }
 
-  TryCatchScope try_catch(env);
   Context::Scope scope(parsing_context);
 
   // Read context extensions from buffer
@@ -1255,9 +1255,41 @@ void ContextifyContext::CompileFunction(
     }
   }
 
+  TryCatchScope try_catch(env);
+  Local<Object> result = CompileFunctionAndCacheResult(env,
+                                                       parsing_context,
+                                                       source,
+                                                       params,
+                                                       context_extensions,
+                                                       options,
+                                                       produce_cached_data,
+                                                       id_symbol,
+                                                       try_catch);
+
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    try_catch.ReThrow();
+    return;
+  }
+
+  if (result.IsEmpty()) {
+    return;
+  }
+  args.GetReturnValue().Set(result);
+}
+
+Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
+    Environment* env,
+    Local<Context> parsing_context,
+    const ScriptCompiler::Source& source,
+    std::vector<Local<String>> params,
+    std::vector<Local<Object>> context_extensions,
+    ScriptCompiler::CompileOptions options,
+    bool produce_cached_data,
+    Local<Symbol> id_symbol,
+    const TryCatchScope& try_catch) {
   MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunction(
       parsing_context,
-      &source,
+      const_cast<ScriptCompiler::Source*>(&source),
       params.size(),
       params.data(),
       context_extensions.size(),
@@ -1269,24 +1301,26 @@ void ContextifyContext::CompileFunction(
   if (!maybe_fn.ToLocal(&fn)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
       errors::DecorateErrorStack(env, try_catch);
-      try_catch.ReThrow();
+      return Object::New(env->isolate());
     }
-    return;
-  }
-  if (fn->SetPrivate(context, env->host_defined_option_symbol(), id_symbol)
-          .IsNothing()) {
-    return;
   }
 
+  Local<Context> context = env->context();
+  if (fn->SetPrivate(context, env->host_defined_option_symbol(), id_symbol)
+          .IsNothing()) {
+    return Object::New(env->isolate());
+  }
+
+  Isolate* isolate = env->isolate();
   Local<Object> result = Object::New(isolate);
   if (result->Set(parsing_context, env->function_string(), fn).IsNothing())
-    return;
+    return Object::New(env->isolate());
   if (result
           ->Set(parsing_context,
                 env->source_map_url_string(),
                 fn->GetScriptOrigin().SourceMapUrl())
           .IsNothing())
-    return;
+    return Object::New(env->isolate());
 
   std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
   if (produce_cached_data) {
@@ -1299,10 +1333,10 @@ void ContextifyContext::CompileFunction(
                            produce_cached_data,
                            std::move(new_cached_data))
           .IsNothing()) {
-    return;
+    return Object::New(env->isolate());
   }
 
-  args.GetReturnValue().Set(result);
+  return result;
 }
 
 static void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {

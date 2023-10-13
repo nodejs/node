@@ -83,6 +83,16 @@ class ContextifyContext : public BaseObject {
   static void IsContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CompileFunction(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static v8::Local<v8::Object> CompileFunctionAndCacheResult(
+      Environment* env,
+      v8::Local<v8::Context> parsing_context,
+      const v8::ScriptCompiler::Source& source,
+      std::vector<v8::Local<v8::String>> params,
+      std::vector<v8::Local<v8::Object>> context_extensions,
+      v8::ScriptCompiler::CompileOptions options,
+      bool produce_cached_data,
+      v8::Local<v8::Symbol> id_symbol,
+      const errors::TryCatchScope& try_catch);
   static void WeakCallback(
       const v8::WeakCallbackInfo<ContextifyContext>& data);
   static void PropertyGetterCallback(
