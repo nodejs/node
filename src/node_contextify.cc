@@ -318,6 +318,7 @@ void ContextifyContext::CreatePerIsolateProperties(
   SetMethod(isolate, target, "makeContext", MakeContext);
   SetMethod(isolate, target, "isContext", IsContext);
   SetMethod(isolate, target, "compileFunction", CompileFunction);
+  SetMethod(isolate, target, "containsModuleSyntax", ContainsModuleSyntax);
 }
 
 void ContextifyContext::RegisterExternalReferences(
@@ -325,6 +326,7 @@ void ContextifyContext::RegisterExternalReferences(
   registry->Register(MakeContext);
   registry->Register(IsContext);
   registry->Register(CompileFunction);
+  registry->Register(ContainsModuleSyntax);
   registry->Register(PropertyGetterCallback);
   registry->Register(PropertySetterCallback);
   registry->Register(PropertyDescriptorCallback);
@@ -1337,6 +1339,104 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
   }
 
   return result;
+}
+
+// These are the error messages thrown due to ESM syntax in a CommonJS module.
+constexpr std::array<std::string_view, 3> esm_syntax_error_messages = {
+    // `import` statements return an error with the message:
+    "Cannot use import statement outside a module",
+    // `export` statements return an error with the message:
+    "Unexpected token 'export'",
+    // `import.meta` returns an error with the message:
+    "Cannot use 'import.meta' outside a module"};
+// Top-level `await` currently returns the same error message as when `await` is
+// used in a sync function, so we don't use it as a disambiguation. Dynamic
+// `import()` is permitted in CommonJS, so we don't use it as a disambiguation.
+
+void ContextifyContext::ContainsModuleSyntax(
+    const FunctionCallbackInfo<Value>& args) {
+  // Argument 1: source code
+  CHECK(args[0]->IsString());
+  Local<String> code = args[0].As<String>();
+
+  // Argument 2: filename
+  CHECK(args[1]->IsString());
+  Local<String> filename = args[1].As<String>();
+
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  // TODO(geoffreybooth): Centralize this rather than matching the logic in
+  // cjs/loader.js and translators.js
+  Local<Symbol> id_symbol =
+      (String::Concat(isolate,
+                      String::NewFromUtf8(isolate, "cjs:").ToLocalChecked(),
+                      filename))
+          .As<Symbol>();
+
+  // TODO: Abstract this into a separate function
+  // Set host_defined_options
+  Local<PrimitiveArray> host_defined_options =
+      PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
+  host_defined_options->Set(
+      isolate, loader::HostDefinedOptions::kID, id_symbol);
+
+  ScriptOrigin origin(isolate,
+                      filename,
+                      0,               // line offset
+                      0,               // column offset
+                      true,            // is cross origin
+                      -1,              // script id
+                      Local<Value>(),  // source map URL
+                      false,           // is opaque (?)
+                      false,           // is WASM
+                      false,           // is ES Module
+                      host_defined_options);
+
+  ScriptCompiler::CachedData* cached_data = nullptr;
+  ScriptCompiler::Source source =
+      ScriptCompiler::Source(code, origin, cached_data);
+  ScriptCompiler::CompileOptions options;
+  if (source.GetCachedData() == nullptr) {
+    options = ScriptCompiler::kNoCompileOptions;
+  } else {
+    options = ScriptCompiler::kConsumeCodeCache;
+  }
+  // End TODO
+
+  std::vector<Local<String>> params = {
+      String::NewFromUtf8(isolate, "exports").ToLocalChecked(),
+      String::NewFromUtf8(isolate, "require").ToLocalChecked(),
+      String::NewFromUtf8(isolate, "module").ToLocalChecked(),
+      String::NewFromUtf8(isolate, "__filename").ToLocalChecked(),
+      String::NewFromUtf8(isolate, "__dirname").ToLocalChecked()};
+
+  TryCatchScope try_catch(env);
+
+  ContextifyContext::CompileFunctionAndCacheResult(env,
+                                                   context,
+                                                   source,
+                                                   params,
+                                                   std::vector<Local<Object>>(),
+                                                   options,
+                                                   true,
+                                                   id_symbol,
+                                                   try_catch);
+
+  bool found_error_message_caused_by_module_syntax = false;
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    Utf8Value message_value(env->isolate(), try_catch.Message()->Get());
+    auto message = message_value.ToStringView();
+
+    for (const auto& error_message : esm_syntax_error_messages) {
+      if (message.find(error_message) != std::string_view::npos) {
+        found_error_message_caused_by_module_syntax = true;
+        break;
+      }
+    }
+  }
+  args.GetReturnValue().Set(found_error_message_caused_by_module_syntax);
 }
 
 static void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
