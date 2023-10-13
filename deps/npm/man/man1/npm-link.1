@@ -1,4 +1,4 @@
-.TH "NPM-LINK" "1" "September 2023" "" ""
+.TH "NPM-LINK" "1" "October 2023" "" ""
 .SH "NAME"
 \fBnpm-link\fR - Symlink a package folder
 .SS "Synopsis"
@@ -198,6 +198,20 @@ Note that these dependencies \fIare\fR still resolved and added to the \fBpackag
 If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
 .P
 If the resulting omit list includes \fB'dev'\fR, then the \fBNODE_ENV\fR environment variable will be set to \fB'production'\fR for all lifecycle scripts.
+.SS "\fBinclude\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
+.RE 0
+
+.P
+Option that allows for defining which types of dependencies to install.
+.P
+This is the inverse of \fB--omit=<type>\fR.
+.P
+Dependency types specified in \fB--include\fR will not be omitted, regardless of the order in which omit/include are specified on the command-line.
 .SS "\fBignore-scripts\fR"
 .RS 0
 .IP \(bu 4
