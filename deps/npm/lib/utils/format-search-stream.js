@@ -1,6 +1,6 @@
 const { Minipass } = require('minipass')
 const columnify = require('columnify')
-const ansiTrim = require('../utils/ansi-trim.js')
+const ansiTrim = require('strip-ansi')
 
 // This module consumes package data in the following format:
 //

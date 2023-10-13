@@ -1,4 +1,4 @@
-.TH "NPM-AUDIT" "1" "September 2023" "" ""
+.TH "NPM-AUDIT" "1" "October 2023" "" ""
 .SH "NAME"
 \fBnpm-audit\fR - Run a security audit
 .SS "Synopsis"
@@ -18,6 +18,9 @@ Note that some vulnerabilities cannot be fixed automatically and will require ma
 fix\fR runs a full-fledged \fBnpm install\fR under the hood, all configs that apply to the installer will also apply to \fBnpm install\fR -- so things like \fBnpm audit fix --package-lock-only\fR will work as expected.
 .P
 By default, the audit command will exit with a non-zero code if any vulnerability is found. It may be useful in CI environments to include the \fB--audit-level\fR parameter to specify the minimum vulnerability level that will cause the command to fail. This option does not filter the report output, it simply changes the command's failure threshold.
+.SS "Package lock"
+.P
+By default npm requires a package-lock or shrinkwrap in order to run the audit. You can bypass the package lock with \fB--no-package-lock\fR but be aware the results may be different with every run, since npm will re-build the dependency tree each time.
 .SS "Audit Signatures"
 .P
 To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI.
@@ -302,6 +305,16 @@ If set to true, the current operation will only use the \fBpackage-lock.json\fR,
 For \fBupdate\fR this means only the \fBpackage-lock.json\fR will be updated, instead of checking \fBnode_modules\fR and downloading dependencies.
 .P
 For \fBlist\fR this means the output will be based on the tree described by the \fBpackage-lock.json\fR, rather than the contents of \fBnode_modules\fR.
+.SS "\fBpackage-lock\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to false, then ignore \fBpackage-lock.json\fR files when installing. This will also prevent \fIwriting\fR \fBpackage-lock.json\fR if \fBsave\fR is true.
 .SS "\fBomit\fR"
 .RS 0
 .IP \(bu 4
@@ -318,6 +331,20 @@ Note that these dependencies \fIare\fR still resolved and added to the \fBpackag
 If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
 .P
 If the resulting omit list includes \fB'dev'\fR, then the \fBNODE_ENV\fR environment variable will be set to \fB'production'\fR for all lifecycle scripts.
+.SS "\fBinclude\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
+.RE 0
+
+.P
+Option that allows for defining which types of dependencies to install.
+.P
+This is the inverse of \fB--omit=<type>\fR.
+.P
+Dependency types specified in \fB--include\fR will not be omitted, regardless of the order in which omit/include are specified on the command-line.
 .SS "\fBforeground-scripts\fR"
 .RS 0
 .IP \(bu 4

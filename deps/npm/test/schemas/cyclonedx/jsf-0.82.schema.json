@@ -1,0 +1,240 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://cyclonedx.org/schema/jsf-0.82.schema.json",
+  "type": "object",
+  "title": "JSON Signature Format (JSF) standard",
+  "$comment" : "JSON Signature Format schema is published under the terms of the Apache License 2.0. JSF was developed by Anders Rundgren (anders.rundgren.net@gmail.com) as a part of the OpenKeyStore project. This schema supports the entirely of the JSF standard excluding 'extensions'.",
+  "definitions": {
+    "signature": {
+      "type": "object",
+      "title": "Signature",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "signers": {
+              "type": "array",
+              "title": "Signature",
+              "description": "Unique top level property for Multiple Signatures. (multisignature)",
+              "items": {"$ref": "#/definitions/signer"}
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "chain": {
+              "type": "array",
+              "title": "Signature",
+              "description": "Unique top level property for Signature Chains. (signaturechain)",
+              "items": {"$ref": "#/definitions/signer"}
+            }
+          }
+        },
+        {
+          "title": "Signature",
+          "description": "Unique top level property for simple signatures. (signaturecore)",
+          "$ref": "#/definitions/signer"
+        }
+      ]
+    },
+    "signer": {
+      "type": "object",
+      "title": "Signature",
+      "required": [
+        "algorithm",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "oneOf": [
+            {
+              "type": "string",
+              "title": "Algorithm",
+              "description": "Signature algorithm. The currently recognized JWA [RFC7518] and RFC8037 [RFC8037] asymmetric key algorithms. Note: Unlike RFC8037 [RFC8037] JSF requires explicit Ed* algorithm names instead of \"EdDSA\".",
+              "enum": [
+                "RS256",
+                "RS384",
+                "RS512",
+                "PS256",
+                "PS384",
+                "PS512",
+                "ES256",
+                "ES384",
+                "ES512",
+                "Ed25519",
+                "Ed448",
+                "HS256",
+                "HS384",
+                "HS512"
+              ]
+            },
+            {
+              "type": "string",
+              "title": "Algorithm",
+              "description": "Signature algorithm. Note: If proprietary signature algorithms are added, they must be expressed as URIs.",
+              "format": "uri"
+            }
+          ]
+        },
+        "keyId": {
+          "type": "string",
+          "title": "Key ID",
+          "description": "Optional. Application specific string identifying the signature key."
+        },
+        "publicKey": {
+          "title": "Public key",
+          "description": "Optional. Public key object.",
+          "$ref": "#/definitions/publicKey"
+        },
+        "certificatePath": {
+          "type": "array",
+          "title": "Certificate path",
+          "description": "Optional. Sorted array of X.509 [RFC5280] certificates, where the first element must contain the signature certificate. The certificate path must be contiguous but is not required to be complete.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "excludes": {
+          "type": "array",
+          "title": "Excludes",
+          "description": "Optional. Array holding the names of one or more application level properties that must be excluded from the signature process. Note that the \"excludes\" property itself, must also be excluded from the signature process. Since both the \"excludes\" property and the associated data it points to are unsigned, a conforming JSF implementation must provide options for specifying which properties to accept.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "value": {
+          "type": "string",
+          "title": "Signature",
+          "description": "The signature data. Note that the binary representation must follow the JWA [RFC7518] specifications."
+        }
+      }
+    },
+    "keyType": {
+      "type": "string",
+      "title": "Key type",
+      "description": "Key type indicator.",
+      "enum": [
+        "EC",
+        "OKP",
+        "RSA"
+      ]
+    },
+    "publicKey": {
+      "title": "Public key",
+      "description": "Optional. Public key object.",
+      "type": "object",
+      "required": [
+        "kty"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "kty": {
+          "$ref": "#/definitions/keyType"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kty": { "const": "EC" } }
+          },
+          "then": {
+            "required": [
+              "kty",
+              "crv",
+              "x",
+              "y"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "kty": {
+                "$ref": "#/definitions/keyType"
+              },
+              "crv": {
+                "type": "string",
+                "title": "Curve name",
+                "description": "EC curve name.",
+                "enum": [
+                  "P-256",
+                  "P-384",
+                  "P-521"
+                ]
+              },
+              "x": {
+                "type": "string",
+                "title": "Coordinate",
+                "description": "EC curve point X. The length of this field must be the full size of a coordinate for the curve specified in the \"crv\" parameter. For example, if the value of \"crv\" is \"P-521\", the decoded argument must be 66 bytes."
+              },
+              "y": {
+                "type": "string",
+                "title": "Coordinate",
+                "description": "EC curve point Y. The length of this field must be the full size of a coordinate for the curve specified in the \"crv\" parameter. For example, if the value of \"crv\" is \"P-256\", the decoded argument must be 32 bytes."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kty": { "const": "OKP" } }
+          },
+          "then": {
+            "required": [
+              "kty",
+              "crv",
+              "x"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "kty": {
+                "$ref": "#/definitions/keyType"
+              },
+              "crv": {
+                "type": "string",
+                "title": "Curve name",
+                "description": "EdDSA curve name.",
+                "enum": [
+                  "Ed25519",
+                  "Ed448"
+                ]
+              },
+              "x": {
+                "type": "string",
+                "title": "Coordinate",
+                "description": "EdDSA curve point X. The length of this field must be the full size of a coordinate for the curve specified in the \"crv\" parameter. For example, if the value of \"crv\" is \"Ed25519\", the decoded argument must be 32 bytes."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kty": { "const": "RSA" } }
+          },
+          "then": {
+            "required": [
+              "kty",
+              "n",
+              "e"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "kty": {
+                "$ref": "#/definitions/keyType"
+              },
+              "n": {
+                "type": "string",
+                "title": "Modulus",
+                "description": "RSA modulus."
+              },
+              "e": {
+                "type": "string",
+                "title": "Exponent",
+                "description": "RSA exponent."
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
