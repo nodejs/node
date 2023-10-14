@@ -7,7 +7,7 @@ import { describe, it, test } from 'node:test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import * as tmpdir from '../common/tmpdir.js';
 
-import secret from '../fixtures/experimental.json' assert { type: 'json' };
+import secret from '../fixtures/experimental.json' with { type: 'json' };
 
 describe('ESM: importing JSON', () => {
   it('should load JSON', () => {
@@ -20,7 +20,6 @@ describe('ESM: importing JSON', () => {
     ]);
 
     assert.match(stderr, /ExperimentalWarning: Importing JSON modules/);
-    assert.match(stderr, /ExperimentalWarning: Import assertions/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
@@ -35,19 +34,19 @@ describe('ESM: importing JSON', () => {
         const url = new URL('./foo.json', root);
         await writeFile(url, JSON.stringify({ id: i++ }));
         const absoluteURL = await import(`${url}`, {
-          assert: { type: 'json' },
+          with: { type: 'json' },
         });
         await writeFile(url, JSON.stringify({ id: i++ }));
         const queryString = await import(`${url}?a=2`, {
-          assert: { type: 'json' },
+          with: { type: 'json' },
         });
         await writeFile(url, JSON.stringify({ id: i++ }));
         const hash = await import(`${url}#a=2`, {
-          assert: { type: 'json' },
+          with: { type: 'json' },
         });
         await writeFile(url, JSON.stringify({ id: i++ }));
         const queryStringAndHash = await import(`${url}?a=2#a=2`, {
-          assert: { type: 'json' },
+          with: { type: 'json' },
         });
 
         assert.notDeepStrictEqual(absoluteURL, queryString);

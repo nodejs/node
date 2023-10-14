@@ -1,10 +1,37 @@
-import { expectWarning } from '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
+import assert from 'node:assert';
+import { execPath } from 'node:process';
 
-expectWarning(
-  'ExperimentalWarning',
-  'Import assertions are not a stable feature of the JavaScript language. ' +
-  'Avoid relying on their current behavior and syntax as those might change ' +
-  'in a future version of Node.js.'
-);
+await Promise.all([
+  // Using importAssertions in the resolve hook should warn but still work.
+  `data:text/javascript,export ${encodeURIComponent(function resolve() {
+    return { shortCircuit: true, url: 'data:application/json,1', importAssertions: { type: 'json' } };
+  })}`,
+  // Setting importAssertions on the context object of the load hook should warn but still work.
+  `data:text/javascript,export ${encodeURIComponent(function load(u, c, n) {
+    c.importAssertions = { type: 'json' };
+    return n('data:application/json,1', c);
+  })}`,
+  // Creating a new context object with importAssertions in the load hook should warn but still work.
+  `data:text/javascript,export ${encodeURIComponent(function load(u, c, n) {
+    return n('data:application/json,1', { importAssertions: { type: 'json' } });
+  })}`,
+].map(async (loaderURL) => {
+  const { stdout, stderr, code } = await spawnPromisified(execPath, [
+    '--input-type=module',
+    '--eval', `
+    import assert from 'node:assert';
+    import { register } from 'node:module';
+    
+    register(${JSON.stringify(loaderURL)});
+    
+    assert.deepStrictEqual(
+      { ...await import('data:') },
+      { default: 1 }
+      );`,
+  ]);
 
-await import('data:text/javascript,', { assert: { someUnsupportedKey: 'value' } });
+  assert.match(stderr, /Use `importAttributes` instead of `importAssertions`/);
+  assert.strictEqual(stdout, '');
+  assert.strictEqual(code, 0);
+}));

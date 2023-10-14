@@ -249,19 +249,19 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(that);
 }
 
-static Local<Object> createImportAssertionContainer(Environment* env,
-  Isolate* isolate, Local<FixedArray> raw_assertions) {
-  Local<Object> assertions =
-        Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
-  for (int i = 0; i < raw_assertions->Length(); i += 3) {
-      assertions
-          ->Set(env->context(),
-                raw_assertions->Get(env->context(), i).As<String>(),
-                raw_assertions->Get(env->context(), i + 1).As<Value>())
-          .ToChecked();
+static Local<Object> createImportAttributesContainer(
+    Environment* env, Isolate* isolate, Local<FixedArray> raw_attributes) {
+  Local<Object> attributes =
+      Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
+  for (int i = 0; i < raw_attributes->Length(); i += 3) {
+    attributes
+        ->Set(env->context(),
+              raw_attributes->Get(env->context(), i).As<String>(),
+              raw_attributes->Get(env->context(), i + 1).As<Value>())
+        .ToChecked();
   }
 
-  return assertions;
+  return attributes;
 }
 
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
@@ -297,13 +297,13 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     Utf8Value specifier_utf8(env->isolate(), specifier);
     std::string specifier_std(*specifier_utf8, specifier_utf8.length());
 
-    Local<FixedArray> raw_assertions = module_request->GetImportAssertions();
-    Local<Object> assertions =
-      createImportAssertionContainer(env, isolate, raw_assertions);
+    Local<FixedArray> raw_attributes = module_request->GetImportAssertions();
+    Local<Object> attributes =
+        createImportAttributesContainer(env, isolate, raw_attributes);
 
     Local<Value> argv[] = {
         specifier,
-        assertions,
+        attributes,
     };
 
     MaybeLocal<Value> maybe_resolve_return_value =
@@ -499,7 +499,7 @@ void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
 MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
     Local<Context> context,
     Local<String> specifier,
-    Local<FixedArray> import_assertions,
+    Local<FixedArray> import_attributes,
     Local<Module> referrer) {
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
@@ -552,7 +552,7 @@ static MaybeLocal<Promise> ImportModuleDynamically(
     Local<v8::Data> host_defined_options,
     Local<Value> resource_name,
     Local<String> specifier,
-    Local<FixedArray> import_assertions) {
+    Local<FixedArray> import_attributes) {
   Isolate* isolate = context->GetIsolate();
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
@@ -580,13 +580,13 @@ static MaybeLocal<Promise> ImportModuleDynamically(
   Local<Symbol> id =
       options->Get(context, HostDefinedOptions::kID).As<Symbol>();
 
-  Local<Object> assertions =
-    createImportAssertionContainer(env, isolate, import_assertions);
+  Local<Object> attributes =
+      createImportAttributesContainer(env, isolate, import_attributes);
 
   Local<Value> import_args[] = {
       id,
       Local<Value>(specifier),
-      assertions,
+      attributes,
   };
 
   Local<Value> result;

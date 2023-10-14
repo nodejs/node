@@ -47,7 +47,7 @@ rm -rf ../node_modules/eslint
         eslint-plugin-markdown \
         @babel/core \
         @babel/eslint-parser \
-        @babel/plugin-syntax-import-assertions
+        @babel/plugin-syntax-import-attributes
     )
     (
         cd node_modules/eslint
@@ -62,7 +62,7 @@ rm -rf ../node_modules/eslint
         eslint-plugin-markdown \
         @babel/core \
         @babel/eslint-parser \
-        @babel/plugin-syntax-import-assertions
+        @babel/plugin-syntax-import-attributes
     )
     # Use dmn to remove some unneeded files.
     "$NODE" "$NPM" exec --package=dmn@2.2.2 --yes -- dmn -f clean

@@ -12,7 +12,7 @@ async function resolve(referrer, context, next) {
 }
 
 function load(url, context, next) {
-  if (context.importAssertions.type === 'json') {
+  if (context.importAttributes.type === 'json') {
     return {
       shortCircuit: true,
       format: 'json',
@@ -25,6 +25,6 @@ function load(url, context, next) {
 register(`data:text/javascript,export ${encodeURIComponent(resolve)};export ${encodeURIComponent(load)}`);
 
 assert.notDeepStrictEqual(
-  await import(fixtures.fileURL('empty.json'), { assert: { type: 'json' } }),
-  await import(fixtures.fileURL('empty.json'), { assert: { type: 'json' } }),
+  await import(fixtures.fileURL('empty.json'), { with: { type: 'json' } }),
+  await import(fixtures.fileURL('empty.json'), { with: { type: 'json' } }),
 );

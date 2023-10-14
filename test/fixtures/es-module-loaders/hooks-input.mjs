@@ -22,12 +22,12 @@ export async function resolve(specifier, context, next) {
       assert.strictEqual(context.parentURL, undefined);
     }
 
-    assert.deepStrictEqual(context.importAssertions, {});
+    assert.deepStrictEqual(context.importAttributes, {});
   } else if (resolveCalls === 2) {
     url = new URL(specifier, context.parentURL).href;
     assert.match(specifier, /experimental\.json$/);
     assert.match(context.parentURL, /json-modules\.mjs$/);
-    assert.deepStrictEqual(context.importAssertions, {
+    assert.deepStrictEqual(context.importAttributes, {
       type: 'json',
     });
   }
@@ -35,7 +35,7 @@ export async function resolve(specifier, context, next) {
   // Ensure `context` has all and only the properties it's supposed to
   assert.deepStrictEqual(Reflect.ownKeys(context), [
     'conditions',
-    'importAssertions',
+    'importAttributes',
     'parentURL',
   ]);
   assert.ok(Array.isArray(context.conditions));
@@ -59,11 +59,11 @@ export async function load(url, context, next) {
 
   if (loadCalls === 1) {
     assert.match(url, /json-modules\.mjs$/);
-    assert.deepStrictEqual(context.importAssertions, {});
+    assert.deepStrictEqual(context.importAttributes, {});
     format = 'module';
   } else if (loadCalls === 2) {
     assert.match(url, /experimental\.json$/);
-    assert.deepStrictEqual(context.importAssertions, {
+    assert.deepStrictEqual(context.importAttributes, {
       type: 'json',
     });
     format = 'json';
@@ -73,7 +73,7 @@ export async function load(url, context, next) {
   // Ensure `context` has all and only the properties it's supposed to
   assert.deepStrictEqual(Object.keys(context), [
     'format',
-    'importAssertions',
+    'importAttributes',
   ]);
   assert.strictEqual(context.format, 'test');
   assert.strictEqual(typeof next, 'function');
