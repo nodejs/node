@@ -1,16 +1,8 @@
-import { expectWarning } from '../common/index.mjs';
+import '../common/index.mjs';
 import { rejects } from 'assert';
 
 const jsModuleDataUrl = 'data:text/javascript,export{}';
 const jsonModuleDataUrl = 'data:application/json,""';
-
-expectWarning(
-  'ExperimentalWarning',
-  'Import assertions are not a stable feature of the JavaScript language. ' +
-  'Avoid relying on their current behavior and syntax as those might change ' +
-  'in a future version of Node.js.'
-);
-
 
 await rejects(
   // This rejects because of the unsupported MIME type, not because of the

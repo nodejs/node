@@ -20,7 +20,7 @@ export async function resolve(specifier, context, next) {
     return {
       shortCircuit: true,
       url: `custom-${def.url}`,
-      importAssertions: context.importAssertions,
+      importAttributes: context.importAttributes,
     };
   }
   return def;

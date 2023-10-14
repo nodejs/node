@@ -17,7 +17,6 @@ describe('ESM: importing JSON', () => {
     ]);
 
     assert.match(stderr, /ExperimentalWarning: Importing JSON modules/);
-    assert.match(stderr, /ExperimentalWarning: Import assertions/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });

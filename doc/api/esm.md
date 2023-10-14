@@ -15,7 +15,7 @@ changes:
     - v17.1.0
     - v16.14.0
     pr-url: https://github.com/nodejs/node/pull/40250
-    description: Add support for import assertions.
+    description: Add experimental support for import assertions.
   - version:
     - v17.0.0
     - v16.12.0
@@ -230,7 +230,9 @@ absolute URL strings.
 import fs from 'node:fs/promises';
 ```
 
-## Import assertions
+<a id="import-assertions"></a>
+
+## Import attributes
 
 <!-- YAML
 added:
@@ -238,9 +240,14 @@ added:
   - v16.14.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
-The [Import Assertions proposal][] adds an inline syntax for module import
+> This feature was previously named "Import assertions", and using the `assert`
+> keyword instead of `with`. Because the version of V8 on this release line does
+> not support the `with` keyword, you need to keep using `assert` to support
+> this version of Node.js.
+
+The [Import Attributes proposal][] adds an inline syntax for module import
 statements to pass on more information alongside the module specifier.
 
 ```js
@@ -250,10 +257,10 @@ const { default: barData } =
   await import('./bar.json', { assert: { type: 'json' } });
 ```
 
-Node.js supports the following `type` values, for which the assertion is
+Node.js supports the following `type` values, for which the attribute is
 mandatory:
 
-| Assertion `type` | Needed for       |
+| Attribute `type` | Needed for       |
 | ---------------- | ---------------- |
 | `'json'`         | [JSON modules][] |
 
@@ -529,7 +536,7 @@ JSON files can be referenced by `import`:
 import packageConfig from './package.json' assert { type: 'json' };
 ```
 
-The `assert { type: 'json' }` syntax is mandatory; see [Import Assertions][].
+The `assert { type: 'json' }` syntax is mandatory; see [Import Attributes][].
 
 The imported JSON only exposes a `default` export. There is no support for named
 exports. A cache entry is created in the CommonJS cache to avoid duplication.
@@ -732,6 +739,11 @@ prevent unintentional breaks in the chain.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50140
+    description: The property `context.importAssertions` is replaced with
+                 `context.importAttributes`. Using the old name is still
+                 supported and will emit an experimental warning.
   - version: v18.6.0
     pr-url: https://github.com/nodejs/node/pull/42623
     description: Add support for chaining resolve hooks. Each hook must either
@@ -750,7 +762,7 @@ changes:
 * `specifier` {string}
 * `context` {Object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
-  * `importAssertions` {Object}
+  * `importAttributes` {Object}
   * `parentURL` {string|undefined} The module importing this one, or undefined
     if this is the Node.js entry point
 * `nextResolve` {Function} The subsequent `resolve` hook in the chain, or the
@@ -842,7 +854,7 @@ changes:
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
   * `format` {string|null|undefined} The format optionally supplied by the
     `resolve` hook chain
-  * `importAssertions` {Object}
+  * `importAttributes` {Object}
 * `nextLoad` {Function} The subsequent `load` hook in the chain, or the
   Node.js default `load` hook after the last user-supplied `load` hook
   * `specifier` {string}
@@ -855,7 +867,7 @@ changes:
 
 The `load` hook provides a way to define a custom method of determining how
 a URL should be interpreted, retrieved, and parsed. It is also in charge of
-validating the import assertion.
+validating the import attributes.
 
 The final value of `format` must be one of the following:
 
@@ -1578,8 +1590,8 @@ success!
 [Dynamic `import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
 [HTTPS and HTTP imports]: #https-and-http-imports
-[Import Assertions]: #import-assertions
-[Import Assertions proposal]: https://github.com/tc39/proposal-import-assertions
+[Import Attributes]: #import-attributes
+[Import Attributes proposal]: https://github.com/tc39/proposal-import-attributes
 [JSON modules]: #json-modules
 [Loaders API]: #loaders
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
