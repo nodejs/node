@@ -12,7 +12,7 @@ async function resolve(referrer, context, next) {
 }
 
 function load(url, context, next) {
-  if (context.importAssertions.type === 'json') {
+  if (context.importAttributes.type === 'json') {
     return {
       shortCircuit: true,
       format: 'json',

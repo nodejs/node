@@ -1762,7 +1762,8 @@ added:
   - v16.14.0
 -->
 
-An import assertion has failed, preventing the specified module to be imported.
+An import `type` attribute was provided, but the specified module is of a
+different type.
 
 <a id="ERR_IMPORT_ASSERTION_TYPE_MISSING"></a>
 
@@ -1774,7 +1775,7 @@ added:
   - v16.14.0
 -->
 
-An import assertion is missing, preventing the specified module to be imported.
+An import attribute is missing, preventing the specified module to be imported.
 
 <a id="ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED"></a>
 
@@ -1786,7 +1787,17 @@ added:
   - v16.14.0
 -->
 
-An import assertion is not supported by this version of Node.js.
+An import attribute is not supported by this version of Node.js.
+
+<a id="ERR_IMPORT_ATTRIBUTE_UNSUPPORTED"></a>
+
+### `ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An import attribute is not supported by this version of Node.js.
 
 <a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
 
