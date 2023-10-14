@@ -1926,8 +1926,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
   bool with_types = args[2]->IsTrue();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // readdir(path, encoding, withTypes, req)
+  if (argc > 3) {  // readdir(path, encoding, withTypes, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     req_wrap_async->set_with_file_types(with_types);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_SCANDIR, req_wrap_async, "path", TRACE_STR_COPY(*path))
@@ -1940,18 +1940,16 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
               uv_fs_scandir,
               *path,
               0 /*flags*/);
-  } else {  // readdir(path, encoding, withTypes, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // readdir(path, encoding, withTypes)
+    FSReqWrapSync req_wrap_sync("scandir", *path);
     FS_SYNC_TRACE_BEGIN(readdir);
-    int err = SyncCall(env, args[4], &req_wrap_sync, "scandir",
-                       uv_fs_scandir, *path, 0 /*flags*/);
+    int err = SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_scandir, *path, 0 /*flags*/);
     FS_SYNC_TRACE_END(readdir);
-    if (err < 0) {
-      return;  // syscall failed, no need to continue, error info is in ctx
+    if (is_uv_error(err)) {
+      return;
     }
 
-    CHECK_GE(req_wrap_sync.req.result, 0);
     int r;
     std::vector<Local<Value>> name_v;
     std::vector<Local<Value>> type_v;
@@ -1962,12 +1960,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       r = uv_fs_scandir_next(&(req_wrap_sync.req), &ent);
       if (r == UV_EOF)
         break;
-      if (r != 0) {
-        Local<Object> ctx = args[4].As<Object>();
-        ctx->Set(env->context(), env->errno_string(),
-                 Integer::New(isolate, r)).Check();
-        ctx->Set(env->context(), env->syscall_string(),
-                 OneByteString(isolate, "readdir")).Check();
+      if (is_uv_error(r)) {
+        env->ThrowUVException(r, "scandir", nullptr, *path);
         return;
       }
 
@@ -1978,8 +1972,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
                                                        &error);
 
       if (filename.IsEmpty()) {
-        Local<Object> ctx = args[4].As<Object>();
-        ctx->Set(env->context(), env->error_string(), error).Check();
+        isolate->ThrowException(error);
         return;
       }
 
