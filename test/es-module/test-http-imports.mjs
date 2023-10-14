@@ -212,7 +212,7 @@ for (const { protocol, createServer } of [
     const jsonUrl = new URL(url.href + 'json');
     jsonUrl.searchParams.set('mime', 'application/json');
     jsonUrl.searchParams.set('body', '{"x": 1}');
-    const json = await import(jsonUrl.href, { assert: { type: 'json' } });
+    const json = await import(jsonUrl.href, { with: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(json), ['default']);
     assert.strictEqual(json.default.x, 1);
 
