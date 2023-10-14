@@ -427,8 +427,8 @@ declare namespace primordials {
   export const SymbolFor: typeof Symbol.for
   export const SymbolKeyFor: typeof Symbol.keyFor
   export const SymbolAsyncIterator: typeof Symbol.asyncIterator
-  export const SymbolDispose: symbol // TODO(MoLow): use typeof Symbol.dispose when it's available
-  export const SymbolAsyncDispose: symbol // TODO(MoLow): use typeof Symbol.asyncDispose when it's available
+  export const SymbolDispose: typeof Symbol.dispose
+  export const SymbolAsyncDispose: typeof Symbol.asyncDispose
   export const SymbolHasInstance: typeof Symbol.hasInstance
   export const SymbolIsConcatSpreadable: typeof Symbol.isConcatSpreadable
   export const SymbolIterator: typeof Symbol.iterator
