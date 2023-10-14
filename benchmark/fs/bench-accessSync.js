@@ -13,6 +13,16 @@ const bench = common.createBenchmark(main, {
   n: [1e5],
 });
 
+function runBench(n, path) {
+  for (let i = 0; i < n; i++) {
+    try {
+      fs.accessSync(path);
+    } catch {
+      // do nothing
+    }
+  }
+}
+
 function main({ n, type }) {
   let path;
 
@@ -29,14 +39,10 @@ function main({ n, type }) {
     default:
       new Error('Invalid type');
   }
+  // warmup
+  runBench(n, path);
 
   bench.start();
-  for (let i = 0; i < n; i++) {
-    try {
-      fs.accessSync(path);
-    } catch {
-      // do nothing
-    }
-  }
+  runBench(n, path);
   bench.end(n);
 }
