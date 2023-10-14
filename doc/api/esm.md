@@ -18,7 +18,7 @@ changes:
     - v17.1.0
     - v16.14.0
     pr-url: https://github.com/nodejs/node/pull/40250
-    description: Add support for import assertions.
+    description: Add experimental support for import assertions.
   - version:
     - v17.0.0
     - v16.12.0
@@ -234,17 +234,28 @@ absolute URL strings.
 import fs from 'node:fs/promises';
 ```
 
-## Import assertions
+<a id="import-assertions"></a>
+
+## Import attributes
 
 <!-- YAML
 added:
   - v17.1.0
   - v16.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50140
+    description: Switch from Import Assertions to Import Attributes.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
-The [Import Assertions proposal][] adds an inline syntax for module import
+> This feature was previously named "Import assertions", and using the `assert`
+> keyword instead of `with`. Because the version of V8 on this release line does
+> not support the `with` keyword, you need to keep using `assert` to support
+> this version of Node.js.
+
+The [Import Attributes proposal][] adds an inline syntax for module import
 statements to pass on more information alongside the module specifier.
 
 ```js
@@ -254,10 +265,10 @@ const { default: barData } =
   await import('./bar.json', { assert: { type: 'json' } });
 ```
 
-Node.js supports the following `type` values, for which the assertion is
+Node.js supports the following `type` values, for which the attribute is
 mandatory:
 
-| Assertion `type` | Needed for       |
+| Attribute `type` | Needed for       |
 | ---------------- | ---------------- |
 | `'json'`         | [JSON modules][] |
 
@@ -547,7 +558,7 @@ JSON files can be referenced by `import`:
 import packageConfig from './package.json' assert { type: 'json' };
 ```
 
-The `assert { type: 'json' }` syntax is mandatory; see [Import Assertions][].
+The `assert { type: 'json' }` syntax is mandatory; see [Import Attributes][].
 
 The imported JSON only exposes a `default` export. There is no support for named
 exports. A cache entry is created in the CommonJS cache to avoid duplication.
@@ -1076,8 +1087,8 @@ success!
 [Determining module system]: packages.md#determining-module-system
 [Dynamic `import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
-[Import Assertions]: #import-assertions
-[Import Assertions proposal]: https://github.com/tc39/proposal-import-assertions
+[Import Attributes]: #import-attributes
+[Import Attributes proposal]: https://github.com/tc39/proposal-import-attributes
 [JSON modules]: #json-modules
 [Module customization hooks]: module.md#customization-hooks
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
