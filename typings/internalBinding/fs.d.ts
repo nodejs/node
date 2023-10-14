@@ -166,8 +166,8 @@ declare namespace InternalFSBinding {
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: true, req: FSReqCallback<[string[], number[]]>): void;
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: false, req: FSReqCallback<string[]>): void;
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: boolean, req: undefined, ctx: FSSyncContext): string[] | [string[], number[]];
-  function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: true, req: undefined, ctx: FSSyncContext): [string[], number[]];
-  function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: false, req: undefined, ctx: FSSyncContext): string[];
+  function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: true): [string[], number[]];
+  function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: false): string[];
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: boolean, usePromises: typeof kUsePromises): Promise<string[] | [string[], number[]]>;
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: true, usePromises: typeof kUsePromises): Promise<[string[], number[]]>;
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: false, usePromises: typeof kUsePromises): Promise<string[]>;
