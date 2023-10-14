@@ -105,7 +105,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       assert.match(stringResults[0], /this should pass/);
       assert.match(stringResults[1], /tests 1/);
       assert.match(stringResults[1], /pass 1/);
-    })
+    });
   });
 
   it('should be piped with tap', async () => {
