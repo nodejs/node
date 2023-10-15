@@ -31,6 +31,7 @@
 #include <csignal>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "test/cctest/cctest.h"
@@ -4924,6 +4925,51 @@ TEST(MessageGetSourceLine) {
             message->GetSourceLine(context).ToLocalChecked()));
         CHECK_EQ("      throw new Error();", result);
       });
+}
+
+void GetCurrentStackTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  std::stringstream ss;
+  v8::Message::PrintCurrentStackTrace(args.GetIsolate(), ss);
+  std::string str = ss.str();
+  args.GetReturnValue().Set(v8_str(str.c_str()));
+}
+
+THREADED_TEST(MessagePrintCurrentStackTrace) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "getCurrentStackTrace",
+             v8::FunctionTemplate::New(isolate, GetCurrentStackTrace));
+  LocalContext context(nullptr, templ);
+
+  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate, v8_str("test"), 0, 0);
+  v8::Local<v8::String> script = v8_str(
+      "function c() {\n"
+      "  return getCurrentStackTrace();\n"
+      "}\n"
+      "function b() {\n"
+      "  return c();\n"
+      "}\n"
+      "function a() {\n"
+      "  return b();\n"
+      "}\n"
+      "a();");
+  v8::Local<v8::Value> stack_trace =
+      v8::Script::Compile(context.local(), script, &origin)
+          .ToLocalChecked()
+          ->Run(context.local())
+          .ToLocalChecked();
+
+  CHECK(stack_trace->IsString());
+  v8::String::Utf8Value stack_trace_value(isolate,
+                                          stack_trace.As<v8::String>());
+  std::string stack_trace_string(*stack_trace_value);
+  std::string expected(
+      "c (test:2:10)\n"
+      "b (test:5:10)\n"
+      "a (test:8:10)\n"
+      "test:10:1");
+  CHECK_EQ(stack_trace_string, expected);
 }
 
 THREADED_TEST(GetSetProperty) {
