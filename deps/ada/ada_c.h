@@ -109,4 +109,77 @@ const ada_url_components* ada_get_components(ada_url result);
 ada_owned_string ada_idna_to_unicode(const char* input, size_t length);
 ada_owned_string ada_idna_to_ascii(const char* input, size_t length);
 
+// url search params
+typedef void* ada_url_search_params;
+
+// Represents an std::vector<std::string>
+typedef void* ada_strings;
+typedef void* ada_url_search_params_keys_iter;
+typedef void* ada_url_search_params_values_iter;
+
+typedef struct {
+  ada_string key;
+  ada_string value;
+} ada_string_pair;
+
+typedef void* ada_url_search_params_entries_iter;
+
+ada_url_search_params ada_parse_search_params(const char* input, size_t length);
+void ada_free_search_params(ada_url_search_params result);
+
+size_t ada_search_params_size(ada_url_search_params result);
+void ada_search_params_sort(ada_url_search_params result);
+ada_owned_string ada_search_params_to_string(ada_url_search_params result);
+
+void ada_search_params_append(ada_url_search_params result, const char* key,
+                              size_t key_length, const char* value,
+                              size_t value_length);
+void ada_search_params_set(ada_url_search_params result, const char* key,
+                           size_t key_length, const char* value,
+                           size_t value_length);
+void ada_search_params_remove(ada_url_search_params result, const char* key,
+                              size_t key_length);
+void ada_search_params_remove_value(ada_url_search_params result,
+                                    const char* key, size_t key_length,
+                                    const char* value, size_t value_length);
+bool ada_search_params_has(ada_url_search_params result, const char* key,
+                           size_t key_length);
+bool ada_search_params_has_value(ada_url_search_params result, const char* key,
+                                 size_t key_length, const char* value,
+                                 size_t value_length);
+ada_string ada_search_params_get(ada_url_search_params result, const char* key,
+                                 size_t key_length);
+ada_strings ada_search_params_get_all(ada_url_search_params result,
+                                      const char* key, size_t key_length);
+ada_url_search_params_keys_iter ada_search_params_get_keys(
+    ada_url_search_params result);
+ada_url_search_params_values_iter ada_search_params_get_values(
+    ada_url_search_params result);
+ada_url_search_params_entries_iter ada_search_params_get_entries(
+    ada_url_search_params result);
+
+void ada_free_strings(ada_strings result);
+size_t ada_strings_size(ada_strings result);
+ada_string ada_strings_get(ada_strings result, size_t index);
+
+void ada_free_search_params_keys_iter(ada_url_search_params_keys_iter result);
+ada_string ada_search_params_keys_iter_next(
+    ada_url_search_params_keys_iter result);
+bool ada_search_params_keys_iter_has_next(
+    ada_url_search_params_keys_iter result);
+
+void ada_free_search_params_values_iter(
+    ada_url_search_params_values_iter result);
+ada_string ada_search_params_values_iter_next(
+    ada_url_search_params_values_iter result);
+bool ada_search_params_values_iter_has_next(
+    ada_url_search_params_values_iter result);
+
+void ada_free_search_params_entries_iter(
+    ada_url_search_params_entries_iter result);
+ada_string_pair ada_search_params_entries_iter_next(
+    ada_url_search_params_entries_iter result);
+bool ada_search_params_entries_iter_has_next(
+    ada_url_search_params_entries_iter result);
+
 #endif  // ADA_C_H
