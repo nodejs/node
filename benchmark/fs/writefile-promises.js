@@ -5,7 +5,6 @@
 
 const common = require('../common.js');
 const fs = require('fs');
-const assert = require('assert');
 const tmpdir = require('../../test/common/tmpdir');
 
 tmpdir.refresh();
@@ -38,11 +37,16 @@ function main({ encodingType, duration, concurrent, size }) {
   }
 
   let writes = 0;
-  let benchEnded = false;
+  let waitConcurrent = 0;
+
+  const startedAt = Date.now();
+  const endAt = startedAt + (duration * 1000);
+
   bench.start();
-  setTimeout(() => {
-    benchEnded = true;
+
+  function stop() {
     bench.end(writes);
+
     for (let i = 0; i < filesWritten; i++) {
       try {
         fs.unlinkSync(`${filename}-${i}`);
@@ -50,8 +54,9 @@ function main({ encodingType, duration, concurrent, size }) {
         // Continue regardless of error.
       }
     }
+
     process.exit(0);
-  }, duration * 1000);
+  }
 
   function write() {
     fs.promises.writeFile(`${filename}-${filesWritten++}`, chunk, encoding)
@@ -61,18 +66,18 @@ function main({ encodingType, duration, concurrent, size }) {
 
   function afterWrite(er) {
     if (er) {
-      if (er.code === 'ENOENT') {
-        // Only OK if unlinked by the timer from main.
-        assert.ok(benchEnded);
-        return;
-      }
       throw er;
     }
 
     writes++;
-    if (!benchEnded)
+    const benchEnded = Date.now() >= endAt;
+
+    if (benchEnded && (++waitConcurrent) === concurrent) {
+      stop();
+    } else if (!benchEnded) {
       write();
+    }
   }
 
-  while (concurrent--) write();
+  for (let i = 0; i < concurrent; i++) write();
 }
