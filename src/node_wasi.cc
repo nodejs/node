@@ -83,8 +83,8 @@ WASI::WASI(Environment* env,
   int err = uvwasi_init(&uvw_, options);
   if (err != UVWASI_ESUCCESS) {
     Local<Value> exception;
-    CHECK(
-        WASIException(env->context(), err, "uvwasi_init").ToLocal(&exception));
+    if (!WASIException(env->context(), err, "uvwasi_init").ToLocal(&exception))
+      return;
 
     env->isolate()->ThrowException(exception);
   }
@@ -239,7 +239,10 @@ inline void EinvalError() {}
 
 template <typename FT, FT F, typename R, typename... Args>
 R WASI::WasiFunction<FT, F, R, Args...>::FastCallback(
-    Local<Object> receiver, Args... args, FastApiCallbackOptions& options) {
+    Local<Object> receiver,
+    Args... args,
+    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+    FastApiCallbackOptions& options) {
   WASI* wasi = reinterpret_cast<WASI*>(BaseObject::FromJSObject(receiver));
   if (UNLIKELY(wasi == nullptr)) return EinvalError<R>();
 
