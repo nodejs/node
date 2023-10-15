@@ -5798,9 +5798,10 @@ def CheckForNonConstReference(filename, clean_lines, linenum,
   # We also accept & in static_assert, which looks like a function but
   # it's actually a declaration expression.
   allowed_functions = (r'(?:[sS]wap(?:<\w:+>)?|'
-                           r'operator\s*[<>][<>]|'
-                           r'static_assert|COMPILE_ASSERT'
-                           r')\s*\(')
+                       r'operator\s*[<>][<>]|'
+                       r'static_assert|'
+                       r'COMPILE_ASSERT)\s*\(|'
+                       r'FastApiCallbackOptions&')
   if Search(allowed_functions, line):
     return
   elif not Search(r'\S+\([^)]*$', line):
