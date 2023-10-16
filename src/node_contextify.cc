@@ -1368,17 +1368,19 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
   return result;
 }
 
-// These are the error messages thrown due to ESM syntax in a CommonJS module.
+// When compiling as CommonJS source code that contains ESM syntax, the
+// following error messages are returned:
+// - `import` statements: "Cannot use import statement outside a module"
+// - `export` statements: "Unexpected token 'export'"
+// - `import.meta` references: "Cannot use 'import.meta' outside a module"
+// Dynamic `import()` is permitted in CommonJS, so it does not error.
+// While top-level `await` is not permitted in CommonJS, it returns the same
+// error message as when `await` is used in a sync function, so we don't use it
+// as a disambiguation.
 constexpr std::array<std::string_view, 3> esm_syntax_error_messages = {
-    // `import` statements return an error with the message:
-    "Cannot use import statement outside a module",
-    // `export` statements return an error with the message:
-    "Unexpected token 'export'",
-    // `import.meta` returns an error with the message:
-    "Cannot use 'import.meta' outside a module"};
-// Top-level `await` currently returns the same error message as when `await` is
-// used in a sync function, so we don't use it as a disambiguation. Dynamic
-// `import()` is permitted in CommonJS, so we don't use it as a disambiguation.
+    "Cannot use import statement outside a module",  // `import` statements
+    "Unexpected token 'export'",                     // `export` statements
+    "Cannot use 'import.meta' outside a module"};    // `import.meta` references
 
 void ContextifyContext::ContainsModuleSyntax(
     const FunctionCallbackInfo<Value>& args) {
@@ -1387,8 +1389,11 @@ void ContextifyContext::ContainsModuleSyntax(
   Local<String> code = args[0].As<String>();
 
   // Argument 2: filename
-  CHECK(args[1]->IsString());
-  Local<String> filename = args[1].As<String>();
+  Local<String> filename = String::Empty(args.GetIsolate());
+  if (!args[1]->IsUndefined()) {
+    CHECK(args[1]->IsString());
+    filename = args[1].As<String>();
+  }
 
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
