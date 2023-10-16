@@ -1207,6 +1207,20 @@ Notify the `@nodejs/npm` team in the release proposal PR to inform them of the
 upcoming release. `npm` maintains a list of [supported versions](https://github.com/npm/cli/blob/latest/lib/utils/unsupported.js#L3)
 that will need updating to include the new major release.
 
+To keep the branch in sync until the release date, it can be as simple as
+doing the following:
+
+> Make sure to check that there are no PRs with the label `dont-land-on-vX.x`.
+
+```bash
+git checkout vN.x
+git reset --hard upstream/main
+git checkout vN.x-staging
+git reset --hard upstream/main
+git push upstream vN.x
+git push upstream vN.x-staging
+```
+
 ### Update `NODE_MODULE_VERSION`
 
 This macro in `src/node_version.h` is used to signal an ABI version for native
