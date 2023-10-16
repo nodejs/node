@@ -12,9 +12,9 @@ path.resolve = (s) => s;
 
 const blockedFolder = process.env.BLOCKEDFOLDER;
 const allowedFolder = process.env.ALLOWEDFOLDER;
-const traversalPath = allowedFolder + '../file.md';
-const traversalFolderPath = allowedFolder + '../folder';
-const bufferTraversalPath = Buffer.from(allowedFolder + '../file.md');
+const traversalPath = allowedFolder + '/../file.md';
+const traversalFolderPath = allowedFolder + '/../folder';
+const bufferTraversalPath = Buffer.from(traversalPath);
 const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
 
 {
