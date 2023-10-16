@@ -873,8 +873,8 @@ added: v0.5.0
 * {string}
 
 The operating system CPU architecture for which the Node.js binary was compiled.
-Possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,`'mipsel'`, `'ppc'`,
-`'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`, and `'x64'`.
+Possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'loong64'`, `'mips'`,
+`'mipsel'`, `'ppc'`, `'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`, and `'x64'`.
 
 ```mjs
 import { arch } from 'node:process';
