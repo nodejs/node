@@ -635,7 +635,7 @@ test('mocks the Date object', (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -672,7 +672,7 @@ test('mocks the Date object with initial time', (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -711,7 +711,7 @@ test('sets the time of a date object', (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -753,7 +753,7 @@ test('runs timers as setTime passes ticks', (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -798,7 +798,7 @@ test('runs timers as setTime passes ticks', (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
