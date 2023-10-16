@@ -2823,6 +2823,9 @@ const server = http.createServer((req, res) => {
 <!-- YAML
 added: v16.9.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50187
+    description: Added support for stream class.
   - version:
     - v19.8.0
     - v18.16.0
@@ -2833,7 +2836,7 @@ changes:
 > Stability: 1 - `stream.compose` is experimental.
 
 * `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]|
-  ReadableStream\[]|WritableStream\[]|TransformStream\[]}
+  ReadableStream\[]|WritableStream\[]|TransformStream\[]|Duplex\[]|Function}
 * Returns: {stream.Duplex}
 
 Combines two or more streams into a `Duplex` stream that writes to the
