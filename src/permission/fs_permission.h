@@ -31,7 +31,7 @@ class FSPermission final : public PermissionBase {
 
       Node() : wildcard_child(nullptr), is_leaf(false) {}
 
-      Node* CreateChild(std::string prefix) {
+      Node* CreateChild(const std::string& prefix) {
         if (prefix.empty() && !is_leaf) {
           is_leaf = true;
           return this;
