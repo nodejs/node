@@ -1245,7 +1245,7 @@ void ContextifyContext::CompileFunction(
   TryCatchScope try_catch(env);
   Local<Object> result = CompileFunctionAndCacheResult(env,
                                                        parsing_context,
-                                                       source,
+                                                       &source,
                                                        params,
                                                        context_extensions,
                                                        options,
@@ -1309,7 +1309,7 @@ ScriptCompiler::CompileOptions ContextifyContext::GetCompileOptions(
 Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
     Environment* env,
     Local<Context> parsing_context,
-    const ScriptCompiler::Source& source,
+    ScriptCompiler::Source* source,
     std::vector<Local<String>> params,
     std::vector<Local<Object>> context_extensions,
     ScriptCompiler::CompileOptions options,
@@ -1318,7 +1318,7 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
     const TryCatchScope& try_catch) {
   MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunction(
       parsing_context,
-      const_cast<ScriptCompiler::Source*>(&source),
+      source,
       params.size(),
       params.data(),
       context_extensions.size(),
@@ -1358,7 +1358,7 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
   if (StoreCodeCacheResult(env,
                            result,
                            options,
-                           source,
+                           *source,
                            produce_cached_data,
                            std::move(new_cached_data))
           .IsNothing()) {
@@ -1401,11 +1401,9 @@ void ContextifyContext::ContainsModuleSyntax(
 
   // TODO(geoffreybooth): Centralize this rather than matching the logic in
   // cjs/loader.js and translators.js
-  Local<Symbol> id_symbol =
-      (String::Concat(isolate,
-                      String::NewFromUtf8(isolate, "cjs:").ToLocalChecked(),
-                      filename))
-          .As<Symbol>();
+  Local<String> script_id = String::Concat(
+      isolate, String::NewFromUtf8(isolate, "cjs:").ToLocalChecked(), filename);
+  Local<Symbol> id_symbol = Symbol::New(isolate, script_id);
 
   Local<PrimitiveArray> host_defined_options =
       GetHostDefinedOptions(isolate, id_symbol);
@@ -1424,7 +1422,7 @@ void ContextifyContext::ContainsModuleSyntax(
 
   ContextifyContext::CompileFunctionAndCacheResult(env,
                                                    context,
-                                                   source,
+                                                   &source,
                                                    params,
                                                    std::vector<Local<Object>>(),
                                                    options,

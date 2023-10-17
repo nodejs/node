@@ -86,7 +86,7 @@ class ContextifyContext : public BaseObject {
   static v8::Local<v8::Object> CompileFunctionAndCacheResult(
       Environment* env,
       v8::Local<v8::Context> parsing_context,
-      const v8::ScriptCompiler::Source& source,
+      v8::ScriptCompiler::Source* source,
       std::vector<v8::Local<v8::String>> params,
       std::vector<v8::Local<v8::Object>> context_extensions,
       v8::ScriptCompiler::CompileOptions options,
