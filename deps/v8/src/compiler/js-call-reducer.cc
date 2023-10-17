@@ -6381,8 +6381,11 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node,
     }
   }
 
+  // JSCreateArrayIterator doesn't have control output, so we bypass the old
+  // JSCall node on the control chain.
+  ReplaceWithValue(node, node, node, control);
+
   // Morph the {node} into a JSCreateArrayIterator with the given {kind}.
-  RelaxControls(node);
   node->ReplaceInput(0, receiver);
   node->ReplaceInput(1, context);
   node->ReplaceInput(2, effect);
