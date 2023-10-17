@@ -51,6 +51,7 @@ bool ada_can_parse_with_base(const char* input, size_t input_length,
 
 void ada_free(ada_url result);
 void ada_free_owned_string(ada_owned_string owned);
+ada_url ada_copy(ada_url input);
 
 bool ada_is_valid(ada_url result);
 
@@ -67,6 +68,8 @@ ada_string ada_get_hostname(ada_url result);
 ada_string ada_get_pathname(ada_url result);
 ada_string ada_get_search(ada_url result);
 ada_string ada_get_protocol(ada_url result);
+uint8_t ada_get_host_type(ada_url result);
+uint8_t ada_get_scheme_type(ada_url result);
 
 // url_aggregator setters
 // if ada_is_valid(result)) is false, the setters have no effect
@@ -81,6 +84,11 @@ bool ada_set_port(ada_url result, const char* input, size_t length);
 bool ada_set_pathname(ada_url result, const char* input, size_t length);
 void ada_set_search(ada_url result, const char* input, size_t length);
 void ada_set_hash(ada_url result, const char* input, size_t length);
+
+// url_aggregator clear methods
+void ada_clear_port(ada_url result);
+void ada_clear_hash(ada_url result);
+void ada_clear_search(ada_url result);
 
 // url_aggregator functions
 // if ada_is_valid(result) is false, functions below will return false

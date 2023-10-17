@@ -1,4 +1,4 @@
-/* auto-generated on 2023-07-23 15:03:22 -0400. Do not edit! */
+/* auto-generated on 2023-09-30 20:34:30 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -8,7 +8,7 @@
 #define ADA_H
 
 /* begin file include/ada/ada_idna.h */
-/* auto-generated on 2023-05-07 19:12:14 -0400. Do not edit! */
+/* auto-generated on 2023-09-19 15:58:51 -0400. Do not edit! */
 /* begin file include/idna.h */
 #ifndef ADA_IDNA_H
 #define ADA_IDNA_H
@@ -129,9 +129,8 @@ std::string to_ascii(std::string_view ut8_string);
 // https://url.spec.whatwg.org/#forbidden-domain-code-point
 bool contains_forbidden_domain_code_point(std::string_view ascii_string);
 
-bool constexpr begins_with(std::u32string_view view,
-                           std::u32string_view prefix);
-bool constexpr begins_with(std::string_view view, std::string_view prefix);
+bool begins_with(std::u32string_view view, std::u32string_view prefix);
+bool begins_with(std::string_view view, std::string_view prefix);
 
 bool constexpr is_ascii(std::u32string_view view);
 bool constexpr is_ascii(std::string_view view);
@@ -1008,6 +1007,7 @@ ada_really_inline bool bit_at(const uint8_t a[], const uint8_t i) {
 #define ADA_CHECKERS_INL_H
 
 
+#include <algorithm>
 #include <string_view>
 #include <cstring>
 
@@ -1054,11 +1054,12 @@ inline constexpr bool is_normalized_windows_drive_letter(
   return input.size() >= 2 && (is_alpha(input[0]) && (input[1] == ':'));
 }
 
-ada_really_inline constexpr bool begins_with(std::string_view view,
-                                             std::string_view prefix) {
+ada_really_inline bool begins_with(std::string_view view,
+                                   std::string_view prefix) {
   // in C++20, you have view.begins_with(prefix)
+  // std::equal is constexpr in C++20
   return view.size() >= prefix.size() &&
-         (view.substr(0, prefix.size()) == prefix);
+         std::equal(prefix.begin(), prefix.end(), view.begin());
 }
 
 }  // namespace ada::checkers
@@ -1407,6 +1408,25 @@ constexpr ada::scheme::type get_scheme_type(std::string_view scheme) noexcept;
 namespace ada {
 
 /**
+ * Type of URL host as an enum.
+ */
+enum url_host_type : uint8_t {
+  /**
+   * Represents common URLs such as "https://www.google.com"
+   */
+  DEFAULT = 0,
+  /**
+   * Represents ipv4 addresses such as "http://127.0.0.1"
+   */
+  IPV4 = 1,
+  /**
+   * Represents ipv6 addresses such as
+   * "http://[2001:db8:3333:4444:5555:6666:7777:8888]"
+   */
+  IPV6 = 2,
+};
+
+/**
  * @brief Base class of URL implementations
  *
  * @details A url_base contains a few attributes: is_valid, has_opaque_path and
@@ -1427,6 +1447,11 @@ struct url_base {
    * A URL has an opaque path if its path is a string.
    */
   bool has_opaque_path{false};
+
+  /**
+   * URL hosts type
+   */
+  url_host_type host_type = url_host_type::DEFAULT;
 
   /**
    * @private
@@ -1768,8 +1793,8 @@ inline int fast_digit_count(uint32_t x) noexcept {
 #define TL_EXPECTED_HPP
 
 #define TL_EXPECTED_VERSION_MAJOR 1
-#define TL_EXPECTED_VERSION_MINOR 0
-#define TL_EXPECTED_VERSION_PATCH 1
+#define TL_EXPECTED_VERSION_MINOR 1
+#define TL_EXPECTED_VERSION_PATCH 0
 
 #include <exception>
 #include <functional>
@@ -1800,6 +1825,16 @@ inline int fast_digit_count(uint32_t x) noexcept {
 #if (defined(__GNUC__) && __GNUC__ == 5 && __GNUC_MINOR__ <= 5 && \
      !defined(__clang__))
 #define TL_EXPECTED_GCC55
+#endif
+
+#if !defined(TL_ASSERT)
+// can't have assert in constexpr in C++11 and GCC 4.9 has a compiler bug
+#if (__cplusplus > 201103L) && !defined(TL_EXPECTED_GCC49)
+#include <cassert>
+#define TL_ASSERT(x) assert(x)
+#else
+#define TL_ASSERT(x)
+#endif
 #endif
 
 #if (defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ <= 9 && \
@@ -1957,6 +1992,7 @@ template <typename E>
 #ifdef TL_EXPECTED_EXCEPTIONS_ENABLED
   throw std::forward<E>(e);
 #else
+  (void)e;
 #ifdef _MSC_VER
   __assume(0);
 #else
@@ -2597,7 +2633,7 @@ struct expected_operations_base : expected_storage_base<T, E> {
       geterr().~unexpected<E>();
       construct(std::move(rhs).get());
     } else {
-      assign_common(rhs);
+      assign_common(std::move(rhs));
     }
   }
 
@@ -2960,7 +2996,7 @@ struct default_constructor_tag {
 };
 
 // expected_default_ctor_base will ensure that expected has a deleted default
-// constructor if T is not default constructible.
+// consturctor if T is not default constructible.
 // This specialization is for when T is default constructible
 template <class T, class E,
           bool Enable =
@@ -3252,6 +3288,53 @@ class expected : private detail::expected_move_assign_base<T, E>,
   constexpr decltype(map_error_impl(std::declval<const expected &&>(),
                                     std::declval<F &&>()))
   map_error(F &&f) const && {
+    return map_error_impl(std::move(*this), std::forward<F>(f));
+  }
+#endif
+#endif
+#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) && \
+    !defined(TL_EXPECTED_GCC54) && !defined(TL_EXPECTED_GCC55)
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR auto transform_error(F &&f) & {
+    return map_error_impl(*this, std::forward<F>(f));
+  }
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR auto transform_error(F &&f) && {
+    return map_error_impl(std::move(*this), std::forward<F>(f));
+  }
+  template <class F>
+  constexpr auto transform_error(F &&f) const & {
+    return map_error_impl(*this, std::forward<F>(f));
+  }
+  template <class F>
+  constexpr auto transform_error(F &&f) const && {
+    return map_error_impl(std::move(*this), std::forward<F>(f));
+  }
+#else
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR decltype(map_error_impl(std::declval<expected &>(),
+                                                   std::declval<F &&>()))
+  transform_error(F &&f) & {
+    return map_error_impl(*this, std::forward<F>(f));
+  }
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR decltype(map_error_impl(std::declval<expected &&>(),
+                                                   std::declval<F &&>()))
+  transform_error(F &&f) && {
+    return map_error_impl(std::move(*this), std::forward<F>(f));
+  }
+  template <class F>
+  constexpr decltype(map_error_impl(std::declval<const expected &>(),
+                                    std::declval<F &&>()))
+  transform_error(F &&f) const & {
+    return map_error_impl(*this, std::forward<F>(f));
+  }
+
+#ifndef TL_EXPECTED_NO_CONSTRR
+  template <class F>
+  constexpr decltype(map_error_impl(std::declval<const expected &&>(),
+                                    std::declval<F &&>()))
+  transform_error(F &&f) const && {
     return map_error_impl(std::move(*this), std::forward<F>(f));
   }
 #endif
@@ -3697,27 +3780,37 @@ class expected : private detail::expected_move_assign_base<T, E>,
     }
   }
 
-  constexpr const T *operator->() const { return valptr(); }
-  TL_EXPECTED_11_CONSTEXPR T *operator->() { return valptr(); }
+  constexpr const T *operator->() const {
+    TL_ASSERT(has_value());
+    return valptr();
+  }
+  TL_EXPECTED_11_CONSTEXPR T *operator->() {
+    TL_ASSERT(has_value());
+    return valptr();
+  }
 
   template <class U = T,
             detail::enable_if_t<!std::is_void<U>::value> * = nullptr>
   constexpr const U &operator*() const & {
+    TL_ASSERT(has_value());
     return val();
   }
   template <class U = T,
             detail::enable_if_t<!std::is_void<U>::value> * = nullptr>
   TL_EXPECTED_11_CONSTEXPR U &operator*() & {
+    TL_ASSERT(has_value());
     return val();
   }
   template <class U = T,
             detail::enable_if_t<!std::is_void<U>::value> * = nullptr>
   constexpr const U &&operator*() const && {
+    TL_ASSERT(has_value());
     return std::move(val());
   }
   template <class U = T,
             detail::enable_if_t<!std::is_void<U>::value> * = nullptr>
   TL_EXPECTED_11_CONSTEXPR U &&operator*() && {
+    TL_ASSERT(has_value());
     return std::move(val());
   }
 
@@ -3753,10 +3846,22 @@ class expected : private detail::expected_move_assign_base<T, E>,
     return std::move(val());
   }
 
-  constexpr const E &error() const & { return err().value(); }
-  TL_EXPECTED_11_CONSTEXPR E &error() & { return err().value(); }
-  constexpr const E &&error() const && { return std::move(err().value()); }
-  TL_EXPECTED_11_CONSTEXPR E &&error() && { return std::move(err().value()); }
+  constexpr const E &error() const & {
+    TL_ASSERT(!has_value());
+    return err().value();
+  }
+  TL_EXPECTED_11_CONSTEXPR E &error() & {
+    TL_ASSERT(!has_value());
+    return err().value();
+  }
+  constexpr const E &&error() const && {
+    TL_ASSERT(!has_value());
+    return std::move(err().value());
+  }
+  TL_EXPECTED_11_CONSTEXPR E &&error() && {
+    TL_ASSERT(!has_value());
+    return std::move(err().value());
+  }
 
   template <class U>
   constexpr T value_or(U &&v) const & {
@@ -4479,9 +4584,10 @@ ada_really_inline constexpr bool is_single_dot_path_segment(
 ada_really_inline constexpr bool is_lowercase_hex(const char c) noexcept;
 
 /**
- * @details Convert hex to binary.
+ * @details Convert hex to binary. Caller is responsible to ensure that
+ * the parameter is an hexadecimal digit (0-9, A-F, a-f).
  */
-unsigned constexpr convert_hex_to_binary(char c) noexcept;
+ada_really_inline unsigned constexpr convert_hex_to_binary(char c) noexcept;
 
 /**
  * first_percent should be  = input.find('%')
@@ -4735,6 +4841,10 @@ struct url_aggregator : url_base {
   /** @return true if the URL has a search component */
   [[nodiscard]] inline bool has_search() const noexcept override;
 
+  inline void clear_port();
+  inline void clear_hash();
+  inline void clear_search() override;
+
  private:
   friend ada::url_aggregator ada::parser::parse_url<ada::url_aggregator>(
       std::string_view, const ada::url_aggregator *);
@@ -4809,12 +4919,9 @@ struct url_aggregator : url_base {
   inline void update_base_port(uint32_t input);
   inline void append_base_pathname(const std::string_view input);
   inline uint32_t retrieve_base_port() const;
-  inline void clear_port();
   inline void clear_hostname();
-  inline void clear_hash();
-  inline void clear_pathname() override;
-  inline void clear_search() override;
   inline void clear_password();
+  inline void clear_pathname() override;
   inline bool has_dash_dot() const noexcept;
   void delete_dash_dot();
   inline void consume_prepared_path(std::string_view input);
@@ -4913,10 +5020,10 @@ inline constexpr bool is_normalized_windows_drive_letter(
     std::string_view input) noexcept;
 
 /**
- * @warning Will be removed when Ada supports C++20.
+ * @warning Will be removed when Ada requires C++20.
  */
-ada_really_inline constexpr bool begins_with(std::string_view view,
-                                             std::string_view prefix);
+ada_really_inline bool begins_with(std::string_view view,
+                                   std::string_view prefix);
 
 /**
  * Returns true if an input is an ipv4 address.
@@ -6343,7 +6450,9 @@ inline void url_aggregator::clear_hostname() {
                        " with " + components.to_string() + "\n" + to_diagram());
 #endif
   ADA_ASSERT_TRUE(has_authority());
-  ADA_ASSERT_TRUE(has_empty_hostname());
+  ADA_ASSERT_EQUAL(has_empty_hostname(), true,
+                   "hostname should have been cleared on buffer=" + buffer +
+                       " with " + components.to_string() + "\n" + to_diagram());
   ADA_ASSERT_TRUE(validate());
 }
 
@@ -6448,7 +6557,9 @@ inline bool url_aggregator::has_hostname() const noexcept {
 
 inline bool url_aggregator::has_port() const noexcept {
   ada_log("url_aggregator::has_port");
-  return components.pathname_start != components.host_end;
+  // A URL cannot have a username/password/port if its host is null or the empty
+  // string, or its scheme is "file".
+  return has_hostname() && components.pathname_start != components.host_end;
 }
 
 inline bool url_aggregator::has_dash_dot() const noexcept {
@@ -6609,6 +6720,7 @@ struct url_search_params {
    * @see https://url.spec.whatwg.org/#dom-urlsearchparams-has
    */
   inline bool has(std::string_view key) noexcept;
+  inline bool has(std::string_view key, std::string_view value) noexcept;
 
   /**
    * @see https://url.spec.whatwg.org/#dom-urlsearchparams-set
@@ -6733,6 +6845,15 @@ inline bool url_search_params::has(const std::string_view key) noexcept {
   return entry != params.end();
 }
 
+inline bool url_search_params::has(std::string_view key,
+                                   std::string_view value) noexcept {
+  auto entry =
+      std::find_if(params.begin(), params.end(), [&key, &value](auto &param) {
+        return param.first == key && param.second == value;
+      });
+  return entry != params.end();
+}
+
 inline std::string url_search_params::to_string() {
   auto character_set = ada::character_sets::WWW_FORM_URLENCODED_PERCENT_ENCODE;
   std::string out{};
@@ -6807,14 +6928,14 @@ inline void url_search_params::sort() {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.6.0"
+#define ADA_VERSION "2.6.10"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
   ADA_VERSION_MINOR = 6,
-  ADA_VERSION_REVISION = 0,
+  ADA_VERSION_REVISION = 10,
 };
 
 }  // namespace ada

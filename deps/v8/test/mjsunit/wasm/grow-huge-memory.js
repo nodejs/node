@@ -21,7 +21,8 @@ function GetMemoryPages(memory) {
 
 (function TestGrowFromWasm() {
   let builder = new WasmModuleBuilder();
-  builder.addMemory(200, 50000, true);
+  builder.addMemory(200, 50000);
+  builder.exportMemoryAs("memory");
   builder.addFunction("grow", kSig_i_v)
     .addBody([
       ...wasmI32Const(40000),        // Number of pages to grow by.

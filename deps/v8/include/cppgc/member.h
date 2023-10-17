@@ -597,7 +597,32 @@ using UncompressedMember = internal::BasicMember<
     T, internal::StrongMemberTag, internal::DijkstraWriteBarrierPolicy,
     internal::DefaultMemberCheckingPolicy, internal::RawPointer>;
 
+#if defined(CPPGC_POINTER_COMPRESSION)
+/**
+ * CompressedMember. Default implementation of cppgc::Member on builds with
+ * pointer compression.
+ */
+template <typename T>
+using CompressedMember = internal::BasicMember<
+    T, internal::StrongMemberTag, internal::DijkstraWriteBarrierPolicy,
+    internal::DefaultMemberCheckingPolicy, internal::CompressedPointer>;
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
+
 }  // namespace subtle
+
+namespace internal {
+
+struct Dummy;
+
+static constexpr size_t kSizeOfMember = sizeof(Member<Dummy>);
+static constexpr size_t kSizeOfUncompressedMember =
+    sizeof(subtle::UncompressedMember<Dummy>);
+#if defined(CPPGC_POINTER_COMPRESSION)
+static constexpr size_t kSizeofCompressedMember =
+    sizeof(subtle::CompressedMember<Dummy>);
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
+
+}  // namespace internal
 
 }  // namespace cppgc
 

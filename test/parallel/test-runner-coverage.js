@@ -153,13 +153,13 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   let report = [
     '# start of coverage report',
     '# file | line % | branch % | funcs % | uncovered lines',
-    '# test/fixtures/v8-coverage/combined_coverage/common.js | 89.86 | ' +
+    '# common.js | 89.86 | ' +
     '62.50 | 100.00 | 8, 13, 14, 18, 34, 35, 53',
-    '# test/fixtures/v8-coverage/combined_coverage/first.test.js | 83.33 | ' +
+    '# first.test.js | 83.33 | ' +
     '100.00 | 50.00 | 5, 6',
-    '# test/fixtures/v8-coverage/combined_coverage/second.test.js | 100.00 ' +
+    '# second.test.js | 100.00 ' +
     '| 100.00 | 100.00 | ',
-    '# test/fixtures/v8-coverage/combined_coverage/third.test.js | 100.00 | ' +
+    '# third.test.js | 100.00 | ' +
     '100.00 | 100.00 | ',
     '# all files | 92.11 | 72.73 | 88.89 |',
     '# end of coverage report',
@@ -171,10 +171,11 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
 
   const fixture = fixtures.path('v8-coverage', 'combined_coverage');
   const args = [
-    '--test', '--experimental-test-coverage', '--test-reporter', 'tap', fixture,
+    '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
   ];
   const result = spawnSync(process.execPath, args, {
-    env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path }
+    env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+    cwd: fixture,
   });
 
   assert.strictEqual(result.stderr.toString(), '');

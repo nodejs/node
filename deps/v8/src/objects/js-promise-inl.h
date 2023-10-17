@@ -24,12 +24,12 @@ BOOL_ACCESSORS(JSPromise, flags, has_handler, HasHandlerBit::kShift)
 BOOL_ACCESSORS(JSPromise, flags, handled_hint, HandledHintBit::kShift)
 BOOL_ACCESSORS(JSPromise, flags, is_silent, IsSilentBit::kShift)
 
-Object JSPromise::result() const {
+Tagged<Object> JSPromise::result() const {
   DCHECK_NE(Promise::kPending, status());
   return reactions_or_result();
 }
 
-Object JSPromise::reactions() const {
+Tagged<Object> JSPromise::reactions() const {
   DCHECK_EQ(Promise::kPending, status());
   return reactions_or_result();
 }

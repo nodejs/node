@@ -28,10 +28,10 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   static void Copy(const Address* const* from, Address** to);
   static void Move(Address** from, Address** to);
 
-  static Object Mark(Address* location, MarkMode mark_mode);
-  static Object MarkConservatively(Address* inner_location,
-                                   Address* traced_node_block_base,
-                                   MarkMode mark_mode);
+  static Tagged<Object> Mark(Address* location, MarkMode mark_mode);
+  static Tagged<Object> MarkConservatively(Address* inner_location,
+                                           Address* traced_node_block_base,
+                                           MarkMode mark_mode);
 
   explicit TracedHandles(Isolate*);
   ~TracedHandles();

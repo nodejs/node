@@ -149,6 +149,10 @@ function GenerateParseReviverFunction(texts) {
     '{"x":{"x":1,"y":2}}',
     JSON.stringify({ x: { x: JSON.rawJSON(1), y: JSON.rawJSON(2) } })
   );
+  assertEquals(
+    `"${'\u1234'.repeat(128)}"`,
+    JSON.stringify(JSON.rawJSON(`"${'\u1234'.repeat(128)}"`))
+  );
 })();
 
 (function TestArray() {

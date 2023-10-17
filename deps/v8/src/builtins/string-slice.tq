@@ -6,7 +6,8 @@ namespace string {
 // ES6 #sec-string.prototype.slice ( start, end )
 // https://tc39.github.io/ecma262/#sec-string.prototype.slice
 transitioning javascript builtin StringPrototypeSlice(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   // 1. Let O be ? RequireObjectCoercible(this value).
   // 2. Let S be ? ToString(O).
   const string: String = ToThisString(receiver, 'String.prototype.slice');

@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "September 2023" "" ""
+.TH "CONFIG" "7" "October 2023" "" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -1355,6 +1355,26 @@ Type: Boolean
 Save installed packages into \fBdependencies\fR specifically. This is useful if a package already exists in \fBdevDependencies\fR or \fBoptionalDependencies\fR, but you want to move it to be a non-optional production dependency.
 .P
 This is the default behavior if \fB--save\fR is true, and neither \fB--save-dev\fR or \fB--save-optional\fR are true.
+.SS "\fBsbom-format\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: "cyclonedx" or "spdx"
+.RE 0
+
+.P
+SBOM format to use when generating SBOMs.
+.SS "\fBsbom-type\fR"
+.RS 0
+.IP \(bu 4
+Default: "library"
+.IP \(bu 4
+Type: "library", "application", or "framework"
+.RE 0
+
+.P
+The type of package described by the generated SBOM. For SPDX, this is the value for the \fBprimaryPackagePurpose\fR fieled. For CycloneDX, this is the value for the \fBtype\fR field.
 .SS "\fBscope\fR"
 .RS 0
 .IP \(bu 4

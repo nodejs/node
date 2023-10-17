@@ -298,6 +298,9 @@ function testEncoding(options, assertionHash) {
   let hashValue = '';
 
   hash.on('data', (data) => {
+    // The defaultEncoding has no effect on the hash value. It only affects data
+    // consumed by the Hash transform stream.
+    assert(Buffer.isBuffer(data));
     hashValue += data.toString('hex');
   });
 
@@ -307,6 +310,8 @@ function testEncoding(options, assertionHash) {
 
   hash.write('öäü');
   hash.end();
+
+  assert.strictEqual(hash._writableState.defaultEncoding, options?.defaultEncoding ?? 'utf8');
 }
 
 // Hash of "öäü" in utf8 format

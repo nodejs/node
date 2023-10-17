@@ -53,17 +53,8 @@ struct NodeMatcher {
 };
 
 inline Node* SkipValueIdentities(Node* node) {
-#ifdef DEBUG
-  bool seen_fold_constant = false;
-#endif
-  do {
-#ifdef DEBUG
-    if (node->opcode() == IrOpcode::kFoldConstant) {
-      DCHECK(!seen_fold_constant);
-      seen_fold_constant = true;
-    }
-#endif
-  } while (NodeProperties::IsValueIdentity(node, &node));
+  while (NodeProperties::IsValueIdentity(node, &node)) {
+  }
   DCHECK_NOT_NULL(node);
   return node;
 }
@@ -73,9 +64,7 @@ inline Node* SkipValueIdentities(Node* node) {
 // Note that value identities on the input node are skipped when matching. The
 // resolved value may not be a parameter of the input node. The node() method
 // returns the unmodified input node. This is by design, as reducers may wish to
-// match value constants but delay reducing the node until a later phase. For
-// example, binary operator reducers may opt to keep FoldConstant operands while
-// applying a reduction that match on the constant value of the FoldConstant.
+// match value constants but delay reducing the node until a later phase.
 template <typename T, IrOpcode::Value kOpcode>
 struct ValueMatcher : public NodeMatcher {
   using ValueType = T;
@@ -710,23 +699,16 @@ struct BaseWithIndexAndDisplacementMatcher {
         }
       }
     }
-    int64_t value = 0;
     if (displacement != nullptr) {
-      switch (displacement->opcode()) {
-        case IrOpcode::kInt32Constant: {
-          value = OpParameter<int32_t>(displacement->op());
-          break;
+      if (displacement->opcode() == IrOpcode::kInt32Constant) {
+        if (OpParameter<int32_t>(displacement->op()) == 0) {
+          displacement = nullptr;
         }
-        case IrOpcode::kInt64Constant: {
-          value = OpParameter<int64_t>(displacement->op());
-          break;
+      } else {
+        DCHECK_EQ(displacement->opcode(), IrOpcode::kInt64Constant);
+        if (OpParameter<int64_t>(displacement->op()) == 0) {
+          displacement = nullptr;
         }
-        default:
-          UNREACHABLE();
-          break;
-      }
-      if (value == 0) {
-        displacement = nullptr;
       }
     }
     if (power_of_two_plus_one) {

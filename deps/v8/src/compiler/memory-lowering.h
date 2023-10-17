@@ -89,7 +89,6 @@ class MemoryLowering final : public Reducer {
   // Specific reducers for each optype to enable keeping track of
   // AllocationState by the MemoryOptimizer.
   Reduction ReduceAllocateRaw(Node* node, AllocationType allocation_type,
-                              AllowLargeObjects allow_large_objects,
                               AllocationState const** state);
   Reduction ReduceLoadFromObject(Node* node);
   Reduction ReduceLoadElement(Node* node);

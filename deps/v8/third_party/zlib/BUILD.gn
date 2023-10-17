@@ -124,44 +124,39 @@ source_set("zlib_adler32_simd") {
 
 if (use_arm_neon_optimizations) {
   config("zlib_arm_crc32_config") {
-    # Disabled for iPhone, as described in DDI0487C_a_armv8_arm:
-    #  "All implementations of the ARMv8.1 architecture are required to
-    #   implement the CRC32* instructions. These are optional in ARMv8.0."
-    if (!is_ios) {
-      defines = [ "CRC32_ARMV8_CRC32" ]
-      if (is_android) {
-        defines += [ "ARMV8_OS_ANDROID" ]
-      } else if (is_linux || is_chromeos) {
-        defines += [ "ARMV8_OS_LINUX" ]
-      } else if (is_mac) {
-        defines += [ "ARMV8_OS_MACOS" ]
-      } else if (is_fuchsia) {
-        defines += [ "ARMV8_OS_FUCHSIA" ]
-      } else if (is_win) {
-        defines += [ "ARMV8_OS_WINDOWS" ]
-      } else {
-        assert(false, "Unsupported ARM OS")
-      }
+    defines = [ "CRC32_ARMV8_CRC32" ]
+    if (is_android) {
+      defines += [ "ARMV8_OS_ANDROID" ]
+    } else if (is_linux || is_chromeos) {
+      defines += [ "ARMV8_OS_LINUX" ]
+    } else if (is_mac) {
+      defines += [ "ARMV8_OS_MACOS" ]
+    } else if (is_ios) {
+      defines += [ "ARMV8_OS_IOS" ]
+    } else if (is_fuchsia) {
+      defines += [ "ARMV8_OS_FUCHSIA" ]
+    } else if (is_win) {
+      defines += [ "ARMV8_OS_WINDOWS" ]
+    } else {
+      assert(false, "Unsupported ARM OS")
     }
   }
 
   source_set("zlib_arm_crc32") {
     visibility = [ ":*" ]
 
-    if (!is_ios) {
-      include_dirs = [ "." ]
+    include_dirs = [ "." ]
 
-      if (!is_win && !is_clang) {
-        assert(!use_thin_lto,
-               "ThinLTO fails mixing different module-level targets")
-        cflags_c = [ "-march=armv8-a+aes+crc" ]
-      }
-
-      sources = [
-        "crc32_simd.c",
-        "crc32_simd.h",
-      ]
+    if (!is_win && !is_clang) {
+      assert(!use_thin_lto,
+             "ThinLTO fails mixing different module-level targets")
+      cflags_c = [ "-march=armv8-a+aes+crc" ]
     }
+
+    sources = [
+      "crc32_simd.c",
+      "crc32_simd.h",
+    ]
 
     configs += [ ":zlib_internal_config" ]
 
@@ -332,14 +327,6 @@ component("zlib") {
     defines += [ "CPU_NO_SIMD" ]
   }
 
-  if (is_ios) {
-    # iOS@ARM is a special case where we always have NEON but don't check
-    # for crypto extensions.
-    # TODO(cavalcantii): verify what is the current state of CPU features
-    # shipped on latest iOS devices.
-    defines += [ "ARM_OS_IOS" ]
-  }
-
   if (use_x86_x64_optimizations || use_arm_neon_optimizations) {
     deps += [
       ":zlib_adler32_simd",
@@ -359,7 +346,7 @@ component("zlib") {
   if (is_android) {
     import("//build/config/android/config.gni")
     if (defined(android_ndk_root) && android_ndk_root != "") {
-      deps += [ "//third_party/android_ndk:cpu_features" ]
+      deps += [ "//third_party/cpu_features:ndk_compat" ]
     } else {
       assert(false, "CPU detection requires the Android NDK")
     }
@@ -398,6 +385,11 @@ config("minizip_warnings") {
 }
 
 static_library("minizip") {
+  include_dirs = [
+    ".",
+    "//third_party/zlib",
+  ]
+
   sources = [
     "contrib/minizip/ioapi.c",
     "contrib/minizip/ioapi.h",
@@ -515,7 +507,12 @@ if (build_with_chromium) {
 
     data = [ "google/test/data/" ]
 
+    if (is_ios) {
+      bundle_deps = [ "google:zlib_pak_bundle_data" ]
+    }
+
     deps = [
+      ":minizip",
       ":zlib",
       "google:compression_utils",
       "google:zip",

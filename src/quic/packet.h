@@ -130,7 +130,6 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
   static BaseObjectPtr<Packet> CreateImmediateConnectionClosePacket(
       Environment* env,
       Listener* listener,
-      const SocketAddress& destination,
       const PathDescriptor& path_descriptor,
       const QuicError& reason);
 
@@ -146,14 +145,14 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
       Listener* listener,
       const PathDescriptor& path_descriptor);
 
+  // Called when the packet is done being sent.
+  void Done(int status);
+
  private:
   static BaseObjectPtr<Packet> FromFreeList(Environment* env,
                                             std::shared_ptr<Data> data,
                                             Listener* listener,
                                             const SocketAddress& destination);
-
-  // Called when the packet is done being sent.
-  void Done(int status);
 
   Listener* listener_;
   SocketAddress destination_;

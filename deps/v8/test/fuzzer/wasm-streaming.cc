@@ -133,9 +133,10 @@ CompilationResult CompileSync(Isolate* isolate, WasmFeatures enabled_features,
            ->SyncCompile(isolate, enabled_features, &thrower,
                          ModuleWireBytes{data})
            .ToHandle(&module_object)) {
-    auto result = CompilationResult::ForFailure(thrower.error_msg());
-    thrower.Reset();
-    return result;
+    Handle<Object> error = thrower.Reify();
+    Handle<String> error_msg =
+        Object::ToString(isolate, error).ToHandleChecked();
+    return CompilationResult::ForFailure(error_msg->ToCString().get());
   }
   return CompilationResult::ForSuccess(module_object->module());
 }
@@ -180,13 +181,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         streaming_result.failed ? "" : " not", sync_result.failed ? "" : " not",
         error_msg);
   }
-  // TODO(12922): Enable this test later, after other bugs are flushed out.
-  // if (strcmp(streaming_result.error_message.begin(),
-  //            sync_result.error_message.begin()) != 0) {
-  //   FATAL("Error messages differ: %s / %s\n",
-  //         streaming_result.error_message.begin(),
-  //         sync_result.error_message.begin());
-  // }
+  if (streaming_result.error_message != sync_result.error_message) {
+    FATAL("Error messages differ:\nstreaming: %s\n     sync: %s",
+          streaming_result.error_message.c_str(),
+          sync_result.error_message.c_str());
+  }
   CHECK_EQ(streaming_result.imported_functions, sync_result.imported_functions);
   CHECK_EQ(streaming_result.declared_functions, sync_result.declared_functions);
 

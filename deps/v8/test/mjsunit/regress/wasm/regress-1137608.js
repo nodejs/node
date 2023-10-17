@@ -40,7 +40,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kExprReturnCallIndirect, sig1, kTableZero]).exportFunc();
   builder.addFunction("f", sig1).addBody([kExprI32Const, 0]);
   builder.addTable(kWasmAnyFunc, 4, 4);
-  builder.addMemory(16, 32, false, true);
+  builder.addMemory(16, 32, true);
   let module = new WebAssembly.Module(builder.toBuffer());
   let instance = new WebAssembly.Instance(module);
 })();

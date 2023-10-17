@@ -237,14 +237,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                    int function_literal_id,
                                    const AstRawString* raw_name);
 
-  FunctionLiteral* DoParseDeserializedFunction(
-      Isolate* isolate, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
-      ParseInfo* info, int start_position, int end_position,
-      int function_literal_id, const AstRawString* raw_name);
-
-  FunctionLiteral* ParseClassForInstanceMemberInitialization(
+  FunctionLiteral* ParseClassForMemberInitialization(
       Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
-      int initializer_pos, int initializer_id, int initializer_end_pos);
+      FunctionKind initalizer_kind, int initializer_pos, int initializer_id,
+      int initializer_end_pos, const AstRawString* class_name);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
@@ -332,7 +328,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Variable* CreatePrivateNameVariable(ClassScope* scope, VariableMode mode,
                                       IsStaticFlag is_static_flag,
                                       const AstRawString* name);
-  FunctionLiteral* CreateInitializerFunction(const char* name,
+  FunctionLiteral* CreateInitializerFunction(const AstRawString* class_name,
                                              DeclarationScope* scope,
                                              Statement* initializer_stmt);
 
@@ -1057,6 +1053,18 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(
         node, zone()->New<TryFinallyStatementSourceRanges>(body_range));
+  }
+
+  V8_INLINE FunctionLiteral::EagerCompileHint GetEmbedderCompileHint(
+      FunctionLiteral::EagerCompileHint current_compile_hint, int position) {
+    if (current_compile_hint == FunctionLiteral::kShouldLazyCompile) {
+      v8::CompileHintCallback callback = info_->compile_hint_callback();
+      if (callback != nullptr &&
+          callback(position, info_->compile_hint_callback_data())) {
+        return FunctionLiteral::kShouldEagerCompile;
+      }
+    }
+    return current_compile_hint;
   }
 
   // Generate the next internal variable name for binding an exported namespace

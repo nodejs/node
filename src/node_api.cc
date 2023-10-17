@@ -164,7 +164,7 @@ void ThrowNodeApiVersionError(node::Environment* node_env,
   error_message += " requires Node-API version ";
   error_message += std::to_string(module_api_version);
   error_message += ", but this version of Node.js only supports version ";
-  error_message += NODE_STRINGIFY(NAPI_VERSION) " add-ons.";
+  error_message += NODE_STRINGIFY(NODE_API_SUPPORTED_VERSION_MAX) " add-ons.";
   node_env->ThrowError(error_message.c_str());
 }
 
@@ -176,7 +176,7 @@ inline napi_env NewEnv(v8::Local<v8::Context> context,
   // Validate module_api_version.
   if (module_api_version < NODE_API_DEFAULT_MODULE_API_VERSION) {
     module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
-  } else if (module_api_version > NAPI_VERSION &&
+  } else if (module_api_version > NODE_API_SUPPORTED_VERSION_MAX &&
              module_api_version != NAPI_VERSION_EXPERIMENTAL) {
     node::Environment* node_env = node::Environment::GetCurrent(context);
     CHECK_NOT_NULL(node_env);
@@ -677,15 +677,16 @@ node::addon_context_register_func get_node_api_context_register_func(
     const char* module_name,
     int32_t module_api_version) {
   static_assert(
-      NAPI_VERSION == 9,
+      NODE_API_SUPPORTED_VERSION_MAX == 9,
       "New version of Node-API requires adding another else-if statement below "
       "for the new version and updating this assert condition.");
-  if (module_api_version <= NODE_API_DEFAULT_MODULE_API_VERSION) {
-    return node_api_context_register_func<NODE_API_DEFAULT_MODULE_API_VERSION>;
-  } else if (module_api_version == 9) {
+  if (module_api_version == 9) {
     return node_api_context_register_func<9>;
   } else if (module_api_version == NAPI_VERSION_EXPERIMENTAL) {
     return node_api_context_register_func<NAPI_VERSION_EXPERIMENTAL>;
+  } else if (module_api_version >= NODE_API_SUPPORTED_VERSION_MIN &&
+             module_api_version <= NODE_API_DEFAULT_MODULE_API_VERSION) {
+    return node_api_context_register_func<NODE_API_DEFAULT_MODULE_API_VERSION>;
   } else {
     v8impl::ThrowNodeApiVersionError(node_env, module_name, module_api_version);
     return nullptr;
@@ -917,6 +918,7 @@ napi_status NAPI_CDECL napi_async_init(napi_env env,
                                        napi_value async_resource_name,
                                        napi_async_context* result) {
   CHECK_ENV(env);
+  env->CheckGCAccess();
   CHECK_ARG(env, async_resource_name);
   CHECK_ARG(env, result);
 
@@ -950,6 +952,7 @@ napi_status NAPI_CDECL napi_async_init(napi_env env,
 napi_status NAPI_CDECL napi_async_destroy(napi_env env,
                                           napi_async_context async_context) {
   CHECK_ENV(env);
+  env->CheckGCAccess();
   CHECK_ARG(env, async_context);
 
   v8impl::AsyncContext* node_async_context =
@@ -1099,6 +1102,7 @@ napi_status NAPI_CDECL napi_is_buffer(napi_env env,
                                       napi_value value,
                                       bool* result) {
   CHECK_ENV(env);
+  env->CheckGCAccess();
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
@@ -1111,6 +1115,7 @@ napi_status NAPI_CDECL napi_get_buffer_info(napi_env env,
                                             void** data,
                                             size_t* length) {
   CHECK_ENV(env);
+  env->CheckGCAccess();
   CHECK_ARG(env, value);
 
   v8::Local<v8::Value> buffer = v8impl::V8LocalValueFromJsValue(value);
@@ -1232,6 +1237,7 @@ napi_create_async_work(napi_env env,
                        void* data,
                        napi_async_work* result) {
   CHECK_ENV(env);
+  env->CheckGCAccess();
   CHECK_ARG(env, execute);
   CHECK_ARG(env, result);
 
@@ -1262,6 +1268,7 @@ napi_create_async_work(napi_env env,
 napi_status NAPI_CDECL napi_delete_async_work(napi_env env,
                                               napi_async_work work) {
   CHECK_ENV(env);
+  env->CheckGCAccess();
   CHECK_ARG(env, work);
 
   uvimpl::Work::Delete(reinterpret_cast<uvimpl::Work*>(work));
@@ -1316,6 +1323,7 @@ napi_create_threadsafe_function(napi_env env,
                                 napi_threadsafe_function_call_js call_js_cb,
                                 napi_threadsafe_function* result) {
   CHECK_ENV(env);
+  env->CheckGCAccess();
   CHECK_ARG(env, async_resource_name);
   RETURN_STATUS_IF_FALSE(env, initial_thread_count > 0, napi_invalid_arg);
   CHECK_ARG(env, result);

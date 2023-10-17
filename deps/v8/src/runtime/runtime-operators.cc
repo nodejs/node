@@ -43,7 +43,7 @@ RUNTIME_FUNCTION(Runtime_StrictEqual) {
   DCHECK_EQ(2, args.length());
   Object x = args[0];
   Object y = args[1];
-  return isolate->heap()->ToBoolean(x.StrictEquals(y));
+  return isolate->heap()->ToBoolean(Object::StrictEquals(x, y));
 }
 
 RUNTIME_FUNCTION(Runtime_StrictNotEqual) {
@@ -51,7 +51,7 @@ RUNTIME_FUNCTION(Runtime_StrictNotEqual) {
   DCHECK_EQ(2, args.length());
   Object x = args[0];
   Object y = args[1];
-  return isolate->heap()->ToBoolean(!x.StrictEquals(y));
+  return isolate->heap()->ToBoolean(!Object::StrictEquals(x, y));
 }
 
 RUNTIME_FUNCTION(Runtime_ReferenceEqual) {

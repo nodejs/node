@@ -6,7 +6,9 @@
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
+#include "src/compiler/node-properties.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -131,6 +133,12 @@ class AdvancedReducer : public Reducer {
   // control input to {node}.
   void RelaxControls(Node* node) {
     ReplaceWithValue(node, node, node, nullptr);
+  }
+
+  void MergeControlToEnd(Graph* graph, CommonOperatorBuilder* common,
+                         Node* node) {
+    NodeProperties::MergeControlToEnd(graph, common, node);
+    Revisit(graph->end());
   }
 
  private:

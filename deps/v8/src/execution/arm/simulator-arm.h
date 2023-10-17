@@ -232,8 +232,12 @@ class Simulator : public SimulatorBase {
 
   Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
-  // Accessor to the internal simulator stack area.
+  // Accessor to the internal simulator stack area. Adds a safety
+  // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
+  // Return current stack view, without additional safety margins.
+  // Users, for example wasm::StackMemory, can add their own.
+  base::Vector<uint8_t> GetCurrentStackView() const;
 
   // Executes ARM instructions until the PC reaches end_sim_pc.
   void Execute();
@@ -466,7 +470,14 @@ class Simulator : public SimulatorBase {
   bool inexact_vfp_flag_;
 
   // Simulator support.
-  char* stack_;
+  uint8_t* stack_;
+  static const size_t kAllocatedStackSize = 1 * MB;
+  // We leave a small buffer below the usable stack to protect against potential
+  // stack underflows.
+  static const int kStackMargin = 64;
+  // Added in Simulator::StackLimit()
+  static const int kAdditionalStackMargin = 4 * KB;
+  static const size_t kUsableStackSize = kAllocatedStackSize - kStackMargin;
   bool pc_modified_;
   int icount_;
 

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-number-format-v3
-
 let nf = new Intl.NumberFormat("en");
 // Basic case
 assertEquals("123", nf.format("123"));

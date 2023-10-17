@@ -106,6 +106,31 @@ class ReadOnlyArtifacts {
   void set_read_only_heap(std::unique_ptr<ReadOnlyHeap> read_only_heap);
   ReadOnlyHeap* read_only_heap() const { return read_only_heap_.get(); }
 
+  void set_initial_next_unique_sfi_id(uint32_t id) {
+    initial_next_unique_sfi_id_ = id;
+  }
+  uint32_t initial_next_unique_sfi_id() const {
+    return initial_next_unique_sfi_id_;
+  }
+
+  struct ExternalPointerRegistryEntry {
+    ExternalPointerRegistryEntry(ExternalPointerHandle handle, Address value,
+                                 ExternalPointerTag tag)
+        : handle(handle), value(value), tag(tag) {}
+    ExternalPointerHandle handle;
+    Address value;
+    ExternalPointerTag tag;
+  };
+  void set_external_pointer_registry(
+      std::vector<ExternalPointerRegistryEntry>&& registry) {
+    DCHECK(external_pointer_registry_.empty());
+    external_pointer_registry_ = std::move(registry);
+  }
+  const std::vector<ExternalPointerRegistryEntry>& external_pointer_registry()
+      const {
+    return external_pointer_registry_;
+  }
+
   void InitializeChecksum(SnapshotData* read_only_snapshot_data);
   void VerifyChecksum(SnapshotData* read_only_snapshot_data,
                       bool read_only_heap_created);
@@ -117,6 +142,8 @@ class ReadOnlyArtifacts {
   AllocationStats stats_;
   std::unique_ptr<SharedReadOnlySpace> shared_read_only_space_;
   std::unique_ptr<ReadOnlyHeap> read_only_heap_;
+  uint32_t initial_next_unique_sfi_id_ = 0;
+  std::vector<ExternalPointerRegistryEntry> external_pointer_registry_;
 #ifdef DEBUG
   // The checksum of the blob the read-only heap was deserialized from, if
   // any.
@@ -191,7 +218,7 @@ class ReadOnlySpace : public BaseSpace {
   bool writable() const { return !is_marked_read_only_; }
 
   bool Contains(Address a) = delete;
-  bool Contains(Object o) = delete;
+  bool Contains(Tagged<Object> o) = delete;
 
   V8_EXPORT_PRIVATE
   AllocationResult AllocateRaw(int size_in_bytes,
@@ -222,6 +249,9 @@ class ReadOnlySpace : public BaseSpace {
   Address limit() const { return limit_; }
   size_t Capacity() const { return capacity_; }
 
+  // Returns the index within pages_. The chunk must be part of this space.
+  size_t IndexOf(const BasicMemoryChunk* chunk) const;
+
   bool ContainsSlow(Address addr) const;
   V8_EXPORT_PRIVATE void ShrinkPages();
 #ifdef VERIFY_HEAP
@@ -235,8 +265,6 @@ class ReadOnlySpace : public BaseSpace {
   int AreaSize() const { return static_cast<int>(area_size_); }
 
   Address FirstPageAddress() const { return pages_.front()->address(); }
-
-  void InitFromMemoryDump(Isolate* isolate, SnapshotByteSource* source);
 
   // Ensure the read only space has at least one allocated page
   void EnsurePage();
@@ -266,9 +294,16 @@ class ReadOnlySpace : public BaseSpace {
   AllocationResult AllocateRawUnaligned(int size_in_bytes);
   AllocationResult AllocateRawAligned(int size_in_bytes,
                                       AllocationAlignment alignment);
+  Tagged<HeapObject> TryAllocateLinearlyAligned(int size_in_bytes,
+                                                AllocationAlignment alignment);
 
-  HeapObject TryAllocateLinearlyAligned(int size_in_bytes,
-                                        AllocationAlignment alignment);
+  // Return the index within pages_ of the newly allocated page.
+  size_t AllocateNextPage();
+  size_t AllocateNextPageAt(Address pos);
+  void InitializePageForDeserialization(ReadOnlyPage* page,
+                                        size_t area_size_in_bytes);
+  void FinalizeSpaceForDeserialization();
+
   void EnsureSpaceForAllocation(int size_in_bytes);
   void FreeLinearAllocationArea();
 
@@ -276,7 +311,7 @@ class ReadOnlySpace : public BaseSpace {
   const size_t area_size_;
 
   friend class Heap;
-  friend class ReadOnlySerializer;  // For Unseal.
+  friend class ReadOnlyHeapImageDeserializer;
 };
 
 class SharedReadOnlySpace : public ReadOnlySpace {
@@ -304,6 +339,16 @@ class SharedReadOnlySpace : public ReadOnlySpace {
 };
 
 }  // namespace internal
+
+namespace base {
+// Define special hash function for page pointers, to be used with std data
+// structures, e.g. std::unordered_set<ReadOnlyPage*, base::hash<ReadOnlyPage*>
+template <>
+struct hash<i::ReadOnlyPage*> : hash<i::BasicMemoryChunk*> {};
+template <>
+struct hash<const i::ReadOnlyPage*> : hash<const i::BasicMemoryChunk*> {};
+}  // namespace base
+
 }  // namespace v8
 
 #endif  // V8_HEAP_READ_ONLY_SPACES_H_

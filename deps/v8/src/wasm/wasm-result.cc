@@ -146,12 +146,13 @@ ErrorThrower::ErrorThrower(ErrorThrower&& other) V8_NOEXCEPT
 }
 
 ErrorThrower::~ErrorThrower() {
-  if (error() && !isolate_->has_pending_exception()) {
-    // We don't want to mix pending exceptions and scheduled exceptions, hence
-    // an existing exception should be pending, never scheduled.
-    DCHECK(!isolate_->has_scheduled_exception());
-    isolate_->Throw(*Reify());
-  }
+  if (!error() || isolate_->has_pending_exception()) return;
+
+  // We don't want to mix pending exceptions and scheduled exceptions, hence
+  // an existing exception should be pending, never scheduled.
+  DCHECK(!isolate_->has_scheduled_exception());
+  HandleScope handle_scope{isolate_};
+  isolate_->Throw(*Reify());
 }
 
 ScheduledErrorThrower::~ScheduledErrorThrower() {

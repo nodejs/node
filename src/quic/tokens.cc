@@ -213,6 +213,8 @@ RetryToken::operator const ngtcp2_vec*() const {
   return &ptr_;
 }
 
+RegularToken::RegularToken() : buf_(), ptr_(ngtcp2_vec{nullptr, 0}) {}
+
 RegularToken::RegularToken(uint32_t version,
                            const SocketAddress& address,
                            const TokenSecret& token_secret)
@@ -223,6 +225,10 @@ RegularToken::RegularToken(const uint8_t* token, size_t size)
     : ptr_(ngtcp2_vec{const_cast<uint8_t*>(token), size}) {
   DCHECK_LE(size, RegularToken::kRegularTokenLen);
   DCHECK_IMPLIES(token == nullptr, size = 0);
+}
+
+RegularToken::operator bool() const {
+  return ptr_.base != nullptr && ptr_.len > 0;
 }
 
 bool RegularToken::Validate(uint32_t version,

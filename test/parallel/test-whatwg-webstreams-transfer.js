@@ -31,7 +31,7 @@ const {
 } = require('internal/webstreams/util');
 
 const {
-  makeTransferable,
+  markTransferMode,
   kClone,
   kTransfer,
   kDeserialize,
@@ -105,7 +105,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(readable), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(readable, [readable]);
@@ -155,7 +157,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(readable), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(readable, [readable]);
@@ -206,7 +210,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(writable), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(writable, [writable]);
@@ -292,7 +298,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(transform), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(transform, [transform]);
@@ -324,7 +332,7 @@ const theData = 'hello';
 
   port2.postMessage(readable, [readable]);
 
-  const notActuallyTransferable = makeTransferable({
+  const notActuallyTransferable = {
     [kClone]() {
       return {
         data: {},
@@ -332,7 +340,8 @@ const theData = 'hello';
       };
     },
     [kDeserialize]: common.mustNotCall(),
-  });
+  };
+  markTransferMode(notActuallyTransferable, true, false);
 
   controller.enqueue(notActuallyTransferable);
 }
@@ -351,7 +360,7 @@ const theData = 'hello';
 
   const writable = new WritableStream(source);
 
-  const notActuallyTransferable = makeTransferable({
+  const notActuallyTransferable = {
     [kClone]() {
       return {
         data: {},
@@ -359,7 +368,8 @@ const theData = 'hello';
       };
     },
     [kDeserialize]: common.mustNotCall(),
-  });
+  };
+  markTransferMode(notActuallyTransferable, true, false);
 
   port1.onmessage = common.mustCall(({ data }) => {
     const writer = data.getWriter();

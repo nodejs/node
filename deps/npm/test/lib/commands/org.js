@@ -1,5 +1,5 @@
 const t = require('tap')
-const ansiTrim = require('../../../lib/utils/ansi-trim.js')
+const ansiTrim = require('strip-ansi')
 const mockNpm = require('../../fixtures/mock-npm')
 
 const mockOrg = async (t, { orgSize = 1, orgList = {}, ...npmOpts } = {}) => {

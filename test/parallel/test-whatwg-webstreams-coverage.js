@@ -26,25 +26,29 @@ assert(isPromisePending(new Promise(() => {})));
 assert.throws(() => {
   Reflect.get(ByteLengthQueuingStrategy.prototype, 'highWaterMark', {});
 }, {
-  code: 'ERR_INVALID_THIS'
+  name: 'TypeError',
+  message: /Cannot read private member/,
 });
 
 assert.throws(() => {
   Reflect.get(ByteLengthQueuingStrategy.prototype, 'size', {});
 }, {
-  code: 'ERR_INVALID_THIS'
+  name: 'TypeError',
+  message: /Cannot read private member/,
 });
 
 assert.throws(() => {
   Reflect.get(CountQueuingStrategy.prototype, 'highWaterMark', {});
 }, {
-  code: 'ERR_INVALID_THIS'
+  name: 'TypeError',
+  message: /Cannot read private member/,
 });
 
 assert.throws(() => {
   Reflect.get(CountQueuingStrategy.prototype, 'size', {});
 }, {
-  code: 'ERR_INVALID_THIS'
+  name: 'TypeError',
+  message: /Cannot read private member/,
 });
 
 // Custom Inspect Works

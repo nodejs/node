@@ -32,6 +32,13 @@ vulnerability is found. It may be useful in CI environments to include the
 will cause the command to fail. This option does not filter the report
 output, it simply changes the command's failure threshold.
 
+### Package lock
+
+By default npm requires a package-lock or shrinkwrap in order to run the
+audit.  You can bypass the package lock with `--no-package-lock` but be
+aware the results may be different with every run, since npm will
+re-build the dependency tree each time.
+
 ### Audit Signatures
 
 To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI.
@@ -321,6 +328,16 @@ For `list` this means the output will be based on the tree described by the
 
 
 
+#### `package-lock`
+
+* Default: true
+* Type: Boolean
+
+If set to false, then ignore `package-lock.json` files when installing. This
+will also prevent _writing_ `package-lock.json` if `save` is true.
+
+
+
 #### `omit`
 
 * Default: 'dev' if the `NODE_ENV` environment variable is set to
@@ -338,6 +355,20 @@ it will be included.
 
 If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
 variable will be set to `'production'` for all lifecycle scripts.
+
+
+
+#### `include`
+
+* Default:
+* Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
+
+Option that allows for defining which types of dependencies to install.
+
+This is the inverse of `--omit=<type>`.
+
+Dependency types specified in `--include` will not be omitted, regardless of
+the order in which omit/include are specified on the command-line.
 
 
 

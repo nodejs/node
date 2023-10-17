@@ -473,3 +473,10 @@ assert.throws(() => new Blob({}), {
 
   await new Blob(chunks).arrayBuffer();
 })().then(common.mustCall());
+
+{
+  const blob = new Blob(['hello']);
+
+  assert.ok(blob.slice(0, 1).constructor === Blob);
+  assert.ok(blob.slice(0, 1) instanceof Blob);
+}

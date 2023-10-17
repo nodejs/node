@@ -78,16 +78,16 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
     // If we're not looking at a TypedArray, we will need the key represented
     // as an internalized string.
     if (index_ > JSObject::kMaxElementIndex &&
-        !lookup_start_object->IsJSTypedArray(isolate_)
+        !IsJSTypedArray(*lookup_start_object, isolate_)
 #if V8_ENABLE_WEBASSEMBLY
-        && !lookup_start_object->IsWasmArray(isolate_)
+        && !IsWasmArray(*lookup_start_object, isolate_)
 #endif  // V8_ENABLE_WEBASSEMBLY
     ) {
       if (name_.is_null()) {
         name_ = isolate->factory()->SizeToString(index_);
       }
       name_ = isolate->factory()->InternalizeName(name_);
-    } else if (!name_.is_null() && !name_->IsInternalizedString()) {
+    } else if (!name_.is_null() && !IsInternalizedString(*name_)) {
       // Maintain the invariant that if name_ is present, it is internalized.
       name_ = Handle<Name>();
     }
@@ -100,7 +100,7 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
     // If we're not looking at the prototype chain and the lookup start object
     // is not a typed array, then this means "array index", otherwise we need to
     // ensure the full generality so that typed arrays are handled correctly.
-    if (!check_prototype_chain() && !lookup_start_object->IsJSTypedArray()) {
+    if (!check_prototype_chain() && !IsJSTypedArray(*lookup_start_object)) {
       uint32_t array_index;
       DCHECK(!name_->AsArrayIndex(&array_index));
     } else {
@@ -110,6 +110,22 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
 #endif  // DEBUG
     Start<false>();
   }
+}
+
+LookupIterator::LookupIterator(Isolate* isolate, Configuration configuration,
+                               Handle<Object> receiver, Handle<Symbol> name)
+    : configuration_(configuration),
+      isolate_(isolate),
+      name_(name),
+      receiver_(receiver),
+      lookup_start_object_(receiver),
+      index_(kInvalidIndex) {
+  // This is the only lookup configuration allowed by this constructor because
+  // it's special case allowing lookup of the private symbols on the prototype
+  // chain. Usually private symbols are limited to OWN_SKIP_INTERCEPTOR lookups.
+  DCHECK_EQ(*name_, *isolate->factory()->error_stack_symbol());
+  DCHECK_EQ(configuration, PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  Start<false>();
 }
 
 PropertyKey::PropertyKey(Isolate* isolate, double index) {
@@ -130,6 +146,29 @@ PropertyKey::PropertyKey(Isolate* isolate, double index) {
 #endif
 }
 
+PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name, size_t index)
+    : name_(name), index_(index) {
+  DCHECK_IMPLIES(index_ == LookupIterator::kInvalidIndex, !name_.is_null());
+#if V8_TARGET_ARCH_32_BIT
+  DCHECK_IMPLIES(index_ != LookupIterator::kInvalidIndex,
+                 index_ <= JSObject::kMaxElementIndex);
+#endif
+#if DEBUG
+  if (index_ != LookupIterator::kInvalidIndex && !name_.is_null()) {
+    // If both valid index and name are given then the name is a string
+    // representation of the same index.
+    size_t integer_index;
+    CHECK(name_->AsIntegerIndex(&integer_index));
+    CHECK_EQ(index_, integer_index);
+  } else if (index_ == LookupIterator::kInvalidIndex) {
+    // If only name is given it must not be a string representing an integer
+    // index.
+    size_t integer_index;
+    CHECK(!name_->AsIntegerIndex(&integer_index));
+  }
+#endif
+}
+
 PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name) {
   if (name->AsIntegerIndex(&index_)) {
     name_ = name;
@@ -140,13 +179,13 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name) {
 }
 
 PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> valid_key) {
-  DCHECK(valid_key->IsName() || valid_key->IsNumber());
-  if (valid_key->ToIntegerIndex(&index_)) return;
-  if (valid_key->IsNumber()) {
+  DCHECK(IsName(*valid_key) || IsNumber(*valid_key));
+  if (Object::ToIntegerIndex(*valid_key, &index_)) return;
+  if (IsNumber(*valid_key)) {
     // Negative or out of range -> treat as named property.
     valid_key = isolate->factory()->NumberToString(valid_key);
   }
-  DCHECK(valid_key->IsName());
+  DCHECK(IsName(*valid_key));
   name_ = Handle<Name>::cast(valid_key);
   if (!name_->AsIntegerIndex(&index_)) {
     index_ = LookupIterator::kInvalidIndex;
@@ -167,7 +206,7 @@ Handle<Name> PropertyKey::GetName(Isolate* isolate) {
 }
 
 Handle<Name> LookupIterator::name() const {
-  DCHECK(!IsElement(*holder_));
+  DCHECK_IMPLIES(!holder_.is_null(), !IsElement(*holder_));
   return name_;
 }
 
@@ -179,10 +218,14 @@ Handle<Name> LookupIterator::GetName() {
   return name_;
 }
 
-bool LookupIterator::IsElement(JSReceiver object) const {
+PropertyKey LookupIterator::GetKey() const {
+  return PropertyKey(isolate_, name_, index_);
+}
+
+bool LookupIterator::IsElement(Tagged<JSReceiver> object) const {
   return index_ <= JSObject::kMaxElementIndex ||
          (index_ != kInvalidIndex &&
-          object.map().has_any_typed_array_or_wasm_array_elements());
+          object->map()->has_any_typed_array_or_wasm_array_elements());
 }
 
 bool LookupIterator::IsPrivateName() const {
@@ -213,24 +256,24 @@ bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
   // Shared objects have fixed layout. No properties may be added to them, not
   // even private symbols.
-  return !receiver->map(isolate_).is_extensible() &&
+  return !receiver->map(isolate_)->is_extensible() &&
          (IsElement() || (!name_->IsPrivate(isolate_) ||
-                          receiver->IsAlwaysSharedSpaceJSObject()));
+                          IsAlwaysSharedSpaceJSObject(*receiver)));
 }
 
 bool LookupIterator::IsCacheableTransition() {
   DCHECK_EQ(TRANSITION, state_);
-  return transition_->IsPropertyCell(isolate_) ||
+  return IsPropertyCell(*transition_, isolate_) ||
          (transition_map()->is_dictionary_map() &&
           !GetStoreTarget<JSReceiver>()->HasFastProperties(isolate_)) ||
-         transition_map()->GetBackPointer(isolate_).IsMap(isolate_);
+         IsMap(transition_map()->GetBackPointer(isolate_), isolate_);
 }
 
 // static
 void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
                                      Handle<Name> name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
-  DCHECK(name->IsInternalizedString() || name->IsSymbol());
+  DCHECK(IsInternalizedString(*name) || IsSymbol(*name));
 
   // This check must be kept in sync with
   // CodeStubAssembler::CheckForAssociatedProtector!
@@ -243,7 +286,8 @@ void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
       *name == roots.resolve_string() || *name == roots.then_string() ||
       *name == roots.is_concat_spreadable_symbol() ||
       *name == roots.iterator_symbol() || *name == roots.species_symbol() ||
-      *name == roots.replace_symbol();
+      *name == roots.match_all_symbol() || *name == roots.replace_symbol() ||
+      *name == roots.split_symbol();
   DCHECK_EQ(maybe_protector, debug_maybe_protector);
 #endif  // DEBUG
 
@@ -258,6 +302,7 @@ void LookupIterator::UpdateProtector() {
 }
 
 InternalIndex LookupIterator::descriptor_number() const {
+  DCHECK(!holder_.is_null());
   DCHECK(!IsElement(*holder_));
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
@@ -265,6 +310,7 @@ InternalIndex LookupIterator::descriptor_number() const {
 }
 
 InternalIndex LookupIterator::dictionary_entry() const {
+  DCHECK(!holder_.is_null());
   DCHECK(!IsElement(*holder_));
   DCHECK(has_property_);
   DCHECK(!holder_->HasFastProperties(isolate_));
@@ -279,22 +325,23 @@ LookupIterator::Configuration LookupIterator::ComputeConfiguration(
 }
 
 // static
-Handle<JSReceiver> LookupIterator::GetRoot(Isolate* isolate,
-                                           Handle<Object> lookup_start_object,
-                                           size_t index) {
-  if (lookup_start_object->IsJSReceiver(isolate)) {
+MaybeHandle<JSReceiver> LookupIterator::GetRoot(
+    Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
+    Configuration configuration) {
+  if (IsJSReceiver(*lookup_start_object, isolate)) {
     return Handle<JSReceiver>::cast(lookup_start_object);
   }
-  return GetRootForNonJSReceiver(isolate, lookup_start_object, index);
+  return GetRootForNonJSReceiver(isolate, lookup_start_object, index,
+                                 configuration);
 }
 
 template <class T>
 Handle<T> LookupIterator::GetStoreTarget() const {
-  DCHECK(receiver_->IsJSReceiver(isolate_));
-  if (receiver_->IsJSGlobalProxy(isolate_)) {
-    HeapObject prototype =
-        JSGlobalProxy::cast(*receiver_).map(isolate_).prototype(isolate_);
-    if (prototype.IsJSGlobalObject(isolate_)) {
+  DCHECK(IsJSReceiver(*receiver_, isolate_));
+  if (IsJSGlobalProxy(*receiver_, isolate_)) {
+    Tagged<HeapObject> prototype =
+        JSGlobalProxy::cast(*receiver_)->map(isolate_)->prototype(isolate_);
+    if (IsJSGlobalObject(prototype, isolate_)) {
       return handle(JSGlobalObject::cast(prototype), isolate_);
     }
   }
@@ -302,19 +349,21 @@ Handle<T> LookupIterator::GetStoreTarget() const {
 }
 
 template <bool is_element>
-InterceptorInfo LookupIterator::GetInterceptor(JSObject holder) const {
+Tagged<InterceptorInfo> LookupIterator::GetInterceptor(
+    Tagged<JSObject> holder) const {
   if (is_element && index_ <= JSObject::kMaxElementIndex) {
-    return holder.GetIndexedInterceptor(isolate_);
+    return holder->GetIndexedInterceptor(isolate_);
   } else {
-    return holder.GetNamedInterceptor(isolate_);
+    return holder->GetNamedInterceptor(isolate_);
   }
 }
 
 inline Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
   DCHECK_EQ(INTERCEPTOR, state_);
-  JSObject holder = JSObject::cast(*holder_);
-  InterceptorInfo result = IsElement(holder) ? GetInterceptor<true>(holder)
-                                             : GetInterceptor<false>(holder);
+  Tagged<JSObject> holder = JSObject::cast(*holder_);
+  Tagged<InterceptorInfo> result = IsElement(holder)
+                                       ? GetInterceptor<true>(holder)
+                                       : GetInterceptor<false>(holder);
   return handle(result, isolate_);
 }
 

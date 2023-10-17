@@ -872,6 +872,9 @@ The [`require.extensions`][] property is deprecated.
 
 <!-- YAML
 changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/47202
+    description: Runtime deprecation.
   - version: v16.6.0
     pr-url: https://github.com/nodejs/node/pull/38444
     description: Added support for `--pending-deprecation`.
@@ -880,7 +883,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 The [`punycode`][] module is deprecated. Please use a userland alternative
 instead.
@@ -3295,7 +3298,9 @@ Node-API callbacks.
 
 <!-- YAML
 changes:
-  - version: v19.9.0
+  - version:
+      - v19.9.0
+      - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47203
     description: Added support for `--pending-deprecation`.
   - version:
@@ -3382,12 +3387,15 @@ Consider using alternatives such as the [`mock`][] helper function.
 
 <!-- YAML
 changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/49609
+    description: Runtime deprecation.
   - version: v20.8.0
     pr-url: https://github.com/nodejs/node/pull/49647
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Calling [`util.promisify`][] on a function that returns a <Promise> will ignore
 the result of said promise, which can lead to unhandled promise rejections.

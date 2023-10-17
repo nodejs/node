@@ -3,10 +3,9 @@
 // found in the LICENSE file.
 
 namespace array {
-transitioning javascript builtin
-ArrayForEachLoopEagerDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
+transitioning javascript builtin ArrayForEachLoopEagerDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
   // All continuation points in the optimized forEach implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -20,11 +19,9 @@ ArrayForEachLoopEagerDeoptContinuation(
       numberLength, Undefined);
 }
 
-transitioning javascript builtin
-ArrayForEachLoopLazyDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny,
-    _result: JSAny): JSAny {
+transitioning javascript builtin ArrayForEachLoopLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, initialK: JSAny, length: JSAny, _result: JSAny): JSAny {
   // All continuation points in the optimized forEach implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -38,9 +35,10 @@ ArrayForEachLoopLazyDeoptContinuation(
       numberLength, Undefined);
 }
 
-transitioning builtin ArrayForEachLoopContinuation(implicit context: Context)(
-    _receiver: JSReceiver, callbackfn: Callable, thisArg: JSAny, _array: JSAny,
-    o: JSReceiver, initialK: Number, len: Number, _to: JSAny): JSAny {
+transitioning builtin ArrayForEachLoopContinuation(
+    implicit context: Context)(_receiver: JSReceiver, callbackfn: Callable,
+    thisArg: JSAny, _array: JSAny, o: JSReceiver, initialK: Number, len: Number,
+    _to: JSAny): JSAny {
   // variables {array} and {to} are ignored.
 
   // 5. Let k be 0.
@@ -67,8 +65,9 @@ transitioning builtin ArrayForEachLoopContinuation(implicit context: Context)(
   return Undefined;
 }
 
-transitioning macro FastArrayForEach(implicit context: Context)(
-    o: JSReceiver, len: Number, callbackfn: Callable, thisArg: JSAny): JSAny
+transitioning macro FastArrayForEach(
+    implicit context: Context)(o: JSReceiver, len: Number,
+    callbackfn: Callable, thisArg: JSAny): JSAny
     labels Bailout(Smi) {
   let k: Smi = 0;
   const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
@@ -89,8 +88,7 @@ transitioning macro FastArrayForEach(implicit context: Context)(
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.foreach
-transitioning javascript builtin
-ArrayForEach(
+transitioning javascript builtin ArrayForEach(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {
     RequireObjectCoercible(receiver, 'Array.prototype.forEach');
@@ -122,7 +120,7 @@ ArrayForEach(
     return ArrayForEachLoopContinuation(
         o, callbackfn, thisArg, Undefined, o, k, len, Undefined);
   } label TypeError deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   }
 }
 }

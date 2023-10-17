@@ -19,7 +19,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-static const int kDeoptLoopCount = 1e4;
+static const int kDeoptLoopCount = 1e3;
 
 // Validates the type of the result returned by a test function.
 template <typename T>
@@ -284,12 +284,19 @@ class FastJSWasmCallTester {
   FastJSWasmCallTester()
       : allocator_(),
         zone_(&allocator_, ZONE_NAME),
-        builder_(zone_.New<WasmModuleBuilder>(&zone_)) {
+        builder_(zone_.New<WasmModuleBuilder>(&zone_)),
+        old_budget_(i::v8_flags.invocation_count_for_turbofan) {
+    i::v8_flags.experimental_wasm_typed_funcref = true;
     i::v8_flags.experimental_wasm_typed_funcref = true;
     i::v8_flags.allow_natives_syntax = true;
     i::v8_flags.turbo_inline_js_wasm_calls = true;
     i::v8_flags.stress_background_compile = false;
     i::v8_flags.concurrent_osr = false;  // Seems to mess with %ObserveNode.
+    i::v8_flags.invocation_count_for_turbofan = 20;
+  }
+
+  ~FastJSWasmCallTester() {
+    i::v8_flags.invocation_count_for_turbofan = old_budget_;
   }
 
   void DeclareCallback(const char* name, FunctionSig* signature,
@@ -752,6 +759,11 @@ class FastJSWasmCallTester {
         "  }"
         "  return result;"
         "}"
+        "%PrepareFunctionForOptimization(test);"
+        "test(" +
+        js_args +
+        ");"
+        "%OptimizeFunctionOnNextCall(test);"
         "test(" +
         js_args + ");";
 
@@ -774,6 +786,7 @@ class FastJSWasmCallTester {
   Zone zone_;
   WasmModuleBuilder* builder_;
   TestMode test_mode_ = kJSToWasmInliningEnabled;
+  int old_budget_;
 };
 
 TEST(TestFastJSWasmCall_Nop) {

@@ -10,9 +10,9 @@ extern macro IsJSPromiseMap(Map): bool;
 extern macro NeedsAnyPromiseHooks(): bool;
 
 // https://tc39.es/ecma262/#sec-promiseresolvethenablejob
-transitioning builtin
-PromiseResolveThenableJob(implicit context: Context)(
-    promiseToResolve: JSPromise, thenable: JSReceiver, then: JSAny): JSAny {
+transitioning builtin PromiseResolveThenableJob(
+    implicit context: Context)(promiseToResolve: JSPromise,
+    thenable: JSReceiver, then: JSAny): JSAny {
   // We can use a simple optimization here if we know that {then} is the
   // initial Promise.prototype.then method, and {thenable} is a JSPromise
   // whose

@@ -6,7 +6,7 @@ import count from '../es-modules/stateful.mjs';
 // used to assert node-land and user-land have different contexts
 count();
 
-export function resolve(specifier, { importAssertions }, next) {
+export function resolve(specifier, { importAttributes }, next) {
   let format = '';
 
   if (specifier === 'esmHook/format.false') {
@@ -24,7 +24,7 @@ export function resolve(specifier, { importAssertions }, next) {
       format,
       shortCircuit: true,
       url: pathToFileURL(specifier).href,
-      importAssertions,
+      importAttributes,
     };
   }
 

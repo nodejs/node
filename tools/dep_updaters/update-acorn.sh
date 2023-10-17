@@ -38,7 +38,7 @@ rm -rf deps/acorn/acorn
 # update version information in src/acorn_version.h
 cat > "$ROOT/src/acorn_version.h" <<EOF
 // This is an auto generated file, please do not edit.
-// Refer to tools/update-acorn.sh
+// Refer to tools/dep_updaters/update-acorn.sh
 #ifndef SRC_ACORN_VERSION_H_
 #define SRC_ACORN_VERSION_H_
 #define ACORN_VERSION "$NEW_VERSION"

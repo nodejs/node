@@ -5,7 +5,7 @@
 #include 'src/objects/js-segmenter.h'
 
 type JSSegmenterGranularity extends int32
-constexpr 'JSSegmenter::Granularity';
+    constexpr 'JSSegmenter::Granularity';
 bitfield struct JSSegmenterFlags extends uint31 {
   granularity: JSSegmenterGranularity: 2 bit;
 }

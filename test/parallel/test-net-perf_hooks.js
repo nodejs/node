@@ -49,12 +49,12 @@ obs.observe({ type: 'net' });
 
 process.on('exit', () => {
   assert.strictEqual(entries.length, 1);
-  entries.forEach((entry) => {
+  for (const entry of entries) {
     assert.strictEqual(entry.name, 'connect');
     assert.strictEqual(entry.entryType, 'net');
     assert.strictEqual(typeof entry.startTime, 'number');
     assert.strictEqual(typeof entry.duration, 'number');
     assert.strictEqual(!!entry.detail.host, true);
     assert.strictEqual(!!entry.detail.port, true);
-  });
+  }
 });

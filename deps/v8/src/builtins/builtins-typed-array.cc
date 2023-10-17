@@ -27,13 +27,13 @@ BUILTIN(TypedArrayPrototypeBuffer) {
 namespace {
 
 int64_t CapRelativeIndex(Handle<Object> num, int64_t minimum, int64_t maximum) {
-  if (V8_LIKELY(num->IsSmi())) {
+  if (V8_LIKELY(IsSmi(*num))) {
     int64_t relative = Smi::ToInt(*num);
     return relative < 0 ? std::max<int64_t>(relative + maximum, minimum)
                         : std::min<int64_t>(relative, maximum);
   } else {
-    DCHECK(num->IsHeapNumber());
-    double relative = HeapNumber::cast(*num).value();
+    DCHECK(IsHeapNumber(*num));
+    double relative = HeapNumber::cast(*num)->value();
     DCHECK(!std::isnan(relative));
     return static_cast<int64_t>(
         relative < 0 ? std::max<double>(relative + maximum, minimum)
@@ -69,7 +69,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
       from = CapRelativeIndex(num, 0, len);
 
       Handle<Object> end = args.atOrUndefined(isolate, 3);
-      if (!end->IsUndefined(isolate)) {
+      if (!IsUndefined(*end, isolate)) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
                                            Object::ToInteger(isolate, end));
         final = CapRelativeIndex(num, 0, len);
@@ -126,7 +126,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   count = count * element_size;
 
   uint8_t* data = static_cast<uint8_t*>(array->DataPtr());
-  if (array->buffer().is_shared()) {
+  if (array->buffer()->is_shared()) {
     base::Relaxed_Memmove(reinterpret_cast<base::Atomic8*>(data + to),
                           reinterpret_cast<base::Atomic8*>(data + from), count);
   } else {
@@ -161,13 +161,13 @@ BUILTIN(TypedArrayPrototypeFill) {
 
   if (args.length() > 2) {
     Handle<Object> num = args.atOrUndefined(isolate, 2);
-    if (!num->IsUndefined(isolate)) {
+    if (!IsUndefined(*num, isolate)) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, num, Object::ToInteger(isolate, num));
       start = CapRelativeIndex(num, 0, len);
 
       num = args.atOrUndefined(isolate, 3);
-      if (!num->IsUndefined(isolate)) {
+      if (!IsUndefined(*num, isolate)) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, num, Object::ToInteger(isolate, num));
         end = CapRelativeIndex(num, 0, len);

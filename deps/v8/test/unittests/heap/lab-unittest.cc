@@ -25,7 +25,7 @@ Address AllocateLabBackingStore(Heap* heap, size_t size_in_bytes) {
 bool AllocateFromLab(Heap* heap, LocalAllocationBuffer* lab,
                      size_t size_in_bytes,
                      AllocationAlignment alignment = kTaggedAligned) {
-  HeapObject obj;
+  Tagged<HeapObject> obj;
   AllocationResult result =
       lab->AllocateRawAligned(static_cast<int>(size_in_bytes), alignment);
   if (result.To(&obj)) {
@@ -38,14 +38,14 @@ bool AllocateFromLab(Heap* heap, LocalAllocationBuffer* lab,
 void VerifyIterable(Address base, Address limit,
                     std::vector<size_t> expected_size) {
   EXPECT_LE(base, limit);
-  HeapObject object;
+  Tagged<HeapObject> object;
   size_t counter = 0;
   while (base < limit) {
     object = HeapObject::FromAddress(base);
-    EXPECT_TRUE(object.IsFreeSpaceOrFiller());
+    EXPECT_TRUE(IsFreeSpaceOrFiller(object));
     EXPECT_LT(counter, expected_size.size());
-    EXPECT_EQ(expected_size[counter], static_cast<size_t>(object.Size()));
-    base += object.Size();
+    EXPECT_EQ(expected_size[counter], static_cast<size_t>(object->Size()));
+    base += object->Size();
     counter++;
   }
 }

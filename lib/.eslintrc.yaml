@@ -33,10 +33,6 @@ rules:
       message: Use `const { AbortController } = require('internal/abort_controller');` instead of the global.
     - name: AbortSignal
       message: Use `const { AbortSignal } = require('internal/abort_controller');` instead of the global.
-      # Atomics is not available in primordials because it can be
-      # disabled with --no-harmony-atomics CLI flag.
-    - name: Atomics
-      message: Use `const { Atomics } = globalThis;` instead of the global.
     - name: Blob
       message: Use `const { Blob } = require('buffer');` instead of the global.
     - name: BroadcastChannel
@@ -75,6 +71,10 @@ rules:
       message: Use `const { MessageEvent } = require('internal/worker/io');` instead of the global.
     - name: MessagePort
       message: Use `const { MessagePort } = require('internal/worker/io');` instead of the global.
+    - name: Navigator
+      message: Use `const { Navigator } = require('internal/navigator');` instead of the global.
+    - name: navigator
+      message: Use `const { navigator } = require('internal/navigator');` instead of the global.
     - name: PerformanceEntry
       message: Use `const { PerformanceEntry } = require('perf_hooks');` instead of the global.
     - name: PerformanceMark
@@ -189,6 +189,7 @@ rules:
     - name: AggregateError
     - name: Array
     - name: ArrayBuffer
+    - name: Atomics
     - name: BigInt
     - name: BigInt64Array
     - name: BigUint64Array

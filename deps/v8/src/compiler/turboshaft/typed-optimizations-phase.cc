@@ -10,21 +10,19 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void TypedOptimizationsPhase::Run(PipelineData* data, Zone* temp_zone) {
+void TypedOptimizationsPhase::Run(Zone* temp_zone) {
 #ifdef DEBUG
-  UnparkedScopeIfNeeded scope(data->broker(), v8_flags.turboshaft_trace_typing);
+  UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
+                              v8_flags.turboshaft_trace_typing);
 #endif
 
-  turboshaft::TypeInferenceReducerArgs typing_args{
-      data->isolate(),
+  turboshaft::TypeInferenceReducerArgs::Scope typing_args{
       turboshaft::TypeInferenceReducerArgs::InputGraphTyping::kPrecise,
       turboshaft::TypeInferenceReducerArgs::OutputGraphTyping::kNone};
 
   turboshaft::OptimizationPhase<
       turboshaft::TypedOptimizationsReducer,
-      turboshaft::TypeInferenceReducer>::Run(data->isolate(), &data->graph(),
-                                             temp_zone, data->node_origins(),
-                                             {typing_args});
+      turboshaft::TypeInferenceReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

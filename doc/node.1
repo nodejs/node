@@ -152,6 +152,11 @@ Requires Node.js to be built with
 .It Fl -enable-source-maps
 Enable Source Map V3 support for stack traces.
 .
+.It Fl -experimental-default-type Ns = Ns Ar type
+Interpret as either ES modules or CommonJS modules input via --eval or STDIN, when --input-type is unspecified;
+.js or extensionless files with no sibling or parent package.json;
+.js or extensionless files whose nearest parent package.json lacks a "type" field, unless under node_modules.
+.
 .It Fl -experimental-global-webcrypto
 Expose the Web Crypto API on the global scope.
 .
@@ -177,6 +182,9 @@ Use this flag to enable ShadowRealm support.
 .
 .It Fl -experimental-test-coverage
 Enable code coverage in the test runner.
+.
+.It Fl -experimental-websocket
+Enable experimental support for the WebSocket API.
 .
 .It Fl -no-experimental-fetch
 Disable experimental support for the Fetch API.
@@ -409,6 +417,10 @@ Specify the minimum allocation from the OpenSSL secure heap. The default is 2. T
 .
 .It Fl -test
 Starts the Node.js command line test runner.
+.
+.It Fl -test-concurrency
+The maximum number of test files that the test runner CLI will execute
+concurrently.
 .
 .It Fl -test-name-pattern
 A regular expression that configures the test runner to only execute tests

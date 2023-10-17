@@ -33,7 +33,7 @@ class PersistentHandles {
   V8_EXPORT_PRIVATE void Iterate(RootVisitor* visitor);
 
   template <typename T>
-  Handle<T> NewHandle(T obj) {
+  Handle<T> NewHandle(Tagged<T> obj) {
 #ifdef DEBUG
     CheckOwnerIsNotParked();
 #endif
@@ -43,6 +43,12 @@ class PersistentHandles {
   template <typename T>
   Handle<T> NewHandle(Handle<T> obj) {
     return NewHandle(*obj);
+  }
+
+  template <typename T>
+  Handle<T> NewHandle(T obj) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return NewHandle(Tagged<T>(obj));
   }
 
   Isolate* isolate() const { return isolate_; }
@@ -112,6 +118,10 @@ class V8_NODISCARD PersistentHandlesScope {
 
   // Moves all blocks of this scope into PersistentHandles and returns it.
   V8_EXPORT_PRIVATE std::unique_ptr<PersistentHandles> Detach();
+
+  // Returns true if the current active handle scope is a persistent handle
+  // scope, thus all handles created become persistent handles.
+  V8_EXPORT_PRIVATE static bool IsActive(Isolate* isolate);
 
  private:
   Address* first_block_;

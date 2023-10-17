@@ -43,8 +43,6 @@ struct EnumEntry {
 class BuildFlags : public base::ContextualClass<BuildFlags> {
  public:
   BuildFlags() {
-    build_flags_["V8_SFI_HAS_UNIQUE_ID"] = V8_SFI_HAS_UNIQUE_ID;
-    build_flags_["V8_SFI_NEEDS_PADDING"] = V8_SFI_NEEDS_PADDING;
     build_flags_["V8_EXTERNAL_CODE_SPACE"] = V8_EXTERNAL_CODE_SPACE_BOOL;
     build_flags_["TAGGED_SIZE_8_BYTES"] = TAGGED_SIZE_8_BYTES;
 #ifdef V8_INTL_SUPPORT
@@ -72,6 +70,8 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
     build_flags_["V8_ENABLE_WEBASSEMBLY"] = false;
 #endif
     build_flags_["V8_ENABLE_SANDBOX"] = V8_ENABLE_SANDBOX_BOOL;
+    build_flags_["V8_CODE_POINTER_SANDBOXING"] =
+        V8_CODE_POINTER_SANDBOXING_BOOL;
     build_flags_["DEBUG"] = DEBUG_BOOL;
   }
   static bool GetFlag(const std::string& name, const char* production) {

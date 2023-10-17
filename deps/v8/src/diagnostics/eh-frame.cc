@@ -90,7 +90,7 @@ void EhFrameWriter::WriteCie() {
   static const int kCIEIdentifier = 0;
   static const int kCIEVersion = 3;
   static const int kAugmentationDataSize = 2;
-  static const byte kAugmentationString[] = {'z', 'L', 'R', 0};
+  static const uint8_t kAugmentationString[] = {'z', 'L', 'R', 0};
 
   // Placeholder for the size of the CIE.
   int size_offset = eh_frame_offset();
@@ -242,8 +242,8 @@ void EhFrameWriter::WritePaddingToAlignedSize(int unpadded_size) {
 
   int padding_size = RoundUp(unpadded_size, kSystemPointerSize) - unpadded_size;
 
-  byte nop = static_cast<byte>(EhFrameConstants::DwarfOpcodes::kNop);
-  static const byte kPadding[] = {nop, nop, nop, nop, nop, nop, nop, nop};
+  uint8_t nop = static_cast<uint8_t>(EhFrameConstants::DwarfOpcodes::kNop);
+  static const uint8_t kPadding[] = {nop, nop, nop, nop, nop, nop, nop, nop};
   DCHECK_LE(padding_size, static_cast<int>(sizeof(kPadding)));
   WriteBytes(&kPadding[0], padding_size);
 }
@@ -364,7 +364,8 @@ void EhFrameWriter::Finish(int code_size) {
   PatchInt32(GetProcedureSizeOffset(), code_size);
 
   // Terminate the .eh_frame.
-  static const byte kTerminator[EhFrameConstants::kEhFrameTerminatorSize] = {0};
+  static const uint8_t kTerminator[EhFrameConstants::kEhFrameTerminatorSize] = {
+      0};
   WriteBytes(&kTerminator[0], EhFrameConstants::kEhFrameTerminatorSize);
 
   WriteEhFrameHdr(code_size);
@@ -380,7 +381,7 @@ void EhFrameWriter::GetEhFrame(CodeDesc* desc) {
 
 void EhFrameWriter::WriteULeb128(uint32_t value) {
   do {
-    byte chunk = value & 0x7F;
+    uint8_t chunk = value & 0x7F;
     value >>= 7;
     if (value != 0) chunk |= 0x80;
     WriteByte(chunk);
@@ -391,7 +392,7 @@ void EhFrameWriter::WriteSLeb128(int32_t value) {
   static const int kSignBitMask = 0x40;
   bool done;
   do {
-    byte chunk = value & 0x7F;
+    uint8_t chunk = value & 0x7F;
     value >>= 7;
     done = ((value == 0) && ((chunk & kSignBitMask) == 0)) ||
            ((value == -1) && ((chunk & kSignBitMask) != 0));
@@ -417,9 +418,9 @@ int32_t EhFrameIterator::GetNextSLeb128() {
 }
 
 // static
-uint32_t EhFrameIterator::DecodeULeb128(const byte* encoded,
+uint32_t EhFrameIterator::DecodeULeb128(const uint8_t* encoded,
                                         int* encoded_size) {
-  const byte* current = encoded;
+  const uint8_t* current = encoded;
   uint32_t result = 0;
   int shift = 0;
 
@@ -436,13 +437,14 @@ uint32_t EhFrameIterator::DecodeULeb128(const byte* encoded,
 }
 
 // static
-int32_t EhFrameIterator::DecodeSLeb128(const byte* encoded, int* encoded_size) {
-  static const byte kSignBitMask = 0x40;
+int32_t EhFrameIterator::DecodeSLeb128(const uint8_t* encoded,
+                                       int* encoded_size) {
+  static const uint8_t kSignBitMask = 0x40;
 
-  const byte* current = encoded;
+  const uint8_t* current = encoded;
   int32_t result = 0;
   int shift = 0;
-  byte chunk;
+  uint8_t chunk;
 
   do {
     chunk = *current++;
@@ -479,8 +481,8 @@ class V8_NODISCARD StreamModifiersScope final {
 
 // static
 void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,
-                                              const byte* start,
-                                              const byte* end) {
+                                              const uint8_t* start,
+                                              const uint8_t* end) {
   StreamModifiersScope modifiers_scope(&stream);
 
   EhFrameIterator eh_frame_iterator(start, end);
@@ -489,7 +491,7 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,
   while (!eh_frame_iterator.Done()) {
     stream << eh_frame_iterator.current_address() << "  ";
 
-    byte bytecode = eh_frame_iterator.GetNextByte();
+    uint8_t bytecode = eh_frame_iterator.GetNextByte();
 
     if (((bytecode >> EhFrameConstants::kLocationMaskSize) & 0xFF) ==
         EhFrameConstants::kLocationTag) {
@@ -596,9 +598,9 @@ void EhFrameDisassembler::DisassembleToStream(std::ostream& stream) {
       kInt32Size;
   const int fde_offset = cie_size;
 
-  const byte* cie_directives_start =
+  const uint8_t* cie_directives_start =
       start_ + EhFrameConstants::kInitialStateOffsetInCie;
-  const byte* cie_directives_end = start_ + cie_size;
+  const uint8_t* cie_directives_end = start_ + cie_size;
   DCHECK_LE(cie_directives_start, cie_directives_end);
 
   stream << reinterpret_cast<const void*>(start_) << "  .eh_frame: CIE\n";
@@ -616,7 +618,7 @@ void EhFrameDisassembler::DisassembleToStream(std::ostream& stream) {
   uint32_t procedure_size =
       base::ReadUnalignedValue<uint32_t>(procedure_size_address);
 
-  const byte* fde_start = start_ + fde_offset;
+  const uint8_t* fde_start = start_ + fde_offset;
   stream << reinterpret_cast<const void*>(fde_start) << "  .eh_frame: FDE\n"
          << reinterpret_cast<const void*>(procedure_offset_address)
          << "  | procedure_offset=" << procedure_offset << '\n'
@@ -625,18 +627,18 @@ void EhFrameDisassembler::DisassembleToStream(std::ostream& stream) {
 
   const int fde_directives_offset = fde_offset + 4 * kInt32Size + 1;
 
-  const byte* fde_directives_start = start_ + fde_directives_offset;
-  const byte* fde_directives_end = end_ - EhFrameConstants::kEhFrameHdrSize -
-                                   EhFrameConstants::kEhFrameTerminatorSize;
+  const uint8_t* fde_directives_start = start_ + fde_directives_offset;
+  const uint8_t* fde_directives_end = end_ - EhFrameConstants::kEhFrameHdrSize -
+                                      EhFrameConstants::kEhFrameTerminatorSize;
   DCHECK_LE(fde_directives_start, fde_directives_end);
 
   DumpDwarfDirectives(stream, fde_directives_start, fde_directives_end);
 
-  const byte* fde_terminator_start = fde_directives_end;
+  const uint8_t* fde_terminator_start = fde_directives_end;
   stream << reinterpret_cast<const void*>(fde_terminator_start)
          << "  .eh_frame: terminator\n";
 
-  const byte* eh_frame_hdr_start =
+  const uint8_t* eh_frame_hdr_start =
       fde_terminator_start + EhFrameConstants::kEhFrameTerminatorSize;
   stream << reinterpret_cast<const void*>(eh_frame_hdr_start)
          << "  .eh_frame_hdr\n";

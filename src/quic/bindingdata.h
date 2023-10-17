@@ -12,6 +12,8 @@
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
+#include <limits>
+#include <unordered_map>
 #include <vector>
 
 namespace node {
@@ -25,7 +27,55 @@ enum class Side {
   SERVER = NGTCP2_CRYPTO_SIDE_SERVER,
 };
 
+enum class EndpointLabel {
+  LOCAL,
+  REMOTE,
+};
+
+enum class Direction {
+  BIDIRECTIONAL,
+  UNIDIRECTIONAL,
+};
+
+enum class HeadersKind {
+  HINTS,
+  INITIAL,
+  TRAILING,
+};
+
+enum class HeadersFlags {
+  NONE,
+  TERMINAL,
+};
+
+enum class StreamPriority {
+  DEFAULT = NGHTTP3_DEFAULT_URGENCY,
+  LOW = NGHTTP3_URGENCY_LOW,
+  HIGH = NGHTTP3_URGENCY_HIGH,
+};
+
+enum class StreamPriorityFlags {
+  NONE,
+  NON_INCREMENTAL,
+};
+
+enum class PathValidationResult : uint8_t {
+  SUCCESS = NGTCP2_PATH_VALIDATION_RESULT_SUCCESS,
+  FAILURE = NGTCP2_PATH_VALIDATION_RESULT_FAILURE,
+  ABORTED = NGTCP2_PATH_VALIDATION_RESULT_ABORTED,
+};
+
+enum class DatagramStatus {
+  ACKNOWLEDGED,
+  LOST,
+};
+
+constexpr uint64_t NGTCP2_APP_NOERROR = 65280;
 constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
+constexpr size_t kMaxSizeT = std::numeric_limits<size_t>::max();
+constexpr uint64_t kMaxSafeJsInteger = 9007199254740991;
+constexpr auto kSocketAddressInfoTimeout = 60 * NGTCP2_SECONDS;
+constexpr size_t kMaxVectorCount = 16;
 
 // ============================================================================
 
@@ -44,10 +94,8 @@ constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
 // internalBinding('quic') is first loaded.
 #define QUIC_JS_CALLBACKS(V)                                                   \
   V(endpoint_close, EndpointClose)                                             \
-  V(endpoint_error, EndpointError)                                             \
   V(session_new, SessionNew)                                                   \
   V(session_close, SessionClose)                                               \
-  V(session_error, SessionError)                                               \
   V(session_datagram, SessionDatagram)                                         \
   V(session_datagram_status, SessionDatagramStatus)                            \
   V(session_handshake, SessionHandshake)                                       \
@@ -64,17 +112,24 @@ constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
 
 // The various JS strings the implementation uses.
 #define QUIC_STRINGS(V)                                                        \
+  V(aborted, "aborted")                                                        \
+  V(acknowledged, "acknowledged")                                              \
   V(ack_delay_exponent, "ackDelayExponent")                                    \
   V(active_connection_id_limit, "activeConnectionIDLimit")                     \
+  V(address_lru_size, "addressLRUSize")                                        \
   V(alpn, "alpn")                                                              \
+  V(application_options, "application")                                        \
   V(ca, "ca")                                                                  \
   V(certs, "certs")                                                            \
+  V(cc_algorithm, "cc")                                                        \
   V(crl, "crl")                                                                \
   V(ciphers, "ciphers")                                                        \
   V(disable_active_migration, "disableActiveMigration")                        \
+  V(disable_stateless_reset, "disableStatelessReset")                          \
   V(enable_tls_trace, "tlsTrace")                                              \
   V(endpoint, "Endpoint")                                                      \
   V(endpoint_udp, "Endpoint::UDP")                                             \
+  V(failure, "failure")                                                        \
   V(groups, "groups")                                                          \
   V(hostname, "hostname")                                                      \
   V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
@@ -84,19 +139,50 @@ constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
   V(initial_max_stream_data_uni, "initialMaxStreamDataUni")                    \
   V(initial_max_streams_bidi, "initialMaxStreamsBidi")                         \
   V(initial_max_streams_uni, "initialMaxStreamsUni")                           \
+  V(ipv6_only, "ipv6Only")                                                     \
   V(keylog, "keylog")                                                          \
   V(keys, "keys")                                                              \
   V(logstream, "LogStream")                                                    \
+  V(lost, "lost")                                                              \
   V(max_ack_delay, "maxAckDelay")                                              \
+  V(max_connections_per_host, "maxConnectionsPerHost")                         \
+  V(max_connections_total, "maxConnectionsTotal")                              \
   V(max_datagram_frame_size, "maxDatagramFrameSize")                           \
+  V(max_field_section_size, "maxFieldSectionSize")                             \
+  V(max_header_length, "maxHeaderLength")                                      \
+  V(max_header_pairs, "maxHeaderPairs")                                        \
   V(max_idle_timeout, "maxIdleTimeout")                                        \
+  V(max_payload_size, "maxPayloadSize")                                        \
+  V(max_retries, "maxRetries")                                                 \
+  V(max_stateless_resets, "maxStatelessResetsPerHost")                         \
+  V(min_version, "minVersion")                                                 \
   V(packetwrap, "PacketWrap")                                                  \
+  V(preferred_address_strategy, "preferredAddressPolicy")                      \
+  V(qlog, "qlog")                                                              \
+  V(qpack_blocked_streams, "qpackBlockedStreams")                              \
+  V(qpack_encoder_max_dtable_capacity, "qpackEncoderMaxDTableCapacity")        \
+  V(qpack_max_dtable_capacity, "qpackMaxDTableCapacity")                       \
   V(reject_unauthorized, "rejectUnauthorized")                                 \
+  V(retry_token_expiration, "retryTokenExpiration")                            \
   V(request_peer_certificate, "requestPeerCertificate")                        \
+  V(reset_token_secret, "resetTokenSecret")                                    \
+  V(rx_loss, "rxDiagnosticLoss")                                               \
   V(session, "Session")                                                        \
   V(session_id_ctx, "sessionIDContext")                                        \
   V(stream, "Stream")                                                          \
-  V(verify_hostname_identity, "verifyHostnameIdentity")
+  V(success, "success")                                                        \
+  V(tls_options, "tls")                                                        \
+  V(token_expiration, "tokenExpiration")                                       \
+  V(token_secret, "tokenSecret")                                               \
+  V(transport_params, "transportParams")                                       \
+  V(tx_loss, "txDiagnosticLoss")                                               \
+  V(udp_receive_buffer_size, "udpReceiveBufferSize")                           \
+  V(udp_send_buffer_size, "udpSendBufferSize")                                 \
+  V(udp_ttl, "udpTTL")                                                         \
+  V(unacknowledged_packet_threshold, "unacknowledgedPacketThreshold")          \
+  V(validate_address, "validateAddress")                                       \
+  V(verify_hostname_identity, "verifyHostnameIdentity")                        \
+  V(version, "version")
 
 // =============================================================================
 // The BindingState object holds state for the internalBinding('quic') binding
@@ -132,6 +218,8 @@ class BindingData final
   static void SetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   std::vector<BaseObjectPtr<BaseObject>> packet_freelist;
+
+  std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 
   // Purge the packet free list to free up memory.
   static void FlushPacketFreelist(
@@ -201,6 +289,27 @@ struct NgHttp3CallbackScope {
   explicit NgHttp3CallbackScope(Environment* env);
   ~NgHttp3CallbackScope();
   static bool in_nghttp3_callback(Environment* env);
+};
+
+struct CallbackScopeBase {
+  Environment* env;
+  v8::Context::Scope context_scope;
+  v8::TryCatch try_catch;
+
+  explicit CallbackScopeBase(Environment* env);
+  CallbackScopeBase(const CallbackScopeBase&) = delete;
+  CallbackScopeBase(CallbackScopeBase&&) = delete;
+  CallbackScopeBase& operator=(const CallbackScopeBase&) = delete;
+  CallbackScopeBase& operator=(CallbackScopeBase&&) = delete;
+  ~CallbackScopeBase();
+};
+
+template <typename T>
+struct CallbackScope final : public CallbackScopeBase {
+  BaseObjectPtr<T> ref;
+  explicit CallbackScope(const T* ptr)
+      : CallbackScopeBase(ptr->env()), ref(ptr) {}
+  explicit CallbackScope(T* ptr) : CallbackScopeBase(ptr->env()), ref(ptr) {}
 };
 
 }  // namespace quic

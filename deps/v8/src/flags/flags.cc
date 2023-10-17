@@ -597,6 +597,7 @@ uint32_t ComputeFlagListHash() {
         flag.PointsTo(&v8_flags.concurrent_sweeping) ||
         flag.PointsTo(&v8_flags.parallel_compaction) ||
         flag.PointsTo(&v8_flags.parallel_pointer_update) ||
+        flag.PointsTo(&v8_flags.parallel_weak_ref_clearing) ||
         flag.PointsTo(&v8_flags.memory_reducer) ||
         flag.PointsTo(&v8_flags.cppheap_concurrent_marking) ||
         flag.PointsTo(&v8_flags.cppheap_incremental_marking) ||

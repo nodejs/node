@@ -89,7 +89,7 @@ g3.stream().on('data', path => {
 const results = await glob('**', { stat: true, withFileTypes: true })
 
 const timeSortedFiles = results
-  .sort((a, b) => a.mtimeMS - b.mtimeMS)
+  .sort((a, b) => a.mtimeMs - b.mtimeMs)
   .map(path => path.fullpath())
 
 const groupReadableFiles = results

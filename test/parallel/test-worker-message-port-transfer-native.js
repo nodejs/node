@@ -31,7 +31,7 @@ const { internalBinding } = require('internal/test/binding');
     port1.postMessage(nativeObject);
   }, {
     name: 'DataCloneError',
-    message: /Cannot transfer object of unsupported type\.$/
+    message: /Cannot clone object of unsupported type\.$/
   });
   port1.close();
 }

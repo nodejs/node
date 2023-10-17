@@ -18,13 +18,55 @@ namespace wasm {
 
 class V8_EXPORT_PRIVATE SimdShuffle {
  public:
-  // Converts a shuffle into canonical form, meaning that the first lane index
-  // is in the range [0 .. 15]. Set |inputs_equal| true if this is an explicit
-  // swizzle. Returns canonicalized |shuffle|, |needs_swap|, and |is_swizzle|.
-  // If |needs_swap| is true, inputs must be swapped. If |is_swizzle| is true,
-  // the second input can be ignored.
+  // is in the range [0 .. 15] (or [0 .. 31] if simd_size is kSimd256Size). Set
+  // |inputs_equal| true if this is an explicit swizzle. Returns canonicalized
+  // |shuffle|, |needs_swap|, and |is_swizzle|. If |needs_swap| is true, inputs
+  // must be swapped. If |is_swizzle| is true, the second input can be ignored.
+  template <const int simd_size = kSimd128Size,
+            typename = std::enable_if_t<simd_size == kSimd128Size ||
+                                        simd_size == kSimd256Size>>
   static void CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle,
-                                  bool* needs_swap, bool* is_swizzle);
+                                  bool* needs_swap, bool* is_swizzle) {
+    *needs_swap = false;
+    // Inputs equal, then it's a swizzle.
+    if (inputs_equal) {
+      *is_swizzle = true;
+    } else {
+      // Inputs are distinct; check that both are required.
+      bool src0_is_used = false;
+      bool src1_is_used = false;
+      for (int i = 0; i < simd_size; ++i) {
+        if (shuffle[i] < simd_size) {
+          src0_is_used = true;
+        } else {
+          src1_is_used = true;
+        }
+      }
+      if (src0_is_used && !src1_is_used) {
+        *is_swizzle = true;
+      } else if (src1_is_used && !src0_is_used) {
+        *needs_swap = true;
+        *is_swizzle = true;
+      } else {
+        *is_swizzle = false;
+        // Canonicalize general 2 input shuffles so that the first input lanes
+        // are encountered first. This makes architectural shuffle pattern
+        // matching easier, since we only need to consider 1 input ordering
+        // instead of 2.
+        if (shuffle[0] >= simd_size) {
+          // The second operand is used first. Swap inputs and adjust the
+          // shuffle.
+          *needs_swap = true;
+          for (int i = 0; i < simd_size; ++i) {
+            shuffle[i] ^= simd_size;
+          }
+        }
+      }
+    }
+    if (*is_swizzle) {
+      for (int i = 0; i < simd_size; ++i) shuffle[i] &= simd_size - 1;
+    }
+  }
 
   // Tries to match an 8x16 byte shuffle to the identity shuffle, which is
   // [0 1 ... 15]. This should be called after canonicalizing the shuffle, so
@@ -65,6 +107,12 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // successful, it writes the 32x4 shuffle word indices. E.g.
   // [0 1 2 3 8 9 10 11 4 5 6 7 12 13 14 15] == [0 2 1 3]
   static bool TryMatch32x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x4);
+
+  // Tries to match an 8x32 byte shuffle to an equivalent 32x8 shuffle. If
+  // successful, it writes the 32x8 shuffle word indices. E.g.
+  // [0 1 2 3 8 9 10 11 4 5 6 7 12 13 14 15 16 17 18 19 24 25 26 27 20 21 22 23
+  //  28 29 30 31 == [0 2 1 3 4 6 5 7]
+  static bool TryMatch32x8Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x8);
 
   // Tries to match an 8x16 byte shuffle to an equivalent 16x8 shuffle. If
   // successful, it writes the 16x8 shuffle word indices. E.g.

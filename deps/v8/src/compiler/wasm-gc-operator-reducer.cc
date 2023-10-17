@@ -4,6 +4,7 @@
 
 #include "src/compiler/wasm-gc-operator-reducer.h"
 
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/wasm-compiler-definitions.h"
@@ -13,13 +14,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-WasmGCOperatorReducer::WasmGCOperatorReducer(Editor* editor, Zone* temp_zone_,
-                                             MachineGraph* mcgraph,
-                                             const wasm::WasmModule* module)
+WasmGCOperatorReducer::WasmGCOperatorReducer(
+    Editor* editor, Zone* temp_zone_, MachineGraph* mcgraph,
+    const wasm::WasmModule* module, SourcePositionTable* source_position_table)
     : AdvancedReducerWithControlPathState(editor, temp_zone_, mcgraph->graph()),
       mcgraph_(mcgraph),
       gasm_(mcgraph, mcgraph->zone()),
-      module_(module) {}
+      module_(module),
+      source_position_table_(source_position_table) {}
 
 Reduction WasmGCOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -37,8 +39,14 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
       return ReduceCheckNull(node);
     case IrOpcode::kWasmTypeCheck:
       return ReduceWasmTypeCheck(node);
+    case IrOpcode::kWasmTypeCheckAbstract:
+      return ReduceWasmTypeCheckAbstract(node);
     case IrOpcode::kWasmTypeCast:
       return ReduceWasmTypeCast(node);
+    case IrOpcode::kWasmTypeCastAbstract:
+      return ReduceWasmTypeCastAbstract(node);
+    case IrOpcode::kTypeGuard:
+      return ReduceTypeGuard(node);
     case IrOpcode::kWasmExternInternalize:
       return ReduceWasmExternInternalize(node);
     case IrOpcode::kMerge:
@@ -64,18 +72,29 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
 namespace {
 bool InDeadBranch(Node* node) {
   return node->opcode() == IrOpcode::kDead ||
-         NodeProperties::GetType(node).AsWasm().type.is_bottom();
+         node->opcode() == IrOpcode::kDeadValue ||
+         NodeProperties::GetType(node).AsWasm().type.is_uninhabited();
 }
 
 Node* GetAlias(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kWasmTypeCast:
+    case IrOpcode::kWasmTypeCastAbstract:
     case IrOpcode::kTypeGuard:
     case IrOpcode::kAssertNotNull:
       return NodeProperties::GetValueInput(node, 0);
     default:
       return nullptr;
   }
+}
+
+bool IsImplicitInternalization(wasm::ValueType from, wasm::ValueType to,
+                               const wasm::WasmModule* to_module) {
+  return from.is_object_reference() &&
+         from.heap_representation() == wasm::HeapType::kExtern &&
+         to.is_object_reference() &&
+         wasm::IsHeapSubtypeOf(to.heap_type(),
+                               wasm::HeapType(wasm::HeapType::kAny), to_module);
 }
 
 }  // namespace
@@ -109,11 +128,17 @@ Reduction WasmGCOperatorReducer::ReduceStart(Node* node) {
   return UpdateStates(node, ControlPathTypes(zone()));
 }
 
-wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(Node* object,
-                                                                Node* control) {
-  if (InDeadBranch(object)) return {};
+wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(
+    Node* object, Node* control, bool allow_non_wasm) {
+  if (object->opcode() == IrOpcode::kDead ||
+      object->opcode() == IrOpcode::kDeadValue) {
+    return {};
+  }
   if (!IsReduced(control)) return {};
-  wasm::TypeInModule type_from_node = NodeProperties::GetType(object).AsWasm();
+  if (allow_non_wasm && !NodeProperties::IsTyped(object)) return {};
+  Type raw_type = NodeProperties::GetType(object);
+  if (allow_non_wasm && !raw_type.IsWasm()) return {};
+  wasm::TypeInModule type_from_node = raw_type.AsWasm();
   ControlPathTypes state = GetState(control);
   NodeWithType type_from_state = state.LookupState(object);
   // We manually resolve TypeGuard aliases in the state.
@@ -121,9 +146,15 @@ wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(Node* object,
     object = NodeProperties::GetValueInput(object, 0);
     type_from_state = state.LookupState(object);
   }
-  return type_from_state.IsSet()
-             ? wasm::Intersection(type_from_node, type_from_state.type)
-             : type_from_node;
+  if (!type_from_state.IsSet()) return type_from_node;
+  // When abstract casts have performed implicit internalization (see
+  // {ReduceWasmTypeCastAbstract} below), we may encounter the results
+  // of that here.
+  if (IsImplicitInternalization(type_from_node.type, type_from_state.type.type,
+                                type_from_state.type.module)) {
+    return type_from_state.type;
+  }
+  return wasm::Intersection(type_from_node, type_from_state.type);
 }
 
 Reduction WasmGCOperatorReducer::ReduceWasmStructOperation(Node* node) {
@@ -134,7 +165,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmStructOperation(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   if (object_type.type.is_non_nullable()) {
     // If the object is known to be non-nullable in the context, remove the null
@@ -163,7 +194,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmArrayLength(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   if (object_type.type.is_non_nullable()) {
     // If the object is known to be non-nullable in the context, remove the null
@@ -185,16 +216,18 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
   DCHECK(node->opcode() == IrOpcode::kIfTrue ||
          node->opcode() == IrOpcode::kIfFalse);
   Node* branch = NodeProperties::GetControlInput(node);
+  if (branch->opcode() == IrOpcode::kDead) return NoChange();
   DCHECK_EQ(branch->opcode(), IrOpcode::kBranch);
   if (!IsReduced(branch)) return NoChange();
   ControlPathTypes parent_state = GetState(branch);
   Node* condition_node = NodeProperties::GetValueInput(branch, 0);
   switch (condition_node->opcode()) {
-    case IrOpcode::kWasmTypeCheck: {
+    case IrOpcode::kWasmTypeCheck:
+    case IrOpcode::kWasmTypeCheckAbstract: {
       if (!condition) break;
       Node* object = NodeProperties::GetValueInput(condition_node, 0);
       wasm::TypeInModule object_type = ObjectTypeFromContext(object, branch);
-      if (object_type.type.is_bottom()) return NoChange();
+      if (object_type.type.is_uninhabited()) return NoChange();
 
       wasm::ValueType to_type =
           OpParameter<WasmTypeCheckConfig>(condition_node->op()).to;
@@ -211,7 +244,7 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
       Node* object = NodeProperties::GetValueInput(condition_node, 0);
       Node* control = NodeProperties::GetControlInput(condition_node);
       wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-      if (object_type.type.is_bottom()) return NoChange();
+      if (object_type.type.is_uninhabited()) return NoChange();
       // If the checked value is null, narrow the type to the corresponding
       // null type, otherwise to a non-null reference.
       bool is_null =
@@ -259,7 +292,7 @@ Reduction WasmGCOperatorReducer::ReduceAssertNotNull(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   // Optimize the check away if the argument is known to be non-null.
   if (object_type.type.is_non_nullable()) {
@@ -283,7 +316,7 @@ Reduction WasmGCOperatorReducer::ReduceCheckNull(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   // Optimize the check away if the argument is known to be non-null.
   if (object_type.type.is_non_nullable()) {
@@ -311,18 +344,40 @@ Reduction WasmGCOperatorReducer::ReduceCheckNull(Node* node) {
 Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
   // Remove redundant extern.internalize(extern.externalize(...)) pattern.
-  // TODO(mliedtke): Currently this doesn't get fully removed, probably due to
-  // not running dead code elimination in this pipeline step. What would it cost
-  // us to run it here?
-  if (NodeProperties::GetValueInput(node, 0)->opcode() ==
-      IrOpcode::kWasmExternExternalize) {
-    Node* externalize = node->InputAt(0);
-    Node* input = externalize->InputAt(0);
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  while (input->opcode() == IrOpcode::kTypeGuard) {
+    input = NodeProperties::GetValueInput(input, 0);
+  }
+  if (input->opcode() == IrOpcode::kDead ||
+      input->opcode() == IrOpcode::kDeadValue) {
+    return NoChange();
+  }
+  if (input->opcode() == IrOpcode::kWasmExternExternalize) {
+    // "Skip" the extern.externalize which doesn't have an effect on the value.
+    input = NodeProperties::GetValueInput(input, 0);
     ReplaceWithValue(node, input);
     node->Kill();
     return Replace(input);
   }
   return TakeStatesFromFirstControl(node);
+}
+
+Reduction WasmGCOperatorReducer::ReduceTypeGuard(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kTypeGuard);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+
+  // Since TypeGuards can be generated for JavaScript, and this phase is run
+  // for wasm-into-JS inlining, we cannot assume the object has a wasm type.
+  wasm::TypeInModule object_type =
+      ObjectTypeFromContext(object, control, /* allow_non_wasm = */ true);
+  if (object_type.type.is_uninhabited()) return NoChange();
+  wasm::TypeInModule guarded_type = TypeGuardTypeOf(node->op()).AsWasm();
+
+  wasm::TypeInModule new_type = wasm::Intersection(object_type, guarded_type);
+
+  return UpdateNodeAndAliasesTypes(node, GetState(control), node, new_type,
+                                   false);
 }
 
 Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
@@ -333,7 +388,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
   Node* rtt = NodeProperties::GetValueInput(node, 1);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
   if (InDeadBranch(rtt)) return NoChange();
   wasm::TypeInModule rtt_type = NodeProperties::GetType(rtt).AsWasm();
   bool to_nullable =
@@ -354,9 +409,10 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
       return Changed(node);
     } else {
       gasm_.InitializeEffectControl(effect, control);
-      return Replace(SetType(gasm_.AssertNotNull(object, object_type.type,
-                                                 TrapId::kTrapIllegalCast),
-                             object_type.type.AsNonNull()));
+      Node* assert_not_null = gasm_.AssertNotNull(object, object_type.type,
+                                                  TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(assert_not_null, node);
+      return Replace(SetType(assert_not_null, object_type.type.AsNonNull()));
     }
   }
 
@@ -371,6 +427,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
                                        : gasm_.Int32Constant(0);
     gasm_.TrapUnless(SetType(non_trapping_condition, wasm::kWasmI32),
                      TrapId::kTrapIllegalCast);
+    UpdateSourcePosition(gasm_.effect(), node);
     Node* null_node = SetType(gasm_.Null(object_type.type),
                               wasm::ToNullSentinel(object_type));
     ReplaceWithValue(node, null_node, gasm_.effect(), gasm_.control());
@@ -394,6 +451,73 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
                                    false);
 }
 
+Reduction WasmGCOperatorReducer::ReduceWasmTypeCastAbstract(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmTypeCastAbstract);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  WasmTypeCheckConfig config = OpParameter<WasmTypeCheckConfig>(node->op());
+
+  wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
+  if (object_type.type.is_uninhabited()) return NoChange();
+  const bool to_nullable = config.to.is_nullable();
+
+  if (wasm::IsHeapSubtypeOf(object_type.type.heap_type(), config.to.heap_type(),
+                            object_type.module)) {
+    if (to_nullable || object_type.type.is_non_nullable()) {
+      // Type cast will always succeed. Turn it into a TypeGuard to not lose any
+      // type information.
+      // First, relax control.
+      ReplaceWithValue(node, node, node, control);
+      NodeProperties::ChangeOp(
+          node, common()->TypeGuard(NodeProperties::GetType(node)));
+      return Changed(node);
+    } else {
+      gasm_.InitializeEffectControl(effect, control);
+      Node* assert_not_null = gasm_.AssertNotNull(object, object_type.type,
+                                                  TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(assert_not_null, node);
+      return Replace(SetType(assert_not_null, object_type.type.AsNonNull()));
+    }
+  }
+
+  // This can never result from user code, only from internal shortcuts,
+  // e.g. when using externrefs as strings.
+  const bool implicit_internalize =
+      IsImplicitInternalization(config.from, config.to, object_type.module);
+  if (!implicit_internalize &&
+      wasm::HeapTypesUnrelated(object_type.type.heap_type(),
+                               config.to.heap_type(), object_type.module,
+                               object_type.module)) {
+    gasm_.InitializeEffectControl(effect, control);
+    // A cast between unrelated types can only succeed if the argument is null.
+    // Otherwise, it always fails.
+    Node* non_trapping_condition = object_type.type.is_nullable() && to_nullable
+                                       ? gasm_.IsNull(object, object_type.type)
+                                       : gasm_.Int32Constant(0);
+    gasm_.TrapUnless(SetType(non_trapping_condition, wasm::kWasmI32),
+                     TrapId::kTrapIllegalCast);
+    UpdateSourcePosition(gasm_.effect(), node);
+    Node* null_node = SetType(gasm_.Null(object_type.type),
+                              wasm::ToNullSentinel(object_type));
+    ReplaceWithValue(node, null_node, gasm_.effect(), gasm_.control());
+    node->Kill();
+    return Replace(null_node);
+  }
+
+  // Update the from-type in the type cast.
+  NodeProperties::ChangeOp(node, gasm_.simplified()->WasmTypeCastAbstract(
+                                     {object_type.type, config.to}));
+
+  wasm::TypeInModule new_type =
+      implicit_internalize
+          ? wasm::TypeInModule{config.to, module_}
+          : wasm::Intersection(object_type, {config.to, module_});
+
+  return UpdateNodeAndAliasesTypes(node, GetState(control), node, new_type,
+                                   false);
+}
+
 Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmTypeCheck);
   Node* object = NodeProperties::GetValueInput(node, 0);
@@ -402,7 +526,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
   if (InDeadBranch(rtt)) return NoChange();
   wasm::TypeInModule rtt_type = NodeProperties::GetType(rtt).AsWasm();
 
@@ -451,6 +575,73 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
                                      {object_type.type, current_config.to}));
 
   return TakeStatesFromFirstControl(node);
+}
+
+Reduction WasmGCOperatorReducer::ReduceWasmTypeCheckAbstract(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmTypeCheckAbstract);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  WasmTypeCheckConfig config = OpParameter<WasmTypeCheckConfig>(node->op());
+
+  wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
+  if (object_type.type.is_uninhabited()) return NoChange();
+  const bool null_succeeds = config.to.is_nullable();
+
+  if (wasm::IsHeapSubtypeOf(object_type.type.heap_type(), config.to.heap_type(),
+                            object_type.module)) {
+    // Type cast will fail only on null.
+    gasm_.InitializeEffectControl(effect, control);
+    Node* condition = SetType(object_type.type.is_nullable() && !null_succeeds
+                                  ? gasm_.IsNotNull(object, object_type.type)
+                                  : gasm_.Int32Constant(1),
+                              wasm::kWasmI32);
+    ReplaceWithValue(node, condition);
+    node->Kill();
+    return Replace(condition);
+  }
+
+  // This can never result from user code, only from internal shortcuts,
+  // e.g. when using externrefs as strings.
+  const bool implicit_internalize =
+      config.from.heap_representation() == wasm::HeapType::kExtern &&
+      wasm::IsHeapSubtypeOf(config.to.heap_type(),
+                            wasm::HeapType(wasm::HeapType::kAny),
+                            object_type.module);
+  if (!implicit_internalize &&
+      wasm::HeapTypesUnrelated(object_type.type.heap_type(),
+                               config.to.heap_type(), object_type.module,
+                               object_type.module)) {
+    Node* condition = nullptr;
+    if (null_succeeds && object_type.type.is_nullable()) {
+      // The cast only succeeds in case of null.
+      gasm_.InitializeEffectControl(effect, control);
+      condition =
+          SetType(gasm_.IsNull(object, object_type.type), wasm::kWasmI32);
+    } else {
+      // The cast never succeeds.
+      condition = SetType(gasm_.Int32Constant(0), wasm::kWasmI32);
+    }
+    ReplaceWithValue(node, condition);
+    node->Kill();
+    return Replace(condition);
+  }
+
+  // Update the from-type in the type cast.
+  NodeProperties::ChangeOp(node, gasm_.simplified()->WasmTypeCheckAbstract(
+                                     {object_type.type, config.to}));
+
+  return TakeStatesFromFirstControl(node);
+}
+
+void WasmGCOperatorReducer::UpdateSourcePosition(Node* new_node,
+                                                 Node* old_node) {
+  if (source_position_table_) {
+    SourcePosition position =
+        source_position_table_->GetSourcePosition(old_node);
+    DCHECK(position.ScriptOffset() != kNoSourcePosition);
+    source_position_table_->SetSourcePosition(new_node, position);
+  }
 }
 
 }  // namespace compiler

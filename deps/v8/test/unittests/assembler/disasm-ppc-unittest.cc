@@ -42,7 +42,7 @@ namespace internal {
 
 using DisasmPpcTest = TestWithIsolate;
 
-bool DisassembleAndCompare(byte* pc, const char* compare_string) {
+bool DisassembleAndCompare(uint8_t* pc, const char* compare_string) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
   base::EmbeddedVector<char, 128> disasm_buffer;
@@ -64,11 +64,11 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SET_UP()                                             \
-  HandleScope scope(isolate());                              \
-  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
-  Assembler assm(AssemblerOptions{},                         \
-                 ExternalAssemblerBuffer(buffer, 4 * 1024)); \
+#define SET_UP()                                                  \
+  HandleScope scope(isolate());                                   \
+  uint8_t* buffer = reinterpret_cast<uint8_t*>(malloc(4 * 1024)); \
+  Assembler assm(AssemblerOptions{},                              \
+                 ExternalAssemblerBuffer(buffer, 4 * 1024));      \
   bool failure = false;
 
 // This macro assembles one instruction using the preallocated assembler and
@@ -78,7 +78,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 #define COMPARE(asm_, compare_string)                                        \
   {                                                                          \
     int pc_offset = assm.pc_offset();                                        \
-    byte* progcounter = &buffer[pc_offset];                                  \
+    uint8_t* progcounter = &buffer[pc_offset];                               \
     assm.asm_;                                                               \
     if (!DisassembleAndCompare(progcounter, compare_string)) failure = true; \
   }

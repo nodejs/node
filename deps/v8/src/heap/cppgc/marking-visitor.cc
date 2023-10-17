@@ -4,12 +4,15 @@
 
 #include "src/heap/cppgc/marking-visitor.h"
 
+#include "include/cppgc/internal/member-storage.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-state.h"
 
 namespace cppgc {
 namespace internal {
+
+struct Dummy;
 
 MarkingVisitorBase::MarkingVisitorBase(HeapBase& heap,
                                        BasicMarkingState& marking_state)
@@ -18,6 +21,39 @@ MarkingVisitorBase::MarkingVisitorBase(HeapBase& heap,
 void MarkingVisitorBase::Visit(const void* object, TraceDescriptor desc) {
   marking_state_.MarkAndPush(object, desc);
 }
+
+void MarkingVisitorBase::VisitMultipleUncompressedMember(
+    const void* start, size_t len,
+    TraceDescriptorCallback get_trace_descriptor) {
+  const char* it = static_cast<const char*>(start);
+  const char* end = it + len * cppgc::internal::kSizeOfUncompressedMember;
+  for (; it < end; it += cppgc::internal::kSizeOfUncompressedMember) {
+    const auto* current = reinterpret_cast<const internal::RawPointer*>(it);
+    const void* object = current->LoadAtomic();
+    if (!object) continue;
+
+    marking_state_.MarkAndPush(object, get_trace_descriptor(object));
+  }
+}
+
+#if defined(CPPGC_POINTER_COMPRESSION)
+
+void MarkingVisitorBase::VisitMultipleCompressedMember(
+    const void* start, size_t len,
+    TraceDescriptorCallback get_trace_descriptor) {
+  const char* it = static_cast<const char*>(start);
+  const char* end = it + len * cppgc::internal::kSizeofCompressedMember;
+  for (; it < end; it += cppgc::internal::kSizeofCompressedMember) {
+    const auto* current =
+        reinterpret_cast<const internal::CompressedPointer*>(it);
+    const void* object = current->LoadAtomic();
+    if (!object) continue;
+
+    marking_state_.MarkAndPush(object, get_trace_descriptor(object));
+  }
+}
+
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
 
 void MarkingVisitorBase::VisitWeak(const void* object, TraceDescriptor desc,
                                    WeakCallback weak_callback,

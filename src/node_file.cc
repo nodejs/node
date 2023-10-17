@@ -57,7 +57,6 @@ namespace fs {
 
 using v8::Array;
 using v8::BigInt;
-using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -301,13 +300,14 @@ void FileHandle::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("current_read", current_read_);
 }
 
-FileHandle::TransferMode FileHandle::GetTransferMode() const {
-  return reading_ || closing_ || closed_ ?
-      TransferMode::kUntransferable : TransferMode::kTransferable;
+BaseObject::TransferMode FileHandle::GetTransferMode() const {
+  return reading_ || closing_ || closed_
+             ? TransferMode::kDisallowCloneAndTransfer
+             : TransferMode::kTransferable;
 }
 
 std::unique_ptr<worker::TransferData> FileHandle::TransferForMessaging() {
-  CHECK_NE(GetTransferMode(), TransferMode::kUntransferable);
+  CHECK_NE(GetTransferMode(), TransferMode::kDisallowCloneAndTransfer);
   auto ret = std::make_unique<TransferData>(fd_);
   closed_ = true;
   return ret;
@@ -981,44 +981,18 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {  // access(path, mode, req)
+  if (argc > 2) {  // access(path, mode, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
+    CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_ACCESS, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "access", UTF8, AfterNoArgs,
               uv_fs_access, *path, mode);
-  } else {  // access(path, mode, undefined, ctx)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // access(path, mode)
+    FSReqWrapSync req_wrap_sync("access", *path);
     FS_SYNC_TRACE_BEGIN(access);
-    SyncCall(env, args[3], &req_wrap_sync, "access", uv_fs_access, *path, mode);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_access, *path, mode);
     FS_SYNC_TRACE_END(access);
-  }
-}
-
-static void AccessSync(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
-  const int argc = args.Length();
-  CHECK_GE(argc, 2);
-
-  CHECK(args[1]->IsInt32());
-  int mode = args[1].As<Int32>()->Value();
-
-  BufferValue path(isolate, args[0]);
-  CHECK_NOT_NULL(*path);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
-
-  uv_fs_t req;
-  FS_SYNC_TRACE_BEGIN(access);
-  int err = uv_fs_access(nullptr, &req, *path, mode, nullptr);
-  uv_fs_req_cleanup(&req);
-  FS_SYNC_TRACE_END(access);
-
-  if (err) {
-    return env->ThrowUVException(err, "access", nullptr, path.out());
   }
 }
 
@@ -1026,42 +1000,23 @@ void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 2);
+  CHECK_GE(argc, 1);
 
   CHECK(args[0]->IsInt32());
   int fd = args[0].As<Int32>()->Value();
   env->RemoveUnmanagedFd(fd);
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 1);
-  if (req_wrap_async != nullptr) {  // close(fd, req)
+  if (argc > 1) {  // close(fd, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 1);
+    CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_CLOSE, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "close", UTF8, AfterNoArgs,
               uv_fs_close, fd);
-  } else {  // close(fd, undefined, ctx)
-    CHECK_EQ(argc, 3);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // close(fd)
+    FSReqWrapSync req_wrap_sync("close");
     FS_SYNC_TRACE_BEGIN(close);
-    SyncCall(env, args[2], &req_wrap_sync, "close", uv_fs_close, fd);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_close, fd);
     FS_SYNC_TRACE_END(close);
-  }
-}
-
-static void CloseSync(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 1);
-  CHECK(args[0]->IsInt32());
-
-  int fd = args[0].As<Int32>()->Value();
-  env->RemoveUnmanagedFd(fd);
-
-  uv_fs_t req;
-  FS_SYNC_TRACE_BEGIN(close);
-  int err = uv_fs_close(nullptr, &req, fd, nullptr);
-  FS_SYNC_TRACE_END(close);
-  uv_fs_req_cleanup(&req);
-
-  if (err < 0) {
-    return env->ThrowUVException(err, "close");
   }
 }
 
@@ -1107,7 +1062,6 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
   if (strlen(*path) != path.length()) {
-    args.GetReturnValue().Set(Array::New(isolate));
     return;  // Contains a nul byte.
   }
   uv_fs_t open_req;
@@ -1115,7 +1069,6 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   uv_fs_req_cleanup(&open_req);
 
   if (fd < 0) {
-    args.GetReturnValue().Set(Array::New(isolate));
     return;
   }
 
@@ -1142,7 +1095,6 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     uv_fs_req_cleanup(&read_req);
 
     if (numchars < 0) {
-      args.GetReturnValue().Set(Array::New(isolate));
       return;
     }
     offset += numchars;
@@ -1154,42 +1106,10 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   }
   const size_t size = offset - start;
 
-  // TODO(anonrig): Follow-up on removing the following changes for AIX.
-  char* p = &chars[start];
-  char* pe = &chars[size];
-  char* pos[2];
-  char** ppos = &pos[0];
-
-  while (p < pe) {
-    char c = *p++;
-    if (c == '\\' && p < pe && *p == '"') p++;
-    if (c != '"') continue;
-    *ppos++ = p;
-    if (ppos < &pos[2]) continue;
-    ppos = &pos[0];
-
-    char* s = &pos[0][0];
-    char* se = &pos[1][-1];  // Exclude quote.
-    size_t n = se - s;
-
-    if (n == 4) {
-      if (0 == memcmp(s, "main", 4)) break;
-      if (0 == memcmp(s, "name", 4)) break;
-      if (0 == memcmp(s, "type", 4)) break;
-    } else if (n == 7) {
-      if (0 == memcmp(s, "exports", 7)) break;
-      if (0 == memcmp(s, "imports", 7)) break;
-    }
-  }
-
-  Local<Value> return_value[] = {
+  args.GetReturnValue().Set(
       String::NewFromUtf8(
           isolate, &chars[start], v8::NewStringType::kNormal, size)
-          .ToLocalChecked(),
-      Boolean::New(isolate, p < pe ? true : false)};
-
-  args.GetReturnValue().Set(
-      Array::New(isolate, return_value, arraysize(return_value)));
+          .ToLocalChecked());
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
@@ -1214,13 +1134,17 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc);
 }
 
+constexpr bool is_uv_error_except_no_entry(int result) {
+  return result < 0 && result != UV_ENOENT;
+}
+
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
   Environment* env = realm->env();
 
   const int argc = args.Length();
-  CHECK_GE(argc, 2);
+  CHECK_GE(argc, 3);
 
   BufferValue path(realm->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
@@ -1228,61 +1152,32 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
   bool use_bigint = args[1]->IsTrue();
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
-  if (req_wrap_async != nullptr) {  // stat(path, use_bigint, req)
+  if (!args[2]->IsUndefined()) {  // stat(path, use_bigint, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
+    CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_STAT, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "stat", UTF8, AfterStat,
               uv_fs_stat, *path);
-  } else {  // stat(path, use_bigint, undefined, ctx)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // stat(path, use_bigint, undefined, do_not_throw_if_no_entry)
+    bool do_not_throw_if_no_entry = args[3]->IsFalse();
+    FSReqWrapSync req_wrap_sync("stat", *path);
     FS_SYNC_TRACE_BEGIN(stat);
-    int err = SyncCall(env, args[3], &req_wrap_sync, "stat", uv_fs_stat, *path);
-    FS_SYNC_TRACE_END(stat);
-    if (err != 0) {
-      return;  // error info is in ctx
+    int result;
+    if (do_not_throw_if_no_entry) {
+      result = SyncCallAndThrowIf(
+          is_uv_error_except_no_entry, env, &req_wrap_sync, uv_fs_stat, *path);
+    } else {
+      result = SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_stat, *path);
     }
-
+    FS_SYNC_TRACE_END(stat);
+    if (is_uv_error(result)) {
+      return;
+    }
     Local<Value> arr = FillGlobalStatsArray(binding_data, use_bigint,
         static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
     args.GetReturnValue().Set(arr);
   }
-}
-
-static void StatSync(const FunctionCallbackInfo<Value>& args) {
-  Realm* realm = Realm::GetCurrent(args);
-  BindingData* binding_data = realm->GetBindingData<BindingData>();
-  Environment* env = realm->env();
-
-  CHECK_GE(args.Length(), 3);
-
-  BufferValue path(realm->isolate(), args[0]);
-  bool use_bigint = args[1]->IsTrue();
-  bool do_not_throw_if_no_entry = args[2]->IsFalse();
-  CHECK_NOT_NULL(*path);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
-
-  env->PrintSyncTrace();
-
-  uv_fs_t req;
-  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-
-  FS_SYNC_TRACE_BEGIN(stat);
-  int err = uv_fs_stat(nullptr, &req, *path, nullptr);
-  FS_SYNC_TRACE_END(stat);
-
-  if (err < 0) {
-    if (err == UV_ENOENT && do_not_throw_if_no_entry) {
-      return;
-    }
-    return env->ThrowUVException(err, "stat", nullptr, path.out());
-  }
-
-  Local<Value> arr = FillGlobalStatsArray(
-      binding_data, use_bigint, static_cast<const uv_stat_t*>(req.ptr));
-  args.GetReturnValue().Set(arr);
 }
 
 static void LStat(const FunctionCallbackInfo<Value>& args) {
@@ -1367,8 +1262,9 @@ static void StatFs(const FunctionCallbackInfo<Value>& args) {
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
   bool use_bigint = args[1]->IsTrue();
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
-  if (req_wrap_async != nullptr) {  // statfs(path, use_bigint, req)
+  if (argc > 2) {  // statfs(path, use_bigint, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
+    CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_STATFS, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env,
@@ -1379,15 +1275,14 @@ static void StatFs(const FunctionCallbackInfo<Value>& args) {
               AfterStatFs,
               uv_fs_statfs,
               *path);
-  } else {  // statfs(path, use_bigint, undefined, ctx)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // statfs(path, use_bigint)
+    FSReqWrapSync req_wrap_sync("statfs", *path);
     FS_SYNC_TRACE_BEGIN(statfs);
-    int err =
-        SyncCall(env, args[3], &req_wrap_sync, "statfs", uv_fs_statfs, *path);
+    int result =
+        SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_statfs, *path);
     FS_SYNC_TRACE_END(statfs);
-    if (err != 0) {
-      return;  // error info is in ctx
+    if (is_uv_error(result)) {
+      return;
     }
 
     Local<Value> arr = FillGlobalStatFsArray(
@@ -1396,34 +1291,6 @@ static void StatFs(const FunctionCallbackInfo<Value>& args) {
         static_cast<const uv_statfs_t*>(req_wrap_sync.req.ptr));
     args.GetReturnValue().Set(arr);
   }
-}
-
-static void StatFsSync(const FunctionCallbackInfo<Value>& args) {
-  Realm* realm = Realm::GetCurrent(args);
-  BindingData* binding_data = realm->GetBindingData<BindingData>();
-  Environment* env = realm->env();
-
-  CHECK_GE(args.Length(), 2);
-
-  BufferValue path(realm->isolate(), args[0]);
-  bool use_bigint = args[1]->IsTrue();
-
-  CHECK_NOT_NULL(*path);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
-
-  uv_fs_t req;
-  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-  FS_SYNC_TRACE_BEGIN(statfs);
-  int err = uv_fs_statfs(nullptr, &req, *path, nullptr);
-  FS_SYNC_TRACE_END(statfs);
-  if (err < 0) {
-    return env->ThrowUVException(err, "statfs", *path, nullptr);
-  }
-
-  Local<Value> arr = FillGlobalStatFsArray(
-      binding_data, use_bigint, static_cast<const uv_statfs_t*>(req.ptr));
-  args.GetReturnValue().Set(arr);
 }
 
 static void Symlink(const FunctionCallbackInfo<Value>& args) {
@@ -1607,7 +1474,7 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 3);
+  CHECK_GE(argc, 2);
 
   CHECK(args[0]->IsInt32());
   const int fd = args[0].As<Int32>()->Value();
@@ -1615,17 +1482,15 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsSafeJsInt(args[1]));
   const int64_t len = args[1].As<Integer>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {
+  if (argc > 2) {
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FTRUNCATE, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "ftruncate", UTF8, AfterNoArgs,
               uv_fs_ftruncate, fd, len);
   } else {
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+    FSReqWrapSync req_wrap_sync("ftruncate");
     FS_SYNC_TRACE_BEGIN(ftruncate);
-    SyncCall(env, args[3], &req_wrap_sync, "ftruncate", uv_fs_ftruncate, fd,
-             len);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_ftruncate, fd, len);
     FS_SYNC_TRACE_END(ftruncate);
   }
 }
@@ -1634,21 +1499,21 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 2);
+  CHECK_GE(argc, 1);
 
   CHECK(args[0]->IsInt32());
   const int fd = args[0].As<Int32>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 1);
-  if (req_wrap_async != nullptr) {
+  if (argc > 1) {  // fdatasync(fd, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 1);
+    CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FDATASYNC, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "fdatasync", UTF8, AfterNoArgs,
               uv_fs_fdatasync, fd);
-  } else {
-    CHECK_EQ(argc, 3);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // fdatasync(fd)
+    FSReqWrapSync req_wrap_sync("fdatasync");
     FS_SYNC_TRACE_BEGIN(fdatasync);
-    SyncCall(env, args[2], &req_wrap_sync, "fdatasync", uv_fs_fdatasync, fd);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_fdatasync, fd);
     FS_SYNC_TRACE_END(fdatasync);
   }
 }
@@ -1680,32 +1545,6 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 2);
-
-  BufferValue path(env->isolate(), args[0]);
-  CHECK_NOT_NULL(*path);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
-
-  FSReqBase* req_wrap_async = GetReqWrap(args, 1);
-  if (req_wrap_async != nullptr) {
-    FS_ASYNC_TRACE_BEGIN1(
-        UV_FS_UNLINK, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "unlink", UTF8, AfterNoArgs,
-              uv_fs_unlink, *path);
-  } else {
-    CHECK_EQ(argc, 3);
-    FSReqWrapSync req_wrap_sync;
-    FS_SYNC_TRACE_BEGIN(unlink);
-    SyncCall(env, args[2], &req_wrap_sync, "unlink", uv_fs_unlink, *path);
-    FS_SYNC_TRACE_END(unlink);
-  }
-}
-
-static void UnlinkSync(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  const int argc = args.Length();
   CHECK_GE(argc, 1);
 
   BufferValue path(env->isolate(), args[0]);
@@ -1713,13 +1552,18 @@ static void UnlinkSync(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
 
-  uv_fs_t req;
-  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-  FS_SYNC_TRACE_BEGIN(unlink);
-  int err = uv_fs_unlink(nullptr, &req, *path, nullptr);
-  FS_SYNC_TRACE_END(unlink);
-  if (err < 0) {
-    return env->ThrowUVException(err, "unlink", nullptr, *path);
+  if (argc > 1) {  // unlink(path, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 1);
+    CHECK_NOT_NULL(req_wrap_async);
+    FS_ASYNC_TRACE_BEGIN1(
+        UV_FS_UNLINK, req_wrap_async, "path", TRACE_STR_COPY(*path))
+    AsyncCall(env, req_wrap_async, args, "unlink", UTF8, AfterNoArgs,
+              uv_fs_unlink, *path);
+  } else {  // unlink(path)
+    FSReqWrapSync req_wrap_sync("unlink", *path);
+    FS_SYNC_TRACE_BEGIN(unlink);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_unlink, *path);
+    FS_SYNC_TRACE_END(unlink);
   }
 }
 
@@ -2047,8 +1891,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
   bool with_types = args[2]->IsTrue();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // readdir(path, encoding, withTypes, req)
+  if (argc > 3) {  // readdir(path, encoding, withTypes, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     req_wrap_async->set_with_file_types(with_types);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_SCANDIR, req_wrap_async, "path", TRACE_STR_COPY(*path))
@@ -2061,18 +1905,16 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
               uv_fs_scandir,
               *path,
               0 /*flags*/);
-  } else {  // readdir(path, encoding, withTypes, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // readdir(path, encoding, withTypes)
+    FSReqWrapSync req_wrap_sync("scandir", *path);
     FS_SYNC_TRACE_BEGIN(readdir);
-    int err = SyncCall(env, args[4], &req_wrap_sync, "scandir",
-                       uv_fs_scandir, *path, 0 /*flags*/);
+    int err = SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_scandir, *path, 0 /*flags*/);
     FS_SYNC_TRACE_END(readdir);
-    if (err < 0) {
-      return;  // syscall failed, no need to continue, error info is in ctx
+    if (is_uv_error(err)) {
+      return;
     }
 
-    CHECK_GE(req_wrap_sync.req.result, 0);
     int r;
     std::vector<Local<Value>> name_v;
     std::vector<Local<Value>> type_v;
@@ -2083,12 +1925,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       r = uv_fs_scandir_next(&(req_wrap_sync.req), &ent);
       if (r == UV_EOF)
         break;
-      if (r != 0) {
-        Local<Object> ctx = args[4].As<Object>();
-        ctx->Set(env->context(), env->errno_string(),
-                 Integer::New(isolate, r)).Check();
-        ctx->Set(env->context(), env->syscall_string(),
-                 OneByteString(isolate, "readdir")).Check();
+      if (is_uv_error(r)) {
+        env->ThrowUVException(r, "scandir", nullptr, *path);
         return;
       }
 
@@ -2099,8 +1937,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
                                                        &error);
 
       if (filename.IsEmpty()) {
-        Local<Object> ctx = args[4].As<Object>();
-        ctx->Set(env->context(), env->error_string(), error).Check();
+        isolate->ThrowException(error);
         return;
       }
 
@@ -2172,52 +2009,24 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 
   if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // open(path, flags, mode, req)
+  if (argc > 3) {  // open(path, flags, mode, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
+    CHECK_NOT_NULL(req_wrap_async);
     req_wrap_async->set_is_plain_open(true);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_OPEN, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "open", UTF8, AfterInteger,
               uv_fs_open, *path, flags, mode);
-  } else {  // open(path, flags, mode, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // open(path, flags, mode)
+    FSReqWrapSync req_wrap_sync("open", *path);
     FS_SYNC_TRACE_BEGIN(open);
-    int result = SyncCall(env, args[4], &req_wrap_sync, "open",
-                          uv_fs_open, *path, flags, mode);
+    int result = SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_open, *path, flags, mode);
     FS_SYNC_TRACE_END(open);
-    if (result >= 0) env->AddUnmanagedFd(result);
+    if (is_uv_error(result)) return;
+    env->AddUnmanagedFd(result);
     args.GetReturnValue().Set(result);
   }
-}
-
-static void OpenSync(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  const int argc = args.Length();
-  CHECK_GE(argc, 3);
-
-  BufferValue path(env->isolate(), args[0]);
-  CHECK_NOT_NULL(*path);
-
-  CHECK(args[1]->IsInt32());
-  const int flags = args[1].As<Int32>()->Value();
-
-  CHECK(args[2]->IsInt32());
-  const int mode = args[2].As<Int32>()->Value();
-
-  if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
-
-  uv_fs_t req;
-  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-  FS_SYNC_TRACE_BEGIN(open);
-  auto err = uv_fs_open(nullptr, &req, *path, flags, mode, nullptr);
-  FS_SYNC_TRACE_END(open);
-  if (err < 0) {
-    return env->ThrowUVException(err, "open", nullptr, path.out());
-  }
-  env->AddUnmanagedFd(err);
-  args.GetReturnValue().Set(err);
 }
 
 static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
@@ -2281,8 +2090,8 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsInt32());
   const int flags = args[2].As<Int32>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // copyFile(src, dest, flags, req)
+  if (argc > 3) {  // copyFile(src, dest, flags, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN2(UV_FS_COPYFILE,
                           req_wrap_async,
                           "src",
@@ -2292,46 +2101,12 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
     AsyncDestCall(env, req_wrap_async, args, "copyfile",
                   *dest, dest.length(), UTF8, AfterNoArgs,
                   uv_fs_copyfile, *src, *dest, flags);
-  } else {  // copyFile(src, dest, flags, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // copyFile(src, dest, flags)
+    FSReqWrapSync req_wrap_sync("copyfile", *src, *dest);
     FS_SYNC_TRACE_BEGIN(copyfile);
-    SyncCall(env, args[4], &req_wrap_sync, "copyfile",
-             uv_fs_copyfile, *src, *dest, flags);
+    SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_copyfile, *src, *dest, flags);
     FS_SYNC_TRACE_END(copyfile);
-  }
-}
-
-static void CopyFileSync(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
-  const int argc = args.Length();
-  CHECK_GE(argc, 3);
-
-  BufferValue src(isolate, args[0]);
-  CHECK_NOT_NULL(*src);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, src.ToStringView());
-
-  BufferValue dest(isolate, args[1]);
-  CHECK_NOT_NULL(*dest);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
-
-  CHECK(args[2]->IsInt32());
-  const int flags = args[2].As<Int32>()->Value();
-
-  uv_fs_t req;
-  FS_SYNC_TRACE_BEGIN(copyfile);
-  int err =
-      uv_fs_copyfile(nullptr, &req, src.out(), dest.out(), flags, nullptr);
-  uv_fs_req_cleanup(&req);
-  FS_SYNC_TRACE_END(copyfile);
-
-  if (err) {
-    return env->ThrowUVException(
-        err, "copyfile", nullptr, src.out(), dest.out());
   }
 }
 
@@ -2421,18 +2196,29 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
     iovs[i] = uv_buf_init(Buffer::Data(chunk), Buffer::Length(chunk));
   }
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // writeBuffers(fd, chunks, pos, req)
+  if (argc > 3) {  // writeBuffers(fd, chunks, pos, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_WRITE, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "write", UTF8, AfterInteger,
-              uv_fs_write, fd, *iovs, iovs.length(), pos);
-  } else {  // writeBuffers(fd, chunks, pos, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+    AsyncCall(env,
+              req_wrap_async,
+              args,
+              "write",
+              UTF8,
+              AfterInteger,
+              uv_fs_write,
+              fd,
+              *iovs,
+              iovs.length(),
+              pos);
+  } else {  // writeBuffers(fd, chunks, pos)
+    FSReqWrapSync req_wrap_sync("write");
     FS_SYNC_TRACE_BEGIN(write);
-    int bytesWritten = SyncCall(env, args[4], &req_wrap_sync, "write",
-                                uv_fs_write, fd, *iovs, iovs.length(), pos);
+    int bytesWritten = SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_write, fd, *iovs, iovs.length(), pos);
     FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
+    if (is_uv_error(bytesWritten)) {
+      return;
+    }
     args.GetReturnValue().Set(bytesWritten);
   }
 }
@@ -2724,18 +2510,16 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   int mode = args[1].As<Int32>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {  // chmod(path, mode, req)
+  if (argc > 2) {  // chmod(path, mode, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_CHMOD, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "chmod", UTF8, AfterNoArgs,
               uv_fs_chmod, *path, mode);
-  } else {  // chmod(path, mode, undefined, ctx)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // chmod(path, mode)
+    FSReqWrapSync req_wrap_sync("chmod", *path);
     FS_SYNC_TRACE_BEGIN(chmod);
-    SyncCall(env, args[3], &req_wrap_sync, "chmod",
-             uv_fs_chmod, *path, mode);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_chmod, *path, mode);
     FS_SYNC_TRACE_END(chmod);
   }
 }
@@ -2756,17 +2540,15 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   const int mode = args[1].As<Int32>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  if (req_wrap_async != nullptr) {  // fchmod(fd, mode, req)
+  if (argc > 2) {  // fchmod(fd, mode, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FCHMOD, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "fchmod", UTF8, AfterNoArgs,
               uv_fs_fchmod, fd, mode);
-  } else {  // fchmod(fd, mode, undefined, ctx)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // fchmod(fd, mode)
+    FSReqWrapSync req_wrap_sync("fchmod");
     FS_SYNC_TRACE_BEGIN(fchmod);
-    SyncCall(env, args[3], &req_wrap_sync, "fchmod",
-             uv_fs_fchmod, fd, mode);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_fchmod, fd, mode);
     FS_SYNC_TRACE_END(fchmod);
   }
 }
@@ -2893,18 +2675,17 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   const double mtime = args[2].As<Number>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // utimes(path, atime, mtime, req)
+  if (argc > 3) {  // utimes(path, atime, mtime, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_UTIME, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "utime", UTF8, AfterNoArgs,
               uv_fs_utime, *path, atime, mtime);
-  } else {  // utimes(path, atime, mtime, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // utimes(path, atime, mtime)
+    FSReqWrapSync req_wrap_sync("utime", *path);
     FS_SYNC_TRACE_BEGIN(utimes);
-    SyncCall(env, args[4], &req_wrap_sync, "utime",
-             uv_fs_utime, *path, atime, mtime);
+    SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_utime, *path, atime, mtime);
     FS_SYNC_TRACE_END(utimes);
   }
 }
@@ -2924,17 +2705,16 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   const double mtime = args[2].As<Number>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // futimes(fd, atime, mtime, req)
+  if (argc > 3) {  // futimes(fd, atime, mtime, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FUTIME, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "futime", UTF8, AfterNoArgs,
               uv_fs_futime, fd, atime, mtime);
-  } else {  // futimes(fd, atime, mtime, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // futimes(fd, atime, mtime)
+    FSReqWrapSync req_wrap_sync("futime");
     FS_SYNC_TRACE_BEGIN(futimes);
-    SyncCall(env, args[4], &req_wrap_sync, "futime",
-             uv_fs_futime, fd, atime, mtime);
+    SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_futime, fd, atime, mtime);
     FS_SYNC_TRACE_END(futimes);
   }
 }
@@ -2956,18 +2736,17 @@ static void LUTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   const double mtime = args[2].As<Number>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // lutimes(path, atime, mtime, req)
+  if (argc > 3) {  // lutimes(path, atime, mtime, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_LUTIME, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "lutime", UTF8, AfterNoArgs,
               uv_fs_lutime, *path, atime, mtime);
-  } else {  // lutimes(path, atime, mtime, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // lutimes(path, atime, mtime)
+    FSReqWrapSync req_wrap_sync("lutime", *path);
     FS_SYNC_TRACE_BEGIN(lutimes);
-    SyncCall(env, args[4], &req_wrap_sync, "lutime",
-             uv_fs_lutime, *path, atime, mtime);
+    SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_lutime, *path, atime, mtime);
     FS_SYNC_TRACE_END(lutimes);
   }
 }
@@ -3011,6 +2790,51 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
     }
     args.GetReturnValue().Set(rc.ToLocalChecked());
   }
+}
+
+static void GetFormatOfExtensionlessFile(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Environment* env = Environment::GetCurrent(args);
+  node::Utf8Value input(args.GetIsolate(), args[0]);
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, input.ToStringView());
+
+  uv_fs_t req;
+  FS_SYNC_TRACE_BEGIN(open)
+  uv_file file = uv_fs_open(nullptr, &req, input.out(), O_RDONLY, 0, nullptr);
+  FS_SYNC_TRACE_END(open);
+
+  if (req.result < 0) {
+    return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_JAVASCRIPT);
+  }
+
+  auto cleanup = OnScopeLeave([&req, &file]() {
+    FS_SYNC_TRACE_BEGIN(close);
+    CHECK_EQ(0, uv_fs_close(nullptr, &req, file, nullptr));
+    FS_SYNC_TRACE_END(close);
+    uv_fs_req_cleanup(&req);
+  });
+
+  char buffer[4];
+  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
+  int err = uv_fs_read(nullptr, &req, file, &buf, 1, 0, nullptr);
+
+  if (err < 0) {
+    return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_JAVASCRIPT);
+  }
+
+  // We do this by taking advantage of the fact that all Wasm files start with
+  // the header `0x00 0x61 0x73 0x6d`
+  if (buffer[0] == 0x00 && buffer[1] == 0x61 && buffer[2] == 0x73 &&
+      buffer[3] == 0x6d) {
+    return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_WASM);
+  }
+
+  return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_JAVASCRIPT);
 }
 
 static bool FileURLToPath(
@@ -3155,11 +2979,19 @@ BindingData::FilePathIsFileReturnType BindingData::FilePathIsFile(
   return BindingData::FilePathIsFileReturnType::kIsNotFile;
 }
 
+namespace {
+
+// define the final index of the algorithm resolution
+// when packageConfig.main is defined.
+constexpr uint8_t legacy_main_extensions_with_main_end = 7;
+// define the final index of the algorithm resolution
+// when packageConfig.main is NOT defined
+constexpr uint8_t legacy_main_extensions_package_fallback_end = 10;
 // the possible file extensions that should be tested
 // 0-6: when packageConfig.main is defined
 // 7-9: when packageConfig.main is NOT defined,
 //      or when the previous case didn't found the file
-const std::array<std::string, 10> BindingData::legacy_main_extensions = {
+constexpr std::array<std::string_view, 10> legacy_main_extensions = {
     "",
     ".js",
     ".json",
@@ -3170,6 +3002,8 @@ const std::array<std::string, 10> BindingData::legacy_main_extensions = {
     ".js",
     ".json",
     ".node"};
+
+}  // namespace
 
 void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
@@ -3211,9 +3045,8 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
 
     FromNamespacedPath(&initial_file_path);
 
-    for (int i = 0; i < BindingData::legacy_main_extensions_with_main_end;
-         i++) {
-      file_path = initial_file_path + BindingData::legacy_main_extensions[i];
+    for (int i = 0; i < legacy_main_extensions_with_main_end; i++) {
+      file_path = initial_file_path + std::string(legacy_main_extensions[i]);
 
       switch (FilePathIsFile(env, file_path)) {
         case BindingData::FilePathIsFileReturnType::kIsFile:
@@ -3246,10 +3079,10 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
 
   FromNamespacedPath(&initial_file_path);
 
-  for (int i = BindingData::legacy_main_extensions_with_main_end;
-       i < BindingData::legacy_main_extensions_package_fallback_end;
+  for (int i = legacy_main_extensions_with_main_end;
+       i < legacy_main_extensions_package_fallback_end;
        i++) {
-    file_path = initial_file_path + BindingData::legacy_main_extensions[i];
+    file_path = initial_file_path + std::string(legacy_main_extensions[i]);
 
     switch (FilePathIsFile(env, file_path)) {
       case BindingData::FilePathIsFileReturnType::kIsFile:
@@ -3416,13 +3249,14 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
 
+  SetMethod(isolate,
+            target,
+            "getFormatOfExtensionlessFile",
+            GetFormatOfExtensionlessFile);
   SetMethod(isolate, target, "access", Access);
-  SetMethod(isolate, target, "accessSync", AccessSync);
   SetMethod(isolate, target, "close", Close);
-  SetMethod(isolate, target, "closeSync", CloseSync);
   SetMethod(isolate, target, "existsSync", ExistsSync);
   SetMethod(isolate, target, "open", Open);
-  SetMethod(isolate, target, "openSync", OpenSync);
   SetMethod(isolate, target, "openFileHandle", OpenFileHandle);
   SetMethod(isolate, target, "read", Read);
   SetMethod(isolate, target, "readFileUtf8", ReadFileUtf8);
@@ -3437,22 +3271,18 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "internalModuleReadJSON", InternalModuleReadJSON);
   SetMethod(isolate, target, "internalModuleStat", InternalModuleStat);
   SetMethod(isolate, target, "stat", Stat);
-  SetMethod(isolate, target, "statSync", StatSync);
   SetMethod(isolate, target, "lstat", LStat);
   SetMethod(isolate, target, "fstat", FStat);
   SetMethod(isolate, target, "statfs", StatFs);
-  SetMethod(isolate, target, "statfsSync", StatFsSync);
   SetMethod(isolate, target, "link", Link);
   SetMethod(isolate, target, "symlink", Symlink);
   SetMethod(isolate, target, "readlink", ReadLink);
   SetMethod(isolate, target, "unlink", Unlink);
-  SetMethod(isolate, target, "unlinkSync", UnlinkSync);
   SetMethod(isolate, target, "writeBuffer", WriteBuffer);
   SetMethod(isolate, target, "writeBuffers", WriteBuffers);
   SetMethod(isolate, target, "writeString", WriteString);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
-  SetMethod(isolate, target, "copyFileSync", CopyFileSync);
 
   SetMethod(isolate, target, "chmod", Chmod);
   SetMethod(isolate, target, "fchmod", FChmod);
@@ -3540,15 +3370,13 @@ BindingData* FSReqBase::binding_data() {
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Access);
-  registry->Register(AccessSync);
   StatWatcher::RegisterExternalReferences(registry);
   BindingData::RegisterExternalReferences(registry);
 
+  registry->Register(GetFormatOfExtensionlessFile);
   registry->Register(Close);
-  registry->Register(CloseSync);
   registry->Register(ExistsSync);
   registry->Register(Open);
-  registry->Register(OpenSync);
   registry->Register(OpenFileHandle);
   registry->Register(Read);
   registry->Register(ReadFileUtf8);
@@ -3563,22 +3391,18 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(InternalModuleReadJSON);
   registry->Register(InternalModuleStat);
   registry->Register(Stat);
-  registry->Register(StatSync);
   registry->Register(LStat);
   registry->Register(FStat);
   registry->Register(StatFs);
-  registry->Register(StatFsSync);
   registry->Register(Link);
   registry->Register(Symlink);
   registry->Register(ReadLink);
   registry->Register(Unlink);
-  registry->Register(UnlinkSync);
   registry->Register(WriteBuffer);
   registry->Register(WriteBuffers);
   registry->Register(WriteString);
   registry->Register(RealPath);
   registry->Register(CopyFile);
-  registry->Register(CopyFileSync);
 
   registry->Register(Chmod);
   registry->Register(FChmod);

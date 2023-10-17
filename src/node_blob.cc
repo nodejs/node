@@ -392,7 +392,7 @@ Blob::BlobTransferData::Deserialize(
 }
 
 BaseObject::TransferMode Blob::GetTransferMode() const {
-  return BaseObject::TransferMode::kCloneable;
+  return TransferMode::kCloneable;
 }
 
 std::unique_ptr<worker::TransferData> Blob::CloneForMessaging() const {

@@ -753,6 +753,13 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                 "--no-harmony-import-assertions") == v8_args.end()) {
     v8_args.emplace_back("--harmony-import-assertions");
   }
+  // TODO(aduh95): remove this when the harmony-import-attributes flag
+  // is removed in V8.
+  if (std::find(v8_args.begin(),
+                v8_args.end(),
+                "--no-harmony-import-attributes") == v8_args.end()) {
+    v8_args.emplace_back("--harmony-import-attributes");
+  }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
   if (std::find(v8_args.begin(), v8_args.end(),
@@ -837,6 +844,12 @@ static ExitCode InitializeNodeWithArgsInternal(
   // --no_foo from the command line.
   V8::SetFlagsFromString(NODE_V8_OPTIONS, sizeof(NODE_V8_OPTIONS) - 1);
 #endif
+
+  if (!!(flags & ProcessInitializationFlags::kGeneratePredictableSnapshot) ||
+      per_process::cli_options->per_isolate->build_snapshot) {
+    v8::V8::SetFlagsFromString("--predictable");
+    v8::V8::SetFlagsFromString("--random_seed=42");
+  }
 
   // Specify this explicitly to avoid being affected by V8 changes to the
   // default value.

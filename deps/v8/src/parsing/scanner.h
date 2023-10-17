@@ -422,6 +422,10 @@ class V8_EXPORT_PRIVATE Scanner {
   template <typename IsolateT>
   Handle<String> SourceMappingUrl(IsolateT* isolate) const;
 
+  bool SawMagicCommentCompileHintsAll() const {
+    return saw_magic_comment_compile_hints_all_;
+  }
+
   bool FoundHtmlComment() const { return found_html_comment_; }
 
   const Utf16CharacterStream* stream() const { return source_; }
@@ -654,8 +658,8 @@ class V8_EXPORT_PRIVATE Scanner {
   V8_INLINE Token::Value SkipWhiteSpace();
   Token::Value SkipSingleHTMLComment();
   Token::Value SkipSingleLineComment();
-  Token::Value SkipSourceURLComment();
-  void TryToParseSourceURLComment();
+  Token::Value SkipMagicComment();
+  void TryToParseMagicComment();
   Token::Value SkipMultiLineComment();
   // Scans a possible HTML comment -- begins with '<!'.
   Token::Value ScanHtmlComment();
@@ -741,6 +745,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // Values parsed from magic comments.
   LiteralBuffer source_url_;
   LiteralBuffer source_mapping_url_;
+  bool saw_magic_comment_compile_hints_all_ = false;
 
   // Last-seen positions of potentially problematic tokens.
   Location octal_pos_;

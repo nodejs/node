@@ -21,7 +21,7 @@ class V8HeapCompressionScheme;
 class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
  public:
   using TCompressionScheme = V8HeapCompressionScheme;
-  using TObject = Object;
+  using TObject = Tagged<Object>;
   using THeapObjectSlot = CompressedHeapObjectSlot;
 
   static constexpr bool kCanBeWeak = false;
@@ -30,8 +30,8 @@ class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
   explicit CompressedObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit CompressedObjectSlot(Address* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  inline explicit CompressedObjectSlot(Object* object);
-  explicit CompressedObjectSlot(Object const* const* ptr)
+  inline explicit CompressedObjectSlot(Tagged<Object>* object);
+  explicit CompressedObjectSlot(Tagged<Object> const* const* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit CompressedObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
@@ -39,24 +39,25 @@ class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
 
   // Compares memory representation of a value stored in the slot with given
   // raw value without decompression.
-  inline bool contains_value(Address raw_value) const;
   inline bool contains_map_value(Address raw_value) const;
+  inline bool Relaxed_ContainsMapValue(Address raw_value) const;
 
   // TODO(leszeks): Consider deprecating the operator* load, and always pass the
   // Isolate.
-  inline Object operator*() const;
-  inline Object load(PtrComprCageBase cage_base) const;
-  inline void store(Object value) const;
-  inline void store_map(Map map) const;
+  inline Tagged<Object> operator*() const;
+  inline Tagged<Object> load(PtrComprCageBase cage_base) const;
+  inline void store(Tagged<Object> value) const;
+  inline void store_map(Tagged<Map> map) const;
 
-  inline Map load_map() const;
+  inline Tagged<Map> load_map() const;
 
-  inline Object Acquire_Load() const;
-  inline Object Relaxed_Load() const;
-  inline Object Relaxed_Load(PtrComprCageBase cage_base) const;
-  inline void Relaxed_Store(Object value) const;
-  inline void Release_Store(Object value) const;
-  inline Object Release_CompareAndSwap(Object old, Object target) const;
+  inline Tagged<Object> Acquire_Load() const;
+  inline Tagged<Object> Relaxed_Load() const;
+  inline Tagged<Object> Relaxed_Load(PtrComprCageBase cage_base) const;
+  inline void Relaxed_Store(Tagged<Object> value) const;
+  inline void Release_Store(Tagged<Object> value) const;
+  inline Tagged<Object> Release_CompareAndSwap(Tagged<Object> old,
+                                               Tagged<Object> target) const;
 };
 
 // A CompressedMaybeObjectSlot instance describes a kTaggedSize-sized field
@@ -75,7 +76,7 @@ class CompressedMaybeObjectSlot
 
   CompressedMaybeObjectSlot() : SlotBase(kNullAddress) {}
   explicit CompressedMaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit CompressedMaybeObjectSlot(Object* ptr)
+  explicit CompressedMaybeObjectSlot(Tagged<Object>* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   explicit CompressedMaybeObjectSlot(MaybeObject* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
@@ -108,7 +109,7 @@ class CompressedHeapObjectSlot
 
   CompressedHeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit CompressedHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit CompressedHeapObjectSlot(Object* ptr)
+  explicit CompressedHeapObjectSlot(TaggedBase* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit CompressedHeapObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
@@ -118,9 +119,9 @@ class CompressedHeapObjectSlot
   inline HeapObjectReference load(PtrComprCageBase cage_base) const;
   inline void store(HeapObjectReference value) const;
 
-  inline HeapObject ToHeapObject() const;
+  inline Tagged<HeapObject> ToHeapObject() const;
 
-  inline void StoreHeapObject(HeapObject value) const;
+  inline void StoreHeapObject(Tagged<HeapObject> value) const;
 };
 
 // An OffHeapCompressedObjectSlot instance describes a kTaggedSize-sized field
@@ -137,7 +138,7 @@ class OffHeapCompressedObjectSlot
   using TSlotBase =
       SlotBase<OffHeapCompressedObjectSlot<CompressionScheme>, Tagged_t>;
   using TCompressionScheme = CompressionScheme;
-  using TObject = Object;
+  using TObject = Tagged<Object>;
   using THeapObjectSlot = OffHeapCompressedObjectSlot<CompressionScheme>;
 
   static constexpr bool kCanBeWeak = false;
@@ -147,14 +148,15 @@ class OffHeapCompressedObjectSlot
   explicit OffHeapCompressedObjectSlot(const uint32_t* ptr)
       : TSlotBase(reinterpret_cast<Address>(ptr)) {}
 
-  inline Object load(PtrComprCageBase cage_base) const;
-  inline void store(Object value) const;
+  inline Tagged<Object> load(PtrComprCageBase cage_base) const;
+  inline void store(Tagged<Object> value) const;
 
-  inline Object Relaxed_Load(PtrComprCageBase cage_base) const;
-  inline Object Acquire_Load(PtrComprCageBase cage_base) const;
-  inline void Relaxed_Store(Object value) const;
-  inline void Release_Store(Object value) const;
-  inline void Release_CompareAndSwap(Object old, Object target) const;
+  inline Tagged<Object> Relaxed_Load(PtrComprCageBase cage_base) const;
+  inline Tagged<Object> Acquire_Load(PtrComprCageBase cage_base) const;
+  inline void Relaxed_Store(Tagged<Object> value) const;
+  inline void Release_Store(Tagged<Object> value) const;
+  inline void Release_CompareAndSwap(Tagged<Object> old,
+                                     Tagged<Object> target) const;
 };
 
 #endif  // V8_COMPRESS_POINTERS

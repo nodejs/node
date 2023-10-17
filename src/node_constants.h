@@ -27,6 +27,9 @@
 #include "node.h"
 #include "v8.h"
 
+#define EXTENSIONLESS_FORMAT_JAVASCRIPT (0)
+#define EXTENSIONLESS_FORMAT_WASM (1)
+
 #if HAVE_OPENSSL
 
 #ifndef RSA_PSS_SALTLEN_DIGEST

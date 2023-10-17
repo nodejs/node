@@ -71,14 +71,14 @@ class TestLoader(testsuite.JSTestLoader):
 
   def _to_relpath(self, abspath, _):
     # TODO: refactor this by setting the test path during the TestCase creation
-    return os.path.relpath(abspath, self.test_root)
+    return abspath.relative_to(self.test_root)
 
 
 class TestSuite(testsuite.TestSuite):
 
   def __init__(self, ctx, *args, **kwargs):
     super(TestSuite, self).__init__(ctx, *args, **kwargs)
-    self.test_root = os.path.join(self.root, "data")
+    self.test_root = self.root / "data"
     self._test_loader.test_root = self.test_root
 
   def _test_loader_class(self):
@@ -90,31 +90,29 @@ class TestSuite(testsuite.TestSuite):
 
 class TestCase(testcase.D8TestCase):
   def _get_files_params(self):
-    files = [os.path.join(self.suite.root, "mozilla-shell-emulation.js")]
-    testfilename = self.path + ".js"
-    testfilepath = testfilename.split(os.path.sep)
-    for i in range(len(testfilepath)):
-      script = os.path.join(self.suite.test_root,
-                            reduce(os.path.join, testfilepath[:i], ""),
-                            "shell.js")
-      if os.path.exists(script):
+    files = [self.suite.root / "mozilla-shell-emulation.js"]
+    parts = self.path_js.parts
+    for i in range(len(parts)):
+      sub_path = '/'.join(parts[:i])
+      script = self.suite.test_root / sub_path / "shell.js"
+      if script.exists():
         files.append(script)
 
-    files.append(os.path.join(self.suite.test_root, testfilename))
+    files.append(self.suite.test_root / self.path_js)
     return files
 
   def _get_suite_flags(self):
     return ['--expose-gc']
 
   def _get_source_path(self):
-    return os.path.join(self.suite.test_root, self.path + self._get_suffix())
+    return self.suite.test_root / self.path_js
 
   @property
   def output_proc(self):
     if not self.expected_outcomes:
-      if self.path.endswith('-n'):
+      if self.path.name.endswith('-n'):
         return mozilla.MOZILLA_PASS_NEGATIVE
       return mozilla.MOZILLA_PASS_DEFAULT
-    if self.path.endswith('-n'):
+    if self.path.name.endswith('-n'):
       return mozilla.NegOutProc(self.expected_outcomes)
     return mozilla.OutProc(self.expected_outcomes)

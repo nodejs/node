@@ -89,6 +89,8 @@ class TLSContext final : public MemoryRetainer {
     SET_MEMORY_INFO_NAME(CryptoContext::Options)
     SET_SELF_SIZE(Options)
 
+    static const Options kDefault;
+
     static v8::Maybe<const Options> From(Environment* env,
                                          v8::Local<v8::Value> value);
   };
@@ -118,7 +120,8 @@ class TLSContext final : public MemoryRetainer {
   // chunk, we move the TLS handshake further along until it is complete.
   int Receive(ngtcp2_crypto_level crypto_level,
               uint64_t offset,
-              const ngtcp2_vec& vec);
+              const uint8_t* data,
+              size_t datalen);
 
   v8::MaybeLocal<v8::Object> cert(Environment* env) const;
   v8::MaybeLocal<v8::Object> peer_cert(Environment* env) const;

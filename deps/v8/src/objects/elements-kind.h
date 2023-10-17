@@ -373,6 +373,15 @@ inline bool IsFrozenElementsKind(ElementsKind kind) {
   return base::IsInRange(kind, PACKED_FROZEN_ELEMENTS, HOLEY_FROZEN_ELEMENTS);
 }
 
+inline bool IsFastOrNonextensibleOrSealedElementsKind(ElementsKind kind) {
+  const bool result = kind <= HOLEY_SEALED_ELEMENTS;
+  DCHECK_IMPLIES(result, IsFastElementsKind(kind) ||
+                             IsNonextensibleElementsKind(kind) ||
+                             IsSealedElementsKind(kind));
+  DCHECK_IMPLIES(result, !IsFrozenElementsKind(kind));
+  return result;
+}
+
 inline bool IsSmiOrObjectElementsKind(ElementsKind kind) {
   return base::IsInRange(kind, PACKED_SMI_ELEMENTS, HOLEY_ELEMENTS);
 }

@@ -4,7 +4,6 @@ require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const { join } = require('path');
-const { readdirSync } = require('fs');
 const fixtures = require('../common/fixtures');
 const testFixtures = fixtures.path('test-runner');
 
@@ -31,7 +30,7 @@ const testFixtures = fixtures.path('test-runner');
   const stdout = child.stdout.toString();
   assert.match(stdout, /ok 1 - this should pass/);
   assert.match(stdout, /not ok 2 - this should fail/);
-  assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
+  assert.match(stdout, /ok 3 - subdir.+subdir_test\.js/);
   assert.match(stdout, /ok 4 - this should pass/);
   assert.match(stdout, /ok 5 - this should be skipped/);
   assert.match(stdout, /ok 6 - this should be executed/);
@@ -45,7 +44,7 @@ const testFixtures = fixtures.path('test-runner');
   const stdout = child.stdout.toString();
   assert.match(stdout, /ok 1 - this should pass/);
   assert.match(stdout, /not ok 2 - this should fail/);
-  assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
+  assert.match(stdout, /ok 3 - subdir.+subdir_test\.js/);
   assert.match(stdout, /ok 4 - this should pass/);
   assert.match(stdout, /ok 5 - this should be skipped/);
   assert.match(stdout, /ok 6 - this should be executed/);
@@ -68,7 +67,7 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // Searches node_modules if specified.
-  const args = ['--test', join(testFixtures, 'default-behavior/node_modules')];
+  const args = ['--test', join(testFixtures, 'default-behavior/node_modules/*.js')];
   const child = spawnSync(process.execPath, args);
 
   assert.strictEqual(child.status, 1);
@@ -90,7 +89,7 @@ const testFixtures = fixtures.path('test-runner');
   const stdout = child.stdout.toString();
   assert.match(stdout, /ok 1 - this should pass/);
   assert.match(stdout, /not ok 2 - this should fail/);
-  assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
+  assert.match(stdout, /ok 3 - subdir.+subdir_test\.js/);
   assert.match(stdout, /ok 4 - this should pass/);
   assert.match(stdout, /ok 5 - this should be skipped/);
   assert.match(stdout, /ok 6 - this should be executed/);
@@ -270,12 +269,10 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option, first shard
-  const shardsTestPath = join(testFixtures, 'shards');
-  const allShardsTestsFiles = readdirSync(shardsTestPath).map((file) => join(shardsTestPath, file));
   const args = [
     '--test',
     '--test-shard=1/2',
-    ...allShardsTestsFiles,
+    join(testFixtures, 'shards/*.cjs'),
   ];
   const child = spawnSync(process.execPath, args);
 
@@ -306,12 +303,10 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option, last shard
-  const shardsTestPath = join(testFixtures, 'shards');
-  const allShardsTestsFiles = readdirSync(shardsTestPath).map((file) => join(shardsTestPath, file));
   const args = [
     '--test',
     '--test-shard=2/2',
-    ...allShardsTestsFiles,
+    join(testFixtures, 'shards/*.cjs'),
   ];
   const child = spawnSync(process.execPath, args);
 

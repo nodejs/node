@@ -1,4 +1,4 @@
-.TH "NPM-INIT" "1" "September 2023" "" ""
+.TH "NPM-INIT" "1" "October 2023" "" ""
 .SH "NAME"
 \fBnpm-init\fR - Create a package.json file
 .SS "Synopsis"
@@ -148,6 +148,56 @@ This will make sure to generate your react app as expected, one important consid
 .fi
 .RE
 .SS "Configuration"
+.SS "\fBinit-author-name\fR"
+.RS 0
+.IP \(bu 4
+Default: ""
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+The value \fBnpm init\fR should use by default for the package author's name.
+.SS "\fBinit-author-url\fR"
+.RS 0
+.IP \(bu 4
+Default: ""
+.IP \(bu 4
+Type: "" or URL
+.RE 0
+
+.P
+The value \fBnpm init\fR should use by default for the package author's homepage.
+.SS "\fBinit-license\fR"
+.RS 0
+.IP \(bu 4
+Default: "ISC"
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+The value \fBnpm init\fR should use by default for the package license.
+.SS "\fBinit-module\fR"
+.RS 0
+.IP \(bu 4
+Default: "~/.npm-init.js"
+.IP \(bu 4
+Type: Path
+.RE 0
+
+.P
+A module that will be loaded by the \fBnpm init\fR command. See the documentation for the \fBinit-package-json\fR \fI\(lahttps://github.com/npm/init-package-json\(ra\fR module for more information, or npm help init.
+.SS "\fBinit-version\fR"
+.RS 0
+.IP \(bu 4
+Default: "1.0.0"
+.IP \(bu 4
+Type: SemVer string
+.RE 0
+
+.P
+The value that \fBnpm init\fR should use by default for the package version number, if not already set in package.json.
 .SS "\fByes\fR"
 .RS 0
 .IP \(bu 4

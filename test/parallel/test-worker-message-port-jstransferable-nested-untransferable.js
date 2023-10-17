@@ -3,16 +3,16 @@
 const common = require('../common');
 const assert = require('assert');
 const {
-  JSTransferable, kTransfer, kTransferList
+  markTransferMode, kTransfer, kTransferList
 } = require('internal/worker/js_transferable');
 const { MessageChannel } = require('worker_threads');
 
 // Transferring a JSTransferable that refers to another, untransferable, value
 // in its transfer list should not crash hard.
 
-class OuterTransferable extends JSTransferable {
+class OuterTransferable {
   constructor() {
-    super();
+    markTransferMode(this, false, true);
     // Create a detached MessagePort at this.inner
     const c = new MessageChannel();
     this.inner = c.port1;

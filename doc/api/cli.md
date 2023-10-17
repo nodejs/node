@@ -25,14 +25,16 @@ For more info about `node inspect`, see the [debugger][] documentation.
 
 The program entry point is a specifier-like string. If the string is not an
 absolute path, it's resolved as a relative path from the current working
-directory. That path is then resolved by [CommonJS][] module loader. If no
-corresponding file is found, an error is thrown.
+directory. That path is then resolved by [CommonJS][] module loader, or by the
+[ES module loader][Modules loaders] if [`--experimental-default-type=module`][]
+is passed. If no corresponding file is found, an error is thrown.
 
 If a file is found, its path will be passed to the
 [ES module loader][Modules loaders] under any of the following conditions:
 
 * The program was started with a command-line flag that forces the entry
-  point to be loaded with ECMAScript module loader.
+  point to be loaded with ECMAScript module loader, such as `--import` or
+  [`--experimental-default-type=module`][].
 * The file has an `.mjs` extension.
 * The file does not have a `.cjs` extension, and the nearest parent
   `package.json` file contains a top-level [`"type"`][] field with a value of
@@ -45,8 +47,9 @@ Otherwise, the file is loaded using the CommonJS module loader. See
 
 When loading, the [ES module loader][Modules loaders] loads the program
 entry point, the `node` command will accept as input only files with `.js`,
-`.mjs`, or `.cjs` extensions; and with `.wasm` extensions when
-[`--experimental-wasm-modules`][] is enabled.
+`.mjs`, or `.cjs` extensions; with `.wasm` extensions when
+[`--experimental-wasm-modules`][] is enabled; and with no extension when
+[`--experimental-default-type=module`][] is passed.
 
 ## Options
 
@@ -106,7 +109,7 @@ If this flag is passed, the behavior can still be set to not abort through
 added: v20.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 When using the [Permission Model][], the process will not be able to spawn any
 child process by default.
@@ -151,7 +154,7 @@ changes:
     description: Paths delimited by comma (`,`) are no longer allowed.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 This flag configures file system read permissions using
 the [Permission Model][].
@@ -205,7 +208,7 @@ changes:
     description: Paths delimited by comma (`,`) are no longer allowed.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 This flag configures file system write permissions using
 the [Permission Model][].
@@ -229,7 +232,7 @@ Relative paths are NOT supported through the CLI flag.
 added: v20.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 When using the [Permission Model][], the process will not be able to create any
 worker threads by default.
@@ -492,6 +495,15 @@ added: v6.0.0
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
 
+### `--enable-network-family-autoselection`
+
+<!-- YAML
+added: v18.18.0
+-->
+
+Enables the family autoselection algorithm unless connection options explicitly
+disables it.
+
 ### `--enable-source-maps`
 
 <!-- YAML
@@ -578,6 +590,36 @@ On Windows, using `cmd.exe` a single quote will not work correctly because it
 only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
 and `"` are usable.
 
+### `--experimental-default-type=type`
+
+<!-- YAML
+added:
+  - v21.0.0
+-->
+
+> Stability: 1.0 - Early development
+
+Define which module system, `module` or `commonjs`, to use for the following:
+
+* String input provided via `--eval` or STDIN, if `--input-type` is unspecified.
+
+* Files ending in `.js` or with no extension, if there is no `package.json` file
+  present in the same folder or any parent folder.
+
+* Files ending in `.js` or with no extension, if the nearest parent
+  `package.json` field lacks a `"type"` field; unless the `package.json` folder
+  or any parent folder is inside a `node_modules` folder.
+
+In other words, `--experimental-default-type=module` flips all the places where
+Node.js currently defaults to CommonJS to instead default to ECMAScript modules,
+with the exception of folders and subfolders below `node_modules`, for backward
+compatibility.
+
+Under `--experimental-default-type=module` and `--experimental-wasm-modules`,
+files with no extension will be treated as WebAssembly if they begin with the
+WebAssembly magic number (`\0asm`); otherwise they will be treated as ES module
+JavaScript.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -633,7 +675,7 @@ Enable experimental support for the `https:` protocol in `import` specifiers.
 added: v20.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
@@ -680,7 +722,9 @@ added:
   - v19.7.0
   - v18.15.0
 changes:
-  - version: v20.1.0
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47686
     description: This option can be used with `--test`.
 -->
@@ -705,7 +749,9 @@ added:
   - v13.3.0
   - v12.16.0
 changes:
-  - version: v20.0.0
+  - version:
+    - v20.0.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47286
     description: This option is no longer required as WASI is
                  enabled by default, but can still be passed.
@@ -724,6 +770,14 @@ added: v12.3.0
 -->
 
 Enable experimental WebAssembly module support.
+
+### `--experimental-websocket`
+
+<!-- YAML
+added: v21.0.0
+-->
+
+Enable experimental [`WebSocket`][] support.
 
 ### `--force-context-aware`
 
@@ -920,7 +974,9 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 ### `--import=module`
 
 <!-- YAML
-added: v19.0.0
+added:
+ - v19.0.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -953,10 +1009,23 @@ added:
  - v10.19.0
 -->
 
-Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
-interoperability with non-conformant HTTP implementations. It may also allow
-request smuggling and other HTTP attacks that rely on invalid headers being
-accepted. Avoid using this option.
+Enable leniency flags on the HTTP parser. This may allow
+interoperability with non-conformant HTTP implementations.
+
+When enabled, the parser will accept the following:
+
+* Invalid HTTP headers values.
+* Invalid HTTP versions.
+* Allow message containing both `Transfer-Encoding`
+  and `Content-Length` headers.
+* Allow extra data after message when `Connection: close` is present.
+* Allow extra trasfer encodings after `chunked` has been provided.
+* Allow `\n` to be used as token separator instead of `\r\n`.
+* Allow `\r\n` not to be provided after a chunk.
+* Allow spaces to be present after a chunk size and before `\r\n`.
+
+All the above will expose your application to request smuggling
+or poisoning attack. Avoid using this option.
 
 ### `--inspect[=[host:]port]`
 
@@ -1089,7 +1158,7 @@ Silence deprecation warnings.
 added: v18.0.0
 -->
 
-Disable experimental support for the [Fetch API][].
+Disable exposition of [Fetch API][] on the global scope.
 
 ### `--no-experimental-global-customevent`
 
@@ -1584,6 +1653,15 @@ Starts the Node.js command line test runner. This flag cannot be combined with
 `--watch-path`, `--check`, `--eval`, `--interactive`, or the inspector.
 See the documentation on [running tests from the command line][]
 for more details.
+
+### `--test-concurrency`
+
+<!-- YAML
+added: v21.0.0
+-->
+
+The maximum number of test files that the test runner CLI will execute
+concurrently. The default value is `os.availableParallelism() - 1`.
 
 ### `--test-name-pattern`
 
@@ -2207,6 +2285,7 @@ Node.js options that are allowed are:
 * `--enable-network-family-autoselection`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
+* `--experimental-default-type`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -2220,6 +2299,7 @@ Node.js options that are allowed are:
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
+* `--experimental-websocket`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -2673,6 +2753,7 @@ done
 [`--allow-worker`]: #--allow-worker
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
+[`--experimental-default-type=module`]: #--experimental-default-typetype
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
 [`--experimental-wasm-modules`]: #--experimental-wasm-modules
 [`--heap-prof-dir`]: #--heap-prof-dir
@@ -2687,6 +2768,7 @@ done
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
+[`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder

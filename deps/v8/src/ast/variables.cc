@@ -44,5 +44,15 @@ void Variable::RewriteLocationForRepl() {
   }
 }
 
+void Variable::AssignHoleCheckBitmapIndex(ZoneVector<Variable*>& list,
+                                          uint8_t next_index) {
+  DCHECK_EQ(next_index, list.size() + 1);
+  DCHECK_NE(kUncacheableHoleCheckBitmapIndex, next_index);
+  DCHECK_LT(next_index, kHoleCheckBitmapBits);
+  hole_check_analysis_bit_field_ = HoleCheckBitmapIndexField::update(
+      hole_check_analysis_bit_field_, next_index);
+  list.push_back(this);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -404,7 +404,9 @@ class Audit extends ArboristWorkspaceCmd {
     'force',
     'json',
     'package-lock-only',
+    'package-lock',
     'omit',
+    'include',
     'foreground-scripts',
     'ignore-scripts',
     ...super.params,
@@ -439,6 +441,10 @@ class Audit extends ArboristWorkspaceCmd {
   }
 
   async auditAdvisories (args) {
+    const fix = args[0] === 'fix'
+    if (this.npm.config.get('package-lock') === false && fix) {
+      throw this.usageError('fix can not be used without a package-lock')
+    }
     const reporter = this.npm.config.get('json') ? 'json' : 'detail'
     const Arborist = require('@npmcli/arborist')
     const opts = {
@@ -450,7 +456,6 @@ class Audit extends ArboristWorkspaceCmd {
     }
 
     const arb = new Arborist(opts)
-    const fix = args[0] === 'fix'
     await arb.audit({ fix })
     if (fix) {
       await reifyFinish(this.npm, arb)

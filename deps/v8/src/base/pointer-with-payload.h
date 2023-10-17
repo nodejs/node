@@ -96,6 +96,8 @@ class PointerWithPayload {
     DCHECK_EQ(GetPayload(), new_payload);
   }
 
+  uintptr_t raw() const { return pointer_with_payload_; }
+
  private:
   static constexpr int kAvailableBits = PointerWithPayloadTraits<
       typename std::remove_const<PointerType>::type>::kAvailableBits;
@@ -111,6 +113,13 @@ class PointerWithPayload {
 
   uintptr_t pointer_with_payload_ = 0;
 };
+
+template <typename PointerType, typename PayloadType, int NumPayloadBits>
+bool operator==(
+    PointerWithPayload<PointerType, PayloadType, NumPayloadBits> lhs,
+    PointerWithPayload<PointerType, PayloadType, NumPayloadBits> rhs) {
+  return lhs.raw() == rhs.raw();
+}
 
 }  // namespace base
 }  // namespace v8

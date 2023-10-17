@@ -56,8 +56,10 @@ class V8_EXPORT_PRIVATE ProfilerListener : public LogEventListener,
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) override;
   void RegExpCodeCreateEvent(Handle<AbstractCode> code,
                              Handle<String> source) override;
-  void CodeMoveEvent(InstructionStream from, InstructionStream to) override;
-  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override;
+  void CodeMoveEvent(Tagged<InstructionStream> from,
+                     Tagged<InstructionStream> to) override;
+  void BytecodeMoveEvent(Tagged<BytecodeArray> from,
+                         Tagged<BytecodeArray> to) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void NativeContextMoveEvent(Address from, Address to) override;
   void CodeMovingGCEvent() override {}
@@ -92,10 +94,11 @@ class V8_EXPORT_PRIVATE ProfilerListener : public LogEventListener,
   void set_observer(CodeEventObserver* observer) { observer_ = observer; }
 
  private:
-  const char* GetFunctionName(SharedFunctionInfo);
+  const char* GetFunctionName(Tagged<SharedFunctionInfo>);
 
   void AttachDeoptInlinedFrames(Handle<Code> code, CodeDeoptEventRecord* rec);
-  Name InferScriptName(Name name, SharedFunctionInfo info);
+  Tagged<Name> InferScriptName(Tagged<Name> name,
+                               Tagged<SharedFunctionInfo> info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {
     observer_->CodeEventHandler(evt_rec);
   }

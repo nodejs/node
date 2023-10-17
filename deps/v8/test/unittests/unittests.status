@@ -18,12 +18,11 @@
   'PersistentHandlesTest.DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
 
   # https://crbug.com/v8/8919
-  'PlatformTest.StackAlignment': [PASS, ['not is_clang', SKIP]],
+  'PlatformTest.StackAlignment': [PASS, ['not clang', SKIP]],
 
   # We do not yet shrink weak maps after they have been emptied by the GC
-  'WeakMapsTest.Shrinking': [FAIL],
-
-  'WeakSetsTest.WeakSet_Shrinking': [FAIL],
+  'WeakMapsTest.Shrinking': [SKIP],
+  'WeakSetsTest.WeakSet_Shrinking': [SKIP],
 
   # This tests only that the preparser and parser agree, so there is no point in
   # running several variants. Note that this still takes ages, because there
@@ -122,6 +121,7 @@
 ##############################################################################
 ['system == windows and asan', {
   # BUG(893437).
+  'LanguageServer*': [SKIP],
   'Torque*': [SKIP],
 
   # Hangs on asan.
@@ -181,7 +181,7 @@
 }],
 
 ################################################################################
-['is_clang == False and (arch == riscv64 or arch == riscv32)',{
+['not clang and (arch == riscv64 or arch == riscv32)',{
   'LoggingTest.SourceLocation':[SKIP]  # issue-174
 }],
 
@@ -205,7 +205,7 @@
 }], # jitless
 
 ##############################################################################
-['jitless_build_mode', {
+['has_jitless', {
   # Feedback collection maintenance is (mostly) disabled.
   'FeedbackVectorTest.Vector*': [SKIP],
   'InterpreterTest.InterpreterBigIntComparisons': [SKIP],
@@ -221,7 +221,7 @@
   'InterpreterTest.InterpreterBitwiseTypeFeedback': [SKIP],
   # These require executable code space.
   'AssemblerX64Test.*': [SKIP],
-}],  # jitless_build_mode
+}],  # has_jitless
 
 ################################################################################
 ['third_party_heap', {
@@ -343,9 +343,9 @@
 }],  # variant == no_wasm_traps
 
 ##############################################################################
-['no_i18n == True', {
+['not i18n', {
   'RegExpTestWithContext.UnicodePropertyEscapeCodeSize': [SKIP],
-}],  # no_i18n == True
+}],  # not i18n
 
 ##############################################################################
 ['no_simd_hardware == True', {
@@ -354,6 +354,27 @@
 
 ['tsan and mode == debug', {
   'LazyCompileDispatcherTest.CompileLazy2FinishesDispatcherJob': [SKIP],
-}]
+}],
 
+# With the official_build flag exceptions are disabled. Therefore torque
+# tests fail that rely on catching them (v8:13945).
+['official_build', {
+  'LanguageServerJson.ParserError': [FAIL],
+  'FlagDefinitionsTest.FreezeFlags': [FAIL],
+  'LanguageServerJson.LexerError': [FAIL],
+  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [FAIL],
+  'Torque.ImportNonExistentFile': [FAIL],
+  'Torque.Enums': [FAIL],
+}],  # 'official_build'
+
+##############################################################################
+# Behavioural differences between Maglev and Turbofan when the former is used
+# for OptimizeFunctionOnNextCall.
+['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
+  # Maglev doesn't support compiler::NodeObserver machinery.
+  'SloppyEqualityTest.SloppyEqualityTest': [FAIL],
+  # Maglev doesn't produce optimized enough code to trigger expected
+  # deoptimization.
+  'FeedbackVectorTest.VectorCallSpeculationModeAndFeedbackContent': [FAIL],
+}],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 ]
