@@ -1693,5 +1693,84 @@ text(readable).then((data) => {
 });
 ```
 
+## .toWeb() and .fromWeb()
+
+The `toWeb()` and `fromWeb()` methods on `ReadableStream` and `WritableStream` allow you to convert a Node.js stream to a web stream and vice versa.
+
+### .toWeb()
+
+The `.toWeb()` method converts a Node.js stream to a web stream. It takes a Node.js stream as input and returns a `ReadableStream` or `WritableStream` object.
+
+The following example shows how to convert a Node.js `Readable` stream to a web `ReadableStream` object:
+
+```js
+const { Readable } = require('stream');
+const { ReadableStream } = require('node:stream/web');
+
+const nodeStream = new Readable();
+
+const webStream = nodeStream.toWeb();
+
+// Consume the web stream using the async iterator protocol.
+for await (const chunk of webStream) {
+  console.log(chunk);
+}
+
+
+The following example shows how to convert a Node.js `Writable` stream to a web `WritableStream` object:
+
+js
+const { Writable } = require('stream');
+const { WritableStream } = require('node:stream/web');
+
+const nodeStream = new Writable();
+
+const webStream = nodeStream.toWeb();
+
+// Write data to the web stream using the async iterator protocol.
+await webStream.write('Hello, world!');
+
+// Close the web stream.
+await webStream.close();
+
+
+### .fromWeb()
+
+The `.fromWeb()` method converts a web stream to a Node.js stream. It takes a `ReadableStream` or `WritableStream` object as input and returns a Node.js `Readable` or `Writable` stream.
+
+The following example shows how to convert a web `ReadableStream` object to a Node.js `Readable` stream:
+
+js
+const { Readable } = require('stream');
+const { ReadableStream } = require('node:stream/web');
+
+const webStream = new ReadableStream();
+
+const nodeStream = webStream.fromWeb();
+
+// Consume the Node.js stream using the async iterator protocol.
+for await (const chunk of nodeStream) {
+  console.log(chunk);
+}
+
+
+The following example shows how to convert a web `WritableStream` object to a Node.js `Writable` stream:
+
+js
+const { Writable } = require('stream');
+const { WritableStream } = require('node:stream/web');
+
+const webStream = new WritableStream();
+
+const nodeStream = webStream.fromWeb();
+
+// Write data to the Node.js stream using the async iterator protocol.
+await nodeStream.write('Hello, world!');
+
+// Close the Node.js stream.
+await nodeStream.end();
+
+```
+
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
