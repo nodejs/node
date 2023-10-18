@@ -14,6 +14,8 @@ test-watch-mode-inspect: PASS, FLAKY
 [$system==win32]
 # https://github.com/nodejs/node/issues/47116
 test-http-max-sockets: PASS, FLAKY
+# https://github.com/nodejs/node/issues/49564
+test-http-regr-gh-2928: PASS, FLAKY
 
 [$system==linux]
 
