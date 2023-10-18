@@ -10,6 +10,10 @@ prefix es-module
 # https://github.com/nodejs/node/issues/47836
 test-esm-loader-http-imports: PASS,FLAKY
 
+[$system==macos]
+# https://github.com/nodejs/node/issues/50247
+test-loaders-workers-spawned: PASS, FLAKY
+
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/issues/47297
 test-wasm-web-api: SKIP
