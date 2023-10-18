@@ -629,6 +629,32 @@ logical processors available to the current Node.js instance.
 console.log(`This process is running on ${navigator.hardwareConcurrency}`);
 ```
 
+### `navigator.onLine`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+The [`navigator.onLine`](https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-online-dev)
+read-only property returns the online status available
+of the current Node.js instance. If the Node.js instance is not able to detect
+to a local area network (LAN) or a router, it is offline; all other conditions
+return true. So while you can assume that the Node.js instance is offline when
+it returns a false value, you cannot assume that a true value necessarily
+means that the Node.js instance can access the internet. You could be getting
+false positives, such as in cases where the computer is running a
+virtualization software that has virtual ethernet adapters that are always
+"connected."
+
+Therefore, if you really want to determine the online status of the Node.js
+instance, you should develop additional means for checking.
+
+```js
+console.log(`This process is ${navigator.onLine ? 'online' : 'offline'}`);
+```
+
 ## `PerformanceEntry`
 
 <!-- YAML

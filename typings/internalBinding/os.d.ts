@@ -10,6 +10,7 @@ export interface OSBinding {
   getFreeMem(): number;
   getCPUs(): Array<string | number>;
   getInterfaceAddresses(ctx: InternalOSBinding.OSContext): Array<string | number | boolean> | undefined;
+  getOnLineStatus(): boolean;
   getHomeDirectory(ctx: InternalOSBinding.OSContext): string | undefined;
   getUserInfo(options: { encoding?: string } | undefined, ctx: InternalOSBinding.OSContext): {
     uid: number;
