@@ -105,3 +105,7 @@ test-http-pipeline-flood: SKIP
 [$asan==on]
 # https://github.com/nodejs/node/issues/39655
 test-cluster-primary-error: PASS, FLAKY
+
+[$arch==s390x]
+# https://github.com/nodejs/node/issues/50222
+test-inspector-async-hook-setup-at-inspect-brk: PASS, FLAKY
