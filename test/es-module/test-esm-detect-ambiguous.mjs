@@ -57,9 +57,22 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
       strictEqual(code, 1);
       strictEqual(signal, null);
     });
+
+    it('does not trigger detection via source code `eval()`', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'eval("import \'nonexistent\';");',
+      ]);
+
+      match(stderr, /SyntaxError: Cannot use import statement outside a module/);
+      strictEqual(stdout, '');
+      strictEqual(code, 1);
+      strictEqual(signal, null);
+    });
   });
 
-  describe('file input in a typeless package', { concurrency: true }, () => {
+  describe('.js file input in a typeless package', { concurrency: true }, () => {
     for (const { testName, entryPath } of [
       {
         testName: 'permits CommonJS syntax in a .js entry point',
@@ -84,6 +97,47 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
       {
         testName: 'permits ESM syntax in a .js file imported by an ESM entry point',
         entryPath: fixtures.path('es-modules/package-without-type/imports-esm.mjs'),
+      },
+    ]) {
+      it(testName, async () => {
+        const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+          '--experimental-detect-module',
+          entryPath,
+        ]);
+
+        strictEqual(stderr, '');
+        strictEqual(stdout, 'executed\n');
+        strictEqual(code, 0);
+        strictEqual(signal, null);
+      });
+    }
+  });
+
+  describe('extensionless file input in a typeless package', { concurrency: true }, () => {
+    for (const { testName, entryPath } of [
+      {
+        testName: 'permits CommonJS syntax in an extensionless entry point',
+        entryPath: fixtures.path('es-modules/package-without-type/noext-cjs'),
+      },
+      {
+        testName: 'permits ESM syntax in an extensionless entry point',
+        entryPath: fixtures.path('es-modules/package-without-type/noext-esm'),
+      },
+      {
+        testName: 'permits CommonJS syntax in an extensionless file imported by a CommonJS entry point',
+        entryPath: fixtures.path('es-modules/package-without-type/imports-noext-cjs.js'),
+      },
+      {
+        testName: 'permits ESM syntax in an extensionless file imported by a CommonJS entry point',
+        entryPath: fixtures.path('es-modules/package-without-type/imports-noext-esm.js'),
+      },
+      {
+        testName: 'permits CommonJS syntax in an extensionless file imported by an ESM entry point',
+        entryPath: fixtures.path('es-modules/package-without-type/imports-noext-cjs.mjs'),
+      },
+      {
+        testName: 'permits ESM syntax in an extensionless file imported by an ESM entry point',
+        entryPath: fixtures.path('es-modules/package-without-type/imports-noext-esm.mjs'),
       },
     ]) {
       it(testName, async () => {
