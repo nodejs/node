@@ -283,26 +283,38 @@ function platformTimeout(ms) {
 }
 
 let knownGlobals = [
+  AbortController,
   atob,
   btoa,
   clearImmediate,
   clearInterval,
   clearTimeout,
+  fetch,
   global,
+  performance,
   setImmediate,
   setInterval,
   setTimeout,
+  structuredClone,
   queueMicrotask,
+  ReadableStream,
+  ReadableStreamDefaultReader,
+  ReadableStreamBYOBReader,
+  ReadableStreamBYOBRequest,
+  ReadableByteStreamController,
+  ReadableStreamDefaultController,
+  TransformStream,
+  TransformStreamDefaultController,
+  WritableStream,
+  WritableStreamDefaultWriter,
+  WritableStreamDefaultController,
+  ByteLengthQueuingStrategy,
+  CountQueuingStrategy,
+  TextEncoderStream,
+  TextDecoderStream,
+  CompressionStream,
+  DecompressionStream,
 ];
-
-// TODO(@jasnell): This check can be temporary. AbortController is
-// not currently supported in either Node.js 12 or 10, making it
-// difficult to run tests comparatively on those versions. Once
-// all supported versions have AbortController as a global, this
-// check can be removed and AbortController can be added to the
-// knownGlobals list above.
-if (global.AbortController)
-  knownGlobals.push(global.AbortController);
 
 if (global.gc) {
   knownGlobals.push(global.gc);
@@ -319,9 +331,6 @@ if (global.Navigator) {
 if (global.Performance) {
   knownGlobals.push(global.Performance);
 }
-if (global.performance) {
-  knownGlobals.push(global.performance);
-}
 if (global.PerformanceMark) {
   knownGlobals.push(global.PerformanceMark);
 }
@@ -329,16 +338,6 @@ if (global.PerformanceMeasure) {
   knownGlobals.push(global.PerformanceMeasure);
 }
 
-// TODO(@ethan-arrowood): Similar to previous checks, this can be temporary
-// until v16.x is EOL. Once all supported versions have structuredClone we
-// can add this to the list above instead.
-if (global.structuredClone) {
-  knownGlobals.push(global.structuredClone);
-}
-
-if (global.fetch) {
-  knownGlobals.push(fetch);
-}
 if (hasCrypto && global.crypto) {
   knownGlobals.push(global.crypto);
   knownGlobals.push(global.Crypto);
@@ -347,27 +346,6 @@ if (hasCrypto && global.crypto) {
 }
 if (global.CustomEvent) {
   knownGlobals.push(global.CustomEvent);
-}
-if (global.ReadableStream) {
-  knownGlobals.push(
-    global.ReadableStream,
-    global.ReadableStreamDefaultReader,
-    global.ReadableStreamBYOBReader,
-    global.ReadableStreamBYOBRequest,
-    global.ReadableByteStreamController,
-    global.ReadableStreamDefaultController,
-    global.TransformStream,
-    global.TransformStreamDefaultController,
-    global.WritableStream,
-    global.WritableStreamDefaultWriter,
-    global.WritableStreamDefaultController,
-    global.ByteLengthQueuingStrategy,
-    global.CountQueuingStrategy,
-    global.TextEncoderStream,
-    global.TextDecoderStream,
-    global.CompressionStream,
-    global.DecompressionStream,
-  );
 }
 if (global.WebSocket) {
   knownGlobals.push(WebSocket);
