@@ -418,12 +418,12 @@ void BindingData::RegisterExternalReferences(
 }
 
 std::string FromFilePath(const std::string_view file_path) {
-  std::string escaped_file_path;
+  std::ostringstream escaped_file_path;
   for (size_t i = 0; i < file_path.length(); ++i) {
-    escaped_file_path += file_path[i];
-    if (file_path[i] == '%') escaped_file_path += "25";
+    escaped_file_path << file_path[i];
+    if (file_path[i] == '%') escaped_file_path << "25";
   }
-  return ada::href_from_file(escaped_file_path);
+  return ada::href_from_file(escaped_file_path.str());
 }
 
 }  // namespace url
