@@ -82,7 +82,7 @@ const wrongInputs = [false, 'test', {}, [{}], ['sdf'], null, undefined];
 
 {
   // fs.readv with wrong fd argument
-  for(const wrongInput of wrongInputs) {
+  for (const wrongInput of wrongInputs) {
     assert.throws(
       () => fs.readv(wrongInput, common.mustNotCall()),
       {
