@@ -97,7 +97,7 @@ const {
     for (let i = 0; i < 1e3; i++)
       _deadCode = i;
   };
-  assert.ok(_deadCode >= 0)
+  assert.ok(_deadCode >= 0);
   const n = performance.timerify(m, { histogram });
   assert.strictEqual(histogram.max, 0);
   for (let i = 0; i < 10; i++) {
