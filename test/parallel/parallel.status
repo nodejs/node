@@ -17,6 +17,10 @@ test-child-process-stdio-reuse-readable-stdio: PASS, FLAKY
 # https://github.com/nodejs/node/issues/49985
 test-runner-watch-mode: PASS, FLAKY
 
+# Windows on x86
+[$system==win32 && $arch==x86]
+test-worker-nearheaplimit-deadlock: PASS, FLAKY
+
 # Windows on ARM
 [$system==win32 && $arch==arm64]
 
