@@ -66,7 +66,7 @@ const wrongInputs = [false, 'test', {}, [{}], ['sdf'], null, undefined];
 {
   const fd = fs.openSync(filename, 'r');
 
-  for(const wrongInput of wrongInputs) {
+  for (const wrongInput of wrongInputs) {
     assert.throws(
       () => fs.readvSync(fd, wrongInput, null), {
         code: 'ERR_INVALID_ARG_TYPE',
