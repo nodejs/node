@@ -122,8 +122,9 @@ performance of code in Node.js.
 * `SafePromiseAny`
 * `SafePromiseRace`
 * `SafePromisePrototypeFinally`: use `try {} finally {}` block instead.
-* `ReflectConstruct`: see linked PRs to [nodejs/performance#109](https://github.com/nodejs/performance/issues/109)
-  to learn faster methods.
+* `ReflectConstruct`: Also affects `Reflect.construct`.
+  `ReflectConstruct` creates new types of classes inside functions.
+  Instead create a shared class. See [nodejs/performance#109](https://github.com/nodejs/performance/issues/109)
 
 In general, when sending or reviewing a PR that makes changes in a hot code
 path, use extra caution and run extensive benchmarks.
