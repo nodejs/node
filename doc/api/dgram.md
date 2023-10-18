@@ -904,7 +904,7 @@ to exclude the socket from the reference counting that keeps the Node.js
 process active, allowing the process to exit even if the socket is still
 listening.
 
-Calling `socket.unref()` multiple times will have no addition effect.
+Calling `socket.unref()` multiple times will have no additional effect.
 
 The `socket.unref()` method returns a reference to the socket so calls can be
 chained.
