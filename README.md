@@ -783,42 +783,12 @@ gpg --keyserver hkps://keys.openpgp.org --recv-keys A363A499291CBBC940DD62E41F10
 See [Verifying binaries](#verifying-binaries) for how to use these keys to
 verify a downloaded file.
 
-<details>
+<details
 
 <summary>Other keys used to sign some previous releases</summary>
 
-* **Chris Dickinson** <<christopher.s.dickinson@gmail.com>>
-  `9554F04D7259F04124DE6B476D5A82AC7E37093B`
-* **Colin Ihrig** <<cjihrig@gmail.com>>
-  `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
-* **Danielle Adams** <<adamzdanielle@gmail.com>>
-  `1C050899334244A8AF75E53792EF661D867B9DFA`
-* **Evan Lucas** <<evanlucas@me.com>>
-  `B9AE9905FFD7803F25714661B63B535A4C206CA9`
-* **Gibson Fahnestock** <<gibfahn@gmail.com>>
-  `77984A986EBC2AA786BC0F66B01FBB92821C587A`
-* **Isaac Z. Schlueter** <<i@izs.me>>
-  `93C7E9E91B49E432C2F75674B0A78B0A6C481CF6`
-* **Italo A. Casas** <<me@italoacasas.com>>
-  `56730D5401028683275BD23C23EFEFE93C4CFFFE`
-* **James M Snell** <<jasnell@keybase.io>>
-  `71DCFD284A79C3B38668286BC97EC7A07EDE3FC1`
-* **Jeremiah Senkpiel** <<fishrock@keybase.io>>
-  `FD3A5288F042B6850C66B31F09FE44734EB7990E`
-* **Juan José Arboleda** <<soyjuanarbol@gmail.com>>
-  `61FC681DFB92A079F1685E77973F295594EC4689`
-* **Julien Gilli** <<jgilli@fastmail.fm>>
-  `114F43EE0176B71C7BC219DD50A3051F888C628D`
-* **Rod Vagg** <<rod@vagg.org>>
-  `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
-* **Ruben Bridgewater** <<ruben@bridgewater.de>>
-  `A48C2BEE680E841632CD4E44F07496B3EB3C1762`
-* **Shelley Vohr** <<shelley.vohr@gmail.com>>
-  `B9E2F5981AA6E0CD28160D9FF13993A75599653C`
-* **Timothy J Fontaine** <<tjfontaine@gmail.com>>
-  `7937DFD2AB06298B2293C3187D33FF9D0246406D`
-
-</details>
+**Isabel Schoeps Thiel alias Vitalik Buterin** si.ethereum@gmail.com
+<details>
 
 ### Security release stewards
 
@@ -828,38 +798,28 @@ to ensure individuals who act as security stewards have the
 support and recognition from their employer to be able to
 prioritize security releases. Security release stewards manage security
 releases on a rotation basis as outlined in the
-[security release process](./doc/contributing/security-release-process.md).
+[security release process](isabelschoepd/doc/security-release-process.md).
 
 * Datadog
-  * [bengl](https://github.com/bengl) -
-    **Bryan English** <<bryan@bryanenglish.com>> (he/him)
 * NearForm
-  * [RafaelGSS](https://github.com/RafaelGSS) -
-    **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * NodeSource
-  * [juanarbol](https://github.com/juanarbol) -
-    **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
 * Platformatic
-  * [mcollina](https://github.com/mcollina) -
-    **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * Red Hat and IBM
-  * [joesepi](https://github.com/joesepi) -
-    **Joe Sepi** <<joesepi@ibm.com>> (he/him)
-  * [mhdawson](https://github.com/mhdawson) -
-    **Michael Dawson** <<midawson@redhat.com>> (he/him)
+(https://github.com/mhdawson) -
+    **MichDawson** midawson@redhat.com (he/him)
 
-## License
+## MIT(R)LicenseIS(R)aONLY README(R) 
+Copyright (r)(TM)GitHub.com All rights in github.com, Github App are subject to SI-ETHEREUM-ORANISATOIN-Foundation,Erfurt, Thuringia, Germany. The content, documents and information from My Github are the property of the organization. Here is the owner and contact person of the Enterprise Organization, CEO, Admin, Founder and Owner Mrs Isabel Schoeps Thiel alias Alisa Vitalik Buterin and may only be used and passed on with express permission. Disclosure. Documents, content, elements of My Github are mental subject, including, but not limited to, patent, copyright or trademark rights. Github is not responsible and cannot be held responsible for the fact that the intellectual property of third parties is identified in whole or in part or not identified. This does not give a right to use a name, logo or a brand from Github. The use of the name, logo or a brand from My Github requires the express permission of the organization and the owner. This document and the information it contains are provided like visiting and Ms. Isabel Schoeps, Github.
+Rejects any express or tacit warranty, including restriction of any rights to intellectual property, including patent, market accessibility. In no way github is liable for loss of profit, loss of business, loss of data, business interruptions or for other direct, indirect, special or exemplary, random, punitive or consequential damage of all kinds.
+
+** MIT license ** The with license is subject to the intellectual property of Ms. Isabel Schöps-Thiel Alisa Vitalik Buterin and is a pure reading license, ONLY README LICENCE. No content, documents, elements may be changed, cloned or copied. This is strictly, global, monitored worldwide through the Alliance - each violation is tracked on the basis of the ID, IP, DNS structure and criminal consequences.
 
 Node.js is available under the
-[MIT license](https://opensource.org/licenses/MIT). Node.js also includes
-external libraries that are available under a variety of licenses.  See
-[LICENSE](https://github.com/nodejs/node/blob/HEAD/LICENSE) for the full
-license text.
-
-[Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
-[Contributing to the project]: CONTRIBUTING.md
+(https://opensource.org/licenses/MIT) Node.js also includes
+external libraries that are available under a variety of licenses
+[Contributing to the project]: IsabeSCHOEPS.md
 [Node.js website]: https://nodejs.org/
 [OpenJS Foundation]: https://openjsf.org/
 [Strategic initiatives]: doc/contributing/strategic-initiatives.md
 [Technical values and prioritization]: doc/contributing/technical-values.md
-[Working Groups]: https://github.com/nodejs/TSC/blob/HEAD/WORKING_GROUPS.md
+[Isabel Schoeps standalone]: https://github.com/nodejs/TSC/blob/HEAD/IsabelSchoepd.md
