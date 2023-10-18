@@ -1749,42 +1749,28 @@ is set for the `Http2Stream`.
 
 An attempt was made to construct an object using a non-public constructor.
 
-<a id="ERR_IMPORT_ASSERTION_TYPE_FAILED"></a>
+<a id="ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE"></a>
 
-### `ERR_IMPORT_ASSERTION_TYPE_FAILED`
+### `ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE`
 
 <!-- YAML
 added:
-  - v17.1.0
-  - v16.14.0
+  - REPLACEME
 -->
 
 An import `type` attribute was provided, but the specified module is of a
 different type.
 
-<a id="ERR_IMPORT_ASSERTION_TYPE_MISSING"></a>
+<a id="ERR_IMPORT_ATTRIBUTE_MISSING"></a>
 
-### `ERR_IMPORT_ASSERTION_TYPE_MISSING`
+### `ERR_IMPORT_ATTRIBUTE_MISSING`
 
 <!-- YAML
 added:
-  - v17.1.0
-  - v16.14.0
+  - REPLACEME
 -->
 
 An import attribute is missing, preventing the specified module to be imported.
-
-<a id="ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED"></a>
-
-### `ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED`
-
-<!-- YAML
-added:
-  - v17.1.0
-  - v16.14.0
--->
-
-An import attribute is not supported by this version of Node.js.
 
 <a id="ERR_IMPORT_ATTRIBUTE_UNSUPPORTED"></a>
 
@@ -3307,6 +3293,45 @@ changes:
 -->
 
 An invalid transfer object was passed to `postMessage()`.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_FAILED"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_FAILED`
+
+<!-- YAML
+added:
+  - v17.1.0
+  - v16.14.0
+removed: REPLACEME
+-->
+
+An import assertion has failed, preventing the specified module to be imported.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_MISSING"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_MISSING`
+
+<!-- YAML
+added:
+  - v17.1.0
+  - v16.14.0
+removed: REPLACEME
+-->
+
+An import assertion is missing, preventing the specified module to be imported.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED`
+
+<!-- YAML
+added:
+  - v17.1.0
+  - v16.14.0
+removed: REPLACEME
+-->
+
+An import attribute is not supported by this version of Node.js.
 
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 
