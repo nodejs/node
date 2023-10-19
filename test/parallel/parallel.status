@@ -13,6 +13,8 @@ test-crypto-keygen: PASS,FLAKY
 test-fs-rmdir-recursive: PASS, FLAKY
 # https://github.com/nodejs/node/issues/49985
 test-runner-watch-mode: PASS, FLAKY
+# https://github.com/nodejs/node/issues/50295
+test-cli-node-options: PASS, FLAKY
 
 # Windows on x86
 [$system==win32 && $arch==x86]
