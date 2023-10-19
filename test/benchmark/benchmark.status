@@ -20,6 +20,3 @@ prefix benchmark
 
 [$arch==arm]
 
-[$system==ibmi]
-test-benchmark-os.js: SKIP
-
