@@ -486,16 +486,18 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
   return did_work;
 }
 
-void NodePlatform::CallOnWorkerThread(std::unique_ptr<Task> task) {
+void NodePlatform::PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) {
   worker_thread_task_runner_->PostTask(std::move(task));
 }
 
-void NodePlatform::CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                             double delay_in_seconds) {
-  worker_thread_task_runner_->PostDelayedTask(std::move(task),
+void NodePlatform::PostDelayedTaskOnWorkerThreadImpl(
+      TaskPriority priority, std::unique_ptr<Task> task,
+      double delay_in_seconds, const SourceLocation& location) {
+worker_thread_task_runner_->PostDelayedTask(std::move(task),
                                               delay_in_seconds);
 }
-
 
 IsolatePlatformDelegate* NodePlatform::ForIsolate(Isolate* isolate) {
   Mutex::ScopedLock lock(per_isolate_mutex_);
@@ -518,8 +520,9 @@ bool NodePlatform::FlushForegroundTasks(Isolate* isolate) {
   return per_isolate->FlushForegroundTasksInternal();
 }
 
-std::unique_ptr<v8::JobHandle> NodePlatform::PostJob(v8::TaskPriority priority,
-                                       std::unique_ptr<v8::JobTask> job_task) {
+std::unique_ptr<JobHandle> NodePlatform::CreateJobImpl(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task,
+      const SourceLocation& location) {
   return v8::platform::NewDefaultJobHandle(
       this, priority, std::move(job_task), NumberOfWorkerThreads());
 }

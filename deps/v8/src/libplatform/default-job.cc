@@ -214,9 +214,7 @@ void DefaultJobState::UpdatePriority(TaskPriority priority) {
 }
 
 DefaultJobHandle::DefaultJobHandle(std::shared_ptr<DefaultJobState> state)
-    : state_(std::move(state)) {
-  state_->NotifyConcurrencyIncrease();
-}
+    : state_(std::move(state)) {}
 
 DefaultJobHandle::~DefaultJobHandle() { DCHECK_EQ(nullptr, state_); }
 
