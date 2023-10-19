@@ -158,7 +158,7 @@ class NodePlatform : public MultiIsolatePlatform {
   double CurrentClockTimeMillis() override;
   v8::TracingController* GetTracingController() override;
   bool FlushForegroundTasks(v8::Isolate* isolate) override;
-  std::unique_ptr<JobHandle> CreateJobImpl(
+  std::unique_ptr<v8::JobHandle> CreateJobImpl(
       v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task,
       const v8::SourceLocation& location) override;
 
