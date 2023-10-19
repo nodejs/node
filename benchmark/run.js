@@ -19,13 +19,13 @@ const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
                             matrix
   all                       each benchmark category is run one after the other
 `, { arrayArgs: ['set', 'filter', 'exclude'] });
-let benchmarks = cli.benchmarks();
+const benchmarks = cli.benchmarks();
 
 // IBMi does not have working uptime so don't try to run
 // that benchmark
 if (os.type() === 'OS400') {
   const index = benchmarks.indexOf('os/uptime.js');
-  if (index != -1)
+  if (index !== -1)
     benchmarks.splice(index, 1);
 }
 
