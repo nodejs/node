@@ -976,14 +976,14 @@ close normally.
  * and sends the message back to the application context
  */
 export function globalPreload({ port }) {
-  port.onmessage = (evt) => {
-    port.postMessage(evt.data);
-  };
+  port.on('message', (msg) => {
+    port.postMessage(msg);
+  });
   return `\
     port.postMessage('console.log("I went to the Loader and back");');
-    port.onmessage = (evt) => {
-      eval(evt.data);
-    };
+    port.on('message', (data) => {
+      eval(data);
+    });
   `;
 }
 ```
