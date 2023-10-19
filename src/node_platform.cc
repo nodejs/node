@@ -505,7 +505,7 @@ void NodePlatform::PostTaskOnWorkerThreadImpl(v8::TaskPriority priority,
 void NodePlatform::PostDelayedTaskOnWorkerThreadImpl(
       v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
       double delay_in_seconds, const v8::SourceLocation& location) {
-worker_thread_task_runner_->PostDelayedTask(std::move(task),
+  worker_thread_task_runner_->PostDelayedTask(std::move(task),
                                               delay_in_seconds);
 }
 
