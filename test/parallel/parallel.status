@@ -15,7 +15,7 @@ test-fs-rmdir-recursive: PASS, FLAKY
 test-runner-watch-mode: PASS, FLAKY
 
 # Windows on x86
-[$system==win32 && $arch==x86]
+[$system==win32 && $arch==ia32]
 test-worker-nearheaplimit-deadlock: PASS, FLAKY
 
 # Windows on ARM
