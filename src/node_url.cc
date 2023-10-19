@@ -423,7 +423,7 @@ std::string FromFilePath(std::string_view file_path) {
   if (pos == std::string_view::npos) {
     return ada::href_from_file(file_path);
   }
-  // escape '%' characters to a temporary string
+  // Escape '%' characters to a temporary string.
   std::string escaped_file_path;
   do {
     escaped_file_path += file_path.substr(0, pos + 1);
