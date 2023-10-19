@@ -418,7 +418,7 @@ void BindingData::RegisterExternalReferences(
 }
 
 std::string FromFilePath(std::string_view file_path) {
-  // avoid unnecessary allocations
+  // Avoid unnecessary allocations.
   size_t pos = file_path.empty() ? std::string_view::npos : file_path.find('%');
   if (pos == std::string_view::npos) {
     return ada::href_from_file(file_path);
