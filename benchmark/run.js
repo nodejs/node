@@ -3,6 +3,7 @@
 const path = require('path');
 const fork = require('child_process').fork;
 const CLI = require('./_cli.js');
+const os = require('os');
 
 const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
   Run each benchmark in the <category> directory a single time, more than one
@@ -18,7 +19,15 @@ const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
                             matrix
   all                       each benchmark category is run one after the other
 `, { arrayArgs: ['set', 'filter', 'exclude'] });
-const benchmarks = cli.benchmarks();
+let benchmarks = cli.benchmarks();
+
+// IBMi does not have working uptime so don't try to run
+// that benchmark
+if (os.type() === 'OS400') {
+  const index = benchmarks.indexOf('os/uptime.js');
+  if (index != -1)
+    benchmarks.splice(index, 1);
+}
 
 if (benchmarks.length === 0) {
   console.error('No benchmarks found');
