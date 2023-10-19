@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce placing object properties on separate lines",
-            category: "Stylistic Issues",
+            description: "Enforce placing object properties on separate lines",
             recommended: false,
-            url: "https://eslint.org/docs/rules/object-property-newline"
+            url: "https://eslint.org/docs/latest/rules/object-property-newline"
         },
 
         schema: [
@@ -53,7 +53,7 @@ module.exports = {
             ? "propertiesOnNewlineAll"
             : "propertiesOnNewline";
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             ObjectExpression(node) {

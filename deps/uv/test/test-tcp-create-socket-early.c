@@ -44,7 +44,7 @@ static void on_connection(uv_stream_t* server, int status) {
   ASSERT(status == 0);
 
   handle = malloc(sizeof(*handle));
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
 
   r = uv_tcp_init_ex(server->loop, handle, AF_INET);
   ASSERT(r == 0);
@@ -128,7 +128,7 @@ TEST_IMPL(tcp_create_early) {
   uv_close((uv_handle_t*) &client, NULL);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -173,7 +173,7 @@ TEST_IMPL(tcp_create_early_bad_bind) {
   uv_close((uv_handle_t*) &client, NULL);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -190,7 +190,7 @@ TEST_IMPL(tcp_create_early_bad_domain) {
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -204,6 +204,6 @@ TEST_IMPL(tcp_create_early_accept) {
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

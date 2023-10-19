@@ -1,0 +1,50 @@
+WARNING: ThreadSanitizer: data race (pid=3187405)
+  Read of size 8 at 0x7ea200056b80 by thread T1:
+    #0 0x55ad577064dc in v8::internal::compiler::JSObjectRef::GetOwnConstantElementFromHeap(v8::internal::FixedArrayBase, v8::internal::ElementsKind, unsigned int) const src/base/memory.h:34:3
+    #1 0x55ad577062aa in v8::internal::compiler::JSObjectRef::GetOwnConstantElement(v8::internal::compiler::FixedArrayBaseRef, unsigned int, v8::internal::compiler::CompilationDependencies*) const src/compiler/heap-refs.cc:1815:42
+    #2 0x55ad577c4ff7 in v8::internal::compiler::JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(v8::internal::compiler::Node*, v8::internal::compiler::Node*, v8::internal::compiler::AccessMode, v8::internal::KeyedAccessLoadMode) src/compiler/js-native-context-specialization.cc:2325:32
+    #3 0x55ad577c2c8f in v8::internal::compiler::JSNativeContextSpecialization::ReduceElementAccess(v8::internal::compiler::Node*, v8::internal::compiler::Node*, v8::internal::compiler::Node*, v8::internal::compiler::ElementAccessFeedback const&) src/compiler/js-native-context-specialization.cc:2094:27
+    #4 0x55ad577c19f7 in v8::internal::compiler::JSNativeContextSpecialization::ReducePropertyAccess(v8::internal::compiler::Node*, v8::internal::compiler::Node*, v8::base::Optional<v8::internal::compiler::NameRef>, v8::internal::compiler::Node*, v8::internal::compiler::FeedbackSource const&, v8::internal::compiler::AccessMode) src/compiler/js-native-context-specialization.cc:2413:14
+    #5 0x55ad577b6099 in v8::internal::compiler::JSNativeContextSpecialization::ReduceJSLoadProperty(v8::internal::compiler::Node*) src/compiler/js-native-context-specialization.cc:2564:10
+    #6 0x55ad577afc8f in v8::internal::compiler::JSNativeContextSpecialization::Reduce(v8::internal::compiler::Node*) src/compiler/js-native-context-specialization.cc:108:14
+    #7 0x55ad576d605a in v8::internal::compiler::GraphReducer::Reduce(v8::internal::compiler::Node*) src/compiler/graph-reducer.cc:34:25
+    #8 0x55ad576d59f4 in v8::internal::compiler::GraphReducer::ReduceTop() src/compiler/graph-reducer.cc:178:25
+    #9 0x55ad576d5209 in v8::internal::compiler::GraphReducer::ReduceNode(v8::internal::compiler::Node*) src/compiler/graph-reducer.cc:75:7
+    #10 0x55ad576d5f35 in v8::internal::compiler::GraphReducer::ReduceGraph() src/compiler/graph-reducer.cc:97:36
+    #11 0x55ad57887506 in v8::internal::compiler::InliningPhase::Run(v8::internal::compiler::PipelineData*, v8::internal::Zone*) src/compiler/pipeline.cc:1422:19
+    #12 0x55ad578763c9 in auto v8::internal::compiler::PipelineImpl::Run<v8::internal::compiler::InliningPhase>() src/compiler/pipeline.cc:1319:16
+    #13 0x55ad57872135 in v8::internal::compiler::PipelineImpl::CreateGraph() src/compiler/pipeline.cc:2847:3
+    #14 0x55ad57871f32 in v8::internal::compiler::PipelineCompilationJob::ExecuteJobImpl(v8::internal::RuntimeCallStats*, v8::internal::LocalIsolate*) src/compiler/pipeline.cc:1247:18
+    #15 0x55ad565a9830 in v8::internal::OptimizedCompilationJob::ExecuteJob(v8::internal::RuntimeCallStats*, v8::internal::LocalIsolate*) src/codegen/compiler.cc:494:22
+    #16 0x55ad565ef91e in v8::internal::OptimizingCompileDispatcher::CompileNext(v8::internal::TurbofanCompilationJob*, v8::internal::LocalIsolate*) src/compiler-dispatcher/optimizing-compile-dispatcher.cc:105:12
+    #17 0x55ad565f2555 in v8::internal::OptimizingCompileDispatcher::CompileTask::RunInternal() src/compiler-dispatcher/optimizing-compile-dispatcher.cc:67:20
+    #18 0x55ad5640b898 in non-virtual thunk to v8::internal::CancelableTask::Run() src/tasks/cancelable-task.h:155:7
+    #19 0x55ad57cc46b1 in v8::platform::DefaultWorkerThreadsTaskRunner::WorkerThread::Run() src/libplatform/default-worker-threads-task-runner.cc:73:11
+    #20 0x55ad57cb7c23 in v8::base::ThreadEntry(void*) src/base/platform/platform.h:596:5
+  Previous write of size 8 at 0x7ea200056b80 by main thread:
+    #0 0x55ad56a49f14 in v8::internal::(anonymous namespace)::DictionaryElementsAccessor::SetLengthImpl(v8::internal::Isolate*, v8::internal::Handle<v8::internal::JSArray>, unsigned int, v8::internal::Handle<v8::internal::FixedArrayBase>) src/base/memory.h:41:3
+    #1 0x55ad56a675ea in v8::internal::(anonymous namespace)::ElementsAccessorBase<v8::internal::(anonymous namespace)::DictionaryElementsAccessor, v8::internal::(anonymous namespace)::ElementsKindTraits<(v8::internal::ElementsKind)13> >::SetLength(v8::internal::Handle<v8::internal::JSArray>, unsigned int) src/objects/elements.cc:758:12
+    #2 0x55ad56c5f9c0 in v8::internal::JSArray::SetLength(v8::internal::Handle<v8::internal::JSArray>, unsigned int) src/objects/objects.cc:5237:40
+    #3 0x55ad564a6616 in v8::internal::Accessors::ArrayLengthSetter(v8::Local<v8::Name>, v8::Local<v8::Value>, v8::PropertyCallbackInfo<v8::Boolean> const&) src/builtins/accessors.cc:202:7
+    #4 0x55ad568e961b in v8::internal::PropertyCallbackArguments::CallAccessorSetter(v8::internal::Handle<v8::internal::AccessorInfo>, v8::internal::Handle<v8::internal::Name>, v8::internal::Handle<v8::internal::Object>) src/api/api-arguments-inl.h:332:3
+    #5 0x55ad568e39df in v8::internal::Runtime_StoreCallbackProperty(int, unsigned long*, v8::internal::Isolate*) src/ic/ic.cc:3245:13
+    #6 0x55acdfe69bb8 in Builtins_AsyncFromSyncIteratorPrototypeThrow (/mnt/scratch0/clusterfuzz/bot/builds/v8-tsan_linux-release_8681dd6e7b8d9ebe281ad96b26057d51e550c14e/revisions/d8-tsan-linux-release-v8-component-83502/d8+0x1c30bb7)
+    #7 0x55ad5668cf86 in v8::internal::Execution::CallScript(v8::internal::Isolate*, v8::internal::Handle<v8::internal::JSFunction>, v8::internal::Handle<v8::internal::Object>, v8::internal::Handle<v8::internal::Object>) src/execution/execution.cc:538:10
+    #8 0x55ad5642808f in v8::Script::Run(v8::Local<v8::Context>, v8::Local<v8::Data>) src/api/api.cc:2231:7
+    #9 0x55ad564277c1 in v8::Script::Run(v8::Local<v8::Context>) src/api/api.cc:2158:10
+    #10 0x55ad563e63cc in v8::Shell::ExecuteString(v8::Isolate*, v8::Local<v8::String>, v8::Local<v8::String>, v8::Shell::PrintResult, v8::Shell::ReportExceptions, v8::Shell::ProcessMessageQueue) src/d8/d8.cc:879:28
+    #11 0x55ad563fe621 in v8::SourceGroup::Execute(v8::Isolate*) src/d8/d8.cc:4379:10
+    #12 0x55ad56402488 in v8::Shell::RunMain(v8::Isolate*, bool) src/d8/d8.cc:5107:39
+    #13 0x55ad56404fe1 in v8::Shell::Main(int, char**) src/d8/d8.cc:5886:18
+    #14 0x55ad564054ef in main src/d8/d8.cc:5976:43
+  Thread T1 'V8 DefaultWorke' (tid=3187415, running) created by main thread at:
+    #0 0x55ad56353ffc in pthread_create third_party/llvm/compiler-rt/lib/tsan/rtl/tsan_interceptors_posix.cpp:1022:3
+    #1 0x55ad57cb7b37 in v8::base::Thread::Start() src/base/platform/platform-posix.cc:1144:14
+    #2 0x55ad57cc40ad in v8::platform::DefaultWorkerThreadsTaskRunner::DefaultWorkerThreadsTaskRunner(unsigned int, double (*)()) src/libplatform/default-worker-threads-task-runner.cc:66:3
+    #3 0x55ad57cba1b1 in v8::platform::DefaultPlatform::DefaultPlatform(int, v8::platform::IdleTaskSupport, std::Cr::unique_ptr<v8::TracingController, std::Cr::default_delete<v8::TracingController> >) buildtools/third_party/libc++/trunk/include/__memory/shared_ptr.h:297:37
+    #4 0x55ad57cb983a in v8::platform::NewDefaultPlatform(int, v8::platform::IdleTaskSupport, v8::platform::InProcessStackDumping, std::Cr::unique_ptr<v8::TracingController, std::Cr::default_delete<v8::TracingController> >) buildtools/third_party/libc++/trunk/include/__memory/unique_ptr.h:670:30
+    #5 0x55ad56404252 in v8::Shell::Main(int, char**) src/d8/d8.cc:5691:16
+    #6 0x55ad564054ef in main src/d8/d8.cc:5976:43
+SUMMARY: ThreadSanitizer: data race src/base/memory.h:34:3 in v8::internal::compiler::JSObjectRef::GetOwnConstantElementFromHeap(v8::internal::FixedArrayBase, v8::internal::ElementsKind, unsigned int) const
+==================
+ThreadSanitizer: reported 1 warnings

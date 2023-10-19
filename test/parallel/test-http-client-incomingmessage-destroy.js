@@ -20,6 +20,13 @@ server.listen(0, () => {
   get({
     port: server.address().port
   }, common.mustCall((res) => {
-    res.destroy(new Error('Destroy test'));
+    const err = new Error('Destroy test');
+    assert.strictEqual(res.errored, null);
+    res.destroy(err);
+    assert.strictEqual(res.closed, false);
+    assert.strictEqual(res.errored, err);
+    res.on('close', () => {
+      assert.strictEqual(res.closed, true);
+    });
   }));
 });

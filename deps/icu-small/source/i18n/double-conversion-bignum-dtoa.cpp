@@ -290,7 +290,7 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
 
 // Let v = numerator / denominator < 10.
 // Then we generate 'count' digits of d = x.xxxxx... (without the decimal point)
-// from left to right. Once 'count' digits have been produced we decide wether
+// from left to right. Once 'count' digits have been produced we decide whether
 // to round up or down. Remainders of exactly .5 round upwards. Numbers such
 // as 9.999999 propagate a carry all the way, and change the
 // exponent (decimal_point), when rounding upwards.

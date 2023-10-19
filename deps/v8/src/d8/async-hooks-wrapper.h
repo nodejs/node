@@ -6,11 +6,19 @@
 #define V8_D8_ASYNC_HOOKS_WRAPPER_H_
 
 #include <stack>
+#include <vector>
 
-#include "include/v8.h"
-#include "src/objects/objects.h"
+#include "include/v8-function-callback.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-promise.h"
+#include "src/base/platform/mutex.h"
 
 namespace v8 {
+
+class Function;
+class Isolate;
+class ObjectTemplate;
+class Value;
 
 using async_id_t = double;
 
@@ -21,10 +29,8 @@ struct AsyncContext {
 
 class AsyncHooksWrap {
  public:
-  explicit AsyncHooksWrap(Isolate* isolate) {
-    enabled_ = false;
-    isolate_ = isolate;
-  }
+  explicit AsyncHooksWrap(Isolate* isolate)
+      : isolate_(isolate), enabled_(false) {}
   void Enable();
   void Disable();
   bool IsEnabled() const { return enabled_; }
@@ -51,44 +57,35 @@ class AsyncHooksWrap {
 
 class AsyncHooks {
  public:
-  explicit AsyncHooks(Isolate* isolate) {
-    isolate_ = isolate;
-
-    AsyncContext ctx;
-    ctx.execution_async_id = 1;
-    ctx.trigger_async_id = 0;
-    asyncContexts.push(ctx);
-    current_async_id = 1;
-
-    Initialize();
-  }
-  ~AsyncHooks() { Deinitialize(); }
+  explicit AsyncHooks(Isolate* isolate);
+  ~AsyncHooks();
 
   async_id_t GetExecutionAsyncId() const;
   async_id_t GetTriggerAsyncId() const;
 
-  Local<Object> CreateHook(const v8::FunctionCallbackInfo<v8::Value>& args);
+  Local<Object> CreateHook(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   Persistent<FunctionTemplate> async_hook_ctor;
 
  private:
-  std::vector<AsyncHooksWrap*> async_wraps_;
-  Isolate* isolate_;
+  std::vector<std::shared_ptr<AsyncHooksWrap>> async_wraps_;
+  v8::Isolate* v8_isolate_;
   Persistent<ObjectTemplate> async_hooks_templ;
-  Persistent<Private> async_id_smb;
-  Persistent<Private> trigger_id_smb;
-
-  void Initialize();
-  void Deinitialize();
+  Persistent<Private> async_id_symbol;
+  Persistent<Private> trigger_id_symbol;
 
   static void ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
                                Local<Value> parent);
   static void PromiseHookDispatch(PromiseHookType type, Local<Promise> promise,
-                                  Local<Value> parent, AsyncHooksWrap* wrap,
+                                  Local<Value> parent,
+                                  const AsyncHooksWrap& wrap,
                                   AsyncHooks* hooks);
 
   std::stack<AsyncContext> asyncContexts;
   async_id_t current_async_id;
+  // We might end up in an invalid state after skipping steps due to
+  // terminations.
+  bool skip_after_termination_ = false;
 };
 
 }  // namespace v8

@@ -5,15 +5,14 @@ const assert = require('assert');
 /**
  * Checks the expected invocations against the invocations that actually
  * occurred.
- *
  * @name checkInvocations
  * @function
- * @param {Object} activity including timestamps for each life time event,
+ * @param {object} activity including timestamps for each life time event,
  *                 i.e. init, before ...
- * @param {Object} hooks the expected life time event invocations with a count
+ * @param {object} hooks the expected life time event invocations with a count
  *                       indicating how often they should have been invoked,
  *                       i.e. `{ init: 1, before: 2, after: 2 }`
- * @param {String} stage the name of the stage in the test at which we are
+ * @param {string} stage the name of the stage in the test at which we are
  *                       checking the invocations
  */
 exports.checkInvocations = function checkInvocations(activity, hooks, stage) {
@@ -21,7 +20,7 @@ exports.checkInvocations = function checkInvocations(activity, hooks, stage) {
 
   assert.ok(activity != null,
             `${stageInfo} Trying to check invocation for an activity, ` +
-            'but it was empty/undefined.'
+            'but it was empty/undefined.',
   );
 
   // Check that actual invocations for all hooks match the expected invocations

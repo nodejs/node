@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "src/torque/contextual.h"
+#include "src/base/contextual.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declarations.h"
 #include "src/torque/types.h"
@@ -17,7 +17,7 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-class TypeOracle : public ContextualClass<TypeOracle> {
+class TypeOracle : public base::ContextualClass<TypeOracle> {
  public:
   static const AbstractType* GetAbstractType(
       const Type* parent, std::string name, AbstractTypeFlags flags,
@@ -201,6 +201,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(EXTERNALPTR_TYPE_STRING);
   }
 
+  static const Type* GetIndirectPointerType() {
+    return Get().GetBuiltinType(INDIRECTPTR_TYPE_STRING);
+  }
+
   static const Type* GetMapType() {
     return Get().GetBuiltinType(MAP_TYPE_STRING);
   }
@@ -267,6 +271,14 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(UINTPTR_TYPE_STRING);
   }
 
+  static const Type* GetInt64Type() {
+    return Get().GetBuiltinType(INT64_TYPE_STRING);
+  }
+
+  static const Type* GetUint64Type() {
+    return Get().GetBuiltinType(UINT64_TYPE_STRING);
+  }
+
   static const Type* GetInt32Type() {
     return Get().GetBuiltinType(INT32_TYPE_STRING);
   }
@@ -305,6 +317,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const Type* GetConstFloat64Type() {
     return Get().GetBuiltinType(CONST_FLOAT64_TYPE_STRING);
+  }
+
+  static const Type* GetIntegerLiteralType() {
+    return Get().GetBuiltinType(INTEGER_LITERAL_TYPE_STRING);
   }
 
   static const Type* GetNeverType() {

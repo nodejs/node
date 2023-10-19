@@ -61,8 +61,8 @@ U_NAMESPACE_BEGIN
 // The current RBBI data format version.
 static const uint8_t RBBI_DATA_FORMAT_VERSION[] = {6, 0, 0, 0};
 
-/*
- *   The following structs map exactly onto the raw data from ICU common data file.
+/*  
+ *   The following structs map exactly onto the raw data from ICU common data file. 
  */
 struct RBBIDataHeader {
     uint32_t         fMagic;           /*  == 0xbla0                                               */
@@ -85,7 +85,7 @@ struct RBBIDataHeader {
     uint32_t         fTrie;           /*  Offset to Trie data for character categories */
     uint32_t         fTrieLen;
     uint32_t         fRuleSource;     /*  Offset to the source for for the break */
-    uint32_t         fRuleSourceLen;  /*    rules.  Stored UChar *. */
+    uint32_t         fRuleSourceLen;  /*    rules.  Stored char16_t *. */
     uint32_t         fStatusTable;    /* Offset to the table of rule status values */
     uint32_t         fStatusTableLen;
 
@@ -171,7 +171,7 @@ public:
     void                  init(const RBBIDataHeader *data, UErrorCode &status);
     RBBIDataWrapper      *addReference();
     void                  removeReference();
-    UBool                 operator ==(const RBBIDataWrapper &other) const;
+    bool                  operator ==(const RBBIDataWrapper &other) const;
     int32_t               hashCode();
     const UnicodeString  &getRuleSourceString() const;
     void                  printData();
@@ -184,7 +184,7 @@ public:
     const RBBIStateTable     *fForwardTable;
     const RBBIStateTable     *fReverseTable;
     const char               *fRuleSource;
-    const int32_t            *fRuleStatusTable;
+    const int32_t            *fRuleStatusTable; 
 
     /* number of int32_t values in the rule status table.   Used to sanity check indexing */
     int32_t             fStatusMaxIdx;
@@ -205,7 +205,7 @@ private:
 
 U_NAMESPACE_END
 
-U_CFUNC UBool rbbi_cleanup(void);
+U_CFUNC UBool rbbi_cleanup();
 
 #endif /* C++ */
 

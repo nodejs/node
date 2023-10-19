@@ -57,6 +57,13 @@ __armv8_sha512_probe:
 	ret
 
 
+.globl	__armv8_cpuid_probe
+
+__armv8_cpuid_probe:
+	mrs	x0, midr_el1
+	ret
+
+
 .globl	_OPENSSL_cleanse
 
 .align	5

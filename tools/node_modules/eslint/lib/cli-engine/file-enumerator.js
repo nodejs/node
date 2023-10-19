@@ -60,7 +60,7 @@ const IGNORED_SILENTLY = 1;
 const IGNORED = 2;
 
 // For VSCode intellisense
-/** @typedef {ReturnType<CascadingConfigArrayFactory["getConfigArrayForFile"]>} ConfigArray */
+/** @typedef {ReturnType<CascadingConfigArrayFactory.getConfigArrayForFile>} ConfigArray */
 
 /**
  * @typedef {Object} FileEnumeratorOptions
@@ -114,6 +114,7 @@ function isGlobPattern(pattern) {
 /**
  * Get stats of a given path.
  * @param {string} filePath The path to target file.
+ * @throws {Error} As may be thrown by `fs.statSync`.
  * @returns {fs.Stats|null} The stats.
  * @private
  */
@@ -121,7 +122,8 @@ function statSafeSync(filePath) {
     try {
         return fs.statSync(filePath);
     } catch (error) {
-        /* istanbul ignore next */
+
+        /* c8 ignore next */
         if (error.code !== "ENOENT") {
             throw error;
         }
@@ -132,6 +134,7 @@ function statSafeSync(filePath) {
 /**
  * Get filenames in a given path to a directory.
  * @param {string} directoryPath The path to target directory.
+ * @throws {Error} As may be thrown by `fs.readdirSync`.
  * @returns {import("fs").Dirent[]} The filenames.
  * @private
  */
@@ -139,7 +142,8 @@ function readdirSafeSync(directoryPath) {
     try {
         return fs.readdirSync(directoryPath, { withFileTypes: true });
     } catch (error) {
-        /* istanbul ignore next */
+
+        /* c8 ignore next */
         if (error.code !== "ENOENT") {
             throw error;
         }
@@ -173,7 +177,6 @@ function createExtensionRegExp(extensions) {
  */
 class NoFilesFoundError extends Error {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {string} pattern The glob pattern which was not found.
      * @param {boolean} globDisabled If `true` then the pattern was a glob pattern, but glob was disabled.
@@ -190,7 +193,6 @@ class NoFilesFoundError extends Error {
  */
 class AllFilesIgnoredError extends Error {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {string} pattern The glob pattern which was not found.
      */
@@ -215,8 +217,8 @@ class FileEnumerator {
         cwd = process.cwd(),
         configArrayFactory = new CascadingConfigArrayFactory({
             cwd,
-            eslintRecommendedPath: path.resolve(__dirname, "../../conf/eslint-recommended.js"),
-            eslintAllPath: path.resolve(__dirname, "../../conf/eslint-all.js")
+            getEslintRecommendedConfig: () => require("@eslint/js").configs.recommended,
+            getEslintAllConfig: () => require("@eslint/js").configs.all
         }),
         extensions = null,
         globInputPaths = true,
@@ -270,6 +272,7 @@ class FileEnumerator {
     /**
      * Iterate files which are matched by given glob patterns.
      * @param {string|string[]} patternOrPatterns The glob patterns to iterate files.
+     * @throws {NoFilesFoundError|AllFilesIgnoredError} On an unmatched pattern.
      * @returns {IterableIterator<FileAndConfig>} The found files.
      */
     *iterateFiles(patternOrPatterns) {
@@ -346,7 +349,7 @@ class FileEnumerator {
             return this._iterateFilesWithFile(absolutePath);
         }
         if (globInputPaths && isGlobPattern(pattern)) {
-            return this._iterateFilesWithGlob(absolutePath, isDot);
+            return this._iterateFilesWithGlob(pattern, isDot);
         }
 
         return [];
@@ -395,15 +398,17 @@ class FileEnumerator {
     _iterateFilesWithGlob(pattern, dotfiles) {
         debug(`Glob: ${pattern}`);
 
-        const directoryPath = path.resolve(getGlobParent(pattern));
-        const globPart = pattern.slice(directoryPath.length + 1);
+        const { cwd } = internalSlotsMap.get(this);
+        const directoryPath = path.resolve(cwd, getGlobParent(pattern));
+        const absolutePath = path.resolve(cwd, pattern);
+        const globPart = absolutePath.slice(directoryPath.length + 1);
 
         /*
          * recursive if there are `**` or path separators in the glob part.
          * Otherwise, patterns such as `src/*.js`, it doesn't need recursive.
          */
         const recursive = /\*\*|\/|\\/u.test(globPart);
-        const selector = new Minimatch(pattern, minimatchOpts);
+        const selector = new Minimatch(absolutePath, minimatchOpts);
 
         debug(`recursive? ${recursive}`);
 

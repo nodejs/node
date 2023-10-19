@@ -18,10 +18,10 @@
 #include "ucln_cmn.h"
 
 
-static UTraceEntry     *pTraceEntryFunc = NULL;
-static UTraceExit      *pTraceExitFunc  = NULL;
-static UTraceData      *pTraceDataFunc  = NULL;
-static const void      *gTraceContext   = NULL;
+static UTraceEntry     *pTraceEntryFunc = nullptr;
+static UTraceExit      *pTraceExitFunc  = nullptr;
+static UTraceData      *pTraceDataFunc  = nullptr;
+static const void      *gTraceContext   = nullptr;
 
 /**
  * \var utrace_level
@@ -32,7 +32,7 @@ utrace_level = UTRACE_ERROR;
 
 U_CAPI void U_EXPORT2
 utrace_entry(int32_t fnNumber) {
-    if (pTraceEntryFunc != NULL) {
+    if (pTraceEntryFunc != nullptr) {
         (*pTraceEntryFunc)(gTraceContext, fnNumber);
     }
 }
@@ -46,7 +46,7 @@ static const char gExitFmtPtrStatus[]    = "Returns %d.  Status = %p.";
 
 U_CAPI void U_EXPORT2
 utrace_exit(int32_t fnNumber, int32_t returnType, ...) {
-    if (pTraceExitFunc != NULL) {
+    if (pTraceExitFunc != nullptr) {
         va_list     args;
         const char *fmt;
 
@@ -67,7 +67,7 @@ utrace_exit(int32_t fnNumber, int32_t returnType, ...) {
             fmt = gExitFmtPtrStatus;
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
         }
 
         va_start(args, returnType);
@@ -75,14 +75,14 @@ utrace_exit(int32_t fnNumber, int32_t returnType, ...) {
         va_end(args);
     }
 }
+ 
 
-
-
-U_CAPI void U_EXPORT2
+ 
+U_CAPI void U_EXPORT2 
 utrace_data(int32_t fnNumber, int32_t level, const char *fmt, ...) {
-    if (pTraceDataFunc != NULL) {
+    if (pTraceDataFunc != nullptr) {
            va_list args;
-           va_start(args, fmt );
+           va_start(args, fmt ); 
            (*pTraceDataFunc)(gTraceContext, fnNumber, level, fmt, args);
            va_end(args);
     }
@@ -93,7 +93,7 @@ static void outputChar(char c, char *outBuf, int32_t *outIx, int32_t capacity, i
     int32_t i;
     /* Check whether a start of line indenting is needed.  Three cases:
      *   1.  At the start of the first line  (output index == 0).
-     *   2.  At the start of subsequent lines  (preceeding char in buffer == '\n')
+     *   2.  At the start of subsequent lines  (preceding char in buffer == '\n')
      *   3.  When preflighting buffer len (buffer capacity is exceeded), when
      *       a \n is output.  Ideally we wouldn't do the indent until the following char
      *       is received, but that won't work because there's no place to remember that
@@ -117,9 +117,9 @@ static void outputChar(char c, char *outBuf, int32_t *outIx, int32_t capacity, i
         outBuf[*outIx] = c;
     }
     if (c != 0) {
-        /* Nulls only appear as end-of-string terminators.  Move them to the output
+        /* NULs only appear as end-of-string terminators.  Move them to the output
          *  buffer, but do not update the length of the buffer, so that any
-         *  following output will overwrite the null. */
+         *  following output will overwrite the NUL. */
         (*outIx)++;
     }
 }
@@ -146,7 +146,7 @@ static void outputPtrBytes(void *val, char *outBuf, int32_t *outIx, int32_t capa
     p += sizeof(void *) - 1;
 #endif
 
-    /* Loop through the bytes of the ptr as it sits in memory, from
+    /* Loop through the bytes of the ptr as it sits in memory, from 
      * most significant to least significant end                    */
     for (i=0; i<sizeof(void *); i++) {
         outputHexBytes(*p, 2, outBuf, outIx, capacity);
@@ -157,7 +157,7 @@ static void outputPtrBytes(void *val, char *outBuf, int32_t *outIx, int32_t capa
 static void outputString(const char *s, char *outBuf, int32_t *outIx, int32_t capacity, int32_t indent) {
     int32_t i = 0;
     char    c;
-    if (s==NULL) {
+    if (s==nullptr) {
         s = "*NULL*";
     }
     do {
@@ -165,15 +165,15 @@ static void outputString(const char *s, char *outBuf, int32_t *outIx, int32_t ca
         outputChar(c, outBuf, outIx, capacity, indent);
     } while (c != 0);
 }
+        
 
 
-
-static void outputUString(const UChar *s, int32_t len,
+static void outputUString(const char16_t *s, int32_t len,
                           char *outBuf, int32_t *outIx, int32_t capacity, int32_t indent) {
     int32_t i = 0;
-    UChar   c;
-    if (s==NULL) {
-        outputString(NULL, outBuf, outIx, capacity, indent);
+    char16_t   c;
+    if (s==nullptr) {
+        outputString(nullptr, outBuf, outIx, capacity, indent);
         return;
     }
 
@@ -186,7 +186,7 @@ static void outputUString(const UChar *s, int32_t len,
         }
     }
 }
-
+        
 U_CAPI int32_t U_EXPORT2
 utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, va_list args) {
     int32_t   outIx  = 0;
@@ -205,7 +205,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
             /* Literal character, not part of a %sequence.  Just copy it to the output. */
             outputChar(fmtC, outBuf, &outIx, capacity, indent);
             if (fmtC == 0) {
-                /* We hit the null that terminates the format string.
+                /* We hit the NUL that terminates the format string.
                  * This is the normal (and only) exit from the loop that
                  * interprets the format
                  */
@@ -225,16 +225,16 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
             break;
 
         case 's':
-            /* char * string, null terminated.  */
+            /* char * string, NUL terminated.  */
             ptrArg = va_arg(args, char *);
             outputString((const char *)ptrArg, outBuf, &outIx, capacity, indent);
             break;
 
         case 'S':
-            /* UChar * string, with length, len==-1 for null terminated. */
+            /* char16_t * string, with length, len==-1 for NUL terminated. */
             ptrArg = va_arg(args, char *);             /* Ptr    */
             intArg =(int32_t)va_arg(args, int32_t);    /* Length */
-            outputUString((const UChar *)ptrArg, intArg, outBuf, &outIx, capacity, indent);
+            outputUString((const char16_t *)ptrArg, intArg, outBuf, &outIx, capacity, indent);
             break;
 
         case 'b':
@@ -260,7 +260,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
             longArg = va_arg(args, int64_t);
             outputHexBytes(longArg, 16, outBuf, &outIx, capacity);
             break;
-
+            
         case 'p':
             /*  Pointers.   */
             ptrArg = va_arg(args, char *);
@@ -268,8 +268,8 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
             break;
 
         case 0:
-            /* Single '%' at end of fmt string.  Output as literal '%'.
-             * Back up index into format string so that the terminating null will be
+            /* Single '%' at end of fmt string.  Output as literal '%'.   
+             * Back up index into format string so that the terminating NUL will be
              * re-fetched in the outer loop, causing it to terminate.
              */
             outputChar('%', outBuf, &outIx, capacity, indent);
@@ -288,7 +288,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
                 void     **ptrPtr;
                 int32_t   charsToOutput = 0;
                 int32_t   i;
-
+                
                 vectorType = fmt[fmtIx];    /* b, h, d, l, p, etc. */
                 if (vectorType != 0) {
                     fmtIx++;
@@ -299,10 +299,10 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
                 i64Ptr = (int64_t *)i8Ptr;
                 ptrPtr = (void **)i8Ptr;
                 vectorLen =(int32_t)va_arg(args, int32_t);
-                if (ptrPtr == NULL) {
+                if (ptrPtr == nullptr) {
                     outputString("*NULL* ", outBuf, &outIx, capacity, indent);
                 } else {
-                    for (i=0; i<vectorLen || vectorLen==-1; i++) {
+                    for (i=0; i<vectorLen || vectorLen==-1; i++) { 
                         switch (vectorType) {
                         case 'b':
                             charsToOutput = 2;
@@ -323,32 +323,32 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
                         case 'p':
                             charsToOutput = 0;
                             outputPtrBytes(*ptrPtr, outBuf, &outIx, capacity);
-                            longArg = *ptrPtr==NULL? 0: 1;    /* test for null terminated array. */
+                            longArg = *ptrPtr==nullptr? 0: 1;    /* test for nullptr terminated array. */
                             ptrPtr++;
                             break;
                         case 'c':
                             charsToOutput = 0;
                             outputChar(*i8Ptr, outBuf, &outIx, capacity, indent);
-                            longArg = *i8Ptr;    /* for test for null terminated array. */
+                            longArg = *i8Ptr;    /* for test for nullptr terminated array. */
                             i8Ptr++;
                             break;
                         case 's':
                             charsToOutput = 0;
                             outputString((const char *)*ptrPtr, outBuf, &outIx, capacity, indent);
                             outputChar('\n', outBuf, &outIx, capacity, indent);
-                            longArg = *ptrPtr==NULL? 0: 1;   /* for test for null term. array. */
+                            longArg = *ptrPtr==nullptr? 0: 1;   /* for test for nullptr term. array. */
                             ptrPtr++;
                             break;
 
                         case 'S':
                             charsToOutput = 0;
-                            outputUString((const UChar *)*ptrPtr, -1, outBuf, &outIx, capacity, indent);
+                            outputUString((const char16_t *)*ptrPtr, -1, outBuf, &outIx, capacity, indent);
                             outputChar('\n', outBuf, &outIx, capacity, indent);
-                            longArg = *ptrPtr==NULL? 0: 1;   /* for test for null term. array. */
+                            longArg = *ptrPtr==nullptr? 0: 1;   /* for test for nullptr term. array. */
                             ptrPtr++;
                             break;
 
-
+                            
                         }
                         if (charsToOutput > 0) {
                             outputHexBytes(longArg, charsToOutput, outBuf, &outIx, capacity);
@@ -369,13 +369,13 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
         default:
             /* %. in format string, where . is some character not in the set
              *    of recognized format chars.  Just output it as if % wasn't there.
-             *    (Covers "%%" outputing a single '%')
+             *    (Covers "%%" outputting a single '%')
              */
              outputChar(fmtC, outBuf, &outIx, capacity, indent);
         }
     }
-    outputChar(0, outBuf, &outIx, capacity, indent);  /* Make sure that output is null terminated  */
-    return outIx + 1;     /* outIx + 1 because outIx does not increment when outputing final null. */
+    outputChar(0, outBuf, &outIx, capacity, indent);  /* Make sure that output is NUL terminated   */
+    return outIx + 1;     /* outIx + 1 because outIx does not increment when outputting final NUL. */
 }
 
 
@@ -386,7 +386,7 @@ utrace_format(char *outBuf, int32_t capacity,
                 int32_t indent, const char *fmt,  ...) {
     int32_t retVal;
     va_list args;
-    va_start(args, fmt );
+    va_start(args, fmt ); 
     retVal = utrace_vformat(outBuf, capacity, indent, fmt, args);
     va_end(args);
     return retVal;
@@ -429,14 +429,14 @@ utrace_getLevel() {
 }
 
 
-U_CFUNC UBool
+U_CFUNC UBool 
 utrace_cleanup() {
-    pTraceEntryFunc = NULL;
-    pTraceExitFunc  = NULL;
-    pTraceDataFunc  = NULL;
+    pTraceEntryFunc = nullptr;
+    pTraceExitFunc  = nullptr;
+    pTraceDataFunc  = nullptr;
     utrace_level    = UTRACE_OFF;
-    gTraceContext   = NULL;
-    return TRUE;
+    gTraceContext   = nullptr;
+    return true;
 }
 
 
@@ -444,7 +444,7 @@ static const char * const
 trFnName[] = {
     "u_init",
     "u_cleanup",
-    NULL
+    nullptr
 };
 
 
@@ -458,10 +458,10 @@ trConvNames[] = {
     "ucnv_flushCache",
     "ucnv_load",
     "ucnv_unload",
-    NULL
+    nullptr
 };
 
-
+    
 static const char * const
 trCollNames[] = {
     "ucol_open",
@@ -473,7 +473,7 @@ trCollNames[] = {
     "ucol_strcollIter",
     "ucol_openFromShortString",
     "ucol_strcollUTF8",
-    NULL
+    nullptr
 };
 
 
@@ -483,10 +483,10 @@ trResDataNames[] = {
     "bundle-open",
     "file-open",
     "res-open",
-    NULL
+    nullptr
 };
 
-
+                
 U_CAPI const char * U_EXPORT2
 utrace_functionName(int32_t fnNumber) {
     if(UTRACE_FUNCTION_START <= fnNumber && fnNumber < UTRACE_FUNCTION_LIMIT) {
@@ -501,3 +501,4 @@ utrace_functionName(int32_t fnNumber) {
         return "[BOGUS Trace Function Number]";
     }
 }
+

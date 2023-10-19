@@ -31,15 +31,18 @@
 
 #include <memory>
 
-#include "src/init/v8.h"
-
+#include "include/v8-function.h"
+#include "include/v8-json.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/hashmap.h"
 #include "src/base/optional.h"
+#include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
@@ -47,15 +50,16 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/collector.h"
 #include "test/cctest/heap/heap-utils.h"
+#include "test/cctest/jsonstream-helper.h"
 
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
-using i::ArrayVector;
 using i::SourceLocation;
-using i::Vector;
+using i::heap::GrowNewSpaceToMaximumCapacity;
+using v8::base::ArrayVector;
 using v8::base::Optional;
-using v8::internal::heap::GrowNewSpaceToMaximumCapacity;
+using v8::base::Vector;
 
 namespace {
 
@@ -77,10 +81,10 @@ class NamedEntriesDetector {
     list.push_back(root);
     CheckEntry(root);
     while (!list.empty()) {
-      i::HeapEntry* entry = list.back();
+      i::HeapEntry* heap_entry = list.back();
       list.pop_back();
-      for (int i = 0; i < entry->children_count(); ++i) {
-        i::HeapGraphEdge* edge = entry->child(i);
+      for (int i = 0; i < heap_entry->children_count(); ++i) {
+        i::HeapGraphEdge* edge = heap_entry->child(i);
         if (edge->type() == i::HeapGraphEdge::kShortcut) continue;
         i::HeapEntry* child = edge->to();
         v8::base::HashMap::Entry* entry = visited.LookupOrInsert(
@@ -188,9 +192,9 @@ static bool HasString(v8::Isolate* isolate, const v8::HeapGraphNode* node,
                       const char* contents) {
   for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = node->GetChild(i);
-    const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kString) {
-      v8::String::Utf8Value node_name(isolate, node->GetName());
+    const v8::HeapGraphNode* dest_node = prop->GetToNode();
+    if (dest_node->GetType() == v8::HeapGraphNode::kString) {
+      v8::String::Utf8Value node_name(isolate, dest_node->GetName());
       if (strcmp(contents, *node_name) == 0) return true;
     }
   }
@@ -200,7 +204,7 @@ static bool HasString(v8::Isolate* isolate, const v8::HeapGraphNode* node,
 static void EnsureNoUninstrumentedInternals(v8::Isolate* isolate,
                                             const v8::HeapGraphNode* node) {
   for (int i = 0; i < 20; ++i) {
-    i::ScopedVector<char> buffer(10);
+    v8::base::ScopedVector<char> buffer(10);
     const v8::HeapGraphNode* internal =
         GetProperty(isolate, node, v8::HeapGraphEdge::kInternal,
                     i::IntToCString(i, buffer));
@@ -459,12 +463,13 @@ TEST(HeapSnapshotCodeObjects) {
 
   // Verify that non-compiled function doesn't contain references to "x"
   // literal, while compiled function does. The scope info is stored in
-  // FixedArray objects attached to the SharedFunctionInfo.
+  // ScopeInfo objects attached to the SharedFunctionInfo.
   bool compiled_references_x = false, lazy_references_x = false;
   for (int i = 0, count = compiled_sfi->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = compiled_sfi->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kArray) {
+    if (node->GetType() == v8::HeapGraphNode::kCode &&
+        !strcmp("system / ScopeInfo", GetName(node))) {
       if (HasString(env->GetIsolate(), node, "x")) {
         compiled_references_x = true;
         break;
@@ -474,7 +479,8 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = lazy_sfi->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = lazy_sfi->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kArray) {
+    if (node->GetType() == v8::HeapGraphNode::kCode &&
+        !strcmp("system / ScopeInfo", GetName(node))) {
       if (HasString(env->GetIsolate(), node, "x")) {
         lazy_references_x = true;
         break;
@@ -482,7 +488,7 @@ TEST(HeapSnapshotCodeObjects) {
     }
   }
   CHECK(compiled_references_x);
-  if (i::FLAG_lazy) {
+  if (i::v8_flags.lazy) {
     CHECK(!lazy_references_x);
   }
 }
@@ -506,6 +512,34 @@ TEST(HeapSnapshotHeapNumbers) {
   CHECK_EQ(v8::HeapGraphNode::kHeapNumber, b->GetType());
 }
 
+TEST(HeapSnapshotHeapNumbersCaptureNumericValue) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun(
+      "a = 1;    // a is Smi\n"
+      "b = 2.5;  // b is HeapNumber");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(nullptr, nullptr, true, true);
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* a =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "a");
+  CHECK(a);
+  CHECK_EQ(1, a->GetChildrenCount());
+  v8::String::Utf8Value value_a(CcTest::isolate(),
+                                a->GetChild(0)->GetToNode()->GetName());
+  CHECK_EQ(0, strcmp("1", *value_a));
+
+  const v8::HeapGraphNode* b =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "b");
+  CHECK(b);
+  CHECK_EQ(2, b->GetChildrenCount());
+  v8::String::Utf8Value value_b(CcTest::isolate(),
+                                b->GetChild(0)->GetToNode()->GetName());
+  CHECK_EQ(0, strcmp("2.5", *value_b));
+}
+
 TEST(HeapSnapshotHeapBigInts) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -527,7 +561,7 @@ TEST(HeapSnapshotHeapBigInts) {
 }
 
 TEST(HeapSnapshotSlicedString) {
-  if (!i::FLAG_string_slices) return;
+  if (!i::v8_flags.string_slices) return;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -882,7 +916,7 @@ TEST(HeapSnapshotAddressReuse) {
   CompileRun(
       "for (var i = 0; i < 10000; ++i)\n"
       "  a[i] = new A();\n");
-  CcTest::CollectAllGarbage();
+  i::heap::InvokeMajorGC(CcTest::heap());
 
   const v8::HeapSnapshot* snapshot2 = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot2));
@@ -924,7 +958,7 @@ TEST(HeapEntryIdsAndArrayShift) {
       "for (var i = 0; i < 1; ++i)\n"
       "  a.shift();\n");
 
-  CcTest::CollectAllGarbage();
+  i::heap::InvokeMajorGC(CcTest::heap());
 
   const v8::HeapSnapshot* snapshot2 = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot2));
@@ -965,7 +999,7 @@ TEST(HeapEntryIdsAndGC) {
   const v8::HeapSnapshot* snapshot1 = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot1));
 
-  CcTest::CollectAllGarbage();
+  i::heap::InvokeMajorGC(CcTest::heap());
 
   const v8::HeapSnapshot* snapshot2 = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot2));
@@ -1012,51 +1046,6 @@ TEST(HeapEntryIdsAndGC) {
   CHECK_EQ(b1->GetId(), b2->GetId());
 }
 
-namespace {
-
-class TestJSONStream : public v8::OutputStream {
- public:
-  TestJSONStream() : eos_signaled_(0), abort_countdown_(-1) {}
-  explicit TestJSONStream(int abort_countdown)
-      : eos_signaled_(0), abort_countdown_(abort_countdown) {}
-  ~TestJSONStream() override = default;
-  void EndOfStream() override { ++eos_signaled_; }
-  WriteResult WriteAsciiChunk(char* buffer, int chars_written) override {
-    if (abort_countdown_ > 0) --abort_countdown_;
-    if (abort_countdown_ == 0) return kAbort;
-    CHECK_GT(chars_written, 0);
-    i::Vector<char> chunk = buffer_.AddBlock(chars_written, '\0');
-    i::MemCopy(chunk.begin(), buffer, chars_written);
-    return kContinue;
-  }
-  virtual WriteResult WriteUint32Chunk(uint32_t* buffer, int chars_written) {
-    UNREACHABLE();
-  }
-  void WriteTo(i::Vector<char> dest) { buffer_.WriteTo(dest); }
-  int eos_signaled() { return eos_signaled_; }
-  int size() { return buffer_.size(); }
-
- private:
-  i::Collector<char> buffer_;
-  int eos_signaled_;
-  int abort_countdown_;
-};
-
-class OneByteResource : public v8::String::ExternalOneByteStringResource {
- public:
-  explicit OneByteResource(i::Vector<char> string) : data_(string.begin()) {
-    length_ = string.length();
-  }
-  const char* data() const override { return data_; }
-  size_t length() const override { return length_; }
-
- private:
-  const char* data_;
-  size_t length_;
-};
-
-}  // namespace
-
 TEST(HeapSnapshotJSONSerialization) {
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
@@ -1073,39 +1062,45 @@ TEST(HeapSnapshotJSONSerialization) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  TestJSONStream stream;
+  v8::internal::TestJSONStream stream;
   snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
-  i::ScopedVector<char> json(stream.size());
+  v8::base::ScopedVector<char> json(stream.size());
   stream.WriteTo(json);
 
   // Verify that snapshot string is valid JSON.
-  OneByteResource* json_res = new OneByteResource(json);
+  v8::internal::OneByteResource* json_res =
+      new v8::internal::OneByteResource(json);
   v8::Local<v8::String> json_string =
       v8::String::NewExternalOneByte(env->GetIsolate(), json_res)
           .ToLocalChecked();
-  env->Global()
-      ->Set(env.local(), v8_str("json_snapshot"), json_string)
-      .FromJust();
-  v8::Local<v8::Value> snapshot_parse_result = CompileRun(
-      "var parsed = JSON.parse(json_snapshot); true;");
-  CHECK(!snapshot_parse_result.IsEmpty());
+  v8::Local<v8::Context> context = v8::Context::New(env->GetIsolate());
+  v8::Local<v8::Value> snapshot_parse_result =
+      v8::JSON::Parse(context, json_string).ToLocalChecked();
+  CHECK(snapshot_parse_result->IsObject());
 
   // Verify that snapshot object has required fields.
   v8::Local<v8::Object> parsed_snapshot =
-      env->Global()
-          ->Get(env.local(), v8_str("parsed"))
-          .ToLocalChecked()
-          ->ToObject(env.local())
-          .ToLocalChecked();
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("snapshot")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("nodes")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("edges")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("locations")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("strings")).FromJust());
+      snapshot_parse_result.As<v8::Object>();
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("snapshot"))
+            .ToLocalChecked()
+            ->IsObject());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("nodes"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("edges"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("locations"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("strings"))
+            .ToLocalChecked()
+            ->IsArray());
 
   // Get node and edge "member" offsets.
+  env->Global()->Set(env.local(), v8_str("parsed"), parsed_snapshot).FromJust();
   v8::Local<v8::Value> meta_analysis_result = CompileRun(
       "var meta = parsed.snapshot.meta;\n"
       "var edge_count_offset = meta.node_fields.indexOf('edge_count');\n"
@@ -1192,7 +1187,7 @@ TEST(HeapSnapshotJSONSerializationAborting) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
-  TestJSONStream stream(5);
+  v8::internal::TestJSONStream stream(5);
   snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(0, stream.eos_signaled());
@@ -1264,8 +1259,10 @@ static TestStatsStream GetHeapStatsUpdate(
 
 
 TEST(HeapSnapshotObjectsStats) {
-  // Concurrent allocation might break results
-  v8::internal::FLAG_stress_concurrent_allocation = false;
+  // Concurrent allocation and conservative stack scanning might break results.
+  i::v8_flags.stress_concurrent_allocation = false;
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1275,7 +1272,7 @@ TEST(HeapSnapshotObjectsStats) {
   // We have to call GC 6 times. In other case the garbage will be
   // the reason of flakiness.
   for (int i = 0; i < 6; ++i) {
-    CcTest::CollectAllGarbage();
+    i::heap::InvokeMajorGC(CcTest::heap());
   }
 
   v8::SnapshotObjectId initial_id;
@@ -1430,7 +1427,7 @@ TEST(HeapObjectIds) {
   }
 
   heap_profiler->StopTrackingHeapObjects();
-  CcTest::CollectAllAvailableGarbage();
+  i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 
   for (int i = 0; i < kLength; i++) {
     v8::SnapshotObjectId id = heap_profiler->GetObjectId(objects[i]);
@@ -1524,7 +1521,7 @@ class TestActivityControl : public v8::ActivityControl {
         total_(0),
         abort_count_(abort_count),
         reported_finish_(false) {}
-  ControlOption ReportProgressValue(int done, int total) override {
+  ControlOption ReportProgressValue(uint32_t done, uint32_t total) override {
     done_ = done;
     total_ = total;
     CHECK_LE(done_, total_);
@@ -1616,7 +1613,9 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
   static void BuildEmbedderGraph(v8::Isolate* isolate, v8::EmbedderGraph* graph,
                                  void* data) {
     EmbedderGraphBuilder builder(isolate, graph);
-    isolate->VisitHandlesWithClassIds(&builder);
+    reinterpret_cast<i::Isolate*>(isolate)
+        ->global_handles()
+        ->IterateAllRootsForTesting(&builder);
   }
 
   void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
@@ -1641,8 +1640,6 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
         graph_->AddEdge(node, group);
         graph_->AddEdge(group, node);
       }
-    } else {
-      UNREACHABLE();
     }
   }
 
@@ -1807,8 +1804,13 @@ TEST(NativeSnapshotObjectId) {
 }
 
 TEST(NativeSnapshotObjectIdMoving) {
+  if (i::v8_flags.enable_third_party_heap) return;
   // Required to allow moving specific objects.
-  i::FLAG_manual_evacuation_candidates_selection = true;
+  i::ManualGCScope manual_gc_scope;
+  i::heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
+  // Concurrent allocation writes page flags in a racy way.
+  i::v8_flags.stress_concurrent_allocation = false;
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -1840,13 +1842,13 @@ TEST(NativeSnapshotObjectIdMoving) {
   CHECK_NOT_NULL(merged_node);
 
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     auto local = v8::Local<v8::String>::New(isolate, wrapper);
     i::Handle<i::String> internal = i::Handle<i::String>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::String>::Cast(local)));
     i::heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*internal));
   }
-  CcTest::CollectAllGarbage();
+  i::heap::InvokeMajorGC(CcTest::heap());
 
   non_merged_id = heap_profiler->GetObjectId(&native1);
   CHECK_NE(v8::HeapProfiler::kUnknownObjectId, non_merged_id);
@@ -2055,7 +2057,7 @@ TEST(GetHeapValueForDeletedObject) {
   {
     // Perform the check inside a nested local scope to avoid creating a
     // reference to the object we are deleting.
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope inner_scope(env->GetIsolate());
     CHECK(heap_profiler->FindObjectById(prop->GetId())->IsObject());
   }
   CompileRun("delete a.p;");
@@ -2063,7 +2065,7 @@ TEST(GetHeapValueForDeletedObject) {
 }
 
 static int StringCmp(const char* ref, i::String act) {
-  std::unique_ptr<char[]> s_act = act.ToCString();
+  std::unique_ptr<char[]> s_act = act->ToCString();
   int result = strcmp(ref, s_act.get());
   if (result != 0)
     fprintf(stderr, "Expected: \"%s\", Actual: \"%s\"\n", ref, s_act.get());
@@ -2073,6 +2075,7 @@ static int StringCmp(const char* ref, i::String act) {
 TEST(GetConstructor) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
 
   CompileRun(
       "function Constructor1() {};\n"
@@ -2095,42 +2098,43 @@ TEST(GetConstructor) {
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj1 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
-  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj1).is_null());
+  CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj1).is_null());
   v8::Local<v8::Object> obj2 = js_global->Get(env.local(), v8_str("obj2"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj2 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
-  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj2).is_null());
+  CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj2).is_null());
   v8::Local<v8::Object> obj3 = js_global->Get(env.local(), v8_str("obj3"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj3 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
-  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj3).is_null());
+  CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj3).is_null());
   v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj4 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
-  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj4).is_null());
+  CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj4).is_null());
   v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj5 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
-  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj5).is_null());
+  CHECK(i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj5).is_null());
   v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj6 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
-  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj6).is_null());
+  CHECK(i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj6).is_null());
 }
 
 TEST(GetConstructorName) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
 
   CompileRun(
       "function Constructor1() {};\n"
@@ -2153,43 +2157,43 @@ TEST(GetConstructorName) {
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj1 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
-  CHECK_EQ(0, StringCmp(
-      "Constructor1", i::V8HeapExplorer::GetConstructorName(*js_obj1)));
+  CHECK_EQ(0, StringCmp("Constructor1", i::V8HeapExplorer::GetConstructorName(
+                                            i_isolate, *js_obj1)));
   v8::Local<v8::Object> obj2 = js_global->Get(env.local(), v8_str("obj2"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj2 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
-  CHECK_EQ(0, StringCmp(
-      "Constructor2", i::V8HeapExplorer::GetConstructorName(*js_obj2)));
+  CHECK_EQ(0, StringCmp("Constructor2", i::V8HeapExplorer::GetConstructorName(
+                                            i_isolate, *js_obj2)));
   v8::Local<v8::Object> obj3 = js_global->Get(env.local(), v8_str("obj3"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj3 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
-  CHECK_EQ(0, StringCmp("Constructor3",
-                        i::V8HeapExplorer::GetConstructorName(*js_obj3)));
+  CHECK_EQ(0, StringCmp("Constructor3", i::V8HeapExplorer::GetConstructorName(
+                                            i_isolate, *js_obj3)));
   v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj4 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
-  CHECK_EQ(0, StringCmp("Constructor4",
-                        i::V8HeapExplorer::GetConstructorName(*js_obj4)));
+  CHECK_EQ(0, StringCmp("Constructor4", i::V8HeapExplorer::GetConstructorName(
+                                            i_isolate, *js_obj4)));
   v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj5 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
-  CHECK_EQ(0, StringCmp(
-      "Object", i::V8HeapExplorer::GetConstructorName(*js_obj5)));
+  CHECK_EQ(0, StringCmp("Object", i::V8HeapExplorer::GetConstructorName(
+                                      i_isolate, *js_obj5)));
   v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj6 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
-  CHECK_EQ(0, StringCmp(
-      "Object", i::V8HeapExplorer::GetConstructorName(*js_obj6)));
+  CHECK_EQ(0, StringCmp("Object", i::V8HeapExplorer::GetConstructorName(
+                                      i_isolate, *js_obj6)));
 }
 
 
@@ -2326,7 +2330,7 @@ TEST(HiddenPropertiesFastCase) {
       GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "c");
   CHECK(c);
   const v8::HeapGraphNode* hidden_props =
-      GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "<symbol>");
+      GetProperty(isolate, c, v8::HeapGraphEdge::kProperty, "<symbol key>");
   CHECK(!hidden_props);
 
   v8::Local<v8::Value> cHandle =
@@ -2345,10 +2349,32 @@ TEST(HiddenPropertiesFastCase) {
   c = GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "c");
   CHECK(c);
   hidden_props =
-      GetProperty(isolate, c, v8::HeapGraphEdge::kProperty, "<symbol>");
+      GetProperty(isolate, c, v8::HeapGraphEdge::kProperty, "<symbol key>");
   CHECK(hidden_props);
 }
 
+TEST(SymbolsAndPrivateClassFields) {
+  v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  CompileRun(
+      "class C { #private = this; [Symbol('MySymbol')] = this; };\n"
+      "c = new C;\n");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* c =
+      GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "c");
+  CHECK(c);
+  const v8::HeapGraphNode* prop;
+  prop = GetProperty(isolate, c, v8::HeapGraphEdge::kProperty, "#private");
+  CHECK(prop);
+  prop = GetProperty(isolate, c, v8::HeapGraphEdge::kProperty,
+                     "<symbol MySymbol>");
+  CHECK(prop);
+}
 
 TEST(AccessorInfo) {
   LocalContext env;
@@ -2382,14 +2408,6 @@ TEST(AccessorInfo) {
   const v8::HeapGraphNode* name = GetProperty(
       env->GetIsolate(), length_accessor, v8::HeapGraphEdge::kInternal, "name");
   CHECK(name);
-  const v8::HeapGraphNode* getter =
-      GetProperty(env->GetIsolate(), length_accessor,
-                  v8::HeapGraphEdge::kInternal, "getter");
-  CHECK(getter);
-  const v8::HeapGraphNode* setter =
-      GetProperty(env->GetIsolate(), length_accessor,
-                  v8::HeapGraphEdge::kInternal, "setter");
-  CHECK(setter);
 }
 
 TEST(JSGeneratorObject) {
@@ -2554,7 +2572,7 @@ TEST(ManyLocalsInSharedContext) {
   // This test gets very slow with slow asserts (18 minutes instead of 1:30,
   // as of November 2018).
 #ifdef ENABLE_SLOW_DCHECKS
-  i::FLAG_enable_slow_asserts = false;
+  i::v8_flags.enable_slow_asserts = false;
 #endif
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2576,7 +2594,6 @@ TEST(ManyLocalsInSharedContext) {
       "var ok = eval(result.join('\\n'));");
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
-
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK(global);
   const v8::HeapGraphNode* ok_object = GetProperty(
@@ -2586,13 +2603,13 @@ TEST(ManyLocalsInSharedContext) {
       env->GetIsolate(), ok_object, v8::HeapGraphEdge::kInternal, "context");
   CHECK(context_object);
   // Check the objects are not duplicated in the context.
-  CHECK_EQ(v8::internal::Context::MIN_CONTEXT_EXTENDED_SLOTS + num_objects - 1,
+  CHECK_EQ(i::Context::MIN_CONTEXT_EXTENDED_SLOTS + num_objects - 1,
            context_object->GetChildrenCount());
   // Check all the objects have got their names.
   // ... well check just every 15th because otherwise it's too slow in debug.
   for (int i = 0; i < num_objects - 1; i += 15) {
-    i::EmbeddedVector<char, 100> var_name;
-    i::SNPrintF(var_name, "f_%d", i);
+    v8::base::EmbeddedVector<char, 100> var_name;
+    v8::base::SNPrintF(var_name, "f_%d", i);
     const v8::HeapGraphNode* f_object =
         GetProperty(env->GetIsolate(), context_object,
                     v8::HeapGraphEdge::kContextVariable, var_name.begin());
@@ -2601,7 +2618,7 @@ TEST(ManyLocalsInSharedContext) {
 }
 
 TEST(AllocationSitesAreVisible) {
-  i::FLAG_lazy_feedback_allocation = false;
+  i::v8_flags.lazy_feedback_allocation = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -2623,12 +2640,12 @@ TEST(AllocationSitesAreVisible) {
   CHECK(feedback_cell);
   const v8::HeapGraphNode* vector = GetProperty(
       env->GetIsolate(), feedback_cell, v8::HeapGraphEdge::kInternal, "value");
-  CHECK_EQ(v8::HeapGraphNode::kHidden, vector->GetType());
-  CHECK_EQ(4, vector->GetChildrenCount());
+  CHECK_EQ(v8::HeapGraphNode::kCode, vector->GetType());
+  CHECK_EQ(5, vector->GetChildrenCount());
 
   // The last value in the feedback vector should be the boilerplate,
   // found in AllocationSite.transition_info.
-  const v8::HeapGraphEdge* prop = vector->GetChild(3);
+  const v8::HeapGraphEdge* prop = vector->GetChild(4);
   const v8::HeapGraphNode* allocation_site = prop->GetToNode();
   v8::String::Utf8Value name(env->GetIsolate(), allocation_site->GetName());
   CHECK_EQ(0, strcmp("system / AllocationSite", *name));
@@ -2641,8 +2658,8 @@ TEST(AllocationSitesAreVisible) {
       GetProperty(env->GetIsolate(), transition_info,
                   v8::HeapGraphEdge::kInternal, "elements");
   CHECK(elements);
-  CHECK_EQ(v8::HeapGraphNode::kArray, elements->GetType());
-  CHECK_EQ(v8::internal::FixedArray::SizeFor(3),
+  CHECK_EQ(v8::HeapGraphNode::kCode, elements->GetType());
+  CHECK_EQ(i::FixedArray::SizeFor(3),
            static_cast<int>(elements->GetShallowSize()));
 
   v8::Local<v8::Value> array_val =
@@ -2696,8 +2713,8 @@ static const v8::HeapGraphNode* GetNodeByPath(v8::Isolate* isolate,
       const v8::HeapGraphNode* to_node = edge->GetToNode();
       v8::String::Utf8Value edge_name(isolate, edge->GetName());
       v8::String::Utf8Value node_name(isolate, to_node->GetName());
-      i::EmbeddedVector<char, 100> name;
-      i::SNPrintF(name, "%s::%s", *edge_name, *node_name);
+      v8::base::EmbeddedVector<char, 100> name;
+      v8::base::SNPrintF(name, "%s::%s", *edge_name, *node_name);
       if (strstr(name.begin(), path[current_depth])) {
         node = to_node;
         break;
@@ -2717,19 +2734,25 @@ TEST(CheckCodeNames) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  const char* builtin_path1[] = {"::(GC roots)", "::(Builtins)",
-                                 "::(KeyedLoadIC_PolymorphicName builtin)"};
+  const char* builtin_path1[] = {
+      "::(GC roots)",
+      "::(Builtins)",
+      "::(KeyedLoadIC_PolymorphicName builtin code)",
+  };
   const v8::HeapGraphNode* node = GetNodeByPath(
       env->GetIsolate(), snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK(node);
 
-  const char* builtin_path2[] = {"::(GC roots)", "::(Builtins)",
-                                 "::(CompileLazy builtin)"};
+  const char* builtin_path2[] = {
+      "::(GC roots)",
+      "::(Builtins)",
+      "::(CompileLazy builtin code)",
+  };
   node = GetNodeByPath(env->GetIsolate(), snapshot, builtin_path2,
                        arraysize(builtin_path2));
   CHECK(node);
   v8::String::Utf8Value node_name(env->GetIsolate(), node->GetName());
-  CHECK_EQ(0, strcmp("(CompileLazy builtin)", *node_name));
+  CHECK_EQ(0, strcmp("(CompileLazy builtin code)", *node_name));
 }
 
 
@@ -2774,9 +2797,8 @@ static const char* record_trace_tree_source =
 "\n"
 "for (var i = 0; i < 100; i++) start();\n";
 
-
-static AllocationTraceNode* FindNode(
-    AllocationTracker* tracker, const Vector<const char*>& names) {
+static AllocationTraceNode* FindNode(AllocationTracker* tracker,
+                                     v8::base::Vector<const char*> names) {
   AllocationTraceNode* node = tracker->trace_tree()->root();
   for (int i = 0; node != nullptr && i < names.length(); i++) {
     const char* name = names[i];
@@ -2794,7 +2816,6 @@ static AllocationTraceNode* FindNode(
   }
   return node;
 }
-
 
 TEST(ArrayGrowLeftTrim) {
   LocalContext env;
@@ -2818,7 +2839,7 @@ TEST(ArrayGrowLeftTrim) {
   // Print for better diagnostics in case of failure.
   tracker->trace_tree()->Print(tracker);
 
-  AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
+  AllocationTraceNode* node = FindNode(tracker, v8::base::ArrayVector(names));
   CHECK(node);
   CHECK_GE(node->allocation_count(), 2u);
   CHECK_GE(node->allocation_size(), 4u * 5u);
@@ -2843,23 +2864,23 @@ TEST(TrackHeapAllocationsWithInlining) {
   tracker->trace_tree()->Print(tracker);
 
   const char* names[] = {"", "start", "f_0_0"};
-  AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
+  AllocationTraceNode* node = FindNode(tracker, v8::base::ArrayVector(names));
   CHECK(node);
   // In lite mode, there is feedback and feedback metadata.
-  unsigned int num_nodes = (i::FLAG_lite_mode) ? 6 : 8;
+  unsigned int num_nodes = (i::v8_flags.lite_mode) ? 6 : 8;
   // Without forced source position collection, there is no source position
   // table.
-  if (i::FLAG_enable_lazy_source_positions) num_nodes -= 1;
+  if (i::v8_flags.enable_lazy_source_positions) num_nodes -= 1;
   CHECK_GE(node->allocation_count(), num_nodes);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
   heap_profiler->StopTrackingHeapObjects();
 }
 
 TEST(TrackHeapAllocationsWithoutInlining) {
-  i::FLAG_turbo_inlining = false;
+  i::v8_flags.turbo_inlining = false;
   // Disable inlining
-  i::FLAG_max_inlined_bytecode_size = 0;
-  i::FLAG_max_inlined_bytecode_size_small = 0;
+  i::v8_flags.max_inlined_bytecode_size = 0;
+  i::v8_flags.max_inlined_bytecode_size_small = 0;
   v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
 
@@ -2877,7 +2898,7 @@ TEST(TrackHeapAllocationsWithoutInlining) {
   tracker->trace_tree()->Print(tracker);
 
   const char* names[] = {"", "start", "f_0_0", "f_0_1", "f_0_2"};
-  AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
+  AllocationTraceNode* node = FindNode(tracker, v8::base::ArrayVector(names));
   CHECK(node);
   CHECK_GE(node->allocation_count(), 100u);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
@@ -2906,7 +2927,7 @@ static const char* inline_heap_allocation_source =
 
 
 TEST(TrackBumpPointerAllocations) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
 
@@ -2926,7 +2947,7 @@ TEST(TrackBumpPointerAllocations) {
     // Print for better diagnostics in case of failure.
     tracker->trace_tree()->Print(tracker);
 
-    AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
+    AllocationTraceNode* node = FindNode(tracker, v8::base::ArrayVector(names));
     CHECK(node);
     CHECK_GE(node->allocation_count(), 100u);
     CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
@@ -2938,7 +2959,8 @@ TEST(TrackBumpPointerAllocations) {
 
     // Now check that not all allocations are tracked if we manually reenable
     // inline allocations.
-    CHECK(CcTest::heap()->inline_allocation_disabled());
+    CHECK(i::v8_flags.single_generation ||
+          !CcTest::heap()->IsInlineAllocationEnabled());
     CcTest::heap()->EnableInlineAllocation();
 
     CompileRun(inline_heap_allocation_source);
@@ -2951,7 +2973,7 @@ TEST(TrackBumpPointerAllocations) {
     // Print for better diagnostics in case of failure.
     tracker->trace_tree()->Print(tracker);
 
-    AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
+    AllocationTraceNode* node = FindNode(tracker, v8::base::ArrayVector(names));
     CHECK(node);
     CHECK_LT(node->allocation_count(), 100u);
 
@@ -2980,7 +3002,7 @@ TEST(TrackV8ApiAllocation) {
   // Print for better diagnostics in case of failure.
   tracker->trace_tree()->Print(tracker);
 
-  AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
+  AllocationTraceNode* node = FindNode(tracker, v8::base::ArrayVector(names));
   CHECK(node);
   CHECK_GE(node->allocation_count(), 2u);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
@@ -3068,7 +3090,7 @@ TEST(ArrayBufferSharedBackingStore) {
 
 
 TEST(WeakContainers) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   if (!CcTest::i_isolate()->use_optimizer()) return;
@@ -3239,13 +3261,13 @@ void CheckEmbedderGraphSnapshot(v8::Isolate* isolate,
 }
 
 TEST(EmbedderGraph) {
-  i::FLAG_heap_profiler_use_embedder_graph = true;
+  i::v8_flags.heap_profiler_use_embedder_graph = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
       v8::Utils::ToLocal(i::Handle<i::JSObject>(
-          (isolate->context().native_context().global_object()), isolate));
+          (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraph, nullptr);
@@ -3303,13 +3325,13 @@ void CheckEmbedderGraphWithNamedEdges(v8::Isolate* isolate,
 }
 
 TEST(EmbedderGraphWithNamedEdges) {
-  i::FLAG_heap_profiler_use_embedder_graph = true;
+  i::v8_flags.heap_profiler_use_embedder_graph = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
       v8::Utils::ToLocal(i::Handle<i::JSObject>(
-          (isolate->context().native_context().global_object()), isolate));
+          (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraphWithNamedEdges,
@@ -3369,13 +3391,13 @@ void BuildEmbedderGraphWithContext(v8::Isolate* v8_isolate,
 }
 
 TEST(EmbedderGraphMultipleCallbacks) {
-  i::FLAG_heap_profiler_use_embedder_graph = true;
+  i::v8_flags.heap_profiler_use_embedder_graph = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
       v8::Utils::ToLocal(i::Handle<i::JSObject>(
-          (isolate->context().native_context().global_object()), isolate));
+          (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   GraphBuildingContext context;
@@ -3446,13 +3468,13 @@ void BuildEmbedderGraphWithWrapperNode(v8::Isolate* v8_isolate,
 }
 
 TEST(EmbedderGraphWithWrapperNode) {
-  i::FLAG_heap_profiler_use_embedder_graph = true;
+  i::v8_flags.heap_profiler_use_embedder_graph = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
       v8::Utils::ToLocal(i::Handle<i::JSObject>(
-          (isolate->context().native_context().global_object()), isolate));
+          (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   heap_profiler->AddBuildEmbedderGraphCallback(
@@ -3503,13 +3525,13 @@ void BuildEmbedderGraphWithPrefix(v8::Isolate* v8_isolate,
 }
 
 TEST(EmbedderGraphWithPrefix) {
-  i::FLAG_heap_profiler_use_embedder_graph = true;
+  i::v8_flags.heap_profiler_use_embedder_graph = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
       v8::Utils::ToLocal(i::Handle<i::JSObject>(
-          (isolate->context().native_context().global_object()), isolate));
+          (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraphWithPrefix,
@@ -3579,7 +3601,7 @@ TEST(AddressToTraceMap) {
 
 static const v8::AllocationProfile::Node* FindAllocationProfileNode(
     v8::Isolate* isolate, v8::AllocationProfile* profile,
-    const Vector<const char*>& names) {
+    v8::base::Vector<const char*> names) {
   v8::AllocationProfile::Node* node = profile->GetRootNode();
   for (int i = 0; node != nullptr && i < names.length(); ++i) {
     const char* name = names[i];
@@ -3616,24 +3638,26 @@ static int NumberOfAllocations(const v8::AllocationProfile::Node* node) {
 static const char* simple_sampling_heap_profiler_script =
     "var A = [];\n"
     "function bar(size) { return new Array(size); }\n"
+    "%NeverOptimizeFunction(bar);\n"
     "var foo = function() {\n"
-    "  for (var i = 0; i < 1024; ++i) {\n"
+    "  for (var i = 0; i < 2048; ++i) {\n"
     "    A[i] = bar(1024);\n"
     "  }\n"
     "}\n"
     "foo();";
 
 TEST(SamplingHeapProfiler) {
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
-  // Turn off always_opt. Inlining can cause stack traces to be shorter than
-  // what we expect in this test.
-  v8::internal::FLAG_always_opt = false;
+  // Turn off always_turbofan. Inlining can cause stack traces to be shorter
+  // than what we expect in this test.
+  i::v8_flags.always_turbofan = false;
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   // Sample should be empty if requested before sampling has started.
   {
@@ -3651,7 +3675,7 @@ TEST(SamplingHeapProfiler) {
 
     const char* names[] = {"", "foo", "bar"};
     auto node_bar = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
-                                              ArrayVector(names));
+                                              v8::base::ArrayVector(names));
     CHECK(node_bar);
 
     heap_profiler->StopSamplingHeapProfiler();
@@ -3675,12 +3699,12 @@ TEST(SamplingHeapProfiler) {
 
     const char* names1[] = {"", "start", "f_0_0", "f_0_1", "f_0_2"};
     auto node1 = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
-                                           ArrayVector(names1));
+                                           v8::base::ArrayVector(names1));
     CHECK(node1);
 
     const char* names2[] = {"", "generateFunctions"};
     auto node2 = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
-                                           ArrayVector(names2));
+                                           v8::base::ArrayVector(names2));
     CHECK(node2);
 
     heap_profiler->StopSamplingHeapProfiler();
@@ -3694,7 +3718,7 @@ TEST(SamplingHeapProfiler) {
         "  eval(\"new Array(100)\");\n"
         "}\n");
 
-    CcTest::CollectAllGarbage();
+    i::heap::InvokeMajorGC(CcTest::heap());
 
     std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
@@ -3707,22 +3731,23 @@ TEST(SamplingHeapProfiler) {
 }
 
 TEST(SamplingHeapProfilerRateAgnosticEstimates) {
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
-  // Turn off always_opt. Inlining can cause stack traces to be shorter than
-  // what we expect in this test.
-  v8::internal::FLAG_always_opt = false;
+  // Turn off always_turbofan. Inlining can cause stack traces to be shorter
+  // than what we expect in this test.
+  i::v8_flags.always_turbofan = false;
 
   // Disable compilation cache to force compilation in both cases
-  v8::internal::FLAG_compilation_cache = false;
+  i::v8_flags.compilation_cache = false;
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   // stress_incremental_marking adds randomness to the test.
-  v8::internal::FLAG_stress_incremental_marking = false;
+  i::v8_flags.stress_incremental_marking = false;
 
   // warmup compilation
   CompileRun(simple_sampling_heap_profiler_script);
@@ -3737,12 +3762,12 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
     CHECK(profile);
 
     const char* path_to_foo[] = {"", "foo"};
-    auto node_foo = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
-                                              ArrayVector(path_to_foo));
+    auto node_foo = FindAllocationProfileNode(
+        env->GetIsolate(), profile.get(), v8::base::ArrayVector(path_to_foo));
     CHECK(node_foo);
     const char* path_to_bar[] = {"", "foo", "bar"};
-    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
-                                              ArrayVector(path_to_bar));
+    auto node_bar = FindAllocationProfileNode(
+        env->GetIsolate(), profile.get(), v8::base::ArrayVector(path_to_bar));
     CHECK(node_bar);
 
     // Function bar can be inlined in foo.
@@ -3761,12 +3786,12 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
     CHECK(profile);
 
     const char* path_to_foo[] = {"", "foo"};
-    auto node_foo = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
-                                              ArrayVector(path_to_foo));
+    auto node_foo = FindAllocationProfileNode(
+        env->GetIsolate(), profile.get(), v8::base::ArrayVector(path_to_foo));
     CHECK(node_foo);
     const char* path_to_bar[] = {"", "foo", "bar"};
-    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
-                                              ArrayVector(path_to_bar));
+    auto node_bar = FindAllocationProfileNode(
+        env->GetIsolate(), profile.get(), v8::base::ArrayVector(path_to_bar));
     CHECK(node_bar);
 
     // Function bar can be inlined in foo.
@@ -3794,7 +3819,7 @@ TEST(SamplingHeapProfilerApiAllocation) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(256);
 
@@ -3805,7 +3830,7 @@ TEST(SamplingHeapProfilerApiAllocation) {
   CHECK(profile);
   const char* names[] = {"(V8 API)"};
   auto node = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
-                                        ArrayVector(names));
+                                        v8::base::ArrayVector(names));
   CHECK(node);
 
   heap_profiler->StopSamplingHeapProfiler();
@@ -3817,7 +3842,7 @@ TEST(SamplingHeapProfilerApiSamples) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(1024);
 
@@ -3862,7 +3887,7 @@ TEST(SamplingHeapProfilerLeftTrimming) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(64);
 
@@ -3875,21 +3900,23 @@ TEST(SamplingHeapProfilerLeftTrimming) {
       "      a.shift();\n"
       "}\n");
 
-  CcTest::CollectGarbage(v8::internal::NEW_SPACE);
+  i::heap::InvokeMinorGC(CcTest::heap());
   // Should not crash.
 
   heap_profiler->StopSamplingHeapProfiler();
 }
 
 TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_expose_gc = true;
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.expose_gc = true;
 
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
-  if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking ||
-      i::FLAG_stress_concurrent_allocation) {
+  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
+    return;
+  if (i::v8_flags.gc_global || i::v8_flags.stress_compaction ||
+      i::v8_flags.stress_incremental_marking ||
+      i::v8_flags.stress_concurrent_allocation ||
+      i::v8_flags.single_generation) {
     return;
   }
 
@@ -3898,27 +3925,27 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "var number_elements = %d;"
-              "var elements = new Array(number_elements);"
-              "function f() {"
-              "  for (var i = 0; i < number_elements; i++) {"
-              "    elements[i] = [{}, {}, {}];"
-              "  }"
-              "  return elements[number_elements - 1];"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();"
-              "f;",
-              i::AllocationSite::kPretenureMinimumCreated + 1);
+  v8::base::ScopedVector<char> source(1024);
+  v8::base::SNPrintF(source,
+                     "var number_elements = %d;"
+                     "var elements = new Array(number_elements);"
+                     "function f() {"
+                     "  for (var i = 0; i < number_elements; i++) {"
+                     "    elements[i] = [{}, {}, {}];"
+                     "  }"
+                     "  return elements[number_elements - 1];"
+                     "};"
+                     "%%PrepareFunctionForOptimization(f);"
+                     "f(); gc();"
+                     "f(); f();"
+                     "%%OptimizeFunctionOnNextCall(f);"
+                     "f();"
+                     "f;",
+                     i::PretenuringHandler::GetMinMementoCountForTesting() + 1);
 
   v8::Local<v8::Function> f =
       v8::Local<v8::Function>::Cast(CompileRun(source.begin()));
@@ -3943,7 +3970,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
 
   const char* names[] = {"f"};
   auto node_f = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
-                                          ArrayVector(names));
+                                          v8::base::ArrayVector(names));
   CHECK(node_f);
 
   int count = 0;
@@ -3960,7 +3987,7 @@ TEST(SamplingHeapProfilerLargeInterval) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(512 * 1024);
 
@@ -3973,7 +4000,7 @@ TEST(SamplingHeapProfilerLargeInterval) {
   CHECK(profile);
   const char* names[] = {"(EXTERNAL)"};
   auto node = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
-                                        ArrayVector(names));
+                                        v8::base::ArrayVector(names));
   CHECK(node);
 
   heap_profiler->StopSamplingHeapProfiler();
@@ -3991,14 +4018,14 @@ TEST(HeapSnapshotPrototypeNotJSReceiver) {
 }
 
 TEST(SamplingHeapProfilerSampleDuringDeopt) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
 
   v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   // Small sample interval to force each object to be sampled.
   heap_profiler->StartSamplingHeapProfiler(i::kTaggedSize);
@@ -4055,14 +4082,15 @@ TEST(WeakReference) {
 
   i::Handle<i::Object> obj = v8::Utils::OpenHandle(*script);
   i::Handle<i::SharedFunctionInfo> shared_function =
-      i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj).shared(),
+      i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared(),
                                        i_isolate);
   i::Handle<i::ClosureFeedbackCellArray> feedback_cell_array =
       i::ClosureFeedbackCellArray::New(i_isolate, shared_function);
-  i::Handle<i::FeedbackVector> fv =
-      factory->NewFeedbackVector(shared_function, feedback_cell_array);
+  i::Handle<i::FeedbackVector> fv = factory->NewFeedbackVector(
+      shared_function, feedback_cell_array,
+      handle(i::JSFunction::cast(*obj)->raw_feedback_cell(), i_isolate));
 
-  // Create a Code.
+  // Create a Code object.
   i::Assembler assm(i::AssemblerOptions{});
   assm.nop();  // supported on all architectures
   i::CodeDesc desc;
@@ -4070,14 +4098,14 @@ TEST(WeakReference) {
   i::Handle<i::Code> code =
       i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::FOR_TESTING)
           .Build();
-  CHECK(code->IsCode());
+  CHECK(IsCode(*code));
 
-  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code),
-                               v8::kReleaseStore);
-  fv->set_flags(i::FeedbackVector::OptimizationTierBits::encode(
-                    i::OptimizationTier::kTopTier) |
-                i::FeedbackVector::OptimizationMarkerBits::encode(
-                    i::OptimizationMarker::kNone));
+  // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
+  // to the FOR_TESTING code kind).
+  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code));
+  fv->set_flags(
+      i::FeedbackVector::MaybeHasTurbofanCodeBit::encode(true) |
+      i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
@@ -4135,6 +4163,8 @@ TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   int gc_calls = 0;
   v8::Global<v8::Object> handle;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
 
   {
     struct WeakData {
@@ -4145,8 +4175,8 @@ TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
     WeakData* data =
         new WeakData{heap_profiler->TakeHeapSnapshot(), &gc_calls, &handle};
 
-    v8::HandleScope scope(env->GetIsolate());
-    handle.Reset(env->GetIsolate(), v8::Object::New(env->GetIsolate()));
+    v8::HandleScope inner_scope(isolate);
+    handle.Reset(isolate, v8::Object::New(isolate));
     handle.SetWeak(
         data,
         [](const v8::WeakCallbackInfo<WeakData>& data) {
@@ -4159,6 +4189,52 @@ TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
   }
   CHECK_EQ(gc_calls, 0);
 
-  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+  // For the same reason, we need to take the snapshot without scanning the
+  // stack.
+  v8::HeapProfiler::HeapSnapshotOptions options;
+  options.stack_state = cppgc::EmbedderStackState::kNoHeapPointers;
+
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot(options)));
   CHECK_EQ(gc_calls, 1);
+}
+
+TEST(ObjectRetainedInHandle) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  // Allocate an array and keep a handle to it.
+  i::Handle<i::FixedArray> handle = i_isolate->factory()->NewFixedArray(1024);
+
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+
+  // Make sure to keep the handle alive.
+  CHECK(!handle.is_null());
+}
+
+TEST(ObjectRetainedInDirectHandle) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  // Allocate an array and keep a direct handle to it.
+  i::DirectHandle<i::FixedArray> direct;
+  {
+    // Make sure the temporary indirect handle goes away.
+    v8::HandleScope inner_scope(isolate);
+    direct = i_isolate->factory()->NewFixedArray(1024);
+  }
+
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+
+  // Make sure to keep the handle alive.
+  CHECK(!direct.is_null());
 }

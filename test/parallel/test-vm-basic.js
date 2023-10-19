@@ -323,6 +323,28 @@ const vm = require('vm');
     global
   );
 
+  {
+    const source = 'console.log("Hello, World!")';
+    // Test compileFunction produceCachedData option
+    const result = vm.compileFunction(source, [], {
+      produceCachedData: true,
+    });
+
+    assert.ok(result.cachedDataProduced);
+    assert.ok(result.cachedData.length > 0);
+
+    // Test compileFunction cachedData consumption
+    const result2 = vm.compileFunction(source, [], {
+      cachedData: result.cachedData
+    });
+    assert.strictEqual(result2.cachedDataRejected, false);
+
+    const result3 = vm.compileFunction('console.log("wrong source")', [], {
+      cachedData: result.cachedData
+    });
+    assert.strictEqual(result3.cachedDataRejected, true);
+  }
+
   // Resetting value
   Error.stackTraceLimit = oldLimit;
 }

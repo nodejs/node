@@ -31,15 +31,15 @@
  * \file
  * \brief C API: Wrapper for icu::DateTimePatternGenerator (unicode/dtptngen.h).
  *
- * UDateTimePatternGenerator provides flexible generation of date format patterns,
- * like "yy-MM-dd". The user can build up the generator by adding successive
- * patterns. Once that is done, a query can be made using a "skeleton", which is
- * a pattern which just includes the desired fields and lengths. The generator
+ * UDateTimePatternGenerator provides flexible generation of date format patterns, 
+ * like "yy-MM-dd". The user can build up the generator by adding successive 
+ * patterns. Once that is done, a query can be made using a "skeleton", which is 
+ * a pattern which just includes the desired fields and lengths. The generator 
  * will return the "best fit" pattern corresponding to that skeleton.
  * <p>The main method people will use is udatpg_getBestPattern, since normally
- * UDateTimePatternGenerator is pre-built with data from a particular locale.
+ * UDateTimePatternGenerator is pre-built with data from a particular locale. 
  * However, generators can be built directly from other data as well.
- * <p><i>Issue: may be useful to also have a function that returns the list of
+ * <p><i>Issue: may be useful to also have a function that returns the list of 
  * fields in a pattern, in order, since we have that internally.
  * That would be useful for getting the UI order of field elements.</i>
  */
@@ -218,13 +218,13 @@ udatpg_clone(const UDateTimePatternGenerator *dtpg, UErrorCode *pErrorCode);
 /**
  * Get the best pattern matching the input skeleton. It is guaranteed to
  * have all of the fields in the skeleton.
- *
+ * 
  * Note that this function uses a non-const UDateTimePatternGenerator:
  * It uses a stateful pattern parser which is set up for each generator object,
  * rather than creating one for each function call.
  * Consecutive calls to this function do not affect each other,
  * but this function cannot be used concurrently on a single generator object.
- *
+ * 
  * @param dtpg a pointer to UDateTimePatternGenerator.
  * @param skeleton
  *            The skeleton is a pattern containing only the variable fields.
@@ -247,13 +247,13 @@ udatpg_getBestPattern(UDateTimePatternGenerator *dtpg,
 /**
  * Get the best pattern matching the input skeleton. It is guaranteed to
  * have all of the fields in the skeleton.
- *
+ * 
  * Note that this function uses a non-const UDateTimePatternGenerator:
  * It uses a stateful pattern parser which is set up for each generator object,
  * rather than creating one for each function call.
  * Consecutive calls to this function do not affect each other,
  * but this function cannot be used concurrently on a single generator object.
- *
+ * 
  * @param dtpg a pointer to UDateTimePatternGenerator.
  * @param skeleton
  *            The skeleton is a pattern containing only the variable fields.
@@ -284,7 +284,7 @@ udatpg_getBestPatternWithOptions(UDateTimePatternGenerator *dtpg,
 /**
   * Get a unique skeleton from a given pattern. For example,
   * both "MMM-dd" and "dd/MMM" produce the skeleton "MMMdd".
-  *
+  * 
   * Note that this function uses a non-const UDateTimePatternGenerator:
   * It uses a stateful pattern parser which is set up for each generator object,
   * rather than creating one for each function call.
@@ -341,8 +341,8 @@ udatpg_getBaseSkeleton(UDateTimePatternGenerator *unusedDtpg,
 /**
  * Adds a pattern to the generator. If the pattern has the same skeleton as
  * an existing pattern, and the override parameter is set, then the previous
- * value is overriden. Otherwise, the previous value is retained. In either
- * case, the conflicting status is set and previous vale is stored in
+ * value is overridden. Otherwise, the previous value is retained. In either
+ * case, the conflicting status is set and previous vale is stored in 
  * conflicting pattern.
  * <p>
  * Note that single-field patterns (like "MMM") are automatically added, and
@@ -351,14 +351,14 @@ udatpg_getBaseSkeleton(UDateTimePatternGenerator *unusedDtpg,
  * @param dtpg     a pointer to UDateTimePatternGenerator.
  * @param pattern  input pattern, such as "dd/MMM"
  * @param patternLength the length of pattern.
- * @param override  When existing values are to be overridden use true,
+ * @param override  When existing values are to be overridden use true, 
  *                  otherwise use false.
  * @param conflictingPattern  Previous pattern with the same skeleton.
  * @param capacity the capacity of conflictingPattern.
  * @param pLength a pointer to the length of conflictingPattern.
  * @param pErrorCode a pointer to the UErrorCode which must not indicate a
  *                  failure before the function call.
- * @return conflicting status. The value could be UDATPG_NO_CONFLICT,
+ * @return conflicting status. The value could be UDATPG_NO_CONFLICT, 
  *                  UDATPG_BASE_CONFLICT or UDATPG_CONFLICT.
  * @stable ICU 3.8
  */
@@ -492,6 +492,11 @@ udatpg_getFieldDisplayName(const UDateTimePatternGenerator *dtpg,
  * for those two skeletons, so the result is put together with this pattern,
  * resulting in "d-MMM h:mm".
  *
+ * There are four DateTimeFormats in a UDateTimePatternGenerator object,
+ * corresponding to date styles UDAT_FULL..UDAT_SHORT. This method sets
+ * all of them to the specified pattern. To set them individually, see
+ * udatpg_setDateTimeFormatForStyle.
+ *
  * @param dtpg a pointer to UDateTimePatternGenerator.
  * @param dtFormat
  *            message format pattern, here {1} will be replaced by the date
@@ -505,6 +510,12 @@ udatpg_setDateTimeFormat(const UDateTimePatternGenerator *dtpg,
 
 /**
  * Getter corresponding to setDateTimeFormat.
+ *
+ * There are four DateTimeFormats in a UDateTimePatternGenerator object,
+ * corresponding to date styles UDAT_FULL..UDAT_SHORT. This method gets
+ * the style for UDAT_MEDIUM (the default). To get them individually, see
+ * udatpg_getDateTimeFormatForStyle.
+ *
  * @param dtpg   a pointer to UDateTimePatternGenerator.
  * @param pLength A pointer that will receive the length of the format
  * @return dateTimeFormat.
@@ -513,6 +524,68 @@ udatpg_setDateTimeFormat(const UDateTimePatternGenerator *dtpg,
 U_CAPI const UChar * U_EXPORT2
 udatpg_getDateTimeFormat(const UDateTimePatternGenerator *dtpg,
                          int32_t *pLength);
+
+#if !UCONFIG_NO_FORMATTING
+/**
+ * dateTimeFormats are message patterns used to compose combinations of date
+ * and time patterns. There are four length styles, corresponding to the
+ * inferred style of the date pattern; these are UDateFormatStyle values:
+ *  - UDAT_FULL (for date pattern with weekday and long month), else
+ *  - UDAT_LONG (for a date pattern with long month), else
+ *  - UDAT_MEDIUM (for a date pattern with abbreviated month), else
+ *  - UDAT_SHORT (for any other date pattern).
+ * For details on dateTimeFormats, see
+ * https://www.unicode.org/reports/tr35/tr35-dates.html#dateTimeFormats.
+ * The default pattern in the root locale for all styles is "{1} {0}".
+ *
+ * @param udtpg
+ *              a pointer to the UDateTimePatternGenerator
+ * @param style
+ *              one of UDAT_FULL..UDAT_SHORT. Error if out of range.
+ * @param dateTimeFormat
+ *              the new dateTimeFormat to set for the the specified style
+ * @param length
+ *              the length of dateTimeFormat, or -1 if unknown and pattern
+ *              is null-terminated
+ * @param pErrorCode
+ *              a pointer to the UErrorCode (in/out parameter); if no failure
+ *              status is already set, it will be set according to result of the
+ *              function (e.g. U_ILLEGAL_ARGUMENT_ERROR for style out of range).
+ * @stable ICU 71
+ */
+U_CAPI void U_EXPORT2
+udatpg_setDateTimeFormatForStyle(UDateTimePatternGenerator *udtpg,
+                        UDateFormatStyle style,
+                        const UChar *dateTimeFormat, int32_t length,
+                        UErrorCode *pErrorCode);
+
+/**
+ * Getter corresponding to udatpg_setDateTimeFormatForStyle.
+ *
+ * @param udtpg
+ *              a pointer to the UDateTimePatternGenerator
+ * @param style
+ *              one of UDAT_FULL..UDAT_SHORT. Error if out of range.
+ * @param pLength
+ *              a pointer that will receive the length of the format. May be NULL
+ *              if length is not desired.
+ * @param pErrorCode
+ *              a pointer to the UErrorCode (in/out parameter); if no failure
+ *              status is already set, it will be set according to result of the
+ *              function (e.g. U_ILLEGAL_ARGUMENT_ERROR for style out of range).
+ * @return
+ *              pointer to the current dateTimeFormat (0 terminated) for the specified
+ *              style, or empty string in case of error. The pointer and its contents
+ *              may no longer be valid if udatpg_setDateTimeFormat is called, or
+ *              udatpg_setDateTimeFormatForStyle for the same style is called, or the
+ *              UDateTimePatternGenerator object is closed.
+ * @stable ICU 71
+ */
+U_CAPI const UChar* U_EXPORT2
+udatpg_getDateTimeFormatForStyle(const UDateTimePatternGenerator *udtpg,
+                        UDateFormatStyle style, int32_t *pLength,
+                        UErrorCode *pErrorCode);
+#endif /* #if !UCONFIG_NO_FORMATTING */
 
 /**
  * The decimal value is used in formatting fractions of seconds. If the
@@ -533,7 +606,7 @@ udatpg_setDecimal(UDateTimePatternGenerator *dtpg,
 
 /**
  * Getter corresponding to setDecimal.
- *
+ * 
  * @param dtpg a pointer to UDateTimePatternGenerator.
  * @param pLength A pointer that will receive the length of the decimal string.
  * @return corresponding to the decimal point.
@@ -616,7 +689,7 @@ udatpg_replaceFieldTypesWithOptions(UDateTimePatternGenerator *dtpg,
 /**
  * Return a UEnumeration list of all the skeletons in canonical form.
  * Call udatpg_getPatternForSkeleton() to get the corresponding pattern.
- *
+ * 
  * @param dtpg a pointer to UDateTimePatternGenerator.
  * @param pErrorCode a pointer to the UErrorCode which must not indicate a
  *                  failure before the function call
@@ -642,9 +715,9 @@ udatpg_openBaseSkeletons(const UDateTimePatternGenerator *dtpg, UErrorCode *pErr
 
 /**
  * Get the pattern corresponding to a given skeleton.
- *
+ * 
  * @param dtpg a pointer to UDateTimePatternGenerator.
- * @param skeleton
+ * @param skeleton 
  * @param skeletonLength pointer to the length of skeleton.
  * @param pLength pointer to the length of return pattern.
  * @return pattern corresponding to a given skeleton.
@@ -660,9 +733,9 @@ udatpg_getPatternForSkeleton(const UDateTimePatternGenerator *dtpg,
 /**
  * Return the default hour cycle for a locale. Uses the locale that the
  * UDateTimePatternGenerator was initially created with.
- *
+ * 
  * Cannot be used on an empty UDateTimePatternGenerator instance.
- *
+ * 
  * @param dtpg a pointer to UDateTimePatternGenerator.
  * @param pErrorCode a pointer to the UErrorCode which must not indicate a
  *                   failure before the function call. Set to U_UNSUPPORTED_ERROR

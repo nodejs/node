@@ -9,12 +9,14 @@ const expectedErrorCodes = ['ECONNREFUSED', 'EADDRINUSE'];
 
 const optionsIPv4 = {
   port: common.PORT,
+  family: 4,
   localPort: common.PORT + 1,
   localAddress: common.localhostIPv4
 };
 
 const optionsIPv6 = {
   host: '::1',
+  family: 6,
   port: common.PORT + 2,
   localPort: common.PORT + 3,
   localAddress: '::1',

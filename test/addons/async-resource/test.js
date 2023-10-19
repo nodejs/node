@@ -38,7 +38,7 @@ async_hooks.createHook({
 
   destroy(id) {
     if (bindingUids.includes(id)) destroy++;
-  }
+  },
 }).enable();
 
 for (const call of [binding.callViaFunction,
@@ -53,7 +53,7 @@ for (const call of [binding.callViaFunction,
         assert.strictEqual(async_hooks.executionAsyncId(), uid);
         return 'baz';
       },
-      kObjectTag
+      kObjectTag,
     };
 
     if (passedTriggerId === undefined)

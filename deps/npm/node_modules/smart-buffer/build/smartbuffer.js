@@ -33,7 +33,7 @@ class SmartBuffer {
                 // Check for initial Buffer
             }
             else if (options.buff) {
-                if (options.buff instanceof Buffer) {
+                if (Buffer.isBuffer(options.buff)) {
                     this._buff = options.buff;
                     this.length = options.buff.length;
                 }

@@ -2,16 +2,16 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/chrome_build.gni")
+import("//build/config/compiler/pgo/pgo.gni")
 import("//build/config/gclient_args.gni")
+import("//build/config/ios/config.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
+import("release_branch_toggle.gni")
 import("split_static_library.gni")
 
 declare_args() {
-  # Set flags for tracking code coverage. Uses gcov with gcc and sanitizer
-  # coverage with clang.
-  v8_code_coverage = false
-
   # Includes files needed for correctness fuzzing.
   v8_correctness_fuzzer = false
 
@@ -31,16 +31,12 @@ declare_args() {
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
 
-  # This flag is deprecated and is now available through the inspector interface
-  # as an argument to profiler's method `takeHeapSnapshot`.
-  v8_enable_raw_heap_snapshots = false
-
-  # Enable several snapshots side-by-side (e.g. default and for trusted code).
-  v8_use_multi_snapshots = false
-
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
   v8_use_external_startup_data = ""
+
+  # Includes profiles to optimize builtins.
+  v8_enable_builtins_optimization = ""
 
   # Enable ECMAScript Internationalization API. Enabling this feature will
   # add a dependency on the ICU library.
@@ -69,11 +65,26 @@ declare_args() {
   # Sets -DV8_LITE_MODE.
   v8_enable_lite_mode = false
 
+  # Enable the Turbofan compiler.
+  # Sets -dV8_ENABLE_TURBOFAN.
+  v8_enable_turbofan = ""
+
+  # Enable the Maglev compiler.
+  # Sets -dV8_ENABLE_MAGLEV
+  v8_enable_maglev = ""
+
   # Include support for WebAssembly. If disabled, the 'WebAssembly' global
   # will not be available, and embedder APIs to generate WebAssembly modules
   # will fail. Also, asm.js will not be translated to WebAssembly and will be
   # executed as standard JavaScript instead.
+  # Sets -dV8_ENABLE_WEBASSEMBLY.
   v8_enable_webassembly = ""
+
+  # Enable 256-bit long vector re-vectorization pass in WASM compilation pipeline.
+  v8_enable_wasm_simd256_revec = false
+
+  # Enable runtime call stats.
+  v8_enable_runtime_call_stats = !is_on_release_branch
 
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
@@ -81,22 +92,65 @@ declare_args() {
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
 
-  v8_enable_google_benchmark = checkout_google_benchmark
+  # Use direct pointers in internal (direct) handles.
+  v8_enable_direct_handle = ""
+
+  # Use direct pointers in local handles.
+  v8_enable_direct_local = false
+
+  v8_enable_google_benchmark = false
 
   cppgc_is_standalone = false
+
+  # Enable object names in cppgc for profiling purposes.
+  cppgc_enable_object_names = is_chrome_for_testing
+
+  # Enable young generation in cppgc.
+  cppgc_enable_young_generation = false
+
+  # Enables a slim write barrier that only performs a single check in the fast
+  # path and delegates all further checks to a slow path call. This is fast
+  # in a setting with few slow-path checks, i.e., with disabled young generation
+  # GC.
+  cppgc_enable_slim_write_barrier = true
+
+  # Enable pointer compression in cppgc.
+  cppgc_enable_pointer_compression = false
+
+  # Enable 2gb cage for fast compression/decompression. Currently disabled
+  # due to an increased number of OOMs.
+  cppgc_enable_2gb_cage = false
+
+  # Enable support for larger cages, up to 16GB.
+  cppgc_enable_larger_cage = false
+
+  # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
+  # depending on platform. Disabled on Android to save binary size.
+  v8_advanced_bigint_algorithms = !is_android
+
+  # TODO: macros for determining endian type are clang specific.
+  v8_use_libm_trig_functions = is_clang
+
+  # iOS device does not support executable code pages. Not we
+  # use target_os == "ios" here because it isn't equivalent
+  # to is_ios (is_ios is based on host_os).
+  target_is_ios_device = target_os == "ios" && target_environment == "device"
+
+  # Location of icu.
+  v8_icu_path = "//third_party/icu"
+
+  # Location of zlib.
+  v8_zlib_path = "//third_party/zlib"
+
+  # Change code emission and runtime features to be CET shadow-stack compliant
+  # (incomplete and experimental).
+  v8_enable_cet_shadow_stack = false
 }
 
 if (v8_use_external_startup_data == "") {
   # If not specified as a gn arg, use external startup data by default if
   # we're not on ios.
   v8_use_external_startup_data = !is_ios
-}
-
-if (v8_use_multi_snapshots) {
-  # Silently disable multi snapshots if they're incompatible with the current
-  # build configuration. This allows us to set v8_use_multi_snapshots=true on
-  # all bots, and e.g. no-snapshot bots will automatically do the right thing.
-  v8_use_multi_snapshots = v8_use_external_startup_data && !build_with_chromium
 }
 
 if (v8_enable_backtrace == "") {
@@ -109,12 +163,41 @@ if (build_with_chromium && use_perfetto_client_library) {
   v8_use_perfetto = true
 }
 
+# Includes profiles to optimize builtins if
+#   * it is a Chromium build, and
+#   * Chromium builds with optimization.
+# If no profiles are downloaded during gclient runhooks, optimization fails
+# silently.
+if (v8_enable_builtins_optimization == "") {
+  v8_enable_builtins_optimization = build_with_chromium && chrome_pgo_phase == 2
+}
+
+# TODO(jgruber): Move v8_jitless from BUILD.gn here as these
+# all depend on each other and really should be derived from
+# v8_jitless.
 # WebAssembly is enabled by default, except in lite mode.
 if (v8_enable_webassembly == "") {
-  v8_enable_webassembly = !v8_enable_lite_mode
+  # iOS (non-simulator) does not have executable pages for 3rd party
+  # applications yet so disable webassembly.
+  v8_enable_webassembly = !v8_enable_lite_mode && !target_is_ios_device
 }
 assert(!(v8_enable_webassembly && v8_enable_lite_mode),
        "Webassembly is not available in lite mode.")
+
+# Turbofan is enabled by default, except in lite mode.
+if (v8_enable_turbofan == "") {
+  # iOS (non-simulator) does not have executable pages for 3rd party
+  # applications yet so disable turbofan.
+  v8_enable_turbofan = !v8_enable_lite_mode && !target_is_ios_device
+}
+assert(v8_enable_turbofan || !v8_enable_webassembly,
+       "Webassembly is not available when Turbofan is disabled.")
+
+# Direct internal handles are enabled by default if conservative stack scanning
+# is enabled.
+if (v8_enable_direct_handle == "") {
+  v8_enable_direct_handle = v8_enable_conservative_stack_scanning
+}
 
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute
 # paths for all configs in templates as they are shared in different
@@ -142,7 +225,7 @@ if (is_debug && !v8_optimized_debug) {
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
-  if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
+  if (is_posix && !is_android && !using_sanitizer) {
     v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     v8_add_configs += [ "//build/config/compiler:optimize_max" ]
@@ -153,13 +236,6 @@ if (!is_debug) {
   v8_remove_configs += [
     # Too much performance impact, unclear security benefit.
     "//build/config/compiler:default_init_stack_vars",
-  ]
-}
-
-if (v8_code_coverage && !is_clang) {
-  v8_add_configs += [
-    v8_path_prefix + ":v8_gcov_coverage_cflags",
-    v8_path_prefix + ":v8_gcov_coverage_ldflags",
   ]
 }
 
@@ -183,8 +259,7 @@ if ((is_posix || is_fuchsia) &&
 }
 
 # On MIPS gcc_target_rpath and ldso_path might be needed for all builds.
-if (target_cpu == "mipsel" || target_cpu == "mips64el" ||
-    target_cpu == "mips" || target_cpu == "mips64") {
+if (target_cpu == "mips64el" || target_cpu == "mips64") {
   v8_add_configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 }
 
@@ -228,40 +303,62 @@ template("v8_header_set") {
 }
 
 template("v8_executable") {
-  executable(target_name) {
-    forward_variables_from(invoker,
-                           "*",
-                           [
-                             "configs",
-                             "remove_configs",
-                           ])
-    configs -= v8_remove_configs
-    configs += v8_add_configs
-    if (defined(invoker.remove_configs)) {
-      configs -= invoker.remove_configs
+  if (is_ios) {
+    import("//build/config/ios/rules.gni")
+
+    ios_app_bundle(target_name) {
+      forward_variables_from(invoker,
+                             "*",
+                             [
+                               "configs",
+                               "remove_configs",
+                             ])
+      configs -= v8_remove_configs
+      configs += v8_add_configs
+      if (defined(invoker.remove_configs)) {
+        configs -= invoker.remove_configs
+      }
+      configs += invoker.configs
+      deps += [ v8_path_prefix + ":v8_dump_build_config" ]
+
+      # Provide sensible defaults in case invoker did not define any of those
+      # required variables.
+      if (!defined(info_plist) && !defined(info_plist_target)) {
+        info_plist = v8_path_prefix + "/gni/Info.plist"
+      }
+
+      bundle_identifier = "$ios_app_bundle_id_prefix.chrome.unittests.dev"
     }
-    configs += invoker.configs
-    if (is_linux || is_chromeos) {
-      # For enabling ASLR.
-      ldflags = [ "-pie" ]
-    }
-    if (defined(testonly) && testonly && v8_code_coverage) {
-      # Only add code coverage cflags for non-test files for performance
-      # reasons.
-      if (is_clang) {
-        configs -= [ "//build/config/sanitizers:default_sanitizer_flags" ]
-        configs +=
-            [ "//build/config/sanitizers:default_sanitizer_flags_but_coverage" ]
-      } else {
-        configs -= [ v8_path_prefix + ":v8_gcov_coverage_cflags" ]
+  } else {
+    executable(target_name) {
+      forward_variables_from(invoker,
+                             "*",
+                             [
+                               "configs",
+                               "remove_configs",
+                             ])
+      configs -= v8_remove_configs
+      configs += v8_add_configs
+      if (defined(invoker.remove_configs)) {
+        configs -= invoker.remove_configs
+      }
+      configs += invoker.configs
+      if (is_linux || is_chromeos) {
+        # For enabling ASLR.
+        ldflags = [ "-pie" ]
+      }
+      deps += [ v8_path_prefix + ":v8_dump_build_config" ]
+
+      if (is_win && !v8_enable_cet_shadow_stack) {
+        configs -= [ "//build/config/compiler:cet_shadow_stack" ]
       }
     }
-    deps += [ v8_path_prefix + ":v8_dump_build_config" ]
   }
 }
 
 template("v8_component") {
   component(target_name) {
+    output_name = target_name
     forward_variables_from(invoker,
                            "*",
                            [

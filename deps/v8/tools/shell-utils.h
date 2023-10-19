@@ -40,7 +40,7 @@ enum Encoding {
   UTF16
 };
 
-const byte* ReadFileAndRepeat(const char* name, int* size, int repeat) {
+const uint8_t* ReadFileAndRepeat(const char* name, int* size, int repeat) {
   FILE* file = fopen(name, "rb");
   *size = 0;
   if (file == NULL) return NULL;
@@ -51,7 +51,7 @@ const byte* ReadFileAndRepeat(const char* name, int* size, int repeat) {
 
   *size = file_size * repeat;
 
-  byte* chars = new byte[*size + 1];
+  uint8_t* chars = new uint8_t[*size + 1];
   for (int i = 0; i < file_size;) {
     int read = static_cast<int>(fread(&chars[i], 1, file_size - i, file));
     i += read;

@@ -32,7 +32,7 @@ StringSearch::StringSearch(const UnicodeString &pattern,
                            m_pattern_(pattern)
 {
     if (U_FAILURE(status)) {
-        m_strsrch_ = NULL;
+        m_strsrch_ = nullptr;
         return;
     }
 
@@ -41,7 +41,7 @@ StringSearch::StringSearch(const UnicodeString &pattern,
                               locale.getName(), (UBreakIterator *)breakiter,
                               &status);
     uprv_free(m_search_);
-    m_search_ = NULL;
+    m_search_ = nullptr;
 
     if (U_SUCCESS(status)) {
         // m_search_ has been created by the base SearchIterator class
@@ -58,12 +58,12 @@ StringSearch::StringSearch(const UnicodeString     &pattern,
                            m_pattern_(pattern)
 {
     if (U_FAILURE(status)) {
-        m_strsrch_ = NULL;
+        m_strsrch_ = nullptr;
         return;
     }
-    if (coll == NULL) {
+    if (coll == nullptr) {
         status     = U_ILLEGAL_ARGUMENT_ERROR;
-        m_strsrch_ = NULL;
+        m_strsrch_ = nullptr;
         return;
     }
     m_strsrch_ = usearch_openFromCollator(m_pattern_.getBuffer(),
@@ -73,7 +73,7 @@ StringSearch::StringSearch(const UnicodeString     &pattern,
                                           (UBreakIterator *)breakiter,
                                           &status);
     uprv_free(m_search_);
-    m_search_ = NULL;
+    m_search_ = nullptr;
 
     if (U_SUCCESS(status)) {
         // m_search_ has been created by the base SearchIterator class
@@ -90,7 +90,7 @@ StringSearch::StringSearch(const UnicodeString     &pattern,
                            m_pattern_(pattern)
 {
     if (U_FAILURE(status)) {
-        m_strsrch_ = NULL;
+        m_strsrch_ = nullptr;
         return;
     }
     m_strsrch_ = usearch_open(m_pattern_.getBuffer(), m_pattern_.length(),
@@ -98,7 +98,7 @@ StringSearch::StringSearch(const UnicodeString     &pattern,
                               locale.getName(), (UBreakIterator *)breakiter,
                               &status);
     uprv_free(m_search_);
-    m_search_ = NULL;
+    m_search_ = nullptr;
 
     if (U_SUCCESS(status)) {
         // m_search_ has been created by the base SearchIterator class
@@ -115,12 +115,12 @@ StringSearch::StringSearch(const UnicodeString     &pattern,
                            m_pattern_(pattern)
 {
     if (U_FAILURE(status)) {
-        m_strsrch_ = NULL;
+        m_strsrch_ = nullptr;
         return;
     }
-    if (coll == NULL) {
+    if (coll == nullptr) {
         status     = U_ILLEGAL_ARGUMENT_ERROR;
-        m_strsrch_ = NULL;
+        m_strsrch_ = nullptr;
         return;
     }
     m_strsrch_ = usearch_openFromCollator(m_pattern_.getBuffer(),
@@ -130,7 +130,7 @@ StringSearch::StringSearch(const UnicodeString     &pattern,
                                           (UBreakIterator *)breakiter,
                                           &status);
     uprv_free(m_search_);
-    m_search_ = NULL;
+    m_search_ = nullptr;
 
     if (U_SUCCESS(status)) {
         // m_search_ has been created by the base SearchIterator class
@@ -146,11 +146,11 @@ StringSearch::StringSearch(const StringSearch &that) :
 
     // Free m_search_ from the superclass
     uprv_free(m_search_);
-    m_search_ = NULL;
+    m_search_ = nullptr;
 
-    if (that.m_strsrch_ == NULL) {
+    if (that.m_strsrch_ == nullptr) {
         // This was not a good copy
-        m_strsrch_ = NULL;
+        m_strsrch_ = nullptr;
     }
     else {
         // Make a deep copy
@@ -170,9 +170,9 @@ StringSearch::StringSearch(const StringSearch &that) :
 
 StringSearch::~StringSearch()
 {
-    if (m_strsrch_ != NULL) {
+    if (m_strsrch_ != nullptr) {
         usearch_close(m_strsrch_);
-        m_search_ = NULL;
+        m_search_ = nullptr;
     }
 }
 
@@ -196,26 +196,27 @@ StringSearch & StringSearch::operator=(const StringSearch &that)
                                               m_text_.getBuffer(),
                                               m_text_.length(),
                                               that.m_strsrch_->collator,
-                                              NULL, &status);
+                                              nullptr, &status);
         // Check null pointer
-        if (m_strsrch_ != NULL) {
+        if (m_strsrch_ != nullptr) {
             m_search_ = m_strsrch_->search;
         }
     }
     return *this;
 }
 
-UBool StringSearch::operator==(const SearchIterator &that) const
+bool StringSearch::operator==(const SearchIterator &that) const
 {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
     if (SearchIterator::operator ==(that)) {
-        StringSearch &thatsrch = (StringSearch &)that;
-        return (this->m_pattern_ == thatsrch.m_pattern_ &&
-                this->m_strsrch_->collator == thatsrch.m_strsrch_->collator);
+        const StringSearch *thatsrch = dynamic_cast<const StringSearch *>(&that);
+        if (thatsrch == nullptr) return false;
+        return (this->m_pattern_ == thatsrch->m_pattern_ &&
+                this->m_strsrch_->collator == thatsrch->m_strsrch_->collator);
     }
-    return FALSE;
+    return false;
 }
 
 // public get and set methods ----------------------------------------
@@ -226,7 +227,7 @@ void StringSearch::setOffset(int32_t position, UErrorCode &status)
     usearch_setOffset(m_strsrch_, position, &status);
 }
 
-int32_t StringSearch::getOffset(void) const
+int32_t StringSearch::getOffset() const
 {
     return usearch_getOffset(m_strsrch_);
 }
@@ -289,7 +290,7 @@ StringSearch * StringSearch::safeClone() const
                                             getCollator(),
                                             m_breakiterator_,
                                             status);
-    /* test for NULL */
+    /* test for nullptr */
     if (result == 0) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return 0;
@@ -298,7 +299,7 @@ StringSearch * StringSearch::safeClone() const
     result->setMatchStart(m_strsrch_->search->matchedIndex);
     result->setMatchLength(m_strsrch_->search->matchedLength);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     return result;
 }
@@ -335,14 +336,14 @@ int32_t StringSearch::handleNext(int32_t position, UErrorCode &status)
                 // the flipping direction issue has already been handled
                 // in next()
                 // for boundary check purposes. this will ensure that the
-                // next match will not preceed the current offset
+                // next match will not precede the current offset
                 // note search->matchedIndex will always be set to something
                 // in the code
                 m_search_->matchedIndex = position - 1;
             }
 
             ucol_setOffset(m_strsrch_->textIter, position, &status);
-
+            
 #if 0
             for (;;) {
                 if (m_search_->isCanonicalMatch) {
@@ -355,7 +356,7 @@ int32_t StringSearch::handleNext(int32_t position, UErrorCode &status)
                 if (U_FAILURE(status)) {
                     return USEARCH_DONE;
                 }
-                if (m_breakiterator_ == NULL
+                if (m_breakiterator_ == nullptr
 #if !UCONFIG_NO_BREAK_ITERATION
                     ||
                     m_search_->matchedIndex == USEARCH_DONE ||
@@ -380,22 +381,22 @@ int32_t StringSearch::handleNext(int32_t position, UErrorCode &status)
             // then we don't need to check the match boundaries here because
             // usearch_handleNextXXX will already have done it.
             if (m_search_->isCanonicalMatch) {
-		// *could* actually use exact here 'cause no extra accents allowed...
-		usearch_handleNextCanonical(m_strsrch_, &status);
+            	// *could* actually use exact here 'cause no extra accents allowed...
+            	usearch_handleNextCanonical(m_strsrch_, &status);
             } else {
-		usearch_handleNextExact(m_strsrch_, &status);
+            	usearch_handleNextExact(m_strsrch_, &status);
             }
-
+            
             if (U_FAILURE(status)) {
-		return USEARCH_DONE;
+            	return USEARCH_DONE;
             }
-
+            
             if (m_search_->matchedIndex == USEARCH_DONE) {
-		ucol_setOffset(m_strsrch_->textIter, m_search_->textLength, &status);
+            	ucol_setOffset(m_strsrch_->textIter, m_search_->textLength, &status);
             } else {
-		ucol_setOffset(m_strsrch_->textIter, m_search_->matchedIndex, &status);
+            	ucol_setOffset(m_strsrch_->textIter, m_search_->matchedIndex, &status);
             }
-
+            
             return m_search_->matchedIndex;
 #endif
         }
@@ -431,7 +432,7 @@ int32_t StringSearch::handlePrev(int32_t position, UErrorCode &status)
                 setMatchNotFound();
                 return USEARCH_DONE;
             }
-
+            
             for (;;) {
                 if (m_search_->isCanonicalMatch) {
                     // can't use exact here since extra accents are allowed.
@@ -443,7 +444,7 @@ int32_t StringSearch::handlePrev(int32_t position, UErrorCode &status)
                 if (U_FAILURE(status)) {
                     return USEARCH_DONE;
                 }
-                if (m_breakiterator_ == NULL
+                if (m_breakiterator_ == nullptr
 #if !UCONFIG_NO_BREAK_ITERATION
                     ||
                     m_search_->matchedIndex == USEARCH_DONE ||
@@ -457,18 +458,18 @@ int32_t StringSearch::handlePrev(int32_t position, UErrorCode &status)
             }
 #else
             ucol_setOffset(m_strsrch_->textIter, position, &status);
-
+            
             if (m_search_->isCanonicalMatch) {
-		// *could* use exact match here since extra accents *not* allowed!
-		usearch_handlePreviousCanonical(m_strsrch_, &status);
+            	// *could* use exact match here since extra accents *not* allowed!
+            	usearch_handlePreviousCanonical(m_strsrch_, &status);
             } else {
-		usearch_handlePreviousExact(m_strsrch_, &status);
+            	usearch_handlePreviousExact(m_strsrch_, &status);
             }
-
+            
             if (U_FAILURE(status)) {
-		return USEARCH_DONE;
+            	return USEARCH_DONE;
             }
-
+            
             return m_search_->matchedIndex;
 #endif
         }

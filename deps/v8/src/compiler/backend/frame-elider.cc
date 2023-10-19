@@ -10,7 +10,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-FrameElider::FrameElider(InstructionSequence* code) : code_(code) {}
+FrameElider::FrameElider(InstructionSequence* code, bool has_dummy_end_block)
+    : code_(code), has_dummy_end_block_(has_dummy_end_block) {}
 
 void FrameElider::Run() {
   MarkBlocks();
@@ -26,6 +27,18 @@ void FrameElider::MarkBlocks() {
       if (instr->IsCall() || instr->IsDeoptimizeCall() ||
           instr->arch_opcode() == ArchOpcode::kArchStackPointerGreaterThan ||
           instr->arch_opcode() == ArchOpcode::kArchFramePointer) {
+        block->mark_needs_frame();
+        break;
+      }
+      if (instr->arch_opcode() == ArchOpcode::kArchStackSlot &&
+          instr->InputAt(0)->IsImmediate() &&
+          code_->GetImmediate(ImmediateOperand::cast(instr->InputAt(0)))
+                  .ToInt32() > 0) {
+        // We shouldn't allow accesses to the stack below the current stack
+        // pointer (indicated by positive slot indices).
+        // This is in particular because signal handlers (which could, of
+        // course, be triggered at any point in time) will overwrite this
+        // memory.
         block->mark_needs_frame();
         break;
       }
@@ -95,9 +108,13 @@ bool FrameElider::PropagateIntoBlock(InstructionBlock* block) {
   // Already marked, nothing to do...
   if (block->needs_frame()) return false;
 
-  // Never mark the dummy end node, otherwise we might incorrectly decide to
-  // put frame deconstruction code there later,
-  if (block->successors().empty()) return false;
+  // Turbofan does have an empty dummy end block, which we need to ignore here.
+  // However, Turboshaft does not have such a block.
+  if (has_dummy_end_block_) {
+    // Never mark the dummy end node, otherwise we might incorrectly decide to
+    // put frame deconstruction code there later,
+    if (block->successors().empty()) return false;
+  }
 
   // Propagate towards the end ("downwards") if there is a predecessor needing
   // a frame, but don't "bleed" from deferred code to non-deferred code.

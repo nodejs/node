@@ -68,7 +68,7 @@ TEST_IMPL(pipe_server_close) {
   int r;
 
   loop = uv_default_loop();
-  ASSERT(loop != NULL);
+  ASSERT_NOT_NULL(loop);
 
   r = uv_pipe_init(loop, &pipe_server, 0);
   ASSERT(r == 0);
@@ -89,6 +89,6 @@ TEST_IMPL(pipe_server_close) {
   ASSERT(pipe_client_connect_cb_called == 1);
   ASSERT(pipe_close_cb_called == 2);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

@@ -18,7 +18,7 @@ const net = require('net');
     server.close();
   }).listen(0, function() {
     const socket = net.connect(this.address().port, function() {
-      socket.write('PUT / HTTP/1.1\r\n\r\n');
+      socket.write('PUT / HTTP/1.1\r\nHost: example.com\r\n\r\n');
 
       socket.once('data', function() {
         socket.end('hello world');

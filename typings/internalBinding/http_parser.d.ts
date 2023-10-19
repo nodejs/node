@@ -1,4 +1,7 @@
 declare namespace InternalHttpParserBinding {
+  type Buffer = Uint8Array;
+  type Stream = object;
+
   class HTTPParser {
     static REQUEST: 1;
     static RESPONSE: 2;
@@ -30,13 +33,13 @@ declare namespace InternalHttpParserBinding {
     ): void;
     pause(): void;
     resume(): void;
-    consume(stream: object): void;
+    consume(stream: Stream): void;
     unconsume(): void;
     getCurrentBuffer(): Buffer;
   }
 }
 
-declare function InternalBinding(binding: 'http_parser'): {
+export interface HttpParserBinding {
   methods: string[];
   HTTPParser: typeof InternalHttpParserBinding.HTTPParser;
-};
+}

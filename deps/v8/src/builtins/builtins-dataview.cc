@@ -19,8 +19,10 @@ namespace internal {
 
 // ES #sec-dataview-constructor
 BUILTIN(DataViewConstructor) {
+  const char* const kMethodName = "DataView constructor";
   HandleScope scope(isolate);
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (IsUndefined(*args.new_target(), isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -33,81 +35,152 @@ BUILTIN(DataViewConstructor) {
   Handle<Object> byte_offset = args.atOrUndefined(isolate, 2);
   Handle<Object> byte_length = args.atOrUndefined(isolate, 3);
 
-  // 2. If Type(buffer) is not Object, throw a TypeError exception.
-  // 3. If buffer does not have an [[ArrayBufferData]] internal slot, throw a
-  //    TypeError exception.
-  if (!buffer->IsJSArrayBuffer()) {
+  // 2. Perform ? RequireInternalSlot(buffer, [[ArrayBufferData]]).
+  if (!IsJSArrayBuffer(*buffer)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDataViewNotArrayBuffer));
   }
   Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(buffer);
 
-  // 4. Let offset be ? ToIndex(byteOffset).
+  // 3. Let offset be ? ToIndex(byteOffset).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, byte_offset,
       Object::ToIndex(isolate, byte_offset, MessageTemplate::kInvalidOffset));
-  size_t view_byte_offset = byte_offset->Number();
+  size_t view_byte_offset = Object::Number(*byte_offset);
 
-  // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  //    We currently violate the specification at this point. TODO: Fix that.
+  // 4. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+  if (array_buffer->was_detached()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  kMethodName)));
+  }
 
-  // 6. Let bufferByteLength be the value of buffer's
-  // [[ArrayBufferByteLength]] internal slot.
-  size_t const buffer_byte_length = array_buffer->byte_length();
+  // 5. Let bufferByteLength be ArrayBufferByteLength(buffer, SeqCst).
+  size_t buffer_byte_length = array_buffer->GetByteLength();
 
-  // 7. If offset > bufferByteLength, throw a RangeError exception.
+  // 6. If offset > bufferByteLength, throw a RangeError exception.
   if (view_byte_offset > buffer_byte_length) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidOffset, byte_offset));
   }
 
+  // 7. Let bufferIsResizable be IsResizableArrayBuffer(buffer).
+  // 8. Let byteLengthChecked be empty.
+  // 9. If bufferIsResizable is true and byteLength is undefined, then
+  //       a. Let viewByteLength be auto.
+  // 10. Else if byteLength is undefined, then
+  //       a. Let viewByteLength be bufferByteLength - offset.
   size_t view_byte_length;
-  if (byte_length->IsUndefined(isolate)) {
-    // 8. If byteLength is either not present or undefined, then
-    //       a. Let viewByteLength be bufferByteLength - offset.
+  bool length_tracking = false;
+  if (IsUndefined(*byte_length, isolate)) {
     view_byte_length = buffer_byte_length - view_byte_offset;
+    length_tracking = array_buffer->is_resizable_by_js();
   } else {
-    // 9. Else,
-    //       a. Let viewByteLength be ? ToIndex(byteLength).
-    //       b. If offset+viewByteLength > bufferByteLength, throw a
+    // 11. Else,
+    //       a. Set byteLengthChecked be ? ToIndex(byteLength).
+    //       b. Let viewByteLength be byteLengthChecked.
+    //       c. If offset + viewByteLength > bufferByteLength, throw a
     //          RangeError exception.
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, byte_length,
         Object::ToIndex(isolate, byte_length,
                         MessageTemplate::kInvalidDataViewLength));
-    if (view_byte_offset + byte_length->Number() > buffer_byte_length) {
+    if (view_byte_offset + Object::Number(*byte_length) > buffer_byte_length) {
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewRangeError(MessageTemplate::kInvalidDataViewLength));
+          isolate,
+          NewRangeError(MessageTemplate::kInvalidDataViewLength, byte_length));
     }
-    view_byte_length = byte_length->Number();
+    view_byte_length = Object::Number(*byte_length);
   }
 
-  // 10. Let O be ? OrdinaryCreateFromConstructor(NewTarget,
+  bool is_backed_by_rab =
+      array_buffer->is_resizable_by_js() && !array_buffer->is_shared();
+
+  // 12. Let O be ? OrdinaryCreateFromConstructor(NewTarget,
   //     "%DataViewPrototype%", «[[DataView]], [[ViewedArrayBuffer]],
   //     [[ByteLength]], [[ByteOffset]]»).
   Handle<JSObject> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
-    // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
-    Handle<JSDataView>::cast(result)->SetEmbedderField(i, Smi::zero());
+
+  if (is_backed_by_rab || length_tracking) {
+    // Create a JSRabGsabDataView.
+    Handle<Map> initial_map;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, initial_map,
+        JSFunction::GetDerivedRabGsabDataViewMap(isolate, new_target));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        JSObject::NewWithMap(isolate, initial_map,
+                             Handle<AllocationSite>::null()));
+  } else {
+    // Create a JSDataView.
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        JSObject::New(target, new_target, Handle<AllocationSite>::null()));
+  }
+  Handle<JSDataViewOrRabGsabDataView> data_view =
+      Handle<JSDataViewOrRabGsabDataView>::cast(result);
+  {
+    // Must fully initialize the JSDataViewOrRabGsabDataView here so that it
+    // passes ObjectVerify, which may for example be triggered when allocating
+    // error objects below.
+    DisallowGarbageCollection no_gc;
+    Tagged<JSDataViewOrRabGsabDataView> raw = *data_view;
+
+    for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
+      // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
+      raw->SetEmbedderField(i, Smi::zero());
+    }
+    raw->set_bit_field(0);
+    raw->set_is_backed_by_rab(is_backed_by_rab);
+    raw->set_is_length_tracking(length_tracking);
+    raw->set_byte_length(0);
+    raw->set_byte_offset(0);
+    raw->set_data_pointer(isolate, array_buffer->backing_store());
+    raw->set_buffer(*array_buffer);
   }
 
-  // 11. Set O's [[ViewedArrayBuffer]] internal slot to buffer.
-  Handle<JSDataView>::cast(result)->set_buffer(*array_buffer);
+  // 13. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+  if (array_buffer->was_detached()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  kMethodName)));
+  }
 
-  // 12. Set O's [[ByteLength]] internal slot to viewByteLength.
-  Handle<JSDataView>::cast(result)->set_byte_length(view_byte_length);
+  // 14. Let getBufferByteLength be
+  //     MakeIdempotentArrayBufferByteLengthGetter(SeqCst).
+  // 15. Set bufferByteLength be getBufferByteLength(buffer).
+  buffer_byte_length = array_buffer->GetByteLength();
 
-  // 13. Set O's [[ByteOffset]] internal slot to offset.
-  Handle<JSDataView>::cast(result)->set_byte_offset(view_byte_offset);
-  Handle<JSDataView>::cast(result)->AllocateExternalPointerEntries(isolate);
-  Handle<JSDataView>::cast(result)->set_data_pointer(
+  // 16. If offset > bufferByteLength, throw a RangeError exception.
+  if (view_byte_offset > buffer_byte_length) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidOffset, byte_offset));
+  }
+
+  // 17. If byteLengthChecked is not empty, then
+  //       a. If offset + viewByteLength > bufferByteLength, throw a RangeError
+  //       exception.
+  if (!length_tracking &&
+      view_byte_offset + view_byte_length > buffer_byte_length) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidDataViewLength));
+  }
+
+  // 18. Set O.[[ViewedArrayBuffer]] to buffer.
+  // Already done during initialization of the JSDataView above.
+
+  // 19. Set O.[[ByteLength]] to viewByteLength.
+  data_view->set_byte_length(length_tracking ? 0 : view_byte_length);
+
+  // 20. Set O.[[ByteOffset]] to offset.
+  data_view->set_byte_offset(view_byte_offset);
+  data_view->set_data_pointer(
       isolate,
       static_cast<uint8_t*>(array_buffer->backing_store()) + view_byte_offset);
 
-  // 14. Return O.
+  // 21. Return O.
   return *result;
 }
 

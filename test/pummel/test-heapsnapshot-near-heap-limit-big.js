@@ -8,7 +8,7 @@ const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const env = {
   ...process.env,
-  NODE_DEBUG_NATIVE: 'diagnostics'
+  NODE_DEBUG_NATIVE: 'diagnostics',
 };
 
 if (!common.enoughTestMem)
@@ -26,7 +26,7 @@ if (!common.enoughTestMem)
     env: {
       ...env,
       TEST_CHUNK: 2000,
-    }
+    },
   });
   const stderr = child.stderr.toString();
   console.log(stderr);

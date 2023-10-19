@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -29,6 +29,8 @@
  */
 #include <string.h>
 
+#include <openssl/core_names.h>
+#include <openssl/params.h>
 #include <openssl/opensslconf.h>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
@@ -37,7 +39,7 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/kdf.h>
-#include "../ssl/packet_local.h"
+#include "internal/packet.h"
 #include "internal/nelem.h"
 #include "testutil.h"
 
@@ -120,7 +122,8 @@ static int validate_client_hello(BIO *wbio)
     int cookie_found = 0;
     unsigned int u = 0;
 
-    len = BIO_get_mem_data(wbio, (char **)&data);
+    if ((len = BIO_get_mem_data(wbio, (char **)&data)) < 0)
+        return 0;
     if (!PACKET_buf_init(&pkt, data, len))
         return 0;
 
@@ -278,11 +281,14 @@ static int send_record(BIO *rbio, unsigned char type, uint64_t seqnr,
     static unsigned char seq[6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
     static unsigned char ver[2] = { 0x01, 0x00 }; /* DTLS1_BAD_VER */
     unsigned char lenbytes[2];
-    HMAC_CTX *ctx;
-    EVP_CIPHER_CTX *enc_ctx;
+    EVP_MAC *hmac = NULL;
+    EVP_MAC_CTX *ctx = NULL;
+    EVP_CIPHER_CTX *enc_ctx = NULL;
     unsigned char iv[16];
     unsigned char pad;
     unsigned char *enc;
+    OSSL_PARAM params[2];
+    int ret = 0;
 
     seq[0] = (seqnr >> 40) & 0xff;
     seq[1] = (seqnr >> 32) & 0xff;
@@ -300,18 +306,23 @@ static int send_record(BIO *rbio, unsigned char type, uint64_t seqnr,
     memcpy(enc, msg, len);
 
     /* Append HMAC to data */
-    ctx = HMAC_CTX_new();
-    HMAC_Init_ex(ctx, mac_key, 20, EVP_sha1(), NULL);
-    HMAC_Update(ctx, epoch, 2);
-    HMAC_Update(ctx, seq, 6);
-    HMAC_Update(ctx, &type, 1);
-    HMAC_Update(ctx, ver, 2); /* Version */
+    if (!TEST_ptr(hmac = EVP_MAC_fetch(NULL, "HMAC", NULL))
+            || !TEST_ptr(ctx = EVP_MAC_CTX_new(hmac)))
+        goto end;
+    params[0] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
+                                                 "SHA1", 0);
+    params[1] = OSSL_PARAM_construct_end();
     lenbytes[0] = (unsigned char)(len >> 8);
     lenbytes[1] = (unsigned char)(len);
-    HMAC_Update(ctx, lenbytes, 2); /* Length */
-    HMAC_Update(ctx, enc, len); /* Finally the data itself */
-    HMAC_Final(ctx, enc + len, NULL);
-    HMAC_CTX_free(ctx);
+    if (!EVP_MAC_init(ctx, mac_key, 20, params)
+            || !EVP_MAC_update(ctx, epoch, 2)
+            || !EVP_MAC_update(ctx, seq, 6)
+            || !EVP_MAC_update(ctx, &type, 1)
+            || !EVP_MAC_update(ctx, ver, 2)      /* Version */
+            || !EVP_MAC_update(ctx, lenbytes, 2) /* Length */
+            || !EVP_MAC_update(ctx, enc, len)    /* Finally the data itself */
+            || !EVP_MAC_final(ctx, enc + len, NULL, SHA_DIGEST_LENGTH))
+        goto end;
 
     /* Append padding bytes */
     len += SHA_DIGEST_LENGTH;
@@ -320,11 +331,12 @@ static int send_record(BIO *rbio, unsigned char type, uint64_t seqnr,
     } while (len % 16);
 
     /* Generate IV, and encrypt */
-    RAND_bytes(iv, sizeof(iv));
-    enc_ctx = EVP_CIPHER_CTX_new();
-    EVP_CipherInit_ex(enc_ctx, EVP_aes_128_cbc(), NULL, enc_key, iv, 1);
-    EVP_Cipher(enc_ctx, enc, enc, len);
-    EVP_CIPHER_CTX_free(enc_ctx);
+    if (!TEST_int_gt(RAND_bytes(iv, sizeof(iv)), 0)
+            || !TEST_ptr(enc_ctx = EVP_CIPHER_CTX_new())
+            || !TEST_true(EVP_CipherInit_ex(enc_ctx, EVP_aes_128_cbc(), NULL,
+                                            enc_key, iv, 1))
+            || !TEST_int_ge(EVP_Cipher(enc_ctx, enc, enc, len), 0))
+        goto end;
 
     /* Finally write header (from fragmented variables), IV and encrypted record */
     BIO_write(rbio, &type, 1);
@@ -337,9 +349,13 @@ static int send_record(BIO *rbio, unsigned char type, uint64_t seqnr,
 
     BIO_write(rbio, iv, sizeof(iv));
     BIO_write(rbio, enc, len);
-
+    ret = 1;
+ end:
+    EVP_MAC_free(hmac);
+    EVP_MAC_CTX_free(ctx);
+    EVP_CIPHER_CTX_free(enc_ctx);
     OPENSSL_free(enc);
-    return 1;
+    return ret;
 }
 
 static int send_finished(SSL *s, BIO *rbio)
@@ -366,7 +382,7 @@ static int send_finished(SSL *s, BIO *rbio)
         return 0;
 
     do_PRF(TLS_MD_SERVER_FINISH_CONST, TLS_MD_SERVER_FINISH_CONST_SIZE,
-           handshake_hash, EVP_MD_CTX_size(handshake_md),
+           handshake_hash, EVP_MD_CTX_get_size(handshake_md),
            NULL, 0,
            finished_msg + DTLS1_HM_HEADER_LENGTH, TLS1_FINISH_MAC_LENGTH);
 
@@ -382,6 +398,9 @@ static int validate_ccs(BIO *wbio)
     unsigned int u;
 
     len = BIO_get_mem_data(wbio, (char **)&data);
+    if (len < 0)
+        return 0;
+
     if (!PACKET_buf_init(&pkt, data, len))
         return 0;
 
@@ -475,6 +494,8 @@ static int test_bad_dtls(void)
     if (!TEST_ptr(ctx)
             || !TEST_true(SSL_CTX_set_min_proto_version(ctx, DTLS1_BAD_VER))
             || !TEST_true(SSL_CTX_set_max_proto_version(ctx, DTLS1_BAD_VER))
+            || !TEST_true(SSL_CTX_set_options(ctx,
+                                              SSL_OP_LEGACY_SERVER_CONNECT))
             || !TEST_true(SSL_CTX_set_cipher_list(ctx, "AES128-SHA")))
         goto end;
 

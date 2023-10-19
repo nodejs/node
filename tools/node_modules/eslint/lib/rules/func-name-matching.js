@@ -44,7 +44,7 @@ function isModuleExports(pattern) {
  * @returns {boolean} True if the string is a valid identifier
  */
 function isIdentifier(name, ecmaVersion) {
-    if (ecmaVersion >= 6) {
+    if (ecmaVersion >= 2015) {
         return esutils.keyword.isIdentifierES6(name);
     }
     return esutils.keyword.isIdentifierES5(name);
@@ -68,15 +68,15 @@ const optionsObject = {
     additionalProperties: false
 };
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require function names to match the name of the variable or property to which they are assigned",
-            category: "Stylistic Issues",
+            description: "Require function names to match the name of the variable or property to which they are assigned",
             recommended: false,
-            url: "https://eslint.org/docs/rules/func-name-matching"
+            url: "https://eslint.org/docs/latest/rules/func-name-matching"
         },
 
         schema: {
@@ -104,7 +104,7 @@ module.exports = {
         const nameMatches = typeof context.options[0] === "string" ? context.options[0] : "always";
         const considerPropertyDescriptor = options.considerPropertyDescriptor;
         const includeModuleExports = options.includeCommonJSModuleExports;
-        const ecmaVersion = context.parserOptions && context.parserOptions.ecmaVersion ? context.parserOptions.ecmaVersion : 5;
+        const ecmaVersion = context.languageOptions.ecmaVersion;
 
         /**
          * Check whether node is a certain CallExpression.
@@ -196,21 +196,25 @@ module.exports = {
                 const isProp = node.left.type === "MemberExpression";
                 const name = isProp ? astUtils.getStaticPropertyName(node.left) : node.left.name;
 
-                if (node.right.id && isIdentifier(name) && shouldWarn(name, node.right.id.name)) {
+                if (node.right.id && name && isIdentifier(name) && shouldWarn(name, node.right.id.name)) {
                     report(node, name, node.right.id.name, isProp);
                 }
             },
 
-            Property(node) {
-                if (node.value.type !== "FunctionExpression" || !node.value.id || node.computed && !isStringLiteral(node.key)) {
+            "Property, PropertyDefinition[value]"(node) {
+                if (!(node.value.type === "FunctionExpression" && node.value.id)) {
                     return;
                 }
 
-                if (node.key.type === "Identifier") {
+                if (node.key.type === "Identifier" && !node.computed) {
                     const functionName = node.value.id.name;
                     let propertyName = node.key.name;
 
-                    if (considerPropertyDescriptor && propertyName === "value") {
+                    if (
+                        considerPropertyDescriptor &&
+                        propertyName === "value" &&
+                        node.parent.type === "ObjectExpression"
+                    ) {
                         if (isPropertyCall("Object", "defineProperty", node.parent.parent) || isPropertyCall("Reflect", "defineProperty", node.parent.parent)) {
                             const property = node.parent.parent.arguments[1];
 

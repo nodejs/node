@@ -6,15 +6,15 @@
 #define V8_OBJECTS_VALUE_SERIALIZER_H_
 
 #include <cstdint>
-#include <vector>
 
-#include "include/v8.h"
+#include "include/v8-value-serializer.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/common/message-template.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/identity-map.h"
-#include "src/utils/vector.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -30,8 +30,11 @@ class JSMap;
 class JSPrimitiveWrapper;
 class JSRegExp;
 class JSSet;
+class JSSharedArray;
+class JSSharedStruct;
 class Object;
 class Oddball;
+class SharedObjectConveyorHandles;
 class Smi;
 class WasmMemoryObject;
 class WasmModuleObject;
@@ -83,6 +86,7 @@ class ValueSerializer {
   void WriteUint64(uint64_t value);
   void WriteRawBytes(const void* source, size_t length);
   void WriteDouble(double value);
+  void WriteByte(uint8_t value);
 
   /*
    * Indicate whether to treat ArrayBufferView objects as host objects,
@@ -103,23 +107,23 @@ class ValueSerializer {
   void WriteVarint(T value);
   template <typename T>
   void WriteZigZag(T value);
-  void WriteOneByteString(Vector<const uint8_t> chars);
-  void WriteTwoByteString(Vector<const uc16> chars);
-  void WriteBigIntContents(BigInt bigint);
+  void WriteOneByteString(base::Vector<const uint8_t> chars);
+  void WriteTwoByteString(base::Vector<const base::uc16> chars);
+  void WriteBigIntContents(Tagged<BigInt> bigint);
   Maybe<uint8_t*> ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
-  void WriteOddball(Oddball oddball);
-  void WriteSmi(Smi smi);
-  void WriteHeapNumber(HeapNumber number);
-  void WriteBigInt(BigInt bigint);
+  void WriteOddball(Tagged<Oddball> oddball);
+  void WriteSmi(Tagged<Smi> smi);
+  void WriteHeapNumber(Tagged<HeapNumber> number);
+  void WriteBigInt(Tagged<BigInt> bigint);
   void WriteString(Handle<String> string);
   Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSObjectSlow(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArray(Handle<JSArray> array) V8_WARN_UNUSED_RESULT;
-  void WriteJSDate(JSDate date);
+  void WriteJSDate(Tagged<JSDate> date);
   Maybe<bool> WriteJSPrimitiveWrapper(Handle<JSPrimitiveWrapper> value)
       V8_WARN_UNUSED_RESULT;
   void WriteJSRegExp(Handle<JSRegExp> regexp);
@@ -127,11 +131,19 @@ class ValueSerializer {
   Maybe<bool> WriteJSSet(Handle<JSSet> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)
       V8_WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView array_buffer);
+  Maybe<bool> WriteJSArrayBufferView(Tagged<JSArrayBufferView> array_buffer);
   Maybe<bool> WriteJSError(Handle<JSObject> error) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSSharedArray(Handle<JSSharedArray> shared_array)
+      V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSSharedStruct(Handle<JSSharedStruct> shared_struct)
+      V8_WARN_UNUSED_RESULT;
+#if V8_ENABLE_WEBASSEMBLY
   Maybe<bool> WriteWasmModule(Handle<WasmModuleObject> object)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteWasmMemory(Handle<WasmMemoryObject> object)
+      V8_WARN_UNUSED_RESULT;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  Maybe<bool> WriteSharedObject(Handle<HeapObject> object)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteHostObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
 
@@ -143,13 +155,17 @@ class ValueSerializer {
   Maybe<uint32_t> WriteJSObjectPropertiesSlow(
       Handle<JSObject> object, Handle<FixedArray> keys) V8_WARN_UNUSED_RESULT;
 
+  Maybe<bool> IsHostObject(Handle<JSObject> object);
+
   /*
    * Asks the delegate to handle an error that occurred during data cloning, by
    * throwing an exception appropriate for the host.
    */
-  void ThrowDataCloneError(MessageTemplate template_index);
-  V8_NOINLINE void ThrowDataCloneError(MessageTemplate template_index,
-                                       Handle<Object> arg0);
+  V8_NOINLINE Maybe<bool> ThrowDataCloneError(MessageTemplate template_index)
+      V8_WARN_UNUSED_RESULT;
+  V8_NOINLINE Maybe<bool> ThrowDataCloneError(MessageTemplate template_index,
+                                              Handle<Object> arg0)
+      V8_WARN_UNUSED_RESULT;
 
   Maybe<bool> ThrowIfOutOfMemory();
 
@@ -158,6 +174,7 @@ class ValueSerializer {
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
+  bool has_custom_host_objects_ = false;
   bool treat_array_buffer_views_as_host_objects_ = false;
   bool out_of_memory_ = false;
   Zone zone_;
@@ -170,6 +187,9 @@ class ValueSerializer {
 
   // A similar map, for transferred array buffers.
   IdentityMap<uint32_t, ZoneAllocationPolicy> array_buffer_transfer_map_;
+
+  // The conveyor used to keep shared objects alive.
+  SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
 };
 
 /*
@@ -178,8 +198,9 @@ class ValueSerializer {
  */
 class ValueDeserializer {
  public:
-  ValueDeserializer(Isolate* isolate, Vector<const uint8_t> data,
+  ValueDeserializer(Isolate* isolate, base::Vector<const uint8_t> data,
                     v8::ValueDeserializer::Delegate* delegate);
+  ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);
   ~ValueDeserializer();
   ValueDeserializer(const ValueDeserializer&) = delete;
   ValueDeserializer& operator=(const ValueDeserializer&) = delete;
@@ -199,7 +220,7 @@ class ValueDeserializer {
   /*
    * Deserializes a V8 object from the buffer.
    */
-  MaybeHandle<Object> ReadObject() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<Object> ReadObjectWrapper() V8_WARN_UNUSED_RESULT;
 
   /*
    * Reads an object, consuming the entire buffer.
@@ -226,6 +247,7 @@ class ValueDeserializer {
   bool ReadUint64(uint64_t* value) V8_WARN_UNUSED_RESULT;
   bool ReadDouble(double* value) V8_WARN_UNUSED_RESULT;
   bool ReadRawBytes(size_t length, const void** data) V8_WARN_UNUSED_RESULT;
+  bool ReadByte(uint8_t* value) V8_WARN_UNUSED_RESULT;
 
  private:
   // Reading the wire format.
@@ -233,11 +255,15 @@ class ValueDeserializer {
   void ConsumeTag(SerializationTag peeked_tag);
   Maybe<SerializationTag> ReadTag() V8_WARN_UNUSED_RESULT;
   template <typename T>
-  Maybe<T> ReadVarint() V8_WARN_UNUSED_RESULT;
+  V8_INLINE Maybe<T> ReadVarint() V8_WARN_UNUSED_RESULT;
+  template <typename T>
+  V8_NOINLINE Maybe<T> ReadVarintLoop() V8_WARN_UNUSED_RESULT;
   template <typename T>
   Maybe<T> ReadZigZag() V8_WARN_UNUSED_RESULT;
   Maybe<double> ReadDouble() V8_WARN_UNUSED_RESULT;
-  Maybe<Vector<const uint8_t>> ReadRawBytes(int size) V8_WARN_UNUSED_RESULT;
+  Maybe<base::Vector<const uint8_t>> ReadRawBytes(size_t size)
+      V8_WARN_UNUSED_RESULT;
+  MaybeHandle<Object> ReadObject() V8_WARN_UNUSED_RESULT;
 
   // Reads a string if it matches the one provided.
   // Returns true if this was the case. Otherwise, nothing is consumed.
@@ -255,9 +281,12 @@ class ValueDeserializer {
   // Reading V8 objects of specific kinds.
   // The tag is assumed to have already been read.
   MaybeHandle<BigInt> ReadBigInt() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadUtf8String() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadOneByteString() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadTwoByteString() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadUtf8String(
+      AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadOneByteString(
+      AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadTwoByteString(
+      AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadJSObject() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArray> ReadSparseJSArray() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArray> ReadDenseJSArray() V8_WARN_UNUSED_RESULT;
@@ -267,15 +296,21 @@ class ValueDeserializer {
   MaybeHandle<JSRegExp> ReadJSRegExp() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSMap> ReadJSMap() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSSet> ReadJSSet() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer(bool is_shared)
-      V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer(
+      bool is_shared, bool is_resizable) V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer()
       V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
+  bool ValidateJSArrayBufferViewFlags(
+      Tagged<JSArrayBuffer> buffer, uint32_t serialized_flags,
+      bool& is_length_tracking, bool& is_backed_by_rab) V8_WARN_UNUSED_RESULT;
   MaybeHandle<Object> ReadJSError() V8_WARN_UNUSED_RESULT;
+#if V8_ENABLE_WEBASSEMBLY
   MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;
   MaybeHandle<WasmMemoryObject> ReadWasmMemory() V8_WARN_UNUSED_RESULT;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  MaybeHandle<HeapObject> ReadSharedObject() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadHostObject() V8_WARN_UNUSED_RESULT;
 
   /*
@@ -297,10 +332,15 @@ class ValueDeserializer {
   const uint8_t* const end_;
   uint32_t version_ = 0;
   uint32_t next_id_ = 0;
+  bool version_13_broken_data_mode_ = false;
+  bool suppress_deserialization_errors_ = false;
 
   // Always global handles.
   Handle<FixedArray> id_map_;
   MaybeHandle<SimpleNumberDictionary> array_buffer_transfer_map_;
+
+  // The conveyor used to keep shared objects alive.
+  const SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
 };
 
 }  // namespace internal

@@ -43,7 +43,7 @@ template <typename T>
 class FunctionalTest : public ::testing::Test {
  public:
   FunctionalTest()
-      : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
+      : rng_(GetRandomSeedFromFlag(::v8::internal::v8_flags.random_seed)) {}
   ~FunctionalTest() override = default;
   FunctionalTest(const FunctionalTest&) = delete;
   FunctionalTest& operator=(const FunctionalTest&) = delete;

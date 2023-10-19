@@ -21,7 +21,6 @@ using v8::Value;
 MaybeLocal<Value> ProcessEmit(Environment* env,
                               const char* event,
                               Local<Value> message) {
-  // Send message to enable debug in cluster workers
   Isolate* isolate = env->isolate();
 
   Local<String> event_string;
@@ -93,8 +92,7 @@ Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
 
   experimental_warnings.insert(warning);
   std::string message(warning);
-  message.append(
-      " is an experimental feature. This feature could change at any time");
+  message.append(" is an experimental feature and might change at any time");
   return ProcessEmitWarningGeneric(env, message.c_str(), "ExperimentalWarning");
 }
 

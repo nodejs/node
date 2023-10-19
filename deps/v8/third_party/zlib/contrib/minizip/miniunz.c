@@ -12,7 +12,7 @@
          Copyright (C) 2009-2010 Mathias Svensson ( http://result42.com )
 */
 
-#if (!defined(_WIN32)) && (!defined(WIN32)) && (!defined(__APPLE__))
+#if (!defined(_WIN32)) && (!defined(WIN32)) && (!defined(__APPLE__)) && (!defined(__ANDROID_API__))
         #ifndef __USE_FILE_OFFSET64
                 #define __USE_FILE_OFFSET64
         #endif
@@ -27,7 +27,7 @@
         #endif
 #endif
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__Fuchsia__) || defined(__ANDROID_API__)
 // In darwin and perhaps other BSD variants off_t is a 64 bit value, hence no need for specific 64 bit functions
 #define FOPEN_FUNC(filename, mode) fopen(filename, mode)
 #define FTELLO_FUNC(stream) ftello(stream)
@@ -45,6 +45,7 @@
 #include <time.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 #ifdef _WIN32
 # include <direct.h>
@@ -97,7 +98,7 @@ void change_file_date(filename,dosdate,tmu_date)
   SetFileTime(hFile,&ftm,&ftLastAcc,&ftm);
   CloseHandle(hFile);
 #else
-#ifdef unix || __APPLE__
+#if defined(unix) || defined(__APPLE__) || defined(__Fuchsia__) || defined(__ANDROID_API__)
   struct utimbuf ut;
   struct tm newdate;
   newdate.tm_sec = tmu_date.tm_sec;
@@ -125,11 +126,9 @@ int mymkdir(dirname)
     const char* dirname;
 {
     int ret=0;
-#ifdef _WIN32
+#if defined(_WIN32)
     ret = _mkdir(dirname);
-#elif unix
-    ret = mkdir (dirname,0775);
-#elif __APPLE__
+#elif defined(unix) || defined(__APPLE__) || defined(__Fuchsia__) || defined(__ANDROID_API__)
     ret = mkdir (dirname,0775);
 #endif
     return ret;

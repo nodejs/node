@@ -8,7 +8,7 @@ const http2 = require('http2');
 
 const server = http2.createServer();
 
-const src = Object.create(null);
+const src = { __proto__: null };
 src['www-authenticate'] = 'foo';
 src['WWW-Authenticate'] = 'bar';
 src['WWW-AUTHENTICATE'] = 'baz';
@@ -16,14 +16,14 @@ src.test = 'foo, bar, baz';
 
 server.on('stream', common.mustCall((stream, headers, flags, rawHeaders) => {
   const expected = [
-    ':path',
-    '/',
-    ':scheme',
-    'http',
-    ':authority',
-    `localhost:${server.address().port}`,
     ':method',
     'GET',
+    ':authority',
+    `localhost:${server.address().port}`,
+    ':scheme',
+    'http',
+    ':path',
+    '/',
     'www-authenticate',
     'foo',
     'www-authenticate',

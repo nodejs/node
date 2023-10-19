@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-threads
-
 // This test might time out if the search space for a sequential
 // interleaving becomes to large. However, it should never fail.
 // Note that results of this test are flaky by design. While the test is
 // deterministic with a fixed seed, bugs may introduce non-determinism.
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const kDebug = false;
 
@@ -264,7 +262,7 @@ function generateFunctionBodyForSequence(sequence) {
         kExprLocalGet, 2, kExprI32Const, 1, kAtomicPrefix, kExprI32AtomicSub, 2,
         0,
         // Spin until zero.
-        kExprLoop, kWasmStmt, kExprLocalGet, 2, kAtomicPrefix,
+        kExprLoop, kWasmVoid, kExprLocalGet, 2, kAtomicPrefix,
         kExprI32AtomicLoad, 2, 0, kExprI32Const, 0, kExprI32GtU, kExprBrIf, 0,
         kExprEnd);
   }

@@ -81,7 +81,7 @@ DateTimeRule::operator=(const DateTimeRule& right) {
     return *this;
 }
 
-UBool
+bool
 DateTimeRule::operator==(const DateTimeRule& that) const {
     return ((this == &that) ||
             (typeid(*this) == typeid(that) &&
@@ -94,43 +94,43 @@ DateTimeRule::operator==(const DateTimeRule& that) const {
             fTimeRuleType == that.fTimeRuleType));
 }
 
-UBool
+bool
 DateTimeRule::operator!=(const DateTimeRule& that) const {
     return !operator==(that);
 }
 
 DateTimeRule::DateRuleType
-DateTimeRule::getDateRuleType(void) const {
+DateTimeRule::getDateRuleType() const {
     return fDateRuleType;
 }
 
 DateTimeRule::TimeRuleType
-DateTimeRule::getTimeRuleType(void) const {
+DateTimeRule::getTimeRuleType() const {
     return fTimeRuleType;
 }
 
 int32_t
-DateTimeRule::getRuleMonth(void) const {
+DateTimeRule::getRuleMonth() const {
     return fMonth;
 }
 
 int32_t
-DateTimeRule::getRuleDayOfMonth(void) const {
+DateTimeRule::getRuleDayOfMonth() const {
     return fDayOfMonth;
 }
 
 int32_t
-DateTimeRule::getRuleDayOfWeek(void) const {
+DateTimeRule::getRuleDayOfWeek() const {
     return fDayOfWeek;
 }
 
 int32_t
-DateTimeRule::getRuleWeekInMonth(void) const {
+DateTimeRule::getRuleWeekInMonth() const {
     return fWeekInMonth;
 }
 
 int32_t
-DateTimeRule::getRuleMillisInDay(void) const {
+DateTimeRule::getRuleMillisInDay() const {
     return fMillisInDay;
 }
 

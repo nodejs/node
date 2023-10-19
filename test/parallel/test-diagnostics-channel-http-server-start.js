@@ -6,21 +6,18 @@ const dc = require('diagnostics_channel');
 const assert = require('assert');
 const http = require('http');
 
-const incomingStartChannel = dc.channel('http.server.request.start');
-const outgoingFinishChannel = dc.channel('http.server.response.finish');
-
 const als = new AsyncLocalStorage();
 let context;
 
 // Bind requests to an AsyncLocalStorage context
-incomingStartChannel.subscribe(common.mustCall((message) => {
+dc.subscribe('http.server.request.start', common.mustCall((message) => {
   als.enterWith(message);
   context = message;
 }));
 
 // When the request ends, verify the context has been maintained
 // and that the messages contain the expected data
-outgoingFinishChannel.subscribe(common.mustCall((message) => {
+dc.subscribe('http.server.response.finish', common.mustCall((message) => {
   const data = {
     request,
     response,

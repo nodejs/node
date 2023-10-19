@@ -44,8 +44,8 @@ class JSSegmentIterator
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // SegmentIterator accessors.
-  DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
-  DECL_ACCESSORS(unicode_string, Managed<icu::UnicodeString>)
+  DECL_ACCESSORS(icu_break_iterator, Tagged<Managed<icu::BreakIterator>>)
+  DECL_ACCESSORS(unicode_string, Tagged<Managed<icu::UnicodeString>>)
 
   DECL_PRINTER(JSSegmentIterator)
 
@@ -55,9 +55,9 @@ class JSSegmentIterator
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_JS_SEGMENT_ITERATOR_FLAGS()
 
-  STATIC_ASSERT(JSSegmenter::Granularity::GRAPHEME <= GranularityBits::kMax);
-  STATIC_ASSERT(JSSegmenter::Granularity::WORD <= GranularityBits::kMax);
-  STATIC_ASSERT(JSSegmenter::Granularity::SENTENCE <= GranularityBits::kMax);
+  static_assert(JSSegmenter::Granularity::GRAPHEME <= GranularityBits::kMax);
+  static_assert(JSSegmenter::Granularity::WORD <= GranularityBits::kMax);
+  static_assert(JSSegmenter::Granularity::SENTENCE <= GranularityBits::kMax);
 
   TQ_OBJECT_CONSTRUCTORS(JSSegmentIterator)
 };

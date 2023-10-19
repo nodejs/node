@@ -42,12 +42,12 @@ class LinkageTailCall : public TestWithZone {
         LinkageLocation::ForAnyRegister(MachineType::Pointer()),
         locations,  // location_sig
         stack_arguments,
-        Operator::kNoProperties,   // properties
-        0,                         // callee-saved
-        0,                         // callee-saved fp
-        CallDescriptor::kNoFlags,  // flags,
-        "", StackArgumentOrder::kDefault,
-        0,  // allocatable_registers
+        Operator::kNoProperties,           // properties
+        kNoCalleeSaved,                    // callee-saved
+        kNoCalleeSavedFp,                  // callee-saved fp
+        CallDescriptor::kNoFlags,          // flags,
+        "", StackArgumentOrder::kDefault,  // --
+        RegList{},                         // allocatable_registers
         stack_returns);
   }
 
@@ -169,8 +169,8 @@ TEST_F(LinkageTailCall, MoreRegisterAndStackParametersCallee) {
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
   EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
-  // We might need to add one slot of padding to the callee arguments.
-  int expected = kPadArguments ? 2 : 1;
+  // We might need to add padding slots to the callee arguments.
+  int expected = 1 + ArgumentPaddingSlots(1);
   EXPECT_EQ(expected, stack_param_delta);
 }
 
@@ -192,8 +192,8 @@ TEST_F(LinkageTailCall, MoreRegisterAndStackParametersCaller) {
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
   EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
-  // We might need to drop one slot of padding from the caller's arguments.
-  int expected = kPadArguments ? -2 : -1;
+  // We might need to drop padding slots from the caller's arguments.
+  int expected = -1 - ArgumentPaddingSlots(1);
   EXPECT_EQ(expected, stack_param_delta);
 }
 
@@ -205,7 +205,7 @@ TEST_F(LinkageTailCall, MatchingStackParameters) {
   LocationSignature locations1(1, 3, location_array);
   CallDescriptor* desc1 = NewStandardCallDescriptor(&locations1);
 
-  // Caller
+  // Callee
   LocationSignature locations2(1, 3, location_array);
   CallDescriptor* desc2 = NewStandardCallDescriptor(&locations1);
 
@@ -231,7 +231,7 @@ TEST_F(LinkageTailCall, NonMatchingStackParameters) {
   LocationSignature locations1(1, 3, location_array);
   CallDescriptor* desc1 = NewStandardCallDescriptor(&locations1);
 
-  // Caller
+  // Callee
   LocationSignature locations2(1, 3, location_array);
   CallDescriptor* desc2 = NewStandardCallDescriptor(&locations1);
 
@@ -258,7 +258,7 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCallerRegisters) {
   LocationSignature locations1(1, 5, location_array);
   CallDescriptor* desc1 = NewStandardCallDescriptor(&locations1);
 
-  // Caller
+  // Callee
   LocationSignature locations2(1, 3, location_array);
   CallDescriptor* desc2 = NewStandardCallDescriptor(&locations1);
 
@@ -285,7 +285,7 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCalleeRegisters) {
   LocationSignature locations1(1, 3, location_array);
   CallDescriptor* desc1 = NewStandardCallDescriptor(&locations1);
 
-  // Caller
+  // Callee
   LocationSignature locations2(1, 5, location_array);
   CallDescriptor* desc2 = NewStandardCallDescriptor(&locations1);
 
@@ -313,7 +313,7 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCallerRegistersAndStack) {
   LocationSignature locations1(1, 5, location_array);
   CallDescriptor* desc1 = NewStandardCallDescriptor(&locations1);
 
-  // Caller
+  // Callee
   LocationSignature locations2(1, 3, location_array);
   CallDescriptor* desc2 = NewStandardCallDescriptor(&locations2);
 
@@ -329,8 +329,8 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCallerRegistersAndStack) {
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
   EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
-  // We might need to add one slot of padding to the callee arguments.
-  int expected = kPadArguments ? 0 : -1;
+  // We might need to add padding slots to the callee arguments.
+  int expected = ArgumentPaddingSlots(1) - 1;
   EXPECT_EQ(expected, stack_param_delta);
 }
 
@@ -343,7 +343,7 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCalleeRegistersAndStack) {
   LocationSignature locations1(1, 3, location_array);
   CallDescriptor* desc1 = NewStandardCallDescriptor(&locations1);
 
-  // Caller
+  // Callee
   LocationSignature locations2(1, 5, location_array);
   CallDescriptor* desc2 = NewStandardCallDescriptor(&locations2);
 
@@ -359,8 +359,8 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCalleeRegistersAndStack) {
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
   EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
-  // We might need to drop one slot of padding from the caller's arguments.
-  int expected = kPadArguments ? 0 : 1;
+  // We might need to drop padding slots from the caller's arguments.
+  int expected = 1 - ArgumentPaddingSlots(1);
   EXPECT_EQ(expected, stack_param_delta);
 }
 

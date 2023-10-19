@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-compilation-hints --wasm-test-streaming
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function testInstantiateStreamingWithLazyHint() {
   print(arguments.callee.name);
@@ -71,13 +71,17 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
                              kCompilationHintTierDefault)
          .exportFunc();
   let bytes = builder.toBuffer();
-  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes),
-                                                       {mod: {pow: Math.pow}})
-    .then(assertUnreachable,
-          error => assertEquals("WebAssembly.instantiateStreaming(): call[1] " +
-                                "expected type f32, found local.get of type " +
-                                "i32 @+94",
-                                error.message)));
+  assertPromiseResult(
+      WebAssembly
+          .instantiateStreaming(Promise.resolve(bytes), {mod: {pow: Math.pow}})
+          .then(
+              assertUnreachable,
+              error => assertEquals(
+                  'WebAssembly.instantiateStreaming(): Compiling ' +
+                      'function #1:"upow" failed: call[0] ' +
+                      'expected type f32, found local.get of type ' +
+                      'i32 @+83',
+                  error.message)));
 })();
 
 (function testInstantiateStreamingEmptyModule() {

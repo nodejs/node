@@ -35,6 +35,7 @@ assert.strictEqual(buffer.readDoubleLE(0), 1.0000000000000004);
 buffer[0] = 1;
 buffer[6] = 0;
 buffer[7] = 0;
+// eslint-disable-next-line no-loss-of-precision
 assert.strictEqual(buffer.readDoubleBE(0), 7.291122019556398e-304);
 assert.strictEqual(buffer.readDoubleLE(0), 5e-324);
 

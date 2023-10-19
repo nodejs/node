@@ -1,0 +1,10 @@
+node:events:*
+      throw er; * Unhandled 'error' event
+      ^
+
+Error
+    at Object.<anonymous> (*events_unhandled_error_nexttick.js:*:*)
+Emitted 'error' event at:
+    at *events_unhandled_error_nexttick.js:*:*
+
+Node.js *

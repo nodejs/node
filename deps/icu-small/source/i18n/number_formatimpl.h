@@ -34,6 +34,12 @@ class NumberFormatterImpl : public UMemory {
     NumberFormatterImpl(const MacroProps &macros, UErrorCode &status);
 
     /**
+     * Default constructor; leaves the NumberFormatterImpl in an undefined state.
+     * Takes an error code to prevent the method from being called accidentally.
+     */
+    NumberFormatterImpl(UErrorCode &) {}
+
+    /**
      * Builds and evaluates an "unsafe" MicroPropsGenerator, which is cheaper but can be used only once.
      */
     static int32_t formatStatic(const MacroProps &macros, UFormattedNumberData *results,
@@ -73,14 +79,22 @@ class NumberFormatterImpl : public UMemory {
      * Synthesizes the output string from a MicroProps and DecimalQuantity.
      * This method formats only the main number, not affixes.
      */
-    static int32_t writeNumber(const MicroProps& micros, DecimalQuantity& quantity,
-                               FormattedStringBuilder& string, int32_t index, UErrorCode& status);
+    static int32_t writeNumber(
+        const SimpleMicroProps& micros,
+        DecimalQuantity& quantity,
+        FormattedStringBuilder& string,
+        int32_t index,
+        UErrorCode& status);
 
     /**
      * Adds the affixes.  Intended to be called immediately after formatNumber.
      */
-    static int32_t writeAffixes(const MicroProps& micros, FormattedStringBuilder& string, int32_t start,
-                                int32_t end, UErrorCode& status);
+    static int32_t writeAffixes(
+        const MicroProps& micros,
+        FormattedStringBuilder& string,
+        int32_t start,
+        int32_t end,
+        UErrorCode& status);
 
   private:
     // Head of the MicroPropsGenerator linked list. Subclasses' processQuantity
@@ -108,12 +122,6 @@ class NumberFormatterImpl : public UMemory {
     LocalPointer<MixedUnitLongNameHandler> fMixedUnitLongNameHandler;
     LocalPointer<const LongNameMultiplexer> fLongNameMultiplexer;
     LocalPointer<const CompactHandler> fCompactHandler;
-
-    // Value objects possibly used by the number formatting pipeline:
-    struct Warehouse {
-        CurrencySymbols fCurrencySymbols;
-    } fWarehouse;
-
 
     NumberFormatterImpl(const MacroProps &macros, bool safe, UErrorCode &status);
 
@@ -146,12 +154,20 @@ class NumberFormatterImpl : public UMemory {
     macrosToMicroGenerator(const MacroProps &macros, bool safe, UErrorCode &status);
 
     static int32_t
-    writeIntegerDigits(const MicroProps &micros, DecimalQuantity &quantity, FormattedStringBuilder &string,
-                       int32_t index, UErrorCode &status);
+    writeIntegerDigits(
+        const SimpleMicroProps& micros,
+        DecimalQuantity &quantity,
+        FormattedStringBuilder &string,
+        int32_t index,
+        UErrorCode &status);
 
     static int32_t
-    writeFractionDigits(const MicroProps &micros, DecimalQuantity &quantity, FormattedStringBuilder &string,
-                        int32_t index, UErrorCode &status);
+    writeFractionDigits(
+        const SimpleMicroProps& micros,
+        DecimalQuantity &quantity,
+        FormattedStringBuilder &string,
+        int32_t index,
+        UErrorCode &status);
 };
 
 }  // namespace impl

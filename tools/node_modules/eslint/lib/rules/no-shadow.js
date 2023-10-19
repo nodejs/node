@@ -12,18 +12,27 @@
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const FUNC_EXPR_NODE_TYPES = new Set(["ArrowFunctionExpression", "FunctionExpression"]);
+const CALL_EXPR_NODE_TYPE = new Set(["CallExpression"]);
+const FOR_IN_OF_TYPE = /^For(?:In|Of)Statement$/u;
+const SENTINEL_TYPE = /^(?:(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|CatchClause|ImportDeclaration|ExportNamedDeclaration)$/u;
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow variable declarations from shadowing variables declared in the outer scope",
-            category: "Variables",
+            description: "Disallow variable declarations from shadowing variables declared in the outer scope",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-shadow"
+            url: "https://eslint.org/docs/latest/rules/no-shadow"
         },
 
         schema: [
@@ -37,7 +46,8 @@ module.exports = {
                         items: {
                             type: "string"
                         }
-                    }
+                    },
+                    ignoreOnInitialization: { type: "boolean", default: false }
                 },
                 additionalProperties: false
             }
@@ -54,16 +64,117 @@ module.exports = {
         const options = {
             builtinGlobals: context.options[0] && context.options[0].builtinGlobals,
             hoist: (context.options[0] && context.options[0].hoist) || "functions",
-            allow: (context.options[0] && context.options[0].allow) || []
+            allow: (context.options[0] && context.options[0].allow) || [],
+            ignoreOnInitialization: context.options[0] && context.options[0].ignoreOnInitialization
         };
+        const sourceCode = context.sourceCode;
+
+        /**
+         * Checks whether or not a given location is inside of the range of a given node.
+         * @param {ASTNode} node An node to check.
+         * @param {number} location A location to check.
+         * @returns {boolean} `true` if the location is inside of the range of the node.
+         */
+        function isInRange(node, location) {
+            return node && node.range[0] <= location && location <= node.range[1];
+        }
+
+        /**
+         * Searches from the current node through its ancestry to find a matching node.
+         * @param {ASTNode} node a node to get.
+         * @param {(node: ASTNode) => boolean} match a callback that checks whether or not the node verifies its condition or not.
+         * @returns {ASTNode|null} the matching node.
+         */
+        function findSelfOrAncestor(node, match) {
+            let currentNode = node;
+
+            while (currentNode && !match(currentNode)) {
+                currentNode = currentNode.parent;
+            }
+            return currentNode;
+        }
+
+        /**
+         * Finds function's outer scope.
+         * @param {Scope} scope Function's own scope.
+         * @returns {Scope} Function's outer scope.
+         */
+        function getOuterScope(scope) {
+            const upper = scope.upper;
+
+            if (upper.type === "function-expression-name") {
+                return upper.upper;
+            }
+            return upper;
+        }
+
+        /**
+         * Checks if a variable and a shadowedVariable have the same init pattern ancestor.
+         * @param {Object} variable a variable to check.
+         * @param {Object} shadowedVariable a shadowedVariable to check.
+         * @returns {boolean} Whether or not the variable and the shadowedVariable have the same init pattern ancestor.
+         */
+        function isInitPatternNode(variable, shadowedVariable) {
+            const outerDef = shadowedVariable.defs[0];
+
+            if (!outerDef) {
+                return false;
+            }
+
+            const { variableScope } = variable.scope;
+
+
+            if (!(FUNC_EXPR_NODE_TYPES.has(variableScope.block.type) && getOuterScope(variableScope) === shadowedVariable.scope)) {
+                return false;
+            }
+
+            const fun = variableScope.block;
+            const { parent } = fun;
+
+            const callExpression = findSelfOrAncestor(
+                parent,
+                node => CALL_EXPR_NODE_TYPE.has(node.type)
+            );
+
+            if (!callExpression) {
+                return false;
+            }
+
+            let node = outerDef.name;
+            const location = callExpression.range[1];
+
+            while (node) {
+                if (node.type === "VariableDeclarator") {
+                    if (isInRange(node.init, location)) {
+                        return true;
+                    }
+                    if (FOR_IN_OF_TYPE.test(node.parent.parent.type) &&
+                        isInRange(node.parent.parent.right, location)
+                    ) {
+                        return true;
+                    }
+                    break;
+                } else if (node.type === "AssignmentPattern") {
+                    if (isInRange(node.right, location)) {
+                        return true;
+                    }
+                } else if (SENTINEL_TYPE.test(node.type)) {
+                    break;
+                }
+
+                node = node.parent;
+            }
+
+            return false;
+        }
 
         /**
          * Check if variable name is allowed.
-         * @param  {ASTNode} variable The variable to check.
+         * @param {ASTNode} variable The variable to check.
          * @returns {boolean} Whether or not the variable name is allowed.
          */
         function isAllowed(variable) {
-            return options.allow.indexOf(variable.name) !== -1;
+            return options.allow.includes(variable.name);
         }
 
         /**
@@ -99,11 +210,11 @@ module.exports = {
 
             return (
                 outer &&
-                inner &&
-                outer[0] < inner[0] &&
-                inner[1] < outer[1] &&
-                ((innerDef.type === "FunctionName" && innerDef.node.type === "FunctionExpression") || innerDef.node.type === "ClassExpression") &&
-                outerScope === innerScope.upper
+                 inner &&
+                 outer[0] < inner[0] &&
+                 inner[1] < outer[1] &&
+                 ((innerDef.type === "FunctionName" && innerDef.node.type === "FunctionExpression") || innerDef.node.type === "ClassExpression") &&
+                 outerScope === innerScope.upper
             );
         }
 
@@ -154,11 +265,11 @@ module.exports = {
 
             return (
                 inner &&
-                outer &&
-                inner[1] < outer[0] &&
+                 outer &&
+                 inner[1] < outer[0] &&
 
-                // Excepts FunctionDeclaration if is {"hoist":"function"}.
-                (options.hoist !== "functions" || !outerDef || outerDef.node.type !== "FunctionDeclaration")
+                 // Excepts FunctionDeclaration if is {"hoist":"function"}.
+                 (options.hoist !== "functions" || !outerDef || outerDef.node.type !== "FunctionDeclaration")
             );
         }
 
@@ -175,8 +286,8 @@ module.exports = {
 
                 // Skips "arguments" or variables of a class name in the class scope of ClassDeclaration.
                 if (variable.identifiers.length === 0 ||
-                    isDuplicatedClassNameVariable(variable) ||
-                    isAllowed(variable)
+                     isDuplicatedClassNameVariable(variable) ||
+                     isAllowed(variable)
                 ) {
                     continue;
                 }
@@ -185,9 +296,10 @@ module.exports = {
                 const shadowed = astUtils.getVariableByName(scope.upper, variable.name);
 
                 if (shadowed &&
-                    (shadowed.identifiers.length > 0 || (options.builtinGlobals && "writeable" in shadowed)) &&
-                    !isOnInitializer(variable, shadowed) &&
-                    !(options.hoist !== "all" && isInTdz(variable, shadowed))
+                      (shadowed.identifiers.length > 0 || (options.builtinGlobals && "writeable" in shadowed)) &&
+                      !isOnInitializer(variable, shadowed) &&
+                      !(options.ignoreOnInitialization && isInitPatternNode(variable, shadowed)) &&
+                      !(options.hoist !== "all" && isInTdz(variable, shadowed))
                 ) {
                     const location = getDeclaredLocation(shadowed);
                     const messageId = location.global ? "noShadowGlobal" : "noShadow";
@@ -207,8 +319,8 @@ module.exports = {
         }
 
         return {
-            "Program:exit"() {
-                const globalScope = context.getScope();
+            "Program:exit"(node) {
+                const globalScope = sourceCode.getScope(node);
                 const stack = globalScope.childScopes.slice();
 
                 while (stack.length) {

@@ -18,6 +18,7 @@
 #include "number_roundingutils.h"
 #include "decNumber.h"
 #include "charstr.h"
+#include "util.h"
 
 U_NAMESPACE_BEGIN namespace number {
 namespace impl {
@@ -66,21 +67,31 @@ class IntMeasures : public MaybeStackArray<int64_t, 2> {
     UErrorCode status = U_ZERO_ERROR;
 };
 
+struct SimpleMicroProps : public UMemory {
+    Grouper grouping;
+    bool useCurrency = false;
+    UNumberDecimalSeparatorDisplay decimal = UNUM_DECIMAL_SEPARATOR_AUTO;
+
+    // Currency symbol to be used as the decimal separator
+    UnicodeString currencyAsDecimal = ICU_Utility::makeBogusString();
+
+    // Note: This struct has no direct ownership of the following pointer.
+    const DecimalFormatSymbols* symbols = nullptr;
+};
+
 /**
  * MicroProps is the first MicroPropsGenerator that should be should be called,
  * producing an initialized MicroProps instance that will be passed on and
  * modified throughout the rest of the chain of MicroPropsGenerator instances.
  */
 struct MicroProps : public MicroPropsGenerator {
+    SimpleMicroProps simple;
 
     // NOTE: All of these fields are properly initialized in NumberFormatterImpl.
     RoundingImpl rounder;
-    Grouper grouping;
     Padder padding;
     IntegerWidth integerWidth;
     UNumberSignDisplay sign;
-    UNumberDecimalSeparatorDisplay decimal;
-    bool useCurrency;
     char nsName[9];
 
     // No ownership: must point at a string which will outlive MicroProps
@@ -89,7 +100,6 @@ struct MicroProps : public MicroPropsGenerator {
     const char *gender;
 
     // Note: This struct has no direct ownership of the following pointers.
-    const DecimalFormatSymbols* symbols;
 
     // Pointers to Modifiers provided by the number formatting pipeline (when
     // the value is known):
@@ -158,7 +168,7 @@ struct MicroProps : public MicroPropsGenerator {
      * not already `*this`, it will be overwritten with a copy of `*this`.
      */
     void processQuantity(DecimalQuantity &quantity, MicroProps &micros,
-                         UErrorCode &status) const U_OVERRIDE {
+                         UErrorCode &status) const override {
         (void) quantity;
         (void) status;
         if (this == &micros) {

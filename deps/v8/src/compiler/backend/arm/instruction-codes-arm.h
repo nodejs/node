@@ -11,6 +11,7 @@ namespace compiler {
 
 // ARM-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
+
 #define TARGET_ARCH_OPCODE_LIST(V) \
   V(ArmAdd)                        \
   V(ArmAnd)                        \
@@ -113,6 +114,7 @@ namespace compiler {
   V(ArmVld1S128)                   \
   V(ArmVst1S128)                   \
   V(ArmVcnt)                       \
+  V(ArmVpadal)                     \
   V(ArmVpaddl)                     \
   V(ArmFloat32Max)                 \
   V(ArmFloat64Max)                 \
@@ -150,6 +152,8 @@ namespace compiler {
   V(ArmF64x2Le)                    \
   V(ArmF64x2Pmin)                  \
   V(ArmF64x2Pmax)                  \
+  V(ArmF64x2Qfma)                  \
+  V(ArmF64x2Qfms)                  \
   V(ArmF64x2Ceil)                  \
   V(ArmF64x2Floor)                 \
   V(ArmF64x2Trunc)                 \
@@ -165,10 +169,7 @@ namespace compiler {
   V(ArmF32x4Abs)                   \
   V(ArmF32x4Neg)                   \
   V(ArmF32x4Sqrt)                  \
-  V(ArmF32x4RecipApprox)           \
-  V(ArmF32x4RecipSqrtApprox)       \
   V(ArmF32x4Add)                   \
-  V(ArmF32x4AddHoriz)              \
   V(ArmF32x4Sub)                   \
   V(ArmF32x4Mul)                   \
   V(ArmF32x4Div)                   \
@@ -180,6 +181,8 @@ namespace compiler {
   V(ArmF32x4Le)                    \
   V(ArmF32x4Pmin)                  \
   V(ArmF32x4Pmax)                  \
+  V(ArmF32x4Qfma)                  \
+  V(ArmF32x4Qfms)                  \
   V(ArmF32x4DemoteF64x2Zero)       \
   V(ArmI64x2SplatI32Pair)          \
   V(ArmI64x2ReplaceLaneI32Pair)    \
@@ -210,7 +213,6 @@ namespace compiler {
   V(ArmI32x4Shl)                   \
   V(ArmI32x4ShrS)                  \
   V(ArmI32x4Add)                   \
-  V(ArmI32x4AddHoriz)              \
   V(ArmI32x4Sub)                   \
   V(ArmI32x4Mul)                   \
   V(ArmI32x4MinS)                  \
@@ -230,6 +232,8 @@ namespace compiler {
   V(ArmI32x4Abs)                   \
   V(ArmI32x4BitMask)               \
   V(ArmI32x4DotI16x8S)             \
+  V(ArmI16x8DotI8x16S)             \
+  V(ArmI32x4DotI8x16AddS)          \
   V(ArmI32x4TruncSatF64x2SZero)    \
   V(ArmI32x4TruncSatF64x2UZero)    \
   V(ArmI16x8Splat)                 \
@@ -243,7 +247,6 @@ namespace compiler {
   V(ArmI16x8SConvertI32x4)         \
   V(ArmI16x8Add)                   \
   V(ArmI16x8AddSatS)               \
-  V(ArmI16x8AddHoriz)              \
   V(ArmI16x8Sub)                   \
   V(ArmI16x8SubSatS)               \
   V(ArmI16x8Mul)                   \
@@ -279,7 +282,6 @@ namespace compiler {
   V(ArmI8x16AddSatS)               \
   V(ArmI8x16Sub)                   \
   V(ArmI8x16SubSatS)               \
-  V(ArmI8x16Mul)                   \
   V(ArmI8x16MinS)                  \
   V(ArmI8x16MaxS)                  \
   V(ArmI8x16Eq)                    \
@@ -298,7 +300,6 @@ namespace compiler {
   V(ArmI8x16RoundingAverageU)      \
   V(ArmI8x16Abs)                   \
   V(ArmI8x16BitMask)               \
-  V(ArmSignSelect)                 \
   V(ArmS128Const)                  \
   V(ArmS128Zero)                   \
   V(ArmS128AllOnes)                \
@@ -337,11 +338,11 @@ namespace compiler {
   V(ArmS8x8Reverse)                \
   V(ArmS8x4Reverse)                \
   V(ArmS8x2Reverse)                \
-  V(ArmV64x2AllTrue)               \
-  V(ArmV32x4AllTrue)               \
-  V(ArmV16x8AllTrue)               \
+  V(ArmI64x2AllTrue)               \
+  V(ArmI32x4AllTrue)               \
+  V(ArmI16x8AllTrue)               \
   V(ArmV128AnyTrue)                \
-  V(ArmV8x16AllTrue)               \
+  V(ArmI8x16AllTrue)               \
   V(ArmS128Load8Splat)             \
   V(ArmS128Load16Splat)            \
   V(ArmS128Load32Splat)            \

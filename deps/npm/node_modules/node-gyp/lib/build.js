@@ -11,6 +11,8 @@ function build (gyp, argv, callback) {
   var platformMake = 'make'
   if (process.platform === 'aix') {
     platformMake = 'gmake'
+  } else if (process.platform === 'os400') {
+    platformMake = 'gmake'
   } else if (process.platform.indexOf('bsd') !== -1) {
     platformMake = 'gmake'
   } else if (win && argv.length > 0) {
@@ -183,6 +185,13 @@ function build (gyp, argv, callback) {
       if (!hasSln) {
         argv.unshift(gyp.opts.solution || guessedSolution)
       }
+    }
+
+    if (!win) {
+      // Add build-time dependency symlinks (such as Python) to PATH
+      const buildBinsDir = path.resolve('build', 'node_gyp_bins')
+      process.env.PATH = `${buildBinsDir}:${process.env.PATH}`
+      log.verbose('bin symlinks', `adding symlinks (such as Python), at "${buildBinsDir}", to PATH`)
     }
 
     var proc = gyp.spawn(command, argv)

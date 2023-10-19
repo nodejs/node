@@ -5,9 +5,9 @@
 #include "src/compiler/control-equivalence.h"
 #include "src/compiler/node-properties.h"
 
-#define TRACE(...)                                 \
-  do {                                             \
-    if (FLAG_trace_turbo_ceq) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                     \
+  do {                                                 \
+    if (v8_flags.trace_turbo_ceq) PrintF(__VA_ARGS__); \
   } while (false)
 
 namespace v8 {
@@ -157,8 +157,8 @@ void ControlEquivalence::RunUndirectedDFS(Node* exit) {
     // Pop node from stack when done with all inputs and uses.
     DCHECK(entry.input == node->input_edges().end());
     DCHECK(entry.use == node->use_edges().end());
-    DFSPop(stack, node);
     VisitPost(node, entry.parent_node, entry.direction);
+    DFSPop(stack, node);
   }
 }
 
@@ -219,7 +219,7 @@ void ControlEquivalence::BracketListDelete(BracketList& blist, Node* to,
 
 
 void ControlEquivalence::BracketListTRACE(BracketList& blist) {
-  if (FLAG_trace_turbo_ceq) {
+  if (v8_flags.trace_turbo_ceq) {
     TRACE("  BList: ");
     for (Bracket bracket : blist) {
       TRACE("{%d->%d} ", bracket.from->id(), bracket.to->id());

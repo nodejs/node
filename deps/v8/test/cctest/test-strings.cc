@@ -32,14 +32,15 @@
 
 #include <stdlib.h>
 
+#include "include/v8-json.h"
+#include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/base/strings.h"
 #include "src/execution/messages.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "src/strings/unicode-decoder.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -100,13 +101,14 @@ static const int SUPER_DEEP_DEPTH = 80 * 1024;
 
 class Resource : public v8::String::ExternalStringResource {
  public:
-  Resource(const uc16* data, size_t length) : data_(data), length_(length) {}
+  Resource(const base::uc16* data, size_t length)
+      : data_(data), length_(length) {}
   ~Resource() override { i::DeleteArray(data_); }
   const uint16_t* data() const override { return data_; }
   size_t length() const override { return length_; }
 
  private:
-  const uc16* data_;
+  const base::uc16* data_;
   size_t length_;
 };
 
@@ -156,12 +158,14 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
     len += slice_length;
     switch (rng->next(4)) {
       case 0: {
-        uc16 buf[2000];
+        base::uc16 buf[2000];
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x10000);
         }
         building_blocks[i] =
-            factory->NewStringFromTwoByte(Vector<const uc16>(buf, len))
+            factory
+                ->NewStringFromTwoByte(
+                    v8::base::Vector<const base::uc16>(buf, len))
                 .ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
@@ -174,7 +178,7 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
           buf[j] = rng->next(0x80);
         }
         building_blocks[i] =
-            factory->NewStringFromOneByte(OneByteVector(buf, len))
+            factory->NewStringFromOneByte(v8::base::OneByteVector(buf, len))
                 .ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
@@ -182,7 +186,7 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         break;
       }
       case 2: {
-        uc16* buf = NewArray<uc16>(len);
+        base::uc16* buf = NewArray<base::uc16>(len);
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x10000);
         }
@@ -303,24 +307,24 @@ void ConsStringGenerationData::Reset() {
   rng_.init();
 }
 
-void AccumulateStats(ConsString cons_string, ConsStringStats* stats) {
-  int left_length = cons_string.first().length();
-  int right_length = cons_string.second().length();
-  CHECK(cons_string.length() == left_length + right_length);
+void AccumulateStats(Tagged<ConsString> cons_string, ConsStringStats* stats) {
+  int left_length = cons_string->first()->length();
+  int right_length = cons_string->second()->length();
+  CHECK(cons_string->length() == left_length + right_length);
   // Check left side.
-  bool left_is_cons = cons_string.first().IsConsString();
+  bool left_is_cons = IsConsString(cons_string->first());
   if (left_is_cons) {
     stats->left_traversals_++;
-    AccumulateStats(ConsString::cast(cons_string.first()), stats);
+    AccumulateStats(ConsString::cast(cons_string->first()), stats);
   } else {
     CHECK_NE(left_length, 0);
     stats->leaves_++;
     stats->chars_ += left_length;
   }
   // Check right side.
-  if (cons_string.second().IsConsString()) {
+  if (IsConsString(cons_string->second())) {
     stats->right_traversals_++;
-    AccumulateStats(ConsString::cast(cons_string.second()), stats);
+    AccumulateStats(ConsString::cast(cons_string->second()), stats);
   } else {
     if (right_length == 0) {
       stats->empty_leaves_++;
@@ -333,29 +337,29 @@ void AccumulateStats(ConsString cons_string, ConsStringStats* stats) {
 
 void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
   DisallowGarbageCollection no_gc;
-  if (cons_string->IsConsString()) {
+  if (IsConsString(*cons_string)) {
     return AccumulateStats(ConsString::cast(*cons_string), stats);
   }
   // This string got flattened by gc.
   stats->chars_ += cons_string->length();
 }
 
-void AccumulateStatsWithOperator(ConsString cons_string,
+void AccumulateStatsWithOperator(Tagged<ConsString> cons_string,
                                  ConsStringStats* stats) {
   ConsStringIterator iter(cons_string);
   int offset;
-  for (String string = iter.Next(&offset); !string.is_null();
+  for (Tagged<String> string = iter.Next(&offset); !string.is_null();
        string = iter.Next(&offset)) {
     // Accumulate stats.
     CHECK_EQ(0, offset);
     stats->leaves_++;
-    stats->chars_ += string.length();
+    stats->chars_ += string->length();
   }
 }
 
 void VerifyConsString(Handle<String> root, ConsStringGenerationData* data) {
   // Verify basic data.
-  CHECK(root->IsConsString());
+  CHECK(IsConsString(*root));
   CHECK_EQ(root->length(), data->stats_.chars_);
   // Recursive verify.
   ConsStringStats stats;
@@ -424,12 +428,12 @@ static Handle<String> ConstructRandomString(ConsStringGenerationData* data,
   }
   // Build the cons string.
   Handle<String> root = factory->NewConsString(left, right).ToHandleChecked();
-  CHECK(root->IsConsString() && !root->IsFlat());
+  CHECK(IsConsString(*root) && !root->IsFlat());
   // Special work needed for flat string.
   if (flat) {
     data->stats_.empty_leaves_++;
     String::Flatten(isolate, root);
-    CHECK(root->IsConsString() && root->IsFlat());
+    CHECK(IsConsString(*root) && root->IsFlat());
   }
   return root;
 }
@@ -442,7 +446,7 @@ static Handle<String> ConstructLeft(ConsStringGenerationData* data, int depth) {
     Handle<String> block = data->block(i);
     Handle<String> next =
         factory->NewConsString(answer, block).ToHandleChecked();
-    if (next->IsConsString()) data->stats_.leaves_++;
+    if (IsConsString(*next)) data->stats_.leaves_++;
     data->stats_.chars_ += block->length();
     answer = next;
   }
@@ -459,7 +463,7 @@ static Handle<String> ConstructRight(ConsStringGenerationData* data,
     Handle<String> block = data->block(i);
     Handle<String> next =
         factory->NewConsString(block, answer).ToHandleChecked();
-    if (next->IsConsString()) data->stats_.leaves_++;
+    if (IsConsString(*next)) data->stats_.leaves_++;
     data->stats_.chars_ += block->length();
     answer = next;
   }
@@ -485,8 +489,8 @@ static Handle<String> ConstructBalancedHelper(ConsStringGenerationData* data,
       ConstructBalancedHelper(data, from, from + ((to - from) / 2));
   Handle<String> part2 =
       ConstructBalancedHelper(data, from + ((to - from) / 2), to);
-  if (part1->IsConsString()) data->stats_.left_traversals_++;
-  if (part2->IsConsString()) data->stats_.right_traversals_++;
+  if (IsConsString(*part1)) data->stats_.left_traversals_++;
+  if (IsConsString(*part2)) data->stats_.right_traversals_++;
   return factory->NewConsString(part1, part2).ToHandleChecked();
 }
 
@@ -583,7 +587,7 @@ TEST(ConsStringWithEmptyFirstFlatten) {
   i::Handle<i::String> str = isolate->factory()
                                  ->NewConsString(initial_fst, initial_snd)
                                  .ToHandleChecked();
-  CHECK(str->IsConsString());
+  CHECK(IsConsString(*str));
   auto cons = i::Handle<i::ConsString>::cast(str);
 
   const int initial_length = cons->length();
@@ -596,7 +600,7 @@ TEST(ConsStringWithEmptyFirstFlatten) {
       isolate->factory()->NewStringFromAsciiChecked("snd012345012345678");
   cons->set_first(*new_fst);
   cons->set_second(*new_snd);
-  CHECK(!cons->IsFlat());
+  CHECK(!cons->IsFlat(GetPtrComprCageBase(*cons)));
   CHECK_EQ(initial_length, new_fst->length() + new_snd->length());
   CHECK_EQ(initial_length, cons->length());
 
@@ -607,12 +611,13 @@ TEST(ConsStringWithEmptyFirstFlatten) {
   CHECK_EQ(initial_length, flat->length());
 }
 
-static void VerifyCharacterStream(String flat_string, String cons_string) {
+static void VerifyCharacterStream(Tagged<String> flat_string,
+                                  Tagged<String> cons_string) {
   // Do not want to test ConString traversal on flat string.
-  CHECK(flat_string.IsFlat() && !flat_string.IsConsString());
-  CHECK(cons_string.IsConsString());
+  CHECK(flat_string->IsFlat() && !IsConsString(flat_string));
+  CHECK(IsConsString(cons_string));
   // TODO(dcarney) Test stream reset as well.
-  int length = flat_string.length();
+  int length = flat_string->length();
   // Iterate start search in multiple places in the string.
   int outer_iterations = length > 20 ? 20 : length;
   for (int j = 0; j <= outer_iterations; j++) {
@@ -623,7 +628,7 @@ static void VerifyCharacterStream(String flat_string, String cons_string) {
     StringCharacterStream flat_stream(flat_string, offset);
     StringCharacterStream cons_stream(cons_string, offset);
     for (int i = offset; i < length; i++) {
-      uint16_t c = flat_string.Get(i);
+      uint16_t c = flat_string->Get(i);
       CHECK(flat_stream.HasMore());
       CHECK(cons_stream.HasMore());
       CHECK_EQ(c, flat_stream.GetNext());
@@ -646,7 +651,7 @@ static inline void PrintStats(const ConsStringGenerationData& data) {
 
 template <typename BuildString>
 void TestStringCharacterStream(BuildString build, int test_cases) {
-  FLAG_gc_global = true;
+  v8_flags.gc_global = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
@@ -671,9 +676,12 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     cons_string_stats.VerifyEqual(flat_string_stats);
     cons_string_stats.VerifyEqual(data.stats_);
     VerifyConsString(cons_string, &data);
-    String flat_string_ptr = flat_string->IsConsString()
-                                 ? ConsString::cast(*flat_string).first()
-                                 : *flat_string;
+    // TODO(leszeks): Remove Tagged cast when .first() returns a Tagged.
+    static_assert(kTaggedCanConvertToRawObjects);
+    Tagged<String> flat_string_ptr =
+        IsConsString(*flat_string)
+            ? Tagged(Tagged<ConsString>::cast(*flat_string)->first())
+            : *flat_string;
     VerifyCharacterStream(flat_string_ptr, *cons_string);
   }
 }
@@ -848,9 +856,10 @@ TEST(DeepOneByte) {
   for (int i = 0; i < kDeepOneByteDepth; i++) {
     foo[i] = "foo "[i % 4];
   }
-  Handle<String> string =
-      factory->NewStringFromOneByte(OneByteVector(foo, kDeepOneByteDepth))
-          .ToHandleChecked();
+  Handle<String> string = factory
+                              ->NewStringFromOneByte(v8::base::OneByteVector(
+                                  foo, kDeepOneByteDepth))
+                              .ToHandleChecked();
   Handle<String> foo_string = factory->NewStringFromStaticChars("foo");
   for (int i = 0; i < kDeepOneByteDepth; i += 10) {
     string = factory->NewConsString(string, foo_string).ToHandleChecked();
@@ -1049,7 +1058,7 @@ TEST(ExternalShortStringAdd) {
         ->Set(context.local(), v8::Integer::New(CcTest::isolate(), i),
               one_byte_external_string)
         .FromJust();
-    uc16* non_one_byte = NewArray<uc16>(i + 1);
+    base::uc16* non_one_byte = NewArray<base::uc16>(i + 1);
     for (int j = 0; j < i; j++) {
       non_one_byte[j] = 0x1234;
     }
@@ -1087,7 +1096,7 @@ TEST(ExternalShortStringAdd) {
       "  var non_one_byte_chars = "
       "'\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1"
       "234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\"
-      "u1234';"  // NOLINT
+      "u1234';"
       "  if (one_byte_chars.length != max_length) return 1;"
       "  if (non_one_byte_chars.length != max_length) return 2;"
       "  var one_byte = Array(max_length + 1);"
@@ -1147,42 +1156,6 @@ TEST(ReplaceInvalidUtf8) {
   CHECK_EQ(6, size);
   CHECK_EQ(4, chars_written);
   CHECK_EQ(0, memcmp("\x61\x62\xef\xbf\xbd\x63", buffer, 6));
-}
-
-TEST(JSONStringifySliceMadeExternal) {
-  if (!FLAG_string_slices) return;
-  CcTest::InitializeVM();
-  // Create a sliced string from a one-byte string.  The latter is turned
-  // into a two-byte external string.  Check that JSON.stringify works.
-  v8::HandleScope handle_scope(CcTest::isolate());
-  v8::Local<v8::String> underlying =
-      CompileRun(
-          "var underlying = 'abcdefghijklmnopqrstuvwxyz';"
-          "underlying")
-          ->ToString(CcTest::isolate()->GetCurrentContext())
-          .ToLocalChecked();
-  v8::Local<v8::String> slice =
-      CompileRun(
-          "var slice = '';"
-          "slice = underlying.slice(1);"
-          "slice")
-          ->ToString(CcTest::isolate()->GetCurrentContext())
-          .ToLocalChecked();
-  CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
-  CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
-
-  int length = underlying->Length();
-  uc16* two_byte = NewArray<uc16>(length + 1);
-  underlying->Write(CcTest::isolate(), two_byte);
-  Resource* resource = new Resource(two_byte, length);
-  CHECK(underlying->MakeExternal(resource));
-  CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
-  CHECK(v8::Utils::OpenHandle(*underlying)->IsExternalTwoByteString());
-
-  CHECK_EQ(0,
-           strcmp("\"bcdefghijklmnopqrstuvwxyz\"",
-                  *v8::String::Utf8Value(CcTest::isolate(),
-                                         CompileRun("JSON.stringify(slice)"))));
 }
 
 TEST(JSONStringifyWellFormed) {
@@ -1314,19 +1287,19 @@ TEST(CachedHashOverflow) {
             .ToLocalChecked()
             ->Run(context)
             .ToLocalChecked();
-    CHECK_EQ(results[i]->IsUndefined(CcTest::i_isolate()),
+    CHECK_EQ(IsUndefined(*results[i], CcTest::i_isolate()),
              result->IsUndefined());
-    CHECK_EQ(results[i]->IsNumber(), result->IsNumber());
+    CHECK_EQ(IsNumber(*results[i]), result->IsNumber());
     if (result->IsNumber()) {
       int32_t value = 0;
-      CHECK(results[i]->ToInt32(&value));
+      CHECK(Object::ToInt32(*results[i], &value));
       CHECK_EQ(value, result->ToInt32(context).ToLocalChecked()->Value());
     }
   }
 }
 
 TEST(SliceFromCons) {
-  if (!FLAG_string_slices) return;
+  if (!v8_flags.string_slices) return;
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
@@ -1334,92 +1307,170 @@ TEST(SliceFromCons) {
       factory->NewStringFromStaticChars("parentparentparent");
   Handle<String> parent =
       factory->NewConsString(string, string).ToHandleChecked();
-  CHECK(parent->IsConsString());
+  CHECK(IsConsString(*parent));
   CHECK(!parent->IsFlat());
   Handle<String> slice = factory->NewSubString(parent, 1, 25);
   // After slicing, the original string becomes a flat cons.
   CHECK(parent->IsFlat());
-  CHECK(slice->IsSlicedString());
-  CHECK_EQ(
-      SlicedString::cast(*slice).parent(),
-      // Parent could have been short-circuited.
-      parent->IsConsString() ? ConsString::cast(*parent).first() : *parent);
-  CHECK(SlicedString::cast(*slice).parent().IsSeqString());
+  CHECK(IsSlicedString(*slice));
+  // TODO(leszeks): Remove Tagged cast when .first() returns a Tagged.
+  static_assert(kTaggedCanConvertToRawObjects);
+  CHECK_EQ(SlicedString::cast(*slice)->parent(),
+           // Parent could have been short-circuited.
+           IsConsString(*parent) ? Tagged(ConsString::cast(*parent)->first())
+                                 : *parent);
+  CHECK(IsSeqString(SlicedString::cast(*slice)->parent()));
   CHECK(slice->IsFlat());
 }
 
 class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
-  explicit OneByteVectorResource(i::Vector<const char> vector)
+  explicit OneByteVectorResource(v8::base::Vector<const char> vector)
       : data_(vector) {}
   ~OneByteVectorResource() override = default;
   size_t length() const override { return data_.length(); }
   const char* data() const override { return data_.begin(); }
 
  private:
-  i::Vector<const char> data_;
+  v8::base::Vector<const char> data_;
 };
 
 TEST(InternalizeExternal) {
-#ifdef ENABLE_MINOR_MC
-  // TODO(mlippautz): Remove once we add support for forwarding ThinStrings in
-  // minor MC
-  if (FLAG_minor_mc) return;
-#endif  // ENABLE_MINOR_MC
-  FLAG_stress_incremental_marking = false;
-  FLAG_thin_strings = true;
+  v8_flags.stress_incremental_marking = false;
   CcTest::InitializeVM();
   i::Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   // This won't leak; the external string mechanism will call Dispose() on it.
   OneByteVectorResource* resource =
-      new OneByteVectorResource(i::Vector<const char>("prop-1234", 9));
+      new OneByteVectorResource(v8::base::Vector<const char>("prop-1234", 9));
   {
     v8::HandleScope scope(CcTest::isolate());
     v8::Local<v8::String> ext_string =
         v8::String::NewExternalOneByte(CcTest::isolate(), resource)
             .ToLocalChecked();
     Handle<String> string = v8::Utils::OpenHandle(*ext_string);
-    CHECK(string->IsExternalString());
-    CHECK(!string->IsInternalizedString());
+    CHECK(IsExternalString(*string));
+    CHECK(!IsInternalizedString(*string));
     CHECK(!i::Heap::InYoungGeneration(*string));
     CHECK_EQ(isolate->string_table()->TryStringToIndexOrLookupExisting(
                  isolate, string->ptr()),
              Smi::FromInt(ResultSentinel::kNotFound).ptr());
     factory->InternalizeName(string);
-    CHECK(string->IsExternalString());
-    CHECK(string->IsInternalizedString());
+    CHECK(IsExternalString(*string));
+    CHECK(IsInternalizedString(*string));
     CHECK(!i::Heap::InYoungGeneration(*string));
   }
-  CcTest::CollectGarbage(i::OLD_SPACE);
-  CcTest::CollectGarbage(i::OLD_SPACE);
+  i::heap::InvokeMajorGC(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
+}
+
+TEST(Regress1402187) {
+  CcTest::InitializeVM();
+  i::Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  // This won't leak; the external string mechanism will call Dispose() on it.
+  const char ext_string_content[] = "prop-1234567890asdf";
+  OneByteVectorResource* resource =
+      new OneByteVectorResource(v8::base::Vector<const char>(
+          ext_string_content, strlen(ext_string_content)));
+  const uint32_t fake_hash =
+      String::CreateHashFieldValue(4711, String::HashFieldType::kHash);
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    // Internalize a string with the same hash to ensure collision.
+    Handle<String> intern = factory->NewStringFromAsciiChecked(
+        "internalized1234567", AllocationType::kOld);
+    intern->set_raw_hash_field(fake_hash);
+    factory->InternalizeName(intern);
+    CHECK(IsInternalizedString(*intern));
+
+    v8::Local<v8::String> ext_string =
+        Utils::ToLocal(factory->NewStringFromAsciiChecked(
+            ext_string_content, AllocationType::kOld));
+    CHECK(ext_string->MakeExternal(resource));
+    Handle<String> string = v8::Utils::OpenHandle(*ext_string);
+    string->set_raw_hash_field(fake_hash);
+    CHECK(IsExternalString(*string));
+    CHECK(!StringShape(*string).IsUncachedExternal());
+    CHECK(!IsInternalizedString(*string));
+    CHECK(!String::Equals(isolate, string, intern));
+    CHECK_EQ(string->hash(), intern->hash());
+    CHECK_EQ(string->length(), intern->length());
+
+    CHECK_EQ(isolate->string_table()->TryStringToIndexOrLookupExisting(
+                 isolate, string->ptr()),
+             Smi::FromInt(ResultSentinel::kNotFound).ptr());
+    string = factory->InternalizeString(string);
+    CHECK(IsExternalString(*string));
+    CHECK(IsInternalizedString(*string));
+  }
+  i::heap::InvokeMajorGC(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
 }
 
 TEST(SliceFromExternal) {
-  if (!FLAG_string_slices) return;
+  if (!v8_flags.string_slices) return;
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
   OneByteVectorResource resource(
-      i::Vector<const char>("abcdefghijklmnopqrstuvwxyz", 26));
+      v8::base::Vector<const char>("abcdefghijklmnopqrstuvwxyz", 26));
   Handle<String> string =
       factory->NewExternalStringFromOneByte(&resource).ToHandleChecked();
-  CHECK(string->IsExternalString());
+  CHECK(IsExternalString(*string));
   Handle<String> slice = factory->NewSubString(string, 1, 25);
-  CHECK(slice->IsSlicedString());
-  CHECK(string->IsExternalString());
-  CHECK_EQ(SlicedString::cast(*slice).parent(), *string);
-  CHECK(SlicedString::cast(*slice).parent().IsExternalString());
+  CHECK(IsSlicedString(*slice));
+  CHECK(IsExternalString(*string));
+  CHECK_EQ(SlicedString::cast(*slice)->parent(), *string);
+  CHECK(IsExternalString(SlicedString::cast(*slice)->parent()));
   CHECK(slice->IsFlat());
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(string)->SetResource(
       CcTest::i_isolate(), nullptr);
 }
 
+static void ExternalizeDuringJsonStringifyCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Local<v8::Value> key = v8_compile("p")
+                                 ->Run(CcTest::isolate()->GetCurrentContext())
+                                 .ToLocalChecked();
+  const static char ext_string_content[] = "prop-1234567890asdf";
+  OneByteVectorResource* resource =
+      new OneByteVectorResource(v8::base::Vector<const char>(
+          ext_string_content, strlen(ext_string_content)));
+  CHECK(v8::String::Cast(*key)->MakeExternal(resource));
+}
+
+TEST(ExternalizeDuringJsonStringify) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  const char script[] = R"(
+    var p = "prop-1234567890asdf";
+    JSON.stringify([
+      { [p]: 3 },
+      { toJSON: callExternal },
+      { [p]: 4 },
+    ]);
+  )";
+  v8::Local<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
+  global->Set(isolate, "callExternal",
+              v8::FunctionTemplate::New(
+                  isolate, ExternalizeDuringJsonStringifyCallback));
+  LocalContext context(nullptr, global);
+  v8::Local<v8::Value> stringified =
+      v8_compile(script)->Run(context.local()).ToLocalChecked();
+  CHECK(v8::String::NewFromUtf8Literal(
+            isolate,
+            R"([{"prop-1234567890asdf":3},null,{"prop-1234567890asdf":4}])")
+            ->Equals(context.local(), stringified)
+            .FromJust());
+}
+
 TEST(TrivialSlice) {
   // This tests whether a slice that contains the entire parent string
   // actually creates a new string (it should not).
-  if (!FLAG_string_slices) return;
+  if (!v8_flags.string_slices) return;
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
@@ -1434,21 +1485,21 @@ TEST(TrivialSlice) {
   result = CompileRun(check);
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK(!string->IsSlicedString());
+  CHECK(!IsSlicedString(*string));
 
   string = factory->NewSubString(string, 0, 26);
-  CHECK(!string->IsSlicedString());
+  CHECK(!IsSlicedString(*string));
   result = CompileRun(crosscheck);
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK(string->IsSlicedString());
+  CHECK(IsSlicedString(*string));
   CHECK_EQ(0, strcmp("bcdefghijklmnopqrstuvwxy", string->ToCString().get()));
 }
 
 TEST(SliceFromSlice) {
   // This tests whether a slice that contains the entire parent string
   // actually creates a new string (it should not).
-  if (!FLAG_string_slices) return;
+  if (!v8_flags.string_slices) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> result;
@@ -1461,15 +1512,15 @@ TEST(SliceFromSlice) {
   result = CompileRun(slice);
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK(string->IsSlicedString());
-  CHECK(SlicedString::cast(*string).parent().IsSeqString());
+  CHECK(IsSlicedString(*string));
+  CHECK(IsSeqString(SlicedString::cast(*string)->parent()));
   CHECK_EQ(0, strcmp("bcdefghijklmnopqrstuvwxy", string->ToCString().get()));
 
   result = CompileRun(slice_from_slice);
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK(string->IsSlicedString());
-  CHECK(SlicedString::cast(*string).parent().IsSeqString());
+  CHECK(IsSlicedString(*string));
+  CHECK(IsSeqString(SlicedString::cast(*string)->parent()));
   CHECK_EQ(0, strcmp("cdefghijklmnopqrstuvwx", string->ToCString().get()));
 }
 
@@ -1560,7 +1611,7 @@ TEST(StringReplaceAtomTwoByteResult) {
 
 TEST(IsAscii) {
   CHECK(String::IsAscii(static_cast<char*>(nullptr), 0));
-  CHECK(String::IsOneByte(static_cast<uc16*>(nullptr), 0));
+  CHECK(String::IsOneByte(static_cast<base::uc16*>(nullptr), 0));
 }
 
 template <typename Op, bool return_first>
@@ -1651,21 +1702,23 @@ TEST(InvalidExternalString) {
   }
 }
 
-#define INVALID_STRING_TEST(FUN, TYPE)                                         \
-  TEST(StringOOM##FUN) {                                                       \
-    CcTest::InitializeVM();                                                    \
-    LocalContext context;                                                      \
-    Isolate* isolate = CcTest::i_isolate();                                    \
-    STATIC_ASSERT(String::kMaxLength < kMaxInt);                               \
-    static const int invalid = String::kMaxLength + 1;                         \
-    HandleScope scope(isolate);                                                \
-    Vector<TYPE> dummy = Vector<TYPE>::New(invalid);                           \
-    memset(dummy.begin(), 0x0, dummy.length() * sizeof(TYPE));                 \
-    CHECK(isolate->factory()->FUN(Vector<const TYPE>::cast(dummy)).is_null()); \
-    memset(dummy.begin(), 0x20, dummy.length() * sizeof(TYPE));                \
-    CHECK(isolate->has_pending_exception());                                   \
-    isolate->clear_pending_exception();                                        \
-    dummy.Dispose();                                                           \
+#define INVALID_STRING_TEST(FUN, TYPE)                                   \
+  TEST(StringOOM##FUN) {                                                 \
+    CcTest::InitializeVM();                                              \
+    LocalContext context;                                                \
+    Isolate* isolate = CcTest::i_isolate();                              \
+    static_assert(String::kMaxLength < kMaxInt);                         \
+    static const int invalid = String::kMaxLength + 1;                   \
+    HandleScope scope(isolate);                                          \
+    v8::base::Vector<TYPE> dummy = v8::base::Vector<TYPE>::New(invalid); \
+    memset(dummy.begin(), 0x0, dummy.length() * sizeof(TYPE));           \
+    CHECK(isolate->factory()                                             \
+              ->FUN(v8::base::Vector<const TYPE>::cast(dummy))           \
+              .is_null());                                               \
+    memset(dummy.begin(), 0x20, dummy.length() * sizeof(TYPE));          \
+    CHECK(isolate->has_pending_exception());                             \
+    isolate->clear_pending_exception();                                  \
+    dummy.Dispose();                                                     \
   }
 
 INVALID_STRING_TEST(NewStringFromUtf8, char)
@@ -1682,8 +1735,8 @@ TEST(FormatMessage) {
   Handle<String> arg1 = isolate->factory()->NewStringFromAsciiChecked("arg1");
   Handle<String> arg2 = isolate->factory()->NewStringFromAsciiChecked("arg2");
   Handle<String> result =
-      MessageFormatter::Format(isolate, MessageTemplate::kPropertyNotFunction,
-                               arg0, arg1, arg2)
+      MessageFormatter::TryFormat(
+          isolate, MessageTemplate::kPropertyNotFunction, arg0, arg1, arg2)
           .ToHandleChecked();
   Handle<String> expected = isolate->factory()->NewStringFromAsciiChecked(
       "'arg0' returned for property 'arg1' of object 'arg2' is not a function");
@@ -1700,7 +1753,7 @@ TEST(Regress609831) {
         "String.fromCharCode(32, 32, 32, 32, 32, "
         "32, 32, 32, 32, 32, 32, 32, 32, 32, 32, "
         "32, 32, 32, 32, 32, 32, 32, 32, 32, 32)");
-    CHECK(v8::Utils::OpenHandle(*result)->IsSeqOneByteString());
+    CHECK(IsSeqOneByteString(*v8::Utils::OpenHandle(*result)));
   }
   {
     HandleScope scope(isolate);
@@ -1708,7 +1761,7 @@ TEST(Regress609831) {
         "String.fromCharCode(432, 432, 432, 432, 432, "
         "432, 432, 432, 432, 432, 432, 432, 432, 432, "
         "432, 432, 432, 432, 432, 432, 432, 432, 432)");
-    CHECK(v8::Utils::OpenHandle(*result)->IsSeqTwoByteString());
+    CHECK(IsSeqTwoByteString(*v8::Utils::OpenHandle(*result)));
   }
 }
 
@@ -1747,67 +1800,6 @@ TEST(ExternalStringIndexOf) {
                    .FromJust());
 }
 
-#define GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(NAME, STRING)                \
-  TEST(GCInsideNewStringFromUtf8SubStringWith##NAME) {                         \
-    FLAG_stress_concurrent_allocation = false; /* For SimulateFullSpace. */    \
-    CcTest::InitializeVM();                                                    \
-    LocalContext context;                                                      \
-    v8::HandleScope scope(CcTest::isolate());                                  \
-    Factory* factory = CcTest::i_isolate()->factory();                         \
-    /* Length must be bigger than the buffer size of the Utf8Decoder. */       \
-    const char* buf = STRING;                                                  \
-    size_t len = strlen(buf);                                                  \
-    Handle<String> main_string =                                               \
-        factory                                                                \
-            ->NewStringFromOneByte(Vector<const uint8_t>(                      \
-                reinterpret_cast<const uint8_t*>(buf), len))                   \
-            .ToHandleChecked();                                                \
-    if (FLAG_single_generation) {                                              \
-      CHECK(!Heap::InYoungGeneration(*main_string));                           \
-      heap::SimulateFullSpace(CcTest::i_isolate()->heap()->old_space());       \
-    } else {                                                                   \
-      CHECK(Heap::InYoungGeneration(*main_string));                            \
-      heap::SimulateFullSpace(CcTest::i_isolate()->heap()->new_space());       \
-    }                                                                          \
-    /* Offset by two to check substring-ing. */                                \
-    Handle<String> s = factory                                                 \
-                           ->NewStringFromUtf8SubString(                       \
-                               Handle<SeqOneByteString>::cast(main_string), 2, \
-                               static_cast<int>(len - 2))                      \
-                           .ToHandleChecked();                                 \
-    Handle<String> expected_string =                                           \
-        factory->NewStringFromUtf8(Vector<const char>(buf + 2, len - 2))       \
-            .ToHandleChecked();                                                \
-    CHECK(s->Equals(*expected_string));                                        \
-  }
-
-GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
-    OneByte,
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ")
-GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
-    TwoByte,
-    "QQ\xF0\x9F\x98\x8D\xF0\x9F\x98\x8D"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
-    "QQ\xF0\x9F\x98\x8D\xF0\x9F\x98\x8D")
-
-#undef GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING
-
 namespace {
 
 struct IndexData {
@@ -1829,14 +1821,13 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
     size_t index;
     CHECK(s->AsIntegerIndex(&index));
     CHECK_EQ(data.integer_index, index);
-    s->EnsureHash();
-    CHECK_EQ(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
+    CHECK(String::IsIntegerIndex(s->EnsureRawHash()));
     CHECK(s->HasHashCode());
   }
   if (!s->HasHashCode()) s->EnsureHash();
   CHECK(s->HasHashCode());
   if (!data.is_integer_index) {
-    CHECK_NE(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
+    CHECK(String::IsHash(s->raw_hash_field()));
   }
 }
 
@@ -1848,12 +1839,12 @@ TEST(HashArrayIndexStrings) {
   v8::HandleScope scope(CcTest::isolate());
   i::Isolate* isolate = CcTest::i_isolate();
 
-  CHECK_EQ(StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */) >>
-               Name::kHashShift,
+  CHECK_EQ(Name::HashBits::decode(
+               StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */)),
            isolate->factory()->zero_string()->hash());
 
-  CHECK_EQ(StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */) >>
-               Name::kHashShift,
+  CHECK_EQ(Name::HashBits::decode(
+               StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */)),
            isolate->factory()->one_string()->hash());
 
   IndexData tests[] = {
@@ -1881,7 +1872,6 @@ TEST(HashArrayIndexStrings) {
 }
 
 TEST(StringEquals) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
@@ -1915,52 +1905,6 @@ class OneByteStringResource : public v8::String::ExternalOneByteStringResource {
   size_t length_;
 };
 
-TEST(Regress876759) {
-  // Thin strings are used in conjunction with young gen
-  if (FLAG_single_generation) return;
-  v8::V8::Initialize();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-
-  HandleScope handle_scope(isolate);
-
-  const int kLength = 30;
-  uc16 two_byte_buf[kLength];
-  char* external_one_byte_buf = new char[kLength];
-  for (int j = 0; j < kLength; j++) {
-    char c = '0' + (j % 10);
-    two_byte_buf[j] = c;
-    external_one_byte_buf[j] = c;
-  }
-
-  Handle<String> parent;
-  {
-    Handle<SeqTwoByteString> raw =
-        factory->NewRawTwoByteString(kLength).ToHandleChecked();
-    DisallowGarbageCollection no_gc;
-    CopyChars(raw->GetChars(no_gc), two_byte_buf, kLength);
-    parent = raw;
-  }
-  CHECK(parent->IsTwoByteRepresentation());
-  Handle<String> sliced = factory->NewSubString(parent, 1, 20);
-  CHECK(sliced->IsSlicedString());
-  factory->InternalizeString(parent);
-  CHECK(parent->IsThinString());
-  Handle<String> grandparent =
-      handle(ThinString::cast(*parent).actual(), isolate);
-  CHECK_EQ(*parent, SlicedString::cast(*sliced).parent());
-  OneByteStringResource* resource =
-      new OneByteStringResource(external_one_byte_buf, kLength);
-  grandparent->MakeExternal(resource);
-  // The grandparent string becomes one-byte, but the child strings are still
-  // two-byte.
-  CHECK(grandparent->IsOneByteRepresentation());
-  CHECK(parent->IsTwoByteRepresentation());
-  CHECK(sliced->IsTwoByteRepresentation());
-  // The *Underneath version returns the correct representation.
-  CHECK(String::IsOneByteRepresentationUnderneath(*sliced));
-}
-
 // Show that it is possible to internalize an external string without a copy, as
 // long as it is not uncached.
 TEST(InternalizeExternalString) {
@@ -1974,7 +1918,7 @@ TEST(InternalizeExternalString) {
       new OneByteResource(i::StrDup(raw_string), strlen(raw_string));
   Handle<String> string =
       factory->NewExternalStringFromOneByte(resource).ToHandleChecked();
-  CHECK(string->IsExternalString());
+  CHECK(IsExternalString(*string));
 
   // Check it is not uncached.
   Handle<ExternalString> external = Handle<ExternalString>::cast(string);
@@ -1982,7 +1926,7 @@ TEST(InternalizeExternalString) {
 
   // Internalize succesfully, without a copy.
   Handle<String> internal = factory->InternalizeString(external);
-  CHECK(string->IsInternalizedString());
+  CHECK(IsInternalizedString(*string));
   CHECK(string.equals(internal));
 }
 
@@ -1999,7 +1943,7 @@ TEST(InternalizeExternalStringTwoByte) {
       new Resource(AsciiToTwoByteString(raw_string), strlen(raw_string));
   Handle<String> string =
       factory->NewExternalStringFromTwoByte(resource).ToHandleChecked();
-  CHECK(string->IsExternalString());
+  CHECK(IsExternalString(*string));
 
   // Check it is not uncached.
   Handle<ExternalString> external = Handle<ExternalString>::cast(string);
@@ -2007,7 +1951,7 @@ TEST(InternalizeExternalStringTwoByte) {
 
   // Internalize succesfully, without a copy.
   Handle<String> internal = factory->InternalizeString(external);
-  CHECK(string->IsInternalizedString());
+  CHECK(IsInternalizedString(*string));
   CHECK(string.equals(internal));
 }
 
@@ -2040,7 +1984,7 @@ TEST(InternalizeExternalStringUncachedWithCopy) {
       new UncachedExternalOneByteResource(i::StrDup(raw_string));
   Handle<String> string =
       factory->NewExternalStringFromOneByte(resource).ToHandleChecked();
-  CHECK(string->IsExternalString());
+  CHECK(IsExternalString(*string));
 
   // Check it is uncached.
   Handle<ExternalString> external = Handle<ExternalString>::cast(string);
@@ -2048,8 +1992,8 @@ TEST(InternalizeExternalStringUncachedWithCopy) {
 
   // Internalize succesfully, with a copy.
   Handle<String> internal = factory->InternalizeString(external);
-  CHECK(!external->IsInternalizedString());
-  CHECK(internal->IsInternalizedString());
+  CHECK(!IsInternalizedString(*external));
+  CHECK(IsInternalizedString(*internal));
 }
 
 class UncachedExternalResource : public v8::String::ExternalStringResource {
@@ -2083,17 +2027,105 @@ TEST(InternalizeExternalStringUncachedWithCopyTwoByte) {
       new UncachedExternalResource(AsciiToTwoByteString(raw_string));
   Handle<String> string =
       factory->NewExternalStringFromTwoByte(resource).ToHandleChecked();
-  CHECK(string->IsExternalString());
+  CHECK(IsExternalString(*string));
 
   // Check it is uncached.
   Handle<ExternalString> external = Handle<ExternalString>::cast(string);
   CHECK(external->is_uncached());
 
   // Internalize succesfully, with a copy.
-  CHECK(!external->IsInternalizedString());
+  CHECK(!IsInternalizedString(*external));
   Handle<String> internal = factory->InternalizeString(external);
-  CHECK(!external->IsInternalizedString());
-  CHECK(internal->IsInternalizedString());
+  CHECK(!IsInternalizedString(*external));
+  CHECK(IsInternalizedString(*internal));
+}
+
+// Show that we cache the data pointer for internal, external and uncached
+// strings with cacheable resources through MakeExternal. One byte version.
+TEST(CheckCachedDataInternalExternalUncachedString) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Due to different size restrictions the string needs to be small but not too
+  // small. One of these restrictions is whether pointer compression is enabled.
+#ifdef V8_COMPRESS_POINTERS
+  const char* raw_small = "small string";
+#elif V8_TARGET_ARCH_32_BIT
+  const char* raw_small = "smol";
+#else
+  const char* raw_small = "smalls";
+#endif  // V8_COMPRESS_POINTERS
+
+  Handle<String> string =
+      factory->InternalizeString(factory->NewStringFromAsciiChecked(raw_small));
+  OneByteResource* resource =
+      new OneByteResource(i::StrDup(raw_small), strlen(raw_small));
+
+  // Check it is external, internalized, and uncached with a cacheable resource.
+  string->MakeExternal(resource);
+  CHECK(string->IsOneByteRepresentation());
+  CHECK(IsExternalString(*string));
+  CHECK(IsInternalizedString(*string));
+
+  // Check that the external string is uncached, its resource is cacheable, and
+  // that we indeed cached it.
+  Handle<ExternalOneByteString> external_string =
+      Handle<ExternalOneByteString>::cast(string);
+  // If the sandbox is enabled, string objects will always be cacheable because
+  // they are smaller.
+  CHECK(V8_ENABLE_SANDBOX_BOOL || external_string->is_uncached());
+  CHECK(external_string->resource()->IsCacheable());
+  if (!V8_ENABLE_SANDBOX_BOOL) {
+    CHECK_NOT_NULL(external_string->resource()->cached_data());
+    CHECK_EQ(external_string->resource()->cached_data(),
+             external_string->resource()->data());
+  }
+}
+
+// Show that we cache the data pointer for internal, external and uncached
+// strings with cacheable resources through MakeExternal. Two byte version.
+TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Due to different size restrictions the string needs to be small but not too
+  // small. One of these restrictions is whether pointer compression is enabled.
+#ifdef V8_COMPRESS_POINTERS
+  const char16_t* raw_small = u"smøl🤓";
+#elif V8_TARGET_ARCH_32_BIT
+  const char16_t* raw_small = u"🤓";
+#else
+  const char16_t* raw_small = u"s🤓";
+#endif  // V8_COMPRESS_POINTERS
+
+  size_t len;
+  const uint16_t* two_byte = AsciiToTwoByteString(raw_small, &len);
+  Handle<String> string = factory->InternalizeString(
+      factory->NewStringFromTwoByte(base::VectorOf(two_byte, len))
+          .ToHandleChecked());
+  Resource* resource = new Resource(two_byte, len);
+
+  // Check it is external, internalized, and uncached with a cacheable resource.
+  string->MakeExternal(resource);
+  CHECK(string->IsTwoByteRepresentation());
+  CHECK(IsExternalString(*string));
+  CHECK(IsInternalizedString(*string));
+
+  // Check that the external string is uncached, its resource is cacheable, and
+  // that we indeed cached it.
+  Handle<ExternalTwoByteString> external_string =
+      Handle<ExternalTwoByteString>::cast(string);
+  // If the sandbox is enabled, string objects will always be cacheable because
+  // they are smaller.
+  CHECK(V8_ENABLE_SANDBOX_BOOL || external_string->is_uncached());
+  CHECK(external_string->resource()->IsCacheable());
+  if (!V8_ENABLE_SANDBOX_BOOL) {
+    CHECK_NOT_NULL(external_string->resource()->cached_data());
+    CHECK_EQ(external_string->resource()->cached_data(),
+             external_string->resource()->data());
+  }
 }
 
 }  // namespace test_strings

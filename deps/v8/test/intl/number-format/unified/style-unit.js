@@ -48,6 +48,7 @@ const validUnits = [
   'megabit',
   'megabyte',
   'meter',
+  'microsecond',
   'mile-scandinavian',
   'mile',
   'millimeter',
@@ -55,6 +56,7 @@ const validUnits = [
   'millisecond',
   'minute',
   'month',
+  'nanosecond',
   'ounce',
   'petabyte',
   'pound',
@@ -140,7 +142,6 @@ assertThrows(() => c('meter-per-second-squared'), RangeError);
 assertThrows(() => c('metric-ton'), RangeError);
 assertThrows(() => c('microgram'), RangeError);
 assertThrows(() => c('micrometer'), RangeError);
-assertThrows(() => c('microsecond'), RangeError);
 assertThrows(() => c('mile-per-gallon-imperial'), RangeError);
 assertThrows(() => c('milliampere'), RangeError);
 assertThrows(() => c('millibar'), RangeError);
@@ -151,7 +152,6 @@ assertThrows(() => c('millimole-per-liter'), RangeError);
 assertThrows(() => c('milliwatt'), RangeError);
 assertThrows(() => c('month-person'), RangeError);
 assertThrows(() => c('nanometer'), RangeError);
-assertThrows(() => c('nanosecond'), RangeError);
 assertThrows(() => c('nautical-mile'), RangeError);
 assertThrows(() => c('ohm'), RangeError);
 assertThrows(() => c('ounce-troy'), RangeError);

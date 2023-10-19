@@ -16,15 +16,15 @@ const { upperCaseFirst } = require("../shared/string-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce a maximum number of parameters in function definitions",
-            category: "Stylistic Issues",
+            description: "Enforce a maximum number of parameters in function definitions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/max-params"
+            url: "https://eslint.org/docs/latest/rules/max-params"
         },
 
         schema: [
@@ -57,7 +57,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const option = context.options[0];
         let numParams = 3;
 

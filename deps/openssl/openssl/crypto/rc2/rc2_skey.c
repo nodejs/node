@@ -1,11 +1,17 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * RC2 low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
 
 #include <openssl/rc2.h>
 #include "rc2_local.h"
@@ -41,8 +47,8 @@ static const unsigned char key_table[256] = {
 
 /*
  * It has come to my attention that there are 2 versions of the RC2 key
- * schedule.  One which is normal, and anther which has a hook to use a
- * reduced key length. BSAFE uses the 'retarded' version.  What I previously
+ * schedule.  One which is normal, and another which has a hook to use a
+ * reduced key length. BSAFE uses the latter version.  What I previously
  * shipped is the same as specifying 1024 for the 'bits' parameter.  Bsafe
  * uses a version where the bits parameter is the same as len*8
  */

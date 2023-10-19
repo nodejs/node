@@ -4,10 +4,10 @@
 
 // Flags: --wasm-staging
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(1, 1, false, true);
+builder.addMemory(1, 1, true);
 builder.addGlobal(kWasmI32, 1);
 builder.addFunction(undefined, kSig_v_i)
   .addLocals(kWasmI32, 5)
@@ -19,11 +19,11 @@ kExprI32Const, 0x10,  // i32.const
 kExprI32Sub,  // i32.sub
 kExprLocalTee, 0x02,  // local.tee
 kExprGlobalSet, 0x00,  // global.set
-kExprBlock, kWasmStmt,  // block @12
+kExprBlock, kWasmVoid,  // block @12
   kExprLocalGet, 0x00,  // local.get
   kExprI32LoadMem, 0x02, 0x00,  // i32.load
   kExprI32Eqz,  // i32.eqz
-  kExprIf, kWasmStmt,  // if @20
+  kExprIf, kWasmVoid,  // if @20
     kExprLocalGet, 0x02,  // local.get
     kExprI32Const, 0x00,  // i32.const
     kExprI32StoreMem, 0x02, 0x0c,  // i32.store

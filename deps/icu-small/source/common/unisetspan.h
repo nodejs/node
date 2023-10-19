@@ -74,9 +74,9 @@ public:
     // For fast UnicodeSet::contains(c).
     inline UBool contains(UChar32 c) const;
 
-    int32_t span(const UChar *s, int32_t length, USetSpanCondition spanCondition) const;
+    int32_t span(const char16_t *s, int32_t length, USetSpanCondition spanCondition) const;
 
-    int32_t spanBack(const UChar *s, int32_t length, USetSpanCondition spanCondition) const;
+    int32_t spanBack(const char16_t *s, int32_t length, USetSpanCondition spanCondition) const;
 
     int32_t spanUTF8(const uint8_t *s, int32_t length, USetSpanCondition spanCondition) const;
 
@@ -95,8 +95,8 @@ private:
     // so that a character span ends before any string.
     void addToSpanNotSet(UChar32 c);
 
-    int32_t spanNot(const UChar *s, int32_t length) const;
-    int32_t spanNotBack(const UChar *s, int32_t length) const;
+    int32_t spanNot(const char16_t *s, int32_t length) const;
+    int32_t spanNotBack(const char16_t *s, int32_t length) const;
     int32_t spanNotUTF8(const uint8_t *s, int32_t length) const;
     int32_t spanNotBackUTF8(const uint8_t *s, int32_t length) const;
 

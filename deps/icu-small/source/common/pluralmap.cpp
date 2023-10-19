@@ -29,15 +29,16 @@ PluralMapBase::Category
 PluralMapBase::toCategory(const UnicodeString &pluralForm) {
     CharString cCategory;
     UErrorCode status = U_ZERO_ERROR;
-    cCategory.appendInvariantChars(pluralForm, status);
+    cCategory.appendInvariantChars(pluralForm, status);    
     return U_FAILURE(status) ? NONE : toCategory(cCategory.data());
 }
 
 const char *PluralMapBase::getCategoryName(Category c) {
     int32_t index = c;
     return (index < 0 || index >= UPRV_LENGTHOF(gPluralForms)) ?
-            NULL : gPluralForms[index];
+            nullptr : gPluralForms[index];
 }
 
 
 U_NAMESPACE_END
+

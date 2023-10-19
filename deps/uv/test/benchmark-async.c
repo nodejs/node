@@ -73,13 +73,14 @@ static void worker(void* arg) {
 
 
 static int test_async(int nthreads) {
+  char fmtbuf[32];
   struct ctx* threads;
   struct ctx* ctx;
   uint64_t time;
   int i;
 
   threads = calloc(nthreads, sizeof(threads[0]));
-  ASSERT(threads != NULL);
+  ASSERT_NOT_NULL(threads);
 
   for (i = 0; i < nthreads; i++) {
     ctx = threads + i;
@@ -112,11 +113,11 @@ static int test_async(int nthreads) {
   printf("async%d: %.2f sec (%s/sec)\n",
          nthreads,
          time / 1e9,
-         fmt(NUM_PINGS / (time / 1e9)));
+         fmt(&fmtbuf, NUM_PINGS / (time / 1e9)));
 
   free(threads);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 

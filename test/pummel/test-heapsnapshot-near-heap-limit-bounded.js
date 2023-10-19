@@ -2,9 +2,8 @@
 
 const common = require('../common');
 
-if ((process.config.variables.arm_version === '6') ||
-  (process.config.variables.arm_version === '7')) {
-  common.skip('Too slow for armv6 and armv7 bots');
+if (common.isPi) {
+  common.skip('Too slow for Raspberry Pi devices');
 }
 
 const tmpdir = require('../common/tmpdir');
@@ -17,7 +16,7 @@ const env = {
   TEST_ALLOCATION: 50000,
   TEST_CHUNK: 1000,
   TEST_CLEAN_INTERVAL: 500,
-  NODE_DEBUG_NATIVE: 'diagnostics'
+  NODE_DEBUG_NATIVE: 'diagnostics',
 };
 
 {

@@ -168,7 +168,7 @@
 #   define U_PLATFORM U_PF_LINUX
 #elif defined(__APPLE__) && defined(__MACH__)
 #   include <TargetConditionals.h>
-#   if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE  /* variant of TARGET_OS_MAC */
+#   if (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE) && (defined(TARGET_OS_MACCATALYST) && !TARGET_OS_MACCATALYST)   /* variant of TARGET_OS_MAC */
 #       define U_PLATFORM U_PF_IPHONE
 #   else
 #       define U_PLATFORM U_PF_DARWIN
@@ -410,7 +410,7 @@
 #endif
 
 /**
- * \def U_HAVE_DEBUG_LOCATION_NEW
+ * \def U_HAVE_DEBUG_LOCATION_NEW 
  * Define this to define the MFC debug version of the operator new.
  *
  * @stable ICU 3.4
@@ -460,6 +460,13 @@
 #   define UPRV_HAS_WARNING(x) 0
 #endif
 
+
+#if defined(__clang__)
+#define UPRV_NO_SANITIZE_UNDEFINED __attribute__((no_sanitize("undefined")))
+#else
+#define UPRV_NO_SANITIZE_UNDEFINED
+#endif
+
 /**
  * \def U_MALLOC_ATTR
  * Attribute to mark functions as malloc-like
@@ -507,26 +514,6 @@
 #else
     // C++98 or C++03
 #   define U_CPLUSPLUS_VERSION 1
-#endif
-
-#if (U_PLATFORM == U_PF_AIX || U_PLATFORM == U_PF_OS390) && defined(__cplusplus) &&(U_CPLUSPLUS_VERSION < 11)
-// add in std::nullptr_t
-namespace std {
-  typedef decltype(nullptr) nullptr_t;
-};
-#endif
-
-/**
- * \def U_NOEXCEPT
- * "noexcept" if supported, otherwise empty.
- * Some code, especially STL containers, uses move semantics of objects only
- * if the move constructor and the move operator are declared as not throwing exceptions.
- * @internal
- */
-#ifdef U_NOEXCEPT
-    /* Use the predefined value. */
-#else
-#   define U_NOEXCEPT noexcept
 #endif
 
 /**
@@ -757,7 +744,7 @@ namespace std {
  * \def U_HAVE_CHAR16_T
  * Defines whether the char16_t type is available for UTF-16
  * and u"abc" UTF-16 string literals are supported.
- * This is a new standard type and standard string literal syntax in C++0x
+ * This is a new standard type and standard string literal syntax in C++11
  * but has been available in some compilers before.
  * @internal
  */
@@ -766,12 +753,6 @@ namespace std {
 #else
     /*
      * Notes:
-     * Visual Studio 2010 (_MSC_VER==1600) defines char16_t as a typedef
-     * and does not support u"abc" string literals.
-     * Visual Studio 2015 (_MSC_VER>=1900) and above adds support for
-     * both char16_t and u"abc" string literals.
-     * gcc 4.4 defines the __CHAR16_TYPE__ macro to a usable type but
-     * does not support u"abc" string literals.
      * C++11 and C11 require support for UTF-16 literals
      * TODO: Fix for plain C. Doesn't work on Mac.
      */
@@ -814,13 +795,13 @@ namespace std {
     /* Use the predefined value. */
 #elif defined(U_STATIC_IMPLEMENTATION)
 #   define U_EXPORT
-#elif defined(_MSC_VER) || (UPRV_HAS_DECLSPEC_ATTRIBUTE(dllexport) && \
-                            UPRV_HAS_DECLSPEC_ATTRIBUTE(dllimport))
+#elif defined(_MSC_VER) || (UPRV_HAS_DECLSPEC_ATTRIBUTE(__dllexport__) && \
+                            UPRV_HAS_DECLSPEC_ATTRIBUTE(__dllimport__))
 #   define U_EXPORT __declspec(dllexport)
 #elif defined(__GNUC__)
 #   define U_EXPORT __attribute__((visibility("default")))
 #elif (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x550) \
-   || (defined(__SUNPRO_C) && __SUNPRO_C >= 0x550)
+   || (defined(__SUNPRO_C) && __SUNPRO_C >= 0x550) 
 #   define U_EXPORT __global
 /*#elif defined(__HP_aCC) || defined(__HP_cc)
 #   define U_EXPORT __declspec(dllexport)*/
@@ -839,12 +820,27 @@ namespace std {
 
 #ifdef U_IMPORT
     /* Use the predefined value. */
-#elif defined(_MSC_VER) || (UPRV_HAS_DECLSPEC_ATTRIBUTE(dllexport) && \
-                            UPRV_HAS_DECLSPEC_ATTRIBUTE(dllimport))
+#elif defined(_MSC_VER) || (UPRV_HAS_DECLSPEC_ATTRIBUTE(__dllexport__) && \
+                            UPRV_HAS_DECLSPEC_ATTRIBUTE(__dllimport__))
     /* Windows needs to export/import data. */
 #   define U_IMPORT __declspec(dllimport)
 #else
-#   define U_IMPORT
+#   define U_IMPORT 
+#endif
+
+/**
+ * \def U_HIDDEN
+ * This is used to mark internal structs declared within external classes,
+ * to prevent the internal structs from having the same visibility as the
+ * class within which they are declared. 
+ * @internal
+ */
+#ifdef U_HIDDEN
+    /* Use the predefined value. */
+#elif defined(__GNUC__)
+#   define U_HIDDEN __attribute__((visibility("hidden")))
+#else
+#   define U_HIDDEN 
 #endif
 
 /**

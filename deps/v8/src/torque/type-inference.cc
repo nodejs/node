@@ -61,7 +61,7 @@ void TypeArgumentInference::Match(TypeExpression* parameter,
           BasicTypeExpression::DynamicCast(parameter)) {
     // If the parameter is referring to one of the type parameters, substitute
     if (basic->namespace_qualification.empty() && !basic->is_constexpr) {
-      auto result = type_parameter_from_name_.find(basic->name);
+      auto result = type_parameter_from_name_.find(basic->name->value);
       if (result != type_parameter_from_name_.end()) {
         size_t type_parameter_index = result->second;
         if (type_parameter_index < num_explicit_) {
@@ -92,7 +92,7 @@ void TypeArgumentInference::Match(TypeExpression* parameter,
 void TypeArgumentInference::MatchGeneric(BasicTypeExpression* parameter,
                                          const Type* argument_type) {
   QualifiedName qualified_name{parameter->namespace_qualification,
-                               parameter->name};
+                               parameter->name->value};
   GenericType* generic_type =
       Declarations::LookupUniqueGenericType(qualified_name);
   auto& specialized_from = argument_type->GetSpecializedFrom();

@@ -5,15 +5,15 @@
 
 "use strict";
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce default parameters to be last",
-            category: "Best Practices",
+            description: "Enforce default parameters to be last",
             recommended: false,
-            url: "https://eslint.org/docs/rules/default-param-last"
+            url: "https://eslint.org/docs/latest/rules/default-param-last"
         },
 
         schema: [],
@@ -25,8 +25,8 @@ module.exports = {
 
     create(context) {
 
-        // eslint-disable-next-line jsdoc/require-description
         /**
+         * Handler for function contexts.
          * @param {ASTNode} node function node
          * @returns {void}
          */

@@ -1,0 +1,7 @@
+Test that sloppy function block hoisting works with debug-evaluate.
+Paused on debugger statement
+{
+    result : {
+        type : undefined
+    }
+}

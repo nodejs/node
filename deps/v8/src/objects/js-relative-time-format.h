@@ -59,7 +59,7 @@ class JSRelativeTimeFormat
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   // RelativeTimeFormat accessors.
-  DECL_ACCESSORS(icu_formatter, Managed<icu::RelativeDateTimeFormatter>)
+  DECL_ACCESSORS(icu_formatter, Tagged<Managed<icu::RelativeDateTimeFormatter>>)
 
   // Numeric: identifying whether numerical descriptions are always used, or
   // used only when no more specific version is available (e.g., "1 day ago" vs
@@ -77,8 +77,8 @@ class JSRelativeTimeFormat
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_JS_RELATIVE_TIME_FORMAT_FLAGS()
 
-  STATIC_ASSERT(Numeric::AUTO <= NumericBit::kMax);
-  STATIC_ASSERT(Numeric::ALWAYS <= NumericBit::kMax);
+  static_assert(Numeric::AUTO <= NumericBit::kMax);
+  static_assert(Numeric::ALWAYS <= NumericBit::kMax);
 
   DECL_PRINTER(JSRelativeTimeFormat)
 

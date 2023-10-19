@@ -1,4 +1,3 @@
-
 // Copyright 2021 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -8,15 +7,16 @@
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#include "src/flags/flags.h"
+#if ENABLE_SPARKPLUG
 
 #include "src/codegen/macro-assembler.h"
+#include "src/interpreter/bytecode-register.h"
+#include "src/objects/tagged-index.h"
 
 namespace v8 {
 namespace internal {
 namespace baseline {
-
-enum class Condition : uint8_t;
 
 class BaselineAssembler {
  public:
@@ -25,22 +25,27 @@ class BaselineAssembler {
   explicit BaselineAssembler(MacroAssembler* masm) : masm_(masm) {}
   inline static MemOperand RegisterFrameOperand(
       interpreter::Register interpreter_register);
+  inline void RegisterFrameAddress(interpreter::Register interpreter_register,
+                                   Register rscratch);
   inline MemOperand ContextOperand();
   inline MemOperand FunctionOperand();
   inline MemOperand FeedbackVectorOperand();
 
-  inline void GetCode(Isolate* isolate, CodeDesc* desc);
+  inline void GetCode(LocalIsolate* isolate, CodeDesc* desc);
   inline int pc_offset() const;
-  inline bool emit_debug_code() const;
   inline void CodeEntry() const;
   inline void ExceptionHandler() const;
-  inline void RecordComment(const char* string);
+  V8_INLINE void RecordComment(const char* string);
   inline void Trap();
   inline void DebugBreak();
 
+  template <typename Field>
+  inline void DecodeField(Register reg);
+
   inline void Bind(Label* label);
-  inline void JumpIf(Condition cc, Label* target,
-                     Label::Distance distance = Label::kFar);
+  // Marks the current position as a valid jump target on CFI enabled
+  // architectures.
+  inline void JumpTarget();
   inline void Jump(Label* target, Label::Distance distance = Label::kFar);
   inline void JumpIfRoot(Register value, RootIndex index, Label* target,
                          Label::Distance distance = Label::kFar);
@@ -51,18 +56,48 @@ class BaselineAssembler {
   inline void JumpIfNotSmi(Register value, Label* target,
                            Label::Distance distance = Label::kFar);
 
-  inline void Test(Register value, int mask);
+  inline void TestAndBranch(Register value, int mask, Condition cc,
+                            Label* target,
+                            Label::Distance distance = Label::kFar);
 
-  inline void CmpObjectType(Register object, InstanceType instance_type,
-                            Register map);
-  inline void CmpInstanceType(Register map, InstanceType instance_type);
-  inline void Cmp(Register value, Smi smi);
-  inline void ComparePointer(Register value, MemOperand operand);
+  inline void JumpIf(Condition cc, Register lhs, const Operand& rhs,
+                     Label* target, Label::Distance distance = Label::kFar);
+#if V8_STATIC_ROOTS_BOOL
+  // Fast JS_RECEIVER test which assumes to receive either a primitive object or
+  // a js receiver.
+  inline void JumpIfJSAnyIsPrimitive(Register heap_object, Label* target,
+                                     Label::Distance distance = Label::kFar);
+#endif
+  inline void JumpIfObjectType(Condition cc, Register object,
+                               InstanceType instance_type, Register map,
+                               Label* target,
+                               Label::Distance distance = Label::kFar);
+  // Might not load the map into the scratch register.
+  inline void JumpIfObjectTypeFast(Condition cc, Register object,
+                                   InstanceType instance_type, Label* target,
+                                   Label::Distance distance = Label::kFar);
+  inline void JumpIfInstanceType(Condition cc, Register map,
+                                 InstanceType instance_type, Label* target,
+                                 Label::Distance distance = Label::kFar);
+  inline void JumpIfPointer(Condition cc, Register value, MemOperand operand,
+                            Label* target,
+                            Label::Distance distance = Label::kFar);
   inline Condition CheckSmi(Register value);
-  inline void SmiCompare(Register lhs, Register rhs);
-  inline void CompareTagged(Register value, MemOperand operand);
-  inline void CompareTagged(MemOperand operand, Register value);
-  inline void CompareByte(Register value, int32_t byte);
+  inline void JumpIfSmi(Condition cc, Register value, Tagged<Smi> smi,
+                        Label* target, Label::Distance distance = Label::kFar);
+  inline void JumpIfSmi(Condition cc, Register lhs, Register rhs, Label* target,
+                        Label::Distance distance = Label::kFar);
+  inline void JumpIfImmediate(Condition cc, Register left, int right,
+                              Label* target,
+                              Label::Distance distance = Label::kFar);
+  inline void JumpIfTagged(Condition cc, Register value, MemOperand operand,
+                           Label* target,
+                           Label::Distance distance = Label::kFar);
+  inline void JumpIfTagged(Condition cc, MemOperand operand, Register value,
+                           Label* target,
+                           Label::Distance distance = Label::kFar);
+  inline void JumpIfByte(Condition cc, Register value, int32_t byte,
+                         Label* target, Label::Distance distance = Label::kFar);
 
   inline void LoadMap(Register output, Register value);
   inline void LoadRoot(Register output, RootIndex index);
@@ -70,8 +105,8 @@ class BaselineAssembler {
 
   inline void Move(Register output, Register source);
   inline void Move(Register output, MemOperand operand);
-  inline void Move(Register output, Smi value);
-  inline void Move(Register output, TaggedIndex value);
+  inline void Move(Register output, Tagged<Smi> value);
+  inline void Move(Register output, Tagged<TaggedIndex> value);
   inline void Move(Register output, interpreter::Register source);
   inline void Move(interpreter::Register output, Register source);
   inline void Move(Register output, RootIndex source);
@@ -119,17 +154,20 @@ class BaselineAssembler {
   template <typename... T>
   inline void Pop(T... registers);
 
-  inline void CallBuiltin(Builtins::Name builtin);
-  inline void TailCallBuiltin(Builtins::Name builtin);
+  inline void CallBuiltin(Builtin builtin);
+  inline void TailCallBuiltin(Builtin builtin);
   inline void CallRuntime(Runtime::FunctionId function, int nargs);
 
-  inline void LoadTaggedPointerField(Register output, Register source,
-                                     int offset);
+  inline void LoadTaggedField(Register output, Register source, int offset);
   inline void LoadTaggedSignedField(Register output, Register source,
                                     int offset);
-  inline void LoadTaggedAnyField(Register output, Register source, int offset);
-  inline void LoadByteField(Register output, Register source, int offset);
-  inline void StoreTaggedSignedField(Register target, int offset, Smi value);
+  inline void LoadTaggedSignedFieldAndUntag(Register output, Register source,
+                                            int offset);
+  inline void LoadWord16FieldZeroExtend(Register output, Register source,
+                                        int offset);
+  inline void LoadWord8Field(Register output, Register source, int offset);
+  inline void StoreTaggedSignedField(Register target, int offset,
+                                     Tagged<Smi> value);
   inline void StoreTaggedFieldWithWriteBarrier(Register target, int offset,
                                                Register value);
   inline void StoreTaggedFieldNoWriteBarrier(Register target, int offset,
@@ -138,14 +176,49 @@ class BaselineAssembler {
                                     int32_t index);
   inline void LoadPrototype(Register prototype, Register object);
 
+// Loads compressed pointer or loads from compressed pointer. This is because
+// X64 supports complex addressing mode, pointer decompression can be done by
+// [%compressed_base + %r1 + K].
+#if V8_TARGET_ARCH_X64
+  inline void LoadTaggedField(TaggedRegister output, Register source,
+                              int offset);
+  inline void LoadTaggedField(TaggedRegister output, TaggedRegister source,
+                              int offset);
+  inline void LoadTaggedField(Register output, TaggedRegister source,
+                              int offset);
+  inline void LoadFixedArrayElement(Register output, TaggedRegister array,
+                                    int32_t index);
+  inline void LoadFixedArrayElement(TaggedRegister output, TaggedRegister array,
+                                    int32_t index);
+#endif
+
+  // Falls through and sets scratch_and_result to 0 on failure, jumps to
+  // on_result on success.
+  inline void TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                      Register feedback_vector,
+                                      FeedbackSlot slot, Label* on_result,
+                                      Label::Distance distance);
+
   // Loads the feedback cell from the function, and sets flags on add so that
   // we can compare afterward.
-  inline void AddToInterruptBudget(int32_t weight);
-  inline void AddToInterruptBudget(Register weight);
+  inline void AddToInterruptBudgetAndJumpIfNotExceeded(
+      int32_t weight, Label* skip_interrupt_label);
+  inline void AddToInterruptBudgetAndJumpIfNotExceeded(
+      Register weight, Label* skip_interrupt_label);
 
-  inline void AddSmi(Register lhs, Smi rhs);
+  inline void LdaContextSlot(Register context, uint32_t index, uint32_t depth);
+  inline void StaContextSlot(Register context, Register value, uint32_t index,
+                             uint32_t depth);
+  inline void LdaModuleVariable(Register context, int cell_index,
+                                uint32_t depth);
+  inline void StaModuleVariable(Register context, Register value,
+                                int cell_index, uint32_t depth);
+
+  inline void AddSmi(Register lhs, Tagged<Smi> rhs);
   inline void SmiUntag(Register value);
   inline void SmiUntag(Register output, Register value);
+
+  inline void Word32And(Register output, Register lhs, int rhs);
 
   inline void Switch(Register reg, int case_value_base, Label** labels,
                      int num_labels);
@@ -168,14 +241,19 @@ class BaselineAssembler {
   ScratchRegisterScope* scratch_register_scope_ = nullptr;
 };
 
-class SaveAccumulatorScope final {
+class EnsureAccumulatorPreservedScope final {
  public:
-  inline explicit SaveAccumulatorScope(BaselineAssembler* assembler);
+  inline explicit EnsureAccumulatorPreservedScope(BaselineAssembler* assembler);
 
-  inline ~SaveAccumulatorScope();
+  inline ~EnsureAccumulatorPreservedScope();
 
  private:
+  inline void AssertEqualToAccumulator(Register reg);
+
   BaselineAssembler* assembler_;
+#ifdef V8_CODE_COMMENTS
+  Assembler::CodeComment comment_;
+#endif
 };
 
 }  // namespace baseline

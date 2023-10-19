@@ -52,14 +52,14 @@ static void debug_tz_msg(const char *pat, ...)
 #endif
 
 static UBool arrayEqual(const void *a1, const void *a2, int32_t size) {
-    if (a1 == NULL && a2 == NULL) {
-        return TRUE;
+    if (a1 == nullptr && a2 == nullptr) {
+        return true;
     }
-    if ((a1 != NULL && a2 == NULL) || (a1 == NULL && a2 != NULL)) {
-        return FALSE;
+    if ((a1 != nullptr && a2 == nullptr) || (a1 == nullptr && a2 != nullptr)) {
+        return false;
     }
     if (a1 == a2) {
-        return TRUE;
+        return true;
     }
 
     return (uprv_memcmp(a1, a2, size) == 0);
@@ -87,7 +87,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(OlsonTimeZone)
  * Default constructor.  Creates a time zone with an empty ID and
  * a fixed GMT offset of zero.
  */
-/*OlsonTimeZone::OlsonTimeZone() : finalYear(INT32_MAX), finalMillis(DBL_MAX), finalZone(0), transitionRulesInitialized(FALSE) {
+/*OlsonTimeZone::OlsonTimeZone() : finalYear(INT32_MAX), finalMillis(DBL_MAX), finalZone(0), transitionRulesInitialized(false) {
     clearTransitionRules();
     constructEmpty();
 }*/
@@ -97,17 +97,17 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(OlsonTimeZone)
  * constructor fails so the resultant object is well-behaved.
  */
 void OlsonTimeZone::constructEmpty() {
-    canonicalID = NULL;
+    canonicalID = nullptr;
 
     transitionCountPre32 = transitionCount32 = transitionCountPost32 = 0;
-    transitionTimesPre32 = transitionTimes32 = transitionTimesPost32 = NULL;
+    transitionTimesPre32 = transitionTimes32 = transitionTimesPost32 = nullptr;
 
-    typeMapData = NULL;
+    typeMapData = nullptr;
 
     typeCount = 1;
     typeOffsets = ZEROS;
 
-    finalZone = NULL;
+    finalZone = nullptr;
 }
 
 /**
@@ -121,11 +121,11 @@ OlsonTimeZone::OlsonTimeZone(const UResourceBundle* top,
                              const UResourceBundle* res,
                              const UnicodeString& tzid,
                              UErrorCode& ec) :
-  BasicTimeZone(tzid), finalZone(NULL)
+  BasicTimeZone(tzid), finalZone(nullptr)
 {
     clearTransitionRules();
     U_DEBUG_TZ_MSG(("OlsonTimeZone(%s)\n", ures_getKey((UResourceBundle*)res)));
-    if ((top == NULL || res == NULL) && U_SUCCESS(ec)) {
+    if ((top == nullptr || res == nullptr) && U_SUCCESS(ec)) {
         ec = U_ILLEGAL_ARGUMENT_ERROR;
     }
     if (U_SUCCESS(ec)) {
@@ -142,7 +142,7 @@ OlsonTimeZone::OlsonTimeZone(const UResourceBundle* top,
         transitionCountPre32 = static_cast<int16_t>(len >> 1);
         if (ec == U_MISSING_RESOURCE_ERROR) {
             // No pre-32bit transitions
-            transitionTimesPre32 = NULL;
+            transitionTimesPre32 = nullptr;
             transitionCountPre32 = 0;
             ec = U_ZERO_ERROR;
         } else if (U_SUCCESS(ec) && (len < 0 || len > 0x7FFF || (len & 1) != 0) /* len must be even */) {
@@ -155,7 +155,7 @@ OlsonTimeZone::OlsonTimeZone(const UResourceBundle* top,
         transitionCount32 = static_cast<int16_t>(len);
         if (ec == U_MISSING_RESOURCE_ERROR) {
             // No 32bit transitions
-            transitionTimes32 = NULL;
+            transitionTimes32 = nullptr;
             transitionCount32 = 0;
             ec = U_ZERO_ERROR;
         } else if (U_SUCCESS(ec) && (len < 0 || len > 0x7FFF)) {
@@ -168,7 +168,7 @@ OlsonTimeZone::OlsonTimeZone(const UResourceBundle* top,
         transitionCountPost32 = static_cast<int16_t>(len >> 1);
         if (ec == U_MISSING_RESOURCE_ERROR) {
             // No pre-32bit transitions
-            transitionTimesPost32 = NULL;
+            transitionTimesPost32 = nullptr;
             transitionCountPost32 = 0;
             ec = U_ZERO_ERROR;
         } else if (U_SUCCESS(ec) && (len < 0 || len > 0x7FFF || (len & 1) != 0) /* len must be even */) {
@@ -184,7 +184,7 @@ OlsonTimeZone::OlsonTimeZone(const UResourceBundle* top,
         typeCount = (int16_t) len >> 1;
 
         // Type map data must be of the same size as the transition count
-        typeMapData =  NULL;
+        typeMapData =  nullptr;
         if (transitionCount() > 0) {
             ures_getByKey(res, kTYPEMAP, r.getAlias(), &ec);
             typeMapData = ures_getBinary(r.getAlias(), &len, &ec);
@@ -198,15 +198,15 @@ OlsonTimeZone::OlsonTimeZone(const UResourceBundle* top,
 
         // Process final rule and data, if any
         if (U_SUCCESS(ec)) {
-            const UChar *ruleIdUStr = ures_getStringByKey(res, kFINALRULE, &len, &ec);
+            const char16_t *ruleIdUStr = ures_getStringByKey(res, kFINALRULE, &len, &ec);
             ures_getByKey(res, kFINALRAW, r.getAlias(), &ec);
             int32_t ruleRaw = ures_getInt(r.getAlias(), &ec);
             ures_getByKey(res, kFINALYEAR, r.getAlias(), &ec);
             int32_t ruleYear = ures_getInt(r.getAlias(), &ec);
             if (U_SUCCESS(ec)) {
-                UnicodeString ruleID(TRUE, ruleIdUStr, len);
-                UResourceBundle *rule = TimeZone::loadRule(top, ruleID, NULL, ec);
-                const int32_t *ruleData = ures_getIntVector(rule, &len, &ec);
+                UnicodeString ruleID(true, ruleIdUStr, len);
+                UResourceBundle *rule = TimeZone::loadRule(top, ruleID, nullptr, ec);
+                const int32_t *ruleData = ures_getIntVector(rule, &len, &ec); 
                 if (U_SUCCESS(ec) && len == 11) {
                     UnicodeString emptyStr;
                     finalZone = new SimpleTimeZone(
@@ -219,13 +219,13 @@ OlsonTimeZone::OlsonTimeZone(const UResourceBundle* top,
                         ruleData[8] * U_MILLIS_PER_SECOND,
                         (SimpleTimeZone::TimeMode) ruleData[9],
                         ruleData[10] * U_MILLIS_PER_SECOND, ec);
-                    if (finalZone == NULL) {
+                    if (finalZone == nullptr) {
                         ec = U_MEMORY_ALLOCATION_ERROR;
                     } else {
                         finalStartYear = ruleYear;
 
                         // Note: Setting finalStartYear to the finalZone is problematic.  When a date is around
-                        // year boundary, SimpleTimeZone may return false result when DST is observed at the
+                        // year boundary, SimpleTimeZone may return false result when DST is observed at the 
                         // beginning of year.  We could apply safe margin (day or two), but when one of recurrent
                         // rules falls around year boundary, it could return false result.  Without setting the
                         // start year, finalZone works fine around the year boundary of the start year.
@@ -311,7 +311,7 @@ OlsonTimeZone::~OlsonTimeZone() {
 /**
  * Returns true if the two TimeZone objects are equal.
  */
-UBool OlsonTimeZone::operator==(const TimeZone& other) const {
+bool OlsonTimeZone::operator==(const TimeZone& other) const {
     return ((this == &other) ||
             (typeid(*this) == typeid(other) &&
             TimeZone::operator==(other) &&
@@ -373,7 +373,7 @@ int32_t OlsonTimeZone::getOffset(uint8_t era, int32_t year, int32_t month,
         year = -year;
     }
 
-    if (finalZone != NULL && year >= finalStartYear) {
+    if (finalZone != nullptr && year >= finalStartYear) {
         return finalZone->getOffset(era, year, month, dom, dow,
                                     millis, monthLength, ec);
     }
@@ -381,7 +381,7 @@ int32_t OlsonTimeZone::getOffset(uint8_t era, int32_t year, int32_t month,
     // Compute local epoch millis from input fields
     UDate date = (UDate)(Grego::fieldsToDay(year, month, dom) * U_MILLIS_PER_DAY + millis);
     int32_t rawoff, dstoff;
-    getHistoricalOffset(date, TRUE, kDaylight, kStandard, rawoff, dstoff);
+    getHistoricalOffset(date, true, kDaylight, kStandard, rawoff, dstoff);
     return rawoff + dstoff;
 }
 
@@ -393,7 +393,7 @@ void OlsonTimeZone::getOffset(UDate date, UBool local, int32_t& rawoff,
     if (U_FAILURE(ec)) {
         return;
     }
-    if (finalZone != NULL && date >= finalStartMillis) {
+    if (finalZone != nullptr && date >= finalStartMillis) {
         finalZone->getOffset(date, local, rawoff, dstoff, ec);
     } else {
         getHistoricalOffset(date, local, kFormer, kLatter, rawoff, dstoff);
@@ -406,10 +406,10 @@ void OlsonTimeZone::getOffsetFromLocal(UDate date, UTimeZoneLocalOption nonExist
     if (U_FAILURE(ec)) {
         return;
     }
-    if (finalZone != NULL && date >= finalStartMillis) {
+    if (finalZone != nullptr && date >= finalStartMillis) {
         finalZone->getOffsetFromLocal(date, nonExistingTimeOpt, duplicatedTimeOpt, rawoff, dstoff, ec);
     } else {
-        getHistoricalOffset(date, TRUE, nonExistingTimeOpt, duplicatedTimeOpt, rawoff, dstoff);
+        getHistoricalOffset(date, true, nonExistingTimeOpt, duplicatedTimeOpt, rawoff, dstoff);
     }
 }
 
@@ -430,8 +430,7 @@ void OlsonTimeZone::setRawOffset(int32_t /*offsetMillis*/) {
 int32_t OlsonTimeZone::getRawOffset() const {
     UErrorCode ec = U_ZERO_ERROR;
     int32_t raw, dst;
-    getOffset((double) uprv_getUTCtime() * U_MILLIS_PER_SECOND,
-              FALSE, raw, dst, ec);
+    getOffset(uprv_getUTCtime(), false, raw, dst, ec);
     return raw;
 }
 
@@ -440,7 +439,7 @@ void printTime(double ms) {
             int32_t year, month, dom, dow;
             double millis=0;
             double days = ClockMath::floorDivide(((double)ms), (double)U_MILLIS_PER_DAY, millis);
-
+            
             Grego::dayToFields(days, year, month, dom, dow);
             U_DEBUG_TZ_MSG(("   getHistoricalOffset:  time %.1f (%04d.%02d.%02d+%.1fh)\n", ms,
                             year, month+1, dom, (millis/kOneHour)));
@@ -449,7 +448,7 @@ void printTime(double ms) {
 
 int64_t
 OlsonTimeZone::transitionTimeInSeconds(int16_t transIdx) const {
-    U_ASSERT(transIdx >= 0 && transIdx < transitionCount());
+    U_ASSERT(transIdx >= 0 && transIdx < transitionCount()); 
 
     if (transIdx < transitionCountPre32) {
         return (((int64_t)((uint32_t)transitionTimesPre32[transIdx << 1])) << 32)
@@ -504,7 +503,7 @@ OlsonTimeZone::getHistoricalOffset(UDate date, UBool local,
 
                     UBool dstToStd = dstBefore && !dstAfter;
                     UBool stdToDst = !dstBefore && dstAfter;
-
+                    
                     if (offsetAfter - offsetBefore >= 0) {
                         // Positive transition, which makes a non-existing local time range
                         if (((NonExistingTimeOpt & kStdDstMask) == kStandard && dstToStd)
@@ -560,12 +559,12 @@ OlsonTimeZone::getHistoricalOffset(UDate date, UBool local,
 UBool OlsonTimeZone::useDaylightTime() const {
     // If DST was observed in 1942 (for example) but has never been
     // observed from 1943 to the present, most clients will expect
-    // this method to return FALSE.  This method determines whether
+    // this method to return false.  This method determines whether
     // DST is in use in the current year (at any point in the year)
-    // and returns TRUE if so.
+    // and returns true if so.
 
     UDate current = uprv_getUTCtime();
-    if (finalZone != NULL && current >= finalStartMillis) {
+    if (finalZone != nullptr && current >= finalStartMillis) {
         return finalZone->useDaylightTime();
     }
 
@@ -576,7 +575,7 @@ UBool OlsonTimeZone::useDaylightTime() const {
     double start = Grego::fieldsToDay(year, 0, 1) * SECONDS_PER_DAY;
     double limit = Grego::fieldsToDay(year+1, 0, 1) * SECONDS_PER_DAY;
 
-    // Return TRUE if DST is observed at any time during the current
+    // Return true if DST is observed at any time during the current
     // year.
     for (int16_t i = 0; i < transitionCount(); ++i) {
         double transition = (double)transitionTimeInSeconds(i);
@@ -585,14 +584,14 @@ UBool OlsonTimeZone::useDaylightTime() const {
         }
         if ((transition >= start && dstOffsetAt(i) != 0)
                 || (transition > start && dstOffsetAt(i - 1) != 0)) {
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
-int32_t
+int32_t 
 OlsonTimeZone::getDSTSavings() const{
-    if (finalZone != NULL){
+    if (finalZone != nullptr){
         return finalZone->getDSTSavings();
     }
     return TimeZone::getDSTSavings();
@@ -602,45 +601,45 @@ OlsonTimeZone::getDSTSavings() const{
  */
 UBool OlsonTimeZone::inDaylightTime(UDate date, UErrorCode& ec) const {
     int32_t raw, dst;
-    getOffset(date, FALSE, raw, dst, ec);
+    getOffset(date, false, raw, dst, ec);
     return dst != 0;
 }
 
 UBool
 OlsonTimeZone::hasSameRules(const TimeZone &other) const {
     if (this == &other) {
-        return TRUE;
+        return true;
     }
     const OlsonTimeZone* z = dynamic_cast<const OlsonTimeZone*>(&other);
-    if (z == NULL) {
-        return FALSE;
+    if (z == nullptr) {
+        return false;
     }
 
     // [sic] pointer comparison: typeMapData points into
     // memory-mapped or DLL space, so if two zones have the same
     // pointer, they are equal.
     if (typeMapData == z->typeMapData) {
-        return TRUE;
+        return true;
     }
-
+    
     // If the pointers are not equal, the zones may still
     // be equal if their rules and transitions are equal
-    if ((finalZone == NULL && z->finalZone != NULL)
-        || (finalZone != NULL && z->finalZone == NULL)
-        || (finalZone != NULL && z->finalZone != NULL && *finalZone != *z->finalZone)) {
-        return FALSE;
+    if ((finalZone == nullptr && z->finalZone != nullptr)
+        || (finalZone != nullptr && z->finalZone == nullptr)
+        || (finalZone != nullptr && z->finalZone != nullptr && *finalZone != *z->finalZone)) {
+        return false;
     }
 
-    if (finalZone != NULL) {
+    if (finalZone != nullptr) {
         if (finalStartYear != z->finalStartYear || finalStartMillis != z->finalStartMillis) {
-            return FALSE;
+            return false;
         }
     }
     if (typeCount != z->typeCount
         || transitionCountPre32 != z->transitionCountPre32
         || transitionCount32 != z->transitionCount32
         || transitionCountPost32 != z->transitionCountPost32) {
-        return FALSE;
+        return false;
     }
 
     return
@@ -652,34 +651,34 @@ OlsonTimeZone::hasSameRules(const TimeZone &other) const {
 }
 
 void
-OlsonTimeZone::clearTransitionRules(void) {
-    initialRule = NULL;
-    firstTZTransition = NULL;
-    firstFinalTZTransition = NULL;
-    historicRules = NULL;
+OlsonTimeZone::clearTransitionRules() {
+    initialRule = nullptr;
+    firstTZTransition = nullptr;
+    firstFinalTZTransition = nullptr;
+    historicRules = nullptr;
     historicRuleCount = 0;
-    finalZoneWithStartYear = NULL;
+    finalZoneWithStartYear = nullptr;
     firstTZTransitionIdx = 0;
     transitionRulesInitOnce.reset();
 }
 
 void
-OlsonTimeZone::deleteTransitionRules(void) {
-    if (initialRule != NULL) {
+OlsonTimeZone::deleteTransitionRules() {
+    if (initialRule != nullptr) {
         delete initialRule;
     }
-    if (firstTZTransition != NULL) {
+    if (firstTZTransition != nullptr) {
         delete firstTZTransition;
     }
-    if (firstFinalTZTransition != NULL) {
+    if (firstFinalTZTransition != nullptr) {
         delete firstFinalTZTransition;
     }
-    if (finalZoneWithStartYear != NULL) {
+    if (finalZoneWithStartYear != nullptr) {
         delete finalZoneWithStartYear;
     }
-    if (historicRules != NULL) {
+    if (historicRules != nullptr) {
         for (int i = 0; i < historicRuleCount; i++) {
-            if (historicRules[i] != NULL) {
+            if (historicRules[i] != nullptr) {
                 delete historicRules[i];
             }
         }
@@ -695,7 +694,7 @@ OlsonTimeZone::deleteTransitionRules(void) {
 static void U_CALLCONV initRules(OlsonTimeZone *This, UErrorCode &status) {
     This->initTransitionRules(status);
 }
-
+    
 void
 OlsonTimeZone::checkTransitionRules(UErrorCode& status) const {
     OlsonTimeZone *ncThis = const_cast<OlsonTimeZone *>(this);
@@ -721,7 +720,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
     dst = initialDstOffset() * U_MILLIS_PER_SECOND;
     initialRule = new InitialTimeZoneRule((dst == 0 ? stdName : dstName), raw, dst);
     // Check to make sure initialRule was created
-    if (initialRule == NULL) {
+    if (initialRule == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         deleteTransitionRules();
         return;
@@ -746,7 +745,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
         } else {
             // Build historic rule array
             UDate* times = (UDate*)uprv_malloc(sizeof(UDate)*transCount); /* large enough to store all transition times */
-            if (times == NULL) {
+            if (times == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 deleteTransitionRules();
                 return;
@@ -757,7 +756,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
                 for (transitionIdx = firstTZTransitionIdx; transitionIdx < transCount; transitionIdx++) {
                     if (typeIdx == (int16_t)typeMapData[transitionIdx]) {
                         UDate tt = (UDate)transitionTime(transitionIdx);
-                        if (finalZone == NULL || tt <= finalStartMillis) {
+                        if (finalZone == nullptr || tt <= finalStartMillis) {
                             // Exclude transitions after finalMillis
                             times[nTimes++] = tt;
                         }
@@ -767,24 +766,24 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
                     // Create a TimeArrayTimeZoneRule
                     raw = typeOffsets[typeIdx << 1] * U_MILLIS_PER_SECOND;
                     dst = typeOffsets[(typeIdx << 1) + 1] * U_MILLIS_PER_SECOND;
-                    if (historicRules == NULL) {
+                    if (historicRules == nullptr) {
                         historicRuleCount = typeCount;
                         historicRules = (TimeArrayTimeZoneRule**)uprv_malloc(sizeof(TimeArrayTimeZoneRule*)*historicRuleCount);
-                        if (historicRules == NULL) {
+                        if (historicRules == nullptr) {
                             status = U_MEMORY_ALLOCATION_ERROR;
                             deleteTransitionRules();
                             uprv_free(times);
                             return;
                         }
                         for (int i = 0; i < historicRuleCount; i++) {
-                            // Initialize TimeArrayTimeZoneRule pointers as NULL
-                            historicRules[i] = NULL;
+                            // Initialize TimeArrayTimeZoneRule pointers as nullptr
+                            historicRules[i] = nullptr;
                         }
                     }
                     historicRules[typeIdx] = new TimeArrayTimeZoneRule((dst == 0 ? stdName : dstName),
                         raw, dst, times, nTimes, DateTimeRule::UTC_TIME);
                     // Check for memory allocation error
-                    if (historicRules[typeIdx] == NULL) {
+                    if (historicRules[typeIdx] == nullptr) {
                         status = U_MEMORY_ALLOCATION_ERROR;
                         deleteTransitionRules();
                         return;
@@ -798,17 +797,17 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
             firstTZTransition = new TimeZoneTransition((UDate)transitionTime(firstTZTransitionIdx),
                     *initialRule, *historicRules[typeIdx]);
             // Check to make sure firstTZTransition was created.
-            if (firstTZTransition == NULL) {
+            if (firstTZTransition == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 deleteTransitionRules();
                 return;
             }
         }
     }
-    if (finalZone != NULL) {
-        // Get the first occurence of final rule starts
+    if (finalZone != nullptr) {
+        // Get the first occurrence of final rule starts
         UDate startTime = (UDate)finalStartMillis;
-        TimeZoneRule *firstFinalRule = NULL;
+        TimeZoneRule *firstFinalRule = nullptr;
 
         if (finalZone->useDaylightTime()) {
             /*
@@ -820,7 +819,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
              */
             finalZoneWithStartYear = finalZone->clone();
             // Check to make sure finalZone was actually cloned.
-            if (finalZoneWithStartYear == NULL) {
+            if (finalZoneWithStartYear == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 deleteTransitionRules();
                 return;
@@ -831,7 +830,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
             finalZoneWithStartYear->getNextTransition(startTime, false, tzt);
             firstFinalRule  = tzt.getTo()->clone();
             // Check to make sure firstFinalRule received proper clone.
-            if (firstFinalRule == NULL) {
+            if (firstFinalRule == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 deleteTransitionRules();
                 return;
@@ -841,7 +840,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
             // final rule with no transitions
             finalZoneWithStartYear = finalZone->clone();
             // Check to make sure finalZone was actually cloned.
-            if (finalZoneWithStartYear == NULL) {
+            if (finalZoneWithStartYear == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 deleteTransitionRules();
                 return;
@@ -850,23 +849,23 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
             firstFinalRule = new TimeArrayTimeZoneRule(tzid,
                 finalZone->getRawOffset(), 0, &startTime, 1, DateTimeRule::UTC_TIME);
             // Check firstFinalRule was properly created.
-            if (firstFinalRule == NULL) {
+            if (firstFinalRule == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 deleteTransitionRules();
                 return;
             }
         }
-        TimeZoneRule *prevRule = NULL;
+        TimeZoneRule *prevRule = nullptr;
         if (transCount > 0) {
             prevRule = historicRules[typeMapData[transCount - 1]];
         }
-        if (prevRule == NULL) {
+        if (prevRule == nullptr) {
             // No historic transitions, but only finalZone available
             prevRule = initialRule;
         }
         firstFinalTZTransition = new TimeZoneTransition();
         // Check to make sure firstFinalTZTransition was created before dereferencing
-        if (firstFinalTZTransition == NULL) {
+        if (firstFinalTZTransition == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             deleteTransitionRules();
             return;
@@ -882,24 +881,24 @@ OlsonTimeZone::getNextTransition(UDate base, UBool inclusive, TimeZoneTransition
     UErrorCode status = U_ZERO_ERROR;
     checkTransitionRules(status);
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
 
-    if (finalZone != NULL) {
+    if (finalZone != nullptr) {
         if (inclusive && base == firstFinalTZTransition->getTime()) {
             result = *firstFinalTZTransition;
-            return TRUE;
+            return true;
         } else if (base >= firstFinalTZTransition->getTime()) {
             if (finalZone->useDaylightTime()) {
                 //return finalZone->getNextTransition(base, inclusive, result);
                 return finalZoneWithStartYear->getNextTransition(base, inclusive, result);
             } else {
                 // No more transitions
-                return FALSE;
+                return false;
             }
         }
     }
-    if (historicRules != NULL) {
+    if (historicRules != nullptr) {
         // Find a historical transition
         int16_t transCount = transitionCount();
         int16_t ttidx = transCount - 1;
@@ -910,15 +909,15 @@ OlsonTimeZone::getNextTransition(UDate base, UBool inclusive, TimeZoneTransition
             }
         }
         if (ttidx == transCount - 1)  {
-            if (firstFinalTZTransition != NULL) {
+            if (firstFinalTZTransition != nullptr) {
                 result = *firstFinalTZTransition;
-                return TRUE;
+                return true;
             } else {
-                return FALSE;
+                return false;
             }
         } else if (ttidx < firstTZTransitionIdx) {
             result = *firstTZTransition;
-            return TRUE;
+            return true;
         } else {
             // Create a TimeZoneTransition
             TimeZoneRule *to = historicRules[typeMapData[ttidx + 1]];
@@ -936,10 +935,10 @@ OlsonTimeZone::getNextTransition(UDate base, UBool inclusive, TimeZoneTransition
             result.setTime(startTime);
             result.adoptFrom(from->clone());
             result.adoptTo(to->clone());
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 UBool
@@ -947,25 +946,25 @@ OlsonTimeZone::getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransi
     UErrorCode status = U_ZERO_ERROR;
     checkTransitionRules(status);
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
 
-    if (finalZone != NULL) {
+    if (finalZone != nullptr) {
         if (inclusive && base == firstFinalTZTransition->getTime()) {
             result = *firstFinalTZTransition;
-            return TRUE;
+            return true;
         } else if (base > firstFinalTZTransition->getTime()) {
             if (finalZone->useDaylightTime()) {
                 //return finalZone->getPreviousTransition(base, inclusive, result);
                 return finalZoneWithStartYear->getPreviousTransition(base, inclusive, result);
             } else {
                 result = *firstFinalTZTransition;
-                return TRUE;
+                return true;
             }
         }
     }
 
-    if (historicRules != NULL) {
+    if (historicRules != nullptr) {
         // Find a historical transition
         int16_t ttidx = transitionCount() - 1;
         for (; ttidx >= firstTZTransitionIdx; ttidx--) {
@@ -976,10 +975,10 @@ OlsonTimeZone::getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransi
         }
         if (ttidx < firstTZTransitionIdx) {
             // No more transitions
-            return FALSE;
+            return false;
         } else if (ttidx == firstTZTransitionIdx) {
             result = *firstTZTransition;
-            return TRUE;
+            return true;
         } else {
             // Create a TimeZoneTransition
             TimeZoneRule *to = historicRules[typeMapData[ttidx]];
@@ -997,10 +996,10 @@ OlsonTimeZone::getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransi
             result.setTime(startTime);
             result.adoptFrom(from->clone());
             result.adoptTo(to->clone());
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 int32_t
@@ -1014,16 +1013,16 @@ OlsonTimeZone::countTransitionRules(UErrorCode& status) const {
     }
 
     int32_t count = 0;
-    if (historicRules != NULL) {
+    if (historicRules != nullptr) {
         // historicRules may contain null entries when original zoneinfo data
         // includes non transition data.
         for (int32_t i = 0; i < historicRuleCount; i++) {
-            if (historicRules[i] != NULL) {
+            if (historicRules[i] != nullptr) {
                 count++;
             }
         }
     }
-    if (finalZone != NULL) {
+    if (finalZone != nullptr) {
         if (finalZone->useDaylightTime()) {
             count += 2;
         } else {
@@ -1051,11 +1050,11 @@ OlsonTimeZone::getTimeZoneRules(const InitialTimeZoneRule*& initial,
 
     // Transition rules
     int32_t cnt = 0;
-    if (historicRules != NULL && trscount > cnt) {
+    if (historicRules != nullptr && trscount > cnt) {
         // historicRules may contain null entries when original zoneinfo data
         // includes non transition data.
         for (int32_t i = 0; i < historicRuleCount; i++) {
-            if (historicRules[i] != NULL) {
+            if (historicRules[i] != nullptr) {
                 trsrules[cnt++] = historicRules[i];
                 if (cnt >= trscount) {
                     break;
@@ -1063,7 +1062,7 @@ OlsonTimeZone::getTimeZoneRules(const InitialTimeZoneRule*& initial,
             }
         }
     }
-    if (finalZoneWithStartYear != NULL && trscount > cnt) {
+    if (finalZoneWithStartYear != nullptr && trscount > cnt) {
         const InitialTimeZoneRule *tmpini;
         int32_t tmpcnt = trscount - cnt;
         finalZoneWithStartYear->getTimeZoneRules(tmpini, &trsrules[cnt], tmpcnt, status);

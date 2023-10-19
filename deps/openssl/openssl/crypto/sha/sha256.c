@@ -1,11 +1,17 @@
 /*
- * Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * SHA256 low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
 
 #include <openssl/opensslconf.h>
 
@@ -15,6 +21,7 @@
 #include <openssl/crypto.h>
 #include <openssl/sha.h>
 #include <openssl/opensslv.h>
+#include "internal/endian.h"
 
 int SHA224_Init(SHA256_CTX *c)
 {
@@ -44,34 +51,6 @@ int SHA256_Init(SHA256_CTX *c)
     c->h[7] = 0x5be0cd19UL;
     c->md_len = SHA256_DIGEST_LENGTH;
     return 1;
-}
-
-unsigned char *SHA224(const unsigned char *d, size_t n, unsigned char *md)
-{
-    SHA256_CTX c;
-    static unsigned char m[SHA224_DIGEST_LENGTH];
-
-    if (md == NULL)
-        md = m;
-    SHA224_Init(&c);
-    SHA256_Update(&c, d, n);
-    SHA256_Final(md, &c);
-    OPENSSL_cleanse(&c, sizeof(c));
-    return md;
-}
-
-unsigned char *SHA256(const unsigned char *d, size_t n, unsigned char *md)
-{
-    SHA256_CTX c;
-    static unsigned char m[SHA256_DIGEST_LENGTH];
-
-    if (md == NULL)
-        md = m;
-    SHA256_Init(&c);
-    SHA256_Update(&c, d, n);
-    SHA256_Final(md, &c);
-    OPENSSL_cleanse(&c, sizeof(c));
-    return md;
 }
 
 int SHA224_Update(SHA256_CTX *c, const void *data, size_t len)
@@ -250,12 +229,7 @@ static void sha256_block_data_order(SHA256_CTX *ctx, const void *in,
     SHA_LONG X[16];
     int i;
     const unsigned char *data = in;
-    const union {
-        long one;
-        char little;
-    } is_endian = {
-        1
-    };
+    DECLARE_IS_ENDIAN;
 
     while (num--) {
 
@@ -268,7 +242,7 @@ static void sha256_block_data_order(SHA256_CTX *ctx, const void *in,
         g = ctx->h[6];
         h = ctx->h[7];
 
-        if (!is_endian.little && sizeof(SHA_LONG) == 4
+        if (!IS_LITTLE_ENDIAN && sizeof(SHA_LONG) == 4
             && ((size_t)in % 4) == 0) {
             const SHA_LONG *W = (const SHA_LONG *)data;
 

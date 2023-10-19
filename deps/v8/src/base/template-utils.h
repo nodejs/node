@@ -8,6 +8,7 @@
 #include <array>
 #include <functional>
 #include <iosfwd>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -53,50 +54,141 @@ struct pass_value_or_ref {
 };
 
 // Uses expression SFINAE to detect whether using operator<< would work.
-template <typename T, typename = void>
+template <typename T, typename TStream = std::ostream, typename = void>
 struct has_output_operator : std::false_type {};
-template <typename T>
-struct has_output_operator<T, decltype(void(std::declval<std::ostream&>()
-                                            << std::declval<T>()))>
+template <typename T, typename TStream>
+struct has_output_operator<
+    T, TStream, decltype(void(std::declval<TStream&>() << std::declval<T>()))>
     : std::true_type {};
 
-// Fold all arguments from left to right with a given function.
-template <typename Func, typename T>
-constexpr auto fold(Func func, T&& t) {
-  return std::forward<T>(t);
+// Turn std::tuple<A...> into std::tuple<A..., T>.
+template <class Tuple, class T>
+using append_tuple_type = decltype(std::tuple_cat(
+    std::declval<Tuple>(), std::declval<std::tuple<T>>()));
+
+// Turn std::tuple<A...> into std::tuple<T, A...>.
+template <class T, class Tuple>
+using prepend_tuple_type = decltype(std::tuple_cat(
+    std::declval<std::tuple<T>>(), std::declval<Tuple>()));
+
+namespace detail {
+
+template <size_t N, typename Tuple>
+constexpr bool NIsNotGreaterThanTupleSize =
+    N <= std::tuple_size_v<std::decay_t<Tuple>>;
+
+template <size_t N, typename T, size_t... Ints>
+constexpr auto tuple_slice_impl(const T& tpl, std::index_sequence<Ints...>) {
+  return std::tuple{std::get<N + Ints>(tpl)...};
 }
 
-template <typename Func, typename T1, typename T2, typename... Ts>
-constexpr auto fold(Func func, T1&& first, T2&& second, Ts&&... more) {
-  auto&& folded = func(std::forward<T1>(first), std::forward<T2>(second));
-  return fold(std::move(func), std::forward<decltype(folded)>(folded),
-              std::forward<Ts>(more)...);
+template <typename Tuple, typename Function, size_t... Index>
+constexpr auto tuple_for_each_impl(const Tuple& tpl, Function&& function,
+                                   std::index_sequence<Index...>) {
+  (function(std::get<Index>(tpl)), ...);
 }
 
-// {is_same<Ts...>::value} is true if all Ts are the same, false otherwise.
-template <typename... Ts>
-struct is_same : public std::false_type {};
-template <>
-struct is_same<> : public std::true_type {};
-template <typename T>
-struct is_same<T> : public std::true_type {};
+template <typename Tuple, typename Function, size_t... Index>
+constexpr auto tuple_for_each_with_index_impl(const Tuple& tpl,
+                                              Function&& function,
+                                              std::index_sequence<Index...>) {
+  (function(std::get<Index>(tpl), std::integral_constant<size_t, Index>()),
+   ...);
+}
+
+}  // namespace detail
+
+// Get the first N elements from a tuple.
+template <size_t N, typename Tuple>
+constexpr auto tuple_head(Tuple&& tpl) {
+  constexpr size_t total_size = std::tuple_size_v<std::decay_t<Tuple>>;
+  static_assert(N <= total_size);
+  return detail::tuple_slice_impl<0>(std::forward<Tuple>(tpl),
+                                     std::make_index_sequence<N>());
+}
+
+// Drop the first N elements from a tuple.
+template <
+    size_t N, typename Tuple,
+    // If the user accidentally passes in an N that is larger than the tuple
+    // size, the unsigned subtraction will create a giant index sequence and
+    // crash the compiler. To avoid this and fail early, disable this function
+    // for invalid N.
+    typename = std::enable_if_t<detail::NIsNotGreaterThanTupleSize<N, Tuple>>>
+constexpr auto tuple_drop(Tuple&& tpl) {
+  constexpr size_t total_size = std::tuple_size_v<std::decay_t<Tuple>>;
+  static_assert(N <= total_size);
+  return detail::tuple_slice_impl<N>(
+      std::forward<Tuple>(tpl), std::make_index_sequence<total_size - N>());
+}
+
+// Calls `function(v)` for each `v` in the tuple.
+template <typename Tuple, typename Function>
+constexpr void tuple_for_each(Tuple&& tpl, Function&& function) {
+  detail::tuple_for_each_impl(
+      std::forward<Tuple>(tpl), function,
+      std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>());
+}
+
+// Calls `function(v, i)` for each `v` in the tuple, with index `i`. The index
+// `i` is passed as an std::integral_constant<size_t>, rather than a raw size_t,
+// to allow it to be used
+template <typename Tuple, typename Function>
+constexpr void tuple_for_each_with_index(Tuple&& tpl, Function&& function) {
+  detail::tuple_for_each_with_index_impl(
+      std::forward<Tuple>(tpl), function,
+      std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>());
+}
+
+#ifdef __clang__
+
+template <size_t N, typename... Ts>
+using nth_type = __type_pack_element<N, Ts...>;
+
+#else
+
+template <size_t N, typename... Ts>
+struct nth_type;
+
 template <typename T, typename... Ts>
-struct is_same<T, T, Ts...> : public is_same<T, Ts...> {};
-
-// Returns true, iff all values (implicitly converted to bool) are trueish.
-template <typename... Args>
-constexpr bool all(Args... rest) {
-  return fold(std::logical_and<>{}, true, rest...);
-}
-
-template <class... Ts>
-struct make_void {
-  using type = void;
+struct nth_type<0, T, Ts...> {
+  using type = T;
 };
-// Corresponds to C++17's std::void_t.
-// Used for SFINAE based on type errors.
-template <class... Ts>
-using void_t = typename make_void<Ts...>::type;
+
+template <size_t N, typename T, typename... Ts>
+struct nth_type<N, T, Ts...> : public nth_type<N - 1, Ts...> {};
+
+#endif
+
+template <size_t N, typename... T>
+using nth_type_t = typename nth_type<N, T...>::type;
+
+// Find SearchT in Ts. SearchT must be present at most once in Ts, and returns
+// sizeof...(Ts) if not found.
+template <typename SearchT, typename... Ts>
+struct index_of_type;
+
+// Not found / empty list.
+template <typename SearchT>
+struct index_of_type<SearchT> : public std::integral_constant<size_t, 0> {};
+
+// SearchT found at head of list.
+template <typename SearchT, typename... Ts>
+struct index_of_type<SearchT, SearchT, Ts...>
+    : public std::integral_constant<size_t, 0> {
+  // SearchT is not allowed to be anywhere else in the list.
+  static_assert(index_of_type<SearchT, Ts...>::value == sizeof...(Ts));
+};
+
+// Recursion, SearchT not found at head of list.
+template <typename SearchT, typename T, typename... Ts>
+struct index_of_type<SearchT, T, Ts...>
+    : public std::integral_constant<size_t,
+                                    1 + index_of_type<SearchT, Ts...>::value> {
+};
+
+template <typename SearchT, typename... Ts>
+constexpr size_t index_of_type_v = index_of_type<SearchT, Ts...>::value;
 
 }  // namespace base
 }  // namespace v8

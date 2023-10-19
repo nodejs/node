@@ -25,7 +25,7 @@ events.captureRejections = true;
 
     req.on('response', common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 500);
-      assert.strictEqual(res.headers.hasOwnProperty('content-type'), false);
+      assert.strictEqual(Object.hasOwn(res.headers, 'content-type'), false);
       let data = '';
       res.setEncoding('utf8');
       res.on('data', common.mustCall((chunk) => {

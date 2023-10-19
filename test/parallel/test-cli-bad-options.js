@@ -4,7 +4,7 @@ require('../common');
 // Tests that node exits consistently on bad option syntax.
 
 const assert = require('assert');
-const spawn = require('child_process').spawnSync;
+const { spawnSync } = require('child_process');
 
 if (process.features.inspector) {
   requiresArgument('--inspect-port');
@@ -14,8 +14,19 @@ if (process.features.inspector) {
 }
 requiresArgument('--eval');
 
+missingOption('--allow-fs-read=*', '--experimental-permission');
+missingOption('--allow-fs-write=*', '--experimental-permission');
+
+function missingOption(option, requiredOption) {
+  const r = spawnSync(process.execPath, [option], { encoding: 'utf8' });
+  assert.strictEqual(r.status, 1);
+
+  const message = `${requiredOption} is required`;
+  assert.match(r.stderr, new RegExp(message));
+}
+
 function requiresArgument(option) {
-  const r = spawn(process.execPath, [option], { encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [option], { encoding: 'utf8' });
 
   assert.strictEqual(r.status, 9);
 

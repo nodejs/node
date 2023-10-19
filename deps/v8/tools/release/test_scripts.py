@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2013 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,9 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
+import json
 import os
 import shutil
 import tempfile
@@ -44,7 +42,6 @@ import create_release
 from create_release import *
 import merge_to_branch
 from merge_to_branch import MergeToBranch
-from auto_tag import AutoTag
 import roll_merge
 from roll_merge import RollMerge
 
@@ -92,6 +89,10 @@ class ToplevelTest(unittest.TestCase):
                 "4.8.231",
                 ]
     self.assertEquals(expected, NormalizeVersionTags(input))
+
+  def testCommand(self):
+    """Ensure json can decode the output of commands."""
+    json.dumps(Command('ls', pipe=True))
 
 
 def Cmd(*args, **kwargs):
@@ -300,7 +301,7 @@ class ScriptTest(unittest.TestCase):
   def testCommonPrepareDefault(self):
     self.Expect([
       Cmd("git status -s -uno", ""),
-      Cmd("git checkout -f origin/master", ""),
+      Cmd("git checkout -f origin/main", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* %s" % TEST_CONFIG["BRANCHNAME"]),
       RL("Y"),
@@ -312,7 +313,7 @@ class ScriptTest(unittest.TestCase):
   def testCommonPrepareNoConfirm(self):
     self.Expect([
       Cmd("git status -s -uno", ""),
-      Cmd("git checkout -f origin/master", ""),
+      Cmd("git checkout -f origin/main", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* %s" % TEST_CONFIG["BRANCHNAME"]),
       RL("n"),
@@ -323,7 +324,7 @@ class ScriptTest(unittest.TestCase):
   def testCommonPrepareDeleteBranchFailure(self):
     self.Expect([
       Cmd("git status -s -uno", ""),
-      Cmd("git checkout -f origin/master", ""),
+      Cmd("git checkout -f origin/main", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* %s" % TEST_CONFIG["BRANCHNAME"]),
       RL("Y"),
@@ -395,13 +396,13 @@ class ScriptTest(unittest.TestCase):
 test_tag
 """
 
-  # Version as tag: 3.22.4.0. Version on master: 3.22.6.
+  # Version as tag: 3.22.4.0. Version on main: 3.22.6.
   # Make sure that the latest version is 3.22.6.0.
   def testIncrementVersion(self):
     self.Expect([
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
-      Cmd("git checkout -f origin/master -- include/v8-version.h",
+      Cmd("git checkout -f origin/main -- include/v8-version.h",
           "", cb=lambda: self.WriteFakeVersionFile(3, 22, 6)),
     ])
 
@@ -430,12 +431,10 @@ test_tag
   def testCreateRelease(self):
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
 
-    # The version file on master has build level 5.
+    # The version file on main has build level 5.
     self.WriteFakeVersionFile(build=5)
 
-    commit_msg = """Version 3.22.5
-
-TBR=reviewer@chromium.org"""
+    commit_msg = """Version 3.22.5"""
 
     def CheckVersionCommit():
       commit = FileToText(TEST_CONFIG["COMMITMSG_FILE"])
@@ -451,25 +450,25 @@ TBR=reviewer@chromium.org"""
 
     expectations = [
       Cmd("git fetch origin +refs/heads/*:refs/heads/*", ""),
-      Cmd("git checkout -f origin/master", "", cb=self.WriteFakeWatchlistsFile),
+      Cmd("git checkout -f origin/main", "", cb=self.WriteFakeWatchlistsFile),
       Cmd("git branch", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
-      Cmd("git checkout -f origin/master -- include/v8-version.h",
+      Cmd("git checkout -f origin/main -- include/v8-version.h",
           "", cb=self.WriteFakeVersionFile),
       Cmd("git log -1 --format=%H 3.22.4", "release_hash\n"),
       Cmd("git log -1 --format=%s release_hash", "Version 3.22.4\n"),
       Cmd("git log -1 --format=%H release_hash^", "abc3\n"),
       Cmd("git log --format=%H abc3..push_hash", "rev1\n"),
       Cmd("git push origin push_hash:refs/heads/3.22.5", ""),
-      Cmd("git reset --hard origin/master", ""),
+      Cmd("git reset --hard origin/main", ""),
       Cmd("git new-branch work-branch --upstream origin/3.22.5", ""),
       Cmd("git checkout -f 3.22.4 -- include/v8-version.h", "",
           cb=self.WriteFakeVersionFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
       Cmd("git cl upload --send-mail "
-          "-f --bypass-hooks --no-autocc --message-file "
+          "-f --set-bot-commit --bypass-hooks --no-autocc --message-file "
           "\"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       Cmd("git cl land --bypass-hooks -f", ""),
       Cmd("git fetch", ""),
@@ -477,8 +476,8 @@ TBR=reviewer@chromium.org"""
           "\"Version 3.22.5\" origin/3.22.5", "hsh_to_tag"),
       Cmd("git tag 3.22.5 hsh_to_tag", ""),
       Cmd("git push origin refs/tags/3.22.5:refs/tags/3.22.5", ""),
-      Cmd("git checkout -f origin/master", ""),
-      Cmd("git branch", "* master\n  work-branch\n"),
+      Cmd("git checkout -f origin/main", ""),
+      Cmd("git branch", "* main\n  work-branch\n"),
       Cmd("git branch -D work-branch", ""),
       Cmd("git gc", ""),
     ]
@@ -490,7 +489,7 @@ TBR=reviewer@chromium.org"""
     CreateRelease(TEST_CONFIG, self).Run(args)
 
     # Note: The version file is on build number 5 again in the end of this test
-    # since the git command that merges to master is mocked out.
+    # since the git command that merges to main is mocked out.
 
     # Check for correct content of the WATCHLISTS file
 
@@ -522,10 +521,12 @@ git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@123456 123
 
 """
 
-  ROLL_COMMIT_MSG = """Update V8 to version 3.22.4.
+  ROLL_HASH = "1234567890123456789012345678901234567890"
+  HASH_ALT_1 = "9999999999999999999999999999999999999999"
+  ROLL_COMMIT_MSG = f"""Update V8 to version 3.22.4.
 
 Summary of changes available at:
-https://chromium.googlesource.com/v8/v8/+log/last_rol..roll_hsh
+https://chromium.googlesource.com/v8/v8/+log/last_rol..{ROLL_HASH[:8]}
 
 Please follow these instructions for assigning/CC'ing issues:
 https://v8.dev/docs/triage-issues
@@ -539,8 +540,9 @@ CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:android_optional_gpu_tests_rel
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:dawn-linux-x64-deps-rel
 
-TBR=reviewer@chromium.org"""
+R=reviewer@chromium.org"""
 
   # Snippet from the original DEPS file.
   FAKE_DEPS = """
@@ -553,35 +555,6 @@ deps = {
     Var("v8_revision"),
 }
 """
-
-  def testChromiumRollUpToDate(self):
-    TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
-    json_output_file = os.path.join(TEST_CONFIG["CHROMIUM"], "out.json")
-    TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
-    chrome_dir = TEST_CONFIG["CHROMIUM"]
-    self.Expect([
-      Cmd("git fetch origin", ""),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
-      Cmd("git describe --tags last_roll_hsh", "3.22.4"),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("git rev-list --max-age=395200 --tags",
-          "bad_tag\nroll_hsh\nhash_123"),
-      Cmd("git describe --tags bad_tag", ""),
-      Cmd("git describe --tags roll_hsh", "3.22.4"),
-      Cmd("git describe --tags hash_123", "3.22.3"),
-      Cmd("git describe --tags roll_hsh", "3.22.4"),
-      Cmd("git describe --tags hash_123", "3.22.3"),
-    ])
-
-    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_PUSH_ARGS + [
-          "-c", TEST_CONFIG["CHROMIUM"],
-          "--json-output", json_output_file])
-    self.assertEquals(0, result)
-    json_output = json.loads(FileToText(json_output_file))
-    self.assertEquals("up_to_date", json_output["monitoring_state"])
-
 
   def testChromiumRoll(self):
     # Setup fake directory structures.
@@ -599,47 +572,34 @@ deps = {
     expectations = [
       Cmd("git fetch origin", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
-      Cmd("git describe --tags last_roll_hsh", "3.22.3.1"),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("git rev-list --max-age=395200 --tags",
-          "bad_tag\nroll_hsh\nhash_123"),
-      Cmd("git describe --tags bad_tag", ""),
-      Cmd("git describe --tags roll_hsh", "3.22.4"),
-      Cmd("git describe --tags hash_123", "3.22.3"),
-      Cmd("git describe --tags roll_hsh", "3.22.4"),
-      Cmd("git log -1 --format=%s roll_hsh", "Version 3.22.4\n"),
-      Cmd("git describe --tags roll_hsh", "3.22.4"),
-      Cmd("git describe --tags last_roll_hsh", "3.22.2.1"),
-      Cmd("git status -s -uno", "", cwd=chrome_dir),
-      Cmd("git checkout -f master", "", cwd=chrome_dir),
+      Cmd(f"git log -1 --format=%s {self.ROLL_HASH}", "Version 3.22.4\n"),
+      Cmd(f"git tag --points-at {self.ROLL_HASH}", "3.22.4\n3.22.4-pgo"),
+      Cmd("git tag --points-at last_roll_hsh", "3.22.2.1\n22.2.1-pgo"),
+      Cmd("git checkout -f main", "", cwd=chrome_dir),
       Cmd("git branch", "", cwd=chrome_dir),
-      Cmd("git pull", "", cwd=chrome_dir),
-      Cmd("git fetch origin", ""),
       Cmd("git new-branch work-branch", "", cwd=chrome_dir),
-      Cmd("gclient setdep -r src/v8@roll_hsh", "", cb=WriteDeps,
+      Cmd(f"gclient setdep -r src/v8@{self.ROLL_HASH}", "", cb=WriteDeps,
           cwd=chrome_dir),
-      Cmd(("git commit -am \"%s\" "
+      Cmd("git add \"DEPS\"", "", cwd=chrome_dir),
+      Cmd(("git -c diff.ignoreSubmodules=all commit -m \"%s\" "
            "--author \"author@chromium.org <author@chromium.org>\"" %
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
       Cmd("git cl upload --send-mail -f "
-          "--cq-dry-run --bypass-hooks", "",
+          "--cq-dry-run --set-bot-commit --bypass-hooks", "",
           cwd=chrome_dir),
-      Cmd("git checkout -f master", "", cwd=chrome_dir),
+      Cmd("git checkout -f main", "", cwd=chrome_dir),
       Cmd("git branch -D work-branch", "", cwd=chrome_dir),
     ]
     self.Expect(expectations)
 
     args = ["-a", "author@chromium.org", "-c", chrome_dir,
+            "--last-roll", "last_roll_hsh", "--revision", self.ROLL_HASH,
             "-r", "reviewer@chromium.org", "--json-output", json_output_file]
     auto_roll.AutoRoll(TEST_CONFIG, self).Run(args)
 
     deps = FileToText(os.path.join(chrome_dir, "DEPS"))
     self.assertTrue(re.search("\"v8_revision\": \"22624\"", deps))
-
-    json_output = json.loads(FileToText(json_output_file))
-    self.assertEquals("success", json_output["monitoring_state"])
 
   def testCheckLastPushRecently(self):
     self.Expect([
@@ -720,21 +680,21 @@ BUG=123,234,345,456,567,v8:123
 
     self.Expect([
       Cmd("git status -s -uno", ""),
-      Cmd("git checkout -f origin/master", ""),
+      Cmd("git checkout -f origin/main", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git new-branch %s --upstream refs/remotes/origin/candidates" %
           TEST_CONFIG["BRANCHNAME"], ""),
       Cmd(("git log --format=%H --grep=\"Port ab12345\" "
-           "--reverse origin/master"),
+           "--reverse origin/main"),
           "ab45678\nab23456"),
       Cmd("git log -1 --format=%s ab45678", "Title1"),
       Cmd("git log -1 --format=%s ab23456", "Title2"),
       Cmd(("git log --format=%H --grep=\"Port ab23456\" "
-           "--reverse origin/master"),
+           "--reverse origin/main"),
           ""),
       Cmd(("git log --format=%H --grep=\"Port ab34567\" "
-           "--reverse origin/master"),
+           "--reverse origin/main"),
           "ab56789"),
       Cmd("git log -1 --format=%s ab56789", "Title3"),
       RL("Y"),  # Automatically add corresponding ports (ab34567, ab56789)?
@@ -775,8 +735,8 @@ BUG=123,234,345,456,567,v8:123
       RL("Y"),  # Automatically increment patch level?
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
-      Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks --cc \"ulan@chromium.org\"", ""),
+      Cmd("git cl upload --send-mail "
+          "-r \"reviewer@chromium.org\" --bypass-hooks", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),
@@ -794,7 +754,7 @@ BUG=123,234,345,456,567,v8:123
           "hsh_to_tag"),
       Cmd("git tag 3.22.5.1 hsh_to_tag", ""),
       Cmd("git push origin refs/tags/3.22.5.1:refs/tags/3.22.5.1", ""),
-      Cmd("git checkout -f origin/master", ""),
+      Cmd("git checkout -f origin/main", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
     ])
 
@@ -857,21 +817,21 @@ NOTREECHECKS=true
 
     self.Expect([
       Cmd("git status -s -uno", ""),
-      Cmd("git checkout -f origin/master", ""),
+      Cmd("git checkout -f origin/main", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git new-branch %s --upstream refs/remotes/origin/candidates" %
           TEST_CONFIG["BRANCHNAME"], ""),
       Cmd(("git log --format=%H --grep=\"^[Pp]ort ab12345\" "
-           "--reverse origin/master"),
+           "--reverse origin/main"),
           "ab45678\nab23456"),
       Cmd("git log -1 --format=%s ab45678", "Title1"),
       Cmd("git log -1 --format=%s ab23456", "Title2"),
       Cmd(("git log --format=%H --grep=\"^[Pp]ort ab23456\" "
-           "--reverse origin/master"),
+           "--reverse origin/main"),
           ""),
       Cmd(("git log --format=%H --grep=\"^[Pp]ort ab34567\" "
-           "--reverse origin/master"),
+           "--reverse origin/main"),
           "ab56789"),
       Cmd("git log -1 --format=%s ab56789", "Title3"),
       RL("Y"),  # Automatically add corresponding ports (ab34567, ab56789)?
@@ -911,14 +871,14 @@ NOTREECHECKS=true
       Cmd("git apply --index --reject \"%s\"" % extra_patch, ""),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
-      Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks --cc \"ulan@chromium.org\"", ""),
+      Cmd("git cl upload --send-mail "
+          "-r \"reviewer@chromium.org\" --bypass-hooks", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),
       Cmd("git cl land -f --bypass-hooks", "Closing issue\n",
           cb=VerifyLand),
-      Cmd("git checkout -f origin/master", ""),
+      Cmd("git checkout -f origin/main", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
     ])
 

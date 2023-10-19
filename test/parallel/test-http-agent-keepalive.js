@@ -59,6 +59,7 @@ function checkDataAndSockets(body) {
   assert.strictEqual(body.toString(), 'hello world');
   assert.strictEqual(agent.sockets[name].length, 1);
   assert.strictEqual(agent.freeSockets[name], undefined);
+  assert.strictEqual(agent.totalSocketCount, 1);
 }
 
 function second() {
@@ -73,6 +74,7 @@ function second() {
       process.nextTick(common.mustCall(() => {
         assert.strictEqual(agent.sockets[name], undefined);
         assert.strictEqual(agent.freeSockets[name].length, 1);
+        assert.strictEqual(agent.totalSocketCount, 1);
         remoteClose();
       }));
     }));
@@ -82,8 +84,8 @@ function second() {
 function remoteClose() {
   // Mock remote server close the socket
   const req = get('/remote_close', common.mustCall((res) => {
-    assert.deepStrictEqual(req.reusedSocket, true);
-    assert.deepStrictEqual(res.statusCode, 200);
+    assert.strictEqual(req.reusedSocket, true);
+    assert.strictEqual(res.statusCode, 200);
     res.on('data', checkDataAndSockets);
     res.on('end', common.mustCall(() => {
       assert.strictEqual(agent.sockets[name].length, 1);
@@ -91,10 +93,12 @@ function remoteClose() {
       process.nextTick(common.mustCall(() => {
         assert.strictEqual(agent.sockets[name], undefined);
         assert.strictEqual(agent.freeSockets[name].length, 1);
+        assert.strictEqual(agent.totalSocketCount, 1);
         // Waiting remote server close the socket
         setTimeout(common.mustCall(() => {
           assert.strictEqual(agent.sockets[name], undefined);
           assert.strictEqual(agent.freeSockets[name], undefined);
+          assert.strictEqual(agent.totalSocketCount, 0);
           remoteError();
         }), common.platformTimeout(200));
       }));
@@ -110,10 +114,12 @@ function remoteError() {
     assert.strictEqual(err.message, 'socket hang up');
     assert.strictEqual(agent.sockets[name].length, 1);
     assert.strictEqual(agent.freeSockets[name], undefined);
+    assert.strictEqual(agent.totalSocketCount, 1);
     // Wait socket 'close' event emit
     setTimeout(common.mustCall(() => {
       assert.strictEqual(agent.sockets[name], undefined);
       assert.strictEqual(agent.freeSockets[name], undefined);
+      assert.strictEqual(agent.totalSocketCount, 0);
       server.close();
     }), common.platformTimeout(1));
   }));
@@ -132,6 +138,7 @@ server.listen(0, common.mustCall(() => {
       process.nextTick(common.mustCall(() => {
         assert.strictEqual(agent.sockets[name], undefined);
         assert.strictEqual(agent.freeSockets[name].length, 1);
+        assert.strictEqual(agent.totalSocketCount, 1);
         second();
       }));
     }));

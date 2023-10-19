@@ -5,7 +5,7 @@ const { MessageChannel } = require('worker_threads');
 const bench = common.createBenchmark(main, {
   payload: ['string', 'object'],
   style: ['eventtarget', 'eventemitter'],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main(conf) {

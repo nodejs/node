@@ -39,37 +39,32 @@
 
 U_CDECL_BEGIN
 
-static void U_CALLCONV
-deleteRegion(void *obj) {
-    delete (icu::Region *)obj;
-}
-
 /**
  * Cleanup callback func
  */
-static UBool U_CALLCONV region_cleanup(void)
+static UBool U_CALLCONV region_cleanup()
 {
     icu::Region::cleanupRegionData();
 
-    return TRUE;
+    return true;
 }
 
 U_CDECL_END
 
 U_NAMESPACE_BEGIN
 
-static UInitOnce gRegionDataInitOnce = U_INITONCE_INITIALIZER;
+static UInitOnce gRegionDataInitOnce {};
 static UVector* availableRegions[URGN_LIMIT];
 
-static UHashtable *regionAliases = NULL;
-static UHashtable *regionIDMap = NULL;
-static UHashtable *numericCodeMap = NULL;
-static UVector *allRegions = NULL;
+static UHashtable *regionAliases = nullptr;
+static UHashtable *regionIDMap = nullptr;
+static UHashtable *numericCodeMap = nullptr;
+static UVector *allRegions = nullptr;
 
-static const UChar UNKNOWN_REGION_ID [] = { 0x5A, 0x5A, 0 };  /* "ZZ" */
-static const UChar OUTLYING_OCEANIA_REGION_ID [] = { 0x51, 0x4F, 0 };  /* "QO" */
-static const UChar WORLD_ID [] = { 0x30, 0x30, 0x31, 0 };  /* "001" */
-static const UChar RANGE_MARKER = 0x7E; /* '~' */
+static const char16_t UNKNOWN_REGION_ID [] = { 0x5A, 0x5A, 0 };  /* "ZZ" */
+static const char16_t OUTLYING_OCEANIA_REGION_ID [] = { 0x51, 0x4F, 0 };  /* "QO" */
+static const char16_t WORLD_ID [] = { 0x30, 0x30, 0x31, 0 };  /* "001" */
+static const char16_t RANGE_MARKER = 0x7E; /* '~' */
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(RegionNameEnumeration)
 
@@ -84,100 +79,93 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(RegionNameEnumeration)
 void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
 
     // Construct service objs first
-    LocalUHashtablePointer newRegionIDMap(uhash_open(uhash_hashUnicodeString, uhash_compareUnicodeString, NULL, &status));
-    LocalUHashtablePointer newNumericCodeMap(uhash_open(uhash_hashLong,uhash_compareLong,NULL,&status));
-    LocalUHashtablePointer newRegionAliases(uhash_open(uhash_hashUnicodeString,uhash_compareUnicodeString,NULL,&status));
+    LocalUHashtablePointer newRegionIDMap(uhash_open(uhash_hashUnicodeString, uhash_compareUnicodeString, nullptr, &status));
+    LocalUHashtablePointer newNumericCodeMap(uhash_open(uhash_hashLong,uhash_compareLong,nullptr,&status));
+    LocalUHashtablePointer newRegionAliases(uhash_open(uhash_hashUnicodeString,uhash_compareUnicodeString,nullptr,&status));
 
     LocalPointer<UVector> continents(new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status), status);
     LocalPointer<UVector> groupings(new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status), status);
-    allRegions = new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status);
+    LocalPointer<UVector> lpAllRegions(new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status), status);
+    allRegions = lpAllRegions.orphan();
 
-    LocalUResourceBundlePointer metadata(ures_openDirect(NULL,"metadata",&status));
-    LocalUResourceBundlePointer metadataAlias(ures_getByKey(metadata.getAlias(),"alias",NULL,&status));
-    LocalUResourceBundlePointer territoryAlias(ures_getByKey(metadataAlias.getAlias(),"territory",NULL,&status));
+    LocalUResourceBundlePointer metadata(ures_openDirect(nullptr,"metadata",&status));
+    LocalUResourceBundlePointer metadataAlias(ures_getByKey(metadata.getAlias(),"alias",nullptr,&status));
+    LocalUResourceBundlePointer territoryAlias(ures_getByKey(metadataAlias.getAlias(),"territory",nullptr,&status));
 
-    LocalUResourceBundlePointer supplementalData(ures_openDirect(NULL,"supplementalData",&status));
-    LocalUResourceBundlePointer codeMappings(ures_getByKey(supplementalData.getAlias(),"codeMappings",NULL,&status));
+    LocalUResourceBundlePointer supplementalData(ures_openDirect(nullptr,"supplementalData",&status));
+    LocalUResourceBundlePointer codeMappings(ures_getByKey(supplementalData.getAlias(),"codeMappings",nullptr,&status));
 
-    LocalUResourceBundlePointer idValidity(ures_getByKey(supplementalData.getAlias(),"idValidity",NULL,&status));
-    LocalUResourceBundlePointer regionList(ures_getByKey(idValidity.getAlias(),"region",NULL,&status));
-    LocalUResourceBundlePointer regionRegular(ures_getByKey(regionList.getAlias(),"regular",NULL,&status));
-    LocalUResourceBundlePointer regionMacro(ures_getByKey(regionList.getAlias(),"macroregion",NULL,&status));
-    LocalUResourceBundlePointer regionUnknown(ures_getByKey(regionList.getAlias(),"unknown",NULL,&status));
+    LocalUResourceBundlePointer idValidity(ures_getByKey(supplementalData.getAlias(),"idValidity",nullptr,&status));
+    LocalUResourceBundlePointer regionList(ures_getByKey(idValidity.getAlias(),"region",nullptr,&status));
+    LocalUResourceBundlePointer regionRegular(ures_getByKey(regionList.getAlias(),"regular",nullptr,&status));
+    LocalUResourceBundlePointer regionMacro(ures_getByKey(regionList.getAlias(),"macroregion",nullptr,&status));
+    LocalUResourceBundlePointer regionUnknown(ures_getByKey(regionList.getAlias(),"unknown",nullptr,&status));
 
-    LocalUResourceBundlePointer territoryContainment(ures_getByKey(supplementalData.getAlias(),"territoryContainment",NULL,&status));
-    LocalUResourceBundlePointer worldContainment(ures_getByKey(territoryContainment.getAlias(),"001",NULL,&status));
-    LocalUResourceBundlePointer groupingContainment(ures_getByKey(territoryContainment.getAlias(),"grouping",NULL,&status));
+    LocalUResourceBundlePointer territoryContainment(ures_getByKey(supplementalData.getAlias(),"territoryContainment",nullptr,&status));
+    LocalUResourceBundlePointer worldContainment(ures_getByKey(territoryContainment.getAlias(),"001",nullptr,&status));
+    LocalUResourceBundlePointer groupingContainment(ures_getByKey(territoryContainment.getAlias(),"grouping",nullptr,&status));
 
+    ucln_i18n_registerCleanup(UCLN_I18N_REGION, region_cleanup);
     if (U_FAILURE(status)) {
         return;
     }
 
     // now, initialize
-    uhash_setValueDeleter(newRegionIDMap.getAlias(), deleteRegion);  // regionIDMap owns objs
-    uhash_setKeyDeleter(newRegionAliases.getAlias(), uprv_deleteUObject); // regionAliases owns the string keys
+    uhash_setValueDeleter(newRegionIDMap.getAlias(), uprv_deleteUObject);  // regionIDMap owns objs
+    uhash_setKeyDeleter(newRegionAliases.getAlias(), uprv_deleteUObject);  // regionAliases owns the string keys
 
 
-    while ( ures_hasNext(regionRegular.getAlias()) ) {
-        UnicodeString regionName = ures_getNextUnicodeString(regionRegular.getAlias(),NULL,&status);
+    while (U_SUCCESS(status) && ures_hasNext(regionRegular.getAlias())) {
+        UnicodeString regionName = ures_getNextUnicodeString(regionRegular.getAlias(),nullptr,&status);
         int32_t rangeMarkerLocation = regionName.indexOf(RANGE_MARKER);
-        UChar buf[6];
+        char16_t buf[6];
         regionName.extract(buf,6,status);
         if ( rangeMarkerLocation > 0 ) {
-            UChar endRange = regionName.charAt(rangeMarkerLocation+1);
+            char16_t endRange = regionName.charAt(rangeMarkerLocation+1);
             buf[rangeMarkerLocation] = 0;
-            while ( buf[rangeMarkerLocation-1] <= endRange ) {
+            while (U_SUCCESS(status) && buf[rangeMarkerLocation-1] <= endRange) {
                 LocalPointer<UnicodeString> newRegion(new UnicodeString(buf), status);
-                allRegions->addElement(newRegion.orphan(),status);
+                allRegions->adoptElement(newRegion.orphan(), status);
                 buf[rangeMarkerLocation-1]++;
             }
         } else {
             LocalPointer<UnicodeString> newRegion(new UnicodeString(regionName), status);
-            allRegions->addElement(newRegion.orphan(),status);
+            allRegions->adoptElement(newRegion.orphan(), status);
         }
     }
 
-    while ( ures_hasNext(regionMacro.getAlias()) ) {
-        UnicodeString regionName = ures_getNextUnicodeString(regionMacro.getAlias(),NULL,&status);
+    while (U_SUCCESS(status) && ures_hasNext(regionMacro.getAlias())) {
+        UnicodeString regionName = ures_getNextUnicodeString(regionMacro.getAlias(),nullptr,&status);
         int32_t rangeMarkerLocation = regionName.indexOf(RANGE_MARKER);
-        UChar buf[6];
+        char16_t buf[6];
         regionName.extract(buf,6,status);
         if ( rangeMarkerLocation > 0 ) {
-            UChar endRange = regionName.charAt(rangeMarkerLocation+1);
+            char16_t endRange = regionName.charAt(rangeMarkerLocation+1);
             buf[rangeMarkerLocation] = 0;
-            while ( buf[rangeMarkerLocation-1] <= endRange ) {
+            while ( buf[rangeMarkerLocation-1] <= endRange && U_SUCCESS(status)) {
                 LocalPointer<UnicodeString> newRegion(new UnicodeString(buf), status);
-                allRegions->addElement(newRegion.orphan(),status);
+                allRegions->adoptElement(newRegion.orphan(),status);
                 buf[rangeMarkerLocation-1]++;
             }
         } else {
             LocalPointer<UnicodeString> newRegion(new UnicodeString(regionName), status);
-            allRegions->addElement(newRegion.orphan(),status);
+            allRegions->adoptElement(newRegion.orphan(),status);
         }
     }
 
-    while ( ures_hasNext(regionUnknown.getAlias()) ) {
-        LocalPointer<UnicodeString> regionName (new UnicodeString(ures_getNextUnicodeString(regionUnknown.getAlias(),NULL,&status),status));
-        allRegions->addElement(regionName.orphan(),status);
+    while (U_SUCCESS(status) && ures_hasNext(regionUnknown.getAlias())) {
+        LocalPointer<UnicodeString> regionName (
+            new UnicodeString(ures_getNextUnicodeString(regionUnknown.getAlias(), nullptr, &status), status));
+        allRegions->adoptElement(regionName.orphan(),status);
     }
 
-    while ( ures_hasNext(worldContainment.getAlias()) ) {
-        UnicodeString *continentName = new UnicodeString(ures_getNextUnicodeString(worldContainment.getAlias(),NULL,&status));
-        continents->addElement(continentName,status);
+    while (U_SUCCESS(status) && ures_hasNext(worldContainment.getAlias())) {
+        UnicodeString *continentName = new UnicodeString(ures_getNextUnicodeString(worldContainment.getAlias(),nullptr,&status));
+        continents->adoptElement(continentName,status);
     }
-
-    UResourceBundle *groupingBundle = nullptr;
-    while ( ures_hasNext(groupingContainment.getAlias()) ) {
-        groupingBundle = ures_getNextResource(groupingContainment.getAlias(), groupingBundle, &status);
-        if (U_FAILURE(status)) {
-            break;
-        }
-        UnicodeString *groupingName = new UnicodeString(ures_getKey(groupingBundle), -1, US_INV);
-        if (groupingName) {
-            groupings->addElement(groupingName,status);
-        }
+    if (U_FAILURE(status)) {
+        return;
     }
-    ures_close(groupingBundle);
 
     for ( int32_t i = 0 ; i < allRegions->size() ; i++ ) {
         LocalPointer<Region> r(new Region(), status);
@@ -203,22 +191,55 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
         uhash_put(newRegionIDMap.getAlias(),idStrAlias,(void *)(r.orphan()),&status); // regionIDMap takes ownership
     }
 
+    UResourceBundle *groupingBundle = nullptr;
+    while (U_SUCCESS(status) && ures_hasNext(groupingContainment.getAlias())) {
+        groupingBundle = ures_getNextResource(groupingContainment.getAlias(), groupingBundle, &status);
+        if (U_FAILURE(status)) {
+            break;
+        }
+        UnicodeString *groupingName = new UnicodeString(ures_getKey(groupingBundle), -1, US_INV);
+        LocalPointer<UnicodeString> lpGroupingName(groupingName, status);
+        groupings->adoptElement(lpGroupingName.orphan(), status);
+        if (U_FAILURE(status)) {
+            break;
+        }
+        Region *grouping = (Region *) uhash_get(newRegionIDMap.getAlias(), groupingName);
+        if (grouping != nullptr) {
+            for (int32_t i = 0; i < ures_getSize(groupingBundle) && U_SUCCESS(status); i++) {
+                UnicodeString child = ures_getUnicodeStringByIndex(groupingBundle, i, &status);
+                if (U_SUCCESS(status)) {
+                    if (grouping->containedRegions == nullptr) {
+                        LocalPointer<UVector> lpContainedRegions(
+                            new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status), status);
+                        grouping->containedRegions = lpContainedRegions.orphan();
+                        if (U_FAILURE(status)) {
+                            break;
+                        }
+                    }
+                    LocalPointer<UnicodeString> lpChildCopy(new UnicodeString(child), status);
+                    grouping->containedRegions->adoptElement(lpChildCopy.orphan(), status);
+                }
+            }
+        }
+    }
+    ures_close(groupingBundle);
+    
     // Process the territory aliases
-    while ( ures_hasNext(territoryAlias.getAlias()) ) {
-        LocalUResourceBundlePointer res(ures_getNextResource(territoryAlias.getAlias(),NULL,&status));
+    while (U_SUCCESS(status) && ures_hasNext(territoryAlias.getAlias())) {
+        LocalUResourceBundlePointer res(ures_getNextResource(territoryAlias.getAlias(),nullptr,&status));
         const char *aliasFrom = ures_getKey(res.getAlias());
         LocalPointer<UnicodeString> aliasFromStr(new UnicodeString(aliasFrom, -1, US_INV), status);
         UnicodeString aliasTo = ures_getUnicodeStringByKey(res.getAlias(),"replacement",&status);
-        res.adoptInstead(NULL);
+        res.adoptInstead(nullptr);
 
         const Region *aliasToRegion = (Region *) uhash_get(newRegionIDMap.getAlias(),&aliasTo);
         Region *aliasFromRegion = (Region *)uhash_get(newRegionIDMap.getAlias(),aliasFromStr.getAlias());
 
-        if ( aliasToRegion != NULL && aliasFromRegion == NULL ) { // This is just an alias from some string to a region
+        if ( aliasToRegion != nullptr && aliasFromRegion == nullptr ) { // This is just an alias from some string to a region
             uhash_put(newRegionAliases.getAlias(),(void *)aliasFromStr.orphan(), (void *)aliasToRegion,&status);
         } else {
-            if ( aliasFromRegion == NULL ) { // Deprecated region code not in the primary codes list - so need to create a deprecated region for it.
-                LocalPointer<Region> newRgn(new Region, status);
+            if ( aliasFromRegion == nullptr ) { // Deprecated region code not in the primary codes list - so need to create a deprecated region for it.
+                LocalPointer<Region> newRgn(new Region, status); 
                 if ( U_SUCCESS(status) ) {
                     aliasFromRegion = newRgn.orphan();
                 } else {
@@ -249,7 +270,7 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
             }
             UnicodeString currentRegion;
             //currentRegion.remove();   TODO: was already 0 length?
-            for (int32_t i = 0 ; i < aliasTo.length() ; i++ ) {
+            for (int32_t i = 0 ; i < aliasTo.length() && U_SUCCESS(status); i++ ) {
                 if ( aliasTo.charAt(i) != 0x0020 ) {
                     currentRegion.append(aliasTo.charAt(i));
                 }
@@ -257,7 +278,7 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
                     Region *target = (Region *)uhash_get(newRegionIDMap.getAlias(),(void *)&currentRegion);
                     if (target) {
                         LocalPointer<UnicodeString> preferredValue(new UnicodeString(target->idStr), status);
-                        aliasFromRegion->preferredValues->addElement((void *)preferredValue.orphan(),status);  // may add null if err
+                        aliasFromRegion->preferredValues->adoptElement(preferredValue.orphan(),status);  // may add null if err
                     }
                     currentRegion.remove();
                 }
@@ -266,9 +287,9 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
     }
 
     // Process the code mappings - This will allow us to assign numeric codes to most of the territories.
-    while ( ures_hasNext(codeMappings.getAlias()) ) {
-        UResourceBundle *mapping = ures_getNextResource(codeMappings.getAlias(),NULL,&status);
-        if ( ures_getType(mapping) == URES_ARRAY && ures_getSize(mapping) == 3) {
+    while (U_SUCCESS(status) && ures_hasNext(codeMappings.getAlias())) {
+        UResourceBundle *mapping = ures_getNextResource(codeMappings.getAlias(),nullptr,&status);
+        if (U_SUCCESS(status) && ures_getType(mapping) == URES_ARRAY && ures_getSize(mapping) == 3) {
             UnicodeString codeMappingID = ures_getUnicodeStringByIndex(mapping,0,&status);
             UnicodeString codeMappingNumber = ures_getUnicodeStringByIndex(mapping,1,&status);
             UnicodeString codeMapping3Letter = ures_getUnicodeStringByIndex(mapping,2,&status);
@@ -327,7 +348,7 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
 
     // Load territory containment info from the supplemental data.
     while ( ures_hasNext(territoryContainment.getAlias()) ) {
-        LocalUResourceBundlePointer mapping(ures_getNextResource(territoryContainment.getAlias(),NULL,&status));
+        LocalUResourceBundlePointer mapping(ures_getNextResource(territoryContainment.getAlias(),nullptr,&status));
         if( U_FAILURE(status) ) {
             return;  // error out
         }
@@ -342,19 +363,27 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
         for ( int j = 0 ; j < ures_getSize(mapping.getAlias()); j++ ) {
             UnicodeString child = ures_getUnicodeStringByIndex(mapping.getAlias(),j,&status);
             Region *childRegion = (Region *) uhash_get(newRegionIDMap.getAlias(),(void *)&child);
-            if ( parentRegion != NULL && childRegion != NULL ) {
+            if ( parentRegion != nullptr && childRegion != nullptr ) {
 
                 // Add the child region to the set of regions contained by the parent
-                if (parentRegion->containedRegions == NULL) {
-                    parentRegion->containedRegions = new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status);
+                if (parentRegion->containedRegions == nullptr) {
+                    LocalPointer<UVector> lpContainedRegions(
+                        new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status), status);
+                    parentRegion->containedRegions = lpContainedRegions.orphan();
+                    if (U_FAILURE(status)) {
+                        return;
+                    }
                 }
 
                 LocalPointer<UnicodeString> childStr(new UnicodeString(), status);
-                if( U_FAILURE(status) ) {
+                if (U_FAILURE(status)) {
                     return;  // error out
                 }
                 childStr->fastCopyFrom(childRegion->idStr);
-                parentRegion->containedRegions->addElement((void *)childStr.orphan(),status);
+                parentRegion->containedRegions->adoptElement(childStr.orphan(),status);
+                if (U_FAILURE(status)) {
+                    return;
+                }
 
                 // Set the parent region to be the containing region of the child.
                 // Regions of type GROUPING can't be set as the parent, since another region
@@ -370,7 +399,7 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
     int32_t pos = UHASH_FIRST;
     while ( const UHashElement* element = uhash_nextElement(newRegionIDMap.getAlias(),&pos)) {
         Region *ar = (Region *)element->value.pointer;
-        if ( availableRegions[ar->fType] == NULL ) {
+        if ( availableRegions[ar->fType] == nullptr ) {
             LocalPointer<UVector> newAr(new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status), status);
             availableRegions[ar->fType] = newAr.orphan();
         }
@@ -378,10 +407,9 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
         if( U_FAILURE(status) ) {
             return;  // error out
         }
-        availableRegions[ar->fType]->addElement((void *)arString.orphan(),status);
+        availableRegions[ar->fType]->adoptElement(arString.orphan(), status);
     }
-
-    ucln_i18n_registerCleanup(UCLN_I18N_REGION, region_cleanup);
+    
     // copy hashtables
     numericCodeMap = newNumericCodeMap.orphan();
     regionIDMap = newRegionIDMap.orphan();
@@ -392,6 +420,7 @@ void Region::cleanupRegionData() {
     for (int32_t i = 0 ; i < URGN_LIMIT ; i++ ) {
         if ( availableRegions[i] ) {
             delete availableRegions[i];
+            availableRegions[i] = nullptr;
         }
     }
 
@@ -407,12 +436,11 @@ void Region::cleanupRegionData() {
         uhash_close(regionIDMap);
     }
     if (allRegions) {
-        allRegions->removeAllElements(); // Don't need the temporary list anymore.
         delete allRegions;
-        allRegions = NULL;
+        allRegions = nullptr;
     }
 
-    regionAliases = numericCodeMap = regionIDMap = NULL;
+    regionAliases = numericCodeMap = regionIDMap = nullptr;
 
     gRegionDataInitOnce.reset();
 }
@@ -420,9 +448,9 @@ void Region::cleanupRegionData() {
 Region::Region ()
         : code(-1),
           fType(URGN_UNKNOWN),
-          containingRegion(NULL),
-          containedRegions(NULL),
-          preferredValues(NULL) {
+          containingRegion(nullptr),
+          containedRegions(nullptr),
+          preferredValues(nullptr) {
     id[0] = 0;
 }
 
@@ -439,7 +467,7 @@ Region::~Region () {
  * Returns true if the two regions are equal.
  * Per PMC, just use pointer compare, since we have at most one instance of each Region.
  */
-UBool
+bool
 Region::operator==(const Region &that) const {
     return (idStr == that.idStr);
 }
@@ -448,7 +476,7 @@ Region::operator==(const Region &that) const {
  * Returns true if the two regions are NOT equal; that is, if operator ==() returns false.
  * Per PMC, just use pointer compare, since we have at most one instance of each Region.
  */
-UBool
+bool
 Region::operator!=(const Region &that) const {
         return (idStr != that.idStr);
 }
@@ -457,19 +485,19 @@ Region::operator!=(const Region &that) const {
  * Returns a pointer to a Region using the given region code.  The region code can be either 2-letter ISO code,
  * 3-letter ISO code,  UNM.49 numeric code, or other valid Unicode Region Code as defined by the LDML specification.
  * The identifier will be canonicalized internally using the supplemental metadata as defined in the CLDR.
- * If the region code is NULL or not recognized, the appropriate error code will be set ( U_ILLEGAL_ARGUMENT_ERROR )
+ * If the region code is nullptr or not recognized, the appropriate error code will be set ( U_ILLEGAL_ARGUMENT_ERROR )
  */
 const Region* U_EXPORT2
 Region::getInstance(const char *region_code, UErrorCode &status) {
 
     umtx_initOnce(gRegionDataInitOnce, &loadRegionData, status);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
 
     if ( !region_code ) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     UnicodeString regionCodeString = UnicodeString(region_code, -1, US_INV);
@@ -481,7 +509,7 @@ Region::getInstance(const char *region_code, UErrorCode &status) {
 
     if ( !r ) { // Unknown region code
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     if ( r->fType == URGN_DEPRECATED && r->preferredValues->size() == 1) {
@@ -505,7 +533,7 @@ Region::getInstance (int32_t code, UErrorCode &status) {
 
     umtx_initOnce(gRegionDataInitOnce, &loadRegionData, status);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
 
     Region *r = (Region *)uhash_iget(numericCodeMap,code);
@@ -517,12 +545,12 @@ Region::getInstance (int32_t code, UErrorCode &status) {
     }
 
     if( U_FAILURE(status) ) {
-        return NULL;
+        return nullptr;
     }
 
     if ( !r ) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     if ( r->fType == URGN_DEPRECATED && r->preferredValues->size() == 1) {
@@ -544,13 +572,13 @@ StringEnumeration* U_EXPORT2
 Region::getAvailable(URegionType type, UErrorCode &status) {
     umtx_initOnce(gRegionDataInitOnce, &loadRegionData, status); // returns immediately if U_FAILURE(status)
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     return new RegionNameEnumeration(availableRegions[type],status);
 }
 
 /**
- * Returns a pointer to the region that contains this region.  Returns NULL if this region is code "001" (World)
+ * Returns a pointer to the region that contains this region.  Returns nullptr if this region is code "001" (World)
  * or "ZZ" (Unknown region). For example, calling this method with region "IT" (Italy) returns the
  * region "039" (Southern Europe).
  */
@@ -563,17 +591,17 @@ Region::getContainingRegion() const {
 
 /**
  * Return a pointer to the region that geographically contains this region and matches the given type,
- * moving multiple steps up the containment chain if necessary.  Returns NULL if no containing region can be found
+ * moving multiple steps up the containment chain if necessary.  Returns nullptr if no containing region can be found
  * that matches the given type. Note: The URegionTypes = "URGN_GROUPING", "URGN_DEPRECATED", or "URGN_UNKNOWN"
- * are not appropriate for use in this API. NULL will be returned in this case. For example, calling this method
+ * are not appropriate for use in this API. nullptr will be returned in this case. For example, calling this method
  * with region "IT" (Italy) for type "URGN_CONTINENT" returns the region "150" ( Europe ).
  */
 const Region*
 Region::getContainingRegion(URegionType type) const {
     UErrorCode status = U_ZERO_ERROR;
     umtx_initOnce(gRegionDataInitOnce, &loadRegionData, status);
-    if ( containingRegion == NULL ) {
-        return NULL;
+    if ( containingRegion == nullptr ) {
+        return nullptr;
     }
 
     return ( containingRegion->fType == type)? containingRegion: containingRegion->getContainingRegion(type);
@@ -582,7 +610,7 @@ Region::getContainingRegion(URegionType type) const {
 /**
  * Return an enumeration over the IDs of all the regions that are immediate children of this region in the
  * region hierarchy. These returned regions could be either macro regions, territories, or a mixture of the two,
- * depending on the containment data as defined in CLDR.  This API may return NULL if this region doesn't have
+ * depending on the containment data as defined in CLDR.  This API may return nullptr if this region doesn't have
  * any sub-regions. For example, calling this method with region "150" (Europe) returns an enumeration containing
  * the various sub regions of Europe - "039" (Southern Europe) - "151" (Eastern Europe) - "154" (Northern Europe)
  * and "155" (Western Europe).
@@ -591,7 +619,7 @@ StringEnumeration*
 Region::getContainedRegions(UErrorCode &status) const {
     umtx_initOnce(gRegionDataInitOnce, &loadRegionData, status); // returns immediately if U_FAILURE(status)
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     return new RegionNameEnumeration(containedRegions,status);
 }
@@ -605,33 +633,30 @@ Region::getContainedRegions(UErrorCode &status) const {
 StringEnumeration*
 Region::getContainedRegions( URegionType type, UErrorCode &status ) const {
     umtx_initOnce(gRegionDataInitOnce, &loadRegionData, status); // returns immediately if U_FAILURE(status)
+
+    UVector result(nullptr, uhash_compareChars, status);
+    LocalPointer<StringEnumeration> cr(getContainedRegions(status), status);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
 
-    UVector *result = new UVector(NULL, uhash_compareChars, status);
-
-    StringEnumeration *cr = getContainedRegions(status);
-
-    for ( int32_t i = 0 ; i < cr->count(status) ; i++ ) {
-        const char *regionId = cr->next(NULL,status);
-        const Region *r = Region::getInstance(regionId,status);
+    const char *regionId;
+    while((regionId = cr->next(nullptr, status)) != nullptr && U_SUCCESS(status)) {
+        const Region *r = Region::getInstance(regionId, status);
         if ( r->getType() == type) {
-            result->addElement((void *)&r->idStr,status);
+            result.addElement(const_cast<UnicodeString *>(&r->idStr), status);
         } else {
-            StringEnumeration *children = r->getContainedRegions(type, status);
-            for ( int32_t j = 0 ; j < children->count(status) ; j++ ) {
-                const char *id2 = children->next(NULL,status);
+            LocalPointer<StringEnumeration> children(r->getContainedRegions(type, status));
+            const char *id2;
+            while(U_SUCCESS(status) && ((id2 = children->next(nullptr, status)) != nullptr)) {
                 const Region *r2 = Region::getInstance(id2,status);
-                result->addElement((void *)&r2->idStr,status);
+                result.addElement(const_cast<UnicodeString *>(&r2->idStr), status);
             }
-            delete children;
         }
     }
-    delete cr;
-    StringEnumeration* resultEnumeration = new RegionNameEnumeration(result,status);
-    delete result;
-    return resultEnumeration;
+    LocalPointer<StringEnumeration> resultEnumeration(
+        new RegionNameEnumeration(&result, status), status);
+    return U_SUCCESS(status) ? resultEnumeration.orphan() : nullptr;
 }
 
 /**
@@ -643,33 +668,33 @@ Region::contains(const Region &other) const {
     umtx_initOnce(gRegionDataInitOnce, &loadRegionData, status);
 
     if (!containedRegions) {
-          return FALSE;
+          return false;
     }
     if (containedRegions->contains((void *)&other.idStr)) {
-        return TRUE;
+        return true;
     } else {
         for ( int32_t i = 0 ; i < containedRegions->size() ; i++ ) {
             UnicodeString *crStr = (UnicodeString *)containedRegions->elementAt(i);
             Region *cr = (Region *) uhash_get(regionIDMap,(void *)crStr);
             if ( cr && cr->contains(other) ) {
-                return TRUE;
+                return true;
             }
         }
     }
 
-    return FALSE;
+    return false;
 }
 
 /**
  * For deprecated regions, return an enumeration over the IDs of the regions that are the preferred replacement
- * regions for this region.  Returns NULL for a non-deprecated region.  For example, calling this method with region
+ * regions for this region.  Returns nullptr for a non-deprecated region.  For example, calling this method with region
  * "SU" (Soviet Union) would return a list of the regions containing "RU" (Russia), "AM" (Armenia), "AZ" (Azerbaijan), etc...
  */
 StringEnumeration*
 Region::getPreferredValues(UErrorCode &status) const {
     umtx_initOnce(gRegionDataInitOnce, &loadRegionData, status); // returns immediately if U_FAILURE(status)
     if (U_FAILURE(status) || fType != URGN_DEPRECATED) {
-        return NULL;
+        return nullptr;
     }
     return new RegionNameEnumeration(preferredValues,status);
 }
@@ -696,28 +721,31 @@ Region::getType() const {
     return fType;
 }
 
-RegionNameEnumeration::RegionNameEnumeration(UVector *fNameList, UErrorCode& status) {
-    pos=0;
-    if (fNameList && U_SUCCESS(status)) {
-        fRegionNames = new UVector(uprv_deleteUObject, uhash_compareUnicodeString, fNameList->size(),status);
-        for ( int32_t i = 0 ; i < fNameList->size() ; i++ ) {
-            UnicodeString* this_region_name = (UnicodeString *)fNameList->elementAt(i);
-            UnicodeString* new_region_name = new UnicodeString(*this_region_name);
-            fRegionNames->addElement((void *)new_region_name,status);
+RegionNameEnumeration::RegionNameEnumeration(UVector *nameList, UErrorCode& status) :
+        pos(0), fRegionNames(nullptr) {
+    // TODO: https://unicode-org.atlassian.net/browse/ICU-21829
+    // Is all of the copying going on here really necessary?
+    if (nameList && U_SUCCESS(status)) {
+        LocalPointer<UVector> regionNames(
+            new UVector(uprv_deleteUObject, uhash_compareUnicodeString, nameList->size(), status), status);
+        for ( int32_t i = 0 ; U_SUCCESS(status) && i < nameList->size() ; i++ ) {
+            UnicodeString* this_region_name = (UnicodeString *)nameList->elementAt(i);
+            LocalPointer<UnicodeString> new_region_name(new UnicodeString(*this_region_name), status);
+            regionNames->adoptElement(new_region_name.orphan(), status);
         }
-    }
-    else {
-        fRegionNames = NULL;
+        if (U_SUCCESS(status)) {
+            fRegionNames = regionNames.orphan();
+        }
     }
 }
 
 const UnicodeString*
 RegionNameEnumeration::snext(UErrorCode& status) {
-  if (U_FAILURE(status) || (fRegionNames==NULL)) {
-    return NULL;
+  if (U_FAILURE(status) || (fRegionNames==nullptr)) {
+    return nullptr;
   }
   const UnicodeString* nextStr = (const UnicodeString *)fRegionNames->elementAt(pos);
-  if (nextStr!=NULL) {
+  if (nextStr!=nullptr) {
     pos++;
   }
   return nextStr;
@@ -730,7 +758,7 @@ RegionNameEnumeration::reset(UErrorCode& /*status*/) {
 
 int32_t
 RegionNameEnumeration::count(UErrorCode& /*status*/) const {
-    return (fRegionNames==NULL) ? 0 : fRegionNames->size();
+    return (fRegionNames==nullptr) ? 0 : fRegionNames->size();
 }
 
 RegionNameEnumeration::~RegionNameEnumeration() {

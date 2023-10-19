@@ -12,6 +12,8 @@
 using node::AtExit;
 using node::RunAtExit;
 using node::USE;
+using v8::Context;
+using v8::Local;
 
 static bool called_cb_1 = false;
 static bool called_cb_2 = false;
@@ -28,13 +30,46 @@ static std::string cb_1_arg;  // NOLINT(runtime/string)
 class EnvironmentTest : public EnvironmentTestFixture {
  private:
   void TearDown() override {
-    NodeTestFixture::TearDown();
+    EnvironmentTestFixture::TearDown();
     called_cb_1 = false;
     called_cb_2 = false;
     called_cb_ordered_1 = false;
     called_cb_ordered_2 = false;
   }
 };
+
+TEST_F(EnvironmentTest, EnvironmentWithoutBrowserGlobals) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv, node::EnvironmentFlags::kNoBrowserGlobals};
+
+  SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+    EXPECT_EQ(*env, env_);
+    EXPECT_EQ(exit_code, 0);
+    node::Stop(*env);
+  });
+
+  node::LoadEnvironment(
+      *env,
+      "const assert = require('assert');"
+      "const path = require('path');"
+      "const relativeRequire = "
+      "  require('module').createRequire(path.join(process.cwd(), 'stub.js'));"
+      "const { intrinsics, nodeGlobals } = "
+      "  relativeRequire('./test/common/globals');"
+      "const items = Object.getOwnPropertyNames(globalThis);"
+      "const leaks = [];"
+      "for (const item of items) {"
+      "  if (intrinsics.has(item)) {"
+      "    continue;"
+      "  }"
+      "  if (nodeGlobals.has(item)) {"
+      "    continue;"
+      "  }"
+      "  leaks.push(item);"
+      "}"
+      "assert.deepStrictEqual(leaks, []);");
+}
 
 TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
   const v8::HandleScope handle_scope(isolate_);
@@ -331,8 +366,8 @@ static void at_exit_js(void* arg) {
   v8::Isolate* isolate = static_cast<v8::Isolate*>(arg);
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
-  assert(!obj.IsEmpty());  // Assert VM is still alive.
-  assert(obj->IsObject());
+  EXPECT_FALSE(obj.IsEmpty());  // Assert VM is still alive.
+  EXPECT_TRUE(obj->IsObject());
   called_at_exit_js = true;
 }
 
@@ -551,7 +586,9 @@ TEST_F(EnvironmentTest, ExitHandlerTest) {
     callback_calls++;
     node::Stop(*env);
   });
-  node::LoadEnvironment(*env, "process.exit(42)").ToLocalChecked();
+  // When terminating, v8 throws makes the current embedder call bail out
+  // with MaybeLocal<>()
+  EXPECT_TRUE(node::LoadEnvironment(*env, "process.exit(42)").IsEmpty());
   EXPECT_EQ(callback_calls, 1);
 }
 
@@ -647,7 +684,8 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
 
-  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(isolate_);
+  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(
+      isolate_, v8::MicrotasksPolicy::kExplicit);
   v8::Local<v8::Context> context = v8::Context::New(
       isolate_, nullptr, {}, {}, {}, queue.get());
   node::InitializeContext(context);
@@ -669,12 +707,8 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
       v8::String::NewFromUtf8Literal(isolate_, "mustCall"),
       must_call).Check();
 
-  node::IsolateData* isolate_data = node::CreateIsolateData(
-      isolate_, &NodeTestFixture::current_loop, platform.get());
-  CHECK_NE(nullptr, isolate_data);
-
-  node::Environment* env = node::CreateEnvironment(
-      isolate_data, context, {}, {});
+  node::Environment* env =
+      node::CreateEnvironment(isolate_data_, context, {}, {});
   CHECK_NE(nullptr, env);
 
   v8::Local<v8::Function> eval_in_env = node::LoadEnvironment(
@@ -713,5 +747,29 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4, 7, 5 }));
 
   node::FreeEnvironment(env);
-  node::FreeIsolateData(isolate_data);
+}
+
+static bool interrupted = false;
+static void OnInterrupt(void* arg) {
+  interrupted = true;
+}
+TEST_F(EnvironmentTest, RequestInterruptAtExit) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+
+  Local<Context> context = node::NewContext(isolate_);
+  CHECK(!context.IsEmpty());
+  context->Enter();
+
+  std::vector<std::string> args(*argv, *argv + 1);
+  std::vector<std::string> exec_args(*argv, *argv + 1);
+  node::Environment* environment =
+      node::CreateEnvironment(isolate_data_, context, args, exec_args);
+  CHECK_NE(nullptr, environment);
+
+  node::RequestInterrupt(environment, OnInterrupt, nullptr);
+  node::FreeEnvironment(environment);
+  EXPECT_TRUE(interrupted);
+
+  context->Exit();
 }

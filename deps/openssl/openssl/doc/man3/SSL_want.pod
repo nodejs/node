@@ -2,9 +2,9 @@
 
 =head1 NAME
 
-SSL_want, SSL_want_nothing, SSL_want_read, SSL_want_write, SSL_want_x509_lookup,
-SSL_want_async, SSL_want_async_job, SSL_want_client_hello_cb - obtain state
-information TLS/SSL I/O operation
+SSL_want, SSL_want_nothing, SSL_want_read, SSL_want_write,
+SSL_want_x509_lookup, SSL_want_retry_verify, SSL_want_async, SSL_want_async_job,
+SSL_want_client_hello_cb - obtain state information TLS/SSL I/O operation
 
 =head1 SYNOPSIS
 
@@ -15,6 +15,7 @@ information TLS/SSL I/O operation
  int SSL_want_read(const SSL *ssl);
  int SSL_want_write(const SSL *ssl);
  int SSL_want_x509_lookup(const SSL *ssl);
+ int SSL_want_retry_verify(const SSL *ssl);
  int SSL_want_async(const SSL *ssl);
  int SSL_want_async_job(const SSL *ssl);
  int SSL_want_client_hello_cb(const SSL *ssl);
@@ -53,47 +54,50 @@ There is no data to be written or to be read.
 
 There are data in the SSL buffer that must be written to the underlying
 B<BIO> layer in order to complete the actual SSL_*() operation.
-A call to L<SSL_get_error(3)> should return
-SSL_ERROR_WANT_WRITE.
+A call to L<SSL_get_error(3)> should return B<SSL_ERROR_WANT_WRITE>.
 
 =item SSL_READING
 
 More data must be read from the underlying B<BIO> layer in order to
 complete the actual SSL_*() operation.
-A call to L<SSL_get_error(3)> should return
-SSL_ERROR_WANT_READ.
+A call to L<SSL_get_error(3)> should return B<SSL_ERROR_WANT_READ>.
 
 =item SSL_X509_LOOKUP
 
 The operation did not complete because an application callback set by
 SSL_CTX_set_client_cert_cb() has asked to be called again.
-A call to L<SSL_get_error(3)> should return
-SSL_ERROR_WANT_X509_LOOKUP.
+A call to L<SSL_get_error(3)> should return B<SSL_ERROR_WANT_X509_LOOKUP>.
+
+=item SSL_RETRY_VERIFY
+
+The operation did not complete because a certificate verification callback
+has asked to be called again via L<SSL_set_retry_verify(3)>.
+A call to L<SSL_get_error(3)> should return B<SSL_ERROR_WANT_RETRY_VERIFY>.
 
 =item SSL_ASYNC_PAUSED
 
 An asynchronous operation partially completed and was then paused. See
 L<SSL_get_all_async_fds(3)>. A call to L<SSL_get_error(3)> should return
-SSL_ERROR_WANT_ASYNC.
+B<SSL_ERROR_WANT_ASYNC>.
 
 =item SSL_ASYNC_NO_JOBS
 
 The asynchronous job could not be started because there were no async jobs
 available in the pool (see ASYNC_init_thread(3)). A call to L<SSL_get_error(3)>
-should return SSL_ERROR_WANT_ASYNC_JOB.
+should return B<SSL_ERROR_WANT_ASYNC_JOB>.
 
 =item SSL_CLIENT_HELLO_CB
 
 The operation did not complete because an application callback set by
 SSL_CTX_set_client_hello_cb() has asked to be called again.
-A call to L<SSL_get_error(3)> should return
-SSL_ERROR_WANT_CLIENT_HELLO_CB.
+A call to L<SSL_get_error(3)> should return B<SSL_ERROR_WANT_CLIENT_HELLO_CB>.
 
 =back
 
-SSL_want_nothing(), SSL_want_read(), SSL_want_write(), SSL_want_x509_lookup(),
-SSL_want_async(), SSL_want_async_job(), and SSL_want_client_hello_cb() return
-1, when the corresponding condition is true or 0 otherwise.
+SSL_want_nothing(), SSL_want_read(), SSL_want_write(),
+SSL_want_x509_lookup(), SSL_want_retry_verify(),
+SSL_want_async(), SSL_want_async_job(), and SSL_want_client_hello_cb()
+return 1 when the corresponding condition is true or 0 otherwise.
 
 =head1 SEE ALSO
 
@@ -106,9 +110,9 @@ were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

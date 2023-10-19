@@ -11,8 +11,8 @@
 #include "src/wasm/wasm-arguments.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/value-helper.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
@@ -60,7 +60,6 @@ class CWasmEntryArgTester {
     WriteToBuffer(&packer, args...);
     Address wasm_call_target = wasm_code_->instruction_start();
     Handle<Object> object_ref = runner_.builder().instance_object();
-    wasm_code_->native_module()->SetExecutable(true);
     Execution::CallWasm(isolate_, c_wasm_entry_, wasm_call_target, object_ref,
                         packer.argv());
     CHECK(!isolate_->has_pending_exception());
@@ -166,10 +165,13 @@ TEST(TestCWasmEntryArgPassing_AllTypes) {
         return 0. + a + b + c + d;
       });
 
-  Vector<const int32_t> test_values_i32 = compiler::ValueHelper::int32_vector();
-  Vector<const int64_t> test_values_i64 = compiler::ValueHelper::int64_vector();
-  Vector<const float> test_values_f32 = compiler::ValueHelper::float32_vector();
-  Vector<const double> test_values_f64 =
+  base::Vector<const int32_t> test_values_i32 =
+      compiler::ValueHelper::int32_vector();
+  base::Vector<const int64_t> test_values_i64 =
+      compiler::ValueHelper::int64_vector();
+  base::Vector<const float> test_values_f32 =
+      compiler::ValueHelper::float32_vector();
+  base::Vector<const double> test_values_f64 =
       compiler::ValueHelper::float64_vector();
   size_t max_len =
       std::max(std::max(test_values_i32.size(), test_values_i64.size()),

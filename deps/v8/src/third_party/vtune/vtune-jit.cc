@@ -56,6 +56,8 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "vtune-jit.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -65,8 +67,12 @@
 #include <unordered_map>
 #include <vector>
 
+#include "../../../include/v8-callbacks.h"
+#include "../../../include/v8-initialization.h"
+#include "../../../include/v8-local-handle.h"
+#include "../../../include/v8-primitive.h"
+#include "../../../include/v8-script.h"
 #include "v8-vtune.h"
-#include "vtune-jit.h"
 
 namespace vTune {
 namespace internal {
@@ -135,53 +141,13 @@ static JITCodeLineInfo* UntagLineInfo(void* ptr) {
     reinterpret_cast<intptr_t>(ptr));
 }
 
-// The parameter str is a mixed pattern which contains the
-// function name and some other info. It comes from all the
-// Logger::CodeCreateEvent(...) function. This function get the
-// pure function name from the input parameter.
-static std::string GetFunctionNameFromMixedName(const char* str, int length) {
-  int index = 0;
-  int count = 0;
-  char* start_ptr = NULL;
-
-  while (str[index++] != ':' && (index < length)) {}
-
-  const char state = str[index];
-  if (state == '*' || state == '+' || state == '-' || state == '~') index++;
-  if (index >= length) return std::string();
-
-  start_ptr = const_cast<char*>(str + index);
-
-  // Detecting JS and WASM function names. In JitCodeEvent->name.str 
-  // JS functions name ends with a space symbol. WASM function name 
-  // ends with the latest closing parenthesis. 
-  char last_char = ' ';
-  int parenthesis_count = 0;
-  while (index < length) {
-    if (str[index] == '(') {
-      last_char = ')';
-      parenthesis_count++;
-    }
-    if (str[index] == ')') parenthesis_count--;
-    if (str[index] == last_char && parenthesis_count == 0) {
-      if (last_char == ')') count++;
-      break;
-    }
-    count++;
-    index++;
-  }
-
-  return std::string(start_ptr, count);
-}
-
 // The JitCodeEventHandler for Vtune.
 void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
   if (VTUNERUNNING && event != NULL) {
     switch (event->type) {
       case v8::JitCodeEvent::CODE_ADDED: {
         std::unique_ptr<char[]> temp_file_name;
-        std::string temp_method_name = GetFunctionNameFromMixedName(
-            event->name.str, static_cast<int>(event->name.len));
+        std::string temp_method_name(event->name.str, event->name.len);
         std::vector<LineNumberInfo> jmethod_line_number_table;
         iJIT_Method_Load jmethod;
         memset(&jmethod, 0, sizeof jmethod);
@@ -239,15 +205,16 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
           temp_file_name[filename_size] = '\0';
           jmethod.source_file_name = temp_file_name.get();
 
-          jmethod.line_number_size = line_number_table_size;
+          jmethod.line_number_size =
+              static_cast<unsigned int>(line_number_table_size);
           jmethod_line_number_table.resize(jmethod.line_number_size);
           jmethod.line_number_table = jmethod_line_number_table.data();
 
           for (size_t index = 0; index < line_number_table_size; ++index) {
             jmethod.line_number_table[index].LineNumber =
-                line_number_table[index].pos;
+                static_cast<unsigned int>(line_number_table[index].pos);
             jmethod.line_number_table[index].Offset =
-                line_number_table[index].offset;
+                static_cast<unsigned int>(line_number_table[index].offset);
           }
         }
 
@@ -289,7 +256,6 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
 }  // namespace internal
 
 v8::JitCodeEventHandler GetVtuneCodeEventHandler() {
-  v8::V8::SetFlagsFromString("--no-compact-code-space");
   return vTune::internal::VTUNEJITInterface::event_handler;
 }
 

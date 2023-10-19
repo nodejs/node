@@ -30,8 +30,9 @@ const formatDiff = ({ files, opts = {}, refs, versions }) => {
       b: filenames.b && filenames.b.mode,
     }
 
-    if (contents.a === contents.b && modes.a === modes.b)
+    if (contents.a === contents.b && modes.a === modes.b) {
       continue
+    }
 
     if (opts.diffNameOnly) {
       res += `${filename}${EOL}`
@@ -47,18 +48,19 @@ const formatDiff = ({ files, opts = {}, refs, versions }) => {
 
     // manually build a git diff-compatible header
     header(`diff --git ${names.a} ${names.b}`)
-    if (modes.a === modes.b)
+    if (modes.a === modes.b) {
       fileMode = filenames.a.mode
-    else {
-      if (modes.a && !modes.b)
+    } else {
+      if (modes.a && !modes.b) {
         header(`deleted file mode ${modes.a}`)
-      else if (!modes.a && modes.b)
+      } else if (!modes.a && modes.b) {
         header(`new file mode ${modes.b}`)
-      else {
+      } else {
         header(`old mode ${modes.a}`)
         header(`new mode ${modes.b}`)
       }
     }
+    /* eslint-disable-next-line max-len */
     header(`index ${opts.tagVersionPrefix || 'v'}${versions.a}..${opts.tagVersionPrefix || 'v'}${versions.b} ${fileMode}`)
 
     if (shouldPrintPatch(filename)) {

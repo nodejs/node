@@ -105,6 +105,7 @@ struct U_I18N_API DecimalFormatProperties : public UMemory {
     bool decimalPatternMatchRequired;
     bool decimalSeparatorAlwaysShown;
     bool exponentSignAlwaysShown;
+    bool currencyAsDecimal;
     bool formatFailIfMoreThanMaxDigits; // ICU4C-only
     int32_t formatWidth;
     int32_t groupingSize;

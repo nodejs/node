@@ -5,48 +5,32 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_INL_H_
 #define V8_HEAP_INCREMENTAL_MARKING_INL_H_
 
-#include "src/heap/incremental-marking.h"
-
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/heap/mark-compact-inl.h"
-#include "src/objects/maybe-object.h"
-#include "src/objects/objects-inl.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/marking-state-inl.h"
+#include "src/objects/descriptor-array.h"
 
 namespace v8 {
 namespace internal {
 
-void IncrementalMarking::TransferColor(HeapObject from, HeapObject to) {
-  if (atomic_marking_state()->IsBlack(to)) {
+void IncrementalMarking::TransferColor(Tagged<HeapObject> from,
+                                       Tagged<HeapObject> to) {
+  if (marking_state()->IsMarked(to)) {
     DCHECK(black_allocation());
     return;
   }
-
-  DCHECK(atomic_marking_state()->IsWhite(to));
-  if (atomic_marking_state()->IsGrey(from)) {
-    bool success = atomic_marking_state()->WhiteToGrey(to);
+  DCHECK(marking_state()->IsUnmarked(to));
+  if (marking_state()->IsMarked(from)) {
+    bool success = marking_state()->TryMark(to);
     DCHECK(success);
     USE(success);
-  } else if (atomic_marking_state()->IsBlack(from)) {
-    bool success = atomic_marking_state()->WhiteToBlack(to);
-    DCHECK(success);
-    USE(success);
-  }
-}
-
-bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
-  if (marking_state()->WhiteToGrey(obj)) {
-    local_marking_worklists()->Push(obj);
-    return true;
-  }
-  return false;
-}
-
-void IncrementalMarking::RestartIfNotMarking() {
-  if (state_ == COMPLETE) {
-    state_ = MARKING;
-    if (FLAG_trace_incremental_marking) {
-      heap()->isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Restarting (new grey objects)\n");
+    if (!IsDescriptorArray(to) ||
+        (DescriptorArrayMarkingState::Marked::decode(
+             DescriptorArray::cast(to)->raw_gc_state(kRelaxedLoad)) != 0)) {
+      MemoryChunk::FromHeapObject(to)->IncrementLiveBytesAtomically(
+          ALIGN_TO_ALLOCATION_ALIGNMENT(to->Size()));
     }
   }
 }

@@ -14,8 +14,9 @@ const gatherDepSet = (set, edgeFilter) => {
   // as the deps set increases in size.
   for (const node of deps) {
     for (const edge of node.edgesOut.values()) {
-      if (edge.to && edgeFilter(edge))
+      if (edge.to && edgeFilter(edge)) {
         deps.add(edge.to)
+      }
     }
   }
 

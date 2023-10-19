@@ -5,14 +5,12 @@
 #ifndef V8_COMPILER_MAP_INFERENCE_H_
 #define V8_COMPILER_MAP_INFERENCE_H_
 
-#include "include/v8config.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
-
 
 namespace compiler {
 
@@ -34,7 +32,7 @@ class Node;
 // reliable).
 class MapInference {
  public:
-  MapInference(JSHeapBroker* broker, Node* object, Node* effect);
+  MapInference(JSHeapBroker* broker, Node* object, Effect effect);
 
   // The destructor checks that the information has been made reliable (if
   // necessary) and force-crashes if not.
@@ -52,10 +50,10 @@ class MapInference {
 
   // These queries require a guard. (Even instance types are generally not
   // reliable because of how the representation of a string can change.)
-  V8_WARN_UNUSED_RESULT MapHandles const& GetMaps();
+  V8_WARN_UNUSED_RESULT ZoneRefSet<Map> const& GetMaps();
   V8_WARN_UNUSED_RESULT bool AllOfInstanceTypes(
       std::function<bool(InstanceType)> f);
-  V8_WARN_UNUSED_RESULT bool Is(Handle<Map> expected_map);
+  V8_WARN_UNUSED_RESULT bool Is(MapRef expected_map);
 
   // These methods provide a guard.
   //
@@ -83,7 +81,7 @@ class MapInference {
   JSHeapBroker* const broker_;
   Node* const object_;
 
-  MapHandles maps_;
+  ZoneRefSet<Map> maps_;
   enum {
     kReliableOrGuarded,
     kUnreliableDontNeedGuard,

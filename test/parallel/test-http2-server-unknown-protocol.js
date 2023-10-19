@@ -8,6 +8,7 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const h2 = require('http2');
 const tls = require('tls');
 
@@ -18,16 +19,29 @@ const server = h2.createSecureServer({
   allowHalfOpen: true
 });
 
-server.on('connection', (socket) => {
+server.on('secureConnection', common.mustCall((socket) => {
   socket.on('close', common.mustCall(() => {
     server.close();
   }));
-});
+}));
 
 server.listen(0, function() {
+  // If the client does not send an ALPN connection, and the server has not been
+  // configured with allowHTTP1, then the server should destroy the socket
+  // after unknownProtocolTimeout.
+  tls.connect({
+    port: server.address().port,
+    rejectUnauthorized: false,
+  });
+
+  // If the client sends an ALPN extension that does not contain 'h2', the
+  // server should send a fatal alert to the client before a secure connection
+  // is established at all.
   tls.connect({
     port: server.address().port,
     rejectUnauthorized: false,
     ALPNProtocols: ['bogus']
-  });
+  }).on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ECONNRESET');
+  }));
 });

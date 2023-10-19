@@ -16,12 +16,12 @@ own<Trap> DummyCallback(const Val args[], Val results[]) { return nullptr; }
 
 TEST_F(WasmCapiTest, StartupErrors) {
   FunctionSig sig(0, 0, nullptr);
-  byte code[] = {WASM_UNREACHABLE};
+  uint8_t code[] = {WASM_UNREACHABLE};
   WasmFunctionBuilder* start_func = builder()->AddFunction(&sig);
   start_func->EmitCode(code, static_cast<uint32_t>(sizeof(code)));
   start_func->Emit(kExprEnd);
   builder()->MarkStartFunction(start_func);
-  builder()->AddImport(CStrVector("dummy"), &sig);
+  builder()->AddImport(base::CStrVector("dummy"), &sig);
   Compile();
   own<Trap> trap;
 
@@ -34,8 +34,7 @@ TEST_F(WasmCapiTest, StartupErrors) {
   EXPECT_NE(nullptr, trap);
   EXPECT_STREQ(
       "Uncaught LinkError: instantiation: Import #0 module=\"\" "
-      "function=\"dummy\" "
-      "error: imported function does not match the expected type",
+      "function=\"dummy\": imported function does not match the expected type",
       trap->message().get());
   EXPECT_EQ(nullptr, trap->origin());
   // Don't crash if there is no {trap}.

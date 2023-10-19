@@ -33,10 +33,9 @@ class SlackTrackingPrediction;
 class V8_EXPORT_PRIVATE JSCreateLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  JSCreateLowering(Editor* editor, CompilationDependencies* dependencies,
-                   JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone)
+  JSCreateLowering(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
+                   Zone* zone)
       : AdvancedReducer(editor),
-        dependencies_(dependencies),
         jsgraph_(jsgraph),
         broker_(broker),
         zone_(zone) {}
@@ -91,12 +90,20 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                                  FrameState frame_state, int start_index);
   Node* TryAllocateAliasedArguments(Node* effect, Node* control,
                                     FrameState frame_state, Node* context,
-                                    const SharedFunctionInfoRef& shared,
+                                    SharedFunctionInfoRef shared,
                                     bool* has_aliased_arguments);
   Node* TryAllocateAliasedArguments(Node* effect, Node* control, Node* context,
                                     Node* arguments_length,
-                                    const SharedFunctionInfoRef& shared,
+                                    SharedFunctionInfoRef shared,
                                     bool* has_aliased_arguments);
+  base::Optional<Node*> TryAllocateFastLiteral(Node* effect, Node* control,
+                                               JSObjectRef boilerplate,
+                                               AllocationType allocation,
+                                               int max_depth,
+                                               int* max_properties);
+  base::Optional<Node*> TryAllocateFastLiteralElements(
+      Node* effect, Node* control, JSObjectRef boilerplate,
+      AllocationType allocation, int max_depth, int* max_properties);
 
   Node* AllocateElements(Node* effect, Node* control,
                          ElementsKind elements_kind, int capacity,
@@ -107,11 +114,6 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                          ElementsKind elements_kind,
                          std::vector<Node*> const& values,
                          AllocationType allocation);
-  Node* AllocateFastLiteral(Node* effect, Node* control,
-                            JSObjectRef boilerplate, AllocationType allocation);
-  Node* AllocateFastLiteralElements(Node* effect, Node* control,
-                                    JSObjectRef boilerplate,
-                                    AllocationType allocation);
   Node* AllocateLiteralRegExp(Node* effect, Node* control,
                               RegExpBoilerplateDescriptionRef boilerplate);
 
@@ -121,11 +123,10 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   NativeContextRef native_context() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
-  CompilationDependencies* dependencies() const { return dependencies_; }
+  CompilationDependencies* dependencies() const;
   JSHeapBroker* broker() const { return broker_; }
   Zone* zone() const { return zone_; }
 
-  CompilationDependencies* const dependencies_;
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
   Zone* const zone_;

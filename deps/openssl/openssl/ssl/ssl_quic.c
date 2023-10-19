@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -131,7 +131,7 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
     size_t l, offset;
 
     if (!SSL_IS_QUIC(ssl)) {
-        SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        ERR_raise(ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
 
@@ -139,7 +139,7 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
     if (level < ssl->quic_read_level
             || (ssl->quic_input_data_tail != NULL && level < ssl->quic_input_data_tail->level)
             || level < ssl->quic_latest_level_received) {
-        SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
+        ERR_raise(ERR_LIB_SSL, SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
         return 0;
     }
 
@@ -149,11 +149,11 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
     if (ssl->quic_buf == NULL) {
         BUF_MEM *buf;
         if ((buf = BUF_MEM_new()) == NULL) {
-            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
+            ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
             return 0;
         }
         if (!BUF_MEM_grow(buf, SSL3_RT_MAX_PLAIN_LENGTH)) {
-            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
+            ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
             BUF_MEM_free(buf);
             return 0;
         }
@@ -166,15 +166,14 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
     /* A TLS message must not cross an encryption level boundary */
     if (ssl->quic_buf->length != ssl->quic_next_record_start
             && level != ssl->quic_latest_level_received) {
-        SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA,
-               SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
+        ERR_raise(ERR_LIB_SSL, SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
         return 0;
     }
     ssl->quic_latest_level_received = level;
 
     offset = ssl->quic_buf->length;
     if (!BUF_MEM_grow(ssl->quic_buf, offset + len)) {
-        SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
+        ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
         return 0;
     }
     memcpy(ssl->quic_buf->data + offset, data, len);
@@ -196,7 +195,7 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
 
         qd = OPENSSL_zalloc(sizeof(*qd));
         if (qd == NULL) {
-            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
+            ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
             return 0;
         }
 
@@ -267,23 +266,20 @@ int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level)
                 && ssl->max_early_data > 0
                 && ssl->session->ext.max_early_data == 0) {
             if (!ossl_assert(ssl->psksession != NULL
-                             && ssl->max_early_data
-                                    == ssl->psksession->ext.max_early_data)) {
-                SSLfatal(ssl, SSL_AD_INTERNAL_ERROR,
-                         SSL_F_QUIC_SET_ENCRYPTION_SECRETS,
-                         ERR_R_INTERNAL_ERROR);
+                    && ssl->max_early_data ==
+                       ssl->psksession->ext.max_early_data)) {
+                SSLfatal(ssl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
                 return 0;
             }
             c = SSL_SESSION_get0_cipher(ssl->psksession);
         }
 
         if (c == NULL) {
-            SSLfatal(ssl, SSL_AD_INTERNAL_ERROR,
-                     SSL_F_QUIC_SET_ENCRYPTION_SECRETS, ERR_R_INTERNAL_ERROR);
+            SSLfatal(ssl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return 0;
         }
 
-        md = ssl_md(c->algorithm2);
+        md = ssl_md(ssl->ctx, c->algorithm2);
     } else {
         md = ssl_handshake_md(ssl);
         if (md == NULL) {
@@ -307,23 +303,20 @@ int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level)
     }
 
     if ((len = EVP_MD_size(md)) <= 0) {
-        SSLfatal(ssl, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_SET_ENCRYPTION_SECRETS,
-                 ERR_R_INTERNAL_ERROR);
+        SSLfatal(ssl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         return 0;
     }
 
     if (ssl->server) {
         if (!ssl->quic_method->set_encryption_secrets(ssl, level, c2s_secret,
                                                       s2c_secret, len)) {
-            SSLfatal(ssl, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_SET_ENCRYPTION_SECRETS,
-                     ERR_R_INTERNAL_ERROR);
+            SSLfatal(ssl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return 0;
         }
     } else {
         if (!ssl->quic_method->set_encryption_secrets(ssl, level, s2c_secret,
                                                       c2s_secret, len)) {
-            SSLfatal(ssl, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_SET_ENCRYPTION_SECRETS,
-                     ERR_R_INTERNAL_ERROR);
+            SSLfatal(ssl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return 0;
         }
     }
@@ -336,7 +329,7 @@ int SSL_process_quic_post_handshake(SSL *ssl)
     int ret;
 
     if (SSL_in_init(ssl) || !SSL_IS_QUIC(ssl)) {
-        SSLerr(SSL_F_SSL_PROCESS_QUIC_POST_HANDSHAKE, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        ERR_raise(ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
 

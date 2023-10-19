@@ -57,7 +57,7 @@ static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -82,7 +82,7 @@ static void shutdown_cb(uv_shutdown_t* req, int status) {
 
 
 static void read_cb(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
-  ASSERT(tcp != NULL);
+  ASSERT_NOT_NULL(tcp);
 
   if (nread >= 0) {
     bytes_received_done += nread;
@@ -98,7 +98,7 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
 
 
 static void write_cb(uv_write_t* req, int status) {
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
 
   if (status) {
     fprintf(stderr, "uv_write error: %s\n", uv_strerror(status));
@@ -149,10 +149,14 @@ TEST_IMPL(tcp_writealot) {
   uv_tcp_t client;
   int r;
 
+#ifdef __TSAN__
+  RETURN_SKIP("Test is too slow to run under ThreadSanitizer");
+#endif
+
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   send_buffer = calloc(1, TOTAL_BYTES);
-  ASSERT(send_buffer != NULL);
+  ASSERT_NOT_NULL(send_buffer);
 
   r = uv_tcp_init(uv_default_loop(), &client);
   ASSERT(r == 0);
@@ -175,6 +179,6 @@ TEST_IMPL(tcp_writealot) {
 
   free(send_buffer);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

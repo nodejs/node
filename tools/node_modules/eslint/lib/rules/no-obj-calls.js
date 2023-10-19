@@ -9,14 +9,14 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const { CALL, CONSTRUCT, ReferenceTracker } = require("eslint-utils");
+const { CALL, CONSTRUCT, ReferenceTracker } = require("@eslint-community/eslint-utils");
 const getPropertyName = require("./utils/ast-utils").getStaticPropertyName;
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-const nonCallableGlobals = ["Atomics", "JSON", "Math", "Reflect"];
+const nonCallableGlobals = ["Atomics", "JSON", "Math", "Reflect", "Intl"];
 
 /**
  * Returns the name of the node to report
@@ -37,15 +37,15 @@ function getReportNodeName(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow calling global object properties as functions",
-            category: "Possible Errors",
+            description: "Disallow calling global object properties as functions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-obj-calls"
+            url: "https://eslint.org/docs/latest/rules/no-obj-calls"
         },
 
         schema: [],
@@ -58,9 +58,11 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.sourceCode;
+
         return {
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
                 const tracker = new ReferenceTracker(scope);
                 const traceMap = {};
 
@@ -71,12 +73,12 @@ module.exports = {
                     };
                 }
 
-                for (const { node, path } of tracker.iterateGlobalReferences(traceMap)) {
-                    const name = getReportNodeName(node.callee);
+                for (const { node: refNode, path } of tracker.iterateGlobalReferences(traceMap)) {
+                    const name = getReportNodeName(refNode.callee);
                     const ref = path[0];
                     const messageId = name === ref ? "unexpectedCall" : "unexpectedRefCall";
 
-                    context.report({ node, messageId, data: { name, ref } });
+                    context.report({ node: refNode, messageId, data: { name, ref } });
                 }
             }
         };

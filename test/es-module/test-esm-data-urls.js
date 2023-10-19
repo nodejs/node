@@ -1,6 +1,6 @@
-// Flags: --experimental-json-modules
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 function createURL(mime, body) {
   return `data:${mime},${body}`;
@@ -15,7 +15,7 @@ function createBase64URL(mime, body) {
     const plainESMURL = createURL('text/javascript', body);
     const ns = await import(plainESMURL);
     assert.deepStrictEqual(Object.keys(ns), ['default']);
-    assert.deepStrictEqual(ns.default.a, 'aaa');
+    assert.strictEqual(ns.default.a, 'aaa');
     const importerOfURL = createURL(
       'text/javascript',
       `export {default as default} from ${JSON.stringify(plainESMURL)}`
@@ -35,62 +35,63 @@ function createBase64URL(mime, body) {
     const plainESMURL = createURL('text/javascript', body);
     const ns = await import(plainESMURL);
     assert.deepStrictEqual(Object.keys(ns), ['default']);
-    assert.deepStrictEqual(ns.default, plainESMURL);
+    assert.strictEqual(ns.default, plainESMURL);
   }
   {
     const body = 'export default import.meta.url;';
     const plainESMURL = createURL('text/javascript;charset=UTF-8', body);
     const ns = await import(plainESMURL);
     assert.deepStrictEqual(Object.keys(ns), ['default']);
-    assert.deepStrictEqual(ns.default, plainESMURL);
+    assert.strictEqual(ns.default, plainESMURL);
   }
   {
     const body = 'export default import.meta.url;';
     const plainESMURL = createURL('text/javascript;charset="UTF-8"', body);
     const ns = await import(plainESMURL);
     assert.deepStrictEqual(Object.keys(ns), ['default']);
-    assert.deepStrictEqual(ns.default, plainESMURL);
+    assert.strictEqual(ns.default, plainESMURL);
   }
   {
     const body = 'export default import.meta.url;';
     const plainESMURL = createURL('text/javascript;;a=a;b=b;;', body);
     const ns = await import(plainESMURL);
     assert.deepStrictEqual(Object.keys(ns), ['default']);
-    assert.deepStrictEqual(ns.default, plainESMURL);
+    assert.strictEqual(ns.default, plainESMURL);
   }
   {
-    const ns = await import('data:application/json;foo="test,"this"');
+    const ns = await import('data:application/json;foo="test,"this"',
+      { with: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
-    assert.deepStrictEqual(ns.default, 'this');
+    assert.strictEqual(ns.default, 'this');
   }
   {
     const ns = await import(`data:application/json;foo=${
       encodeURIComponent('test,')
-    },0`);
+    },0`, { with: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
-    assert.deepStrictEqual(ns.default, 0);
+    assert.strictEqual(ns.default, 0);
   }
   {
-    await assert.rejects(async () => {
-      return import('data:application/json;foo="test,",0');
-    }, {
+    await assert.rejects(async () =>
+      import('data:application/json;foo="test,",0',
+        { with: { type: 'json' } }), {
       name: 'SyntaxError',
-      message: /Unexpected end of JSON input/
+      message: /Unterminated string in JSON at position 3/
     });
   }
   {
     const body = '{"x": 1}';
     const plainESMURL = createURL('application/json', body);
-    const ns = await import(plainESMURL);
+    const ns = await import(plainESMURL, { with: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
-    assert.deepStrictEqual(ns.default.x, 1);
+    assert.strictEqual(ns.default.x, 1);
   }
   {
     const body = '{"default": 2}';
     const plainESMURL = createURL('application/json', body);
-    const ns = await import(plainESMURL);
+    const ns = await import(plainESMURL, { with: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
-    assert.deepStrictEqual(ns.default.default, 2);
+    assert.strictEqual(ns.default.default, 2);
   }
   {
     const body = 'null';
@@ -99,12 +100,16 @@ function createBase64URL(mime, body) {
       await import(plainESMURL);
       common.mustNotCall()();
     } catch (e) {
-      assert.strictEqual(e.code, 'ERR_INVALID_MODULE_SPECIFIER');
+      assert.strictEqual(e.code, 'ERR_INVALID_URL');
     }
   }
   {
     const plainESMURL = 'data:text/javascript,export%20default%202';
     const module = await import(plainESMURL);
     assert.strictEqual(module.default, 2);
+  }
+  {
+    const plainESMURL = `data:text/javascript,${encodeURIComponent(`import ${JSON.stringify(fixtures.fileURL('es-module-url', 'empty.js'))}`)}`;
+    await import(plainESMURL);
   }
 })().then(common.mustCall());

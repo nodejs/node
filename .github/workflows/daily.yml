@@ -3,10 +3,13 @@ name: Node.js daily job
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: 0 0 * * *
 
 env:
-  NODE_VERSION: 14.x
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
 
 jobs:
   build-lto:
@@ -14,9 +17,11 @@ jobs:
     # not working on gcc-8 and gcc-9 see https://github.com/nodejs/node/issues/38570
     container: gcc:11
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0
+        with:
+          persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d  # v3.8.1
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information

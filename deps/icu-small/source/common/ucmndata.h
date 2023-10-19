@@ -18,10 +18,10 @@
  *                 contents for locating the individual items by name.
  *
  *                 Two formats for the table of contents are supported, which is
- *                 why there is an abstract inteface involved.
+ *                 why there is an abstract interface involved.
  *
  *                 These functions are part of the ICU internal implementation, and
- *                 are not inteded to be used directly by applications.
+ *                 are not intended to be used directly by applications.
  */
 
 #ifndef __UCMNDATA_H__
@@ -98,12 +98,12 @@ U_CDECL_END
 
 typedef struct {
     LookupFn      Lookup;
-    NumEntriesFn  NumEntries;
+    NumEntriesFn  NumEntries; 
 } commonDataFuncs;
 
 
 /*
- *  Functions to check whether a UDataMemory refers to memory containing
+ *  Functions to check whether a UDataMemory refers to memory containing 
  *     a recognizable header and table of contents a Common Data Format
  *
  *     If a valid header and TOC are found,

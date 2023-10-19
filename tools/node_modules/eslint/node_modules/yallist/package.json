@@ -1,6 +1,6 @@
 {
   "name": "yallist",
-  "version": "4.0.0",
+  "version": "3.1.1",
   "description": "Yet Another Linked List",
   "main": "yallist.js",
   "directories": {

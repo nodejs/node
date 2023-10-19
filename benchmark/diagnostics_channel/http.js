@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
   chunks: 4,
   connections: [50, 500],
   chunkedEnc: 1,
-  duration: 5
+  duration: 5,
 });
 
 function main({ apm, connections, duration, type, len, chunks, chunkedEnc }) {
@@ -24,7 +24,7 @@ function main({ apm, connections, duration, type, len, chunks, chunkedEnc }) {
       bench.http({
         path,
         connections,
-        duration
+        duration,
       }, () => {
         server.close();
         if (done) done();
@@ -44,14 +44,14 @@ function patch() {
     if (name === 'request') {
       als.enterWith({
         url: req.url,
-        start: process.hrtime.bigint()
+        start: process.hrtime.bigint(),
       });
 
       res.on('finish', () => {
         times.push({
           ...als.getStore(),
           statusCode: res.statusCode,
-          end: process.hrtime.bigint()
+          end: process.hrtime.bigint(),
         });
       });
     }
@@ -74,7 +74,7 @@ function diagnostics_channel() {
   function onStart(req) {
     als.enterWith({
       url: req.url,
-      start: process.hrtime.bigint()
+      start: process.hrtime.bigint(),
     });
   }
 
@@ -82,7 +82,7 @@ function diagnostics_channel() {
     times.push({
       ...als.getStore(),
       statusCode: res.statusCode,
-      end: process.hrtime.bigint()
+      end: process.hrtime.bigint(),
     });
   }
 

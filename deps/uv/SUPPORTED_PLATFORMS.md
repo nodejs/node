@@ -2,16 +2,15 @@
 
 |  System | Support type | Supported versions | Notes |
 |---|---|---|---|
-| GNU/Linux | Tier 1 | Linux >= 2.6.32 with glibc >= 2.12 | |
-| macOS | Tier 1 | macOS >= 10.7 | |
+| GNU/Linux | Tier 1 | Linux >= 3.10 with glibc >= 2.17 | |
+| macOS | Tier 1 | macOS >= 11 | Currently supported macOS releases |
 | Windows | Tier 1 | >= Windows 8 | VS 2015 and later are supported |
-| FreeBSD | Tier 1 | >= 10 | |
+| FreeBSD | Tier 2 | >= 12 | |
 | AIX | Tier 2 | >= 6 | Maintainers: @libuv/aix |
 | IBM i | Tier 2 | >= IBM i 7.2 | Maintainers: @libuv/ibmi |
 | z/OS | Tier 2 | >= V2R2 | Maintainers: @libuv/zos |
 | Linux with musl | Tier 2 | musl >= 1.0 | |
-| SmartOS | Tier 2 | >= 14.4 | Maintainers: @libuv/smartos |
-| Android | Tier 3 | NDK >= r15b | |
+| Android | Tier 3 | NDK >= r15b | Android 7.0, `-DANDROID_PLATFORM=android-24` |
 | MinGW | Tier 3 | MinGW32 and MinGW-w64 | |
 | SunOS | Tier 3 | Solaris 121 and later | |
 | Other | Tier 3 | N/A | |

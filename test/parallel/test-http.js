@@ -43,7 +43,7 @@ const server = http.Server(common.mustCall((req, res) => {
       break;
     case '/world':
       assert.strictEqual(req.method, 'POST');
-      assert.deepStrictEqual(req.headers.cookie, 'abc=123; def=456; ghi=789');
+      assert.strictEqual(req.headers.cookie, 'abc=123; def=456; ghi=789');
       break;
     default:
       assert(false, `Unexpected request for ${req.url}`);
@@ -113,7 +113,9 @@ server.on('listening', () => {
       path: '/world',
       headers: [ ['Cookie', 'abc=123'],
                  ['Cookie', 'def=456'],
-                 ['Cookie', 'ghi=789'] ],
+                 ['Cookie', 'ghi=789'],
+                 ['Host', 'example.com'],
+      ],
       agent: agent
     }, common.mustCall((res) => {
       const cookieHeaders = req._header.match(/^Cookie: .+$/img);

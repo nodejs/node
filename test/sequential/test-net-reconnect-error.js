@@ -30,8 +30,11 @@ const c = net.createConnection(common.PORT);
 
 c.on('connect', common.mustNotCall('client should not have connected'));
 
-c.on('error', common.mustCall((e) => {
-  assert.strictEqual(e.code, 'ECONNREFUSED');
+c.on('error', common.mustCall((error) => {
+  // Family autoselection might be skipped if only a single address is returned by DNS.
+  const actualError = Array.isArray(error.errors) ? error.errors[0] : error;
+
+  assert.strictEqual(actualError.code, 'ECONNREFUSED');
 }, N + 1));
 
 c.on('close', common.mustCall(() => {

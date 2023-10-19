@@ -20,9 +20,13 @@ HMAC_size
 
  #include <openssl/hmac.h>
 
- unsigned char *HMAC(const EVP_MD *evp_md, const void *key,
-                     int key_len, const unsigned char *d, size_t n,
+ unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
+                     const unsigned char *data, size_t data_len,
                      unsigned char *md, unsigned int *md_len);
+
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  HMAC_CTX *HMAC_CTX_new(void);
  int HMAC_CTX_reset(HMAC_CTX *ctx);
@@ -40,12 +44,12 @@ HMAC_size
 
  size_t HMAC_size(const HMAC_CTX *e);
 
-Deprecated:
+The following function has been deprecated since OpenSSL 1.1.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
- #if OPENSSL_API_COMPAT < 0x10100000L
  int HMAC_Init(HMAC_CTX *ctx, const void *key, int key_len,
                const EVP_MD *md);
- #endif
 
 =head1 DESCRIPTION
 
@@ -53,23 +57,31 @@ HMAC is a MAC (message authentication code), i.e. a keyed hash
 function used for message authentication, which is based on a hash
 function.
 
-HMAC() computes the message authentication code of the B<n> bytes at
-B<d> using the hash function B<evp_md> and the key B<key> which is
-B<key_len> bytes long.
+HMAC() computes the message authentication code of the I<data_len> bytes at
+I<data> using the hash function I<evp_md> and the key I<key> which is
+I<key_len> bytes long. The I<key> may also be NULL with I<key_len> being 0.
 
-It places the result in B<md> (which must have space for the output of
+It places the result in I<md> (which must have space for the output of
 the hash function, which is no more than B<EVP_MAX_MD_SIZE> bytes).
-If B<md> is NULL, the digest is placed in a static array.  The size of
-the output is placed in B<md_len>, unless it is B<NULL>. Note: passing a NULL
-value for B<md>  to use the static array is not thread safe.
+If I<md> is NULL, the digest is placed in a static array.  The size of
+the output is placed in I<md_len>, unless it is NULL. Note: passing a NULL
+value for I<md> to use the static array is not thread safe.
 
-B<evp_md> is a message digest such as EVP_sha1(), EVP_ripemd160() etc. HMAC does
-not support variable output length digests such as EVP_shake128() and
+I<evp_md> is a message digest such as EVP_sha1(), EVP_ripemd160() etc.
+HMAC does not support variable output length digests such as EVP_shake128() and
 EVP_shake256().
+
+HMAC() uses the default B<OSSL_LIB_CTX>.
+Use L<EVP_Q_mac(3)> instead if a library context is required.
+
+All of the functions described below are deprecated.
+Applications should instead use L<EVP_MAC_CTX_new(3)>, L<EVP_MAC_CTX_free(3)>,
+L<EVP_MAC_init(3)>, L<EVP_MAC_update(3)> and L<EVP_MAC_final(3)>
+or the 'quick' single-shot MAC function L<EVP_Q_mac(3)>.
 
 HMAC_CTX_new() creates a new HMAC_CTX in heap memory.
 
-HMAC_CTX_reset() zeros an existing B<HMAC_CTX> and associated
+HMAC_CTX_reset() clears an existing B<HMAC_CTX> and associated
 resources, making it suitable for new computations as if it was newly
 created with HMAC_CTX_new().
 
@@ -81,27 +93,27 @@ The following functions may be used if the message is not completely
 stored in memory:
 
 HMAC_Init_ex() initializes or reuses a B<HMAC_CTX> structure to use the hash
-function B<evp_md> and key B<key>. If both are NULL, or if B<key> is NULL
-and B<evp_md> is the same as the previous call, then the
+function I<evp_md> and key I<key>. If both are NULL, or if I<key> is NULL
+and I<evp_md> is the same as the previous call, then the
 existing key is
-reused. B<ctx> must have been created with HMAC_CTX_new() before the first use
+reused. I<ctx> must have been created with HMAC_CTX_new() before the first use
 of an B<HMAC_CTX> in this function.
 
-If HMAC_Init_ex() is called with B<key> NULL and B<evp_md> is not the
-same as the previous digest used by B<ctx> then an error is returned
+If HMAC_Init_ex() is called with I<key> NULL and I<evp_md> is not the
+same as the previous digest used by I<ctx> then an error is returned
 because reuse of an existing key with a different digest is not supported.
 
 HMAC_Init() initializes a B<HMAC_CTX> structure to use the hash
-function B<evp_md> and the key B<key> which is B<key_len> bytes
+function I<evp_md> and the key I<key> which is I<key_len> bytes
 long.
 
 HMAC_Update() can be called repeatedly with chunks of the message to
-be authenticated (B<len> bytes at B<data>).
+be authenticated (I<len> bytes at I<data>).
 
-HMAC_Final() places the message authentication code in B<md>, which
+HMAC_Final() places the message authentication code in I<md>, which
 must have space for the hash function output.
 
-HMAC_CTX_copy() copies all of the internal state from B<sctx> into B<dctx>.
+HMAC_CTX_copy() copies all of the internal state from I<sctx> into I<dctx>.
 
 HMAC_CTX_set_flags() applies the specified flags to the internal EVP_MD_CTXs.
 These flags have the same meaning as for L<EVP_MD_CTX_set_flags(3)>.
@@ -117,7 +129,7 @@ HMAC() returns a pointer to the message authentication code or NULL if
 an error occurred.
 
 HMAC_CTX_new() returns a pointer to a new B<HMAC_CTX> on success or
-B<NULL> if an error occurred.
+NULL if an error occurred.
 
 HMAC_CTX_reset(), HMAC_Init_ex(), HMAC_Update(), HMAC_Final() and
 HMAC_CTX_copy() return 1 for success or 0 if an error occurred.
@@ -134,9 +146,11 @@ RFC 2104
 
 =head1 SEE ALSO
 
-L<SHA1(3)>, L<evp(7)>
+L<SHA1(3)>, EVP_Q_mac(3), L<evp(7)>
 
 =head1 HISTORY
+
+All functions except for HMAC() were deprecated in OpenSSL 3.0.
 
 HMAC_CTX_init() was replaced with HMAC_CTX_reset() in OpenSSL 1.1.0.
 
@@ -149,9 +163,9 @@ OpenSSL before version 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

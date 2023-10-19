@@ -36,6 +36,7 @@ T Nabs(T a) {
 // Running with a simulator.
 
 #include "src/base/hashmap.h"
+#include "src/base/strings.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/mips64/constants-mips64.h"
 #include "src/execution/simulator-base.h"
@@ -242,7 +243,7 @@ class Simulator : public SimulatorBase {
   void set_register(int reg, int64_t value);
   void set_register_word(int reg, int32_t value);
   void set_dw_register(int dreg, const int* dbl);
-  int64_t get_register(int reg) const;
+  V8_EXPORT_PRIVATE int64_t get_register(int reg) const;
   double get_double_from_register_pair(int reg);
   // Same for FPURegisters.
   void set_fpu_register(int fpureg, int64_t value);
@@ -290,19 +291,69 @@ class Simulator : public SimulatorBase {
   unsigned int get_msacsr_rounding_mode();
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int64_t value);
-  int64_t get_pc() const;
+  V8_EXPORT_PRIVATE int64_t get_pc() const;
 
   Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
-  // Accessor to the internal simulator stack area.
+  // Accessor to the internal simulator stack area. Adds a safety
+  // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
+
+  // Return current stack view, without additional safety margins.
+  // Users, for example wasm::StackMemory, can add their own.
+  base::Vector<uint8_t> GetCurrentStackView() const;
 
   // Executes MIPS instructions until the PC reaches end_sim_pc.
   void Execute();
 
+  // Only arguments up to 64 bits in size are supported.
+  class CallArgument {
+   public:
+    template <typename T>
+    explicit CallArgument(T argument) {
+      bits_ = 0;
+      DCHECK(sizeof(argument) <= sizeof(bits_));
+      bits_ = ConvertArg(argument);
+      type_ = GP_ARG;
+    }
+
+    explicit CallArgument(double argument) {
+      DCHECK(sizeof(argument) == sizeof(bits_));
+      memcpy(&bits_, &argument, sizeof(argument));
+      type_ = FP_ARG;
+    }
+
+    explicit CallArgument(float argument) {
+      // TODO(all): CallArgument(float) is untested.
+      UNIMPLEMENTED();
+    }
+
+    // This indicates the end of the arguments list, so that CallArgument
+    // objects can be passed into varargs functions.
+    static CallArgument End() { return CallArgument(); }
+
+    int64_t bits() const { return bits_; }
+    bool IsEnd() const { return type_ == NO_ARG; }
+    bool IsGP() const { return type_ == GP_ARG; }
+    bool IsFP() const { return type_ == FP_ARG; }
+
+   private:
+    enum CallArgumentType { GP_ARG, FP_ARG, NO_ARG };
+
+    // All arguments are aligned to at least 64 bits and we don't support
+    // passing bigger arguments, so the payload size can be fixed at 64 bits.
+    int64_t bits_;
+    CallArgumentType type_;
+
+    CallArgument() { type_ = NO_ARG; }
+  };
+
   template <typename Return, typename... Args>
   Return Call(Address entry, Args... args) {
-    return VariadicCall<Return>(this, &Simulator::CallImpl, entry, args...);
+    // Convert all arguments to CallArgument.
+    CallArgument call_args[] = {CallArgument(args)..., CallArgument::End()};
+    CallImpl(entry, call_args);
+    return ReadReturn<Return>();
   }
 
   // Alternative: call a 2-argument double function.
@@ -344,8 +395,23 @@ class Simulator : public SimulatorBase {
     Unpredictable = 0xbadbeaf
   };
 
-  V8_EXPORT_PRIVATE intptr_t CallImpl(Address entry, int argument_count,
-                                      const intptr_t* arguments);
+  V8_EXPORT_PRIVATE void CallImpl(Address entry, CallArgument* args);
+
+  void CallAnyCTypeFunction(Address target_address,
+                            const EncodedCSignature& signature);
+
+  // Read floating point return values.
+  template <typename T>
+  typename std::enable_if<std::is_floating_point<T>::value, T>::type
+  ReadReturn() {
+    return static_cast<T>(get_fpu_register_double(f0));
+  }
+  // Read non-float return values.
+  template <typename T>
+  typename std::enable_if<!std::is_floating_point<T>::value, T>::type
+  ReadReturn() {
+    return ConvertReturn<T>(get_register(v0));
+  }
 
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
@@ -612,13 +678,21 @@ class Simulator : public SimulatorBase {
   uint32_t MSACSR_;
 
   // Simulator support.
-  // Allocate 1MB for stack.
-  size_t stack_size_;
-  char* stack_;
+  uintptr_t stack_;
+  static const size_t kStackProtectionSize = KB;
+  // This includes a protection margin at each end of the stack area.
+  static size_t AllocatedStackSize() {
+    return (v8_flags.sim_stack_size * KB) + (2 * kStackProtectionSize);
+  }
+  static size_t UsableStackSize() { return v8_flags.sim_stack_size * KB; }
+  uintptr_t stack_limit_;
+  // Added in Simulator::StackLimit()
+  static const int kAdditionalStackMargin = 4 * KB;
+
   bool pc_modified_;
   int64_t icount_;
   int break_count_;
-  EmbeddedVector<char, 128> trace_buf_;
+  base::EmbeddedVector<char, 128> trace_buf_;
 
   // Debugger input.
   char* last_debugger_input_;

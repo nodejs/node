@@ -316,5 +316,42 @@ TEST_F(ThreadedListTest, ConstIterComp) {
   CHECK(found_first);
 }
 
+TEST_F(ThreadedListTest, RemoveAt) {
+  auto it = list.begin();
+
+  // Removing first
+  ThreadedListTestNode* to_remove = list.first();
+  it = list.RemoveAt(it);
+  EXPECT_EQ(to_remove, &nodes[0]);
+  EXPECT_EQ(list.first(), &nodes[1]);
+  EXPECT_EQ(it, list.begin());
+  EXPECT_EQ(*it, &nodes[1]);
+  EXPECT_EQ(*ThreadedListTestNode::OtherTraits::next(to_remove), nullptr);
+  EXPECT_FALSE(list.Contains(to_remove));
+  EXPECT_EQ(list.LengthForTest(), 4);
+  list.Verify();
+
+  // Removing in the middle
+  ++it;
+  to_remove = *it;
+  it = list.RemoveAt(it);
+  EXPECT_EQ(*it, &nodes[3]);
+  EXPECT_FALSE(list.Contains(to_remove));
+  EXPECT_EQ(*ThreadedListTestNode::OtherTraits::next(to_remove), nullptr);
+  EXPECT_EQ(*ThreadedListTestNode::OtherTraits::next(&nodes[1]), &nodes[3]);
+  EXPECT_EQ(list.LengthForTest(), 3);
+  list.Verify();
+
+  // Removing last
+  ++it;
+  to_remove = *it;
+  it = list.RemoveAt(it);
+  EXPECT_EQ(it, list.end());
+  EXPECT_FALSE(list.Contains(to_remove));
+  EXPECT_EQ(*ThreadedListTestNode::OtherTraits::next(&nodes[4]), nullptr);
+  EXPECT_EQ(list.LengthForTest(), 2);
+  list.Verify();
+}
+
 }  // namespace base
 }  // namespace v8

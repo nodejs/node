@@ -5,11 +5,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (common.hasOpenSSL3)
-  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
-
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const kWrappingData = {
   'RSA-OAEP': {
@@ -118,6 +115,38 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
+        name: 'Ed25519',
+      },
+      privateUsages: ['sign'],
+      publicUsages: ['verify'],
+      pair: true,
+    },
+    {
+      algorithm: {
+        name: 'Ed448',
+      },
+      privateUsages: ['sign'],
+      publicUsages: ['verify'],
+      pair: true,
+    },
+    {
+      algorithm: {
+        name: 'X25519',
+      },
+      privateUsages: ['deriveBits'],
+      publicUsages: [],
+      pair: true,
+    },
+    {
+      algorithm: {
+        name: 'X448',
+      },
+      privateUsages: ['deriveBits'],
+      publicUsages: [],
+      pair: true,
+    },
+    {
+      algorithm: {
         name: 'AES-CTR',
         length: 128
       },
@@ -202,6 +231,10 @@ function getFormats(key) {
 // material length must be a multiple of 8.
 // If the wrapping algorithm is RSA-OAEP, the exported key
 // material maximum length is a factor of the modulusLength
+//
+// As per the NOTE in step 13 https://w3c.github.io/webcrypto/#SubtleCrypto-method-wrapKey
+// we're padding AES-KW wrapped JWK to make sure it is always a multiple of 8 bytes
+// in length
 async function wrappingIsPossible(name, exported) {
   if ('byteLength' in exported) {
     switch (name) {
@@ -210,13 +243,8 @@ async function wrappingIsPossible(name, exported) {
       case 'RSA-OAEP':
         return exported.byteLength <= 446;
     }
-  } else if ('kty' in exported) {
-    switch (name) {
-      case 'AES-KW':
-        return JSON.stringify(exported).length % 8 === 0;
-      case 'RSA-OAEP':
-        return JSON.stringify(exported).length <= 478;
-    }
+  } else if ('kty' in exported && name === 'RSA-OAEP') {
+    return JSON.stringify(exported).length <= 478;
   }
   return true;
 }
@@ -247,7 +275,7 @@ async function testWrap(wrappingKey, unwrappingKey, key, wrap, format) {
   assert.deepStrictEqual(exported, exportedAgain);
 }
 
-async function testWrapping(name, keys) {
+function testWrapping(name, keys) {
   const variations = [];
 
   const {
@@ -262,7 +290,7 @@ async function testWrapping(name, keys) {
     });
   });
 
-  return Promise.all(variations);
+  return variations;
 }
 
 (async function() {
@@ -270,7 +298,7 @@ async function testWrapping(name, keys) {
   const keys = await generateKeysToWrap();
   const variations = [];
   Object.keys(kWrappingData).forEach((name) => {
-    return testWrapping(name, keys);
+    variations.push(...testWrapping(name, keys));
   });
   await Promise.all(variations);
 })().then(common.mustCall());

@@ -26,7 +26,7 @@ class PluralRangesDataSink : public ResourceSink {
   public:
     PluralRangesDataSink(StandardPluralRanges& output) : fOutput(output) {}
 
-    void put(const char* /*key*/, ResourceValue& value, UBool /*noFallback*/, UErrorCode& status) U_OVERRIDE {
+    void put(const char* /*key*/, ResourceValue& value, UBool /*noFallback*/, UErrorCode& status) override {
         ResourceArray entriesArray = value.getArray(status);
         if (U_FAILURE(status)) { return; }
         fOutput.setCapacity(entriesArray.getSize(), status);
@@ -66,7 +66,7 @@ void getPluralRangesData(const Locale& locale, StandardPluralRanges& output, UEr
     int32_t setLen;
     // Not all languages are covered: fail gracefully
     UErrorCode internalStatus = U_ZERO_ERROR;
-    const UChar* set = ures_getStringByKeyWithFallback(rb.getAlias(), dataPath.data(), &setLen, &internalStatus);
+    const char16_t* set = ures_getStringByKeyWithFallback(rb.getAlias(), dataPath.data(), &setLen, &internalStatus);
     if (U_FAILURE(internalStatus)) { return; }
 
     dataPath.clear();

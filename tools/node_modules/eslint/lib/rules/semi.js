@@ -15,15 +15,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "require or disallow semicolons instead of ASI",
-            category: "Stylistic Issues",
+            description: "Require or disallow semicolons instead of ASI",
             recommended: false,
-            url: "https://eslint.org/docs/rules/semi"
+            url: "https://eslint.org/docs/latest/rules/semi"
         },
 
         fixable: "code",
@@ -58,7 +58,8 @@ module.exports = {
                         {
                             type: "object",
                             properties: {
-                                omitLastInOneLineBlock: { type: "boolean" }
+                                omitLastInOneLineBlock: { type: "boolean" },
+                                omitLastInOneLineClassBody: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -78,11 +79,14 @@ module.exports = {
     create(context) {
 
         const OPT_OUT_PATTERN = /^[-[(/+`]/u; // One of [(/+-`
+        const unsafeClassFieldNames = new Set(["get", "set", "static"]);
+        const unsafeClassFieldFollowers = new Set(["*", "in", "instanceof"]);
         const options = context.options[1];
         const never = context.options[0] === "never";
         const exceptOneLine = Boolean(options && options.omitLastInOneLineBlock);
+        const exceptOneLineClassBody = Boolean(options && options.omitLastInOneLineClassBody);
         const beforeStatementContinuationChars = options && options.beforeStatementContinuationChars || "any";
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -167,6 +171,55 @@ module.exports = {
         }
 
         /**
+         * Checks if a given PropertyDefinition node followed by a semicolon
+         * can safely remove that semicolon. It is not to safe to remove if
+         * the class field name is "get", "set", or "static", or if
+         * followed by a generator method.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} `true` if the node cannot have the semicolon
+         *      removed.
+         */
+        function maybeClassFieldAsiHazard(node) {
+
+            if (node.type !== "PropertyDefinition") {
+                return false;
+            }
+
+            /*
+             * Computed property names and non-identifiers are always safe
+             * as they can be distinguished from keywords easily.
+             */
+            const needsNameCheck = !node.computed && node.key.type === "Identifier";
+
+            /*
+             * Certain names are problematic unless they also have a
+             * a way to distinguish between keywords and property
+             * names.
+             */
+            if (needsNameCheck && unsafeClassFieldNames.has(node.key.name)) {
+
+                /*
+                 * Special case: If the field name is `static`,
+                 * it is only valid if the field is marked as static,
+                 * so "static static" is okay but "static" is not.
+                 */
+                const isStaticStatic = node.static && node.key.name === "static";
+
+                /*
+                 * For other unsafe names, we only care if there is no
+                 * initializer. No initializer = hazard.
+                 */
+                if (!isStaticStatic && !node.value) {
+                    return true;
+                }
+            }
+
+            const followingToken = sourceCode.getTokenAfter(node);
+
+            return unsafeClassFieldFollowers.has(followingToken.value);
+        }
+
+        /**
          * Check whether a given node is on the same line with the next token.
          * @param {Node} node A statement node to check.
          * @returns {boolean} `true` if the node is on the same line with the next token.
@@ -233,10 +286,19 @@ module.exports = {
             if (isRedundantSemi(sourceCode.getLastToken(node))) {
                 return true; // `;;` or `;}`
             }
+            if (maybeClassFieldAsiHazard(node)) {
+                return false;
+            }
             if (isOnSameLineWithNextToken(node)) {
                 return false; // One liner.
             }
-            if (beforeStatementContinuationChars === "never" && !maybeAsiHazardAfter(node)) {
+
+            // continuation characters should not apply to class fields
+            if (
+                node.type !== "PropertyDefinition" &&
+                beforeStatementContinuationChars === "never" &&
+                !maybeAsiHazardAfter(node)
+            ) {
                 return true; // ASI works. This statement doesn't connect to the next.
             }
             if (!maybeAsiHazardBefore(sourceCode.getTokenAfter(node))) {
@@ -247,22 +309,52 @@ module.exports = {
         }
 
         /**
-         * Checks a node to see if it's in a one-liner block statement.
+         * Checks a node to see if it's the last item in a one-liner block.
+         * Block is any `BlockStatement` or `StaticBlock` node. Block is a one-liner if its
+         * braces (and consequently everything between them) are on the same line.
          * @param {ASTNode} node The node to check.
-         * @returns {boolean} whether the node is in a one-liner block statement.
+         * @returns {boolean} whether the node is the last item in a one-liner block.
          */
-        function isOneLinerBlock(node) {
+        function isLastInOneLinerBlock(node) {
             const parent = node.parent;
             const nextToken = sourceCode.getTokenAfter(node);
 
             if (!nextToken || nextToken.value !== "}") {
                 return false;
             }
-            return (
-                !!parent &&
-                parent.type === "BlockStatement" &&
-                parent.loc.start.line === parent.loc.end.line
-            );
+
+            if (parent.type === "BlockStatement") {
+                return parent.loc.start.line === parent.loc.end.line;
+            }
+
+            if (parent.type === "StaticBlock") {
+                const openingBrace = sourceCode.getFirstToken(parent, { skip: 1 }); // skip the `static` token
+
+                return openingBrace.loc.start.line === parent.loc.end.line;
+            }
+
+            return false;
+        }
+
+        /**
+         * Checks a node to see if it's the last item in a one-liner `ClassBody` node.
+         * ClassBody is a one-liner if its braces (and consequently everything between them) are on the same line.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} whether the node is the last item in a one-liner ClassBody.
+         */
+        function isLastInOneLinerClassBody(node) {
+            const parent = node.parent;
+            const nextToken = sourceCode.getTokenAfter(node);
+
+            if (!nextToken || nextToken.value !== "}") {
+                return false;
+            }
+
+            if (parent.type === "ClassBody") {
+                return parent.loc.start.line === parent.loc.end.line;
+            }
+
+            return false;
         }
 
         /**
@@ -276,15 +368,21 @@ module.exports = {
             if (never) {
                 if (isSemi && canRemoveSemicolon(node)) {
                     report(node, true);
-                } else if (!isSemi && beforeStatementContinuationChars === "always" && maybeAsiHazardBefore(sourceCode.getTokenAfter(node))) {
+                } else if (
+                    !isSemi && beforeStatementContinuationChars === "always" &&
+                    node.type !== "PropertyDefinition" &&
+                    maybeAsiHazardBefore(sourceCode.getTokenAfter(node))
+                ) {
                     report(node);
                 }
             } else {
-                const oneLinerBlock = (exceptOneLine && isOneLinerBlock(node));
+                const oneLinerBlock = (exceptOneLine && isLastInOneLinerBlock(node));
+                const oneLinerClassBody = (exceptOneLineClassBody && isLastInOneLinerClassBody(node));
+                const oneLinerBlockOrClassBody = oneLinerBlock || oneLinerClassBody;
 
-                if (isSemi && oneLinerBlock) {
+                if (isSemi && oneLinerBlockOrClassBody) {
                     report(node, true);
-                } else if (!isSemi && !oneLinerBlock) {
+                } else if (!isSemi && !oneLinerBlockOrClassBody) {
                     report(node);
                 }
             }
@@ -329,7 +427,8 @@ module.exports = {
                 if (!/(?:Class|Function)Declaration/u.test(node.declaration.type)) {
                     checkForSemicolon(node);
                 }
-            }
+            },
+            PropertyDefinition: checkForSemicolon
         };
 
     }

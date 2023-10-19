@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-mv --wasm-loop-unrolling
-
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function MultiBlockResultTest() {
   print("MultiBlockResultTest");
@@ -404,7 +402,6 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function MultiBrTableTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig_ii_v = builder.addType(kSig_v_v);
 
   builder.addFunction("main", kSig_ii_v)
     .addBody([

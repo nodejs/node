@@ -93,8 +93,10 @@ It should look like this:
 
 ```json
 {
-  "url" : "https://github.com/owner/project/issues",
-  "email" : "project@hostname.com"
+  "bugs": {
+    "url": "https://github.com/owner/project/issues",
+    "email": "project@hostname.com"
+  }
 }
 ```
 
@@ -120,11 +122,11 @@ SPDX license identifier for the license you're using, like this:
 
 You can check [the full list of SPDX license
 IDs](https://spdx.org/licenses/).  Ideally you should pick one that is
-[OSI](https://opensource.org/licenses/alphabetical) approved.
+[OSI](https://opensource.org/licenses/) approved.
 
 If your package is licensed under multiple common licenses, use an [SPDX
 license expression syntax version 2.0
-string](https://www.npmjs.com/package/spdx), like this:
+string](https://spdx.dev/specifications/), like this:
 
 ```json
 {
@@ -222,7 +224,7 @@ npm also sets a top-level "maintainers" field with your npm user info.
 
 ### funding
 
-You can specify an object containing an URL that provides up-to-date
+You can specify an object containing a URL that provides up-to-date
 information about ways to help fund development of your package, or a
 string URL, or an array of these:
 
@@ -279,19 +281,15 @@ it will. The `.npmignore` file works just like a `.gitignore`. If there is
 a `.gitignore` file, and `.npmignore` is missing, `.gitignore`'s contents
 will be used instead.
 
-Files included with the "package.json#files" field _cannot_ be excluded
-through `.npmignore` or `.gitignore`.
-
 Certain files are always included, regardless of settings:
 
 * `package.json`
 * `README`
-* `CHANGES` / `CHANGELOG` / `HISTORY`
 * `LICENSE` / `LICENCE`
-* `NOTICE`
 * The file in the "main" field
+* The file(s) in the "bin" field
 
-`README`, `CHANGES`, `LICENSE` & `NOTICE` can have any case and extension.
+`README` & `LICENSE` can have any case and extension.
 
 Conversely, some files are always ignored:
 
@@ -325,7 +323,7 @@ This should be a module relative to the root of your package folder.
 For most modules, it makes the most sense to have a main script and often
 not much else.
 
-If `main` is not set it defaults to `index.js` in the packages root folder.
+If `main` is not set, it defaults to `index.js` in the package's root folder.
 
 ### browser
 
@@ -341,9 +339,14 @@ install into the PATH. npm makes this pretty easy (in fact, it uses this
 feature to install the "npm" executable.)
 
 To use this, supply a `bin` field in your package.json which is a map of
-command name to local file name. On install, npm will symlink that file
-into `prefix/bin` for global installs, or `./node_modules/.bin/` for local
-installs.
+command name to local file name. When this package is installed globally,
+that file will be either linked inside the global bins directory or
+a cmd (Windows Command File) will be created which executes the specified
+file in the `bin` field, so it is available to run by `name` or `name.cmd` (on
+Windows PowerShell). When this package is installed as a dependency in another
+package, the file will be linked where it will be available to that package
+either directly by `npm exec` or by name in other scripts when invoking them
+via `npm run-script`.
 
 
 For example, myapp could have this:
@@ -356,8 +359,10 @@ For example, myapp could have this:
 }
 ```
 
-So, when you install myapp, it'll create a symlink from the `cli.js` script
-to `/usr/local/bin/myapp`.
+So, when you install myapp, in case of unix-like OS it'll create a symlink
+from the `cli.js` script to `/usr/local/bin/myapp` and in case of windows it
+will create a cmd file usually at `C:\Users\{Username}\AppData\Roaming\npm\myapp.cmd`
+which runs the `cli.js` script.
 
 If you have a single executable, and its name should be the name of the
 package, then you can just supply it as a string.  For example:
@@ -387,6 +392,9 @@ Please make sure that your file(s) referenced in `bin` starts with
 executable!
 
 Note that you can also set the executable files using [directories.bin](#directoriesbin).
+
+See [folders](/configuring-npm/folders#executables) for more info on
+executables.
 
 ### man
 
@@ -549,12 +557,8 @@ had the following:
 }
 ```
 
-and then had a "start" command that then referenced the
-`npm_package_config_port` environment variable, then the user could
-override that by doing `npm config set foo:port 8001`.
-
-See [`config`](/using-npm/config) and [`scripts`](/using-npm/scripts) for
-more on package configs.
+It could also have a "start" command that referenced the
+`npm_package_config_port` environment variable.
 
 ### dependencies
 
@@ -632,7 +636,7 @@ commit. If the commit-ish has the format `#semver:<semver>`, `<semver>` can
 be any valid semver range or exact version, and npm will look for any tags
 or refs matching that range in the remote repository, much as it would for
 a registry dependency. If neither `#<commit-ish>` or `#semver:<semver>` is
-specified, then `master` is used.
+specified, then the default branch is used.
 
 Examples:
 
@@ -642,6 +646,26 @@ git+ssh://git@github.com:npm/cli#semver:^5.0
 git+https://isaacs@github.com/npm/cli.git
 git://github.com/npm/cli.git#v1.0.27
 ```
+
+When installing from a `git` repository, the presence of certain fields in the
+`package.json` will cause npm to believe it needs to perform a build. To do so
+your repository will be cloned into a temporary directory, all of its deps
+installed, relevant scripts run, and the resulting directory packed and
+installed.
+
+This flow will occur if your git dependency uses `workspaces`, or if any of the
+following scripts are present:
+
+* `build`
+* `prepare`
+* `prepack`
+* `preinstall`
+* `install`
+* `postinstall`
+
+If your git repository includes pre-built artifacts, you will likely want to
+make sure that none of the above scripts are defined, or your dependency
+will be rebuilt for every installation.
 
 #### GitHub URLs
 
@@ -689,6 +713,10 @@ in which case they will be normalized to a relative path and added to your
 This feature is helpful for local offline development and creating tests
 that require npm installing where you don't want to hit an external server,
 but should not be used when publishing packages to the public registry.
+
+*note*: Packages linked by local path will not have their own
+dependencies installed when `npm install` is ran in this case.  You must
+run `npm install` from inside the local path itself.
 
 ### devDependencies
 
@@ -805,14 +833,14 @@ if the `soy-milk` package is not installed on the host. This allows you to
 integrate and interact with a variety of host packages without requiring
 all of them to be installed.
 
-### bundledDependencies
+### bundleDependencies
 
 This defines an array of package names that will be bundled when publishing
 the package.
 
 In cases where you need to preserve npm packages locally or have them
 available through a single file download, you can bundle the packages in a
-tarball file by specifying the package names in the `bundledDependencies`
+tarball file by specifying the package names in the `bundleDependencies`
 array and executing `npm pack`.
 
 For example:
@@ -823,7 +851,7 @@ If we define a package.json like this:
 {
   "name": "awesome-web-framework",
   "version": "1.0.0",
-  "bundledDependencies": [
+  "bundleDependencies": [
     "renderized",
     "super-streams"
   ]
@@ -836,7 +864,11 @@ can be installed in a new project by executing `npm install
 awesome-web-framework-1.0.0.tgz`.  Note that the package names do not
 include any versions, as that information is specified in `dependencies`.
 
-If this is spelled `"bundleDependencies"`, then that is also honored.
+If this is spelled `"bundledDependencies"`, then that is also honored.
+
+Alternatively, `"bundleDependencies"` can be defined as a boolean value. A
+value of `true` will bundle all dependencies, a value of `false` will bundle
+none.
 
 ### optionalDependencies
 
@@ -845,7 +877,7 @@ be found or fails to install, then you may put it in the
 `optionalDependencies` object.  This is a map of package name to version or
 url, just like the `dependencies` object.  The difference is that build
 failures do not cause installation to fail.  Running `npm install
---no-optional` will prevent these dependencies from being installed.
+--omit=optional` will prevent these dependencies from being installed.
 
 It is still your program's responsibility to handle the lack of the
 dependency.  For example, something like this:
@@ -870,6 +902,109 @@ if (foo) {
 
 Entries in `optionalDependencies` will override entries of the same name in
 `dependencies`, so it's usually best to only put in one place.
+
+### overrides
+
+If you need to make specific changes to dependencies of your dependencies, for
+example replacing the version of a dependency with a known security issue,
+replacing an existing dependency with a fork, or making sure that the same
+version of a package is used everywhere, then you may add an override.
+
+Overrides provide a way to replace a package in your dependency tree with
+another version, or another package entirely. These changes can be scoped as
+specific or as vague as desired.
+
+To make sure the package `foo` is always installed as version `1.0.0` no matter
+what version your dependencies rely on:
+
+```json
+{
+  "overrides": {
+    "foo": "1.0.0"
+  }
+}
+```
+
+The above is a short hand notation, the full object form can be used to allow
+overriding a package itself as well as a child of the package. This will cause
+`foo` to always be `1.0.0` while also making `bar` at any depth beyond `foo`
+also `1.0.0`:
+
+```json
+{
+  "overrides": {
+    "foo": {
+      ".": "1.0.0",
+      "bar": "1.0.0"
+    }
+  }
+}
+```
+
+To only override `foo` to be `1.0.0` when it's a child (or grandchild, or great
+grandchild, etc) of the package `bar`:
+
+```json
+{
+  "overrides": {
+    "bar": {
+      "foo": "1.0.0"
+    }
+  }
+}
+```
+
+Keys can be nested to any arbitrary length. To override `foo` only when it's a
+child of `bar` and only when `bar` is a child of `baz`:
+
+```json
+{
+  "overrides": {
+    "baz": {
+      "bar": {
+        "foo": "1.0.0"
+      }
+    }
+  }
+}
+```
+
+The key of an override can also include a version, or range of versions.
+To override `foo` to `1.0.0`, but only when it's a child of `bar@2.0.0`:
+
+```json
+{
+  "overrides": {
+    "bar@2.0.0": {
+      "foo": "1.0.0"
+    }
+  }
+}
+```
+
+You may not set an override for a package that you directly depend on unless
+both the dependency and the override itself share the exact same spec. To make
+this limitation easier to deal with, overrides may also be defined as a
+reference to a spec for a direct dependency by prefixing the name of the
+package you wish the version to match with a `$`.
+
+```json
+{
+  "dependencies": {
+    "foo": "^1.0.0"
+  },
+  "overrides": {
+    // BAD, will throw an EOVERRIDE error
+    // "foo": "^2.0.0"
+    // GOOD, specs match so override is allowed
+    // "foo": "^1.0.0"
+    // BEST, the override is defined as a reference to the dependency
+    "foo": "$foo",
+    // the referenced package does not need to match the overridden one
+    "bar": "$foo"
+  }
+}
+```
 
 ### engines
 
@@ -897,9 +1032,10 @@ capable of properly installing your program.  For example:
 }
 ```
 
-Unless the user has set the `engine-strict` config flag, this field is
-advisory only and will only produce warnings when your package is installed
-as a dependency.
+Unless the user has set the
+[`engine-strict` config](/using-npm/config#engine-strict) flag, this field is
+advisory only and will only produce warnings when your package is installed as a
+dependency.
 
 ### os
 

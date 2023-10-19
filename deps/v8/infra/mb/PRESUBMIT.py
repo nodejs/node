@@ -7,6 +7,10 @@
 # in the file PATENTS.  All contributing project authors may
 # be found in the AUTHORS file in the root of the source tree.
 
+# This line is 'magic' in that git-cl looks for it to decide whether to
+# use Python3 instead of Python2 when running the code in this file.
+USE_PYTHON3 = True
+
 
 def _CommonChecks(input_api, output_api):
   results = []
@@ -16,7 +20,7 @@ def _CommonChecks(input_api, output_api):
                                      '..', 'tools', 'mb', 'mb.py')
   mb_config_path = input_api.os_path.join(input_api.PresubmitLocalPath(),
                                           'mb_config.pyl')
-  cmd = [input_api.python_executable, mb_script, 'validate', '--config-file',
+  cmd = [input_api.python3_executable, mb_script, 'validate', '--config-file',
          mb_config_path]
   kwargs = {'cwd': input_api.PresubmitLocalPath()}
   results.extend(input_api.RunTests([

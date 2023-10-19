@@ -60,7 +60,7 @@ U_CDECL_BEGIN
  * @see u_getUnicodeVersion
  * @stable ICU 2.0
  */
-#define U_UNICODE_VERSION "13.0"
+#define U_UNICODE_VERSION "15.0"
 
 /**
  * \file
@@ -77,7 +77,7 @@ U_CDECL_BEGIN
  *
  * For more information see
  * "About the Unicode Character Database" (http://www.unicode.org/ucd/)
- * and the ICU User Guide chapter on Properties (http://icu-project.org/userguide/properties.html).
+ * and the ICU User Guide chapter on Properties (https://unicode-org.github.io/icu/userguide/strings/properties).
  *
  * Many properties are accessible via generic functions that take a UProperty selector.
  * - u_hasBinaryProperty() returns a binary value (true/false) per property and code point.
@@ -483,12 +483,61 @@ typedef enum UProperty {
      * @stable ICU 62
      */
     UCHAR_EXTENDED_PICTOGRAPHIC=64,
+    /**
+     * Binary property of strings Basic_Emoji.
+     * See https://www.unicode.org/reports/tr51/#Emoji_Sets
+     *
+     * @stable ICU 70
+     */
+    UCHAR_BASIC_EMOJI=65,
+    /**
+     * Binary property of strings Emoji_Keycap_Sequence.
+     * See https://www.unicode.org/reports/tr51/#Emoji_Sets
+     *
+     * @stable ICU 70
+     */
+    UCHAR_EMOJI_KEYCAP_SEQUENCE=66,
+    /**
+     * Binary property of strings RGI_Emoji_Modifier_Sequence.
+     * See https://www.unicode.org/reports/tr51/#Emoji_Sets
+     *
+     * @stable ICU 70
+     */
+    UCHAR_RGI_EMOJI_MODIFIER_SEQUENCE=67,
+    /**
+     * Binary property of strings RGI_Emoji_Flag_Sequence.
+     * See https://www.unicode.org/reports/tr51/#Emoji_Sets
+     *
+     * @stable ICU 70
+     */
+    UCHAR_RGI_EMOJI_FLAG_SEQUENCE=68,
+    /**
+     * Binary property of strings RGI_Emoji_Tag_Sequence.
+     * See https://www.unicode.org/reports/tr51/#Emoji_Sets
+     *
+     * @stable ICU 70
+     */
+    UCHAR_RGI_EMOJI_TAG_SEQUENCE=69,
+    /**
+     * Binary property of strings RGI_Emoji_ZWJ_Sequence.
+     * See https://www.unicode.org/reports/tr51/#Emoji_Sets
+     *
+     * @stable ICU 70
+     */
+    UCHAR_RGI_EMOJI_ZWJ_SEQUENCE=70,
+    /**
+     * Binary property of strings RGI_Emoji.
+     * See https://www.unicode.org/reports/tr51/#Emoji_Sets
+     *
+     * @stable ICU 70
+     */
+    UCHAR_RGI_EMOJI=71,
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the last constant for binary Unicode properties.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UCHAR_BINARY_LIMIT,
+    UCHAR_BINARY_LIMIT=72,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** Enumerated property Bidi_Class.
@@ -1807,6 +1856,50 @@ enum UBlockCode {
     /** @stable ICU 66 */
     UBLOCK_YEZIDI = 308, /*[10E80]*/
 
+    // New blocks in Unicode 14.0
+
+    /** @stable ICU 70 */
+    UBLOCK_ARABIC_EXTENDED_B = 309, /*[0870]*/
+    /** @stable ICU 70 */
+    UBLOCK_CYPRO_MINOAN = 310, /*[12F90]*/
+    /** @stable ICU 70 */
+    UBLOCK_ETHIOPIC_EXTENDED_B = 311, /*[1E7E0]*/
+    /** @stable ICU 70 */
+    UBLOCK_KANA_EXTENDED_B = 312, /*[1AFF0]*/
+    /** @stable ICU 70 */
+    UBLOCK_LATIN_EXTENDED_F = 313, /*[10780]*/
+    /** @stable ICU 70 */
+    UBLOCK_LATIN_EXTENDED_G = 314, /*[1DF00]*/
+    /** @stable ICU 70 */
+    UBLOCK_OLD_UYGHUR = 315, /*[10F70]*/
+    /** @stable ICU 70 */
+    UBLOCK_TANGSA = 316, /*[16A70]*/
+    /** @stable ICU 70 */
+    UBLOCK_TOTO = 317, /*[1E290]*/
+    /** @stable ICU 70 */
+    UBLOCK_UNIFIED_CANADIAN_ABORIGINAL_SYLLABICS_EXTENDED_A = 318, /*[11AB0]*/
+    /** @stable ICU 70 */
+    UBLOCK_VITHKUQI = 319, /*[10570]*/
+    /** @stable ICU 70 */
+    UBLOCK_ZNAMENNY_MUSICAL_NOTATION = 320, /*[1CF00]*/
+
+    // New blocks in Unicode 15.0
+
+    /** @stable ICU 72 */
+    UBLOCK_ARABIC_EXTENDED_C = 321, /*[10EC0]*/
+    /** @stable ICU 72 */
+    UBLOCK_CJK_UNIFIED_IDEOGRAPHS_EXTENSION_H = 322, /*[31350]*/
+    /** @stable ICU 72 */
+    UBLOCK_CYRILLIC_EXTENDED_D = 323, /*[1E030]*/
+    /** @stable ICU 72 */
+    UBLOCK_DEVANAGARI_EXTENDED_A = 324, /*[11B00]*/
+    /** @stable ICU 72 */
+    UBLOCK_KAKTOVIK_NUMERALS = 325, /*[1D2C0]*/
+    /** @stable ICU 72 */
+    UBLOCK_KAWI = 326, /*[11F00]*/
+    /** @stable ICU 72 */
+    UBLOCK_NAG_MUNDARI = 327, /*[1E4D0]*/
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UBlockCode value.
@@ -1814,7 +1907,7 @@ enum UBlockCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UBLOCK_COUNT = 309,
+    UBLOCK_COUNT = 328,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** @stable ICU 2.0 */
@@ -2105,6 +2198,9 @@ typedef enum UJoiningGroup {
 
     U_JG_HANIFI_ROHINGYA_KINNA_YA,  /**< @stable ICU 62 */
     U_JG_HANIFI_ROHINGYA_PA,  /**< @stable ICU 62 */
+
+    U_JG_THIN_YEH,  /**< @stable ICU 70 */
+    U_JG_VERTICAL_TAIL,  /**< @stable ICU 70 */
 
 #ifndef U_HIDE_DEPRECATED_API
     /**
@@ -2585,10 +2681,10 @@ typedef enum UVerticalOrientation {
  *
  * @param c Code point to test.
  * @param which UProperty selector constant, identifies which binary property to check.
- *        Must be UCHAR_BINARY_START<=which<UCHAR_BINARY_LIMIT.
+ *        Must be UCHAR_BINARY_START&lt;=which&lt;UCHAR_BINARY_LIMIT.
  * @return true or false according to the binary Unicode property value for c.
  *         Also false if 'which' is out of bounds or if the Unicode version
- *         does not have data for the property at all, or not for this code point.
+ *         does not have data for the property at all.
  *
  * @see UProperty
  * @see u_getBinaryPropertySet
@@ -2598,6 +2694,33 @@ typedef enum UVerticalOrientation {
  */
 U_CAPI UBool U_EXPORT2
 u_hasBinaryProperty(UChar32 c, UProperty which);
+
+/**
+ * Returns true if the property is true for the string.
+ * Same as u_hasBinaryProperty(single code point, which)
+ * if the string contains exactly one code point.
+ *
+ * Most properties apply only to single code points.
+ * <a href="https://www.unicode.org/reports/tr51/#Emoji_Sets">UTS #51 Unicode Emoji</a>
+ * defines several properties of strings.
+ *
+ * @param s String to test.
+ * @param length Length of the string, or negative if NUL-terminated.
+ * @param which UProperty selector constant, identifies which binary property to check.
+ *        Must be UCHAR_BINARY_START&lt;=which&lt;UCHAR_BINARY_LIMIT.
+ * @return true or false according to the binary Unicode property value for the string.
+ *         Also false if 'which' is out of bounds or if the Unicode version
+ *         does not have data for the property at all.
+ *
+ * @see UProperty
+ * @see u_hasBinaryProperty
+ * @see u_getBinaryPropertySet
+ * @see u_getIntPropertyValue
+ * @see u_getUnicodeVersion
+ * @stable ICU 70
+ */
+U_CAPI UBool U_EXPORT2
+u_stringHasBinaryProperty(const UChar *s, int32_t length, UProperty which);
 
 /**
  * Returns a frozen USet for a binary property.
@@ -3713,13 +3836,10 @@ u_getPropertyValueEnum(UProperty property,
                        const char* alias);
 
 /**
- * Determines if the specified character is permissible as the
- * first character in an identifier according to Unicode
- * (The Unicode Standard, Version 3.0, chapter 5.16 Identifiers).
- * True for characters with general categories "L" (letters) and "Nl" (letter numbers).
+ * Determines if the specified character is permissible as the first character in an identifier
+ * according to UAX #31 Unicode Identifier and Pattern Syntax.
  *
- * Same as java.lang.Character.isUnicodeIdentifierStart().
- * Same as UCHAR_ID_START
+ * Same as Unicode ID_Start (UCHAR_ID_START).
  *
  * @param c the code point to be tested
  * @return true if the code point may start an identifier
@@ -3733,20 +3853,13 @@ U_CAPI UBool U_EXPORT2
 u_isIDStart(UChar32 c);
 
 /**
- * Determines if the specified character is permissible
- * in an identifier according to Java.
- * True for characters with general categories "L" (letters),
- * "Nl" (letter numbers), "Nd" (decimal digits),
- * "Mc" and "Mn" (combining marks), "Pc" (connecting punctuation), and
- * u_isIDIgnorable(c).
+ * Determines if the specified character is permissible as a non-initial character of an identifier
+ * according to UAX #31 Unicode Identifier and Pattern Syntax.
  *
- * Same as java.lang.Character.isUnicodeIdentifierPart().
- * Almost the same as Unicode's ID_Continue (UCHAR_ID_CONTINUE)
- * except that Unicode recommends to ignore Cf which is less than
- * u_isIDIgnorable(c).
+ * Same as Unicode ID_Continue (UCHAR_ID_CONTINUE).
  *
  * @param c the code point to be tested
- * @return true if the code point may occur in an identifier according to Java
+ * @return true if the code point may occur as a non-initial character of an identifier
  *
  * @see UCHAR_ID_CONTINUE
  * @see u_isIDStart
@@ -3834,7 +3947,7 @@ u_isJavaIDPart(UChar32 c);
  * Full case mappings are applied by the string case mapping functions,
  * see ustring.h and the UnicodeString class.
  * See also the User Guide chapter on C/POSIX migration:
- * http://icu-project.org/userguide/posix.html#case_mappings
+ * https://unicode-org.github.io/icu/userguide/icu/posix#case-mappings
  *
  * @param c the code point to be mapped
  * @return the Simple_Lowercase_Mapping of the code point, if any;
@@ -3859,7 +3972,7 @@ u_tolower(UChar32 c);
  * Full case mappings are applied by the string case mapping functions,
  * see ustring.h and the UnicodeString class.
  * See also the User Guide chapter on C/POSIX migration:
- * http://icu-project.org/userguide/posix.html#case_mappings
+ * https://unicode-org.github.io/icu/userguide/icu/posix#case-mappings
  *
  * @param c the code point to be mapped
  * @return the Simple_Uppercase_Mapping of the code point, if any;
@@ -3884,7 +3997,7 @@ u_toupper(UChar32 c);
  * Full case mappings are applied by the string case mapping functions,
  * see ustring.h and the UnicodeString class.
  * See also the User Guide chapter on C/POSIX migration:
- * http://icu-project.org/userguide/posix.html#case_mappings
+ * https://unicode-org.github.io/icu/userguide/icu/posix#case-mappings
  *
  * @param c the code point to be mapped
  * @return the Simple_Titlecase_Mapping of the code point, if any;
@@ -3908,7 +4021,7 @@ u_totitle(UChar32 c);
  * Full case mappings are applied by the string case mapping functions,
  * see ustring.h and the UnicodeString class.
  * See also the User Guide chapter on C/POSIX migration:
- * http://icu-project.org/userguide/posix.html#case_mappings
+ * https://unicode-org.github.io/icu/userguide/icu/posix#case-mappings
  *
  * @param c the code point to be mapped
  * @param options Either U_FOLD_CASE_DEFAULT or U_FOLD_CASE_EXCLUDE_SPECIAL_I

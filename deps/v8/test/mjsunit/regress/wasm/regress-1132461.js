@@ -8,10 +8,10 @@
 // We load-splat a value, then drop it. Verify that the OOB load is not
 // eliminated, it should trap. This test case is simplified from the fuzzer
 // provided test case in https://crbug.com/1132461.
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(16, 32, false, true);
+builder.addMemory(16, 32, true);
 builder.addFunction(undefined, makeSig([], [kWasmI32]))
   .addBodyWithEnd([
 kExprI32Const, 0x00,

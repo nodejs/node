@@ -90,12 +90,12 @@ _vpaes_consts:
 .align	2
 .size	_vpaes_consts,.-_vpaes_consts
 .align	6
-##
-##  _aes_preheat
-##
-##  Fills register %r10 -> .aes_consts (so you can -fPIC)
-##  and %xmm9-%xmm15 as specified below.
-##
+//
+//  _aes_preheat
+//
+//  Fills register %r10 -> .aes_consts (so you can -fPIC)
+//  and %xmm9-%xmm15 as specified below.
+//
 .type	_vpaes_encrypt_preheat,%function
 .align	4
 _vpaes_encrypt_preheat:
@@ -107,21 +107,21 @@ _vpaes_encrypt_preheat:
 	ret
 .size	_vpaes_encrypt_preheat,.-_vpaes_encrypt_preheat
 
-##
-##  _aes_encrypt_core
-##
-##  AES-encrypt %xmm0.
-##
-##  Inputs:
-##     %xmm0 = input
-##     %xmm9-%xmm15 as in _vpaes_preheat
-##    (%rdx) = scheduled keys
-##
-##  Output in %xmm0
-##  Clobbers  %xmm1-%xmm5, %r9, %r10, %r11, %rax
-##  Preserves %xmm6 - %xmm8 so you get some local vectors
-##
-##
+//
+//  _aes_encrypt_core
+//
+//  AES-encrypt %xmm0.
+//
+//  Inputs:
+//     %xmm0 = input
+//     %xmm9-%xmm15 as in _vpaes_preheat
+//    (%rdx) = scheduled keys
+//
+//  Output in %xmm0
+//  Clobbers  %xmm1-%xmm5, %r9, %r10, %r11, %rax
+//  Preserves %xmm6 - %xmm8 so you get some local vectors
+//
+//
 .type	_vpaes_encrypt_core,%function
 .align	4
 _vpaes_encrypt_core:
@@ -327,11 +327,11 @@ _vpaes_decrypt_preheat:
 	ret
 .size	_vpaes_decrypt_preheat,.-_vpaes_decrypt_preheat
 
-##
-##  Decryption core
-##
-##  Same API as encryption core.
-##
+//
+//  Decryption core
+//
+//  Same API as encryption core.
+//
 .type	_vpaes_decrypt_core,%function
 .align	4
 _vpaes_decrypt_core:
@@ -576,11 +576,11 @@ _vpaes_decrypt_2x:
 	tbl	v1.16b,  {v8.16b},v2.16b
 	ret
 .size	_vpaes_decrypt_2x,.-_vpaes_decrypt_2x
-########################################################
-##                                                    ##
-##                  AES key schedule                  ##
-##                                                    ##
-########################################################
+////////////////////////////////////////////////////////
+//                                                    //
+//                  AES key schedule                  //
+//                                                    //
+////////////////////////////////////////////////////////
 .type	_vpaes_key_preheat,%function
 .align	4
 _vpaes_key_preheat:
@@ -636,14 +636,14 @@ _vpaes_schedule_core:
 	b.eq	.Lschedule_192
 	// 128: fall though
 
-##
-##  .schedule_128
-##
-##  128-bit specific part of key schedule.
-##
-##  This schedule is really simple, because all its parts
-##  are accomplished by the subroutines.
-##
+//
+//  .schedule_128
+//
+//  128-bit specific part of key schedule.
+//
+//  This schedule is really simple, because all its parts
+//  are accomplished by the subroutines.
+//
 .Lschedule_128:
 	mov	x0, #10			// mov	$10, %esi
 
@@ -654,21 +654,21 @@ _vpaes_schedule_core:
 	bl	_vpaes_schedule_mangle		// write output
 	b	.Loop_schedule_128
 
-##
-##  .aes_schedule_192
-##
-##  192-bit specific part of key schedule.
-##
-##  The main body of this schedule is the same as the 128-bit
-##  schedule, but with more smearing.  The long, high side is
-##  stored in %xmm7 as before, and the short, low side is in
-##  the high bits of %xmm6.
-##
-##  This schedule is somewhat nastier, however, because each
-##  round produces 192 bits of key material, or 1.5 round keys.
-##  Therefore, on each cycle we do 2 rounds and produce 3 round
-##  keys.
-##
+//
+//  .aes_schedule_192
+//
+//  192-bit specific part of key schedule.
+//
+//  The main body of this schedule is the same as the 128-bit
+//  schedule, but with more smearing.  The long, high side is
+//  stored in %xmm7 as before, and the short, low side is in
+//  the high bits of %xmm6.
+//
+//  This schedule is somewhat nastier, however, because each
+//  round produces 192 bits of key material, or 1.5 round keys.
+//  Therefore, on each cycle we do 2 rounds and produce 3 round
+//  keys.
+//
 .align	4
 .Lschedule_192:
 	sub	x0, x0, #8
@@ -692,16 +692,16 @@ _vpaes_schedule_core:
 	bl	_vpaes_schedule_192_smear
 	b	.Loop_schedule_192
 
-##
-##  .aes_schedule_256
-##
-##  256-bit specific part of key schedule.
-##
-##  The structure here is very similar to the 128-bit
-##  schedule, but with an additional "low side" in
-##  %xmm6.  The low side's rounds are the same as the
-##  high side's, except no rcon and no rotation.
-##
+//
+//  .aes_schedule_256
+//
+//  256-bit specific part of key schedule.
+//
+//  The structure here is very similar to the 128-bit
+//  schedule, but with an additional "low side" in
+//  %xmm6.  The low side's rounds are the same as the
+//  high side's, except no rcon and no rotation.
+//
 .align	4
 .Lschedule_256:
 	ld1	{v0.16b}, [x0]		// vmovdqu	16(%rdi),%xmm0		# load key part 2 (unaligned)
@@ -728,16 +728,16 @@ _vpaes_schedule_core:
 
 	b	.Loop_schedule_256
 
-##
-##  .aes_schedule_mangle_last
-##
-##  Mangler for last round of key schedule
-##  Mangles %xmm0
-##    when encrypting, outputs out(%xmm0) ^ 63
-##    when decrypting, outputs unskew(%xmm0)
-##
-##  Always called right before return... jumps to cleanup and exits
-##
+//
+//  .aes_schedule_mangle_last
+//
+//  Mangler for last round of key schedule
+//  Mangles %xmm0
+//    when encrypting, outputs out(%xmm0) ^ 63
+//    when decrypting, outputs unskew(%xmm0)
+//
+//  Always called right before return... jumps to cleanup and exits
+//
 .align	4
 .Lschedule_mangle_last:
 	// schedule last round key from xmm0
@@ -771,20 +771,20 @@ _vpaes_schedule_core:
 	ret
 .size	_vpaes_schedule_core,.-_vpaes_schedule_core
 
-##
-##  .aes_schedule_192_smear
-##
-##  Smear the short, low side in the 192-bit key schedule.
-##
-##  Inputs:
-##    %xmm7: high side, b  a  x  y
-##    %xmm6:  low side, d  c  0  0
-##    %xmm13: 0
-##
-##  Outputs:
-##    %xmm6: b+c+d  b+c  0  0
-##    %xmm0: b+c+d  b+c  b  a
-##
+//
+//  .aes_schedule_192_smear
+//
+//  Smear the short, low side in the 192-bit key schedule.
+//
+//  Inputs:
+//    %xmm7: high side, b  a  x  y
+//    %xmm6:  low side, d  c  0  0
+//    %xmm13: 0
+//
+//  Outputs:
+//    %xmm6: b+c+d  b+c  0  0
+//    %xmm0: b+c+d  b+c  b  a
+//
 .type	_vpaes_schedule_192_smear,%function
 .align	4
 _vpaes_schedule_192_smear:
@@ -800,24 +800,24 @@ _vpaes_schedule_192_smear:
 	ret
 .size	_vpaes_schedule_192_smear,.-_vpaes_schedule_192_smear
 
-##
-##  .aes_schedule_round
-##
-##  Runs one main round of the key schedule on %xmm0, %xmm7
-##
-##  Specifically, runs subbytes on the high dword of %xmm0
-##  then rotates it by one byte and xors into the low dword of
-##  %xmm7.
-##
-##  Adds rcon from low byte of %xmm8, then rotates %xmm8 for
-##  next rcon.
-##
-##  Smears the dwords of %xmm7 by xoring the low into the
-##  second low, result into third, result into highest.
-##
-##  Returns results in %xmm7 = %xmm0.
-##  Clobbers %xmm1-%xmm4, %r11.
-##
+//
+//  .aes_schedule_round
+//
+//  Runs one main round of the key schedule on %xmm0, %xmm7
+//
+//  Specifically, runs subbytes on the high dword of %xmm0
+//  then rotates it by one byte and xors into the low dword of
+//  %xmm7.
+//
+//  Adds rcon from low byte of %xmm8, then rotates %xmm8 for
+//  next rcon.
+//
+//  Smears the dwords of %xmm7 by xoring the low into the
+//  second low, result into third, result into highest.
+//
+//  Returns results in %xmm7 = %xmm0.
+//  Clobbers %xmm1-%xmm4, %r11.
+//
 .type	_vpaes_schedule_round,%function
 .align	4
 _vpaes_schedule_round:
@@ -865,15 +865,15 @@ _vpaes_schedule_low_round:
 	ret
 .size	_vpaes_schedule_round,.-_vpaes_schedule_round
 
-##
-##  .aes_schedule_transform
-##
-##  Linear-transform %xmm0 according to tables at (%r11)
-##
-##  Requires that %xmm9 = 0x0F0F... as in preheat
-##  Output in %xmm0
-##  Clobbers %xmm1, %xmm2
-##
+//
+//  .aes_schedule_transform
+//
+//  Linear-transform %xmm0 according to tables at (%r11)
+//
+//  Requires that %xmm9 = 0x0F0F... as in preheat
+//  Output in %xmm0
+//  Clobbers %xmm1, %xmm2
+//
 .type	_vpaes_schedule_transform,%function
 .align	4
 _vpaes_schedule_transform:
@@ -887,29 +887,29 @@ _vpaes_schedule_transform:
 	ret
 .size	_vpaes_schedule_transform,.-_vpaes_schedule_transform
 
-##
-##  .aes_schedule_mangle
-##
-##  Mangle xmm0 from (basis-transformed) standard version
-##  to our version.
-##
-##  On encrypt,
-##    xor with 0x63
-##    multiply by circulant 0,1,1,1
-##    apply shiftrows transform
-##
-##  On decrypt,
-##    xor with 0x63
-##    multiply by "inverse mixcolumns" circulant E,B,D,9
-##    deskew
-##    apply shiftrows transform
-##
-##
-##  Writes out to (%rdx), and increments or decrements it
-##  Keeps track of round number mod 4 in %r8
-##  Preserves xmm0
-##  Clobbers xmm1-xmm5
-##
+//
+//  .aes_schedule_mangle
+//
+//  Mangle xmm0 from (basis-transformed) standard version
+//  to our version.
+//
+//  On encrypt,
+//    xor with 0x63
+//    multiply by circulant 0,1,1,1
+//    apply shiftrows transform
+//
+//  On decrypt,
+//    xor with 0x63
+//    multiply by "inverse mixcolumns" circulant E,B,D,9
+//    deskew
+//    apply shiftrows transform
+//
+//
+//  Writes out to (%rdx), and increments or decrements it
+//  Keeps track of round number mod 4 in %r8
+//  Preserves xmm0
+//  Clobbers xmm1-xmm5
+//
 .type	_vpaes_schedule_mangle,%function
 .align	4
 _vpaes_schedule_mangle:

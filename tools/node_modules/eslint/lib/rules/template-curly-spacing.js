@@ -15,15 +15,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "require or disallow spacing around embedded expressions of template strings",
-            category: "ECMAScript 6",
+            description: "Require or disallow spacing around embedded expressions of template strings",
             recommended: false,
-            url: "https://eslint.org/docs/rules/template-curly-spacing"
+            url: "https://eslint.org/docs/latest/rules/template-curly-spacing"
         },
 
         fixable: "whitespace",
@@ -40,7 +40,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const always = context.options[0] === "always";
 
         /**

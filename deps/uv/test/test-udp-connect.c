@@ -61,7 +61,7 @@ static void close_cb(uv_handle_t* handle) {
 static void cl_send_cb(uv_udp_send_t* req, int status) {
   int r;
 
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
   ASSERT(status == 0);
   CHECK_HANDLE(req->handle);
   if (++cl_send_cb_called == 1) {
@@ -87,7 +87,7 @@ static void sv_recv_cb(uv_udp_t* handle,
                        unsigned flags) {
   if (nread > 0) {
     ASSERT(nread == 4);
-    ASSERT(addr != NULL);
+    ASSERT_NOT_NULL(addr);
     ASSERT(memcmp("EXIT", rcvbuf->base, nread) == 0);
     if (++sv_recv_cb_called == 4) {
       uv_close((uv_handle_t*) &server, close_cb);
@@ -98,9 +98,8 @@ static void sv_recv_cb(uv_udp_t* handle,
 
 
 TEST_IMPL(udp_connect) {
-#if defined(__PASE__)
-  RETURN_SKIP(
-      "IBMi PASE's UDP connection can not be disconnected with AF_UNSPEC.");
+#if defined(__OpenBSD__)
+  RETURN_SKIP("Test does not currently work in OpenBSD");
 #endif
   uv_udp_send_t req;
   struct sockaddr_in ext_addr;
@@ -124,7 +123,7 @@ TEST_IMPL(udp_connect) {
 
   buf = uv_buf_init("EXIT", 4);
 
-  /* connect() to INADDR_ANY fails on Windows wih WSAEADDRNOTAVAIL */
+  /* connect() to INADDR_ANY fails on Windows with WSAEADDRNOTAVAIL */
   ASSERT_EQ(0, uv_ip4_addr("0.0.0.0", TEST_PORT, &tmp_addr));
   r = uv_udp_connect(&client, (const struct sockaddr*) &tmp_addr);
 #ifdef _WIN32
@@ -192,6 +191,6 @@ TEST_IMPL(udp_connect) {
   ASSERT(client.send_queue_size == 0);
   ASSERT(server.send_queue_size == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

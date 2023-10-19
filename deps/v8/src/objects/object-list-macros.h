@@ -15,7 +15,7 @@ class AccessorPair;
 class AccessCheckInfo;
 class AllocationSite;
 class ByteArray;
-class CachedTemplateObject;
+class ExternalPointerArray;
 class Cell;
 class ClosureFeedbackCellArray;
 class ConsString;
@@ -74,160 +74,229 @@ class ZoneForwardList;
   V(Number)                 \
   V(Numeric)
 
-#define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V) \
-  V(AbstractCode)                              \
-  V(AccessCheckNeeded)                         \
-  V(AllocationSite)                            \
-  V(ArrayList)                                 \
-  V(BigInt)                                    \
-  V(BigIntBase)                                \
-  V(BigIntWrapper)                             \
-  V(ObjectBoilerplateDescription)              \
-  V(Boolean)                                   \
-  V(BooleanWrapper)                            \
-  V(ByteArray)                                 \
-  V(BytecodeArray)                             \
-  V(CallHandlerInfo)                           \
-  V(Callable)                                  \
-  V(Cell)                                      \
-  V(ClassBoilerplate)                          \
-  V(Code)                                      \
-  V(CodeDataContainer)                         \
-  V(CompilationCacheTable)                     \
-  V(ConsString)                                \
-  V(Constructor)                               \
-  V(CoverageInfo)                              \
-  V(ClosureFeedbackCellArray)                  \
-  V(DataHandler)                               \
-  V(DeoptimizationData)                        \
-  V(DependentCode)                             \
-  V(EmbedderDataArray)                         \
-  V(EphemeronHashTable)                        \
-  V(ExternalOneByteString)                     \
-  V(ExternalString)                            \
-  V(ExternalTwoByteString)                     \
-  V(FeedbackCell)                              \
-  V(FeedbackMetadata)                          \
-  V(FeedbackVector)                            \
-  V(Filler)                                    \
-  V(FixedArray)                                \
-  V(FixedArrayBase)                            \
-  V(FixedArrayExact)                           \
-  V(FixedDoubleArray)                          \
-  V(Foreign)                                   \
-  V(FreeSpace)                                 \
-  V(Function)                                  \
-  V(GlobalDictionary)                          \
-  V(HandlerTable)                              \
-  V(HeapNumber)                                \
-  V(InternalizedString)                        \
-  V(JSArgumentsObject)                         \
-  V(JSArray)                                   \
-  V(JSArrayBuffer)                             \
-  V(JSArrayBufferView)                         \
-  V(JSArrayIterator)                           \
-  V(JSAsyncFromSyncIterator)                   \
-  V(JSAsyncFunctionObject)                     \
-  V(JSAsyncGeneratorObject)                    \
-  V(JSBoundFunction)                           \
-  V(JSCollection)                              \
-  V(JSCollectionIterator)                      \
-  V(JSContextExtensionObject)                  \
-  V(JSCustomElementsObject)                    \
-  V(JSDataView)                                \
-  V(JSDate)                                    \
-  V(JSError)                                   \
-  V(JSFinalizationRegistry)                    \
-  V(JSFunction)                                \
-  V(JSFunctionOrBoundFunction)                 \
-  V(JSGeneratorObject)                         \
-  V(JSGlobalObject)                            \
-  V(JSGlobalProxy)                             \
-  V(JSMap)                                     \
-  V(JSMapIterator)                             \
-  V(JSMessageObject)                           \
-  V(JSModuleNamespace)                         \
-  V(JSObject)                                  \
-  V(JSPrimitiveWrapper)                        \
-  V(JSPromise)                                 \
-  V(JSProxy)                                   \
-  V(JSReceiver)                                \
-  V(JSRegExp)                                  \
-  V(JSRegExpStringIterator)                    \
-  V(JSSet)                                     \
-  V(JSSetIterator)                             \
-  V(JSSpecialObject)                           \
-  V(JSStringIterator)                          \
-  V(JSTypedArray)                              \
-  V(JSWeakCollection)                          \
-  V(JSWeakRef)                                 \
-  V(JSWeakMap)                                 \
-  V(JSWeakSet)                                 \
-  V(LoadHandler)                               \
-  V(Map)                                       \
-  V(MapCache)                                  \
-  V(Module)                                    \
-  V(Microtask)                                 \
-  V(Name)                                      \
-  V(NameDictionary)                            \
-  V(NativeContext)                             \
-  V(NormalizedMapCache)                        \
-  V(NumberDictionary)                          \
-  V(NumberWrapper)                             \
-  V(ObjectHashSet)                             \
-  V(ObjectHashTable)                           \
-  V(OrderedHashMap)                            \
-  V(OrderedHashSet)                            \
-  V(OrderedNameDictionary)                     \
-  V(OSROptimizedCodeCache)                     \
-  V(PreparseData)                              \
-  V(PrimitiveHeapObject)                       \
-  V(PromiseReactionJobTask)                    \
-  V(PropertyArray)                             \
-  V(PropertyCell)                              \
-  V(RegExpMatchInfo)                           \
-  V(ScopeInfo)                                 \
-  V(ScriptContextTable)                        \
-  V(ScriptWrapper)                             \
-  V(SeqOneByteString)                          \
-  V(SeqString)                                 \
-  V(SeqTwoByteString)                          \
-  V(SimpleNumberDictionary)                    \
-  V(SlicedString)                              \
-  V(SmallOrderedHashMap)                       \
-  V(SmallOrderedHashSet)                       \
-  V(SmallOrderedNameDictionary)                \
-  V(SourceTextModule)                          \
-  V(SourceTextModuleInfo)                      \
-  V(StoreHandler)                              \
-  V(String)                                    \
-  V(StringSet)                                 \
-  V(StringWrapper)                             \
-  V(Struct)                                    \
-  V(SwissNameDictionary)                       \
-  V(Symbol)                                    \
-  V(SymbolWrapper)                             \
-  V(SyntheticModule)                           \
-  V(TemplateInfo)                              \
-  V(TemplateList)                              \
-  V(ThinString)                                \
-  V(TransitionArray)                           \
-  V(Undetectable)                              \
-  V(UniqueName)                                \
-  V(WasmArray)                                 \
-  V(WasmExceptionObject)                       \
-  V(WasmExceptionPackage)                      \
-  V(WasmGlobalObject)                          \
-  V(WasmInstanceObject)                        \
-  V(WasmMemoryObject)                          \
-  V(WasmModuleObject)                          \
-  V(WasmStruct)                                \
-  V(WasmTypeInfo)                              \
-  V(WasmTableObject)                           \
-  V(WasmValueObject)                           \
-  V(WeakFixedArray)                            \
-  V(WeakArrayList)                             \
-  V(WeakCell)                                  \
+#define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
+  V(AbstractCode)                               \
+  V(AccessCheckNeeded)                          \
+  V(AccessorInfo)                               \
+  V(AllocationSite)                             \
+  V(AlwaysSharedSpaceJSObject)                  \
+  V(ArrayList)                                  \
+  V(BigInt)                                     \
+  V(BigIntBase)                                 \
+  V(BigIntWrapper)                              \
+  V(ObjectBoilerplateDescription)               \
+  V(Boolean)                                    \
+  V(BooleanWrapper)                             \
+  V(ByteArray)                                  \
+  V(ExternalPointerArray)                       \
+  V(BytecodeArray)                              \
+  V(CallHandlerInfo)                            \
+  V(Callable)                                   \
+  V(Cell)                                       \
+  V(ClassBoilerplate)                           \
+  V(InstructionStream)                          \
+  V(Code)                                       \
+  V(CompilationCacheTable)                      \
+  V(ConsString)                                 \
+  V(Constructor)                                \
+  V(Context)                                    \
+  V(CoverageInfo)                               \
+  V(ClosureFeedbackCellArray)                   \
+  V(DataHandler)                                \
+  V(DeoptimizationData)                         \
+  V(DependentCode)                              \
+  V(DescriptorArray)                            \
+  V(EmbedderDataArray)                          \
+  V(EphemeronHashTable)                         \
+  V(ExternalOneByteString)                      \
+  V(ExternalString)                             \
+  V(ExternalTwoByteString)                      \
+  V(FeedbackCell)                               \
+  V(FeedbackMetadata)                           \
+  V(FeedbackVector)                             \
+  V(Filler)                                     \
+  V(FixedArray)                                 \
+  V(FixedArrayBase)                             \
+  V(FixedArrayExact)                            \
+  V(FixedDoubleArray)                           \
+  V(Foreign)                                    \
+  V(FreeSpace)                                  \
+  V(Function)                                   \
+  V(GcSafeCode)                                 \
+  V(GlobalDictionary)                           \
+  V(HandlerTable)                               \
+  V(HeapNumber)                                 \
+  V(InternalizedString)                         \
+  V(JSArgumentsObject)                          \
+  V(JSArray)                                    \
+  V(JSArrayBuffer)                              \
+  V(JSArrayBufferView)                          \
+  V(JSArrayIterator)                            \
+  V(JSAsyncFromSyncIterator)                    \
+  V(JSAsyncFunctionObject)                      \
+  V(JSAsyncGeneratorObject)                     \
+  V(JSAtomicsCondition)                         \
+  V(JSAtomicsMutex)                             \
+  V(JSBoundFunction)                            \
+  V(JSCollection)                               \
+  V(JSCollectionIterator)                       \
+  V(JSContextExtensionObject)                   \
+  V(JSCustomElementsObject)                     \
+  V(JSDataView)                                 \
+  V(JSDataViewOrRabGsabDataView)                \
+  V(JSDate)                                     \
+  V(JSError)                                    \
+  V(JSExternalObject)                           \
+  V(JSFinalizationRegistry)                     \
+  V(JSFunction)                                 \
+  V(JSFunctionOrBoundFunctionOrWrappedFunction) \
+  V(JSGeneratorObject)                          \
+  V(JSGlobalObject)                             \
+  V(JSGlobalProxy)                              \
+  V(JSIteratorHelper)                           \
+  V(JSIteratorFilterHelper)                     \
+  V(JSIteratorMapHelper)                        \
+  V(JSIteratorTakeHelper)                       \
+  V(JSIteratorDropHelper)                       \
+  V(JSIteratorFlatMapHelper)                    \
+  V(JSMap)                                      \
+  V(JSMapIterator)                              \
+  V(JSMessageObject)                            \
+  V(JSModuleNamespace)                          \
+  V(JSObject)                                   \
+  V(JSObjectWithEmbedderSlots)                  \
+  V(JSPrimitiveWrapper)                         \
+  V(JSPromise)                                  \
+  V(JSProxy)                                    \
+  V(JSRabGsabDataView)                          \
+  V(JSRawJson)                                  \
+  V(JSReceiver)                                 \
+  V(JSRegExp)                                   \
+  V(JSRegExpStringIterator)                     \
+  V(JSSet)                                      \
+  V(JSSetIterator)                              \
+  V(JSShadowRealm)                              \
+  V(JSSharedArray)                              \
+  V(JSSharedStruct)                             \
+  V(JSSpecialObject)                            \
+  V(JSStringIterator)                           \
+  V(JSSynchronizationPrimitive)                 \
+  V(JSTemporalCalendar)                         \
+  V(JSTemporalDuration)                         \
+  V(JSTemporalInstant)                          \
+  V(JSTemporalPlainDate)                        \
+  V(JSTemporalPlainTime)                        \
+  V(JSTemporalPlainDateTime)                    \
+  V(JSTemporalPlainMonthDay)                    \
+  V(JSTemporalPlainYearMonth)                   \
+  V(JSTemporalTimeZone)                         \
+  V(JSTemporalZonedDateTime)                    \
+  V(JSTypedArray)                               \
+  V(JSValidIteratorWrapper)                     \
+  V(JSWeakCollection)                           \
+  V(JSWeakRef)                                  \
+  V(JSWeakMap)                                  \
+  V(JSWeakSet)                                  \
+  V(JSWrappedFunction)                          \
+  V(LoadHandler)                                \
+  V(Map)                                        \
+  V(MapCache)                                   \
+  V(MegaDomHandler)                             \
+  V(Module)                                     \
+  V(Microtask)                                  \
+  V(Name)                                       \
+  V(NameDictionary)                             \
+  V(NameToIndexHashTable)                       \
+  V(NativeContext)                              \
+  V(NormalizedMapCache)                         \
+  V(NumberDictionary)                           \
+  V(NumberWrapper)                              \
+  V(ObjectHashSet)                              \
+  V(ObjectHashTable)                            \
+  V(ObjectTwoHashTable)                         \
+  V(Oddball)                                    \
+  V(Hole)                                       \
+  V(OrderedHashMap)                             \
+  V(OrderedHashSet)                             \
+  V(OrderedNameDictionary)                      \
+  V(OSROptimizedCodeCache)                      \
+  V(PreparseData)                               \
+  V(PrimitiveHeapObject)                        \
+  V(PromiseReactionJobTask)                     \
+  V(PropertyArray)                              \
+  V(PropertyCell)                               \
+  V(RegExpMatchInfo)                            \
+  V(ScopeInfo)                                  \
+  V(ScriptContextTable)                         \
+  V(ScriptWrapper)                              \
+  V(SeqOneByteString)                           \
+  V(SeqString)                                  \
+  V(SeqTwoByteString)                           \
+  V(SharedFunctionInfo)                         \
+  V(SimpleNumberDictionary)                     \
+  V(SlicedString)                               \
+  V(SmallOrderedHashMap)                        \
+  V(SmallOrderedHashSet)                        \
+  V(SmallOrderedNameDictionary)                 \
+  V(SourceTextModule)                           \
+  V(SourceTextModuleInfo)                       \
+  V(StoreHandler)                               \
+  V(String)                                     \
+  V(StringSet)                                  \
+  V(RegisteredSymbolTable)                      \
+  V(StringWrapper)                              \
+  V(Struct)                                     \
+  V(SwissNameDictionary)                        \
+  V(Symbol)                                     \
+  V(SymbolWrapper)                              \
+  V(SyntheticModule)                            \
+  V(TemplateInfo)                               \
+  V(TemplateList)                               \
+  V(TemplateLiteralObject)                      \
+  V(ThinString)                                 \
+  V(TransitionArray)                            \
+  V(TurboshaftFloat64RangeType)                 \
+  V(TurboshaftFloat64SetType)                   \
+  V(TurboshaftFloat64Type)                      \
+  V(TurboshaftType)                             \
+  V(TurboshaftWord32RangeType)                  \
+  V(TurboshaftWord32SetType)                    \
+  V(TurboshaftWord32Type)                       \
+  V(TurboshaftWord64RangeType)                  \
+  V(TurboshaftWord64SetType)                    \
+  V(TurboshaftWord64Type)                       \
+  V(UncompiledData)                             \
+  V(UncompiledDataWithPreparseData)             \
+  V(UncompiledDataWithoutPreparseData)          \
+  V(UncompiledDataWithPreparseDataAndJob)       \
+  V(UncompiledDataWithoutPreparseDataWithJob)   \
+  V(Undetectable)                               \
+  V(UniqueName)                                 \
+  IF_WASM(V, WasmApiFunctionRef)                \
+  IF_WASM(V, WasmArray)                         \
+  IF_WASM(V, WasmCapiFunctionData)              \
+  IF_WASM(V, WasmTagObject)                     \
+  IF_WASM(V, WasmExceptionPackage)              \
+  IF_WASM(V, WasmExportedFunctionData)          \
+  IF_WASM(V, WasmFunctionData)                  \
+  IF_WASM(V, WasmGlobalObject)                  \
+  IF_WASM(V, WasmInternalFunction)              \
+  IF_WASM(V, WasmInstanceObject)                \
+  IF_WASM(V, WasmJSFunctionData)                \
+  IF_WASM(V, WasmMemoryObject)                  \
+  IF_WASM(V, WasmModuleObject)                  \
+  IF_WASM(V, WasmObject)                        \
+  IF_WASM(V, WasmResumeData)                    \
+  IF_WASM(V, WasmStruct)                        \
+  IF_WASM(V, WasmTypeInfo)                      \
+  IF_WASM(V, WasmTableObject)                   \
+  IF_WASM(V, WasmValueObject)                   \
+  IF_WASM(V, WasmSuspenderObject)               \
+  IF_WASM(V, WasmContinuationObject)            \
+  IF_WASM(V, WasmNull)                          \
+  V(WeakFixedArray)                             \
+  V(WeakArrayList)                              \
+  V(WeakCell)                                   \
   TORQUE_DEFINED_CLASS_LIST(V)
 
 #ifdef V8_INTL_SUPPORT
@@ -237,6 +306,7 @@ class ZoneForwardList;
   V(JSCollator)                           \
   V(JSDateTimeFormat)                     \
   V(JSDisplayNames)                       \
+  V(JSDurationFormat)                     \
   V(JSListFormat)                         \
   V(JSLocale)                             \
   V(JSNumberFormat)                       \
@@ -264,6 +334,8 @@ class ZoneForwardList;
   V(FreeSpaceOrFiller)                       \
   V(FunctionContext)                         \
   V(JSApiObject)                             \
+  V(JSClassConstructor)                      \
+  V(JSLastDummyApiObject)                    \
   V(JSPromiseConstructor)                    \
   V(JSArrayConstructor)                      \
   V(JSRegExpConstructor)                     \
@@ -306,17 +378,20 @@ class ZoneForwardList;
   HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
   HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V)
 
-#define ODDBALL_LIST(V)                 \
-  V(Undefined, undefined_value)         \
-  V(Null, null_value)                   \
-  V(TheHole, the_hole_value)            \
-  V(Exception, exception)               \
-  V(Uninitialized, uninitialized_value) \
-  V(True, true_value)                   \
-  V(False, false_value)                 \
-  V(ArgumentsMarker, arguments_marker)  \
-  V(OptimizedOut, optimized_out)        \
-  V(StaleRegister, stale_register)
+#define ODDBALL_LIST(V)                                     \
+  V(Undefined, undefined_value, UndefinedValue)             \
+  V(Null, null_value, NullValue)                            \
+  V(Exception, exception, Exception)                        \
+  V(Uninitialized, uninitialized_value, UninitializedValue) \
+  V(True, true_value, TrueValue)                            \
+  V(False, false_value, FalseValue)                         \
+  V(ArgumentsMarker, arguments_marker, ArgumentsMarker)     \
+  V(OptimizedOut, optimized_out, OptimizedOut)              \
+  V(StaleRegister, stale_register, StaleRegister)
+
+#define HOLE_LIST(V)                       \
+  V(TheHole, the_hole_value, TheHoleValue) \
+  V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue)
 
 }  // namespace internal
 }  // namespace v8

@@ -52,8 +52,8 @@ class U_I18N_API CodePointMatcher : public NumberParseMatcher, public UMemory {
 // (See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.)
 // Note: These need to be outside of the numparse::impl namespace, or Clang will generate a compile error.
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<numparse::impl::CodePointMatcher*, 8>;
-template class U_I18N_API MaybeStackArray<UChar, 4>;
+template class U_I18N_API MaybeStackArray<numparse::impl::CodePointMatcher*, 8>; 
+template class U_I18N_API MaybeStackArray<char16_t, 4>;
 template class U_I18N_API MemoryPool<numparse::impl::CodePointMatcher, 8>;
 template class U_I18N_API numparse::impl::CompactUnicodeString<4>;
 #endif
@@ -100,6 +100,8 @@ class U_I18N_API AffixTokenMatcherWarehouse : public UMemory {
     IgnorablesMatcher& ignorables();
 
     NumberParseMatcher* nextCodePointMatcher(UChar32 cp, UErrorCode& status);
+
+    bool hasEmptyCurrencySymbol() const;
 
   private:
     // NOTE: The following field may be unsafe to access after construction is done!
@@ -204,10 +206,12 @@ class AffixMatcherWarehouse {
                              UErrorCode& status);
 
   private:
-    // 9 is the limit: positive, zero, and negative, each with prefix, suffix, and prefix+suffix
-    AffixMatcher fAffixMatchers[9];
-    // 6 is the limit: positive, zero, and negative, a prefix and a suffix for each
-    AffixPatternMatcher fAffixPatternMatchers[6];
+    // 18 is the limit: positive, zero, and negative, each with prefix, suffix, and prefix+suffix,
+    // and doubled since there may be an empty currency symbol
+    AffixMatcher fAffixMatchers[18];
+    // 6 is the limit: positive, zero, and negative, a prefix and a suffix for each,
+    // and doubled since there may be an empty currency symbol
+    AffixPatternMatcher fAffixPatternMatchers[12];
     // Reference to the warehouse for tokens used by the AffixPatternMatchers
     AffixTokenMatcherWarehouse* fTokenWarehouse;
 

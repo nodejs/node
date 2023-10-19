@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --expose-gc --stress-compaction --allow-natives-syntax --wasm-loop-unrolling
+// Flags: --expose-wasm --expose-gc --stress-compaction --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var kMemSize = 65536;
 
@@ -17,12 +17,12 @@ function genModule(memory) {
     .addBody([
       // main body: while(i) { if(mem[i]) return -1; i -= 4; } return 0;
       // TODO(titzer): this manual bytecode has a copy of test-run-wasm.cc
-      /**/ kExprLoop, kWasmStmt,           // --
+      /**/ kExprLoop, kWasmVoid,           // --
       /*  */ kExprLocalGet, 0,             // --
-      /*  */ kExprIf, kWasmStmt,           // --
+      /*  */ kExprIf, kWasmVoid,           // --
       /*    */ kExprLocalGet, 0,           // --
       /*    */ kExprI32LoadMem, 0, 0,      // --
-      /*    */ kExprIf, kWasmStmt,         // --
+      /*    */ kExprIf, kWasmVoid,         // --
       /*      */ kExprI32Const, 127,       // --
       /*      */ kExprReturn,              // --
       /*      */ kExprEnd,                 // --
@@ -132,7 +132,7 @@ testOuterMemorySurvivalAcrossGc();
 function testOOBThrows() {
   var builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
   builder.addFunction("geti", kSig_i_ii)
     .addBody([
       kExprLocalGet, 0,
@@ -160,35 +160,13 @@ function testOOBThrows() {
     assertTraps(kTrapMemOutOfBounds, () => read(offset));
     assertTraps(kTrapMemOutOfBounds, () => write(offset));
     if (%IsWasmTrapHandlerEnabled()) {
-      assertTrue(trap_count + 2 <= %GetWasmRecoveredTrapCount());
+      if (%IsWasmPartialOOBWriteNoop()) {
+        assertTrue(trap_count + 2 <= %GetWasmRecoveredTrapCount());
+      } else {
+        assertTrue(trap_count + 1 <= %GetWasmRecoveredTrapCount());
+      }
     }
   }
 }
 
 testOOBThrows();
-
-function testAddressSpaceLimit() {
-  // 1TiB + 4 GiB, see wasm-memory.h
-  const kMaxAddressSpace = 1 * 1024 * 1024 * 1024 * 1024
-                         + 4 * 1024 * 1024 * 1024;
-  const kAddressSpacePerMemory = 10 * 1024 * 1024 * 1024;
-
-  let last_memory;
-  try {
-    let memories = [];
-    let address_space = 0;
-    while (address_space <= kMaxAddressSpace + 1) {
-      last_memory = new WebAssembly.Memory({initial: 1})
-      memories.push(last_memory);
-      address_space += kAddressSpacePerMemory;
-    }
-  } catch (e) {
-    assertTrue(e instanceof RangeError);
-    return;
-  }
-  assertUnreachable("should have reached the address space limit");
-}
-
-if(%IsWasmTrapHandlerEnabled()) {
-  testAddressSpaceLimit();
-}

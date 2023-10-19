@@ -2,7 +2,6 @@
 
 require('../common');
 const fixtures = require('../common/fixtures');
-const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 
@@ -15,7 +14,7 @@ const readStreamOptions = [...streamOpts, 'read'];
 const originalFs = { fs };
 
 {
-  const file = path.join(tmpdir.path, 'write-end-test0.txt');
+  const file = tmpdir.resolve('write-end-test0.txt');
 
   writeStreamOptions.forEach((fn) => {
     const overrideFs = Object.assign({}, originalFs.fs, { [fn]: null });
@@ -37,7 +36,7 @@ const originalFs = { fs };
 }
 
 {
-  const file = path.join(tmpdir.path, 'write-end-test0.txt');
+  const file = tmpdir.resolve('write-end-test0.txt');
   const overrideFs = Object.assign({}, originalFs.fs, { writev: 'not a fn' });
   const opts = {
     fs: overrideFs

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --block-concurrent-recompilation
+// Flags: --allow-natives-syntax
 
 function Ctor() {
   this.a = 1;

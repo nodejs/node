@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 
 let g = 0;
 
@@ -26,4 +26,6 @@ assertEquals(17n, f(2n));
 assertEquals(16n, f(1n));
 assertOptimized(f);
 assertEquals(15n, f(0));
-assertUnoptimized(f);
+if (%Is64Bit()) {
+  assertUnoptimized(f);
+}

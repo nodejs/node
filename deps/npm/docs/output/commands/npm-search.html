@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-search</title>
 <style>
 body {
@@ -145,9 +146,9 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm search [-l|--long] [--json] [--parseable] [--no-description] [search terms ...]
+<pre><code class="language-bash">npm search [search terms ...]
 
-aliases: s, se, find
+aliases: find, s, se
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
@@ -164,13 +165,11 @@ use them more fine-grained filtering. Additionally, you can add both of
 these to your config to change default search filtering behavior.</p>
 <p>Search also allows targeting of maintainers in search results, by prefixing
 their npm username with <code>=</code>.</p>
-<p>If a term starts with <code>/</code>, then it’s interpreted as a regular expression
+<p>If a term starts with <code>/</code>, then it's interpreted as a regular expression
 and supports standard JavaScript RegExp syntax. In this case search will
 ignore a trailing <code>/</code> .  (Note you must escape or quote many regular
 expression characters in most shells.)</p>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="long"><code>long</code></h4>
 <ul>
 <li>Default: false</li>
@@ -183,11 +182,15 @@ expression characters in most shells.)</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
 <p>Not supported by all npm commands.</p>
 <h4 id="color"><code>color</code></h4>
 <ul>
-<li>Default: true unless the NO_COLOR environ is set to something other than ‘0’</li>
-<li>Type: “always” or Boolean</li>
+<li>Default: true unless the NO_COLOR environ is set to something other than '0'</li>
+<li>Type: "always" or Boolean</li>
 </ul>
 <p>If false, never shows colors. If <code>"always"</code> then always shows colors. If
 true, then only prints color codes for tty file descriptors.</p>
@@ -206,19 +209,19 @@ true, then only prints color codes for tty file descriptors.</p>
 <p>Show the description in <code>npm search</code></p>
 <h4 id="searchopts"><code>searchopts</code></h4>
 <ul>
-<li>Default: “”</li>
+<li>Default: ""</li>
 <li>Type: String</li>
 </ul>
 <p>Space-separated options that are always passed to search.</p>
 <h4 id="searchexclude"><code>searchexclude</code></h4>
 <ul>
-<li>Default: “”</li>
+<li>Default: ""</li>
 <li>Type: String</li>
 </ul>
 <p>Space-separated options that limit the results from search.</p>
 <h4 id="registry"><code>registry</code></h4>
 <ul>
-<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
 <li>Type: URL</li>
 </ul>
 <p>The base URL of the npm registry.</p>
@@ -244,7 +247,6 @@ will be requested from the server. To force full offline mode, use
 </ul>
 <p>Force offline mode: no network requests will be done during install. To
 allow the CLI to fill in missing cache data, see <code>--prefer-offline</code>.</p>
-<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
@@ -253,8 +255,7 @@ allow the CLI to fill in missing cache data, see <code>--prefer-offline</code>.<
 <li><a href="../commands/npm-view.html">npm view</a></li>
 <li><a href="../commands/npm-cache.html">npm cache</a></li>
 <li><a href="https://npm.im/npm-registry-fetch">https://npm.im/npm-registry-fetch</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-search.md">

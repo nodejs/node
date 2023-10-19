@@ -6,10 +6,14 @@
 
 #include <limits.h>
 
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-inspector.h"
+#include "include/v8-microtask-queue.h"
+#include "include/v8-regexp.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-inspector-impl.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -32,6 +36,8 @@ V8Regex::V8Regex(V8InspectorImpl* inspector, const String16& pattern,
   if (multiline) flags |= v8::RegExp::kMultiline;
 
   v8::Local<v8::RegExp> regex;
+  // Protect against reentrant debugger calls via interrupts.
+  v8::debug::PostponeInterruptsScope no_interrupts(m_inspector->isolate());
   if (v8::RegExp::New(context, toV8String(isolate, pattern),
                       static_cast<v8::RegExp::Flags>(flags))
           .ToLocal(&regex))
@@ -59,8 +65,10 @@ int V8Regex::match(const String16& string, int startFrom,
     return -1;
   }
   v8::Context::Scope contextScope(context);
-  v8::MicrotasksScope microtasks(isolate,
+  v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
+  // Protect against reentrant debugger calls via interrupts.
+  v8::debug::PostponeInterruptsScope no_interrupts(m_inspector->isolate());
   v8::TryCatch tryCatch(isolate);
 
   v8::Local<v8::RegExp> regex = m_regex.Get(isolate);

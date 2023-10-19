@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 
-load('../base.js');
-load('with.js');
+d8.file.execute('../base.js');
+d8.file.execute('with.js');
 
 var success = true;
 

@@ -7,7 +7,6 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/source-position.h"
-#include "src/common/globals.h"
 #include "src/compiler/node-aux-data.h"
 
 namespace v8 {
@@ -50,6 +49,7 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
   void RemoveDecorator();
 
   SourcePosition GetSourcePosition(Node* node) const;
+  SourcePosition GetSourcePosition(NodeId id) const;
   void SetSourcePosition(Node* node, SourcePosition position);
 
   void SetCurrentPosition(const SourcePosition& pos) {
@@ -57,15 +57,25 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
   }
   SourcePosition GetCurrentPosition() const { return current_position_; }
 
+  void Disable() { enabled_ = false; }
+  void Enable() { enabled_ = true; }
+
+  bool IsEnabled() const { return enabled_; }
+
   void PrintJson(std::ostream& os) const;
 
  private:
   class Decorator;
 
+  static SourcePosition UnknownSourcePosition(Zone* zone) {
+    return SourcePosition::Unknown();
+  }
+
   Graph* const graph_;
   Decorator* decorator_;
   SourcePosition current_position_;
-  NodeAuxData<SourcePosition, SourcePosition::Unknown> table_;
+  NodeAuxData<SourcePosition, UnknownSourcePosition> table_;
+  bool enabled_ = true;
 };
 
 }  // namespace compiler

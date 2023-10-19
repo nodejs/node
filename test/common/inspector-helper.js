@@ -5,8 +5,7 @@ const fs = require('fs');
 const http = require('http');
 const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
-const { parse: parseURL } = require('url');
-const { pathToFileURL } = require('url');
+const { URL, pathToFileURL } = require('url');
 const { EventEmitter } = require('events');
 
 const _MAINSCRIPT = fixtures.path('loop.js');
@@ -151,6 +150,7 @@ class InspectorSession {
       socket.once('close', resolve);
     });
   }
+
 
   waitForServerDisconnect() {
     return this._terminationPromise;
@@ -327,13 +327,15 @@ class InspectorSession {
 class NodeInstance extends EventEmitter {
   constructor(inspectorFlags = ['--inspect-brk=0', '--expose-internals'],
               scriptContents = '',
-              scriptFile = _MAINSCRIPT) {
+              scriptFile = _MAINSCRIPT,
+              logger = console) {
     super();
 
+    this._logger = logger;
     this._scriptPath = scriptFile;
     this._script = scriptFile ? null : scriptContents;
     this._portCallback = null;
-    this.portPromise = new Promise((resolve) => this._portCallback = resolve);
+    this.resetPort();
     this._process = spawnChildProcess(inspectorFlags, scriptContents,
                                       scriptFile);
     this._running = true;
@@ -343,7 +345,7 @@ class NodeInstance extends EventEmitter {
     this._process.stdout.on('data', makeBufferingDataCallback(
       (line) => {
         this.emit('stdout', line);
-        console.log('[out]', line);
+        this._logger.log('[out]', line);
       }));
 
     this._process.stderr.on('data', makeBufferingDataCallback(
@@ -352,7 +354,7 @@ class NodeInstance extends EventEmitter {
     this._shutdownPromise = new Promise((resolve) => {
       this._process.once('exit', (exitCode, signal) => {
         if (signal) {
-          console.error(`[err] child process crashed, signal ${signal}`);
+          this._logger.error(`[err] child process crashed, signal ${signal}`);
         }
         resolve({ exitCode, signal });
         this._running = false;
@@ -360,19 +362,27 @@ class NodeInstance extends EventEmitter {
     });
   }
 
+  get pid() {
+    return this._process.pid;
+  }
+
+  resetPort() {
+    this.portPromise = new Promise((resolve) => this._portCallback = resolve);
+  }
+
   static async startViaSignal(scriptContents) {
     const instance = new NodeInstance(
-      ['--expose-internals'],
+      ['--expose-internals', '--inspect-port=0'],
       `${scriptContents}\nprocess._rawDebug('started');`, undefined);
     const msg = 'Timed out waiting for process to start';
-    while (await fires(instance.nextStderrString(), msg, TIMEOUT) !==
-             'started') {}
+    while (await fires(instance.nextStderrString(), msg, TIMEOUT) !== 'started');
     process._debugProcess(instance._process.pid);
     return instance;
   }
 
   onStderrLine(line) {
-    console.log('[err]', line);
+    this.emit('stderr', line);
+    this._logger.log('[err]', line);
     if (this._portCallback) {
       const matches = line.match(/Debugger listening on ws:\/\/.+:(\d+)\/.+/);
       if (matches) {
@@ -389,10 +399,10 @@ class NodeInstance extends EventEmitter {
   }
 
   httpGet(host, path, hostHeaderValue) {
-    console.log('[test]', `Testing ${path}`);
+    this._logger.log('[test]', `Testing ${path}`);
     const headers = hostHeaderValue ? { 'Host': hostHeaderValue } : null;
     return this.portPromise.then((port) => new Promise((resolve, reject) => {
-      const req = http.get({ host, port, path, headers }, (res) => {
+      const req = http.get({ host, port, family: 4, path, headers }, (res) => {
         let response = '';
         res.setEncoding('utf8');
         res
@@ -418,18 +428,19 @@ class NodeInstance extends EventEmitter {
     const port = await this.portPromise;
     return http.get({
       port,
-      path: parseURL(devtoolsUrl).path,
+      family: 4,
+      path: new URL(devtoolsUrl).pathname,
       headers: {
         'Connection': 'Upgrade',
         'Upgrade': 'websocket',
         'Sec-WebSocket-Version': 13,
-        'Sec-WebSocket-Key': 'key=='
-      }
+        'Sec-WebSocket-Key': 'key==',
+      },
     });
   }
 
   async connectInspectorSession() {
-    console.log('[test]', 'Connecting to a child Node process');
+    this._logger.log('[test]', 'Connecting to a child Node process');
     const upgradeRequest = await this.sendUpgradeRequest();
     return new Promise((resolve) => {
       upgradeRequest
@@ -440,7 +451,7 @@ class NodeInstance extends EventEmitter {
   }
 
   async expectConnectionDeclined() {
-    console.log('[test]', 'Checking upgrade is not possible');
+    this._logger.log('[test]', 'Checking upgrade is not possible');
     const upgradeRequest = await this.sendUpgradeRequest();
     return new Promise((resolve) => {
       upgradeRequest
@@ -519,5 +530,5 @@ function fires(promise, error, timeoutMs) {
 }
 
 module.exports = {
-  NodeInstance
+  NodeInstance,
 };

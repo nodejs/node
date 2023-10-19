@@ -199,7 +199,7 @@ TEST_IMPL(poll_oob) {
    */
   ASSERT(srv_rd_check == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 

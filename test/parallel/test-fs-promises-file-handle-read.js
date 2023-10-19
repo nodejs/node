@@ -68,6 +68,34 @@ async function validateReadNoParams() {
   await fileHandle.read();
 }
 
+// Validates that the zero position is respected after the position has been
+// moved. The test iterates over the xyz chars twice making sure that the values
+// are read from the correct position.
+async function validateReadWithPositionZero() {
+  const opts = { useConf: true };
+  const filePath = fixtures.path('x.txt');
+  const fileHandle = await open(filePath, 'r');
+  const expectedSequence = ['x', 'y', 'z'];
+
+  for (let i = 0; i < expectedSequence.length * 2; i++) {
+    const len = 1;
+    const pos = i % 3;
+    const buf = Buffer.alloc(len);
+    const { bytesRead } = await read(fileHandle, buf, 0, len, pos, opts);
+    assert.strictEqual(bytesRead, len);
+    assert.strictEqual(buf.toString(), expectedSequence[pos]);
+  }
+}
+
+async function validateReadLength(len) {
+  const buf = Buffer.alloc(4);
+  const opts = { useConf: true };
+  const filePath = fixtures.path('x.txt');
+  const fileHandle = await open(filePath, 'r');
+  const { bytesRead } = await read(fileHandle, buf, 0, len, 0, opts);
+  assert.strictEqual(bytesRead, len);
+}
+
 
 (async function() {
   tmpdir.refresh();
@@ -78,4 +106,7 @@ async function validateReadNoParams() {
   await validateLargeRead({ useConf: false });
   await validateLargeRead({ useConf: true });
   await validateReadNoParams();
+  await validateReadWithPositionZero();
+  await validateReadLength(0);
+  await validateReadLength(1);
 })().then(common.mustCall());

@@ -55,12 +55,25 @@ void FinalizationRegistryCleanupTask::RunInternal() {
 
   // Since FinalizationRegistry cleanup callbacks are scheduled by V8, enter the
   // FinalizationRegistry's context.
-  Handle<Context> context(
-      Context::cast(finalization_registry->native_context()), isolate);
+  Handle<NativeContext> native_context(finalization_registry->native_context(),
+                                       isolate);
   Handle<Object> callback(finalization_registry->cleanup(), isolate);
-  v8::Context::Scope context_scope(v8::Utils::ToLocal(context));
-  v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
+  v8::Context::Scope context_scope(v8::Utils::ToLocal(native_context));
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::TryCatch catcher(v8_isolate);
   catcher.SetVerbose(true);
+  std::unique_ptr<MicrotasksScope> microtasks_scope;
+  MicrotaskQueue* microtask_queue =
+      finalization_registry->native_context()->microtask_queue();
+  if (!microtask_queue) microtask_queue = isolate->default_microtask_queue();
+  if (microtask_queue &&
+      microtask_queue->microtasks_policy() == v8::MicrotasksPolicy::kScoped) {
+    // InvokeFinalizationRegistryCleanupFromTask will call into V8 API methods,
+    // so we need a valid microtasks scope on the stack to avoid running into
+    // the CallDepthScope check.
+    microtasks_scope.reset(new v8::MicrotasksScope(
+        v8_isolate, microtask_queue, v8::MicrotasksScope::kDoNotRunMicrotasks));
+  }
 
   // Exceptions are reported via the message handler. This is ensured by the
   // verbose TryCatch.
@@ -72,11 +85,11 @@ void FinalizationRegistryCleanupTask::RunInternal() {
   // and should be requeued.
   //
   // TODO(syg): Implement better scheduling for finalizers.
-  InvokeFinalizationRegistryCleanupFromTask(context, finalization_registry,
-                                            callback);
+  InvokeFinalizationRegistryCleanupFromTask(native_context,
+                                            finalization_registry, callback);
   if (finalization_registry->NeedsCleanup() &&
       !finalization_registry->scheduled_for_cleanup()) {
-    auto nop = [](HeapObject, ObjectSlot, Object) {};
+    auto nop = [](Tagged<HeapObject>, ObjectSlot, Tagged<Object>) {};
     heap_->EnqueueDirtyJSFinalizationRegistry(*finalization_registry, nop);
   }
 

@@ -5,8 +5,8 @@
 [
 
 # Only test for default mode x64.
-['variant != default or arch != x64 or lite_mode or not pointer_compression', {
+['variant != default or arch != x64 or lite_mode or not pointer_compression or not sandbox', {
   '*': [SKIP],
-}],  # variant != default or arch != x64 or lite_mode
+}],  # variant != default or arch != x64 or lite_mode or not pointer_compression or not sandbox
 
 ]

@@ -86,7 +86,7 @@ TEST_IMPL(tcp_connect_timeout) {
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -111,7 +111,7 @@ static int is_supported_system(void) {
     if (cnt != 3) {
       return 0;
     }
-    /* relase >= 10.0.16299 */
+    /* release >= 10.0.16299 */
     for (cnt = 0; cnt < 3; ++cnt) {
       if (semver[cnt] > min_semver[cnt])
         return 1;
@@ -153,7 +153,7 @@ TEST_IMPL(tcp_local_connect_timeout) {
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -191,6 +191,6 @@ TEST_IMPL(tcp6_local_connect_timeout) {
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT_EQ(r, 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

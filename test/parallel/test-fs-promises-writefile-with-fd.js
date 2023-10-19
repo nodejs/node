@@ -5,14 +5,13 @@
 
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const { readFileSync } = require('fs');
 const { open } = require('fs').promises;
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const fn = path.join(tmpdir.path, 'test.txt');
+const fn = tmpdir.resolve('test.txt');
 
 async function writeFileTest() {
   const handle = await open(fn, 'w');
@@ -26,7 +25,7 @@ async function writeFileTest() {
   await handle.writeFile('World');
 
   /* New content should be written at position five, instead of zero. */
-  assert.deepStrictEqual(readFileSync(fn).toString(), 'HelloWorld');
+  assert.strictEqual(readFileSync(fn).toString(), 'HelloWorld');
 
   await handle.close();
 }

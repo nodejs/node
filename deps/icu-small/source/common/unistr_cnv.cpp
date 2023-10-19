@@ -82,7 +82,7 @@ UnicodeString::UnicodeString(const char *src, int32_t srcLength,
     fUnion.fFields.fLengthAndFlags = kShortString;
     if(U_SUCCESS(errorCode)) {
         // check arguments
-        if(src==NULL) {
+        if(src==nullptr) {
             // treat as an empty string, do nothing more
         } else if(srcLength<-1) {
             errorCode=U_ILLEGAL_ARGUMENT_ERROR;
@@ -225,13 +225,13 @@ UnicodeString::extract(char *dest, int32_t destCapacity,
     // get the converter
     UBool isDefaultConverter;
     if(cnv==0) {
-        isDefaultConverter=TRUE;
+        isDefaultConverter=true;
         cnv=u_getDefaultConverter(&errorCode);
         if(U_FAILURE(errorCode)) {
             return 0;
         }
     } else {
-        isDefaultConverter=FALSE;
+        isDefaultConverter=false;
         ucnv_resetFromUnicode(cnv);
     }
 
@@ -259,7 +259,7 @@ UnicodeString::doExtract(int32_t start, int32_t length,
         return 0;
     }
 
-    const UChar *src=getArrayStart()+start, *srcLimit=src+length;
+    const char16_t *src=getArrayStart()+start, *srcLimit=src+length;
     char *originalDest=dest;
     const char *destLimit;
 
@@ -275,7 +275,7 @@ UnicodeString::doExtract(int32_t start, int32_t length,
     }
 
     // perform the conversion
-    ucnv_fromUnicode(cnv, &dest, destLimit, &src, srcLimit, 0, TRUE, &errorCode);
+    ucnv_fromUnicode(cnv, &dest, destLimit, &src, srcLimit, 0, true, &errorCode);
     length=(int32_t)(dest-originalDest);
 
     // if an overflow occurs, then get the preflighting length
@@ -286,7 +286,7 @@ UnicodeString::doExtract(int32_t start, int32_t length,
         do {
             dest=buffer;
             errorCode=U_ZERO_ERROR;
-            ucnv_fromUnicode(cnv, &dest, destLimit, &src, srcLimit, 0, TRUE, &errorCode);
+            ucnv_fromUnicode(cnv, &dest, destLimit, &src, srcLimit, 0, true, &errorCode);
             length+=(int32_t)(dest-buffer);
         } while(errorCode==U_BUFFER_OVERFLOW_ERROR);
     }
@@ -322,7 +322,7 @@ UnicodeString::doCodepageCreate(const char *codepageData,
         converter = u_getDefaultConverter(&status);
     } else if(*codepage == 0) {
         // use the "invariant characters" conversion
-        if(cloneArrayIfNeeded(dataLength, dataLength, FALSE)) {
+        if(cloneArrayIfNeeded(dataLength, dataLength, false)) {
             u_charsToUChars(codepageData, getArrayStart(), dataLength);
             setLength(dataLength);
         } else {
@@ -366,7 +366,7 @@ UnicodeString::doCodepageCreate(const char *codepageData,
     // set up the conversion parameters
     const char *mySource     = codepageData;
     const char *mySourceEnd  = mySource + dataLength;
-    UChar *array, *myTarget;
+    char16_t *array, *myTarget;
 
     // estimate the size needed:
     int32_t arraySize;
@@ -374,12 +374,12 @@ UnicodeString::doCodepageCreate(const char *codepageData,
         // try to use the stack buffer
         arraySize = US_STACKBUF_SIZE;
     } else {
-        // 1.25 UChar's per source byte should cover most cases
+        // 1.25 char16_t's per source byte should cover most cases
         arraySize = dataLength + (dataLength >> 2);
     }
 
     // we do not care about the current contents
-    UBool doCopyArray = FALSE;
+    UBool doCopyArray = false;
     for(;;) {
         if(!cloneArrayIfNeeded(arraySize, arraySize, doCopyArray)) {
             setToBogus();
@@ -390,7 +390,7 @@ UnicodeString::doCodepageCreate(const char *codepageData,
         array = getArrayStart();
         myTarget = array + length();
         ucnv_toUnicode(converter, &myTarget,  array + getCapacity(),
-            &mySource, mySourceEnd, 0, TRUE, &status);
+            &mySource, mySourceEnd, 0, true, &status);
 
         // update the conversion parameters
         setLength((int32_t)(myTarget - array));
@@ -401,10 +401,10 @@ UnicodeString::doCodepageCreate(const char *codepageData,
             status = U_ZERO_ERROR;
 
             // keep the previous conversion results
-            doCopyArray = TRUE;
+            doCopyArray = true;
 
             // estimate the new size needed, larger than before
-            // try 2 UChar's per remaining source byte
+            // try 2 char16_t's per remaining source byte
             arraySize = (int32_t)(length() + 2 * (mySourceEnd - mySource));
         } else {
             break;

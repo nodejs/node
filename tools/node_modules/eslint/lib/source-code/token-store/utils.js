@@ -5,20 +5,6 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
-
-/**
- * Gets `token.range[0]` from the given token.
- * @param {Node|Token|Comment} token The token to get.
- * @returns {number} The start location.
- * @private
- */
-function getStartLocation(token) {
-    return token.range[0];
-}
-
-//------------------------------------------------------------------------------
 // Exports
 //------------------------------------------------------------------------------
 
@@ -30,9 +16,28 @@ function getStartLocation(token) {
  * @returns {number} The found index or `tokens.length`.
  */
 exports.search = function search(tokens, location) {
-    const index = tokens.findIndex(el => location <= getStartLocation(el));
+    for (let minIndex = 0, maxIndex = tokens.length - 1; minIndex <= maxIndex;) {
 
-    return index === -1 ? tokens.length : index;
+        /*
+         * Calculate the index in the middle between minIndex and maxIndex.
+         * `| 0` is used to round a fractional value down to the nearest integer: this is similar to
+         * using `Math.trunc()` or `Math.floor()`, but performance tests have shown this method to
+         * be faster.
+         */
+        const index = (minIndex + maxIndex) / 2 | 0;
+        const token = tokens[index];
+        const tokenStartLocation = token.range[0];
+
+        if (location <= tokenStartLocation) {
+            if (index === minIndex) {
+                return index;
+            }
+            maxIndex = index;
+        } else {
+            minIndex = index + 1;
+        }
+    }
+    return tokens.length;
 };
 
 /**
@@ -49,13 +54,18 @@ exports.getFirstIndex = function getFirstIndex(tokens, indexMap, startLoc) {
     }
     if ((startLoc - 1) in indexMap) {
         const index = indexMap[startLoc - 1];
-        const token = (index >= 0 && index < tokens.length) ? tokens[index] : null;
+        const token = tokens[index];
+
+        // If the mapped index is out of bounds, the returned cursor index will point after the end of the tokens array.
+        if (!token) {
+            return tokens.length;
+        }
 
         /*
          * For the map of "comment's location -> token's index", it points the next token of a comment.
          * In that case, +1 is unnecessary.
          */
-        if (token && token.range[0] >= startLoc) {
+        if (token.range[0] >= startLoc) {
             return index;
         }
         return index + 1;
@@ -77,13 +87,18 @@ exports.getLastIndex = function getLastIndex(tokens, indexMap, endLoc) {
     }
     if ((endLoc - 1) in indexMap) {
         const index = indexMap[endLoc - 1];
-        const token = (index >= 0 && index < tokens.length) ? tokens[index] : null;
+        const token = tokens[index];
+
+        // If the mapped index is out of bounds, the returned cursor index will point before the end of the tokens array.
+        if (!token) {
+            return tokens.length - 1;
+        }
 
         /*
          * For the map of "comment's location -> token's index", it points the next token of a comment.
          * In that case, -1 is necessary.
          */
-        if (token && token.range[1] > endLoc) {
+        if (token.range[1] > endLoc) {
             return index - 1;
         }
         return index;

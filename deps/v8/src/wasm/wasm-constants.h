@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_CONSTANTS_H_
 #define V8_WASM_WASM_CONSTANTS_H_
 
@@ -20,7 +24,7 @@ constexpr uint32_t kWasmVersion = 0x01;
 
 // Binary encoding of value and heap types.
 enum ValueTypeCode : uint8_t {
-  // Current wasm types
+  // Current value types
   kVoidCode = 0x40,
   kI32Code = 0x7f,
   kI64Code = 0x7e,
@@ -28,24 +32,36 @@ enum ValueTypeCode : uint8_t {
   kF64Code = 0x7c,
   // Simd proposal
   kS128Code = 0x7b,
-  // reftypes, typed-funcref, and GC proposals
+  // GC proposal packed types
   kI8Code = 0x7a,
   kI16Code = 0x79,
+  // Current reference types
   kFuncRefCode = 0x70,
   kExternRefCode = 0x6f,
+  // typed-funcref and GC proposal types
   kAnyRefCode = 0x6e,
   kEqRefCode = 0x6d,
-  kOptRefCode = 0x6c,
+  kRefNullCode = 0x6c,
   kRefCode = 0x6b,
   kI31RefCode = 0x6a,
-  kRttWithDepthCode = 0x69,
-  kRttCode = 0x68,
-  kDataRefCode = 0x67,
+  kNoExternCode = 0x69,  // TODO(7784): Switch to official encoding.
+  kNoFuncCode = 0x68,    // TODO(7784): Switch to official encoding.
+  kStructRefCode = 0x67,
+  kArrayRefCode = 0x66,
+  kNoneCode = 0x65,
+  kStringRefCode = 0x64,
+  kStringViewWtf8Code = 0x63,
+  kStringViewWtf16Code = 0x62,
+  kStringViewIterCode = 0x61,
 };
-// Binary encoding of other types.
+
+// Binary encoding of type definitions.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
+constexpr uint8_t kWasmSubtypeCode = 0x50;
+constexpr uint8_t kWasmSubtypeFinalCode = 0x4e;
+constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4f;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
@@ -53,16 +69,18 @@ enum ImportExportKindCode : uint8_t {
   kExternalTable = 1,
   kExternalMemory = 2,
   kExternalGlobal = 3,
-  kExternalException = 4
+  kExternalTag = 4
 };
 
 enum LimitsFlags : uint8_t {
-  kNoMaximum = 0x00,           // Also valid for table limits.
-  kWithMaximum = 0x01,         // Also valid for table limits.
-  kSharedNoMaximum = 0x02,     // Only valid for memory limits.
-  kSharedWithMaximum = 0x03,   // Only valid for memory limits.
-  kMemory64NoMaximum = 0x04,   // Only valid for memory limits.
-  kMemory64WithMaximum = 0x05  // Only valid for memory limits.
+  kNoMaximum = 0x00,                 // Also valid for table limits.
+  kWithMaximum = 0x01,               // Also valid for table limits.
+  kSharedNoMaximum = 0x02,           // Only valid for memory limits.
+  kSharedWithMaximum = 0x03,         // Only valid for memory limits.
+  kMemory64NoMaximum = 0x04,         // Only valid for memory limits.
+  kMemory64WithMaximum = 0x05,       // Only valid for memory limits.
+  kMemory64SharedNoMaximum = 0x06,   // Only valid for memory limits.
+  kMemory64SharedWithMaximum = 0x07  // Only valid for memory limits.
 };
 
 // Flags for data and element segments.
@@ -87,7 +105,8 @@ enum SectionCode : int8_t {
   kCodeSectionCode = 10,       // Function code
   kDataSectionCode = 11,       // Data segments
   kDataCountSectionCode = 12,  // Number of data segments
-  kExceptionSectionCode = 13,  // Exception section
+  kTagSectionCode = 13,        // Tag section
+  kStringRefSectionCode = 14,  // Stringref literal section
 
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed
@@ -96,11 +115,13 @@ enum SectionCode : int8_t {
   kSourceMappingURLSectionCode,   // Source Map URL section
   kDebugInfoSectionCode,          // DWARF section .debug_info
   kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
+  kInstTraceSectionCode,          // Instruction trace section
   kCompilationHintsSectionCode,   // Compilation hints section
+  kBranchHintsSectionCode,        // Branch hints section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
-  kLastKnownModuleSection = kCompilationHintsSectionCode,
+  kLastKnownModuleSection = kStringRefSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
 
@@ -109,7 +130,23 @@ constexpr uint8_t kDefaultCompilationHint = 0x0;
 constexpr uint8_t kNoCompilationHint = kMaxUInt8;
 
 // Binary encoding of name section kinds.
-enum NameSectionKindCode : uint8_t { kModule = 0, kFunction = 1, kLocal = 2 };
+enum NameSectionKindCode : uint8_t {
+  kModuleCode = 0,
+  kFunctionCode = 1,
+  kLocalCode = 2,
+  // https://github.com/WebAssembly/extended-name-section/
+  kLabelCode = 3,
+  kTypeCode = 4,
+  kTableCode = 5,
+  kMemoryCode = 6,
+  kGlobalCode = 7,
+  kElementSegmentCode = 8,
+  kDataSegmentCode = 9,
+  // https://github.com/WebAssembly/gc/issues/193
+  kFieldCode = 10,
+  // https://github.com/WebAssembly/exception-handling/pull/213
+  kTagCode = 11,
+};
 
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
@@ -137,6 +174,21 @@ constexpr int kAnonymousFuncIndex = -1;
 // wrappers early on for those functions that have the potential to be called
 // often enough.
 constexpr uint32_t kGenericWrapperBudget = 1000;
+
+// The minimum length of supertype arrays for wasm-gc types. Having a size > 0
+// gives up some module size for faster access to the supertypes.
+constexpr uint32_t kMinimumSupertypeArraySize = 3;
+
+// Maximum number of call targets tracked per call.
+constexpr int kMaxPolymorphism = 4;
+
+// A struct field beyond this limit needs an explicit null check (trapping null
+// access not guaranteed to behave properly).
+constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
+
+#if V8_TARGET_ARCH_X64
+constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;
+#endif
 
 }  // namespace wasm
 }  // namespace internal

@@ -37,18 +37,36 @@
 #ifndef DOUBLE_CONVERSION_UTILS_H_
 #define DOUBLE_CONVERSION_UTILS_H_
 
+// Use DOUBLE_CONVERSION_NON_PREFIXED_MACROS to get unprefixed macros as was
+// the case in double-conversion releases prior to 3.1.6
+
 #include <cstdlib>
 #include <cstring>
+
+// For pre-C++11 compatibility
+#if __cplusplus >= 201103L
+#define DOUBLE_CONVERSION_NULLPTR nullptr
+#else
+#define DOUBLE_CONVERSION_NULLPTR NULL
+#endif
 
 // ICU PATCH: Use U_ASSERT instead of <assert.h>
 #include "uassert.h"
 #ifndef DOUBLE_CONVERSION_ASSERT
 #define DOUBLE_CONVERSION_ASSERT(condition)         \
-    U_ASSERT(condition);
+    U_ASSERT(condition)
 #endif
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(ASSERT)
+#define ASSERT DOUBLE_CONVERSION_ASSERT
+#endif
+
 #ifndef DOUBLE_CONVERSION_UNIMPLEMENTED
 #define DOUBLE_CONVERSION_UNIMPLEMENTED() (abort())
 #endif
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(UNIMPLEMENTED)
+#define UNIMPLEMENTED DOUBLE_CONVERSION_UNIMPLEMENTED
+#endif
+
 #ifndef DOUBLE_CONVERSION_NO_RETURN
 #ifdef _MSC_VER
 #define DOUBLE_CONVERSION_NO_RETURN __declspec(noreturn)
@@ -56,6 +74,10 @@
 #define DOUBLE_CONVERSION_NO_RETURN __attribute__((noreturn))
 #endif
 #endif
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(NO_RETURN)
+#define NO_RETURN DOUBLE_CONVERSION_NO_RETURN
+#endif
+
 #ifndef DOUBLE_CONVERSION_UNREACHABLE
 #ifdef _MSC_VER
 void DOUBLE_CONVERSION_NO_RETURN abort_noreturn();
@@ -64,6 +86,9 @@ inline void abort_noreturn() { abort(); }
 #else
 #define DOUBLE_CONVERSION_UNREACHABLE()   (abort())
 #endif
+#endif
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(UNREACHABLE)
+#define UNREACHABLE DOUBLE_CONVERSION_UNREACHABLE
 #endif
 
 // Not all compilers support __has_attribute and combining a check for both
@@ -81,11 +106,17 @@ inline void abort_noreturn() { abort(); }
 #define DOUBLE_CONVERSION_UNUSED
 #endif
 #endif
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(UNUSED)
+#define UNUSED DOUBLE_CONVERSION_UNUSED
+#endif
 
 #if DOUBLE_CONVERSION_HAS_ATTRIBUTE(uninitialized)
 #define DOUBLE_CONVERSION_STACK_UNINITIALIZED __attribute__((uninitialized))
 #else
 #define DOUBLE_CONVERSION_STACK_UNINITIALIZED
+#endif
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(STACK_UNINITIALIZED)
+#define STACK_UNINITIALIZED DOUBLE_CONVERSION_STACK_UNINITIALIZED
 #endif
 
 // Double operations detection based on target architecture.
@@ -118,6 +149,7 @@ int main(int argc, char** argv) {
     defined(__ARMEL__) || defined(__avr32__) || defined(_M_ARM) || defined(_M_ARM64) || \
     defined(__hppa__) || defined(__ia64__) || \
     defined(__mips__) || \
+    defined(__loongarch__) || \
     defined(__nios2__) || defined(__ghs) || \
     defined(__powerpc__) || defined(__ppc__) || defined(__ppc64__) || \
     defined(_POWER) || defined(_ARCH_PPC) || defined(_ARCH_PPC64) || \
@@ -126,7 +158,7 @@ int main(int argc, char** argv) {
     defined(_MIPS_ARCH_MIPS32R2) || defined(__ARMEB__) ||\
     defined(__AARCH64EL__) || defined(__aarch64__) || defined(__AARCH64EB__) || \
     defined(__riscv) || defined(__e2k__) || \
-    defined(__or1k__) || defined(__arc__) || \
+    defined(__or1k__) || defined(__arc__) || defined(__ARC64__) || \
     defined(__microblaze__) || defined(__XTENSA__) || \
     defined(__EMSCRIPTEN__) || defined(__wasm32__)
 #define DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS 1
@@ -142,6 +174,9 @@ int main(int argc, char** argv) {
 #endif  // _WIN32
 #else
 #error Target architecture was not detected as supported by Double-Conversion.
+#endif
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(CORRECT_DOUBLE_OPERATIONS)
+#define CORRECT_DOUBLE_OPERATIONS DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS
 #endif
 
 #if defined(_WIN32) && !defined(__MINGW32__)
@@ -168,7 +203,9 @@ typedef uint16_t uc16;
 // Usage: instead of writing 0x1234567890123456
 //      write DOUBLE_CONVERSION_UINT64_2PART_C(0x12345678,90123456);
 #define DOUBLE_CONVERSION_UINT64_2PART_C(a, b) (((static_cast<uint64_t>(a) << 32) + 0x##b##u))
-
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(UINT64_2PART_C)
+#define UINT64_2PART_C DOUBLE_CONVERSION_UINT64_2PART_C
+#endif
 
 // The expression DOUBLE_CONVERSION_ARRAY_SIZE(a) is a compile-time constant of type
 // size_t which represents the number of elements of the given
@@ -179,6 +216,9 @@ typedef uint16_t uc16;
   ((sizeof(a) / sizeof(*(a))) /                         \
   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
 #endif
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(ARRAY_SIZE)
+#define ARRAY_SIZE DOUBLE_CONVERSION_ARRAY_SIZE
+#endif
 
 // A macro to disallow the evil copy constructor and operator= functions
 // This should be used in the private: declarations for a class
@@ -186,6 +226,9 @@ typedef uint16_t uc16;
 #define DOUBLE_CONVERSION_DISALLOW_COPY_AND_ASSIGN(TypeName)      \
   TypeName(const TypeName&);                    \
   void operator=(const TypeName&)
+#endif
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(DC_DISALLOW_COPY_AND_ASSIGN)
+#define DC_DISALLOW_COPY_AND_ASSIGN DOUBLE_CONVERSION_DISALLOW_COPY_AND_ASSIGN
 #endif
 
 // A macro to disallow all the implicit constructors, namely the
@@ -198,6 +241,9 @@ typedef uint16_t uc16;
 #define DOUBLE_CONVERSION_DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
   TypeName();                                    \
   DOUBLE_CONVERSION_DISALLOW_COPY_AND_ASSIGN(TypeName)
+#endif
+#if defined(DOUBLE_CONVERSION_NON_PREFIXED_MACROS) && !defined(DC_DISALLOW_IMPLICIT_CONSTRUCTORS)
+#define DC_DISALLOW_IMPLICIT_CONSTRUCTORS DOUBLE_CONVERSION_DISALLOW_IMPLICIT_CONSTRUCTORS
 #endif
 
 // ICU PATCH: Wrap in ICU namespace
@@ -215,9 +261,9 @@ inline int StrLength(const char* string) {
 template <typename T>
 class Vector {
  public:
-  Vector() : start_(NULL), length_(0) {}
+  Vector() : start_(DOUBLE_CONVERSION_NULLPTR), length_(0) {}
   Vector(T* data, int len) : start_(data), length_(len) {
-    DOUBLE_CONVERSION_ASSERT(len == 0 || (len > 0 && data != NULL));
+    DOUBLE_CONVERSION_ASSERT(len == 0 || (len > 0 && data != DOUBLE_CONVERSION_NULLPTR));
   }
 
   // Returns a vector using the same backing storage as this one,
@@ -300,7 +346,7 @@ class StringBuilder {
   void AddSubstring(const char* s, int n) {
     DOUBLE_CONVERSION_ASSERT(!is_finalized() && position_ + n < buffer_.length());
     DOUBLE_CONVERSION_ASSERT(static_cast<size_t>(n) <= strlen(s));
-    memmove(&buffer_[position_], s, n);
+    memmove(&buffer_[position_], s, static_cast<size_t>(n));
     position_ += n;
   }
 

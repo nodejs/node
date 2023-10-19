@@ -15,7 +15,7 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 /**
- * Return an array with with any line numbers that are empty.
+ * Return an array with any line numbers that are empty.
  * @param {Array} lines An array of each line of the file.
  * @returns {Array} An array of line numbers.
  */
@@ -29,7 +29,7 @@ function getEmptyLineNums(lines) {
 }
 
 /**
- * Return an array with with any line numbers that contain comments.
+ * Return an array with any line numbers that contain comments.
  * @param {Array} comments An array of comment tokens.
  * @returns {Array} An array of line numbers.
  */
@@ -49,15 +49,15 @@ function getCommentLineNums(comments) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "require empty lines around comments",
-            category: "Stylistic Issues",
+            description: "Require empty lines around comments",
             recommended: false,
-            url: "https://eslint.org/docs/rules/lines-around-comment"
+            url: "https://eslint.org/docs/latest/rules/lines-around-comment"
         },
 
         fixable: "whitespace",
@@ -113,6 +113,10 @@ module.exports = {
                     },
                     applyDefaultIgnorePatterns: {
                         type: "boolean"
+                    },
+                    afterHashbangComment: {
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -134,14 +138,14 @@ module.exports = {
 
         options.beforeBlockComment = typeof options.beforeBlockComment !== "undefined" ? options.beforeBlockComment : true;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         const lines = sourceCode.lines,
             numLines = lines.length + 1,
             comments = sourceCode.getAllComments(),
             commentLines = getCommentLineNums(comments),
             emptyLines = getEmptyLineNums(lines),
-            commentAndEmptyLines = commentLines.concat(emptyLines);
+            commentAndEmptyLines = new Set(commentLines.concat(emptyLines));
 
         /**
          * Returns whether or not comments are on lines starting with or ending with code
@@ -186,10 +190,39 @@ module.exports = {
         /**
          * Returns the parent node that contains the given token.
          * @param {token} token The token to check.
-         * @returns {ASTNode} The parent node that contains the given token.
+         * @returns {ASTNode|null} The parent node that contains the given token.
          */
         function getParentNodeOfToken(token) {
-            return sourceCode.getNodeByRangeIndex(token.range[0]);
+            const node = sourceCode.getNodeByRangeIndex(token.range[0]);
+
+            /*
+             * For the purpose of this rule, the comment token is in a `StaticBlock` node only
+             * if it's inside the braces of that `StaticBlock` node.
+             *
+             * Example where this function returns `null`:
+             *
+             *   static
+             *   // comment
+             *   {
+             *   }
+             *
+             * Example where this function returns `StaticBlock` node:
+             *
+             *   static
+             *   {
+             *   // comment
+             *   }
+             *
+             */
+            if (node && node.type === "StaticBlock") {
+                const openingBrace = sourceCode.getFirstToken(node, { skip: 1 }); // skip the `static` token
+
+                return token.range[0] >= openingBrace.range[0]
+                    ? node
+                    : null;
+            }
+
+            return node;
         }
 
         /**
@@ -201,8 +234,21 @@ module.exports = {
         function isCommentAtParentStart(token, nodeType) {
             const parent = getParentNodeOfToken(token);
 
-            return parent && isParentNodeType(parent, nodeType) &&
-                    token.loc.start.line - parent.loc.start.line === 1;
+            if (parent && isParentNodeType(parent, nodeType)) {
+                let parentStartNodeOrToken = parent;
+
+                if (parent.type === "StaticBlock") {
+                    parentStartNodeOrToken = sourceCode.getFirstToken(parent, { skip: 1 }); // opening brace of the static block
+                } else if (parent.type === "SwitchStatement") {
+                    parentStartNodeOrToken = sourceCode.getTokenAfter(parent.discriminant, {
+                        filter: astUtils.isOpeningBraceToken
+                    }); // opening brace of the switch statement
+                }
+
+                return token.loc.start.line - parentStartNodeOrToken.loc.start.line === 1;
+            }
+
+            return false;
         }
 
         /**
@@ -214,7 +260,7 @@ module.exports = {
         function isCommentAtParentEnd(token, nodeType) {
             const parent = getParentNodeOfToken(token);
 
-            return parent && isParentNodeType(parent, nodeType) &&
+            return !!parent && isParentNodeType(parent, nodeType) &&
                     parent.loc.end.line - token.loc.end.line === 1;
         }
 
@@ -224,7 +270,13 @@ module.exports = {
          * @returns {boolean} True if the comment is at block start.
          */
         function isCommentAtBlockStart(token) {
-            return isCommentAtParentStart(token, "ClassBody") || isCommentAtParentStart(token, "BlockStatement") || isCommentAtParentStart(token, "SwitchCase");
+            return (
+                isCommentAtParentStart(token, "ClassBody") ||
+                isCommentAtParentStart(token, "BlockStatement") ||
+                isCommentAtParentStart(token, "StaticBlock") ||
+                isCommentAtParentStart(token, "SwitchCase") ||
+                isCommentAtParentStart(token, "SwitchStatement")
+            );
         }
 
         /**
@@ -233,7 +285,13 @@ module.exports = {
          * @returns {boolean} True if the comment is at block end.
          */
         function isCommentAtBlockEnd(token) {
-            return isCommentAtParentEnd(token, "ClassBody") || isCommentAtParentEnd(token, "BlockStatement") || isCommentAtParentEnd(token, "SwitchCase") || isCommentAtParentEnd(token, "SwitchStatement");
+            return (
+                isCommentAtParentEnd(token, "ClassBody") ||
+                isCommentAtParentEnd(token, "BlockStatement") ||
+                isCommentAtParentEnd(token, "StaticBlock") ||
+                isCommentAtParentEnd(token, "SwitchCase") ||
+                isCommentAtParentEnd(token, "SwitchStatement")
+            );
         }
 
         /**
@@ -346,7 +404,7 @@ module.exports = {
             const nextTokenOrComment = sourceCode.getTokenAfter(token, { includeComments: true });
 
             // check for newline before
-            if (!exceptionStartAllowed && before && !commentAndEmptyLines.includes(prevLineNum) &&
+            if (!exceptionStartAllowed && before && !commentAndEmptyLines.has(prevLineNum) &&
                     !(astUtils.isCommentToken(previousTokenOrComment) && astUtils.isTokenOnSameLine(previousTokenOrComment, token))) {
                 const lineStart = token.range[0] - token.loc.start.column;
                 const range = [lineStart, lineStart];
@@ -361,7 +419,7 @@ module.exports = {
             }
 
             // check for newline after
-            if (!exceptionEndAllowed && after && !commentAndEmptyLines.includes(nextLineNum) &&
+            if (!exceptionEndAllowed && after && !commentAndEmptyLines.has(nextLineNum) &&
                     !(astUtils.isCommentToken(nextTokenOrComment) && astUtils.isTokenOnSameLine(token, nextTokenOrComment))) {
                 context.report({
                     node: token,
@@ -393,6 +451,13 @@ module.exports = {
                             checkForEmptyLine(token, {
                                 after: options.afterBlockComment,
                                 before: options.beforeBlockComment
+                            });
+                        }
+                    } else if (token.type === "Shebang") {
+                        if (options.afterHashbangComment) {
+                            checkForEmptyLine(token, {
+                                after: options.afterHashbangComment,
+                                before: false
                             });
                         }
                     }

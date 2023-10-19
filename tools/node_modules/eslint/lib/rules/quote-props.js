@@ -16,15 +16,15 @@ const keywords = require("./utils/keywords");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require quotes around object literal property names",
-            category: "Stylistic Issues",
+            description: "Require quotes around object literal property names",
             recommended: false,
-            url: "https://eslint.org/docs/rules/quote-props"
+            url: "https://eslint.org/docs/latest/rules/quote-props"
         },
 
         schema: {
@@ -86,29 +86,29 @@ module.exports = {
             CHECK_UNNECESSARY = !context.options[1] || context.options[1].unnecessary !== false,
             NUMBERS = context.options[1] && context.options[1].numbers,
 
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
 
         /**
          * Checks whether a certain string constitutes an ES3 token
-         * @param   {string} tokenStr The string to be checked.
+         * @param {string} tokenStr The string to be checked.
          * @returns {boolean} `true` if it is an ES3 token.
          */
         function isKeyword(tokenStr) {
-            return keywords.indexOf(tokenStr) >= 0;
+            return keywords.includes(tokenStr);
         }
 
         /**
          * Checks if an espree-tokenized key has redundant quotes (i.e. whether quotes are unnecessary)
-         * @param   {string} rawKey The raw key value from the source
-         * @param   {espreeTokens} tokens The espree-tokenized node key
-         * @param   {boolean} [skipNumberLiterals=false] Indicates whether number literals should be checked
+         * @param {string} rawKey The raw key value from the source
+         * @param {espreeTokens} tokens The espree-tokenized node key
+         * @param {boolean} [skipNumberLiterals=false] Indicates whether number literals should be checked
          * @returns {boolean} Whether or not a key has redundant quotes.
          * @private
          */
         function areQuotesRedundant(rawKey, tokens, skipNumberLiterals) {
             return tokens.length === 1 && tokens[0].start === 0 && tokens[0].end === rawKey.length &&
-                (["Identifier", "Keyword", "Null", "Boolean"].indexOf(tokens[0].type) >= 0 ||
+                (["Identifier", "Keyword", "Null", "Boolean"].includes(tokens[0].type) ||
                 (tokens[0].type === "Numeric" && !skipNumberLiterals && String(+tokens[0].value) === tokens[0].value));
         }
 
@@ -139,7 +139,7 @@ module.exports = {
 
         /**
          * Ensures that a property's key is quoted only when necessary
-         * @param   {ASTNode} node Property AST node
+         * @param {ASTNode} node Property AST node
          * @returns {void}
          */
         function checkUnnecessaryQuotes(node) {
@@ -195,7 +195,7 @@ module.exports = {
 
         /**
          * Ensures that a property's key is quoted
-         * @param   {ASTNode} node Property AST node
+         * @param {ASTNode} node Property AST node
          * @returns {void}
          */
         function checkOmittedQuotes(node) {
@@ -213,8 +213,8 @@ module.exports = {
 
         /**
          * Ensures that an object's keys are consistently quoted, optionally checks for redundancy of quotes
-         * @param   {ASTNode} node Property AST node
-         * @param   {boolean} checkQuotesRedundancy Whether to check quotes' redundancy
+         * @param {ASTNode} node Property AST node
+         * @param {boolean} checkQuotesRedundancy Whether to check quotes' redundancy
          * @returns {void}
          */
         function checkConsistency(node, checkQuotesRedundancy) {

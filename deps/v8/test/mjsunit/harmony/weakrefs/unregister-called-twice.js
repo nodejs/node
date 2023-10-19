@@ -4,39 +4,47 @@
 
 // Flags: --expose-gc --noincremental-marking
 
-let cleanup_call_count = 0;
-let cleanup = function(holdings) {
-  ++cleanup_call_count;
-}
+(async function () {
 
-let fg = new FinalizationRegistry(cleanup);
-let key = {"k": "this is the key"};
-// Create an object and register it in the FinalizationRegistry. The object needs
-// to be inside a closure so that we can reliably kill them!
+  let cleanup_call_count = 0;
+  let cleanup = function (holdings) {
+    ++cleanup_call_count;
+  }
 
-(function() {
-  let object = {};
-  fg.register(object, "holdings", key);
+  let fg = new FinalizationRegistry(cleanup);
+  let key = { "k": "this is the key" };
+  // Create an object and register it in the FinalizationRegistry. The object needs
+  // to be inside a closure so that we can reliably kill them!
 
-  // Unregister before the GC has a chance to discover the object.
-  let success = fg.unregister(key);
-  assertTrue(success);
+  (function () {
+    let object = {};
+    fg.register(object, "holdings", key);
 
-  // Call unregister again (just to assert we handle this gracefully).
-  success = fg.unregister(key);
-  assertFalse(success);
+    // Unregister before the GC has a chance to discover the object.
+    let success = fg.unregister(key);
+    assertTrue(success);
 
-  // object goes out of scope.
-})();
+    // Call unregister again (just to assert we handle this gracefully).
+    success = fg.unregister(key);
+    assertFalse(success);
 
-// This GC will reclaim the target object.
-gc();
-assertEquals(0, cleanup_call_count);
+    // object goes out of scope.
+  })();
 
-// Assert that the cleanup function won't be called, since the weak reference
-// was unregistered.
-let timeout_func = function() {
+  // This GC will reclaim the target object.
+  // We need to invoke GC asynchronously and wait for it to finish, so that
+  // it doesn't need to scan the stack. Otherwise, the objects may not be
+  // reclaimed because of conservative stack scanning and the test may not
+  // work as intended.
+  await gc({ type: 'major', execution: 'async' });
   assertEquals(0, cleanup_call_count);
-}
 
-setTimeout(timeout_func, 0);
+  // Assert that the cleanup function won't be called, since the weak reference
+  // was unregistered.
+  let timeout_func = function () {
+    assertEquals(0, cleanup_call_count);
+  }
+
+  setTimeout(timeout_func, 0);
+
+})();

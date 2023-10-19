@@ -45,7 +45,7 @@ class IC {
   void MarkRecomputeHandler(Handle<Object> name) {
     DCHECK(RecomputeHandlerForName(name));
     old_state_ = state_;
-    state_ = RECOMPUTE_HANDLER;
+    state_ = InlineCacheState::RECOMPUTE_HANDLER;
   }
 
   bool IsAnyHas() const { return IsKeyedHasIC(); }
@@ -53,20 +53,26 @@ class IC {
     return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
   bool IsAnyStore() const {
-    return IsStoreIC() || IsStoreOwnIC() || IsStoreGlobalIC() ||
-           IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind());
+    return IsSetNamedIC() || IsDefineNamedOwnIC() || IsStoreGlobalIC() ||
+           IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind()) ||
+           IsDefineKeyedOwnIC();
+  }
+  bool IsAnyDefineOwn() const {
+    return IsDefineNamedOwnIC() || IsDefineKeyedOwnIC();
   }
 
   static inline bool IsHandler(MaybeObject object);
 
   // Nofity the IC system that a feedback has changed.
-  static void OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
+  static void OnFeedbackChanged(Isolate* isolate, Tagged<FeedbackVector> vector,
                                 FeedbackSlot slot, const char* reason);
 
   void OnFeedbackChanged(const char* reason);
 
  protected:
   void set_slow_stub_reason(const char* reason) { slow_stub_reason_ = reason; }
+  void set_accessor(Handle<Object> accessor) { accessor_ = accessor; }
+  MaybeHandle<Object> accessor() const { return accessor_; }
 
   Isolate* isolate() const { return isolate_; }
 
@@ -96,6 +102,7 @@ class IC {
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
   void UpdateMonomorphicIC(const MaybeObjectHandle& handler, Handle<Name> name);
+  bool UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name);
   bool UpdatePolymorphicIC(Handle<Name> name, const MaybeObjectHandle& handler);
   void UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
                               const MaybeObjectHandle& handler);
@@ -103,7 +110,8 @@ class IC {
   StubCache* stub_cache();
 
   void CopyICToMegamorphicCache(Handle<Name> name);
-  bool IsTransitionOfMonomorphicTarget(Map source_map, Map target_map);
+  bool IsTransitionOfMonomorphicTarget(Tagged<Map> source_map,
+                                       Tagged<Map> target_map);
   void SetCache(Handle<Name> name, Handle<Object> handler);
   void SetCache(Handle<Name> name, const MaybeObjectHandle& handler);
   FeedbackSlotKind kind() const { return kind_; }
@@ -112,13 +120,17 @@ class IC {
   bool IsLoadGlobalIC() const { return IsLoadGlobalICKind(kind_); }
   bool IsKeyedLoadIC() const { return IsKeyedLoadICKind(kind_); }
   bool IsStoreGlobalIC() const { return IsStoreGlobalICKind(kind_); }
-  bool IsStoreIC() const { return IsStoreICKind(kind_); }
-  bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
+  bool IsSetNamedIC() const { return IsSetNamedICKind(kind_); }
+  bool IsDefineNamedOwnIC() const { return IsDefineNamedOwnICKind(kind_); }
+  bool IsStoreInArrayLiteralIC() const {
+    return IsStoreInArrayLiteralICKind(kind_);
+  }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
   bool IsKeyedHasIC() const { return IsKeyedHasICKind(kind_); }
+  bool IsDefineKeyedOwnIC() const { return IsDefineKeyedOwnICKind(kind_); }
   bool is_keyed() const {
-    return IsKeyedLoadIC() || IsKeyedStoreIC() ||
-           IsStoreInArrayLiteralICKind(kind_) || IsKeyedHasIC();
+    return IsKeyedLoadIC() || IsKeyedStoreIC() || IsStoreInArrayLiteralIC() ||
+           IsKeyedHasIC() || IsDefineKeyedOwnIC();
   }
   bool ShouldRecomputeHandler(Handle<String> name);
 
@@ -132,9 +144,9 @@ class IC {
     }
   }
 
-  Map FirstTargetMap() {
+  Tagged<Map> FirstTargetMap() {
     FindTargetMaps();
-    return !target_maps_.empty() ? *target_maps_[0] : Map();
+    return !target_maps_.empty() ? *target_maps_[0] : Tagged<Map>();
   }
 
   const FeedbackNexus* nexus() const { return &nexus_; }
@@ -154,7 +166,7 @@ class IC {
   State state_;
   FeedbackSlotKind kind_;
   Handle<Map> lookup_start_object_map_;
-
+  MaybeHandle<Object> accessor_;
   MapHandles target_maps_;
   bool target_maps_set_;
 
@@ -192,7 +204,7 @@ class LoadIC : public IC {
   void UpdateCaches(LookupIterator* lookup);
 
  private:
-  Handle<Object> ComputeHandler(LookupIterator* lookup);
+  MaybeObjectHandle ComputeHandler(LookupIterator* lookup);
 
   friend class IC;
   friend class NamedLoadHandlerCompiler;
@@ -332,7 +344,8 @@ class StoreInArrayLiteralIC : public KeyedStoreIC {
     DCHECK(IsStoreInArrayLiteralICKind(kind()));
   }
 
-  void Store(Handle<JSArray> array, Handle<Object> index, Handle<Object> value);
+  MaybeHandle<Object> Store(Handle<JSArray> array, Handle<Object> index,
+                            Handle<Object> value);
 };
 
 }  // namespace internal

@@ -609,8 +609,10 @@ function TestTypedArraySet() {
   assertThrows(function() { a.set.call({}) }, TypeError);
   assertThrows(function() { a.set.call([]) }, TypeError);
 
-  assertThrows(function() { a.set(0); }, TypeError);
-  assertThrows(function() { a.set(0, 1); }, TypeError);
+  a.set(0);
+  assertArrayPrefix(expected, a);
+  a.set(0, 1);
+  assertArrayPrefix(expected, a);
 
   assertEquals(1, a.set.length);
 
@@ -640,7 +642,7 @@ function TestTypedArraySet() {
       return 1;
     }
   };
-  assertThrows(() => a111.set(evilarr), TypeError);
+  a111.set(evilarr);
   assertEquals(true, detached);
 
   // Check if the target is a typed array before converting offset to integer

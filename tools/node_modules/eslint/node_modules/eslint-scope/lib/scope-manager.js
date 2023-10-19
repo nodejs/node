@@ -21,26 +21,27 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-"use strict";
 
 /* eslint-disable no-underscore-dangle */
 
-const Scope = require("./scope");
-const assert = require("assert");
-
-const GlobalScope = Scope.GlobalScope;
-const CatchScope = Scope.CatchScope;
-const WithScope = Scope.WithScope;
-const ModuleScope = Scope.ModuleScope;
-const ClassScope = Scope.ClassScope;
-const SwitchScope = Scope.SwitchScope;
-const FunctionScope = Scope.FunctionScope;
-const ForScope = Scope.ForScope;
-const FunctionExpressionNameScope = Scope.FunctionExpressionNameScope;
-const BlockScope = Scope.BlockScope;
+import {
+    BlockScope,
+    CatchScope,
+    ClassFieldInitializerScope,
+    ClassStaticBlockScope,
+    ClassScope,
+    ForScope,
+    FunctionExpressionNameScope,
+    FunctionScope,
+    GlobalScope,
+    ModuleScope,
+    SwitchScope,
+    WithScope
+} from "./scope.js";
+import assert from "assert";
 
 /**
- * @class ScopeManager
+ * @constructor ScopeManager
  */
 class ScopeManager {
     constructor(options) {
@@ -64,8 +65,8 @@ class ScopeManager {
         return this.__options.ignoreEval;
     }
 
-    __isNodejsScope() {
-        return this.__options.nodejsScope;
+    isGlobalReturn() {
+        return this.__options.nodejsScope || this.__options.sourceType === "commonjs";
     }
 
     isModule() {
@@ -91,8 +92,7 @@ class ScopeManager {
      * "are declared by the node" means the node is same as `Variable.defs[].node` or `Variable.defs[].parent`.
      * If the node declares nothing, this method returns an empty array.
      * CAUTION: This API is experimental. See https://github.com/estools/escope/pull/69 for more details.
-     *
-     * @param {Espree.Node} node - a node to get.
+     * @param {Espree.Node} node a node to get.
      * @returns {Variable[]} variables that declared by the node.
      */
     getDeclaredVariables(node) {
@@ -101,16 +101,16 @@ class ScopeManager {
 
     /**
      * acquire scope from node.
-     * @method ScopeManager#acquire
-     * @param {Espree.Node} node - node for the acquired scope.
-     * @param {boolean=} inner - look up the most inner scope, default value is false.
+     * @function ScopeManager#acquire
+     * @param {Espree.Node} node node for the acquired scope.
+     * @param {?boolean} [inner=false] look up the most inner scope, default value is false.
      * @returns {Scope?} Scope from node
      */
     acquire(node, inner) {
 
         /**
          * predicate
-         * @param {Scope} testScope - scope to test
+         * @param {Scope} testScope scope to test
          * @returns {boolean} predicate
          */
         function predicate(testScope) {
@@ -155,8 +155,8 @@ class ScopeManager {
 
     /**
      * acquire all scopes from node.
-     * @method ScopeManager#acquireAll
-     * @param {Espree.Node} node - node for the acquired scope.
+     * @function ScopeManager#acquireAll
+     * @param {Espree.Node} node node for the acquired scope.
      * @returns {Scopes?} Scope array
      */
     acquireAll(node) {
@@ -165,9 +165,9 @@ class ScopeManager {
 
     /**
      * release the node.
-     * @method ScopeManager#release
-     * @param {Espree.Node} node - releasing node.
-     * @param {boolean=} inner - look up the most inner scope, default value is false.
+     * @function ScopeManager#release
+     * @param {Espree.Node} node releasing node.
+     * @param {?boolean} [inner=false] look up the most inner scope, default value is false.
      * @returns {Scope?} upper scope for the node.
      */
     release(node, inner) {
@@ -225,6 +225,14 @@ class ScopeManager {
         return this.__nestScope(new ClassScope(this, this.__currentScope, node));
     }
 
+    __nestClassFieldInitializerScope(node) {
+        return this.__nestScope(new ClassFieldInitializerScope(this, this.__currentScope, node));
+    }
+
+    __nestClassStaticBlockScope(node) {
+        return this.__nestScope(new ClassStaticBlockScope(this, this.__currentScope, node));
+    }
+
     __nestSwitchScope(node) {
         return this.__nestScope(new SwitchScope(this, this.__currentScope, node));
     }
@@ -242,6 +250,6 @@ class ScopeManager {
     }
 }
 
-module.exports = ScopeManager;
+export default ScopeManager;
 
 /* vim: set sw=4 ts=4 et tw=80 : */

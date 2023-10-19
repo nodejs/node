@@ -70,7 +70,7 @@ static void thread_cb(void *arg) {
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -129,6 +129,6 @@ TEST_IMPL(async) {
 
   ASSERT(0 == uv_thread_join(&thread));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

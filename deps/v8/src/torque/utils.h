@@ -12,9 +12,9 @@
 #include <string>
 #include <unordered_set>
 
+#include "src/base/contextual.h"
 #include "src/base/functional.h"
 #include "src/base/optional.h"
-#include "src/torque/contextual.h"
 #include "src/torque/source-positions.h"
 
 namespace v8 {
@@ -105,10 +105,10 @@ std::string SnakeifyString(const std::string& camel_string);
 std::string DashifyString(const std::string& underscore_string);
 std::string UnderlinifyPath(std::string path);
 
+bool StartsWithSingleUnderscore(const std::string& str);
+
 void ReplaceFileContentsIfDifferent(const std::string& file_path,
                                     const std::string& contents);
-
-std::string CurrentPositionAsString();
 
 template <class T>
 class Deduplicator {
@@ -174,8 +174,8 @@ void PrintCommaSeparatedList(std::ostream& os, const T& list) {
 struct BottomOffset {
   size_t offset;
 
-  BottomOffset& operator=(std::size_t offset) {
-    this->offset = offset;
+  BottomOffset& operator=(std::size_t other_offset) {
+    this->offset = other_offset;
     return *this;
   }
   BottomOffset& operator++() {

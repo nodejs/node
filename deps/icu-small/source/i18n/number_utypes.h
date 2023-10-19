@@ -35,6 +35,9 @@ public:
     UFormattedNumberData() : FormattedValueStringBuilderImpl(kUndefinedField) {}
     virtual ~UFormattedNumberData();
 
+    UFormattedNumberData(UFormattedNumberData&&) = default;
+    UFormattedNumberData& operator=(UFormattedNumberData&&) = default;
+
     // The formatted quantity.
     DecimalQuantity quantity;
 

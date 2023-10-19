@@ -4,7 +4,7 @@ const common = require('../common.js');
 const loadavg = require('os').loadavg;
 
 const bench = common.createBenchmark(main, {
-  n: [5e6]
+  n: [5e6],
 });
 
 function main({ n }) {

@@ -15,15 +15,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent linebreak style for operators",
-            category: "Stylistic Issues",
+            description: "Enforce consistent linebreak style for operators",
             recommended: false,
-            url: "https://eslint.org/docs/rules/operator-linebreak"
+            url: "https://eslint.org/docs/latest/rules/operator-linebreak"
         },
 
         schema: [
@@ -69,7 +69,7 @@ module.exports = {
             styleOverrides[":"] = "before";
         }
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -136,23 +136,21 @@ module.exports = {
         /**
          * Checks the operator placement
          * @param {ASTNode} node The node to check
-         * @param {ASTNode} leftSide The node that comes before the operator in `node`
+         * @param {ASTNode} rightSide The node that comes after the operator in `node`
+         * @param {string} operator The operator
          * @private
          * @returns {void}
          */
-        function validateNode(node, leftSide) {
+        function validateNode(node, rightSide, operator) {
 
             /*
-             * When the left part of a binary expression is a single expression wrapped in
-             * parentheses (ex: `(a) + b`), leftToken will be the last token of the expression
-             * and operatorToken will be the closing parenthesis.
-             * The leftToken should be the last closing parenthesis, and the operatorToken
-             * should be the token right after that.
+             * Find the operator token by searching from the right side, because between the left side and the operator
+             * there could be additional tokens from type annotations. Search specifically for the token which
+             * value equals the operator, in order to skip possible opening parentheses before the right side node.
              */
-            const operatorToken = sourceCode.getTokenAfter(leftSide, astUtils.isNotClosingParenToken);
+            const operatorToken = sourceCode.getTokenBefore(rightSide, token => token.value === operator);
             const leftToken = sourceCode.getTokenBefore(operatorToken);
             const rightToken = sourceCode.getTokenAfter(operatorToken);
-            const operator = operatorToken.value;
             const operatorStyleOverride = styleOverrides[operator];
             const style = operatorStyleOverride || globalStyle;
             const fix = getFixer(operatorToken, style);
@@ -222,7 +220,7 @@ module.exports = {
          * @returns {void}
          */
         function validateBinaryExpression(node) {
-            validateNode(node, node.left);
+            validateNode(node, node.right, node.operator);
         }
 
         //--------------------------------------------------------------------------
@@ -235,12 +233,17 @@ module.exports = {
             AssignmentExpression: validateBinaryExpression,
             VariableDeclarator(node) {
                 if (node.init) {
-                    validateNode(node, node.id);
+                    validateNode(node, node.init, "=");
+                }
+            },
+            PropertyDefinition(node) {
+                if (node.value) {
+                    validateNode(node, node.value, "=");
                 }
             },
             ConditionalExpression(node) {
-                validateNode(node, node.test);
-                validateNode(node, node.consequent);
+                validateNode(node, node.consequent, "?");
+                validateNode(node, node.alternate, ":");
             }
         };
     }

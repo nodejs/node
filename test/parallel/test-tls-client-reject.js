@@ -59,8 +59,7 @@ function unauthorized() {
     }));
     socket.on('end', () => rejectUnauthorized());
   }));
-  socket.once('session', common.mustCall(() => {
-  }));
+  socket.once('session', common.mustCall());
   socket.on('error', common.mustNotCall());
   socket.end('ok');
 }
@@ -69,6 +68,19 @@ function rejectUnauthorized() {
   console.log('reject unauthorized');
   const socket = tls.connect(server.address().port, {
     servername: 'localhost'
+  }, common.mustNotCall());
+  socket.on('data', common.mustNotCall());
+  socket.on('error', common.mustCall(function(err) {
+    rejectUnauthorizedUndefined();
+  }));
+  socket.end('ng');
+}
+
+function rejectUnauthorizedUndefined() {
+  console.log('reject unauthorized undefined');
+  const socket = tls.connect(server.address().port, {
+    servername: 'localhost',
+    rejectUnauthorized: undefined
   }, common.mustNotCall());
   socket.on('data', common.mustNotCall());
   socket.on('error', common.mustCall(function(err) {

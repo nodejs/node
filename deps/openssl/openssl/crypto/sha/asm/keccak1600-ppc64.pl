@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -27,17 +27,20 @@
 #
 #		r=1088(*)
 #
-# PPC970/G5	14.6/+120%
-# POWER7	10.3/+100%
-# POWER8	11.5/+85%
-# POWER9	9.4/+45%
+# PPC970/G5	14.0/+130%
+# POWER7	9.7/+110%
+# POWER8	10.6/+100%
+# POWER9	8.2/+66%
 #
 # (*)	Corresponds to SHA3-256. Percentage after slash is improvement
 #	over gcc-4.x-generated KECCAK_1X_ALT code. Newer compilers do
 #	much better (but watch out for them generating code specific
 #	to processor they execute on).
 
-$flavour = shift;
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 if ($flavour =~ /64/) {
 	$SIZE_T	=8;
@@ -53,7 +56,8 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/ppc-xlate.pl" and -f $xlate) or
 die "can't locate ppc-xlate.pl";
 
-open STDOUT,"| $^X $xlate $flavour ".shift || die "can't call $xlate: $!";
+open STDOUT,"| $^X $xlate $flavour \"$output\""
+    or die "can't call $xlate: $!";
 
 $FRAME=24*$SIZE_T+6*$SIZE_T+32;
 $LOCALS=6*$SIZE_T;
@@ -384,19 +388,19 @@ KeccakF1600:
 .type	dword_le_load,\@function
 .align	5
 dword_le_load:
-	lbzu	r0,1(r3)
-	lbzu	r4,1(r3)
-	lbzu	r5,1(r3)
+	lbz	r0,1(r3)
+	lbz	r4,2(r3)
+	lbz	r5,3(r3)
 	insrdi	r0,r4,8,48
-	lbzu	r4,1(r3)
+	lbz	r4,4(r3)
 	insrdi	r0,r5,8,40
-	lbzu	r5,1(r3)
+	lbz	r5,5(r3)
 	insrdi	r0,r4,8,32
-	lbzu	r4,1(r3)
+	lbz	r4,6(r3)
 	insrdi	r0,r5,8,24
-	lbzu	r5,1(r3)
+	lbz	r5,7(r3)
 	insrdi	r0,r4,8,16
-	lbzu	r4,1(r3)
+	lbzu	r4,8(r3)
 	insrdi	r0,r5,8,8
 	insrdi	r0,r4,8,0
 	blr
@@ -657,21 +661,21 @@ SHA3_squeeze:
 	${UCMP}i $len,8
 	blt	.Lsqueeze_tail
 
-	stbu	r0,1($out)
+	stb	r0,1($out)
 	srdi	r0,r0,8
-	stbu	r0,1($out)
+	stb	r0,2($out)
 	srdi	r0,r0,8
-	stbu	r0,1($out)
+	stb	r0,3($out)
 	srdi	r0,r0,8
-	stbu	r0,1($out)
+	stb	r0,4($out)
 	srdi	r0,r0,8
-	stbu	r0,1($out)
+	stb	r0,5($out)
 	srdi	r0,r0,8
-	stbu	r0,1($out)
+	stb	r0,6($out)
 	srdi	r0,r0,8
-	stbu	r0,1($out)
+	stb	r0,7($out)
 	srdi	r0,r0,8
-	stbu	r0,1($out)
+	stbu	r0,8($out)
 
 	subic.	$len,$len,8
 	beq	.Lsqueeze_done

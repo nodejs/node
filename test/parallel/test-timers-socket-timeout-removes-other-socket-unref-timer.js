@@ -28,7 +28,7 @@ const server = net.createServer(function onClient(client) {
   }
 });
 
-server.listen(0, common.localhostIPv4, common.mustCall(() => {
+server.listen(0, common.mustCall(() => {
   const countdown = new Countdown(2, () => server.close());
 
   {

@@ -29,15 +29,12 @@
 
 #include <memory>
 
-#include "src/init/v8.h"
-
+#include "include/v8-extension.h"
+#include "include/v8-function.h"
+#include "include/v8-locker.h"
 #include "src/base/platform/platform.h"
-#include "src/codegen/compilation-cache.h"
-#include "src/execution/execution.h"
-#include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/unicode-inl.h"
-#include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 
 namespace {
@@ -73,8 +70,9 @@ class DeoptimizeCodeThread : public v8::base::Thread {
   const char* source_;
 };
 
-void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
   // Gets the pointer to the thread that will trigger the deoptimization of the
   // code.
   DeoptimizeCodeThread* deoptimizer =
@@ -94,8 +92,9 @@ void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void UnlockForDeoptimizationIfReady(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
   bool* ready_to_deoptimize = reinterpret_cast<bool*>(isolate->GetData(1));
   if (*ready_to_deoptimize) {
     // The test should enter here only once, so put the flag back to false.
@@ -125,7 +124,7 @@ namespace internal {
 namespace test_lockers {
 
 TEST(LazyDeoptimizationMultithread) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -178,7 +177,7 @@ TEST(LazyDeoptimizationMultithread) {
 }
 
 TEST(LazyDeoptimizationMultithreadWithNatives) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -234,7 +233,7 @@ TEST(LazyDeoptimizationMultithreadWithNatives) {
 }
 
 TEST(EagerDeoptimizationMultithread) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -435,7 +434,7 @@ static void StartJoinAndDeleteThreads(
 
 // Run many threads all locking on the same isolate
 TEST(IsolateLockingStress) {
-  i::FLAG_always_opt = false;
+  i::v8_flags.always_turbofan = false;
 #if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
@@ -480,7 +479,7 @@ class IsolateNestedLockingThread : public JoinableThread {
 
 // Run  many threads with nested locks
 TEST(IsolateNestedLocking) {
-  i::FLAG_always_opt = false;
+  i::v8_flags.always_turbofan = false;
 #if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
@@ -526,8 +525,8 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
 
 // Run parallel threads that lock and access different isolates in parallel
 TEST(SeparateIsolatesLocksNonexclusive) {
-  i::FLAG_always_opt = false;
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_S390
+  v8_flags.always_turbofan = false;
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -611,8 +610,8 @@ class LockerUnlockerThread : public JoinableThread {
 
 // Use unlocker inside of a Locker, multiple threads.
 TEST(LockerUnlocker) {
-  i::FLAG_always_opt = false;
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_S390
+  v8_flags.always_turbofan = false;
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -669,8 +668,8 @@ class LockTwiceAndUnlockThread : public JoinableThread {
 
 // Use Unlocker inside two Lockers.
 TEST(LockTwiceAndUnlock) {
-  i::FLAG_always_opt = false;
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_S390
+  v8_flags.always_turbofan = false;
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -874,7 +873,9 @@ TEST(LockUnlockLockDefaultIsolateMultithreaded) {
       threads.push_back(new LockUnlockLockDefaultIsolateThread(context));
     }
   }
+  CcTest::isolate()->Exit();
   StartJoinAndDeleteThreads(threads);
+  CcTest::isolate()->Enter();
 }
 
 

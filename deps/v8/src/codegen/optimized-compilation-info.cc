@@ -5,7 +5,6 @@
 #include "src/codegen/optimized-compilation-info.h"
 
 #include "src/api/api.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/source-position.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
@@ -13,22 +12,30 @@
 #include "src/objects/shared-function-info.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/function-compiler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
-    Handle<JSFunction> closure, CodeKind code_kind)
-    : code_kind_(code_kind),
+    Handle<JSFunction> closure, CodeKind code_kind, BytecodeOffset osr_offset)
+    : isolate_unsafe_(isolate),
+      code_kind_(code_kind),
+      osr_offset_(osr_offset),
       zone_(zone),
       optimization_id_(isolate->NextOptimizationId()) {
   DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
+  DCHECK_IMPLIES(is_osr(), IsOptimizing());
   bytecode_array_ = handle(shared->GetBytecodeArray(isolate), isolate);
   shared_info_ = shared;
   closure_ = closure;
+  canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
+      isolate->heap(), ZoneAllocationPolicy(zone));
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
@@ -37,7 +44,7 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
     set_source_positions();
   }
 
-  SetTracingFlags(shared->PassesFilter(FLAG_trace_turbo_filter));
+  SetTracingFlags(shared->PassesFilter(v8_flags.trace_turbo_filter));
   ConfigureFlags();
 
   if (isolate->node_observer()) {
@@ -46,66 +53,42 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 }
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
-    Vector<const char> debug_name, Zone* zone, CodeKind code_kind)
-    : code_kind_(code_kind),
+    base::Vector<const char> debug_name, Zone* zone, CodeKind code_kind)
+    : isolate_unsafe_(nullptr),
+      code_kind_(code_kind),
       zone_(zone),
       optimization_id_(kNoOptimizationId),
       debug_name_(debug_name) {
   SetTracingFlags(
-      PassesFilter(debug_name, CStrVector(FLAG_trace_turbo_filter)));
+      PassesFilter(debug_name, base::CStrVector(v8_flags.trace_turbo_filter)));
   ConfigureFlags();
+  DCHECK(!has_shared_info());
 }
-
-#ifdef DEBUG
-bool OptimizedCompilationInfo::FlagSetIsValid(Flag flag) const {
-  switch (flag) {
-    case kPoisonRegisterArguments:
-      return untrusted_code_mitigations();
-    case kFunctionContextSpecializing:
-      return !IsNativeContextIndependent();
-    default:
-      return true;
-  }
-  UNREACHABLE();
-}
-
-bool OptimizedCompilationInfo::FlagGetIsValid(Flag flag) const {
-  switch (flag) {
-    case kPoisonRegisterArguments:
-      if (!GetFlag(kPoisonRegisterArguments)) return true;
-      return untrusted_code_mitigations() && called_with_code_start_register();
-    default:
-      return true;
-  }
-  UNREACHABLE();
-}
-#endif  // DEBUG
 
 void OptimizedCompilationInfo::ConfigureFlags() {
-  if (FLAG_untrusted_code_mitigations) set_untrusted_code_mitigations();
+  if (v8_flags.turbo_inline_js_wasm_calls) set_inline_js_wasm_calls();
 
   switch (code_kind_) {
     case CodeKind::TURBOFAN:
-      if (FLAG_function_context_specialization) {
-        set_function_context_specializing();
-      }
-      V8_FALLTHROUGH;
-    case CodeKind::TURBOPROP:
-    case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
       set_called_with_code_start_register();
       set_switch_jump_table();
-      if (FLAG_turbo_splitting) set_splitting();
-      if (FLAG_untrusted_code_mitigations) set_poison_register_arguments();
-      // TODO(yangguo): Disable this in case of debugging for crbug.com/826613
-      if (FLAG_analyze_environment_liveness) set_analyze_environment_liveness();
+      if (v8_flags.analyze_environment_liveness) {
+        set_analyze_environment_liveness();
+      }
+      if (v8_flags.turbo_splitting) set_splitting();
       break;
     case CodeKind::BYTECODE_HANDLER:
       set_called_with_code_start_register();
-      if (FLAG_turbo_splitting) set_splitting();
+      if (v8_flags.turbo_splitting) set_splitting();
       break;
     case CodeKind::BUILTIN:
+#ifdef V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
+      set_switch_jump_table();
+#endif  // V8_TARGET_ARCH_X64
+      V8_FALLTHROUGH;
     case CodeKind::FOR_TESTING:
-      if (FLAG_turbo_splitting) set_splitting();
+      if (v8_flags.turbo_splitting) set_splitting();
+      if (v8_flags.enable_allocation_folding) set_allocation_folding();
 #if ENABLE_GDB_JIT_INTERFACE && DEBUG
       set_source_positions();
 #endif  // ENABLE_GDB_JIT_INTERFACE && DEBUG
@@ -114,26 +97,36 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case CodeKind::WASM_TO_CAPI_FUNCTION:
       set_switch_jump_table();
       break;
-    default:
+    case CodeKind::C_WASM_ENTRY:
+    case CodeKind::JS_TO_JS_FUNCTION:
+    case CodeKind::JS_TO_WASM_FUNCTION:
+    case CodeKind::WASM_TO_JS_FUNCTION:
       break;
+    case CodeKind::BASELINE:
+    case CodeKind::MAGLEV:
+    case CodeKind::INTERPRETED_FUNCTION:
+    case CodeKind::REGEXP:
+      UNREACHABLE();
   }
 }
 
 OptimizedCompilationInfo::~OptimizedCompilationInfo() {
   if (disable_future_optimization() && has_shared_info()) {
-    shared_info()->DisableOptimization(bailout_reason());
+    DCHECK_NOT_NULL(isolate_unsafe_);
+    shared_info()->DisableOptimization(isolate_unsafe_, bailout_reason());
   }
 }
 
-void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
+void OptimizedCompilationInfo::ReopenAndCanonicalizeHandlesInNewScope(
+    Isolate* isolate) {
   if (!shared_info_.is_null()) {
-    shared_info_ = Handle<SharedFunctionInfo>(*shared_info_, isolate);
+    shared_info_ = CanonicalHandle(*shared_info_, isolate);
   }
   if (!bytecode_array_.is_null()) {
-    bytecode_array_ = Handle<BytecodeArray>(*bytecode_array_, isolate);
+    bytecode_array_ = CanonicalHandle(*bytecode_array_, isolate);
   }
   if (!closure_.is_null()) {
-    closure_ = Handle<JSFunction>(*closure_, isolate);
+    closure_ = CanonicalHandle(*closure_, isolate);
   }
   DCHECK(code_.is_null());
 }
@@ -156,10 +149,10 @@ std::unique_ptr<char[]> OptimizedCompilationInfo::GetDebugName() const {
   if (!shared_info().is_null()) {
     return shared_info()->DebugNameCStr();
   }
-  Vector<const char> name_vec = debug_name_;
-  if (name_vec.empty()) name_vec = ArrayVector("unknown");
+  base::Vector<const char> name_vec = debug_name_;
+  if (name_vec.empty()) name_vec = base::ArrayVector("unknown");
   std::unique_ptr<char[]> name(new char[name_vec.length() + 1]);
-  base::Memcpy(name.get(), name_vec.begin(), name_vec.length());
+  memcpy(name.get(), name_vec.begin(), name_vec.length());
   name[name_vec.length()] = '\0';
   return name;
 }
@@ -170,6 +163,7 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
     case CodeKind::BYTECODE_HANDLER:
     case CodeKind::BUILTIN:
       return StackFrame::STUB;
+#if V8_ENABLE_WEBASSEMBLY
     case CodeKind::WASM_FUNCTION:
       return StackFrame::WASM;
     case CodeKind::WASM_TO_CAPI_FUNCTION:
@@ -180,9 +174,9 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
       return StackFrame::WASM_TO_JS;
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       UNIMPLEMENTED();
-      return StackFrame::NONE;
   }
 }
 
@@ -191,6 +185,7 @@ void OptimizedCompilationInfo::SetCode(Handle<Code> code) {
   code_ = code;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void OptimizedCompilationInfo::SetWasmCompilationResult(
     std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result) {
   wasm_compilation_result_ = std::move(wasm_compilation_result);
@@ -200,12 +195,13 @@ std::unique_ptr<wasm::WasmCompilationResult>
 OptimizedCompilationInfo::ReleaseWasmCompilationResult() {
   return std::move(wasm_compilation_result_);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool OptimizedCompilationInfo::has_context() const {
   return !closure().is_null();
 }
 
-Context OptimizedCompilationInfo::context() const {
+Tagged<Context> OptimizedCompilationInfo::context() const {
   DCHECK(has_context());
   return closure()->context();
 }
@@ -214,7 +210,7 @@ bool OptimizedCompilationInfo::has_native_context() const {
   return !closure().is_null() && !closure()->native_context().is_null();
 }
 
-NativeContext OptimizedCompilationInfo::native_context() const {
+Tagged<NativeContext> OptimizedCompilationInfo::native_context() const {
   DCHECK(has_native_context());
   return closure()->native_context();
 }
@@ -223,9 +219,9 @@ bool OptimizedCompilationInfo::has_global_object() const {
   return has_native_context();
 }
 
-JSGlobalObject OptimizedCompilationInfo::global_object() const {
+Tagged<JSGlobalObject> OptimizedCompilationInfo::global_object() const {
   DCHECK(has_global_object());
-  return native_context().global_object();
+  return native_context()->global_object();
 }
 
 int OptimizedCompilationInfo::AddInlinedFunction(
@@ -239,11 +235,12 @@ int OptimizedCompilationInfo::AddInlinedFunction(
 
 void OptimizedCompilationInfo::SetTracingFlags(bool passes_filter) {
   if (!passes_filter) return;
-  if (FLAG_trace_turbo) set_trace_turbo_json();
-  if (FLAG_trace_turbo_graph) set_trace_turbo_graph();
-  if (FLAG_trace_turbo_scheduled) set_trace_turbo_scheduled();
-  if (FLAG_trace_turbo_alloc) set_trace_turbo_allocation();
-  if (FLAG_trace_heap_broker) set_trace_heap_broker();
+  if (v8_flags.trace_turbo) set_trace_turbo_json();
+  if (v8_flags.trace_turbo_graph) set_trace_turbo_graph();
+  if (v8_flags.trace_turbo_scheduled) set_trace_turbo_scheduled();
+  if (v8_flags.trace_turbo_alloc) set_trace_turbo_allocation();
+  if (v8_flags.trace_heap_broker) set_trace_heap_broker();
+  if (v8_flags.turboshaft_trace_reduction) set_turboshaft_trace_reduction();
 }
 
 OptimizedCompilationInfo::InlinedFunctionHolder::InlinedFunctionHolder(

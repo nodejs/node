@@ -2,23 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/strings/string-builder-inl.h"
-
+#include "src/base/strings.h"
 #include "src/execution/isolate-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/strings/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
 
 template <typename sinkchar>
-void StringBuilderConcatHelper(String special, sinkchar* sink,
-                               FixedArray fixed_array, int array_length) {
+void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
+                               Tagged<FixedArray> fixed_array,
+                               int array_length) {
   DisallowGarbageCollection no_gc;
   int position = 0;
   for (int i = 0; i < array_length; i++) {
-    Object element = fixed_array.get(i);
-    if (element.IsSmi()) {
+    Tagged<Object> element = fixed_array->get(i);
+    if (IsSmi(element)) {
       // Smi encoding of position and length.
       int encoded_slice = Smi::ToInt(element);
       int pos;
@@ -29,38 +30,40 @@ void StringBuilderConcatHelper(String special, sinkchar* sink,
         len = StringBuilderSubstringLength::decode(encoded_slice);
       } else {
         // Position and length encoded in two smis.
-        Object obj = fixed_array.get(++i);
-        DCHECK(obj.IsSmi());
+        Tagged<Object> obj = fixed_array->get(++i);
+        DCHECK(IsSmi(obj));
         pos = Smi::ToInt(obj);
         len = -encoded_slice;
       }
-      String::WriteToFlat(special, sink + position, pos, pos + len);
+      String::WriteToFlat(special, sink + position, pos, len);
       position += len;
     } else {
-      String string = String::cast(element);
-      int element_length = string.length();
+      Tagged<String> string = String::cast(element);
+      int element_length = string->length();
       String::WriteToFlat(string, sink + position, 0, element_length);
       position += element_length;
     }
   }
 }
 
-template void StringBuilderConcatHelper<uint8_t>(String special, uint8_t* sink,
-                                                 FixedArray fixed_array,
+template void StringBuilderConcatHelper<uint8_t>(Tagged<String> special,
+                                                 uint8_t* sink,
+                                                 Tagged<FixedArray> fixed_array,
                                                  int array_length);
 
-template void StringBuilderConcatHelper<uc16>(String special, uc16* sink,
-                                              FixedArray fixed_array,
-                                              int array_length);
+template void StringBuilderConcatHelper<base::uc16>(
+    Tagged<String> special, base::uc16* sink, Tagged<FixedArray> fixed_array,
+    int array_length);
 
-int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
-                              int array_length, bool* one_byte) {
+int StringBuilderConcatLength(int special_length,
+                              Tagged<FixedArray> fixed_array, int array_length,
+                              bool* one_byte) {
   DisallowGarbageCollection no_gc;
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
-    Object elt = fixed_array.get(i);
-    if (elt.IsSmi()) {
+    Tagged<Object> elt = fixed_array->get(i);
+    if (IsSmi(elt)) {
       // Smi encoding of position and length.
       int smi_value = Smi::ToInt(elt);
       int pos;
@@ -75,8 +78,8 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
         // Get the position and check that it is a positive smi.
         i++;
         if (i >= array_length) return -1;
-        Object next_smi = fixed_array.get(i);
-        if (!next_smi.IsSmi()) return -1;
+        Tagged<Object> next_smi = fixed_array->get(i);
+        if (!IsSmi(next_smi)) return -1;
         pos = Smi::ToInt(next_smi);
         if (pos < 0) return -1;
       }
@@ -84,11 +87,11 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
       DCHECK_GE(len, 0);
       if (pos > special_length || len > special_length - pos) return -1;
       increment = len;
-    } else if (elt.IsString()) {
-      String element = String::cast(elt);
-      int element_length = element.length();
+    } else if (IsString(elt)) {
+      Tagged<String> element = String::cast(elt);
+      int element_length = element->length();
       increment = element_length;
-      if (*one_byte && !element.IsOneByteRepresentation()) {
+      if (*one_byte && !element->IsOneByteRepresentation()) {
         *one_byte = false;
       }
     } else {
@@ -118,6 +121,16 @@ FixedArrayBuilder::FixedArrayBuilder(Handle<FixedArray> backing_store)
   DCHECK_GT(backing_store->length(), 0);
 }
 
+FixedArrayBuilder::FixedArrayBuilder(Isolate* isolate)
+    : array_(isolate->factory()->empty_fixed_array()),
+      length_(0),
+      has_non_smi_elements_(false) {}
+
+// static
+FixedArrayBuilder FixedArrayBuilder::Lazy(Isolate* isolate) {
+  return FixedArrayBuilder(isolate);
+}
+
 bool FixedArrayBuilder::HasCapacity(int elements) {
   int length = array_->length();
   int required_length = length_ + elements;
@@ -128,6 +141,13 @@ void FixedArrayBuilder::EnsureCapacity(Isolate* isolate, int elements) {
   int length = array_->length();
   int required_length = length_ + elements;
   if (length < required_length) {
+    if (length == 0) {
+      constexpr int kInitialCapacityForLazy = 16;
+      array_ = isolate->factory()->NewFixedArrayWithHoles(
+          std::max(kInitialCapacityForLazy, elements));
+      return;
+    }
+
     int new_length = length;
     do {
       new_length *= 2;
@@ -139,26 +159,20 @@ void FixedArrayBuilder::EnsureCapacity(Isolate* isolate, int elements) {
   }
 }
 
-void FixedArrayBuilder::Add(Object value) {
-  DCHECK(!value.IsSmi());
+void FixedArrayBuilder::Add(Tagged<Object> value) {
+  DCHECK(!IsSmi(value));
   array_->set(length_, value);
   length_++;
   has_non_smi_elements_ = true;
 }
 
-void FixedArrayBuilder::Add(Smi value) {
-  DCHECK(value.IsSmi());
+void FixedArrayBuilder::Add(Tagged<Smi> value) {
+  DCHECK(IsSmi(value));
   array_->set(length_, value);
   length_++;
 }
 
 int FixedArrayBuilder::capacity() { return array_->length(); }
-
-Handle<JSArray> FixedArrayBuilder::ToJSArray(Handle<JSArray> target_array) {
-  JSArray::SetContent(target_array, array_);
-  target_array->set_length(Smi::FromInt(length_));
-  return target_array;
-}
 
 ReplacementStringBuilder::ReplacementStringBuilder(Heap* heap,
                                                    Handle<String> subject,
@@ -213,7 +227,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
         String);
 
     DisallowGarbageCollection no_gc;
-    uc16* char_buffer = seq->GetChars(no_gc);
+    base::uc16* char_buffer = seq->GetChars(no_gc);
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
                               array_builder_.length());
     joined_string = Handle<String>::cast(seq);
@@ -222,7 +236,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
 }
 
 void ReplacementStringBuilder::AddElement(Handle<Object> element) {
-  DCHECK(element->IsSmi() || element->IsString());
+  DCHECK(IsSmi(*element) || IsString(*element));
   EnsureCapacity(1);
   DisallowGarbageCollection no_gc;
   array_builder_.Add(*element);
@@ -243,6 +257,10 @@ IncrementalStringBuilder::IncrementalStringBuilder(Isolate* isolate)
 
 int IncrementalStringBuilder::Length() const {
   return accumulator_->length() + current_index_;
+}
+
+bool IncrementalStringBuilder::HasValidCurrentIndex() const {
+  return current_index_ < part_length_;
 }
 
 void IncrementalStringBuilder::Accumulate(Handle<String> new_part) {
@@ -281,6 +299,9 @@ MaybeHandle<String> IncrementalStringBuilder::Finish() {
   if (overflowed_) {
     THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError(), String);
   }
+  if (isolate()->serializer_enabled()) {
+    return factory()->InternalizeString(accumulator());
+  }
   return accumulator();
 }
 
@@ -289,24 +310,31 @@ MaybeHandle<String> IncrementalStringBuilder::Finish() {
 // the incoming string to have one byte representation "underneath" (The
 // one byte check requires the string to be flat).
 bool IncrementalStringBuilder::CanAppendByCopy(Handle<String> string) {
-  constexpr int kMaxStringLengthForCopy = 16;
   const bool representation_ok =
       encoding_ == String::TWO_BYTE_ENCODING ||
       (string->IsFlat() && String::IsOneByteRepresentationUnderneath(*string));
 
-  return representation_ok && string->length() <= kMaxStringLengthForCopy &&
-         CurrentPartCanFit(string->length());
+  return representation_ok && CurrentPartCanFit(string->length());
 }
 
 void IncrementalStringBuilder::AppendStringByCopy(Handle<String> string) {
   DCHECK(CanAppendByCopy(string));
 
-  Handle<SeqOneByteString> part =
-      Handle<SeqOneByteString>::cast(current_part());
   {
     DisallowGarbageCollection no_gc;
-    String::WriteToFlat(*string, part->GetChars(no_gc) + current_index_, 0,
-                        string->length());
+    if (encoding_ == String::ONE_BYTE_ENCODING) {
+      String::WriteToFlat(
+          *string,
+          Handle<SeqOneByteString>::cast(current_part())->GetChars(no_gc) +
+              current_index_,
+          0, string->length());
+    } else {
+      String::WriteToFlat(
+          *string,
+          Handle<SeqTwoByteString>::cast(current_part())->GetChars(no_gc) +
+              current_index_,
+          0, string->length());
+    }
   }
   current_index_ += string->length();
   DCHECK(current_index_ <= part_length_);

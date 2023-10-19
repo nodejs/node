@@ -83,7 +83,7 @@ const net = require('net');
     }
   }, expectedConnections));
 
-  server.listen(0, 'localhost', common.mustCall(() => {
+  server.listen(0, common.localhostIPv4, common.mustCall(() => {
     const port = server.address().port;
 
     // Total connections = 3 * 4(canConnect) * 6(doConnect) = 72
@@ -133,28 +133,35 @@ function doConnect(args, getCb) {
 }
 
 function syncFailToConnect(port, assertErr, optOnly) {
+  const family = 4;
   if (!optOnly) {
     // connect(port, cb) and connect(port)
-    const portArgFunctions = doConnect([port], () => common.mustNotCall());
+    const portArgFunctions = doConnect([{ port, family }],
+                                       () => common.mustNotCall());
     for (const fn of portArgFunctions) {
       assert.throws(fn, assertErr, `${fn.name}(${port})`);
     }
 
     // connect(port, host, cb) and connect(port, host)
-    const portHostArgFunctions = doConnect([port, 'localhost'],
+    const portHostArgFunctions = doConnect([{ port,
+                                              host: 'localhost',
+                                              family }],
                                            () => common.mustNotCall());
     for (const fn of portHostArgFunctions) {
       assert.throws(fn, assertErr, `${fn.name}(${port}, 'localhost')`);
     }
   }
   // connect({port}, cb) and connect({port})
-  const portOptFunctions = doConnect([{ port }], () => common.mustNotCall());
+  const portOptFunctions = doConnect([{ port, family }],
+                                     () => common.mustNotCall());
   for (const fn of portOptFunctions) {
     assert.throws(fn, assertErr, `${fn.name}({port: ${port}})`);
   }
 
   // connect({port, host}, cb) and connect({port, host})
-  const portHostOptFunctions = doConnect([{ port: port, host: 'localhost' }],
+  const portHostOptFunctions = doConnect([{ port: port,
+                                            host: 'localhost',
+                                            family: family }],
                                          () => common.mustNotCall());
   for (const fn of portHostOptFunctions) {
     assert.throws(fn,
@@ -165,27 +172,30 @@ function syncFailToConnect(port, assertErr, optOnly) {
 
 function canConnect(port) {
   const noop = () => common.mustCall();
+  const family = 4;
 
   // connect(port, cb) and connect(port)
-  const portArgFunctions = doConnect([port], noop);
+  const portArgFunctions = doConnect([{ port, family }], noop);
   for (const fn of portArgFunctions) {
     fn();
   }
 
   // connect(port, host, cb) and connect(port, host)
-  const portHostArgFunctions = doConnect([port, 'localhost'], noop);
+  const portHostArgFunctions = doConnect([{ port, host: 'localhost', family }],
+                                         noop);
   for (const fn of portHostArgFunctions) {
     fn();
   }
 
   // connect({port}, cb) and connect({port})
-  const portOptFunctions = doConnect([{ port }], noop);
+  const portOptFunctions = doConnect([{ port, family }], noop);
   for (const fn of portOptFunctions) {
     fn();
   }
 
   // connect({port, host}, cb) and connect({port, host})
-  const portHostOptFns = doConnect([{ port, host: 'localhost' }], noop);
+  const portHostOptFns = doConnect([{ port, host: 'localhost', family }],
+                                   noop);
   for (const fn of portHostOptFns) {
     fn();
   }
@@ -194,24 +204,26 @@ function canConnect(port) {
 function asyncFailToConnect(port) {
   const onError = () => common.mustCall((err) => {
     const regexp = /^Error: connect E\w+.+$/;
-    assert(regexp.test(String(err)), String(err));
+    assert.match(String(err), regexp);
   });
 
   const dont = () => common.mustNotCall();
+  const family = 4;
   // connect(port, cb) and connect(port)
-  const portArgFunctions = doConnect([port], dont);
+  const portArgFunctions = doConnect([{ port, family }], dont);
   for (const fn of portArgFunctions) {
     fn().on('error', onError());
   }
 
   // connect({port}, cb) and connect({port})
-  const portOptFunctions = doConnect([{ port }], dont);
+  const portOptFunctions = doConnect([{ port, family }], dont);
   for (const fn of portOptFunctions) {
     fn().on('error', onError());
   }
 
   // connect({port, host}, cb) and connect({port, host})
-  const portHostOptFns = doConnect([{ port, host: 'localhost' }], dont);
+  const portHostOptFns = doConnect([{ port, host: 'localhost', family }],
+                                   dont);
   for (const fn of portHostOptFns) {
     fn().on('error', onError());
   }

@@ -20,6 +20,8 @@ v8::TracingController* TraceEventHelper::GetTracingController() {
   return v8::internal::V8::GetCurrentPlatform()->GetTracingController();
 }
 
+#ifdef V8_RUNTIME_CALL_STATS
+
 void CallStatsScopedTracer::AddEndTraceEvent() {
   if (!has_parent_scope_ && p_data_->isolate) {
     auto value = v8::tracing::TracedValue::Create();
@@ -52,6 +54,8 @@ void CallStatsScopedTracer::Initialize(v8::internal::Isolate* isolate,
       v8::internal::tracing::kGlobalScope, v8::internal::tracing::kNoId,
       TRACE_EVENT_FLAG_NONE, v8::internal::tracing::kNoId);
 }
+
+#endif  // defined(V8_RUNTIME_CALL_STATS)
 #endif  // !defined(V8_USE_PERFETTO)
 
 }  // namespace tracing

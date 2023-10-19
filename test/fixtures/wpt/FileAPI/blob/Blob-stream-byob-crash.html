@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script type="module">
+  let a = new Blob(['', '', undefined], { })
+  let b = a.stream()
+  let c = new ReadableStreamBYOBReader(b)
+  let d = new Int16Array(8)
+  await c.read(d)
+  c.releaseLock()
+  await a.text()
+  await b.cancel()
+</script>

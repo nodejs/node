@@ -1,6 +1,6 @@
 const debug = require('../internal/debug')
 const { MAX_LENGTH, MAX_SAFE_INTEGER } = require('../internal/constants')
-const { re, t } = require('../internal/re')
+const { safeRe: re, t } = require('../internal/re')
 
 const parseOptions = require('../internal/parse-options')
 const { compareIdentifiers } = require('../internal/identifiers')
@@ -16,7 +16,7 @@ class SemVer {
         version = version.version
       }
     } else if (typeof version !== 'string') {
-      throw new TypeError(`Invalid Version: ${version}`)
+      throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version}".`)
     }
 
     if (version.length > MAX_LENGTH) {
@@ -175,36 +175,36 @@ class SemVer {
 
   // preminor will bump the version up to the next minor release, and immediately
   // down to pre-release. premajor and prepatch work the same way.
-  inc (release, identifier) {
+  inc (release, identifier, identifierBase) {
     switch (release) {
       case 'premajor':
         this.prerelease.length = 0
         this.patch = 0
         this.minor = 0
         this.major++
-        this.inc('pre', identifier)
+        this.inc('pre', identifier, identifierBase)
         break
       case 'preminor':
         this.prerelease.length = 0
         this.patch = 0
         this.minor++
-        this.inc('pre', identifier)
+        this.inc('pre', identifier, identifierBase)
         break
       case 'prepatch':
         // If this is already a prerelease, it will bump to the next version
         // drop any prereleases that might already exist, since they are not
         // relevant at this point.
         this.prerelease.length = 0
-        this.inc('patch', identifier)
-        this.inc('pre', identifier)
+        this.inc('patch', identifier, identifierBase)
+        this.inc('pre', identifier, identifierBase)
         break
       // If the input is a non-prerelease version, this acts the same as
       // prepatch.
       case 'prerelease':
         if (this.prerelease.length === 0) {
-          this.inc('patch', identifier)
+          this.inc('patch', identifier, identifierBase)
         }
-        this.inc('pre', identifier)
+        this.inc('pre', identifier, identifierBase)
         break
 
       case 'major':
@@ -246,9 +246,15 @@ class SemVer {
         break
       // This probably shouldn't be used publicly.
       // 1.0.0 'pre' would become 1.0.0-0 which is the wrong direction.
-      case 'pre':
+      case 'pre': {
+        const base = Number(identifierBase) ? 1 : 0
+
+        if (!identifier && identifierBase === false) {
+          throw new Error('invalid increment argument: identifier is empty')
+        }
+
         if (this.prerelease.length === 0) {
-          this.prerelease = [0]
+          this.prerelease = [base]
         } else {
           let i = this.prerelease.length
           while (--i >= 0) {
@@ -259,27 +265,36 @@ class SemVer {
           }
           if (i === -1) {
             // didn't increment anything
-            this.prerelease.push(0)
+            if (identifier === this.prerelease.join('.') && identifierBase === false) {
+              throw new Error('invalid increment argument: identifier already exists')
+            }
+            this.prerelease.push(base)
           }
         }
         if (identifier) {
           // 1.2.0-beta.1 bumps to 1.2.0-beta.2,
           // 1.2.0-beta.fooblz or 1.2.0-beta bumps to 1.2.0-beta.0
-          if (this.prerelease[0] === identifier) {
+          let prerelease = [identifier, base]
+          if (identifierBase === false) {
+            prerelease = [identifier]
+          }
+          if (compareIdentifiers(this.prerelease[0], identifier) === 0) {
             if (isNaN(this.prerelease[1])) {
-              this.prerelease = [identifier, 0]
+              this.prerelease = prerelease
             }
           } else {
-            this.prerelease = [identifier, 0]
+            this.prerelease = prerelease
           }
         }
         break
-
+      }
       default:
         throw new Error(`invalid increment argument: ${release}`)
     }
-    this.format()
-    this.raw = this.version
+    this.raw = this.format()
+    if (this.build.length) {
+      this.raw += `+${this.build.join('.')}`
+    }
     return this
   }
 }

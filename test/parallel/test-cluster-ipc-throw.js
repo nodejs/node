@@ -17,7 +17,7 @@ if (cluster.isPrimary) {
   }));
 } else {
   assert(process.env.PORT);
-  process.on('uncaughtException', common.mustCall((e) => {}));
+  process.on('uncaughtException', common.mustCall());
   server.listen(process.env.PORT);
   server.on('error', common.mustCall((e) => {
     cluster.worker.disconnect();

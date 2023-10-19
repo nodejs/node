@@ -2,10 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan --turboshaft-enable-debug-features
 
 function f(x) {
-  %TurbofanStaticAssert(x.foo === 42);
+  if (!%IsDictPropertyConstTrackingEnabled()) {
+    // TODO(v8:11457) If v8_dict_property_const_tracking is enabled, then the
+    // prototype of |x| in |main| is a dictionary mode object, and we cannot
+    // inline the storing of x.foo, yet.
+    %TurbofanStaticAssert(x.foo === 42);
+  }
   return %IsBeingInterpreted();
 }
 

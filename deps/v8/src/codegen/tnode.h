@@ -35,6 +35,11 @@ struct RawPtrT : WordT {
   static constexpr MachineType kMachineType = MachineType::Pointer();
 };
 
+// A RawPtrT that is guaranteed to point into the sandbox.
+struct SandboxedPtrT : WordT {
+  static constexpr MachineType kMachineType = MachineType::SandboxedPointer();
+};
+
 template <class To>
 struct RawPtr : RawPtrT {};
 
@@ -79,11 +84,23 @@ struct UintPtrT : WordT {
   static constexpr MachineType kMachineType = MachineType::UintPtr();
 };
 
+struct ExternalPointerHandleT : Uint32T {
+  static constexpr MachineType kMachineType = MachineType::Uint32();
+};
+
+struct IndirectPointerHandleT : Uint32T {
+  static constexpr MachineType kMachineType = MachineType::Uint32();
+};
+
+#ifdef V8_ENABLE_SANDBOX
+struct ExternalPointerT : Uint32T {
+  static constexpr MachineType kMachineType = MachineType::Uint32();
+};
+#else
 struct ExternalPointerT : UntaggedT {
-  static const MachineRepresentation kMachineRepresentation =
-      MachineType::PointerRepresentation();
   static constexpr MachineType kMachineType = MachineType::Pointer();
 };
+#endif
 
 struct Float32T : UntaggedT {
   static const MachineRepresentation kMachineRepresentation =
@@ -104,11 +121,23 @@ using TaggedT = IntPtrT;
 #endif
 
 // Result of a comparison operation.
-struct BoolT : Word32T {};
+struct BoolT : Word32T {
+  static constexpr MachineType kMachineType = MachineType::Int32();
+};
 
 // Value type of a Turbofan node with two results.
 template <class T1, class T2>
 struct PairT {};
+
+struct Simd128T : UntaggedT {
+  static const MachineRepresentation kMachineRepresentation =
+      MachineRepresentation::kSimd128;
+  static constexpr MachineType kMachineType = MachineType::Simd128();
+};
+
+struct I8x16T : Simd128T {};
+struct I16x8T : Simd128T {};
+struct I32x2T : Simd128T {};
 
 inline constexpr MachineType CommonMachineType(MachineType type1,
                                                MachineType type2) {
@@ -165,7 +194,7 @@ struct MachineRepresentationOf {
 // If T defines kMachineType, then we take the machine representation from
 // there.
 template <class T>
-struct MachineRepresentationOf<T, base::void_t<decltype(T::kMachineType)>> {
+struct MachineRepresentationOf<T, std::void_t<decltype(T::kMachineType)>> {
   static const MachineRepresentation value = T::kMachineType.representation();
 };
 template <class T>
@@ -246,8 +275,9 @@ using BuiltinPtr = Smi;
 template <class T, class U>
 struct is_subtype {
   static const bool value =
-      std::is_base_of<U, T>::value || (std::is_same<U, MaybeObject>::value &&
-                                       std::is_convertible<T, Object>::value);
+      std::disjunction<std::is_base_of<U, T>,
+                       std::conjunction<std::is_same<U, MaybeObject>,
+                                        std::is_convertible<T, Object>>>::value;
 };
 template <class T1, class T2, class U>
 struct is_subtype<UnionT<T1, T2>, U> {
@@ -336,10 +366,11 @@ class TNode {
  public:
   template <class U,
             typename std::enable_if<is_subtype<U, T>::value, int>::type = 0>
-  TNode(const TNode<U>& other) : node_(other) {
+  TNode(const TNode<U>& other) V8_NOEXCEPT : node_(other.node_) {
     LazyTemplateChecks();
   }
-  TNode() : TNode(nullptr) {}
+  TNode(const TNode& other) V8_NOEXCEPT : node_(other.node_) {}
+  TNode() : node_(nullptr) {}
 
   TNode operator=(TNode other) {
     DCHECK_NOT_NULL(other.node_);
@@ -347,18 +378,19 @@ class TNode {
     return *this;
   }
 
-  bool is_null() const { return node_ == nullptr; }
-
   operator compiler::Node*() const { return node_; }
+
+  explicit operator bool() const { return node_ != nullptr; }
 
   static TNode UncheckedCast(compiler::Node* node) { return TNode(node); }
 
  protected:
-  explicit TNode(compiler::Node* node) : node_(node) { LazyTemplateChecks(); }
+  template <typename U>
+  friend class TNode;
 
- private:
+  explicit TNode(compiler::Node* node) : node_(node) { LazyTemplateChecks(); }
   // These checks shouldn't be checked before TNode is actually used.
-  void LazyTemplateChecks() {
+  void LazyTemplateChecks() const {
     static_assert(is_valid_type_tag<T>::value, "invalid type tag");
   }
 
@@ -376,7 +408,7 @@ class SloppyTNode : public TNode<T> {
       : TNode<T>(node) {}
   template <class U, typename std::enable_if<is_subtype<U, T>::value,
                                              int>::type = 0>
-  SloppyTNode(const TNode<U>& other)  // NOLINT(runtime/explicit)
+  SloppyTNode(const TNode<U>& other) V8_NOEXCEPT  // NOLINT(runtime/explicit)
       : TNode<T>(other) {}
 };
 

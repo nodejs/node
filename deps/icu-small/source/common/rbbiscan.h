@@ -34,7 +34,7 @@ class   RBBISymbolTable;
 //--------------------------------------------------------------------------------
 //
 //  class RBBIRuleScanner does the lowest level, character-at-a-time
-//                        scanning of break iterator rules.
+//                        scanning of break iterator rules.  
 //
 //                        The output of the scanner is parse trees for
 //                        the rule expressions and a list of all Unicode Sets
@@ -86,7 +86,7 @@ private:
     void        error(UErrorCode e);                   // error reporting convenience function.
     void        fixOpStack(RBBINode::OpPrecedence p);
                                                        //   a character.
-    void        findSetFor(const UnicodeString &s, RBBINode *node, UnicodeSet *setToAdopt = NULL);
+    void        findSetFor(const UnicodeString &s, RBBINode *node, UnicodeSet *setToAdopt = nullptr);
 
     UChar32     nextCharLL();
 #ifdef RBBI_DEBUG
@@ -144,7 +144,7 @@ private:
 
     UnicodeSet                     fRuleSets[10];    // Unicode Sets that are needed during
                                                      //  the scanning of RBBI rules.  The
-                                                     //  indicies for these are assigned by the
+                                                     //  indices for these are assigned by the
                                                      //  perl script that builds the state tables.
                                                      //  See rbbirpt.h.
 
@@ -158,8 +158,8 @@ private:
     UnicodeSet *gRuleSet_name_char;
     UnicodeSet *gRuleSet_name_start_char;
 
-    RBBIRuleScanner(const RBBIRuleScanner &other); // forbid copying of this class
-    RBBIRuleScanner &operator=(const RBBIRuleScanner &other); // forbid copying of this class
+    RBBIRuleScanner(const RBBIRuleScanner &other) = delete; // forbid copying of this class
+    RBBIRuleScanner &operator=(const RBBIRuleScanner &other) = delete; // forbid copying of this class
 };
 
 U_NAMESPACE_END

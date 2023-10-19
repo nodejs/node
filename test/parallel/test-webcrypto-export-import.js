@@ -5,31 +5,26 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (common.hasOpenSSL3)
-  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
-
 const assert = require('assert');
-const { subtle, getRandomValues } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 {
   async function test() {
-    const keyData = getRandomValues(new Uint8Array(32));
+    const keyData = globalThis.crypto.getRandomValues(new Uint8Array(32));
     await Promise.all([1, null, undefined, {}, []].map((format) =>
       assert.rejects(
         subtle.importKey(format, keyData, {}, false, ['wrapKey']), {
-          code: 'ERR_INVALID_ARG_TYPE'
+          code: 'ERR_INVALID_ARG_VALUE'
         })
     ));
     await assert.rejects(
       subtle.importKey('not valid', keyData, {}, false, ['wrapKey']), {
         code: 'ERR_INVALID_ARG_VALUE'
       });
-    await Promise.all([1, null, undefined, {}, []].map((keyData) =>
-      assert.rejects(
-        subtle.importKey('raw', keyData, {}, false, ['deriveBits']), {
-          code: 'ERR_INVALID_ARG_TYPE'
-        })
-    ));
+    await assert.rejects(
+      subtle.importKey('raw', 1, {}, false, ['deriveBits']), {
+        code: 'ERR_INVALID_ARG_TYPE'
+      });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
         name: 'HMAC'
@@ -43,13 +38,6 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       }, false, ['deriveBits']), {
         name: 'SyntaxError',
         message: 'Unsupported key usage for an HMAC key'
-      });
-    await assert.rejects(
-      subtle.importKey('node.keyObject', '', {
-        name: 'HMAC',
-        hash: 'SHA-256'
-      }, false, ['sign', 'verify']), {
-        code: 'ERR_INVALID_ARG_TYPE'
       });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
@@ -75,7 +63,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
         hash: 'SHA-256',
       }, false, ['sign', 'verify']), {
         name: 'DataError',
-        message: 'Invalid JWK keyData'
+        message: 'Invalid keyData'
       });
   }
 
@@ -85,7 +73,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
 // Import/Export HMAC Secret Key
 {
   async function test() {
-    const keyData = getRandomValues(new Uint8Array(32));
+    const keyData = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const key = await subtle.importKey(
       'raw',
       keyData, {
@@ -107,6 +95,18 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
     assert.deepStrictEqual(
       Buffer.from(jwk.k, 'base64').toString('hex'),
       Buffer.from(raw).toString('hex'));
+
+    await assert.rejects(
+      subtle.importKey(
+        'raw',
+        keyData,
+        {
+          name: 'HMAC',
+          hash: 'SHA-256'
+        },
+        true,
+        [/* empty usages */]),
+      { name: 'SyntaxError', message: 'Usages cannot be empty when importing a secret key.' });
   }
 
   test().then(common.mustCall());
@@ -115,7 +115,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
 // Import/Export AES Secret Key
 {
   async function test() {
-    const keyData = getRandomValues(new Uint8Array(32));
+    const keyData = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const key = await subtle.importKey(
       'raw',
       keyData, {
@@ -137,6 +137,18 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
     assert.deepStrictEqual(
       Buffer.from(jwk.k, 'base64').toString('hex'),
       Buffer.from(raw).toString('hex'));
+
+    await assert.rejects(
+      subtle.importKey(
+        'raw',
+        keyData,
+        {
+          name: 'AES-CTR',
+          length: 256,
+        },
+        true,
+        [/* empty usages */]),
+      { name: 'SyntaxError', message: 'Usages cannot be empty when importing a secret key.' });
   }
 
   test().then(common.mustCall());

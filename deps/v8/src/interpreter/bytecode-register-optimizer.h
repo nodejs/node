@@ -5,9 +5,13 @@
 #ifndef V8_INTERPRETER_BYTECODE_REGISTER_OPTIMIZER_H_
 #define V8_INTERPRETER_BYTECODE_REGISTER_OPTIMIZER_H_
 
+#include "src/ast/variables.h"
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
+#include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecode-register-allocator.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +25,8 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
     : public NON_EXPORTED_BASE(BytecodeRegisterAllocator::Observer),
       public NON_EXPORTED_BASE(ZoneObject) {
  public:
+  using TypeHint = BytecodeGenerator::TypeHint;
+
   class BytecodeWriter {
    public:
     BytecodeWriter() = default;
@@ -91,8 +97,9 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
 
     // Materialize an equivalent to the accumulator if it will be
     // clobbered when the bytecode is dispatched.
-    if (BytecodeOperands::WritesAccumulator(implicit_register_use)) {
+    if (BytecodeOperands::WritesOrClobbersAccumulator(implicit_register_use)) {
       PrepareOutputRegister(accumulator_);
+      DCHECK_EQ(GetTypeHint(accumulator_), TypeHint::kAny);
     }
   }
 
@@ -109,6 +116,20 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
   // operand.
   RegisterList GetInputRegisterList(RegisterList reg_list);
 
+  // Maintain the map between Variable and Register.
+  void SetVariableInRegister(Variable* var, Register reg);
+
+  // Get the variable in the reg.
+  Variable* GetVariableInRegister(Register reg);
+
+  // Return true if the var is in the reg.
+  bool IsVariableInRegister(Variable* var, Register reg);
+
+  TypeHint GetTypeHint(Register reg);
+  void SetTypeHintForAccumulator(TypeHint hint);
+  void ResetTypeHintForAccumulator();
+  bool IsAccumulatorReset();
+
   int maxiumum_register_index() const { return max_register_index_; }
 
  private:
@@ -120,6 +141,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
   void RegisterAllocateEvent(Register reg) override;
   void RegisterListAllocateEvent(RegisterList reg_list) override;
   void RegisterListFreeEvent(RegisterList reg) override;
+  void RegisterFreeEvent(Register reg) override;
 
   // Update internal state for register transfer from |input| to |output|
   void RegisterTransfer(RegisterInfo* input, RegisterInfo* output);
@@ -177,8 +199,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
 
   uint32_t NextEquivalenceId() {
     equivalence_id_++;
-    // TODO(rmcilroy): use the same type for these and remove static_cast.
-    CHECK_NE(static_cast<size_t>(equivalence_id_), kInvalidEquivalenceId);
+    CHECK_NE(equivalence_id_, kInvalidEquivalenceId);
     return equivalence_id_;
   }
 
@@ -198,7 +219,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
   ZoneDeque<RegisterInfo*> registers_needing_flushed_;
 
   // Counter for equivalence sets identifiers.
-  int equivalence_id_;
+  uint32_t equivalence_id_;
 
   BytecodeWriter* bytecode_writer_;
   bool flush_required_;

@@ -1,14 +1,16 @@
 /*
- * Copyright 1998-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
+#include <openssl/param_build.h>
+
 /* used by speed.c */
-DSA *get_dsa(int);
+EVP_PKEY *get_dsa(int);
 
 static unsigned char dsa512_priv[] = {
     0x65, 0xe5, 0xc7, 0x38, 0x60, 0x24, 0xb5, 0x89, 0xd4, 0x9c, 0xeb, 0x4c,
@@ -211,11 +213,14 @@ typedef struct testdsa_st {
         st.q_l = sizeof(dsa##bits##_q); \
     } while (0)
 
-DSA *get_dsa(int dsa_bits)
+EVP_PKEY *get_dsa(int dsa_bits)
 {
-    DSA *dsa;
+    EVP_PKEY *pkey = NULL;
     BIGNUM *priv_key, *pub_key, *p, *q, *g;
+    EVP_PKEY_CTX *pctx;
     testdsa dsa_t;
+    OSSL_PARAM_BLD *tmpl = NULL;
+    OSSL_PARAM *params = NULL;
 
     switch (dsa_bits) {
     case 512:
@@ -231,30 +236,44 @@ DSA *get_dsa(int dsa_bits)
         return NULL;
     }
 
-    if ((dsa = DSA_new()) == NULL)
+    if ((pctx = EVP_PKEY_CTX_new_from_name(NULL, "DSA", NULL)) == NULL)
         return NULL;
+
     priv_key = BN_bin2bn(dsa_t.priv, dsa_t.priv_l, NULL);
     pub_key = BN_bin2bn(dsa_t.pub, dsa_t.pub_l, NULL);
     p = BN_bin2bn(dsa_t.p, dsa_t.p_l, NULL);
     q = BN_bin2bn(dsa_t.q, dsa_t.q_l, NULL);
     g = BN_bin2bn(dsa_t.g, dsa_t.g_l, NULL);
-    if ((priv_key == NULL) || (pub_key == NULL) || (p == NULL) || (q == NULL)
-         || (g == NULL)) {
+    if (priv_key == NULL || pub_key == NULL || p == NULL || q == NULL
+        || g == NULL) {
         goto err;
     }
-    if (!DSA_set0_pqg(dsa, p, q, g))
+    if ((tmpl = OSSL_PARAM_BLD_new()) == NULL
+        || !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_FFC_P,
+                                   p)
+        || !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_FFC_Q,
+                                   q)
+        || !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_FFC_G,
+                                   g)
+        || !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_PRIV_KEY,
+                                   priv_key)
+        || !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_PUB_KEY,
+                                   pub_key)
+        || (params = OSSL_PARAM_BLD_to_param(tmpl)) == NULL)
         goto err;
 
-    if (!DSA_set0_key(dsa, pub_key, priv_key))
-        goto err;
-
-    return dsa;
- err:
-    DSA_free(dsa);
+    if (EVP_PKEY_fromdata_init(pctx) <= 0
+        || EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_KEYPAIR,
+                             params) <= 0)
+        pkey = NULL;
+err:
+    OSSL_PARAM_free(params);
+    OSSL_PARAM_BLD_free(tmpl);
     BN_free(priv_key);
     BN_free(pub_key);
     BN_free(p);
     BN_free(q);
     BN_free(g);
-    return NULL;
+    EVP_PKEY_CTX_free(pctx);
+    return pkey;
 }

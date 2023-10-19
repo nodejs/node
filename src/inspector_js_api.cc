@@ -1,3 +1,4 @@
+#include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"
@@ -75,10 +76,10 @@ class JSBindingsConnection : public AsyncWrap {
       Isolate* isolate = env_->isolate();
       HandleScope handle_scope(isolate);
       Context::Scope context_scope(env_->context());
-      MaybeLocal<String> v8string =
-          String::NewFromTwoByte(isolate, message.characters16(),
-                                 NewStringType::kNormal, message.length());
-      Local<Value> argument = v8string.ToLocalChecked().As<Value>();
+      Local<Value> argument;
+      if (!String::NewFromTwoByte(isolate, message.characters16(),
+                                  NewStringType::kNormal,
+                                  message.length()).ToLocal(&argument)) return;
       connection_->OnMessage(argument);
     }
 
@@ -102,17 +103,17 @@ class JSBindingsConnection : public AsyncWrap {
   }
 
   static void Bind(Environment* env, Local<Object> target) {
+    Isolate* isolate = env->isolate();
     Local<FunctionTemplate> tmpl =
-        env->NewFunctionTemplate(JSBindingsConnection::New);
+        NewFunctionTemplate(isolate, JSBindingsConnection::New);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         JSBindingsConnection::kInternalFieldCount);
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    env->SetProtoMethod(tmpl, "dispatch", JSBindingsConnection::Dispatch);
-    env->SetProtoMethod(tmpl, "disconnect", JSBindingsConnection::Disconnect);
-    env->SetConstructorFunction(
-        target,
-        ConnectionType::GetClassName(env),
-        tmpl);
+    SetProtoMethod(isolate, tmpl, "dispatch", JSBindingsConnection::Dispatch);
+    SetProtoMethod(
+        isolate, tmpl, "disconnect", JSBindingsConnection::Disconnect);
+    SetConstructorFunction(
+        env->context(), target, ConnectionType::GetClassName(env), tmpl);
   }
 
   static void New(const FunctionCallbackInfo<Value>& info) {
@@ -122,9 +123,11 @@ class JSBindingsConnection : public AsyncWrap {
     new JSBindingsConnection(env, info.This(), callback);
   }
 
+  // See https://github.com/nodejs/node/pull/46942
   void Disconnect() {
+    BaseObjectPtr<JSBindingsConnection> strong_ref{this};
     session_.reset();
-    delete this;
+    Detach();
   }
 
   static void Disconnect(const FunctionCallbackInfo<Value>& info) {
@@ -169,12 +172,12 @@ static bool InspectorEnabled(Environment* env) {
 }
 
 void SetConsoleExtensionInstaller(const FunctionCallbackInfo<Value>& info) {
-  auto env = Environment::GetCurrent(info);
+  Realm* realm = Realm::GetCurrent(info);
 
   CHECK_EQ(info.Length(), 1);
   CHECK(info[0]->IsFunction());
 
-  env->set_inspector_console_extension_installer(info[0].As<Function>());
+  realm->set_inspector_console_extension_installer(info[0].As<Function>());
 }
 
 void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
@@ -215,10 +218,10 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
 
   Local<Value> node_method = info[1];
   CHECK(node_method->IsFunction());
-  node_method.As<Function>()->Call(context,
+  USE(node_method.As<Function>()->Call(context,
                                    info.Holder(),
                                    call_args.length(),
-                                   call_args.out()).FromMaybe(Local<Value>());
+                                   call_args.out()));
 }
 
 static void* GetAsyncTask(int64_t asyncId) {
@@ -272,7 +275,7 @@ static void RegisterAsyncHookWrapper(const FunctionCallbackInfo<Value>& args) {
 
 void IsEnabled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(InspectorEnabled(env));
+  args.GetReturnValue().Set(env->inspector_agent()->IsListening());
 }
 
 void Open(const FunctionCallbackInfo<Value>& args) {
@@ -281,6 +284,7 @@ void Open(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() > 0 && args[0]->IsUint32()) {
     uint32_t port = args[0].As<Uint32>()->Value();
+    CHECK_LE(port, std::numeric_limits<uint16_t>::max());
     ExclusiveAccess<HostPort>::Scoped host_port(agent->host_port());
     host_port->set_port(static_cast<int>(port));
   }
@@ -314,34 +318,56 @@ void Url(const FunctionCallbackInfo<Value>& args) {
 void Initialize(Local<Object> target, Local<Value> unused,
                 Local<Context> context, void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   v8::Local<v8::Function> consoleCallFunc =
-      env->NewFunctionTemplate(InspectorConsoleCall, v8::Local<v8::Signature>(),
-                               v8::ConstructorBehavior::kThrow,
-                               v8::SideEffectType::kHasSideEffect)
+      NewFunctionTemplate(isolate,
+                          InspectorConsoleCall,
+                          v8::Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect)
           ->GetFunction(context)
           .ToLocalChecked();
-  auto name_string = FIXED_ONE_BYTE_STRING(env->isolate(), "consoleCall");
+  auto name_string = FIXED_ONE_BYTE_STRING(isolate, "consoleCall");
   target->Set(context, name_string, consoleCallFunc).Check();
   consoleCallFunc->SetName(name_string);
 
-  env->SetMethod(
-      target, "setConsoleExtensionInstaller", SetConsoleExtensionInstaller);
-  env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
-  env->SetMethod(target, "open", Open);
-  env->SetMethodNoSideEffect(target, "url", Url);
-  env->SetMethod(target, "waitForDebugger", WaitForDebugger);
+  SetMethod(context,
+            target,
+            "setConsoleExtensionInstaller",
+            SetConsoleExtensionInstaller);
+  SetMethod(context, target, "callAndPauseOnStart", CallAndPauseOnStart);
+  SetMethod(context, target, "open", Open);
+  SetMethodNoSideEffect(context, target, "url", Url);
+  SetMethod(context, target, "waitForDebugger", WaitForDebugger);
 
-  env->SetMethod(target, "asyncTaskScheduled", AsyncTaskScheduledWrapper);
-  env->SetMethod(target, "asyncTaskCanceled",
-      InvokeAsyncTaskFnWithId<&Agent::AsyncTaskCanceled>);
-  env->SetMethod(target, "asyncTaskStarted",
-      InvokeAsyncTaskFnWithId<&Agent::AsyncTaskStarted>);
-  env->SetMethod(target, "asyncTaskFinished",
-      InvokeAsyncTaskFnWithId<&Agent::AsyncTaskFinished>);
+  SetMethod(context, target, "asyncTaskScheduled", AsyncTaskScheduledWrapper);
+  SetMethod(context,
+            target,
+            "asyncTaskCanceled",
+            InvokeAsyncTaskFnWithId<&Agent::AsyncTaskCanceled>);
+  SetMethod(context,
+            target,
+            "asyncTaskStarted",
+            InvokeAsyncTaskFnWithId<&Agent::AsyncTaskStarted>);
+  SetMethod(context,
+            target,
+            "asyncTaskFinished",
+            InvokeAsyncTaskFnWithId<&Agent::AsyncTaskFinished>);
 
-  env->SetMethod(target, "registerAsyncHook", RegisterAsyncHookWrapper);
-  env->SetMethodNoSideEffect(target, "isEnabled", IsEnabled);
+  SetMethod(context, target, "registerAsyncHook", RegisterAsyncHookWrapper);
+  SetMethodNoSideEffect(context, target, "isEnabled", IsEnabled);
+
+  Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
+
+  // Grab the console from the binding object and expose those to our binding
+  // layer.
+  Local<Object> binding = context->GetExtrasBindingObject();
+  target
+      ->Set(context,
+            console_string,
+            binding->Get(context, console_string).ToLocalChecked())
+      .Check();
 
   JSBindingsConnection<LocalConnection>::Bind(env, target);
   JSBindingsConnection<MainThreadConnection>::Bind(env, target);
@@ -376,7 +402,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace inspector
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(inspector,
-                                  node::inspector::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(inspector,
-                               node::inspector::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(inspector, node::inspector::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(inspector,
+                                node::inspector::RegisterExternalReferences)

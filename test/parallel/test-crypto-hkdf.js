@@ -15,6 +15,11 @@ const {
 } = require('crypto');
 
 {
+  assert.throws(() => hkdf(), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /The "digest" argument must be of type string/
+  });
+
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf(i, 'a'), {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -29,11 +34,11 @@ const {
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf('sha256', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "key" argument must be /
+      message: /^The "ikm" argument must be /
     });
     assert.throws(() => hkdfSync('sha256', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "key" argument must be /
+      message: /^The "ikm" argument must be /
     });
   });
 
@@ -115,6 +120,8 @@ const {
 
 const algorithms = [
   ['sha256', 'secret', 'salt', 'info', 10],
+  ['sha256', '', '', '', 10],
+  ['sha256', '', 'salt', '', 10],
   ['sha512', 'secret', 'salt', '', 15],
 ];
 if (!common.hasOpenSSL3)

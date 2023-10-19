@@ -495,7 +495,7 @@ double StringToDoubleConverter::StringToIeee(
     current = next_non_space;
   }
 
-  if (infinity_symbol_ != NULL) {
+  if (infinity_symbol_ != DOUBLE_CONVERSION_NULLPTR) {
     if (ConsumeFirstCharacter(*current, infinity_symbol_, allow_case_insensitivity)) {
       if (!ConsumeSubString(&current, end, infinity_symbol_, allow_case_insensitivity)) {
         return junk_string_value_;
@@ -513,7 +513,7 @@ double StringToDoubleConverter::StringToIeee(
     }
   }
 
-  if (nan_symbol_ != NULL) {
+  if (nan_symbol_ != DOUBLE_CONVERSION_NULLPTR) {
     if (ConsumeFirstCharacter(*current, nan_symbol_, allow_case_insensitivity)) {
       if (!ConsumeSubString(&current, end, nan_symbol_, allow_case_insensitivity)) {
         return junk_string_value_;
@@ -798,6 +798,42 @@ float StringToDoubleConverter::StringToFloat(
     int* processed_characters_count) const {
   return static_cast<float>(StringToIeee(buffer, length, false,
                                          processed_characters_count));
+}
+
+
+template<>
+double StringToDoubleConverter::StringTo<double>(
+    const char* buffer,
+    int length,
+    int* processed_characters_count) const {
+    return StringToDouble(buffer, length, processed_characters_count);
+}
+
+
+template<>
+float StringToDoubleConverter::StringTo<float>(
+    const char* buffer,
+    int length,
+    int* processed_characters_count) const {
+    return StringToFloat(buffer, length, processed_characters_count);
+}
+
+
+template<>
+double StringToDoubleConverter::StringTo<double>(
+    const uc16* buffer,
+    int length,
+    int* processed_characters_count) const {
+    return StringToDouble(buffer, length, processed_characters_count);
+}
+
+
+template<>
+float StringToDoubleConverter::StringTo<float>(
+    const uc16* buffer,
+    int length,
+    int* processed_characters_count) const {
+    return StringToFloat(buffer, length, processed_characters_count);
 }
 
 }  // namespace double_conversion

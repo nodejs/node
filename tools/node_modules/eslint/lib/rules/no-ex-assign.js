@@ -11,15 +11,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow reassigning exceptions in `catch` clauses",
-            category: "Possible Errors",
+            description: "Disallow reassigning exceptions in `catch` clauses",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-ex-assign"
+            url: "https://eslint.org/docs/latest/rules/no-ex-assign"
         },
 
         schema: [],
@@ -30,6 +30,8 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.sourceCode;
 
         /**
          * Finds and reports references that are non initializer and writable.
@@ -44,7 +46,7 @@ module.exports = {
 
         return {
             CatchClause(node) {
-                context.getDeclaredVariables(node).forEach(checkVariable);
+                sourceCode.getDeclaredVariables(node).forEach(checkVariable);
             }
         };
 

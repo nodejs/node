@@ -87,7 +87,7 @@ function test(testOptions, cb) {
       requestOCSP: testOptions.ocsp,
       secureOptions: testOptions.ocsp ? 0 : SSL_OP_NO_TICKET,
       rejectUnauthorized: false
-    }, common.mustCall(() => { }, requestCount));
+    }, common.mustCall(requestCount));
 
     client.on('OCSPResponse', common.mustCall((resp) => {
       if (testOptions.response) {

@@ -132,15 +132,15 @@ function isRedundantSuperCall(body, ctorParams) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary constructors",
-            category: "ECMAScript 6",
+            description: "Disallow unnecessary constructors",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-useless-constructor"
+            url: "https://eslint.org/docs/latest/rules/no-useless-constructor"
         },
 
         schema: [],

@@ -28,7 +28,7 @@
 
 /**
  * \file
- * \brief Bidi Transformations
+ * \brief C API: Bidi Transformations
  */
 
 /**

@@ -84,8 +84,8 @@ class TransliteratorParser : public UMemory {
      * Temporary table of variable names.  When parsing is complete, this is
      * copied into data.variableNames.
      */
-    Hashtable variableNames;
-
+    Hashtable variableNames;    
+    
     /**
      * String of standins for segments.  Used during the parsing of a single
      * rule.  segmentStandins.charAt(0) is the standin for "$1" and corresponds
@@ -95,7 +95,7 @@ class TransliteratorParser : public UMemory {
 
     /**
      * Vector of StringMatcher objects for segments.  Used during the
-     * parsing of a single rule.
+     * parsing of a single rule.  
      * segmentStandins.charAt(0) is the standin for "$1" and corresponds
      * to StringMatcher object segmentObjects.elementAt(0), etc.
      */
@@ -107,14 +107,14 @@ class TransliteratorParser : public UMemory {
      * <code>variableLimit</code>.  At any point during parsing, available
      * variables are <code>variableNext..variableLimit-1</code>.
      */
-    UChar variableNext;
+    char16_t variableNext;
 
     /**
      * The last available stand-in for variables.  This is discovered
      * dynamically.  At any point during parsing, available variables are
      * <code>variableNext..variableLimit-1</code>.
      */
-    UChar variableLimit;
+    char16_t variableLimit;
 
     /**
      * When we encounter an undefined variable, we do not immediately signal
@@ -130,7 +130,7 @@ class TransliteratorParser : public UMemory {
      * patterns.  This is allocated the first time it is needed, and
      * reused thereafter.
      */
-    UChar dotStandIn;
+    char16_t dotStandIn;
 
 public:
 
@@ -156,7 +156,7 @@ public:
      * call returns.
      * @param rules      rules, separated by ';'
      * @param direction  either FORWARD or REVERSE.
-     * @param pe         Struct to recieve information on position
+     * @param pe         Struct to receive information on position 
      *                   of error if an error is encountered
      * @param ec         Output param set to success/failure code.
      */
@@ -168,7 +168,7 @@ public:
     /**
      * Return the compound filter parsed by parse().  Caller owns result.
      * @return the compound filter parsed by parse().
-     */
+     */ 
     UnicodeSet* orphanCompoundFilter();
 
 private:
@@ -272,9 +272,9 @@ private:
      * @param pos     the position in pattern at which to start parsing.
      * @return        the stand-in character used to represent it.
      */
-    UChar parseSet(const UnicodeString& rule,
-                   ParsePosition& pos,
-                   UErrorCode& status);
+    char16_t parseSet(const UnicodeString& rule,
+                      ParsePosition& pos,
+                      UErrorCode& status);
 
     /**
      * Generate and return a stand-in for a new UnicodeFunctor.  Store
@@ -282,14 +282,14 @@ private:
      * @param adopted the UnicodeFunctor to be adopted.
      * @return        a stand-in for a new UnicodeFunctor.
      */
-    UChar generateStandInFor(UnicodeFunctor* adopted, UErrorCode& status);
+    char16_t generateStandInFor(UnicodeFunctor* adopted, UErrorCode& status);
 
     /**
      * Return the standin for segment seg (1-based).
      * @param seg    the given segment.
      * @return       the standIn character for the given segment.
      */
-    UChar getSegmentStandin(int32_t seg, UErrorCode& status);
+    char16_t getSegmentStandin(int32_t seg, UErrorCode& status);
 
     /**
      * Set the object for segment seg (1-based).
@@ -303,7 +303,7 @@ private:
      * time and reused thereafter.
      * @return    the stand-in for the dot set.
      */
-    UChar getDotStandIn(UErrorCode& status);
+    char16_t getDotStandIn(UErrorCode& status);
 
     /**
      * Append the value of the given variable name to the given
@@ -328,7 +328,7 @@ private:
      * Copy constructor
      */
     TransliteratorParser(const TransliteratorParser&);
-
+    
     /**
      * Assignment operator
      */

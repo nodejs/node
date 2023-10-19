@@ -2,20 +2,31 @@
 
 =head1 NAME
 
-SSL_CTX_set_tlsext_ticket_key_cb - set a callback for session ticket processing
+SSL_CTX_set_tlsext_ticket_key_evp_cb,
+SSL_CTX_set_tlsext_ticket_key_cb
+- set a callback for session ticket processing
 
 =head1 SYNOPSIS
 
  #include <openssl/tls1.h>
 
- long SSL_CTX_set_tlsext_ticket_key_cb(SSL_CTX sslctx,
+ int SSL_CTX_set_tlsext_ticket_key_evp_cb(SSL_CTX sslctx,
+     int (*cb)(SSL *s, unsigned char key_name[16],
+               unsigned char iv[EVP_MAX_IV_LENGTH],
+               EVP_CIPHER_CTX *ctx, EVP_MAC_CTX *hctx, int enc));
+
+The following function has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
+ int SSL_CTX_set_tlsext_ticket_key_cb(SSL_CTX sslctx,
      int (*cb)(SSL *s, unsigned char key_name[16],
                unsigned char iv[EVP_MAX_IV_LENGTH],
                EVP_CIPHER_CTX *ctx, HMAC_CTX *hctx, int enc));
 
 =head1 DESCRIPTION
 
-SSL_CTX_set_tlsext_ticket_key_cb() sets a callback function I<cb> for handling
+SSL_CTX_set_tlsext_ticket_key_evp_cb() sets a callback function I<cb> for handling
 session tickets for the ssl context I<sslctx>. Session tickets, defined in
 RFC5077 provide an enhanced session resumption capability where the server
 implementation is not required to maintain per session state. It only applies
@@ -38,7 +49,8 @@ ticket information or it starts a full TLS handshake to create a new session
 ticket.
 
 Before the callback function is started I<ctx> and I<hctx> have been
-initialised with L<EVP_CIPHER_CTX_reset(3)> and L<HMAC_CTX_reset(3)> respectively.
+initialised with L<EVP_CIPHER_CTX_reset(3)> and L<EVP_MAC_CTX_new(3)>
+respectively.
 
 For new sessions tickets, when the client doesn't present a session ticket, or
 an attempted retrieval of the ticket failed, or a renew option was indicated,
@@ -49,12 +61,13 @@ I<iv>, and set the cipher context I<ctx> and the hash context I<hctx>.
 The I<name> is 16 characters long and is used as a key identifier.
 
 The I<iv> length is the length of the IV of the corresponding cipher. The
-maximum IV length is B<EVP_MAX_IV_LENGTH> bytes defined in B<evp.h>.
+maximum IV length is B<EVP_MAX_IV_LENGTH> bytes defined in F<< <openssl/evp.h> >>.
 
 The initialization vector I<iv> should be a random value. The cipher context
 I<ctx> should use the initialisation vector I<iv>. The cipher context can be
-set using L<EVP_EncryptInit_ex(3)>. The hmac context can be set using
-L<HMAC_Init_ex(3)>.
+set using L<EVP_EncryptInit_ex(3)>. The hmac context and digest can be set using
+L<EVP_MAC_CTX_set_params(3)> with the B<OSSL_MAC_PARAM_KEY> and
+B<OSSL_MAC_PARAM_DIGEST> parameters respectively.
 
 When the client presents a session ticket, the callback function with be called
 with I<enc> set to 0 indicating that the I<cb> function should retrieve a set
@@ -62,8 +75,9 @@ of parameters. In this case I<name> and I<iv> have already been parsed out of
 the session ticket. The OpenSSL library expects that the I<name> will be used
 to retrieve a cryptographic parameters and that the cryptographic context
 I<ctx> will be set with the retrieved parameters and the initialization vector
-I<iv>. using a function like L<EVP_DecryptInit_ex(3)>. The I<hctx> needs to be
-set using L<HMAC_Init_ex(3)>.
+I<iv>. using a function like L<EVP_DecryptInit_ex(3)>. The key material and
+digest for I<hctx> need to be set using L<EVP_MAC_CTX_set_params(3)> with the
+B<OSSL_MAC_PARAM_KEY> and B<OSSL_MAC_PARAM_DIGEST> parameters respectively.
 
 If the I<name> is still valid but a renewal of the ticket is required the
 callback function should return 2. The library will call the callback again
@@ -102,6 +116,14 @@ This indicates an error.
 
 =back
 
+The SSL_CTX_set_tlsext_ticket_key_cb() function is identical to
+SSL_CTX_set_tlsext_ticket_key_evp_cb() except that it takes a deprecated
+HMAC_CTX pointer instead of an EVP_MAC_CTX one.
+Before this callback function is started I<hctx> will have been
+initialised with L<EVP_MAC_CTX_new(3)> and the digest set with
+L<EVP_MAC_CTX_set_params(3)>.
+The I<hctx> key material can be set using L<HMAC_Init_ex(3)>.
+
 =head1 NOTES
 
 Session resumption shortcuts the TLS so that the client certificate
@@ -123,19 +145,20 @@ enable an attacker to obtain the session keys.
 
 =head1 RETURN VALUES
 
-returns 0 to indicate the callback function was set.
+Returns 1 to indicate the callback function was set and 0 otherwise.
 
 =head1 EXAMPLES
 
 Reference Implementation:
 
- SSL_CTX_set_tlsext_ticket_key_cb(SSL, ssl_tlsext_ticket_key_cb);
+ SSL_CTX_set_tlsext_ticket_key_evp_cb(SSL, ssl_tlsext_ticket_key_cb);
  ...
 
  static int ssl_tlsext_ticket_key_cb(SSL *s, unsigned char key_name[16],
                                      unsigned char *iv, EVP_CIPHER_CTX *ctx,
-                                     HMAC_CTX *hctx, int enc)
+                                     EVP_MAC_CTX *hctx, int enc)
  {
+     OSSL_PARAM params[3];
      your_type_t *key; /* something that you need to implement */
 
      if (enc) { /* create new session */
@@ -156,8 +179,17 @@ Reference Implementation:
          }
          memcpy(key_name, key->name, 16);
 
-         EVP_EncryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key->aes_key, iv);
-         HMAC_Init_ex(&hctx, key->hmac_key, 32, EVP_sha256(), NULL);
+         if (EVP_EncryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key->aes_key,
+                                iv) == 0)
+            return -1; /* error in cipher initialisation */
+
+         params[0] = OSSL_PARAM_construct_octet_string(OSSL_MAC_PARAM_KEY,
+                                                       key->hmac_key, 32);
+         params[1] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
+                                                      "sha256", 0);
+         params[2] = OSSL_PARAM_construct_end();
+         if (EVP_MAC_CTX_set_params(hctx, params) == 0)
+            return -1; /* error in mac initialisation */
 
          return 1;
 
@@ -168,8 +200,17 @@ Reference Implementation:
          if (key == NULL || key->expire < t)
              return 0;
 
-         HMAC_Init_ex(&hctx, key->hmac_key, 32, EVP_sha256(), NULL);
-         EVP_DecryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key->aes_key, iv);
+         params[0] = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY,
+                                                       key->hmac_key, 32);
+         params[1] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
+                                                      "sha256", 0);
+         params[2] = OSSL_PARAM_construct_end();
+         if (EVP_MAC_CTX_set_params(hctx, params) == 0)
+            return -1; /* error in mac initialisation */
+
+         if (EVP_DecryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key->aes_key,
+                                iv) == 0)
+            return -1; /* error in cipher initialisation */
 
          if (key->expire < t - RENEW_TIME) { /* RENEW_TIME: implement */
              /*
@@ -191,11 +232,18 @@ L<SSL_CTX_sess_number(3)>,
 L<SSL_CTX_sess_set_get_cb(3)>,
 L<SSL_CTX_set_session_id_context(3)>,
 
+=head1 HISTORY
+
+The SSL_CTX_set_tlsext_ticket_key_cb() function was deprecated in OpenSSL 3.0.
+
+The SSL_CTX_set_tlsext_ticket_key_evp_cb() function was introduced in
+OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

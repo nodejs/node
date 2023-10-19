@@ -3,13 +3,17 @@
 // found in the LICENSE file.
 
 namespace array {
+
 type LoadJoinElementFn = builtin(Context, JSReceiver, uintptr) => JSAny;
+
+const kMaxArrayLength:
+    constexpr uint32 generates 'JSArray::kMaxArrayLength';
 
 // Fast C call to write a fixed array (see Buffer.fixedArray) to a single
 // string.
 extern macro
-ArrayBuiltinsAssembler::CallJSArrayArrayJoinConcatToSequentialString(
-    FixedArray, intptr, String, String): String;
+    ArrayBuiltinsAssembler::CallJSArrayArrayJoinConcatToSequentialString(
+        FixedArray, intptr, String, String): String;
 
 transitioning builtin LoadJoinElement<T : type extends ElementsKind>(
     context: Context, receiver: JSReceiver, k: uintptr): JSAny {
@@ -51,7 +55,8 @@ LoadJoinElement<array::FastDoubleElements>(
 builtin LoadJoinTypedElement<T : type extends ElementsKind>(
     context: Context, receiver: JSReceiver, k: uintptr): JSAny {
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
-  assert(!IsDetachedBuffer(typedArray.buffer));
+  dcheck(!typed_array::IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
+      typedArray));
   return typed_array::LoadFixedTypedArrayElementAsTagged(
       typedArray.data_ptr, k, typed_array::KindForArrayType<T>());
 }
@@ -64,28 +69,38 @@ transitioning builtin ConvertToLocaleString(
   try {
     const callable: Callable = Cast<Callable>(prop) otherwise TypeError;
     let result: JSAny;
-    if (IsNullOrUndefined(locales)) {
-      result = Call(context, callable, element);
-    } else if (IsNullOrUndefined(options)) {
-      result = Call(context, callable, element, locales);
-    } else {
+
+    // According to the ECMA-402 specification, the optional arguments locales
+    // and options must be passed.
+    @if(V8_INTL_SUPPORT) {
       result = Call(context, callable, element, locales, options);
     }
+
+    // Without the ECMA-402 internationalization API, the optional arguments
+    // must not be passed.
+    // See: https://tc39.es/ecma262/#sec-array.prototype.tolocalestring
+    @ifnot(V8_INTL_SUPPORT) {
+      result = Call(context, callable, element);
+      // Use the remaining parameters.
+      const _locales = locales;
+      const _options = options;
+    }
+
     return ToString_Inline(result);
   } label TypeError {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, prop);
+    ThrowCalledNonCallable(prop);
   }
 }
 
 // Verifies the current element JSArray accessor can still be safely used
 // (see LoadJoinElement<ElementsAccessor>).
-macro CannotUseSameArrayAccessor<T: type>(implicit context: Context)(
-    loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
-    originalLen: Number): bool;
+macro CannotUseSameArrayAccessor<T: type>(
+    implicit context: Context)(loadFn: LoadJoinElementFn, receiver: JSReceiver,
+    originalMap: Map, originalLen: Number): bool;
 
-CannotUseSameArrayAccessor<JSArray>(implicit context: Context)(
-    loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
-    originalLen: Number): bool {
+CannotUseSameArrayAccessor<JSArray>(
+    implicit context: Context)(loadFn: LoadJoinElementFn, receiver: JSReceiver,
+    originalMap: Map, originalLen: Number): bool {
   if (loadFn == LoadJoinElement<array::GenericElementsAccessor>) return false;
 
   const array: JSArray = UnsafeCast<JSArray>(receiver);
@@ -95,18 +110,30 @@ CannotUseSameArrayAccessor<JSArray>(implicit context: Context)(
   return false;
 }
 
-CannotUseSameArrayAccessor<JSTypedArray>(implicit context: Context)(
-    _loadFn: LoadJoinElementFn, receiver: JSReceiver, _initialMap: Map,
-    _initialLen: Number): bool {
+CannotUseSameArrayAccessor<JSTypedArray>(
+    implicit context: Context)(_loadFn: LoadJoinElementFn,
+    receiver: JSReceiver, _initialMap: Map, _initialLen: Number): bool {
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
-  return IsDetachedBuffer(typedArray.buffer);
+  // When this is called from toLocaleString(), the underlying buffer might get
+  // detached / resized (in the case of RAB / GSAB) during iterating the
+  // elements. When this is called from join(), it can happen only before the
+  // first element (during parameter conversion). The code below doesn't
+  // differentiate between these two cases, but does the checks in both cases.
+  if (IsDetachedBuffer(typedArray.buffer)) {
+    return true;
+  }
+  if (IsVariableLengthJSArrayBufferView(typedArray)) {
+    // TODO(v8:11111): Add a fast(er) path here.
+    return true;
+  }
+  return false;
 }
 
 // Calculates the running total length of the resulting string.  If the
 // calculated length exceeds the maximum string length (see
 // String::kMaxLength), throws a range error.
-macro AddStringLength(implicit context: Context)(
-    lenA: intptr, lenB: intptr): intptr {
+macro AddStringLength(
+    implicit context: Context)(lenA: intptr, lenB: intptr): intptr {
   try {
     const length: intptr = TryIntPtrAdd(lenA, lenB) otherwise IfOverflow;
     if (length > kStringMaxLength) goto IfOverflow;
@@ -122,14 +149,14 @@ macro AddStringLength(implicit context: Context)(
 macro StoreAndGrowFixedArray<T: type>(
     fixedArray: FixedArray, index: intptr, element: T): FixedArray {
   const length: intptr = fixedArray.length_intptr;
-  assert(index <= length);
+  dcheck(index <= length);
   if (index < length) {
     fixedArray.objects[index] = element;
     return fixedArray;
   } else
     deferred {
       const newLength: intptr = CalculateNewElementsCapacity(length);
-      assert(index < newLength);
+      dcheck(index < newLength);
       const newfixedArray: FixedArray =
           ExtractFixedArray(fixedArray, 0, length, newLength);
       newfixedArray.objects[index] = element;
@@ -142,22 +169,31 @@ macro StoreAndGrowFixedArray<T: type>(
 // The buffer is maintained and updated by Buffer.constructor, Buffer.Add(),
 // Buffer.AddSeparators().
 struct Buffer {
-  macro Add(implicit context: Context)(
-      str: String, nofSeparators: intptr, separatorLength: intptr) {
+  macro Add(
+      implicit context: Context)(str: String, nofSeparators: intptr,
+      separatorLength: intptr): void {
     // Add separators if necessary (at the beginning or more than one)
     const writeSeparators: bool = this.index == 0 | nofSeparators > 1;
     this.AddSeparators(nofSeparators, separatorLength, writeSeparators);
 
     this.totalStringLength =
         AddStringLength(this.totalStringLength, str.length_intptr);
-    this.fixedArray =
-        StoreAndGrowFixedArray(this.fixedArray, this.index++, str);
+    // String comparison is expensive, so we only check for pointer equality
+    // (i.e. only works for internalized strings).
+    if (TaggedEqual(str, this.lastString)) {
+      this.RepeatLast();
+    } else {
+      this.fixedArray =
+          StoreAndGrowFixedArray(this.fixedArray, this.index++, str);
+      this.lastString = str;
+    }
     this.isOneByte =
         IsOneByteStringInstanceType(str.instanceType) & this.isOneByte;
   }
 
-  macro AddSeparators(implicit context: Context)(
-      nofSeparators: intptr, separatorLength: intptr, write: bool) {
+  macro AddSeparators(
+      implicit context: Context)(nofSeparators: intptr,
+      separatorLength: intptr, write: bool): void {
     if (nofSeparators == 0 || separatorLength == 0) return;
 
     const nofSeparatorsInt: intptr = nofSeparators;
@@ -172,12 +208,33 @@ struct Buffer {
     if (write) deferred {
         this.fixedArray = StoreAndGrowFixedArray(
             this.fixedArray, this.index++, Convert<Smi>(nofSeparatorsInt));
+        this.lastString = Null;
       }
+  }
+
+  macro RepeatLast(): void {
+    dcheck(this.index > 0);
+    typeswitch (this.fixedArray.objects[this.index - 1]) {
+      case (String): {
+        this.fixedArray = StoreAndGrowFixedArray(
+            this.fixedArray, this.index++, SmiConstant(-1));
+      }
+      case (count: Smi): {
+        dcheck(count < 0);
+        dcheck(count - 1 < 0);  // Check that there is no overflow.
+        this.fixedArray.objects[this.index - 1] = count - 1;
+      }
+      case (Object): {
+        unreachable;
+      }
+    }
   }
 
   // Fixed array holding elements that are either:
   //   1) String result of `ToString(next)`.
-  //   2) Smi representing the number of consecutive separators.
+  //   2) Smi representing either
+  //        - the number of consecutive separators (positive smi).
+  //        - the number to repeat the last stored string (negative smi).
   // `BufferJoin()` will iterate and writes these entries to a flat string.
   //
   // To save space, reduce reads and writes, only separators at the beginning,
@@ -190,6 +247,10 @@ struct Buffer {
   // Hole example
   //   receiver:   [<hole>, 'hello', <hole>, 'world', <hole>]
   //   fixedArray: [1, 'hello', 2, 'world', 1]
+  //
+  // Repeat example
+  //   receiver:   ['hello', 'hello', hello', 'world']
+  //   fixedArray: ['hello', -2, 'world']
   fixedArray: FixedArray;
 
   // Index to insert a new entry into `fixedArray`.
@@ -201,24 +262,27 @@ struct Buffer {
   // `true` if the separator and all strings in the buffer are one-byte,
   // otherwise `false`.
   isOneByte: bool;
+
+  lastString: PrimitiveHeapObject;
 }
 
 macro NewBuffer(len: uintptr, sep: String): Buffer {
   const cappedBufferSize: intptr = len > kMaxNewSpaceFixedArrayElements ?
       kMaxNewSpaceFixedArrayElements :
       Signed(len);
-  assert(cappedBufferSize > 0);
+  dcheck(cappedBufferSize > 0);
   return Buffer{
     fixedArray: AllocateZeroedFixedArray(cappedBufferSize),
     index: 0,
     totalStringLength: 0,
-    isOneByte: IsOneByteStringInstanceType(sep.instanceType)
+    isOneByte: IsOneByteStringInstanceType(sep.instanceType),
+    lastString: Null
   };
 }
 
-macro BufferJoin(implicit context: Context)(
-    buffer: Buffer, sep: String): String {
-  assert(IsValidPositiveSmi(buffer.totalStringLength));
+macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
+    String {
+  dcheck(IsValidPositiveSmi(buffer.totalStringLength));
   if (buffer.totalStringLength == 0) return kEmptyString;
 
   // Fast path when there's only one buffer element.
@@ -233,7 +297,8 @@ macro BufferJoin(implicit context: Context)(
 
       // When the element is a smi, use StringRepeat to quickly build a memory
       // efficient separator repeated string.
-      case (nofSeparators: Number): {
+      case (nofSeparators: Smi): {
+        dcheck(nofSeparators > 0);
         return StringRepeat(context, sep, nofSeparators);
       }
       case (Object): {
@@ -249,10 +314,10 @@ macro BufferJoin(implicit context: Context)(
       buffer.fixedArray, buffer.index, sep, r);
 }
 
-transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
-    receiver: JSReceiver, sep: String, lengthNumber: Number,
-    useToLocaleString: constexpr bool, locales: JSAny, options: JSAny,
-    initialLoadFn: LoadJoinElementFn): String {
+transitioning macro ArrayJoinImpl<T: type>(
+    implicit context: Context)(receiver: JSReceiver, sep: String,
+    lengthNumber: Number, useToLocaleString: constexpr bool, locales: JSAny,
+    options: JSAny, initialLoadFn: LoadJoinElementFn): String {
   const initialMap: Map = receiver.map;
   const len: uintptr = Convert<uintptr>(lengthNumber);
   const separatorLength: intptr = sep.length_intptr;
@@ -296,7 +361,9 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
         }
         case (obj: JSAny): {
           if (IsNullOrUndefined(obj)) continue;
-          next = string::ToString(context, obj);
+          const str = string::ToString_Inline(context, obj);
+          if (str == kEmptyString) continue;
+          next = str;
         }
       }
     }
@@ -313,13 +380,15 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
   return BufferJoin(buffer, sep);
 }
 
-transitioning macro ArrayJoin<T: type>(implicit context: Context)(
-    useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
-    lenNumber: Number, locales: JSAny, options: JSAny): JSAny;
+transitioning macro ArrayJoin<T: type>(
+    implicit context: Context)(useToLocaleString: constexpr bool,
+    receiver: JSReceiver, sep: String, lenNumber: Number, locales: JSAny,
+    options: JSAny): JSAny;
 
-transitioning ArrayJoin<JSArray>(implicit context: Context)(
-    useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
-    lenNumber: Number, locales: JSAny, options: JSAny): JSAny {
+transitioning ArrayJoin<JSArray>(
+    implicit context: Context)(useToLocaleString: constexpr bool,
+    receiver: JSReceiver, sep: String, lenNumber: Number, locales: JSAny,
+    options: JSAny): JSAny {
   const map: Map = receiver.map;
   const kind: ElementsKind = map.elements_kind;
   let loadFn: LoadJoinElementFn;
@@ -363,9 +432,10 @@ transitioning ArrayJoin<JSArray>(implicit context: Context)(
       receiver, sep, lenNumber, useToLocaleString, locales, options, loadFn);
 }
 
-transitioning ArrayJoin<JSTypedArray>(implicit context: Context)(
-    useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
-    lenNumber: Number, locales: JSAny, options: JSAny): JSAny {
+transitioning ArrayJoin<JSTypedArray>(
+    implicit context: Context)(useToLocaleString: constexpr bool,
+    receiver: JSReceiver, sep: String, lenNumber: Number, locales: JSAny,
+    options: JSAny): JSAny {
   const map: Map = receiver.map;
   const kind: ElementsKind = map.elements_kind;
   let loadFn: LoadJoinElementFn;
@@ -382,6 +452,28 @@ transitioning ArrayJoin<JSTypedArray>(implicit context: Context)(
     } else if (kind == ElementsKind::BIGUINT64_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::BigUint64Elements>;
     } else if (kind == ElementsKind::BIGINT64_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::BigInt64Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Uint8Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_INT8_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Int8Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_UINT16_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Uint16Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_INT16_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Int16Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_UINT32_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Uint32Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_INT32_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Int32Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_FLOAT32_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Float32Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_FLOAT64_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Float64Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_UINT8_CLAMPED_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Uint8ClampedElements>;
+    } else if (kind == ElementsKind::RAB_GSAB_BIGUINT64_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::BigUint64Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_BIGINT64_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::BigInt64Elements>;
     } else {
       unreachable;
@@ -431,8 +523,9 @@ macro SetJoinStack(implicit context: Context)(stack: FixedArray): void {
 // Adds a receiver to the stack. The FixedArray will automatically grow to
 // accommodate the receiver. If the receiver already exists on the stack,
 // this indicates a cyclical call and False is returned.
-builtin JoinStackPush(implicit context: Context)(
-    stack: FixedArray, receiver: JSReceiver): Boolean {
+builtin JoinStackPush(
+    implicit context: Context)(stack: FixedArray,
+    receiver: JSReceiver): Boolean {
   const capacity: intptr = stack.length_intptr;
   for (let i: intptr = 0; i < capacity; i++) {
     const previouslyVisited: Object = stack.objects[i];
@@ -478,8 +571,9 @@ macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver):
 
 // Removes a receiver from the stack. The FixedArray will automatically shrink
 // to Heap::kMinJoinStackSize once the stack becomes empty.
-builtin JoinStackPop(implicit context: Context)(
-    stack: FixedArray, receiver: JSReceiver): JSAny {
+builtin JoinStackPop(
+    implicit context: Context)(stack: FixedArray,
+    receiver: JSReceiver): JSAny {
   const len: intptr = stack.length_intptr;
   for (let i: intptr = 0; i < len; i++) {
     if (stack.objects[i] == receiver) {
@@ -500,7 +594,8 @@ builtin JoinStackPop(implicit context: Context)(
 }
 
 // Fast path the common non-nested calls.
-macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver) {
+macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver):
+    void {
   const stack: FixedArray = LoadJoinStack()
       otherwise unreachable;
   const len: intptr = stack.length_intptr;
@@ -508,7 +603,7 @@ macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver) {
   // Builtin call was not nested (receiver is the first entry) and
   // did not contain other nested arrays that expanded the stack.
   if (stack.objects[0] == receiver && len == kMinJoinStackSize) {
-    StoreFixedArrayElement(stack, 0, TheHole, SKIP_WRITE_BARRIER);
+    stack.objects[0] = TheHole;
   } else
     deferred {
       JoinStackPop(stack, receiver);
@@ -517,9 +612,9 @@ macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver) {
 
 // Main entry point for all builtins using Array Join functionality.
 transitioning macro CycleProtectedArrayJoin<T: type>(
-    implicit context: Context)(
-    useToLocaleString: constexpr bool, o: JSReceiver, len: Number,
-    sepObj: JSAny, locales: JSAny, options: JSAny): JSAny {
+    implicit context: Context)(useToLocaleString: constexpr bool,
+    o: JSReceiver, len: Number, sepObj: JSAny, locales: JSAny,
+    options: JSAny): JSAny {
   // 3. If separator is undefined, let sep be the single-element String ",".
   // 4. Else, let sep be ? ToString(separator).
   const sep: String = sepObj == Undefined ? ',' : ToString_Inline(sepObj);
@@ -532,9 +627,9 @@ transitioning macro CycleProtectedArrayJoin<T: type>(
           ArrayJoin<T>(useToLocaleString, o, sep, len, locales, options);
       JoinStackPopInline(o);
       return result;
-    } catch (e) deferred {
+    } catch (e, message) deferred {
       JoinStackPopInline(o);
-      ReThrow(context, e);
+      ReThrowWithMessage(context, e, message);
     }
   } else {
     return kEmptyString;
@@ -542,8 +637,7 @@ transitioning macro CycleProtectedArrayJoin<T: type>(
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.join
-transitioning javascript builtin
-ArrayPrototypeJoin(
+transitioning javascript builtin ArrayPrototypeJoin(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const separator: JSAny = arguments[0];
 
@@ -555,8 +649,9 @@ ArrayPrototypeJoin(
 
   // Only handle valid array lengths. Although the spec allows larger
   // values, this matches historical V8 behavior.
-  if (len > kMaxArrayIndex + 1)
+  if (len > kMaxArrayLength) {
     ThrowTypeError(MessageTemplate::kInvalidArrayLength);
+  }
 
   return CycleProtectedArrayJoin<JSArray>(
       false, o, len, separator, Undefined, Undefined);
@@ -576,8 +671,9 @@ transitioning javascript builtin ArrayPrototypeToLocaleString(
 
   // Only handle valid array lengths. Although the spec allows larger
   // values, this matches historical V8 behavior.
-  if (len > kMaxArrayIndex + 1)
+  if (len > kMaxArrayLength) {
     ThrowTypeError(MessageTemplate::kInvalidArrayLength);
+  }
 
   return CycleProtectedArrayJoin<JSArray>(true, o, len, ',', locales, options);
 }
@@ -609,12 +705,13 @@ transitioning javascript builtin TypedArrayPrototypeJoin(
 
   // Spec: ValidateTypedArray is applied to the this value prior to evaluating
   // the algorithm.
-  const typedArray: JSTypedArray = typed_array::ValidateTypedArray(
+  const length = typed_array::ValidateTypedArrayAndGetLength(
       context, receiver, '%TypedArray%.prototype.join');
-  const length = Convert<Number>(typedArray.length);
+  const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
 
   return CycleProtectedArrayJoin<JSTypedArray>(
-      false, typedArray, length, separator, Undefined, Undefined);
+      false, typedArray, Convert<Number>(length), separator, Undefined,
+      Undefined);
 }
 
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.tolocalestring
@@ -625,11 +722,11 @@ transitioning javascript builtin TypedArrayPrototypeToLocaleString(
 
   // Spec: ValidateTypedArray is applied to the this value prior to evaluating
   // the algorithm.
-  const typedArray: JSTypedArray = typed_array::ValidateTypedArray(
+  const length = typed_array::ValidateTypedArrayAndGetLength(
       context, receiver, '%TypedArray%.prototype.toLocaleString');
-  const length = Convert<Number>(typedArray.length);
+  const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
 
   return CycleProtectedArrayJoin<JSTypedArray>(
-      true, typedArray, length, ',', locales, options);
+      true, typedArray, Convert<Number>(length), ',', locales, options);
 }
 }

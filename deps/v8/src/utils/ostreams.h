@@ -8,10 +8,9 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
-#include <ostream>  // NOLINT
+#include <ostream>
 #include <streambuf>
 
-#include "include/v8config.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
@@ -81,6 +80,8 @@ class StdoutStream : public std::ostream {
   StdoutStream() : std::ostream(&stream_) {}
 
  private:
+  friend class StderrStream;
+
   static V8_EXPORT_PRIVATE base::RecursiveMutex* GetStdoutMutex();
 
   AndroidLogStream stream_;
@@ -92,13 +93,22 @@ class StdoutStream : public OFStream {
   StdoutStream() : OFStream(stdout) {}
 
  private:
+  friend class StderrStream;
   static V8_EXPORT_PRIVATE base::RecursiveMutex* GetStdoutMutex();
 
   base::RecursiveMutexGuard mutex_guard_{GetStdoutMutex()};
 };
 #endif
 
-// Wrappers to disambiguate uint16_t and uc16.
+class StderrStream : public OFStream {
+ public:
+  StderrStream() : OFStream(stderr) {}
+
+ private:
+  base::RecursiveMutexGuard mutex_guard_{StdoutStream::GetStdoutMutex()};
+};
+
+// Wrappers to disambiguate uint16_t and base::uc16.
 struct AsUC16 {
   explicit AsUC16(uint16_t v) : value(v) {}
   uint16_t value;
@@ -152,16 +162,29 @@ template <typename T>
 struct PrintIteratorRange {
   T start;
   T end;
+  const char* separator = ", ";
+  const char* startBracket = "[";
+  const char* endBracket = "]";
+
   PrintIteratorRange(T start, T end) : start(start), end(end) {}
+  PrintIteratorRange& WithoutBrackets() {
+    startBracket = "";
+    endBracket = "";
+    return *this;
+  }
+  PrintIteratorRange& WithSeparator(const char* separator) {
+    this->separator = separator;
+    return *this;
+  }
 };
 
 // Print any collection which can be iterated via std::begin and std::end.
 // {Iterator} is the common type of {std::begin} and {std::end} called on a
 // {const T&}. This function is only instantiable if that type exists.
-template <typename T, typename Iterator = typename std::common_type<
-                          decltype(std::begin(std::declval<const T&>())),
-                          decltype(std::end(std::declval<const T&>()))>::type>
-PrintIteratorRange<Iterator> PrintCollection(const T& collection) {
+template <typename T>
+auto PrintCollection(const T& collection) -> PrintIteratorRange<
+    typename std::common_type<decltype(std::begin(collection)),
+                              decltype(std::end(collection))>::type> {
   return {std::begin(collection), std::end(collection)};
 }
 
@@ -188,12 +211,12 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const PrintIteratorRange<T>& range) {
-  const char* comma = "";
-  os << "[";
-  for (T it = range.start; it != range.end; ++it, comma = ", ") {
-    os << comma << *it;
+  const char* separator = "";
+  os << range.startBracket;
+  for (T it = range.start; it != range.end; ++it, separator = range.separator) {
+    os << separator << *it;
   }
-  os << "]";
+  os << range.endBracket;
   return os;
 }
 

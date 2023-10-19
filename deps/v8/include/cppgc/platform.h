@@ -5,6 +5,9 @@
 #ifndef INCLUDE_CPPGC_PLATFORM_H_
 #define INCLUDE_CPPGC_PLATFORM_H_
 
+#include <memory>
+
+#include "cppgc/source-location.h"
 #include "v8-platform.h"  // NOLINT(build/include_directory)
 #include "v8config.h"     // NOLINT(build/include_directory)
 
@@ -30,8 +33,9 @@ class V8_EXPORT Platform {
   virtual ~Platform() = default;
 
   /**
-   * Returns the allocator used by cppgc to allocate its heap and various
-   * support structures.
+   * \returns the allocator used by cppgc to allocate its heap and various
+   * support structures. Returning nullptr results in using the `PageAllocator`
+   * provided by `cppgc::InitializeProcess()` instead.
    */
   virtual PageAllocator* GetPageAllocator() = 0;
 
@@ -129,10 +133,16 @@ class V8_EXPORT Platform {
  *
  * Can be called multiple times when paired with `ShutdownProcess()`.
  *
- * \param page_allocator The allocator used for maintaining meta data. Must not
- *   change between multiple calls to InitializeProcess.
+ * \param page_allocator The allocator used for maintaining meta data. Must stay
+ *   always alive and not change between multiple calls to InitializeProcess. If
+ *   no allocator is provided, a default internal version will be used.
+ * \param desired_heap_size Desired amount of virtual address space to reserve
+ *   for the heap, in bytes. Actual size will be clamped to minimum and maximum
+ *   values based on compile-time settings and may be rounded up. If this
+ *   parameter is zero, a default value will be used.
  */
-V8_EXPORT void InitializeProcess(PageAllocator* page_allocator);
+V8_EXPORT void InitializeProcess(PageAllocator* page_allocator = nullptr,
+                                 size_t desired_heap_size = 0);
 
 /**
  * Must be called after destroying the last used heap. Some process-global
@@ -143,9 +153,11 @@ V8_EXPORT void ShutdownProcess();
 
 namespace internal {
 
-V8_EXPORT void Abort();
+V8_EXPORT void Fatal(const std::string& reason = std::string(),
+                     const SourceLocation& = SourceLocation::Current());
 
 }  // namespace internal
+
 }  // namespace cppgc
 
 #endif  // INCLUDE_CPPGC_PLATFORM_H_

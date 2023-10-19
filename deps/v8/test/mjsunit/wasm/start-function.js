@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function instantiate(sig, body) {
   var builder = new WasmModuleBuilder();
@@ -46,7 +46,7 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
       'WebAssembly.Module(): ' +
-          'start function index 1 out of bounds (1 entry) @+20');
+          'function index 1 out of bounds (1 entry) @+20');
 })();
 
 
@@ -70,7 +70,8 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
   print("testRun1");
   var builder = new WasmModuleBuilder();
 
-  builder.addMemory(12, 12, true);
+  builder.addMemory(12, 12);
+  builder.exportMemoryAs("memory");
 
   var func = builder.addFunction("", kSig_v_v)
     .addBody([kExprI32Const, 0, kExprI32Const, 55, kExprI32StoreMem, 0, 0]);
@@ -87,7 +88,8 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
   print("testRun2");
   var builder = new WasmModuleBuilder();
 
-  builder.addMemory(12, 12, true);
+  builder.addMemory(12, 12);
+  builder.exportMemoryAs("memory");
 
   var func = builder.addFunction("", kSig_v_v)
     .addBody([kExprI32Const, 0, kExprI32Const, 22, kExprI32Const, 55, kExprI32Add, kExprI32StoreMem, 0, 0]);

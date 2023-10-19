@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-threads
-
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function assertMemoryIsValid(memory, shared) {
   assertSame(WebAssembly.Memory.prototype, memory.__proto__);
@@ -107,7 +105,8 @@ function assertMemoryIsValid(memory, shared) {
 (function TestInstantiateWithSharedDefined() {
   print("TestInstantiateWithSharedDefined");
   let builder = new WasmModuleBuilder();
-  builder.addMemory(2, 10, true, "shared");
+  builder.addMemory(2, 10, "shared");
+  builder.exportMemoryAs("memory");
   let module = new WebAssembly.Module(builder.toBuffer());
   let instance = new WebAssembly.Instance(module);
   assertMemoryIsValid(instance.exports.memory, true);
@@ -116,7 +115,7 @@ function assertMemoryIsValid(memory, shared) {
 (function TestAtomicOpWithSharedMemoryDefined() {
   print("TestAtomicOpWithSharedMemoryDefined");
   let builder = new WasmModuleBuilder();
-  builder.addMemory(2, 10, false, "shared");
+  builder.addMemory(2, 10, "shared");
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprLocalGet, 0,
@@ -138,6 +137,9 @@ function assertMemoryIsValid(memory, shared) {
       throw new Error(`Should not call [[HasProperty]] with ${x}`);
     },
     get(o, x) {
+      if (x === "index") {
+        return "u32";
+      }
       return 0;
     },
   });

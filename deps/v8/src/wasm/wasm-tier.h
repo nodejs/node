@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_TIER_H_
 #define V8_WASM_WASM_TIER_H_
 
@@ -33,13 +37,13 @@ inline const char* ExecutionTierToString(ExecutionTier tier) {
 // the code also contains breakpoints, and {kForStepping} for code that is
 // flooded with breakpoints.
 enum ForDebugging : int8_t {
-  kNoDebugging = 0,
+  kNotForDebugging = 0,
   kForDebugging,
   kWithBreakpoints,
   kForStepping
 };
 
-enum TieringState : int8_t { kTieredUp, kTieredDown };
+enum DebugState : bool { kNotDebugging = false, kDebugging = true };
 
 }  // namespace wasm
 }  // namespace internal

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generateCppClass
 extern class PreparseData extends HeapObject {
   // TODO(v8:8983): Add declaration for variable-sized region.
   data_length: int32;
@@ -12,13 +11,6 @@ extern class PreparseData extends HeapObject {
 extern class InterpreterData extends Struct {
   bytecode_array: BytecodeArray;
   interpreter_trampoline: Code;
-}
-
-@generateCppClass
-@generatePrint
-extern class BaselineData extends Struct {
-  baseline_code: Code;
-  data: BytecodeArray|InterpreterData;
 }
 
 type FunctionKind extends uint8 constexpr 'FunctionKind';
@@ -42,29 +34,37 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   name_should_print_as_anonymous: bool: 1 bit;
   has_reported_binary_coverage: bool: 1 bit;
   is_top_level: bool: 1 bit;
-  is_oneshot_iife_or_properties_are_final: bool: 1 bit;
+  properties_are_final: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
 }
 
 bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   class_scope_has_private_brand: bool: 1 bit;
   has_static_private_methods_or_accessors: bool: 1 bit;
-  may_have_cached_code: bool: 1 bit;
+  is_sparkplug_compiling: bool: 1 bit;
+  maglev_compilation_failed: bool: 1 bit;
+  sparkplug_compiled: bool: 1 bit;
 }
 
-@export
-@customCppClass
-@customMap  // Just to place the map at the beginning of the roots array.
-class SharedFunctionInfo extends HeapObject {
-  weak function_data: Object;
+extern class SharedFunctionInfo extends HeapObject {
+  // function_data field is treated as a custom weak pointer. We visit this
+  // field as a weak pointer if there is aged bytecode. If there is no bytecode
+  // or if the bytecode is young then we treat it as a strong pointer. This is
+  // done to support flushing of bytecode.
+  @customWeakMarking function_data: Object;
   name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
   outer_scope_info_or_feedback_metadata: HeapObject;
-  script_or_debug_info: Script|DebugInfo|Undefined;
-  // [length]: The function length - usually the number of declared parameters.
+  script: Script|Undefined;
+  // [length]: The function length - usually the number of declared parameters
+  // (always without the receiver).
   // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
   // kDontAdaptArgumentsSentinel). The value is only reliable when the function
   // has been compiled.
   length: int16;
+  // [formal_parameter_count]: The number of declared parameters (or the special
+  // value kDontAdaptArgumentsSentinel to indicate that arguments are passed
+  // unaltered).
+  // In contrast to [length], formal_parameter_count includes the receiver.
   formal_parameter_count: uint16;
   function_token_offset: uint16;
   // [expected_nof_properties]: Expected number of properties for the
@@ -76,35 +76,94 @@ class SharedFunctionInfo extends HeapObject {
   // SharedFunctionInfo represents within its script, or -1 if this
   // SharedFunctionInfo object doesn't correspond to a parsed FunctionLiteral.
   function_literal_id: int32;
-  // [unique_id] - For --trace-maps purposes, an identifier that's persistent
-  // even if the GC moves this SharedFunctionInfo.
-  @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
+  // [unique_id] - An identifier that's persistent even across GC.
+  // TODO(jgruber): Merge with function_literal_id by storing the base id on
+  // Script (since the literal id is used for table lookups).
+  unique_id: int32;
+  // Age used for code flushing.
+  // TODO(dinfuehr): Merge this field with function_literal_id to save memory.
+  age: uint16;
+  padding: uint16;
+}
+
+const kDontAdaptArgumentsSentinel: constexpr int32
+    generates 'kDontAdaptArgumentsSentinel';
+
+@export
+macro LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(
+    sfi: SharedFunctionInfo): uint16 {
+  let formalParameterCount = sfi.formal_parameter_count;
+  if (Convert<int32>(formalParameterCount) != kDontAdaptArgumentsSentinel) {
+    formalParameterCount =
+        Convert<uint16>(formalParameterCount - kJSArgcReceiverSlots);
+  }
+  return formalParameterCount;
+}
+
+@export
+macro LoadSharedFunctionInfoFormalParameterCountWithReceiver(
+    sfi: SharedFunctionInfo): uint16 {
+  return sfi.formal_parameter_count;
+}
+
+@export
+macro IsSharedFunctionInfoDontAdaptArguments(sfi: SharedFunctionInfo): bool {
+  const formalParameterCount = sfi.formal_parameter_count;
+  return Convert<int32>(formalParameterCount) == kDontAdaptArgumentsSentinel;
 }
 
 @abstract
-@export
-@customCppClass
-class UncompiledData extends HeapObject {
+extern class UncompiledData extends HeapObject {
   inferred_name: String;
   start_position: int32;
   end_position: int32;
 }
 
-@export
-@customCppClass
-class UncompiledDataWithoutPreparseData extends UncompiledData {
-}
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithoutPreparseData extends UncompiledData {}
 
-@export
-@customCppClass
-class UncompiledDataWithPreparseData extends UncompiledData {
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithPreparseData extends UncompiledData {
   preparse_data: PreparseData;
 }
 
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithoutPreparseDataWithJob extends
+    UncompiledDataWithoutPreparseData {
+  // TODO(v8:10391): Define the field as ExternalPointer or move jobs into cage.
+  job: RawPtr;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithPreparseDataAndJob extends
+    UncompiledDataWithPreparseData {
+  // TODO(v8:10391): Define the field as ExternalPointer or move jobs into cage.
+  job: RawPtr;
+}
+
+@useParentTypeChecker
+type PodArrayOfIntegerPairs extends ByteArray
+    constexpr 'PodArray<std::pair<int32_t, int32_t>>';
+
+@useParentTypeChecker
+type FixedInt32Array extends ByteArray constexpr 'FixedInt32Array';
+
+@useParentTypeChecker
+type FixedUInt32Array extends ByteArray constexpr 'FixedUInt32Array';
+
 @export
 class OnHeapBasicBlockProfilerData extends HeapObject {
-  block_ids: ByteArray;  // Stored as 4-byte ints
-  counts: ByteArray;     // Stored as 4-byte unsigned ints
+  block_ids: FixedInt32Array;
+  counts: FixedUInt32Array;
+  branches: PodArrayOfIntegerPairs;
   name: String;
   schedule: String;
   code: String;

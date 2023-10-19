@@ -4,6 +4,7 @@
  * This rule has been ported and modified from nodeca.
  * @author Vitaly Puzrin
  * @author Gyandeep Singh
+ * @deprecated in ESLint v4.0.0
  */
 
 "use strict";
@@ -17,17 +18,17 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
-
-/* istanbul ignore next: this rule has known coverage issues, but it's deprecated and shouldn't be updated in the future anyway. */
+// this rule has known coverage issues, but it's deprecated and shouldn't be updated in the future anyway.
+/* c8 ignore next */
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent indentation",
-            category: "Stylistic Issues",
+            description: "Enforce consistent indentation",
             recommended: false,
-            url: "https://eslint.org/docs/rules/indent-legacy"
+            url: "https://eslint.org/docs/latest/rules/indent-legacy"
         },
 
         deprecated: true,
@@ -205,16 +206,16 @@ module.exports = {
             ObjectExpression: 1
         };
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         if (context.options.length) {
             if (context.options[0] === "tab") {
                 indentSize = 1;
                 indentType = "tab";
-            } else /* istanbul ignore else : this will be caught by options validation */ if (typeof context.options[0] === "number") {
+            } else /* c8 ignore start */ if (typeof context.options[0] === "number") {
                 indentSize = context.options[0];
                 indentType = "space";
-            }
+            }/* c8 ignore stop */
 
             if (context.options[1]) {
                 const opts = context.options[1];
@@ -752,7 +753,7 @@ module.exports = {
                             if (typeof options.CallExpression.arguments === "number") {
                                 nodeIndent += options.CallExpression.arguments * indentSize;
                             } else if (options.CallExpression.arguments === "first") {
-                                if (parent.arguments.indexOf(node) !== -1) {
+                                if (parent.arguments.includes(node)) {
                                     nodeIndent = parent.arguments[0].loc.start.column;
                                 }
                             } else {
@@ -839,7 +840,7 @@ module.exports = {
                 "IfStatement", "WhileStatement", "ForStatement", "ForInStatement", "ForOfStatement", "DoWhileStatement", "ClassDeclaration", "TryStatement"
             ];
 
-            if (node.parent && statementsWithProperties.indexOf(node.parent.type) !== -1 && isNodeBodyBlock(node)) {
+            if (node.parent && statementsWithProperties.includes(node.parent.type) && isNodeBodyBlock(node)) {
                 indent = getNodeIndent(node.parent).goodChar;
             } else if (node.parent && node.parent.type === "CatchClause") {
                 indent = getNodeIndent(node.parent.parent).goodChar;

@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -41,8 +41,11 @@ sub testordinals
         #Some ordinals can be repeated, e.g. if one is VMS and another is !VMS
         $newqual = $tokens[4];
         $newqual =~ s/!//g;
-        if ($cnt > $tokens[1]
-                || ($cnt == $tokens[1] && ($qualifier ne $newqual
+        my $number = $tokens[1];
+        $number = $cnt + 1 if $number eq '?';
+        $number = $cnt if $number eq '?+';
+        if ($cnt > $number
+                || ($cnt == $number && ($qualifier ne $newqual
                                            || $qualifier eq ""))) {
             print STDERR "Invalid ordinal detected: ".$tokens[1]."\n";
             $ret = 0;

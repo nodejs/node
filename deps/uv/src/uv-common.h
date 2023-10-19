@@ -30,17 +30,16 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stddef.h>
-
-#if defined(_MSC_VER) && _MSC_VER < 1600
-# include "uv/stdint-msvc2008.h"
-#else
-# include <stdint.h>
-#endif
+#include <stdint.h>
 
 #include "uv.h"
 #include "uv/tree.h"
 #include "queue.h"
 #include "strscpy.h"
+
+#ifndef _MSC_VER
+# include <stdatomic.h>
+#endif
 
 #if EDOM > 0
 # define UV__ERR(x) (-(x))
@@ -53,20 +52,28 @@ extern int snprintf(char*, size_t, const char*, ...);
 #endif
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#define ARRAY_END(a)  ((a) + ARRAY_SIZE(a))
 
 #define container_of(ptr, type, member) \
   ((type *) ((char *) (ptr) - offsetof(type, member)))
 
+/* C11 defines static_assert to be a macro which calls _Static_assert. */
+#if defined(static_assert)
+#define STATIC_ASSERT(expr) static_assert(expr, #expr)
+#else
 #define STATIC_ASSERT(expr)                                                   \
   void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
-
-#if defined(__GNUC__) && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 7)
-#define uv__load_relaxed(p) __atomic_load_n(p, __ATOMIC_RELAXED)
-#define uv__store_relaxed(p, v) __atomic_store_n(p, v, __ATOMIC_RELAXED)
-#else
-#define uv__load_relaxed(p) (*p)
-#define uv__store_relaxed(p, v) do *p = v; while (0)
 #endif
+
+#ifdef _MSC_VER
+#define uv__exchange_int_relaxed(p, v)                                        \
+  InterlockedExchangeNoFence((LONG volatile*)(p), v)
+#else
+#define uv__exchange_int_relaxed(p, v)                                        \
+  atomic_exchange_explicit((_Atomic int*)(p), v, memory_order_relaxed)
+#endif
+
+#define UV__UDP_DGRAM_MAXSIZE (64 * 1024)
 
 /* Handle flags. Some flags are specific to Windows or UNIX. */
 enum {
@@ -81,7 +88,6 @@ enum {
   /* Used by streams. */
   UV_HANDLE_LISTENING                   = 0x00000040,
   UV_HANDLE_CONNECTION                  = 0x00000080,
-  UV_HANDLE_SHUTTING                    = 0x00000100,
   UV_HANDLE_SHUT                        = 0x00000200,
   UV_HANDLE_READ_PARTIAL                = 0x00000400,
   UV_HANDLE_READ_EOF                    = 0x00000800,
@@ -106,8 +112,7 @@ enum {
   UV_HANDLE_TCP_KEEPALIVE               = 0x02000000,
   UV_HANDLE_TCP_SINGLE_ACCEPT           = 0x04000000,
   UV_HANDLE_TCP_ACCEPT_STATE_CHANGING   = 0x08000000,
-  UV_HANDLE_TCP_SOCKET_CLOSED           = 0x10000000,
-  UV_HANDLE_SHARED_TCP_SOCKET           = 0x20000000,
+  UV_HANDLE_SHARED_TCP_SOCKET           = 0x10000000,
 
   /* Only used by uv_udp_t handles. */
   UV_HANDLE_UDP_PROCESSING              = 0x01000000,
@@ -129,7 +134,10 @@ enum {
   UV_SIGNAL_ONE_SHOT                    = 0x02000000,
 
   /* Only used by uv_poll_t handles. */
-  UV_HANDLE_POLL_SLOW                   = 0x01000000
+  UV_HANDLE_POLL_SLOW                   = 0x01000000,
+
+  /* Only used by uv_process_t handles. */
+  UV_HANDLE_REAP                        = 0x10000000
 };
 
 int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap);
@@ -259,6 +267,14 @@ void uv__threadpool_cleanup(void);
 #define uv__is_closing(h)                                                     \
   (((h)->flags & (UV_HANDLE_CLOSING | UV_HANDLE_CLOSED)) != 0)
 
+#if defined(_WIN32)
+# define uv__is_stream_shutting(h)                                            \
+  (h->stream.conn.shutdown_req != NULL)
+#else
+# define uv__is_stream_shutting(h)                                            \
+  (h->shutdown_req != NULL)
+#endif
+
 #define uv__handle_start(h)                                                   \
   do {                                                                        \
     if (((h)->flags & UV_HANDLE_ACTIVE) != 0) break;                          \
@@ -307,7 +323,7 @@ void uv__threadpool_cleanup(void);
     (h)->loop = (loop_);                                                      \
     (h)->type = (type_);                                                      \
     (h)->flags = UV_HANDLE_REF;  /* Ref the loop when active. */              \
-    QUEUE_INSERT_TAIL(&(loop_)->handle_queue, &(h)->handle_queue);            \
+    uv__queue_insert_tail(&(loop_)->handle_queue, &(h)->handle_queue);        \
     uv__handle_platform_init(h);                                              \
   }                                                                           \
   while (0)
@@ -343,6 +359,21 @@ void uv__threadpool_cleanup(void);
 #define uv__get_loop_metrics(loop)                                            \
   (&uv__get_internal_fields(loop)->loop_metrics)
 
+#define uv__metrics_inc_loop_count(loop)                                      \
+  do {                                                                        \
+    uv__get_loop_metrics(loop)->metrics.loop_count++;                         \
+  } while (0)
+
+#define uv__metrics_inc_events(loop, e)                                       \
+  do {                                                                        \
+    uv__get_loop_metrics(loop)->metrics.events += (e);                        \
+  } while (0)
+
+#define uv__metrics_inc_events_waiting(loop, e)                               \
+  do {                                                                        \
+    uv__get_loop_metrics(loop)->metrics.events_waiting += (e);                \
+  } while (0)
+
 /* Allocator prototypes */
 void *uv__calloc(size_t count, size_t size);
 char *uv__strdup(const char* s);
@@ -356,6 +387,7 @@ typedef struct uv__loop_metrics_s uv__loop_metrics_t;
 typedef struct uv__loop_internal_fields_s uv__loop_internal_fields_t;
 
 struct uv__loop_metrics_s {
+  uv_metrics_t metrics;
   uint64_t provider_entry_time;
   uint64_t provider_idle_time;
   uv_mutex_t lock;
@@ -364,9 +396,38 @@ struct uv__loop_metrics_s {
 void uv__metrics_update_idle_time(uv_loop_t* loop);
 void uv__metrics_set_provider_entry_time(uv_loop_t* loop);
 
+#ifdef __linux__
+struct uv__iou {
+  uint32_t* sqhead;
+  uint32_t* sqtail;
+  uint32_t* sqarray;
+  uint32_t sqmask;
+  uint32_t* sqflags;
+  uint32_t* cqhead;
+  uint32_t* cqtail;
+  uint32_t cqmask;
+  void* sq;   /* pointer to munmap() on event loop teardown */
+  void* cqe;  /* pointer to array of struct uv__io_uring_cqe */
+  void* sqe;  /* pointer to array of struct uv__io_uring_sqe */
+  size_t sqlen;
+  size_t cqlen;
+  size_t maxlen;
+  size_t sqelen;
+  int ringfd;
+  uint32_t in_flight;
+  uint32_t flags;
+};
+#endif  /* __linux__ */
+
 struct uv__loop_internal_fields_s {
   unsigned int flags;
   uv__loop_metrics_t loop_metrics;
+  int current_timeout;
+#ifdef __linux__
+  struct uv__iou ctl;
+  struct uv__iou iou;
+  void* inv;  /* used by uv__platform_invalidate_fd() */
+#endif  /* __linux__ */
 };
 
 #endif /* UV_COMMON_H_ */

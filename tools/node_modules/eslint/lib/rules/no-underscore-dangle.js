@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow dangling underscores in identifiers",
-            category: "Stylistic Issues",
+            description: "Disallow dangling underscores in identifiers",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-underscore-dangle"
+            url: "https://eslint.org/docs/latest/rules/no-underscore-dangle"
         },
 
         schema: [
@@ -49,6 +49,18 @@ module.exports = {
                     allowFunctionParams: {
                         type: "boolean",
                         default: true
+                    },
+                    enforceInClassFields: {
+                        type: "boolean",
+                        default: false
+                    },
+                    allowInArrayDestructuring: {
+                        type: "boolean",
+                        default: true
+                    },
+                    allowInObjectDestructuring: {
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false
@@ -68,7 +80,11 @@ module.exports = {
         const allowAfterSuper = typeof options.allowAfterSuper !== "undefined" ? options.allowAfterSuper : false;
         const allowAfterThisConstructor = typeof options.allowAfterThisConstructor !== "undefined" ? options.allowAfterThisConstructor : false;
         const enforceInMethodNames = typeof options.enforceInMethodNames !== "undefined" ? options.enforceInMethodNames : false;
+        const enforceInClassFields = typeof options.enforceInClassFields !== "undefined" ? options.enforceInClassFields : false;
         const allowFunctionParams = typeof options.allowFunctionParams !== "undefined" ? options.allowFunctionParams : true;
+        const allowInArrayDestructuring = typeof options.allowInArrayDestructuring !== "undefined" ? options.allowInArrayDestructuring : true;
+        const allowInObjectDestructuring = typeof options.allowInObjectDestructuring !== "undefined" ? options.allowInObjectDestructuring : true;
+        const sourceCode = context.sourceCode;
 
         //-------------------------------------------------------------------------
         // Helpers
@@ -81,7 +97,7 @@ module.exports = {
          * @private
          */
         function isAllowed(identifier) {
-            return ALLOWED_VARIABLES.some(ident => ident === identifier);
+            return ALLOWED_VARIABLES.includes(identifier);
         }
 
         /**
@@ -190,6 +206,7 @@ module.exports = {
             checkForDanglingUnderscoreInFunctionParameters(node);
         }
 
+
         /**
          * Check if variable expression has a dangling underscore
          * @param {ASTNode} node node to evaluate
@@ -197,18 +214,32 @@ module.exports = {
          * @private
          */
         function checkForDanglingUnderscoreInVariableExpression(node) {
-            const identifier = node.id.name;
+            sourceCode.getDeclaredVariables(node).forEach(variable => {
+                const definition = variable.defs.find(def => def.node === node);
+                const identifierNode = definition.name;
+                const identifier = identifierNode.name;
+                let parent = identifierNode.parent;
 
-            if (typeof identifier !== "undefined" && hasDanglingUnderscore(identifier) &&
-                !isSpecialCaseIdentifierInVariableExpression(identifier) && !isAllowed(identifier)) {
-                context.report({
-                    node,
-                    messageId: "unexpectedUnderscore",
-                    data: {
-                        identifier
-                    }
-                });
-            }
+                while (!["VariableDeclarator", "ArrayPattern", "ObjectPattern"].includes(parent.type)) {
+                    parent = parent.parent;
+                }
+
+                if (
+                    hasDanglingUnderscore(identifier) &&
+                    !isSpecialCaseIdentifierInVariableExpression(identifier) &&
+                    !isAllowed(identifier) &&
+                    !(allowInArrayDestructuring && parent.type === "ArrayPattern") &&
+                    !(allowInObjectDestructuring && parent.type === "ObjectPattern")
+                ) {
+                    context.report({
+                        node,
+                        messageId: "unexpectedUnderscore",
+                        data: {
+                            identifier
+                        }
+                    });
+                }
+            });
         }
 
         /**
@@ -253,7 +284,33 @@ module.exports = {
                     node,
                     messageId: "unexpectedUnderscore",
                     data: {
-                        identifier
+                        identifier: node.key.type === "PrivateIdentifier"
+                            ? `#${identifier}`
+                            : identifier
+                    }
+                });
+            }
+        }
+
+        /**
+         * Check if a class field has a dangling underscore
+         * @param {ASTNode} node node to evaluate
+         * @returns {void}
+         * @private
+         */
+        function checkForDanglingUnderscoreInClassField(node) {
+            const identifier = node.key.name;
+
+            if (typeof identifier !== "undefined" && hasDanglingUnderscore(identifier) &&
+                enforceInClassFields &&
+                !isAllowed(identifier)) {
+                context.report({
+                    node,
+                    messageId: "unexpectedUnderscore",
+                    data: {
+                        identifier: node.key.type === "PrivateIdentifier"
+                            ? `#${identifier}`
+                            : identifier
                     }
                 });
             }
@@ -268,6 +325,7 @@ module.exports = {
             VariableDeclarator: checkForDanglingUnderscoreInVariableExpression,
             MemberExpression: checkForDanglingUnderscoreInMemberExpression,
             MethodDefinition: checkForDanglingUnderscoreInMethod,
+            PropertyDefinition: checkForDanglingUnderscoreInClassField,
             Property: checkForDanglingUnderscoreInMethod,
             FunctionExpression: checkForDanglingUnderscoreInFunction,
             ArrowFunctionExpression: checkForDanglingUnderscoreInFunction

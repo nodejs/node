@@ -11,7 +11,7 @@ i2d_re_X509_tbs, i2d_re_X509_CRL_tbs, i2d_re_X509_REQ_tbs
  #include <openssl/x509.h>
 
  X509 *d2i_X509_AUX(X509 **px, const unsigned char **in, long len);
- int i2d_X509_AUX(X509 *x, unsigned char **out);
+ int i2d_X509_AUX(const X509 *x, unsigned char **out);
  int i2d_re_X509_tbs(X509 *x, unsigned char **out);
  int i2d_re_X509_CRL_tbs(X509_CRL *crl, unsigned char **pp);
  int i2d_re_X509_REQ_tbs(X509_REQ *req, unsigned char **pp);
@@ -55,7 +55,7 @@ d2i_X509_AUX() returns a valid B<X509> structure or NULL if an error occurred.
 i2d_X509_AUX() returns the length of encoded data or -1 on error.
 
 i2d_re_X509_tbs(), i2d_re_X509_CRL_tbs() and i2d_re_X509_REQ_tbs() return the
-length of encoded data or 0 on error.
+length of encoded data or <=0 on error.
 
 =head1 SEE ALSO
 
@@ -78,9 +78,9 @@ L<X509_verify_cert(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

@@ -20,13 +20,17 @@ class LocalLogger {
   bool is_listening_to_code_events() const {
     return is_listening_to_code_events_;
   }
-  void ScriptDetails(Script script);
-  void ScriptEvent(Logger::ScriptEventType type, int script_id);
+  void ScriptDetails(Tagged<Script> script);
+  void ScriptEvent(ScriptEventType type, int script_id);
   void CodeLinePosInfoRecordEvent(Address code_start,
-                                  ByteArray source_position_table);
+                                  Tagged<ByteArray> source_position_table,
+                                  JitCodeEvent::CodeType code_type);
+
+  void MapCreate(Tagged<Map> map);
+  void MapDetails(Tagged<Map> map);
 
  private:
-  Logger* logger_;
+  V8FileLogger* v8_file_logger_;
   bool is_logging_;
   bool is_listening_to_code_events_;
 };

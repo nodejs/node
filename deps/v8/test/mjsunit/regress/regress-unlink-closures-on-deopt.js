@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noalways-opt
+// Flags: --allow-natives-syntax --noalways-turbofan
 
 function foo() {
   function g(o) {
@@ -27,10 +27,6 @@ g1({ f : 1});
 %OptimizeFunctionOnNextCall(g2);
 g2({ f : 2});
 g1({});
-if (%DynamicCheckMapsEnabled()) {
-  // One more call to ensure a deopt even if dynamic map checks is enabled.
-  g1({});
-}
 
 assertUnoptimized(g1);
 

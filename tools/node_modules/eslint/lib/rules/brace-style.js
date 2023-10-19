@@ -11,15 +11,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent brace style for blocks",
-            category: "Stylistic Issues",
+            description: "Enforce consistent brace style for blocks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/brace-style"
+            url: "https://eslint.org/docs/latest/rules/brace-style"
         },
 
         schema: [
@@ -53,7 +53,7 @@ module.exports = {
     create(context) {
         const style = context.options[0] || "1tbs",
             params = context.options[1] || {},
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -155,6 +155,12 @@ module.exports = {
                 if (!astUtils.STATEMENT_LIST_PARENTS.has(node.parent.type)) {
                     validateCurlyPair(sourceCode.getFirstToken(node), sourceCode.getLastToken(node));
                 }
+            },
+            StaticBlock(node) {
+                validateCurlyPair(
+                    sourceCode.getFirstToken(node, { skip: 1 }), // skip the `static` token
+                    sourceCode.getLastToken(node)
+                );
             },
             ClassBody(node) {
                 validateCurlyPair(sourceCode.getFirstToken(node), sourceCode.getLastToken(node));

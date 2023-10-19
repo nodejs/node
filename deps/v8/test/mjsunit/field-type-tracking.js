@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --nostress-opt --track-field-types
-// Flags: --opt --no-always-opt
+// Flags: --allow-natives-syntax --track-field-types
+// Flags: --turbofan --no-always-turbofan
 
 (function() {
   var o = { text: "Hello World!" };
@@ -163,7 +163,12 @@
   %OptimizeFunctionOnNextCall(baz);
   baz(f2, {b: 9});
   baz(f3, {a: -1});
-  assertUnoptimized(baz);
+  // TODO(v8:11457) Currently, Turbofan/Turboprop can never inline any stores if
+  // there is a dictionary mode object in the protoype chain. Therefore, if
+  // v8_dict_property_const_tracking is enabled, the optimized code only
+  // contains a call to the IC handler and doesn't get deopted.
+  assertEquals(%IsDictPropertyConstTrackingEnabled(),
+               isOptimized(baz));
 })();
 
 (function() {

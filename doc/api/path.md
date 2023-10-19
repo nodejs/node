@@ -6,19 +6,19 @@
 
 <!-- source_link=lib/path.js -->
 
-The `path` module provides utilities for working with file and directory paths.
-It can be accessed using:
+The `node:path` module provides utilities for working with file and directory
+paths. It can be accessed using:
 
 ```js
-const path = require('path');
+const path = require('node:path');
 ```
 
 ## Windows vs. POSIX
 
-The default operation of the `path` module varies based on the operating system
-on which a Node.js application is running. Specifically, when running on a
-Windows operating system, the `path` module will assume that Windows-style
-paths are being used.
+The default operation of the `node:path` module varies based on the operating
+system on which a Node.js application is running. Specifically, when running on
+a Windows operating system, the `node:path` module will assume that
+Windows-style paths are being used.
 
 So using `path.basename()` might yield different results on POSIX and Windows:
 
@@ -62,7 +62,8 @@ example, `path.resolve('C:\\')` can potentially return a different result than
 `path.resolve('C:')`. For more information, see
 [this MSDN page][MSDN-Rel-Path].
 
-## `path.basename(path[, ext])`
+## `path.basename(path[, suffix])`
+
 <!-- YAML
 added: v0.1.25
 changes:
@@ -72,12 +73,12 @@ changes:
 -->
 
 * `path` {string}
-* `ext` {string} An optional file extension
+* `suffix` {string} An optional suffix to remove
 * Returns: {string}
 
 The `path.basename()` method returns the last portion of a `path`, similar to
-the Unix `basename` command. Trailing directory separators are ignored, see
-[`path.sep`][].
+the Unix `basename` command. Trailing [directory separators][`path.sep`] are
+ignored.
 
 ```js
 path.basename('/foo/bar/baz/asdf/quux.html');
@@ -100,10 +101,11 @@ path.win32.basename('C:\\foo.HTML', '.html');
 // Returns: 'foo.HTML'
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string or if `ext` is given
+A [`TypeError`][] is thrown if `path` is not a string or if `suffix` is given
 and is not a string.
 
 ## `path.delimiter`
+
 <!-- YAML
 added: v0.9.3
 -->
@@ -136,6 +138,7 @@ process.env.PATH.split(path.delimiter);
 ```
 
 ## `path.dirname(path)`
+
 <!-- YAML
 added: v0.1.16
 changes:
@@ -159,6 +162,7 @@ path.dirname('/foo/bar/baz/asdf/quux');
 A [`TypeError`][] is thrown if `path` is not a string.
 
 ## `path.extname(path)`
+
 <!-- YAML
 added: v0.1.25
 changes:
@@ -199,8 +203,13 @@ path.extname('.index.md');
 A [`TypeError`][] is thrown if `path` is not a string.
 
 ## `path.format(pathObject)`
+
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44349
+    description: The dot will be added if it is not specified in `ext`.
 -->
 
 * `pathObject` {Object} Any JavaScript object having the following properties:
@@ -229,7 +238,7 @@ For example, on POSIX:
 path.format({
   root: '/ignored',
   dir: '/home/user/dir',
-  base: 'file.txt'
+  base: 'file.txt',
 });
 // Returns: '/home/user/dir/file.txt'
 
@@ -239,7 +248,7 @@ path.format({
 path.format({
   root: '/',
   base: 'file.txt',
-  ext: 'ignored'
+  ext: 'ignored',
 });
 // Returns: '/file.txt'
 
@@ -247,7 +256,15 @@ path.format({
 path.format({
   root: '/',
   name: 'file',
-  ext: '.txt'
+  ext: '.txt',
+});
+// Returns: '/file.txt'
+
+// The dot will be added if it is not specified in `ext`.
+path.format({
+  root: '/',
+  name: 'file',
+  ext: 'txt',
 });
 // Returns: '/file.txt'
 ```
@@ -257,12 +274,13 @@ On Windows:
 ```js
 path.format({
   dir: 'C:\\path\\dir',
-  base: 'file.txt'
+  base: 'file.txt',
 });
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
 
 ## `path.isAbsolute(path)`
+
 <!-- YAML
 added: v0.11.2
 -->
@@ -298,6 +316,7 @@ path.isAbsolute('.');           // false
 A [`TypeError`][] is thrown if `path` is not a string.
 
 ## `path.join([...paths])`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -323,6 +342,7 @@ path.join('foo', {}, 'bar');
 A [`TypeError`][] is thrown if any of the path segments is not a string.
 
 ## `path.normalize(path)`
+
 <!-- YAML
 added: v0.1.23
 -->
@@ -366,6 +386,7 @@ path.win32.normalize('C:////temp\\\\/\\/\\/foo/bar');
 A [`TypeError`][] is thrown if `path` is not a string.
 
 ## `path.parse(path)`
+
 <!-- YAML
 added: v0.11.15
 -->
@@ -432,6 +453,7 @@ path.parse('C:\\path\\dir\\file.txt');
 A [`TypeError`][] is thrown if `path` is not a string.
 
 ## `path.posix`
+
 <!-- YAML
 added: v0.11.15
 changes:
@@ -445,9 +467,10 @@ changes:
 The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
 
-The API is accessible via `require('path').posix` or `require('path/posix')`.
+The API is accessible via `require('node:path').posix` or `require('node:path/posix')`.
 
 ## `path.relative(from, to)`
+
 <!-- YAML
 added: v0.5.0
 changes:
@@ -485,6 +508,7 @@ path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb');
 A [`TypeError`][] is thrown if either `from` or `to` is not a string.
 
 ## `path.resolve([...paths])`
+
 <!-- YAML
 added: v0.3.4
 -->
@@ -527,6 +551,7 @@ path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif');
 A [`TypeError`][] is thrown if any of the arguments is not a string.
 
 ## `path.sep`
+
 <!-- YAML
 added: v0.7.9
 -->
@@ -557,6 +582,7 @@ as path segment separators; however, the `path` methods only add backward
 slashes (`\`).
 
 ## `path.toNamespacedPath(path)`
+
 <!-- YAML
 added: v9.0.0
 -->
@@ -572,6 +598,7 @@ This method is meaningful only on Windows systems. On POSIX systems, the
 method is non-operational and always returns `path` without modifications.
 
 ## `path.win32`
+
 <!-- YAML
 added: v0.11.15
 changes:
@@ -585,12 +612,12 @@ changes:
 The `path.win32` property provides access to Windows-specific implementations
 of the `path` methods.
 
-The API is accessible via `require('path').win32` or `require('path/win32')`.
+The API is accessible via `require('node:path').win32` or `require('node:path/win32')`.
 
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
-[`TypeError`]: errors.md#errors_class_typeerror
-[`path.parse()`]: #path_path_parse_path
-[`path.posix`]: #path_path_posix
-[`path.sep`]: #path_path_sep
-[`path.win32`]: #path_path_win32
+[`TypeError`]: errors.md#class-typeerror
+[`path.parse()`]: #pathparsepath
+[`path.posix`]: #pathposix
+[`path.sep`]: #pathsep
+[`path.win32`]: #pathwin32
 [namespace-prefixed path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#namespaces

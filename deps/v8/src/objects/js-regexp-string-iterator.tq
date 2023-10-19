@@ -8,7 +8,6 @@ bitfield struct JSRegExpStringIteratorFlags extends uint31 {
   unicode: bool: 1 bit;
 }
 
-@generateCppClass
 extern class JSRegExpStringIterator extends JSObject {
   // The [[IteratingRegExp]] internal property.
   iterating_reg_exp: JSReceiver;

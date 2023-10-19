@@ -4,13 +4,13 @@
 
 // Flags: --allow-natives-syntax
 
-load('test/mjsunit/test-async.js');
+d8.file.execute('test/mjsunit/test-async.js');
 
 async function f(assert) {
   try {
     module_namespace_obj = await import('modules-skip-1.mjs');
   } catch(e) {
-    %AbortJS(e);
+    %AbortJS(e.ToString());
   }
 
   class A {

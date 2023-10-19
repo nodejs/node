@@ -25,7 +25,7 @@ Runtime.evaluate exceptionDetails:
     columnNumber : 2
     exception : {
         className : SyntaxError
-        description : SyntaxError: Unexpected identifier
+        description : SyntaxError: Unexpected identifier 'x'
         objectId : <objectId>
         subtype : error
         type : object
@@ -68,7 +68,7 @@ Runs eval('x x')
 paused on exception:
 {
     className : SyntaxError
-    description : SyntaxError: Unexpected identifier     at <anonymous>:1:1
+    description : SyntaxError: Unexpected identifier 'x'     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -79,7 +79,7 @@ Runtime.evaluate exceptionDetails:
     columnNumber : 2
     exception : {
         className : SyntaxError
-        description : SyntaxError: Unexpected identifier     at <anonymous>:1:1
+        description : SyntaxError: Unexpected identifier 'x'     at <anonymous>:1:1
         objectId : <objectId>
         subtype : error
         type : object

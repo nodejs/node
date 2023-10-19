@@ -5,11 +5,10 @@ const common = require('../common.js');
 const { strictEqual } = require('assert');
 
 const tmpdir = require('../../test/common/tmpdir');
-const benchmarkDirectory =
-  path.resolve(tmpdir.path, 'benchmark-esm-parse');
+const benchmarkDirectory = tmpdir.resolve('benchmark-esm-parse');
 
 const bench = common.createBenchmark(main, {
-  n: [1e2]
+  n: [1e2],
 });
 
 async function main({ n }) {

@@ -26,7 +26,7 @@ const serverOptions = {
   cert: agentCert,
   ca: agentCa,
   requestCert: true,
-  rejectUnauthorized: true
+  rejectUnauthorized: true,
 };
 
 const server = https.createServer(serverOptions, common.mustCall((req, res) => {
@@ -40,7 +40,7 @@ const server = https.createServer(serverOptions, common.mustCall((req, res) => {
     path: '/test',
     clientCertEngine: engine,  // `engine` will provide key+cert
     rejectUnauthorized: false, // Prevent failing on self-signed certificates
-    headers: {}
+    headers: {},
   };
 
   const req = https.request(clientOptions, common.mustCall((response) => {

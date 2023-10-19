@@ -32,7 +32,6 @@ const common = require('../common');
 const http = require('http');
 const assert = require('assert');
 
-
 const server = http.createServer(function(req, res) {
   let body = '';
 
@@ -43,7 +42,7 @@ const server = http.createServer(function(req, res) {
 
   req.on('end', function() {
     assert.strictEqual(body, 'PING');
-    res.writeHead(200);
+    res.writeHead(200, { 'Connection': 'close' });
     res.end('PONG');
   });
 });
@@ -74,26 +73,26 @@ function afterPing(result) {
   const successRE = /success/;
   switch (responses.length) {
     case 2:
-      assert.ok(ECONNREFUSED_RE.test(responses[0]));
-      assert.ok(ECONNREFUSED_RE.test(responses[1]));
+      assert.match(responses[0], ECONNREFUSED_RE);
+      assert.match(responses[1], ECONNREFUSED_RE);
       serverOn();
       break;
 
     case 4:
-      assert.ok(successRE.test(responses[2]));
-      assert.ok(successRE.test(responses[3]));
+      assert.match(responses[2], successRE);
+      assert.match(responses[3], successRE);
       serverOff();
       break;
 
     case 6:
-      assert.ok(ECONNREFUSED_RE.test(responses[4]));
-      assert.ok(ECONNREFUSED_RE.test(responses[5]));
+      assert.match(responses[4], ECONNREFUSED_RE);
+      assert.match(responses[5], ECONNREFUSED_RE);
       serverOn();
       break;
 
     case 8:
-      assert.ok(successRE.test(responses[6]));
-      assert.ok(successRE.test(responses[7]));
+      assert.match(responses[6], successRE);
+      assert.match(responses[7], successRE);
       server.close();
       // We should go to process.on('exit') from here.
       break;
@@ -135,7 +134,10 @@ function ping() {
     console.log(`Error making ping req: ${error}`);
     hadError = true;
     assert.ok(!gotEnd);
-    afterPing(error.message);
+
+    // Family autoselection might be skipped if only a single address is returned by DNS.
+    const actualError = Array.isArray(error.errors) ? error.errors[0] : error;
+    afterPing(actualError.message);
   });
 }
 

@@ -5,16 +5,23 @@
 #ifndef V8_BASE_PLATFORM_MUTEX_H_
 #define V8_BASE_PLATFORM_MUTEX_H_
 
-#include "src/base/base-export.h"
-#include "src/base/lazy-instance.h"
-#include "src/base/optional.h"
-#if V8_OS_WIN
-#include "src/base/win32-headers.h"
+#include "include/v8config.h"
+
+#if V8_OS_DARWIN
+#include <shared_mutex>
 #endif
-#include "src/base/logging.h"
 
 #if V8_OS_POSIX
-#include <pthread.h>  // NOLINT
+#include <pthread.h>
+#endif
+
+#include "src/base/base-export.h"
+#include "src/base/lazy-instance.h"
+#include "src/base/logging.h"
+#include "src/base/optional.h"
+
+#if V8_OS_WIN
+#include "src/base/win32-headers.h"
 #endif
 
 #if V8_OS_STARBOARD
@@ -25,6 +32,8 @@
 
 namespace v8 {
 namespace base {
+
+class ConditionVariable;
 
 // ----------------------------------------------------------------------------
 // Mutex - a replacement for std::mutex
@@ -66,7 +75,7 @@ class V8_BASE_EXPORT Mutex final {
 #if V8_OS_POSIX
   using NativeHandle = pthread_mutex_t;
 #elif V8_OS_WIN
-  using NativeHandle = SRWLOCK;
+  using NativeHandle = V8_SRWLOCK;
 #elif V8_OS_STARBOARD
   using NativeHandle = SbMutex;
 #endif
@@ -164,12 +173,14 @@ class V8_BASE_EXPORT RecursiveMutex final {
   // successfully locked.
   bool TryLock() V8_WARN_UNUSED_RESULT;
 
+  V8_INLINE void AssertHeld() const { DCHECK_LT(0, level_); }
+
  private:
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
   using NativeHandle = pthread_mutex_t;
 #elif V8_OS_WIN
-  using NativeHandle = CRITICAL_SECTION;
+  using NativeHandle = V8_CRITICAL_SECTION;
 #elif V8_OS_STARBOARD
   using NativeHandle = starboard::RecursiveMutex;
 #endif
@@ -263,10 +274,15 @@ class V8_BASE_EXPORT SharedMutex final {
 
  private:
   // The implementation-defined native handle type.
-#if V8_OS_POSIX
+#if V8_OS_DARWIN
+  // pthread_rwlock_t is broken on MacOS when signals are being sent to the
+  // process (see https://crbug.com/v8/11399).
+  // We thus use std::shared_mutex on MacOS, which does not have this problem.
+  using NativeHandle = std::shared_mutex;
+#elif V8_OS_POSIX
   using NativeHandle = pthread_rwlock_t;
 #elif V8_OS_WIN
-  using NativeHandle = SRWLOCK;
+  using NativeHandle = V8_SRWLOCK;
 #elif V8_OS_STARBOARD
   using NativeHandle = starboard::RWLock;
 #endif
@@ -292,22 +308,25 @@ template <typename Mutex, NullBehavior Behavior = NullBehavior::kRequireNotNull>
 class V8_NODISCARD LockGuard final {
  public:
   explicit LockGuard(Mutex* mutex) : mutex_(mutex) {
+    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
+                   mutex_ != nullptr);
     if (has_mutex()) mutex_->Lock();
   }
   LockGuard(const LockGuard&) = delete;
   LockGuard& operator=(const LockGuard&) = delete;
+  LockGuard(LockGuard&& other) V8_NOEXCEPT : mutex_(other.mutex_) {
+    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
+                   mutex_ != nullptr);
+    other.mutex_ = nullptr;
+  }
   ~LockGuard() {
     if (has_mutex()) mutex_->Unlock();
   }
 
  private:
-  Mutex* const mutex_;
+  Mutex* mutex_;
 
-  bool V8_INLINE has_mutex() const {
-    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
-                   mutex_ != nullptr);
-    return Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr;
-  }
+  bool V8_INLINE has_mutex() const { return mutex_ != nullptr; }
 };
 
 using MutexGuard = LockGuard<Mutex>;

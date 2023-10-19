@@ -5,11 +5,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (common.hasOpenSSL3)
-  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
-
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const {
   passing
@@ -130,7 +127,7 @@ async function testEncryptionLongPlaintext({ algorithm,
 
   return assert.rejects(
     subtle.encrypt(algorithm, publicKey, newplaintext), {
-      message: /data too large/
+      name: 'OperationError'
     });
 }
 

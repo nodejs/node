@@ -1,5 +1,5 @@
 // Modified embenchen to direct to asm-wasm.
-// Flags: --validate-asm --allow-natives-syntax --wasm-loop-unrolling
+// Flags: --validate-asm --allow-natives-syntax
 
 var EXPECTED_OUTPUT =
   /frame averages: .+ \+- .+, range: .+ to .+ \n/;

@@ -2,11 +2,11 @@
 // This defaults to accepting new ssh host key fingerprints
 const gitEnv = {
   GIT_ASKPASS: 'echo',
-  GIT_SSH_COMMAND: 'ssh -oStrictHostKeyChecking=accept-new'
+  GIT_SSH_COMMAND: 'ssh -oStrictHostKeyChecking=accept-new',
 }
 module.exports = (opts = {}) => ({
   stdioString: true,
   ...opts,
   shell: false,
-  env: opts.env || { ...gitEnv, ...process.env }
+  env: opts.env || { ...gitEnv, ...process.env },
 })

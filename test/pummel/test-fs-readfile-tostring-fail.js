@@ -7,7 +7,6 @@ if (!common.enoughTestMem)
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const cp = require('child_process');
 const kStringMaxLength = require('buffer').constants.MAX_STRING_LENGTH;
 if (common.isAIX && (Number(cp.execSync('ulimit -f')) * 512) < kStringMaxLength)
@@ -16,22 +15,30 @@ if (common.isAIX && (Number(cp.execSync('ulimit -f')) * 512) < kStringMaxLength)
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const file = path.join(tmpdir.path, 'toobig.txt');
+if (!tmpdir.hasEnoughSpace(kStringMaxLength)) {
+  common.skip(`Not enough space in ${tmpdir.path}`);
+}
+
+const file = tmpdir.resolve('toobig.txt');
 const stream = fs.createWriteStream(file, {
-  flags: 'a'
+  flags: 'a',
 });
 
 stream.on('error', (err) => { throw err; });
 
 const size = kStringMaxLength / 200;
 const a = Buffer.alloc(size, 'a');
+let expectedSize = 0;
 
 for (let i = 0; i < 201; i++) {
-  stream.write(a);
+  stream.write(a, (err) => { assert.ifError(err); });
+  expectedSize += a.length;
 }
 
 stream.end();
 stream.on('finish', common.mustCall(function() {
+  assert.strictEqual(stream.bytesWritten, expectedSize,
+                     `${stream.bytesWritten} bytes written (expected ${expectedSize} bytes).`);
   fs.readFile(file, 'utf8', common.mustCall(function(err, buf) {
     assert.ok(err instanceof Error);
     if (err.message !== 'Array buffer allocation failed') {
@@ -40,7 +47,7 @@ stream.on('finish', common.mustCall(function() {
         message: 'Cannot create a string longer than ' +
                  `0x${stringLengthHex} characters`,
         code: 'ERR_STRING_TOO_LONG',
-        name: 'Error'
+        name: 'Error',
       })(err);
     }
     assert.strictEqual(buf, undefined);

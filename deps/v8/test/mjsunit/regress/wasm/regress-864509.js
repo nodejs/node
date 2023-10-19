@@ -4,7 +4,7 @@
 
 // Flags: --liftoff --no-wasm-tier-up --wasm-tier-mask-for-testing=2
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(1, 1);

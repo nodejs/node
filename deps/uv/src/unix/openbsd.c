@@ -116,7 +116,7 @@ uint64_t uv_get_free_memory(void) {
   int which[] = {CTL_VM, VM_UVMEXP};
 
   if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
-    return UV__ERR(errno);
+    return 0;
 
   return (uint64_t) info.free * sysconf(_SC_PAGESIZE);
 }
@@ -128,7 +128,7 @@ uint64_t uv_get_total_memory(void) {
   size_t size = sizeof(info);
 
   if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
-    return UV__ERR(errno);
+    return 0;
 
   return (uint64_t) info;
 }
@@ -136,6 +136,11 @@ uint64_t uv_get_total_memory(void) {
 
 uint64_t uv_get_constrained_memory(void) {
   return 0;  /* Memory constraints are unknown. */
+}
+
+
+uint64_t uv_get_available_memory(void) {
+  return uv_get_free_memory();
 }
 
 

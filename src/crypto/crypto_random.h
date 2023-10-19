@@ -3,9 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_util.h"
 #include "base_object.h"
-#include "allocated_buffer.h"
+#include "crypto/crypto_util.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "node_internals.h"
@@ -122,6 +121,7 @@ using CheckPrimeJob = DeriveBitsJob<CheckPrimeTraits>;
 
 namespace Random {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Random
 }  // namespace crypto
 }  // namespace node

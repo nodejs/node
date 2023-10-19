@@ -23,9 +23,9 @@ namespace parsing {
 
 namespace {
 
-void MaybeReportErrorsAndStatistics(ParseInfo* info, Handle<Script> script,
-                                    Isolate* isolate, Parser* parser,
-                                    ReportStatisticsMode mode) {
+void MaybeReportStatistics(ParseInfo* info, Handle<Script> script,
+                           Isolate* isolate, Parser* parser,
+                           ReportStatisticsMode mode) {
   switch (mode) {
     case ReportStatisticsMode::kYes:
       parser->UpdateStatistics(isolate, script);
@@ -47,17 +47,16 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
 
   // Create a character stream for the parser.
   Handle<String> source(String::cast(script->source()), isolate);
-  isolate->counters()->total_parse_size()->Increment(source->length());
   std::unique_ptr<Utf16CharacterStream> stream(
       ScannerStream::For(isolate, source));
   info->set_character_stream(std::move(stream));
 
-  Parser parser(info);
+  Parser parser(isolate->main_thread_local_isolate(), info, script);
 
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
   parser.ParseProgram(isolate, script, info, maybe_outer_scope_info);
-  MaybeReportErrorsAndStatistics(info, script, isolate, &parser, mode);
+  MaybeReportStatistics(info, script, isolate, &parser, mode);
   return info->literal() != nullptr;
 }
 
@@ -77,18 +76,17 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   // Create a character stream for the parser.
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
   Handle<String> source(String::cast(script->source()), isolate);
-  isolate->counters()->total_parse_size()->Increment(source->length());
   std::unique_ptr<Utf16CharacterStream> stream(
       ScannerStream::For(isolate, source, shared_info->StartPosition(),
                          shared_info->EndPosition()));
   info->set_character_stream(std::move(stream));
 
-  Parser parser(info);
+  Parser parser(isolate->main_thread_local_isolate(), info, script);
 
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
   parser.ParseFunction(isolate, info, shared_info);
-  MaybeReportErrorsAndStatistics(info, script, isolate, &parser, mode);
+  MaybeReportStatistics(info, script, isolate, &parser, mode);
   return info->literal() != nullptr;
 }
 

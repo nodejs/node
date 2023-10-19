@@ -18,7 +18,6 @@
  */
 class IdGenerator {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {string} prefix Optional. A prefix of generated ids.
      */
@@ -34,10 +33,10 @@ class IdGenerator {
     next() {
         this.n = 1 + this.n | 0;
 
-        /* istanbul ignore if */
+        /* c8 ignore start */
         if (this.n < 0) {
             this.n = 1;
-        }
+        }/* c8 ignore stop */
 
         return this.prefix + this.n;
     }

@@ -13,6 +13,7 @@
 
 #include "unicode/utypes.h"
 #include "sharedobject.h"
+#include "unifiedcache.h"
 
 U_NAMESPACE_BEGIN
 
@@ -27,9 +28,13 @@ public:
     const NumberFormat &operator*() const { return *ptr; }
 private:
     NumberFormat *ptr;
-    SharedNumberFormat(const SharedNumberFormat &);
-    SharedNumberFormat &operator=(const SharedNumberFormat &);
+    SharedNumberFormat(const SharedNumberFormat &) = delete;
+    SharedNumberFormat &operator=(const SharedNumberFormat &) = delete;
 };
+
+template<> U_I18N_API
+const SharedNumberFormat *LocaleCacheKey<SharedNumberFormat>::createObject(
+        const void * /*unused*/, UErrorCode &status) const;
 
 U_NAMESPACE_END
 

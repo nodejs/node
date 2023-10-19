@@ -21,20 +21,33 @@
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
-#define V8_MINIMUM_ICU_VERSION 68
+#define V8_MINIMUM_ICU_VERSION 73
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
 class Collator;
 class FormattedValue;
+class StringEnumeration;
+class TimeZone;
 class UnicodeString;
 }  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
+struct NumberFormatSpan {
+  int32_t field_id;
+  int32_t begin_pos;
+  int32_t end_pos;
+
+  NumberFormatSpan() = default;
+  NumberFormatSpan(int32_t field_id, int32_t begin_pos, int32_t end_pos)
+      : field_id(field_id), begin_pos(begin_pos), end_pos(end_pos) {}
+};
+
+V8_EXPORT_PRIVATE std::vector<NumberFormatSpan> FlattenRegionsToParts(
+    std::vector<NumberFormatSpan>* regions);
+
 class JSCollator;
 
 class Intl {
@@ -43,6 +56,24 @@ class Intl {
     kBoundFunction = Context::MIN_CONTEXT_SLOTS,
     kLength
   };
+
+  enum class FormatRangeSource { kShared, kStartRange, kEndRange };
+
+  class FormatRangeSourceTracker {
+   public:
+    FormatRangeSourceTracker();
+    void Add(int32_t field, int32_t start, int32_t limit);
+    FormatRangeSource GetSource(int32_t start, int32_t limit) const;
+
+   private:
+    int32_t start_[2];
+    int32_t limit_[2];
+
+    bool FieldContains(int32_t field, int32_t start, int32_t limit) const;
+  };
+
+  static Handle<String> SourceString(Isolate* isolate,
+                                     FormatRangeSource source);
 
   // Build a set of ICU locales from a list of Locales. If there is a locale
   // with a script tag then the locales also include a locale without the
@@ -61,75 +92,9 @@ class Intl {
   static std::string GetNumberingSystem(const icu::Locale& icu_locale);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> SupportedLocalesOf(
-      Isolate* isolate, const char* method,
+      Isolate* isolate, const char* method_name,
       const std::set<std::string>& available_locales, Handle<Object> locales_in,
       Handle<Object> options_in);
-
-  // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
-  // ecma402/#sec-getoption
-  //
-  // This is specialized for the case when type is string.
-  //
-  // Instead of passing undefined for the values argument as the spec
-  // defines, pass in an empty vector.
-  //
-  // Returns true if options object has the property and stores the
-  // result in value. Returns false if the value is not found. The
-  // caller is required to use fallback value appropriately in this
-  // case.
-  //
-  // service is a string denoting the type of Intl object; used when
-  // printing the error message.
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> GetStringOption(
-      Isolate* isolate, Handle<JSReceiver> options, const char* property,
-      std::vector<const char*> values, const char* service,
-      std::unique_ptr<char[]>* result);
-
-  // A helper template to get string from option into a enum.
-  // The enum in the enum_values is the corresponding value to the strings
-  // in the str_values. If the option does not contains name,
-  // default_value will be return.
-  template <typename T>
-  V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
-      Isolate* isolate, Handle<JSReceiver> options, const char* name,
-      const char* method, const std::vector<const char*>& str_values,
-      const std::vector<T>& enum_values, T default_value) {
-    DCHECK_EQ(str_values.size(), enum_values.size());
-    std::unique_ptr<char[]> cstr;
-    Maybe<bool> found = Intl::GetStringOption(isolate, options, name,
-                                              str_values, method, &cstr);
-    MAYBE_RETURN(found, Nothing<T>());
-    if (found.FromJust()) {
-      DCHECK_NOT_NULL(cstr.get());
-      for (size_t i = 0; i < str_values.size(); i++) {
-        if (strcmp(cstr.get(), str_values[i]) == 0) {
-          return Just(enum_values[i]);
-        }
-      }
-      UNREACHABLE();
-    }
-    return Just(default_value);
-  }
-
-  // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
-  // ecma402/#sec-getoption
-  //
-  // This is specialized for the case when type is boolean.
-  //
-  // Returns true if options object has the property and stores the
-  // result in value. Returns false if the value is not found. The
-  // caller is required to use fallback value appropriately in this
-  // case.
-  //
-  // service is a string denoting the type of Intl object; used when
-  // printing the error message.
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> GetBoolOption(
-      Isolate* isolate, Handle<JSReceiver> options, const char* property,
-      const char* service, bool* result);
-
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<int> GetNumberOption(
-      Isolate* isolate, Handle<JSReceiver> options, Handle<String> property,
-      int min, int max, int fallback);
 
   // https://tc39.github.io/ecma402/#sec-canonicalizelocalelist
   // {only_return_one_result} is an optimization for callers that only
@@ -142,6 +107,10 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetCanonicalLocales(
       Isolate* isolate, Handle<Object> locales);
 
+  // ecma-402 #sec-intl.supportedvaluesof
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> SupportedValuesOf(
+      Isolate* isolate, Handle<Object> key);
+
   // For locale sensitive functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> StringLocaleConvertCase(
       Isolate* isolate, Handle<String> s, bool is_upper,
@@ -153,18 +122,65 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ConvertToLower(
       Isolate* isolate, Handle<String> s);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> StringLocaleCompare(
+  V8_WARN_UNUSED_RESULT static base::Optional<int> StringLocaleCompare(
       Isolate* isolate, Handle<String> s1, Handle<String> s2,
-      Handle<Object> locales, Handle<Object> options, const char* method);
+      Handle<Object> locales, Handle<Object> options, const char* method_name);
 
-  V8_WARN_UNUSED_RESULT static Handle<Object> CompareStrings(
+  enum class CompareStringsOptions {
+    kNone,
+    kTryFastPath,
+  };
+  template <class IsolateT>
+  V8_EXPORT_PRIVATE static CompareStringsOptions CompareStringsOptionsFor(
+      IsolateT* isolate, Handle<Object> locales, Handle<Object> options);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static int CompareStrings(
       Isolate* isolate, const icu::Collator& collator, Handle<String> s1,
-      Handle<String> s2);
+      Handle<String> s2,
+      CompareStringsOptions compare_strings_options =
+          CompareStringsOptions::kNone);
 
   // ecma402/#sup-properties-of-the-number-prototype-object
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberToLocaleString(
       Isolate* isolate, Handle<Object> num, Handle<Object> locales,
-      Handle<Object> options, const char* method);
+      Handle<Object> options, const char* method_name);
+
+  // [[RoundingPriority]] is one of the String values "auto", "morePrecision",
+  // or "lessPrecision", specifying the rounding priority for the number.
+  enum class RoundingPriority {
+    kAuto,
+    kMorePrecision,
+    kLessPrecision,
+  };
+
+  enum class RoundingType {
+    kFractionDigits,
+    kSignificantDigits,
+    kMorePrecision,
+    kLessPrecision,
+  };
+
+  // [[RoundingMode]] is one of the String values "ceil", "floor", "expand",
+  // "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", or "halfEven",
+  // specifying the rounding strategy for the number.
+  enum class RoundingMode {
+    kCeil,
+    kFloor,
+    kExpand,
+    kTrunc,
+    kHalfCeil,
+    kHalfFloor,
+    kHalfExpand,
+    kHalfTrunc,
+    kHalfEven,
+  };
+
+  // [[TrailingZeroDisplay]] is one of the String values "auto" or
+  // "stripIfInteger", specifying the strategy for displaying trailing zeros on
+  // whole number.
+  enum class TrailingZeroDisplay {
+    kAuto,
+    kStripIfInteger,
+  };
 
   // ecma402/#sec-setnfdigitoptions
   struct NumberFormatDigitOptions {
@@ -173,13 +189,18 @@ class Intl {
     int maximum_fraction_digits;
     int minimum_significant_digits;
     int maximum_significant_digits;
+    RoundingPriority rounding_priority;
+    RoundingType rounding_type;
+    int rounding_increment;
+    RoundingMode rounding_mode;
+    TrailingZeroDisplay trailing_zero_display;
   };
   V8_WARN_UNUSED_RESULT static Maybe<NumberFormatDigitOptions>
   SetNumberFormatDigitOptions(Isolate* isolate, Handle<JSReceiver> options,
                               int mnfd_default, int mxfd_default,
-                              bool notation_is_compact);
+                              bool notation_is_compact, const char* service);
 
-  // Helper funciton to convert a UnicodeString to a Handle<String>
+  // Helper function to convert a UnicodeString to a Handle<String>
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
       Isolate* isolate, const icu::UnicodeString& string);
 
@@ -194,8 +215,9 @@ class Intl {
 
   // Helper function to convert number field id to type string.
   static Handle<String> NumberFieldToType(Isolate* isolate,
-                                          Handle<Object> numeric_obj,
-                                          int32_t field_id);
+                                          const NumberFormatSpan& part,
+                                          const icu::UnicodeString& text,
+                                          bool is_nan);
 
   // A helper function to implement formatToParts which add element to array as
   // $array[$index] = { type: $field_type_string, value: $value }
@@ -212,6 +234,12 @@ class Intl {
                          Handle<String> field_type_string, Handle<String> value,
                          Handle<String> additional_property_name,
                          Handle<String> additional_property_value);
+
+  // A helper function to implement formatToParts which add element to array
+  static Maybe<int> AddNumberElements(Isolate* isolate,
+                                      const icu::FormattedValue& formatted,
+                                      Handle<JSArray> result, int start_index,
+                                      Handle<String> unit);
 
   // In ECMA 402 v1, Intl constructors supported a mode of operation
   // where calling them with an existing object as a receiver would
@@ -232,11 +260,11 @@ class Intl {
 
   // Shared function to read the "localeMatcher" option.
   V8_WARN_UNUSED_RESULT static Maybe<MatcherOption> GetLocaleMatcher(
-      Isolate* isolate, Handle<JSReceiver> options, const char* method);
+      Isolate* isolate, Handle<JSReceiver> options, const char* method_name);
 
   // Shared function to read the "numberingSystem" option.
   V8_WARN_UNUSED_RESULT static Maybe<bool> GetNumberingSystem(
-      Isolate* isolate, Handle<JSReceiver> options, const char* method,
+      Isolate* isolate, Handle<JSReceiver> options, const char* method_name,
       std::unique_ptr<char[]>* result);
 
   // Check the calendar is valid or not for that locale.
@@ -321,15 +349,89 @@ class Intl {
 
   // Convert a Handle<String> to icu::UnicodeString
   static icu::UnicodeString ToICUUnicodeString(Isolate* isolate,
-                                               Handle<String> string);
+                                               Handle<String> string,
+                                               int offset = 0);
 
   static const uint8_t* ToLatin1LowerTable();
 
-  static String ConvertOneByteToLower(String src, String dst);
+  static const uint8_t* AsciiCollationWeightsL1();
+  static const uint8_t* AsciiCollationWeightsL3();
+  static const int kAsciiCollationWeightsLength;
+
+  static Tagged<String> ConvertOneByteToLower(Tagged<String> src,
+                                              Tagged<String> dst);
 
   static const std::set<std::string>& GetAvailableLocales();
 
   static const std::set<std::string>& GetAvailableLocalesForDateFormat();
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> ToJSArray(
+      Isolate* isolate, const char* unicode_key,
+      icu::StringEnumeration* enumeration,
+      const std::function<bool(const char*)>& removes, bool sort);
+
+  static bool RemoveCollation(const char* collation);
+
+  static std::set<std::string> SanctionedSimpleUnits();
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> AvailableCalendars(
+      Isolate* isolate);
+
+  V8_WARN_UNUSED_RESULT static bool IsValidTimeZoneName(
+      const icu::TimeZone& tz);
+  V8_WARN_UNUSED_RESULT static bool IsValidTimeZoneName(Isolate* isolate,
+                                                        const std::string& id);
+  V8_WARN_UNUSED_RESULT static bool IsValidTimeZoneName(Isolate* isolate,
+                                                        Handle<String> id);
+
+  // Function to support Temporal
+  V8_WARN_UNUSED_RESULT static std::string TimeZoneIdFromIndex(int32_t index);
+
+  // Return the index of timezone which later could be used with
+  // TimeZoneIdFromIndex. Returns -1 while the identifier is not a built-in
+  // TimeZone name.
+  static int32_t GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier);
+
+  enum class Transition { kNext, kPrevious };
+
+  // Functions to support Temporal
+
+  // Return the epoch of transition in BigInt or null if there are no
+  // transition.
+  static Handle<Object> GetTimeZoneOffsetTransitionNanoseconds(
+      Isolate* isolate, int32_t time_zone_index,
+      Handle<BigInt> nanosecond_epoch, Transition transition);
+
+  // Return the Time Zone offset, in the unit of nanosecond by int64_t, during
+  // the time of the nanosecond_epoch.
+  static int64_t GetTimeZoneOffsetNanoseconds(Isolate* isolate,
+                                              int32_t time_zone_index,
+                                              Handle<BigInt> nanosecond_epoch);
+
+  // This function may return the result, the std::vector<int64_t> in one of
+  // the following three condictions:
+  // 1. While nanosecond_epoch fall into the daylight saving time change
+  // moment that skipped one (or two or even six, in some Time Zone) hours
+  // later in local time:
+  //    [],
+  // 2. In other moment not during daylight saving time change:
+  //    [offset_former], and
+  // 3. when nanosecond_epoch fall into they daylight saving time change hour
+  // which the clock time roll back one (or two or six, in some Time Zone) hour:
+  //    [offset_former, offset_later]
+  // The unit of the return values in BigInt is nanosecond.
+  static std::vector<Handle<BigInt>> GetTimeZonePossibleOffsetNanoseconds(
+      Isolate* isolate, int32_t time_zone_index,
+      Handle<BigInt> nanosecond_epoch);
+
+  static Handle<String> DefaultTimeZone(Isolate* isolate);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
+      Isolate* isolate, Handle<String> identifier);
+
+  // ecma402/#sec-coerceoptionstoobject
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> CoerceOptionsToObject(
+      Isolate* isolate, Handle<Object> options, const char* service);
 };
 
 }  // namespace internal

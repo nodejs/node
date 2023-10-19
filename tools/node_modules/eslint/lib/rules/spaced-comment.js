@@ -39,7 +39,7 @@ function escapeAndRepeat(s) {
 function parseMarkersOption(markers) {
 
     // `*` is a marker for JSDoc comments.
-    if (markers.indexOf("*") === -1) {
+    if (!markers.includes("*")) {
         return markers.concat("*");
     }
 
@@ -146,15 +146,15 @@ function createNeverStylePattern(markers) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce consistent spacing after the `//` or `/*` in a comment",
-            category: "Stylistic Issues",
+            description: "Enforce consistent spacing after the `//` or `/*` in a comment",
             recommended: false,
-            url: "https://eslint.org/docs/rules/spaced-comment"
+            url: "https://eslint.org/docs/latest/rules/spaced-comment"
         },
 
         fixable: "whitespace",
@@ -235,7 +235,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         // Unless the first option is never, require a space
         const requireSpace = context.options[0] !== "never";

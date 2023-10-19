@@ -21,6 +21,7 @@ function parseOptions(options) {
     let functions = true;
     let classes = true;
     let variables = true;
+    let allowNamedExports = false;
 
     if (typeof options === "string") {
         functions = (options !== "nofunc");
@@ -28,44 +29,10 @@ function parseOptions(options) {
         functions = options.functions !== false;
         classes = options.classes !== false;
         variables = options.variables !== false;
+        allowNamedExports = !!options.allowNamedExports;
     }
 
-    return { functions, classes, variables };
-}
-
-/**
- * Checks whether or not a given variable is a function declaration.
- * @param {eslint-scope.Variable} variable A variable to check.
- * @returns {boolean} `true` if the variable is a function declaration.
- */
-function isFunction(variable) {
-    return variable.defs[0].type === "FunctionName";
-}
-
-/**
- * Checks whether or not a given variable is a class declaration in an upper function scope.
- * @param {eslint-scope.Variable} variable A variable to check.
- * @param {eslint-scope.Reference} reference A reference to check.
- * @returns {boolean} `true` if the variable is a class declaration.
- */
-function isOuterClass(variable, reference) {
-    return (
-        variable.defs[0].type === "ClassName" &&
-        variable.scope.variableScope !== reference.from.variableScope
-    );
-}
-
-/**
- * Checks whether or not a given variable is a variable declaration in an upper function scope.
- * @param {eslint-scope.Variable} variable A variable to check.
- * @param {eslint-scope.Reference} reference A reference to check.
- * @returns {boolean} `true` if the variable is a variable declaration.
- */
-function isOuterVariable(variable, reference) {
-    return (
-        variable.defs[0].type === "Variable" &&
-        variable.scope.variableScope !== reference.from.variableScope
-    );
+    return { functions, classes, variables, allowNamedExports };
 }
 
 /**
@@ -79,7 +46,103 @@ function isInRange(node, location) {
 }
 
 /**
- * Checks whether or not a given reference is inside of the initializers of a given variable.
+ * Checks whether or not a given location is inside of the range of a class static initializer.
+ * Static initializers are static blocks and initializers of static fields.
+ * @param {ASTNode} node `ClassBody` node to check static initializers.
+ * @param {number} location A location to check.
+ * @returns {boolean} `true` if the location is inside of a class static initializer.
+ */
+function isInClassStaticInitializerRange(node, location) {
+    return node.body.some(classMember => (
+        (
+            classMember.type === "StaticBlock" &&
+            isInRange(classMember, location)
+        ) ||
+        (
+            classMember.type === "PropertyDefinition" &&
+            classMember.static &&
+            classMember.value &&
+            isInRange(classMember.value, location)
+        )
+    ));
+}
+
+/**
+ * Checks whether a given scope is the scope of a class static initializer.
+ * Static initializers are static blocks and initializers of static fields.
+ * @param {eslint-scope.Scope} scope A scope to check.
+ * @returns {boolean} `true` if the scope is a class static initializer scope.
+ */
+function isClassStaticInitializerScope(scope) {
+    if (scope.type === "class-static-block") {
+        return true;
+    }
+
+    if (scope.type === "class-field-initializer") {
+
+        // `scope.block` is PropertyDefinition#value node
+        const propertyDefinition = scope.block.parent;
+
+        return propertyDefinition.static;
+    }
+
+    return false;
+}
+
+/**
+ * Checks whether a given reference is evaluated in an execution context
+ * that isn't the one where the variable it refers to is defined.
+ * Execution contexts are:
+ * - top-level
+ * - functions
+ * - class field initializers (implicit functions)
+ * - class static blocks (implicit functions)
+ * Static class field initializers and class static blocks are automatically run during the class definition evaluation,
+ * and therefore we'll consider them as a part of the parent execution context.
+ * Example:
+ *
+ *   const x = 1;
+ *
+ *   x; // returns `false`
+ *   () => x; // returns `true`
+ *
+ *   class C {
+ *       field = x; // returns `true`
+ *       static field = x; // returns `false`
+ *
+ *       method() {
+ *           x; // returns `true`
+ *       }
+ *
+ *       static method() {
+ *           x; // returns `true`
+ *       }
+ *
+ *       static {
+ *           x; // returns `false`
+ *       }
+ *   }
+ * @param {eslint-scope.Reference} reference A reference to check.
+ * @returns {boolean} `true` if the reference is from a separate execution context.
+ */
+function isFromSeparateExecutionContext(reference) {
+    const variable = reference.resolved;
+    let scope = reference.from;
+
+    // Scope#variableScope represents execution context
+    while (variable.scope.variableScope !== scope.variableScope) {
+        if (isClassStaticInitializerScope(scope.variableScope)) {
+            scope = scope.variableScope.upper;
+        } else {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Checks whether or not a given reference is evaluated during the initialization of its variable.
  *
  * This returns `true` in the following cases:
  *
@@ -88,17 +151,45 @@ function isInRange(node, location) {
  *     var {a = a} = obj
  *     for (var a in a) {}
  *     for (var a of a) {}
- * @param {Variable} variable A variable to check.
+ *     var C = class { [C]; };
+ *     var C = class { static foo = C; };
+ *     var C = class { static { foo = C; } };
+ *     class C extends C {}
+ *     class C extends (class { static foo = C; }) {}
+ *     class C { [C]; }
  * @param {Reference} reference A reference to check.
- * @returns {boolean} `true` if the reference is inside of the initializers.
+ * @returns {boolean} `true` if the reference is evaluated during the initialization.
  */
-function isInInitializer(variable, reference) {
-    if (variable.scope !== reference.from) {
+function isEvaluatedDuringInitialization(reference) {
+    if (isFromSeparateExecutionContext(reference)) {
+
+        /*
+         * Even if the reference appears in the initializer, it isn't evaluated during the initialization.
+         * For example, `const x = () => x;` is valid.
+         */
         return false;
     }
 
-    let node = variable.identifiers[0].parent;
     const location = reference.identifier.range[1];
+    const definition = reference.resolved.defs[0];
+
+    if (definition.type === "ClassName") {
+
+        // `ClassDeclaration` or `ClassExpression`
+        const classDefinition = definition.node;
+
+        return (
+            isInRange(classDefinition, location) &&
+
+            /*
+             * Class binding is initialized before running static initializers.
+             * For example, `class C { static foo = C; static { bar = C; } }` is valid.
+             */
+            !isInClassStaticInitializerRange(classDefinition.body, location)
+        );
+    }
+
+    let node = definition.name.parent;
 
     while (node) {
         if (node.type === "VariableDeclarator") {
@@ -129,15 +220,15 @@ function isInInitializer(variable, reference) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow the use of variables before they are defined",
-            category: "Variables",
+            description: "Disallow the use of variables before they are defined",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-use-before-define"
+            url: "https://eslint.org/docs/latest/rules/no-use-before-define"
         },
 
         schema: [
@@ -151,7 +242,8 @@ module.exports = {
                         properties: {
                             functions: { type: "boolean" },
                             classes: { type: "boolean" },
-                            variables: { type: "boolean" }
+                            variables: { type: "boolean" },
+                            allowNamedExports: { type: "boolean" }
                         },
                         additionalProperties: false
                     }
@@ -166,67 +258,90 @@ module.exports = {
 
     create(context) {
         const options = parseOptions(context.options[0]);
+        const sourceCode = context.sourceCode;
 
         /**
-         * Determines whether a given use-before-define case should be reported according to the options.
-         * @param {eslint-scope.Variable} variable The variable that gets used before being defined
-         * @param {eslint-scope.Reference} reference The reference to the variable
-         * @returns {boolean} `true` if the usage should be reported
+         * Determines whether a given reference should be checked.
+         *
+         * Returns `false` if the reference is:
+         * - initialization's (e.g., `let a = 1`).
+         * - referring to an undefined variable (i.e., if it's an unresolved reference).
+         * - referring to a variable that is defined, but not in the given source code
+         *   (e.g., global environment variable or `arguments` in functions).
+         * - allowed by options.
+         * @param {eslint-scope.Reference} reference The reference
+         * @returns {boolean} `true` if the reference should be checked
          */
-        function isForbidden(variable, reference) {
-            if (isFunction(variable)) {
-                return options.functions;
+        function shouldCheck(reference) {
+            if (reference.init) {
+                return false;
             }
-            if (isOuterClass(variable, reference)) {
-                return options.classes;
+
+            const { identifier } = reference;
+
+            if (
+                options.allowNamedExports &&
+                identifier.parent.type === "ExportSpecifier" &&
+                identifier.parent.local === identifier
+            ) {
+                return false;
             }
-            if (isOuterVariable(variable, reference)) {
-                return options.variables;
+
+            const variable = reference.resolved;
+
+            if (!variable || variable.defs.length === 0) {
+                return false;
             }
+
+            const definitionType = variable.defs[0].type;
+
+            if (!options.functions && definitionType === "FunctionName") {
+                return false;
+            }
+
+            if (
+                (
+                    !options.variables && definitionType === "Variable" ||
+                    !options.classes && definitionType === "ClassName"
+                ) &&
+
+                // don't skip checking the reference if it's in the same execution context, because of TDZ
+                isFromSeparateExecutionContext(reference)
+            ) {
+                return false;
+            }
+
             return true;
         }
 
         /**
-         * Finds and validates all variables in a given scope.
-         * @param {Scope} scope The scope object.
+         * Finds and validates all references in a given scope and its child scopes.
+         * @param {eslint-scope.Scope} scope The scope object.
          * @returns {void}
-         * @private
          */
-        function findVariablesInScope(scope) {
-            scope.references.forEach(reference => {
+        function checkReferencesInScope(scope) {
+            scope.references.filter(shouldCheck).forEach(reference => {
                 const variable = reference.resolved;
+                const definitionIdentifier = variable.defs[0].name;
 
-                /*
-                 * Skips when the reference is:
-                 * - initialization's.
-                 * - referring to an undefined variable.
-                 * - referring to a global environment variable (there're no identifiers).
-                 * - located preceded by the variable (except in initializers).
-                 * - allowed by options.
-                 */
-                if (reference.init ||
-                    !variable ||
-                    variable.identifiers.length === 0 ||
-                    (variable.identifiers[0].range[1] < reference.identifier.range[1] && !isInInitializer(variable, reference)) ||
-                    !isForbidden(variable, reference)
+                if (
+                    reference.identifier.range[1] < definitionIdentifier.range[1] ||
+                    isEvaluatedDuringInitialization(reference)
                 ) {
-                    return;
+                    context.report({
+                        node: reference.identifier,
+                        messageId: "usedBeforeDefined",
+                        data: reference.identifier
+                    });
                 }
-
-                // Reports.
-                context.report({
-                    node: reference.identifier,
-                    messageId: "usedBeforeDefined",
-                    data: reference.identifier
-                });
             });
 
-            scope.childScopes.forEach(findVariablesInScope);
+            scope.childScopes.forEach(checkReferencesInScope);
         }
 
         return {
-            Program() {
-                findVariablesInScope(context.getScope());
+            Program(node) {
+                checkReferencesInScope(sourceCode.getScope(node));
             }
         };
     }

@@ -4,6 +4,10 @@
 
 #include "src/inspector/v8-value-utils.h"
 
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+
 namespace v8_inspector {
 
 v8::Maybe<bool> createDataProperty(v8::Local<v8::Context> context,

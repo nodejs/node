@@ -1,6 +1,7 @@
 const chalk = require('chalk');
 const columns = require('.');
 
+// prettier-ignore
 const values = [
 	'blue' + chalk.bgBlue('berry'),
 	'笔菠萝' + chalk.yellow('苹果笔'),

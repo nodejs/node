@@ -2,6 +2,8 @@
 const common = require('../common');
 if (process.platform !== 'darwin')
   common.skip('App Sandbox is only available on Darwin');
+if (process.config.variables.node_builtin_modules_path)
+  common.skip('App Sandbox cannot load modules from outside the sandbox');
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
@@ -15,7 +17,7 @@ const nodeBinary = process.execPath;
 
 tmpdir.refresh();
 
-const appBundlePath = path.join(tmpdir.path, 'node_sandboxed.app');
+const appBundlePath = tmpdir.resolve('node_sandboxed.app');
 const appBundleContentPath = path.join(appBundlePath, 'Contents');
 const appExecutablePath = path.join(
   appBundleContentPath, 'MacOS', 'node');

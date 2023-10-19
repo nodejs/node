@@ -1,3 +1,4 @@
+#include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
@@ -34,27 +35,21 @@ typedef int mode_t;
 
 namespace node {
 
-using v8::ApiObject;
 using v8::Array;
 using v8::ArrayBuffer;
-using v8::BackingStore;
 using v8::CFunction;
-using v8::ConstructorBehavior;
 using v8::Context;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
-using v8::Global;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::Maybe;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::SideEffectType;
-using v8::Signature;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -123,7 +118,7 @@ static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
 
   // Get the double array pointer from the Float64Array argument.
   Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 2);
-  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
+  double* fields = static_cast<double*>(ab->Data());
 
   // Set the Float64Array elements to be user / system values in microseconds.
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
@@ -196,7 +191,7 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 
   // Get the double array pointer from the Float64Array argument.
   Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 5);
-  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
+  double* fields = static_cast<double*>(ab->Data());
 
   size_t rss;
   int err = uv_resident_set_memory(&rss);
@@ -211,6 +206,13 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
       array_buffer_allocator == nullptr
           ? 0
           : static_cast<double>(array_buffer_allocator->total_mem_usage());
+}
+
+static void GetConstrainedMemory(const FunctionCallbackInfo<Value>& args) {
+  uint64_t value = uv_get_constrained_memory();
+  if (value != 0) {
+    args.GetReturnValue().Set(static_cast<double>(value));
+  }
 }
 
 void RawDebug(const FunctionCallbackInfo<Value>& args) {
@@ -280,6 +282,39 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
       Array::New(env->isolate(), handle_v.data(), handle_v.size()));
 }
 
+static void GetActiveResourcesInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  std::vector<Local<Value>> resources_info;
+
+  // Active requests
+  for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
+    AsyncWrap* w = req_wrap->GetAsyncWrap();
+    if (w->persistent().IsEmpty()) continue;
+    resources_info.emplace_back(
+        OneByteString(env->isolate(), w->MemoryInfoName()));
+  }
+
+  // Active handles
+  for (HandleWrap* w : *env->handle_wrap_queue()) {
+    if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w)) continue;
+    resources_info.emplace_back(
+        OneByteString(env->isolate(), w->MemoryInfoName()));
+  }
+
+  // Active timeouts
+  resources_info.insert(resources_info.end(),
+                        env->timeout_info()[0],
+                        OneByteString(env->isolate(), "Timeout"));
+
+  // Active immediates
+  resources_info.insert(resources_info.end(),
+                        env->immediate_info()->ref_count(),
+                        OneByteString(env->isolate(), "Immediate"));
+
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), resources_info.data(), resources_info.size()));
+}
+
 static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -289,7 +324,7 @@ static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowUVException(err, "uv_getrusage");
 
   Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 16);
-  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
+  double* fields = static_cast<double*>(ab->Data());
 
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
   fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
@@ -420,159 +455,164 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   RunAtExit(env);
-  int code = args[0]->Int32Value(env->context()).FromMaybe(0);
+  ExitCode code = ExitCode::kNoFailure;
+  Maybe<int32_t> code_int = args[0]->Int32Value(env->context());
+  if (!code_int.IsNothing()) {
+    code = static_cast<ExitCode>(code_int.FromJust());
+  }
   env->Exit(code);
 }
 
-class FastHrtime : public BaseObject {
- public:
-  static Local<Object> New(Environment* env) {
-    Local<FunctionTemplate> ctor = FunctionTemplate::New(env->isolate());
-    ctor->Inherit(BaseObject::GetConstructorTemplate(env));
-    Local<ObjectTemplate> otmpl = ctor->InstanceTemplate();
-    otmpl->SetInternalFieldCount(FastHrtime::kInternalFieldCount);
+namespace process {
 
-    auto create_func = [env](auto fast_func, auto slow_func) {
-      auto cfunc = CFunction::Make(fast_func);
-      return FunctionTemplate::New(env->isolate(),
-                                   slow_func,
-                                   Local<Value>(),
-                                   Local<Signature>(),
-                                   0,
-                                   ConstructorBehavior::kThrow,
-                                   SideEffectType::kHasNoSideEffect,
-                                   &cfunc);
-    };
-
-    otmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "hrtime"),
-               create_func(FastNumber, SlowNumber));
-    otmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "hrtimeBigInt"),
-               create_func(FastBigInt, SlowBigInt));
-
-    Local<Object> obj = otmpl->NewInstance(env->context()).ToLocalChecked();
-
-    Local<ArrayBuffer> ab =
-        ArrayBuffer::New(env->isolate(),
-            std::max(sizeof(uint64_t), sizeof(uint32_t) * 3));
-    new FastHrtime(env, obj, ab);
-    obj->Set(
-           env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "buffer"), ab)
-        .ToChecked();
-
-    return obj;
-  }
-
- private:
-  FastHrtime(Environment* env,
-             Local<Object> object,
-             Local<ArrayBuffer> ab)
-      : BaseObject(env, object),
-        array_buffer_(env->isolate(), ab),
-        backing_store_(ab->GetBackingStore()) {
-    MakeWeak();
-  }
-
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("array_buffer", array_buffer_);
-  }
-  SET_MEMORY_INFO_NAME(FastHrtime)
-  SET_SELF_SIZE(FastHrtime)
-
-  static FastHrtime* FromV8ApiObject(ApiObject api_object) {
-    Object* v8_object = reinterpret_cast<Object*>(&api_object);
-    return static_cast<FastHrtime*>(
-        v8_object->GetAlignedPointerFromInternalField(BaseObject::kSlot));
-  }
-
-  // This is the legacy version of hrtime before BigInt was introduced in
-  // JavaScript.
-  // The value returned by uv_hrtime() is a 64-bit int representing nanoseconds,
-  // so this function instead fills in an Uint32Array with 3 entries,
-  // to avoid any integer overflow possibility.
-  // The first two entries contain the second part of the value
-  // broken into the upper/lower 32 bits to be converted back in JS,
-  // because there is no Uint64Array in JS.
-  // The third entry contains the remaining nanosecond part of the value.
-  static void NumberImpl(FastHrtime* receiver) {
-    uint64_t t = uv_hrtime();
-    uint32_t* fields = static_cast<uint32_t*>(receiver->backing_store_->Data());
-    fields[0] = (t / NANOS_PER_SEC) >> 32;
-    fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
-    fields[2] = t % NANOS_PER_SEC;
-  }
-
-  static void FastNumber(ApiObject receiver) {
-    NumberImpl(FromV8ApiObject(receiver));
-  }
-
-  static void SlowNumber(const FunctionCallbackInfo<Value>& args) {
-    NumberImpl(FromJSObject<FastHrtime>(args.Holder()));
-  }
-
-  static void BigIntImpl(FastHrtime* receiver) {
-    uint64_t t = uv_hrtime();
-    uint64_t* fields = static_cast<uint64_t*>(receiver->backing_store_->Data());
-    fields[0] = t;
-  }
-
-  static void FastBigInt(ApiObject receiver) {
-    BigIntImpl(FromV8ApiObject(receiver));
-  }
-
-  static void SlowBigInt(const FunctionCallbackInfo<Value>& args) {
-    BigIntImpl(FromJSObject<FastHrtime>(args.Holder()));
-  }
-
-  Global<ArrayBuffer> array_buffer_;
-  std::shared_ptr<BackingStore> backing_store_;
-};
-
-static void GetFastAPIs(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Object> ret = Object::New(env->isolate());
-  ret->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "hrtime"),
-           FastHrtime::New(env))
+BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
+    : SnapshotableObject(realm, object, type_int) {
+  Isolate* isolate = realm->isolate();
+  Local<Context> context = realm->context();
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, kBufferSize);
+  array_buffer_.Reset(isolate, ab);
+  object->Set(context, FIXED_ONE_BYTE_STRING(isolate, "hrtimeBuffer"), ab)
       .ToChecked();
-  args.GetReturnValue().Set(ret);
+  backing_store_ = ab->GetBackingStore();
 }
 
-static void InitializeProcessMethods(Local<Object> target,
-                                     Local<Value> unused,
-                                     Local<Context> context,
-                                     void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
+v8::CFunction BindingData::fast_bigint_(v8::CFunction::Make(FastBigInt));
 
-  // define various internal methods
-  if (env->owns_process_state()) {
-    env->SetMethod(target, "_debugProcess", DebugProcess);
-    env->SetMethod(target, "_debugEnd", DebugEnd);
-    env->SetMethod(target, "abort", Abort);
-    env->SetMethod(target, "causeSegfault", CauseSegfault);
-    env->SetMethod(target, "chdir", Chdir);
-  }
-
-  env->SetMethod(target, "umask", Umask);
-  env->SetMethod(target, "_rawDebug", RawDebug);
-  env->SetMethod(target, "memoryUsage", MemoryUsage);
-  env->SetMethod(target, "rss", Rss);
-  env->SetMethod(target, "cpuUsage", CPUUsage);
-  env->SetMethod(target, "resourceUsage", ResourceUsage);
-
-  env->SetMethod(target, "_getActiveRequests", GetActiveRequests);
-  env->SetMethod(target, "_getActiveHandles", GetActiveHandles);
-  env->SetMethod(target, "_kill", Kill);
-
-  env->SetMethodNoSideEffect(target, "cwd", Cwd);
-  env->SetMethod(target, "dlopen", binding::DLOpen);
-  env->SetMethod(target, "reallyExit", ReallyExit);
-  env->SetMethodNoSideEffect(target, "uptime", Uptime);
-  env->SetMethod(target, "patchProcessObject", PatchProcessObject);
-  env->SetMethod(target, "getFastAPIs", GetFastAPIs);
+void BindingData::AddMethods(Isolate* isolate, Local<ObjectTemplate> target) {
+  SetFastMethodNoSideEffect(
+      isolate, target, "hrtime", SlowNumber, &fast_number_);
+  SetFastMethodNoSideEffect(
+      isolate, target, "hrtimeBigInt", SlowBigInt, &fast_bigint_);
 }
 
-void RegisterProcessMethodsExternalReferences(
+void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
+  registry->Register(SlowNumber);
+  registry->Register(SlowBigInt);
+  registry->Register(FastNumber);
+  registry->Register(FastBigInt);
+  registry->Register(fast_number_.GetTypeInfo());
+  registry->Register(fast_bigint_.GetTypeInfo());
+}
+
+BindingData* BindingData::FromV8Value(Local<Value> value) {
+  Local<Object> v8_object = value.As<Object>();
+  return static_cast<BindingData*>(
+      v8_object->GetAlignedPointerFromInternalField(BaseObject::kSlot));
+}
+
+void BindingData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("array_buffer", array_buffer_);
+}
+
+// This is the legacy version of hrtime before BigInt was introduced in
+// JavaScript.
+// The value returned by uv_hrtime() is a 64-bit int representing nanoseconds,
+// so this function instead fills in an Uint32Array with 3 entries,
+// to avoid any integer overflow possibility.
+// The first two entries contain the second part of the value
+// broken into the upper/lower 32 bits to be converted back in JS,
+// because there is no Uint64Array in JS.
+// The third entry contains the remaining nanosecond part of the value.
+void BindingData::NumberImpl(BindingData* receiver) {
+  // Make sure we don't accidentally access buffers wiped for snapshot.
+  CHECK(!receiver->array_buffer_.IsEmpty());
+  uint64_t t = uv_hrtime();
+  uint32_t* fields = static_cast<uint32_t*>(receiver->backing_store_->Data());
+  fields[0] = (t / NANOS_PER_SEC) >> 32;
+  fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
+  fields[2] = t % NANOS_PER_SEC;
+}
+
+void BindingData::BigIntImpl(BindingData* receiver) {
+  // Make sure we don't accidentally access buffers wiped for snapshot.
+  CHECK(!receiver->array_buffer_.IsEmpty());
+  uint64_t t = uv_hrtime();
+  uint64_t* fields = static_cast<uint64_t*>(receiver->backing_store_->Data());
+  fields[0] = t;
+}
+
+void BindingData::SlowBigInt(const FunctionCallbackInfo<Value>& args) {
+  BigIntImpl(FromJSObject<BindingData>(args.Holder()));
+}
+
+void BindingData::SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  NumberImpl(FromJSObject<BindingData>(args.Holder()));
+}
+
+bool BindingData::PrepareForSerialization(Local<Context> context,
+                                          v8::SnapshotCreator* creator) {
+  // It's not worth keeping.
+  // Release it, we will recreate it when the instance is dehydrated.
+  array_buffer_.Reset();
+  // Return true because we need to maintain the reference to the binding from
+  // JS land.
+  return true;
+}
+
+InternalFieldInfoBase* BindingData::Serialize(int index) {
+  DCHECK_IS_SNAPSHOT_SLOT(index);
+  InternalFieldInfo* info =
+      InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  return info;
+}
+
+void BindingData::Deserialize(Local<Context> context,
+                              Local<Object> holder,
+                              int index,
+                              InternalFieldInfoBase* info) {
+  DCHECK_IS_SNAPSHOT_SLOT(index);
+  v8::HandleScope scope(context->GetIsolate());
+  Realm* realm = Realm::GetCurrent(context);
+  // Recreate the buffer in the constructor.
+  BindingData* binding = realm->AddBindingData<BindingData>(holder);
+  CHECK_NOT_NULL(binding);
+}
+
+static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                       Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+
+  BindingData::AddMethods(isolate, target);
+  // define various internal methods
+  SetMethod(isolate, target, "_debugProcess", DebugProcess);
+  SetMethod(isolate, target, "abort", Abort);
+  SetMethod(isolate, target, "causeSegfault", CauseSegfault);
+  SetMethod(isolate, target, "chdir", Chdir);
+
+  SetMethod(isolate, target, "umask", Umask);
+  SetMethod(isolate, target, "memoryUsage", MemoryUsage);
+  SetMethod(isolate, target, "constrainedMemory", GetConstrainedMemory);
+  SetMethod(isolate, target, "rss", Rss);
+  SetMethod(isolate, target, "cpuUsage", CPUUsage);
+  SetMethod(isolate, target, "resourceUsage", ResourceUsage);
+
+  SetMethod(isolate, target, "_debugEnd", DebugEnd);
+  SetMethod(isolate, target, "_getActiveRequests", GetActiveRequests);
+  SetMethod(isolate, target, "_getActiveHandles", GetActiveHandles);
+  SetMethod(isolate, target, "getActiveResourcesInfo", GetActiveResourcesInfo);
+  SetMethod(isolate, target, "_kill", Kill);
+  SetMethod(isolate, target, "_rawDebug", RawDebug);
+
+  SetMethodNoSideEffect(isolate, target, "cwd", Cwd);
+  SetMethod(isolate, target, "dlopen", binding::DLOpen);
+  SetMethod(isolate, target, "reallyExit", ReallyExit);
+  SetMethodNoSideEffect(isolate, target, "uptime", Uptime);
+  SetMethod(isolate, target, "patchProcessObject", PatchProcessObject);
+}
+
+static void CreatePerContextProperties(Local<Object> target,
+                                       Local<Value> unused,
+                                       Local<Context> context,
+                                       void* priv) {
+  Realm* realm = Realm::GetCurrent(context);
+  realm->AddBindingData<BindingData>(target);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  BindingData::RegisterExternalReferences(registry);
+
   registry->Register(DebugProcess);
   registry->Register(DebugEnd);
   registry->Register(Abort);
@@ -582,12 +622,14 @@ void RegisterProcessMethodsExternalReferences(
   registry->Register(Umask);
   registry->Register(RawDebug);
   registry->Register(MemoryUsage);
+  registry->Register(GetConstrainedMemory);
   registry->Register(Rss);
   registry->Register(CPUUsage);
   registry->Register(ResourceUsage);
 
   registry->Register(GetActiveRequests);
   registry->Register(GetActiveHandles);
+  registry->Register(GetActiveResourcesInfo);
   registry->Register(Kill);
 
   registry->Register(Cwd);
@@ -595,12 +637,14 @@ void RegisterProcessMethodsExternalReferences(
   registry->Register(ReallyExit);
   registry->Register(Uptime);
   registry->Register(PatchProcessObject);
-  registry->Register(GetFastAPIs);
 }
 
+}  // namespace process
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(process_methods,
-                                   node::InitializeProcessMethods)
-NODE_MODULE_EXTERNAL_REFERENCE(process_methods,
-                               node::RegisterProcessMethodsExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(process_methods,
+                                    node::process::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(process_methods,
+                              node::process::CreatePerIsolateProperties)
+NODE_BINDING_EXTERNAL_REFERENCE(process_methods,
+                                node::process::RegisterExternalReferences)

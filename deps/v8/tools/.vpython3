@@ -1,0 +1,113 @@
+# This is a vpython "spec" file.
+#
+# It describes patterns for python wheel dependencies of the python scripts in
+# the chromium repo, particularly for dependencies that have compiled components
+# (since pure-python dependencies can be easily vendored into third_party).
+#
+# When vpython is invoked, it finds this file and builds a python VirtualEnv,
+# containing all of the dependencies described in this file, fetching them from
+# CIPD (the "Chrome Infrastructure Package Deployer" service). Unlike `pip`,
+# this never requires the end-user machine to have a working python extension
+# compilation environment. All of these packages are built using:
+#   https://chromium.googlesource.com/infra/infra/+/main/infra/tools/dockerbuild/
+#
+# All python scripts in the repo share this same spec, to avoid dependency
+# fragmentation.
+#
+# If you have depot_tools installed in your $PATH, you can invoke python scripts
+# in this repo by running them as you normally would run them, except
+# substituting `vpython` instead of `python` on the command line, e.g.:
+#   vpython path/to/script.py some --arguments
+#
+# Read more about `vpython` and how to modify this file here:
+#   https://chromium.googlesource.com/infra/infra/+/main/doc/users/vpython.md
+
+python_version: "3.8"
+
+# The default set of platforms vpython checks does not yet include mac-arm64.
+# Setting `verify_pep425_tag` to the list of platforms we explicitly must support
+# allows us to ensure that vpython specs stay mac-arm64-friendly
+verify_pep425_tag: [
+    {python: "cp38", abi: "cp38", platform: "manylinux1_x86_64"},
+    {python: "cp38", abi: "cp38", platform: "linux_arm64"},
+
+    {python: "cp38", abi: "cp38", platform: "macosx_10_10_intel"},
+    {python: "cp38", abi: "cp38", platform: "macosx_11_0_arm64"},
+
+    {python: "cp38", abi: "cp38", platform: "win32"},
+    {python: "cp38", abi: "cp38", platform: "win_amd64"}
+]
+
+# TODO(https://crbug.com/898348): Add in necessary wheels as Python3 versions
+# become available.
+wheel: <
+  name: "infra/python/wheels/six-py2_py3"
+  version: "version:1.15.0"
+>
+
+wheel: <
+  name: "infra/python/wheels/coverage/${vpython_platform}"
+  version: "version:5.5.chromium.3"
+>
+
+wheel: <
+ name: "infra/python/wheels/pbr-py2_py3"
+ version: "version:3.0.0"
+>
+
+wheel: <
+ name: "infra/python/wheels/funcsigs-py2_py3"
+ version: "version:1.0.2"
+>
+
+wheel: <
+  name: "infra/python/wheels/mock-py2_py3"
+  version: "version:2.0.0"
+>
+
+wheel: <
+  name: "infra/python/wheels/numpy/${vpython_platform}"
+  version: "version:1.2x.supported.1"
+>
+
+wheel: <
+  name: "infra/python/wheels/protobuf-py3"
+  version: "version:3.19.3"
+>
+
+# requests and its dependencies.
+wheel: <
+  name: "infra/python/wheels/requests-py3"
+  version: "version:2.31.0"
+>
+wheel: <
+  name: "infra/python/wheels/urllib3-py2_py3"
+  version: "version:1.26.6"
+>
+wheel: <
+  name: "infra/python/wheels/idna-py2_py3"
+  version: "version:2.8"
+>
+wheel: <
+  name: "infra/python/wheels/certifi-py2_py3"
+  version: "version:2020.11.8"
+>
+wheel: <
+  name: "infra/python/wheels/charset_normalizer-py3"
+  version: "version:2.0.4"
+>
+
+wheel: <
+  name: "infra/python/wheels/pyyaml/${vpython_platform}"
+  version: "version:5.4.1.chromium.1"
+>
+
+wheel: <
+  name: "infra/python/wheels/clusterfuzz-py2_py3"
+  version: "version:2.5.6-5c85ed3d46137b17da04c59bcd805ee5"
+>
+
+wheel: <
+  name: "infra/python/wheels/psutil/${vpython_platform}"
+  version: "version:5.8.0.chromium.3"
+>

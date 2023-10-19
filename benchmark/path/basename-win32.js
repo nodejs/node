@@ -15,7 +15,7 @@ const bench = common.createBenchmark(main, {
     '\\foo\\bar\\baz\\asdf\\quux.html',
     ['\\foo\\bar\\baz\\asdf\\quux.html', '.html'].join('|'),
   ],
-  n: [1e5]
+  n: [1e5],
 });
 
 function main({ n, pathext }) {

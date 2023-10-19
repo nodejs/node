@@ -18,8 +18,6 @@
 
 #include "unicode/measunit.h"
 
-#ifndef U_HIDE_DRAFT_API
-
 /**
  * \file
  * \brief C++ API: units for percent and permille
@@ -31,7 +29,7 @@ U_NAMESPACE_BEGIN
  * Dimensionless unit for percent and permille.
  * Prior to ICU 68, this namespace was a class with the same name.
  * @see NumberFormatter
- * @draft ICU 68
+ * @stable ICU 68
  */
 namespace NoUnit {
     /**
@@ -42,7 +40,7 @@ namespace NoUnit {
      * Since ICU 68, this function returns the same value as the default MeasureUnit constructor.
      *
      * @return               a MeasureUnit instance
-     * @draft ICU 68
+     * @stable ICU 68
      */
     static inline MeasureUnit U_EXPORT2 base() {
         return MeasureUnit();
@@ -56,7 +54,7 @@ namespace NoUnit {
      * Since ICU 68, this function returns the same value as MeasureUnit::getPercent().
      *
      * @return               a MeasureUnit instance
-     * @draft ICU 68
+     * @stable ICU 68
      */
     static inline MeasureUnit U_EXPORT2 percent() {
         return MeasureUnit::getPercent();
@@ -70,7 +68,7 @@ namespace NoUnit {
      * Since ICU 68, this function returns the same value as MeasureUnit::getPermille().
      *
      * @return               a MeasureUnit instance
-     * @draft ICU 68
+     * @stable ICU 68
      */
     static inline MeasureUnit U_EXPORT2 permille() {
         return MeasureUnit::getPermille();
@@ -79,7 +77,6 @@ namespace NoUnit {
 
 U_NAMESPACE_END
 
-#endif  /* U_HIDE_DRAFT_API */
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
 #endif /* U_SHOW_CPLUSPLUS_API */

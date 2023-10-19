@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc --opt --no-always-opt
+// Flags: --allow-natives-syntax --expose-gc --turbofan --no-always-turbofan
 
 var elements_kind = {
   fast_smi_only            :  'fast smi only elements',
@@ -214,7 +214,7 @@ assertKind(elements_kind.fast_double, obj);
 
 // Try to continue the transition to fast object.
 // TODO(mvstanton): re-enable commented out code when
-// FLAG_pretenuring_call_new is turned on in the build.
+// v8_flags.pretenuring_call_new is turned on in the build.
 obj = newarraycase_length_smidouble("coates");
 assertKind(elements_kind.fast, obj);
 obj = newarraycase_length_smidouble(2);

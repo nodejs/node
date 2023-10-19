@@ -1,21 +1,43 @@
 {
   "name": "abbrev",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "Like ruby's abbrev module, but in js",
-  "author": "Isaac Z. Schlueter <i@izs.me>",
-  "main": "abbrev.js",
+  "author": "GitHub Inc.",
+  "main": "lib/index.js",
   "scripts": {
-    "test": "tap test.js --100",
-    "preversion": "npm test",
-    "postversion": "npm publish",
-    "postpublish": "git push origin --all; git push origin --tags"
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint"
   },
-  "repository": "http://github.com/isaacs/abbrev-js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/abbrev-js.git"
+  },
   "license": "ISC",
   "devDependencies": {
-    "tap": "^10.1"
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.8.0",
+    "tap": "^16.3.0"
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
   },
   "files": [
-    "abbrev.js"
-  ]
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.8.0"
+  }
 }

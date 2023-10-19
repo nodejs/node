@@ -1,5 +1,5 @@
 /**
- * @fileoverview A rule to disallow `this` keywords outside of classes or class-like objects.
+ * @fileoverview A rule to disallow `this` keywords in contexts where the value of `this` is `undefined`.
  * @author Toru Nagashima
  */
 
@@ -12,18 +12,33 @@
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Determines if the given code path is a code path with lexical `this` binding.
+ * That is, if `this` within the code path refers to `this` of surrounding code path.
+ * @param {CodePath} codePath Code path.
+ * @param {ASTNode} node Node that started the code path.
+ * @returns {boolean} `true` if it is a code path with lexical `this` binding.
+ */
+function isCodePathWithLexicalThis(codePath, node) {
+    return codePath.origin === "function" && node.type === "ArrowFunctionExpression";
+}
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow `this` keywords outside of classes or class-like objects",
-            category: "Best Practices",
+            description: "Disallow use of `this` in contexts where the value of `this` is `undefined`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-invalid-this"
+            url: "https://eslint.org/docs/latest/rules/no-invalid-this"
         },
 
         schema: [
@@ -48,7 +63,7 @@ module.exports = {
         const options = context.options[0] || {};
         const capIsConstructor = options.capIsConstructor !== false;
         const stack = [],
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         /**
          * Gets the current checking context.
@@ -72,62 +87,52 @@ module.exports = {
             return current;
         };
 
-        /**
-         * Pushs new checking context into the stack.
-         *
-         * The checking context is not initialized yet.
-         * Because most functions don't have `this` keyword.
-         * When `this` keyword was found, the checking context is initialized.
-         * @param {ASTNode} node A function node that was entered.
-         * @returns {void}
-         */
-        function enterFunction(node) {
-
-            // `this` can be invalid only under strict mode.
-            stack.push({
-                init: !context.getScope().isStrict,
-                node,
-                valid: true
-            });
-        }
-
-        /**
-         * Pops the current checking context from the stack.
-         * @returns {void}
-         */
-        function exitFunction() {
-            stack.pop();
-        }
-
         return {
 
-            /*
-             * `this` is invalid only under strict mode.
-             * Modules is always strict mode.
-             */
-            Program(node) {
-                const scope = context.getScope(),
-                    features = context.parserOptions.ecmaFeatures || {};
+            onCodePathStart(codePath, node) {
+                if (isCodePathWithLexicalThis(codePath, node)) {
+                    return;
+                }
 
+                if (codePath.origin === "program") {
+                    const scope = sourceCode.getScope(node);
+                    const features = context.parserOptions.ecmaFeatures || {};
+
+                    // `this` at the top level of scripts always refers to the global object
+                    stack.push({
+                        init: true,
+                        node,
+                        valid: !(
+                            node.sourceType === "module" ||
+                            (features.globalReturn && scope.childScopes[0].isStrict)
+                        )
+                    });
+
+                    return;
+                }
+
+                /*
+                 * `init: false` means that `valid` isn't determined yet.
+                 * Most functions don't use `this`, and the calculation for `valid`
+                 * is relatively costly, so we'll calculate it lazily when the first
+                 * `this` within the function is traversed. A special case are non-strict
+                 * functions, because `this` refers to the global object and therefore is
+                 * always valid, so we can set `init: true` right away.
+                 */
                 stack.push({
-                    init: true,
+                    init: !sourceCode.getScope(node).isStrict,
                     node,
-                    valid: !(
-                        scope.isStrict ||
-                        node.sourceType === "module" ||
-                        (features.globalReturn && scope.childScopes[0].isStrict)
-                    )
+                    valid: true
                 });
             },
 
-            "Program:exit"() {
+            onCodePathEnd(codePath, node) {
+                if (isCodePathWithLexicalThis(codePath, node)) {
+                    return;
+                }
+
                 stack.pop();
             },
-
-            FunctionDeclaration: enterFunction,
-            "FunctionDeclaration:exit": exitFunction,
-            FunctionExpression: enterFunction,
-            "FunctionExpression:exit": exitFunction,
 
             // Reports if `this` of the current context is invalid.
             ThisExpression(node) {

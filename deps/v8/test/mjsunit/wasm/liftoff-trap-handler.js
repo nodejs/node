@@ -7,7 +7,7 @@
 // A simple test to make sure Liftoff can compile memory operations with trap
 // handlers enabled.
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function testCompileLoadStore() {
   const builder = new WasmModuleBuilder();
@@ -21,7 +21,7 @@ function testCompileLoadStore() {
                 kExprI32StoreMem, 0, 0x80, 0x80, 0x80, 1,
                 kExprLocalGet, 1])
       .exportFunc();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   const instance = builder.instantiate();
 }
 testCompileLoadStore();

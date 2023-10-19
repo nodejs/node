@@ -22,16 +22,16 @@ U_NAMESPACE_BEGIN
 
 FieldPositionIterator::~FieldPositionIterator() {
   delete data;
-  data = NULL;
+  data = nullptr;
   pos = -1;
 }
 
 FieldPositionIterator::FieldPositionIterator()
-    : data(NULL), pos(-1) {
+    : data(nullptr), pos(-1) {
 }
 
 FieldPositionIterator::FieldPositionIterator(const FieldPositionIterator &rhs)
-  : UObject(rhs), data(NULL), pos(rhs.pos) {
+  : UObject(rhs), data(nullptr), pos(rhs.pos) {
 
   if (rhs.data) {
     UErrorCode status = U_ZERO_ERROR;
@@ -39,23 +39,23 @@ FieldPositionIterator::FieldPositionIterator(const FieldPositionIterator &rhs)
     data->assign(*rhs.data, status);
     if (status != U_ZERO_ERROR) {
       delete data;
-      data = NULL;
+      data = nullptr;
       pos = -1;
     }
   }
 }
 
-UBool FieldPositionIterator::operator==(const FieldPositionIterator &rhs) const {
+bool FieldPositionIterator::operator==(const FieldPositionIterator &rhs) const {
   if (&rhs == this) {
-    return TRUE;
+    return true;
   }
   if (pos != rhs.pos) {
-    return FALSE;
+    return false;
   }
   if (!data) {
-    return rhs.data == NULL;
+    return rhs.data == nullptr;
   }
-  return rhs.data ? data->operator==(*rhs.data) : FALSE;
+  return rhs.data ? data->operator==(*rhs.data) : false;
 }
 
 void FieldPositionIterator::setData(UVector32 *adopt, UErrorCode& status) {
@@ -64,7 +64,7 @@ void FieldPositionIterator::setData(UVector32 *adopt, UErrorCode& status) {
     if (adopt) {
       if (adopt->size() == 0) {
         delete adopt;
-        adopt = NULL;
+        adopt = nullptr;
       } else if ((adopt->size() % 4) != 0) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
       } else {
@@ -87,12 +87,12 @@ void FieldPositionIterator::setData(UVector32 *adopt, UErrorCode& status) {
 
   delete data;
   data = adopt;
-  pos = adopt == NULL ? -1 : 0;
+  pos = adopt == nullptr ? -1 : 0;
 }
 
 UBool FieldPositionIterator::next(FieldPosition& fp) {
   if (pos == -1) {
-    return FALSE;
+    return false;
   }
 
   // Ignore the first element of the tetrad: used for field category
@@ -105,9 +105,10 @@ UBool FieldPositionIterator::next(FieldPosition& fp) {
     pos = -1;
   }
 
-  return TRUE;
+  return true;
 }
 
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+

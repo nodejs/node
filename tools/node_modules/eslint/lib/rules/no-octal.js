@@ -9,21 +9,21 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow octal literals",
-            category: "Best Practices",
+            description: "Disallow octal literals",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-octal"
+            url: "https://eslint.org/docs/latest/rules/no-octal"
         },
 
         schema: [],
 
         messages: {
-            noOcatal: "Octal literals should not be used."
+            noOctal: "Octal literals should not be used."
         }
     },
 
@@ -35,7 +35,7 @@ module.exports = {
                 if (typeof node.value === "number" && /^0[0-9]/u.test(node.raw)) {
                     context.report({
                         node,
-                        messageId: "noOcatal"
+                        messageId: "noOctal"
                     });
                 }
             }

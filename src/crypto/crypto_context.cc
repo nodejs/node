@@ -13,6 +13,7 @@
 
 #include <openssl/x509.h>
 #include <openssl/pkcs12.h>
+#include <openssl/rand.h>
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -21,6 +22,7 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBufferView;
+using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::Exception;
@@ -30,7 +32,11 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
+using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
+using v8::Nothing;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
@@ -45,25 +51,27 @@ static const char* const root_certs[] = {
 
 static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
-static X509_STORE* root_cert_store;
-
 static bool extra_root_certs_loaded = false;
+
+inline X509_STORE* GetOrCreateRootCertStore() {
+  // Guaranteed thread-safe by standard, just don't use -fno-threadsafe-statics.
+  static X509_STORE* store = NewRootCertStore();
+  return store;
+}
 
 // Takes a string or buffer and loads it into a BIO.
 // Caller responsible for BIO_free_all-ing the returned object.
 BIOPointer LoadBIO(Environment* env, Local<Value> v) {
-  HandleScope scope(env->isolate());
-
-  if (v->IsString()) {
-    Utf8Value s(env->isolate(), v);
-    return NodeBIO::NewFixed(*s, s.length());
+  if (v->IsString() || v->IsArrayBufferView()) {
+    BIOPointer bio(BIO_new(BIO_s_secmem()));
+    if (!bio) return nullptr;
+    ByteSource bsrc = ByteSource::FromStringOrBuffer(env, v);
+    if (bsrc.size() > INT_MAX) return nullptr;
+    int written = BIO_write(bio.get(), bsrc.data<char>(), bsrc.size());
+    if (written < 0) return nullptr;
+    if (static_cast<size_t>(written) != bsrc.size()) return nullptr;
+    return bio;
   }
-
-  if (v->IsArrayBufferView()) {
-    ArrayBufferViewContents<char> buf(v.As<ArrayBufferView>());
-    return NodeBIO::NewFixed(buf.data(), buf.length());
-  }
-
   return nullptr;
 }
 
@@ -109,20 +117,20 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   // Try getting issuer from a cert store
   if (ret) {
     if (issuer == nullptr) {
-      ret = SSL_CTX_get_issuer(ctx, x.get(), &issuer);
-      ret = ret < 0 ? 0 : 1;
+      // TODO(tniessen): SSL_CTX_get_issuer does not allow the caller to
+      // distinguish between a failed operation and an empty result. Fix that
+      // and then handle the potential error properly here (set ret to 0).
+      *issuer_ = SSL_CTX_get_issuer(ctx, x.get());
       // NOTE: get_cert_store doesn't increment reference count,
       // no need to free `store`
     } else {
       // Increment issuer reference count
-      issuer = X509_dup(issuer);
-      if (issuer == nullptr) {
+      issuer_->reset(X509_dup(issuer));
+      if (!*issuer_) {
         ret = 0;
       }
     }
   }
-
-  issuer_->reset(issuer);
 
   if (ret && x != nullptr) {
     cert->reset(X509_dup(x.get()));
@@ -255,51 +263,50 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl = env->secure_context_constructor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(New);
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, New);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         SecureContext::kInternalFieldCount);
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"));
 
-    env->SetProtoMethod(tmpl, "init", Init);
-    env->SetProtoMethod(tmpl, "setKey", SetKey);
-    env->SetProtoMethod(tmpl, "setCert", SetCert);
-    env->SetProtoMethod(tmpl, "addCACert", AddCACert);
-    env->SetProtoMethod(tmpl, "addCRL", AddCRL);
-    env->SetProtoMethod(tmpl, "addRootCerts", AddRootCerts);
-    env->SetProtoMethod(tmpl, "setCipherSuites", SetCipherSuites);
-    env->SetProtoMethod(tmpl, "setCiphers", SetCiphers);
-    env->SetProtoMethod(tmpl, "setSigalgs", SetSigalgs);
-    env->SetProtoMethod(tmpl, "setECDHCurve", SetECDHCurve);
-    env->SetProtoMethod(tmpl, "setDHParam", SetDHParam);
-    env->SetProtoMethod(tmpl, "setMaxProto", SetMaxProto);
-    env->SetProtoMethod(tmpl, "setMinProto", SetMinProto);
-    env->SetProtoMethod(tmpl, "getMaxProto", GetMaxProto);
-    env->SetProtoMethod(tmpl, "getMinProto", GetMinProto);
-    env->SetProtoMethod(tmpl, "setOptions", SetOptions);
-    env->SetProtoMethod(tmpl, "setSessionIdContext", SetSessionIdContext);
-    env->SetProtoMethod(tmpl, "setSessionTimeout", SetSessionTimeout);
-    env->SetProtoMethod(tmpl, "close", Close);
-    env->SetProtoMethod(tmpl, "loadPKCS12", LoadPKCS12);
-    env->SetProtoMethod(tmpl, "setTicketKeys", SetTicketKeys);
-    env->SetProtoMethod(tmpl, "setFreeListLength", SetFreeListLength);
-    env->SetProtoMethod(tmpl, "enableTicketKeyCallback",
-        EnableTicketKeyCallback);
+    SetProtoMethod(isolate, tmpl, "init", Init);
+    SetProtoMethod(isolate, tmpl, "setKey", SetKey);
+    SetProtoMethod(isolate, tmpl, "setCert", SetCert);
+    SetProtoMethod(isolate, tmpl, "addCACert", AddCACert);
+    SetProtoMethod(isolate, tmpl, "addCRL", AddCRL);
+    SetProtoMethod(isolate, tmpl, "addRootCerts", AddRootCerts);
+    SetProtoMethod(isolate, tmpl, "setCipherSuites", SetCipherSuites);
+    SetProtoMethod(isolate, tmpl, "setCiphers", SetCiphers);
+    SetProtoMethod(isolate, tmpl, "setSigalgs", SetSigalgs);
+    SetProtoMethod(isolate, tmpl, "setECDHCurve", SetECDHCurve);
+    SetProtoMethod(isolate, tmpl, "setDHParam", SetDHParam);
+    SetProtoMethod(isolate, tmpl, "setMaxProto", SetMaxProto);
+    SetProtoMethod(isolate, tmpl, "setMinProto", SetMinProto);
+    SetProtoMethod(isolate, tmpl, "getMaxProto", GetMaxProto);
+    SetProtoMethod(isolate, tmpl, "getMinProto", GetMinProto);
+    SetProtoMethod(isolate, tmpl, "setOptions", SetOptions);
+    SetProtoMethod(isolate, tmpl, "setSessionIdContext", SetSessionIdContext);
+    SetProtoMethod(isolate, tmpl, "setSessionTimeout", SetSessionTimeout);
+    SetProtoMethod(isolate, tmpl, "close", Close);
+    SetProtoMethod(isolate, tmpl, "loadPKCS12", LoadPKCS12);
+    SetProtoMethod(isolate, tmpl, "setTicketKeys", SetTicketKeys);
+    SetProtoMethod(
+        isolate, tmpl, "enableTicketKeyCallback", EnableTicketKeyCallback);
 
-    env->SetProtoMethodNoSideEffect(tmpl, "getTicketKeys", GetTicketKeys);
-    env->SetProtoMethodNoSideEffect(tmpl, "getCertificate",
-        GetCertificate<true>);
-    env->SetProtoMethodNoSideEffect(tmpl, "getIssuer",
-        GetCertificate<false>);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "getTicketKeys", GetTicketKeys);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "getCertificate", GetCertificate<true>);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "getIssuer", GetCertificate<false>);
 
-  #ifndef OPENSSL_NO_ENGINE
-    env->SetProtoMethod(tmpl, "setEngineKey", SetEngineKey);
-    env->SetProtoMethod(tmpl, "setClientCertEngine", SetClientCertEngine);
-  #endif  // !OPENSSL_NO_ENGINE
+#ifndef OPENSSL_NO_ENGINE
+    SetProtoMethod(isolate, tmpl, "setEngineKey", SetEngineKey);
+    SetProtoMethod(isolate, tmpl, "setClientCertEngine", SetClientCertEngine);
+#endif  // !OPENSSL_NO_ENGINE
 
-  #define SET_INTEGER_CONSTANTS(name, value)                                   \
-      tmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), name),                   \
-            Integer::NewFromUnsigned(env->isolate(), value));
+#define SET_INTEGER_CONSTANTS(name, value)                                     \
+  tmpl->Set(FIXED_ONE_BYTE_STRING(isolate, name),                              \
+            Integer::NewFromUnsigned(isolate, value));
     SET_INTEGER_CONSTANTS("kTicketKeyReturnIndex", kTicketKeyReturnIndex);
     SET_INTEGER_CONSTANTS("kTicketKeyHMACIndex", kTicketKeyHMACIndex);
     SET_INTEGER_CONSTANTS("kTicketKeyAESIndex", kTicketKeyAESIndex);
@@ -307,14 +314,11 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SET_INTEGER_CONSTANTS("kTicketKeyIVIndex", kTicketKeyIVIndex);
   #undef SET_INTEGER_CONSTANTS
 
-    Local<FunctionTemplate> ctx_getter_templ =
-        FunctionTemplate::New(env->isolate(),
-                              CtxGetter,
-                              Local<Value>(),
-                              Signature::New(env->isolate(), tmpl));
+    Local<FunctionTemplate> ctx_getter_templ = FunctionTemplate::New(
+        isolate, CtxGetter, Local<Value>(), Signature::New(isolate, tmpl));
 
     tmpl->PrototypeTemplate()->SetAccessorProperty(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
+        FIXED_ONE_BYTE_STRING(isolate, "_external"),
         ctx_getter_templ,
         Local<FunctionTemplate>(),
         static_cast<PropertyAttribute>(ReadOnly | DontDelete));
@@ -325,17 +329,60 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
 }
 
 void SecureContext::Initialize(Environment* env, Local<Object> target) {
-  env->SetConstructorFunction(
-      target,
-      "SecureContext",
-      GetConstructorTemplate(env),
-      Environment::SetConstructorFunctionFlag::NONE);
+  Local<Context> context = env->context();
+  SetConstructorFunction(context,
+                         target,
+                         "SecureContext",
+                         GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
 
-  env->SetMethodNoSideEffect(target, "getRootCertificates",
-                             GetRootCertificates);
+  SetMethodNoSideEffect(
+      context, target, "getRootCertificates", GetRootCertificates);
   // Exposed for testing purposes only.
-  env->SetMethodNoSideEffect(target, "isExtraRootCertsFileLoaded",
-                             IsExtraRootCertsFileLoaded);
+  SetMethodNoSideEffect(context,
+                        target,
+                        "isExtraRootCertsFileLoaded",
+                        IsExtraRootCertsFileLoaded);
+}
+
+void SecureContext::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Init);
+  registry->Register(SetKey);
+  registry->Register(SetCert);
+  registry->Register(AddCACert);
+  registry->Register(AddCRL);
+  registry->Register(AddRootCerts);
+  registry->Register(SetCipherSuites);
+  registry->Register(SetCiphers);
+  registry->Register(SetSigalgs);
+  registry->Register(SetECDHCurve);
+  registry->Register(SetDHParam);
+  registry->Register(SetMaxProto);
+  registry->Register(SetMinProto);
+  registry->Register(GetMaxProto);
+  registry->Register(GetMinProto);
+  registry->Register(SetOptions);
+  registry->Register(SetSessionIdContext);
+  registry->Register(SetSessionTimeout);
+  registry->Register(Close);
+  registry->Register(LoadPKCS12);
+  registry->Register(SetTicketKeys);
+  registry->Register(EnableTicketKeyCallback);
+  registry->Register(GetTicketKeys);
+  registry->Register(GetCertificate<true>);
+  registry->Register(GetCertificate<false>);
+
+#ifndef OPENSSL_NO_ENGINE
+  registry->Register(SetEngineKey);
+  registry->Register(SetClientCertEngine);
+#endif  // !OPENSSL_NO_ENGINE
+
+  registry->Register(CtxGetter);
+
+  registry->Register(GetRootCertificates);
+  registry->Register(IsExtraRootCertsFileLoaded);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
@@ -459,13 +506,16 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       max_version = TLS1_2_VERSION;
       method = TLS_client_method();
     } else {
-      const std::string msg("Unknown method: ");
-      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, (msg + * sslmethod).c_str());
+      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(
+          env, "Unknown method: %s", *sslmethod);
       return;
     }
   }
 
   sc->ctx_.reset(SSL_CTX_new(method));
+  if (!sc->ctx_) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
+  }
   SSL_CTX_set_app_data(sc->ctx_.get(), sc);
 
   // Disable SSLv2 in the case when method == TLS_method() and the
@@ -474,6 +524,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // SSLv3 is disabled because it's susceptible to downgrade attacks (POODLE.)
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv2);
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv3);
+#if OPENSSL_VERSION_MAJOR >= 3
+  SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_ALLOW_CLIENT_RENEGOTIATION);
+#endif
 
   // Enable automatic cert chaining. This is enabled by default in OpenSSL, but
   // disabled by default in BoringSSL. Enable it explicitly to make the
@@ -493,9 +546,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // OpenSSL 1.1.0 changed the ticket key size, but the OpenSSL 1.0.x size was
   // exposed in the public API. To retain compatibility, install a callback
   // which restores the old algorithm.
-  if (RAND_bytes(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)) <= 0 ||
-      RAND_bytes(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)) <= 0 ||
-      RAND_bytes(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_)) <= 0) {
+  if (CSPRNG(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)).is_err() ||
+      CSPRNG(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)).is_err() ||
+      CSPRNG(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_)).is_err()) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error generating ticket keys");
   }
@@ -520,6 +573,22 @@ void SecureContext::SetSelectSNIContextCallback(SelectSNIContextCb cb) {
 
 void SecureContext::SetKeylogCallback(KeylogCb cb) {
   SSL_CTX_set_keylog_callback(ctx_.get(), cb);
+}
+
+Maybe<bool> SecureContext::UseKey(Environment* env,
+                                  std::shared_ptr<KeyObjectData> key) {
+  if (key->GetKeyType() != KeyType::kKeyTypePrivate) {
+    THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
+    return Nothing<bool>();
+  }
+
+  ClearErrorOnReturn clear_error_on_return;
+  if (!SSL_CTX_use_PrivateKey(ctx_.get(), key->GetAsymmetricKey().get())) {
+    ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
+    return Nothing<bool>();
+  }
+
+  return Just(true);
 }
 
 void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
@@ -579,6 +648,13 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 2);
 
+  if (UNLIKELY(env->permission()->enabled())) {
+    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
+        env,
+        "Programmatic selection of OpenSSL engines is unsupported while the "
+        "experimental permission model is enabled");
+  }
+
   CryptoErrorStore errors;
   Utf8Value engine_id(env->isolate(), args[1]);
   EnginePointer engine = LoadEngineById(*engine_id, &errors);
@@ -610,30 +686,47 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // !OPENSSL_NO_ENGINE
 
+Maybe<bool> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
+  ClearErrorOnReturn clear_error_on_return;
+  if (!bio) return Just(false);
+  cert_.reset();
+  issuer_.reset();
+
+  // The SSL_CTX_use_certificate_chain call here is not from openssl, this is
+  // the method implemented elsewhere in this file. The naming is a bit
+  // confusing, unfortunately.
+  if (SSL_CTX_use_certificate_chain(
+          ctx_.get(), std::move(bio), &cert_, &issuer_) == 0) {
+    ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_certificate_chain");
+    return Nothing<bool>();
+  }
+  return Just(true);
+}
+
 void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
-  CHECK_GE(args.Length(), 1);  // Certificate argument is mandator
+  CHECK_GE(args.Length(), 1);  // Certificate argument is mandatory
 
   BIOPointer bio(LoadBIO(env, args[0]));
-  if (!bio)
-    return;
+  USE(sc->AddCert(env, std::move(bio)));
+}
 
-  sc->cert_.reset();
-  sc->issuer_.reset();
-
-  if (!SSL_CTX_use_certificate_chain(
-          sc->ctx_.get(),
-          std::move(bio),
-          &sc->cert_,
-          &sc->issuer_)) {
-    return ThrowCryptoError(
-        env,
-        ERR_get_error(),
-        "SSL_CTX_use_certificate_chain");
+void SecureContext::SetCACert(const BIOPointer& bio) {
+  ClearErrorOnReturn clear_error_on_return;
+  if (!bio) return;
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
+  while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
+             bio.get(), nullptr, NoPasswordCallback, nullptr))) {
+    if (cert_store == GetOrCreateRootCertStore()) {
+      cert_store = NewRootCertStore();
+      SSL_CTX_set_cert_store(ctx_.get(), cert_store);
+    }
+    CHECK_EQ(1, X509_STORE_add_cert(cert_store, x509.get()));
+    CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
   }
 }
 
@@ -642,25 +735,36 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
 
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
-  ClearErrorOnReturn clear_error_on_return;
 
   CHECK_GE(args.Length(), 1);  // CA certificate argument is mandatory
 
   BIOPointer bio(LoadBIO(env, args[0]));
-  if (!bio)
-    return;
+  sc->SetCACert(bio);
+}
 
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
-  while (X509* x509 = PEM_read_bio_X509_AUX(
-      bio.get(), nullptr, NoPasswordCallback, nullptr)) {
-    if (cert_store == root_cert_store) {
-      cert_store = NewRootCertStore();
-      SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
-    }
-    X509_STORE_add_cert(cert_store, x509);
-    SSL_CTX_add_client_CA(sc->ctx_.get(), x509);
-    X509_free(x509);
+Maybe<bool> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
+  ClearErrorOnReturn clear_error_on_return;
+  if (!bio) return Just(false);
+
+  DeleteFnPtr<X509_CRL, X509_CRL_free> crl(
+      PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr));
+
+  if (!crl) {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to parse CRL");
+    return Nothing<bool>();
   }
+
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
+  if (cert_store == GetOrCreateRootCertStore()) {
+    cert_store = NewRootCertStore();
+    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
+  }
+
+  CHECK_EQ(1, X509_STORE_add_crl(cert_store, crl.get()));
+  CHECK_EQ(1,
+           X509_STORE_set_flags(
+               cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
+  return Just(true);
 }
 
 void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
@@ -671,41 +775,23 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_GE(args.Length(), 1);  // CRL argument is mandatory
 
-  ClearErrorOnReturn clear_error_on_return;
-
   BIOPointer bio(LoadBIO(env, args[0]));
-  if (!bio)
-    return;
+  USE(sc->SetCRL(env, bio));
+}
 
-  DeleteFnPtr<X509_CRL, X509_CRL_free> crl(
-      PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr));
+void SecureContext::SetRootCerts() {
+  ClearErrorOnReturn clear_error_on_return;
+  auto store = GetOrCreateRootCertStore();
 
-  if (!crl)
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to parse CRL");
-
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
-  if (cert_store == root_cert_store) {
-    cert_store = NewRootCertStore();
-    SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
-  }
-
-  X509_STORE_add_crl(cert_store, crl.get());
-  X509_STORE_set_flags(cert_store,
-                       X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
+  // Increment reference count so global store is not deleted along with CTX.
+  X509_STORE_up_ref(store);
+  SSL_CTX_set_cert_store(ctx_.get(), store);
 }
 
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
-  ClearErrorOnReturn clear_error_on_return;
-
-  if (root_cert_store == nullptr) {
-    root_cert_store = NewRootCertStore();
-  }
-
-  // Increment reference count so global store is not deleted along with CTX.
-  X509_STORE_up_ref(root_cert_store);
-  SSL_CTX_set_cert_store(sc->ctx_.get(), root_cert_store);
+  sc->SetRootCerts();
 }
 
 void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
@@ -759,8 +845,7 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value curve(env->isolate(), args[0]);
 
-  if (strcmp(*curve, "auto") != 0 &&
-      !SSL_CTX_set1_curves_list(sc->ctx_.get(), *curve)) {
+  if (curve != "auto" && !SSL_CTX_set1_curves_list(sc->ctx_.get(), *curve)) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to set ECDH curve");
   }
 }
@@ -773,6 +858,14 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_GE(args.Length(), 1);  // DH argument is mandatory
 
+  // If the user specified "auto" for dhparams, the JavaScript layer will pass
+  // true to this function instead of the original string. Any other string
+  // value will be interpreted as custom DH parameters below.
+  if (args[0]->IsTrue()) {
+    CHECK(SSL_CTX_set_dh_auto(sc->ctx_.get(), true));
+    return;
+  }
+
   DHPointer dh;
   {
     BIOPointer bio(LoadBIO(env, args[0]));
@@ -783,6 +876,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Invalid dhparam is silently discarded and DHE is no longer used.
+  // TODO(tniessen): don't silently discard invalid dhparam.
   if (!dh)
     return;
 
@@ -796,8 +890,6 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(
         env->isolate(), "DH parameter is less than 2048 bits"));
   }
-
-  SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_SINGLE_DH_USE);
 
   if (!SSL_CTX_set_tmp_dh(sc->ctx_.get(), dh.get())) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
@@ -960,38 +1052,66 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   EVP_PKEY* pkey_ptr = nullptr;
   X509* cert_ptr = nullptr;
   STACK_OF(X509)* extra_certs_ptr = nullptr;
-  if (d2i_PKCS12_bio(in.get(), &p12_ptr) &&
-      (p12.reset(p12_ptr), true) &&  // Move ownership to the smart pointer.
-      PKCS12_parse(p12.get(), pass.data(),
-                   &pkey_ptr,
-                   &cert_ptr,
-                   &extra_certs_ptr) &&
-      (pkey.reset(pkey_ptr), cert.reset(cert_ptr),
-       extra_certs.reset(extra_certs_ptr), true) &&  // Move ownership.
-      SSL_CTX_use_certificate_chain(sc->ctx_.get(),
-                                    std::move(cert),
-                                    extra_certs.get(),
-                                    &sc->cert_,
-                                    &sc->issuer_) &&
-      SSL_CTX_use_PrivateKey(sc->ctx_.get(), pkey.get())) {
-    // Add CA certs too
-    for (int i = 0; i < sk_X509_num(extra_certs.get()); i++) {
-      X509* ca = sk_X509_value(extra_certs.get(), i);
 
-      if (cert_store == root_cert_store) {
-        cert_store = NewRootCertStore();
-        SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
-      }
-      X509_STORE_add_cert(cert_store, ca);
-      SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
-    }
-    ret = true;
+  if (!d2i_PKCS12_bio(in.get(), &p12_ptr)) {
+    goto done;
   }
 
+  // Move ownership to the smart pointer:
+  p12.reset(p12_ptr);
+
+  if (!PKCS12_parse(
+          p12.get(), pass.data(), &pkey_ptr, &cert_ptr, &extra_certs_ptr)) {
+    goto done;
+  }
+
+  // Move ownership of the parsed data:
+  pkey.reset(pkey_ptr);
+  cert.reset(cert_ptr);
+  extra_certs.reset(extra_certs_ptr);
+
+  if (!pkey) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Unable to load private key from PFX data");
+  }
+
+  if (!cert) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Unable to load certificate from PFX data");
+  }
+
+  if (!SSL_CTX_use_certificate_chain(sc->ctx_.get(),
+                                     std::move(cert),
+                                     extra_certs.get(),
+                                     &sc->cert_,
+                                     &sc->issuer_)) {
+    goto done;
+  }
+
+  if (!SSL_CTX_use_PrivateKey(sc->ctx_.get(), pkey.get())) {
+    goto done;
+  }
+
+  // Add CA certs too
+  for (int i = 0; i < sk_X509_num(extra_certs.get()); i++) {
+    X509* ca = sk_X509_value(extra_certs.get(), i);
+
+    if (cert_store == GetOrCreateRootCertStore()) {
+      cert_store = NewRootCertStore();
+      SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
+    }
+    X509_STORE_add_cert(cert_store, ca);
+    SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
+  }
+  ret = true;
+
+done:
   if (!ret) {
     // TODO(@jasnell): Should this use ThrowCryptoError?
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     const char* str = ERR_reason_error_string(err);
+    str = str != nullptr ? str : "Unknown error";
+
     return env->ThrowError(str);
   }
 }
@@ -1015,6 +1135,13 @@ void SecureContext::SetClientCertEngine(
   // support multiple calls to SetClientCertEngine.
   CHECK(!sc->client_cert_engine_provided_);
 
+  if (UNLIKELY(env->permission()->enabled())) {
+    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
+        env,
+        "Programmatic selection of OpenSSL engines is unsupported while the "
+        "experimental permission model is enabled");
+  }
+
   CryptoErrorStore errors;
   const Utf8Value engine_id(env->isolate(), args[0]);
   EnginePointer engine = LoadEngineById(*engine_id, &errors);
@@ -1033,8 +1160,6 @@ void SecureContext::SetClientCertEngine(
 #endif  // !OPENSSL_NO_ENGINE
 
 void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
-#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_get_tlsext_ticket_keys)
-
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
@@ -1047,11 +1172,9 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   memcpy(Buffer::Data(buff) + 32, wrap->ticket_key_aes_, 16);
 
   args.GetReturnValue().Set(buff);
-#endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
 }
 
 void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
-#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_get_tlsext_ticket_keys)
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
@@ -1066,10 +1189,6 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   memcpy(wrap->ticket_key_aes_, buf.data() + 32, 16);
 
   args.GetReturnValue().Set(true);
-#endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
-}
-
-void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Currently, EnableTicketKeyCallback and TicketKeyCallback are only present for
@@ -1110,7 +1229,7 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
     return -1;
   }
 
-  argv[2] = env != 0 ? v8::True(env->isolate()) : v8::False(env->isolate());
+  argv[2] = Boolean::New(env->isolate(), enc != 0);
 
   Local<Value> ret;
   if (!node::MakeCallback(
@@ -1194,11 +1313,14 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
 
   if (enc) {
     memcpy(name, sc->ticket_key_name_, sizeof(sc->ticket_key_name_));
-    if (RAND_bytes(iv, 16) <= 0 ||
-        EVP_EncryptInit_ex(ectx, EVP_aes_128_cbc(), nullptr,
-                           sc->ticket_key_aes_, iv) <= 0 ||
-        HMAC_Init_ex(hctx, sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_),
-                     EVP_sha256(), nullptr) <= 0) {
+    if (CSPRNG(iv, 16).is_err() ||
+        EVP_EncryptInit_ex(
+            ectx, EVP_aes_128_cbc(), nullptr, sc->ticket_key_aes_, iv) <= 0 ||
+        HMAC_Init_ex(hctx,
+                     sc->ticket_key_hmac_,
+                     sizeof(sc->ticket_key_hmac_),
+                     EVP_sha256(),
+                     nullptr) <= 0) {
       return -1;
     }
     return 1;
@@ -1261,10 +1383,9 @@ unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
   if (!bio)
     return ERR_get_error();
 
-  while (X509* x509 =
-      PEM_read_bio_X509(bio.get(), nullptr, NoPasswordCallback, nullptr)) {
-    X509_STORE_add_cert(store, x509);
-    X509_free(x509);
+  while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509(
+             bio.get(), nullptr, NoPasswordCallback, nullptr))) {
+    X509_STORE_add_cert(store, x509.get());
   }
 
   unsigned long err = ERR_peek_error();  // NOLINT(runtime/int)
@@ -1280,24 +1401,18 @@ unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
 
 // UseExtraCaCerts is called only once at the start of the Node.js process.
 void UseExtraCaCerts(const std::string& file) {
+  if (file.empty()) return;
   ClearErrorOnReturn clear_error_on_return;
-
-  if (root_cert_store == nullptr) {
-    root_cert_store = NewRootCertStore();
-
-    if (!file.empty()) {
-      unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
-                                           root_cert_store,
-                                           file.c_str());
-      if (err) {
-        fprintf(stderr,
-                "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
-                file.c_str(),
-                ERR_error_string(err, nullptr));
-      } else {
-        extra_root_certs_loaded = true;
-      }
-    }
+  X509_STORE* store = GetOrCreateRootCertStore();
+  if (auto err = AddCertsFromFile(store, file.c_str())) {
+    char buf[256];
+    ERR_error_string_n(err, buf, sizeof(buf));
+    fprintf(stderr,
+            "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
+            file.c_str(),
+            buf);
+  } else {
+    extra_root_certs_loaded = true;
   }
 }
 

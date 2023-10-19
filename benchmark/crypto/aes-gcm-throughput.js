@@ -5,7 +5,7 @@ const keylen = { 'aes-128-gcm': 16, 'aes-192-gcm': 24, 'aes-256-gcm': 32 };
 const bench = common.createBenchmark(main, {
   n: [500],
   cipher: ['aes-128-gcm', 'aes-192-gcm', 'aes-256-gcm'],
-  len: [1024, 4 * 1024, 16 * 1024, 64 * 1024, 256 * 1024, 1024 * 1024]
+  len: [1024, 4 * 1024, 16 * 1024, 64 * 1024, 256 * 1024, 1024 * 1024],
 });
 
 function main({ n, len, cipher }) {

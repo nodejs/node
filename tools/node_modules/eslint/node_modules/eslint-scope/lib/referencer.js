@@ -21,28 +21,26 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-"use strict";
 
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable no-undefined */
 
-const Syntax = require("estraverse").Syntax;
-const esrecurse = require("esrecurse");
-const Reference = require("./reference");
-const Variable = require("./variable");
-const PatternVisitor = require("./pattern-visitor");
-const definition = require("./definition");
-const assert = require("assert");
+import estraverse from "estraverse";
+import esrecurse from "esrecurse";
+import Reference from "./reference.js";
+import Variable from "./variable.js";
+import PatternVisitor from "./pattern-visitor.js";
+import { Definition, ParameterDefinition } from "./definition.js";
+import assert from "assert";
 
-const ParameterDefinition = definition.ParameterDefinition;
-const Definition = definition.Definition;
+const { Syntax } = estraverse;
 
 /**
  * Traverse identifier in pattern
- * @param {Object} options - options
- * @param {pattern} rootPattern - root pattern
- * @param {Refencer} referencer - referencer
- * @param {callback} callback - callback
+ * @param {Object} options options
+ * @param {pattern} rootPattern root pattern
+ * @param {Refencer} referencer referencer
+ * @param {callback} callback callback
  * @returns {void}
  */
 function traverseIdentifierInPattern(options, rootPattern, referencer, callback) {
@@ -209,8 +207,8 @@ class Referencer extends esrecurse.Visitor {
 
         /**
          * Visit pattern callback
-         * @param {pattern} pattern - pattern
-         * @param {Object} info - info
+         * @param {pattern} pattern pattern
+         * @param {Object} info info
          * @returns {void}
          */
         function visitPatternCallback(pattern, info) {
@@ -411,7 +409,7 @@ class Referencer extends esrecurse.Visitor {
     Program(node) {
         this.scopeManager.__nestGlobalScope(node);
 
-        if (this.scopeManager.__isNodejsScope()) {
+        if (this.scopeManager.isGlobalReturn()) {
 
             // Force strictness of GlobalScope to false when using node.js scope.
             this.currentScope().isStrict = false;
@@ -434,6 +432,12 @@ class Referencer extends esrecurse.Visitor {
         this.currentScope().__referencing(node);
     }
 
+    // eslint-disable-next-line class-methods-use-this
+    PrivateIdentifier() {
+
+        // Do nothing.
+    }
+
     UpdateExpression(node) {
         if (PatternVisitor.isPattern(node.argument)) {
             this.currentScope().__referencing(node.argument, Reference.RW, null);
@@ -451,6 +455,27 @@ class Referencer extends esrecurse.Visitor {
 
     Property(node) {
         this.visitProperty(node);
+    }
+
+    PropertyDefinition(node) {
+        const { computed, key, value } = node;
+
+        if (computed) {
+            this.visit(key);
+        }
+        if (value) {
+            this.scopeManager.__nestClassFieldInitializerScope(value);
+            this.visit(value);
+            this.close(value);
+        }
+    }
+
+    StaticBlock(node) {
+        this.scopeManager.__nestClassStaticBlockScope(node);
+
+        this.visitChildren(node);
+
+        this.close(node);
     }
 
     MethodDefinition(node) {
@@ -624,6 +649,6 @@ class Referencer extends esrecurse.Visitor {
     }
 }
 
-module.exports = Referencer;
+export default Referencer;
 
 /* vim: set sw=4 ts=4 et tw=80 : */

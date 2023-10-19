@@ -1,9 +1,0 @@
-(node:*) ExperimentalWarning: --experimental-loader is an experimental feature. This feature could change at any time
-(Use `* --trace-warnings ...` to show where the warning was created)
-file://*/test/fixtures/es-module-loaders/syntax-error.mjs:2
-await async () => 0;
-^^^^^^^^^^^^^
-
-SyntaxError: Malformed arrow function parameter list
-    at Loader.moduleStrategy (node:internal/modules/esm/translators:*:*)
-    at async link (node:internal/modules/esm/module_job:*:*)

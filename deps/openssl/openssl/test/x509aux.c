@@ -1,7 +1,7 @@
 /*
  * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL licenses, (the "License");
+ * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * https://www.openssl.org/source/license.html
@@ -27,7 +27,7 @@ static int test_certs(int num)
     unsigned char *data = 0;
     long len;
     typedef X509 *(*d2i_X509_t)(X509 **, const unsigned char **, long);
-    typedef int (*i2d_X509_t)(X509 *, unsigned char **);
+    typedef int (*i2d_X509_t)(const X509 *, unsigned char **);
     int err = 0;
     BIO *fp = BIO_new_file(test_get_argument(num), "r");
 
@@ -166,14 +166,20 @@ static int test_certs(int num)
     return 0;
 }
 
+OPT_TEST_DECLARE_USAGE("certfile...\n")
+
 int setup_tests(void)
 {
-    size_t n = test_get_argument_count();
+    size_t n;
 
-    if (n == 0) {
-        TEST_error("usage: %s certfile...", test_get_program_name());
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
         return 0;
     }
+
+    n = test_get_argument_count();
+    if (n == 0)
+        return 0;
 
     ADD_ALL_TESTS(test_certs, (int)n);
     return 1;

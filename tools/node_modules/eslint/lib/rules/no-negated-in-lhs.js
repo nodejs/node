@@ -10,15 +10,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow negating the left operand in `in` expressions",
-            category: "Possible Errors",
+            description: "Disallow negating the left operand in `in` expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-negated-in-lhs"
+            url: "https://eslint.org/docs/latest/rules/no-negated-in-lhs"
         },
 
         replacedBy: ["no-unsafe-negation"],

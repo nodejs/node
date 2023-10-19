@@ -24,6 +24,7 @@
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_external_reference.h"
+#include "permission/permission.h"
 #include "string_bytes.h"
 
 namespace node {
@@ -35,6 +36,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
@@ -95,13 +97,14 @@ void FSEventWrap::Initialize(Local<Object> target,
                              Local<Context> context,
                              void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
   t->InstanceTemplate()->SetInternalFieldCount(
       FSEventWrap::kInternalFieldCount);
 
   t->Inherit(HandleWrap::GetConstructorTemplate(env));
-  env->SetProtoMethod(t, "start", Start);
+  SetProtoMethod(isolate, t, "start", Start);
 
   Local<FunctionTemplate> get_initialized_templ =
       FunctionTemplate::New(env->isolate(),
@@ -115,7 +118,7 @@ void FSEventWrap::Initialize(Local<Object> target,
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete | DontEnum));
 
-  env->SetConstructorFunction(target, "FSEvent", t);
+  SetConstructorFunction(context, target, "FSEvent", t);
 }
 
 void FSEventWrap::RegisterExternalReferences(
@@ -144,6 +147,8 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, *path);
 
   unsigned int flags = 0;
   if (args[2]->IsTrue())
@@ -202,7 +207,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   } else if (events & UV_CHANGE) {
     event_string = env->change_string();
   } else {
-    CHECK(0 && "bad fs events flag");
+    UNREACHABLE("bad fs events flag");
   }
 
   Local<Value> argv[] = {
@@ -235,6 +240,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(fs_event_wrap, node::FSEventWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(fs_event_wrap,
-                               node::FSEventWrap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs_event_wrap,
+                                    node::FSEventWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(fs_event_wrap,
+                                node::FSEventWrap::RegisterExternalReferences)

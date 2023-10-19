@@ -228,11 +228,6 @@ TEST_IMPL(condvar_4) {
 /* uv_cond_timedwait: One thread waits, no signal. Timeout should be delivered. */
 TEST_IMPL(condvar_5) {
   worker_config wc;
-  int r;
-  /* ns */
-  uint64_t before;
-  uint64_t after;
-  uint64_t elapsed;
   uint64_t timeout;
 
   timeout = 100 * 1000 * 1000; /* 100 ms in ns */
@@ -242,24 +237,10 @@ TEST_IMPL(condvar_5) {
 
   uv_mutex_lock(&wc.mutex);
 
-  /* We wait.
-   * No signaler, so this will only return if timeout is delivered. */
-  before = uv_hrtime();
-  r = uv_cond_timedwait(&wc.cond, &wc.mutex, timeout);
-  after = uv_hrtime();
+  /* We wait. No signaler, so this will only return if timeout is delivered. */
+  ASSERT_EQ(UV_ETIMEDOUT, uv_cond_timedwait(&wc.cond, &wc.mutex, timeout));
 
   uv_mutex_unlock(&wc.mutex);
-
-  /* It timed out. */
-  ASSERT(r == UV_ETIMEDOUT);
-
-  /* It must have taken at least timeout, modulo system timer ticks.
-   * But it should not take too much longer.
-   * cf. MSDN docs:
-   * https://msdn.microsoft.com/en-us/library/ms687069(VS.85).aspx */
-  elapsed = after - before;
-  ASSERT(0.75 * timeout <= elapsed); /* 1.0 too large for Windows. */
-  ASSERT(elapsed <= 5.0 * timeout); /* MacOS has reported failures up to 1.75. */
 
   worker_config_destroy(&wc);
 

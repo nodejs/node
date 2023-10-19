@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL licenses, (the "License");
+ * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * https://www.openssl.org/source/license.html
@@ -17,8 +17,6 @@
 #include <openssl/dh.h>
 #include <openssl/err.h>
 #include "fuzzer.h"
-
-#include "rand.inc"
 
 /* unused, to avoid warning. */
 static int idx;
@@ -42,12 +40,12 @@ int FuzzerInitialize(int *argc, char ***argv)
 {
     STACK_OF(SSL_COMP) *comp_methods;
 
+    FuzzerSetRand();
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS | OPENSSL_INIT_ASYNC, NULL);
     OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
-    ERR_get_state();
+    ERR_clear_error();
     CRYPTO_free_ex_index(0, -1);
     idx = SSL_get_ex_data_X509_STORE_CTX_idx();
-    FuzzerSetRand();
     comp_methods = SSL_COMP_get_compression_methods();
     if (comp_methods != NULL)
         sk_SSL_COMP_sort(comp_methods);
@@ -57,7 +55,7 @@ int FuzzerInitialize(int *argc, char ***argv)
 
 int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 {
-    SSL *client;
+    SSL *client = NULL;
     BIO *in;
     BIO *out;
     SSL_CTX *ctx;
@@ -65,19 +63,25 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     if (len == 0)
         return 0;
 
-    /*
-     * TODO: use the ossltest engine (optionally?) to disable crypto checks.
-     */
-
     /* This only fuzzes the initial flow from the client so far. */
     ctx = SSL_CTX_new(SSLv23_method());
+    if (ctx == NULL)
+        goto end;
 
     client = SSL_new(ctx);
+    if (client == NULL)
+        goto end;
     OPENSSL_assert(SSL_set_min_proto_version(client, 0) == 1);
     OPENSSL_assert(SSL_set_cipher_list(client, "ALL:eNULL:@SECLEVEL=0") == 1);
     SSL_set_tlsext_host_name(client, "localhost");
     in = BIO_new(BIO_s_mem());
+    if (in == NULL)
+        goto end;
     out = BIO_new(BIO_s_mem());
+    if (out == NULL) {
+        BIO_free(in);
+        goto end;
+    }
     SSL_set_bio(client, in, out);
     SSL_set_connect_state(client);
     OPENSSL_assert((size_t)BIO_write(in, buf, len) == len);
@@ -90,6 +94,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             }
         }
     }
+ end:
     SSL_free(client);
     ERR_clear_error();
     SSL_CTX_free(ctx);
@@ -99,4 +104,5 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 
 void FuzzerCleanup(void)
 {
+    FuzzerClearRand();
 }

@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
+const { pathToFileURL } = require('url');
 const assert = require('assert');
 
 const relativePath = '../fixtures/es-modules/test-esm-ok.mjs';
-const absolutePath = require.resolve('../fixtures/es-modules/test-esm-ok.mjs');
-const targetURL = new URL('file:///');
-targetURL.pathname = absolutePath;
+const absolutePath = require.resolve(relativePath);
+const targetURL = pathToFileURL(absolutePath);
 
 function expectModuleError(result, code, message) {
   Promise.resolve(result).catch(common.mustCall((error) => {
@@ -41,7 +41,7 @@ function expectFsNamespace(result) {
   // expectOkNamespace(import(relativePath));
   expectOkNamespace(eval(`import("${relativePath}")`));
   expectOkNamespace(eval(`import("${relativePath}")`));
-  expectOkNamespace(eval(`import("${targetURL}")`));
+  expectOkNamespace(eval(`import(${JSON.stringify(targetURL)})`));
 
   // Importing a built-in, both direct & via eval
   expectFsNamespace(import('fs'));
@@ -59,11 +59,14 @@ function expectFsNamespace(result) {
                     'ERR_UNSUPPORTED_ESM_URL_SCHEME');
   if (common.isWindows) {
     const msg =
-      'Only file and data URLs are supported by the default ESM loader. ' +
-      'On Windows, absolute paths must be valid file:// URLs. ' +
+      'Only URLs with a scheme in: file, data, and node are supported by the default ' +
+      'ESM loader. On Windows, absolute paths must be valid file:// URLs. ' +
       "Received protocol 'c:'";
     expectModuleError(import('C:\\example\\foo.mjs'),
                       'ERR_UNSUPPORTED_ESM_URL_SCHEME',
                       msg);
   }
+  // If the specifier is an origin-relative URL, it should
+  // be treated as a file: URL.
+  expectOkNamespace(import(targetURL.pathname));
 })();

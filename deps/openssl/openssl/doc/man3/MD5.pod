@@ -9,6 +9,10 @@ MD4_Final, MD5_Init, MD5_Update, MD5_Final - MD2, MD4, and MD5 hash functions
 
  #include <openssl/md2.h>
 
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  unsigned char *MD2(const unsigned char *d, unsigned long n, unsigned char *md);
 
  int MD2_Init(MD2_CTX *c);
@@ -17,6 +21,10 @@ MD4_Final, MD5_Init, MD5_Update, MD5_Final - MD2, MD4, and MD5 hash functions
 
 
  #include <openssl/md4.h>
+
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  unsigned char *MD4(const unsigned char *d, unsigned long n, unsigned char *md);
 
@@ -27,6 +35,10 @@ MD4_Final, MD5_Init, MD5_Update, MD5_Final - MD2, MD4, and MD5 hash functions
 
  #include <openssl/md5.h>
 
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  unsigned char *MD5(const unsigned char *d, unsigned long n, unsigned char *md);
 
  int MD5_Init(MD5_CTX *c);
@@ -34,6 +46,10 @@ MD4_Final, MD5_Init, MD5_Update, MD5_Final - MD2, MD4, and MD5 hash functions
  int MD5_Final(unsigned char *md, MD5_CTX *c);
 
 =head1 DESCRIPTION
+
+All of the functions described on this page are deprecated.
+Applications should instead use L<EVP_DigestInit_ex(3)>, L<EVP_DigestUpdate(3)>
+and L<EVP_DigestFinal_ex(3)>.
 
 MD2, MD4, and MD5 are cryptographic hash functions with a 128 bit output.
 
@@ -64,8 +80,8 @@ etc. instead of calling the hash functions directly.
 =head1 NOTE
 
 MD2, MD4, and MD5 are recommended only for compatibility with existing
-applications. In new applications, SHA-1 or RIPEMD-160 should be
-preferred.
+applications. In new applications, hashes from the SHA-2 or SHA-3 family
+should be preferred.
 
 =head1 RETURN VALUES
 
@@ -81,13 +97,17 @@ RFC 1319, RFC 1320, RFC 1321
 
 =head1 SEE ALSO
 
-L<EVP_DigestInit(3)>
+L<EVP_DigestInit(3)>, L<EVP_MD-SHA2(7)>, L<EVP_MD-SHA3(7)>
+
+=head1 HISTORY
+
+All of these functions were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

@@ -5,7 +5,7 @@
 libuv is a multi-platform support library with a focus on asynchronous I/O. It
 was primarily developed for use by [Node.js][], but it's also
 used by [Luvit](http://luvit.io/), [Julia](http://julialang.org/),
-[pyuv](https://github.com/saghul/pyuv), and [others](https://github.com/libuv/libuv/wiki/Projects-that-use-libuv).
+[uvloop](https://github.com/MagicStack/uvloop), and [others](https://github.com/libuv/libuv/blob/v1.x/LINKS.md).
 
 ## Feature highlights
 
@@ -43,14 +43,16 @@ The ABI/API changes can be tracked [here](http://abi-laboratory.pro/tracker/time
 
 ## Licensing
 
-libuv is licensed under the MIT license. Check the [LICENSE file](LICENSE).
-The documentation is licensed under the CC BY 4.0 license. Check the [LICENSE-docs file](LICENSE-docs).
+libuv is licensed under the MIT license. Check the [LICENSE](LICENSE) and
+[LICENSE-extra](LICENSE-extra) files.
+
+The documentation is licensed under the CC BY 4.0 license. Check the
+[LICENSE-docs file](LICENSE-docs).
 
 ## Community
 
- * [Support](https://github.com/libuv/help)
+ * [Support](https://github.com/libuv/libuv/discussions)
  * [Mailing list](http://groups.google.com/group/libuv)
- * [IRC chatroom (#libuv@irc.freenode.org)](http://webchat.freenode.net?channels=libuv&uio=d4)
 
 ## Documentation
 
@@ -221,6 +223,15 @@ Make sure that you specify the architecture you wish to build for in the
 "ARCHS" flag. You can specify more than one by delimiting with a space
 (e.g. "x86_64 i386").
 
+### Install with vcpkg
+
+```bash
+$ git clone https://github.com/microsoft/vcpkg.git
+$ ./bootstrap-vcpkg.bat # for powershell
+$ ./bootstrap-vcpkg.sh # for bash
+$ ./vcpkg install libuv
+```
+
 ### Running tests
 
 Some tests are timing sensitive. Relaxing test timeouts may be necessary
@@ -307,6 +318,13 @@ that is detected by `autoconf`.
 describes the package in more detail.
 
 ### z/OS Notes
+
+z/OS compilation requires [ZOSLIB](https://github.com/ibmruntimes/zoslib) to be installed. When building with [CMake][], use the flag `-DZOSLIB_DIR` to specify the path to [ZOSLIB](https://github.com/ibmruntimes/zoslib):
+
+```bash
+$ (cd build && cmake .. -DBUILD_TESTING=ON -DZOSLIB_DIR=/path/to/zoslib)
+$ cmake --build build
+```
 
 z/OS creates System V semaphores and message queues. These persist on the system
 after the process terminates unless the event loop is closed.

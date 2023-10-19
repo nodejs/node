@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --opt --no-always-opt --turbo-inlining
+// Flags: --turbofan --no-always-turbofan --turbo-inlining
 
 var Debug = debug.Debug;
 

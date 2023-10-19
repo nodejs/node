@@ -9,15 +9,15 @@ const { isCommentToken, isNotOpeningParenToken } = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce the location of arrow function bodies",
-            category: "Stylistic Issues",
+            description: "Enforce the location of arrow function bodies",
             recommended: false,
-            url: "https://eslint.org/docs/rules/implicit-arrow-linebreak"
+            url: "https://eslint.org/docs/latest/rules/implicit-arrow-linebreak"
         },
 
         fixable: "whitespace",
@@ -34,7 +34,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const option = context.options[0] || "beside";
 
         /**

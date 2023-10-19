@@ -5,7 +5,8 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks that breaks in framework code correctly processed.');
 
-contextGroup.addScript(`
+contextGroup.addInlineScript(
+    `
 function frameworkAssert() {
   console.assert(false);
 }
@@ -67,20 +68,19 @@ function syncDOMBreakpointWithInlinedUserFrame() {
   %PrepareFunctionForOptimization(inlinedWrapper);
   %OptimizeFunctionOnNextCall(inlinedWrapper);
   inlinedWrapper();
-}
+}`,
+    'framework.js');
 
-//# sourceURL=framework.js`, 8, 26);
-
-contextGroup.addScript(`
+contextGroup.addInlineScript(
+    `
 function throwUserException() {
   throw new Error();
 }
 
 function userFunction() {
   syncDOMBreakpoint();
-}
-
-//# sourceURL=user.js`, 64, 26)
+}`,
+    'user.js');
 
 session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {

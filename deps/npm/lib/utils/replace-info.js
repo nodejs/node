@@ -1,31 +1,31 @@
-const URL = require('url').URL
+const { cleanUrl } = require('npm-registry-fetch')
+const isString = (v) => typeof v === 'string'
+
+// split on \s|= similar to how nopt parses options
+const splitAndReplace = (str) => {
+  // stateful regex, don't move out of this scope
+  const splitChars = /[\s=]/g
+
+  let match = null
+  let result = ''
+  let index = 0
+  while (match = splitChars.exec(str)) {
+    result += cleanUrl(str.slice(index, match.index)) + match[0]
+    index = splitChars.lastIndex
+  }
+
+  return result + cleanUrl(str.slice(index))
+}
 
 // replaces auth info in an array of arguments or in a strings
 function replaceInfo (arg) {
-  const isArray = Array.isArray(arg)
-  const isString = str => typeof str === 'string'
-
-  if (!isArray && !isString(arg))
-    return arg
-
-  const testUrlAndReplace = str => {
-    try {
-      const url = new URL(str)
-      return url.password === '' ? str : str.replace(url.password, '***')
-    } catch (e) {
-      return str
-    }
+  if (isString(arg)) {
+    return splitAndReplace(arg)
+  } else if (Array.isArray(arg)) {
+    return arg.map((a) => isString(a) ? splitAndReplace(a) : a)
   }
 
-  const args = isString(arg) ? arg.split(' ') : arg
-  const info = args.map(a => {
-    if (isString(a) && a.indexOf(' ') > -1)
-      return a.split(' ').map(testUrlAndReplace).join(' ')
-
-    return testUrlAndReplace(a)
-  })
-
-  return isString(arg) ? info.join(' ') : info
+  return arg
 }
 
 module.exports = replaceInfo

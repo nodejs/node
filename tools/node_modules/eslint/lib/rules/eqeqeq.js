@@ -15,15 +15,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require the use of `===` and `!==`",
-            category: "Best Practices",
+            description: "Require the use of `===` and `!==`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/eqeqeq"
+            url: "https://eslint.org/docs/latest/rules/eqeqeq"
         },
 
         schema: {
@@ -68,7 +68,7 @@ module.exports = {
     create(context) {
         const config = context.options[0] || "always";
         const options = context.options[1] || {};
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         const nullOption = (config === "always")
             ? options.null || "always"
@@ -78,7 +78,7 @@ module.exports = {
 
         /**
          * Checks if an expression is a typeof expression
-         * @param  {ASTNode} node The node to check
+         * @param {ASTNode} node The node to check
          * @returns {boolean} if the node is a typeof expression
          */
         function isTypeOf(node) {

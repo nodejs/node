@@ -21,11 +21,13 @@ let patch = null, exception = null;
 
 Debug.setListener(listener);
 patch = ['return 5', 'return 3'];
-assertEquals(3, test(2)); // no running generator
-patch = ['return 3', 'return -1'];
-assertEquals(3, test(3)); // there is running generator
+assertEquals(5, test(2)); // generator on stack
 assertEquals(exception,
-    'LiveEdit failed: BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME');
+    'LiveEdit failed: BLOCKED_BY_ACTIVE_FUNCTION');
+patch = ['return 3', 'return -1'];
+assertEquals(5, test(5)); // there is running generator
+assertEquals(exception,
+    'LiveEdit failed: BLOCKED_BY_ACTIVE_FUNCTION');
 Debug.setListener(null);
 
 function listener(event) {

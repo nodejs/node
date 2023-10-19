@@ -13,19 +13,21 @@ const util = require('util');
 const buf = Buffer.from([0xef, 0xbb, 0xbf, 0x74, 0x65,
                          0x73, 0x74, 0xe2, 0x82, 0xac]);
 
+const encoding_sets = ['unicode-1-1-utf-8', 'unicode11utf8', 'unicode20utf8',
+                       'utf8', 'utf-8', 'x-unicode20utf8'];
 // Make Sure TextDecoder exist
 assert(TextDecoder);
 
 // Test TextDecoder, UTF-8, fatal: false, ignoreBOM: false
 {
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i);
     assert.strictEqual(dec.encoding, 'utf-8');
     const res = dec.decode(buf);
     assert.strictEqual(res, 'test€');
   });
 
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i);
     let res = '';
     res += dec.decode(buf.slice(0, 8), { stream: true });
@@ -36,18 +38,31 @@ assert(TextDecoder);
 
 // Test TextDecoder, UTF-8, fatal: false, ignoreBOM: true
 {
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i, { ignoreBOM: true });
     const res = dec.decode(buf);
     assert.strictEqual(res, '\ufefftest€');
   });
 
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i, { ignoreBOM: true });
     let res = '';
     res += dec.decode(buf.slice(0, 8), { stream: true });
     res += dec.decode(buf.slice(8));
     assert.strictEqual(res, '\ufefftest€');
+  });
+}
+
+// Invalid encoders
+{
+  ['meow', 'nonunicode', 'foo', 'bar'].forEach((fakeEncoding) => {
+    assert.throws(
+      () => { new TextDecoder(fakeEncoding); },
+      {
+        code: 'ERR_ENCODING_NOT_SUPPORTED',
+        name: 'RangeError'
+      }
+    );
   });
 }
 
@@ -113,7 +128,7 @@ if (common.hasIntl) {
       '  fatal: false,\n' +
       '  ignoreBOM: true,\n' +
       '  [Symbol(flags)]: 4,\n' +
-      '  [Symbol(handle)]: Converter {}\n' +
+      '  [Symbol(handle)]: undefined\n' +
       '}'
     );
   } else {
@@ -190,4 +205,31 @@ if (common.hasIntl) {
       name: 'TypeError'
     }
   );
+}
+
+// Test TextDecoder for incomplete UTF-8 byte sequence.
+{
+  const decoder = new TextDecoder();
+  const chunk = new Uint8Array([0x66, 0x6f, 0x6f, 0xed]);
+  const str = decoder.decode(chunk);
+  assert.strictEqual(str, 'foo\ufffd');
+}
+
+if (common.hasIntl) {
+  try {
+    const decoder = new TextDecoder('Shift_JIS');
+    const chunk = new Uint8Array([-1]);
+    const str = decoder.decode(chunk);
+    assert.strictEqual(str, '\ufffd');
+  } catch (e) {
+    // Encoding may not be available, e.g. small-icu builds
+    assert.strictEqual(e.code, 'ERR_ENCODING_NOT_SUPPORTED');
+  }
+}
+
+{
+  const buffer = new ArrayBuffer(1);
+  new MessageChannel().port1.postMessage(buffer, [buffer]); // buffer is detached
+  const decoder = new TextDecoder();
+  assert.strictEqual(decoder.decode(buffer), '');
 }

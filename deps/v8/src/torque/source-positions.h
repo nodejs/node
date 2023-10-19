@@ -7,7 +7,7 @@
 
 #include <iostream>
 
-#include "src/torque/contextual.h"
+#include "src/base/contextual.h"
 
 namespace v8 {
 namespace internal {
@@ -30,16 +30,27 @@ class SourceId {
 };
 
 struct LineAndColumn {
+  static constexpr int kUnknownOffset = -1;
+
+  int offset;
   int line;
   int column;
 
-  static LineAndColumn Invalid() { return {-1, -1}; }
+  static LineAndColumn Invalid() { return {-1, -1, -1}; }
+  static LineAndColumn WithUnknownOffset(int line, int column) {
+    return {kUnknownOffset, line, column};
+  }
 
   bool operator==(const LineAndColumn& other) const {
-    return line == other.line && column == other.column;
+    if (offset == kUnknownOffset || other.offset == kUnknownOffset) {
+      return line == other.line && column == other.column;
+    }
+    DCHECK_EQ(offset == other.offset,
+              line == other.line && column == other.column);
+    return offset == other.offset;
   }
   bool operator!=(const LineAndColumn& other) const {
-    return !(*this == other);
+    return !operator==(other);
   }
 };
 
@@ -75,7 +86,8 @@ struct SourcePosition {
 DECLARE_CONTEXTUAL_VARIABLE(CurrentSourceFile, SourceId);
 DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition);
 
-class V8_EXPORT_PRIVATE SourceFileMap : public ContextualClass<SourceFileMap> {
+class V8_EXPORT_PRIVATE SourceFileMap
+    : public base::ContextualClass<SourceFileMap> {
  public:
   explicit SourceFileMap(std::string v8_root) : v8_root_(std::move(v8_root)) {}
   static const std::string& PathFromV8Root(SourceId file);
@@ -98,7 +110,10 @@ inline std::string PositionAsString(SourcePosition pos) {
 }
 
 inline std::ostream& operator<<(std::ostream& out, SourcePosition pos) {
-  return out << PositionAsString(pos);
+  return out << "https://source.chromium.org/chromium/chromium/src/+/main:v8/"
+             << SourceFileMap::PathFromV8Root(pos.source)
+             << "?l=" << (pos.start.line + 1)
+             << "&c=" << (pos.start.column + 1);
 }
 
 }  // namespace torque

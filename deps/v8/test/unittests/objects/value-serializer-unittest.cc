@@ -7,16 +7,32 @@
 #include <algorithm>
 #include <string>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-date.h"
+#include "include/v8-function.h"
+#include "include/v8-json.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive-object.h"
+#include "include/v8-template.h"
+#include "include/v8-value-serializer-version.h"
+#include "include/v8-value-serializer.h"
+#include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/base/build_config.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/objects-inl.h"
-#include "src/wasm/wasm-objects.h"
-#include "src/wasm/wasm-result.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-result.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace {
@@ -37,20 +53,25 @@ class ValueSerializerTest : public TestWithIsolate {
     // Create a host object type that can be tested through
     // serialization/deserialization delegates below.
     Local<FunctionTemplate> function_template = v8::FunctionTemplate::New(
-        isolate(), [](const FunctionCallbackInfo<Value>& args) {
-          args.Holder()->SetInternalField(0, args[0]);
-          args.Holder()->SetInternalField(1, args[1]);
+        isolate(), [](const FunctionCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
+          info.Holder()->SetInternalField(0, info[0]);
+          info.Holder()->SetInternalField(1, info[1]);
         });
     function_template->InstanceTemplate()->SetInternalFieldCount(2);
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
-          args.GetReturnValue().Set(args.Holder()->GetInternalField(0));
+        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
+          info.GetReturnValue().Set(
+              info.Holder()->GetInternalField(0).As<v8::Value>());
         });
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value2"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
-          args.GetReturnValue().Set(args.Holder()->GetInternalField(1));
+        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
+          info.GetReturnValue().Set(
+              info.Holder()->GetInternalField(1).As<v8::Value>());
         });
     for (Local<Context> context :
          {serialization_context_, deserialization_context_}) {
@@ -180,6 +201,24 @@ class ValueSerializerTest : public TestWithIsolate {
     return result;
   }
 
+  template <typename Lambda>
+  void DecodeTestFutureVersions(std::vector<uint8_t>&& data, Lambda test) {
+    DecodeTestUpToVersion(v8::CurrentValueSerializerFormatVersion(),
+                          std::move(data), test);
+  }
+
+  template <typename Lambda>
+  void DecodeTestUpToVersion(int last_version, std::vector<uint8_t>&& data,
+                             Lambda test) {
+    // Check that there is at least one version to test.
+    CHECK_LE(data[1], last_version);
+    for (int version = data[1]; version <= last_version; ++version) {
+      data[1] = version;
+      Local<Value> value = DecodeTest(data);
+      test(value);
+    }
+  }
+
   Local<Value> DecodeTestForVersion0(const std::vector<uint8_t>& data) {
     Local<Context> context = deserialization_context();
     Context::Scope scope(context);
@@ -256,12 +295,9 @@ class ValueSerializerTest : public TestWithIsolate {
   }
 
   Local<Object> NewDummyUint8Array() {
-    static uint8_t data[] = {4, 5, 6};
-    std::unique_ptr<v8::BackingStore> backing_store =
-        ArrayBuffer::NewBackingStore(
-            data, sizeof(data), [](void*, size_t, void*) {}, nullptr);
-    Local<ArrayBuffer> ab =
-        ArrayBuffer::New(isolate(), std::move(backing_store));
+    const uint8_t data[] = {4, 5, 6};
+    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate(), sizeof(data));
+    memcpy(ab->GetBackingStore()->Data(), data, sizeof(data));
     return Uint8Array::New(ab, 0, sizeof(data));
   }
 
@@ -294,17 +330,21 @@ TEST_F(ValueSerializerTest, RoundTripOddball) {
 
 TEST_F(ValueSerializerTest, DecodeOddball) {
   // What this code is expected to generate.
-  Local<Value> value = DecodeTest({0xFF, 0x09, 0x5F});
-  EXPECT_TRUE(value->IsUndefined());
-  value = DecodeTest({0xFF, 0x09, 0x54});
-  EXPECT_TRUE(value->IsTrue());
-  value = DecodeTest({0xFF, 0x09, 0x46});
-  EXPECT_TRUE(value->IsFalse());
-  value = DecodeTest({0xFF, 0x09, 0x30});
-  EXPECT_TRUE(value->IsNull());
+  DecodeTestFutureVersions({0xFF, 0x09, 0x5F}, [](Local<Value> value) {
+    EXPECT_TRUE(value->IsUndefined());
+  });
+  DecodeTestFutureVersions({0xFF, 0x09, 0x54}, [](Local<Value> value) {
+    EXPECT_TRUE(value->IsTrue());
+  });
+  DecodeTestFutureVersions({0xFF, 0x09, 0x46}, [](Local<Value> value) {
+    EXPECT_TRUE(value->IsFalse());
+  });
+  DecodeTestFutureVersions({0xFF, 0x09, 0x30}, [](Local<Value> value) {
+    EXPECT_TRUE(value->IsNull());
+  });
 
   // What v9 of the Blink code generates.
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x5F, 0x00});
+  Local<Value> value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x5F, 0x00});
   EXPECT_TRUE(value->IsUndefined());
   value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x54, 0x00});
   EXPECT_TRUE(value->IsTrue());
@@ -433,43 +473,55 @@ TEST_F(ValueSerializerTest, RoundTripNumber) {
 
 TEST_F(ValueSerializerTest, DecodeNumber) {
   // 42 zig-zag encoded (signed)
-  Local<Value> value = DecodeTest({0xFF, 0x09, 0x49, 0x54});
-  ASSERT_TRUE(value->IsInt32());
-  EXPECT_EQ(42, Int32::Cast(*value)->Value());
+  DecodeTestFutureVersions({0xFF, 0x09, 0x49, 0x54}, [](Local<Value> value) {
+    ASSERT_TRUE(value->IsInt32());
+    EXPECT_EQ(42, Int32::Cast(*value)->Value());
+  });
 
   // 42 varint encoded (unsigned)
-  value = DecodeTest({0xFF, 0x09, 0x55, 0x2A});
-  ASSERT_TRUE(value->IsInt32());
-  EXPECT_EQ(42, Int32::Cast(*value)->Value());
+  DecodeTestFutureVersions({0xFF, 0x09, 0x55, 0x2A}, [](Local<Value> value) {
+    ASSERT_TRUE(value->IsInt32());
+    EXPECT_EQ(42, Int32::Cast(*value)->Value());
+  });
 
   // 160 zig-zag encoded (signed)
-  value = DecodeTest({0xFF, 0x09, 0x49, 0xC0, 0x02});
-  ASSERT_TRUE(value->IsInt32());
-  ASSERT_EQ(160, Int32::Cast(*value)->Value());
+  DecodeTestFutureVersions({0xFF, 0x09, 0x49, 0xC0, 0x02},
+                           [](Local<Value> value) {
+                             ASSERT_TRUE(value->IsInt32());
+                             ASSERT_EQ(160, Int32::Cast(*value)->Value());
+                           });
 
   // 160 varint encoded (unsigned)
-  value = DecodeTest({0xFF, 0x09, 0x55, 0xA0, 0x01});
-  ASSERT_TRUE(value->IsInt32());
-  ASSERT_EQ(160, Int32::Cast(*value)->Value());
+  DecodeTestFutureVersions({0xFF, 0x09, 0x55, 0xA0, 0x01},
+                           [](Local<Value> value) {
+                             ASSERT_TRUE(value->IsInt32());
+                             ASSERT_EQ(160, Int32::Cast(*value)->Value());
+                           });
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   // IEEE 754 doubles, little-endian byte order
-  value = DecodeTest(
-      {0xFF, 0x09, 0x4E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD0, 0xBF});
-  ASSERT_TRUE(value->IsNumber());
-  EXPECT_EQ(-0.25, Number::Cast(*value)->Value());
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x4E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD0, 0xBF},
+      [](Local<Value> value) {
+        ASSERT_TRUE(value->IsNumber());
+        EXPECT_EQ(-0.25, Number::Cast(*value)->Value());
+      });
 
   // quiet NaN
-  value = DecodeTest(
-      {0xFF, 0x09, 0x4E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x7F});
-  ASSERT_TRUE(value->IsNumber());
-  EXPECT_TRUE(std::isnan(Number::Cast(*value)->Value()));
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x4E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x7F},
+      [](Local<Value> value) {
+        ASSERT_TRUE(value->IsNumber());
+        EXPECT_TRUE(std::isnan(Number::Cast(*value)->Value()));
+      });
 
   // signaling NaN
-  value = DecodeTest(
-      {0xFF, 0x09, 0x4E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF4, 0x7F});
-  ASSERT_TRUE(value->IsNumber());
-  EXPECT_TRUE(std::isnan(Number::Cast(*value)->Value()));
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x4E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF4, 0x7F},
+      [](Local<Value> value) {
+        ASSERT_TRUE(value->IsNumber());
+        EXPECT_TRUE(std::isnan(Number::Cast(*value)->Value()));
+      });
 #endif
   // TODO(jbroman): Equivalent test for big-endian machines.
 }
@@ -498,46 +550,76 @@ TEST_F(ValueSerializerTest, RoundTripBigInt) {
 }
 
 TEST_F(ValueSerializerTest, DecodeBigInt) {
-  Local<Value> value = DecodeTest({
-      0xFF, 0x0D,              // Version 13
-      0x5A,                    // BigInt
-      0x08,                    // Bitfield: sign = false, bytelength = 4
-      0x2A, 0x00, 0x00, 0x00,  // Digit: 42
-  });
-  ASSERT_TRUE(value->IsBigInt());
-  ExpectScriptTrue("result === 42n");
+  DecodeTestFutureVersions(
+      {
+          0xFF, 0x0D,              // Version 13
+          0x5A,                    // BigInt
+          0x08,                    // Bitfield: sign = false, bytelength = 4
+          0x2A, 0x00, 0x00, 0x00,  // Digit: 42
+      },
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsBigInt());
+        ExpectScriptTrue("result === 42n");
+      });
 
-  value = DecodeTest({
-      0xFF, 0x0D,  // Version 13
-      0x7A,        // BigIntObject
-      0x11,        // Bitfield: sign = true, bytelength = 8
-      0x2A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // Digit: 42
-  });
-  ASSERT_TRUE(value->IsBigIntObject());
-  ExpectScriptTrue("result == -42n");
+  DecodeTestFutureVersions(
+      {
+          0xFF, 0x0D,  // Version 13
+          0x7A,        // BigIntObject
+          0x11,        // Bitfield: sign = true, bytelength = 8
+          0x2A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // Digit: 42
+      },
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsBigIntObject());
+        ExpectScriptTrue("result == -42n");
+      });
 
-  value = DecodeTest({
-      0xFF, 0x0D,  // Version 13
+  DecodeTestFutureVersions(
+      {
+          0xFF, 0x0D,  // Version 13
+          0x5A,        // BigInt
+          0x10,        // Bitfield: sign = false, bytelength = 8
+          0xEF, 0xCD, 0xAB, 0x90, 0x78, 0x56, 0x34, 0x12  // Digit(s).
+      },
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result === 0x1234567890abcdefn");
+      });
+
+  DecodeTestFutureVersions(
+      {0xFF, 0x0D,              // Version 13
+       0x5A,                    // BigInt
+       0x17,                    // Bitfield: sign = true, bytelength = 11
+       0xEF, 0xCD, 0xAB, 0x90,  // Digits.
+       0x78, 0x56, 0x34, 0x12, 0x33, 0x44, 0x55},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result === -0x5544331234567890abcdefn");
+      });
+  DecodeTestFutureVersions(
+      {
+          0xFF, 0x0D,  // Version 13
+          0x5A,        // BigInt
+          0x02,        // Bitfield: sign = false, bytelength = 1
+          0x2A,        // Digit: 42
+      },
+      [this](Local<Value> value) { ExpectScriptTrue("result === 42n"); });
+  InvalidDecodeTest({
+      0xFF, 0x0F,  // Version 15
       0x5A,        // BigInt
-      0x10,        // Bitfield: sign = false, bytelength = 8
-      0xEF, 0xCD, 0xAB, 0x90, 0x78, 0x56, 0x34, 0x12  // Digit(s).
+      0x01,        // Bitfield: sign = true, bytelength = 0
   });
-  ExpectScriptTrue("result === 0x1234567890abcdefn");
-
-  value = DecodeTest({0xFF, 0x0D,  // Version 13
-                      0x5A,        // BigInt
-                      0x17,        // Bitfield: sign = true, bytelength = 11
-                      0xEF, 0xCD, 0xAB, 0x90,  // Digits.
-                      0x78, 0x56, 0x34, 0x12, 0x33, 0x44, 0x55});
-  ExpectScriptTrue("result === -0x5544331234567890abcdefn");
-
-  value = DecodeTest({
-      0xFF, 0x0D,  // Version 13
-      0x5A,        // BigInt
-      0x02,        // Bitfield: sign = false, bytelength = 1
-      0x2A,        // Digit: 42
-  });
-  ExpectScriptTrue("result === 42n");
+  // From a philosophical standpoint, we could reject this case as invalid as
+  // well, but it would require extra code and probably isn't worth it, so
+  // we quietly normalize this invalid input to {0n}.
+  DecodeTestFutureVersions(
+      {
+          0xFF, 0x0F,             // Version 15
+          0x5A,                   // BigInt
+          0x09,                   // Bitfield: sign = true, bytelength = 4
+          0x00, 0x00, 0x00, 0x00  // Digits.
+      },
+      [this](Local<Value> value) {
+        ExpectScriptTrue("(result | result) === 0n");
+      });
 }
 
 // String constants (in UTF-8) used for string encoding tests.
@@ -571,63 +653,83 @@ TEST_F(ValueSerializerTest, RoundTripString) {
 
 TEST_F(ValueSerializerTest, DecodeString) {
   // Decoding the strings above from UTF-8.
-  Local<Value> value = DecodeTest({0xFF, 0x09, 0x53, 0x00});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(0, String::Cast(*value)->Length());
+  DecodeTestFutureVersions({0xFF, 0x09, 0x53, 0x00}, [](Local<Value> value) {
+    ASSERT_TRUE(value->IsString());
+    EXPECT_EQ(0, String::Cast(*value)->Length());
+  });
 
-  value = DecodeTest({0xFF, 0x09, 0x53, 0x05, 'H', 'e', 'l', 'l', 'o'});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(5, String::Cast(*value)->Length());
-  EXPECT_EQ(kHelloString, Utf8Value(value));
+  DecodeTestFutureVersions({0xFF, 0x09, 0x53, 0x05, 'H', 'e', 'l', 'l', 'o'},
+                           [this](Local<Value> value) {
+                             ASSERT_TRUE(value->IsString());
+                             EXPECT_EQ(5, String::Cast(*value)->Length());
+                             EXPECT_EQ(kHelloString, Utf8Value(value));
+                           });
 
-  value =
-      DecodeTest({0xFF, 0x09, 0x53, 0x07, 'Q', 'u', 0xC3, 0xA9, 'b', 'e', 'c'});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(6, String::Cast(*value)->Length());
-  EXPECT_EQ(kQuebecString, Utf8Value(value));
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x53, 0x07, 'Q', 'u', 0xC3, 0xA9, 'b', 'e', 'c'},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsString());
+        EXPECT_EQ(6, String::Cast(*value)->Length());
+        EXPECT_EQ(kQuebecString, Utf8Value(value));
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x53, 0x04, 0xF0, 0x9F, 0x91, 0x8A});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(2, String::Cast(*value)->Length());
-  EXPECT_EQ(kEmojiString, Utf8Value(value));
+  DecodeTestFutureVersions({0xFF, 0x09, 0x53, 0x04, 0xF0, 0x9F, 0x91, 0x8A},
+                           [this](Local<Value> value) {
+                             ASSERT_TRUE(value->IsString());
+                             EXPECT_EQ(2, String::Cast(*value)->Length());
+                             EXPECT_EQ(kEmojiString, Utf8Value(value));
+                           });
 
   // And from Latin-1 (for the ones that fit).
-  value = DecodeTest({0xFF, 0x0A, 0x22, 0x00});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(0, String::Cast(*value)->Length());
+  DecodeTestFutureVersions({0xFF, 0x0A, 0x22, 0x00}, [](Local<Value> value) {
+    ASSERT_TRUE(value->IsString());
+    EXPECT_EQ(0, String::Cast(*value)->Length());
+  });
 
-  value = DecodeTest({0xFF, 0x0A, 0x22, 0x05, 'H', 'e', 'l', 'l', 'o'});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(5, String::Cast(*value)->Length());
-  EXPECT_EQ(kHelloString, Utf8Value(value));
+  DecodeTestFutureVersions({0xFF, 0x0A, 0x22, 0x05, 'H', 'e', 'l', 'l', 'o'},
+                           [this](Local<Value> value) {
+                             ASSERT_TRUE(value->IsString());
+                             EXPECT_EQ(5, String::Cast(*value)->Length());
+                             EXPECT_EQ(kHelloString, Utf8Value(value));
+                           });
 
-  value = DecodeTest({0xFF, 0x0A, 0x22, 0x06, 'Q', 'u', 0xE9, 'b', 'e', 'c'});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(6, String::Cast(*value)->Length());
-  EXPECT_EQ(kQuebecString, Utf8Value(value));
+  DecodeTestFutureVersions(
+      {0xFF, 0x0A, 0x22, 0x06, 'Q', 'u', 0xE9, 'b', 'e', 'c'},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsString());
+        EXPECT_EQ(6, String::Cast(*value)->Length());
+        EXPECT_EQ(kQuebecString, Utf8Value(value));
+      });
 
 // And from two-byte strings (endianness dependent).
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  value = DecodeTest({0xFF, 0x09, 0x63, 0x00});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(0, String::Cast(*value)->Length());
+  DecodeTestFutureVersions({0xFF, 0x09, 0x63, 0x00}, [](Local<Value> value) {
+    ASSERT_TRUE(value->IsString());
+    EXPECT_EQ(0, String::Cast(*value)->Length());
+  });
 
-  value = DecodeTest({0xFF, 0x09, 0x63, 0x0A, 'H', '\0', 'e', '\0', 'l', '\0',
-                      'l', '\0', 'o', '\0'});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(5, String::Cast(*value)->Length());
-  EXPECT_EQ(kHelloString, Utf8Value(value));
+  DecodeTestFutureVersions({0xFF, 0x09, 0x63, 0x0A, 'H', '\0', 'e', '\0', 'l',
+                            '\0', 'l', '\0', 'o', '\0'},
+                           [this](Local<Value> value) {
+                             ASSERT_TRUE(value->IsString());
+                             EXPECT_EQ(5, String::Cast(*value)->Length());
+                             EXPECT_EQ(kHelloString, Utf8Value(value));
+                           });
 
-  value = DecodeTest({0xFF, 0x09, 0x63, 0x0C, 'Q', '\0', 'u', '\0', 0xE9, '\0',
-                      'b', '\0', 'e', '\0', 'c', '\0'});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(6, String::Cast(*value)->Length());
-  EXPECT_EQ(kQuebecString, Utf8Value(value));
+  DecodeTestFutureVersions({0xFF, 0x09, 0x63, 0x0C, 'Q', '\0', 'u', '\0', 0xE9,
+                            '\0', 'b', '\0', 'e', '\0', 'c', '\0'},
+                           [this](Local<Value> value) {
+                             ASSERT_TRUE(value->IsString());
+                             EXPECT_EQ(6, String::Cast(*value)->Length());
+                             EXPECT_EQ(kQuebecString, Utf8Value(value));
+                           });
 
-  value = DecodeTest({0xFF, 0x09, 0x63, 0x04, 0x3D, 0xD8, 0x4A, 0xDC});
-  ASSERT_TRUE(value->IsString());
-  EXPECT_EQ(2, String::Cast(*value)->Length());
-  EXPECT_EQ(kEmojiString, Utf8Value(value));
+  DecodeTestFutureVersions({0xFF, 0x09, 0x63, 0x04, 0x3D, 0xD8, 0x4A, 0xDC},
+                           [this](Local<Value> value) {
+                             ASSERT_TRUE(value->IsString());
+                             EXPECT_EQ(2, String::Cast(*value)->Length());
+                             EXPECT_EQ(kEmojiString, Utf8Value(value));
+                           });
 #endif
   // TODO(jbroman): The same for big-endian systems.
 }
@@ -716,58 +818,73 @@ TEST_F(ValueSerializerTest, RoundTripDictionaryObject) {
 
 TEST_F(ValueSerializerTest, DecodeDictionaryObject) {
   // Empty object.
-  Local<Value> value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x7B, 0x00, 0x00});
-  ASSERT_TRUE(value->IsObject());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Object.prototype");
-  ExpectScriptTrue("Object.getOwnPropertyNames(result).length === 0");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x7B, 0x00, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsObject());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Object.prototype");
+        ExpectScriptTrue("Object.getOwnPropertyNames(result).length === 0");
+      });
 
   // String key.
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01,
-                      0x61, 0x3F, 0x01, 0x49, 0x54, 0x7B, 0x01});
-  ASSERT_TRUE(value->IsObject());
-  ExpectScriptTrue("result.hasOwnProperty('a')");
-  ExpectScriptTrue("result.a === 42");
-  ExpectScriptTrue("Object.getOwnPropertyNames(result).length === 1");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01, 0x61, 0x3F, 0x01,
+       0x49, 0x54, 0x7B, 0x01},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsObject());
+        ExpectScriptTrue("result.hasOwnProperty('a')");
+        ExpectScriptTrue("result.a === 42");
+        ExpectScriptTrue("Object.getOwnPropertyNames(result).length === 1");
+      });
 
   // Integer key (treated as a string, but may be encoded differently).
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x49, 0x54,
-                      0x3F, 0x01, 0x53, 0x01, 0x61, 0x7B, 0x01});
-  ASSERT_TRUE(value->IsObject());
-  ExpectScriptTrue("result.hasOwnProperty('42')");
-  ExpectScriptTrue("result[42] === 'a'");
-  ExpectScriptTrue("Object.getOwnPropertyNames(result).length === 1");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x49, 0x54, 0x3F, 0x01, 0x53,
+       0x01, 0x61, 0x7B, 0x01},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsObject());
+        ExpectScriptTrue("result.hasOwnProperty('42')");
+        ExpectScriptTrue("result[42] === 'a'");
+        ExpectScriptTrue("Object.getOwnPropertyNames(result).length === 1");
+      });
 
   // Key order must be preserved.
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01,
-                      0x78, 0x3F, 0x01, 0x49, 0x02, 0x3F, 0x01, 0x53, 0x01,
-                      0x79, 0x3F, 0x01, 0x49, 0x04, 0x3F, 0x01, 0x53, 0x01,
-                      0x61, 0x3F, 0x01, 0x49, 0x06, 0x7B, 0x03});
-  ExpectScriptTrue("Object.getOwnPropertyNames(result).toString() === 'x,y,a'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01, 0x78, 0x3F, 0x01,
+       0x49, 0x02, 0x3F, 0x01, 0x53, 0x01, 0x79, 0x3F, 0x01, 0x49, 0x04, 0x3F,
+       0x01, 0x53, 0x01, 0x61, 0x3F, 0x01, 0x49, 0x06, 0x7B, 0x03},
+      [this](Local<Value> value) {
+        ExpectScriptTrue(
+            "Object.getOwnPropertyNames(result).toString() === 'x,y,a'");
+      });
 
   // A harder case of enumeration order.
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x49, 0x02,
-                      0x3F, 0x01, 0x49, 0x00, 0x3F, 0x01, 0x55, 0xFE, 0xFF,
-                      0xFF, 0xFF, 0x0F, 0x3F, 0x01, 0x49, 0x06, 0x3F, 0x01,
-                      0x53, 0x01, 0x61, 0x3F, 0x01, 0x49, 0x04, 0x3F, 0x01,
-                      0x53, 0x0A, 0x34, 0x32, 0x39, 0x34, 0x39, 0x36, 0x37,
-                      0x32, 0x39, 0x35, 0x3F, 0x01, 0x49, 0x02, 0x7B, 0x04});
-  ExpectScriptTrue(
-      "Object.getOwnPropertyNames(result).toString() === "
-      "'1,4294967294,a,4294967295'");
-  ExpectScriptTrue("result.a === 2");
-  ExpectScriptTrue("result[0xFFFFFFFF] === 1");
-  ExpectScriptTrue("result[0xFFFFFFFE] === 3");
-  ExpectScriptTrue("result[1] === 0");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x49, 0x02, 0x3F, 0x01,
+       0x49, 0x00, 0x3F, 0x01, 0x55, 0xFE, 0xFF, 0xFF, 0xFF, 0x0F, 0x3F,
+       0x01, 0x49, 0x06, 0x3F, 0x01, 0x53, 0x01, 0x61, 0x3F, 0x01, 0x49,
+       0x04, 0x3F, 0x01, 0x53, 0x0A, 0x34, 0x32, 0x39, 0x34, 0x39, 0x36,
+       0x37, 0x32, 0x39, 0x35, 0x3F, 0x01, 0x49, 0x02, 0x7B, 0x04},
+      [this](Local<Value> value) {
+        ExpectScriptTrue(
+            "Object.getOwnPropertyNames(result).toString() === "
+            "'1,4294967294,a,4294967295'");
+        ExpectScriptTrue("result.a === 2");
+        ExpectScriptTrue("result[0xFFFFFFFF] === 1");
+        ExpectScriptTrue("result[0xFFFFFFFE] === 3");
+        ExpectScriptTrue("result[1] === 0");
+      });
 
   // This detects a fairly subtle case: the object itself must be in the map
   // before its properties are deserialized, so that references to it can be
   // resolved.
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x04, 0x73,
-                  0x65, 0x6C, 0x66, 0x3F, 0x01, 0x5E, 0x00, 0x7B, 0x01, 0x00});
-  ASSERT_TRUE(value->IsObject());
-  ExpectScriptTrue("result === result.self");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x04, 0x73,
+       0x65, 0x6C, 0x66, 0x3F, 0x01, 0x5E, 0x00, 0x7B, 0x01, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsObject());
+        ExpectScriptTrue("result === result.self");
+      });
 }
 
 TEST_F(ValueSerializerTest, InvalidDecodeObjectWithInvalidKeyType) {
@@ -976,85 +1093,100 @@ TEST_F(ValueSerializerTest, RoundTripArray) {
 
 TEST_F(ValueSerializerTest, DecodeArray) {
   // A simple array of integers.
-  Local<Value> value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x41, 0x05, 0x3F, 0x01, 0x49, 0x02,
-                  0x3F, 0x01, 0x49, 0x04, 0x3F, 0x01, 0x49, 0x06, 0x3F, 0x01,
-                  0x49, 0x08, 0x3F, 0x01, 0x49, 0x0A, 0x24, 0x00, 0x05, 0x00});
-  ASSERT_TRUE(value->IsArray());
-  EXPECT_EQ(5u, Array::Cast(*value)->Length());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Array.prototype");
-  ExpectScriptTrue("result.toString() === '1,2,3,4,5'");
-
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x41, 0x05, 0x3F, 0x01, 0x49, 0x02,
+       0x3F, 0x01, 0x49, 0x04, 0x3F, 0x01, 0x49, 0x06, 0x3F, 0x01,
+       0x49, 0x08, 0x3F, 0x01, 0x49, 0x0A, 0x24, 0x00, 0x05, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        EXPECT_EQ(5u, Array::Cast(*value)->Length());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Array.prototype");
+        ExpectScriptTrue("result.toString() === '1,2,3,4,5'");
+      });
   // A long (sparse) array.
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x61, 0xE8, 0x07, 0x3F, 0x01, 0x49,
-                  0xE8, 0x07, 0x3F, 0x01, 0x49, 0x54, 0x40, 0x01, 0xE8, 0x07});
-  ASSERT_TRUE(value->IsArray());
-  EXPECT_EQ(1000u, Array::Cast(*value)->Length());
-  ExpectScriptTrue("result[500] === 42");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x61, 0xE8, 0x07, 0x3F, 0x01, 0x49,
+       0xE8, 0x07, 0x3F, 0x01, 0x49, 0x54, 0x40, 0x01, 0xE8, 0x07},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        EXPECT_EQ(1000u, Array::Cast(*value)->Length());
+        ExpectScriptTrue("result[500] === 42");
+      });
 
   // Duplicate reference.
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x41, 0x02, 0x3F, 0x01, 0x6F,
-                      0x7B, 0x00, 0x3F, 0x02, 0x5E, 0x01, 0x24, 0x00, 0x02});
-  ASSERT_TRUE(value->IsArray());
-  ASSERT_EQ(2u, Array::Cast(*value)->Length());
-  ExpectScriptTrue("result[0] === result[1]");
-
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x41, 0x02, 0x3F, 0x01, 0x6F, 0x7B, 0x00, 0x3F,
+       0x02, 0x5E, 0x01, 0x24, 0x00, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2u, Array::Cast(*value)->Length());
+        ExpectScriptTrue("result[0] === result[1]");
+      });
   // Duplicate reference in a sparse array.
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x61, 0xE8, 0x07, 0x3F, 0x01, 0x49,
-                  0x02, 0x3F, 0x01, 0x6F, 0x7B, 0x00, 0x3F, 0x02, 0x49, 0xE8,
-                  0x07, 0x3F, 0x02, 0x5E, 0x01, 0x40, 0x02, 0xE8, 0x07, 0x00});
-  ASSERT_TRUE(value->IsArray());
-  ASSERT_EQ(1000u, Array::Cast(*value)->Length());
-  ExpectScriptTrue("typeof result[1] === 'object'");
-  ExpectScriptTrue("result[1] === result[500]");
-
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x61, 0xE8, 0x07, 0x3F, 0x01, 0x49,
+       0x02, 0x3F, 0x01, 0x6F, 0x7B, 0x00, 0x3F, 0x02, 0x49, 0xE8,
+       0x07, 0x3F, 0x02, 0x5E, 0x01, 0x40, 0x02, 0xE8, 0x07, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000u, Array::Cast(*value)->Length());
+        ExpectScriptTrue("typeof result[1] === 'object'");
+        ExpectScriptTrue("result[1] === result[500]");
+      });
   // Self reference.
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x41, 0x01, 0x3F, 0x01, 0x5E,
-                      0x00, 0x24, 0x00, 0x01, 0x00});
-  ASSERT_TRUE(value->IsArray());
-  ASSERT_EQ(1u, Array::Cast(*value)->Length());
-  ExpectScriptTrue("result[0] === result");
-
+  DecodeTestFutureVersions({0xFF, 0x09, 0x3F, 0x00, 0x41, 0x01, 0x3F, 0x01,
+                            0x5E, 0x00, 0x24, 0x00, 0x01, 0x00},
+                           [this](Local<Value> value) {
+                             ASSERT_TRUE(value->IsArray());
+                             ASSERT_EQ(1u, Array::Cast(*value)->Length());
+                             ExpectScriptTrue("result[0] === result");
+                           });
   // Self reference in a sparse array.
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x61, 0xE8, 0x07, 0x3F, 0x01, 0x49,
-                  0x8E, 0x08, 0x3F, 0x01, 0x5E, 0x00, 0x40, 0x01, 0xE8, 0x07});
-  ASSERT_TRUE(value->IsArray());
-  ASSERT_EQ(1000u, Array::Cast(*value)->Length());
-  ExpectScriptTrue("result[519] === result");
-
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x61, 0xE8, 0x07, 0x3F, 0x01, 0x49,
+       0x8E, 0x08, 0x3F, 0x01, 0x5E, 0x00, 0x40, 0x01, 0xE8, 0x07},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000u, Array::Cast(*value)->Length());
+        ExpectScriptTrue("result[519] === result");
+      });
   // Array with additional properties.
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x41, 0x02, 0x3F, 0x01,
-                      0x49, 0x02, 0x3F, 0x01, 0x49, 0x04, 0x3F, 0x01,
-                      0x53, 0x03, 0x66, 0x6F, 0x6F, 0x3F, 0x01, 0x53,
-                      0x03, 0x62, 0x61, 0x72, 0x24, 0x01, 0x02, 0x00});
-  ASSERT_TRUE(value->IsArray());
-  ASSERT_EQ(2u, Array::Cast(*value)->Length());
-  ExpectScriptTrue("result.toString() === '1,2'");
-  ExpectScriptTrue("result.foo === 'bar'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x41, 0x02, 0x3F, 0x01, 0x49, 0x02, 0x3F,
+       0x01, 0x49, 0x04, 0x3F, 0x01, 0x53, 0x03, 0x66, 0x6F, 0x6F, 0x3F,
+       0x01, 0x53, 0x03, 0x62, 0x61, 0x72, 0x24, 0x01, 0x02, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2u, Array::Cast(*value)->Length());
+        ExpectScriptTrue("result.toString() === '1,2'");
+        ExpectScriptTrue("result.foo === 'bar'");
+      });
 
   // Sparse array with additional properties.
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x61, 0xE8, 0x07, 0x3F, 0x01,
-                      0x53, 0x03, 0x66, 0x6F, 0x6F, 0x3F, 0x01, 0x53, 0x03,
-                      0x62, 0x61, 0x72, 0x40, 0x01, 0xE8, 0x07, 0x00});
-  ASSERT_TRUE(value->IsArray());
-  ASSERT_EQ(1000u, Array::Cast(*value)->Length());
-  ExpectScriptTrue("result.toString() === ','.repeat(999)");
-  ExpectScriptTrue("result.foo === 'bar'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x61, 0xE8, 0x07, 0x3F, 0x01,
+       0x53, 0x03, 0x66, 0x6F, 0x6F, 0x3F, 0x01, 0x53, 0x03,
+       0x62, 0x61, 0x72, 0x40, 0x01, 0xE8, 0x07, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000u, Array::Cast(*value)->Length());
+        ExpectScriptTrue("result.toString() === ','.repeat(999)");
+        ExpectScriptTrue("result.foo === 'bar'");
+      });
 
   // The distinction between holes and undefined elements must be maintained.
   // Note that since the previous output from Chrome fails this test, an
   // encoding using the sparse format was constructed instead.
-  value =
-      DecodeTest({0xFF, 0x09, 0x61, 0x02, 0x49, 0x02, 0x5F, 0x40, 0x01, 0x02});
-  ASSERT_TRUE(value->IsArray());
-  ASSERT_EQ(2u, Array::Cast(*value)->Length());
-  ExpectScriptTrue("typeof result[0] === 'undefined'");
-  ExpectScriptTrue("typeof result[1] === 'undefined'");
-  ExpectScriptTrue("!result.hasOwnProperty(0)");
-  ExpectScriptTrue("result.hasOwnProperty(1)");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x61, 0x02, 0x49, 0x02, 0x5F, 0x40, 0x01, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2u, Array::Cast(*value)->Length());
+        ExpectScriptTrue("typeof result[0] === 'undefined'");
+        ExpectScriptTrue("typeof result[1] === 'undefined'");
+        ExpectScriptTrue("!result.hasOwnProperty(0)");
+        ExpectScriptTrue("result.hasOwnProperty(1)");
+      });
 }
 
 TEST_F(ValueSerializerTest, DecodeInvalidOverLargeArray) {
@@ -1232,19 +1364,25 @@ TEST_F(ValueSerializerTest, RoundTripDenseArrayContainingUndefined) {
   ExpectScriptTrue("result[0] === undefined");
 }
 
-TEST_F(ValueSerializerTest, DecodeDenseArrayContainingUndefined) {
+TEST_F(ValueSerializerTest,
+       DecodeDenseArrayContainingUndefinedBackwardCompatibility) {
   // In previous versions, "undefined" in a dense array signified absence of the
   // element (for compatibility). In new versions, it has a separate encoding.
-  Local<Value> value =
-      DecodeTest({0xFF, 0x09, 0x41, 0x01, 0x5F, 0x24, 0x00, 0x01});
-  ExpectScriptTrue("!(0 in result)");
+  DecodeTestUpToVersion(
+      10, {0xFF, 0x09, 0x41, 0x01, 0x5F, 0x24, 0x00, 0x01},
+      [this](Local<Value> value) { ExpectScriptTrue("!(0 in result)"); });
+}
 
-  value = DecodeTest({0xFF, 0x0B, 0x41, 0x01, 0x5F, 0x24, 0x00, 0x01});
-  ExpectScriptTrue("0 in result");
-  ExpectScriptTrue("result[0] === undefined");
+TEST_F(ValueSerializerTest, DecodeDenseArrayContainingUndefined) {
+  DecodeTestFutureVersions({0xFF, 0x0B, 0x41, 0x01, 0x5F, 0x24, 0x00, 0x01},
+                           [this](Local<Value> value) {
+                             ExpectScriptTrue("0 in result");
+                             ExpectScriptTrue("result[0] === undefined");
+                           });
 
-  value = DecodeTest({0xFF, 0x0B, 0x41, 0x01, 0x2D, 0x24, 0x00, 0x01});
-  ExpectScriptTrue("!(0 in result)");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0B, 0x41, 0x01, 0x2D, 0x24, 0x00, 0x01},
+      [this](Local<Value> value) { ExpectScriptTrue("!(0 in result)"); });
 }
 
 TEST_F(ValueSerializerTest, RoundTripDate) {
@@ -1267,46 +1405,65 @@ TEST_F(ValueSerializerTest, RoundTripDate) {
 }
 
 TEST_F(ValueSerializerTest, DecodeDate) {
-  Local<Value> value;
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00,
-                      0x80, 0x84, 0x2E, 0x41, 0x00});
-  ASSERT_TRUE(value->IsDate());
-  EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Date.prototype");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84, 0x2E,
+       0x41, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsDate());
+        EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Date.prototype");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x44, 0x00, 0x00, 0x20, 0x45,
-                      0x27, 0x89, 0x87, 0xC2, 0x00});
-  ASSERT_TRUE(value->IsDate());
-  ExpectScriptTrue("result.toISOString() === '1867-07-01T00:00:00.000Z'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x44, 0x00, 0x00, 0x20, 0x45, 0x27, 0x89, 0x87,
+       0xC2, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsDate());
+        ExpectScriptTrue("result.toISOString() === '1867-07-01T00:00:00.000Z'");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00,
-                      0x00, 0x00, 0xF8, 0x7F, 0x00});
-  ASSERT_TRUE(value->IsDate());
-  EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8,
+       0x7F, 0x00},
+      [](Local<Value> value) {
+        ASSERT_TRUE(value->IsDate());
+        EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
+      });
 #else
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x44, 0x41, 0x2E, 0x84, 0x80,
-                      0x00, 0x00, 0x00, 0x00, 0x00});
-  ASSERT_TRUE(value->IsDate());
-  EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Date.prototype");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x44, 0x41, 0x2E, 0x84, 0x80, 0x00, 0x00, 0x00,
+       0x00, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsDate());
+        EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Date.prototype");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x44, 0xC2, 0x87, 0x89, 0x27,
-                      0x45, 0x20, 0x00, 0x00, 0x00});
-  ASSERT_TRUE(value->IsDate());
-  ExpectScriptTrue("result.toISOString() === '1867-07-01T00:00:00.000Z'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x44, 0xC2, 0x87, 0x89, 0x27, 0x45, 0x20, 0x00,
+       0x00, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsDate());
+        ExpectScriptTrue("result.toISOString() === '1867-07-01T00:00:00.000Z'");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x44, 0x7F, 0xF8, 0x00, 0x00,
-                      0x00, 0x00, 0x00, 0x00, 0x00});
-  ASSERT_TRUE(value->IsDate());
-  EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x44, 0x7F, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x00},
+      [](Local<Value> value) {
+        ASSERT_TRUE(value->IsDate());
+        EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
+      });
 #endif
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53,
-                      0x01, 0x61, 0x3F, 0x01, 0x44, 0x00, 0x20, 0x39,
-                      0x50, 0x37, 0x6A, 0x75, 0x42, 0x3F, 0x02, 0x53,
-                      0x01, 0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02});
-  ExpectScriptTrue("result.a instanceof Date");
-  ExpectScriptTrue("result.a === result.b");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01, 0x61, 0x3F,
+       0x01, 0x44, 0x00, 0x20, 0x39, 0x50, 0x37, 0x6A, 0x75, 0x42, 0x3F,
+       0x02, 0x53, 0x01, 0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.a instanceof Date");
+        ExpectScriptTrue("result.a === result.b");
+      });
 }
 
 TEST_F(ValueSerializerTest, RoundTripValueObjects) {
@@ -1356,72 +1513,100 @@ TEST_F(ValueSerializerTest, RejectsOtherValueObjects) {
 }
 
 TEST_F(ValueSerializerTest, DecodeValueObjects) {
-  Local<Value> value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x79, 0x00});
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Boolean.prototype");
-  ExpectScriptTrue("result.valueOf() === true");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x79, 0x00}, [this](Local<Value> value) {
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Boolean.prototype");
+        ExpectScriptTrue("result.valueOf() === true");
+      });
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x78, 0x00}, [this](Local<Value> value) {
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Boolean.prototype");
+        ExpectScriptTrue("result.valueOf() === false");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x78, 0x00});
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Boolean.prototype");
-  ExpectScriptTrue("result.valueOf() === false");
-
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53,
-                      0x01, 0x61, 0x3F, 0x01, 0x79, 0x3F, 0x02, 0x53,
-                      0x01, 0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02});
-  ExpectScriptTrue("result.a instanceof Boolean");
-  ExpectScriptTrue("result.a === result.b");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01, 0x61, 0x3F, 0x01,
+       0x79, 0x3F, 0x02, 0x53, 0x01, 0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.a instanceof Boolean");
+        ExpectScriptTrue("result.a === result.b");
+      });
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6E, 0x00, 0x00, 0x00, 0x00,
-                      0x00, 0x00, 0x45, 0xC0, 0x00});
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Number.prototype");
-  ExpectScriptTrue("result.valueOf() === -42");
-
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6E, 0x00, 0x00, 0x00, 0x00,
-                      0x00, 0x00, 0xF8, 0x7F, 0x00});
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Number.prototype");
-  ExpectScriptTrue("Number.isNaN(result.valueOf())");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x45,
+       0xC0, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Number.prototype");
+        ExpectScriptTrue("result.valueOf() === -42");
+      });
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8,
+       0x7F, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Number.prototype");
+        ExpectScriptTrue("Number.isNaN(result.valueOf())");
+      });
 #else
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6E, 0xC0, 0x45, 0x00, 0x00,
-                      0x00, 0x00, 0x00, 0x00, 0x00});
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Number.prototype");
-  ExpectScriptTrue("result.valueOf() === -42");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6E, 0xC0, 0x45, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Number.prototype");
+        ExpectScriptTrue("result.valueOf() === -42");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6E, 0x7F, 0xF8, 0x00, 0x00,
-                      0x00, 0x00, 0x00, 0x00, 0x00});
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Number.prototype");
-  ExpectScriptTrue("Number.isNaN(result.valueOf())");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6E, 0x7F, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Number.prototype");
+        ExpectScriptTrue("Number.isNaN(result.valueOf())");
+      });
 #endif
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53,
-                      0x01, 0x61, 0x3F, 0x01, 0x6E, 0x00, 0x00, 0x00,
-                      0x00, 0x00, 0x00, 0x18, 0x40, 0x3F, 0x02, 0x53,
-                      0x01, 0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02});
-  ExpectScriptTrue("result.a instanceof Number");
-  ExpectScriptTrue("result.a === result.b");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01, 0x61, 0x3F,
+       0x01, 0x6E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x40, 0x3F,
+       0x02, 0x53, 0x01, 0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.a instanceof Number");
+        ExpectScriptTrue("result.a === result.b");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x73, 0x07, 0x51, 0x75, 0xC3,
-                      0xA9, 0x62, 0x65, 0x63, 0x00});
-  ExpectScriptTrue("Object.getPrototypeOf(result) === String.prototype");
-  ExpectScriptTrue("result.valueOf() === 'Qu\\xe9bec'");
-  ExpectScriptTrue("result.length === 6");
+  DecodeTestUpToVersion(
+      11,
+      {0xFF, 0x09, 0x3F, 0x00, 0x73, 0x07, 0x51, 0x75, 0xC3, 0xA9, 0x62, 0x65,
+       0x63, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("Object.getPrototypeOf(result) === String.prototype");
+        ExpectScriptTrue("result.valueOf() === 'Qu\\xe9bec'");
+        ExpectScriptTrue("result.length === 6");
+      });
 
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x73, 0x04, 0xF0, 0x9F, 0x91, 0x8A});
-  ExpectScriptTrue("Object.getPrototypeOf(result) === String.prototype");
-  ExpectScriptTrue("result.valueOf() === '\\ud83d\\udc4a'");
-  ExpectScriptTrue("result.length === 2");
+  DecodeTestUpToVersion(
+      11, {0xFF, 0x09, 0x3F, 0x00, 0x73, 0x04, 0xF0, 0x9F, 0x91, 0x8A},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("Object.getPrototypeOf(result) === String.prototype");
+        ExpectScriptTrue("result.valueOf() === '\\ud83d\\udc4a'");
+        ExpectScriptTrue("result.length === 2");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01,
-                      0x61, 0x3F, 0x01, 0x73, 0x00, 0x3F, 0x02, 0x53, 0x01,
-                      0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02, 0x00});
-  ExpectScriptTrue("result.a instanceof String");
-  ExpectScriptTrue("result.a === result.b");
-
+  DecodeTestUpToVersion(11,
+                        {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01,
+                         0x61, 0x3F, 0x01, 0x73, 0x00, 0x3F, 0x02, 0x53, 0x01,
+                         0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02, 0x00},
+                        [this](Local<Value> value) {
+                          ExpectScriptTrue("result.a instanceof String");
+                          ExpectScriptTrue("result.a === result.b");
+                        });
   // String object containing a Latin-1 string.
-  value =
-      DecodeTest({0xFF, 0x0C, 0x73, 0x22, 0x06, 'Q', 'u', 0xE9, 'b', 'e', 'c'});
-  ExpectScriptTrue("Object.getPrototypeOf(result) === String.prototype");
-  ExpectScriptTrue("result.valueOf() === 'Qu\\xe9bec'");
-  ExpectScriptTrue("result.length === 6");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0C, 0x73, 0x22, 0x06, 'Q', 'u', 0xE9, 'b', 'e', 'c'},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("Object.getPrototypeOf(result) === String.prototype");
+        ExpectScriptTrue("result.valueOf() === 'Qu\\xe9bec'");
+        ExpectScriptTrue("result.length === 6");
+      });
 }
 
 TEST_F(ValueSerializerTest, RoundTripRegExp) {
@@ -1444,90 +1629,102 @@ TEST_F(ValueSerializerTest, RoundTripRegExp) {
 }
 
 TEST_F(ValueSerializerTest, DecodeRegExp) {
-  Local<Value> value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0x01});
-  ASSERT_TRUE(value->IsRegExp());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
-  ExpectScriptTrue("result.toString() === '/foo/g'");
+  DecodeTestUpToVersion(
+      11, {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0x01},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
+        ExpectScriptTrue("result.toString() === '/foo/g'");
+      });
+  DecodeTestUpToVersion(
+      11,
+      {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x07, 0x51, 0x75, 0xC3, 0xA9, 0x62, 0x65,
+       0x63, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        ExpectScriptTrue("result.toString() === '/Qu\\xe9bec/i'");
+      });
+  DecodeTestUpToVersion(
+      11,
+      {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x04, 0xF0, 0x9F, 0x91, 0x8A, 0x11, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        ExpectScriptTrue("result.toString() === '/\\ud83d\\udc4a/gu'");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x52, 0x07, 0x51, 0x75, 0xC3,
-                      0xA9, 0x62, 0x65, 0x63, 0x02});
-  ASSERT_TRUE(value->IsRegExp());
-  ExpectScriptTrue("result.toString() === '/Qu\\xe9bec/i'");
-
-  value = DecodeTest(
-      {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x04, 0xF0, 0x9F, 0x91, 0x8A, 0x11, 0x00});
-  ASSERT_TRUE(value->IsRegExp());
-  ExpectScriptTrue("result.toString() === '/\\ud83d\\udc4a/gu'");
-
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01, 0x61,
-                  0x3F, 0x01, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0x03, 0x3F, 0x02,
-                  0x53, 0x01, 0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02, 0x00});
-  ExpectScriptTrue("result.a instanceof RegExp");
-  ExpectScriptTrue("result.a === result.b");
-
+  DecodeTestUpToVersion(
+      11, {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01, 0x61,
+           0x3F, 0x01, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0x03, 0x3F, 0x02,
+           0x53, 0x01, 0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.a instanceof RegExp");
+        ExpectScriptTrue("result.a === result.b");
+      });
   // RegExp containing a Latin-1 string.
-  value = DecodeTest(
-      {0xFF, 0x0C, 0x52, 0x22, 0x06, 'Q', 'u', 0xE9, 'b', 'e', 'c', 0x02});
-  ASSERT_TRUE(value->IsRegExp());
-  ExpectScriptTrue("result.toString() === '/Qu\\xe9bec/i'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0C, 0x52, 0x22, 0x06, 'Q', 'u', 0xE9, 'b', 'e', 'c', 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        ExpectScriptTrue("result.toString() === '/Qu\\xe9bec/i'");
+      });
 }
 
 // Tests that invalid flags are not accepted by the deserializer.
 TEST_F(ValueSerializerTest, DecodeRegExpDotAll) {
-  Local<Value> value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0x1F});
-  ASSERT_TRUE(value->IsRegExp());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
-  ExpectScriptTrue("result.toString() === '/foo/gimuy'");
+  DecodeTestUpToVersion(
+      11, {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0x1F},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
+        ExpectScriptTrue("result.toString() === '/foo/gimuy'");
+      });
 
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0x3F});
-  ASSERT_TRUE(value->IsRegExp());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
-  ExpectScriptTrue("result.toString() === '/foo/gimsuy'");
+  DecodeTestUpToVersion(
+      11, {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0x3F},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
+        ExpectScriptTrue("result.toString() === '/foo/gimsuy'");
+      });
 
   InvalidDecodeTest(
       {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0xFF});
 }
 
 TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
-  bool flag_was_enabled = i::FLAG_enable_experimental_regexp_engine;
+  bool flag_was_enabled = i::v8_flags.enable_experimental_regexp_engine;
 
   // The last byte encodes the regexp flags.
   std::vector<uint8_t> regexp_encoding = {0xFF, 0x09, 0x3F, 0x00, 0x52,
                                           0x03, 0x66, 0x6F, 0x6F, 0x6D};
 
-  i::FLAG_enable_experimental_regexp_engine = true;
-  Local<Value> value = DecodeTest(regexp_encoding);
-  ASSERT_TRUE(value->IsRegExp());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
-  ExpectScriptTrue("result.toString() === '/foo/glmsy'");
+  i::v8_flags.enable_experimental_regexp_engine = true;
+  // DecodeTestUpToVersion will overwrite the version number in the data but
+  // it's fine.
+  DecodeTestUpToVersion(
+      11, std::move(regexp_encoding), [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
+        ExpectScriptTrue("result.toString() === '/foo/glmsy'");
+      });
 
-  i::FLAG_enable_experimental_regexp_engine = false;
+  i::v8_flags.enable_experimental_regexp_engine = false;
   InvalidDecodeTest(regexp_encoding);
 
-  i::FLAG_enable_experimental_regexp_engine = flag_was_enabled;
+  i::v8_flags.enable_experimental_regexp_engine = flag_was_enabled;
 }
 
 TEST_F(ValueSerializerTest, DecodeHasIndicesRegExp) {
-  bool flag_was_enabled = i::FLAG_harmony_regexp_match_indices;
-
   // The last byte encodes the regexp flags.
   std::vector<uint8_t> regexp_encoding = {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03,
                                           0x66, 0x6F, 0x6F, 0xAD, 0x01};
 
-  i::FLAG_harmony_regexp_match_indices = true;
-  Local<Value> value = DecodeTest(regexp_encoding);
-  ASSERT_TRUE(value->IsRegExp());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
-  ExpectScriptTrue("result.toString() === '/foo/dgmsy'");
-
-  i::FLAG_harmony_regexp_match_indices = false;
-  InvalidDecodeTest(regexp_encoding);
-
-  i::FLAG_harmony_regexp_match_indices = flag_was_enabled;
+  DecodeTestUpToVersion(
+      11, std::move(regexp_encoding), [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
+        ExpectScriptTrue("result.toString() === '/foo/dgmsy'");
+      });
 }
 
 TEST_F(ValueSerializerTest, RoundTripMap) {
@@ -1552,28 +1749,34 @@ TEST_F(ValueSerializerTest, RoundTripMap) {
 }
 
 TEST_F(ValueSerializerTest, DecodeMap) {
-  Local<Value> value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3B, 0x3F, 0x01, 0x49, 0x54, 0x3F,
-                  0x01, 0x53, 0x03, 0x66, 0x6F, 0x6F, 0x3A, 0x02});
-  ASSERT_TRUE(value->IsMap());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Map.prototype");
-  ExpectScriptTrue("result.size === 1");
-  ExpectScriptTrue("result.get(42) === 'foo'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x3B, 0x3F, 0x01, 0x49, 0x54, 0x3F, 0x01, 0x53,
+       0x03, 0x66, 0x6F, 0x6F, 0x3A, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsMap());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Map.prototype");
+        ExpectScriptTrue("result.size === 1");
+        ExpectScriptTrue("result.get(42) === 'foo'");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3B, 0x3F, 0x01, 0x5E, 0x00,
-                      0x3F, 0x01, 0x5E, 0x00, 0x3A, 0x02, 0x00});
-  ASSERT_TRUE(value->IsMap());
-  ExpectScriptTrue("result.size === 1");
-  ExpectScriptTrue("result.get(result) === result");
+  DecodeTestFutureVersions({0xFF, 0x09, 0x3F, 0x00, 0x3B, 0x3F, 0x01, 0x5E,
+                            0x00, 0x3F, 0x01, 0x5E, 0x00, 0x3A, 0x02, 0x00},
+                           [this](Local<Value> value) {
+                             ASSERT_TRUE(value->IsMap());
+                             ExpectScriptTrue("result.size === 1");
+                             ExpectScriptTrue("result.get(result) === result");
+                           });
 
   // Iteration order must be preserved.
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3B, 0x3F, 0x01, 0x49, 0x02, 0x3F,
-                  0x01, 0x49, 0x00, 0x3F, 0x01, 0x53, 0x01, 0x61, 0x3F, 0x01,
-                  0x49, 0x00, 0x3F, 0x01, 0x49, 0x06, 0x3F, 0x01, 0x49, 0x00,
-                  0x3F, 0x01, 0x49, 0x04, 0x3F, 0x01, 0x49, 0x00, 0x3A, 0x08});
-  ASSERT_TRUE(value->IsMap());
-  ExpectScriptTrue("Array.from(result.keys()).toString() === '1,a,3,2'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x3B, 0x3F, 0x01, 0x49, 0x02, 0x3F,
+       0x01, 0x49, 0x00, 0x3F, 0x01, 0x53, 0x01, 0x61, 0x3F, 0x01,
+       0x49, 0x00, 0x3F, 0x01, 0x49, 0x06, 0x3F, 0x01, 0x49, 0x00,
+       0x3F, 0x01, 0x49, 0x04, 0x3F, 0x01, 0x49, 0x00, 0x3A, 0x08},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsMap());
+        ExpectScriptTrue("Array.from(result.keys()).toString() === '1,a,3,2'");
+      });
 }
 
 TEST_F(ValueSerializerTest, RoundTripMapWithTrickyGetters) {
@@ -1628,27 +1831,33 @@ TEST_F(ValueSerializerTest, RoundTripSet) {
 }
 
 TEST_F(ValueSerializerTest, DecodeSet) {
-  Local<Value> value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x27, 0x3F, 0x01, 0x49, 0x54, 0x3F,
-                  0x01, 0x53, 0x03, 0x66, 0x6F, 0x6F, 0x2C, 0x02});
-  ASSERT_TRUE(value->IsSet());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Set.prototype");
-  ExpectScriptTrue("result.size === 2");
-  ExpectScriptTrue("result.has(42)");
-  ExpectScriptTrue("result.has('foo')");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x27, 0x3F, 0x01, 0x49, 0x54, 0x3F, 0x01, 0x53,
+       0x03, 0x66, 0x6F, 0x6F, 0x2C, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsSet());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === Set.prototype");
+        ExpectScriptTrue("result.size === 2");
+        ExpectScriptTrue("result.has(42)");
+        ExpectScriptTrue("result.has('foo')");
+      });
 
-  value = DecodeTest(
-      {0xFF, 0x09, 0x3F, 0x00, 0x27, 0x3F, 0x01, 0x5E, 0x00, 0x2C, 0x01, 0x00});
-  ASSERT_TRUE(value->IsSet());
-  ExpectScriptTrue("result.size === 1");
-  ExpectScriptTrue("result.has(result)");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x27, 0x3F, 0x01, 0x5E, 0x00, 0x2C, 0x01, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsSet());
+        ExpectScriptTrue("result.size === 1");
+        ExpectScriptTrue("result.has(result)");
+      });
 
   // Iteration order must be preserved.
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x27, 0x3F, 0x01, 0x49,
-                      0x02, 0x3F, 0x01, 0x53, 0x01, 0x61, 0x3F, 0x01,
-                      0x49, 0x06, 0x3F, 0x01, 0x49, 0x04, 0x2C, 0x04});
-  ASSERT_TRUE(value->IsSet());
-  ExpectScriptTrue("Array.from(result.keys()).toString() === '1,a,3,2'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x27, 0x3F, 0x01, 0x49, 0x02, 0x3F, 0x01, 0x53,
+       0x01, 0x61, 0x3F, 0x01, 0x49, 0x06, 0x3F, 0x01, 0x49, 0x04, 0x2C, 0x04},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsSet());
+        ExpectScriptTrue("Array.from(result.keys()).toString() === '1,a,3,2'");
+      });
 }
 
 TEST_F(ValueSerializerTest, RoundTripSetWithTrickyGetters) {
@@ -1681,11 +1890,20 @@ TEST_F(ValueSerializerTest, RoundTripArrayBuffer) {
   ASSERT_TRUE(value->IsArrayBuffer());
   EXPECT_EQ(0u, ArrayBuffer::Cast(*value)->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === ArrayBuffer.prototype");
+  // TODO(v8:11111): Use API functions for testing max_byte_length and resizable
+  // once they're exposed via the API.
+  i::Handle<i::JSArrayBuffer> array_buffer =
+      Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  EXPECT_EQ(0u, array_buffer->max_byte_length());
+  EXPECT_EQ(false, array_buffer->is_resizable_by_js());
 
   value = RoundTripTest("new Uint8Array([0, 128, 255]).buffer");
   ASSERT_TRUE(value->IsArrayBuffer());
   EXPECT_EQ(3u, ArrayBuffer::Cast(*value)->ByteLength());
   ExpectScriptTrue("new Uint8Array(result).toString() === '0,128,255'");
+  array_buffer = Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  EXPECT_EQ(3u, array_buffer->max_byte_length());
+  EXPECT_EQ(false, array_buffer->is_resizable_by_js());
 
   value =
       RoundTripTest("({ a: new ArrayBuffer(), get b() { return this.a; }})");
@@ -1693,27 +1911,57 @@ TEST_F(ValueSerializerTest, RoundTripArrayBuffer) {
   ExpectScriptTrue("result.a === result.b");
 }
 
+TEST_F(ValueSerializerTest, RoundTripResizableArrayBuffer) {
+  FLAG_SCOPE(harmony_rab_gsab);
+  Local<Value> value =
+      RoundTripTest("new ArrayBuffer(100, {maxByteLength: 200})");
+  ASSERT_TRUE(value->IsArrayBuffer());
+  EXPECT_EQ(100u, ArrayBuffer::Cast(*value)->ByteLength());
+
+  // TODO(v8:11111): Use API functions for testing max_byte_length and resizable
+  // once they're exposed via the API.
+  i::Handle<i::JSArrayBuffer> array_buffer =
+      Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  EXPECT_EQ(200u, array_buffer->max_byte_length());
+  EXPECT_EQ(true, array_buffer->is_resizable_by_js());
+}
+
 TEST_F(ValueSerializerTest, DecodeArrayBuffer) {
-  Local<Value> value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x42, 0x00});
-  ASSERT_TRUE(value->IsArrayBuffer());
-  EXPECT_EQ(0u, ArrayBuffer::Cast(*value)->ByteLength());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === ArrayBuffer.prototype");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x42, 0x00}, [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArrayBuffer());
+        EXPECT_EQ(0u, ArrayBuffer::Cast(*value)->ByteLength());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === ArrayBuffer.prototype");
+      });
 
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x42, 0x03, 0x00, 0x80, 0xFF, 0x00});
-  ASSERT_TRUE(value->IsArrayBuffer());
-  EXPECT_EQ(3u, ArrayBuffer::Cast(*value)->ByteLength());
-  ExpectScriptTrue("new Uint8Array(result).toString() === '0,128,255'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x42, 0x03, 0x00, 0x80, 0xFF, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArrayBuffer());
+        EXPECT_EQ(3u, ArrayBuffer::Cast(*value)->ByteLength());
+        ExpectScriptTrue("new Uint8Array(result).toString() === '0,128,255'");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01,
-                      0x61, 0x3F, 0x01, 0x42, 0x00, 0x3F, 0x02, 0x53, 0x01,
-                      0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02, 0x00});
-  ExpectScriptTrue("result.a instanceof ArrayBuffer");
-  ExpectScriptTrue("result.a === result.b");
+  DecodeTestFutureVersions(
+      {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x01,
+       0x61, 0x3F, 0x01, 0x42, 0x00, 0x3F, 0x02, 0x53, 0x01,
+       0x62, 0x3F, 0x02, 0x5E, 0x01, 0x7B, 0x02, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.a instanceof ArrayBuffer");
+        ExpectScriptTrue("result.a === result.b");
+      });
 }
 
 TEST_F(ValueSerializerTest, DecodeInvalidArrayBuffer) {
   InvalidDecodeTest({0xFF, 0x09, 0x42, 0xFF, 0xFF, 0x00});
+}
+
+TEST_F(ValueSerializerTest, DecodeInvalidResizableArrayBuffer) {
+  FLAG_SCOPE(harmony_rab_gsab);
+  // Enough bytes available after reading the length, but not anymore when
+  // reading the max byte length.
+  InvalidDecodeTest({0xFF, 0x09, 0x7E, 0x2, 0x10, 0x00});
 }
 
 // An array buffer allocator that never has available memory.
@@ -1815,14 +2063,20 @@ TEST_F(ValueSerializerTestWithArrayBufferTransfer,
 TEST_F(ValueSerializerTest, RoundTripTypedArray) {
   // Check that the right type comes out the other side for every kind of typed
   // array.
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed via the API.
   Local<Value> value;
+  i::Handle<i::JSTypedArray> i_ta;
 #define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)             \
   value = RoundTripTest("new " #Type "Array(2)");                        \
   ASSERT_TRUE(value->Is##Type##Array());                                 \
   EXPECT_EQ(2u * sizeof(ctype), TypedArray::Cast(*value)->ByteLength()); \
   EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());                     \
   ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type            \
-                   "Array.prototype");
+                   "Array.prototype");                                   \
+  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));                \
+  EXPECT_EQ(false, i_ta->is_length_tracking());                          \
+  EXPECT_EQ(false, i_ta->is_backed_by_rab());
 
   TYPED_ARRAYS(TYPED_ARRAY_ROUND_TRIP_TEST)
 #undef TYPED_ARRAY_ROUND_TRIP_TEST
@@ -1855,108 +2109,357 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
   ExpectScriptTrue("result.f32.length === 5");
 }
 
-TEST_F(ValueSerializerTest, DecodeTypedArray) {
+TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
+  FLAG_SCOPE(harmony_rab_gsab);
   // Check that the right type comes out the other side for every kind of typed
   // array.
-  Local<Value> value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42,
-                                   0x02, 0x00, 0x00, 0x56, 0x42, 0x00, 0x02});
-  ASSERT_TRUE(value->IsUint8Array());
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->ByteLength());
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Uint8Array.prototype");
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed via the API.
+  Local<Value> value;
+  i::Handle<i::JSTypedArray> i_ta;
+#define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)          \
+  value = RoundTripTest("new " #Type                                  \
+                        "Array(new ArrayBuffer(80, "                  \
+                        "{maxByteLength: 160}))");                    \
+  ASSERT_TRUE(value->Is##Type##Array());                              \
+  EXPECT_EQ(80u, TypedArray::Cast(*value)->ByteLength());             \
+  EXPECT_EQ(80u / sizeof(ctype), TypedArray::Cast(*value)->Length()); \
+  ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type         \
+                   "Array.prototype");                                \
+  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));             \
+  EXPECT_EQ(true, i_ta->is_length_tracking());                        \
+  EXPECT_EQ(true, i_ta->is_backed_by_rab());
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x02, 0x00,
-                      0x00, 0x56, 0x62, 0x00, 0x02});
-  ASSERT_TRUE(value->IsInt8Array());
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->ByteLength());
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Int8Array.prototype");
+  TYPED_ARRAYS(TYPED_ARRAY_ROUND_TRIP_TEST)
+#undef TYPED_ARRAY_ROUND_TRIP_TEST
+}
+
+TEST_F(ValueSerializerTest, RoundTripRabBackedNonLengthTrackingTypedArray) {
+  FLAG_SCOPE(harmony_rab_gsab);
+  // Check that the right type comes out the other side for every kind of typed
+  // array.
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed via the API.
+  Local<Value> value;
+  i::Handle<i::JSTypedArray> i_ta;
+#define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)             \
+  value = RoundTripTest("new " #Type                                     \
+                        "Array(new ArrayBuffer(80, "                     \
+                        "{maxByteLength: 160}), 8, 4)");                 \
+  ASSERT_TRUE(value->Is##Type##Array());                                 \
+  EXPECT_EQ(4u * sizeof(ctype), TypedArray::Cast(*value)->ByteLength()); \
+  EXPECT_EQ(4u, TypedArray::Cast(*value)->Length());                     \
+  ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type            \
+                   "Array.prototype");                                   \
+  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));                \
+  EXPECT_EQ(false, i_ta->is_length_tracking());                          \
+  EXPECT_EQ(true, i_ta->is_backed_by_rab());
+
+  TYPED_ARRAYS(TYPED_ARRAY_ROUND_TRIP_TEST)
+#undef TYPED_ARRAY_ROUND_TRIP_TEST
+}
+
+TEST_F(ValueSerializerTest, DecodeTypedArray) {
+  // Check that the right type comes out the other side for every kind of typed
+  // array (version 14 and above).
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x02, 0x00, 0x00, 0x56, 0x42,
+       0x00, 0x02, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsUint8Array());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Uint8Array.prototype");
+      });
+
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x02, 0x00, 0x00, 0x56, 0x62,
+       0x00, 0x02, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsInt8Array());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Int8Array.prototype");
+      });
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x04, 0x00,
-                      0x00, 0x00, 0x00, 0x56, 0x57, 0x00, 0x04});
-  ASSERT_TRUE(value->IsUint16Array());
-  EXPECT_EQ(4u, TypedArray::Cast(*value)->ByteLength());
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Uint16Array.prototype");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x04, 0x00, 0x00, 0x00, 0x00,
+       0x56, 0x57, 0x00, 0x04, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsUint16Array());
+        EXPECT_EQ(4u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Uint16Array.prototype");
+      });
 
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x04, 0x00,
-                      0x00, 0x00, 0x00, 0x56, 0x77, 0x00, 0x04});
-  ASSERT_TRUE(value->IsInt16Array());
-  EXPECT_EQ(4u, TypedArray::Cast(*value)->ByteLength());
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Int16Array.prototype");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x04, 0x00, 0x00, 0x00, 0x00,
+       0x56, 0x77, 0x00, 0x04, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsInt16Array());
+        EXPECT_EQ(4u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Int16Array.prototype");
+      });
 
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x08, 0x00, 0x00,
-                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x44, 0x00, 0x08});
-  ASSERT_TRUE(value->IsUint32Array());
-  EXPECT_EQ(8u, TypedArray::Cast(*value)->ByteLength());
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Uint32Array.prototype");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x08, 0x00, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x44, 0x00, 0x08, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsUint32Array());
+        EXPECT_EQ(8u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Uint32Array.prototype");
+      });
 
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x08, 0x00, 0x00,
-                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x64, 0x00, 0x08});
-  ASSERT_TRUE(value->IsInt32Array());
-  EXPECT_EQ(8u, TypedArray::Cast(*value)->ByteLength());
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Int32Array.prototype");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x08, 0x00, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x64, 0x00, 0x08, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsInt32Array());
+        EXPECT_EQ(8u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Int32Array.prototype");
+      });
 
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x08, 0x00, 0x00,
-                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x66, 0x00, 0x08});
-  ASSERT_TRUE(value->IsFloat32Array());
-  EXPECT_EQ(8u, TypedArray::Cast(*value)->ByteLength());
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Float32Array.prototype");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x08, 0x00, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x66, 0x00, 0x08, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsFloat32Array());
+        EXPECT_EQ(8u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Float32Array.prototype");
+      });
 
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x10, 0x00, 0x00,
-                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                  0x00, 0x00, 0x00, 0x00, 0x56, 0x46, 0x00, 0x10});
-  ASSERT_TRUE(value->IsFloat64Array());
-  EXPECT_EQ(16u, TypedArray::Cast(*value)->ByteLength());
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
-  ExpectScriptTrue("Object.getPrototypeOf(result) === Float64Array.prototype");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x10, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x56, 0x46, 0x00, 0x10, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsFloat64Array());
+        EXPECT_EQ(16u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Float64Array.prototype");
+      });
 
 #endif  // V8_TARGET_LITTLE_ENDIAN
 
   // Check that values of various kinds are suitably preserved.
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x03, 0x01,
-                      0x80, 0xFF, 0x56, 0x42, 0x00, 0x03, 0x00});
-  ExpectScriptTrue("result.toString() === '1,128,255'");
-
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x03, 0x01, 0x80, 0xFF, 0x56,
+       0x42, 0x00, 0x03, 0x00, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.toString() === '1,128,255'");
+      });
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  value = DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x06, 0x00,
-                      0x00, 0x00, 0x01, 0x00, 0x80, 0x56, 0x77, 0x00, 0x06});
-  ExpectScriptTrue("result.toString() === '0,256,-32768'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x06, 0x00, 0x00, 0x00, 0x01,
+       0x00, 0x80, 0x56, 0x77, 0x00, 0x06, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.toString() === '0,256,-32768'");
+      });
 
-  value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x10, 0x00, 0x00,
-                  0x00, 0x00, 0x00, 0x00, 0x00, 0xBF, 0x00, 0x00, 0xC0, 0x7F,
-                  0x00, 0x00, 0x80, 0x7F, 0x56, 0x66, 0x00, 0x10});
-  ExpectScriptTrue("result.toString() === '0,-0.5,NaN,Infinity'");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x10, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0xBF, 0x00, 0x00, 0xC0, 0x7F,
+       0x00, 0x00, 0x80, 0x7F, 0x56, 0x66, 0x00, 0x10, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.toString() === '0,-0.5,NaN,Infinity'");
+      });
 
 #endif  // V8_TARGET_LITTLE_ENDIAN
 
   // Array buffer views sharing a buffer should do so on the other side.
   // Similarly, multiple references to the same typed array should be resolved.
-  value = DecodeTest(
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x02, 0x75, 0x38, 0x3F,
+       0x01, 0x3F, 0x01, 0x42, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x56, 0x42, 0x00, 0x20, 0x00, 0x3F, 0x03, 0x53, 0x04, 0x75, 0x38,
+       0x5F, 0x32, 0x3F, 0x03, 0x5E, 0x02, 0x3F, 0x03, 0x53, 0x03, 0x66, 0x33,
+       0x32, 0x3F, 0x03, 0x3F, 0x03, 0x5E, 0x01, 0x56, 0x66, 0x04, 0x14, 0x00,
+       0x3F, 0x04, 0x53, 0x01, 0x62, 0x3F, 0x04, 0x5E, 0x01, 0x7B, 0x04, 0x00},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.u8 instanceof Uint8Array");
+        ExpectScriptTrue("result.u8 === result.u8_2");
+        ExpectScriptTrue("result.f32 instanceof Float32Array");
+        ExpectScriptTrue("result.u8.buffer === result.f32.buffer");
+        ExpectScriptTrue("result.f32.byteOffset === 4");
+        ExpectScriptTrue("result.f32.length === 5");
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeTypedArrayBackwardsCompatiblity) {
+  // Check that we can still decode TypedArrays in the version <= 13 format.
+  DecodeTestUpToVersion(
+      13,
+      {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x02, 0x00, 0x00, 0x56, 0x42,
+       0x00, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsUint8Array());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Uint8Array.prototype");
+      });
+
+  DecodeTestUpToVersion(
+      13,
+      {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x02, 0x00, 0x00, 0x56, 0x62,
+       0x00, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsInt8Array());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Int8Array.prototype");
+      });
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  DecodeTestUpToVersion(
+      13,
+      {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x04, 0x00, 0x00, 0x00, 0x00,
+       0x56, 0x57, 0x00, 0x04},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsUint16Array());
+        EXPECT_EQ(4u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Uint16Array.prototype");
+      });
+
+  DecodeTestUpToVersion(
+      13,
+      {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x04, 0x00, 0x00, 0x00, 0x00,
+       0x56, 0x77, 0x00, 0x04},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsInt16Array());
+        EXPECT_EQ(4u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Int16Array.prototype");
+      });
+
+  DecodeTestUpToVersion(
+      13, {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x08, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x44, 0x00, 0x08},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsUint32Array());
+        EXPECT_EQ(8u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Uint32Array.prototype");
+      });
+
+  DecodeTestUpToVersion(
+      13, {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x08, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x64, 0x00, 0x08},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsInt32Array());
+        EXPECT_EQ(8u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Int32Array.prototype");
+      });
+
+  DecodeTestUpToVersion(
+      13, {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x08, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x66, 0x00, 0x08},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsFloat32Array());
+        EXPECT_EQ(8u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Float32Array.prototype");
+      });
+
+  DecodeTestUpToVersion(
+      13, {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x10, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x56, 0x46, 0x00, 0x10},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsFloat64Array());
+        EXPECT_EQ(16u, TypedArray::Cast(*value)->ByteLength());
+        EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === Float64Array.prototype");
+      });
+
+#endif  // V8_TARGET_LITTLE_ENDIAN
+
+  // Check that values of various kinds are suitably preserved.
+  DecodeTestUpToVersion(13,
+                        {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x03, 0x01,
+                         0x80, 0xFF, 0x56, 0x42, 0x00, 0x03},
+                        [this](Local<Value> value) {
+                          ExpectScriptTrue("result.toString() === '1,128,255'");
+                        });
+
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  DecodeTestUpToVersion(
+      13,
+      {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x06, 0x00, 0x00, 0x00, 0x01,
+       0x00, 0x80, 0x56, 0x77, 0x00, 0x06},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.toString() === '0,256,-32768'");
+      });
+
+  DecodeTestUpToVersion(
+      13, {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x10, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0xBF, 0x00, 0x00, 0xC0, 0x7F,
+           0x00, 0x00, 0x80, 0x7F, 0x56, 0x66, 0x00, 0x10},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.toString() === '0,-0.5,NaN,Infinity'");
+      });
+#endif  // V8_TARGET_LITTLE_ENDIAN
+
+  // Array buffer views sharing a buffer should do so on the other side.
+  // Similarly, multiple references to the same typed array should be resolved.
+  DecodeTestUpToVersion(
+      13,
       {0xFF, 0x09, 0x3F, 0x00, 0x6F, 0x3F, 0x01, 0x53, 0x02, 0x75, 0x38, 0x3F,
        0x01, 0x3F, 0x01, 0x42, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-       0x00, 0x56, 0x42, 0x00, 0x20, 0x3F, 0x03, 0x53, 0x04, 0x75, 0x38, 0x5F,
-       0x32, 0x3F, 0x03, 0x5E, 0x02, 0x3F, 0x03, 0x53, 0x03, 0x66, 0x33, 0x32,
-       0x3F, 0x03, 0x3F, 0x03, 0x5E, 0x01, 0x56, 0x66, 0x04, 0x14, 0x3F, 0x04,
-       0x53, 0x01, 0x62, 0x3F, 0x04, 0x5E, 0x01, 0x7B, 0x04, 0x00});
-  ExpectScriptTrue("result.u8 instanceof Uint8Array");
-  ExpectScriptTrue("result.u8 === result.u8_2");
-  ExpectScriptTrue("result.f32 instanceof Float32Array");
-  ExpectScriptTrue("result.u8.buffer === result.f32.buffer");
-  ExpectScriptTrue("result.f32.byteOffset === 4");
-  ExpectScriptTrue("result.f32.length === 5");
+       0x00, 0x56, 0x42, 0x00, 0x20, 0x00, 0x3F, 0x03, 0x53, 0x04, 0x75, 0x38,
+       0x5F, 0x32, 0x3F, 0x03, 0x5E, 0x02, 0x3F, 0x03, 0x53, 0x03, 0x66, 0x33,
+       0x32, 0x3F, 0x03, 0x3F, 0x03, 0x5E, 0x01, 0x56, 0x66, 0x04, 0x14, 0x00,
+       0x3F, 0x04, 0x53, 0x01, 0x62, 0x3F, 0x04, 0x5E, 0x01, 0x7B, 0x04},
+      [this](Local<Value> value) {
+        ExpectScriptTrue("result.u8 instanceof Uint8Array");
+        ExpectScriptTrue("result.u8 === result.u8_2");
+        ExpectScriptTrue("result.f32 instanceof Float32Array");
+        ExpectScriptTrue("result.u8.buffer === result.f32.buffer");
+        ExpectScriptTrue("result.f32.byteOffset === 4");
+        ExpectScriptTrue("result.f32.length === 5");
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeTypedArrayBrokenData) {
+  // Test decoding the broken data where the version is 13 but the
+  // JSArrayBufferView flags are present.
+
+  // The data below is produced by the following code + changing the version
+  // to 13:
+  // std::vector<uint8_t> encoded =
+  //     EncodeTest("({ a: new Uint8Array(), b: 13 })");
+
+  Local<Value> value = DecodeTest({0xFF, 0xD,  0x6F, 0x22, 0x1,  0x61, 0x42,
+                                   0x0,  0x56, 0x42, 0x0,  0x0,  0xE8, 0x47,
+                                   0x22, 0x1,  0x62, 0x49, 0x1A, 0x7B, 0x2});
+  ASSERT_TRUE(value->IsObject());
+  ExpectScriptTrue("Object.getPrototypeOf(result.a) === Uint8Array.prototype");
+  ExpectScriptTrue("result.b === 13");
 }
 
 TEST_F(ValueSerializerTest, DecodeInvalidTypedArray) {
@@ -1984,17 +2487,78 @@ TEST_F(ValueSerializerTest, RoundTripDataView) {
   EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
   EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed
+  // via the API.
+  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenHandle(DataView::Cast(*value));
+  EXPECT_EQ(false, i_dv->is_length_tracking());
+  EXPECT_EQ(false, i_dv->is_backed_by_rab());
 }
 
 TEST_F(ValueSerializerTest, DecodeDataView) {
-  Local<Value> value =
-      DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x04, 0x00, 0x00,
-                  0x00, 0x00, 0x56, 0x3F, 0x01, 0x02});
+  DecodeTestFutureVersions(
+      {0xFF, 0x0E, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x04, 0x00, 0x00, 0x00, 0x00,
+       0x56, 0x3F, 0x01, 0x02, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsDataView());
+        EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
+        EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
+        EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === DataView.prototype");
+      });
+}
+
+TEST_F(ValueSerializerTest, RoundTripRabBackedDataView) {
+  FLAG_SCOPE(harmony_rab_gsab);
+
+  Local<Value> value = RoundTripTest(
+      "new DataView(new ArrayBuffer(4, {maxByteLength: 8}), 1, 2)");
   ASSERT_TRUE(value->IsDataView());
   EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
   EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
   EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed via the API.
+  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenHandle(DataView::Cast(*value));
+  EXPECT_EQ(false, i_dv->is_length_tracking());
+  EXPECT_EQ(true, i_dv->is_backed_by_rab());
+}
+
+TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingDataView) {
+  FLAG_SCOPE(harmony_rab_gsab);
+
+  Local<Value> value =
+      RoundTripTest("new DataView(new ArrayBuffer(4, {maxByteLength: 8}), 1)");
+  ASSERT_TRUE(value->IsDataView());
+  EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
+  EXPECT_EQ(3u, DataView::Cast(*value)->ByteLength());
+  EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+  ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed via the API.
+  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenHandle(DataView::Cast(*value));
+  EXPECT_EQ(true, i_dv->is_length_tracking());
+  EXPECT_EQ(true, i_dv->is_backed_by_rab());
+}
+
+TEST_F(ValueSerializerTest, DecodeDataViewBackwardsCompatibility) {
+  DecodeTestUpToVersion(
+      13,
+      {0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x04, 0x00, 0x00, 0x00, 0x00,
+       0x56, 0x3F, 0x01, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsDataView());
+        EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
+        EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
+        EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === DataView.prototype");
+      });
 }
 
 TEST_F(ValueSerializerTest, DecodeArrayWithLengthProperty1) {
@@ -2043,6 +2607,7 @@ class ValueSerializerTestWithSharedArrayBufferClone
 
   Local<SharedArrayBuffer> NewSharedArrayBuffer(void* data, size_t byte_length,
                                                 bool is_wasm_memory) {
+#if V8_ENABLE_WEBASSEMBLY
     if (is_wasm_memory) {
       // TODO(titzer): there is no way to create Wasm memory backing stores
       // through the API, or to create a shared array buffer whose backing
@@ -2051,35 +2616,20 @@ class ValueSerializerTestWithSharedArrayBufferClone
       auto pages = byte_length / i::wasm::kWasmPageSize;
       auto i_isolate = reinterpret_cast<i::Isolate*>(isolate());
       auto backing_store = i::BackingStore::AllocateWasmMemory(
-          i_isolate, pages, pages, i::SharedFlag::kShared);
+          i_isolate, pages, pages, i::WasmMemoryFlag::kWasmMemory32,
+          i::SharedFlag::kShared);
       memcpy(backing_store->buffer_start(), data, byte_length);
       i::Handle<i::JSArrayBuffer> buffer =
           i_isolate->factory()->NewJSSharedArrayBuffer(
               std::move(backing_store));
       return Utils::ToLocalShared(buffer);
-    } else {
-      std::unique_ptr<v8::BackingStore> backing_store =
-          SharedArrayBuffer::NewBackingStore(
-              data, byte_length,
-              [](void*, size_t, void*) {
-                // Leak the buffer as it has the
-                // lifetime of the test.
-              },
-              nullptr);
-      return SharedArrayBuffer::New(isolate(), std::move(backing_store));
     }
-  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-  static void SetUpTestCase() {
-    flag_was_enabled_ = i::FLAG_harmony_sharedarraybuffer;
-    i::FLAG_harmony_sharedarraybuffer = true;
-    ValueSerializerTest::SetUpTestCase();
-  }
-
-  static void TearDownTestCase() {
-    ValueSerializerTest::TearDownTestCase();
-    i::FLAG_harmony_sharedarraybuffer = flag_was_enabled_;
-    flag_was_enabled_ = false;
+    CHECK(!is_wasm_memory);
+    auto sab = SharedArrayBuffer::New(isolate(), byte_length);
+    memcpy(sab->GetBackingStore()->Data(), data, byte_length);
+    return sab;
   }
 
  protected:
@@ -2131,13 +2681,10 @@ class ValueSerializerTestWithSharedArrayBufferClone
   DeserializerDelegate deserializer_delegate_;
 
  private:
-  static bool flag_was_enabled_;
   std::vector<uint8_t> data_;
   Local<SharedArrayBuffer> input_buffer_;
   Local<SharedArrayBuffer> output_buffer_;
 };
-
-bool ValueSerializerTestWithSharedArrayBufferClone::flag_was_enabled_ = false;
 
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripSharedArrayBufferClone) {
@@ -2173,11 +2720,9 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
   ExpectScriptTrue("new Uint8Array(result.a).toString() === '0,1,128,255'");
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripWebAssemblyMemory) {
-  bool flag_was_enabled = i::FLAG_experimental_wasm_threads;
-  i::FLAG_experimental_wasm_threads = true;
-
   std::vector<uint8_t> data = {0x00, 0x01, 0x80, 0xFF};
   data.resize(65536);
   InitializeData(data, true);
@@ -2194,17 +2739,56 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     const int32_t kMaxPages = 1;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(*input_buffer());
-    input = Utils::Convert<i::WasmMemoryObject, Value>(
-        i::WasmMemoryObject::New(i_isolate, obj, kMaxPages));
+    input = Utils::Convert<i::WasmMemoryObject, Value>(i::WasmMemoryObject::New(
+        i_isolate, obj, kMaxPages, i::WasmMemoryFlag::kWasmMemory32));
   }
   RoundTripTest(input);
   ExpectScriptTrue("result instanceof WebAssembly.Memory");
   ExpectScriptTrue("result.buffer.byteLength === 65536");
   ExpectScriptTrue(
       "new Uint8Array(result.buffer, 0, 4).toString() === '0,1,128,255'");
-
-  i::FLAG_experimental_wasm_threads = flag_was_enabled;
 }
+
+TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
+       RoundTripWebAssemblyMemory_WithPreviousReference) {
+  // This is a regression test for crbug.com/1421524.
+  // It ensures that WasmMemoryObject can deserialize even if its underlying
+  // buffer was already encountered, and so will be encoded with an object
+  // backreference.
+  std::vector<uint8_t> data = {0x00, 0x01, 0x80, 0xFF};
+  data.resize(65536);
+  InitializeData(data, true);
+
+  EXPECT_CALL(serializer_delegate_,
+              GetSharedArrayBufferId(isolate(), input_buffer()))
+      .WillRepeatedly(Return(Just(0U)));
+  EXPECT_CALL(deserializer_delegate_, GetSharedArrayBufferFromId(isolate(), 0U))
+      .WillRepeatedly(Return(output_buffer()));
+
+  Local<Value> input;
+  {
+    Context::Scope scope(serialization_context());
+    const int32_t kMaxPages = 1;
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*input_buffer());
+    i::Handle<i::WasmMemoryObject> wasm_memory = i::WasmMemoryObject::New(
+        i_isolate, buffer, kMaxPages, i::WasmMemoryFlag::kWasmMemory32);
+    i::Handle<i::FixedArray> fixed_array =
+        i_isolate->factory()->NewFixedArray(2);
+    fixed_array->set(0, *buffer);
+    fixed_array->set(1, *wasm_memory);
+    input = Utils::ToLocal(i_isolate->factory()->NewJSArrayWithElements(
+        fixed_array, i::PACKED_ELEMENTS, 2));
+  }
+  RoundTripTest(input);
+  ExpectScriptTrue("result[0] instanceof SharedArrayBuffer");
+  ExpectScriptTrue("result[1] instanceof WebAssembly.Memory");
+  ExpectScriptTrue("result[0] === result[1].buffer");
+  ExpectScriptTrue("result[0].byteLength === 65536");
+  ExpectScriptTrue(
+      "new Uint8Array(result[0], 0, 4).toString() === '0,1,128,255'");
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST_F(ValueSerializerTest, UnsupportedHostObject) {
   InvalidEncodeTest("new ExampleHostObject()");
@@ -2213,7 +2797,18 @@ TEST_F(ValueSerializerTest, UnsupportedHostObject) {
 
 class ValueSerializerTestWithHostObject : public ValueSerializerTest {
  protected:
-  ValueSerializerTestWithHostObject() : serializer_delegate_(this) {}
+  ValueSerializerTestWithHostObject() : serializer_delegate_(this) {
+    ON_CALL(serializer_delegate_, HasCustomHostObject)
+        .WillByDefault([this](Isolate* isolate) {
+          return serializer_delegate_
+              .ValueSerializer::Delegate::HasCustomHostObject(isolate);
+        });
+    ON_CALL(serializer_delegate_, IsHostObject)
+        .WillByDefault([this](Isolate* isolate, Local<Object> object) {
+          return serializer_delegate_.ValueSerializer::Delegate::IsHostObject(
+              isolate, object);
+        });
+  }
 
   static const uint8_t kExampleHostObjectTag;
 
@@ -2237,6 +2832,9 @@ class ValueSerializerTestWithHostObject : public ValueSerializerTest {
    public:
     explicit SerializerDelegate(ValueSerializerTestWithHostObject* test)
         : test_(test) {}
+    MOCK_METHOD(bool, HasCustomHostObject, (Isolate*), (override));
+    MOCK_METHOD(Maybe<bool>, IsHostObject, (Isolate*, Local<Object> object),
+                (override));
     MOCK_METHOD(Maybe<bool>, WriteHostObject, (Isolate*, Local<Object> object),
                 (override));
     void ThrowDataCloneError(Local<String> message) override {
@@ -2288,6 +2886,7 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripUint32) {
       .WillRepeatedly(Invoke([this](Isolate*, Local<Object> object) {
         uint32_t value = 0;
         EXPECT_TRUE(object->GetInternalField(0)
+                        .As<v8::Value>()
                         ->Uint32Value(serialization_context())
                         .To(&value));
         WriteExampleHostObjectTag();
@@ -2319,9 +2918,11 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripUint64) {
       .WillRepeatedly(Invoke([this](Isolate*, Local<Object> object) {
         uint32_t value = 0, value2 = 0;
         EXPECT_TRUE(object->GetInternalField(0)
+                        .As<v8::Value>()
                         ->Uint32Value(serialization_context())
                         .To(&value));
         EXPECT_TRUE(object->GetInternalField(1)
+                        .As<v8::Value>()
                         ->Uint32Value(serialization_context())
                         .To(&value2));
         WriteExampleHostObjectTag();
@@ -2359,6 +2960,7 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripDouble) {
       .WillRepeatedly(Invoke([this](Isolate*, Local<Object> object) {
         double value = 0;
         EXPECT_TRUE(object->GetInternalField(0)
+                        .As<v8::Value>()
                         ->NumberValue(serialization_context())
                         .To(&value));
         WriteExampleHostObjectTag();
@@ -2447,9 +3049,48 @@ TEST_F(ValueSerializerTestWithHostObject, DecodeSimpleHostObject) {
         EXPECT_TRUE(ReadExampleHostObjectTag());
         return NewHostObject(deserialization_context(), 0, nullptr);
       }));
-  DecodeTest({0xFF, 0x0D, 0x5C, kExampleHostObjectTag});
-  ExpectScriptTrue(
-      "Object.getPrototypeOf(result) === ExampleHostObject.prototype");
+  DecodeTestFutureVersions(
+      {0xFF, 0x0D, 0x5C, kExampleHostObjectTag}, [this](Local<Value> value) {
+        ExpectScriptTrue(
+            "Object.getPrototypeOf(result) === ExampleHostObject.prototype");
+      });
+}
+
+TEST_F(ValueSerializerTestWithHostObject,
+       RoundTripHostJSObjectWithoutCustomHostObject) {
+  EXPECT_CALL(serializer_delegate_, HasCustomHostObject(isolate()))
+      .WillOnce(Invoke([](Isolate* isolate) { return false; }));
+  RoundTripTest("({ a: { my_host_object: true }, get b() { return this.a; }})");
+}
+
+TEST_F(ValueSerializerTestWithHostObject, RoundTripHostJSObject) {
+  EXPECT_CALL(serializer_delegate_, HasCustomHostObject(isolate()))
+      .WillOnce(Invoke([](Isolate* isolate) { return true; }));
+  EXPECT_CALL(serializer_delegate_, IsHostObject(isolate(), _))
+      .WillRepeatedly(Invoke([this](Isolate* isolate, Local<Object> object) {
+        EXPECT_TRUE(object->IsObject());
+        Local<Context> context = isolate->GetCurrentContext();
+        return object->Has(context, StringFromUtf8("my_host_object"));
+      }));
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillOnce(Invoke([this](Isolate*, Local<Object> object) {
+        EXPECT_TRUE(object->IsObject());
+        WriteExampleHostObjectTag();
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillOnce(Invoke([this](Isolate* isolate) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        Local<Context> context = isolate->GetCurrentContext();
+        Local<Object> obj = Object::New(isolate);
+        obj->Set(context, StringFromUtf8("my_host_object"), v8::True(isolate))
+            .Check();
+        return obj;
+      }));
+  RoundTripTest("({ a: { my_host_object: true }, get b() { return this.a; }})");
+  ExpectScriptTrue("!('my_host_object' in result)");
+  ExpectScriptTrue("result.a.my_host_object");
+  ExpectScriptTrue("result.a === result.b");
 }
 
 class ValueSerializerTestWithHostArrayBufferView
@@ -2523,15 +3164,15 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   }
 
  protected:
-  static void SetUpTestCase() {
-    g_saved_flag = i::FLAG_expose_wasm;
-    i::FLAG_expose_wasm = true;
-    ValueSerializerTest::SetUpTestCase();
+  static void SetUpTestSuite() {
+    g_saved_flag = i::v8_flags.expose_wasm;
+    i::v8_flags.expose_wasm = true;
+    ValueSerializerTest::SetUpTestSuite();
   }
 
-  static void TearDownTestCase() {
-    ValueSerializerTest::TearDownTestCase();
-    i::FLAG_expose_wasm = g_saved_flag;
+  static void TearDownTestSuite() {
+    ValueSerializerTest::TearDownTestSuite();
+    i::v8_flags.expose_wasm = g_saved_flag;
     g_saved_flag = false;
   }
 
@@ -2592,9 +3233,9 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
     i::wasm::ErrorThrower thrower(i_isolate(), "MakeWasm");
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
     i::MaybeHandle<i::JSObject> compiled =
-        i_isolate()->wasm_engine()->SyncCompile(
+        i::wasm::GetWasmEngine()->SyncCompile(
             i_isolate(), enabled_features, &thrower,
-            i::wasm::ModuleWireBytes(i::ArrayVector(kIncrementerWasm)));
+            i::wasm::ModuleWireBytes(base::ArrayVector(kIncrementerWasm)));
     CHECK(!thrower.error());
     return Local<WasmModuleObject>::Cast(
         Utils::ToLocal(compiled.ToHandleChecked()));
@@ -2879,6 +3520,21 @@ TEST_F(ValueSerializerTest, NonStringErrorStack) {
   ASSERT_TRUE(error->Get(deserialization_context(), StringFromUtf8("stack"))
                   .ToLocal(&stack));
   EXPECT_TRUE(stack->IsUndefined());
+}
+
+TEST_F(ValueSerializerTest, InvalidLegacyFormatData) {
+  std::vector<uint8_t> data = {0xFF, 0x0, 0xDE, 0xAD, 0xDA, 0xDA};
+  Local<Context> context = deserialization_context();
+  Context::Scope scope(context);
+  TryCatch try_catch(isolate());
+  ValueDeserializer deserializer(isolate(), &data[0],
+                                 static_cast<int>(data.size()),
+                                 GetDeserializerDelegate());
+  deserializer.SetSupportsLegacyWireFormat(true);
+  BeforeDecode(&deserializer);
+  CHECK(deserializer.ReadHeader(context).FromMaybe(false));
+  CHECK(deserializer.ReadValue(context).IsEmpty());
+  CHECK(try_catch.HasCaught());
 }
 
 }  // namespace

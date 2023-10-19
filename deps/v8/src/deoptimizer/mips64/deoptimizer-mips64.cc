@@ -7,15 +7,8 @@
 namespace v8 {
 namespace internal {
 
-const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
-const int Deoptimizer::kNonLazyDeoptExitSize = 3 * kInstrSize;
+const int Deoptimizer::kEagerDeoptExitSize = 3 * kInstrSize;
 const int Deoptimizer::kLazyDeoptExitSize = 3 * kInstrSize;
-const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 5 * kInstrSize;
-const int Deoptimizer::kEagerWithResumeDeoptExitSize =
-    kEagerWithResumeBeforeArgsSize + 2 * kSystemPointerSize;
-const int Deoptimizer::kEagerWithResumeImmedArgs1PcOffset = 2 * kInstrSize;
-const int Deoptimizer::kEagerWithResumeImmedArgs2PcOffset =
-    2 * kInstrSize + kSystemPointerSize;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(

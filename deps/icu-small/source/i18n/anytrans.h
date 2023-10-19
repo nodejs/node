@@ -66,18 +66,18 @@ public:
     /**
      * Transliterator API.
      */
-    virtual AnyTransliterator* clone() const;
+    virtual AnyTransliterator* clone() const override;
 
     /**
      * Implements {@link Transliterator#handleTransliterate}.
      */
     virtual void handleTransliterate(Replaceable& text, UTransPosition& index,
-                                     UBool incremental) const;
+                                     UBool incremental) const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -107,7 +107,7 @@ private:
 
     /**
      * Returns a transliterator from the given source to our target or
-     * target/variant.  Returns NULL if the source is the same as our
+     * target/variant.  Returns nullptr if the source is the same as our
      * target script, or if the source is USCRIPT_INVALID_CODE.
      * Caches the result and returns the same transliterator the next
      * time.  The caller does NOT own the result and must not delete

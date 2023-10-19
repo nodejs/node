@@ -10,8 +10,8 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
+#include "test/common/code-assembler-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -53,7 +53,7 @@ TEST(SimpleSmiReturn) {
   CodeAssembler m(asm_tester.state());
   m.Return(SmiTag(&m, m.IntPtrConstant(37)));
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(37, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(37, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(SimpleIntPtrReturn) {
@@ -65,7 +65,7 @@ TEST(SimpleIntPtrReturn) {
       m.IntPtrConstant(reinterpret_cast<intptr_t>(&test))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(reinterpret_cast<Address>(&test), result.ToHandleChecked()->ptr());
+  CHECK_EQ(reinterpret_cast<Address>(&test), (*result.ToHandleChecked()).ptr());
 }
 
 TEST(SimpleDoubleReturn) {
@@ -86,7 +86,7 @@ TEST(SimpleCallRuntime1Arg) {
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.Return(m.CallRuntime(Runtime::kIsSmi, context, b));
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK(ft.CallChecked<Oddball>().is_identical_to(
+  CHECK(ft.CallChecked<Boolean>().is_identical_to(
       isolate->factory()->true_value()));
 }
 
@@ -99,7 +99,7 @@ TEST(SimpleTailCallRuntime1Arg) {
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.TailCallRuntime(Runtime::kIsSmi, context, b);
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK(ft.CallChecked<Oddball>().is_identical_to(
+  CHECK(ft.CallChecked<Boolean>().is_identical_to(
       isolate->factory()->true_value()));
 }
 
@@ -113,7 +113,7 @@ TEST(SimpleCallRuntime2Arg) {
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(6, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(6, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(SimpleTailCallRuntime2Arg) {
@@ -126,7 +126,7 @@ TEST(SimpleTailCallRuntime2Arg) {
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.TailCallRuntime(Runtime::kAdd, context, a, b);
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(6, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(6, (*ft.CallChecked<Smi>()).value());
 }
 
 namespace {
@@ -148,12 +148,11 @@ Handle<JSFunction> CreateSumAllArgumentsFunction(FunctionTester* ft) {
 TEST(SimpleCallJSFunction0Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
-  const int kContextOffset = kNumParams + 3;
-  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeAssembler m(asm_tester.state());
   {
     auto function = m.Parameter<JSFunction>(1);
-    auto context = m.Parameter<Context>(kContextOffset);
+    auto context = m.GetJSContextParameter();
 
     auto receiver = SmiTag(&m, m.IntPtrConstant(42));
 
@@ -171,12 +170,11 @@ TEST(SimpleCallJSFunction0Arg) {
 TEST(SimpleCallJSFunction1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
-  const int kContextOffset = kNumParams + 3;
-  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeAssembler m(asm_tester.state());
   {
     auto function = m.Parameter<JSFunction>(1);
-    auto context = m.Parameter<Context>(kContextOffset);
+    auto context = m.GetJSContextParameter();
 
     Node* receiver = SmiTag(&m, m.IntPtrConstant(42));
     Node* a = SmiTag(&m, m.IntPtrConstant(13));
@@ -195,12 +193,11 @@ TEST(SimpleCallJSFunction1Arg) {
 TEST(SimpleCallJSFunction2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  const int kContextOffset = kNumParams + 3;
-  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeAssembler m(asm_tester.state());
   {
     auto function = m.Parameter<JSFunction>(1);
-    auto context = m.Parameter<Context>(kContextOffset);
+    auto context = m.GetJSContextParameter();
 
     Node* receiver = SmiTag(&m, m.IntPtrConstant(42));
     Node* a = SmiTag(&m, m.IntPtrConstant(13));
@@ -446,7 +443,7 @@ TEST(TestOutOfScopeVariable) {
 TEST(ExceptionHandler) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 0;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeAssembler m(asm_tester.state());
 
   TVariable<Object> var(m.SmiConstant(0), &m);
@@ -463,14 +460,15 @@ TEST(ExceptionHandler) {
   m.Return(var.value());
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(2, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(2, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(TestCodeAssemblerCodeComment) {
-  i::FLAG_code_comments = true;
+#ifdef V8_CODE_COMMENTS
+  i::v8_flags.code_comments = true;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 0;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeAssembler m(asm_tester.state());
 
   m.Comment("Comment1");
@@ -486,6 +484,7 @@ TEST(TestCodeAssemblerCodeComment) {
     it.Next();
   }
   CHECK(found_comment);
+#endif  // V8_CODE_COMMENTS
 }
 
 TEST(StaticAssert) {

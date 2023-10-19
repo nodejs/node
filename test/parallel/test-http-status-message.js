@@ -38,7 +38,10 @@ function test() {
   const client = net.connect(
     this.address().port,
     function() {
-      client.write('GET / HTTP/1.1\r\nConnection: close\r\n\r\n');
+      client.write(
+        'GET / HTTP/1.1\r\n' +
+        'Host: example.com\r\n' +
+        'Connection: close\r\n\r\n');
     }
   );
   client.on('data', function(chunk) {

@@ -2,15 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import os
 
 from testrunner.local import command
 from testrunner.local import utils
 from testrunner.local import testsuite
 from testrunner.objects import testcase
+
+SHELL = "wasm_api_tests"
 
 
 class VariantsGenerator(testsuite.VariantsGenerator):
@@ -20,17 +19,14 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 
 class TestLoader(testsuite.TestLoader):
   def _list_test_filenames(self):
-    shell = os.path.abspath(
-      os.path.join(self.test_config.shell_dir, "wasm_api_tests"))
-    if utils.IsWindows():
-      shell += ".exe"
-
     output = None
     for i in range(3): # Try 3 times in case of errors.
-      cmd = command.Command(
-        cmd_prefix=self.test_config.command_prefix,
-        shell=shell,
-        args=['--gtest_list_tests'] + self.test_config.extra_flags)
+      args = ['--gtest_list_tests'] + self.test_config.extra_flags
+      cmd = self.ctx.command(
+          cmd_prefix=self.test_config.command_prefix,
+          shell=self.ctx.platform_shell(SHELL, args,
+                                        self.test_config.shell_dir),
+          args=args)
       output = cmd.execute()
       if output.exit_code == 0:
         break
@@ -73,14 +69,10 @@ class TestSuite(testsuite.TestSuite):
 class TestCase(testcase.TestCase):
   def _get_suite_flags(self):
     return (
-        ["--gtest_filter=" + self.path] +
-        ["--gtest_random_seed=%s" % self.random_seed] +
+        [f"--gtest_filter={self.name}"] +
+        [f"--gtest_random_seed={self.random_seed}"] +
         ["--gtest_print_time=0"]
     )
 
   def get_shell(self):
-    return "wasm_api_tests"
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+    return SHELL

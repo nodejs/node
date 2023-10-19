@@ -11,15 +11,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow throwing literals as exceptions",
-            category: "Best Practices",
+            description: "Disallow throwing literals as exceptions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-throw-literal"
+            url: "https://eslint.org/docs/latest/rules/no-throw-literal"
         },
 
         schema: [],

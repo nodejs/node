@@ -26,16 +26,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import fnmatch
 import imp
 import itertools
 import os
-from contextlib import contextmanager
 
-from . import command
+from contextlib import contextmanager
+from pathlib import Path
+
 from . import statusfile
 from . import utils
-from ..objects.testcase import TestCase
 from .variants import ALL_VARIANTS, ALL_VARIANT_FLAGS
 
 
@@ -84,7 +83,8 @@ class TestLoader(object):
   """Base class for loading TestSuite tests after applying test suite
   transformations."""
 
-  def __init__(self, suite, test_class, test_config, test_root):
+  def __init__(self, ctx, suite, test_class, test_config, test_root):
+    self.ctx = ctx
     self.suite = suite
     self.test_class = test_class
     self.test_config = test_config
@@ -108,22 +108,14 @@ class TestLoader(object):
     logic before the test creation."""
     return filename
 
-  # TODO: not needed for every TestLoader, extract it into a subclass.
-  def _path_to_name(self, path):
-    if utils.IsWindows():
-      return path.replace(os.path.sep, "/")
-
-    return path
-
   def _create_test(self, path, suite, **kwargs):
     """Converts paths into test objects using the given options"""
-    return self.test_class(
-      suite, path, self._path_to_name(path), self.test_config, **kwargs)
+    return self.test_class(suite, path, path.as_posix(), **kwargs)
 
   def list_tests(self):
     """Loads and returns the test objects for a TestSuite"""
     # TODO: detect duplicate tests.
-    for filename in self._list_test_filenames():
+    for filename in map(Path, self._list_test_filenames()):
       if self._should_filter_by_name(filename):
         continue
 
@@ -159,7 +151,7 @@ class GenericTestLoader(TestLoader):
 
   def __find_extension(self, filename):
     for extension in self.extensions:
-      if filename.endswith(extension):
+      if filename.name.endswith(extension):
         return extension
 
     return False
@@ -169,10 +161,10 @@ class GenericTestLoader(TestLoader):
       return True
 
     for suffix in self.excluded_suffixes:
-      if filename.endswith(suffix):
+      if filename.name.endswith(suffix):
         return True
 
-    if os.path.basename(filename) in self.excluded_files:
+    if filename.name in self.excluded_files:
       return True
 
     return False
@@ -182,14 +174,14 @@ class GenericTestLoader(TestLoader):
     if not extension:
       return filename
 
-    return filename[:-len(extension)]
+    return filename.parent / filename.name[:-len(extension)]
 
   def _to_relpath(self, abspath, test_root):
-    return os.path.relpath(abspath, test_root)
+    return abspath.relative_to(test_root)
 
   def _list_test_filenames(self):
     for test_dir in sorted(self.test_dirs):
-      test_root = os.path.join(self.test_root, test_dir)
+      test_root = self.test_root / test_dir
       for dirname, dirs, files in os.walk(test_root, followlinks=True):
         dirs.sort()
         for dir in dirs:
@@ -198,8 +190,7 @@ class GenericTestLoader(TestLoader):
 
         files.sort()
         for filename in files:
-          abspath = os.path.join(dirname, filename)
-
+          abspath = Path(dirname) / filename
           yield self._to_relpath(abspath, test_root)
 
 
@@ -223,7 +214,7 @@ class TestGenerator(object):
     return self
 
   def __next__(self):
-    return next(self)
+    return self.next()
 
   def next(self):
     return next(self._iterator)
@@ -249,24 +240,30 @@ def _load_testsuite_module(name, root):
 
 class TestSuite(object):
   @staticmethod
-  def Load(root, test_config, framework_name):
-    name = root.split(os.path.sep)[-1]
+  def Load(ctx, root, test_config):
+    name = root.name
     with _load_testsuite_module(name, root) as module:
-      return module.GetSuite(name, root, test_config, framework_name)
+      return module.TestSuite(ctx, name, root, test_config)
 
-  def __init__(self, name, root, test_config, framework_name):
+  def __init__(self, ctx, name, root, test_config):
     self.name = name  # string
-    self.root = root  # string containing path
+    self.root = root  # pathlib path
     self.test_config = test_config
-    self.framework_name = framework_name  # name of the test runner impl
     self.tests = None  # list of TestCase objects
     self.statusfile = None
 
-    self._test_loader = self._test_loader_class()(
-      self, self._test_class(), self.test_config, self.root)
+    self._test_loader = self._test_loader_class()(ctx, self, self._test_class(),
+                                                  self.test_config, self.root)
+
+  @property
+  def framework_name(self):
+    return self.test_config.framework_name
 
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
+
+  def statusfile_outcomes(self, test_name, variant):
+    return self.statusfile.get_outcomes(test_name, variant)
 
   @property
   def _test_loader_class(self):

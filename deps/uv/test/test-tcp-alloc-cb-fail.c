@@ -53,7 +53,7 @@ static void conn_read_cb(uv_stream_t* stream,
                          ssize_t nread,
                          const uv_buf_t* buf) {
   ASSERT(nread == UV_ENOBUFS);
-  ASSERT(buf->base == NULL);
+  ASSERT_NULL(buf->base);
   ASSERT(buf->len == 0);
 
   uv_close((uv_handle_t*) &incoming, close_cb);
@@ -118,6 +118,6 @@ TEST_IMPL(tcp_alloc_cb_fail) {
   ASSERT(connection_cb_called == 1);
   ASSERT(close_cb_called == 3);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

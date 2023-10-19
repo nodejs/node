@@ -1,6 +1,0 @@
-
-*test*message*throw_undefined.js:*
-throw undefined;
-^
-undefined
-(Use `* --trace-uncaught ...` to show where the exception was thrown)

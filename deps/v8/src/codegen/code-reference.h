@@ -5,12 +5,14 @@
 #ifndef V8_CODEGEN_CODE_REFERENCE_H_
 #define V8_CODEGEN_CODE_REFERENCE_H_
 
+#include "src/base/platform/platform.h"
 #include "src/handles/handles.h"
 #include "src/objects/code.h"
 
 namespace v8 {
 namespace internal {
 
+class InstructionStream;
 class Code;
 class CodeDesc;
 
@@ -20,44 +22,44 @@ class WasmCode;
 
 class CodeReference {
  public:
-  CodeReference() : kind_(NONE), null_(nullptr) {}
+  CodeReference() : kind_(Kind::NONE), null_(nullptr) {}
   explicit CodeReference(const wasm::WasmCode* wasm_code)
-      : kind_(WASM), wasm_code_(wasm_code) {}
+      : kind_(Kind::WASM_CODE), wasm_code_(wasm_code) {}
   explicit CodeReference(const CodeDesc* code_desc)
-      : kind_(CODE_DESC), code_desc_(code_desc) {}
-  explicit CodeReference(Handle<Code> js_code) : kind_(JS), js_code_(js_code) {}
+      : kind_(Kind::CODE_DESC), code_desc_(code_desc) {}
+  explicit CodeReference(Handle<Code> code) : kind_(Kind::CODE), code_(code) {}
 
   Address constant_pool() const;
   Address instruction_start() const;
   Address instruction_end() const;
   int instruction_size() const;
-  const byte* relocation_start() const;
-  const byte* relocation_end() const;
+  const uint8_t* relocation_start() const;
+  const uint8_t* relocation_end() const;
   int relocation_size() const;
   Address code_comments() const;
   int code_comments_size() const;
 
-  bool is_null() const { return kind_ == NONE; }
-  bool is_js() const { return kind_ == JS; }
-  bool is_wasm_code() const { return kind_ == WASM; }
+  bool is_null() const { return kind_ == Kind::NONE; }
+  bool is_code() const { return kind_ == Kind::CODE; }
+  bool is_wasm_code() const { return kind_ == Kind::WASM_CODE; }
 
-  Handle<Code> as_js_code() const {
-    DCHECK_EQ(JS, kind_);
-    return js_code_;
+  Handle<Code> as_code() const {
+    DCHECK_EQ(Kind::CODE, kind_);
+    return code_;
   }
 
   const wasm::WasmCode* as_wasm_code() const {
-    DCHECK_EQ(WASM, kind_);
+    DCHECK_EQ(Kind::WASM_CODE, kind_);
     return wasm_code_;
   }
 
  private:
-  enum { NONE, JS, WASM, CODE_DESC } kind_;
+  enum class Kind { NONE, CODE, WASM_CODE, CODE_DESC } kind_;
   union {
     std::nullptr_t null_;
     const wasm::WasmCode* wasm_code_;
     const CodeDesc* code_desc_;
-    Handle<Code> js_code_;
+    Handle<Code> code_;
   };
 
   DISALLOW_NEW_AND_DELETE()

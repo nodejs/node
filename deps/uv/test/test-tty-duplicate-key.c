@@ -55,7 +55,7 @@ static void print_err_msg(const char* expect, ssize_t expect_len,
 
 static void tty_alloc(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
   buf->base = malloc(size);
-  ASSERT(buf->base != NULL);
+  ASSERT_NOT_NULL(buf->base);
   buf->len = size;
 }
 
@@ -180,7 +180,7 @@ TEST_IMPL(tty_duplicate_vt100_fn_key) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -246,7 +246,7 @@ TEST_IMPL(tty_duplicate_alt_modifier_key) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -310,7 +310,7 @@ TEST_IMPL(tty_composing_character) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 

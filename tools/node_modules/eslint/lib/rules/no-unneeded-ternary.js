@@ -23,15 +23,15 @@ const OR_PRECEDENCE = astUtils.getPrecedence({ type: "LogicalExpression", operat
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow ternary operators when simpler alternatives exist",
-            category: "Stylistic Issues",
+            description: "Disallow ternary operators when simpler alternatives exist",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-unneeded-ternary"
+            url: "https://eslint.org/docs/latest/rules/no-unneeded-ternary"
         },
 
         schema: [
@@ -58,7 +58,7 @@ module.exports = {
     create(context) {
         const options = context.options[0] || {};
         const defaultAssignment = options.defaultAssignment !== false;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Test if the node is a boolean literal
@@ -144,7 +144,7 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "unnecessaryConditionalAssignment",
-                        fix: fixer => {
+                        fix(fixer) {
                             const shouldParenthesizeAlternate =
                                 (
                                     astUtils.getPrecedence(node.alternate) < OR_PRECEDENCE ||

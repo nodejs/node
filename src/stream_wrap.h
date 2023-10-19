@@ -105,7 +105,7 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
 
   // Callbacks for libuv
   void OnUvAlloc(size_t suggested_size, uv_buf_t* buf);
-  void OnUvRead(ssize_t nread, const uv_buf_t* buf);
+  v8::Maybe<void> OnUvRead(ssize_t nread, const uv_buf_t* buf);
 
   static void AfterUvWrite(uv_write_t* req, int status);
   static void AfterUvShutdown(uv_shutdown_t* req, int status);

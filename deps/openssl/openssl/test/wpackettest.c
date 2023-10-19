@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -9,18 +9,8 @@
 
 #include <string.h>
 #include <openssl/buffer.h>
-
-#ifdef __VMS
-# pragma names save
-# pragma names as_is,shortened
-#endif
-
-#include "../ssl/packet_local.h"
-
-#ifdef __VMS
-# pragma names restore
-#endif
-
+#include <openssl/rand.h>
+#include "internal/packet.h"
 #include "testutil.h"
 
 static const unsigned char simple1[] = { 0xff };
@@ -32,6 +22,9 @@ static const unsigned char empty[] = { 0x00 };
 static const unsigned char alloc[] = { 0x02, 0xfe, 0xff };
 static const unsigned char submem[] = { 0x03, 0x02, 0xfe, 0xff };
 static const unsigned char fixed[] = { 0xff, 0xff, 0xff };
+static const unsigned char simpleder[] = {
+    0xfc, 0x04, 0x00, 0x01, 0x02, 0x03, 0xff, 0xfe, 0xfd
+};
 
 static BUF_MEM *buf;
 
@@ -360,6 +353,77 @@ static int test_WPACKET_memcpy(void)
     return 1;
 }
 
+static int test_WPACKET_init_der(void)
+{
+    WPACKET pkt;
+    unsigned char sbuf[1024];
+    unsigned char testdata[] = { 0x00, 0x01, 0x02, 0x03 };
+    unsigned char testdata2[259]  = { 0x82, 0x01, 0x00 };
+    size_t written[2];
+    size_t size1, size2;
+    int flags = WPACKET_FLAGS_ABANDON_ON_ZERO_LENGTH;
+    int i;
+
+    /* Test initialising for writing DER */
+    if (!TEST_true(WPACKET_init_der(&pkt, sbuf, sizeof(sbuf)))
+            || !TEST_true(WPACKET_put_bytes_u24(&pkt, 0xfffefd))
+               /* Test writing data in a length prefixed sub-packet */
+            || !TEST_true(WPACKET_start_sub_packet(&pkt))
+            || !TEST_true(WPACKET_memcpy(&pkt, testdata, sizeof(testdata)))
+            || !TEST_true(WPACKET_close(&pkt))
+            || !TEST_true(WPACKET_put_bytes_u8(&pkt, 0xfc))
+            /* this sub-packet is empty, and should render zero bytes */
+            || (!TEST_true(WPACKET_start_sub_packet(&pkt))
+                || !TEST_true(WPACKET_set_flags(&pkt, flags))
+                || !TEST_true(WPACKET_get_total_written(&pkt, &size1))
+                || !TEST_true(WPACKET_close(&pkt))
+                || !TEST_true(WPACKET_get_total_written(&pkt, &size2))
+                || !TEST_size_t_eq(size1, size2))
+            || !TEST_true(WPACKET_finish(&pkt))
+            || !TEST_true(WPACKET_get_total_written(&pkt, &written[0]))
+            || !TEST_mem_eq(WPACKET_get_curr(&pkt), written[0], simpleder,
+                            sizeof(simpleder)))
+        return cleanup(&pkt);
+
+    /* Generate random packet data for test */
+    if (!TEST_int_gt(RAND_bytes(&testdata2[3], sizeof(testdata2) - 3), 0))
+        return 0;
+
+    /*
+     * Test with a sub-packet that has 2 length bytes. We do 2 passes - first
+     * with a NULL buffer, just to calculate lengths, and a second pass with a
+     * real buffer to actually generate a packet
+     */
+    for (i = 0; i < 2; i++) {
+        if (i == 0) {
+            if (!TEST_true(WPACKET_init_null_der(&pkt)))
+                return 0;
+        } else { 
+            if (!TEST_true(WPACKET_init_der(&pkt, sbuf, sizeof(sbuf))))
+                return 0;
+        }
+        if (!TEST_true(WPACKET_start_sub_packet(&pkt))
+            || !TEST_true(WPACKET_memcpy(&pkt, &testdata2[3],
+                                         sizeof(testdata2) - 3))
+            || !TEST_true(WPACKET_close(&pkt))
+            || !TEST_true(WPACKET_finish(&pkt))
+            || !TEST_true(WPACKET_get_total_written(&pkt, &written[i])))
+        return cleanup(&pkt);
+    }
+
+    /*
+     * Check that the size calculated in the first pass equals the size of the
+     * packet actually generated in the second pass. Also check the generated
+     * packet looks as we expect it to.
+     */
+    if (!TEST_size_t_eq(written[0], written[1])
+            || !TEST_mem_eq(WPACKET_get_curr(&pkt), written[1], testdata2,
+                            sizeof(testdata2)))
+        return 0;
+
+    return 1;
+}
+
 int setup_tests(void)
 {
     if (!TEST_ptr(buf = BUF_MEM_new()))
@@ -371,6 +435,7 @@ int setup_tests(void)
     ADD_TEST(test_WPACKET_set_flags);
     ADD_TEST(test_WPACKET_allocate_bytes);
     ADD_TEST(test_WPACKET_memcpy);
+    ADD_TEST(test_WPACKET_init_der);
     return 1;
 }
 

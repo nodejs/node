@@ -105,8 +105,8 @@ static void poll_cb(uv_fs_poll_t* handle,
 
   ASSERT(handle == &poll_handle);
   ASSERT(1 == uv_is_active((uv_handle_t*) handle));
-  ASSERT(prev != NULL);
-  ASSERT(curr != NULL);
+  ASSERT_NOT_NULL(prev);
+  ASSERT_NOT_NULL(curr);
 
   switch (poll_cb_called++) {
   case 0:
@@ -164,7 +164,7 @@ TEST_IMPL(fs_poll) {
   ASSERT(timer_cb_called == 2);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -192,7 +192,7 @@ TEST_IMPL(fs_poll_getpath) {
 
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -212,9 +212,7 @@ TEST_IMPL(fs_poll_close_request) {
     uv_run(&loop, UV_RUN_ONCE);
   ASSERT(close_cb_called == 1);
 
-  ASSERT(0 == uv_loop_close(&loop));
-
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
   return 0;
 }
 
@@ -238,9 +236,7 @@ TEST_IMPL(fs_poll_close_request_multi_start_stop) {
     uv_run(&loop, UV_RUN_ONCE);
   ASSERT(close_cb_called == 1);
 
-  ASSERT(0 == uv_loop_close(&loop));
-
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
   return 0;
 }
 
@@ -264,9 +260,7 @@ TEST_IMPL(fs_poll_close_request_multi_stop_start) {
     uv_run(&loop, UV_RUN_ONCE);
   ASSERT(close_cb_called == 1);
 
-  ASSERT(0 == uv_loop_close(&loop));
-
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
   return 0;
 }
 
@@ -293,8 +287,6 @@ TEST_IMPL(fs_poll_close_request_stop_when_active) {
   uv_run(&loop, UV_RUN_ONCE);
   ASSERT(close_cb_called == 1);
 
-  ASSERT(0 == uv_loop_close(&loop));
-
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
   return 0;
 }

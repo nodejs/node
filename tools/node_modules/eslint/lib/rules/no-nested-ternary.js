@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow nested ternary expressions",
-            category: "Stylistic Issues",
+            description: "Disallow nested ternary expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-nested-ternary"
+            url: "https://eslint.org/docs/latest/rules/no-nested-ternary"
         },
 
         schema: [],

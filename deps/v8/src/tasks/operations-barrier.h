@@ -69,7 +69,9 @@ class V8_EXPORT_PRIVATE OperationsBarrier {
 
    private:
     friend class OperationsBarrier;
-    explicit Token(OperationsBarrier* outer) : outer_(outer) {}
+    explicit Token(OperationsBarrier* outer) : outer_(outer) {
+      DCHECK_NOT_NULL(outer_);
+    }
     OperationsBarrier* outer_ = nullptr;
   };
 

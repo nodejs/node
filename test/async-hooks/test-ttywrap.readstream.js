@@ -35,7 +35,7 @@ const delayedOnCloseHandler = common.mustCall(() => {
 });
 process.stdin.on('error', (err) => assert.fail(err));
 process.stdin.on('close', common.mustCall(() =>
-  tick(2, delayedOnCloseHandler)
+  tick(2, delayedOnCloseHandler),
 ));
 process.stdin.destroy();
 checkInvocations(tty, checkInitOpts, 'when tty.end() was invoked');

@@ -5,9 +5,10 @@
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/heap-consistency.h"
+#include "src/base/macros.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap.h"
-#include "test/benchmarks/cpp/cppgc/utils.h"
+#include "test/benchmarks/cpp/cppgc/benchmark_utils.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace cppgc {
@@ -24,8 +25,10 @@ class TinyObject final : public cppgc::GarbageCollected<TinyObject> {
 BENCHMARK_F(Allocate, Tiny)(benchmark::State& st) {
   subtle::NoGarbageCollectionScope no_gc(*Heap::From(&heap()));
   for (auto _ : st) {
-    benchmark::DoNotOptimize(
-        cppgc::MakeGarbageCollected<TinyObject>(heap().GetAllocationHandle()));
+    USE(_);
+    TinyObject* result =
+        cppgc::MakeGarbageCollected<TinyObject>(heap().GetAllocationHandle());
+    benchmark::DoNotOptimize(result);
   }
   st.SetBytesProcessed(st.iterations() * sizeof(TinyObject));
 }
@@ -39,8 +42,10 @@ class LargeObject final : public GarbageCollected<LargeObject> {
 BENCHMARK_F(Allocate, Large)(benchmark::State& st) {
   subtle::NoGarbageCollectionScope no_gc(*Heap::From(&heap()));
   for (auto _ : st) {
-    benchmark::DoNotOptimize(
-        cppgc::MakeGarbageCollected<LargeObject>(heap().GetAllocationHandle()));
+    USE(_);
+    LargeObject* result =
+        cppgc::MakeGarbageCollected<LargeObject>(heap().GetAllocationHandle());
+    benchmark::DoNotOptimize(result);
   }
   st.SetBytesProcessed(st.iterations() * sizeof(LargeObject));
 }

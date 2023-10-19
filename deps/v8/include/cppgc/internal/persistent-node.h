@@ -14,10 +14,11 @@
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
-
-class Visitor;
-
 namespace internal {
+
+class CrossThreadPersistentRegion;
+class FatalOutOfMemoryHandler;
+class RootVisitor;
 
 // PersistentNode represents a variant of two states:
 // 1) traceable node with a back pointer to the Persistent object;
@@ -29,7 +30,8 @@ class PersistentNode final {
   PersistentNode(const PersistentNode&) = delete;
   PersistentNode& operator=(const PersistentNode&) = delete;
 
-  void InitializeAsUsedNode(void* owner, TraceCallback trace) {
+  void InitializeAsUsedNode(void* owner, TraceRootCallback trace) {
+    CPPGC_DCHECK(trace);
     owner_ = owner;
     trace_ = trace;
   }
@@ -49,9 +51,9 @@ class PersistentNode final {
     return next_;
   }
 
-  void Trace(Visitor* visitor) const {
+  void Trace(RootVisitor& root_visitor) const {
     CPPGC_DCHECK(IsUsed());
-    trace_(visitor, owner_);
+    trace_(root_visitor, owner_);
   }
 
   bool IsUsed() const { return trace_; }
@@ -69,60 +71,140 @@ class PersistentNode final {
     void* owner_ = nullptr;
     PersistentNode* next_;
   };
-  TraceCallback trace_ = nullptr;
+  TraceRootCallback trace_ = nullptr;
 };
 
-class V8_EXPORT PersistentRegion final {
+class V8_EXPORT PersistentRegionBase {
   using PersistentNodeSlots = std::array<PersistentNode, 256u>;
 
  public:
-  PersistentRegion() = default;
   // Clears Persistent fields to avoid stale pointers after heap teardown.
-  ~PersistentRegion();
+  ~PersistentRegionBase();
 
-  PersistentRegion(const PersistentRegion&) = delete;
-  PersistentRegion& operator=(const PersistentRegion&) = delete;
+  PersistentRegionBase(const PersistentRegionBase&) = delete;
+  PersistentRegionBase& operator=(const PersistentRegionBase&) = delete;
 
-  PersistentNode* AllocateNode(void* owner, TraceCallback trace) {
-    if (!free_list_head_) {
-      EnsureNodeSlots();
+  void Iterate(RootVisitor&);
+
+  size_t NodesInUse() const;
+
+  void ClearAllUsedNodes();
+
+ protected:
+  explicit PersistentRegionBase(const FatalOutOfMemoryHandler& oom_handler);
+
+  PersistentNode* TryAllocateNodeFromFreeList(void* owner,
+                                              TraceRootCallback trace) {
+    PersistentNode* node = nullptr;
+    if (V8_LIKELY(free_list_head_)) {
+      node = free_list_head_;
+      free_list_head_ = free_list_head_->FreeListNext();
+      CPPGC_DCHECK(!node->IsUsed());
+      node->InitializeAsUsedNode(owner, trace);
+      nodes_in_use_++;
     }
-    PersistentNode* node = free_list_head_;
-    free_list_head_ = free_list_head_->FreeListNext();
-    node->InitializeAsUsedNode(owner, trace);
-    nodes_in_use_++;
     return node;
   }
 
   void FreeNode(PersistentNode* node) {
+    CPPGC_DCHECK(node);
+    CPPGC_DCHECK(node->IsUsed());
     node->InitializeAsFreeNode(free_list_head_);
     free_list_head_ = node;
     CPPGC_DCHECK(nodes_in_use_ > 0);
     nodes_in_use_--;
   }
 
-  void Trace(Visitor*);
-
-  size_t NodesInUse() const;
-
-  void ClearAllUsedNodes();
+  PersistentNode* RefillFreeListAndAllocateNode(void* owner,
+                                                TraceRootCallback trace);
 
  private:
-  void EnsureNodeSlots();
+  template <typename PersistentBaseClass>
+  void ClearAllUsedNodes();
+
+  void RefillFreeList();
 
   std::vector<std::unique_ptr<PersistentNodeSlots>> nodes_;
   PersistentNode* free_list_head_ = nullptr;
   size_t nodes_in_use_ = 0;
+  const FatalOutOfMemoryHandler& oom_handler_;
+
+  friend class CrossThreadPersistentRegion;
 };
 
-// CrossThreadPersistent uses PersistentRegion but protects it using this lock
-// when needed.
+// Variant of PersistentRegionBase that checks whether the allocation and
+// freeing happens only on the thread that created the region.
+class V8_EXPORT PersistentRegion final : public PersistentRegionBase {
+ public:
+  explicit PersistentRegion(const FatalOutOfMemoryHandler&);
+  // Clears Persistent fields to avoid stale pointers after heap teardown.
+  ~PersistentRegion() = default;
+
+  PersistentRegion(const PersistentRegion&) = delete;
+  PersistentRegion& operator=(const PersistentRegion&) = delete;
+
+  V8_INLINE PersistentNode* AllocateNode(void* owner, TraceRootCallback trace) {
+    CPPGC_DCHECK(IsCreationThread());
+    auto* node = TryAllocateNodeFromFreeList(owner, trace);
+    if (V8_LIKELY(node)) return node;
+
+    // Slow path allocation allows for checking thread correspondence.
+    CPPGC_CHECK(IsCreationThread());
+    return RefillFreeListAndAllocateNode(owner, trace);
+  }
+
+  V8_INLINE void FreeNode(PersistentNode* node) {
+    CPPGC_DCHECK(IsCreationThread());
+    PersistentRegionBase::FreeNode(node);
+  }
+
+ private:
+  bool IsCreationThread();
+
+  int creation_thread_id_;
+};
+
+// CrossThreadPersistent uses PersistentRegionBase but protects it using this
+// lock when needed.
 class V8_EXPORT PersistentRegionLock final {
  public:
   PersistentRegionLock();
   ~PersistentRegionLock();
 
   static void AssertLocked();
+};
+
+// Variant of PersistentRegionBase that checks whether the PersistentRegionLock
+// is locked.
+class V8_EXPORT CrossThreadPersistentRegion final
+    : protected PersistentRegionBase {
+ public:
+  explicit CrossThreadPersistentRegion(const FatalOutOfMemoryHandler&);
+  // Clears Persistent fields to avoid stale pointers after heap teardown.
+  ~CrossThreadPersistentRegion();
+
+  CrossThreadPersistentRegion(const CrossThreadPersistentRegion&) = delete;
+  CrossThreadPersistentRegion& operator=(const CrossThreadPersistentRegion&) =
+      delete;
+
+  V8_INLINE PersistentNode* AllocateNode(void* owner, TraceRootCallback trace) {
+    PersistentRegionLock::AssertLocked();
+    auto* node = TryAllocateNodeFromFreeList(owner, trace);
+    if (V8_LIKELY(node)) return node;
+
+    return RefillFreeListAndAllocateNode(owner, trace);
+  }
+
+  V8_INLINE void FreeNode(PersistentNode* node) {
+    PersistentRegionLock::AssertLocked();
+    PersistentRegionBase::FreeNode(node);
+  }
+
+  void Iterate(RootVisitor&);
+
+  size_t NodesInUse() const;
+
+  void ClearAllUsedNodes();
 };
 
 }  // namespace internal

@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -10,12 +10,13 @@
 #include <assert.h>
 #include <limits.h>
 #include "internal/cryptlib.h"
+#include "internal/endian.h"
 #include "bn_local.h"
 #include <openssl/opensslconf.h>
 #include "internal/constant_time.h"
 
 /* This stuff appears to be completely unused, so is deprecated */
-#if OPENSSL_API_COMPAT < 0x00908000L
+#ifndef OPENSSL_NO_DEPRECATED_0_9_8
 /*-
  * For a 32 bit machine
  * 2 -   4 ==  128
@@ -244,7 +245,7 @@ BIGNUM *BN_new(void)
     BIGNUM *ret;
 
     if ((ret = OPENSSL_zalloc(sizeof(*ret))) == NULL) {
-        BNerr(BN_F_BN_NEW, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
     ret->flags = BN_FLG_MALLOCED;
@@ -267,11 +268,11 @@ static BN_ULONG *bn_expand_internal(const BIGNUM *b, int words)
     BN_ULONG *a = NULL;
 
     if (words > (INT_MAX / (4 * BN_BITS2))) {
-        BNerr(BN_F_BN_EXPAND_INTERNAL, BN_R_BIGNUM_TOO_LONG);
+        ERR_raise(ERR_LIB_BN, BN_R_BIGNUM_TOO_LONG);
         return NULL;
     }
     if (BN_get_flags(b, BN_FLG_STATIC_DATA)) {
-        BNerr(BN_F_BN_EXPAND_INTERNAL, BN_R_EXPAND_ON_STATIC_BIGNUM_DATA);
+        ERR_raise(ERR_LIB_BN, BN_R_EXPAND_ON_STATIC_BIGNUM_DATA);
         return NULL;
     }
     if (BN_get_flags(b, BN_FLG_SECURE))
@@ -279,7 +280,7 @@ static BN_ULONG *bn_expand_internal(const BIGNUM *b, int words)
     else
         a = OPENSSL_zalloc(words * sizeof(*a));
     if (a == NULL) {
-        BNerr(BN_F_BN_EXPAND_INTERNAL, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
 
@@ -504,7 +505,8 @@ int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen, endianess_t endiane
     /* Swipe through whole available data and don't give away padded zero. */
     atop = a->dmax * BN_BYTES;
     if (atop == 0) {
-        OPENSSL_cleanse(to, tolen);
+        if (tolen != 0)
+            memset(to, '\0', tolen);
         return tolen;
     }
 
@@ -591,6 +593,24 @@ int BN_bn2lebinpad(const BIGNUM *a, unsigned char *to, int tolen)
     if (tolen < 0)
         return -1;
     return bn2binpad(a, to, tolen, little);
+}
+
+BIGNUM *BN_native2bn(const unsigned char *s, int len, BIGNUM *ret)
+{
+    DECLARE_IS_ENDIAN;
+
+    if (IS_LITTLE_ENDIAN)
+        return BN_lebin2bn(s, len, ret);
+    return BN_bin2bn(s, len, ret);
+}
+
+int BN_bn2nativepad(const BIGNUM *a, unsigned char *to, int tolen)
+{
+    DECLARE_IS_ENDIAN;
+
+    if (IS_LITTLE_ENDIAN)
+        return BN_bn2lebinpad(a, to, tolen);
+    return BN_bn2binpad(a, to, tolen);
 }
 
 int BN_ucmp(const BIGNUM *a, const BIGNUM *b)
@@ -947,7 +967,7 @@ BN_GENCB *BN_GENCB_new(void)
     BN_GENCB *ret;
 
     if ((ret = OPENSSL_malloc(sizeof(*ret))) == NULL) {
-        BNerr(BN_F_BN_GENCB_NEW, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
 
@@ -999,6 +1019,28 @@ void *BN_GENCB_get_arg(BN_GENCB *cb)
 BIGNUM *bn_wexpand(BIGNUM *a, int words)
 {
     return (words <= a->dmax) ? a : bn_expand2(a, words);
+}
+
+void bn_correct_top_consttime(BIGNUM *a)
+{
+    int j, atop;
+    BN_ULONG limb;
+    unsigned int mask;
+
+    for (j = 0, atop = 0; j < a->dmax; j++) {
+        limb = a->d[j];
+        limb |= 0 - limb;
+        limb >>= BN_BITS2 - 1;
+        limb = 0 - limb;
+        mask = (unsigned int)limb;
+        mask &= constant_time_msb(j - a->top);
+        atop = constant_time_select_int(mask, j + 1, atop);
+    }
+
+    mask = constant_time_eq_int(atop, 0);
+    a->top = atop;
+    a->neg = constant_time_select_int(mask, 0, a->neg);
+    a->flags &= ~BN_FLG_FIXED_TOP;
 }
 
 void bn_correct_top(BIGNUM *a)

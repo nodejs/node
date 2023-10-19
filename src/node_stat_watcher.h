@@ -39,7 +39,8 @@ class ExternalReferenceRegistry;
 
 class StatWatcher : public HandleWrap {
  public:
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> ctor);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
  protected:

@@ -4,7 +4,7 @@
 
 "use strict";
 
-load('bigint-util.js');
+d8.file.execute('bigint-util.js');
 
 let initial_diff = 0n;
 let a = 0n;
@@ -16,12 +16,6 @@ let random_bigints = [];
 // results.
 new BenchmarkSuite('Prevent-Inline-Dummy', [10000], [
   new Benchmark('Prevent-Inline-Dummy', true, false, 0, () => {})
-]);
-
-
-new BenchmarkSuite('Subtract-TypeError', [10000], [
-  new Benchmark('Subtract-TypeError', true, false, 0, TestSubtractTypeError,
-    SetUpTestSubtractTypeError)
 ]);
 
 
@@ -110,24 +104,6 @@ function TestSubtractRandom() {
     diff = diff - random_bigints[i];
   }
 
-  return diff;
-}
-
-
-function SetUpTestSubtractTypeError() {
-  initial_diff = 42n;
-}
-
-
-function TestSubtractTypeError() {
-  let diff = initial_diff;
-  for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
-    try {
-      diff = 0 - diff;
-    }
-    catch(e) {
-    }
-  }
   return diff;
 }
 

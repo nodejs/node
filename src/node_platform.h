@@ -147,20 +147,20 @@ class NodePlatform : public MultiIsolatePlatform {
 
   // v8::Platform implementation.
   int NumberOfWorkerThreads() override;
-  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
-                                  std::unique_ptr<Task> task,
-                                  const SourceLocation& location) override;
+  void PostTaskOnWorkerThreadImpl(v8::TaskPriority priority,
+                                  std::unique_ptr<v8::Task> task,
+                                  const v8::SourceLocation& location) override;
   void PostDelayedTaskOnWorkerThreadImpl(
-      TaskPriority priority, std::unique_ptr<Task> task,
-      double delay_in_seconds, const SourceLocation& location) override;
+      v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
+      double delay_in_seconds, const v8::SourceLocation& location) override;
   bool IdleTasksEnabled(v8::Isolate* isolate) override;
   double MonotonicallyIncreasingTime() override;
   double CurrentClockTimeMillis() override;
   v8::TracingController* GetTracingController() override;
   bool FlushForegroundTasks(v8::Isolate* isolate) override;
   std::unique_ptr<JobHandle> CreateJobImpl(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task,
-      const SourceLocation& location) override;
+      v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task,
+      const v8::SourceLocation& location) override;
 
   void RegisterIsolate(v8::Isolate* isolate, uv_loop_t* loop) override;
   void RegisterIsolate(v8::Isolate* isolate,

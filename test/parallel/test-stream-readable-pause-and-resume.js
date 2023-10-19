@@ -56,3 +56,19 @@ function readAndPause() {
     assert(readable.isPaused());
   });
 }
+
+{
+  const { PassThrough } = require('stream');
+
+  const source3 = new PassThrough();
+  const target3 = new PassThrough();
+
+  const chunk = Buffer.allocUnsafe(1000);
+  while (target3.write(chunk));
+
+  source3.pipe(target3);
+  target3.on('drain', common.mustCall(() => {
+    assert(!source3.isPaused());
+  }));
+  target3.on('data', () => {});
+}

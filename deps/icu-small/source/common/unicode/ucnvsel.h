@@ -36,6 +36,7 @@
 
 /**
  * \file
+ * \brief C API: Encoding/charset encoding selector
  *
  * A converter selector is built with a set of encoding/charset names
  * and given an input string returns the set of names of the
@@ -58,7 +59,7 @@ typedef struct UConverterSelector UConverterSelector;
  * If converterListSize is 0, build for all available converters.
  * If excludedCodePoints is NULL, don't exclude any code points.
  *
- * @param converterList a pointer to encoding names needed to be involved.
+ * @param converterList a pointer to encoding names needed to be involved. 
  *                      Can be NULL if converterListSize==0.
  *                      The list and the names will be cloned, and the caller
  *                      retains ownership of the original.

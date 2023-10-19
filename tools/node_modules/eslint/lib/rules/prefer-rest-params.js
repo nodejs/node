@@ -30,7 +30,7 @@ function getVariableOfArguments(scope) {
         }
     }
 
-    /* istanbul ignore next : unreachable */
+    /* c8 ignore next */
     return null;
 }
 
@@ -59,15 +59,15 @@ function isNotNormalMemberAccess(reference) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require rest parameters instead of `arguments`",
-            category: "ECMAScript 6",
+            description: "Require rest parameters instead of `arguments`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-rest-params"
+            url: "https://eslint.org/docs/latest/rules/prefer-rest-params"
         },
 
         schema: [],
@@ -78,6 +78,8 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports a given reference.
@@ -94,10 +96,11 @@ module.exports = {
 
         /**
          * Reports references of the implicit `arguments` variable if exist.
+         * @param {ASTNode} node The node representing the function.
          * @returns {void}
          */
-        function checkForArguments() {
-            const argumentsVar = getVariableOfArguments(context.getScope());
+        function checkForArguments(node) {
+            const argumentsVar = getVariableOfArguments(sourceCode.getScope(node));
 
             if (argumentsVar) {
                 argumentsVar

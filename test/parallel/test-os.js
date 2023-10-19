@@ -75,11 +75,20 @@ if (common.isWindows) {
 
 const endianness = os.endianness();
 is.string(endianness);
-assert.ok(/[BL]E/.test(endianness));
+assert.match(endianness, /[BL]E/);
 
 const hostname = os.hostname();
 is.string(hostname);
 assert.ok(hostname.length > 0);
+
+// IBMi process priority is different.
+if (!common.isIBMi) {
+  const DUMMY_PRIORITY = 10;
+  os.setPriority(DUMMY_PRIORITY);
+  const priority = os.getPriority();
+  is.number(priority);
+  assert.strictEqual(priority, DUMMY_PRIORITY);
+}
 
 // On IBMi, os.uptime() returns 'undefined'
 if (!common.isIBMi) {
@@ -110,7 +119,7 @@ is.string(release);
 assert.ok(release.length > 0);
 // TODO: Check format on more than just AIX
 if (common.isAIX)
-  assert.ok(/^\d+\.\d+$/.test(release));
+  assert.match(release, /^\d+\.\d+$/);
 
 const platform = os.platform();
 is.string(platform);
@@ -245,7 +254,7 @@ assert.strictEqual(`${os.tmpdir}`, os.tmpdir());
 assert.strictEqual(`${os.arch}`, os.arch());
 assert.strictEqual(`${os.platform}`, os.platform());
 assert.strictEqual(`${os.version}`, os.version());
-
+assert.strictEqual(`${os.machine}`, os.machine());
 assert.strictEqual(+os.totalmem, os.totalmem());
 
 // Assert that the following values are coercible to numbers.
@@ -255,6 +264,8 @@ if (!common.isIBMi) {
   is.number(os.uptime(), 'uptime');
 }
 
+is.number(+os.availableParallelism, 'availableParallelism');
+is.number(os.availableParallelism(), 'availableParallelism');
 is.number(+os.freemem, 'freemem');
 is.number(os.freemem(), 'freemem');
 
@@ -264,3 +275,5 @@ if (common.isWindows) {
 } else {
   assert.strictEqual(devNull, '/dev/null');
 }
+
+assert.ok(os.availableParallelism() > 0);

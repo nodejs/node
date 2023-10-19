@@ -1,3 +1,6 @@
+#ifndef JS_NATIVE_API_COMMON_H_
+#define JS_NATIVE_API_COMMON_H_
+
 #include <js_native_api.h>
 
 // Empty value so that macros here are able to return NULL or void
@@ -8,12 +11,13 @@
     const napi_extended_error_info *error_info;                          \
     napi_get_last_error_info((env), &error_info);                        \
     bool is_pending;                                                     \
+    const char* err_message = error_info->error_message;                  \
     napi_is_exception_pending((env), &is_pending);                       \
     /* If an exception is already pending, don't rethrow it */           \
     if (!is_pending) {                                                   \
-      const char* error_message = error_info->error_message != NULL ?    \
-        error_info->error_message :                                      \
-        "empty error message";                                           \
+      const char* error_message = err_message != NULL ?                  \
+                       err_message :                                     \
+                      "empty error message";                             \
       napi_throw_error((env), NULL, error_message);                      \
     }                                                                    \
   } while (0)
@@ -55,17 +59,37 @@
 #define NODE_API_CALL_RETURN_VOID(env, the_call)                         \
   NODE_API_CALL_BASE(env, the_call, NODE_API_RETVAL_NOTHING)
 
+#define NODE_API_CHECK_STATUS(the_call)                                   \
+  do {                                                                         \
+    napi_status status = (the_call);                                           \
+    if (status != napi_ok) {                                                   \
+      return status;                                                           \
+    }                                                                          \
+  } while (0)
+
+#define NODE_API_ASSERT_STATUS(env, assertion, message)                        \
+  NODE_API_ASSERT_BASE(env, assertion, message, napi_generic_failure)
+
 #define DECLARE_NODE_API_PROPERTY(name, func)                            \
   { (name), NULL, (func), NULL, NULL, NULL, napi_default, NULL }
 
 #define DECLARE_NODE_API_GETTER(name, func)                              \
   { (name), NULL, NULL, (func), NULL, NULL, napi_default, NULL }
 
-void add_returned_status(napi_env env,
-                         const char* key,
-                         napi_value object,
-                         char* expected_message,
-                         napi_status expected_status,
-                         napi_status actual_status);
+#define DECLARE_NODE_API_PROPERTY_VALUE(name, value)                     \
+  { (name), NULL, NULL, NULL, NULL, (value), napi_default, NULL }
 
-void add_last_status(napi_env env, const char* key, napi_value return_value);
+static inline void add_returned_status(napi_env env,
+                                       const char* key,
+                                       napi_value object,
+                                       char* expected_message,
+                                       napi_status expected_status,
+                                       napi_status actual_status);
+
+static inline void add_last_status(napi_env env,
+                                   const char* key,
+                                   napi_value return_value);
+
+#include "common-inl.h"
+
+#endif  // JS_NATIVE_API_COMMON_H_

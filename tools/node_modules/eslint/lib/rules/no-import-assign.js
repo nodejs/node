@@ -9,7 +9,7 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-const { findVariable } = require("eslint-utils");
+const { findVariable } = require("@eslint-community/eslint-utils");
 const astUtils = require("./utils/ast-utils");
 
 const WellKnownMutationFunctions = {
@@ -174,15 +174,15 @@ function getWriteNode(id) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow assigning to imported bindings",
-            category: "Possible Errors",
+            description: "Disallow assigning to imported bindings",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-import-assign"
+            url: "https://eslint.org/docs/latest/rules/no-import-assign"
         },
 
         schema: [],
@@ -194,11 +194,13 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.sourceCode;
+
         return {
             ImportDeclaration(node) {
-                const scope = context.getScope();
+                const scope = sourceCode.getScope(node);
 
-                for (const variable of context.getDeclaredVariables(node)) {
+                for (const variable of sourceCode.getDeclaredVariables(node)) {
                     const shouldCheckMembers = variable.defs.some(
                         d => d.node.type === "ImportNamespaceSpecifier"
                     );

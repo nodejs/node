@@ -10,12 +10,11 @@ namespace internal {
 
 CombinedHeapObjectIterator::CombinedHeapObjectIterator(
     Heap* heap, HeapObjectIterator::HeapObjectsFiltering filtering)
-    : safepoint_scope_(heap),
-      heap_iterator_(heap, filtering),
+    : heap_iterator_(heap, filtering),
       ro_heap_iterator_(heap->isolate()->read_only_heap()) {}
 
-HeapObject CombinedHeapObjectIterator::Next() {
-  HeapObject object = ro_heap_iterator_.Next();
+Tagged<HeapObject> CombinedHeapObjectIterator::Next() {
+  Tagged<HeapObject> object = ro_heap_iterator_.Next();
   if (!object.is_null()) {
     return object;
   }

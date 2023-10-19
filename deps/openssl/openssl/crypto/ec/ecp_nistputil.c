@@ -1,7 +1,7 @@
 /*
- * Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -23,17 +23,20 @@
  *  limitations under the License.
  */
 
+/*
+ * ECDSA low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
+
 #include <openssl/opensslconf.h>
-#ifdef OPENSSL_NO_EC_NISTP_64_GCC_128
-NON_EMPTY_TRANSLATION_UNIT
-#else
 
 /*
  * Common utility functions for ecp_nistp224.c, ecp_nistp256.c, ecp_nistp521.c.
  */
 
-# include <stddef.h>
-# include "ec_local.h"
+#include <stddef.h>
+#include "ec_local.h"
 
 /*
  * Convert an array of points into affine coordinates. (If the point at
@@ -46,7 +49,8 @@ NON_EMPTY_TRANSLATION_UNIT
  * of size 'felem_size'. tmp_felems needs to point to a temporary array of
  * 'num'+1 field elements for storage of intermediate values.
  */
-void ec_GFp_nistp_points_make_affine_internal(size_t num, void *point_array,
+void
+ossl_ec_GFp_nistp_points_make_affine_internal(size_t num, void *point_array,
                                               size_t felem_size,
                                               void *tmp_felems,
                                               void (*felem_one) (void *out),
@@ -74,10 +78,10 @@ void ec_GFp_nistp_points_make_affine_internal(size_t num, void *point_array,
 {
     int i = 0;
 
-# define tmp_felem(I) (&((char *)tmp_felems)[(I) * felem_size])
-# define X(I) (&((char *)point_array)[3*(I) * felem_size])
-# define Y(I) (&((char *)point_array)[(3*(I) + 1) * felem_size])
-# define Z(I) (&((char *)point_array)[(3*(I) + 2) * felem_size])
+#define tmp_felem(I) (&((char *)tmp_felems)[(I) * felem_size])
+#define X(I) (&((char *)point_array)[3*(I) * felem_size])
+#define Y(I) (&((char *)point_array)[(3*(I) + 1) * felem_size])
+#define Z(I) (&((char *)point_array)[(3*(I) + 2) * felem_size])
 
     if (!felem_is_zero(Z(0)))
         felem_assign(tmp_felem(0), Z(0));
@@ -206,8 +210,8 @@ void ec_GFp_nistp_points_make_affine_internal(size_t num, void *point_array,
  * b_-1, has to be b_4 b_3 b_2 b_1 b_0 0.
  *
  */
-void ec_GFp_nistp_recode_scalar_bits(unsigned char *sign,
-                                     unsigned char *digit, unsigned char in)
+void ossl_ec_GFp_nistp_recode_scalar_bits(unsigned char *sign,
+                                          unsigned char *digit, unsigned char in)
 {
     unsigned char s, d;
 
@@ -220,4 +224,3 @@ void ec_GFp_nistp_recode_scalar_bits(unsigned char *sign,
     *sign = s & 1;
     *digit = d;
 }
-#endif

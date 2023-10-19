@@ -83,9 +83,9 @@ enum Key {
  *
  * This method is always safe and OK to chain: in the case of a memory or other
  * error, it returns an empty set from static memory.
- *
+ * 
  * Example:
- *
+ * 
  *     UBool hasIgnorables = unisets::get(unisets::DEFAULT_IGNORABLES)->contains(...);
  *
  * @param key The desired UnicodeSet according to the enum in this file.

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2020 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -22,10 +22,8 @@ cat workdir/output/stats.json | python -m json.tool
 from __future__ import print_function
 
 import json
-import math
 from multiprocessing import Pool, cpu_count
 import os
-import random
 import subprocess
 import sys
 

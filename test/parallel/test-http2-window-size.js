@@ -100,4 +100,4 @@ for (const buffers of buffersList) {
     p = p.then(() => run(buffers, initialWindowSize));
   }
 }
-p.then(common.mustCall(() => {}));
+p.then(common.mustCall());

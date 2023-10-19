@@ -4,7 +4,6 @@
 
 #include 'src/objects/js-break-iterator.h'
 
-@generateCppClass
 extern class JSV8BreakIterator extends JSObject {
   locale: String;
   break_iterator: Foreign;  // Managed<icu::BreakIterator>;

@@ -21,24 +21,25 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-"use strict";
 
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable no-undefined */
 
-const Syntax = require("estraverse").Syntax;
+import estraverse from "estraverse";
 
-const Reference = require("./reference");
-const Variable = require("./variable");
-const Definition = require("./definition").Definition;
-const assert = require("assert");
+import Reference from "./reference.js";
+import Variable from "./variable.js";
+import { Definition } from "./definition.js";
+import assert from "assert";
+
+const { Syntax } = estraverse;
 
 /**
  * Test if scope is struct
- * @param {Scope} scope - scope
- * @param {Block} block - block
- * @param {boolean} isMethodDefinition - is method definition
- * @param {boolean} useDirective - use directive
+ * @param {Scope} scope scope
+ * @param {Block} block block
+ * @param {boolean} isMethodDefinition is method definition
+ * @param {boolean} useDirective use directive
  * @returns {boolean} is strict scope
  */
 function isStrictScope(scope, block, isMethodDefinition, useDirective) {
@@ -121,8 +122,8 @@ function isStrictScope(scope, block, isMethodDefinition, useDirective) {
 
 /**
  * Register scope
- * @param {ScopeManager} scopeManager - scope manager
- * @param {Scope} scope - scope
+ * @param {ScopeManager} scopeManager scope manager
+ * @param {Scope} scope scope
  * @returns {void}
  */
 function registerScope(scopeManager, scope) {
@@ -139,7 +140,7 @@ function registerScope(scopeManager, scope) {
 
 /**
  * Should be statically
- * @param {Object} def - def
+ * @param {Object} def def
  * @returns {boolean} should be statically
  */
 function shouldBeStatically(def) {
@@ -150,14 +151,15 @@ function shouldBeStatically(def) {
 }
 
 /**
- * @class Scope
+ * @constructor Scope
  */
 class Scope {
     constructor(scopeManager, type, upperScope, block, isMethodDefinition) {
 
         /**
-         * One of 'module', 'block', 'switch', 'function', 'catch', 'with', 'function', 'class', 'global'.
-         * @member {String} Scope#type
+         * One of "global", "module", "function", "function-expression-name", "block", "switch", "catch", "with", "for",
+         * "class", "class-field-initializer", "class-static-block".
+         * @member {string} Scope#type
          */
         this.type = type;
 
@@ -224,7 +226,13 @@ class Scope {
          * @member {Scope} Scope#variableScope
          */
         this.variableScope =
-            (this.type === "global" || this.type === "function" || this.type === "module") ? this : upperScope.variableScope;
+            this.type === "global" ||
+            this.type === "module" ||
+            this.type === "function" ||
+            this.type === "class-field-initializer" ||
+            this.type === "class-static-block"
+                ? this
+                : upperScope.variableScope;
 
         /**
          * Whether this scope is created by a FunctionExpression.
@@ -255,7 +263,9 @@ class Scope {
          * Whether 'use strict' is in effect in this scope.
          * @member {boolean} Scope#isStrict
          */
-        this.isStrict = isStrictScope(this, block, isMethodDefinition, scopeManager.__useDirective());
+        this.isStrict = scopeManager.isStrictModeSupported()
+            ? isStrictScope(this, block, isMethodDefinition, scopeManager.__useDirective())
+            : false;
 
         /**
          * List of nested {@link Scope}s.
@@ -461,8 +471,8 @@ class Scope {
 
     /**
      * returns resolved {Reference}
-     * @method Scope#resolve
-     * @param {Espree.Identifier} ident - identifier to be resolved.
+     * @function Scope#resolve
+     * @param {Espree.Identifier} ident identifier to be resolved.
      * @returns {Reference} reference
      */
     resolve(ident) {
@@ -481,7 +491,7 @@ class Scope {
 
     /**
      * returns this scope is static
-     * @method Scope#isStatic
+     * @function Scope#isStatic
      * @returns {boolean} static
      */
     isStatic() {
@@ -490,7 +500,7 @@ class Scope {
 
     /**
      * returns this scope has materialized arguments
-     * @method Scope#isArgumentsMaterialized
+     * @function Scope#isArgumentsMaterialized
      * @returns {boolean} arguemnts materialized
      */
     isArgumentsMaterialized() { // eslint-disable-line class-methods-use-this
@@ -499,7 +509,7 @@ class Scope {
 
     /**
      * returns this scope has materialized `this` reference
-     * @method Scope#isThisMaterialized
+     * @function Scope#isThisMaterialized
      * @returns {boolean} this materialized
      */
     isThisMaterialized() { // eslint-disable-line class-methods-use-this
@@ -527,10 +537,10 @@ class GlobalScope extends Scope {
             variables: [],
 
             /**
-            * List of {@link Reference}s that are left to be resolved (i.e. which
-            * need to be linked to the variable they refer to).
-            * @member {Reference[]} Scope#implicit#left
-            */
+             * List of {@link Reference}s that are left to be resolved (i.e. which
+             * need to be linked to the variable they refer to).
+             * @member {Reference[]} Scope#implicit#left
+             */
             left: []
         };
     }
@@ -731,7 +741,19 @@ class ClassScope extends Scope {
     }
 }
 
-module.exports = {
+class ClassFieldInitializerScope extends Scope {
+    constructor(scopeManager, upperScope, block) {
+        super(scopeManager, "class-field-initializer", upperScope, block, true);
+    }
+}
+
+class ClassStaticBlockScope extends Scope {
+    constructor(scopeManager, upperScope, block) {
+        super(scopeManager, "class-static-block", upperScope, block, true);
+    }
+}
+
+export {
     Scope,
     GlobalScope,
     ModuleScope,
@@ -742,7 +764,9 @@ module.exports = {
     SwitchScope,
     FunctionScope,
     ForScope,
-    ClassScope
+    ClassScope,
+    ClassFieldInitializerScope,
+    ClassStaticBlockScope
 };
 
 /* vim: set sw=4 ts=4 et tw=80 : */

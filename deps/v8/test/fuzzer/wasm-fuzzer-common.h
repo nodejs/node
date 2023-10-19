@@ -12,46 +12,48 @@
 
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
-#include "test/common/wasm/wasm-interpreter.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-namespace fuzzer {
+namespace v8::internal::wasm::fuzzer {
 
-// First instantiates and interprets the "main" function within module_object if
-// possible. If the interpretation finishes within kMaxSteps steps,
-// module_object is instantiated again and the compiled "main" function is
-// executed.
-void InterpretAndExecuteModule(Isolate* isolate,
-                               Handle<WasmModuleObject> module_object);
+// A default value for {max_executed_instructions} in {ExecuteAgainstReference}.
+#ifdef USE_SIMULATOR
+constexpr int kDefaultMaxFuzzerExecutedInstructions = 16'000;
+#else
+constexpr int kDefaultMaxFuzzerExecutedInstructions = 1'000'000;
+#endif
+
+// First creates a reference module fully compiled with Liftoff, with
+// instrumentation to stop after a given number of steps and to record any
+// nondeterminism while executing. If execution finishes within {max_steps},
+// {module_object} is instantiated, its "main" function is executed, and the
+// result is compared against the reference execution. If non-determinism was
+// detected during the reference execution, the result is allowed to differ.
+void ExecuteAgainstReference(Isolate* isolate,
+                             Handle<WasmModuleObject> module_object,
+                             int32_t max_executed_instructions);
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles);
 
-// On the first call, enables all staged wasm features. All subsequent calls are
-// no-ops. This avoids race conditions with threads reading the flags. Fuzzers
-// are executed in their own process anyway, so this should not interfere with
-// anything.
-void OneTimeEnableStagedWasmFeatures();
+// On the first call, enables all staged wasm features and experimental features
+// that are ready for fuzzing. All subsequent calls are no-ops. This avoids race
+// conditions with threads reading the flags. Fuzzers are executed in their own
+// process anyway, so this should not interfere with anything.
+void EnableExperimentalWasmFeatures(v8::Isolate* isolate);
 
 class WasmExecutionFuzzer {
  public:
   virtual ~WasmExecutionFuzzer() = default;
-  void FuzzWasmModule(Vector<const uint8_t> data, bool require_valid = false);
+  void FuzzWasmModule(base::Vector<const uint8_t> data,
+                      bool require_valid = false);
 
   virtual size_t max_input_size() const { return 512; }
 
  protected:
-  virtual bool GenerateModule(
-      Isolate* isolate, Zone* zone, Vector<const uint8_t> data,
-      ZoneBuffer* buffer, int32_t* num_args,
-      std::unique_ptr<WasmValue[]>* interpreter_args,
-      std::unique_ptr<Handle<Object>[]>* compiler_args) = 0;
+  virtual bool GenerateModule(Isolate* isolate, Zone* zone,
+                              base::Vector<const uint8_t> data,
+                              ZoneBuffer* buffer) = 0;
 };
 
-}  // namespace fuzzer
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm::fuzzer
 #endif  // WASM_FUZZER_COMMON_H_

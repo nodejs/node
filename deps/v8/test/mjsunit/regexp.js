@@ -280,14 +280,8 @@ re.compile(void 0);
 assertEquals('/(?:)/', re.toString());
 
 
-// Check for lazy RegExp literal creation
-function lazyLiteral(doit) {
-  if (doit) return "".replace(/foo(/gi, "");
-  return true;
-}
-
-assertTrue(lazyLiteral(false));
-assertThrows("lazyLiteral(true)");
+// Check for early syntax errors.
+assertThrows("/foo(/gi");
 
 // Check $01 and $10
 re = new RegExp("(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)");

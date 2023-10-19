@@ -198,7 +198,7 @@ public:
          * @param src Result to move contents from.
          * @stable ICU 65
          */
-        Result(Result &&src) U_NOEXCEPT;
+        Result(Result &&src) noexcept;
 
         /**
          * Destructor.
@@ -214,7 +214,7 @@ public:
          * @param src Result to move contents from.
          * @stable ICU 65
          */
-        Result &operator=(Result &&src) U_NOEXCEPT;
+        Result &operator=(Result &&src) noexcept;
 
         /**
          * Returns the best-matching desired locale.
@@ -313,7 +313,7 @@ public:
          * @param src Builder to move contents from.
          * @stable ICU 65
          */
-        Builder(Builder &&src) U_NOEXCEPT;
+        Builder(Builder &&src) noexcept;
 
         /**
          * Destructor.
@@ -329,7 +329,7 @@ public:
          * @param src Builder to move contents from.
          * @stable ICU 65
          */
-        Builder &operator=(Builder &&src) U_NOEXCEPT;
+        Builder &operator=(Builder &&src) noexcept;
 
         /**
          * Parses an Accept-Language string
@@ -413,17 +413,15 @@ public:
          */
         Builder &addSupportedLocale(const Locale &locale);
 
-#ifndef U_HIDE_DRAFT_API
         /**
          * Sets no default locale.
          * There will be no explicit or implicit default locale.
          * If there is no good match, then the matcher will return nullptr for the
          * best supported locale.
          *
-         * @draft ICU 68
+         * @stable ICU 68
          */
         Builder &setNoDefaultLocale();
-#endif  // U_HIDE_DRAFT_API
 
         /**
          * Sets the default locale; if nullptr, or if it is not set explicitly,
@@ -463,18 +461,17 @@ public:
          * Option for whether to include or ignore one-way (fallback) match data.
          * By default, they are included.
          *
-         * @param direction the match direction to set.
+         * @param matchDirection the match direction to set.
          * @return this Builder object
          * @stable ICU 67
          */
-        Builder &setDirection(ULocMatchDirection direction) {
+        Builder &setDirection(ULocMatchDirection matchDirection) {
             if (U_SUCCESS(errorCode_)) {
-                direction_ = direction;
+                direction_ = matchDirection;
             }
             return *this;
         }
 
-#ifndef U_HIDE_DRAFT_API
         /**
          * Sets the maximum distance for an acceptable match.
          * The matcher will return a match for a pair of locales only if
@@ -494,10 +491,9 @@ public:
          * @param desired the desired locale for distance comparison.
          * @param supported the supported locale for distance comparison.
          * @return this Builder object
-         * @draft ICU 68
+         * @stable ICU 68
          */
         Builder &setMaxDistance(const Locale &desired, const Locale &supported);
-#endif  // U_HIDE_DRAFT_API
 
         /**
          * Sets the UErrorCode if an error occurred while setting parameters.
@@ -552,7 +548,7 @@ public:
      * @param src source matcher
      * @stable ICU 65
      */
-    LocaleMatcher(LocaleMatcher &&src) U_NOEXCEPT;
+    LocaleMatcher(LocaleMatcher &&src) noexcept;
 
     /**
      * Destructor.
@@ -568,7 +564,7 @@ public:
      * @return *this
      * @stable ICU 65
      */
-    LocaleMatcher &operator=(LocaleMatcher &&src) U_NOEXCEPT;
+    LocaleMatcher &operator=(LocaleMatcher &&src) noexcept;
 
     /**
      * Returns the supported locale which best matches the desired locale.
@@ -638,7 +634,6 @@ public:
      */
     Result getBestMatchResult(Locale::Iterator &desiredLocales, UErrorCode &errorCode) const;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns true if the pair of locales matches acceptably.
      * This is influenced by Builder options such as setDirection(), setFavorSubtag(),
@@ -650,10 +645,9 @@ public:
      *                  or else the function returns immediately. Check for U_FAILURE()
      *                  on output or use with function chaining. (See User Guide for details.)
      * @return true if the pair of locales matches acceptably.
-     * @draft ICU 68
+     * @stable ICU 68
      */
     UBool isMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) const;
-#endif  // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_INTERNAL_API
     /**

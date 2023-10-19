@@ -14,6 +14,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
+#include "src/heap/cppgc/platform.h"
 
 namespace cppgc {
 namespace internal {
@@ -21,10 +22,14 @@ namespace internal {
 // GCInfo contains metadata for objects that are instantiated from classes that
 // inherit from GarbageCollected.
 struct GCInfo final {
+  constexpr GCInfo(FinalizationCallback finalize, TraceCallback trace,
+                   NameCallback name)
+      : finalize(finalize), trace(trace), name(name) {}
+
   FinalizationCallback finalize;
   TraceCallback trace;
   NameCallback name;
-  bool has_v_table;
+  size_t padding = 0;
 };
 
 class V8_EXPORT GCInfoTable final {
@@ -49,12 +54,13 @@ class V8_EXPORT GCInfoTable final {
 
   // Refer through GlobalGCInfoTable for retrieving the global table outside
   // of testing code.
-  explicit GCInfoTable(PageAllocator* page_allocator);
+  GCInfoTable(PageAllocator& page_allocator,
+              FatalOutOfMemoryHandler& oom_handler);
   ~GCInfoTable();
   GCInfoTable(const GCInfoTable&) = delete;
   GCInfoTable& operator=(const GCInfoTable&) = delete;
 
-  GCInfoIndex RegisterNewGCInfo(const GCInfo& info);
+  GCInfoIndex RegisterNewGCInfo(std::atomic<uint16_t>&, const GCInfo& info);
 
   const GCInfo& GCInfoFromIndex(GCInfoIndex index) const {
     DCHECK_GE(index, kMinIndex);
@@ -68,7 +74,7 @@ class V8_EXPORT GCInfoTable final {
   GCInfoIndex LimitForTesting() const { return limit_; }
   GCInfo& TableSlotForTesting(GCInfoIndex index) { return table_[index]; }
 
-  PageAllocator* allocator() const { return page_allocator_; }
+  PageAllocator& allocator() const { return page_allocator_; }
 
  private:
   void Resize();
@@ -78,7 +84,8 @@ class V8_EXPORT GCInfoTable final {
 
   void CheckMemoryIsZeroed(uintptr_t* base, size_t len);
 
-  PageAllocator* page_allocator_;
+  PageAllocator& page_allocator_;
+  FatalOutOfMemoryHandler& oom_handler_;
   // Holds the per-class GCInfo descriptors; each HeapObjectHeader keeps an
   // index into this table.
   GCInfo* table_;
@@ -99,7 +106,7 @@ class V8_EXPORT GlobalGCInfoTable final {
   // Sets up the table with the provided `page_allocator`. Will use an internal
   // allocator in case no PageAllocator is provided. May be called multiple
   // times with the same `page_allocator` argument.
-  static void Initialize(PageAllocator* page_allocator);
+  static void Initialize(PageAllocator& page_allocator);
 
   // Accessors for the singleton table.
   static GCInfoTable& GetMutable() { return *global_table_; }

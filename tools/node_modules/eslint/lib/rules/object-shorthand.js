@@ -22,15 +22,15 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow method and property shorthand syntax for object literals",
-            category: "ECMAScript 6",
+            description: "Require or disallow method and property shorthand syntax for object literals",
             recommended: false,
-            url: "https://eslint.org/docs/rules/object-shorthand"
+            url: "https://eslint.org/docs/latest/rules/object-shorthand"
         },
 
         fixable: "code",
@@ -78,6 +78,9 @@ module.exports = {
                                 ignoreConstructors: {
                                     type: "boolean"
                                 },
+                                methodsIgnorePattern: {
+                                    type: "string"
+                                },
                                 avoidQuotes: {
                                     type: "boolean"
                                 },
@@ -115,9 +118,12 @@ module.exports = {
 
         const PARAMS = context.options[1] || {};
         const IGNORE_CONSTRUCTORS = PARAMS.ignoreConstructors;
+        const METHODS_IGNORE_PATTERN = PARAMS.methodsIgnorePattern
+            ? new RegExp(PARAMS.methodsIgnorePattern, "u")
+            : null;
         const AVOID_QUOTES = PARAMS.avoidQuotes;
         const AVOID_EXPLICIT_RETURN_ARROWS = !!PARAMS.avoidExplicitReturnArrows;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -149,7 +155,6 @@ module.exports = {
          * @param {ASTNode} property Property AST node
          * @returns {boolean} True if the property can have a shorthand form
          * @private
-         *
          */
         function canHaveShorthand(property) {
             return (property.kind !== "set" && property.kind !== "get" && property.type !== "SpreadElement" && property.type !== "SpreadProperty" && property.type !== "ExperimentalSpreadProperty");
@@ -157,7 +162,7 @@ module.exports = {
 
         /**
          * Checks whether a node is a string literal.
-         * @param   {ASTNode} node Any AST node.
+         * @param {ASTNode} node Any AST node.
          * @returns {boolean} `true` if it is a string literal.
          */
         function isStringLiteral(node) {
@@ -169,7 +174,6 @@ module.exports = {
          * @param {ASTNode} property Property AST node
          * @returns {boolean} True if the property is considered shorthand, false if not.
          * @private
-         *
          */
         function isShorthand(property) {
 
@@ -182,7 +186,6 @@ module.exports = {
          * @param {ASTNode} property Property AST node
          * @returns {boolean} True if the key and value are named equally, false if not.
          * @private
-         *
          */
         function isRedundant(property) {
             const value = property.value;
@@ -199,10 +202,9 @@ module.exports = {
 
         /**
          * Ensures that an object's properties are consistently shorthand, or not shorthand at all.
-         * @param   {ASTNode} node Property AST node
-         * @param   {boolean} checkRedundancy Whether to check longform redundancy
+         * @param {ASTNode} node Property AST node
+         * @param {boolean} checkRedundancy Whether to check longform redundancy
          * @returns {void}
-         *
          */
         function checkConsistency(node, checkRedundancy) {
 
@@ -352,11 +354,12 @@ module.exports = {
         /**
          * Enters a function. This creates a new lexical identifier scope, so a new Set of arrow functions is pushed onto the stack.
          * Also, this marks all `arguments` identifiers so that they can be detected later.
+         * @param {ASTNode} node The node representing the function.
          * @returns {void}
          */
-        function enterFunction() {
+        function enterFunction(node) {
             lexicalScopeStack.unshift(new Set());
-            context.getScope().variables.filter(variable => variable.name === "arguments").forEach(variable => {
+            sourceCode.getScope(node).variables.filter(variable => variable.name === "arguments").forEach(variable => {
                 variable.references.map(ref => ref.identifier).forEach(identifier => argumentsIdentifiers.add(identifier));
             });
         }
@@ -461,6 +464,15 @@ module.exports = {
                     if (IGNORE_CONSTRUCTORS && node.key.type === "Identifier" && isConstructor(node.key.name)) {
                         return;
                     }
+
+                    if (METHODS_IGNORE_PATTERN) {
+                        const propertyName = astUtils.getStaticPropertyName(node);
+
+                        if (propertyName !== null && METHODS_IGNORE_PATTERN.test(propertyName)) {
+                            return;
+                        }
+                    }
+
                     if (AVOID_QUOTES && isStringLiteral(node.key)) {
                         return;
                     }

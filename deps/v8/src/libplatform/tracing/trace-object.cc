@@ -7,7 +7,6 @@
 #include "include/v8-platform.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/base/platform/wrappers.h"
 
 namespace v8 {
 namespace platform {
@@ -25,7 +24,7 @@ V8_INLINE static void CopyTraceObjectParameter(char** buffer,
                                                const char** member) {
   if (*member == nullptr) return;
   size_t length = strlen(*member) + 1;
-  base::Memcpy(*buffer, *member, length);
+  memcpy(*buffer, *member, length);
   *member = *buffer;
   *buffer += length;
 }

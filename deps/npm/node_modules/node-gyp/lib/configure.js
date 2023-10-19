@@ -7,6 +7,7 @@ const os = require('os')
 const processRelease = require('./process-release')
 const win = process.platform === 'win32'
 const findNodeDirectory = require('./find-node-directory')
+const createConfigGypi = require('./create-config-gypi')
 const msgFormat = require('util').format
 var findPython = require('./find-python')
 if (win) {
@@ -16,6 +17,7 @@ if (win) {
 function configure (gyp, argv, callback) {
   var python
   var buildDir = path.resolve('build')
+  var buildBinsDir = path.join(buildDir, 'node_gyp_bins')
   var configNames = ['config.gypi', 'common.gypi']
   var configs = []
   var nodeDir
@@ -72,17 +74,41 @@ function configure (gyp, argv, callback) {
 
   function createBuildDir () {
     log.verbose('build dir', 'attempting to create "build" dir: %s', buildDir)
-    fs.mkdir(buildDir, { recursive: true }, function (err, isNew) {
+
+    const deepestBuildDirSubdirectory = win ? buildDir : buildBinsDir
+    fs.mkdir(deepestBuildDirSubdirectory, { recursive: true }, function (err, isNew) {
       if (err) {
         return callback(err)
       }
-      log.verbose('build dir', '"build" dir needed to be created?', isNew)
+      log.verbose(
+        'build dir', '"build" dir needed to be created?', isNew ? 'Yes' : 'No'
+      )
       if (win) {
         findVisualStudio(release.semver, gyp.opts.msvs_version,
           createConfigFile)
       } else {
+        createPythonSymlink()
         createConfigFile()
       }
+    })
+  }
+
+  function createPythonSymlink () {
+    const symlinkDestination = path.join(buildBinsDir, 'python3')
+
+    log.verbose('python symlink', `creating symlink to "${python}" at "${symlinkDestination}"`)
+
+    fs.unlink(symlinkDestination, function (err) {
+      if (err && err.code !== 'ENOENT') {
+        log.verbose('python symlink', 'error when attempting to remove existing symlink')
+        log.verbose('python symlink', err.stack, 'errno: ' + err.errno)
+      }
+      fs.symlink(python, symlinkDestination, function (err) {
+        if (err) {
+          log.verbose('python symlink', 'error when attempting to create Python symlink')
+          log.verbose('python symlink', err.stack, 'errno: ' + err.errno)
+        }
+      })
     })
   }
 
@@ -90,114 +116,19 @@ function configure (gyp, argv, callback) {
     if (err) {
       return callback(err)
     }
-
-    var configFilename = 'config.gypi'
-    var configPath = path.resolve(buildDir, configFilename)
-
-    log.verbose('build/' + configFilename, 'creating config file')
-
-    var config = process.config || {}
-    var defaults = config.target_defaults
-    var variables = config.variables
-
-    // default "config.variables"
-    if (!variables) {
-      variables = config.variables = {}
-    }
-
-    // default "config.defaults"
-    if (!defaults) {
-      defaults = config.target_defaults = {}
-    }
-
-    // don't inherit the "defaults" from node's `process.config` object.
-    // doing so could cause problems in cases where the `node` executable was
-    // compiled on a different machine (with different lib/include paths) than
-    // the machine where the addon is being built to
-    defaults.cflags = []
-    defaults.defines = []
-    defaults.include_dirs = []
-    defaults.libraries = []
-
-    // set the default_configuration prop
-    if ('debug' in gyp.opts) {
-      defaults.default_configuration = gyp.opts.debug ? 'Debug' : 'Release'
-    }
-
-    if (!defaults.default_configuration) {
-      defaults.default_configuration = 'Release'
-    }
-
-    // set the target_arch variable
-    variables.target_arch = gyp.opts.arch || process.arch || 'ia32'
-    if (variables.target_arch === 'arm64') {
-      defaults.msvs_configuration_platform = 'ARM64'
-      defaults.xcode_configuration_platform = 'arm64'
-    }
-
-    // set the node development directory
-    variables.nodedir = nodeDir
-
-    // disable -T "thin" static archives by default
-    variables.standalone_static_library = gyp.opts.thin ? 0 : 1
-
-    if (win) {
+    if (process.platform === 'win32') {
       process.env.GYP_MSVS_VERSION = Math.min(vsInfo.versionYear, 2015)
       process.env.GYP_MSVS_OVERRIDE_PATH = vsInfo.path
-      defaults.msbuild_toolset = vsInfo.toolset
-      if (vsInfo.sdk) {
-        defaults.msvs_windows_target_platform_version = vsInfo.sdk
-      }
-      if (variables.target_arch === 'arm64') {
-        if (vsInfo.versionMajor > 15 ||
-            (vsInfo.versionMajor === 15 && vsInfo.versionMajor >= 9)) {
-          defaults.msvs_enable_marmasm = 1
-        } else {
-          log.warn('Compiling ARM64 assembly is only available in\n' +
-            'Visual Studio 2017 version 15.9 and above')
-        }
-      }
-      variables.msbuild_path = vsInfo.msBuild
     }
-
-    // loop through the rest of the opts and add the unknown ones as variables.
-    // this allows for module-specific configure flags like:
-    //
-    //   $ node-gyp configure --shared-libxml2
-    Object.keys(gyp.opts).forEach(function (opt) {
-      if (opt === 'argv') {
-        return
-      }
-      if (opt in gyp.configDefs) {
-        return
-      }
-      variables[opt.replace(/-/g, '_')] = gyp.opts[opt]
+    createConfigGypi({ gyp, buildDir, nodeDir, vsInfo }).then(configPath => {
+      configs.push(configPath)
+      findConfigs()
+    }).catch(err => {
+      callback(err)
     })
-
-    // ensures that any boolean values from `process.config` get stringified
-    function boolsToString (k, v) {
-      if (typeof v === 'boolean') {
-        return String(v)
-      }
-      return v
-    }
-
-    log.silly('build/' + configFilename, config)
-
-    // now write out the config.gypi file to the build/ dir
-    var prefix = '# Do not edit. File was generated by node-gyp\'s "configure" step'
-
-    var json = JSON.stringify(config, boolsToString, 2)
-    log.verbose('build/' + configFilename, 'writing out config file: %s', configPath)
-    configs.push(configPath)
-    fs.writeFile(configPath, [prefix, json, ''].join('\n'), findConfigs)
   }
 
-  function findConfigs (err) {
-    if (err) {
-      return callback(err)
-    }
-
+  function findConfigs () {
     var name = configNames.shift()
     if (!name) {
       return runGyp()
@@ -245,12 +176,12 @@ function configure (gyp, argv, callback) {
     // For AIX and z/OS we need to set up the path to the exports file
     // which contains the symbols needed for linking.
     var nodeExpFile
-    if (process.platform === 'aix' || process.platform === 'os390') {
-      var ext = process.platform === 'aix' ? 'exp' : 'x'
+    if (process.platform === 'aix' || process.platform === 'os390' || process.platform === 'os400') {
+      var ext = process.platform === 'os390' ? 'x' : 'exp'
       var nodeRootDir = findNodeDirectory()
       var candidates
 
-      if (process.platform === 'aix') {
+      if (process.platform === 'aix' || process.platform === 'os400') {
         candidates = [
           'include/node/node',
           'out/Release/node',
@@ -261,6 +192,8 @@ function configure (gyp, argv, callback) {
         })
       } else {
         candidates = [
+          'out/Release/lib.target/libnode',
+          'out/Debug/lib.target/libnode',
           'out/Release/obj.target/libnode',
           'out/Debug/obj.target/libnode',
           'lib/libnode'
@@ -276,6 +209,44 @@ function configure (gyp, argv, callback) {
       } else {
         var msg = msgFormat('Could not find node.%s file in %s', ext, nodeRootDir)
         log.error(logprefix, 'Could not find exports file')
+        return callback(new Error(msg))
+      }
+    }
+
+    // For z/OS we need to set up the path to zoslib include directory,
+    // which contains headers included in v8config.h.
+    var zoslibIncDir
+    if (process.platform === 'os390') {
+      logprefix = "find zoslib's zos-base.h:"
+      let msg
+      var zoslibIncPath = process.env.ZOSLIB_INCLUDES
+      if (zoslibIncPath) {
+        zoslibIncPath = findAccessibleSync(logprefix, zoslibIncPath, ['zos-base.h'])
+        if (zoslibIncPath === undefined) {
+          msg = msgFormat('Could not find zos-base.h file in the directory set ' +
+                          'in ZOSLIB_INCLUDES environment variable: %s; set it ' +
+                          'to the correct path, or unset it to search %s', process.env.ZOSLIB_INCLUDES, nodeRootDir)
+        }
+      } else {
+        candidates = [
+          'include/node/zoslib/zos-base.h',
+          'include/zoslib/zos-base.h',
+          'zoslib/include/zos-base.h',
+          'install/include/node/zoslib/zos-base.h'
+        ]
+        zoslibIncPath = findAccessibleSync(logprefix, nodeRootDir, candidates)
+        if (zoslibIncPath === undefined) {
+          msg = msgFormat('Could not find any of %s in directory %s; set ' +
+                          'environmant variable ZOSLIB_INCLUDES to the path ' +
+                          'that contains zos-base.h', candidates.toString(), nodeRootDir)
+        }
+      }
+      if (zoslibIncPath !== undefined) {
+        zoslibIncDir = path.dirname(zoslibIncPath)
+        log.verbose(logprefix, "Found zoslib's zos-base.h in: %s", zoslibIncDir)
+      } else if (release.version.split('.')[0] >= 16) {
+        // zoslib is only shipped in Node v16 and above.
+        log.error(logprefix, msg)
         return callback(new Error(msg))
       }
     }
@@ -305,8 +276,11 @@ function configure (gyp, argv, callback) {
       argv.push('-Dlibrary=shared_library')
       argv.push('-Dvisibility=default')
       argv.push('-Dnode_root_dir=' + nodeDir)
-      if (process.platform === 'aix' || process.platform === 'os390') {
+      if (process.platform === 'aix' || process.platform === 'os390' || process.platform === 'os400') {
         argv.push('-Dnode_exp_file=' + nodeExpFile)
+        if (process.platform === 'os390' && zoslibIncDir) {
+          argv.push('-Dzoslib_include_dir=' + zoslibIncDir)
+        }
       }
       argv.push('-Dnode_gyp_dir=' + nodeGypDir)
 

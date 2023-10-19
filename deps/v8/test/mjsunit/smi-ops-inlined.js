@@ -434,7 +434,7 @@ function testShiftNonSmis() {
   assertEquals(0x46536000, (neg_32 + neg_smi - 0.5) << 4);
   assertEquals(-0x73594000, (neg_32 + neg_smi - 0.5) << 5);
   // End block A repeat 1
-  // Repeat block A with shift amounts in variables intialized with
+  // Repeat block A with shift amounts in variables initialized with
   // a constant.
   var zero = 0;
   var one = 1;

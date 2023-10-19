@@ -3,7 +3,6 @@
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
-const path = require('path');
 
 // Regression test for https://github.com/nodejs/node-v0.x-archive/issues/814:
 // Make sure that Buffers passed to fs.write() are not garbage-collected
@@ -12,7 +11,7 @@ const path = require('path');
 const fs = require('fs');
 
 tmpdir.refresh();
-const filename = path.join(tmpdir.path, 'test.txt');
+const filename = tmpdir.resolve('test.txt');
 const fd = fs.openSync(filename, 'w');
 
 const size = 16 * 1024;

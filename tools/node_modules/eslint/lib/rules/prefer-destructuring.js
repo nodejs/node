@@ -20,15 +20,15 @@ const PRECEDENCE_OF_ASSIGNMENT_EXPR = astUtils.getPrecedence({ type: "Assignment
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require destructuring from arrays and/or objects",
-            category: "ECMAScript 6",
+            description: "Require destructuring from arrays and/or objects",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-destructuring"
+            url: "https://eslint.org/docs/latest/rules/prefer-destructuring"
         },
 
         fixable: "code",
@@ -119,8 +119,8 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        // eslint-disable-next-line jsdoc/require-description
         /**
+         * Checks if destructuring type should be checked.
          * @param {string} nodeType "AssignmentExpression" or "VariableDeclarator"
          * @param {string} destructuringType "array" or "object"
          * @returns {boolean} `true` if the destructuring type should be checked for the given node
@@ -190,7 +190,7 @@ module.exports = {
          */
         function fixIntoObjectDestructuring(fixer, node) {
             const rightNode = node.init;
-            const sourceCode = context.getSourceCode();
+            const sourceCode = context.sourceCode;
 
             // Don't fix if that would remove any comments. Only comments inside `rightNode.object` can be preserved.
             if (sourceCode.getCommentsInside(node).length > sourceCode.getCommentsInside(rightNode.object).length) {
@@ -221,7 +221,11 @@ module.exports = {
          * @returns {void}
          */
         function performCheck(leftNode, rightNode, reportNode) {
-            if (rightNode.type !== "MemberExpression" || rightNode.object.type === "Super") {
+            if (
+                rightNode.type !== "MemberExpression" ||
+                rightNode.object.type === "Super" ||
+                rightNode.property.type === "PrivateIdentifier"
+            ) {
                 return;
             }
 

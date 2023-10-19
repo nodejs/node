@@ -6,14 +6,17 @@
 #define V8_COMPILER_REDUNDANCY_ELIMINATION_H_
 
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/machine-operator.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+class JSGraph;
+
 class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
  public:
-  RedundancyElimination(Editor* editor, Zone* zone);
+  RedundancyElimination(Editor* editor, JSGraph* jsgraph, Zone* zone);
   ~RedundancyElimination() final;
   RedundancyElimination(const RedundancyElimination&) = delete;
   RedundancyElimination& operator=(const RedundancyElimination&) = delete;
@@ -37,7 +40,7 @@ class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
     void Merge(EffectPathChecks const* that);
 
     EffectPathChecks const* AddCheck(Zone* zone, Node* node) const;
-    Node* LookupCheck(Node* node) const;
+    Node* LookupCheck(Node* node, JSGraph* jsgraph) const;
     Node* LookupBoundsCheckFor(Node* node) const;
 
    private:
@@ -74,6 +77,7 @@ class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
   Zone* zone() const { return zone_; }
 
   PathChecksForEffectNodes node_checks_;
+  JSGraph* jsgraph_;
   Zone* const zone_;
 };
 

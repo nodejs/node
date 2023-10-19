@@ -10,7 +10,8 @@
 //
 // Do not depend on V8_TARGET_OS_* defines as some embedders may override the
 // GN toolchain (e.g. ChromeOS) and not provide them.
-asm(".set noreorder                                      \n"
+asm(".text                                               \n"
+    ".set noreorder                                      \n"
     ".global PushAllRegistersAndIterateStack             \n"
     ".type PushAllRegistersAndIterateStack, %function    \n"
     ".hidden PushAllRegistersAndIterateStack             \n"
@@ -34,9 +35,9 @@ asm(".set noreorder                                      \n"
     // Pass 1st parameter (a0) unchanged (Stack*).
     // Pass 2nd parameter (a1) unchanged (StackVisitor*).
     // Save 3rd parameter (a2; IterateStackCallback).
-    "  move $a3, $a2                                     \n"
+    "  move $t9, $a2                                     \n"
     // Call the callback.
-    "  jalr $a3                                          \n"
+    "  jalr $t9                                          \n"
     // Delay slot: Pass 3rd parameter as sp (stack pointer).
     "  move $a2, $sp                                     \n"
     // Load return address.

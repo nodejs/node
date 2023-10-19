@@ -1,7 +1,7 @@
 /*
- * Copyright 2012-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -26,13 +26,13 @@ static int stbl_module_init(CONF_IMODULE *md, const CONF *cnf)
 
     stbl_section = CONF_imodule_get_value(md);
     if ((sktmp = NCONF_get_section(cnf, stbl_section)) == NULL) {
-        ASN1err(ASN1_F_STBL_MODULE_INIT, ASN1_R_ERROR_LOADING_SECTION);
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_ERROR_LOADING_SECTION);
         return 0;
     }
     for (i = 0; i < sk_CONF_VALUE_num(sktmp); i++) {
         mval = sk_CONF_VALUE_value(sktmp, i);
         if (!do_tcreate(mval->value, mval->name)) {
-            ASN1err(ASN1_F_STBL_MODULE_INIT, ASN1_R_INVALID_VALUE);
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_INVALID_VALUE);
             return 0;
         }
     }
@@ -96,17 +96,17 @@ static int do_tcreate(const char *value, const char *name)
     rv = 1;
  err:
     if (rv == 0) {
-        ASN1err(ASN1_F_DO_TCREATE, ASN1_R_INVALID_STRING_TABLE_VALUE);
         if (cnf)
-            ERR_add_error_data(4, "field=", cnf->name,
-                               ", value=", cnf->value);
+            ERR_raise_data(ERR_LIB_ASN1, ASN1_R_INVALID_STRING_TABLE_VALUE,
+                           "field=%s, value=%s", cnf->name, cnf->value);
         else
-            ERR_add_error_data(4, "name=", name, ", value=", value);
+            ERR_raise_data(ERR_LIB_ASN1, ASN1_R_INVALID_STRING_TABLE_VALUE,
+                           "name=%s, value=%s", name, value);
     } else {
         rv = ASN1_STRING_TABLE_add(nid, tbl_min, tbl_max,
                                    tbl_mask, tbl_flags);
         if (!rv)
-            ASN1err(ASN1_F_DO_TCREATE, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
     }
     sk_CONF_VALUE_pop_free(lst, X509V3_conf_free);
     return rv;

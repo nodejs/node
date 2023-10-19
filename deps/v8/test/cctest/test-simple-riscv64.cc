@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <iostream>  // NOLINT(readability/streams)
+#include <iostream>
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
@@ -64,7 +64,7 @@ TEST(RISCV_SIMPLE0) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0xAB0, 0xC, 0, 0, 0));
   CHECK_EQ(0xABCL, res);
 }
@@ -84,7 +84,7 @@ TEST(RISCV_SIMPLE1) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(100, 0, 0, 0, 0));
   CHECK_EQ(99L, res);
 }
@@ -115,10 +115,10 @@ TEST(RISCV_SIMPLE2) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-#ifdef DEBUG
-  code->Print();
+#ifdef OBJECT_PRINT
+  Print(*code);
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(100, 0, 0, 0, 0));
   CHECK_EQ(5050, res);
 }
@@ -139,7 +139,7 @@ TEST(RISCV_SIMPLE3) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(255, 0, 0, 0, 0));
   CHECK_EQ(-1, res);
 }
@@ -191,7 +191,7 @@ TEST(LI) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0xDEADBEEF, 0, 0, 0, 0));
   CHECK_EQ(0L, res);
 }
@@ -242,7 +242,7 @@ TEST(LI_CONST) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0xDEADBEEF, 0, 0, 0, 0));
   CHECK_EQ(0L, res);
 }

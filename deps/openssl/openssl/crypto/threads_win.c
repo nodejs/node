@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -9,49 +9,104 @@
 
 #if defined(_WIN32)
 # include <windows.h>
+# if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x600
+#  define USE_RWLOCK
+# endif
+#endif
+
+/*
+ * VC++ 2008 or earlier x86 compilers do not have an inline implementation
+ * of InterlockedOr64 for 32bit and will fail to run on Windows XP 32bit.
+ * https://docs.microsoft.com/en-us/cpp/intrinsics/interlockedor-intrinsic-functions#requirements
+ * To work around this problem, we implement a manual locking mechanism for
+ * only VC++ 2008 or earlier x86 compilers.
+ */
+
+#if (defined(_MSC_VER) && defined(_M_IX86) && _MSC_VER <= 1600)
+# define NO_INTERLOCKEDOR64
 #endif
 
 #include <openssl/crypto.h>
 
 #if defined(OPENSSL_THREADS) && !defined(CRYPTO_TDEBUG) && defined(OPENSSL_SYS_WINDOWS)
 
+# ifdef USE_RWLOCK
+typedef struct {
+    SRWLOCK lock;
+    int exclusive;
+} CRYPTO_win_rwlock;
+# endif
+
 CRYPTO_RWLOCK *CRYPTO_THREAD_lock_new(void)
 {
     CRYPTO_RWLOCK *lock;
+# ifdef USE_RWLOCK
+    CRYPTO_win_rwlock *rwlock;
+
+    if ((lock = OPENSSL_zalloc(sizeof(CRYPTO_win_rwlock))) == NULL)
+        return NULL;
+    rwlock = lock;
+    InitializeSRWLock(&rwlock->lock);
+# else
 
     if ((lock = OPENSSL_zalloc(sizeof(CRITICAL_SECTION))) == NULL) {
         /* Don't set error, to avoid recursion blowup. */
         return NULL;
     }
 
-# if !defined(_WIN32_WCE)
+#  if !defined(_WIN32_WCE)
     /* 0x400 is the spin count value suggested in the documentation */
     if (!InitializeCriticalSectionAndSpinCount(lock, 0x400)) {
         OPENSSL_free(lock);
         return NULL;
     }
-# else
+#  else
     InitializeCriticalSection(lock);
+#  endif
 # endif
 
     return lock;
 }
 
-int CRYPTO_THREAD_read_lock(CRYPTO_RWLOCK *lock)
+__owur int CRYPTO_THREAD_read_lock(CRYPTO_RWLOCK *lock)
 {
+# ifdef USE_RWLOCK
+    CRYPTO_win_rwlock *rwlock = lock;
+
+    AcquireSRWLockShared(&rwlock->lock);
+# else
     EnterCriticalSection(lock);
+# endif
     return 1;
 }
 
-int CRYPTO_THREAD_write_lock(CRYPTO_RWLOCK *lock)
+__owur int CRYPTO_THREAD_write_lock(CRYPTO_RWLOCK *lock)
 {
+# ifdef USE_RWLOCK
+    CRYPTO_win_rwlock *rwlock = lock;
+
+    AcquireSRWLockExclusive(&rwlock->lock);
+    rwlock->exclusive = 1;
+# else
     EnterCriticalSection(lock);
+# endif
     return 1;
 }
 
 int CRYPTO_THREAD_unlock(CRYPTO_RWLOCK *lock)
 {
+# ifdef USE_RWLOCK
+    CRYPTO_win_rwlock *rwlock = lock;
+
+    if (rwlock->exclusive) {
+        rwlock->exclusive = 0;
+        ReleaseSRWLockExclusive(&rwlock->lock);
+    } else {
+        ReleaseSRWLockShared(&rwlock->lock);
+    }
+# else
     LeaveCriticalSection(lock);
+# endif
     return 1;
 }
 
@@ -60,15 +115,17 @@ void CRYPTO_THREAD_lock_free(CRYPTO_RWLOCK *lock)
     if (lock == NULL)
         return;
 
+# ifndef USE_RWLOCK
     DeleteCriticalSection(lock);
+# endif
     OPENSSL_free(lock);
 
     return;
 }
 
-#  define ONCE_UNINITED     0
-#  define ONCE_ININIT       1
-#  define ONCE_DONE         2
+# define ONCE_UNINITED     0
+# define ONCE_ININIT       1
+# define ONCE_DONE         2
 
 /*
  * We don't use InitOnceExecuteOnce because that isn't available in WinXP which
@@ -157,6 +214,41 @@ int CRYPTO_atomic_add(int *val, int amount, int *ret, CRYPTO_RWLOCK *lock)
 {
     *ret = (int)InterlockedExchangeAdd((long volatile *)val, (long)amount) + amount;
     return 1;
+}
+
+int CRYPTO_atomic_or(uint64_t *val, uint64_t op, uint64_t *ret,
+                     CRYPTO_RWLOCK *lock)
+{
+#if (defined(NO_INTERLOCKEDOR64))
+    if (lock == NULL || !CRYPTO_THREAD_write_lock(lock))
+        return 0;
+    *val |= op;
+    *ret = *val;
+
+    if (!CRYPTO_THREAD_unlock(lock))
+        return 0;
+
+    return 1;
+#else
+    *ret = (uint64_t)InterlockedOr64((LONG64 volatile *)val, (LONG64)op) | op;
+    return 1;
+#endif
+}
+
+int CRYPTO_atomic_load(uint64_t *val, uint64_t *ret, CRYPTO_RWLOCK *lock)
+{
+#if (defined(NO_INTERLOCKEDOR64))
+    if (lock == NULL || !CRYPTO_THREAD_read_lock(lock))
+        return 0;
+    *ret = *val;
+    if (!CRYPTO_THREAD_unlock(lock))
+        return 0;
+
+    return 1;
+#else
+    *ret = (uint64_t)InterlockedOr64((LONG64 volatile *)val, 0);
+    return 1;
+#endif
 }
 
 int openssl_init_fork_handlers(void)

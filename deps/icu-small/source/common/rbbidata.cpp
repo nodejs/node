@@ -38,7 +38,7 @@ RBBIDataWrapper::RBBIDataWrapper(const RBBIDataHeader *data, UErrorCode &status)
 RBBIDataWrapper::RBBIDataWrapper(const RBBIDataHeader *data, enum EDontAdopt, UErrorCode &status) {
     init0();
     init(data, status);
-    fDontFreeData = TRUE;
+    fDontFreeData = true;
 }
 
 RBBIDataWrapper::RBBIDataWrapper(UDataMemory* udm, UErrorCode &status) {
@@ -78,15 +78,15 @@ UBool RBBIDataWrapper::isDataVersionAcceptable(const UVersionInfo version) {
 //
 //-----------------------------------------------------------------------------
 void RBBIDataWrapper::init0() {
-    fHeader = NULL;
-    fForwardTable = NULL;
-    fReverseTable = NULL;
-    fRuleSource   = NULL;
-    fRuleStatusTable = NULL;
-    fTrie         = NULL;
-    fUDataMem     = NULL;
+    fHeader = nullptr;
+    fForwardTable = nullptr;
+    fReverseTable = nullptr;
+    fRuleSource   = nullptr;
+    fRuleStatusTable = nullptr;
+    fTrie         = nullptr;
+    fUDataMem     = nullptr;
     fRefCount     = 0;
-    fDontFreeData = TRUE;
+    fDontFreeData = true;
 }
 
 void RBBIDataWrapper::init(const RBBIDataHeader *data, UErrorCode &status) {
@@ -102,7 +102,7 @@ void RBBIDataWrapper::init(const RBBIDataHeader *data, UErrorCode &status) {
     //       that is no longer supported.  At that time fFormatVersion was
     //       an int32_t field, rather than an array of 4 bytes.
 
-    fDontFreeData = FALSE;
+    fDontFreeData = false;
     if (data->fFTableLen != 0) {
         fForwardTable = (RBBIStateTable *)((char *)data + fHeader->fFTable);
     }
@@ -170,17 +170,17 @@ RBBIDataWrapper::~RBBIDataWrapper() {
 //                  should still be ==.
 //
 //-----------------------------------------------------------------------------
-UBool RBBIDataWrapper::operator ==(const RBBIDataWrapper &other) const {
+bool RBBIDataWrapper::operator ==(const RBBIDataWrapper &other) const {
     if (fHeader == other.fHeader) {
-        return TRUE;
+        return true;
     }
     if (fHeader->fLength != other.fHeader->fLength) {
-        return FALSE;
+        return false;
     }
     if (uprv_memcmp(fHeader, other.fHeader, fHeader->fLength) == 0) {
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 int32_t  RBBIDataWrapper::hashCode() {
@@ -246,7 +246,7 @@ void  RBBIDataWrapper::printTable(const char *heading, const RBBIStateTable *tab
     }
     RBBIDebugPrintf("\n");
 
-    if (table == NULL) {
+    if (table == nullptr) {
         RBBIDebugPrintf("         N U L L   T A B L E\n\n");
         return;
     }
@@ -283,7 +283,7 @@ void  RBBIDataWrapper::printData() {
     printTable("Forward State Transition Table", fForwardTable);
     printTable("Reverse State Transition Table", fReverseTable);
 
-    RBBIDebugPrintf("\nOrignal Rules source:\n");
+    RBBIDebugPrintf("\nOriginal Rules source:\n");
     for (int32_t c=0; fRuleSource[c] != 0; c++) {
         RBBIDebugPrintf("%c", fRuleSource[c]);
     }
@@ -305,10 +305,10 @@ U_CAPI int32_t U_EXPORT2
 ubrk_swap(const UDataSwapper *ds, const void *inData, int32_t length, void *outData,
            UErrorCode *status) {
 
-    if (status == NULL || U_FAILURE(*status)) {
+    if (status == nullptr || U_FAILURE(*status)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<-1 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<-1 || (length>0 && outData==nullptr)) {
         *status=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -345,7 +345,7 @@ ubrk_swap(const UDataSwapper *ds, const void *inData, int32_t length, void *outD
     //
     const uint8_t  *inBytes =(const uint8_t *)inData+headerSize;
     RBBIDataHeader *rbbiDH = (RBBIDataHeader *)inBytes;
-    if (ds->readUInt32(rbbiDH->fMagic) != 0xb1a0 ||
+    if (ds->readUInt32(rbbiDH->fMagic) != 0xb1a0 || 
             !RBBIDataWrapper::isDataVersionAcceptable(rbbiDH->fFormatVersion) ||
             ds->readUInt32(rbbiDH->fLength)  <  sizeof(RBBIDataHeader)) {
         udata_printError(ds, "ubrk_swap(): RBBI Data header is invalid.\n");

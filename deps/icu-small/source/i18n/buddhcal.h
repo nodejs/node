@@ -94,7 +94,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual BuddhistCalendar* clone() const;
+    virtual BuddhistCalendar* clone() const override;
 
 public:
     /**
@@ -107,7 +107,7 @@ public:
      *           same class ID. Objects of other classes have different class IDs.
      * @internal
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * Return the class ID for this class. This is useful only for comparing to a return
@@ -120,7 +120,7 @@ public:
      * @return   The class ID for all objects of this class.
      * @internal
      */
-    U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);
+    U_I18N_API static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * return the calendar type, "buddhist".
@@ -128,7 +128,7 @@ public:
      * @return calendar type
      * @internal
      */
-    virtual const char * getType() const;
+    virtual const char * getType() const override;
 
 private:
     BuddhistCalendar(); // default constructor not implemented
@@ -142,13 +142,13 @@ private:
      * @return the extended year
      * @internal
      */
-    virtual int32_t handleGetExtendedYear();
+    virtual int32_t handleGetExtendedYear() override;
     /**
      * Subclasses may override this method to compute several fields
-     * specific to each calendar system.
+     * specific to each calendar system.  
      * @internal
      */
-    virtual void handleComputeFields(int32_t julianDay, UErrorCode& status);
+    virtual void handleComputeFields(int32_t julianDay, UErrorCode& status) override;
     /**
      * Subclass API for defining limits of different types.
      * @param field one of the field numbers
@@ -156,41 +156,26 @@ private:
      * <code>LEAST_MAXIMUM</code>, or <code>MAXIMUM</code>
      * @internal
      */
-    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const;
-        /**
-     * Return the Julian day number of day before the first day of the
-     * given month in the given extended year.  Subclasses should override
-     * this method to implement their calendar system.
-     * @param eyear the extended year
-     * @param month the zero-based month, or 0 if useMonth is false
-     * @param useMonth if false, compute the day before the first day of
-     * the given year, otherwise, compute the day before the first day of
-     * the given month
-     * @param return the Julian day number of the day before the first
-     * day of the given month and year
-     * @internal
-     */
-    virtual int32_t handleComputeMonthStart(int32_t eyear, int32_t month,
-                                            UBool useMonth) const;
+    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const override;
 
     /**
      * Returns true because the Buddhist Calendar does have a default century
      * @internal
      */
-    virtual UBool haveDefaultCentury() const;
+    virtual UBool haveDefaultCentury() const override;
 
     /**
      * Returns the date of the start of the default century
      * @return start of century - in milliseconds since epoch, 1970
      * @internal
      */
-    virtual UDate defaultCenturyStart() const;
+    virtual UDate defaultCenturyStart() const override;
 
     /**
      * Returns the year in which the default century begins
      * @internal
      */
-    virtual int32_t defaultCenturyStartYear() const;
+    virtual int32_t defaultCenturyStartYear() const override;
 };
 
 U_NAMESPACE_END
@@ -199,3 +184,4 @@ U_NAMESPACE_END
 
 #endif // _GREGOCAL
 //eof
+

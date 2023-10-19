@@ -5,12 +5,12 @@
 #ifndef V8_COMPILER_NODE_PROPERTIES_H_
 #define V8_COMPILER_NODE_PROPERTIES_H_
 
+#include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/types.h"
-#include "src/objects/map.h"
-#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +28,7 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // Inputs are always arranged in order as follows:
   //     0 [ values, context, frame state, effects, control ] node->InputCount()
 
-  static int FirstValueIndex(Node* node) { return 0; }
+  static int FirstValueIndex(const Node* node) { return 0; }
   static int FirstContextIndex(Node* node) { return PastValueIndex(node); }
   static int FirstFrameStateIndex(Node* node) { return PastContextIndex(node); }
   static int FirstEffectIndex(Node* node) { return PastFrameStateIndex(node); }
@@ -60,6 +60,12 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // Input accessors.
 
   static Node* GetValueInput(Node* node, int index) {
+    CHECK_LE(0, index);
+    CHECK_LT(index, node->op()->ValueInputCount());
+    return node->InputAt(FirstValueIndex(node) + index);
+  }
+
+  static const Node* GetValueInput(const Node* node, int index) {
     CHECK_LE(0, index);
     CHECK_LT(index, node->op()->ValueInputCount());
     return node->InputAt(FirstValueIndex(node) + index);
@@ -111,6 +117,9 @@ class V8_EXPORT_PRIVATE NodeProperties {
   static bool IsPhi(Node* node) {
     return IrOpcode::IsPhiOpcode(node->opcode());
   }
+  static bool IsSimd128Operation(Node* node) {
+    return IrOpcode::IsSimd128Opcode(node->opcode());
+  }
 
   // Determines whether exceptions thrown by the given node are handled locally
   // within the graph (i.e. an IfException projection is present). Optionally
@@ -127,9 +136,6 @@ class V8_EXPORT_PRIVATE NodeProperties {
     switch (node->opcode()) {
       case IrOpcode::kTypeGuard:
         *out_value = GetValueInput(node, 0);
-        return true;
-      case IrOpcode::kFoldConstant:
-        *out_value = GetValueInput(node, 1);
         return true;
       default:
         return false;
@@ -169,6 +175,8 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // Safe wrapper to mutate the operator of a node. Checks that the node is
   // currently in a state that satisfies constraints of the new operator.
   static void ChangeOp(Node* node, const Operator* new_op);
+  // Like `ChangeOp`, but without checking constraints.
+  static void ChangeOpUnchecked(Node* node, const Operator* new_op);
 
   // ---------------------------------------------------------------------------
   // Miscellaneous utilities.
@@ -191,6 +199,9 @@ class V8_EXPORT_PRIVATE NodeProperties {
   //  - Switch: [ IfValue, ..., IfDefault ]
   static void CollectControlProjections(Node* node, Node** proj, size_t count);
 
+  // Return the MachineRepresentation of a Projection based on its input.
+  static MachineRepresentation GetProjectionType(Node const* projection);
+
   // Checks if two nodes are the same, looking past {CheckHeapObject}.
   static bool IsSame(Node* a, Node* b);
 
@@ -209,13 +220,12 @@ class V8_EXPORT_PRIVATE NodeProperties {
     kUnreliableMaps  // Maps might have changed (side-effect).
   };
   // DO NOT USE InferMapsUnsafe IN NEW CODE. Use MapInference instead.
-  static InferMapsResult InferMapsUnsafe(JSHeapBroker* broker, Node* object,
-                                         Node* effect,
-                                         ZoneHandleSet<Map>* maps);
+  static InferMapsResult InferMapsUnsafe(JSHeapBroker* broker, Node* receiver,
+                                         Effect effect,
+                                         ZoneRefSet<Map>* maps_out);
 
   // Return the initial map of the new-target if the allocation can be inlined.
-  static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,
-                                               Node* receiver);
+  static OptionalMapRef GetJSCreateMap(JSHeapBroker* broker, Node* receiver);
 
   // Walks up the {effect} chain to check that there's no observable side-effect
   // between the {effect} and it's {dominator}. Aborts the walk if there's join
@@ -226,12 +236,12 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // definitely a JavaScript object); might walk up the {effect} chain to
   // find map checks on {receiver}.
   static bool CanBePrimitive(JSHeapBroker* broker, Node* receiver,
-                             Node* effect);
+                             Effect effect);
 
   // Returns true if the {receiver} can be null or undefined. Might walk
   // up the {effect} chain to find map checks for {receiver}.
   static bool CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
-                                   Node* effect);
+                                   Effect effect);
 
   // ---------------------------------------------------------------------------
   // Context.
@@ -245,7 +255,7 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // Type.
 
   static bool IsTyped(const Node* node) { return !node->type().IsInvalid(); }
-  static Type GetType(Node* node) {
+  static Type GetType(const Node* node) {
     DCHECK(IsTyped(node));
     return node->type();
   }

@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/parsing/preparser.h"
+
 #include <cmath>
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data.h"
-#include "src/parsing/preparser.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
@@ -272,13 +273,12 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   DCHECK_NE(FunctionSyntaxKind::kWrapped, function_syntax_kind);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_,
-      RuntimeCallCounterId::kPreParseWithVariableResolution,
-      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(runtime_call_stats_,
+            RuntimeCallCounterId::kPreParseWithVariableResolution,
+            RuntimeCallStats::kThreadSpecific);
 
   base::ElapsedTimer timer;
-  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
+  if (V8_UNLIKELY(v8_flags.log_function_events)) timer.Start();
 
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
@@ -340,7 +340,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     }
   }
 
-  if (V8_UNLIKELY(FLAG_log_function_events)) {
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name = "preparse-resolution";
     // We might not always get a function name here. However, it can be easily
@@ -354,7 +354,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       name_byte_length = string->byte_length();
       is_one_byte = string->is_one_byte();
     }
-    logger_->FunctionEvent(
+    v8_file_logger_->FunctionEvent(
         event_name, flags().script_id(), ms, function_scope->start_position(),
         function_scope->end_position(), name, name_byte_length, is_one_byte);
   }

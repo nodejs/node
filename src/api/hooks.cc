@@ -16,7 +16,6 @@ using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
-using v8::Value;
 
 void RunAtExit(Environment* env) {
   env->RunAtExitCallbacks();
@@ -32,62 +31,61 @@ void EmitBeforeExit(Environment* env) {
 }
 
 Maybe<bool> EmitProcessBeforeExit(Environment* env) {
-  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
-                              "BeforeExit", env);
+  TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "BeforeExit");
   if (!env->destroy_async_id_list()->empty())
     AsyncWrap::DestroyAsyncIdsCallback(env);
 
-  HandleScope handle_scope(env->isolate());
-  Local<Context> context = env->context();
-  Context::Scope context_scope(context);
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+  Context::Scope context_scope(env->context());
 
-  Local<Value> exit_code_v;
-  if (!env->process_object()->Get(context, env->exit_code_string())
-      .ToLocal(&exit_code_v)) return Nothing<bool>();
-
-  Local<Integer> exit_code;
-  if (!exit_code_v->ToInteger(context).ToLocal(&exit_code)) {
+  if (!env->can_call_into_js()) {
     return Nothing<bool>();
   }
+
+  Local<Integer> exit_code = Integer::New(
+      isolate, static_cast<int32_t>(env->exit_code(ExitCode::kNoFailure)));
 
   return ProcessEmit(env, "beforeExit", exit_code).IsEmpty() ?
       Nothing<bool>() : Just(true);
 }
 
-int EmitExit(Environment* env) {
-  return EmitProcessExit(env).FromMaybe(1);
+static ExitCode EmitExitInternal(Environment* env) {
+  return EmitProcessExitInternal(env).FromMaybe(ExitCode::kGenericUserError);
 }
 
-Maybe<int> EmitProcessExit(Environment* env) {
+int EmitExit(Environment* env) {
+  return static_cast<int>(EmitExitInternal(env));
+}
+
+Maybe<ExitCode> EmitProcessExitInternal(Environment* env) {
   // process.emit('exit')
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
-  Local<Context> context = env->context();
-  Context::Scope context_scope(context);
-  Local<Object> process_object = env->process_object();
+  Context::Scope context_scope(env->context());
 
-  // TODO(addaleax): It might be nice to share process._exiting and
-  // process.exitCode via getter/setter pairs that pass data directly to the
-  // native side, so that we don't manually have to read and write JS properties
-  // here. These getters could use e.g. a typed array for performance.
-  if (process_object
-      ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "_exiting"),
-            True(isolate)).IsNothing()) return Nothing<int>();
+  env->set_exiting(true);
 
-  Local<String> exit_code = env->exit_code_string();
-  Local<Value> code_v;
-  int code;
-  if (!process_object->Get(context, exit_code).ToLocal(&code_v) ||
-      !code_v->Int32Value(context).To(&code) ||
-      ProcessEmit(env, "exit", Integer::New(isolate, code)).IsEmpty() ||
-      // Reload exit code, it may be changed by `emit('exit')`
-      !process_object->Get(context, exit_code).ToLocal(&code_v) ||
-      !code_v->Int32Value(context).To(&code)) {
-    return Nothing<int>();
+  if (!env->can_call_into_js()) {
+    return Nothing<ExitCode>();
   }
 
-  return Just(code);
+  Local<Integer> exit_code = Integer::New(
+      isolate, static_cast<int32_t>(env->exit_code(ExitCode::kNoFailure)));
+
+  if (ProcessEmit(env, "exit", exit_code).IsEmpty()) {
+    return Nothing<ExitCode>();
+  }
+  // Reload exit code, it may be changed by `emit('exit')`
+  return Just(env->exit_code(ExitCode::kNoFailure));
+}
+
+Maybe<int> EmitProcessExit(Environment* env) {
+  Maybe<ExitCode> result = EmitProcessExitInternal(env);
+  if (result.IsNothing()) {
+    return Nothing<int>();
+  }
+  return Just(static_cast<int>(result.FromJust()));
 }
 
 typedef void (*CleanupHook)(void* arg);
@@ -168,6 +166,16 @@ void RemoveEnvironmentCleanupHookInternal(
   if (handle->info->started) return;
   handle->info->self.reset();
   handle->info->env->RemoveCleanupHook(RunAsyncCleanupHook, handle->info.get());
+}
+
+void RequestInterrupt(Environment* env, void (*fun)(void* arg), void* arg) {
+  env->RequestInterrupt([fun, arg](Environment* env) {
+    // Disallow JavaScript execution during interrupt.
+    Isolate::DisallowJavascriptExecutionScope scope(
+        env->isolate(),
+        Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    fun(arg);
+  });
 }
 
 async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {

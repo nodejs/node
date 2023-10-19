@@ -1,0 +1,108 @@
+.TH "LOGGING" "7" "October 2023" "" ""
+.SH "NAME"
+\fBLogging\fR - Why, What & How We Log
+.SS "Description"
+.P
+The \fBnpm\fR CLI has various mechanisms for showing different levels of information back to end-users for certain commands, configurations & environments.
+.SS "Setting Log File Location"
+.P
+All logs are written to a debug log, with the path to that file printed if the execution of a command fails.
+.P
+The default location of the logs directory is a directory named \fB_logs\fR inside the npm cache. This can be changed with the \fBlogs-dir\fR config option.
+.P
+For example, if you wanted to write all your logs to the current working directory, you could run: \fBnpm install --logs-dir=.\fR. This is especially helpful in debugging a specific \fBnpm\fR issue as you can run a command multiple times with different config values and then diff all the log files.
+.P
+Log files will be removed from the \fBlogs-dir\fR when the number of log files exceeds \fBlogs-max\fR, with the oldest logs being deleted first.
+.P
+To turn off logs completely set \fB--logs-max=0\fR.
+.SS "Setting Log Levels"
+.SS "\fBloglevel\fR"
+.P
+\fBloglevel\fR is a global argument/config that can be set to determine the type of information to be displayed.
+.P
+The default value of \fBloglevel\fR is \fB"notice"\fR but there are several levels/types of logs available, including:
+.RS 0
+.IP \(bu 4
+\fB"silent"\fR
+.IP \(bu 4
+\fB"error"\fR
+.IP \(bu 4
+\fB"warn"\fR
+.IP \(bu 4
+\fB"notice"\fR
+.IP \(bu 4
+\fB"http"\fR
+.IP \(bu 4
+\fB"info"\fR
+.IP \(bu 4
+\fB"verbose"\fR
+.IP \(bu 4
+\fB"silly"\fR
+.RE 0
+
+.P
+All logs pertaining to a level proceeding the current setting will be shown.
+.SS "Aliases"
+.P
+The log levels listed above have various corresponding aliases, including:
+.RS 0
+.IP \(bu 4
+\fB-d\fR: \fB--loglevel info\fR
+.IP \(bu 4
+\fB--dd\fR: \fB--loglevel verbose\fR
+.IP \(bu 4
+\fB--verbose\fR: \fB--loglevel verbose\fR
+.IP \(bu 4
+\fB--ddd\fR: \fB--loglevel silly\fR
+.IP \(bu 4
+\fB-q\fR: \fB--loglevel warn\fR
+.IP \(bu 4
+\fB--quiet\fR: \fB--loglevel warn\fR
+.IP \(bu 4
+\fB-s\fR: \fB--loglevel silent\fR
+.IP \(bu 4
+\fB--silent\fR: \fB--loglevel silent\fR
+.RE 0
+
+.SS "\fBforeground-scripts\fR"
+.P
+The \fBnpm\fR CLI began hiding the output of lifecycle scripts for \fBnpm install\fR as of \fBv7\fR. Notably, this means you will not see logs/output from packages that may be using "install scripts" to display information back to you or from your own project's scripts defined in \fBpackage.json\fR. If you'd like to change this behavior & log this output you can set \fBforeground-scripts\fR to \fBtrue\fR.
+.SS "Timing Information"
+.P
+The \fB\fB--timing\fR config\fR \fI\(la/using-npm/config#timing\(ra\fR can be set which does a few things:
+.RS 0
+.IP 1. 4
+Always shows the full path to the debug log regardless of command exit status
+.IP 2. 4
+Write timing information to a process specific timing file in the cache or \fBlogs-dir\fR
+.IP 3. 4
+Output timing information to the terminal
+.RE 0
+
+.P
+This file contains a \fBtimers\fR object where the keys are an identifier for the portion of the process being timed and the value is the number of milliseconds it took to complete.
+.P
+Sometimes it is helpful to get timing information without outputting anything to the terminal. For example, the performance might be affected by writing to the terminal. In this case you can use \fB--timing --silent\fR which will still write the timing file, but not output anything to the terminal while running.
+.SS "Registry Response Headers"
+.SS "\fBnpm-notice\fR"
+.P
+The \fBnpm\fR CLI reads from & logs any \fBnpm-notice\fR headers that are returned from the configured registry. This mechanism can be used by third-party registries to provide useful information when network-dependent requests occur.
+.P
+This header is not cached, and will not be logged if the request is served from the cache.
+.SS "Logs and Sensitive Information"
+.P
+The \fBnpm\fR CLI makes a best effort to redact the following from terminal output and log files:
+.RS 0
+.IP \(bu 4
+Passwords inside basic auth URLs
+.IP \(bu 4
+npm tokens
+.RE 0
+
+.P
+However, this behavior should not be relied on to keep all possible sensitive information redacted. If you are concerned about secrets in your log file or terminal output, you can use \fB--loglevel=silent\fR and \fB--logs-max=0\fR to ensure no logs are written to your terminal or filesystem.
+.SS "See also"
+.RS 0
+.IP \(bu 4
+npm help config
+.RE 0

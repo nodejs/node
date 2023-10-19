@@ -4,6 +4,6 @@
 
 // Flags: --perf-prof --perf-prof-delete-file
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 new WasmModuleBuilder().instantiate();

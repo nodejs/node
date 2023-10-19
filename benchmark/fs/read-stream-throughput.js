@@ -1,21 +1,19 @@
 // Test the throughput of the fs.WriteStream class.
 'use strict';
 
-const path = require('path');
 const common = require('../common.js');
 const fs = require('fs');
 const assert = require('assert');
 
 const tmpdir = require('../../test/common/tmpdir');
 tmpdir.refresh();
-const filename = path.resolve(tmpdir.path,
-                              `.removeme-benchmark-garbage-${process.pid}`);
+const filename = tmpdir.resolve(`.removeme-benchmark-garbage-${process.pid}`);
 
 const bench = common.createBenchmark(main, {
   encodingType: ['buf', 'asc', 'utf'],
   filesize: [1000 * 1024],
   highWaterMark: [1024, 4096, 65535, 1024 * 1024],
-  n: 1024
+  n: 1024,
 });
 
 function main(conf) {
@@ -50,7 +48,11 @@ function main(conf) {
     buf.fill('x');
   }
 
-  try { fs.unlinkSync(filename); } catch {}
+  try {
+    fs.unlinkSync(filename);
+  } catch {
+    // Continue regardless of error.
+  }
   const ws = fs.createWriteStream(filename);
   ws.on('close', runTest.bind(null, filesize, highWaterMark, encoding, n));
   ws.on('drain', write);
@@ -68,7 +70,7 @@ function runTest(filesize, highWaterMark, encoding, n) {
   assert(fs.statSync(filename).size === filesize * n);
   const rs = fs.createReadStream(filename, {
     highWaterMark,
-    encoding
+    encoding,
   });
 
   rs.on('open', () => {
@@ -81,7 +83,11 @@ function runTest(filesize, highWaterMark, encoding, n) {
   });
 
   rs.on('end', () => {
-    try { fs.unlinkSync(filename); } catch {}
+    try {
+      fs.unlinkSync(filename);
+    } catch {
+      // Continue regardless of error.
+    }
     // MB/sec
     bench.end(bytes / (1024 * 1024));
   });

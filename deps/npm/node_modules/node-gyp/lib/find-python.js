@@ -1,12 +1,43 @@
 'use strict'
 
-const path = require('path')
 const log = require('npmlog')
 const semver = require('semver')
 const cp = require('child_process')
 const extend = require('util')._extend // eslint-disable-line
 const win = process.platform === 'win32'
 const logWithPrefix = require('./util').logWithPrefix
+
+const systemDrive = process.env.SystemDrive || 'C:'
+const username = process.env.USERNAME || process.env.USER || getOsUserInfo()
+const localAppData = process.env.LOCALAPPDATA || `${systemDrive}\\${username}\\AppData\\Local`
+const foundLocalAppData = process.env.LOCALAPPDATA || username
+const programFiles = process.env.ProgramW6432 || process.env.ProgramFiles || `${systemDrive}\\Program Files`
+const programFilesX86 = process.env['ProgramFiles(x86)'] || `${programFiles} (x86)`
+
+const winDefaultLocationsArray = []
+for (const majorMinor of ['39', '38', '37', '36']) {
+  if (foundLocalAppData) {
+    winDefaultLocationsArray.push(
+      `${localAppData}\\Programs\\Python\\Python${majorMinor}\\python.exe`,
+      `${programFiles}\\Python${majorMinor}\\python.exe`,
+      `${localAppData}\\Programs\\Python\\Python${majorMinor}-32\\python.exe`,
+      `${programFiles}\\Python${majorMinor}-32\\python.exe`,
+      `${programFilesX86}\\Python${majorMinor}-32\\python.exe`
+    )
+  } else {
+    winDefaultLocationsArray.push(
+      `${programFiles}\\Python${majorMinor}\\python.exe`,
+      `${programFiles}\\Python${majorMinor}-32\\python.exe`,
+      `${programFilesX86}\\Python${majorMinor}-32\\python.exe`
+    )
+  }
+}
+
+function getOsUserInfo () {
+  try {
+    return require('os').userInfo().username
+  } catch (e) {}
+}
 
 function PythonFinder (configPython, callback) {
   this.callback = callback
@@ -18,17 +49,14 @@ PythonFinder.prototype = {
   log: logWithPrefix(log, 'find Python'),
   argsExecutable: ['-c', 'import sys; print(sys.executable);'],
   argsVersion: ['-c', 'import sys; print("%s.%s.%s" % sys.version_info[:3]);'],
-  semverRange: '2.7.x || >=3.5.0',
+  semverRange: '>=3.6.0',
 
   // These can be overridden for testing:
   execFile: cp.execFile,
   env: process.env,
   win: win,
   pyLauncher: 'py.exe',
-  winDefaultLocations: [
-    path.join(process.env.SystemDrive || 'C:', 'Python37', 'python.exe'),
-    path.join(process.env.SystemDrive || 'C:', 'Python27', 'python.exe')
-  ],
+  winDefaultLocations: winDefaultLocationsArray,
 
   // Logs a message at verbose level, but also saves it to be displayed later
   // at error level if an error occurs. This should help diagnose the problem.
@@ -96,11 +124,6 @@ PythonFinder.prototype = {
           before: () => { this.addLog('checking if "python" can be used') },
           check: this.checkCommand,
           arg: 'python'
-        },
-        {
-          before: () => { this.addLog('checking if "python2" can be used') },
-          check: this.checkCommand,
-          arg: 'python2'
         }
       ]
 
@@ -119,7 +142,7 @@ PythonFinder.prototype = {
         checks.push({
           before: () => {
             this.addLog(
-              'checking if the py launcher can be used to find Python')
+              'checking if the py launcher can be used to find Python 3')
           },
           check: this.checkPyLauncher
         })
@@ -188,10 +211,15 @@ PythonFinder.prototype = {
   // Distributions of Python on Windows by default install with the "py.exe"
   // Python launcher which is more likely to exist than the Python executable
   // being in the $PATH.
+  // Because the Python launcher supports Python 2 and Python 3, we should
+  // explicitly request a Python 3 version. This is done by supplying "-3" as
+  // the first command line argument. Since "py.exe -3" would be an invalid
+  // executable for "execFile", we have to use the launcher to figure out
+  // where the actual "python.exe" executable is located.
   checkPyLauncher: function checkPyLauncher (errorCallback) {
     this.log.verbose(
-      `- executing "${this.pyLauncher}" to get Python executable path`)
-    this.run(this.pyLauncher, this.argsExecutable, false,
+      `- executing "${this.pyLauncher}" to get Python 3 executable path`)
+    this.run(this.pyLauncher, ['-3', ...this.argsExecutable], false,
       function (err, execPath) {
       // Possible outcomes: same as checkCommand
         if (err) {

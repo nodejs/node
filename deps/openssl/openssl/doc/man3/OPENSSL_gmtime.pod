@@ -1,0 +1,62 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_gmtime,
+OPENSSL_gmtime_adj,
+OPENSSL_gmtime_diff - platform-agnostic OpenSSL time routines
+
+=head1 SYNOPSIS
+
+ #include <openssl/crypto.h>
+
+ struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result);
+ int OPENSSL_gmtime_adj(struct tm *tm, int offset_day, long offset_sec);
+ int OPENSSL_gmtime_diff(int *pday, int *psec,
+                        const struct tm *from, const struct tm *to);
+
+=head1 DESCRIPTION
+
+OPENSSL_gmtime() returns the UTC time specified by I<timer> into the provided
+I<result> argument.
+
+OPENSSL_gmtime_adj() adds the offsets in I<offset_day> and I<offset_sec> to I<tm>.
+
+OPENSSL_gmtime_diff() calculates the difference between I<from> and I<to>.
+
+=head1 NOTES
+
+It is an error to call OPENSSL_gmtime() with I<result> equal to NULL. The
+contents of the time_t given by I<timer> are stored into the I<result>. Calling
+with I<timer> equal to NULL means use the current time.
+
+OPENSSL_gmtime_adj() converts I<tm> into a days and seconds value, adds the
+offsets, then converts back into a I<struct tm> specified by I<tm>. Leap seconds
+are not considered.
+
+OPENSSL_gmtime_diff() calculates the difference between the two I<struct tm>
+structures I<from> and I<to>. The difference in days is placed into I<*pday>,
+the remaining seconds are placed to I<*psec>. The value in I<*psec> will be less
+than the number of seconds per day (3600). Leap seconds are not considered.
+
+=head1 RETURN VALUES
+
+OPENSSL_gmtime() returns NULL on error, or I<result> on success.
+
+OPENSSL_gmtime_adj() and OPENSSL_gmtime_diff() return 0 on error, and 1 on success.
+
+=head1 HISTORY
+
+OPENSSL_gmtime(), OPENSSL_gmtime_adj() and OPENSSL_gmtime_diff() have been
+in OpenSSL since 1.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

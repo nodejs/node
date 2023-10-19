@@ -75,15 +75,15 @@ const isValidOrders = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require object keys to be sorted",
-            category: "Stylistic Issues",
+            description: "Require object keys to be sorted",
             recommended: false,
-            url: "https://eslint.org/docs/rules/sort-keys"
+            url: "https://eslint.org/docs/latest/rules/sort-keys"
         },
 
         schema: [
@@ -105,6 +105,10 @@ module.exports = {
                         type: "integer",
                         minimum: 2,
                         default: 2
+                    },
+                    allowLineSeparatedGroups: {
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -124,17 +128,21 @@ module.exports = {
         const insensitive = options && options.caseSensitive === false;
         const natural = options && options.natural;
         const minKeys = options && options.minKeys;
+        const allowLineSeparatedGroups = options && options.allowLineSeparatedGroups || false;
         const isValidOrder = isValidOrders[
             order + (insensitive ? "I" : "") + (natural ? "N" : "")
         ];
 
         // The stack to save the previous property's name for each object literals.
         let stack = null;
+        const sourceCode = context.sourceCode;
 
         return {
             ObjectExpression(node) {
                 stack = {
                     upper: stack,
+                    prevNode: null,
+                    prevBlankLine: false,
                     prevName: null,
                     numKeys: node.properties.length
                 };
@@ -159,8 +167,43 @@ module.exports = {
                 const numKeys = stack.numKeys;
                 const thisName = getPropertyName(node);
 
+                // Get tokens between current node and previous node
+                const tokens = stack.prevNode && sourceCode
+                    .getTokensBetween(stack.prevNode, node, { includeComments: true });
+
+                let isBlankLineBetweenNodes = stack.prevBlankLine;
+
+                if (tokens) {
+
+                    // check blank line between tokens
+                    tokens.forEach((token, index) => {
+                        const previousToken = tokens[index - 1];
+
+                        if (previousToken && (token.loc.start.line - previousToken.loc.end.line > 1)) {
+                            isBlankLineBetweenNodes = true;
+                        }
+                    });
+
+                    // check blank line between the current node and the last token
+                    if (!isBlankLineBetweenNodes && (node.loc.start.line - tokens[tokens.length - 1].loc.end.line > 1)) {
+                        isBlankLineBetweenNodes = true;
+                    }
+
+                    // check blank line between the first token and the previous node
+                    if (!isBlankLineBetweenNodes && (tokens[0].loc.start.line - stack.prevNode.loc.end.line > 1)) {
+                        isBlankLineBetweenNodes = true;
+                    }
+                }
+
+                stack.prevNode = node;
+
                 if (thisName !== null) {
                     stack.prevName = thisName;
+                }
+
+                if (allowLineSeparatedGroups && isBlankLineBetweenNodes) {
+                    stack.prevBlankLine = thisName === null;
+                    return;
                 }
 
                 if (prevName === null || thisName === null || numKeys < minKeys) {

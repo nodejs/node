@@ -56,7 +56,7 @@ function test(next) {
   const server = tls.createServer(options, (conn) => {
     conn.on('error', (err) => {
       console.error(`Caught exception: ${err}`);
-      assert(/TLS session renegotiation attack/.test(err));
+      assert.match(err.message, /TLS session renegotiation attack/);
       conn.destroy();
     });
     conn.pipe(conn);

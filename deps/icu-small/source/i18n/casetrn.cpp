@@ -71,13 +71,13 @@ utrans_rep_caseContextIterator(void *context, int8_t dir)
             c=rep->char32At(csc->index);
             if(c<0) {
                 csc->limit=csc->index;
-                csc->b1=TRUE;
+                csc->b1=true;
             } else {
                 csc->index+=U16_LENGTH(c);
                 return c;
             }
         } else {
-            csc->b1=TRUE;
+            csc->b1=true;
         }
     }
     return U_SENTINEL;
@@ -90,7 +90,7 @@ UOBJECT_DEFINE_ABSTRACT_RTTI_IMPLEMENTATION(CaseMapTransliterator)
 /**
  * Constructs a transliterator.
  */
-CaseMapTransliterator::CaseMapTransliterator(const UnicodeString &id, UCaseMapFull *map) :
+CaseMapTransliterator::CaseMapTransliterator(const UnicodeString &id, UCaseMapFull *map) : 
     Transliterator(id, 0),
     fMap(map)
 {
@@ -133,7 +133,7 @@ CaseMapTransliterator::CaseMapTransliterator(const CaseMapTransliterator& o) :
  * Implements {@link Transliterator#handleTransliterate}.
  */
 void CaseMapTransliterator::handleTransliterate(Replaceable& text,
-                                 UTransPosition& offsets,
+                                 UTransPosition& offsets, 
                                  UBool isIncremental) const
 {
     if (offsets.start >= offsets.limit) {
@@ -147,7 +147,7 @@ void CaseMapTransliterator::handleTransliterate(Replaceable& text,
     csc.limit = offsets.contextLimit;
 
     UnicodeString tmp;
-    const UChar *s;
+    const char16_t *s;
     UChar32 c;
     int32_t textPos, delta, result;
 
@@ -170,7 +170,7 @@ void CaseMapTransliterator::handleTransliterate(Replaceable& text,
             // see UCASE_MAX_STRING_LENGTH
             if(result<=UCASE_MAX_STRING_LENGTH) {
                 // string s[result]
-                tmp.setTo(FALSE, s, result);
+                tmp.setTo(false, s, result);
                 delta=result-U16_LENGTH(c);
             } else {
                 // single code point

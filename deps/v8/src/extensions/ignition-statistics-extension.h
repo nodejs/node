@@ -5,9 +5,13 @@
 #ifndef V8_EXTENSIONS_IGNITION_STATISTICS_EXTENSION_H_
 #define V8_EXTENSIONS_IGNITION_STATISTICS_EXTENSION_H_
 
-#include "include/v8.h"
+#include "include/v8-extension.h"
 
 namespace v8 {
+
+template <typename T>
+class FunctionCallbackInfo;
+
 namespace internal {
 
 class IgnitionStatisticsExtension : public v8::Extension {
@@ -19,7 +23,7 @@ class IgnitionStatisticsExtension : public v8::Extension {
       v8::Isolate* isolate, v8::Local<v8::String> name) override;
 
   static void GetIgnitionDispatchCounters(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& info);
 
  private:
   static const char* const kSource;

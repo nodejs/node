@@ -41,8 +41,8 @@ class U_I18N_API ScriptSet: public UMemory {
     ScriptSet(const ScriptSet &other);
     ~ScriptSet();
 
-    UBool operator == (const ScriptSet &other) const;
-    UBool operator != (const ScriptSet &other) const {return !(*this == other);}
+    bool operator == (const ScriptSet &other) const;
+    bool operator != (const ScriptSet &other) const {return !(*this == other);}
     ScriptSet & operator = (const ScriptSet &other);
 
     UBool      test(UScriptCode script, UErrorCode &status) const;
@@ -83,4 +83,7 @@ uhash_hashScriptSet(const UElement key);
 U_CAPI void U_EXPORT2
 uhash_deleteScriptSet(void *obj);
 
-#endif // __SCRIPTSET_H__
+U_CAPI UBool U_EXPORT2
+uhash_equalsScriptSet(const UElement key1, const UElement key2);
+
+#endif // __SCRIPTSET_H_

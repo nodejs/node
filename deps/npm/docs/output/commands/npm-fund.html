@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-fund</title>
 <style>
 body {
@@ -145,28 +146,29 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm fund [&lt;pkg&gt;]
-npm fund [-w &lt;workspace-name&gt;]
+<pre><code class="language-bash">npm fund [&lt;package-spec&gt;]
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command retrieves information on how to fund the dependencies of a
 given project. If no package name is provided, it will list all
-dependencies that are looking for funding in a tree structure, listing the
-type of funding and the url to visit. If a package name is provided then it
-tries to open its funding url using the <code>--browser</code> config param; if there
-are multiple funding sources for the package, the user will be instructed
-to pass the <code>--which</code> option to disambiguate.</p>
+dependencies that are looking for funding in a tree structure, listing
+the type of funding and the url to visit. If a package name is provided
+then it tries to open its funding url using the
+<a href="../using-npm/config#browser.html"><code>--browser</code> config</a> param; if there are multiple
+funding sources for the package, the user will be instructed to pass the
+<code>--which</code> option to disambiguate.</p>
 <p>The list will avoid duplicated entries and will stack all packages that
-share the same url as a single entry. Thus, the list does not have the same
-shape of the output from <code>npm ls</code>.</p>
+share the same url as a single entry. Thus, the list does not have the
+same shape of the output from <code>npm ls</code>.</p>
 <h4 id="example">Example</h4>
 <h3 id="workspaces-support">Workspaces support</h3>
-<p>It’s possible to filter the results to only include a single workspace and its
-dependencies using the <code>workspace</code> config option.</p>
+<p>It's possible to filter the results to only include a single workspace
+and its dependencies using the
+<a href="../using-npm/config#workspace.html"><code>workspace</code> config</a> option.</p>
 <h4 id="example2">Example:</h4>
-<p>Here’s an example running <code>npm fund</code> in a project with a configured
+<p>Here's an example running <code>npm fund</code> in a project with a configured
 workspace <code>a</code>:</p>
-<pre lang="bash"><code>$ npm fund
+<pre><code class="language-bash">$ npm fund
 test-workspaces-fund@1.0.0
 +-- https://example.com/a
 | | `-- a@1.0.0
@@ -177,9 +179,9 @@ test-workspaces-fund@1.0.0
 `-- https://example.com/org
     `-- bar@2.0.0
 </code></pre>
-<p>And here is an example of the expected result when filtering only by
-a specific workspace <code>a</code> in the same project:</p>
-<pre lang="bash"><code>$ npm fund -w a
+<p>And here is an example of the expected result when filtering only by a
+specific workspace <code>a</code> in the same project:</p>
+<pre><code class="language-bash">$ npm fund -w a
 test-workspaces-fund@1.0.0
 `-- https://example.com/a
   | `-- a@1.0.0
@@ -187,14 +189,16 @@ test-workspaces-fund@1.0.0
       `-- foo@2.0.0
 </code></pre>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
 <p>Not supported by all npm commands.</p>
 <h4 id="browser"><code>browser</code></h4>
 <ul>
@@ -225,8 +229,8 @@ this configuration option.</p>
 <ul>
 <li>Workspace names</li>
 <li>Path to a workspace directory</li>
-<li>Path to a parent workspace directory (will result to selecting all of the
-nested workspaces)</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
 </ul>
 <p>When set for the <code>npm init</code> command, this may be set to the folder of a
 workspace which does not yet exist, to create the folder and set it up as a
@@ -238,16 +242,15 @@ brand new workspace within the project.</p>
 <li>Type: null or Number</li>
 </ul>
 <p>If there are multiple funding sources, which 1-indexed source URL to open.</p>
-<!-- raw HTML omitted -->
 <h2 id="see-also">See Also</h2>
 <ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
 <li><a href="../commands/npm-install.html">npm install</a></li>
 <li><a href="../commands/npm-docs.html">npm docs</a></li>
 <li><a href="../commands/npm-ls.html">npm ls</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-fund.md">

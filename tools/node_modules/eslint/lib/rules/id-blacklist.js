@@ -2,6 +2,7 @@
  * @fileoverview Rule that warns when identifier names that are
  * specified in the configuration are used.
  * @author Keith Cirkel (http://keithcirkel.co.uk)
+ * @deprecated in ESLint v7.5.0
  */
 
 "use strict";
@@ -109,6 +110,7 @@ function isShorthandPropertyDefinition(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         deprecated: true,
@@ -117,10 +119,9 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow specified identifiers",
-            category: "Stylistic Issues",
+            description: "Disallow specified identifiers",
             recommended: false,
-            url: "https://eslint.org/docs/rules/id-blacklist"
+            url: "https://eslint.org/docs/latest/rules/id-blacklist"
         },
 
         schema: {
@@ -139,6 +140,7 @@ module.exports = {
 
         const denyList = new Set(context.options);
         const reportedNodes = new Set();
+        const sourceCode = context.sourceCode;
 
         let globalScope;
 
@@ -205,7 +207,17 @@ module.exports = {
          * @private
          */
         function report(node) {
-            if (!reportedNodes.has(node)) {
+
+            /*
+             * We used the range instead of the node because it's possible
+             * for the same identifier to be represented by two different
+             * nodes, with the most clear example being shorthand properties:
+             * { foo }
+             * In this case, "foo" is represented by one node for the name
+             * and one for the value. The only way to know they are the same
+             * is to look at the range.
+             */
+            if (!reportedNodes.has(node.range.toString())) {
                 context.report({
                     node,
                     messageId: "restricted",
@@ -213,14 +225,15 @@ module.exports = {
                         name: node.name
                     }
                 });
-                reportedNodes.add(node);
+                reportedNodes.add(node.range.toString());
             }
+
         }
 
         return {
 
-            Program() {
-                globalScope = context.getScope();
+            Program(node) {
+                globalScope = sourceCode.getScope(node);
             },
 
             Identifier(node) {

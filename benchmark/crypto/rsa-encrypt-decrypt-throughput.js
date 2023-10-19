@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const fixtures_keydir = path.resolve(__dirname, '../../test/fixtures/keys/');
-const keylen_list = ['1024', '2048', '4096'];
+const keylen_list = ['2048', '4096'];
 const RSA_PublicPem = {};
 const RSA_PrivatePem = {};
 
@@ -19,7 +19,7 @@ keylen_list.forEach((key) => {
 const bench = common.createBenchmark(main, {
   n: [500],
   keylen: keylen_list,
-  len: [16, 32, 64]
+  len: [16, 32, 64],
 });
 
 function main({ len, algo, keylen, n }) {

@@ -34,7 +34,7 @@ const http = require('http');
 }
 
 {
-  // Ensure that timeouted sockets are not reused.
+  // Ensure that timed-out sockets are not reused.
 
   const agent = new http.Agent({ keepAlive: true, timeout: 50 });
 

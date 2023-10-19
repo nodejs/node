@@ -31,10 +31,13 @@ const fs = require('fs');
 const path = require('path');
 
 // Check for existence of `process.config`.
-assert(process.hasOwnProperty('config'));
+assert(Object.hasOwn(process, 'config'));
 
 // Ensure that `process.config` is an Object.
 assert.strictEqual(Object(process.config), process.config);
+
+// Ensure that you can't change config values
+assert.throws(() => { process.config.variables = 42; }, TypeError);
 
 const configPath = path.resolve(__dirname, '..', '..', 'config.gypi');
 

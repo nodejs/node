@@ -13,6 +13,8 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/arm64/utils-arm64.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
@@ -1030,72 +1032,212 @@ void DisassemblingDecoder::VisitLoadStorePairOffset(Instruction* instr) {
 
 #undef LOAD_STORE_PAIR_LIST
 
+#define LOAD_STORE_ACQUIRE_RELEASE_LIST(V)      \
+  V(STLXR_b, "stlxrb", "'Ws, 'Wt")              \
+  V(STLXR_h, "stlxrh", "'Ws, 'Wt")              \
+  V(STLXR_w, "stlxr", "'Ws, 'Wt")               \
+  V(STLXR_x, "stlxr", "'Ws, 'Xt")               \
+  V(LDAXR_b, "ldaxrb", "'Wt")                   \
+  V(LDAXR_h, "ldaxrh", "'Wt")                   \
+  V(LDAXR_w, "ldaxr", "'Wt")                    \
+  V(LDAXR_x, "ldaxr", "'Xt")                    \
+  V(STLR_b, "stlrb", "'Wt")                     \
+  V(STLR_h, "stlrh", "'Wt")                     \
+  V(STLR_w, "stlr", "'Wt")                      \
+  V(STLR_x, "stlr", "'Xt")                      \
+  V(LDAR_b, "ldarb", "'Wt")                     \
+  V(LDAR_h, "ldarh", "'Wt")                     \
+  V(LDAR_w, "ldar", "'Wt")                      \
+  V(LDAR_x, "ldar", "'Xt")                      \
+  V(CAS_w, "cas", "'Ws, 'Wt")                   \
+  V(CAS_x, "cas", "'Xs, 'Xt")                   \
+  V(CASA_w, "casa", "'Ws, 'Wt")                 \
+  V(CASA_x, "casa", "'Xs, 'Xt")                 \
+  V(CASL_w, "casl", "'Ws, 'Wt")                 \
+  V(CASL_x, "casl", "'Xs, 'Xt")                 \
+  V(CASAL_w, "casal", "'Ws, 'Wt")               \
+  V(CASAL_x, "casal", "'Xs, 'Xt")               \
+  V(CASB, "casb", "'Ws, 'Wt")                   \
+  V(CASAB, "casab", "'Ws, 'Wt")                 \
+  V(CASLB, "caslb", "'Ws, 'Wt")                 \
+  V(CASALB, "casalb", "'Ws, 'Wt")               \
+  V(CASH, "cash", "'Ws, 'Wt")                   \
+  V(CASAH, "casah", "'Ws, 'Wt")                 \
+  V(CASLH, "caslh", "'Ws, 'Wt")                 \
+  V(CASALH, "casalh", "'Ws, 'Wt")               \
+  V(CASP_w, "casp", "'Ws, 'Ws+, 'Wt, 'Wt+")     \
+  V(CASP_x, "casp", "'Xs, 'Xs+, 'Xt, 'Xt+")     \
+  V(CASPA_w, "caspa", "'Ws, 'Ws+, 'Wt, 'Wt+")   \
+  V(CASPA_x, "caspa", "'Xs, 'Xs+, 'Xt, 'Xt+")   \
+  V(CASPL_w, "caspl", "'Ws, 'Ws+, 'Wt, 'Wt+")   \
+  V(CASPL_x, "caspl", "'Xs, 'Xs+, 'Xt, 'Xt+")   \
+  V(CASPAL_w, "caspal", "'Ws, 'Ws+, 'Wt, 'Wt+") \
+  V(CASPAL_x, "caspal", "'Xs, 'Xs+, 'Xt, 'Xt+")
+
 void DisassemblingDecoder::VisitLoadStoreAcquireRelease(Instruction* instr) {
   const char* mnemonic = "unimplemented";
-  const char* form = "'Wt, ['Xns]";
-  const char* form_x = "'Xt, ['Xns]";
-  const char* form_stlx = "'Ws, 'Wt, ['Xns]";
-  const char* form_stlx_x = "'Ws, 'Xt, ['Xns]";
+  const char* form;
 
   switch (instr->Mask(LoadStoreAcquireReleaseMask)) {
-    case LDAXR_b:
-      mnemonic = "ldaxrb";
-      break;
-    case STLR_b:
-      mnemonic = "stlrb";
-      break;
-    case LDAR_b:
-      mnemonic = "ldarb";
-      break;
-    case LDAXR_h:
-      mnemonic = "ldaxrh";
-      break;
-    case STLR_h:
-      mnemonic = "stlrh";
-      break;
-    case LDAR_h:
-      mnemonic = "ldarh";
-      break;
-    case LDAXR_w:
-      mnemonic = "ldaxr";
-      break;
-    case STLR_w:
-      mnemonic = "stlr";
-      break;
-    case LDAR_w:
-      mnemonic = "ldar";
-      break;
-    case LDAXR_x:
-      mnemonic = "ldaxr";
-      form = form_x;
-      break;
-    case STLR_x:
-      mnemonic = "stlr";
-      form = form_x;
-      break;
-    case LDAR_x:
-      mnemonic = "ldar";
-      form = form_x;
-      break;
-    case STLXR_h:
-      mnemonic = "stlxrh";
-      form = form_stlx;
-      break;
-    case STLXR_b:
-      mnemonic = "stlxrb";
-      form = form_stlx;
-      break;
-    case STLXR_w:
-      mnemonic = "stlxr";
-      form = form_stlx;
-      break;
-    case STLXR_x:
-      mnemonic = "stlxr";
-      form = form_stlx_x;
-      break;
+#define LSAR(A, B, C)    \
+  case A:                \
+    mnemonic = B;        \
+    form = C ", ['Xns]"; \
+    break;
+    LOAD_STORE_ACQUIRE_RELEASE_LIST(LSAR)
+#undef LSAR
     default:
       form = "(LoadStoreAcquireRelease)";
   }
+
+  switch (instr->Mask(LoadStoreAcquireReleaseMask)) {
+    case CASP_w:
+    case CASP_x:
+    case CASPA_w:
+    case CASPA_x:
+    case CASPL_w:
+    case CASPL_x:
+    case CASPAL_w:
+    case CASPAL_x:
+      if ((instr->Rs() % 2 == 1) || (instr->Rt() % 2 == 1)) {
+        mnemonic = "unallocated";
+        form = "(LoadStoreExclusive)";
+      }
+      break;
+  }
+
+  Format(instr, mnemonic, form);
+}
+
+#undef LOAD_STORE_ACQUIRE_RELEASE_LIST
+
+#define ATOMIC_MEMORY_SIMPLE_LIST(V) \
+  V(LDADD, "add")                    \
+  V(LDCLR, "clr")                    \
+  V(LDEOR, "eor")                    \
+  V(LDSET, "set")                    \
+  V(LDSMAX, "smax")                  \
+  V(LDSMIN, "smin")                  \
+  V(LDUMAX, "umax")                  \
+  V(LDUMIN, "umin")
+
+void DisassemblingDecoder::VisitAtomicMemory(Instruction* instr) {
+  const int kMaxAtomicOpMnemonicLength = 16;
+  const char* mnemonic;
+  const char* form = "'Ws, 'Wt, ['Xns]";
+
+  switch (instr->Mask(AtomicMemoryMask)) {
+#define AMS(A, MN)             \
+  case A##B:                   \
+    mnemonic = MN "b";         \
+    break;                     \
+  case A##AB:                  \
+    mnemonic = MN "ab";        \
+    break;                     \
+  case A##LB:                  \
+    mnemonic = MN "lb";        \
+    break;                     \
+  case A##ALB:                 \
+    mnemonic = MN "alb";       \
+    break;                     \
+  case A##H:                   \
+    mnemonic = MN "h";         \
+    break;                     \
+  case A##AH:                  \
+    mnemonic = MN "ah";        \
+    break;                     \
+  case A##LH:                  \
+    mnemonic = MN "lh";        \
+    break;                     \
+  case A##ALH:                 \
+    mnemonic = MN "alh";       \
+    break;                     \
+  case A##_w:                  \
+    mnemonic = MN;             \
+    break;                     \
+  case A##A_w:                 \
+    mnemonic = MN "a";         \
+    break;                     \
+  case A##L_w:                 \
+    mnemonic = MN "l";         \
+    break;                     \
+  case A##AL_w:                \
+    mnemonic = MN "al";        \
+    break;                     \
+  case A##_x:                  \
+    mnemonic = MN;             \
+    form = "'Xs, 'Xt, ['Xns]"; \
+    break;                     \
+  case A##A_x:                 \
+    mnemonic = MN "a";         \
+    form = "'Xs, 'Xt, ['Xns]"; \
+    break;                     \
+  case A##L_x:                 \
+    mnemonic = MN "l";         \
+    form = "'Xs, 'Xt, ['Xns]"; \
+    break;                     \
+  case A##AL_x:                \
+    mnemonic = MN "al";        \
+    form = "'Xs, 'Xt, ['Xns]"; \
+    break;
+    ATOMIC_MEMORY_SIMPLE_LIST(AMS)
+
+    // SWP has the same semantics as ldadd etc but without the store aliases.
+    AMS(SWP, "swp")
+#undef AMS
+
+    default:
+      mnemonic = "unimplemented";
+      form = "(AtomicMemory)";
+  }
+
+  const char* prefix = "";
+  switch (instr->Mask(AtomicMemoryMask)) {
+#define AMS(A, MN)             \
+  case A##AB:                  \
+  case A##ALB:                 \
+  case A##AH:                  \
+  case A##ALH:                 \
+  case A##A_w:                 \
+  case A##AL_w:                \
+  case A##A_x:                 \
+  case A##AL_x:                \
+    prefix = "ld";             \
+    break;                     \
+  case A##B:                   \
+  case A##LB:                  \
+  case A##H:                   \
+  case A##LH:                  \
+  case A##_w:                  \
+  case A##L_w: {               \
+    prefix = "ld";             \
+    unsigned rt = instr->Rt(); \
+    if (rt == kZeroRegCode) {  \
+      prefix = "st";           \
+      form = "'Ws, ['Xns]";    \
+    }                          \
+    break;                     \
+  }                            \
+  case A##_x:                  \
+  case A##L_x: {               \
+    prefix = "ld";             \
+    unsigned rt = instr->Rt(); \
+    if (rt == kZeroRegCode) {  \
+      prefix = "st";           \
+      form = "'Xs, ['Xns]";    \
+    }                          \
+    break;                     \
+  }
+    ATOMIC_MEMORY_SIMPLE_LIST(AMS)
+#undef AMS
+  }
+
+  char buffer[kMaxAtomicOpMnemonicLength];
+  if (strlen(prefix) > 0) {
+    snprintf(buffer, kMaxAtomicOpMnemonicLength, "%s%s", prefix, mnemonic);
+    mnemonic = buffer;
+  }
+
   Format(instr, mnemonic, form);
 }
 
@@ -3780,6 +3922,14 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
     field_len = 3;
   }
 
+  // W or X registers tagged with '+' have their number incremented, to support
+  // instructions such as CASP.
+  if (format[2] == '+') {
+    DCHECK((reg_prefix == 'W') || (reg_prefix == 'X'));
+    reg_num++;
+    field_len++;
+  }
+
   CPURegister::RegisterType reg_type;
   unsigned reg_size;
 
@@ -3952,7 +4102,6 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
         }
         default: {
           UNIMPLEMENTED();
-          return 0;
         }
       }
     }
@@ -3995,7 +4144,6 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             return 0;
           }
           UNIMPLEMENTED();
-          return 0;
         }
         case 'L': {  // IVLSLane[0123] - suffix indicates access size shift.
           AppendToOutput("%d", instr->NEONLSIndex(format[8] - '0'));
@@ -4040,12 +4188,10 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             return static_cast<int>(strlen("IVMIShiftAmt2"));
           } else {
             UNIMPLEMENTED();
-            return 0;
           }
         }
         default: {
           UNIMPLEMENTED();
-          return 0;
         }
       }
     }
@@ -4268,19 +4414,12 @@ int DisassemblingDecoder::SubstitutePrefetchField(Instruction* instr,
   USE(format);
 
   int prefetch_mode = instr->PrefetchMode();
-  const std::array<std::string, 3> hints = {"ld", "li", "st"};
-  unsigned hint = instr->PrefetchHint();
-  unsigned target = instr->PrefetchTarget() + 1;
 
-  if (hint >= hints.size() || target > 3) {
-    std::bitset<5> prefetch_mode(instr->ImmPrefetchOperation());
-    AppendToOutput("#0b%s", prefetch_mode.to_string().c_str());
-  } else {
-    const char* ks = (prefetch_mode & 1) ? "strm" : "keep";
+  const char* ls = (prefetch_mode & 0x10) ? "st" : "ld";
+  int level = (prefetch_mode >> 1) + 1;
+  const char* ks = (prefetch_mode & 1) ? "strm" : "keep";
 
-    AppendToOutput("p%sl%d%s", hints[hint].c_str(), target, ks);
-  }
-
+  AppendToOutput("p%sl%d%s", ls, level, ks);
   return 6;
 }
 
@@ -4324,12 +4463,12 @@ void PrintDisassembler::ProcessOutput(Instruction* instr) {
 
 namespace disasm {
 
-const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+const char* NameConverter::NameOfAddress(uint8_t* addr) const {
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
-const char* NameConverter::NameOfConstant(byte* addr) const {
+const char* NameConverter::NameOfConstant(uint8_t* addr) const {
   return NameOfAddress(addr);
 }
 
@@ -4341,21 +4480,19 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
   if (ureg == v8::internal::kZeroRegCode) {
     return "xzr";
   }
-  v8::internal::SNPrintF(tmp_buffer_, "x%u", ureg);
+  v8::base::SNPrintF(tmp_buffer_, "x%u", ureg);
   return tmp_buffer_.begin();
 }
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();  // ARM64 does not have the concept of a byte register
-  return "nobytereg";
 }
 
 const char* NameConverter::NameOfXMMRegister(int reg) const {
   UNREACHABLE();  // ARM64 does not have any XMM registers
-  return "noxmmreg";
 }
 
-const char* NameConverter::NameInCode(byte* addr) const {
+const char* NameConverter::NameInCode(uint8_t* addr) const {
   // The default name converter is called for unknown code, so we will not try
   // to access any memory.
   return "";
@@ -4365,22 +4502,22 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 class BufferDisassembler : public v8::internal::DisassemblingDecoder {
  public:
-  explicit BufferDisassembler(v8::internal::Vector<char> out_buffer)
+  explicit BufferDisassembler(v8::base::Vector<char> out_buffer)
       : out_buffer_(out_buffer) {}
 
   ~BufferDisassembler() {}
 
   virtual void ProcessOutput(v8::internal::Instruction* instr) {
-    v8::internal::SNPrintF(out_buffer_, "%08" PRIx32 "       %s",
-                           instr->InstructionBits(), GetOutput());
+    v8::base::SNPrintF(out_buffer_, "%08" PRIx32 "       %s",
+                       instr->InstructionBits(), GetOutput());
   }
 
  private:
-  v8::internal::Vector<char> out_buffer_;
+  v8::base::Vector<char> out_buffer_;
 };
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
-                                    byte* instr) {
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
+                                    uint8_t* instr) {
   USE(converter_);  // avoid unused field warning
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   BufferDisassembler disasm(buffer);
@@ -4390,18 +4527,18 @@ int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
   return v8::internal::kInstrSize;
 }
 
-int Disassembler::ConstantPoolSizeAt(byte* instr) {
+int Disassembler::ConstantPoolSizeAt(uint8_t* instr) {
   return v8::internal::Assembler::ConstantPoolSizeAt(
       reinterpret_cast<v8::internal::Instruction*>(instr));
 }
 
-void Disassembler::Disassemble(FILE* file, byte* start, byte* end,
+void Disassembler::Disassemble(FILE* file, uint8_t* start, uint8_t* end,
                                UnimplementedOpcodeAction) {
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   v8::internal::PrintDisassembler disasm(file);
   decoder.AppendVisitor(&disasm);
 
-  for (byte* pc = start; pc < end; pc += v8::internal::kInstrSize) {
+  for (uint8_t* pc = start; pc < end; pc += v8::internal::kInstrSize) {
     decoder.Decode(reinterpret_cast<v8::internal::Instruction*>(pc));
   }
 }

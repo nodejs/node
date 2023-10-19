@@ -4,12 +4,17 @@
 
 #include "test/inspector/task-runner.h"
 
-#include "include/libplatform/libplatform.h"
+#include "include/v8-exception.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
 #include "src/flags/flags.h"
+#include "src/init/v8.h"
+#include "src/libplatform/default-platform.h"
+#include "src/utils/locked-queue-inl.h"
 
 #if !defined(_WIN32) && !defined(_WIN64)
-#include <unistd.h>  // NOLINT
-#endif               // !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#endif  // !defined(_WIN32) && !defined(_WIN64)
 
 namespace v8 {
 namespace internal {
@@ -35,11 +40,10 @@ void ReportUncaughtException(v8::Isolate* isolate,
 
 }  //  namespace
 
-TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
-                       CatchExceptions catch_exceptions,
-                       v8::base::Semaphore* ready_semaphore,
-                       v8::StartupData* startup_data,
-                       WithInspector with_inspector)
+TaskRunner::TaskRunner(
+    InspectorIsolateData::SetupGlobalTasks setup_global_tasks,
+    CatchExceptions catch_exceptions, v8::base::Semaphore* ready_semaphore,
+    v8::StartupData* startup_data, WithInspector with_inspector)
     : Thread(Options("Task Runner")),
       setup_global_tasks_(std::move(setup_global_tasks)),
       startup_data_(startup_data),
@@ -53,18 +57,19 @@ TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
   CHECK(Start());
 }
 
-TaskRunner::~TaskRunner() { Join(); }
+TaskRunner::~TaskRunner() {}
 
 void TaskRunner::Run() {
-  data_.reset(new IsolateData(this, std::move(setup_global_tasks_),
-                              startup_data_, with_inspector_));
+  data_.reset(new InspectorIsolateData(this, std::move(setup_global_tasks_),
+                                       startup_data_, with_inspector_));
   if (ready_semaphore_) ready_semaphore_->Signal();
   RunMessageLoop(false);
 }
 
 void TaskRunner::RunMessageLoop(bool only_protocol) {
   int loop_number = ++nested_loop_count_;
-  while (nested_loop_count_ == loop_number && !is_terminated_) {
+  while (nested_loop_count_ == loop_number && !is_terminated_ &&
+         !isolate()->IsExecutionTerminating()) {
     std::unique_ptr<TaskRunner::Task> task = GetNext(only_protocol);
     if (!task) return;
     v8::Isolate::Scope isolate_scope(isolate());
@@ -84,7 +89,8 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     // This can be removed once https://crbug.com/v8/10747 is fixed.
     // TODO(10748): Enable --stress-incremental-marking after the existing
     // tests are fixed.
-    if (!i::FLAG_stress_incremental_marking) {
+    if (!i::v8_flags.stress_incremental_marking &&
+        !isolate()->IsExecutionTerminating()) {
       while (v8::platform::PumpMessageLoop(
           v8::internal::V8::GetCurrentPlatform(), isolate(),
           isolate()->HasPendingBackgroundTasks()
@@ -136,7 +142,6 @@ std::unique_ptr<TaskRunner::Task> TaskRunner::GetNext(bool only_protocol) {
     }
     process_queue_semaphore_.Wait();
   }
-  return nullptr;
 }
 
 }  // namespace internal

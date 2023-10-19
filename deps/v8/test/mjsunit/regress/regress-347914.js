@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --debug-code --gc-interval=201 --verify-heap
 // Flags: --max-inlined-bytecode-size=999999 --max-inlined-bytecode-size-cumulative=999999
-// Flags: --opt --no-always-opt
+// Flags: --turbofan --no-always-turbofan
 
 // Begin stripped down and modified version of mjsunit.js for easy minimization in CF.
 function MjsUnitAssertionError(message) {}
@@ -46,7 +46,7 @@ assertInstanceof = function assertInstanceof(obj, type) { if (!(obj instanceof t
 assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) { try { if (typeof code == 'function') { code(); } else { eval(code); } } catch (e) { fail("threw an exception: ", e.message || e, name_opt); } };
 assertUnreachable = function assertUnreachable(name_opt) { var message = "Fail" + "ure: unreachable"; if (name_opt) { message += " - " + name_opt; } };
 var OptimizationStatus;
-try { OptimizationStatus = new Function("fun", "sync", "return %GetOptimizationStatus(fun, sync);"); } catch (e) { OptimizationStatus = function() { } }
+try { OptimizationStatus = new Function("fun", "sync", "if (sync) %WaitForBackgroundOptimization(); return %GetOptimizationStatus(fun);"); } catch (e) { OptimizationStatus = function() { } }
 assertUnoptimized = function assertUnoptimized(fun, sync_opt, name_opt) { if (sync_opt === undefined) sync_opt = ""; assertTrue(OptimizationStatus(fun, sync_opt) != 1, name_opt); }
 assertOptimized = function assertOptimized(fun, sync_opt, name_opt) { if (sync_opt === undefined) sync_opt = "";  assertTrue(OptimizationStatus(fun, sync_opt) != 2, name_opt); }
 triggerAssertFalse = function() { }

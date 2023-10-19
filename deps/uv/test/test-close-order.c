@@ -32,7 +32,7 @@ static uv_timer_t timer_handle2;
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -75,6 +75,6 @@ TEST_IMPL(close_order) {
   ASSERT(close_cb_called == 3);
   ASSERT(timer_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

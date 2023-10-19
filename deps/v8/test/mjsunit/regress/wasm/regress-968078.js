@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function() {
   function repeat(value, length) {
@@ -24,15 +24,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     return Array.from(bytes.trunc_buffer());
   }
   var builder = new WasmModuleBuilder();
-  builder.addMemory(12, 12, false);
+  builder.addMemory(12, 12);
   builder.addFunction("foo", kSig_v_iii)
     .addBody([].concat([
-      kExprBlock, kWasmStmt,
+      kExprBlock, kWasmVoid,
         kExprLocalGet, 0x2,
         kExprI32Const, 0x01,
         kExprI32And,
         // Generate a test branch (which has 32k limited reach).
-        kExprIf, kWasmStmt,
+        kExprIf, kWasmVoid,
           kExprLocalGet, 0x0,
           kExprI32Const, 0x01,
           kExprI32And,

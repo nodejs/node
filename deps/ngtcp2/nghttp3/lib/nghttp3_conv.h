@@ -88,7 +88,7 @@
 STIN uint32_t htonl(uint32_t hostlong) {
   uint32_t res;
   unsigned char *p = (unsigned char *)&res;
-  *p++ = hostlong >> 24;
+  *p++ = (unsigned char)(hostlong >> 24);
   *p++ = (hostlong >> 16) & 0xffu;
   *p++ = (hostlong >> 8) & 0xffu;
   *p = hostlong & 0xffu;
@@ -98,7 +98,7 @@ STIN uint32_t htonl(uint32_t hostlong) {
 STIN uint16_t htons(uint16_t hostshort) {
   uint16_t res;
   unsigned char *p = (unsigned char *)&res;
-  *p++ = hostshort >> 8;
+  *p++ = (unsigned char)(hostshort >> 8);
   *p = hostshort & 0xffu;
   return res;
 }

@@ -15,5 +15,5 @@ if [ "`which c++filt`" == "" ]; then
   nm "$@"
 else
   nm "$@" | sed -n "s/\([0-9a-fA-F]\{8,16\}\) [iItT] \(.*\)/\\1 \\2/p"\
-    | c++filt -p -i
+    | c++filt 
 fi

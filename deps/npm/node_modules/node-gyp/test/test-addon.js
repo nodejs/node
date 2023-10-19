@@ -1,6 +1,7 @@
 'use strict'
 
-const test = require('tap').test
+const { describe, it } = require('mocha')
+const assert = require('assert')
 const path = require('path')
 const fs = require('graceful-fs')
 const childProcess = require('child_process')
@@ -35,116 +36,117 @@ function checkCharmapValid () {
   return lines.pop() === 'True'
 }
 
-test('build simple addon', function (t) {
-  t.plan(3)
+describe('addon', function () {
+  this.timeout(300000)
 
-  // Set the loglevel otherwise the output disappears when run via 'npm test'
-  var cmd = [nodeGyp, 'rebuild', '-C', addonPath, '--loglevel=verbose']
-  var proc = execFile(process.execPath, cmd, function (err, stdout, stderr) {
-    var logLines = stderr.toString().trim().split(/\r?\n/)
-    var lastLine = logLines[logLines.length - 1]
-    t.strictEqual(err, null)
-    t.strictEqual(lastLine, 'gyp info ok', 'should end in ok')
-    t.strictEqual(runHello().trim(), 'world')
+  it('build simple addon', function (done) {
+    // Set the loglevel otherwise the output disappears when run via 'npm test'
+    var cmd = [nodeGyp, 'rebuild', '-C', addonPath, '--loglevel=verbose']
+    var proc = execFile(process.execPath, cmd, function (err, stdout, stderr) {
+      var logLines = stderr.toString().trim().split(/\r?\n/)
+      var lastLine = logLines[logLines.length - 1]
+      assert.strictEqual(err, null)
+      assert.strictEqual(lastLine, 'gyp info ok', 'should end in ok')
+      assert.strictEqual(runHello().trim(), 'world')
+      done()
+    })
+    proc.stdout.setEncoding('utf-8')
+    proc.stderr.setEncoding('utf-8')
   })
-  proc.stdout.setEncoding('utf-8')
-  proc.stderr.setEncoding('utf-8')
-})
 
-test('build simple addon in path with non-ascii characters', function (t) {
-  t.plan(1)
-
-  if (!checkCharmapValid()) {
-    return t.skip('python console app can\'t encode non-ascii character.')
-  }
-
-  var testDirNames = {
-    cp936: '文件夹',
-    cp1252: 'Latīna',
-    cp932: 'フォルダ'
-  }
-  // Select non-ascii characters by current encoding
-  var testDirName = testDirNames[getEncoding()]
-  // If encoding is UTF-8 or other then no need to test
-  if (!testDirName) {
-    return t.skip('no need to test')
-  }
-
-  t.plan(3)
-
-  var data
-  var configPath = path.join(addonPath, 'build', 'config.gypi')
-  try {
-    data = fs.readFileSync(configPath, 'utf8')
-  } catch (err) {
-    t.error(err)
-    return
-  }
-  var config = JSON.parse(data.replace(/#.+\n/, ''))
-  var nodeDir = config.variables.nodedir
-  var testNodeDir = path.join(addonPath, testDirName)
-  // Create symbol link to path with non-ascii characters
-  try {
-    fs.symlinkSync(nodeDir, testNodeDir, 'dir')
-  } catch (err) {
-    switch (err.code) {
-      case 'EEXIST': break
-      case 'EPERM':
-        t.error(err, 'Please try to running console as an administrator')
-        return
-      default:
-        t.error(err)
-        return
+  it('build simple addon in path with non-ascii characters', function (done) {
+    if (!checkCharmapValid()) {
+      return this.skip('python console app can\'t encode non-ascii character.')
     }
-  }
 
-  var cmd = [
-    nodeGyp,
-    'rebuild',
-    '-C',
-    addonPath,
-    '--loglevel=verbose',
-    '-nodedir=' + testNodeDir
-  ]
-  var proc = execFile(process.execPath, cmd, function (err, stdout, stderr) {
+    var testDirNames = {
+      cp936: '文件夹',
+      cp1252: 'Latīna',
+      cp932: 'フォルダ'
+    }
+    // Select non-ascii characters by current encoding
+    var testDirName = testDirNames[getEncoding()]
+    // If encoding is UTF-8 or other then no need to test
+    if (!testDirName) {
+      return this.skip('no need to test')
+    }
+
+    this.timeout(300000)
+
+    var data
+    var configPath = path.join(addonPath, 'build', 'config.gypi')
     try {
-      fs.unlink(testNodeDir)
+      data = fs.readFileSync(configPath, 'utf8')
     } catch (err) {
-      t.error(err)
+      assert.fail(err)
+      return
+    }
+    var config = JSON.parse(data.replace(/#.+\n/, ''))
+    var nodeDir = config.variables.nodedir
+    var testNodeDir = path.join(addonPath, testDirName)
+    // Create symbol link to path with non-ascii characters
+    try {
+      fs.symlinkSync(nodeDir, testNodeDir, 'dir')
+    } catch (err) {
+      switch (err.code) {
+        case 'EEXIST': break
+        case 'EPERM':
+          assert.fail(err, null, 'Please try to running console as an administrator')
+          return
+        default:
+          assert.fail(err)
+          return
+      }
     }
 
-    var logLines = stderr.toString().trim().split(/\r?\n/)
-    var lastLine = logLines[logLines.length - 1]
-    t.strictEqual(err, null)
-    t.strictEqual(lastLine, 'gyp info ok', 'should end in ok')
-    t.strictEqual(runHello().trim(), 'world')
+    var cmd = [
+      nodeGyp,
+      'rebuild',
+      '-C',
+      addonPath,
+      '--loglevel=verbose',
+      '-nodedir=' + testNodeDir
+    ]
+    var proc = execFile(process.execPath, cmd, function (err, stdout, stderr) {
+      try {
+        fs.unlink(testNodeDir)
+      } catch (err) {
+        assert.fail(err)
+      }
+
+      var logLines = stderr.toString().trim().split(/\r?\n/)
+      var lastLine = logLines[logLines.length - 1]
+      assert.strictEqual(err, null)
+      assert.strictEqual(lastLine, 'gyp info ok', 'should end in ok')
+      assert.strictEqual(runHello().trim(), 'world')
+      done()
+    })
+    proc.stdout.setEncoding('utf-8')
+    proc.stderr.setEncoding('utf-8')
   })
-  proc.stdout.setEncoding('utf-8')
-  proc.stderr.setEncoding('utf-8')
-})
 
-test('addon works with renamed host executable', function (t) {
-  // No `fs.copyFileSync` before node8.
-  if (process.version.substr(1).split('.')[0] < 8) {
-    t.skip('skipping test for old node version')
-    t.end()
-    return
-  }
+  it('addon works with renamed host executable', function (done) {
+    // No `fs.copyFileSync` before node8.
+    if (process.version.substr(1).split('.')[0] < 8) {
+      return this.skip('skipping test for old node version')
+    }
 
-  t.plan(3)
+    this.timeout(300000)
 
-  var notNodePath = path.join(os.tmpdir(), 'notnode' + path.extname(process.execPath))
-  fs.copyFileSync(process.execPath, notNodePath)
+    var notNodePath = path.join(os.tmpdir(), 'notnode' + path.extname(process.execPath))
+    fs.copyFileSync(process.execPath, notNodePath)
 
-  var cmd = [nodeGyp, 'rebuild', '-C', addonPath, '--loglevel=verbose']
-  var proc = execFile(process.execPath, cmd, function (err, stdout, stderr) {
-    var logLines = stderr.toString().trim().split(/\r?\n/)
-    var lastLine = logLines[logLines.length - 1]
-    t.strictEqual(err, null)
-    t.strictEqual(lastLine, 'gyp info ok', 'should end in ok')
-    t.strictEqual(runHello(notNodePath).trim(), 'world')
-    fs.unlinkSync(notNodePath)
+    var cmd = [nodeGyp, 'rebuild', '-C', addonPath, '--loglevel=verbose']
+    var proc = execFile(process.execPath, cmd, function (err, stdout, stderr) {
+      var logLines = stderr.toString().trim().split(/\r?\n/)
+      var lastLine = logLines[logLines.length - 1]
+      assert.strictEqual(err, null)
+      assert.strictEqual(lastLine, 'gyp info ok', 'should end in ok')
+      assert.strictEqual(runHello(notNodePath).trim(), 'world')
+      fs.unlinkSync(notNodePath)
+      done()
+    })
+    proc.stdout.setEncoding('utf-8')
+    proc.stderr.setEncoding('utf-8')
   })
-  proc.stdout.setEncoding('utf-8')
-  proc.stderr.setEncoding('utf-8')
 })

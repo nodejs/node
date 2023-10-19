@@ -43,6 +43,9 @@ bool operator!=(FeedbackSource const&, FeedbackSource const&);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            FeedbackSource const&);
+inline size_t hash_value(const FeedbackSource& value) {
+  return FeedbackSource::Hash()(value);
+}
 
 }  // namespace compiler
 }  // namespace internal

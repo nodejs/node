@@ -17,19 +17,19 @@ class WatchTestCase {
     this.field = field;
     this.shouldSkip = !shouldInclude;
   }
-  get dirPath() { return join(tmpdir.path, this.dirName); }
+  get dirPath() { return tmpdir.resolve(this.dirName); }
   get filePath() { return join(this.dirPath, this.fileName); }
 }
 
 const cases = [
-  // Watch on a directory should callback with a filename on supported systems
+  // Watch on a file should callback with a filename on supported systems
   new WatchTestCase(
     common.isLinux || common.isOSX || common.isWindows || common.isAIX,
     'watch1',
     'foo',
     'filePath'
   ),
-  // Watch on a file should callback with a filename on supported systems
+  // Watch on a directory should callback with a filename on supported systems
   new WatchTestCase(
     common.isLinux || common.isOSX || common.isWindows,
     'watch2',

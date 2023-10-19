@@ -1,0 +1,31 @@
+<!DOCTYPE HTML>
+<html>
+<head onload>
+<meta charset="utf-8" />
+<title>This test validates that synchronously adding entries in onresourcetimingbufferfull callback results in these entries being properly handled.</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performance-onresourcetimingbufferfull"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/buffer-full-utilities.js"></script>
+</head>
+<body>
+<script>
+promise_test(async t => {
+    addAssertUnreachedBufferFull(t);
+    await fillUpTheBufferWithSingleResource('resources/empty.js?willbelost');
+    // These resources overflow the entry buffer, and go into the secondary buffer.
+    load.xhr_sync(scriptResources[0]);
+    load.xhr_sync(scriptResources[1]);
+    performance.clearResourceTimings();
+    performance.setResourceTimingBufferSize(3);
+    load.xhr_sync(scriptResources[2]);
+    const entriesAfterAddition = performance.getEntriesByType('resource');
+    await waitForNextTask();
+    checkEntries(3);
+    assert_equals(entriesAfterAddition.length, 0, "No entries should have been added to the primary buffer before the task to 'fire a buffer full event'.");
+}, "Test that if the buffer is cleared after entries were added to the secondary buffer, those entries make it into the primary one");
+</script>
+</body>
+</html>

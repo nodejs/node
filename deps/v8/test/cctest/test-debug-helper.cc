@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-template.h"
 #include "src/api/api-inl.h"
+#include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-spaces.h"
-#include "src/heap/spaces.h"
 #include "test/cctest/cctest.h"
 #include "tools/debug_helper/debug-helper.h"
 
@@ -133,7 +134,7 @@ TEST(GetObjectProperties) {
   v8::Local<v8::Value> v = CompileRun("42");
   Handle<Object> o = v8::Utils::OpenHandle(*v);
   d::ObjectPropertiesResultPtr props =
-      d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+      d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kSmi);
   CHECK(props->brief == std::string("42 (0x2a)"));
   CHECK(props->type == std::string("v8::internal::Smi"));
@@ -141,7 +142,7 @@ TEST(GetObjectProperties) {
 
   v = CompileRun("[\"a\", \"bc\"]");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
   CHECK(props->type == std::string("v8::internal::JSArray"));
   CHECK_EQ(props->num_properties, 4);
@@ -154,7 +155,7 @@ TEST(GetObjectProperties) {
 
   // We need to supply some valid address for decompression before reading the
   // elements from the JSArray.
-  heap_addresses.any_heap_pointer = o->ptr();
+  heap_addresses.any_heap_pointer = (*o).ptr();
 
   i::Tagged_t properties_or_hash =
       *reinterpret_cast<i::Tagged_t*>(props->properties[1]->address);
@@ -227,16 +228,22 @@ TEST(GetObjectProperties) {
   // its properties should match what we read last time.
   d::ObjectPropertiesResultPtr props2;
   {
-    heap_addresses.read_only_space_first_page = 0;
+    d::HeapAddresses heap_addresses_without_ro_space = heap_addresses;
+    heap_addresses_without_ro_space.read_only_space_first_page = 0;
+    uintptr_t map_ptr = props->properties[0]->address;
+    uintptr_t map_map_ptr = *reinterpret_cast<i::Tagged_t*>(map_ptr);
+#if V8_MAP_PACKING
+    map_map_ptr = reinterpret_cast<i::MapWord*>(&map_map_ptr)->ToMap().ptr();
+#endif
     uintptr_t map_address =
-        d::GetObjectProperties(
-            *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address),
-            &ReadMemory, heap_addresses)
+        d::GetObjectProperties(map_map_ptr, &ReadMemory,
+                               heap_addresses_without_ro_space)
             ->properties[0]
             ->address;
     MemoryFailureRegion failure(map_address, map_address + i::Map::kSize);
     props2 = d::GetObjectProperties(second_string_address, &ReadMemory,
-                                    heap_addresses, "v8::internal::String");
+                                    heap_addresses_without_ro_space,
+                                    "v8::internal::String");
     if (COMPRESS_POINTERS_BOOL) {
       // The first page of each heap space can be automatically detected when
       // pointer compression is active, so we expect to use known maps instead
@@ -286,7 +293,7 @@ TEST(GetObjectProperties) {
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
     alphabet.substr(3,20) + alphabet.toUpperCase().substr(5,15) + "7")");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST7\""));
 
   // Cause a failure when reading the "second" pointer within the top-level
@@ -295,33 +302,38 @@ TEST(GetObjectProperties) {
     CheckProp(*props->properties[4], "v8::internal::String", "second");
     uintptr_t second_address = props->properties[4]->address;
     MemoryFailureRegion failure(second_address, second_address + 4);
-    props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+    props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
     CHECK(Contains(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST...\""));
   }
 
   // Build a very long string.
   v = CompileRun("'a'.repeat(1000)");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"" + std::string(80, 'a') + "...\""));
 
   // GetObjectProperties can read cacheable external strings.
+  StringResource* string_resource = new StringResource(true);
   auto external_string =
-      v8::String::NewExternalTwoByte(isolate, new StringResource(true));
+      v8::String::NewExternalTwoByte(isolate, string_resource);
   o = v8::Utils::OpenHandle(*external_string.ToLocalChecked());
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"abcde\""));
+  CheckProp(*props->properties[5], "char16_t", "raw_characters",
+            d::PropertyKind::kArrayOfKnownSize, string_resource->length());
+  CHECK_EQ(props->properties[5]->address,
+           reinterpret_cast<uintptr_t>(string_resource->data()));
   // GetObjectProperties cannot read uncacheable external strings.
   external_string =
       v8::String::NewExternalTwoByte(isolate, new StringResource(false));
   o = v8::Utils::OpenHandle(*external_string.ToLocalChecked());
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK_EQ(std::string(props->brief).find("\""), std::string::npos);
 
   // Build a basic JS object and get its properties.
   v = CompileRun("({a: 1, b: 2})");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
 
   // Objects constructed from literals get their properties placed inline, so
   // the GetObjectProperties response should include an array.
@@ -337,11 +349,15 @@ TEST(GetObjectProperties) {
   // Verify the result for a heap object field which is itself a struct: the
   // "descriptors" field on a DescriptorArray.
   // Start by getting the object's map and the map's descriptor array.
-  props = d::GetObjectProperties(ReadProp<i::Tagged_t>(*props, "map"),
-                                 &ReadMemory, heap_addresses);
+  uintptr_t map_ptr = ReadProp<i::Tagged_t>(*props, "map");
+#if V8_MAP_PACKING
+  map_ptr = reinterpret_cast<i::MapWord*>(&map_ptr)->ToMap().ptr();
+#endif
+  props = d::GetObjectProperties(map_ptr, &ReadMemory, heap_addresses);
   props = d::GetObjectProperties(
       ReadProp<i::Tagged_t>(*props, "instance_descriptors"), &ReadMemory,
       heap_addresses);
+  CHECK_EQ(props->num_properties, 6);
   // It should have at least two descriptors (possibly plus slack).
   CheckProp(*props->properties[1], "uint16_t", "number_of_all_descriptors");
   uint16_t number_of_all_descriptors =
@@ -349,7 +365,7 @@ TEST(GetObjectProperties) {
   CHECK_GE(number_of_all_descriptors, 2);
   // The "descriptors" property should describe the struct layout for each
   // element in the array.
-  const d::ObjectProperty& descriptors = *props->properties[6];
+  const d::ObjectProperty& descriptors = *props->properties[5];
   // No C++ type is reported directly because there may not be an actual C++
   // struct with this layout, hence the empty string in this check.
   CheckProp(descriptors, /*type=*/"", "descriptors",
@@ -368,7 +384,7 @@ TEST(GetObjectProperties) {
   // exercise bitfield functionality.
   v = CompileRun("(function () {})");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   props = d::GetObjectProperties(
       ReadProp<i::Tagged_t>(*props, "shared_function_info"), &ReadMemory,
       heap_addresses);
@@ -421,9 +437,29 @@ static void FrameIterationCheck(
     d::StackFrameResultPtr props = d::GetStackFrame(frame->fp(), &ReadMemory);
     if (frame->is_java_script()) {
       JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-      CHECK_EQ(props->num_properties, 1);
+      CHECK_EQ(props->num_properties, 5);
+      auto js_function = js_frame->function();
       CheckProp(*props->properties[0], "v8::internal::JSFunction",
-                "currently_executing_jsfunction", js_frame->function().ptr());
+                "currently_executing_jsfunction", js_function.ptr());
+      auto shared_function_info = js_function->shared();
+      auto script = i::Script::cast(shared_function_info->script());
+      CheckProp(*props->properties[1], "v8::internal::Object", "script_name",
+                static_cast<i::Tagged_t>(script->name().ptr()));
+      CheckProp(*props->properties[2], "v8::internal::Object", "script_source",
+                static_cast<i::Tagged_t>(script->source().ptr()));
+
+      auto scope_info = shared_function_info->scope_info();
+      CheckProp(*props->properties[3], "v8::internal::Object", "function_name",
+                static_cast<i::Tagged_t>(scope_info->FunctionName().ptr()));
+
+      CheckProp(*props->properties[4], "", "function_character_offset");
+      const d::ObjectProperty& function_character_offset =
+          *props->properties[4];
+      CHECK_EQ(function_character_offset.num_struct_fields, 2);
+      CheckStructProp(*function_character_offset.struct_fields[0],
+                      "v8::internal::Object", "start", 0);
+      CheckStructProp(*function_character_offset.struct_fields[1],
+                      "v8::internal::Object", "end", 4);
     } else {
       CHECK_EQ(props->num_properties, 0);
     }

@@ -30,6 +30,7 @@
 #include "unicode/ures.h"
 #include "unicode/ustring.h"
 #include "unicode/filteredbrk.h"
+#include "bytesinkutil.h"
 #include "ucln_cmn.h"
 #include "cstring.h"
 #include "umutex.h"
@@ -59,15 +60,15 @@ BreakIterator::buildInstance(const Locale& loc, const char *type, UErrorCode &st
     char ext[4]={'\0'};
     CharString actualLocale;
     int32_t size;
-    const UChar* brkfname = NULL;
+    const char16_t* brkfname = nullptr;
     UResourceBundle brkRulesStack;
     UResourceBundle brkNameStack;
     UResourceBundle *brkRules = &brkRulesStack;
     UResourceBundle *brkName  = &brkNameStack;
-    RuleBasedBreakIterator *result = NULL;
+    RuleBasedBreakIterator *result = nullptr;
 
     if (U_FAILURE(status))
-        return NULL;
+        return nullptr;
 
     ures_initStackObject(brkRules);
     ures_initStackObject(brkName);
@@ -94,9 +95,9 @@ BreakIterator::buildInstance(const Locale& loc, const char *type, UErrorCode &st
         if (U_SUCCESS(status) && brkfname) {
             actualLocale.append(ures_getLocaleInternal(brkName, &status), -1, status);
 
-            UChar* extStart=u_strchr(brkfname, 0x002e);
+            char16_t* extStart=u_strchr(brkfname, 0x002e);
             int len = 0;
-            if(extStart!=NULL){
+            if (extStart != nullptr){
                 len = (int)(extStart-brkfname);
                 u_UCharsToChars(extStart+1, ext, sizeof(ext)); // nul terminates the buff
                 u_UCharsToChars(brkfname, fnbuff, len);
@@ -111,27 +112,27 @@ BreakIterator::buildInstance(const Locale& loc, const char *type, UErrorCode &st
     UDataMemory* file = udata_open(U_ICUDATA_BRKITR, ext, fnbuff, &status);
     if (U_FAILURE(status)) {
         ures_close(b);
-        return NULL;
+        return nullptr;
     }
 
     // Create a RuleBasedBreakIterator
-    result = new RuleBasedBreakIterator(file, status);
+    result = new RuleBasedBreakIterator(file, uprv_strstr(type, "phrase") != nullptr, status);
 
     // If there is a result, set the valid locale and actual locale, and the kind
-    if (U_SUCCESS(status) && result != NULL) {
+    if (U_SUCCESS(status) && result != nullptr) {
         U_LOCALE_BASED(locBased, *(BreakIterator*)result);
-        locBased.setLocaleIDs(ures_getLocaleByType(b, ULOC_VALID_LOCALE, &status),
+        locBased.setLocaleIDs(ures_getLocaleByType(b, ULOC_VALID_LOCALE, &status), 
                               actualLocale.data());
     }
 
     ures_close(b);
 
-    if (U_FAILURE(status) && result != NULL) {  // Sometimes redundant check, but simple
+    if (U_FAILURE(status) && result != nullptr) {  // Sometimes redundant check, but simple
         delete result;
-        return NULL;
+        return nullptr;
     }
 
-    if (result == NULL) {
+    if (result == nullptr) {
         udata_close(file);
         if (U_SUCCESS(status)) {
             status = U_MEMORY_ALLOCATION_ERROR;
@@ -234,7 +235,7 @@ class ICUBreakIteratorFactory : public ICUResourceBundleFactory {
 public:
     virtual ~ICUBreakIteratorFactory();
 protected:
-    virtual UObject* handleCreate(const Locale& loc, int32_t kind, const ICUService* /*service*/, UErrorCode& status) const {
+    virtual UObject* handleCreate(const Locale& loc, int32_t kind, const ICUService* /*service*/, UErrorCode& status) const override {
         return BreakIterator::makeInstance(loc, kind, status);
     }
 };
@@ -254,19 +255,19 @@ public:
 
     virtual ~ICUBreakIteratorService();
 
-    virtual UObject* cloneInstance(UObject* instance) const {
+    virtual UObject* cloneInstance(UObject* instance) const override {
         return ((BreakIterator*)instance)->clone();
     }
 
-    virtual UObject* handleDefault(const ICUServiceKey& key, UnicodeString* /*actualID*/, UErrorCode& status) const {
-        LocaleKey& lkey = (LocaleKey&)key;
+    virtual UObject* handleDefault(const ICUServiceKey& key, UnicodeString* /*actualID*/, UErrorCode& status) const override {
+        LocaleKey& lkey = static_cast<LocaleKey&>(const_cast<ICUServiceKey&>(key));
         int32_t kind = lkey.kind();
         Locale loc;
         lkey.currentLocale(loc);
         return BreakIterator::makeInstance(loc, kind, status);
     }
 
-    virtual UBool isDefault() const {
+    virtual UBool isDefault() const override {
         return countFactories() == 1;
     }
 };
@@ -278,8 +279,8 @@ ICUBreakIteratorService::~ICUBreakIteratorService() {}
 // defined in ucln_cmn.h
 U_NAMESPACE_END
 
-static icu::UInitOnce gInitOnceBrkiter = U_INITONCE_INITIALIZER;
-static icu::ICULocaleService* gService = NULL;
+static icu::UInitOnce gInitOnceBrkiter {};
+static icu::ICULocaleService* gService = nullptr;
 
 
 
@@ -287,27 +288,27 @@ static icu::ICULocaleService* gService = NULL;
  * Release all static memory held by breakiterator.
  */
 U_CDECL_BEGIN
-static UBool U_CALLCONV breakiterator_cleanup(void) {
+static UBool U_CALLCONV breakiterator_cleanup() {
 #if !UCONFIG_NO_SERVICE
     if (gService) {
         delete gService;
-        gService = NULL;
+        gService = nullptr;
     }
     gInitOnceBrkiter.reset();
 #endif
-    return TRUE;
+    return true;
 }
 U_CDECL_END
 U_NAMESPACE_BEGIN
 
-static void U_CALLCONV
-initService(void) {
+static void U_CALLCONV 
+initService() {
     gService = new ICUBreakIteratorService();
     ucln_common_registerCleanup(UCLN_COMMON_BREAKITERATOR, breakiterator_cleanup);
 }
 
 static ICULocaleService*
-getService(void)
+getService()
 {
     umtx_initOnce(gInitOnceBrkiter, &initService);
     return gService;
@@ -317,9 +318,9 @@ getService(void)
 // -------------------------------------
 
 static inline UBool
-hasService(void)
+hasService()
 {
-    return !gInitOnceBrkiter.isReset() && getService() != NULL;
+    return !gInitOnceBrkiter.isReset() && getService() != nullptr;
 }
 
 // -------------------------------------
@@ -328,9 +329,9 @@ URegistryKey U_EXPORT2
 BreakIterator::registerInstance(BreakIterator* toAdopt, const Locale& locale, UBreakIteratorType kind, UErrorCode& status)
 {
     ICULocaleService *service = getService();
-    if (service == NULL) {
+    if (service == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
     return service->registerInstance(toAdopt, locale, kind, status);
 }
@@ -346,17 +347,17 @@ BreakIterator::unregister(URegistryKey key, UErrorCode& status)
         }
         status = U_MEMORY_ALLOCATION_ERROR;
     }
-    return FALSE;
+    return false;
 }
 
 // -------------------------------------
 
 StringEnumeration* U_EXPORT2
-BreakIterator::getAvailableLocales(void)
+BreakIterator::getAvailableLocales()
 {
     ICULocaleService *service = getService();
-    if (service == NULL) {
-        return NULL;
+    if (service == nullptr) {
+        return nullptr;
     }
     return service->getAvailableLocales();
 }
@@ -368,7 +369,7 @@ BreakIterator*
 BreakIterator::createInstance(const Locale& loc, int32_t kind, UErrorCode& status)
 {
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
 
 #if !UCONFIG_NO_SERVICE
@@ -385,7 +386,7 @@ BreakIterator::createInstance(const Locale& loc, int32_t kind, UErrorCode& statu
         // handleDefault calls), so we don't touch it.  YES, A COMMENT
         // THIS LONG is a sign of bad code -- so the action item is to
         // revisit this in ICU 3.0 and clean it up/fix it/remove it.
-        if (U_SUCCESS(status) && (result != NULL) && *actualLoc.getName() != 0) {
+        if (U_SUCCESS(status) && (result != nullptr) && *actualLoc.getName() != 0) {
             U_LOCALE_BASED(locBased, *result);
             locBased.setLocaleIDs(actualLoc.getName(), actualLoc.getName());
         }
@@ -406,11 +407,10 @@ BreakIterator::makeInstance(const Locale& loc, int32_t kind, UErrorCode& status)
 {
 
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
-    char lbType[kKeyValueLenMax];
 
-    BreakIterator *result = NULL;
+    BreakIterator *result = nullptr;
     switch (kind) {
     case UBRK_CHARACTER:
         {
@@ -428,18 +428,29 @@ BreakIterator::makeInstance(const Locale& loc, int32_t kind, UErrorCode& status)
         break;
     case UBRK_LINE:
         {
+            char lb_lw[kKeyValueLenMax];
             UTRACE_ENTRY(UTRACE_UBRK_CREATE_LINE);
-            uprv_strcpy(lbType, "line");
-            char lbKeyValue[kKeyValueLenMax] = {0};
+            uprv_strcpy(lb_lw, "line");
             UErrorCode kvStatus = U_ZERO_ERROR;
-            int32_t kLen = loc.getKeywordValue("lb", lbKeyValue, kKeyValueLenMax, kvStatus);
-            if (U_SUCCESS(kvStatus) && kLen > 0 && (uprv_strcmp(lbKeyValue,"strict")==0 || uprv_strcmp(lbKeyValue,"normal")==0 || uprv_strcmp(lbKeyValue,"loose")==0)) {
-                uprv_strcat(lbType, "_");
-                uprv_strcat(lbType, lbKeyValue);
+            CharString value;
+            CharStringByteSink valueSink(&value);
+            loc.getKeywordValue("lb", valueSink, kvStatus);
+            if (U_SUCCESS(kvStatus) && (value == "strict" || value == "normal" || value == "loose")) {
+                uprv_strcat(lb_lw, "_");
+                uprv_strcat(lb_lw, value.data());
             }
-            result = BreakIterator::buildInstance(loc, lbType, status);
+            // lw=phrase is only supported in Japanese and Korean
+            if (uprv_strcmp(loc.getLanguage(), "ja") == 0 || uprv_strcmp(loc.getLanguage(), "ko") == 0) {
+                value.clear();
+                loc.getKeywordValue("lw", valueSink, kvStatus);
+                if (U_SUCCESS(kvStatus) && value == "phrase") {
+                    uprv_strcat(lb_lw, "_");
+                    uprv_strcat(lb_lw, value.data());
+                }
+            }
+            result = BreakIterator::buildInstance(loc, lb_lw, status);
 
-            UTRACE_DATA1(UTRACE_INFO, "lb=%s", lbKeyValue);
+            UTRACE_DATA1(UTRACE_INFO, "lb_lw=%s", lb_lw);
             UTRACE_EXIT_STATUS(status);
         }
         break;
@@ -474,7 +485,7 @@ BreakIterator::makeInstance(const Locale& loc, int32_t kind, UErrorCode& status)
     }
 
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
 
     return result;

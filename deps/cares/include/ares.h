@@ -39,7 +39,7 @@
 #if defined(_AIX) || defined(__NOVELL_LIBC__) || defined(__NetBSD__) || \
     defined(__minix) || defined(__SYMBIAN32__) || defined(__INTEGRITY) || \
     defined(ANDROID) || defined(__ANDROID__) || defined(__OpenBSD__) || \
-    defined(__QNXNTO__)
+    defined(__QNXNTO__) || defined(__MVS__) || defined(__HAIKU__)
 #include <sys/select.h>
 #endif
 #if (defined(NETWARE) && !defined(__NOVELL_LIBC__))
@@ -63,6 +63,13 @@
 #  include <windows.h>
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
+/* To aid with linking against a static c-ares build, lets tell the microsoft
+ * compiler to pull in needed dependencies */
+#  ifdef _MSC_VER
+#    pragma comment(lib, "ws2_32")
+#    pragma comment(lib, "advapi32")
+#    pragma comment(lib, "iphlpapi")
+#  endif
 #else
 #  include <sys/socket.h>
 #  include <netinet/in.h>
@@ -168,6 +175,7 @@ extern "C" {
 #define ARES_OPT_EDNSPSZ        (1 << 15)
 #define ARES_OPT_NOROTATE       (1 << 16)
 #define ARES_OPT_RESOLVCONF     (1 << 17)
+#define ARES_OPT_HOSTS_FILE     (1 << 18)
 
 /* Nameinfo flag values */
 #define ARES_NI_NOFQDN                  (1 << 0)
@@ -277,6 +285,7 @@ struct ares_options {
   int nsort;
   int ednspsz;
   char *resolvconf_path;
+  char *hosts_path;
 };
 
 struct hostent;
@@ -588,6 +597,14 @@ struct ares_soa_reply {
   unsigned int minttl;
 };
 
+struct ares_uri_reply {
+  struct ares_uri_reply  *next;
+  unsigned short          priority;
+  unsigned short          weight;
+  char                   *uri;
+  int                     ttl;
+};
+
 /*
  * Similar to addrinfo, but with extra ttl and missing canonname.
  */
@@ -617,6 +634,7 @@ struct ares_addrinfo_cname {
 struct ares_addrinfo {
   struct ares_addrinfo_cname *cnames;
   struct ares_addrinfo_node  *nodes;
+  char                       *name;
 };
 
 struct ares_addrinfo_hints {
@@ -684,6 +702,10 @@ CARES_EXTERN int ares_parse_naptr_reply(const unsigned char* abuf,
 CARES_EXTERN int ares_parse_soa_reply(const unsigned char* abuf,
 				      int alen,
 				      struct ares_soa_reply** soa_out);
+
+CARES_EXTERN int ares_parse_uri_reply(const unsigned char* abuf,
+                                      int alen,
+                                      struct ares_uri_reply** uri_out);
 
 CARES_EXTERN void ares_free_string(void *str);
 

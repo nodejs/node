@@ -82,7 +82,7 @@ class Agent {
 
   void SetParentHandle(std::unique_ptr<ParentInspectorHandle> parent_handle);
   std::unique_ptr<ParentInspectorHandle> GetParentHandle(
-      uint64_t thread_id, const std::string& url);
+      uint64_t thread_id, const std::string& url, const std::string& name);
 
   // Called to create inspector sessions that can be used from the same thread.
   // The inspector responds by using the delegate to send messages back.
@@ -117,8 +117,7 @@ class Agent {
   inline Environment* env() const { return parent_env_; }
 
  private:
-  void ToggleAsyncHook(v8::Isolate* isolate,
-                       const v8::Global<v8::Function>& fn);
+  void ToggleAsyncHook(v8::Isolate* isolate, v8::Local<v8::Function> fn);
 
   node::Environment* parent_env_;
   // Encapsulates majority of the Inspector functionality
@@ -137,8 +136,6 @@ class Agent {
 
   bool pending_enable_async_hook_ = false;
   bool pending_disable_async_hook_ = false;
-  v8::Global<v8::Function> enable_async_hook_function_;
-  v8::Global<v8::Function> disable_async_hook_function_;
 };
 
 }  // namespace inspector

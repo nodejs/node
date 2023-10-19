@@ -4,6 +4,7 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -21,8 +22,7 @@ namespace compiler {
 
 FunctionTester::FunctionTester(const char* source, uint32_t flags)
     : isolate(main_isolate()),
-      canonical(isolate),
-      function((FLAG_allow_natives_syntax = true, NewFunction(source))),
+      function((v8_flags.allow_natives_syntax = true, NewFunction(source))),
       flags_(flags) {
   Compile(function);
   const uint32_t supported_flags = OptimizedCompilationInfo::kInlining;
@@ -31,7 +31,6 @@ FunctionTester::FunctionTester(const char* source, uint32_t flags)
 
 FunctionTester::FunctionTester(Graph* graph, int param_count)
     : isolate(main_isolate()),
-      canonical(isolate),
       function(NewFunction(BuildFunction(param_count).c_str())),
       flags_(0) {
   CompileGraph(graph);
@@ -39,11 +38,11 @@ FunctionTester::FunctionTester(Graph* graph, int param_count)
 
 FunctionTester::FunctionTester(Handle<Code> code, int param_count)
     : isolate(main_isolate()),
-      canonical(isolate),
-      function((FLAG_allow_natives_syntax = true,
+      function((v8_flags.allow_natives_syntax = true,
                 NewFunction(BuildFunction(param_count).c_str()))),
       flags_(0) {
   CHECK(!code.is_null());
+  CHECK(IsCode(*code));
   Compile(function);
   function->set_code(*code, kReleaseStore);
 }
@@ -84,7 +83,7 @@ void FunctionTester::CheckCall(Handle<Object> expected, Handle<Object> a,
                                Handle<Object> b, Handle<Object> c,
                                Handle<Object> d) {
   Handle<Object> result = Call(a, b, c, d).ToHandleChecked();
-  CHECK(expected->SameValue(*result));
+  CHECK(Object::SameValue(*expected, *result));
 }
 
 Handle<JSFunction> FunctionTester::NewFunction(const char* source) {
@@ -131,18 +130,18 @@ Handle<Object> FunctionTester::false_value() {
 
 Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
                                                    int param_count) {
-  JSFunction p;
+  Tagged<JSFunction> p;
   {  // because of the implicit handle scope of FunctionTester.
     FunctionTester f(graph, param_count);
     p = *f.function;
   }
   return Handle<JSFunction>(
-      p, p.GetIsolate());  // allocated in outer handle scope.
+      p, p->GetIsolate());  // allocated in outer handle scope.
 }
 
-Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
+Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> f) {
   Zone zone(isolate->allocator(), ZONE_NAME);
-  return Optimize(function, &zone, isolate, flags_);
+  return Optimize(f, &zone, isolate, flags_);
 }
 
 // Compile the given machine graph instead of the source of the function

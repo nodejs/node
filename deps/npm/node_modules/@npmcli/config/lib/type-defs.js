@@ -5,15 +5,17 @@ const { Umask, validate: validateUmask } = require('./umask.js')
 const semver = require('semver')
 const validateSemver = (data, k, val) => {
   const valid = semver.valid(val)
-  if (!valid)
+  if (!valid) {
     return false
+  }
   data[k] = valid
 }
 
 const noptValidatePath = nopt.typeDefs.path.validate
 const validatePath = (data, k, val) => {
-  if (typeof val !== 'string')
+  if (typeof val !== 'string') {
     return false
+  }
   return noptValidatePath(data, k, val)
 }
 

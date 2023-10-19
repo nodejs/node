@@ -22,16 +22,17 @@ ElementsAccessor::CollectElementIndices(Handle<JSObject> object,
 }
 
 inline MaybeHandle<FixedArray> ElementsAccessor::PrependElementIndices(
-    Handle<JSObject> object, Handle<FixedArray> keys, GetKeysConversion convert,
-    PropertyFilter filter) {
-  return PrependElementIndices(object,
-                               handle(object->elements(), object->GetIsolate()),
-                               keys, convert, filter);
+    Isolate* isolate, Handle<JSObject> object, Handle<FixedArray> keys,
+    GetKeysConversion convert, PropertyFilter filter) {
+  return PrependElementIndices(isolate, object,
+                               handle(object->elements(), isolate), keys,
+                               convert, filter);
 }
 
-inline bool ElementsAccessor::HasElement(JSObject holder, uint32_t index,
+inline bool ElementsAccessor::HasElement(Tagged<JSObject> holder,
+                                         uint32_t index,
                                          PropertyFilter filter) {
-  return HasElement(holder, index, holder.elements(), filter);
+  return HasElement(holder, index, holder->elements(), filter);
 }
 
 }  // namespace internal

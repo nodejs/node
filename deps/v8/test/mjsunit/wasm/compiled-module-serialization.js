@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The test needs --wasm-tier-up because we can't serialize and deserialize
-// Liftoff code.
-// Flags: --expose-wasm --allow-natives-syntax --expose-gc --wasm-tier-up
+// Force TurboFan code for serialization.
+// Flags: --expose-wasm --allow-natives-syntax --expose-gc --no-liftoff
+// Flags: --no-wasm-lazy-compilation
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function SerializeAndDeserializeModule() {
   print(arguments.callee.name);
@@ -220,7 +220,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .exportAs("main");
 
     builder.setTableBounds(kTableSize, kTableSize);
-    builder.addElementSegment(0, 0, false, [f1.index]);
+    builder.addActiveElementSegment(0, wasmI32Const(0), [f1.index]);
     builder.addExportOfKind("table", kExternalTable, 0);
 
     return new WebAssembly.Module(builder.toBuffer());
@@ -241,7 +241,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   builder.addImportedTable("z", "table", kTableSize, kTableSize);
-  builder.addElementSegment(0, 1, false, [f2.index]);
+  builder.addActiveElementSegment(0, wasmI32Const(1), [f2.index]);
   var m2_bytes = builder.toBuffer();
   var m2 = new WebAssembly.Module(m2_bytes);
 
@@ -359,13 +359,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_i)
-      .addBody([kExprBlock, kWasmStmt,
-                  kExprBlock, kWasmStmt,
-                    kExprBlock, kWasmStmt,
-                      kExprBlock, kWasmStmt,
-                        kExprBlock, kWasmStmt,
-                          kExprBlock, kWasmStmt,
-                            kExprBlock, kWasmStmt,
+      .addBody([kExprBlock, kWasmVoid,
+                  kExprBlock, kWasmVoid,
+                    kExprBlock, kWasmVoid,
+                      kExprBlock, kWasmVoid,
+                        kExprBlock, kWasmVoid,
+                          kExprBlock, kWasmVoid,
+                            kExprBlock, kWasmVoid,
                               kExprLocalGet, 0,
                               kExprBrTable, 6, 0, 1, 2, 3, 4, 5, 6,
                             kExprEnd,

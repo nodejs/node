@@ -5,7 +5,6 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 
-#include "src/common/assert-scope.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/references.h"
 
@@ -20,20 +19,27 @@ class Isolate;
 // both.
 class SerializerDeserializer : public RootVisitor {
  public:
-  static void Iterate(Isolate* isolate, RootVisitor* visitor);
+  static void IterateStartupObjectCache(Isolate* isolate, RootVisitor* visitor);
+
+  static void IterateSharedHeapObjectCache(Isolate* isolate,
+                                           RootVisitor* visitor);
 
  protected:
-  static bool CanBeDeferred(HeapObject o);
+  enum class SlotType {
+    kAnySlot,
+    kMapSlot,
+  };
+  static bool CanBeDeferred(Tagged<HeapObject> o, SlotType slot_type);
 
   void RestoreExternalReferenceRedirector(Isolate* isolate,
-                                          Handle<AccessorInfo> accessor_info);
+                                          Tagged<AccessorInfo> accessor_info);
   void RestoreExternalReferenceRedirector(
-      Isolate* isolate, Handle<CallHandlerInfo> call_handler_info);
+      Isolate* isolate, Tagged<CallHandlerInfo> call_handler_info);
 
-// clang-format off
+  // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
-  /* Free range 0x1c..0x1f */                                     \
-  V(0x1c) V(0x1d) V(0x1e) V(0x1f)                                 \
+  /* Free range 0x10..0x1f */                                     \
+  V(0x1b) V(0x1c) V(0x1d) V(0x1e) V(0x1f)                         \
   /* Free range 0x20..0x2f */                                     \
   V(0x20) V(0x21) V(0x22) V(0x23) V(0x24) V(0x25) V(0x26) V(0x27) \
   V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
@@ -65,7 +71,7 @@ class SerializerDeserializer : public RootVisitor {
   // The static assert below will trigger when the number of preallocated spaces
   // changed. If that happens, update the kNewObject and kBackref bytecode
   // ranges in the comments below.
-  STATIC_ASSERT(4 == kNumberOfSnapshotSpaces);
+  static_assert(3 == kNumberOfSnapshotSpaces);
 
   // First 32 root array items.
   static const int kRootArrayConstantsCount = 0x20;
@@ -78,15 +84,15 @@ class SerializerDeserializer : public RootVisitor {
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kHotObjectCount = 8;
 
-  enum Bytecode : byte {
+  enum Bytecode : uint8_t {
     //
-    // ---------- byte code range 0x00..0x1b ----------
+    // ---------- byte code range 0x00..0x1f ----------
     //
 
     // 0x00..0x03  Allocate new object, in specified space.
     kNewObject = 0x00,
     // Reference to previously allocated object.
-    kBackref = 0x04,
+    kBackref = 0x03,
     // Reference to an object in the read only heap.
     kReadOnlyHeapRef,
     // Object in the startup object cache.
@@ -95,8 +101,8 @@ class SerializerDeserializer : public RootVisitor {
     kRootArray,
     // Object provided in the attached list.
     kAttachedReference,
-    // Object in the read-only object cache.
-    kReadOnlyObjectCache,
+    // Object in the shared heap object cache.
+    kSharedHeapObjectCache,
     // Do nothing, used for padding.
     kNop,
     // A tag emitted at strategic points in the snapshot to delineate sections.
@@ -109,6 +115,7 @@ class SerializerDeserializer : public RootVisitor {
     kVariableRepeat,
     // Used for embedder-allocated backing stores for TypedArrays.
     kOffHeapBackingStore,
+    kOffHeapResizableBackingStore,
     // Used for embedder-provided serialization data for embedder fields.
     kEmbedderFieldsData,
     // Raw data of variable length.
@@ -117,19 +124,16 @@ class SerializerDeserializer : public RootVisitor {
     kApiReference,
     // External reference referenced by id.
     kExternalReference,
-    // Same as two bytecodes above but for serializing sandboxed external
+    // Same as three bytecodes above but for serializing sandboxed external
     // pointer values.
     // TODO(v8:10391): Remove them once all ExternalPointer usages are
     // sandbox-ready.
     kSandboxedApiReference,
     kSandboxedExternalReference,
-    // Internal reference of a code objects in code stream.
-    kInternalReference,
+    kSandboxedRawExternalReference,
     // In-place weak references.
     kClearedWeakReference,
     kWeakPrefix,
-    // Encodes an off-heap instruction stream target.
-    kOffHeapTarget,
     // Registers the current slot as a "pending" forward reference, to be later
     // filled by a corresponding resolution bytecode.
     kRegisterPendingForwardRef,
@@ -143,9 +147,10 @@ class SerializerDeserializer : public RootVisitor {
     // register as the pending field. We could either hack around this, or
     // simply introduce this new bytecode.
     kNewMetaMap,
-    // Special construction bytecode for Code object bodies, which have a more
-    // complex deserialization ordering and RelocInfo processing.
-    kCodeBody,
+    // When the sandbox is enabled, a prefix indicating that the following
+    // object is referenced through an indirect pointer, i.e. through an entry
+    // in a pointer table.
+    kIndirectPointerPrefix,
 
     //
     // ---------- byte code range 0x40..0x7f ----------
@@ -180,21 +185,21 @@ class SerializerDeserializer : public RootVisitor {
   template <Bytecode kBytecode, int kMinValue, int kMaxValue,
             typename TValue = int>
   struct BytecodeValueEncoder {
-    STATIC_ASSERT((kBytecode + kMaxValue - kMinValue) <= kMaxUInt8);
+    static_assert((kBytecode + kMaxValue - kMinValue) <= kMaxUInt8);
 
     static constexpr bool IsEncodable(TValue value) {
       return base::IsInRange(static_cast<int>(value), kMinValue, kMaxValue);
     }
 
-    static constexpr byte Encode(TValue value) {
-      CONSTEXPR_DCHECK(IsEncodable(value));
-      return static_cast<byte>(kBytecode + static_cast<int>(value) - kMinValue);
+    static constexpr uint8_t Encode(TValue value) {
+      DCHECK(IsEncodable(value));
+      return static_cast<uint8_t>(kBytecode + static_cast<int>(value) -
+                                  kMinValue);
     }
 
-    static constexpr TValue Decode(byte bytecode) {
-      CONSTEXPR_DCHECK(base::IsInRange(bytecode,
-                                       Encode(static_cast<TValue>(kMinValue)),
-                                       Encode(static_cast<TValue>(kMaxValue))));
+    static constexpr TValue Decode(uint8_t bytecode) {
+      DCHECK(base::IsInRange(bytecode, Encode(static_cast<TValue>(kMinValue)),
+                             Encode(static_cast<TValue>(kMaxValue))));
       return static_cast<TValue>(bytecode - kBytecode + kMinValue);
     }
   };
@@ -241,7 +246,7 @@ class SerializerDeserializer : public RootVisitor {
     }
 
     static constexpr int Encode(int repeat_count) {
-      CONSTEXPR_DCHECK(IsEncodable(repeat_count));
+      DCHECK(IsEncodable(repeat_count));
       return repeat_count - kFirstEncodableVariableRepeatCount;
     }
 
@@ -255,9 +260,9 @@ class SerializerDeserializer : public RootVisitor {
                            RootIndex>;
   using HotObject = BytecodeValueEncoder<kHotObject, 0, kHotObjectCount - 1>;
 
-  // This backing store reference value represents nullptr values during
+  // This backing store reference value represents empty backing stores during
   // serialization/deserialization.
-  static const uint32_t kNullRefSentinel = 0;
+  static const uint32_t kEmptyBackingStoreRefSentinel = 0;
 };
 
 }  // namespace internal

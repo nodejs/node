@@ -8,7 +8,7 @@
 function f1() {
   const x = [,];
   x[1] = 42;
-  assertEquals([undefined, 42], x);
+  assertEquals([, 42], x);
 }
 
 %PrepareFunctionForOptimization(f1);

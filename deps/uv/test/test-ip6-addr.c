@@ -103,7 +103,7 @@ TEST_IMPL(ip6_addr_link_local) {
     fflush(stderr);
 
     ASSERT(0 == uv_ip6_addr(scoped_addr, TEST_PORT, &addr));
-    fprintf(stderr, "Got scope_id 0x%02x\n", addr.sin6_scope_id);
+    fprintf(stderr, "Got scope_id 0x%2x\n", (unsigned)addr.sin6_scope_id);
     fflush(stderr);
     ASSERT(iface_index == addr.sin6_scope_id);
   }
@@ -113,7 +113,7 @@ TEST_IMPL(ip6_addr_link_local) {
   scoped_addr_len = sizeof(scoped_addr);
   ASSERT(0 != uv_if_indextoname((unsigned int)-1, scoped_addr, &scoped_addr_len));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -154,18 +154,18 @@ TEST_IMPL(ip6_pton) {
   GOOD_ADDR_LIST(TEST_GOOD)
   BAD_ADDR_LIST(TEST_BAD)
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
 #undef GOOD_ADDR_LIST
 #undef BAD_ADDR_LIST
 
-#ifdef SIN6_LEN
 TEST_IMPL(ip6_sin6_len) {
   struct sockaddr_in6 s;
-  ASSERT(uv_ip6_addr("::", 0, &s) < 0);
+  ASSERT_EQ(0, uv_ip6_addr("::", 0, &s));
+#ifdef SIN6_LEN
   ASSERT(s.sin6_len == sizeof(s));
+#endif
   return 0;
 }
-#endif

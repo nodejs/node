@@ -13,6 +13,10 @@ provide the basic information we require.
 
 -->
 
+Please look thru your error log for the string `gyp info using node-gyp@` and if the version number is less than the [current release of node-gyp](https://github.com/nodejs/node-gyp/releases) then __please upgrade__ using the instructions at https://github.com/nodejs/node-gyp/blob/master/docs/Updating-npm-bundled-node-gyp.md and try your command again.
+
+Requests for help with [`node-sass` are very common](https://github.com/nodejs/node-gyp/issues?q=label%3A%22Node+Sass+--%3E+Dart+Sass%22). Please be aware that this package is deprecated, you should seek alternatives and avoid opening new issues about it here.
+
 * **Node Version**: <!-- `node -v` and `npm -v` -->
 * **Platform**: <!-- `uname -a` (UNIX), or `systeminfo | findstr /B /C:"OS Name" /C:"OS Version" /C:"System Type"` (Windows) -->
 * **Compiler**: <!-- `cc -v` (UNIX) or `msbuild /version & cl` (Windows) -->
@@ -46,4 +50,3 @@ Usage: npm <command>
 </details>
 
 <!-- Any further details -->
-

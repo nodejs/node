@@ -38,16 +38,7 @@ EC_POINT_hex2point
  void EC_POINT_clear_free(EC_POINT *point);
  int EC_POINT_copy(EC_POINT *dst, const EC_POINT *src);
  EC_POINT *EC_POINT_dup(const EC_POINT *src, const EC_GROUP *group);
- const EC_METHOD *EC_POINT_method_of(const EC_POINT *point);
  int EC_POINT_set_to_infinity(const EC_GROUP *group, EC_POINT *point);
- int EC_POINT_set_Jprojective_coordinates_GFp(const EC_GROUP *group,
-                                              EC_POINT *p,
-                                              const BIGNUM *x, const BIGNUM *y,
-                                              const BIGNUM *z, BN_CTX *ctx);
- int EC_POINT_get_Jprojective_coordinates_GFp(const EC_GROUP *group,
-                                              const EC_POINT *p,
-                                              BIGNUM *x, BIGNUM *y, BIGNUM *z,
-                                              BN_CTX *ctx);
  int EC_POINT_set_affine_coordinates(const EC_GROUP *group, EC_POINT *p,
                                      const BIGNUM *x, const BIGNUM *y,
                                      BN_CTX *ctx);
@@ -56,6 +47,32 @@ EC_POINT_hex2point
  int EC_POINT_set_compressed_coordinates(const EC_GROUP *group, EC_POINT *p,
                                          const BIGNUM *x, int y_bit,
                                          BN_CTX *ctx);
+ size_t EC_POINT_point2oct(const EC_GROUP *group, const EC_POINT *p,
+                           point_conversion_form_t form,
+                           unsigned char *buf, size_t len, BN_CTX *ctx);
+ size_t EC_POINT_point2buf(const EC_GROUP *group, const EC_POINT *point,
+                           point_conversion_form_t form,
+                           unsigned char **pbuf, BN_CTX *ctx);
+ int EC_POINT_oct2point(const EC_GROUP *group, EC_POINT *p,
+                        const unsigned char *buf, size_t len, BN_CTX *ctx);
+ char *EC_POINT_point2hex(const EC_GROUP *group, const EC_POINT *p,
+                          point_conversion_form_t form, BN_CTX *ctx);
+ EC_POINT *EC_POINT_hex2point(const EC_GROUP *group, const char *hex,
+                              EC_POINT *p, BN_CTX *ctx);
+
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
+ const EC_METHOD *EC_POINT_method_of(const EC_POINT *point);
+ int EC_POINT_set_Jprojective_coordinates_GFp(const EC_GROUP *group,
+                                              EC_POINT *p,
+                                              const BIGNUM *x, const BIGNUM *y,
+                                              const BIGNUM *z, BN_CTX *ctx);
+ int EC_POINT_get_Jprojective_coordinates_GFp(const EC_GROUP *group,
+                                              const EC_POINT *p,
+                                              BIGNUM *x, BIGNUM *y, BIGNUM *z,
+                                              BN_CTX *ctx);
  int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *group, EC_POINT *p,
                                          const BIGNUM *x, const BIGNUM *y,
                                          BN_CTX *ctx);
@@ -76,24 +93,11 @@ EC_POINT_hex2point
                                               EC_POINT *p,
                                               const BIGNUM *x, int y_bit,
                                               BN_CTX *ctx);
- size_t EC_POINT_point2oct(const EC_GROUP *group, const EC_POINT *p,
-                           point_conversion_form_t form,
-                           unsigned char *buf, size_t len, BN_CTX *ctx);
- size_t EC_POINT_point2buf(const EC_GROUP *group, const EC_POINT *point,
-                           point_conversion_form_t form,
-                           unsigned char **pbuf, BN_CTX *ctx);
- int EC_POINT_oct2point(const EC_GROUP *group, EC_POINT *p,
-                        const unsigned char *buf, size_t len, BN_CTX *ctx);
  BIGNUM *EC_POINT_point2bn(const EC_GROUP *group, const EC_POINT *p,
                            point_conversion_form_t form, BIGNUM *bn,
                            BN_CTX *ctx);
  EC_POINT *EC_POINT_bn2point(const EC_GROUP *group, const BIGNUM *bn,
                              EC_POINT *p, BN_CTX *ctx);
- char *EC_POINT_point2hex(const EC_GROUP *group, const EC_POINT *p,
-                          point_conversion_form_t form, BN_CTX *ctx);
- EC_POINT *EC_POINT_hex2point(const EC_GROUP *group, const char *hex,
-                              EC_POINT *p, BN_CTX *ctx);
-
 
 =head1 DESCRIPTION
 
@@ -114,13 +118,15 @@ EC_POINT_dup() creates a new B<EC_POINT> object and copies the content from
 B<src> to the newly created B<EC_POINT> object.
 
 EC_POINT_method_of() obtains the B<EC_METHOD> associated with B<point>.
+This function was deprecated in OpenSSL 3.0, since EC_METHOD is no longer a
+public concept.
 
 A valid point on a curve is the special point at infinity. A point is set to
 be at infinity by calling EC_POINT_set_to_infinity().
 
-The affine co-ordinates for a point describe a point in terms of its x and y
+The affine coordinates for a point describe a point in terms of its x and y
 position. The function EC_POINT_set_affine_coordinates() sets the B<x> and B<y>
-co-ordinates for the point B<p> defined over the curve given in B<group>. The
+coordinates for the point B<p> defined over the curve given in B<group>. The
 function EC_POINT_get_affine_coordinates() sets B<x> and B<y>, either of which
 may be NULL, to the corresponding coordinates of B<p>.
 
@@ -134,23 +140,27 @@ EC_POINT_get_affine_coordinates_GF2m() are synonyms for
 EC_POINT_get_affine_coordinates(). They are defined for backwards compatibility
 only and should not be used.
 
-As well as the affine co-ordinates, a point can alternatively be described in
-terms of its Jacobian projective co-ordinates (for Fp curves only). Jacobian
-projective co-ordinates are expressed as three values x, y and z. Working in
-this co-ordinate system provides more efficient point multiplication
-operations.  A mapping exists between Jacobian projective co-ordinates and
-affine co-ordinates. A Jacobian projective co-ordinate (x, y, z) can be written
-as an affine co-ordinate as (x/(z^2), y/(z^3)). Conversion to Jacobian
-projective from affine co-ordinates is simple. The co-ordinate (x, y) is mapped
-to (x, y, 1). To set or get the projective co-ordinates use
+As well as the affine coordinates, a point can alternatively be described in
+terms of its Jacobian projective coordinates (for Fp curves only). Jacobian
+projective coordinates are expressed as three values x, y and z. Working in
+this coordinate system provides more efficient point multiplication
+operations.  A mapping exists between Jacobian projective coordinates and
+affine coordinates. A Jacobian projective coordinate (x, y, z) can be written
+as an affine coordinate as (x/(z^2), y/(z^3)). Conversion to Jacobian
+projective from affine coordinates is simple. The coordinate (x, y) is mapped
+to (x, y, 1). Although deprecated in OpenSSL 3.0 and should no longer be used,
+to set or get the projective coordinates in older versions use
 EC_POINT_set_Jprojective_coordinates_GFp() and
 EC_POINT_get_Jprojective_coordinates_GFp() respectively.
+Modern versions should instead use EC_POINT_set_affine_coordinates() and
+EC_POINT_get_affine_coordinates(), performing the conversion manually using the
+above maps in such rare circumstances.
 
-Points can also be described in terms of their compressed co-ordinates. For a
+Points can also be described in terms of their compressed coordinates. For a
 point (x, y), for any given value for x such that the point is on the curve
 there will only ever be two possible values for y. Therefore, a point can be set
 using the EC_POINT_set_compressed_coordinates() function where B<x> is the x
-co-ordinate and B<y_bit> is a value 0 or 1 to identify which of the two
+coordinate and B<y_bit> is a value 0 or 1 to identify which of the two
 possible values for y should be used.
 
 The functions EC_POINT_set_compressed_coordinates_GFp() and
@@ -241,11 +251,27 @@ L<crypto(7)>, L<EC_GROUP_new(3)>, L<EC_GROUP_copy(3)>,
 L<EC_POINT_add(3)>, L<EC_KEY_new(3)>,
 L<EC_GFp_simple_method(3)>, L<d2i_ECPKParameters(3)>
 
+=head1 HISTORY
+
+EC_POINT_method_of(),
+EC_POINT_set_Jprojective_coordinates_GFp(),
+EC_POINT_get_Jprojective_coordinates_GFp(),
+EC_POINT_set_affine_coordinates_GFp(), EC_POINT_get_affine_coordinates_GFp(),
+EC_POINT_set_compressed_coordinates_GFp(),
+EC_POINT_set_affine_coordinates_GF2m(), EC_POINT_get_affine_coordinates_GF2m(),
+EC_POINT_set_compressed_coordinates_GF2m(),
+EC_POINT_point2bn(), and EC_POINT_bn2point() were deprecated in OpenSSL 3.0.
+
+
+B<EC_POINT_set_affine_coordinates>, B<EC_POINT_get_affine_coordinates>,
+and B<EC_POINT_set_compressed_coordinates> were
+added in OpenSSL 1.1.1.
+
 =head1 COPYRIGHT
 
-Copyright 2013-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2023 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

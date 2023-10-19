@@ -19,7 +19,7 @@ class JavaScriptFrame;
 class CommonFrame;
 class WasmFrame;
 
-class FrameInspector {
+class V8_EXPORT_PRIVATE FrameInspector {
  public:
   FrameInspector(CommonFrame* frame, int inlined_frame_index, Isolate* isolate);
   FrameInspector(const FrameInspector&) = delete;
@@ -36,9 +36,11 @@ class FrameInspector {
   Handle<Object> GetContext();
   Handle<Object> GetReceiver() { return receiver_; }
 
-  Handle<String> GetFunctionName() { return function_name_; }
+  Handle<String> GetFunctionName();
 
+#if V8_ENABLE_WEBASSEMBLY
   bool IsWasm();
+#endif  // V8_ENABLE_WEBASSEMBLY
   bool IsJavaScript();
 
   JavaScriptFrame* javascript_frame();
@@ -56,7 +58,6 @@ class FrameInspector {
   Handle<Script> script_;
   Handle<Object> receiver_;
   Handle<JSFunction> function_;
-  Handle<String> function_name_;
   int source_position_ = -1;
   bool is_optimized_ = false;
   bool is_constructor_ = false;
@@ -69,7 +70,8 @@ class RedirectActiveFunctions : public ThreadVisitor {
     kUseDebugBytecode,
   };
 
-  explicit RedirectActiveFunctions(SharedFunctionInfo shared, Mode mode);
+  RedirectActiveFunctions(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
+                          Mode mode);
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override;
 

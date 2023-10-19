@@ -1,0 +1,42 @@
+﻿<WixLocalization Culture="en-us" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+    <!-- See https://msdn.microsoft.com/en-us/goglobal/bb964664.aspx -->
+    <String Id="LocaleId" Value="1033"/>
+
+    <String Id="WelcomeDlgDescription" Value="The Setup Wizard will install [ProductName] on your computer."/>
+    <String Id="InstallDirDlgDescription" Value="Choose a custom location or click Next to install."/>
+
+    <String Id="MajorUpgrade_DowngradeErrorMessage" Value="A later version of [ProductName] is already installed. Setup will now exit."/>
+
+    <String Id="NativeToolsDlg_Title" Value="[ProductName] Setup"/>
+    <String Id="NativeToolsDlgTitle" Value="{\WixUI_Font_Title}Tools for Native Modules"/>
+    <String Id="NativeToolsDlgDescription" Value="Optionally install the tools necessary to compile native modules."/>
+    <String Id="NativeToolsDlgBannerBitmap" Value="WixUI_Bmp_Banner"/>
+    <String Id="NativeToolsDlgIntro" Value="Some npm modules need to be compiled from C/C++ when installing. If you want to be able to install such modules, some tools (Python and Visual Studio Build Tools) need to be installed."/>
+    <String Id="NativeToolsDlgInstallCheckbox" Value="Automatically install the necessary tools. Note that this will also install Chocolatey. The script will pop-up in a new window after the installation completes."/>
+    <String Id="NativeToolsDlgManualDetails" Value="Alternatively, follow the instructions at &lt;a href=&quot;https://github.com/nodejs/node-gyp#on-windows&quot;&gt;https://github.com/nodejs/node-gyp#on-windows&lt;/a&gt; to install the dependencies yourself."/>
+
+    <!-- References like [ProductName] or $(var.ProductName) don't seem to work in Title attributes -->
+    <String Id="NodeRuntime_Title" Value="Node.js runtime"/>
+    <String Id="NodeRuntime_Description" Value="Install the core [ProductName] runtime (node.exe)."/>
+
+    <String Id="npm_Title" Value="npm package manager"/>
+    <String Id="npm_Description" Value="Install npm, the recommended package manager for [ProductName]."/>
+
+    <String Id="corepack_Title" Value="corepack manager"/>
+    <String Id="corepack_Description" Value="Install corepack, the universal package manager for [ProductName]."/>
+
+    <String Id="DocumentationShortcuts_Title" Value="Online documentation shortcuts"/>
+    <String Id="DocumentationShortcuts_Description" Value="Add start menu entries that link the online documentation for [ProductName] [FullVersion] and the [ProductName] website."/>
+
+    <String Id="EnvironmentPath_Title" Value="Add to PATH"/>
+    <String Id="EnvironmentPath_Description" Value="Add [ProductName], npm, and modules that were globally installed by npm to the PATH environment variable."/>
+
+    <String Id="EnvironmentPathNode_Title" Value="Node.js and npm"/>
+    <String Id="EnvironmentPathNode_Description" Value="Add [ProductName] and npm (if installed) to the PATH environment variable."/>
+
+    <String Id="EnvironmentPathNpmModules_Title" Value="npm modules"/>
+    <String Id="EnvironmentPathNpmModules_Description" Value="Add modules that are installed globally by npm to the PATH environment variable. This option works for the current user only; other users need to update their PATH manually."/>
+
+    <!-- References like [ProductName] are not resolved for Property tags -->
+    <String Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Node.js has been successfully installed."/>
+</WixLocalization>

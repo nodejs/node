@@ -12,7 +12,7 @@
 
 namespace v8_inspector {
 namespace {
-using UChar = uint16_t;
+using UChar = char16_t;
 using UChar32 = uint32_t;
 
 bool isASCII(UChar c) { return !(c & ~0x7F); }
@@ -228,9 +228,7 @@ static const UChar32 offsetsFromUTF8[6] = {0x00000000UL,
                                            static_cast<UChar32>(0xFA082080UL),
                                            static_cast<UChar32>(0x82082080UL)};
 
-static inline UChar32 readUTF8Sequence(
-    const char*& sequence,  // NOLINT(runtime/references)
-    size_t length) {
+static inline UChar32 readUTF8Sequence(const char*& sequence, size_t length) {
   UChar32 character = 0;
 
   // The cases all fall through.
@@ -336,8 +334,7 @@ ConversionResult convertUTF8ToUTF16(const char** sourceStart,
 
 // Helper to write a three-byte UTF-8 code point to the buffer, caller must
 // check room is available.
-static inline void putUTF8Triple(char*& buffer,  // NOLINT(runtime/references)
-                                 UChar ch) {
+static inline void putUTF8Triple(char*& buffer, UChar ch) {
   *buffer++ = static_cast<char>(((ch >> 12) & 0x0F) | 0xE0);
   *buffer++ = static_cast<char>(((ch >> 6) & 0x3F) | 0x80);
   *buffer++ = static_cast<char>((ch & 0x3F) | 0x80);
@@ -389,7 +386,7 @@ std::string UTF16ToUTF8(const UChar* stringStart, size_t length) {
 
 std::basic_string<UChar> UTF8ToUTF16(const char* stringStart, size_t length) {
   if (!stringStart || !length) return std::basic_string<UChar>();
-  std::vector<uint16_t> buffer(length);
+  std::vector<UChar> buffer(length);
   UChar* bufferStart = buffer.data();
 
   UChar* bufferCurrent = bufferStart;
@@ -398,7 +395,7 @@ std::basic_string<UChar> UTF8ToUTF16(const char* stringStart, size_t length) {
                          reinterpret_cast<const char*>(stringStart + length),
                          &bufferCurrent, bufferCurrent + buffer.size(), nullptr,
                          true) != conversionOK)
-    return std::basic_string<uint16_t>();
+    return std::basic_string<UChar>();
   size_t utf16Length = bufferCurrent - bufferStart;
   return std::basic_string<UChar>(bufferStart, bufferStart + utf16Length);
 }

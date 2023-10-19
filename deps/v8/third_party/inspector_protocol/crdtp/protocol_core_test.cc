@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,30 +10,9 @@
 #include "maybe.h"
 #include "status_test_support.h"
 #include "test_platform.h"
+#include "test_string_traits.h"
 
 namespace v8_crdtp {
-
-// Test-only. Real-life bindings use UTF8/16 conversions as needed.
-template <>
-struct ProtocolTypeTraits<std::string> {
-  static bool Deserialize(DeserializerState* state, std::string* value) {
-    if (state->tokenizer()->TokenTag() == cbor::CBORTokenTag::STRING8) {
-      auto cbor_span = state->tokenizer()->GetString8();
-      value->assign(reinterpret_cast<const char*>(cbor_span.data()),
-                    cbor_span.size());
-      return true;
-    }
-    state->RegisterError(Error::BINDINGS_STRING8_VALUE_EXPECTED);
-    return false;
-  }
-
-  static void Serialize(const std::string& value, std::vector<uint8_t>* bytes) {
-    cbor::EncodeString8(
-        span<uint8_t>(reinterpret_cast<const uint8_t*>(value.data()),
-                      value.size()),
-        bytes);
-  }
-};
 
 namespace {
 using ::testing::Eq;
@@ -372,18 +351,18 @@ class TestTypeOptional : public ProtocolObject<TestTypeOptional> {
  public:
   TestTypeOptional() = default;
 
-  bool HasIntField() const { return int_field_.isJust(); }
-  int GetIntField() const { return int_field_.fromJust(); }
+  bool HasIntField() const { return int_field_.has_value(); }
+  int GetIntField() const { return int_field_.value(); }
   void SetIntField(int value) { int_field_ = value; }
 
-  bool HasStrField() { return str_field_.isJust(); }
-  const std::string& GetStrField() const { return str_field_.fromJust(); }
+  bool HasStrField() { return str_field_.has_value(); }
+  const std::string& GetStrField() const { return str_field_.value(); }
   void SetStrField(std::string value) { str_field_ = std::move(value); }
 
-  bool HasTestTypeBasicField() { return test_type_basic_field_.isJust(); }
+  bool HasTestTypeBasicField() { return test_type_basic_field_.has_value(); }
   const TestTypeBasic* GetTestTypeBasicField() const {
-    return test_type_basic_field_.isJust() ? test_type_basic_field_.fromJust()
-                                           : nullptr;
+    return test_type_basic_field_.has_value() ? &test_type_basic_field_.value()
+                                              : nullptr;
   }
   void SetTestTypeBasicField(std::unique_ptr<TestTypeBasic> value) {
     test_type_basic_field_ = std::move(value);

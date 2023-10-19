@@ -2,14 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --turboshaft-enable-debug-features
 
 var expect_interpreted = true;
 
 function C() {
   this.a = 1;
   assertEquals(expect_interpreted, %IsBeingInterpreted());
-  %TurbofanStaticAssert(this.x == 42);
+  if (!%IsDictPropertyConstTrackingEnabled()) {
+    // TODO(v8:11457) If v8_dict_property_const_tracking is enabled, then the
+    // prototype of |this| in D() is a dictionary mode object, and we cannot
+    // inline the storing of this.x, yet.
+    %TurbofanStaticAssert(this.x == 42);
+  }
 };
 
 function D() {
@@ -49,6 +55,6 @@ var g = new G;
 
 foo();
 foo();
-%OptimizeFunctionOnNextCall(foo);
 expect_interpreted = false;
+%OptimizeFunctionOnNextCall(foo);
 foo();

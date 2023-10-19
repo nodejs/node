@@ -87,7 +87,7 @@ static int udp_options_test(const struct sockaddr* addr) {
   r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -155,6 +155,6 @@ TEST_IMPL(udp_no_autobind) {
 
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

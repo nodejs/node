@@ -1,0 +1,71 @@
+=pod
+
+=head1 NAME
+
+EVP_set_default_properties, EVP_default_properties_enable_fips,
+EVP_default_properties_is_fips_enabled
+- Set default properties for future algorithm fetches
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ int EVP_set_default_properties(OSSL_LIB_CTX *libctx, const char *propq);
+ int EVP_default_properties_enable_fips(OSSL_LIB_CTX *libctx, int enable);
+ int EVP_default_properties_is_fips_enabled(OSSL_LIB_CTX *libctx);
+
+=head1 DESCRIPTION
+
+EVP_set_default_properties() sets the default properties for all
+future EVP algorithm fetches, implicit as well as explicit. See
+L<crypto(7)/ALGORITHM FETCHING> for information about implicit and explicit
+fetching.
+
+EVP_set_default_properties stores the properties given with the string
+I<propq> among the EVP data that's been stored in the library context
+given with I<libctx> (NULL signifies the default library context).
+
+Any previous default property for the specified library context will
+be dropped.
+
+EVP_default_properties_enable_fips() sets the 'fips=yes' to be a default property
+if I<enable> is non zero, otherwise it clears 'fips' from the default property
+query for the given I<libctx>. It merges the fips default property query with any
+existing query strings that have been set via EVP_set_default_properties().
+
+EVP_default_properties_is_fips_enabled() indicates if 'fips=yes' is a default
+property for the given I<libctx>.
+
+=head1 NOTES
+
+EVP_set_default_properties() and  EVP_default_properties_enable_fips() are not
+thread safe. They are intended to be called only during the initialisation
+phase of a I<libctx>.
+
+=head1 RETURN VALUES
+
+EVP_set_default_properties() and  EVP_default_properties_enable_fips() return 1
+on success, or 0 on failure. An error is placed on the error stack if a
+failure occurs.
+
+EVP_default_properties_is_fips_enabled() returns 1 if the 'fips=yes' default
+property is set for the given I<libctx>, otherwise it returns 0.
+
+=head1 SEE ALSO
+
+L<EVP_MD_fetch(3)>
+
+=head1 HISTORY
+
+The functions described here were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

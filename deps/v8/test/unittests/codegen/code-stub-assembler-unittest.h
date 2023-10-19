@@ -7,14 +7,13 @@
 
 #include "src/codegen/code-stub-assembler.h"
 #include "test/unittests/test-utils.h"
-#include "testing/gmock-support.h"
 
 namespace v8 {
 namespace internal {
 
-class CodeStubAssemblerTest : public TestWithIsolateAndZone {
+class CodeStubAssemblerTest : public TestWithContextAndZone {
  public:
-  CodeStubAssemblerTest() : TestWithIsolateAndZone(kCompressGraphZone) {}
+  CodeStubAssemblerTest() : TestWithContextAndZone(kCompressGraphZone) {}
   ~CodeStubAssemblerTest() override = default;
 };
 

@@ -5,19 +5,18 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 #define V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 
-#include "src/heap/heap.h"
+#include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
+#include "src/heap/base/active-system-pages.h"
 #include "src/heap/list.h"
+#include "src/heap/marking.h"
+#include "src/heap/progress-bar.h"
 #include "src/heap/slot-set.h"
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#include "src/heap/object-start-bitmap.h"
-#endif
 
 namespace v8 {
 namespace internal {
 
-class Bitmap;
-class CodeObjectRegistry;
+class MarkingBitmap;
 class FreeListCategory;
 class Heap;
 class TypedSlotsSet;
@@ -25,14 +24,21 @@ class SlotSet;
 
 enum RememberedSetType {
   OLD_TO_NEW,
+  OLD_TO_NEW_BACKGROUND,
   OLD_TO_OLD,
+  OLD_TO_SHARED,
+  OLD_TO_CODE,
   NUMBER_OF_REMEMBERED_SET_TYPES
 };
 
+using ActiveSystemPages = ::heap::base::ActiveSystemPages;
+
 class V8_EXPORT_PRIVATE MemoryChunkLayout {
  public:
-  static const int kNumSets = NUMBER_OF_REMEMBERED_SET_TYPES;
-  static const int kNumTypes = ExternalBackingStoreType::kNumTypes;
+  static constexpr int kNumSets = NUMBER_OF_REMEMBERED_SET_TYPES;
+  static constexpr int kNumTypes =
+      static_cast<int>(ExternalBackingStoreType::kNumValues);
+  static constexpr int kMemoryChunkAlignment = sizeof(size_t);
 #define FIELD(Type, Name) \
   k##Name##Offset, k##Name##End = k##Name##Offset + sizeof(Type) - 1
   enum Header {
@@ -49,42 +55,52 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(VirtualMemory, Reservation),
     // MemoryChunk fields:
     FIELD(SlotSet* [kNumSets], SlotSet),
-    FIELD(std::atomic<size_t>, ProgressBar),
-    FIELD(std::atomic<intptr_t>, LiveByteCount),
-    FIELD(SlotSet*, SweepingSlotSet),
     FIELD(TypedSlotsSet* [kNumSets], TypedSlotSet),
-    FIELD(void* [kNumSets], InvalidatedSlots),
+    FIELD(ProgressBar, ProgressBar),
+    FIELD(std::atomic<intptr_t>, LiveByteCount),
     FIELD(base::Mutex*, Mutex),
-    FIELD(std::atomic<intptr_t>, ConcurrentSweeping),
+    FIELD(base::SharedMutex*, SharedMutex),
     FIELD(base::Mutex*, PageProtectionChangeMutex),
-    FIELD(uintptr_t, WriteUnprotectCounter),
+    FIELD(std::atomic<intptr_t>, ConcurrentSweeping),
     FIELD(std::atomic<size_t>[kNumTypes], ExternalBackingStoreBytes),
     FIELD(heap::ListNode<MemoryChunk>, ListNode),
     FIELD(FreeListCategory**, Categories),
-    FIELD(std::atomic<intptr_t>, YoungGenerationLiveByteCount),
-    FIELD(Bitmap*, YoungGenerationBitmap),
-    FIELD(CodeObjectRegistry*, CodeObjectRegistry),
     FIELD(PossiblyEmptyBuckets, PossiblyEmptyBuckets),
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    FIELD(ObjectStartBitmap, ObjectStartBitmap),
-#endif
-    kMarkingBitmapOffset,
-    kMemoryChunkHeaderSize = kMarkingBitmapOffset,
+    FIELD(ActiveSystemPages*, ActiveSystemPages),
+    FIELD(size_t, AllocatedLabSize),
+    FIELD(size_t, AgeInNewSpace),
+    FIELD(MarkingBitmap, MarkingBitmap),
+    kEndOfMarkingBitmap,
+    kMemoryChunkHeaderSize =
+        kEndOfMarkingBitmap +
+        ((kEndOfMarkingBitmap % kMemoryChunkAlignment) == 0
+             ? 0
+             : kMemoryChunkAlignment -
+                   (kEndOfMarkingBitmap % kMemoryChunkAlignment)),
     kMemoryChunkHeaderStart = kSlotSetOffset,
     kBasicMemoryChunkHeaderSize = kMemoryChunkHeaderStart,
     kBasicMemoryChunkHeaderStart = 0,
   };
+#undef FIELD
+
   static size_t CodePageGuardStartOffset();
   static size_t CodePageGuardSize();
+  // Code pages have padding on the first page for code alignment, so the
+  // ObjectStartOffset will not be page aligned.
+  static intptr_t ObjectPageOffsetInCodePage();
   static intptr_t ObjectStartOffsetInCodePage();
   static intptr_t ObjectEndOffsetInCodePage();
   static size_t AllocatableMemoryInCodePage();
   static intptr_t ObjectStartOffsetInDataPage();
   static size_t AllocatableMemoryInDataPage();
+  static intptr_t ObjectStartOffsetInReadOnlyPage();
+  static size_t AllocatableMemoryInReadOnlyPage();
   static size_t ObjectStartOffsetInMemoryChunk(AllocationSpace space);
   static size_t AllocatableMemoryInMemoryChunk(AllocationSpace space);
 
   static int MaxRegularCodeObjectSize();
+
+  static_assert(kMemoryChunkHeaderSize % alignof(size_t) == 0);
 };
 
 }  // namespace internal

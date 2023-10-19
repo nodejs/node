@@ -1,25 +1,31 @@
-// Flags: --report-uncaught-exception
 'use strict';
 // Test producing a report on uncaught exception.
 const common = require('../common');
 const assert = require('assert');
+const childProcess = require('child_process');
 const helper = require('../common/report');
 const tmpdir = require('../common/tmpdir');
 
-const exception = Symbol('foobar');
+if (process.argv[2] === 'child') {
+  throw Symbol('foobar');
+}
 
 tmpdir.refresh();
-process.report.directory = tmpdir.path;
-
-process.on('uncaughtException', common.mustCall((err) => {
-  assert.strictEqual(err, exception);
-  const reports = helper.findReports(process.pid, tmpdir.path);
+const child = childProcess.spawn(process.execPath, [
+  '--report-uncaught-exception',
+  __filename,
+  'child',
+], {
+  cwd: tmpdir.path,
+});
+child.on('exit', common.mustCall((code) => {
+  assert.strictEqual(code, 1);
+  const reports = helper.findReports(child.pid, tmpdir.path);
   assert.strictEqual(reports.length, 1);
 
   helper.validate(reports[0], [
     ['header.event', 'Exception'],
+    ['header.trigger', 'Exception'],
     ['javascriptStack.message', 'Symbol(foobar)'],
   ]);
 }));
-
-throw exception;

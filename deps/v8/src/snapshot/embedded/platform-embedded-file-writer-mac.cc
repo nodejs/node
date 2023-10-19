@@ -4,7 +4,7 @@
 
 #include "src/snapshot/embedded/platform-embedded-file-writer-mac.h"
 
-#include "src/objects/code.h"
+#include "src/objects/instruction-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -29,8 +29,6 @@ const char* DirectiveAsString(DataDirective directive) {
 
 void PlatformEmbeddedFileWriterMac::SectionText() { fprintf(fp_, ".text\n"); }
 
-void PlatformEmbeddedFileWriterMac::SectionData() { fprintf(fp_, ".data\n"); }
-
 void PlatformEmbeddedFileWriterMac::SectionRoData() {
   fprintf(fp_, ".const_data\n");
 }
@@ -44,28 +42,45 @@ void PlatformEmbeddedFileWriterMac::DeclareUint32(const char* name,
   Newline();
 }
 
-void PlatformEmbeddedFileWriterMac::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  DeclareSymbolGlobal(name);
-  DeclareLabel(name);
-  fprintf(fp_, "  %s _%s\n", DirectiveAsString(PointerSizeDirective()), target);
-}
-
 void PlatformEmbeddedFileWriterMac::DeclareSymbolGlobal(const char* name) {
   // TODO(jgruber): Investigate switching to .globl. Using .private_extern
   // prevents something along the compilation chain from messing with the
   // embedded blob. Using .global here causes embedded blob hash verification
   // failures at runtime.
-  STATIC_ASSERT(32 >= kCodeAlignment);
   fprintf(fp_, ".private_extern _%s\n", name);
 }
 
 void PlatformEmbeddedFileWriterMac::AlignToCodeAlignment() {
+#if V8_TARGET_ARCH_X64
+  // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
+  static_assert(64 >= kCodeAlignment);
+  fprintf(fp_, ".balign 64\n");
+#elif V8_TARGET_ARCH_PPC64
+  // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
+  // don't cross 64-byte boundaries.
+  static_assert(64 >= kCodeAlignment);
+  fprintf(fp_, ".balign 64\n");
+#elif V8_TARGET_ARCH_ARM64
+  // ARM64 macOS has a 16kiB page size. Since we want to remap it on the heap,
+  // needs to be page-aligned.
+  fprintf(fp_, ".balign 16384\n");
+#else
+  static_assert(32 >= kCodeAlignment);
   fprintf(fp_, ".balign 32\n");
+#endif
+}
+
+void PlatformEmbeddedFileWriterMac::AlignToPageSizeIfNeeded() {
+#if V8_TARGET_ARCH_ARM64
+  // ARM64 macOS has a 16kiB page size. Since we want to remap builtins on the
+  // heap, make sure that the trailing part of the page doesn't contain anything
+  // dangerous.
+  fprintf(fp_, ".balign 16384\n");
+#endif
 }
 
 void PlatformEmbeddedFileWriterMac::AlignToDataAlignment() {
-  STATIC_ASSERT(8 >= Code::kMetadataAlignment);
+  static_assert(8 >= InstructionStream::kMetadataAlignment);
   fprintf(fp_, ".balign 8\n");
 }
 

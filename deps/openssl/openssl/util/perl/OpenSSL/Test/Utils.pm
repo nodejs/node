@@ -1,6 +1,6 @@
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -53,6 +53,7 @@ STRING is "tls", or for all the available DTLS versions if STRING is
 returned list can be used with B<alldisabled> and B<anydisabled>.
 
 =item B<alldisabled ARRAY>
+
 =item B<anydisabled ARRAY>
 
 In an array context returns an array with each element set to 1 if the
@@ -67,6 +68,7 @@ disabled.
 Returns an item from the %config hash in \$TOP/configdata.pm.
 
 =item B<have_IPv4>
+
 =item B<have_IPv6>
 
 Return true if IPv4 / IPv6 is possible to use on the current system.
@@ -224,7 +226,6 @@ sub have_IPv6 {
     }
     return $have_IPv6;
 }
-
 
 =head1 SEE ALSO
 

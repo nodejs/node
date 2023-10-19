@@ -31,11 +31,11 @@ common.skipIfDumbTerminal();
     const width = getStringWidth(char) - 1;
 
     class FakeInput extends EventEmitter {
-      columns = ((width + 1) * 10 + (lineBreak ? 0 : 10)) * 3
+      columns = ((width + 1) * 10 + (lineBreak ? 0 : 10)) * 3;
 
       write = common.mustCall((data) => {
         output += data;
-      }, 6)
+      }, 6);
 
       resume() {}
       pause() {}
@@ -72,11 +72,11 @@ common.skipIfDumbTerminal();
 {
   let output = '';
   class FakeInput extends EventEmitter {
-    columns = 80
+    columns = 80;
 
     write = common.mustCall((data) => {
       output += data;
-    }, 1)
+    }, 1);
 
     resume() {}
     pause() {}
@@ -99,4 +99,40 @@ common.skipIfDumbTerminal();
     output = '';
   });
   rli.close();
+}
+
+{
+  let output = '';
+  class FakeInput extends EventEmitter {
+    columns = 80;
+
+    write = common.mustCall((data) => {
+      output += data;
+    }, 9);
+
+    resume() {}
+    pause() {}
+    end() {}
+  }
+
+  const fi = new FakeInput();
+  const rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    terminal: true,
+    completer: common.mustCall((input, cb) => {
+      cb(null, [[input[0].toUpperCase() + input.slice(1)], input]);
+    }),
+  });
+
+  rli.on('line', common.mustNotCall());
+  fi.emit('data', 'input');
+  queueMicrotask(() => {
+    fi.emit('data', '\t');
+    queueMicrotask(() => {
+      assert.match(output, /> Input/);
+      output = '';
+      rli.close();
+    });
+  });
 }

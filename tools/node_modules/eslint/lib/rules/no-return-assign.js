@@ -20,15 +20,15 @@ const SENTINEL_TYPE = /^(?:[a-zA-Z]+?Statement|ArrowFunctionExpression|FunctionE
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow assignment operators in `return` statements",
-            category: "Best Practices",
+            description: "Disallow assignment operators in `return` statements",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-return-assign"
+            url: "https://eslint.org/docs/latest/rules/no-return-assign"
         },
 
         schema: [
@@ -45,7 +45,7 @@ module.exports = {
 
     create(context) {
         const always = (context.options[0] || "except-parens") !== "except-parens";
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             AssignmentExpression(node) {

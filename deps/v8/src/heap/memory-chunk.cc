@@ -4,11 +4,16 @@
 
 #include "src/heap/memory-chunk.h"
 
+#include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
-#include "src/heap/code-object-registry.h"
+#include "src/common/globals.h"
+#include "src/heap/basic-memory-chunk.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
 
@@ -41,29 +46,18 @@ void MemoryChunk::InitializationMemoryFence() {
 
 void MemoryChunk::DecrementWriteUnprotectCounterAndMaybeSetPermissions(
     PageAllocator::Permission permission) {
+  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
   DCHECK(permission == PageAllocator::kRead ||
          permission == PageAllocator::kReadExecute);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(owner_identity() == CODE_SPACE || owner_identity() == CODE_LO_SPACE);
-  // Decrementing the write_unprotect_counter_ and changing the page
-  // protection mode has to be atomic.
-  base::MutexGuard guard(page_protection_change_mutex_);
-  if (write_unprotect_counter_ == 0) {
-    // This is a corner case that may happen when we have a
-    // CodeSpaceMemoryModificationScope open and this page was newly
-    // added.
-    return;
-  }
-  write_unprotect_counter_--;
-  DCHECK_LT(write_unprotect_counter_, kMaxWriteUnprotectCounter);
-  if (write_unprotect_counter_ == 0) {
-    Address protect_start =
-        address() + MemoryChunkLayout::ObjectStartOffsetInCodePage();
-    size_t page_size = MemoryAllocator::GetCommitPageSize();
-    DCHECK(IsAligned(protect_start, page_size));
-    size_t protect_size = RoundUp(area_size(), page_size);
-    CHECK(reservation_.SetPermissions(protect_start, protect_size, permission));
-  }
+  DCHECK(IsAnyCodeSpace(owner_identity()));
+  page_protection_change_mutex_->AssertHeld();
+  Address protect_start =
+      address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
+  size_t page_size = MemoryAllocator::GetCommitPageSize();
+  DCHECK(IsAligned(protect_start, page_size));
+  size_t protect_size = RoundUp(area_size(), page_size);
+  CHECK(reservation_.SetPermissions(protect_start, protect_size, permission));
 }
 
 void MemoryChunk::SetReadable() {
@@ -71,123 +65,109 @@ void MemoryChunk::SetReadable() {
 }
 
 void MemoryChunk::SetReadAndExecutable() {
-  DCHECK(!FLAG_jitless);
+  DCHECK(!v8_flags.jitless);
   DecrementWriteUnprotectCounterAndMaybeSetPermissions(
       PageAllocator::kReadExecute);
 }
 
-void MemoryChunk::SetReadAndWritable() {
+base::MutexGuard MemoryChunk::SetCodeModificationPermissions() {
+  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(owner_identity() == CODE_SPACE || owner_identity() == CODE_LO_SPACE);
+  DCHECK(IsAnyCodeSpace(owner_identity()));
   // Incrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
   base::MutexGuard guard(page_protection_change_mutex_);
-  write_unprotect_counter_++;
-  DCHECK_LE(write_unprotect_counter_, kMaxWriteUnprotectCounter);
-  if (write_unprotect_counter_ == 1) {
-    Address unprotect_start =
-        address() + MemoryChunkLayout::ObjectStartOffsetInCodePage();
-    size_t page_size = MemoryAllocator::GetCommitPageSize();
-    DCHECK(IsAligned(unprotect_start, page_size));
-    size_t unprotect_size = RoundUp(area_size(), page_size);
-    CHECK(reservation_.SetPermissions(unprotect_start, unprotect_size,
-                                      PageAllocator::kReadWrite));
-  }
+
+  Address unprotect_start =
+      address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
+  size_t page_size = MemoryAllocator::GetCommitPageSize();
+  DCHECK(IsAligned(unprotect_start, page_size));
+  size_t unprotect_size = RoundUp(area_size(), page_size);
+  // We may use RWX pages to write code. Some CPUs have optimisations to push
+  // updates to code to the icache through a fast path, and they may filter
+  // updates based on the written memory being executable.
+  CHECK(reservation_.SetPermissions(
+      unprotect_start, unprotect_size,
+      MemoryChunk::GetCodeModificationPermission()));
+
+  return guard;
 }
 
-namespace {
-
-PageAllocator::Permission DefaultWritableCodePermissions() {
-  return FLAG_jitless ? PageAllocator::kReadWrite
-                      : PageAllocator::kReadWriteExecute;
-}
-
-}  // namespace
-
-MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
-                                     Executability executable) {
-  MemoryChunk* chunk = static_cast<MemoryChunk*>(basic_chunk);
-
-  base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
-  base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_OLD], nullptr);
-  base::AsAtomicPointer::Release_Store(&chunk->sweeping_slot_set_, nullptr);
-  base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_NEW],
-                                       nullptr);
-  base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_OLD],
-                                       nullptr);
-  chunk->invalidated_slots_[OLD_TO_NEW] = nullptr;
-  chunk->invalidated_slots_[OLD_TO_OLD] = nullptr;
-  chunk->progress_bar_ = 0;
-  chunk->set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
-  chunk->page_protection_change_mutex_ = new base::Mutex();
-  chunk->write_unprotect_counter_ = 0;
-  chunk->mutex_ = new base::Mutex();
-  chunk->young_generation_bitmap_ = nullptr;
-
-  chunk->external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] =
-      0;
-  chunk->external_backing_store_bytes_
-      [ExternalBackingStoreType::kExternalString] = 0;
-
-  chunk->categories_ = nullptr;
-
-  heap->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(chunk,
-                                                                        0);
-  if (executable == EXECUTABLE) {
-    chunk->SetFlag(IS_EXECUTABLE);
-    if (heap->write_protect_code_memory()) {
-      chunk->write_unprotect_counter_ =
-          heap->code_space_memory_modification_scope_depth();
-    } else {
-      size_t page_size = MemoryAllocator::GetCommitPageSize();
-      DCHECK(IsAligned(chunk->area_start(), page_size));
-      size_t area_size =
-          RoundUp(chunk->area_end() - chunk->area_start(), page_size);
-      CHECK(chunk->reservation_.SetPermissions(
-          chunk->area_start(), area_size, DefaultWritableCodePermissions()));
-    }
-  }
-
-  if (chunk->owner()->identity() == CODE_SPACE) {
-    chunk->code_object_registry_ = new CodeObjectRegistry();
+void MemoryChunk::SetDefaultCodePermissions() {
+  if (v8_flags.jitless) {
+    SetReadable();
   } else {
-    chunk->code_object_registry_ = nullptr;
+    SetReadAndExecutable();
+  }
+}
+
+MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
+                         Address area_start, Address area_end,
+                         VirtualMemory reservation, Executability executable,
+                         PageSize page_size)
+    : BasicMemoryChunk(heap, space, chunk_size, area_start, area_end,
+                       std::move(reservation)),
+      mutex_(new base::Mutex()),
+      shared_mutex_(new base::SharedMutex()),
+      page_protection_change_mutex_(new base::Mutex()) {
+  DCHECK_NE(space->identity(), RO_SPACE);
+
+  if (executable == EXECUTABLE) {
+    SetFlag(IS_EXECUTABLE);
   }
 
-  chunk->possibly_empty_buckets_.Initialize();
+  if (page_size == PageSize::kRegular) {
+    active_system_pages_ = new ActiveSystemPages;
+    active_system_pages_->Init(MemoryChunkLayout::kMemoryChunkHeaderSize,
+                               MemoryAllocator::GetCommitPageSizeBits(),
+                               size());
+  } else {
+    // We do not track active system pages for large pages.
+    active_system_pages_ = nullptr;
+  }
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  chunk->object_start_bitmap_ = ObjectStartBitmap(chunk->area_start());
-#endif
+  // All pages of a shared heap need to be marked with this flag.
+  if (owner()->identity() == SHARED_SPACE ||
+      owner()->identity() == SHARED_LO_SPACE) {
+    SetFlag(MemoryChunk::IN_WRITABLE_SHARED_SPACE);
+  }
 
 #ifdef DEBUG
-  ValidateOffsets(chunk);
+  ValidateOffsets(this);
 #endif
-
-  return chunk;
 }
 
-size_t MemoryChunk::CommittedPhysicalMemory() {
-  if (!base::OS::HasLazyCommits() || owner_identity() == LO_SPACE)
-    return size();
-  return high_water_mark_;
+size_t MemoryChunk::CommittedPhysicalMemory() const {
+  if (!base::OS::HasLazyCommits() || IsLargePage()) return size();
+  return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
-void MemoryChunk::SetOldGenerationPageFlags(bool is_marking) {
-  if (is_marking) {
+void MemoryChunk::SetOldGenerationPageFlags(MarkingMode marking_mode) {
+  if (marking_mode == MarkingMode::kMajorMarking) {
     SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
     SetFlag(MemoryChunk::INCREMENTAL_MARKING);
+  } else if (owner_identity() == SHARED_SPACE ||
+             owner_identity() == SHARED_LO_SPACE) {
+    // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
+    SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+    // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
+    ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else {
     ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
+    if (marking_mode == MarkingMode::kMinorMarking) {
+      SetFlag(MemoryChunk::INCREMENTAL_MARKING);
+    } else {
+      ClearFlags(MemoryChunk::INCREMENTAL_MARKING);
+    }
   }
 }
 
-void MemoryChunk::SetYoungGenerationPageFlags(bool is_marking) {
+void MemoryChunk::SetYoungGenerationPageFlags(MarkingMode marking_mode) {
   SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-  if (is_marking) {
+  if (marking_mode != MarkingMode::kNoMarking) {
     SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
     SetFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else {
@@ -199,29 +179,34 @@ void MemoryChunk::SetYoungGenerationPageFlags(bool is_marking) {
 // MemoryChunk implementation
 
 void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
+  DCHECK(SweepingDone());
   if (mutex_ != nullptr) {
     delete mutex_;
     mutex_ = nullptr;
+  }
+  if (shared_mutex_) {
+    delete shared_mutex_;
+    shared_mutex_ = nullptr;
   }
   if (page_protection_change_mutex_ != nullptr) {
     delete page_protection_change_mutex_;
     page_protection_change_mutex_ = nullptr;
   }
-  if (code_object_registry_ != nullptr) {
-    delete code_object_registry_;
-    code_object_registry_ = nullptr;
+
+  if (active_system_pages_ != nullptr) {
+    delete active_system_pages_;
+    active_system_pages_ = nullptr;
   }
 
   possibly_empty_buckets_.Release();
-  ReleaseSlotSet<OLD_TO_NEW>();
-  ReleaseSweepingSlotSet();
-  ReleaseSlotSet<OLD_TO_OLD>();
-  ReleaseTypedSlotSet<OLD_TO_NEW>();
-  ReleaseTypedSlotSet<OLD_TO_OLD>();
-  ReleaseInvalidatedSlots<OLD_TO_NEW>();
-  ReleaseInvalidatedSlots<OLD_TO_OLD>();
-
-  if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
+  ReleaseSlotSet(OLD_TO_NEW);
+  ReleaseSlotSet(OLD_TO_NEW_BACKGROUND);
+  ReleaseSlotSet(OLD_TO_OLD);
+  ReleaseSlotSet(OLD_TO_CODE);
+  ReleaseSlotSet(OLD_TO_SHARED);
+  ReleaseTypedSlotSet(OLD_TO_NEW);
+  ReleaseTypedSlotSet(OLD_TO_OLD);
+  ReleaseTypedSlotSet(OLD_TO_SHARED);
 
   if (!IsLargePage()) {
     Page* page = static_cast<Page*>(this);
@@ -233,58 +218,31 @@ void MemoryChunk::ReleaseAllAllocatedMemory() {
   ReleaseAllocatedMemoryNeededForWritableChunk();
 }
 
-template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_NEW>();
-template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
-
-template <RememberedSetType type>
-SlotSet* MemoryChunk::AllocateSlotSet() {
-  return AllocateSlotSet(&slot_set_[type]);
-}
-
-SlotSet* MemoryChunk::AllocateSweepingSlotSet() {
-  return AllocateSlotSet(&sweeping_slot_set_);
-}
-
-SlotSet* MemoryChunk::AllocateSlotSet(SlotSet** slot_set) {
+SlotSet* MemoryChunk::AllocateSlotSet(RememberedSetType type) {
   SlotSet* new_slot_set = SlotSet::Allocate(buckets());
   SlotSet* old_slot_set = base::AsAtomicPointer::AcquireRelease_CompareAndSwap(
-      slot_set, nullptr, new_slot_set);
-  if (old_slot_set != nullptr) {
+      &slot_set_[type], nullptr, new_slot_set);
+  if (old_slot_set) {
     SlotSet::Delete(new_slot_set, buckets());
     new_slot_set = old_slot_set;
   }
-  DCHECK(new_slot_set);
+  DCHECK_NOT_NULL(new_slot_set);
   return new_slot_set;
 }
 
-template void MemoryChunk::ReleaseSlotSet<OLD_TO_NEW>();
-template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
-
-template <RememberedSetType type>
-void MemoryChunk::ReleaseSlotSet() {
-  ReleaseSlotSet(&slot_set_[type]);
-}
-
-void MemoryChunk::ReleaseSweepingSlotSet() {
-  ReleaseSlotSet(&sweeping_slot_set_);
-}
-
-void MemoryChunk::ReleaseSlotSet(SlotSet** slot_set) {
-  if (*slot_set) {
-    SlotSet::Delete(*slot_set, buckets());
-    *slot_set = nullptr;
+void MemoryChunk::ReleaseSlotSet(RememberedSetType type) {
+  SlotSet* slot_set = slot_set_[type];
+  if (slot_set) {
+    slot_set_[type] = nullptr;
+    SlotSet::Delete(slot_set, buckets());
   }
 }
 
-template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_NEW>();
-template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_OLD>();
-
-template <RememberedSetType type>
-TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
+TypedSlotSet* MemoryChunk::AllocateTypedSlotSet(RememberedSetType type) {
   TypedSlotSet* typed_slot_set = new TypedSlotSet(address());
   TypedSlotSet* old_value = base::AsAtomicPointer::Release_CompareAndSwap(
       &typed_slot_set_[type], nullptr, typed_slot_set);
-  if (old_value != nullptr) {
+  if (old_value) {
     delete typed_slot_set;
     typed_slot_set = old_value;
   }
@@ -292,11 +250,7 @@ TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
   return typed_slot_set;
 }
 
-template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_NEW>();
-template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_OLD>();
-
-template <RememberedSetType type>
-void MemoryChunk::ReleaseTypedSlotSet() {
+void MemoryChunk::ReleaseTypedSlotSet(RememberedSetType type) {
   TypedSlotSet* typed_slot_set = typed_slot_set_[type];
   if (typed_slot_set) {
     typed_slot_set_[type] = nullptr;
@@ -304,89 +258,18 @@ void MemoryChunk::ReleaseTypedSlotSet() {
   }
 }
 
-template InvalidatedSlots* MemoryChunk::AllocateInvalidatedSlots<OLD_TO_NEW>();
-template InvalidatedSlots* MemoryChunk::AllocateInvalidatedSlots<OLD_TO_OLD>();
-
-template <RememberedSetType type>
-InvalidatedSlots* MemoryChunk::AllocateInvalidatedSlots() {
-  DCHECK_NULL(invalidated_slots_[type]);
-  invalidated_slots_[type] = new InvalidatedSlots();
-  return invalidated_slots_[type];
+bool MemoryChunk::ContainsAnySlots() const {
+  for (int rs_type = 0; rs_type < NUMBER_OF_REMEMBERED_SET_TYPES; rs_type++) {
+    if (slot_set_[rs_type] || typed_slot_set_[rs_type]) {
+      return true;
+    }
+  }
+  return false;
 }
 
-template void MemoryChunk::ReleaseInvalidatedSlots<OLD_TO_NEW>();
-template void MemoryChunk::ReleaseInvalidatedSlots<OLD_TO_OLD>();
-
-template <RememberedSetType type>
-void MemoryChunk::ReleaseInvalidatedSlots() {
-  if (invalidated_slots_[type]) {
-    delete invalidated_slots_[type];
-    invalidated_slots_[type] = nullptr;
-  }
-}
-
-template V8_EXPORT_PRIVATE void
-MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(HeapObject object);
-template V8_EXPORT_PRIVATE void
-MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(HeapObject object);
-
-template <RememberedSetType type>
-void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
-  bool skip_slot_recording;
-
-  if (type == OLD_TO_NEW) {
-    skip_slot_recording = InYoungGeneration();
-  } else {
-    skip_slot_recording = ShouldSkipEvacuationSlotRecording();
-  }
-
-  if (skip_slot_recording) {
-    return;
-  }
-
-  if (invalidated_slots<type>() == nullptr) {
-    AllocateInvalidatedSlots<type>();
-  }
-
-  invalidated_slots<type>()->insert(object);
-}
-
-void MemoryChunk::InvalidateRecordedSlots(HeapObject object) {
-  if (V8_DISABLE_WRITE_BARRIERS_BOOL) return;
-  if (heap()->incremental_marking()->IsCompacting()) {
-    // We cannot check slot_set_[OLD_TO_OLD] here, since the
-    // concurrent markers might insert slots concurrently.
-    RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
-  }
-
-  if (!FLAG_always_promote_young_mc || slot_set_[OLD_TO_NEW] != nullptr)
-    RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
-}
-
-template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(
-    HeapObject object);
-template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(
-    HeapObject object);
-
-template <RememberedSetType type>
-bool MemoryChunk::RegisteredObjectWithInvalidatedSlots(HeapObject object) {
-  if (invalidated_slots<type>() == nullptr) {
-    return false;
-  }
-  return invalidated_slots<type>()->find(object) !=
-         invalidated_slots<type>()->end();
-}
-
-void MemoryChunk::AllocateYoungGenerationBitmap() {
-  DCHECK_NULL(young_generation_bitmap_);
-  young_generation_bitmap_ =
-      static_cast<Bitmap*>(base::Calloc(1, Bitmap::kSize));
-}
-
-void MemoryChunk::ReleaseYoungGenerationBitmap() {
-  DCHECK_NOT_NULL(young_generation_bitmap_);
-  base::Free(young_generation_bitmap_);
-  young_generation_bitmap_ = nullptr;
+void MemoryChunk::ClearLiveness() {
+  marking_bitmap()->Clear<AccessMode::NON_ATOMIC>();
+  SetLiveBytes(0);
 }
 
 #ifdef DEBUG
@@ -400,25 +283,18 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
       reinterpret_cast<Address>(&chunk->live_byte_count_) - chunk->address(),
       MemoryChunkLayout::kLiveByteCountOffset);
   DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->sweeping_slot_set_) - chunk->address(),
-      MemoryChunkLayout::kSweepingSlotSetOffset);
-  DCHECK_EQ(
       reinterpret_cast<Address>(&chunk->typed_slot_set_) - chunk->address(),
       MemoryChunkLayout::kTypedSlotSetOffset);
-  DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->invalidated_slots_) - chunk->address(),
-      MemoryChunkLayout::kInvalidatedSlotsOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->mutex_) - chunk->address(),
             MemoryChunkLayout::kMutexOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->shared_mutex_) - chunk->address(),
+            MemoryChunkLayout::kSharedMutexOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->concurrent_sweeping_) -
                 chunk->address(),
             MemoryChunkLayout::kConcurrentSweepingOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->page_protection_change_mutex_) -
                 chunk->address(),
             MemoryChunkLayout::kPageProtectionChangeMutexOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->write_unprotect_counter_) -
-                chunk->address(),
-            MemoryChunkLayout::kWriteUnprotectCounterOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->external_backing_store_bytes_) -
                 chunk->address(),
             MemoryChunkLayout::kExternalBackingStoreBytesOffset);
@@ -426,19 +302,18 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
             MemoryChunkLayout::kListNodeOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->categories_) - chunk->address(),
             MemoryChunkLayout::kCategoriesOffset);
-  DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->young_generation_live_byte_count_) -
-          chunk->address(),
-      MemoryChunkLayout::kYoungGenerationLiveByteCountOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->young_generation_bitmap_) -
-                chunk->address(),
-            MemoryChunkLayout::kYoungGenerationBitmapOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->code_object_registry_) -
-                chunk->address(),
-            MemoryChunkLayout::kCodeObjectRegistryOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->possibly_empty_buckets_) -
                 chunk->address(),
             MemoryChunkLayout::kPossiblyEmptyBucketsOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->active_system_pages_) -
+                chunk->address(),
+            MemoryChunkLayout::kActiveSystemPagesOffset);
+  DCHECK_EQ(
+      reinterpret_cast<Address>(&chunk->allocated_lab_size_) - chunk->address(),
+      MemoryChunkLayout::kAllocatedLabSizeOffset);
+  DCHECK_EQ(
+      reinterpret_cast<Address>(&chunk->age_in_new_space_) - chunk->address(),
+      MemoryChunkLayout::kAgeInNewSpaceOffset);
 }
 #endif
 

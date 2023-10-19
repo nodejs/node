@@ -20,10 +20,9 @@ if (!process.argv[2]) {
     { detached: true, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
 
   const messageHandlers = {
-    workerOnline: common.mustCall((msg) => {
-    }),
+    workerOnline: common.mustCall(),
     mainWindowHandle: common.mustCall((msg) => {
-      assert.ok(/0\s*/.test(msg.value));
+      assert.match(msg.value, /0\s*/);
     }),
     workerExit: common.mustCall((msg) => {
       assert.strictEqual(msg.code, 0);

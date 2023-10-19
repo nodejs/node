@@ -1,7 +1,7 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -17,15 +17,15 @@
 
 void ASN1_item_free(ASN1_VALUE *val, const ASN1_ITEM *it)
 {
-    asn1_item_embed_free(&val, it, 0);
+    ossl_asn1_item_embed_free(&val, it, 0);
 }
 
 void ASN1_item_ex_free(ASN1_VALUE **pval, const ASN1_ITEM *it)
 {
-    asn1_item_embed_free(pval, it, 0);
+    ossl_asn1_item_embed_free(pval, it, 0);
 }
 
-void asn1_item_embed_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
+void ossl_asn1_item_embed_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
 {
     const ASN1_TEMPLATE *tt = NULL, *seqtt;
     const ASN1_EXTERN_FUNCS *ef;
@@ -33,9 +33,9 @@ void asn1_item_embed_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
     ASN1_aux_cb *asn1_cb;
     int i;
 
-    if (!pval)
+    if (pval == NULL)
         return;
-    if ((it->itype != ASN1_ITYPE_PRIMITIVE) && !*pval)
+    if ((it->itype != ASN1_ITYPE_PRIMITIVE) && *pval == NULL)
         return;
     if (aux && aux->asn1_cb)
         asn1_cb = aux->asn1_cb;
@@ -46,13 +46,13 @@ void asn1_item_embed_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
 
     case ASN1_ITYPE_PRIMITIVE:
         if (it->templates)
-            asn1_template_free(pval, it->templates);
+            ossl_asn1_template_free(pval, it->templates);
         else
-            asn1_primitive_free(pval, it, embed);
+            ossl_asn1_primitive_free(pval, it, embed);
         break;
 
     case ASN1_ITYPE_MSTRING:
-        asn1_primitive_free(pval, it, embed);
+        ossl_asn1_primitive_free(pval, it, embed);
         break;
 
     case ASN1_ITYPE_CHOICE:
@@ -61,13 +61,13 @@ void asn1_item_embed_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
             if (i == 2)
                 return;
         }
-        i = asn1_get_choice_selector(pval, it);
+        i = ossl_asn1_get_choice_selector(pval, it);
         if ((i >= 0) && (i < it->tcount)) {
             ASN1_VALUE **pchval;
 
             tt = it->templates + i;
-            pchval = asn1_get_field_ptr(pval, tt);
-            asn1_template_free(pchval, tt);
+            pchval = ossl_asn1_get_field_ptr(pval, tt);
+            ossl_asn1_template_free(pchval, tt);
         }
         if (asn1_cb)
             asn1_cb(ASN1_OP_FREE_POST, pval, it, NULL);
@@ -85,14 +85,14 @@ void asn1_item_embed_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
 
     case ASN1_ITYPE_NDEF_SEQUENCE:
     case ASN1_ITYPE_SEQUENCE:
-        if (asn1_do_lock(pval, -1, it) != 0) /* if error or ref-counter > 0 */
+        if (ossl_asn1_do_lock(pval, -1, it) != 0) /* if error or ref-counter > 0 */
             return;
         if (asn1_cb) {
             i = asn1_cb(ASN1_OP_FREE_PRE, pval, it, NULL);
             if (i == 2)
                 return;
         }
-        asn1_enc_free(pval, it);
+        ossl_asn1_enc_free(pval, it);
         /*
          * If we free up as normal we will invalidate any ANY DEFINED BY
          * field and we won't be able to determine the type of the field it
@@ -103,11 +103,11 @@ void asn1_item_embed_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
             ASN1_VALUE **pseqval;
 
             tt--;
-            seqtt = asn1_do_adb(pval, tt, 0);
+            seqtt = ossl_asn1_do_adb(*pval, tt, 0);
             if (!seqtt)
                 continue;
-            pseqval = asn1_get_field_ptr(pval, seqtt);
-            asn1_template_free(pseqval, seqtt);
+            pseqval = ossl_asn1_get_field_ptr(pval, seqtt);
+            ossl_asn1_template_free(pseqval, seqtt);
         }
         if (asn1_cb)
             asn1_cb(ASN1_OP_FREE_POST, pval, it, NULL);
@@ -119,7 +119,7 @@ void asn1_item_embed_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
     }
 }
 
-void asn1_template_free(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt)
+void ossl_asn1_template_free(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt)
 {
     int embed = tt->flags & ASN1_TFLG_EMBED;
     ASN1_VALUE *tval;
@@ -134,16 +134,16 @@ void asn1_template_free(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt)
         for (i = 0; i < sk_ASN1_VALUE_num(sk); i++) {
             ASN1_VALUE *vtmp = sk_ASN1_VALUE_value(sk, i);
 
-            asn1_item_embed_free(&vtmp, ASN1_ITEM_ptr(tt->item), embed);
+            ossl_asn1_item_embed_free(&vtmp, ASN1_ITEM_ptr(tt->item), embed);
         }
         sk_ASN1_VALUE_free(sk);
         *pval = NULL;
     } else {
-        asn1_item_embed_free(pval, ASN1_ITEM_ptr(tt->item), embed);
+        ossl_asn1_item_embed_free(pval, ASN1_ITEM_ptr(tt->item), embed);
     }
 }
 
-void asn1_primitive_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
+void ossl_asn1_primitive_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
 {
     int utype;
 
@@ -168,15 +168,15 @@ void asn1_primitive_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
 
         utype = typ->type;
         pval = &typ->value.asn1_value;
-        if (!*pval)
+        if (*pval == NULL)
             return;
     } else if (it->itype == ASN1_ITYPE_MSTRING) {
         utype = -1;
-        if (!*pval)
+        if (*pval == NULL)
             return;
     } else {
         utype = it->utype;
-        if ((utype != V_ASN1_BOOLEAN) && !*pval)
+        if ((utype != V_ASN1_BOOLEAN) && *pval == NULL)
             return;
     }
 
@@ -196,12 +196,12 @@ void asn1_primitive_free(ASN1_VALUE **pval, const ASN1_ITEM *it, int embed)
         break;
 
     case V_ASN1_ANY:
-        asn1_primitive_free(pval, NULL, 0);
+        ossl_asn1_primitive_free(pval, NULL, 0);
         OPENSSL_free(*pval);
         break;
 
     default:
-        asn1_string_embed_free((ASN1_STRING *)*pval, embed);
+        ossl_asn1_string_embed_free((ASN1_STRING *)*pval, embed);
         break;
     }
     *pval = NULL;

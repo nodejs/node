@@ -388,7 +388,7 @@ public:
      * @param pattern a MessageFormat pattern string
      * @param parseError Struct to receive information on the position
      *                   of an error within the pattern.
-     *                   Can be NULL.
+     *                   Can be nullptr.
      * @param errorCode Standard ICU error code. Its input value must
      *                  pass the U_SUCCESS() test, or else the function returns
      *                  immediately. Check for U_FAILURE() on output or use with
@@ -428,7 +428,7 @@ public:
      * @param pattern a MessageFormat pattern string
      * @param parseError Struct to receive information on the position
      *                   of an error within the pattern.
-     *                   Can be NULL.
+     *                   Can be nullptr.
      * @param errorCode Standard ICU error code. Its input value must
      *                  pass the U_SUCCESS() test, or else the function returns
      *                  immediately. Check for U_FAILURE() on output or use with
@@ -448,7 +448,7 @@ public:
      * @param pattern a ChoiceFormat pattern string
      * @param parseError Struct to receive information on the position
      *                   of an error within the pattern.
-     *                   Can be NULL.
+     *                   Can be nullptr.
      * @param errorCode Standard ICU error code. Its input value must
      *                  pass the U_SUCCESS() test, or else the function returns
      *                  immediately. Check for U_FAILURE() on output or use with
@@ -468,7 +468,7 @@ public:
      * @param pattern a PluralFormat pattern string
      * @param parseError Struct to receive information on the position
      *                   of an error within the pattern.
-     *                   Can be NULL.
+     *                   Can be nullptr.
      * @param errorCode Standard ICU error code. Its input value must
      *                  pass the U_SUCCESS() test, or else the function returns
      *                  immediately. Check for U_FAILURE() on output or use with
@@ -488,7 +488,7 @@ public:
      * @param pattern a SelectFormat pattern string
      * @param parseError Struct to receive information on the position
      *                   of an error within the pattern.
-     *                   Can be NULL.
+     *                   Can be nullptr.
      * @param errorCode Standard ICU error code. Its input value must
      *                  pass the U_SUCCESS() test, or else the function returns
      *                  immediately. Check for U_FAILURE() on output or use with
@@ -526,14 +526,14 @@ public:
      * @return true if this object is equivalent to the other one.
      * @stable ICU 4.8
      */
-    UBool operator==(const MessagePattern &other) const;
+    bool operator==(const MessagePattern &other) const;
 
     /**
      * @param other another object to compare with.
      * @return false if this object is equivalent to the other one.
      * @stable ICU 4.8
      */
-    inline UBool operator!=(const MessagePattern &other) const {
+    inline bool operator!=(const MessagePattern &other) const {
         return !operator==(other);
     }
 
@@ -797,14 +797,14 @@ public:
          * @return true if this object is equivalent to the other one.
          * @stable ICU 4.8
          */
-        UBool operator==(const Part &other) const;
+        bool operator==(const Part &other) const;
 
         /**
          * @param other another object to compare with.
          * @return false if this object is equivalent to the other one.
          * @stable ICU 4.8
          */
-        inline UBool operator!=(const Part &other) const {
+        inline bool operator!=(const Part &other) const {
             return !operator==(other);
         }
 

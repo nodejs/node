@@ -61,6 +61,10 @@ KnownInstanceType FindKnownMapInstanceTypes(
     return KnownInstanceType(
         FindKnownMapInstanceTypeInMapSpace(offset_in_page));
   }
+  if (containing_page == heap_addresses.old_space_first_page) {
+    return KnownInstanceType(
+        FindKnownMapInstanceTypeInOldSpace(offset_in_page));
+  }
   if (containing_page == heap_addresses.read_only_space_first_page) {
     return KnownInstanceType(
         FindKnownMapInstanceTypeInReadOnlySpace(offset_in_page));
@@ -70,6 +74,12 @@ KnownInstanceType FindKnownMapInstanceTypes(
   KnownInstanceType result;
   if (heap_addresses.map_space_first_page == 0) {
     int sub_result = FindKnownMapInstanceTypeInMapSpace(offset_in_page);
+    if (sub_result >= 0) {
+      result.types.push_back(static_cast<i::InstanceType>(sub_result));
+    }
+  }
+  if (heap_addresses.old_space_first_page == 0) {
+    int sub_result = FindKnownMapInstanceTypeInOldSpace(offset_in_page);
     if (sub_result >= 0) {
       result.types.push_back(static_cast<i::InstanceType>(sub_result));
     }

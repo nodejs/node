@@ -38,6 +38,8 @@ const fixtures = require('../common/fixtures');
 const tls = require('tls');
 const spawn = require('child_process').spawn;
 
+const useIPv4 = !common.hasIPv6;
+
 test1();
 
 // simple/test-tls-securepair-client
@@ -64,7 +66,9 @@ function test(keyPath, certPath, check, next) {
   const server = spawn(common.opensslCli, ['s_server',
                                            '-accept', 0,
                                            '-cert', fixtures.path(certPath),
-                                           '-key', fixtures.path(keyPath)]);
+                                           '-key', fixtures.path(keyPath),
+                                           ...(useIPv4 ? ['-4'] : []),
+  ]);
   server.stdout.pipe(process.stdout);
   server.stderr.pipe(process.stdout);
 
@@ -77,7 +81,7 @@ function test(keyPath, certPath, check, next) {
     serverStdoutBuffer += s;
     console.log(state);
     switch (state) {
-      case 'WAIT-ACCEPT':
+      case 'WAIT-ACCEPT': {
         const matches = serverStdoutBuffer.match(/ACCEPT .*?:(\d+)/);
         if (matches) {
           const port = matches[1];
@@ -85,7 +89,7 @@ function test(keyPath, certPath, check, next) {
           startClient(port);
         }
         break;
-
+      }
       case 'WAIT-HELLO':
         if (/hello/.test(serverStdoutBuffer)) {
 

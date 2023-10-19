@@ -21,7 +21,7 @@ TEST_F(SafepointTest, ReachSafepointWithoutLocalHeaps) {
   Heap* heap = i_isolate()->heap();
   bool run = false;
   {
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
     run = true;
   }
   CHECK(run);
@@ -68,7 +68,7 @@ TEST_F(SafepointTest, StopParkedThreads) {
     }
 
     {
-      SafepointScope scope(heap);
+      IsolateSafepointScope scope(heap);
       safepoints++;
     }
     mutex.Unlock();
@@ -82,7 +82,7 @@ TEST_F(SafepointTest, StopParkedThreads) {
   CHECK_EQ(safepoints, kRuns);
 }
 
-static const int kRuns = 10000;
+static const int kIterations = 10000;
 
 class RunningThread final : public v8::base::Thread {
  public:
@@ -95,7 +95,7 @@ class RunningThread final : public v8::base::Thread {
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
 
-    for (int i = 0; i < kRuns; i++) {
+    for (int i = 0; i < kIterations; i++) {
       counter_->fetch_add(1);
       if (i % 100 == 0) local_heap.Safepoint();
     }
@@ -124,7 +124,7 @@ TEST_F(SafepointTest, StopRunningThreads) {
     }
 
     for (int i = 0; i < kSafepoints; i++) {
-      SafepointScope scope(heap);
+      IsolateSafepointScope scope(heap);
       safepoint_count++;
     }
 

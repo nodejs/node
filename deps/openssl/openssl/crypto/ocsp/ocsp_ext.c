@@ -1,7 +1,7 @@
 /*
- * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -268,8 +268,8 @@ static int ocsp_add1_nonce(STACK_OF(X509_EXTENSION) **exts,
         memcpy(tmpval, val, len);
     else if (RAND_bytes(tmpval, len) <= 0)
         goto err;
-    if (!X509V3_add1_i2d(exts, NID_id_pkix_OCSP_Nonce,
-                         &os, 0, X509V3_ADD_REPLACE))
+    if (X509V3_add1_i2d(exts, NID_id_pkix_OCSP_Nonce,
+                         &os, 0, X509V3_ADD_REPLACE) <= 0)
         goto err;
     ret = 1;
  err:
@@ -430,7 +430,7 @@ X509_EXTENSION *OCSP_archive_cutoff_new(char *tim)
  * two--NID_ad_ocsp, NID_id_ad_caIssuers--and GeneralName value.  This method
  * forces NID_ad_ocsp and uniformResourceLocator [6] IA5String.
  */
-X509_EXTENSION *OCSP_url_svcloc_new(X509_NAME *issuer, const char **urls)
+X509_EXTENSION *OCSP_url_svcloc_new(const X509_NAME *issuer, const char **urls)
 {
     X509_EXTENSION *x = NULL;
     ASN1_IA5STRING *ia5 = NULL;

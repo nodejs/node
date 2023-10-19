@@ -20,13 +20,17 @@ function checkAttribute(output, node, attribute)
 
 function assert_tolerance(actual, expected, message)
 {
-    if (isNaN(expected) || Math.abs(actual - expected) >= 1) {
+    if (isNaN(expected) || isNaN(actual) || Math.abs(actual - expected) >= 1) {
         assert_equals(actual, Number(expected), message);
     }
 }
 
 function checkDataKeys(node) {
+  // The purpose of this list of data-* attributes is simply to ensure typos
+  // in tests are caught. It is therefore "ok" to add to this list for
+  // specific tests.
     var validData = new Set([
+        "data-anchor-polyfill",
         "data-expected-width",
         "data-expected-height",
         "data-offset-x",
@@ -36,6 +40,7 @@ function checkDataKeys(node) {
         "data-expected-scroll-width",
         "data-expected-scroll-height",
         "data-expected-bounding-client-rect-width",
+        "data-expected-bounding-client-rect-height",
         "data-total-x",
         "data-total-y",
         "data-expected-display",
@@ -105,6 +110,11 @@ function checkExpectedValues(t, node, prefix)
     var expectedWidth = checkAttribute(output, node, "data-expected-bounding-client-rect-width");
     if (expectedWidth) {
         assert_tolerance(node.getBoundingClientRect().width, expectedWidth, prefix + "getBoundingClientRect().width");
+    }
+
+    var expectedHeight = checkAttribute(output, node, "data-expected-bounding-client-rect-height");
+    if (expectedHeight) {
+        assert_tolerance(node.getBoundingClientRect().height, expectedHeight, prefix + "getBoundingClientRect().height");
     }
 
     var expectedOffset = checkAttribute(output, node, "data-total-x");

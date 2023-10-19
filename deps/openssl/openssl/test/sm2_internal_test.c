@@ -1,11 +1,16 @@
 /*
- * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * Low level APIs are deprecated for public use, but still ok for internal use.
+ */
+#include "internal/deprecated.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,19 +28,18 @@
 
 # include "crypto/sm2.h"
 
-static RAND_METHOD fake_rand;
-static const RAND_METHOD *saved_rand;
+static fake_random_generate_cb get_faked_bytes;
 
+static OSSL_PROVIDER *fake_rand = NULL;
 static uint8_t *fake_rand_bytes = NULL;
 static size_t fake_rand_bytes_offset = 0;
 static size_t fake_rand_size = 0;
 
-static int get_faked_bytes(unsigned char *buf, int num)
+static int get_faked_bytes(unsigned char *buf, size_t num,
+                           ossl_unused const char *name,
+                           ossl_unused EVP_RAND_CTX *ctx)
 {
-    if (fake_rand_bytes == NULL)
-        return saved_rand->bytes(buf, num);
-
-    if (!TEST_size_t_gt(fake_rand_size, 0))
+    if (!TEST_ptr(fake_rand_bytes) || !TEST_size_t_gt(fake_rand_size, 0))
         return 0;
 
     while (num-- > 0) {
@@ -49,32 +53,24 @@ static int get_faked_bytes(unsigned char *buf, int num)
 
 static int start_fake_rand(const char *hex_bytes)
 {
-    /* save old rand method */
-    if (!TEST_ptr(saved_rand = RAND_get_rand_method()))
-        return 0;
-
-    fake_rand = *saved_rand;
-    /* use own random function */
-    fake_rand.bytes = get_faked_bytes;
-
-    fake_rand_bytes = OPENSSL_hexstr2buf(hex_bytes, NULL);
+    OPENSSL_free(fake_rand_bytes);
     fake_rand_bytes_offset = 0;
     fake_rand_size = strlen(hex_bytes) / 2;
-
-    /* set new RAND_METHOD */
-    if (!TEST_true(RAND_set_rand_method(&fake_rand)))
+    if (!TEST_ptr(fake_rand_bytes = OPENSSL_hexstr2buf(hex_bytes, NULL)))
         return 0;
+
+    /* use own random function */
+    fake_rand_set_public_private_callbacks(NULL, get_faked_bytes);
     return 1;
+
 }
 
-static int restore_rand(void)
+static void restore_rand(void)
 {
+    fake_rand_set_public_private_callbacks(NULL, NULL);
     OPENSSL_free(fake_rand_bytes);
     fake_rand_bytes = NULL;
     fake_rand_bytes_offset = 0;
-    if (!TEST_true(RAND_set_rand_method(saved_rand)))
-        return 0;
-    return 1;
 }
 
 static EC_GROUP *create_EC_group(const char *p_hex, const char *a_hex,
@@ -167,7 +163,8 @@ static int test_sm2_crypt(const EC_GROUP *group,
     if (!TEST_ptr(pt)
             || !TEST_true(EC_POINT_mul(group, pt, priv, NULL, NULL, NULL))
             || !TEST_true(EC_KEY_set_public_key(key, pt))
-            || !TEST_true(sm2_ciphertext_size(key, digest, msg_len, &ctext_len)))
+            || !TEST_true(ossl_sm2_ciphertext_size(key, digest, msg_len,
+                                                   &ctext_len)))
         goto done;
 
     ctext = OPENSSL_zalloc(ctext_len);
@@ -175,8 +172,9 @@ static int test_sm2_crypt(const EC_GROUP *group,
         goto done;
 
     start_fake_rand(k_hex);
-    if (!TEST_true(sm2_encrypt(key, digest, (const uint8_t *)message, msg_len,
-                               ctext, &ctext_len))) {
+    if (!TEST_true(ossl_sm2_encrypt(key, digest,
+                                    (const uint8_t *)message, msg_len,
+                                    ctext, &ctext_len))) {
         restore_rand();
         goto done;
     }
@@ -185,13 +183,14 @@ static int test_sm2_crypt(const EC_GROUP *group,
     if (!TEST_mem_eq(ctext, ctext_len, expected, ctext_len))
         goto done;
 
-    if (!TEST_true(sm2_plaintext_size(key, digest, ctext_len, &ptext_len))
+    if (!TEST_true(ossl_sm2_plaintext_size(ctext, ctext_len, &ptext_len))
             || !TEST_int_eq(ptext_len, msg_len))
         goto done;
 
     recovered = OPENSSL_zalloc(ptext_len);
     if (!TEST_ptr(recovered)
-            || !TEST_true(sm2_decrypt(key, digest, ctext, ctext_len, recovered, &recovered_len))
+            || !TEST_true(ossl_sm2_decrypt(key, digest, ctext, ctext_len,
+                                           recovered, &recovered_len))
             || !TEST_int_eq(recovered_len, msg_len)
             || !TEST_mem_eq(recovered, recovered_len, message, msg_len))
         goto done;
@@ -210,6 +209,7 @@ static int test_sm2_crypt(const EC_GROUP *group,
 static int sm2_crypt_test(void)
 {
     int testresult = 0;
+    EC_GROUP *gm_group = NULL;
     EC_GROUP *test_group =
         create_EC_group
         ("8542D69E4C044F18E8B92435BF6FF7DE457283915C45517D722EDB8B08F1DFC3",
@@ -252,9 +252,49 @@ static int sm2_crypt_test(void)
             "88E3C5AAFC0413229E6C9AEE2BB92CAD649FE2C035689785DA33"))
         goto done;
 
+    /* From Annex C in both GM/T0003.5-2012 and GB/T 32918.5-2016.*/
+    gm_group = create_EC_group(
+         "fffffffeffffffffffffffffffffffffffffffff00000000ffffffffffffffff",
+         "fffffffeffffffffffffffffffffffffffffffff00000000fffffffffffffffc",
+         "28e9fa9e9d9f5e344d5a9e4bcf6509a7f39789f515ab8f92ddbcbd414d940e93",
+         "32c4ae2c1f1981195f9904466a39c9948fe30bbff2660be1715a4589334c74c7",
+         "bc3736a2f4f6779c59bdcee36b692153d0a9877cc62a474002df32e52139f0a0",
+         "fffffffeffffffffffffffffffffffff7203df6b21c6052b53bbf40939d54123",
+         "1");
+
+    if (!TEST_ptr(gm_group))
+        goto done;
+
+    if (!test_sm2_crypt(
+            gm_group,
+            EVP_sm3(),
+            /* privkey (from which the encrypting public key is derived) */
+            "3945208F7B2144B13F36E38AC6D39F95889393692860B51A42FB81EF4DF7C5B8",
+            /* plaintext message */
+            "encryption standard",
+            /* ephemeral nonce k */
+            "59276E27D506861A16680F3AD9C02DCCEF3CC1FA3CDBE4CE6D54B80DEAC1BC21",
+            /*
+             * expected ciphertext, the field values are from GM/T 0003.5-2012
+             * (Annex C), but serialized following the ASN.1 format specified
+             * in GM/T 0009-2012 (Sec. 7.2).
+             */
+            "307C" /* SEQUENCE, 0x7c bytes */
+              "0220" /* INTEGER, 0x20 bytes */
+                "04EBFC718E8D1798620432268E77FEB6415E2EDE0E073C0F4F640ECD2E149A73"
+              "0221" /* INTEGER, 0x21 bytes */
+                "00" /* leading 00 due to DER for pos. int with topmost bit set */
+                "E858F9D81E5430A57B36DAAB8F950A3C64E6EE6A63094D99283AFF767E124DF0"
+              "0420" /* OCTET STRING, 0x20 bytes */
+                "59983C18F809E262923C53AEC295D30383B54E39D609D160AFCB1908D0BD8766"
+              "0413" /* OCTET STRING, 0x13 bytes */
+                "21886CA989CA9C7D58087307CA93092D651EFA"))
+        goto done;
+
     testresult = 1;
  done:
     EC_GROUP_free(test_group);
+    EC_GROUP_free(gm_group);
 
     return testresult;
 }
@@ -294,8 +334,8 @@ static int test_sm2_sign(const EC_GROUP *group,
         goto done;
 
     start_fake_rand(k_hex);
-    sig = sm2_do_sign(key, EVP_sm3(), (const uint8_t *)userid, strlen(userid),
-                      (const uint8_t *)message, msg_len);
+    sig = ossl_sm2_do_sign(key, EVP_sm3(), (const uint8_t *)userid,
+                           strlen(userid), (const uint8_t *)message, msg_len);
     if (!TEST_ptr(sig)) {
         restore_rand();
         goto done;
@@ -310,8 +350,8 @@ static int test_sm2_sign(const EC_GROUP *group,
             || !TEST_BN_eq(s, sig_s))
         goto done;
 
-    ok = sm2_do_verify(key, EVP_sm3(), sig, (const uint8_t *)userid,
-                       strlen(userid), (const uint8_t *)message, msg_len);
+    ok = ossl_sm2_do_verify(key, EVP_sm3(), sig, (const uint8_t *)userid,
+                            strlen(userid), (const uint8_t *)message, msg_len);
 
     /* We goto done whether this passes or fails */
     TEST_true(ok);
@@ -370,8 +410,19 @@ int setup_tests(void)
 #ifdef OPENSSL_NO_SM2
     TEST_note("SM2 is disabled.");
 #else
+    fake_rand = fake_rand_start(NULL);
+    if (fake_rand == NULL)
+        return 0;
+
     ADD_TEST(sm2_crypt_test);
     ADD_TEST(sm2_sig_test);
 #endif
     return 1;
+}
+
+void cleanup_tests(void)
+{
+#ifndef OPENSSL_NO_SM2
+    fake_rand_finish(fake_rand);
+#endif
 }

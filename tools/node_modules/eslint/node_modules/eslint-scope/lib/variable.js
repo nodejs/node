@@ -21,19 +21,18 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-"use strict";
 
 /**
  * A Variable represents a locally scoped identifier. These include arguments to
  * functions.
- * @class Variable
+ * @constructor Variable
  */
 class Variable {
     constructor(name, scope) {
 
         /**
          * The variable name, as given in the source code.
-         * @member {String} Variable#name
+         * @member {string} Variable#name
          */
         this.name = name;
 
@@ -83,6 +82,6 @@ Variable.Variable = "Variable";
 Variable.ImportBinding = "ImportBinding";
 Variable.ImplicitGlobalVariable = "ImplicitGlobalVariable";
 
-module.exports = Variable;
+export default Variable;
 
 /* vim: set sw=4 ts=4 et tw=80 : */

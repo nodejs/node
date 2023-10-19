@@ -6,19 +6,19 @@
 #define WASM_ATOMICOP_UTILS_H
 
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/value-helper.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define OPERATION_LIST(V) \
-  V(Add)                  \
-  V(Sub)                  \
-  V(And)                  \
-  V(Or)                   \
-  V(Xor)                  \
+#define WASM_ATOMIC_OPERATION_LIST(V) \
+  V(Add)                              \
+  V(Sub)                              \
+  V(And)                              \
+  V(Or)                               \
+  V(Xor)                              \
   V(Exchange)
 
 using Uint64BinOp = uint64_t (*)(uint64_t, uint64_t);

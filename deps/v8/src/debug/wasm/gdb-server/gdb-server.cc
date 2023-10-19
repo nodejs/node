@@ -119,7 +119,7 @@ auto GdbServer::RunSyncTask(Functor&& callback) const {
 
 // static
 std::unique_ptr<GdbServer> GdbServer::Create() {
-  DCHECK(FLAG_wasm_gdb_remote);
+  DCHECK(v8_flags.wasm_gdb_remote);
 
   std::unique_ptr<GdbServer> gdb_server(new GdbServer());
 
@@ -371,13 +371,13 @@ void GdbServer::PrepareStep() {
 void GdbServer::AddWasmModule(uint32_t module_id,
                               Local<debug::WasmScript> wasm_script) {
   // Executed in the isolate thread.
-  DCHECK_EQ(Script::TYPE_WASM, Utils::OpenHandle(*wasm_script)->type());
+  DCHECK_EQ(Script::Type::kWasm, Utils::OpenHandle(*wasm_script)->type());
   v8::Isolate* isolate = wasm_script->GetIsolate();
   scripts_.insert(
       std::make_pair(module_id, WasmModuleDebug(isolate, wasm_script)));
   has_module_list_changed_ = true;
 
-  if (FLAG_wasm_pause_waiting_for_debugger && scripts_.size() == 1) {
+  if (v8_flags.wasm_pause_waiting_for_debugger && scripts_.size() == 1) {
     TRACE_GDB_REMOTE("Paused, waiting for a debugger to attach...\n");
     Suspend();
   }
@@ -395,7 +395,7 @@ GdbServer::DebugDelegate::DebugDelegate(Isolate* isolate, GdbServer* gdb_server)
 
   // Register the delegate
   isolate_->debug()->SetDebugDelegate(this);
-  v8::debug::TierDownAllModulesPerIsolate((v8::Isolate*)isolate_);
+  v8::debug::EnterDebuggingForIsolate((v8::Isolate*)isolate_);
   v8::debug::ChangeBreakOnException((v8::Isolate*)isolate_,
                                     v8::debug::BreakOnUncaughtException);
 }
@@ -419,7 +419,8 @@ void GdbServer::DebugDelegate::ScriptCompiled(Local<debug::Script> script,
 void GdbServer::DebugDelegate::BreakProgramRequested(
     // Executed in the isolate thread.
     Local<v8::Context> paused_context,
-    const std::vector<debug::BreakpointId>& inspector_break_points_hit) {
+    const std::vector<debug::BreakpointId>& inspector_break_points_hit,
+    v8::debug::BreakReasons break_reasons) {
   gdb_server_->GetTarget().OnProgramBreak(
       isolate_, WasmModuleDebug::GetCallStack(id_, isolate_));
   gdb_server_->RunMessageLoopOnPause();

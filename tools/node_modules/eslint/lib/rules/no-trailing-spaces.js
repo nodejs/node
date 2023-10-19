@@ -14,15 +14,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "disallow trailing whitespace at the end of lines",
-            category: "Stylistic Issues",
+            description: "Disallow trailing whitespace at the end of lines",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-trailing-spaces"
+            url: "https://eslint.org/docs/latest/rules/no-trailing-spaces"
         },
 
         fixable: "whitespace",
@@ -50,7 +50,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         const BLANK_CLASS = "[ \t\u00a0\u2000-\u200b\u3000]",
             SKIP_BLANK = `^${BLANK_CLASS}*$`,

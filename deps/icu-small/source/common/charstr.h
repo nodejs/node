@@ -59,13 +59,13 @@ public:
      * Move constructor; might leave src in an undefined state.
      * This string will have the same contents and state that the source string had.
      */
-    CharString(CharString &&src) U_NOEXCEPT;
+    CharString(CharString &&src) noexcept;
     /**
      * Move assignment operator; might leave src in an undefined state.
      * This string will have the same contents and state that the source string had.
      * The behavior is undefined if *this and src are the same object.
      */
-    CharString &operator=(CharString &&src) U_NOEXCEPT;
+    CharString &operator=(CharString &&src) noexcept;
 
     /**
      * Replaces this string's contents with the other string's contents.
@@ -156,7 +156,7 @@ public:
                           UErrorCode &errorCode);
 
     CharString &appendInvariantChars(const UnicodeString &s, UErrorCode &errorCode);
-    CharString &appendInvariantChars(const UChar* uchars, int32_t ucharsLen, UErrorCode& errorCode);
+    CharString &appendInvariantChars(const char16_t* uchars, int32_t ucharsLen, UErrorCode& errorCode);
 
     /**
      * Appends a filename/path part, e.g., a directory name.
@@ -177,8 +177,8 @@ private:
 
     UBool ensureCapacity(int32_t capacity, int32_t desiredCapacityHint, UErrorCode &errorCode);
 
-    CharString(const CharString &other); // forbid copying of this class
-    CharString &operator=(const CharString &other); // forbid copying of this class
+    CharString(const CharString &other) = delete; // forbid copying of this class
+    CharString &operator=(const CharString &other) = delete; // forbid copying of this class
 
     /**
      * Returns U_FILE_ALT_SEP_CHAR if found in string, and U_FILE_SEP_CHAR is not found.

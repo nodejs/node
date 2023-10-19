@@ -1,0 +1,59 @@
+name: Close stale pull requests
+on:
+  workflow_dispatch:
+    inputs:
+      endDate:
+        description: stop processing PRs after this date
+        required: false
+        type: string
+
+# yamllint disable rule:empty-lines
+env:
+  CLOSE_MESSAGE: >
+    This pull request was opened more than a year ago and there has
+    been no activity in the last 6 months. We value your contribution
+    but since it has not progressed in the last 6 months it is being
+    closed. If you feel closing this pull request is not the right thing
+    to do, please leave a comment.
+
+  WARN_MESSAGE: >
+    This pull request was opened more than a year ago and there has
+    been no activity in the last 5 months. We value your contribution
+    but since it has not progressed in the last 5 months it is being
+    marked stale and will be closed if there is no progress in the
+    next month. If you feel that is not the right thing to do please
+    comment on the pull request.
+# yamllint enable
+
+permissions:
+  contents: read
+
+jobs:
+  stale:
+    permissions:
+      pull-requests: write  # for actions/stale to close stale PRs
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set default end date which is 1 year ago
+        run: echo "END_DATE=$(date --date='525600 minutes ago' --rfc-2822)"  >> "$GITHUB_ENV"
+      - name: if date set in event override the default end date
+        env:
+          END_DATE_INPUT_VALUE: ${{ github.event.inputs.endDate }}
+        if: ${{ github.event.inputs.endDate != '' }}
+        run: echo "END_DATE=$END_DATE_INPUT_VALUE"  >> "$GITHUB_ENV"
+      - uses: mhdawson/stale@453d6581568dc43dbe345757f24408d7b451c651  # PR to add support for endDate
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          end-date: ${{ env.END_DATE }}
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+          days-before-stale: 150
+          days-before-close: 30
+          stale-issue-label: stale
+          close-issue-message: ${{ env.CLOSE_MESSAGE }}
+          stale-issue-message: ${{ env.WARN_MESSAGE }}
+          exempt-pr-labels: never-stale
+          # max requests it will send per run to the GitHub API before it deliberately exits to avoid hitting API rate limits
+          operations-per-run: 500
+          remove-stale-when-updated: true

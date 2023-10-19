@@ -13,7 +13,7 @@ let session;
 
 const countdown = new Countdown(2, () => {
   server.close(common.mustSucceed());
-  session.destroy();
+  session.close();
 });
 
 server.listen(0, common.mustCall(() => {

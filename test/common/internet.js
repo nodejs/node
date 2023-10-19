@@ -1,4 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
 // Utilities for internet-related tests
@@ -26,14 +25,14 @@ const addresses = {
   // record not found. Use this to guarantee record not found.
   NOT_FOUND: 'come.on.fhqwhgads.test',
   // A host with SRV records registered
-  SRV_HOST: '_jabber._tcp.google.com',
+  SRV_HOST: '_caldav._tcp.google.com',
   // A host with PTR records registered
   PTR_HOST: '8.8.8.8.in-addr.arpa',
   // A host with NAPTR records registered
   NAPTR_HOST: 'sip2sip.info',
   // A host with SOA records registered
   SOA_HOST: 'nodejs.org',
-  // A host with CAA record registred
+  // A host with CAA record registered
   CAA_HOST: 'google.com',
   // A host with CNAME records registered
   CNAME_HOST: 'blog.nodejs.org',
@@ -44,7 +43,7 @@ const addresses = {
   // An accessible IPv4 DNS server
   DNS4_SERVER: '8.8.8.8',
   // An accessible IPv4 DNS server
-  DNS6_SERVER: '2001:4860:4860::8888'
+  DNS6_SERVER: '2001:4860:4860::8888',
 };
 
 for (const key of Object.keys(addresses)) {
@@ -55,5 +54,5 @@ for (const key of Object.keys(addresses)) {
 }
 
 module.exports = {
-  addresses
+  addresses,
 };

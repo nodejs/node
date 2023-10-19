@@ -2,7 +2,7 @@
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *************************************************************************
- * COPYRIGHT:
+ * COPYRIGHT: 
  * Copyright (c) 1996-2012, International Business Machines Corporation and
  * others. All Rights Reserved.
  *************************************************************************
@@ -38,7 +38,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(Normalizer)
 //-------------------------------------------------------------------------
 
 Normalizer::Normalizer(const UnicodeString& str, UNormalizationMode mode) :
-    UObject(), fFilteredNorm2(NULL), fNorm2(NULL), fUMode(mode), fOptions(0),
+    UObject(), fFilteredNorm2(nullptr), fNorm2(nullptr), fUMode(mode), fOptions(0),
     text(new StringCharacterIterator(str)),
     currentIndex(0), nextIndex(0),
     buffer(), bufferPos(0)
@@ -47,7 +47,7 @@ Normalizer::Normalizer(const UnicodeString& str, UNormalizationMode mode) :
 }
 
 Normalizer::Normalizer(ConstChar16Ptr str, int32_t length, UNormalizationMode mode) :
-    UObject(), fFilteredNorm2(NULL), fNorm2(NULL), fUMode(mode), fOptions(0),
+    UObject(), fFilteredNorm2(nullptr), fNorm2(nullptr), fUMode(mode), fOptions(0),
     text(new UCharCharacterIterator(str, length)),
     currentIndex(0), nextIndex(0),
     buffer(), bufferPos(0)
@@ -56,7 +56,7 @@ Normalizer::Normalizer(ConstChar16Ptr str, int32_t length, UNormalizationMode mo
 }
 
 Normalizer::Normalizer(const CharacterIterator& iter, UNormalizationMode mode) :
-    UObject(), fFilteredNorm2(NULL), fNorm2(NULL), fUMode(mode), fOptions(0),
+    UObject(), fFilteredNorm2(nullptr), fNorm2(nullptr), fUMode(mode), fOptions(0),
     text(iter.clone()),
     currentIndex(0), nextIndex(0),
     buffer(), bufferPos(0)
@@ -65,7 +65,7 @@ Normalizer::Normalizer(const CharacterIterator& iter, UNormalizationMode mode) :
 }
 
 Normalizer::Normalizer(const Normalizer &copy) :
-    UObject(copy), fFilteredNorm2(NULL), fNorm2(NULL), fUMode(copy.fUMode), fOptions(copy.fOptions),
+    UObject(copy), fFilteredNorm2(nullptr), fNorm2(nullptr), fUMode(copy.fUMode), fOptions(copy.fOptions),
     text(copy.text->clone()),
     currentIndex(copy.currentIndex), nextIndex(copy.nextIndex),
     buffer(copy.buffer), bufferPos(copy.bufferPos)
@@ -94,7 +94,7 @@ Normalizer::~Normalizer()
     delete text;
 }
 
-Normalizer*
+Normalizer* 
 Normalizer::clone() const
 {
     return new Normalizer(*this);
@@ -107,8 +107,8 @@ int32_t Normalizer::hashCode() const
 {
     return text->hashCode() + fUMode + fOptions + buffer.hashCode() + bufferPos + currentIndex + nextIndex;
 }
-
-UBool Normalizer::operator==(const Normalizer& that) const
+    
+bool Normalizer::operator==(const Normalizer& that) const
 {
     return
         this==&that ||
@@ -125,9 +125,9 @@ UBool Normalizer::operator==(const Normalizer& that) const
 //-------------------------------------------------------------------------
 
 void U_EXPORT2
-Normalizer::normalize(const UnicodeString& source,
+Normalizer::normalize(const UnicodeString& source, 
                       UNormalizationMode mode, int32_t options,
-                      UnicodeString& result,
+                      UnicodeString& result, 
                       UErrorCode &status) {
     if(source.isBogus() || U_FAILURE(status)) {
         result.setToBogus();
@@ -160,17 +160,17 @@ Normalizer::normalize(const UnicodeString& source,
 }
 
 void U_EXPORT2
-Normalizer::compose(const UnicodeString& source,
+Normalizer::compose(const UnicodeString& source, 
                     UBool compat, int32_t options,
-                    UnicodeString& result,
+                    UnicodeString& result, 
                     UErrorCode &status) {
     normalize(source, compat ? UNORM_NFKC : UNORM_NFC, options, result, status);
 }
 
 void U_EXPORT2
-Normalizer::decompose(const UnicodeString& source,
+Normalizer::decompose(const UnicodeString& source, 
                       UBool compat, int32_t options,
-                      UnicodeString& result,
+                      UnicodeString& result, 
                       UErrorCode &status) {
     normalize(source, compat ? UNORM_NFKD : UNORM_NFD, options, result, status);
 }
@@ -205,7 +205,7 @@ Normalizer::isNormalized(const UnicodeString& source,
             return n2->isNormalized(source, status);
         }
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -368,7 +368,7 @@ int32_t Normalizer::endIndex() const {
 //-------------------------------------------------------------------------
 
 void
-Normalizer::setMode(UNormalizationMode newMode)
+Normalizer::setMode(UNormalizationMode newMode) 
 {
     fUMode = newMode;
     init();
@@ -381,8 +381,8 @@ Normalizer::getUMode() const
 }
 
 void
-Normalizer::setOption(int32_t option,
-                      UBool value)
+Normalizer::setOption(int32_t option, 
+                      UBool value) 
 {
     if (value) {
         fOptions |= option;
@@ -403,14 +403,14 @@ Normalizer::getOption(int32_t option) const
  * The iteration position is set to the beginning of the input text.
  */
 void
-Normalizer::setText(const UnicodeString& newText,
+Normalizer::setText(const UnicodeString& newText, 
                     UErrorCode &status)
 {
     if (U_FAILURE(status)) {
         return;
     }
     CharacterIterator *newIter = new StringCharacterIterator(newText);
-    if (newIter == NULL) {
+    if (newIter == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -424,14 +424,14 @@ Normalizer::setText(const UnicodeString& newText,
  * The iteration position is set to the beginning of the string.
  */
 void
-Normalizer::setText(const CharacterIterator& newText,
-                    UErrorCode &status)
+Normalizer::setText(const CharacterIterator& newText, 
+                    UErrorCode &status) 
 {
     if (U_FAILURE(status)) {
         return;
     }
     CharacterIterator *newIter = newText.clone();
-    if (newIter == NULL) {
+    if (newIter == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -449,7 +449,7 @@ Normalizer::setText(ConstChar16Ptr newText,
         return;
     }
     CharacterIterator *newIter = new UCharCharacterIterator(newText, length);
-    if (newIter == NULL) {
+    if (newIter == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -463,7 +463,7 @@ Normalizer::setText(ConstChar16Ptr newText,
  * @param result Receives a copy of the text under iteration.
  */
 void
-Normalizer::getText(UnicodeString&  result)
+Normalizer::getText(UnicodeString&  result) 
 {
     text->getText(result);
 }
@@ -483,7 +483,7 @@ Normalizer::nextNormalize() {
     currentIndex=nextIndex;
     text->setIndex(nextIndex);
     if(!text->hasNext()) {
-        return FALSE;
+        return false;
     }
     // Skip at least one character so we make progress.
     UnicodeString segment(text->next32PostInc());
@@ -507,7 +507,7 @@ Normalizer::previousNormalize() {
     nextIndex=currentIndex;
     text->setIndex(currentIndex);
     if(!text->hasPrevious()) {
-        return FALSE;
+        return false;
     }
     UnicodeString segment;
     while(text->hasPrevious()) {

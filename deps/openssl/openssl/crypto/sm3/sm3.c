@@ -1,9 +1,9 @@
 /*
- * Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2017 Ribose Inc. All Rights Reserved.
  * Ported from Ribose contributions from Botan.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -12,7 +12,7 @@
 #include <openssl/e_os2.h>
 #include "sm3_local.h"
 
-int sm3_init(SM3_CTX *c)
+int ossl_sm3_init(SM3_CTX *c)
 {
     memset(c, 0, sizeof(*c));
     c->A = SM3_A;
@@ -26,7 +26,7 @@ int sm3_init(SM3_CTX *c)
     return 1;
 }
 
-void sm3_block_data_order(SM3_CTX *ctx, const void *p, size_t num)
+void ossl_sm3_block_data_order(SM3_CTX *ctx, const void *p, size_t num)
 {
     const unsigned char *data = p;
     register unsigned MD32_REG_T A, B, C, D, E, F, G, H;
@@ -193,4 +193,3 @@ void sm3_block_data_order(SM3_CTX *ctx, const void *p, size_t num)
         ctx->H ^= H;
     }
 }
-

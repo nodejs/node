@@ -15,7 +15,7 @@ if (process.argv[2] === 'child') {
       64, 256, 1024, 4096, 16384, 65536,
       65536 << 4, 65536 << 6 - 1,
     ],
-    dur: [5]
+    dur: [5],
   });
   const spawn = require('child_process').spawn;
 

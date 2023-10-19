@@ -5,8 +5,11 @@
 # This definition stops the following lines choking if HOME or CN
 # is undefined.
 HOME			= .
-RANDFILE		= $ENV::HOME/.rnd
 CN			= "Not Defined"
+
+# Comment out the next line to ignore configuration errors
+config_diagnostics = 1
+
 
 ####################################################################
 [ req ]
@@ -36,9 +39,6 @@ commonName			= $ENV::CN
 basicConstraints=critical, CA:FALSE
 keyUsage=critical, nonRepudiation, digitalSignature, keyEncipherment
 
-# This will be displayed in Netscape's comment listbox.
-nsComment			= "OpenSSL Generated Certificate"
-
 [ ec_cert ]
 
 # These extensions are added when 'ca' signs a request for an end entity
@@ -46,9 +46,6 @@ nsComment			= "OpenSSL Generated Certificate"
 
 basicConstraints=critical, CA:FALSE
 keyUsage=critical, nonRepudiation, digitalSignature, keyAgreement
-
-# This will be displayed in Netscape's comment listbox.
-nsComment			= "OpenSSL Generated Certificate"
 
 # PKIX recommendations harmless if included in all certificates.
 subjectKeyIdentifier=hash

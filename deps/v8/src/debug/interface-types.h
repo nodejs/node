@@ -6,13 +6,16 @@
 #define V8_DEBUG_INTERFACE_TYPES_H_
 
 #include <cstdint>
-#include <string>
-#include <vector>
 
-#include "include/v8.h"
-#include "src/common/globals.h"
+#include "include/v8-function-callback.h"
+#include "include/v8-local-handle.h"
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "v8-isolate.h"
 
 namespace v8 {
+
+class String;
 
 namespace internal {
 class BuiltinArguments;
@@ -43,13 +46,12 @@ class V8_EXPORT_PRIVATE Location {
 };
 
 enum DebugAsyncActionType {
+  kDebugAwait,
   kDebugPromiseThen,
   kDebugPromiseCatch,
   kDebugPromiseFinally,
   kDebugWillHandle,
-  kDebugDidHandle,
-  kAsyncFunctionSuspended,
-  kAsyncFunctionFinished
+  kDebugDidHandle
 };
 
 enum BreakLocationType {
@@ -78,11 +80,6 @@ enum class CoverageMode {
   kBlockBinary,
 };
 
-enum class TypeProfileMode {
-  kNone,
-  kCollect,
-};
-
 class V8_EXPORT_PRIVATE BreakLocation : public Location {
  public:
   BreakLocation(int line_number, int column_number, BreakLocationType type)
@@ -94,15 +91,30 @@ class V8_EXPORT_PRIVATE BreakLocation : public Location {
   BreakLocationType type_;
 };
 
-class ConsoleCallArguments : private v8::FunctionCallbackInfo<v8::Value> {
+class ConsoleCallArguments {
  public:
-  int Length() const { return v8::FunctionCallbackInfo<v8::Value>::Length(); }
-  V8_INLINE Local<Value> operator[](int i) const {
-    return v8::FunctionCallbackInfo<v8::Value>::operator[](i);
+  int Length() const { return length_; }
+  /**
+   * Accessor for the available arguments. Returns `undefined` if the index
+   * is out of bounds.
+   */
+  V8_INLINE v8::Local<v8::Value> operator[](int i) const {
+    // values_ points to the first argument.
+    if (i < 0 || length_ <= i) return Undefined(GetIsolate());
+    DCHECK_NOT_NULL(values_);
+    return Local<Value>::FromSlot(values_ + i);
   }
 
+  V8_INLINE v8::Isolate* GetIsolate() const { return isolate_; }
+
   explicit ConsoleCallArguments(const v8::FunctionCallbackInfo<v8::Value>&);
-  explicit ConsoleCallArguments(const internal::BuiltinArguments&);
+  explicit ConsoleCallArguments(internal::Isolate* isolate,
+                                const internal::BuiltinArguments&);
+
+ private:
+  v8::Isolate* isolate_;
+  internal::Address* values_;
+  int length_;
 };
 
 class ConsoleContext {

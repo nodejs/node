@@ -25,15 +25,15 @@ const OVERRIDE_SCHEMA = {
     ]
 };
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing around `*` operators in generator functions",
-            category: "ECMAScript 6",
+            description: "Enforce consistent spacing around `*` operators in generator functions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/generator-star-spacing"
+            url: "https://eslint.org/docs/latest/rules/generator-star-spacing"
         },
 
         fixable: "whitespace",
@@ -102,7 +102,7 @@ module.exports = {
             };
         }(context.options[0] || {}));
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks if the given token is a star token or not.

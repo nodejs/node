@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2020 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -56,9 +56,10 @@ def run(fuzz_file, flag_file):
   cmd = ' '.join(args)
   try:
     output = subprocess.check_output(cmd, stderr=subprocess.PIPE, shell=True)
-    return (cmd, output)
+    return (cmd, output.decode('utf-8'))
   except Exception as e:
-    return (cmd, e.output)
+    return (cmd, e.output.decode('utf-8'))
+
 
 def list_tests():
   """Iterates all fuzz tests and corresponding flags in the given base dir."""

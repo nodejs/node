@@ -188,7 +188,7 @@ enum {
  * int32_t indexes[_NORM_INDEX_TOP];            -- _NORM_INDEX_TOP=32, see enum in this file
  *
  * UTrie normTrie;                              -- size in bytes=indexes[_NORM_INDEX_TRIE_SIZE]
- *
+ * 
  * uint16_t extraData[extraDataTop];            -- extraDataTop=indexes[_NORM_INDEX_UCHAR_COUNT]
  *                                                 extraData[0] contains the number of units for
  *                                                 FC_NFKC_Closure (formatVersion>=2.1)
@@ -388,7 +388,7 @@ enum {
  *
  * Strings are either stored as a single code unit or as the length
  * followed by that many units.
- *   const UChar *s=extraData+(index from auxTrie data bits 9..0);
+ *   const char16_t *s=extraData+(index from auxTrie data bits 9..0);
  *   int32_t length;
  *   if(*s<0xff00) {
  *     // s points to the single-unit string

@@ -3,8 +3,9 @@ Short Name: utf8-decoder
 URL: http://bjoern.hoehrmann.de/utf-8/decoder/dfa/
 Version: 0
 License: MIT
-License File: NOT_SHIPPED
-Security Critical: no
+License File: LICENSE
+Security Critical: yes
+Shipped: yes
 
 Description:
 Decodes UTF-8 bytes using a fast and simple definite finite automata.
@@ -16,3 +17,9 @@ Local modifications:
   bit mask for the incoming byte.
 - The caller must now zero out the code point buffer after successful or
   unsuccessful state transitions.
+- Specifically for generalized-utf8-decoder.h: we adapt the original
+  decoder to decode and validate "generalized UTF-8", a variant of UTF-8
+  used in WTF-8 that can encode surrogates.  See
+  https://simonsapin.github.io/wtf-8/#generalized-utf8.  There is one
+  fewer state and so the transition table is smaller by one in both
+  dimensions.

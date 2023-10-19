@@ -7,11 +7,13 @@
     'openssl/crypto/modes/',
     'openssl/crypto/ec/curve448',
     'openssl/crypto/ec/curve448/arch_32',
+    'openssl/providers/common/include',
+    'openssl/providers/implementations/include',
     'config/',
   ],
   # build options specific to OS
   'conditions': [
-    [ 'OS=="aix"', {
+    [ 'OS in ("aix", "os400")', {
       # AIX is missing /usr/include/endian.h
       'defines': [
         '__LITTLE_ENDIAN=1234',

@@ -225,7 +225,7 @@ void LoopPeeler::PeelInnerLoops(LoopTree::Loop* loop) {
   }
   // Only peel small-enough loops.
   if (loop->TotalSize() > LoopPeeler::kMaxPeeledNodes) return;
-  if (FLAG_trace_turbo_loop) {
+  if (v8_flags.trace_turbo_loop) {
     PrintF("Peeling loop with header: ");
     for (Node* node : loop_tree_->HeaderNodes(loop)) {
       PrintF("%i ", node->id());
@@ -236,9 +236,7 @@ void LoopPeeler::PeelInnerLoops(LoopTree::Loop* loop) {
   Peel(loop);
 }
 
-namespace {
-
-void EliminateLoopExit(Node* node) {
+void LoopPeeler::EliminateLoopExit(Node* node) {
   DCHECK_EQ(IrOpcode::kLoopExit, node->opcode());
   // The exit markers take the loop exit as input. We iterate over uses
   // and remove all the markers from the graph.
@@ -260,8 +258,6 @@ void EliminateLoopExit(Node* node) {
   node->Kill();
 }
 
-}  // namespace
-
 void LoopPeeler::PeelInnerLoopsOfTree() {
   for (LoopTree::Loop* loop : loop_tree_->outer_loops()) {
     PeelInnerLoops(loop);
@@ -273,7 +269,7 @@ void LoopPeeler::PeelInnerLoopsOfTree() {
 // static
 void LoopPeeler::EliminateLoopExits(Graph* graph, Zone* tmp_zone) {
   ZoneQueue<Node*> queue(tmp_zone);
-  ZoneVector<bool> visited(graph->NodeCount(), false, tmp_zone);
+  BitVector visited(static_cast<int>(graph->NodeCount()), tmp_zone);
   queue.push(graph->end());
   while (!queue.empty()) {
     Node* node = queue.front();
@@ -282,15 +278,15 @@ void LoopPeeler::EliminateLoopExits(Graph* graph, Zone* tmp_zone) {
     if (node->opcode() == IrOpcode::kLoopExit) {
       Node* control = NodeProperties::GetControlInput(node);
       EliminateLoopExit(node);
-      if (!visited[control->id()]) {
-        visited[control->id()] = true;
+      if (!visited.Contains(control->id())) {
+        visited.Add(control->id());
         queue.push(control);
       }
     } else {
       for (int i = 0; i < node->op()->ControlInputCount(); i++) {
         Node* control = NodeProperties::GetControlInput(node, i);
-        if (!visited[control->id()]) {
-          visited[control->id()] = true;
+        if (!visited.Contains(control->id())) {
+          visited.Add(control->id());
           queue.push(control);
         }
       }

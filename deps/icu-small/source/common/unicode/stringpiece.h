@@ -23,7 +23,7 @@
 #define __STRINGPIECE_H__
 
 /**
- * \file
+ * \file 
  * \brief C++ API: StringPiece: Read-only byte string wrapper class.
  */
 
@@ -222,7 +222,7 @@ class U_COMMON_API StringPiece : public UMemory {
 
   /**
    * Reset the stringpiece to refer to new data.
-   * @param str a pointer to a NUL-terminated string.
+   * @param str a pointer to a NUL-terminated string. 
    * @stable ICU 4.8
    */
   void set(const char* str);
@@ -322,7 +322,7 @@ class U_COMMON_API StringPiece : public UMemory {
  * @return true if the string data is equal
  * @stable ICU 4.8
  */
-U_EXPORT UBool U_EXPORT2
+U_EXPORT UBool U_EXPORT2 
 operator==(const StringPiece& x, const StringPiece& y);
 
 /**
@@ -332,7 +332,7 @@ operator==(const StringPiece& x, const StringPiece& y);
  * @return true if the string data is not equal
  * @stable ICU 4.8
  */
-inline UBool operator!=(const StringPiece& x, const StringPiece& y) {
+inline bool operator!=(const StringPiece& x, const StringPiece& y) {
   return !(x == y);
 }
 

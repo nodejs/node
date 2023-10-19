@@ -1,21 +1,20 @@
 'use strict';
 
-const common = require('../common');
-const fixtures = require('../common/fixtures');
-const { spawn } = require('child_process');
-const assert = require('assert');
+const { spawnPromisified } = require('../common');
+const fixtures = require('../common/fixtures.js');
+const assert = require('node:assert');
+const { execPath } = require('node:process');
+const { describe, it } = require('node:test');
+
 
 const entry = fixtures.path('/es-modules/builtin-imports-case.mjs');
 
-const child = spawn(process.execPath, [entry]);
-child.stderr.setEncoding('utf8');
-let stdout = '';
-child.stdout.setEncoding('utf8');
-child.stdout.on('data', (data) => {
-  stdout += data;
+describe('ESM: importing builtins & CJS', () => {
+  it('should work', async () => {
+    const { code, signal, stdout } = await spawnPromisified(execPath, [entry]);
+
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+    assert.strictEqual(stdout, 'ok\n');
+  });
 });
-child.on('close', common.mustCall((code, signal) => {
-  assert.strictEqual(code, 0);
-  assert.strictEqual(signal, null);
-  assert.strictEqual(stdout, 'ok\n');
-}));

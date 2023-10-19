@@ -1,6 +1,8 @@
 // Copyright 2017 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// Flags: --no-compilation-cache
 
 InspectorTest.log('Test for step-into remote async task');
 
@@ -18,11 +20,8 @@ function store(description) {
 }
 //# sourceURL=utils.js`;
 
-// TODO(rmcilroy): This has to be in this order since the i::Script object gets
-// reused via the CompilationCache, and we want OnAfterCompile to be called
-// for contextGroup1 last on this script.
-contextGroup2.addScript(utilsScript);
 contextGroup1.addScript(utilsScript);
+contextGroup2.addScript(utilsScript);
 
 let frameworkScript = `
 function call(id, f) {
@@ -38,7 +37,7 @@ contextGroup2.addScript(frameworkScript);
 session1.setupScriptMap();
 session2.setupScriptMap();
 
-(async function test() {
+InspectorTest.runAsyncTestSuite([async function test() {
   InspectorTest.log('Setup debugger agents..');
   let debuggerId1 = (await Protocol1.Debugger.enable()).result.debuggerId;
   let debuggerId2 = (await Protocol2.Debugger.enable()).result.debuggerId;
@@ -77,7 +76,7 @@ session2.setupScriptMap();
   let debuggers = new Map(
       [[debuggerId1, Protocol1.Debugger], [debuggerId2, Protocol2.Debugger]]);
   let sessions = new Map([[debuggerId1, session1], [debuggerId2, session2]]);
-  let currentDebuggerId = debuggerId1;
+  let currentDebuggerId = debuggerId2;
   while (true) {
     sessions.get(currentDebuggerId).logCallFrames(callFrames);
     if (asyncStackTraceId) {
@@ -98,6 +97,4 @@ session2.setupScriptMap();
   Protocol2.Debugger.setAsyncCallStackDepth({maxDepth: 0});
   await Protocol1.Debugger.disable();
   await Protocol2.Debugger.disable();
-
-  InspectorTest.completeTest();
-})()
+}]);

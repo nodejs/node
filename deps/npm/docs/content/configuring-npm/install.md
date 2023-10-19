@@ -17,11 +17,11 @@ run npm packages globally.
 ### Overview
 
 - [Checking your version of npm and
-  Node.js](#checking-your-version-of-npm-and-node-js)
+  Node.js](#checking-your-version-of-npm-and-nodejs)
 - [Using a Node version manager to install Node.js and
-  npm](#using-a-node-version-manager-to-install-node-js-and-npm)
+  npm](#using-a-node-version-manager-to-install-nodejs-and-npm)
 - [Using a Node installer to install Node.js and
-  npm](#using-a-node-installer-to-install-node-js-and-npm)
+  npm](#using-a-node-installer-to-install-nodejs-and-npm)
 
 ### Checking your version of npm and Node.js
 
@@ -38,17 +38,8 @@ npm -v
 Node version managers allow you to install and switch between multiple
 versions of Node.js and npm on your system so you can test your
 applications on multiple versions of npm to ensure they work for users on
-different versions.
-
-#### OSX or Linux Node version managers
-
-* [nvm](https://github.com/creationix/nvm)
-* [n](https://github.com/tj/n)
-
-#### Windows Node version managers
-
-* [nodist](https://github.com/marcelklehr/nodist)
-* [nvm-windows](https://github.com/coreybutler/nvm-windows)
+different versions.  You can
+[search for them on GitHub](https://github.com/search?q=node+version+manager+archived%3Afalse&type=repositories&ref=advsearch).
 
 ### Using a Node installer to install Node.js and npm
 

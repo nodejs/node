@@ -28,9 +28,13 @@ void MutablePatternModifier::setPatternInfo(const AffixPatternProvider* patternI
     fField = field;
 }
 
-void MutablePatternModifier::setPatternAttributes(UNumberSignDisplay signDisplay, bool perMille) {
+void MutablePatternModifier::setPatternAttributes(
+        UNumberSignDisplay signDisplay,
+        bool perMille,
+        bool approximately) {
     fSignDisplay = signDisplay;
     fPerMilleReplacesPercent = perMille;
+    fApproximately = approximately;
 }
 
 void MutablePatternModifier::setSymbols(const DecimalFormatSymbols* symbols,
@@ -56,6 +60,21 @@ bool MutablePatternModifier::needsPlurals() const {
     // Silently ignore any error codes.
 }
 
+AdoptingSignumModifierStore MutablePatternModifier::createImmutableForPlural(StandardPlural::Form plural, UErrorCode& status) {
+    AdoptingSignumModifierStore pm;
+
+    setNumberProperties(SIGNUM_POS, plural);
+    pm.adoptModifier(SIGNUM_POS, createConstantModifier(status));
+    setNumberProperties(SIGNUM_NEG_ZERO, plural);
+    pm.adoptModifier(SIGNUM_NEG_ZERO, createConstantModifier(status));
+    setNumberProperties(SIGNUM_POS_ZERO, plural);
+    pm.adoptModifier(SIGNUM_POS_ZERO, createConstantModifier(status));
+    setNumberProperties(SIGNUM_NEG, plural);
+    pm.adoptModifier(SIGNUM_NEG, createConstantModifier(status));
+
+    return pm;
+}
+
 ImmutablePatternModifier* MutablePatternModifier::createImmutable(UErrorCode& status) {
     // TODO: Move StandardPlural VALUES to standardplural.h
     static const StandardPlural::Form STANDARD_PLURAL_VALUES[] = {
@@ -75,14 +94,7 @@ ImmutablePatternModifier* MutablePatternModifier::createImmutable(UErrorCode& st
     if (needsPlurals()) {
         // Slower path when we require the plural keyword.
         for (StandardPlural::Form plural : STANDARD_PLURAL_VALUES) {
-            setNumberProperties(SIGNUM_POS, plural);
-            pm->adoptModifier(SIGNUM_POS, plural, createConstantModifier(status));
-            setNumberProperties(SIGNUM_NEG_ZERO, plural);
-            pm->adoptModifier(SIGNUM_NEG_ZERO, plural, createConstantModifier(status));
-            setNumberProperties(SIGNUM_POS_ZERO, plural);
-            pm->adoptModifier(SIGNUM_POS_ZERO, plural, createConstantModifier(status));
-            setNumberProperties(SIGNUM_NEG, plural);
-            pm->adoptModifier(SIGNUM_NEG, plural, createConstantModifier(status));
+            pm->adoptSignumModifierStore(plural, createImmutableForPlural(plural, status));
         }
         if (U_FAILURE(status)) {
             delete pm;
@@ -91,14 +103,7 @@ ImmutablePatternModifier* MutablePatternModifier::createImmutable(UErrorCode& st
         return new ImmutablePatternModifier(pm, fRules);  // adopts pm
     } else {
         // Faster path when plural keyword is not needed.
-        setNumberProperties(SIGNUM_POS, StandardPlural::Form::COUNT);
-        pm->adoptModifierWithoutPlural(SIGNUM_POS, createConstantModifier(status));
-        setNumberProperties(SIGNUM_NEG_ZERO, StandardPlural::Form::COUNT);
-        pm->adoptModifierWithoutPlural(SIGNUM_NEG_ZERO, createConstantModifier(status));
-        setNumberProperties(SIGNUM_POS_ZERO, StandardPlural::Form::COUNT);
-        pm->adoptModifierWithoutPlural(SIGNUM_POS_ZERO, createConstantModifier(status));
-        setNumberProperties(SIGNUM_NEG, StandardPlural::Form::COUNT);
-        pm->adoptModifierWithoutPlural(SIGNUM_NEG, createConstantModifier(status));
+        pm->adoptSignumModifierStoreNoPlural(createImmutableForPlural(StandardPlural::Form::COUNT, status));
         if (U_FAILURE(status)) {
             delete pm;
             return nullptr;
@@ -244,19 +249,19 @@ bool MutablePatternModifier::isStrong() const {
 bool MutablePatternModifier::containsField(Field field) const {
     (void)field;
     // This method is not currently used.
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 void MutablePatternModifier::getParameters(Parameters& output) const {
     (void)output;
     // This method is not currently used.
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 bool MutablePatternModifier::semanticallyEquivalent(const Modifier& other) const {
     (void)other;
     // This method is not currently used.
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 int32_t MutablePatternModifier::insertPrefix(FormattedStringBuilder& sb, int position, UErrorCode& status) {
@@ -277,8 +282,10 @@ void MutablePatternModifier::prepareAffix(bool isPrefix) {
             *fPatternInfo,
             isPrefix,
             PatternStringUtils::resolveSignDisplay(fSignDisplay, fSignum),
+            fApproximately,
             fPlural,
             fPerMilleReplacesPercent,
+            false, // dropCurrencySymbols
             currentAffix);
 }
 
@@ -289,28 +296,14 @@ UnicodeString MutablePatternModifier::getSymbol(AffixPatternType type) const {
             return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kMinusSignSymbol);
         case AffixPatternType::TYPE_PLUS_SIGN:
             return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kPlusSignSymbol);
+        case AffixPatternType::TYPE_APPROXIMATELY_SIGN:
+            return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kApproximatelySignSymbol);
         case AffixPatternType::TYPE_PERCENT:
             return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kPercentSymbol);
         case AffixPatternType::TYPE_PERMILLE:
             return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kPerMillSymbol);
-        case AffixPatternType::TYPE_CURRENCY_SINGLE: {
-            switch (fUnitWidth) {
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW:
-                return fCurrencySymbols.getNarrowCurrencySymbol(localStatus);
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_SHORT:
-                return fCurrencySymbols.getCurrencySymbol(localStatus);
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_ISO_CODE:
-                return fCurrencySymbols.getIntlCurrencySymbol(localStatus);
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_FORMAL:
-                return fCurrencySymbols.getFormalCurrencySymbol(localStatus);
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_VARIANT:
-                return fCurrencySymbols.getVariantCurrencySymbol(localStatus);
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_HIDDEN:
-                return UnicodeString();
-            default:
-                return fCurrencySymbols.getCurrencySymbol(localStatus);
-            }
-        }
+        case AffixPatternType::TYPE_CURRENCY_SINGLE:
+            return getCurrencySymbolForUnitWidth(localStatus);
         case AffixPatternType::TYPE_CURRENCY_DOUBLE:
             return fCurrencySymbols.getIntlCurrencySymbol(localStatus);
         case AffixPatternType::TYPE_CURRENCY_TRIPLE:
@@ -324,13 +317,32 @@ UnicodeString MutablePatternModifier::getSymbol(AffixPatternType type) const {
         case AffixPatternType::TYPE_CURRENCY_QUINT:
             return UnicodeString(u"\uFFFD");
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
+    }
+}
+
+UnicodeString MutablePatternModifier::getCurrencySymbolForUnitWidth(UErrorCode& status) const {
+    switch (fUnitWidth) {
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW:
+        return fCurrencySymbols.getNarrowCurrencySymbol(status);
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_SHORT:
+        return fCurrencySymbols.getCurrencySymbol(status);
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_ISO_CODE:
+        return fCurrencySymbols.getIntlCurrencySymbol(status);
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_FORMAL:
+        return fCurrencySymbols.getFormalCurrencySymbol(status);
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_VARIANT:
+        return fCurrencySymbols.getVariantCurrencySymbol(status);
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_HIDDEN:
+        return UnicodeString();
+    default:
+        return fCurrencySymbols.getCurrencySymbol(status);
     }
 }
 
 UnicodeString MutablePatternModifier::toUnicodeString() const {
     // Never called by AffixUtils
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

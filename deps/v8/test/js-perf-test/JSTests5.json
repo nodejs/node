@@ -138,6 +138,18 @@
       ]
     },
     {
+      "name": "ObjectDestructuringAssignment",
+      "path": ["ObjectDestructuringAssignment"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ObjectDestructuringAssignment\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Babel"},
+        {"name": "ForLoop"},
+        {"name": "DestructuringAssignment"}
+      ]
+    },
+    {
       "name": "SpreadCallsGeneral",
       "path": ["SpreadCallsGeneral"],
       "main": "run.js",
@@ -274,10 +286,13 @@
       "tests": [
         {"name": "Babel"},
         {"name": "BabelAndOverwrite"},
+        {"name": "BabelAndExtend"},
         {"name": "ObjectAssign"},
         {"name": "ObjectAssignAndOverwrite"},
+        {"name": "ObjectAssignAndExtend"},
         {"name": "ObjectSpread"},
-        {"name": "ObjectSpreadAndOverwrite"}
+        {"name": "ObjectSpreadAndOverwrite"},
+        {"name": "ObjectSpreadAndExtend"}
       ]
     },
     {
@@ -444,8 +459,7 @@
       "main": "run.js",
       "resources": ["basic-export.js", "basic-import.js", "basic-namespace.js", "value.js"],
       "flags": [
-        "--allow-natives-syntax",
-        "--harmony-dynamic-import"
+        "--allow-natives-syntax"
       ],
       "results_regexp": "^%s\\-Modules\\(Score\\): (.+)$",
       "tests": [
@@ -470,7 +484,7 @@
       "name": "ExpressionDepth",
       "path": ["ExpressionDepth"],
       "main": "run.js",
-      "flags": [ "--no-opt" ],
+      "flags": [ "--no-turbofan" ],
       "results_regexp": "^%s\\-ExpressionDepth\\(Score\\): (.+)$",
       "tests": [
         {"name": "Or-Value"},
@@ -507,6 +521,17 @@
         {"name": "NewIntlRelativeTimeFormat"},
         {"name": "NewIntlLocale"},
         {"name": "NewIntlLocaleWithOptions"}
+      ]
+    },
+    {
+      "name": "ApiAccessors",
+      "path": ["ApiAccessors"],
+      "main": "run.js",
+      "resources": [ "accessor.js" ],
+      "flags": [],
+      "results_regexp": "^%s\\-ApiAccessors\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "nodeType"}
       ]
     },
     {
@@ -595,12 +620,31 @@
     {
       "name": "TurboFan",
       "path": ["TurboFan"],
-      "main": "run.js",
-      "flags": [],
-      "resources": [ "typedLowering.js"],
-      "results_regexp": "^%s\\-TurboFan\\(Score\\): (.+)$",
       "tests": [
-        {"name": "NumberToString"}
+        {
+          "name": "NumberToString",
+          "main": "run.js",
+          "flags": [],
+          "resources": ["typedLowering.js"],
+          "test_flags": ["typedLowering"],
+          "results_regexp": "^NumberToString\\-TurboFan\\(Score\\): (.+)$"
+        },
+        {
+          "name": "WasmInliningLoopArray",
+          "main": "run.js",
+          "flags": [
+            "--experimental-wasm-gc",
+            "--experimental-wasm-js-inlining"
+          ],
+          "resources": ["wasm-inlining-loop-array.js"],
+          "test_flags": ["wasm-inlining-loop-array"],
+          "results_regexp": "^%s\\-TurboFan\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "WasmLoop"},
+            {"name": "JSLoop"},
+            {"name": "PureJSLoop"}
+          ]
+        }
       ]
     },
     {
@@ -625,7 +669,7 @@
       "name": "IC",
       "path": ["IC"],
       "main": "run.js",
-      "flags": ["--no-opt"],
+      "flags": ["--no-turbofan"],
       "resources": ["loadconstantfromprototype.js"],
       "results_regexp": "^%s\\-IC\\(Score\\): (.+)$",
       "tests": [

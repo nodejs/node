@@ -83,10 +83,10 @@ public:
 
     // Implementation of FormattedValue (const):
 
-    UnicodeString toString(UErrorCode& status) const U_OVERRIDE;
-    UnicodeString toTempString(UErrorCode& status) const U_OVERRIDE;
-    Appendable& appendTo(Appendable& appendable, UErrorCode& status) const U_OVERRIDE;
-    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
+    UnicodeString toString(UErrorCode& status) const override;
+    UnicodeString toTempString(UErrorCode& status) const override;
+    Appendable& appendTo(Appendable& appendable, UErrorCode& status) const override;
+    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const override;
 
     // Additional methods used during construction phase only (non-const):
 
@@ -96,7 +96,7 @@ public:
     /**
      * Computes the spans for duplicated values.
      * For example, if the string has fields:
-     *
+     * 
      *     ...aa..[b.cc]..d.[bb.e.c]..a..
      *
      * then the spans will be the bracketed regions.
@@ -153,12 +153,15 @@ public:
 
     virtual ~FormattedValueStringBuilderImpl();
 
+    FormattedValueStringBuilderImpl(FormattedValueStringBuilderImpl&&) = default;
+    FormattedValueStringBuilderImpl& operator=(FormattedValueStringBuilderImpl&&) = default;
+
     // Implementation of FormattedValue (const):
 
-    UnicodeString toString(UErrorCode& status) const U_OVERRIDE;
-    UnicodeString toTempString(UErrorCode& status) const U_OVERRIDE;
-    Appendable& appendTo(Appendable& appendable, UErrorCode& status) const U_OVERRIDE;
-    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
+    UnicodeString toString(UErrorCode& status) const override;
+    UnicodeString toTempString(UErrorCode& status) const override;
+    Appendable& appendTo(Appendable& appendable, UErrorCode& status) const override;
+    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const override;
 
     // Additional helper functions:
     UBool nextFieldPosition(FieldPosition& fp, UErrorCode& status) const;
@@ -169,6 +172,7 @@ public:
     inline const FormattedStringBuilder& getStringRef() const {
         return fString;
     }
+    void resetString();
 
     /**
      * Adds additional metadata used for span fields.
@@ -218,7 +222,7 @@ struct UFormattedValueImpl : public UMemory, public UFormattedValueApiHelper {
 
 /** Implementation of the methods from U_FORMATTED_VALUE_SUBCLASS_AUTO. */
 #define UPRV_FORMATTED_VALUE_SUBCLASS_AUTO_IMPL(Name) \
-    Name::Name(Name&& src) U_NOEXCEPT \
+    Name::Name(Name&& src) noexcept \
             : fData(src.fData), fErrorCode(src.fErrorCode) { \
         src.fData = nullptr; \
         src.fErrorCode = U_INVALID_STATE_ERROR; \
@@ -227,7 +231,7 @@ struct UFormattedValueImpl : public UMemory, public UFormattedValueApiHelper {
         delete fData; \
         fData = nullptr; \
     } \
-    Name& Name::operator=(Name&& src) U_NOEXCEPT { \
+    Name& Name::operator=(Name&& src) noexcept { \
         delete fData; \
         fData = src.fData; \
         src.fData = nullptr; \

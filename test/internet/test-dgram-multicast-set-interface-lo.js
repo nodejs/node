@@ -25,7 +25,7 @@ const networkInterfaces = require('os').networkInterfaces();
 const fork = require('child_process').fork;
 const MULTICASTS = {
   IPv4: ['224.0.0.115', '224.0.0.116', '224.0.0.117'],
-  IPv6: ['ff02::1:115', 'ff02::1:116', 'ff02::1:117']
+  IPv6: ['ff02::1:115', 'ff02::1:116', 'ff02::1:117'],
 };
 const LOOPBACK = { IPv4: '127.0.0.1', IPv6: '::1' };
 const ANY = { IPv4: '0.0.0.0', IPv6: '::' };
@@ -201,7 +201,7 @@ if (process.argv[2] !== 'child') {
 
   const sendSocket = dgram.createSocket({
     type: UDP[FAM],
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   // Don't bind the address explicitly when sending and start with
@@ -241,7 +241,7 @@ if (process.argv[2] !== 'child') {
                       msg.mcast, PORTS[msg.mcast]);
 
         process.nextTick(sendSocket.sendNext);
-      }
+      },
     );
   };
 }
@@ -256,7 +256,7 @@ if (process.argv[2] === 'child') {
   console.error(`pid ${process.pid} iface ${IFACE} MULTICAST ${MULTICAST}`);
   const listenSocket = dgram.createSocket({
     type: UDP[FAM],
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   listenSocket.on('message', (buf, rinfo) => {

@@ -39,9 +39,10 @@ MeasureUnit FormattedNumber::getOutputUnit(UErrorCode& status) const {
     return fData->outputUnit;
 }
 
-const char *FormattedNumber::getGender(UErrorCode &status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD("")
-    return fData->gender;
+UDisplayOptionsNounClass FormattedNumber::getNounClass(UErrorCode &status) const {
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(UDISPOPT_NOUN_CLASS_UNDEFINED);
+    const char *nounClass = fData->gender;
+    return udispopt_fromNounClassIdentifier(nounClass);
 }
 
 void FormattedNumber::getDecimalQuantity(impl::DecimalQuantity& output, UErrorCode& status) const {

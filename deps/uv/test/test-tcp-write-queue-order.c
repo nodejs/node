@@ -134,6 +134,6 @@ TEST_IMPL(tcp_write_queue_order) {
          write_cancelled_callbacks == REQ_COUNT);
   ASSERT(close_cb_called == 3);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

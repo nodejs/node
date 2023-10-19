@@ -148,7 +148,7 @@
   }
 
   assertThrows(() => { C.prototype.m.call({}); }, TypeError,
-               /Object must be an instance of class/);
+               /Receiver must be an instance of class/);
 
   // It's the same error we get from this case:
   class C2 {
@@ -159,7 +159,7 @@
   }
 
   assertThrows(() => { C2.prototype.m.call({}); }, TypeError,
-               /Object must be an instance of class/);
+               /Receiver must be an instance of class/);
 })();
 
 (function TestBrandCheck_CompoundAssignmentToPrivateFieldWithOnlySetter() {
@@ -171,7 +171,7 @@
   }
 
   assertThrows(() => { C.prototype.m.call({}); }, TypeError,
-               /Object must be an instance of class/);
+               /Receiver must be an instance of class/);
 })();
 
 (function TestBrandCheck_CompoundAssignmentToPrivateFieldWithGetterAndSetter() {
@@ -184,7 +184,7 @@
   }
 
   assertThrows(() => { C.prototype.m.call({}); }, TypeError,
-               /Object must be an instance of class/);
+               /Receiver must be an instance of class/);
 
   // It's the same error we get from this case:
   class C2 {
@@ -196,7 +196,7 @@
   }
 
   assertThrows(() => { C2.prototype.m.call({}); }, TypeError,
-               /Object must be an instance of class/);
+               /Receiver must be an instance of class/);
 })();
 
 (function TestBrandCheck_CompoundAssignmentToPrivateMethod() {
@@ -208,5 +208,5 @@
   }
 
   assertThrows(() => { C.prototype.m.call({}); }, TypeError,
-               /Object must be an instance of class/);
+               /Receiver must be an instance of class/);
 })();

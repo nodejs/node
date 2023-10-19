@@ -6,10 +6,8 @@
 #define V8_COMPILER_BRANCH_ELIMINATION_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/common/globals.h"
-#include "src/compiler/functional-list.h"
+#include "src/compiler/control-path-state.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/node-aux-data.h"
 
 namespace v8 {
 namespace internal {
@@ -18,10 +16,35 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 class JSGraph;
+class SourcePositionTable;
+
+// Represents a condition along with its value in the current control path.
+// Also stores the node that branched on this condition.
+struct BranchCondition {
+  BranchCondition() : node(nullptr), branch(nullptr), is_true(false) {}
+  BranchCondition(Node* condition, Node* branch, bool is_true)
+      : node(condition), branch(branch), is_true(is_true) {}
+  Node* node;
+  Node* branch;
+  bool is_true;
+
+  bool operator==(const BranchCondition& other) const {
+    return node == other.node && branch == other.branch &&
+           is_true == other.is_true;
+  }
+  bool operator!=(const BranchCondition& other) const {
+    return !(*this == other);
+  }
+
+  bool IsSet() { return node != nullptr; }
+};
 
 class V8_EXPORT_PRIVATE BranchElimination final
-    : public NON_EXPORTED_BASE(AdvancedReducer) {
+    : public NON_EXPORTED_BASE(AdvancedReducerWithControlPathState)<
+          BranchCondition, kUniqueInstance> {
  public:
+  // TODO(nicohartmann@): Remove {Phase} once all Branch operators have
+  // specified semantics.
   enum Phase {
     kEARLY,
     kLATE,
@@ -35,46 +58,28 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction Reduce(Node* node) final;
 
  private:
-  struct BranchCondition {
-    Node* condition;
-    Node* branch;
-    bool is_true;
-
-    bool operator==(BranchCondition other) const {
-      return condition == other.condition && branch == other.branch &&
-             is_true == other.is_true;
-    }
-    bool operator!=(BranchCondition other) const { return !(*this == other); }
-  };
-
-  // Class for tracking information about branch conditions.
-  // At the moment it is a linked list of conditions and their values
-  // (true or false).
-  class ControlPathConditions : public FunctionalList<BranchCondition> {
-   public:
-    bool LookupCondition(Node* condition, Node** branch, bool* is_true) const;
-    void AddCondition(Zone* zone, Node* condition, Node* branch, bool is_true,
-                      ControlPathConditions hint);
-
-   private:
-    using FunctionalList<BranchCondition>::PushFront;
-  };
+  using ControlPathConditions =
+      ControlPathState<BranchCondition, kUniqueInstance>;
 
   Reduction ReduceBranch(Node* node);
   Reduction ReduceDeoptimizeConditional(Node* node);
   Reduction ReduceIf(Node* node, bool is_true_branch);
+  Reduction ReduceTrapConditional(Node* node);
   Reduction ReduceLoop(Node* node);
   Reduction ReduceMerge(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherControl(Node* node);
   void SimplifyBranchCondition(Node* branch);
-
-  Reduction TakeConditionsFromFirstControl(Node* node);
-  Reduction UpdateConditions(Node* node, ControlPathConditions conditions);
-  Reduction UpdateConditions(Node* node, ControlPathConditions prev_conditions,
-                             Node* current_condition, Node* current_branch,
-                             bool is_true_branch);
-  void MarkAsSafetyCheckIfNeeded(Node* branch, Node* node);
+  bool TryEliminateBranchWithPhiCondition(Node* branch, Node* phi, Node* merge);
+  Reduction UpdateStatesHelper(Node* node,
+                               ControlPathConditions prev_conditions,
+                               Node* current_condition, Node* current_branch,
+                               bool is_true_branch, bool in_new_block) {
+    return UpdateStates(
+        node, prev_conditions, current_condition,
+        BranchCondition(current_condition, current_branch, is_true_branch),
+        in_new_block);
+  }
 
   Node* dead() const { return dead_; }
   Graph* graph() const;
@@ -84,12 +89,6 @@ class V8_EXPORT_PRIVATE BranchElimination final
 
   JSGraph* const jsgraph_;
 
-  // Maps each control node to the condition information known about the node.
-  // If the information is nullptr, then we have not calculated the information
-  // yet.
-  NodeAuxData<ControlPathConditions> node_conditions_;
-  NodeAuxData<bool> reduced_;
-  Zone* zone_;
   Node* dead_;
   Phase phase_;
 };

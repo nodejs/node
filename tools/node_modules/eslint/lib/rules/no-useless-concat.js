@@ -64,15 +64,15 @@ function getRight(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary concatenation of literals or template literals",
-            category: "Best Practices",
+            description: "Disallow unnecessary concatenation of literals or template literals",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-useless-concat"
+            url: "https://eslint.org/docs/latest/rules/no-useless-concat"
         },
 
         schema: [],
@@ -83,7 +83,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             BinaryExpression(node) {

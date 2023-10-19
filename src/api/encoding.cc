@@ -15,6 +15,10 @@ enum encoding ParseEncoding(const char* encoding,
   switch (encoding[0]) {
     case 'u':
     case 'U':
+      // Note: the two first conditions are needed for performance reasons
+      // as "utf8"/"utf-8" is a common case.
+      // (same for other cases below)
+
       // utf8, utf16le
       if (encoding[1] == 't' && encoding[2] == 'f') {
         // Skip `-`
@@ -150,7 +154,7 @@ ssize_t DecodeWrite(Isolate* isolate,
                     size_t buflen,
                     Local<Value> val,
                     enum encoding encoding) {
-  return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
+  return StringBytes::Write(isolate, buf, buflen, val, encoding);
 }
 
 }  // namespace node

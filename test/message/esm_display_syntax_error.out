@@ -1,7 +1,0 @@
-file:///*/test/message/esm_display_syntax_error.mjs:4
-await async () => 0;
-^^^^^
-
-SyntaxError: Unexpected reserved word
-    at Loader.moduleStrategy (node:internal/modules/esm/translators:*:*)
-    at async link (node:internal/modules/esm/module_job:*:*)

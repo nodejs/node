@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 
+#include "include/v8-platform.h"
 #include "src/base/macros.h"
 #include "src/logging/tracing-flags.h"
 
@@ -71,6 +72,9 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
 
   std::unique_ptr<VirtualMemory> reserved_area_;
   std::unique_ptr<base::BoundedPageAllocator> bounded_page_allocator_;
+
+  ZoneBackingAllocator::MallocFn zone_backing_malloc_ = nullptr;
+  ZoneBackingAllocator::FreeFn zone_backing_free_ = nullptr;
 };
 
 }  // namespace internal

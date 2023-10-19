@@ -1,4 +1,6 @@
 declare namespace InternalSerdesBinding {
+  type Buffer = Uint8Array;
+
   class Serializer {
     _getDataCloneError: typeof Error;
     constructor();
@@ -28,7 +30,7 @@ declare namespace InternalSerdesBinding {
   }
 }
 
-declare function InternalBinding(binding: 'serdes'): {
+export interface SerdesBinding {
   Serializer: typeof InternalSerdesBinding.Serializer;
   Deserializer: typeof InternalSerdesBinding.Deserializer;
-};
+}

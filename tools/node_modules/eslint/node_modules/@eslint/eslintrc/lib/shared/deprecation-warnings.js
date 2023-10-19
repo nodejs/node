@@ -2,13 +2,12 @@
  * @fileoverview Provide the function that emits deprecation warnings.
  * @author Toru Nagashima <http://github.com/mysticatea>
  */
-"use strict";
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-const path = require("path");
+import path from "path";
 
 //------------------------------------------------------------------------------
 // Private
@@ -59,6 +58,6 @@ function emitDeprecationWarning(source, errorCode) {
 // Public Interface
 //------------------------------------------------------------------------------
 
-module.exports = {
+export {
     emitDeprecationWarning
 };

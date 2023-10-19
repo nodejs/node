@@ -1,4 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
 if (require.main !== module) {
@@ -18,7 +17,7 @@ const { Worker, isMainThread, workerData } = require('worker_threads');
 if (isMainThread) {
   if (process.argv[2] === 'worker') {
     new Worker(__filename, {
-      workerData: process.argv[3]
+      workerData: process.argv[3],
     });
     return;
   }

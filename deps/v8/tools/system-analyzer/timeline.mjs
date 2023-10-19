@@ -4,20 +4,31 @@
 
 import {groupBy} from './helper.mjs'
 
+/** @template T */
 class Timeline {
-  // Class:
+  /** Class T */
   _model;
-  // Array of #model instances:
+  /** @type {T[]} */
   _values;
   // Current selection, subset of #values:
+  /** @type {?Timeline<T>} */
   _selection;
   _breakdown;
 
-  constructor(model, values = [], startTime = 0, endTime = 0) {
+  constructor(model, values = [], startTime = null, endTime = null) {
     this._model = model;
     this._values = values;
+    /** @type {number} */
     this.startTime = startTime;
+    /** @type {number} */
     this.endTime = endTime;
+    if (values.length > 0) {
+      if (startTime === null) this.startTime = values[0].time;
+      if (endTime === null) this.endTime = values[values.length - 1].time;
+    } else {
+      if (startTime === null) this.startTime = 0;
+      if (endTime === null) this.endTime = 0;
+    }
   }
 
   get model() {
@@ -32,10 +43,12 @@ class Timeline {
     return this._selection;
   }
 
+  /** @returns {Timeline<T>} */
   get selectionOrSelf() {
     return this._selection ?? this;
   }
 
+  /** @param {Timeline<T>} value */
   set selection(value) {
     this._selection = value;
   }
@@ -53,10 +66,12 @@ class Timeline {
     return this.chunkSizes(windowSizeMs);
   }
 
+  /** @returns {T[]} */
   get values() {
     return this._values;
   }
 
+  /** @returns {number} */
   count(filter) {
     return this.all.reduce((sum, each) => {
       return sum + (filter(each) === true ? 1 : 0);
@@ -67,6 +82,7 @@ class Timeline {
     return this.all.filter(predicate);
   }
 
+  /** @param {T} event */
   push(event) {
     let time = event.time;
     if (!this.isEmpty() && this.last().time > time) {
@@ -87,6 +103,7 @@ class Timeline {
     }
   }
 
+  /** @returns {T} */
   at(index) {
     return this._values[index];
   }
@@ -103,14 +120,17 @@ class Timeline {
     return this._values.length;
   }
 
+  /** @returns {T[]} */
   slice(startIndex, endIndex) {
     return this._values.slice(startIndex, endIndex);
   }
 
+  /** @returns {T} */
   first() {
     return this._values[0];
   }
 
+  /** @returns {T} */
   last() {
     return this._values[this._values.length - 1];
   }
@@ -119,42 +139,48 @@ class Timeline {
     yield* this._values;
   }
 
+  /** @returns {number} */
   duration() {
-    if (this.isEmpty()) return 0;
-    return this.last().time - this.first().time;
+    return this.endTime - this.startTime;
   }
 
   forEachChunkSize(count, fn) {
     if (this.isEmpty()) return;
     const increment = this.duration() / count;
-    let currentTime = this.first().time + increment;
+    let currentTime = this.startTime;
     let index = 0;
-    for (let i = 0; i < count; i++) {
-      const nextIndex = this.find(currentTime, index);
+    for (let i = 0; i < count - 1; i++) {
       const nextTime = currentTime + increment;
+      const nextIndex = this.findLast(nextTime, index);
       fn(index, nextIndex, currentTime, nextTime);
-      index = nextIndex;
+      index = nextIndex + 1;
       currentTime = nextTime;
     }
+    fn(index, this._values.length - 1, currentTime, this.endTime);
   }
 
+  /** @returns {number[]} */
   chunkSizes(count) {
     const chunks = [];
     this.forEachChunkSize(count, (start, end) => chunks.push(end - start));
     return chunks;
   }
 
+  /** @returns {Chunk<T>[]} */
   chunks(count, predicate = undefined) {
     const chunks = [];
     this.forEachChunkSize(count, (start, end, startTime, endTime) => {
-      let items = this._values.slice(start, end);
+      let items = this._values.slice(start, end + 1);
       if (predicate !== undefined) items = items.filter(predicate);
       chunks.push(new Chunk(chunks.length, startTime, endTime, items));
     });
     return chunks;
   }
 
-  // Return all entries in ({startTime}, {endTime}]
+  /**
+   * Return all entries in ({startTime}, {endTime}]
+   * @returns {T[]}
+   **/
   range(startTime, endTime) {
     const firstIndex = this.find(startTime);
     if (firstIndex < 0) return [];
@@ -162,9 +188,27 @@ class Timeline {
     return this._values.slice(firstIndex, lastIndex);
   }
 
-  // Return the first index for the first element at {time}.
+  // Return the first index with element.time >= time.
   find(time, offset = 0) {
+    return this.findFirst(time, offset);
+  }
+
+  findFirst(time, offset = 0) {
     return this._find(this._values, each => each.time - time, offset);
+  }
+
+  // Return the last index with element.time <= time.
+  findLast(time, offset = 0) {
+    const nextTime = time + 1;
+    let index = (this.last().time <= nextTime) ?
+        this.length :
+        this.findFirst(nextTime + 1, offset);
+    // Typically we just have to look at the previous element.
+    while (index > 0) {
+      index--;
+      if (this._values[index].time <= time) return index;
+    }
+    return -1;
   }
 
   // Return the first index for which compareFn(item) is >= 0;
@@ -182,8 +226,13 @@ class Timeline {
     return minIndex;
   }
 
-  getBreakdown(keyFunction) {
-    if (keyFunction) return groupBy(this._values, keyFunction);
+  getBreakdown(keyFunction, collect = false) {
+    if (keyFunction || collect) {
+      if (!keyFunction) {
+        keyFunction = each => each.type;
+      }
+      return groupBy(this._values, keyFunction, collect);
+    }
     if (this._breakdown === undefined) {
       this._breakdown = groupBy(this._values, each => each.type);
     }
@@ -204,11 +253,13 @@ class Timeline {
 }
 
 // ===========================================================================
+/** @template T */
 class Chunk {
   constructor(index, start, end, items) {
     this.index = index;
     this.start = start;
     this.end = end;
+    /** @type {T[]} */
     this.items = items;
     this.height = 0;
   }
@@ -217,14 +268,17 @@ class Chunk {
     return this.items.length === 0;
   }
 
+  /** @returns {T} */
   last() {
     return this.at(this.size() - 1);
   }
 
+  /** @returns {T} */
   first() {
     return this.at(0);
   }
 
+  /** @returns {T} */
   at(index) {
     return this.items[index];
   }
@@ -237,25 +291,30 @@ class Chunk {
     return this.items.length;
   }
 
+  /** @param {T} event */
   yOffset(event) {
     // items[0]   == oldest event, displayed at the top of the chunk
     // items[n-1] == youngest event, displayed at the bottom of the chunk
-    return (1 - (this.indexOf(event) + 0.5) / this.size()) * this.height;
+    return ((this.indexOf(event) + 0.5) / this.size()) * this.height;
   }
 
+  /** @param {T} event */
   indexOf(event) {
     return this.items.indexOf(event);
   }
 
+  /** @param {T} event */
   has(event) {
     if (this.isEmpty()) return false;
     return this.first().time <= event.time && event.time <= this.last().time;
   }
 
+  /** @param {Chunk<T>[]} chunks */
   next(chunks) {
     return this.findChunk(chunks, 1);
   }
 
+  /** @param {Chunk<T>[]} chunks */
   prev(chunks) {
     return this.findChunk(chunks, -1);
   }
@@ -274,8 +333,9 @@ class Chunk {
     return groupBy(this.items, keyFunction);
   }
 
+  /** @returns {T[]} */
   filter() {
-    return this.items.filter(map => !map.parent() || !this.has(map.parent()));
+    return this.items.filter(map => !map.parent || !this.has(map.parent));
   }
 }
 

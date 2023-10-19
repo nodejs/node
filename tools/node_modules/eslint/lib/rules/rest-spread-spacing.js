@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce spacing between rest and spread operators and their expressions",
-            category: "ECMAScript 6",
+            description: "Enforce spacing between rest and spread operators and their expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/rest-spread-spacing"
+            url: "https://eslint.org/docs/latest/rules/rest-spread-spacing"
         },
 
         fixable: "whitespace",
@@ -35,7 +35,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode(),
+        const sourceCode = context.sourceCode,
             alwaysSpace = context.options[0] === "always";
 
         //--------------------------------------------------------------------------

@@ -14,6 +14,9 @@ is 1024).
 
 .. versionchanged:: 1.30.0 the maximum UV_THREADPOOL_SIZE allowed was increased from 128 to 1024.
 
+.. versionchanged:: 1.45.0 threads now have an 8 MB stack instead of the
+   (sometimes too low) platform default.
+
 The threadpool is global and shared across all event loops. When a particular
 function makes use of the threadpool (i.e. when using :c:func:`uv_queue_work`)
 libuv preallocates and initializes the maximum number of threads allowed by

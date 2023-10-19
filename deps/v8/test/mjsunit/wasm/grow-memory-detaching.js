@@ -4,11 +4,11 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let module = (() => {
   let builder = new WasmModuleBuilder();
-  builder.addMemory(1, undefined, false);
+  builder.addMemory(1, undefined);
   builder.addFunction("grow_memory", kSig_i_i)
               .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();

@@ -85,7 +85,7 @@ function randomPipePath() {
     server2.on('error', common.mustCall((err) => {
       server1.close();
       assert.strictEqual(err.code, 'EADDRINUSE');
-      assert(/^listen EADDRINUSE: address already in use/.test(err.message));
+      assert.match(err.message, /^listen EADDRINUSE: address already in use/);
     }));
   });
 }

@@ -1,0 +1,8 @@
+include_rules = [
+  "+include/cppgc",
+  "-src",
+  "+src/base",
+  "+src/heap/base",
+  "+src/heap/cppgc",
+  "+src/tracing/trace-event.h",
+]

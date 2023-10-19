@@ -405,3 +405,4 @@ rleStringToByteArray(uint16_t* src, int32_t srcLen, uint8_t* target, int32_t tgt
 
     return ai;
 }
+

@@ -94,4 +94,7 @@ int nghttp2_http_on_data_chunk(nghttp2_stream *stream, size_t n);
 void nghttp2_http_record_request_method(nghttp2_stream *stream,
                                         nghttp2_frame *frame);
 
+int nghttp2_http_parse_priority(nghttp2_extpri *dest, const uint8_t *value,
+                                size_t valuelen);
+
 #endif /* NGHTTP2_HTTP_H */

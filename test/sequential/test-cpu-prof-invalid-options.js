@@ -58,11 +58,11 @@ const {
 }
 
 // --cpu-prof-interval without --cpu-prof
-{
+for (const arg of [kCpuProfInterval, 'crashme']) {
   tmpdir.refresh();
   const output = spawnSync(process.execPath, [
     '--cpu-prof-interval',
-    kCpuProfInterval,
+    arg,
     fixtures.path('workload', 'fibonacci.js'),
   ], {
     cwd: tmpdir.path,

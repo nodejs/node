@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require generator functions to contain `yield`",
-            category: "ECMAScript 6",
+            description: "Require generator functions to contain `yield`",
             recommended: true,
-            url: "https://eslint.org/docs/rules/require-yield"
+            url: "https://eslint.org/docs/latest/rules/require-yield"
         },
 
         schema: [],
@@ -68,7 +68,6 @@ module.exports = {
             // Increases the count of `yield` keyword.
             YieldExpression() {
 
-                /* istanbul ignore else */
                 if (stack.length > 0) {
                     stack[stack.length - 1] += 1;
                 }

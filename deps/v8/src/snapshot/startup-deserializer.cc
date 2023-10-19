@@ -5,16 +5,21 @@
 #include "src/snapshot/startup-deserializer.h"
 
 #include "src/api/api.h"
-#include "src/codegen/assembler-inl.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/execution/v8threads.h"
-#include "src/heap/heap-inl.h"
+#include "src/handles/handles-inl.h"
+#include "src/heap/paged-spaces-inl.h"
+#include "src/logging/counters-scopes.h"
 #include "src/logging/log.h"
-#include "src/snapshot/snapshot.h"
+#include "src/objects/oddball.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
 
 void StartupDeserializer::DeserializeIntoIsolate() {
+  NestedTimedHistogramScope histogram_timer(
+      isolate()->counters()->snapshot_deserialize_isolate());
   HandleScope scope(isolate());
 
   // No active threads.
@@ -30,26 +35,24 @@ void StartupDeserializer::DeserializeIntoIsolate() {
     isolate()->heap()->IterateSmiRoots(this);
     isolate()->heap()->IterateRoots(
         this,
-        base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak});
-    Iterate(isolate(), this);
-    DeserializeStringTable();
+        base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak,
+                                SkipRoot::kTracedHandles});
+    IterateStartupObjectCache(isolate(), this);
 
     isolate()->heap()->IterateWeakRoots(
         this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
     DeserializeDeferredObjects();
     for (Handle<AccessorInfo> info : accessor_infos()) {
-      RestoreExternalReferenceRedirector(isolate(), info);
+      RestoreExternalReferenceRedirector(isolate(), *info);
     }
     for (Handle<CallHandlerInfo> info : call_handler_infos()) {
-      RestoreExternalReferenceRedirector(isolate(), info);
+      RestoreExternalReferenceRedirector(isolate(), *info);
     }
 
     // Flush the instruction cache for the entire code-space. Must happen after
     // builtins deserialization.
     FlushICache();
   }
-
-  CheckNoArrayBufferBackingStores();
 
   isolate()->heap()->set_native_contexts_list(
       ReadOnlyRoots(isolate()).undefined_value());
@@ -69,37 +72,14 @@ void StartupDeserializer::DeserializeIntoIsolate() {
   LogNewMapEvents();
   WeakenDescriptorArrays();
 
-  if (FLAG_rehash_snapshot && can_rehash()) {
-    // Hash seed was initalized in ReadOnlyDeserializer.
+  if (should_rehash()) {
+    // Hash seed was initialized in ReadOnlyDeserializer.
     Rehash();
   }
 }
 
-void StartupDeserializer::DeserializeStringTable() {
-  // See StartupSerializer::SerializeStringTable.
-
-  // Get the string table size.
-  int string_table_size = source()->GetInt();
-
-  // Add each string to the Isolate's string table.
-  // TODO(leszeks): Consider pre-sizing the string table.
-  for (int i = 0; i < string_table_size; ++i) {
-    Handle<String> string = Handle<String>::cast(ReadObject());
-    StringTableInsertionKey key(string);
-    Handle<String> result =
-        isolate()->string_table()->LookupKey(isolate(), &key);
-    USE(result);
-
-    // This is startup, so there should be no duplicate entries in the string
-    // table, and the lookup should unconditionally add the given string.
-    DCHECK_EQ(*result, *string);
-  }
-
-  DCHECK_EQ(string_table_size, isolate()->string_table()->NumberOfElements());
-}
-
 void StartupDeserializer::LogNewMapEvents() {
-  if (FLAG_log_maps) LOG(isolate(), LogAllMaps());
+  if (v8_flags.log_maps) LOG(isolate(), LogAllMaps());
 }
 
 void StartupDeserializer::FlushICache() {

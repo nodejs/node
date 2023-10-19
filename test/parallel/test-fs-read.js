@@ -73,14 +73,13 @@ assert.throws(() => new fs.Dir(), {
 assert.throws(
   () => fs.read(fd, Buffer.alloc(1), 0, 1, 0),
   {
-    message: 'Callback must be a function. Received undefined',
-    code: 'ERR_INVALID_CALLBACK',
+    code: 'ERR_INVALID_ARG_TYPE',
   }
 );
 
 assert.throws(
   () => fs.read(fd, { buffer: null }, common.mustNotCall()),
-  /TypeError: Cannot read property 'byteLength' of null/,
+  { code: 'ERR_INVALID_ARG_TYPE' },
   'throws when options.buffer is null'
 );
 

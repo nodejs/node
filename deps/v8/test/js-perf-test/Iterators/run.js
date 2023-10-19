@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 
-load('../base.js');
-load('forof.js');
+d8.file.execute('../base.js');
+d8.file.execute('forof.js');
 
 
 var success = true;

@@ -61,7 +61,7 @@ class PreParserIdentifier {
   bool IsAsync() const { return type_ == kAsyncIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
   bool IsEvalOrArguments() const {
-    STATIC_ASSERT(kEvalIdentifier + 1 == kArgumentsIdentifier);
+    static_assert(kEvalIdentifier + 1 == kArgumentsIdentifier);
     return base::IsInRange(type_, kEvalIdentifier, kArgumentsIdentifier);
   }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
@@ -226,7 +226,7 @@ class PreParserExpression {
   }
 
   bool IsPattern() const {
-    STATIC_ASSERT(kObjectLiteralExpression + 1 == kArrayLiteralExpression);
+    static_assert(kObjectLiteralExpression + 1 == kArrayLiteralExpression);
     return base::IsInRange(TypeField::decode(code_), kObjectLiteralExpression,
                            kArrayLiteralExpression);
   }
@@ -310,7 +310,6 @@ class PreParserExpression {
 
   // More dummy implementations of things PreParser doesn't need to track:
   void SetShouldEagerCompile() {}
-  void mark_as_oneshot_iife() {}
 
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
@@ -538,7 +537,7 @@ class PreParserFactory {
   PreParserExpression NewTheHoleLiteral() {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewRegExpLiteral(const PreParserIdentifier& js_pattern,
+  PreParserExpression NewRegExpLiteral(const AstRawString* js_pattern,
                                        int js_flags, int pos) {
     return PreParserExpression::Default();
   }
@@ -662,7 +661,7 @@ class PreParserFactory {
   }
   PreParserExpression NewCallNew(const PreParserExpression& expression,
                                  const PreParserExpressionList& arguments,
-                                 int pos) {
+                                 int pos, bool has_spread) {
     return PreParserExpression::Default();
   }
   PreParserStatement NewReturnStatement(
@@ -934,12 +933,11 @@ class PreParser : public ParserBase<PreParser> {
   PreParser(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
             AstValueFactory* ast_value_factory,
             PendingCompilationErrorHandler* pending_error_handler,
-            RuntimeCallStats* runtime_call_stats, Logger* logger,
+            RuntimeCallStats* runtime_call_stats, V8FileLogger* v8_file_logger,
             UnoptimizedCompileFlags flags, bool parsing_on_main_thread = true)
-      : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
-                              ast_value_factory, pending_error_handler,
-                              runtime_call_stats, logger, flags,
-                              parsing_on_main_thread),
+      : ParserBase<PreParser>(zone, scanner, stack_limit, ast_value_factory,
+                              pending_error_handler, runtime_call_stats,
+                              v8_file_logger, flags, parsing_on_main_thread),
         use_counts_(nullptr),
         preparse_data_builder_(nullptr),
         preparse_data_builder_buffer_() {
@@ -1049,10 +1047,6 @@ class PreParser : public ParserBase<PreParser> {
     scope->SetLanguageMode(mode);
   }
   V8_INLINE void SetAsmModule() {}
-
-  V8_INLINE PreParserExpression
-  SpreadCallNew(const PreParserExpression& function,
-                const PreParserExpressionList& args, int pos);
 
   V8_INLINE void PrepareGeneratorVariables() {}
   V8_INLINE void RewriteAsyncFunctionBody(
@@ -1331,6 +1325,14 @@ class PreParser : public ParserBase<PreParser> {
     return false;
   }
 
+  V8_INLINE bool ParsingExtension() const {
+    // Preparsing is disabled for extensions (because the extension
+    // details aren't passed to lazily compiled functions), so we
+    // don't accept "native function" in the preparser and there is
+    // no need to keep track of "native".
+    return false;
+  }
+
   V8_INLINE bool IsNative(const PreParserExpression& expr) const {
     // Preparsing is disabled for extensions (because the extension
     // details aren't passed to lazily compiled functions), so we
@@ -1453,29 +1455,13 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
-  // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate message, const char* arg = nullptr) {
-    pending_error_handler()->ReportMessageAt(
-        source_location.beg_pos, source_location.end_pos, message, arg);
-    scanner()->set_parser_error();
+  V8_INLINE const AstRawString* PreParserIdentifierToAstRawString(
+      const PreParserIdentifier& x) {
+    return x.string_;
   }
 
   V8_INLINE void ReportUnidentifiableError() {
     pending_error_handler()->set_unidentifiable_error();
-    scanner()->set_parser_error();
-  }
-
-  V8_INLINE void ReportMessageAt(Scanner::Location source_location,
-                                 MessageTemplate message,
-                                 const PreParserIdentifier& arg) {
-    ReportMessageAt(source_location, message, arg.string_);
-  }
-
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate message, const AstRawString* arg) {
-    pending_error_handler()->ReportMessageAt(
-        source_location.beg_pos, source_location.end_pos, message, arg);
     scanner()->set_parser_error();
   }
 
@@ -1536,6 +1522,10 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserIdentifier::Default();
   }
 
+  V8_INLINE PreParserIdentifier GetBigIntAsSymbol() const {
+    return PreParserIdentifier::Default();
+  }
+
   V8_INLINE PreParserExpression ThisExpression() {
     UseThis();
     return PreParserExpression::This();
@@ -1546,7 +1536,8 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::This();
   }
 
-  V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
+  V8_INLINE PreParserExpression
+  NewSuperPropertyReference(Scope* home_object_scope, int pos) {
     return PreParserExpression::Default();
   }
 
@@ -1574,7 +1565,7 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::StringLiteral();
   }
 
-  PreParserExpression ExpressionFromPrivateName(
+  V8_INLINE PreParserExpression ExpressionFromPrivateName(
       PrivateNameScopeIterator* private_name_scope,
       const PreParserIdentifier& name, int start_position) {
     VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
@@ -1661,6 +1652,11 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE bool ParsingDynamicFunctionDeclaration() const { return false; }
 
+  V8_INLINE FunctionLiteral::EagerCompileHint GetEmbedderCompileHint(
+      FunctionLiteral::EagerCompileHint current_compile_hint, int position) {
+    return current_compile_hint;
+  }
+
 // Generate empty functions here as the preparser does not collect source
 // ranges for block coverage.
 #define DEFINE_RECORD_SOURCE_RANGE(Name) \
@@ -1677,12 +1673,6 @@ class PreParser : public ParserBase<PreParser> {
   PreparseDataBuilder* preparse_data_builder_;
   std::vector<void*> preparse_data_builder_buffer_;
 };
-
-PreParserExpression PreParser::SpreadCallNew(
-    const PreParserExpression& function, const PreParserExpressionList& args,
-    int pos) {
-  return factory()->NewCallNew(function, args, pos);
-}
 
 }  // namespace internal
 }  // namespace v8

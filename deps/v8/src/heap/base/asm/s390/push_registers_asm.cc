@@ -13,7 +13,9 @@
 
 // S390 ABI source:
 // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html
-asm(".globl PushAllRegistersAndIterateStack             \n"
+asm(".text                                              \n"
+    ".align 8                                           \n"
+    ".globl PushAllRegistersAndIterateStack             \n"
     ".type PushAllRegistersAndIterateStack, %function   \n"
     ".hidden PushAllRegistersAndIterateStack            \n"
     "PushAllRegistersAndIterateStack:                   \n"

@@ -8,9 +8,11 @@
 #include <map>
 #include <vector>
 
+#include "include/v8-persistent-handle.h"
 #include "include/v8-profiler.h"
+#include "include/v8-unwinder.h"
 #include "src/base/hashmap.h"
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 #include "src/handles/handles.h"
 
 namespace v8 {
@@ -60,7 +62,7 @@ class AllocationTraceTree {
   ~AllocationTraceTree() = default;
   AllocationTraceTree(const AllocationTraceTree&) = delete;
   AllocationTraceTree& operator=(const AllocationTraceTree&) = delete;
-  AllocationTraceNode* AddPathFromEnd(const Vector<unsigned>& path);
+  AllocationTraceNode* AddPathFromEnd(base::Vector<const unsigned> path);
   AllocationTraceNode* root() { return &root_; }
   unsigned next_node_id() { return next_node_id_++; }
   V8_EXPORT_PRIVATE void Print(AllocationTracker* tracker);
@@ -121,12 +123,13 @@ class AllocationTracker {
   AddressToTraceMap* address_to_trace() { return &address_to_trace_; }
 
  private:
-  unsigned AddFunctionInfo(SharedFunctionInfo info, SnapshotObjectId id);
+  unsigned AddFunctionInfo(Tagged<SharedFunctionInfo> info,
+                           SnapshotObjectId id);
   unsigned functionInfoIndexForVMState(StateTag state);
 
   class UnresolvedLocation {
    public:
-    UnresolvedLocation(Script script, int start, FunctionInfo* info);
+    UnresolvedLocation(Tagged<Script> script, int start, FunctionInfo* info);
     ~UnresolvedLocation();
     void Resolve();
 

@@ -25,6 +25,15 @@ other OpenSSL function calls should appear in between.  The current
 thread's error queue must be empty before the TLS/SSL I/O operation is
 attempted, or SSL_get_error() will not work reliably.
 
+=head1 NOTES
+
+Some TLS implementations do not send a close_notify alert on shutdown.
+
+On an unexpected EOF, versions before OpenSSL 3.0 returned
+B<SSL_ERROR_SYSCALL>, nothing was added to the error stack, and errno was 0.
+Since OpenSSL 3.0 the returned error is B<SSL_ERROR_SSL> with a meaningful
+error on the error stack.
+
 =head1 RETURN VALUES
 
 The following return values can currently occur:
@@ -43,6 +52,9 @@ close_notify alert.
 No more data can be read.
 Note that B<SSL_ERROR_ZERO_RETURN> does not necessarily
 indicate that the underlying transport has been closed.
+
+This error can also appear when the option B<SSL_OP_IGNORE_UNEXPECTED_EOF>
+is set. See L<SSL_CTX_set_options(3)> for more details.
 
 =item SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE
 
@@ -73,7 +85,9 @@ protocol level.
 It is safe to call SSL_read() or SSL_read_ex() when more data is available
 even when the call that set this error was an SSL_write() or SSL_write_ex().
 However, if the call was an SSL_write() or SSL_write_ex(), it should be called
-again to continue sending the application data.
+again to continue sending the application data. If you get B<SSL_ERROR_WANT_WRITE>
+from SSL_write() or SSL_write_ex() then you should not do any other operation
+that could trigger B<IO> other than to repeat the previous SSL_write() call.
 
 For socket B<BIO>s (e.g. when SSL_set_fd() was used), select() or
 poll() on the underlying socket can be used to find out when the
@@ -155,18 +169,6 @@ connection and SSL_shutdown() must not be called.
 
 =back
 
-=head1 BUGS
-
-The B<SSL_ERROR_SYSCALL> with B<errno> value of 0 indicates unexpected EOF from
-the peer. This will be properly reported as B<SSL_ERROR_SSL> with reason
-code B<SSL_R_UNEXPECTED_EOF_WHILE_READING> in the OpenSSL 3.0 release because
-it is truly a TLS protocol error to terminate the connection without
-a SSL_shutdown().
-
-The issue is kept unfixed in OpenSSL 1.1.1 releases because many applications
-which choose to ignore this protocol error depend on the existing way of
-reporting the error.
-
 =head1 SEE ALSO
 
 L<ssl(7)>
@@ -178,9 +180,9 @@ The SSL_ERROR_WANT_CLIENT_HELLO_CB error code was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

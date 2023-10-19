@@ -45,15 +45,15 @@ function isForLoopAfterthought(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow the unary operators `++` and `--`",
-            category: "Stylistic Issues",
+            description: "Disallow the unary operators `++` and `--`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-plusplus"
+            url: "https://eslint.org/docs/latest/rules/no-plusplus"
         },
 
         schema: [

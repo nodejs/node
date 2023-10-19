@@ -2,16 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_EXTERNAL_REFS_H_
 #define V8_WASM_WASM_EXTERNAL_REFS_H_
 
 #include <stdint.h>
 
-#include "src/common/globals.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
+
+class Isolate;
+
 namespace wasm {
+
+using Address = uintptr_t;
 
 V8_EXPORT_PRIVATE void f32_trunc_wrapper(Address data);
 
@@ -107,12 +116,25 @@ int32_t memory_copy_wrapper(Address data);
 // zero-extend the result in the return register.
 int32_t memory_fill_wrapper(Address data);
 
-using WasmTrapCallbackForTesting = void (*)();
+// Assumes copy ranges are in-bounds and length > 0.
+void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
+                        uint32_t dst_index, Address raw_src_array,
+                        uint32_t src_index, uint32_t length);
 
-V8_EXPORT_PRIVATE void set_trap_callback_for_testing(
-    WasmTrapCallbackForTesting callback);
+// The initial value is passed as an int64_t on the stack. Cannot handle s128
+// other than 0.
+void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
+                        uint32_t emit_write_barrier, uint32_t raw_type,
+                        Address initial_value_addr);
 
-V8_EXPORT_PRIVATE void call_trap_callback_for_testing();
+double flat_string_to_f64(Address string_address);
+
+// Update the stack limit after a stack switch,
+// and preserve pending interrupts.
+void sync_stack_limit(Isolate* isolate);
+
+intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
+void switch_from_the_central_stack(Isolate* isolate);
 
 }  // namespace wasm
 }  // namespace internal

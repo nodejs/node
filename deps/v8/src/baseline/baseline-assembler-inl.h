@@ -5,14 +5,16 @@
 #ifndef V8_BASELINE_BASELINE_ASSEMBLER_INL_H_
 #define V8_BASELINE_BASELINE_ASSEMBLER_INL_H_
 
+#include "src/baseline/baseline-assembler.h"
+
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if ENABLE_SPARKPLUG
 
 #include <type_traits>
 #include <unordered_map>
 
-#include "src/baseline/baseline-assembler.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/js-function.h"
@@ -22,6 +24,20 @@
 #include "src/baseline/x64/baseline-assembler-x64-inl.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/baseline/arm64/baseline-assembler-arm64-inl.h"
+#elif V8_TARGET_ARCH_IA32
+#include "src/baseline/ia32/baseline-assembler-ia32-inl.h"
+#elif V8_TARGET_ARCH_ARM
+#include "src/baseline/arm/baseline-assembler-arm-inl.h"
+#elif V8_TARGET_ARCH_PPC64
+#include "src/baseline/ppc/baseline-assembler-ppc-inl.h"
+#elif V8_TARGET_ARCH_S390X
+#include "src/baseline/s390/baseline-assembler-s390-inl.h"
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#include "src/baseline/riscv/baseline-assembler-riscv-inl.h"
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/baseline/mips64/baseline-assembler-mips64-inl.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/baseline/loong64/baseline-assembler-loong64-inl.h"
 #else
 #error Unsupported target architecture.
 #endif
@@ -32,20 +48,30 @@ namespace baseline {
 
 #define __ masm_->
 
-void BaselineAssembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+void BaselineAssembler::GetCode(LocalIsolate* isolate, CodeDesc* desc) {
   __ GetCode(isolate, desc);
 }
 int BaselineAssembler::pc_offset() const { return __ pc_offset(); }
-bool BaselineAssembler::emit_debug_code() const { return __ emit_debug_code(); }
 void BaselineAssembler::CodeEntry() const { __ CodeEntry(); }
 void BaselineAssembler::ExceptionHandler() const { __ ExceptionHandler(); }
 void BaselineAssembler::RecordComment(const char* string) {
+  if (!v8_flags.code_comments) return;
   __ RecordComment(string);
 }
 void BaselineAssembler::Trap() { __ Trap(); }
 void BaselineAssembler::DebugBreak() { __ DebugBreak(); }
 void BaselineAssembler::CallRuntime(Runtime::FunctionId function, int nargs) {
   __ CallRuntime(function, nargs);
+}
+
+void BaselineAssembler::CallBuiltin(Builtin builtin) {
+  // BaselineAssemblerOptions defines how builtin calls are generated.
+  __ CallBuiltin(builtin);
+}
+
+void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
+  // BaselineAssemblerOptions defines how builtin tail calls are generated.
+  __ TailCallBuiltin(builtin);
 }
 
 MemOperand BaselineAssembler::ContextOperand() {
@@ -62,7 +88,7 @@ void BaselineAssembler::LoadRoot(Register output, RootIndex index) {
   __ LoadRoot(output, index);
 }
 void BaselineAssembler::LoadNativeContextSlot(Register output, uint32_t index) {
-  __ LoadNativeContextSlot(index, output);
+  __ LoadNativeContextSlot(output, index);
 }
 
 void BaselineAssembler::Move(Register output, interpreter::Register source) {
@@ -77,7 +103,7 @@ void BaselineAssembler::Move(Register output, Register source) {
 void BaselineAssembler::Move(Register output, MemOperand operand) {
   __ Move(output, operand);
 }
-void BaselineAssembler::Move(Register output, Smi value) {
+void BaselineAssembler::Move(Register output, Tagged<Smi> value) {
   __ Move(output, value);
 }
 
@@ -88,13 +114,12 @@ void BaselineAssembler::SmiUntag(Register output, Register value) {
 
 void BaselineAssembler::LoadFixedArrayElement(Register output, Register array,
                                               int32_t index) {
-  LoadTaggedAnyField(output, array,
-                     FixedArray::kHeaderSize + index * kTaggedSize);
+  LoadTaggedField(output, array, FixedArray::kHeaderSize + index * kTaggedSize);
 }
 
 void BaselineAssembler::LoadPrototype(Register prototype, Register object) {
   __ LoadMap(prototype, object);
-  LoadTaggedPointerField(prototype, prototype, Map::kPrototypeOffset);
+  LoadTaggedField(prototype, prototype, Map::kPrototypeOffset);
 }
 void BaselineAssembler::LoadContext(Register output) {
   LoadRegister(output, interpreter::Register::current_context());
@@ -114,13 +139,27 @@ void BaselineAssembler::StoreRegister(interpreter::Register output,
   Move(output, value);
 }
 
-SaveAccumulatorScope::SaveAccumulatorScope(BaselineAssembler* assembler)
-    : assembler_(assembler) {
+template <typename Field>
+void BaselineAssembler::DecodeField(Register reg) {
+  __ DecodeField<Field>(reg);
+}
+
+EnsureAccumulatorPreservedScope::EnsureAccumulatorPreservedScope(
+    BaselineAssembler* assembler)
+    : assembler_(assembler)
+#ifdef V8_CODE_COMMENTS
+      ,
+      comment_(assembler->masm(), "EnsureAccumulatorPreservedScope")
+#endif
+{
   assembler_->Push(kInterpreterAccumulatorRegister);
 }
 
-SaveAccumulatorScope::~SaveAccumulatorScope() {
-  assembler_->Pop(kInterpreterAccumulatorRegister);
+EnsureAccumulatorPreservedScope::~EnsureAccumulatorPreservedScope() {
+  BaselineAssembler::ScratchRegisterScope scratch(assembler_);
+  Register reg = scratch.AcquireScratch();
+  assembler_->Pop(reg);
+  AssertEqualToAccumulator(reg);
 }
 
 #undef __
@@ -129,6 +168,6 @@ SaveAccumulatorScope::~SaveAccumulatorScope() {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // ENABLE_SPARKPLUG
 
 #endif  // V8_BASELINE_BASELINE_ASSEMBLER_INL_H_

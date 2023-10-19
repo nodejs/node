@@ -5,8 +5,10 @@
 #ifndef V8_EXECUTION_VM_STATE_H_
 #define V8_EXECUTION_VM_STATE_H_
 
-#include "include/v8.h"
+#include "include/v8-unwinder.h"
 #include "src/common/globals.h"
+#include "src/logging/counters-scopes.h"
+#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -22,8 +24,10 @@ class VMState {
   inline ~VMState();
 
  private:
-  Isolate* isolate_;
-  StateTag previous_tag_;
+  Isolate* const isolate_;
+  StateTag const previous_tag_;
+
+  friend ExternalCallbackScope;
 };
 
 class V8_NODISCARD ExternalCallbackScope {
@@ -36,16 +40,17 @@ class V8_NODISCARD ExternalCallbackScope {
 #if USES_FUNCTION_DESCRIPTORS
     return FUNCTION_ENTRYPOINT_ADDRESS(callback_);
 #else
-    return &callback_;
+    return const_cast<Address*>(&callback_);
 #endif
   }
   ExternalCallbackScope* previous() { return previous_scope_; }
   inline Address scope_address();
 
  private:
-  Isolate* isolate_;
-  Address callback_;
-  ExternalCallbackScope* previous_scope_;
+  Address const callback_;
+  ExternalCallbackScope* const previous_scope_;
+  VMState<EXTERNAL> const vm_state_;
+  PauseNestedTimedHistogramScope const pause_timed_histogram_scope_;
 #ifdef USE_SIMULATOR
   Address scope_address_;
 #endif

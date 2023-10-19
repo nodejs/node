@@ -1,0 +1,37 @@
+#
+# Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line. Lines starting with a pound sign are ignored.
+
+Title = DES3 Tests
+
+# DES EDE3 CBC tests (from destest)
+Cipher = DES-EDE3-CBC
+Key = 0123456789abcdeff1e0d3c2b5a49786fedcba9876543210
+IV = fedcba9876543210
+Plaintext = 37363534333231204E6F77206973207468652074696D6520666F722000000000
+Ciphertext = 3FE301C962AC01D02213763C1CBD4CDC799657C064ECF5D41C673812CFDE9675
+NextIV = 1c673812cfde9675
+
+# DES EDE3 ECB test
+# FIPS(3.0.0): has a bug in the IV length #17591
+FIPSversion = >3.0.0
+Cipher = DES-EDE3-ECB
+Key = 0123456789abcdeff1e0d3c2b5a49786fedcba9876543210
+Plaintext = 37363534333231204E6F77206973207468652074696D6520666F722000000000
+Ciphertext = 62c10cc9efbf15aaa5ae2e487b690e56d8b1dfb8f5c5b293855e77dd9024b1b1
+
+# DES EDE ECB test
+Availablein = default
+Cipher = DES-EDE-ECB
+Key = 0123456789abcdeffedcba9876543210
+Plaintext = 37363534333231204E6F77206973207468652074696D6520666F722000000000
+Ciphertext = 4d1332e49f380e23d80a0d8b2bae5e4e6a0094171abcfc27df2bfd40da9f4e4d

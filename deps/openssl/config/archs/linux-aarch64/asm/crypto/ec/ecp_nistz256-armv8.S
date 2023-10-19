@@ -3822,7 +3822,7 @@ ecp_nistz256_ord_mul_mont:
 
 ////////////////////////////////////////////////////////////////////////
 // void ecp_nistz256_ord_sqr_mont(uint64_t res[4], uint64_t a[4],
-//                                int rep);
+//                                uint64_t rep);
 .globl	ecp_nistz256_ord_sqr_mont
 .type	ecp_nistz256_ord_sqr_mont,%function
 .align	4
@@ -4022,7 +4022,7 @@ ecp_nistz256_scatter_w5:
 
 	ldp	x4,x5,[x1]		// X
 	ldp	x6,x7,[x1,#16]
-	str	w4,[x0,#64*0-4]
+	stur	w4,[x0,#64*0-4]
 	lsr	x4,x4,#32
 	str	w5,[x0,#64*1-4]
 	lsr	x5,x5,#32
@@ -4038,7 +4038,7 @@ ecp_nistz256_scatter_w5:
 
 	ldp	x4,x5,[x1,#32]	// Y
 	ldp	x6,x7,[x1,#48]
-	str	w4,[x0,#64*0-4]
+	stur	w4,[x0,#64*0-4]
 	lsr	x4,x4,#32
 	str	w5,[x0,#64*1-4]
 	lsr	x5,x5,#32
@@ -4054,7 +4054,7 @@ ecp_nistz256_scatter_w5:
 
 	ldp	x4,x5,[x1,#64]	// Z
 	ldp	x6,x7,[x1,#80]
-	str	w4,[x0,#64*0-4]
+	stur	w4,[x0,#64*0-4]
 	lsr	x4,x4,#32
 	str	w5,[x0,#64*1-4]
 	lsr	x5,x5,#32

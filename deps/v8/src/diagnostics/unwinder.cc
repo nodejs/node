@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "include/v8-unwinder.h"
+#include "src/execution/frame-constants.h"
 #include "src/execution/pointer-authentication.h"
 
 namespace v8 {
@@ -20,10 +22,10 @@ i::Address Load(i::Address address) {
 
 namespace {
 
-const i::byte* CalculateEnd(const void* start, size_t length_in_bytes) {
+const uint8_t* CalculateEnd(const void* start, size_t length_in_bytes) {
   // Given that the length of the memory range is in bytes and it is not
-  // necessarily aligned, we need to do the pointer arithmetic in byte* here.
-  const i::byte* start_as_byte = reinterpret_cast<const i::byte*>(start);
+  // necessarily aligned, we need to do the pointer arithmetic in uint8_t* here.
+  const uint8_t* start_as_byte = reinterpret_cast<const uint8_t*>(start);
   return start_as_byte + length_in_bytes;
 }
 

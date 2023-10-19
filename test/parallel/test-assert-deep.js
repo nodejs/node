@@ -419,19 +419,31 @@ assertNotDeepOrStrict(
 // GH-14441. Circular structures should be consistent
 {
   const a = {};
-  const b = {};
   a.a = a;
+
+  const b = {};
   b.a = {};
   b.a.a = a;
+
   assertDeepAndStrictEqual(a, b);
 }
 
 {
+  const a = {};
+  a.a = a;
+  const b = {};
+  b.a = b;
+  const c = {};
+  c.a = a;
+  assertDeepAndStrictEqual(b, c);
+}
+
+{
   const a = new Set();
-  const b = new Set();
-  const c = new Set();
   a.add(a);
+  const b = new Set();
   b.add(b);
+  const c = new Set();
   c.add(a);
   assertDeepAndStrictEqual(b, c);
 }
@@ -567,8 +579,10 @@ assertNotDeepOrStrict(
 
 // Handle sparse arrays.
 {
+  /* eslint-disable no-sparse-arrays */
   assertDeepAndStrictEqual([1, , , 3], [1, , , 3]);
   assertNotDeepOrStrict([1, , , 3], [1, , , 3, , , ]);
+  /* eslint-enable no-sparse-arrays */
   const a = new Array(3);
   const b = new Array(3);
   a[2] = true;
@@ -712,7 +726,7 @@ assertNotDeepOrStrict(/a/igm, /a/im);
 {
   const re1 = /a/g;
   re1.lastIndex = 3;
-  assert.deepEqual(re1, /a/g);
+  assert.notDeepEqual(re1, /a/g);
 }
 
 assert.deepEqual(4, '4');
@@ -852,15 +866,17 @@ assert.throws(
 {
   const re1 = /a/;
   re1.lastIndex = 3;
-  assert.deepStrictEqual(re1, /a/);
+  assert.notDeepStrictEqual(re1, /a/);
 }
 
 assert.throws(
+  // eslint-disable-next-line no-restricted-syntax
   () => assert.deepStrictEqual(4, '4'),
   { message: `${defaultMsgStart}\n4 !== '4'\n` }
 );
 
 assert.throws(
+  // eslint-disable-next-line no-restricted-syntax
   () => assert.deepStrictEqual(true, 1),
   { message: `${defaultMsgStart}\ntrue !== 1\n` }
 );
@@ -1121,7 +1137,7 @@ assert.throws(
     {
       code: 'ERR_ASSERTION',
       name: 'AssertionError',
-      message: /a: \[Getter: 5]\n-   a: \[Getter: 6]\n  /
+      message: /a: \[Getter: 5]\n- {3}a: \[Getter: 6]\n {2}/
     }
   );
 
@@ -1186,7 +1202,7 @@ assert.throws(
   });
   assertNotDeepOrStrict(a, b);
 
-  a = Object.create(null);
+  a = { __proto__: null };
   b = new RangeError('abc');
   Object.defineProperty(a, Symbol.toStringTag, {
     value: 'Error'

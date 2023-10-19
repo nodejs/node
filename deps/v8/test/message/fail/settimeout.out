@@ -6,8 +6,8 @@ increment state
 current state: 2
 increment state
 current state: 3
-*%(basename)s:19: Error
+*%(basename)s:17: Error
     setTimeout(function() { throw new Error(); });
                             ^
 Error
-    at *%(basename)s:19:35
+    at *%(basename)s:17:35

@@ -33,7 +33,7 @@
 		<br>
 		<br>
 		<a href="https://retool.com/?utm_campaign=sindresorhus">
-			<img src="https://sindresorhus.com/assets/thanks/retool-logo.svg" width="210"/>
+			<img src="https://sindresorhus.com/assets/thanks/retool-logo.svg" width="230"/>
 		</a>
 		<br>
 		<br>
@@ -46,6 +46,12 @@
 				<span>Stop struggling with scattered API keys, hacking together home-brewed tools,</span>
 				<br>
 				<span>and avoiding access controls. Keep your team and servers in sync with Doppler.</span>
+			</div>
+		</a>
+		<br>
+		<a href="https://uibakery.io/?utm_source=chalk&utm_medium=sponsor&utm_campaign=github">
+			<div>
+				<img src="https://sindresorhus.com/assets/thanks/uibakery-logo.jpg" width="270" alt="UI Bakery">
 			</div>
 		</a>
 	</p>

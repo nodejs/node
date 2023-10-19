@@ -1,16 +1,11 @@
+#include "timer_wrap.h"  // NOLINT(build/include_inline)
+#include "timer_wrap-inl.h"
+
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
-#include "timer_wrap.h"
 #include "uv.h"
 
 namespace node {
-
-TimerWrap::TimerWrap(Environment* env, const TimerCb& fn)
-    : env_(env),
-      fn_(fn) {
-  uv_timer_init(env->event_loop(), &timer_);
-  timer_.data = this;
-}
 
 void TimerWrap::Stop() {
   if (timer_.data == nullptr) return;
@@ -46,13 +41,6 @@ void TimerWrap::Unref() {
 void TimerWrap::OnTimeout(uv_timer_t* timer) {
   TimerWrap* t = ContainerOf(&TimerWrap::timer_, timer);
   t->fn_();
-}
-
-TimerWrapHandle::TimerWrapHandle(
-    Environment* env,
-    const TimerWrap::TimerCb& fn) {
-  timer_ = new TimerWrap(env, fn);
-  env->AddCleanupHook(CleanupHook, this);
 }
 
 void TimerWrapHandle::Stop() {

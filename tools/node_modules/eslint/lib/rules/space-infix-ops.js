@@ -4,19 +4,21 @@
  */
 "use strict";
 
+const { isEqToken } = require("./utils/ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "require spacing around infix operators",
-            category: "Stylistic Issues",
+            description: "Require spacing around infix operators",
             recommended: false,
-            url: "https://eslint.org/docs/rules/space-infix-ops"
+            url: "https://eslint.org/docs/latest/rules/space-infix-ops"
         },
 
         fixable: "whitespace",
@@ -41,7 +43,7 @@ module.exports = {
 
     create(context) {
         const int32Hint = context.options[0] ? context.options[0].int32Hint === true : false;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Returns the first token which violates the rule
@@ -164,7 +166,29 @@ module.exports = {
             BinaryExpression: checkBinary,
             LogicalExpression: checkBinary,
             ConditionalExpression: checkConditional,
-            VariableDeclarator: checkVar
+            VariableDeclarator: checkVar,
+
+            PropertyDefinition(node) {
+                if (!node.value) {
+                    return;
+                }
+
+                /*
+                 * Because of computed properties and type annotations, some
+                 * tokens may exist between `node.key` and `=`.
+                 * Therefore, find the `=` from the right.
+                 */
+                const operatorToken = sourceCode.getTokenBefore(node.value, isEqToken);
+                const leftToken = sourceCode.getTokenBefore(operatorToken);
+                const rightToken = sourceCode.getTokenAfter(operatorToken);
+
+                if (
+                    !sourceCode.isSpaceBetweenTokens(leftToken, operatorToken) ||
+                    !sourceCode.isSpaceBetweenTokens(operatorToken, rightToken)
+                ) {
+                    report(node, operatorToken);
+                }
+            }
         };
 
     }

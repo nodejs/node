@@ -20,15 +20,6 @@
 
 U_NAMESPACE_BEGIN
 
-// Some compilers don't care if constants are defined in the .cpp file.
-// MS Visual C++ does not like it, but gcc requires it. clang does not care.
-#ifndef _MSC_VER
-const uint8_t Collation::LEVEL_SEPARATOR_BYTE;
-const uint8_t Collation::MERGE_SEPARATOR_BYTE;
-const uint32_t Collation::ONLY_TERTIARY_MASK;
-const uint32_t Collation::CASE_AND_TERTIARY_MASK;
-#endif
-
 uint32_t
 Collation::incTwoBytePrimaryByOffset(uint32_t basePrimary, UBool isCompressible, int32_t offset) {
     // Extract the second byte, minus the minimum byte value,

@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
-// This test verifies that symlinked native modules can be required multiple
+// This test verifies that symlinked native addons can be required multiple
 // times without error. The symlinked module and the non-symlinked module
 // should be the same instance. This expectation was not previously being
 // tested and ended up being broken by https://github.com/nodejs/node/pull/5950.
@@ -16,7 +16,7 @@ const tmpdir = require('../../common/tmpdir');
 tmpdir.refresh();
 
 const addonPath = path.join(__dirname, 'build', common.buildType);
-const addonLink = path.join(tmpdir.path, 'addon');
+const addonLink = tmpdir.resolve('addon');
 
 try {
   fs.symlinkSync(addonPath, addonLink, 'dir');

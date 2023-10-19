@@ -77,7 +77,7 @@ TEST_P(RandomNumberGeneratorTest, NextDoubleReturnsValueBetween0And1) {
 #if !defined(DEBUG) && defined(OFFICIAL_BUILD)
 // Official release builds strip all fatal messages for saving binary size,
 // see src/base/logging.h.
-#define FATAL_MSG(msg) "ignored"
+#define FATAL_MSG(msg) ""
 #else
 #define FATAL_MSG(msg) "Check failed: " msg
 #endif

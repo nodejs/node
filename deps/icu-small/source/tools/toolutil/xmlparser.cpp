@@ -64,67 +64,67 @@ UXMLParser::UXMLParser(UErrorCode &status) :
       //      This is a sloppy implementation - just look for the leading <?xml and the closing ?>
       //            allow for a possible leading BOM.
       mXMLDecl(UnicodeString("(?s)\\uFEFF?<\\?xml.+?\\?>", -1, US_INV), 0, status),
-
+      
       //  XML Comment   production #15
       //     example:  "<!-- whatever -->
       //       note, does not detect an illegal "--" within comments
       mXMLComment(UnicodeString("(?s)<!--.+?-->", -1, US_INV), 0, status),
-
+      
       //  XML Spaces
       //      production [3]
       mXMLSP(UnicodeString(XML_SPACES "+", -1, US_INV), 0, status),
-
+      
       //  XML Doctype decl  production #28
       //     example   "<!DOCTYPE foo SYSTEM "somewhere" >
       //       or      "<!DOCTYPE foo [internal dtd]>
       //    TODO:  we don't actually parse the DOCTYPE or internal subsets.
       //           Some internal dtd subsets could confuse this simple-minded
       //           attempt at skipping over them, specifically, occurrences
-      //           of closeing square brackets.  These could appear in comments,
+      //           of closing square brackets.  These could appear in comments, 
       //           or in parameter entity declarations, for example.
       mXMLDoctype(UnicodeString(
            "(?s)<!DOCTYPE.*?(>|\\[.*?\\].*?>)", -1, US_INV
            ), 0, status),
-
+      
       //  XML PI     production #16
       //     example   "<?target stuff?>
       mXMLPI(UnicodeString("(?s)<\\?.+?\\?>", -1, US_INV), 0, status),
-
+      
       //  XML Element Start   Productions #40, #41
       //          example   <foo att1='abc'  att2="d e f" >
       //      capture #1:  the tag name
       //
       mXMLElemStart (UnicodeString("(?s)<(" XML_NAME ")"                                 // match  "<tag_name"
-          "(?:"
+          "(?:" 
                 XML_SPACES "+" XML_NAME XML_SPACES "*=" XML_SPACES "*"     // match  "ATTR_NAME = "
                 "(?:(?:\\\'[^<\\\']*?\\\')|(?:\\\"[^<\\\"]*?\\\"))"        // match  '"attribute value"'
           ")*"                                                             //   * for zero or more attributes.
           XML_SPACES "*?>", -1, US_INV), 0, status),                               // match " >"
-
+      
       //  XML Element End     production #42
       //     example   </foo>
       mXMLElemEnd (UnicodeString("</(" XML_NAME ")" XML_SPACES "*>", -1, US_INV), 0, status),
-
+      
       // XML Element Empty    production #44
       //     example   <foo att1="abc"   att2="d e f" />
       mXMLElemEmpty (UnicodeString("(?s)<(" XML_NAME ")"                                 // match  "<tag_name"
-          "(?:"
+          "(?:" 
                 XML_SPACES "+" XML_NAME XML_SPACES "*=" XML_SPACES "*"     // match  "ATTR_NAME = "
                 "(?:(?:\\\'[^<\\\']*?\\\')|(?:\\\"[^<\\\"]*?\\\"))"        // match  '"attribute value"'
           ")*"                                                             //   * for zero or more attributes.
           XML_SPACES "*?/>", -1, US_INV), 0, status),                              // match " />"
-
+      
 
       // XMLCharData.  Everything but '<'.  Note that & will be dealt with later.
       mXMLCharData(UnicodeString("(?s)[^<]*", -1, US_INV), 0, status),
 
       // Attribute name = "value".  XML Productions 10, 40/41
-      //  Capture group 1 is name,
+      //  Capture group 1 is name, 
       //                2 is the attribute value, including the quotes.
       //
       //   Note that attributes are scanned twice.  The first time is with
       //        the regex for an entire element start.  There, the attributes
-      //        are checked syntactically, but not separted out one by one.
+      //        are checked syntactically, but not separated out one by one.
       //        Here, we match a single attribute, and make its name and
       //        attribute value available to the parser code.
       mAttrValue(UnicodeString(XML_SPACES "+("  XML_NAME ")"  XML_SPACES "*=" XML_SPACES "*"
@@ -146,14 +146,14 @@ UXMLParser::UXMLParser(UErrorCode &status) :
 
       fNames(status),
       fElementStack(status),
-      fOneLF((UChar)0x0a)        // Plain new-line string, used in new line normalization.
+      fOneLF((char16_t)0x0a)        // Plain new-line string, used in new line normalization.
       {
       }
 
 UXMLParser *
 UXMLParser::createParser(UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) {
-        return NULL;
+        return nullptr;
     } else {
         return new UXMLParser(errorCode);
     }
@@ -168,18 +168,18 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
     const char *charset, *pb;
     UnicodeString src;
     UConverter *cnv;
-    UChar *buffer, *pu;
+    char16_t *buffer, *pu;
     int32_t fileLength, bytesLength, length, capacity;
     UBool flush;
 
     if(U_FAILURE(errorCode)) {
-        return NULL;
+        return nullptr;
     }
 
     f=T_FileStream_open(filename, "rb");
-    if(f==NULL) {
+    if(f==nullptr) {
         errorCode=U_FILE_ACCESS_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     bytesLength=T_FileStream_read(f, bytes, (int32_t)sizeof(bytes));
@@ -197,8 +197,8 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
      * 2. treat as ISO-8859-1 and read XML encoding="charser"
      * 3. default to UTF-8
      */
-    charset=ucnv_detectUnicodeSignature(bytes, bytesLength, NULL, &errorCode);
-    if(U_SUCCESS(errorCode) && charset!=NULL) {
+    charset=ucnv_detectUnicodeSignature(bytes, bytesLength, nullptr, &errorCode);
+    if(U_SUCCESS(errorCode) && charset!=nullptr) {
         // open converter according to Unicode signature
         cnv=ucnv_open(charset, &errorCode);
     } else {
@@ -210,7 +210,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
         }
 
         buffer=toUCharPtr(src.getBuffer(bytesLength));
-        if(buffer==NULL) {
+        if(buffer==nullptr) {
             // unexpected failure to reserve some string capacity
             errorCode=U_MEMORY_ALLOCATION_ERROR;
             goto exit;
@@ -221,10 +221,10 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
             cnv,
             &pu, buffer+src.getCapacity(),
             &pb, bytes+bytesLength,
-            NULL, TRUE, &errorCode);
+            nullptr, true, &errorCode);
         src.releaseBuffer(U_SUCCESS(errorCode) ? (int32_t)(pu-buffer) : 0);
         ucnv_close(cnv);
-        cnv=NULL;
+        cnv=nullptr;
         if(U_FAILURE(errorCode)) {
             // unexpected error in conversion from Latin-1
             src.remove();
@@ -235,7 +235,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
         if(mXMLDecl.reset(src).lookingAt(0, errorCode)) {
             int32_t declEnd=mXMLDecl.end(errorCode);
             // go beyond <?xml
-            int32_t pos=src.indexOf((UChar)x_l)+1;
+            int32_t pos=src.indexOf((char16_t)x_l)+1;
 
             mAttrValue.reset(src);
             while(pos<declEnd && mAttrValue.lookingAt(pos, errorCode)) {  // loop runs once per attribute on this element.
@@ -255,7 +255,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
                 pos = mAttrValue.end(2, errorCode);
             }
 
-            if(charset==NULL) {
+            if(charset==nullptr) {
                 // default to UTF-8
                 charset="UTF-8";
             }
@@ -272,14 +272,14 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
     capacity=fileLength;        // estimated capacity
     src.getBuffer(capacity);
     src.releaseBuffer(0);       // zero length
-    flush=FALSE;
+    flush=false;
     for(;;) {
         // convert contents of bytes[bytesLength]
         pb=bytes;
         for(;;) {
             length=src.length();
             buffer=toUCharPtr(src.getBuffer(capacity));
-            if(buffer==NULL) {
+            if(buffer==nullptr) {
                 // unexpected failure to reserve some string capacity
                 errorCode=U_MEMORY_ALLOCATION_ERROR;
                 goto exit;
@@ -289,7 +289,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
             ucnv_toUnicode(
                 cnv, &pu, buffer+src.getCapacity(),
                 &pb, bytes+bytesLength,
-                NULL, FALSE, &errorCode);
+                nullptr, false, &errorCode);
             src.releaseBuffer(U_SUCCESS(errorCode) ? (int32_t)(pu-buffer) : 0);
             if(errorCode==U_BUFFER_OVERFLOW_ERROR) {
                 errorCode=U_ZERO_ERROR;
@@ -311,7 +311,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
         bytesLength=T_FileStream_read(f, bytes, (int32_t)sizeof(bytes));
         if(bytesLength==0) {
             // reached end of file, convert once more to flush the converter
-            flush=TRUE;
+            flush=true;
         }
     }
 
@@ -322,17 +322,17 @@ exit:
     if(U_SUCCESS(errorCode)) {
         return parse(src, errorCode);
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 
 UXMLElement *
 UXMLParser::parse(const UnicodeString &src, UErrorCode &status) {
     if(U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
 
-    UXMLElement   *root = NULL;
+    UXMLElement   *root = nullptr;
     fPos = 0; // TODO use just a local pos variable and pass it into functions
               // where necessary?
 
@@ -373,7 +373,7 @@ UXMLParser::parse(const UnicodeString &src, UErrorCode &status) {
         root = createElement(mXMLElemEmpty, status);
         fPos = mXMLElemEmpty.end(status);
     } else {
-        if (mXMLElemStart.lookingAt(fPos, status) == FALSE) {
+        if (mXMLElemStart.lookingAt(fPos, status) == false) {
             error("Root Element expected", status);
             goto errorExit;
         }
@@ -403,7 +403,7 @@ UXMLParser::parse(const UnicodeString &src, UErrorCode &status) {
             UnicodeString s = scanContent(status);
             if (s.length() > 0) {
                 mXMLSP.reset(s);
-                if (mXMLSP.matches(status) == FALSE) {
+                if (mXMLSP.matches(status) == false) {
                     // This chunk of text contains something other than just
                     //  white space. Make a child node for it.
                     replaceCharRefs(s, status);
@@ -435,7 +435,7 @@ UXMLParser::parse(const UnicodeString &src, UErrorCode &status) {
                 }
                 if (fElementStack.empty()) {
                     // Close of the root element.  We're done with the doc.
-                    el = NULL;
+                    el = nullptr;
                     break;
                 }
                 el = (UXMLElement *)fElementStack.pop();
@@ -455,7 +455,7 @@ UXMLParser::parse(const UnicodeString &src, UErrorCode &status) {
             break;
         }
 
-        if (el != NULL || !fElementStack.empty()) {
+        if (el != nullptr || !fElementStack.empty()) {
             // We bailed out early, for some reason.
             error("Root element not closed.", status);
             goto errorExit;
@@ -477,7 +477,7 @@ UXMLParser::parse(const UnicodeString &src, UErrorCode &status) {
 
 errorExit:
     delete root;
-    return NULL;
+    return nullptr;
 }
 
 //
@@ -501,8 +501,8 @@ UXMLParser::createElement(RegexMatcher  &mEl, UErrorCode &status) {
         //   that parsed the attribute, which couldn't conveniently strip them.
         attValue.remove(0,1);                    // one char from the beginning
         attValue.truncate(attValue.length()-1);  // and one from the end.
-
-        // XML Attribue value normalization.
+        
+        // XML Attribute value normalization. 
         // This is one of the really screwy parts of the XML spec.
         // See http://www.w3.org/TR/2004/REC-xml11-20040204/#AVNormalize
         // Note that non-validating parsers must treat all entities as type CDATA
@@ -514,7 +514,7 @@ UXMLParser::createElement(RegexMatcher  &mEl, UErrorCode &status) {
 
         // Next change all xml white space chars to plain \u0020 spaces.
         mAttrNormalizer.reset(attValue);
-        UnicodeString oneSpace((UChar)0x0020);
+        UnicodeString oneSpace((char16_t)0x0020);
         attValue = mAttrNormalizer.replaceAll(oneSpace, status);
 
         // Replace character entities.
@@ -569,7 +569,7 @@ UXMLParser::scanContent(UErrorCode &status) {
         // Normalize the new-lines.  (Before char ref substitution)
         mNewLineNormalizer.reset(result);
         result = mNewLineNormalizer.replaceAll(fOneLF, status);
-
+        
         // TODO:  handle CDATA
         fPos = mXMLCharData.end(0, status);
     }
@@ -592,18 +592,18 @@ UXMLParser::replaceCharRefs(UnicodeString &s, UErrorCode &status) {
     mAmps.reset(s);
     // See the initialization for the regex matcher mAmps.
     //    Which entity we've matched is determined by which capture group has content,
-    //      which is flaged by start() of that group not being -1.
+    //      which is flagged by start() of that group not being -1.
     while (mAmps.find()) {
         if (mAmps.start(1, status) != -1) {
-            replacement.setTo((UChar)x_AMP);
+            replacement.setTo((char16_t)x_AMP);
         } else if (mAmps.start(2, status) != -1) {
-            replacement.setTo((UChar)x_LT);
+            replacement.setTo((char16_t)x_LT);
         } else if (mAmps.start(3, status) != -1) {
-            replacement.setTo((UChar)x_GT);
+            replacement.setTo((char16_t)x_GT);
         } else if (mAmps.start(4, status) != -1) {
-            replacement.setTo((UChar)x_APOS);
+            replacement.setTo((char16_t)x_APOS);
         } else if (mAmps.start(5, status) != -1) {
-            replacement.setTo((UChar)x_QUOT);
+            replacement.setTo((char16_t)x_QUOT);
         } else if (mAmps.start(6, status) != -1) {
             UnicodeString hexString = mAmps.group(6, status);
             UChar32 val = 0;
@@ -639,7 +639,7 @@ UXMLParser::error(const char *message, UErrorCode &status) {
     int  line = 0;
     int  ci = 0;
     while (ci < fPos && ci>=0) {
-        ci = src.indexOf((UChar)0x0a, ci+1);
+        ci = src.indexOf((char16_t)0x0a, ci+1);
         line++;
     }
     fprintf(stderr, "Error: %s at line %d\n", message, line);
@@ -653,7 +653,7 @@ UXMLParser::error(const char *message, UErrorCode &status) {
 const UnicodeString *
 UXMLParser::intern(const UnicodeString &s, UErrorCode &errorCode) {
     const UHashElement *he=fNames.find(s);
-    if(he!=NULL) {
+    if(he!=nullptr) {
         // already a known name, return its hashed key pointer
         return (const UnicodeString *)he->key.pointer;
     } else {
@@ -667,12 +667,12 @@ UXMLParser::intern(const UnicodeString &s, UErrorCode &errorCode) {
 const UnicodeString *
 UXMLParser::findName(const UnicodeString &s) const {
     const UHashElement *he=fNames.find(s);
-    if(he!=NULL) {
+    if(he!=nullptr) {
         // a known name, return its hashed key pointer
         return (const UnicodeString *)he->key.pointer;
     } else {
         // unknown name
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -684,7 +684,7 @@ UXMLElement::UXMLElement(const UXMLParser *parser, const UnicodeString *name, UE
    fAttNames(errorCode),
    fAttValues(errorCode),
    fChildren(errorCode),
-   fParent(NULL)
+   fParent(nullptr)
 {
 }
 
@@ -718,7 +718,7 @@ UXMLElement::appendText(UnicodeString &text, UBool recurse) const {
     for(i=0; i<count; ++i) {
         node=(const UObject *)fChildren.elementAt(i);
         const UnicodeString *s=dynamic_cast<const UnicodeString *>(node);
-        if(s!=NULL) {
+        if(s!=nullptr) {
             text.append(*s);
         } else if(recurse) /* must be a UXMLElement */ {
             ((const UXMLElement *)node)->appendText(text, recurse);
@@ -738,7 +738,7 @@ UXMLElement::getAttribute(int32_t i, UnicodeString &name, UnicodeString &value) 
         value.setTo(*(const UnicodeString *)fAttValues.elementAt(i));
         return &value; // or return (UnicodeString *)fAttValues.elementAt(i);
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -747,8 +747,8 @@ UXMLElement::getAttribute(const UnicodeString &name) const {
     // search for the attribute name by comparing the interned pointer,
     // not the string contents
     const UnicodeString *p=fParser->findName(name);
-    if(p==NULL) {
-        return NULL; // no such attribute seen by the parser at all
+    if(p==nullptr) {
+        return nullptr; // no such attribute seen by the parser at all
     }
 
     int32_t i, count=fAttNames.size();
@@ -757,7 +757,7 @@ UXMLElement::getAttribute(const UnicodeString &name) const {
             return (const UnicodeString *)fAttValues.elementAt(i);
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 int32_t
@@ -769,21 +769,21 @@ const UObject *
 UXMLElement::getChild(int32_t i, UXMLNodeType &type) const {
     if(0<=i && i<fChildren.size()) {
         const UObject *node=(const UObject *)fChildren.elementAt(i);
-        if(dynamic_cast<const UXMLElement *>(node)!=NULL) {
+        if(dynamic_cast<const UXMLElement *>(node)!=nullptr) {
             type=UXML_NODE_TYPE_ELEMENT;
         } else {
             type=UXML_NODE_TYPE_STRING;
         }
         return node;
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 
 const UXMLElement *
 UXMLElement::nextChildElement(int32_t &i) const {
     if(i<0) {
-        return NULL;
+        return nullptr;
     }
 
     const UObject *node;
@@ -791,11 +791,11 @@ UXMLElement::nextChildElement(int32_t &i) const {
     while(i<count) {
         node=(const UObject *)fChildren.elementAt(i++);
         const UXMLElement *elem=dynamic_cast<const UXMLElement *>(node);
-        if(elem!=NULL) {
+        if(elem!=nullptr) {
             return elem;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 const UXMLElement *
@@ -803,8 +803,8 @@ UXMLElement::getChildElement(const UnicodeString &name) const {
     // search for the element name by comparing the interned pointer,
     // not the string contents
     const UnicodeString *p=fParser->findName(name);
-    if(p==NULL) {
-        return NULL; // no such element seen by the parser at all
+    if(p==nullptr) {
+        return nullptr; // no such element seen by the parser at all
     }
 
     const UObject *node;
@@ -812,15 +812,16 @@ UXMLElement::getChildElement(const UnicodeString &name) const {
     for(i=0; i<count; ++i) {
         node=(const UObject *)fChildren.elementAt(i);
         const UXMLElement *elem=dynamic_cast<const UXMLElement *>(node);
-        if(elem!=NULL) {
+        if(elem!=nullptr) {
             if(p==elem->fName) {
                 return elem;
             }
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 U_NAMESPACE_END
 
 #endif /* !UCONFIG_NO_REGULAR_EXPRESSIONS */
+

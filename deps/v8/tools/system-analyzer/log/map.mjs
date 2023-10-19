@@ -7,8 +7,9 @@ import {LogEntry} from './log.mjs';
 // ===========================================================================
 // Map Log Events
 
-const kChunkHeight = 200;
-const kChunkWidth = 10;
+export const kChunkHeight = 200;
+export const kChunkWidth = 10;
+export const kChunkVisualWidth = 6;
 
 function define(prototype, name, fn) {
   Object.defineProperty(prototype, name, {value: fn, enumerable: false});
@@ -33,7 +34,7 @@ define(Array.prototype, 'last', function() {
 // ===========================================================================
 // Map Log Events
 
-class MapLogEntry extends LogEntry {
+export class MapLogEntry extends LogEntry {
   constructor(id, time) {
     if (!time) throw new Error('Invalid time');
     // Use MapLogEntry.type getter instead of property, since we only know the
@@ -56,12 +57,12 @@ class MapLogEntry extends LogEntry {
     return this.entry?.functionName;
   }
 
-  toString() {
-    return `Map(${this.id})`;
+  get code() {
+    return this.entry?.logEntry;
   }
 
-  toStringLong() {
-    return `Map(${this.id}):\n${this.description}`;
+  toString() {
+    return `Map(${this.id})`;
   }
 
   finalizeRootMap(id) {
@@ -87,7 +88,7 @@ class MapLogEntry extends LogEntry {
     this.leftId = currentId
   }
 
-  parent() {
+  get parent() {
     return this.edge?.from;
   }
 
@@ -125,8 +126,8 @@ class MapLogEntry extends LogEntry {
   position(chunks) {
     const index = this.chunkIndex(chunks);
     if (index === -1) return [0, 0];
-    const xFrom = (index + 1.5) * kChunkWidth;
-    const yFrom = kChunkHeight - chunks[index].yOffset(this);
+    const xFrom = (index * kChunkWidth + kChunkVisualWidth / 2) | 0;
+    const yFrom = kChunkHeight - chunks[index].yOffset(this) | 0;
     return [xFrom, yFrom];
   }
 
@@ -138,7 +139,7 @@ class MapLogEntry extends LogEntry {
       if (edge && edge.isTransition()) {
         transitions[edge.name] = edge;
       }
-      current = current.parent()
+      current = current.parent;
     }
     return transitions;
   }
@@ -161,10 +162,10 @@ class MapLogEntry extends LogEntry {
 
   getParents() {
     let parents = [];
-    let current = this.parent();
+    let current = this.parent;
     while (current) {
       parents.push(current);
-      current = current.parent();
+      current = current.parent;
     }
     return parents;
   }
@@ -193,8 +194,8 @@ class MapLogEntry extends LogEntry {
 
   static get propertyNames() {
     return [
-      'type', 'reason', 'property', 'functionName', 'sourcePosition', 'script',
-      'id'
+      'type', 'reason', 'property', 'parent', 'functionName', 'sourcePosition',
+      'script', 'code', 'id', 'description'
     ];
   }
 }
@@ -202,7 +203,7 @@ class MapLogEntry extends LogEntry {
 MapLogEntry.cache = new Map();
 
 // ===========================================================================
-class Edge {
+export class Edge {
   constructor(type, name, reason, time, from, to) {
     this.type = type;
     this.name = name;
@@ -326,5 +327,3 @@ class Edge {
         (this.name ? this.name : '')
   }
 }
-
-export {MapLogEntry, Edge, kChunkWidth, kChunkHeight};

@@ -45,12 +45,15 @@ sPowerRegisterSuspendResumeNotification pPowerRegisterSuspendResumeNotification;
 /* User32.dll function pointer */
 sSetWinEventHook pSetWinEventHook;
 
+/* ws2_32.dll function pointer */
+uv_sGetHostNameW pGetHostNameW;
 
-void uv_winapi_init(void) {
+void uv__winapi_init(void) {
   HMODULE ntdll_module;
   HMODULE powrprof_module;
   HMODULE user32_module;
   HMODULE kernel32_module;
+  HMODULE ws2_32_module;
 
   ntdll_module = GetModuleHandleA("ntdll.dll");
   if (ntdll_module == NULL) {
@@ -123,15 +126,22 @@ void uv_winapi_init(void) {
       kernel32_module,
       "GetQueuedCompletionStatusEx");
 
-  powrprof_module = LoadLibraryA("powrprof.dll");
+  powrprof_module = LoadLibraryExA("powrprof.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
   if (powrprof_module != NULL) {
     pPowerRegisterSuspendResumeNotification = (sPowerRegisterSuspendResumeNotification)
       GetProcAddress(powrprof_module, "PowerRegisterSuspendResumeNotification");
   }
 
-  user32_module = LoadLibraryA("user32.dll");
+  user32_module = GetModuleHandleA("user32.dll");
   if (user32_module != NULL) {
     pSetWinEventHook = (sSetWinEventHook)
       GetProcAddress(user32_module, "SetWinEventHook");
+  }
+
+  ws2_32_module = GetModuleHandleA("ws2_32.dll");
+  if (ws2_32_module != NULL) {
+    pGetHostNameW = (uv_sGetHostNameW) GetProcAddress(
+        ws2_32_module,
+        "GetHostNameW");
   }
 }

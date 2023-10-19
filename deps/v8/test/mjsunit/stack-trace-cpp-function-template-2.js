@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --experimental-stack-trace-frames
+// Flags: --allow-natives-syntax --turbofan --experimental-stack-trace-frames
 
 // Verifies that "print" shows up in Error.stack when "bar" is optimized
 // by Turbofan:
@@ -20,6 +20,8 @@ Error.prepareStackTrace = (e, frames) => {
   assertEquals(foo, frames[0].getFunction());
   assertEquals(object.toString, frames[1].getFunction());
   assertEquals("print", frames[2].getFunctionName());
+  // Ensure print function in instantiated for the correct context.
+  assertEquals(print, frames[2].getFunction());
   assertEquals(bar, frames[3].getFunction());
   return frames;
 };

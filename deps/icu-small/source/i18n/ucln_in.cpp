@@ -30,7 +30,7 @@ static const char copyright[] = U_COPYRIGHT_STRING;
 
 static cleanupFunc *gCleanupFunctions[UCLN_I18N_COUNT];
 
-static UBool U_CALLCONV i18n_cleanup(void)
+static UBool U_CALLCONV i18n_cleanup()
 {
     int32_t libType = UCLN_I18N_START;
     (void)copyright;   /* Suppress unused variable warning with clang. */
@@ -39,13 +39,13 @@ static UBool U_CALLCONV i18n_cleanup(void)
         if (gCleanupFunctions[libType])
         {
             gCleanupFunctions[libType]();
-            gCleanupFunctions[libType] = NULL;
+            gCleanupFunctions[libType] = nullptr;
         }
     }
 #if !UCLN_NO_AUTO_CLEANUP && (defined(UCLN_AUTO_ATEXIT) || defined(UCLN_AUTO_LOCAL))
     ucln_unRegisterAutomaticCleanup();
 #endif
-    return TRUE;
+    return true;
 }
 
 void ucln_i18n_registerCleanup(ECleanupI18NType type,
@@ -62,3 +62,4 @@ void ucln_i18n_registerCleanup(ECleanupI18NType type,
     ucln_registerAutomaticCleanup();
 #endif
 }
+

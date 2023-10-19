@@ -3,7 +3,7 @@
 =head1 NAME
 
 EVP_VerifyInit_ex,
-EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal
+EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal_ex, EVP_VerifyFinal
 - EVP signature verification functions
 
 =head1 SYNOPSIS
@@ -12,6 +12,9 @@ EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal
 
  int EVP_VerifyInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl);
  int EVP_VerifyUpdate(EVP_MD_CTX *ctx, const void *d, unsigned int cnt);
+ int EVP_VerifyFinal_ex(EVP_MD_CTX *ctx, const unsigned char *sigbuf,
+                        unsigned int siglen, EVP_PKEY *pkey,
+                        OSSL_LIB_CTX *libctx, const char *propq);
  int EVP_VerifyFinal(EVP_MD_CTX *ctx, unsigned char *sigbuf, unsigned int siglen,
                      EVP_PKEY *pkey);
 
@@ -22,27 +25,32 @@ EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal
 The EVP signature verification routines are a high-level interface to digital
 signatures.
 
-EVP_VerifyInit_ex() sets up verification context B<ctx> to use digest
-B<type> from ENGINE B<impl>. B<ctx> must be created by calling
+EVP_VerifyInit_ex() sets up verification context I<ctx> to use digest
+I<type> from ENGINE I<impl>. I<ctx> must be created by calling
 EVP_MD_CTX_new() before calling this function.
 
-EVP_VerifyUpdate() hashes B<cnt> bytes of data at B<d> into the
-verification context B<ctx>. This function can be called several times on the
-same B<ctx> to include additional data.
+EVP_VerifyUpdate() hashes I<cnt> bytes of data at I<d> into the
+verification context I<ctx>. This function can be called several times on the
+same I<ctx> to include additional data.
 
-EVP_VerifyFinal() verifies the data in B<ctx> using the public key B<pkey>
-and against the B<siglen> bytes at B<sigbuf>.
+EVP_VerifyFinal_ex() verifies the data in I<ctx> using the public key
+I<pkey> and I<siglen> bytes in I<sigbuf>.
+The library context I<libctx> and property query I<propq> are used when creating
+a context to use with the key I<pkey>.
 
-EVP_VerifyInit() initializes verification context B<ctx> to use the default
-implementation of digest B<type>.
+EVP_VerifyFinal() is similar to EVP_VerifyFinal_ex() but uses default
+values of NULL for the library context I<libctx> and the property query I<propq>.
+
+EVP_VerifyInit() initializes verification context I<ctx> to use the default
+implementation of digest I<type>.
 
 =head1 RETURN VALUES
 
 EVP_VerifyInit_ex() and EVP_VerifyUpdate() return 1 for success and 0 for
 failure.
 
-EVP_VerifyFinal() returns 1 for a correct signature, 0 for failure and -1 if some
-other error occurred.
+EVP_VerifyFinal_ex() and EVP_VerifyFinal() return 1 for a correct
+signature, 0 for failure and a negative value if some other error occurred.
 
 The error codes can be obtained by L<ERR_get_error(3)>.
 
@@ -81,13 +89,17 @@ L<EVP_SignInit(3)>,
 L<EVP_DigestInit(3)>,
 L<evp(7)>, L<HMAC(3)>, L<MD2(3)>,
 L<MD5(3)>, L<MDC2(3)>, L<RIPEMD160(3)>,
-L<SHA1(3)>, L<dgst(1)>
+L<SHA1(3)>, L<openssl-dgst(1)>
+
+=head1 HISTORY
+
+The function EVP_VerifyFinal_ex() was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

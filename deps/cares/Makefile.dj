@@ -1,0 +1,102 @@
+#
+# c-ares Makefile for djgpp/gcc/Watt-32.
+#   By Gisle Vanem <gvanem@yahoo.no> 2004 - 2020.
+#
+include src/lib/Makefile.inc
+
+CSOURCES := $(addprefix src/lib/, $(CSOURCES))
+CSOURCES := $(filter-out src/lib/windows_port.c, $(CSOURCES))
+
+VPATH = src/lib src/tools
+
+#
+# Root directory for Waterloo tcp/ip.
+# WATT_ROOT should be set during Watt-32 install.
+#
+WATT32_ROOT = $(realpath $(WATT_ROOT))
+WATT32_LIB  = $(WATT32_ROOT)/lib/libwatt.a
+
+OBJ_DIR = djgpp
+
+CFLAGS = -g -O2 -I./include -I./src/lib \
+         -I$(WATT32_ROOT)/inc -Wall \
+         -DWATT32 -DHAVE_CONFIG_H   \
+         -Dselect=select_s
+
+LDFLAGS = -s
+
+ifeq ($(OS),Windows_NT)
+  #
+  # Windows hosted djgpp cross compiler. Get it from:
+  #   https://github.com/andrewwutw/build-djgpp/releases
+  #
+  DJ_PREFIX ?= c:/some-path/djgpp/bin/i586-pc-msdosdjgpp-
+  CC = $(DJ_PREFIX)gcc
+
+else
+  #
+  # The normal djgpp 'gcc' for MSDOS.
+  #
+  CC = gcc
+endif
+
+OBJECTS = $(addprefix $(OBJ_DIR)/, \
+            $(notdir $(CSOURCES:.c=.o)))
+
+GENERATED = src/lib/ares_config.h \
+            include/ares_build.h
+
+TARGETS = libcares.a acountry.exe adig.exe ahost.exe
+
+.SECONDARY: $(OBJ_DIR)/ares_getopt.o
+
+all: $(OBJ_DIR) $(GENERATED) $(TARGETS)
+	@echo Welcome to c-ares.
+
+libcares.a: $(OBJECTS)
+	ar rs $@ $(OBJECTS)
+
+src/lib/ares_config.h: src/lib/config-dos.h
+	cp --update $< $@
+
+include/ares_build.h: include/ares_build.h.dist
+	cp --update $< $@
+
+%.exe: src/tools/%.c $(OBJ_DIR)/ares_getopt.o libcares.a
+	$(call compile_and_link, $@, $^ $(WATT32_LIB))
+
+# Clean generated files and objects.
+#
+clean:
+	- rm -f depend.dj $(GENERATED) $(OBJ_DIR)/*.o
+	- rmdir $(OBJ_DIR)
+
+# Clean everything
+#
+realclean vclean: clean
+	- rm -f $(TARGETS) $(TARGETS:.exe=.map)
+
+$(OBJ_DIR):
+	- mkdir $@
+
+$(OBJ_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) -o $@ -c $<
+	@echo
+
+define compile_and_link
+  $(CC) -o $(1) $(CFLAGS) $(LDFLAGS) -Wl,--print-map,--sort-common $(2) > $(1:.exe=.map)
+  @echo
+endef
+
+DEP_REPLACE = sed -e 's@\(.*\)\.o: @\n$$(OBJ_DIR)\/\1.o: @' \
+                  -e 's@$(WATT32_ROOT)@$$(WATT32_ROOT)@g'
+
+#
+# One may have to do 'make -f Makefile.dj clean' first in case
+# a foreign 'curl_config.h' is making trouble.
+#
+depend: $(GENERATED) Makefile.dj
+	$(CC) -MM $(CFLAGS) $(CSOURCES) | $(DEP_REPLACE) > depend.dj
+
+-include depend.dj
+

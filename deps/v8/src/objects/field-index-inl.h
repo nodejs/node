@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_FIELD_INDEX_INL_H_
 #define V8_OBJECTS_FIELD_INDEX_INL_H_
 
+#include "src/ic/handler-configuration.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/field-index.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -19,16 +21,33 @@ FieldIndex FieldIndex::ForInObjectOffset(int offset, Encoding encoding) {
   return FieldIndex(true, offset, encoding, 0, 0);
 }
 
-FieldIndex FieldIndex::ForPropertyIndex(Map map, int property_index,
+FieldIndex FieldIndex::ForSmiLoadHandler(Tagged<Map> map, int32_t handler) {
+  DCHECK_EQ(LoadHandler::KindBits::decode(handler), LoadHandler::Kind::kField);
+
+  bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
+  int inobject_properties = map->GetInObjectProperties();
+  int first_inobject_offset;
+  if (is_inobject) {
+    first_inobject_offset = map->GetInObjectPropertyOffset(0);
+  } else {
+    first_inobject_offset = FixedArray::kHeaderSize;
+  }
+  return FieldIndex(
+      is_inobject, LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize,
+      LoadHandler::IsDoubleBits::decode(handler) ? kDouble : kTagged,
+      inobject_properties, first_inobject_offset);
+}
+
+FieldIndex FieldIndex::ForPropertyIndex(Tagged<Map> map, int property_index,
                                         Representation representation) {
-  DCHECK(map.instance_type() >= FIRST_NONSTRING_TYPE);
-  int inobject_properties = map.GetInObjectProperties();
+  DCHECK(map->instance_type() >= FIRST_NONSTRING_TYPE);
+  int inobject_properties = map->GetInObjectProperties();
   bool is_inobject = property_index < inobject_properties;
   int first_inobject_offset;
   int offset;
   if (is_inobject) {
-    first_inobject_offset = map.GetInObjectPropertyOffset(0);
-    offset = map.GetInObjectPropertyOffset(property_index);
+    first_inobject_offset = map->GetInObjectPropertyOffset(0);
+    offset = map->GetInObjectPropertyOffset(property_index);
   } else {
     first_inobject_offset = FixedArray::kHeaderSize;
     property_index -= inobject_properties;
@@ -60,15 +79,21 @@ int FieldIndex::GetLoadByFieldIndex() const {
   return is_double() ? (result | 1) : result;
 }
 
-FieldIndex FieldIndex::ForDescriptor(Map map, InternalIndex descriptor_index) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(map);
-  return ForDescriptor(isolate, map, descriptor_index);
+FieldIndex FieldIndex::ForDescriptor(Tagged<Map> map,
+                                     InternalIndex descriptor_index) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(map);
+  return ForDescriptor(cage_base, map, descriptor_index);
 }
 
-FieldIndex FieldIndex::ForDescriptor(IsolateRoot isolate, Map map,
+FieldIndex FieldIndex::ForDescriptor(PtrComprCageBase cage_base,
+                                     Tagged<Map> map,
                                      InternalIndex descriptor_index) {
-  PropertyDetails details = map.instance_descriptors(isolate, kRelaxedLoad)
-                                .GetDetails(descriptor_index);
+  PropertyDetails details = map->instance_descriptors(cage_base, kRelaxedLoad)
+                                ->GetDetails(descriptor_index);
+  return ForDetails(map, details);
+}
+
+FieldIndex FieldIndex::ForDetails(Tagged<Map> map, PropertyDetails details) {
   int field_index = details.field_index();
   return ForPropertyIndex(map, field_index, details.representation());
 }

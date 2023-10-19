@@ -1,13 +1,3 @@
-/*
-Distributed under both the W3C Test Suite License [1] and the W3C
-3-clause BSD License [2]. To contribute to a W3C Test Suite, see the
-policies and contribution forms [3].
-
-[1] http://www.w3.org/Consortium/Legal/2008/04-testsuite-license
-[2] http://www.w3.org/Consortium/Legal/2008/03-bsd-license
-[3] http://www.w3.org/2004/10/27-testcases
-*/
-
 /* For user documentation see docs/_writing-tests/idlharness.md */
 
 /**
@@ -101,6 +91,16 @@ function globalOf(func)
     return self;
 }
 
+// https://esdiscuss.org/topic/isconstructor#content-11
+function isConstructor(o) {
+    try {
+        new (new Proxy(o, {construct: () => ({})}));
+        return true;
+    } catch(e) {
+        return false;
+    }
+}
+
 function throwOrReject(a_test, operation, fn, obj, args, message, cb)
 {
     if (operation.idlType.generic !== "Promise") {
@@ -130,17 +130,6 @@ function awaitNCallbacks(n, cb, ctx)
         }
     };
 }
-
-var fround =
-(function(){
-    if (Math.fround) return Math.fround;
-
-    var arr = new Float32Array(1);
-    return function fround(n) {
-        arr[0] = n;
-        return arr[0];
-    };
-})();
 
 /// IdlHarnessError ///
 // Entry point
@@ -185,31 +174,15 @@ self.IdlArray = function()
 
     /**
      * When adding multiple collections of IDLs one at a time, an earlier one
-     * might contain a partial interface or implements statement that depends
+     * might contain a partial interface or includes statement that depends
      * on a later one.  Save these up and handle them right before we run
      * tests.
      *
-     * .partials is simply an array of objects from WebIDLParser.js'
-     * "partialinterface" production.  .implements maps strings to arrays of
-     * strings, such that
-     *
-     *   A implements B;
-     *   A implements C;
-     *   D implements E;
-     *
-     * results in this["implements"] = { A: ["B", "C"], D: ["E"] }.
-     *
-     * Similarly,
-     *
-     *   interface A : B {};
-     *   interface B : C {};
-     *
-     * results in this["inheritance"] = { A: "B", B: "C" }
+     * Both this.partials and this.includes will be the objects as parsed by
+     * WebIDLParser.js, not wrapped in IdlInterface or similar.
      */
     this.partials = [];
-    this["implements"] = {};
-    this["includes"] = {};
-    this["inheritance"] = {};
+    this.includes = [];
 
     /**
      * Record of skipped IDL items, in case we later realize that they are a
@@ -261,15 +234,15 @@ IdlArray.prototype.internal_add_dependency_idls = function(parsed_idls, options)
     const new_options = { only: [] }
 
     const all_deps = new Set();
-    Object.values(this.inheritance).forEach(v => all_deps.add(v));
-    Object.entries(this.implements).forEach(([k, v]) => {
-        all_deps.add(k);
-        all_deps.add(v);
+    Object.values(this.members).forEach(v => {
+        if (v.base) {
+            all_deps.add(v.base);
+        }
     });
-    // NOTE: If 'A includes B' for B that we care about, then A is also a dep.
-    Object.keys(this.includes).forEach(k => {
-        all_deps.add(k);
-        this.includes[k].forEach(v => all_deps.add(v));
+    // Add both 'A' and 'B' for each 'A includes B' entry.
+    this.includes.forEach(i => {
+        all_deps.add(i.target);
+        all_deps.add(i.includes);
     });
     this.partials.forEach(p => all_deps.add(p.name));
     // Add 'TypeOfType' for each "typedef TypeOfType MyType;" entry.
@@ -328,9 +301,6 @@ IdlArray.prototype.internal_add_dependency_idls = function(parsed_idls, options)
         var deps = [];
         if (parsed.name) {
             deps.push(parsed.name);
-        } else if (parsed.type === "implements") {
-            deps.push(parsed.target);
-            deps.push(parsed.implements);
         } else if (parsed.type === "includes") {
             deps.push(parsed.target);
             deps.push(parsed.includes);
@@ -358,7 +328,7 @@ IdlArray.prototype.internal_add_dependency_idls = function(parsed_idls, options)
             }
 
             const follow_up = new Set();
-            for (const dep_type of ["inheritance", "implements", "includes"]) {
+            for (const dep_type of ["inheritance", "includes"]) {
                 if (parsed[dep_type]) {
                     const inheriting = parsed[dep_type];
                     const inheritor = parsed.name || parsed.target;
@@ -447,31 +417,13 @@ IdlArray.prototype.internal_add_idls = function(parsed_idls, options)
             return;
         }
 
-        if (parsed_idl.type == "implements")
-        {
-            if (should_skip(parsed_idl.target))
-            {
-                return;
-            }
-            if (!(parsed_idl.target in this["implements"]))
-            {
-                this["implements"][parsed_idl.target] = [];
-            }
-            this["implements"][parsed_idl.target].push(parsed_idl["implements"]);
-            return;
-        }
-
         if (parsed_idl.type == "includes")
         {
             if (should_skip(parsed_idl.target))
             {
                 return;
             }
-            if (!(parsed_idl.target in this["includes"]))
-            {
-                this["includes"][parsed_idl.target] = [];
-            }
-            this["includes"][parsed_idl.target].push(parsed_idl["includes"]);
+            this.includes.push(parsed_idl);
             return;
         }
 
@@ -483,16 +435,6 @@ IdlArray.prototype.internal_add_idls = function(parsed_idls, options)
         if (parsed_idl.name in this.members)
         {
             throw new IdlHarnessError("Duplicate identifier " + parsed_idl.name);
-        }
-
-        if (parsed_idl["inheritance"]) {
-            // NOTE: Clash should be impossible (would require redefinition of parsed_idl.name).
-            if (parsed_idl.name in this["inheritance"]
-                && parsed_idl["inheritance"] != this["inheritance"][parsed_idl.name]) {
-                throw new IdlHarnessError(
-                    `Inheritance for ${parsed_idl.name} was already defined`);
-            }
-            this["inheritance"][parsed_idl.name] = parsed_idl["inheritance"];
         }
 
         switch(parsed_idl.type)
@@ -562,67 +504,11 @@ IdlArray.prototype.prevent_multiple_testing = function(name)
     this.members[name].prevent_multiple_testing = true;
 };
 
-IdlArray.prototype.recursively_get_implements = function(interface_name)
-{
-    /**
-     * Helper function for test().  Returns an array of things that implement
-     * interface_name, so if the IDL contains
-     *
-     *   A implements B;
-     *   B implements C;
-     *   B implements D;
-     *
-     * then recursively_get_implements("A") should return ["B", "C", "D"].
-     */
-    var ret = this["implements"][interface_name];
-    if (ret === undefined)
-    {
-        return [];
-    }
-    for (var i = 0; i < this["implements"][interface_name].length; i++)
-    {
-        ret = ret.concat(this.recursively_get_implements(ret[i]));
-        if (ret.indexOf(ret[i]) != ret.lastIndexOf(ret[i]))
-        {
-            throw new IdlHarnessError("Circular implements statements involving " + ret[i]);
-        }
-    }
-    return ret;
-};
-
-IdlArray.prototype.recursively_get_includes = function(interface_name)
-{
-    /**
-     * Helper function for test().  Returns an array of things that implement
-     * interface_name, so if the IDL contains
-     *
-     *   A includes B;
-     *   B includes C;
-     *   B includes D;
-     *
-     * then recursively_get_includes("A") should return ["B", "C", "D"].
-     */
-    var ret = this["includes"][interface_name];
-    if (ret === undefined)
-    {
-        return [];
-    }
-    for (var i = 0; i < this["includes"][interface_name].length; i++)
-    {
-        ret = ret.concat(this.recursively_get_includes(ret[i]));
-        if (ret.indexOf(ret[i]) != ret.lastIndexOf(ret[i]))
-        {
-            throw new IdlHarnessError("Circular includes statements involving " + ret[i]);
-        }
-    }
-    return ret;
-};
-
 IdlArray.prototype.is_json_type = function(type)
 {
     /**
      * Checks whether type is a JSON type as per
-     * https://heycam.github.io/webidl/#dfn-json-types
+     * https://webidl.spec.whatwg.org/#dfn-json-types
      */
 
     var idlType = type.idlType;
@@ -678,6 +564,8 @@ IdlArray.prototype.is_json_type = function(type)
        case "Uint16Array":
        case "Uint32Array":
        case "Uint8ClampedArray":
+       case "BigInt64Array":
+       case "BigUint64Array":
        case "Float32Array":
        case "Float64Array":
        case "ArrayBuffer":
@@ -695,25 +583,23 @@ IdlArray.prototype.is_json_type = function(type)
 
            //  dictionaries where all of their members are JSON types
            if (thing instanceof IdlDictionary) {
-               var stack = thing.get_inheritance_stack();
-               var map = new Map();
-               while (stack.length)
-               {
-                   stack.pop().members.forEach(function(m) {
-                       map.set(m.name, m.idlType)
-                   });
+               const map = new Map();
+               for (const dict of thing.get_reverse_inheritance_stack()) {
+                   for (const m of dict.members) {
+                       map.set(m.name, m.idlType);
+                   }
                }
                return Array.from(map.values()).every(this.is_json_type, this);
            }
 
            //  interface types that have a toJSON operation declared on themselves or
-           //  one of their inherited or consequential interfaces.
+           //  one of their inherited interfaces.
            if (thing instanceof IdlInterface) {
                var base;
                while (thing)
                {
                    if (thing.has_to_json_regular_operation()) { return true; }
-                   var mixins = this.implements[thing.name] || this.includes[thing.name];
+                   var mixins = this.includes[thing.name];
                    if (mixins) {
                        mixins = mixins.map(function(id) {
                            var mixin = this.members[id];
@@ -751,10 +637,16 @@ function exposure_set(object, default_set) {
     if (exposed && exposed.length) {
         const { rhs } = exposed[0];
         // Could be a list or a string.
-        const set = rhs.type === "identifier-list" ?
+        const set =
+            rhs.type === "*" ?
+            [ "*" ] :
+            rhs.type === "identifier-list" ?
             rhs.value.map(id => id.value) :
             [ rhs.value ];
         result = new Set(set);
+    }
+    if (result && result.has("*")) {
+        return "*";
     }
     if (result && result.has("Worker")) {
         result.delete("Worker");
@@ -766,7 +658,10 @@ function exposure_set(object, default_set) {
 }
 
 function exposed_in(globals) {
-    if ('document' in self) {
+    if (globals === "*") {
+        return true;
+    }
+    if ('Window' in self) {
         return globals.has("Window");
     }
     if ('DedicatedWorkerGlobalScope' in self &&
@@ -780,6 +675,10 @@ function exposed_in(globals) {
     if ('ServiceWorkerGlobalScope' in self &&
         self instanceof ServiceWorkerGlobalScope) {
         return globals.has("ServiceWorker");
+    }
+    if (Object.getPrototypeOf(self) === Object.prototype) {
+        // ShadowRealm - only exposed with `"*"`.
+        return false;
     }
     throw new IdlHarnessError("Unexpected global object");
 }
@@ -813,66 +712,9 @@ IdlArray.prototype.test = function()
 {
     /** Entry point.  See documentation at beginning of file. */
 
-    // First merge in all the partial interfaces and implements statements we
-    // encountered.
-    this.collapse_partials();
-
-    for (var lhs in this["implements"])
-    {
-        this.recursively_get_implements(lhs).forEach(function(rhs)
-        {
-            var errStr = lhs + " implements " + rhs + ", but ";
-            if (!(lhs in this.members)) throw errStr + lhs + " is undefined.";
-            if (!(this.members[lhs] instanceof IdlInterface)) throw errStr + lhs + " is not an interface.";
-            if (!(rhs in this.members)) throw errStr + rhs + " is undefined.";
-            if (!(this.members[rhs] instanceof IdlInterface)) throw errStr + rhs + " is not an interface.";
-
-            if (this.members[rhs].members.length) {
-                test(function () {
-                    var clash = this.members[rhs].members.find(function(member) {
-                        return this.members[lhs].members.find(function(m) {
-                            return this.are_duplicate_members(m, member);
-                        }.bind(this));
-                    }.bind(this));
-                    this.members[rhs].members.forEach(function(member) {
-                        this.members[lhs].members.push(new IdlInterfaceMember(member));
-                    }.bind(this));
-                    assert_true(!clash, "member " + (clash && clash.name) + " is unique");
-                }.bind(this), lhs + " implements " + rhs + ": member names are unique");
-            }
-        }.bind(this));
-    }
-    this["implements"] = {};
-
-    for (var lhs in this["includes"])
-    {
-        this.recursively_get_includes(lhs).forEach(function(rhs)
-        {
-            var errStr = lhs + " includes " + rhs + ", but ";
-            if (!(lhs in this.members)) throw errStr + lhs + " is undefined.";
-            if (!(this.members[lhs] instanceof IdlInterface)) throw errStr + lhs + " is not an interface.";
-            if (!(rhs in this.members)) throw errStr + rhs + " is undefined.";
-            if (!(this.members[rhs] instanceof IdlInterface)) throw errStr + rhs + " is not an interface.";
-
-            if (this.members[rhs].members.length) {
-                test(function () {
-                    var clash = this.members[rhs].members.find(function(member) {
-                        return this.members[lhs].members.find(function(m) {
-                            return this.are_duplicate_members(m, member);
-                        }.bind(this));
-                    }.bind(this));
-                    this.members[rhs].members.forEach(function(member) {
-                        assert_true(
-                            this.members[lhs].members.every(m => !this.are_duplicate_members(m, member)),
-                            "member " + member.name + " is unique");
-                        this.members[lhs].members.push(new IdlInterfaceMember(member));
-                    }.bind(this));
-                    assert_true(!clash, "member " + (clash && clash.name) + " is unique");
-                }.bind(this), lhs + " includes " + rhs + ": member names are unique");
-            }
-        }.bind(this));
-    }
-    this["includes"] = {};
+    // First merge in all partial definitions and interface mixins.
+    this.merge_partials();
+    this.merge_mixins();
 
     // Assert B defined for A : B
     for (const member of Object.values(this.members).filter(m => m.base)) {
@@ -886,7 +728,7 @@ IdlArray.prototype.test = function()
             if (!rhs_is_interface) throw new IdlHarnessError(`${lhs} inherits ${rhs}, but ${rhs} is not an interface.`);
         }
         // Check for circular dependencies.
-        member.get_inheritance_stack();
+        member.get_reverse_inheritance_stack();
     }
 
     Object.getOwnPropertyNames(this.members).forEach(function(memberName) {
@@ -921,7 +763,7 @@ IdlArray.prototype.test = function()
     }
 };
 
-IdlArray.prototype.collapse_partials = function()
+IdlArray.prototype.merge_partials = function()
 {
     const testedPartials = new Map();
     this.partials.forEach(function(parsed_idl)
@@ -975,6 +817,13 @@ IdlArray.prototype.collapse_partials = function()
                     test(function () {
                         const partialExposure = exposure_set(parsed_idl);
                         const memberExposure = exposure_set(this.members[parsed_idl.name]);
+                        if (memberExposure === "*") {
+                            return;
+                        }
+                        if (partialExposure === "*") {
+                            throw new IdlHarnessError(
+                                `Partial ${parsed_idl.name} ${parsed_idl.type} is exposed everywhere, the original ${parsed_idl.type} is not.`);
+                        }
                         partialExposure.forEach(name => {
                             if (!memberExposure || !memberExposure.has(name)) {
                                 throw new IdlHarnessError(
@@ -1013,6 +862,39 @@ IdlArray.prototype.collapse_partials = function()
         }
     }.bind(this));
     this.partials = [];
+}
+
+IdlArray.prototype.merge_mixins = function()
+{
+    for (const parsed_idl of this.includes)
+    {
+        const lhs = parsed_idl.target;
+        const rhs = parsed_idl.includes;
+
+        var errStr = lhs + " includes " + rhs + ", but ";
+        if (!(lhs in this.members)) throw errStr + lhs + " is undefined.";
+        if (!(this.members[lhs] instanceof IdlInterface)) throw errStr + lhs + " is not an interface.";
+        if (!(rhs in this.members)) throw errStr + rhs + " is undefined.";
+        if (!(this.members[rhs] instanceof IdlInterface)) throw errStr + rhs + " is not an interface.";
+
+        if (this.members[rhs].members.length) {
+            test(function () {
+                var clash = this.members[rhs].members.find(function(member) {
+                    return this.members[lhs].members.find(function(m) {
+                        return this.are_duplicate_members(m, member);
+                    }.bind(this));
+                }.bind(this));
+                this.members[rhs].members.forEach(function(member) {
+                    assert_true(
+                        this.members[lhs].members.every(m => !this.are_duplicate_members(m, member)),
+                        "member " + member.name + " is unique");
+                    this.members[lhs].members.push(new IdlInterfaceMember(member));
+                }.bind(this));
+                assert_true(!clash, "member " + (clash && clash.name) + " is unique");
+            }.bind(this), lhs + " includes " + rhs + ": member names are unique");
+        }
+    }
+    this.includes = [];
 }
 
 IdlArray.prototype.are_duplicate_members = function(m1, m2) {
@@ -1080,7 +962,7 @@ IdlArray.prototype.assert_type_is = function(value, type)
         return;
     }
 
-    if (type.generic === "sequence")
+    if (type.generic === "sequence" || type.generic == "ObservableArray")
     {
         assert_true(Array.isArray(value), "should be an Array");
         if (!value.length)
@@ -1116,7 +998,7 @@ IdlArray.prototype.assert_type_is = function(value, type)
 
     switch(type)
     {
-        case "void":
+        case "undefined":
             assert_equals(value, undefined);
             return;
 
@@ -1172,7 +1054,7 @@ IdlArray.prototype.assert_type_is = function(value, type)
 
         case "float":
             assert_equals(typeof value, "number");
-            assert_equals(value, fround(value), "float rounded to 32-bit float should be itself");
+            assert_equals(value, Math.fround(value), "float rounded to 32-bit float should be itself");
             assert_not_equals(value, Infinity);
             assert_not_equals(value, -Infinity);
             assert_not_equals(value, NaN);
@@ -1188,7 +1070,7 @@ IdlArray.prototype.assert_type_is = function(value, type)
 
         case "unrestricted float":
             assert_equals(typeof value, "number");
-            assert_equals(value, fround(value), "unrestricted float rounded to 32-bit float should be itself");
+            assert_equals(value, Math.fround(value), "unrestricted float rounded to 32-bit float should be itself");
             return;
 
         case "unrestricted double":
@@ -1236,11 +1118,11 @@ IdlArray.prototype.assert_type_is = function(value, type)
         // We don't want to run the full
         // IdlInterface.prototype.test_instance_of, because that could result
         // in an infinite loop.  TODO: This means we don't have tests for
-        // NoInterfaceObject interfaces, and we also can't test objects that
-        // come from another self.
+        // LegacyNoInterfaceObject interfaces, and we also can't test objects
+        // that come from another self.
         assert_in_array(typeof value, ["object", "function"], "wrong type: not object or function");
         if (value instanceof Object
-        && !this.members[type].has_extended_attribute("NoInterfaceObject")
+        && !this.members[type].has_extended_attribute("LegacyNoInterfaceObject")
         && type in self)
         {
             assert_true(value instanceof self[type], "instanceof " + type);
@@ -1314,8 +1196,8 @@ function IdlDictionary(obj)
 
 IdlDictionary.prototype = Object.create(IdlObject.prototype);
 
-IdlDictionary.prototype.get_inheritance_stack = function() {
-    return IdlInterface.prototype.get_inheritance_stack.call(this);
+IdlDictionary.prototype.get_reverse_inheritance_stack = function() {
+    return IdlInterface.prototype.get_reverse_inheritance_stack.call(this);
 };
 
 /// IdlInterface ///
@@ -1393,7 +1275,7 @@ IdlInterface.prototype.is_global = function()
 /**
  * Value of the LegacyNamespace extended attribute, if any.
  *
- * https://heycam.github.io/webidl/#LegacyNamespace
+ * https://webidl.spec.whatwg.org/#LegacyNamespace
  */
 IdlInterface.prototype.get_legacy_namespace = function()
 {
@@ -1415,10 +1297,10 @@ IdlInterface.prototype.should_have_interface_object = function()
     // environment and:
     // * is a callback interface that has constants declared on it, or
     // * is a non-callback interface that is not declared with the
-    //   [NoInterfaceObject] extended attribute,
+    //   [LegacyNoInterfaceObject] extended attribute,
     // a corresponding property MUST exist on the ECMAScript global object.
 
-    return this.is_callback() ? this.has_constants() : !this.has_extended_attribute("NoInterfaceObject");
+    return this.is_callback() ? this.has_constants() : !this.has_extended_attribute("LegacyNoInterfaceObject");
 };
 
 IdlInterface.prototype.assert_interface_object_exists = function()
@@ -1429,7 +1311,7 @@ IdlInterface.prototype.assert_interface_object_exists = function()
 
 IdlInterface.prototype.get_interface_object = function() {
     if (!this.should_have_interface_object()) {
-        var reason = this.is_callback() ? "lack of declared constants" : "declared [NoInterfaceObject] attribute";
+        var reason = this.is_callback() ? "lack of declared constants" : "declared [LegacyNoInterfaceObject] attribute";
         throw new IdlHarnessError(this.name + " has no interface object due to " + reason);
     }
 
@@ -1437,7 +1319,7 @@ IdlInterface.prototype.get_interface_object = function() {
 };
 
 IdlInterface.prototype.get_qualified_name = function() {
-    // https://heycam.github.io/webidl/#qualified-name
+    // https://webidl.spec.whatwg.org/#qualified-name
     var legacyNamespace = this.get_legacy_namespace();
     if (legacyNamespace) {
         return legacyNamespace + "." + this.name;
@@ -1457,122 +1339,73 @@ IdlInterface.prototype.has_default_to_json_regular_operation = function() {
     });
 };
 
-IdlInterface.prototype.get_inheritance_stack = function() {
-    /**
-     * See https://heycam.github.io/webidl/#create-an-inheritance-stack
-     *
-     * Returns an array of IdlInterface objects which contains itself
-     * and all of its inherited interfaces.
-     *
-     * So given:
-     *
-     *   A : B {};
-     *   B : C {};
-     *   C {};
-     *
-     * then A.get_inheritance_stack() should return [A, B, C],
-     * and B.get_inheritance_stack() should return [B, C].
-     *
-     * Note: as dictionary inheritance is expressed identically by the AST,
-     * this works just as well for getting a stack of inherited dictionaries.
-     */
-
-    var stack = [this];
-    var idl_interface = this;
+/**
+ * Implementation of https://webidl.spec.whatwg.org/#create-an-inheritance-stack
+ * with the order reversed.
+ *
+ * The order is reversed so that the base class comes first in the list, because
+ * this is what all call sites need.
+ *
+ * So given:
+ *
+ *   A : B {};
+ *   B : C {};
+ *   C {};
+ *
+ * then A.get_reverse_inheritance_stack() returns [C, B, A],
+ * and B.get_reverse_inheritance_stack() returns [C, B].
+ *
+ * Note: as dictionary inheritance is expressed identically by the AST,
+ * this works just as well for getting a stack of inherited dictionaries.
+ */
+IdlInterface.prototype.get_reverse_inheritance_stack = function() {
+    const stack = [this];
+    let idl_interface = this;
     while (idl_interface.base) {
-        var base = this.array.members[idl_interface.base];
+        const base = this.array.members[idl_interface.base];
         if (!base) {
             throw new Error(idl_interface.type + " " + idl_interface.base + " not found (inherited by " + idl_interface.name + ")");
         } else if (stack.indexOf(base) > -1) {
-            stack.push(base);
-            let dep_chain = stack.map(i => i.name).join(',');
+            stack.unshift(base);
+            const dep_chain = stack.map(i => i.name).join(',');
             throw new IdlHarnessError(`${this.name} has a circular dependency: ${dep_chain}`);
         }
         idl_interface = base;
-        stack.push(idl_interface);
+        stack.unshift(idl_interface);
     }
     return stack;
 };
 
 /**
  * Implementation of
- * https://heycam.github.io/webidl/#default-tojson-operation
+ * https://webidl.spec.whatwg.org/#default-tojson-operation
  * for testing purposes.
  *
  * Collects the IDL types of the attributes that meet the criteria
  * for inclusion in the default toJSON operation for easy
  * comparison with actual value
  */
-IdlInterface.prototype.default_to_json_operation = function(callback) {
-    var map = new Map(), isDefault = false;
-    this.traverse_inherited_and_consequential_interfaces(function(I) {
+IdlInterface.prototype.default_to_json_operation = function() {
+    const map = new Map()
+    let isDefault = false;
+    for (const I of this.get_reverse_inheritance_stack()) {
         if (I.has_default_to_json_regular_operation()) {
             isDefault = true;
-            I.members.forEach(function(m) {
+            for (const m of I.members) {
                 if (m.special !== "static" && m.type == "attribute" && I.array.is_json_type(m.idlType)) {
                     map.set(m.name, m.idlType);
                 }
-            });
+            }
         } else if (I.has_to_json_regular_operation()) {
             isDefault = false;
         }
-    });
+    }
     return isDefault ? map : null;
 };
 
-/**
- * Traverses inherited interfaces from the top down
- * and imeplemented interfaces inside out.
- * Invokes |callback| on each interface.
- *
- * This is an abstract implementation of the traversal
- * algorithm specified in:
- * https://heycam.github.io/webidl/#collect-attribute-values
- * Given the following inheritance tree:
- *
- *           F
- *           |
- *       C   E - I
- *       |   |
- *       B - D
- *       |
- *   G - A - H - J
- *
- * Invoking traverse_inherited_and_consequential_interfaces() on A
- * would traverse the tree in the following order:
- * C -> B -> F -> E -> I -> D -> A -> G -> H -> J
- */
-
-IdlInterface.prototype.traverse_inherited_and_consequential_interfaces = function(callback) {
-    if (typeof callback != "function") {
-        throw new TypeError();
-    }
-    var stack = this.get_inheritance_stack();
-    _traverse_inherited_and_consequential_interfaces(stack, callback);
-};
-
-function _traverse_inherited_and_consequential_interfaces(stack, callback) {
-    var I = stack.pop();
-    callback(I);
-    var mixins = I.array["implements"][I.name] || I.array["includes"][I.name];
-    if (mixins) {
-        mixins.forEach(function(id) {
-            var mixin = I.array.members[id];
-            if (!mixin) {
-                throw new Error("Interface " + id + " not found (implemented by " + I.name + ")");
-            }
-            var interfaces = mixin.get_inheritance_stack();
-            _traverse_inherited_and_consequential_interfaces(interfaces, callback);
-        });
-    }
-    if (stack.length > 0) {
-        _traverse_inherited_and_consequential_interfaces(stack, callback);
-    }
-}
-
 IdlInterface.prototype.test = function()
 {
-    if (this.has_extended_attribute("NoInterfaceObject") || this.is_mixin())
+    if (this.has_extended_attribute("LegacyNoInterfaceObject") || this.is_mixin())
     {
         // No tests to do without an instance.  TODO: We should still be able
         // to run tests on the prototype object, if we obtain one through some
@@ -1580,10 +1413,16 @@ IdlInterface.prototype.test = function()
         return;
     }
 
-    if (!this.exposed) {
-        subsetTestByKey(this.name, test, function() {
-            assert_false(this.name in self);
-        }.bind(this), this.name + " interface: existence and properties of interface object");
+    // If the interface object is not exposed, only test that. Members can't be
+    // tested either, but objects could still be tested in |test_object|.
+    if (!this.exposed)
+    {
+        if (!this.untested)
+        {
+            subsetTestByKey(this.name, test, function() {
+                assert_false(this.name in self);
+            }.bind(this), this.name + " interface: existence and properties of interface object");
+        }
         return;
     }
 
@@ -1603,23 +1442,16 @@ IdlInterface.prototype.test = function()
     this.test_members();
 };
 
-// This supports both Constructor extended attributes and constructor
-// operations until all idl fragments have been updated.
 IdlInterface.prototype.constructors = function()
 {
-    var extendedAttributes = this.extAttrs
-        .filter(function(attr) { return attr.name == "Constructor"; });
-    var operations = this.members
+    return this.members
         .filter(function(m) { return m.type == "constructor"; });
-    return extendedAttributes.concat(operations);
 }
 
 IdlInterface.prototype.test_self = function()
 {
     subsetTestByKey(this.name, test, function()
     {
-        // This function tests WebIDL as of 2015-01-13.
-
         if (!this.should_have_interface_object()) {
             return;
         }
@@ -1661,8 +1493,6 @@ IdlInterface.prototype.test_self = function()
 
         // "* Its [[Construct]] internal property is set as described in
         //    ECMA-262 section 19.2.2.3."
-        // Tested below if no constructor is defined.  TODO: test constructors
-        // if defined.
 
         // "* Its @@hasInstance property is set as described in ECMA-262
         //    section 19.2.3.8, unless otherwise specified."
@@ -1681,7 +1511,7 @@ IdlInterface.prototype.test_self = function()
             //    value of [[Prototype]] is the interface object for that other
             //    interface."
             var inherited_interface = this.array.members[this.base];
-            if (!inherited_interface.has_extended_attribute("NoInterfaceObject")) {
+            if (!inherited_interface.has_extended_attribute("LegacyNoInterfaceObject")) {
                 inherited_interface.assert_interface_object_exists();
                 assert_equals(prototype, inherited_interface.get_interface_object(),
                               'prototype of ' + this.name + ' is not ' +
@@ -1695,16 +1525,16 @@ IdlInterface.prototype.test_self = function()
                           "prototype of self's property " + format_value(this.name) + " is not Function.prototype");
         }
 
+        // Always test for [[Construct]]:
+        // https://github.com/heycam/webidl/issues/698
+        assert_true(isConstructor(this.get_interface_object()), "interface object must pass IsConstructor check");
+
+        var interface_object = this.get_interface_object();
+        assert_throws_js(globalOf(interface_object).TypeError, function() {
+            interface_object();
+        }, "interface object didn't throw TypeError when called as a function");
+
         if (!this.constructors().length) {
-            // "The internal [[Call]] method of the interface object behaves as
-            // follows . . .
-            //
-            // "If I was not declared with a [Constructor] extended attribute,
-            // then throw a TypeError."
-            var interface_object = this.get_interface_object();
-            assert_throws_js(globalOf(interface_object).TypeError, function() {
-                interface_object();
-            }, "interface object didn't throw TypeError when called as a function");
             assert_throws_js(globalOf(interface_object).TypeError, function() {
                 new interface_object();
             }, "interface object didn't throw TypeError when called as a constructor");
@@ -1714,7 +1544,7 @@ IdlInterface.prototype.test_self = function()
     if (this.should_have_interface_object() && !this.is_callback()) {
         subsetTestByKey(this.name, test, function() {
             // This function tests WebIDL as of 2014-10-25.
-            // https://heycam.github.io/webidl/#es-interface-call
+            // https://webidl.spec.whatwg.org/#es-interface-call
 
             this.assert_interface_object_exists();
 
@@ -1739,7 +1569,7 @@ IdlInterface.prototype.test_self = function()
     if (this.should_have_interface_object()) {
         subsetTestByKey(this.name, test, function() {
             // This function tests WebIDL as of 2015-11-17.
-            // https://heycam.github.io/webidl/#interface-object
+            // https://webidl.spec.whatwg.org/#interface-object
 
             this.assert_interface_object_exists();
 
@@ -1770,10 +1600,10 @@ IdlInterface.prototype.test_self = function()
             if (this.is_callback()) {
                 throw new IdlHarnessError("Invalid IDL: LegacyWindowAlias extended attribute on non-interface " + this.name);
             }
-            if (!this.exposureSet.has("Window")) {
+            if (!(this.exposureSet === "*" || this.exposureSet.has("Window"))) {
                 throw new IdlHarnessError("Invalid IDL: LegacyWindowAlias extended attribute on " + this.name + " which is not exposed in Window");
             }
-            // TODO: when testing of [NoInterfaceObject] interfaces is supported,
+            // TODO: when testing of [LegacyNoInterfaceObject] interfaces is supported,
             // check that it's not specified together with LegacyWindowAlias.
 
             // TODO: maybe check that [LegacyWindowAlias] is not specified on a partial interface.
@@ -1931,7 +1761,7 @@ IdlInterface.prototype.test_self = function()
     subsetTestByKey(this.name, test, function()
     {
         // This function tests WebIDL as of 2015-01-21.
-        // https://heycam.github.io/webidl/#interface-object
+        // https://webidl.spec.whatwg.org/#interface-object
 
         if (!this.should_have_interface_object()) {
             return;
@@ -1963,7 +1793,7 @@ IdlInterface.prototype.test_self = function()
 
         // Next, test that the [[Prototype]] of the interface prototype object
         // is correct. (This is made somewhat difficult by the existence of
-        // [NoInterfaceObject].)
+        // [LegacyNoInterfaceObject].)
         // TODO: Aryeh thinks there's at least other place in this file where
         //       we try to figure out if an interface prototype object is
         //       correct. Consolidate that code.
@@ -1996,7 +1826,7 @@ IdlInterface.prototype.test_self = function()
             if (this.base) {
                 inherit_interface = this.base;
                 var parent = this.array.members[inherit_interface];
-                if (!parent.has_extended_attribute("NoInterfaceObject")) {
+                if (!parent.has_extended_attribute("LegacyNoInterfaceObject")) {
                     parent.assert_interface_object_exists();
                     inherit_interface_interface_object = parent.get_interface_object();
                 }
@@ -2050,7 +1880,7 @@ IdlInterface.prototype.test_self = function()
     // interfaces for any other interface that is declared with one of these
     // attributes, then the interface prototype object must be an immutable
     // prototype exotic object."
-    // https://heycam.github.io/webidl/#interface-prototype-object
+    // https://webidl.spec.whatwg.org/#interface-prototype-object
     if (this.is_global()) {
         this.test_immutable_prototype("interface prototype object", this.get_interface_object().prototype);
     }
@@ -2072,8 +1902,8 @@ IdlInterface.prototype.test_self = function()
         assert_own_property(this.get_interface_object(), "prototype",
                             'interface "' + this.name + '" does not have own property "prototype"');
 
-        // "If the [NoInterfaceObject] extended attribute was not specified on
-        // the interface, then the interface prototype object must also have a
+        // "If the [LegacyNoInterfaceObject] extended attribute was not specified
+        // on the interface, then the interface prototype object must also have a
         // property named “constructor” with attributes { [[Writable]]: true,
         // [[Enumerable]]: false, [[Configurable]]: true } whose value is a
         // reference to the interface object for the interface."
@@ -2427,7 +2257,7 @@ IdlInterface.prototype.test_member_operation = function(member)
     a_test.step(function()
     {
         // This function tests WebIDL as of 2015-12-29.
-        // https://heycam.github.io/webidl/#es-operations
+        // https://webidl.spec.whatwg.org/#es-operations
 
         if (!this.should_have_interface_object()) {
             a_test.done();
@@ -2603,73 +2433,176 @@ IdlInterface.prototype.test_to_json_operation = function(desc, memberHolderObjec
     }
 };
 
-IdlInterface.prototype.test_member_iterable = function(member)
-{
-    subsetTestByKey(this.name, test, function()
-    {
-        var isPairIterator = member.idlType.length === 2;
-        var proto = this.get_interface_object().prototype;
-        var iteratorDesc = Object.getOwnPropertyDescriptor(proto, Symbol.iterator);
+IdlInterface.prototype.test_member_maplike = function(member) {
+    subsetTestByKey(this.name, test, () => {
+        const proto = this.get_interface_object().prototype;
 
-        assert_true(iteratorDesc.writable, "@@iterator property should be writable");
-        assert_true(iteratorDesc.configurable, "@@iterator property should be configurable");
-        assert_false(iteratorDesc.enumerable, "@@iterator property should not be enumerable");
-        assert_equals(typeof iteratorDesc.value, "function", "@@iterator property should be a function");
-        assert_equals(iteratorDesc.value.length, 0, "@@iterator function object length should be 0");
-        assert_equals(iteratorDesc.value.name, isPairIterator ? "entries" : "values", "@@iterator function object should have the right name");
-
-        if (isPairIterator) {
-            assert_equals(proto["entries"], proto[Symbol.iterator], "entries method should be the same as @@iterator method");
-            [
-                ["entries", 0],
-                ["keys", 0],
-                ["values", 0],
-                ["forEach", 1]
-            ].forEach(([property, length]) => {
-                var desc = Object.getOwnPropertyDescriptor(proto, property);
-                assert_equals(typeof desc.value, "function", property + " property should be a function");
-                assert_equals(desc.value.length, length, property + " function object length should be " + length);
-                assert_equals(desc.value.name, property, property + " function object should have the right name");
-            });
-        } else {
-            assert_equals(proto[Symbol.iterator], Array.prototype[Symbol.iterator], "@@iterator method should be the same as Array prototype's");
-            ["entries", "keys", "values", "forEach", Symbol.iterator].forEach(property => {
-                var propertyName = property === Symbol.iterator ? "@@iterator" : property;
-                assert_equals(proto[property], Array.prototype[property], propertyName + " method should be the same as Array prototype's");
-            });
+        const methods = [
+            ["entries", 0],
+            ["keys", 0],
+            ["values", 0],
+            ["forEach", 1],
+            ["get", 1],
+            ["has", 1]
+        ];
+        if (!member.readonly) {
+            methods.push(
+                ["set", 2],
+                ["delete", 1],
+                ["clear", 0]
+            );
         }
-    }.bind(this), this.name + " interface: iterable<" + member.idlType.map(function(t) { return t.idlType; }).join(", ") + ">");
+
+        for (const [name, length] of methods) {
+            const desc = Object.getOwnPropertyDescriptor(proto, name);
+            assert_equals(typeof desc.value, "function", `${name} should be a function`);
+            assert_equals(desc.enumerable, true, `${name} enumerable`);
+            assert_equals(desc.configurable, true, `${name} configurable`);
+            assert_equals(desc.writable, true, `${name} writable`);
+            assert_equals(desc.value.length, length, `${name} function object length should be ${length}`);
+            assert_equals(desc.value.name, name, `${name} function object should have the right name`);
+        }
+
+        const iteratorDesc = Object.getOwnPropertyDescriptor(proto, Symbol.iterator);
+        assert_equals(iteratorDesc.value, proto.entries, `@@iterator should equal entries`);
+        assert_equals(iteratorDesc.enumerable, false, `@@iterator enumerable`);
+        assert_equals(iteratorDesc.configurable, true, `@@iterator configurable`);
+        assert_equals(iteratorDesc.writable, true, `@@iterator writable`);
+
+        const sizeDesc = Object.getOwnPropertyDescriptor(proto, "size");
+        assert_equals(typeof sizeDesc.get, "function", `size getter should be a function`);
+        assert_equals(sizeDesc.set, undefined, `size should not have a setter`);
+        assert_equals(sizeDesc.enumerable, true, `size enumerable`);
+        assert_equals(sizeDesc.configurable, true, `size configurable`);
+        assert_equals(sizeDesc.get.length, 0, `size getter length`);
+        assert_equals(sizeDesc.get.name, "get size", `size getter name`);
+    }, `${this.name} interface: maplike<${member.idlType.map(t => t.idlType).join(", ")}>`);
 };
 
-IdlInterface.prototype.test_member_async_iterable = function(member)
-{
-    subsetTestByKey(this.name, test, function()
-    {
-        var isPairIterator = member.idlType.length === 2;
-        var proto = this.get_interface_object().prototype;
-        var iteratorDesc = Object.getOwnPropertyDescriptor(proto, Symbol.asyncIterator);
+IdlInterface.prototype.test_member_setlike = function(member) {
+    subsetTestByKey(this.name, test, () => {
+        const proto = this.get_interface_object().prototype;
 
-        assert_true(iteratorDesc.writable, "@@asyncIterator property should be writable");
-        assert_true(iteratorDesc.configurable, "@@asyncIterator property should be configurable");
-        assert_false(iteratorDesc.enumerable, "@@asyncIterator property should not be enumerable");
-        assert_equals(typeof iteratorDesc.value, "function", "@@asyncIterator property should be a function");
-        assert_equals(iteratorDesc.value.length, 0, "@@asyncIterator function object length should be 0");
-        assert_equals(iteratorDesc.value.name, isPairIterator ? "entries" : "values", "@@asyncIterator function object should have the right name");
+        const methods = [
+            ["entries", 0],
+            ["keys", 0],
+            ["values", 0],
+            ["forEach", 1],
+            ["has", 1]
+        ];
+        if (!member.readonly) {
+            methods.push(
+                ["add", 1],
+                ["delete", 1],
+                ["clear", 0]
+            );
+        }
+
+        for (const [name, length] of methods) {
+            const desc = Object.getOwnPropertyDescriptor(proto, name);
+            assert_equals(typeof desc.value, "function", `${name} should be a function`);
+            assert_equals(desc.enumerable, true, `${name} enumerable`);
+            assert_equals(desc.configurable, true, `${name} configurable`);
+            assert_equals(desc.writable, true, `${name} writable`);
+            assert_equals(desc.value.length, length, `${name} function object length should be ${length}`);
+            assert_equals(desc.value.name, name, `${name} function object should have the right name`);
+        }
+
+        const iteratorDesc = Object.getOwnPropertyDescriptor(proto, Symbol.iterator);
+        assert_equals(iteratorDesc.value, proto.values, `@@iterator should equal values`);
+        assert_equals(iteratorDesc.enumerable, false, `@@iterator enumerable`);
+        assert_equals(iteratorDesc.configurable, true, `@@iterator configurable`);
+        assert_equals(iteratorDesc.writable, true, `@@iterator writable`);
+
+        const sizeDesc = Object.getOwnPropertyDescriptor(proto, "size");
+        assert_equals(typeof sizeDesc.get, "function", `size getter should be a function`);
+        assert_equals(sizeDesc.set, undefined, `size should not have a setter`);
+        assert_equals(sizeDesc.enumerable, true, `size enumerable`);
+        assert_equals(sizeDesc.configurable, true, `size configurable`);
+        assert_equals(sizeDesc.get.length, 0, `size getter length`);
+        assert_equals(sizeDesc.get.name, "get size", `size getter name`);
+    }, `${this.name} interface: setlike<${member.idlType.map(t => t.idlType).join(", ")}>`);
+};
+
+IdlInterface.prototype.test_member_iterable = function(member) {
+    subsetTestByKey(this.name, test, () => {
+        const isPairIterator = member.idlType.length === 2;
+        const proto = this.get_interface_object().prototype;
+
+        const methods = [
+            ["entries", 0],
+            ["keys", 0],
+            ["values", 0],
+            ["forEach", 1]
+        ];
+
+        for (const [name, length] of methods) {
+            const desc = Object.getOwnPropertyDescriptor(proto, name);
+            assert_equals(typeof desc.value, "function", `${name} should be a function`);
+            assert_equals(desc.enumerable, true, `${name} enumerable`);
+            assert_equals(desc.configurable, true, `${name} configurable`);
+            assert_equals(desc.writable, true, `${name} writable`);
+            assert_equals(desc.value.length, length, `${name} function object length should be ${length}`);
+            assert_equals(desc.value.name, name, `${name} function object should have the right name`);
+
+            if (!isPairIterator) {
+                assert_equals(desc.value, Array.prototype[name], `${name} equality with Array.prototype version`);
+            }
+        }
+
+        const iteratorDesc = Object.getOwnPropertyDescriptor(proto, Symbol.iterator);
+        assert_equals(iteratorDesc.enumerable, false, `@@iterator enumerable`);
+        assert_equals(iteratorDesc.configurable, true, `@@iterator configurable`);
+        assert_equals(iteratorDesc.writable, true, `@@iterator writable`);
 
         if (isPairIterator) {
-            assert_equals(proto["entries"], proto[Symbol.asyncIterator], "entries method should be the same as @@asyncIterator method");
-            ["entries", "keys", "values"].forEach(property => {
-                var desc = Object.getOwnPropertyDescriptor(proto, property);
-                assert_equals(typeof desc.value, "function", property + " property should be a function");
-                assert_equals(desc.value.length, 0, property + " function object length should be 0");
-                assert_equals(desc.value.name, property, property + " function object should have the right name");
-            });
+            assert_equals(iteratorDesc.value, proto.entries, `@@iterator equality with entries`);
         } else {
-            assert_equals(proto["values"], proto[Symbol.asyncIterator], "values method should be the same as @@asyncIterator method");
-            assert_false("entries" in proto, "should not have an entries method");
-            assert_false("keys" in proto, "should not have a keys method");
+            assert_equals(iteratorDesc.value, Array.prototype[Symbol.iterator], `@@iterator equality with Array.prototype version`);
         }
-    }.bind(this), this.name + " interface: async iterable<" + member.idlType.map(function(t) { return t.idlType; }).join(", ") + ">");
+    }, `${this.name} interface: iterable<${member.idlType.map(t => t.idlType).join(", ")}>`);
+};
+
+IdlInterface.prototype.test_member_async_iterable = function(member) {
+    subsetTestByKey(this.name, test, () => {
+        const isPairIterator = member.idlType.length === 2;
+        const proto = this.get_interface_object().prototype;
+
+        // Note that although the spec allows arguments, which will be passed to the @@asyncIterator
+        // method (which is either values or entries), those arguments must always be optional. So
+        // length of 0 is still correct for values and entries.
+        const methods = [
+            ["values", 0],
+        ];
+
+        if (isPairIterator) {
+            methods.push(
+                ["entries", 0],
+                ["keys", 0]
+            );
+        }
+
+        for (const [name, length] of methods) {
+            const desc = Object.getOwnPropertyDescriptor(proto, name);
+            assert_equals(typeof desc.value, "function", `${name} should be a function`);
+            assert_equals(desc.enumerable, true, `${name} enumerable`);
+            assert_equals(desc.configurable, true, `${name} configurable`);
+            assert_equals(desc.writable, true, `${name} writable`);
+            assert_equals(desc.value.length, length, `${name} function object length should be ${length}`);
+            assert_equals(desc.value.name, name, `${name} function object should have the right name`);
+        }
+
+        const iteratorDesc = Object.getOwnPropertyDescriptor(proto, Symbol.asyncIterator);
+        assert_equals(iteratorDesc.enumerable, false, `@@iterator enumerable`);
+        assert_equals(iteratorDesc.configurable, true, `@@iterator configurable`);
+        assert_equals(iteratorDesc.writable, true, `@@iterator writable`);
+
+        if (isPairIterator) {
+            assert_equals(iteratorDesc.value, proto.entries, `@@iterator equality with entries`);
+        } else {
+            assert_equals(iteratorDesc.value, proto.values, `@@iterator equality with values`);
+        }
+    }, `${this.name} interface: async iterable<${member.idlType.map(t => t.idlType).join(", ")}>`);
 };
 
 IdlInterface.prototype.test_member_stringifier = function(member)
@@ -2735,6 +2668,7 @@ IdlInterface.prototype.test_member_stringifier = function(member)
 
 IdlInterface.prototype.test_members = function()
 {
+    var unexposed_members = new Set();
     for (var i = 0; i < this.members.length; i++)
     {
         var member = this.members[i];
@@ -2743,15 +2677,18 @@ IdlInterface.prototype.test_members = function()
         }
 
         if (!exposed_in(exposure_set(member, this.exposureSet))) {
-            subsetTestByKey(this.name, test, function() {
-                // It's not exposed, so we shouldn't find it anywhere.
-                assert_false(member.name in this.get_interface_object(),
-                             "The interface object must not have a property " +
-                             format_value(member.name));
-                assert_false(member.name in this.get_interface_object().prototype,
-                             "The prototype object must not have a property " +
-                             format_value(member.name));
-            }.bind(this), this.name + " interface: member " + member.name);
+            if (!unexposed_members.has(member.name)) {
+                unexposed_members.add(member.name);
+                subsetTestByKey(this.name, test, function() {
+                    // It's not exposed, so we shouldn't find it anywhere.
+                    assert_false(member.name in this.get_interface_object(),
+                                "The interface object must not have a property " +
+                                format_value(member.name));
+                    assert_false(member.name in this.get_interface_object().prototype,
+                                "The prototype object must not have a property " +
+                                format_value(member.name));
+                }.bind(this), this.name + " interface: member " + member.name);
+            }
             continue;
         }
 
@@ -2794,6 +2731,12 @@ IdlInterface.prototype.test_members = function()
                 this.test_member_iterable(member);
             }
             break;
+        case "maplike":
+            this.test_member_maplike(member);
+            break;
+        case "setlike":
+            this.test_member_setlike(member);
+            break;
         default:
             // TODO: check more member types.
             break;
@@ -2818,30 +2761,32 @@ IdlInterface.prototype.test_object = function(desc)
     {
         // Result of [[IsHTMLDDA]] slot
         expected_typeof = "undefined";
-    } else if (this.members.some(function(member) { return member.legacycaller; }))
-    {
-        expected_typeof = "function";
     }
     else
     {
         expected_typeof = "object";
     }
 
-    this.test_primary_interface_of(desc, obj, exception, expected_typeof);
+    if (this.is_callback()) {
+        assert_equals(exception, null, "Unexpected exception when evaluating object");
+        assert_equals(typeof obj, expected_typeof, "wrong typeof object");
+    } else {
+        this.test_primary_interface_of(desc, obj, exception, expected_typeof);
 
-    var current_interface = this;
-    while (current_interface)
-    {
-        if (!(current_interface.name in this.array.members))
+        var current_interface = this;
+        while (current_interface)
         {
-            throw new IdlHarnessError("Interface " + current_interface.name + " not found (inherited by " + this.name + ")");
+            if (!(current_interface.name in this.array.members))
+            {
+                throw new IdlHarnessError("Interface " + current_interface.name + " not found (inherited by " + this.name + ")");
+            }
+            if (current_interface.prevent_multiple_testing && current_interface.already_tested)
+            {
+                return;
+            }
+            current_interface.test_interface_of(desc, obj, exception, expected_typeof);
+            current_interface = this.array.members[current_interface.base];
         }
-        if (current_interface.prevent_multiple_testing && current_interface.already_tested)
-        {
-            return;
-        }
-        current_interface.test_interface_of(desc, obj, exception, expected_typeof);
-        current_interface = this.array.members[current_interface.base];
     }
 };
 
@@ -2859,7 +2804,7 @@ IdlInterface.prototype.test_primary_interface_of = function(desc, obj, exception
     // attribute must execute the same algorithm as is defined for the
     // [[SetPrototypeOf]] internal method of an immutable prototype exotic
     // object."
-    // https://heycam.github.io/webidl/#platform-object-setprototypeof
+    // https://webidl.spec.whatwg.org/#platform-object-setprototypeof
     if (this.is_global())
     {
         this.test_immutable_prototype("global platform object", obj);
@@ -2914,17 +2859,23 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
         return;
     }
 
+    var unexposed_properties = new Set();
     for (var i = 0; i < this.members.length; i++)
     {
         var member = this.members[i];
         if (member.untested) {
             continue;
         }
-        if (!exposed_in(exposure_set(member, this.exposureSet))) {
-            subsetTestByKey(this.name, test, function() {
-                assert_equals(exception, null, "Unexpected exception when evaluating object");
-                assert_false(member.name in obj);
-            }.bind(this), this.name + " interface: " + desc + ' must not have property "' + member.name + '"');
+        if (!exposed_in(exposure_set(member, this.exposureSet)))
+        {
+            if (!unexposed_properties.has(member.name))
+            {
+                unexposed_properties.add(member.name);
+                subsetTestByKey(this.name, test, function() {
+                    assert_equals(exception, null, "Unexpected exception when evaluating object");
+                    assert_false(member.name in obj);
+                }.bind(this), this.name + " interface: " + desc + ' must not have property "' + member.name + '"');
+            }
             continue;
         }
         if (member.type == "attribute" && member.isUnforgeable)
@@ -3082,11 +3033,6 @@ IdlInterface.prototype.do_interface_attribute_asserts = function(obj, member, a_
     // with the object as obj.
 
     var pendingPromises = [];
-
-    // "For each exposed attribute of the interface, whether it was declared on
-    // the interface itself or one of its consequential interfaces, there MUST
-    // exist a corresponding property. The characteristics of this property are
-    // as follows:"
 
     // "The name of the property is the identifier of the attribute."
     assert_own_property(obj, member.name);
@@ -3530,9 +3476,9 @@ IdlNamespace.prototype.test = function ()
  * idl_test is a promise_test wrapper that handles the fetching of the IDL,
  * avoiding repetitive boilerplate.
  *
- * @param {String|String[]} srcs Spec name(s) for source idl files (fetched from
+ * @param {String[]} srcs Spec name(s) for source idl files (fetched from
  *      /interfaces/{name}.idl).
- * @param {String|String[]} deps Spec name(s) for dependency idl files (fetched
+ * @param {String[]} deps Spec name(s) for dependency idl files (fetched
  *      from /interfaces/{name}.idl). Order is important - dependencies from
  *      each source will only be included if they're already know to be a
  *      dependency (i.e. have already been seen).

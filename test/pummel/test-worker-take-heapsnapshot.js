@@ -15,7 +15,7 @@ const { once } = require('events');
     {
       children: [
         { node_name: 'Node / MessagePortData', edge_name: 'data' },
-      ]
+      ],
     },
   ], { loose: true });
   await w.terminate();

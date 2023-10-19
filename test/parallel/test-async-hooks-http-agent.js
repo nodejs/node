@@ -40,7 +40,7 @@ const server = http.createServer(common.mustCall((req, res) => {
     // Check that request and response share their socket.
     assert.strictEqual(r1.socket, socket);
 
-    res.on('data', common.mustCallAtLeast(() => {}));
+    res.on('data', common.mustCallAtLeast());
     res.on('end', common.mustCall(() => {
       // setImmediate() to give the agent time to register the freed socket.
       setImmediate(common.mustCall(() => {
@@ -62,7 +62,7 @@ const server = http.createServer(common.mustCall((req, res) => {
           // Empty payload, to hit the “right” code path.
           r2.end('');
 
-          res.on('data', common.mustCallAtLeast(() => {}));
+          res.on('data', common.mustCallAtLeast());
           res.on('end', common.mustCall(() => {
             // Clean up to let the event loop stop.
             server.close();

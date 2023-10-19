@@ -12,15 +12,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "require a newline after each call in a method chain",
-            category: "Stylistic Issues",
+            description: "Require a newline after each call in a method chain",
             recommended: false,
-            url: "https://eslint.org/docs/rules/newline-per-chained-call"
+            url: "https://eslint.org/docs/latest/rules/newline-per-chained-call"
         },
 
         fixable: "whitespace",
@@ -47,13 +47,13 @@ module.exports = {
         const options = context.options[0] || {},
             ignoreChainWithDepth = options.ignoreChainWithDepth || 2;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Get the prefix of a given MemberExpression node.
          * If the MemberExpression node is a computed value it returns a
          * left bracket. If not it returns a period.
-         * @param  {ASTNode} node A MemberExpression node to get
+         * @param {ASTNode} node A MemberExpression node to get
          * @returns {string} The prefix of the node.
          */
         function getPrefix(node) {

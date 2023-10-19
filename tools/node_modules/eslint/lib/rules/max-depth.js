@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce a maximum depth that blocks can be nested",
-            category: "Stylistic Issues",
+            description: "Enforce a maximum depth that blocks can be nested",
             recommended: false,
-            url: "https://eslint.org/docs/rules/max-depth"
+            url: "https://eslint.org/docs/latest/rules/max-depth"
         },
 
         schema: [
@@ -119,6 +119,7 @@ module.exports = {
             FunctionDeclaration: startFunction,
             FunctionExpression: startFunction,
             ArrowFunctionExpression: startFunction,
+            StaticBlock: startFunction,
 
             IfStatement(node) {
                 if (node.parent.type !== "IfStatement") {
@@ -147,6 +148,7 @@ module.exports = {
             "FunctionDeclaration:exit": endFunction,
             "FunctionExpression:exit": endFunction,
             "ArrowFunctionExpression:exit": endFunction,
+            "StaticBlock:exit": endFunction,
             "Program:exit": endFunction
         };
 

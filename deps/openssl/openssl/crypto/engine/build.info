@@ -6,6 +6,3 @@ SOURCE[../../libcrypto]=\
         tb_cipher.c tb_digest.c tb_pkmeth.c tb_asnmth.c tb_eckey.c \
         eng_openssl.c eng_cnf.c eng_dyn.c \
         eng_rdrand.c
-IF[{- !$disabled{devcryptoeng} -}]
-  SOURCE[../../libcrypto]=eng_devcrypto.c
-ENDIF

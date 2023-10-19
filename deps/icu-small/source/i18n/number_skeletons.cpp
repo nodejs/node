@@ -33,7 +33,7 @@ using namespace icu::number::impl::skeleton;
 
 namespace {
 
-icu::UInitOnce gNumberSkeletonsInitOnce = U_INITONCE_INITIALIZER;
+icu::UInitOnce gNumberSkeletonsInitOnce {};
 
 char16_t* kSerializedStemTrie = nullptr;
 
@@ -41,7 +41,7 @@ UBool U_CALLCONV cleanupNumberSkeletons() {
     uprv_free(kSerializedStemTrie);
     kSerializedStemTrie = nullptr;
     gNumberSkeletonsInitOnce.reset();
-    return TRUE;
+    return true;
 }
 
 void U_CALLCONV initNumberSkeletons(UErrorCode& status) {
@@ -74,6 +74,7 @@ void U_CALLCONV initNumberSkeletons(UErrorCode& status) {
     b.add(u"rounding-mode-half-down", STEM_ROUNDING_MODE_HALF_DOWN, status);
     b.add(u"rounding-mode-half-up", STEM_ROUNDING_MODE_HALF_UP, status);
     b.add(u"rounding-mode-unnecessary", STEM_ROUNDING_MODE_UNNECESSARY, status);
+    b.add(u"integer-width-trunc", STEM_INTEGER_WIDTH_TRUNC, status);
     b.add(u"group-off", STEM_GROUP_OFF, status);
     b.add(u"group-min2", STEM_GROUP_MIN2, status);
     b.add(u"group-auto", STEM_GROUP_AUTO, status);
@@ -176,7 +177,7 @@ Notation stem_to_object::notation(skeleton::StemEnum stem) {
         case STEM_NOTATION_SIMPLE:
             return Notation::simple();
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -189,7 +190,7 @@ MeasureUnit stem_to_object::unit(skeleton::StemEnum stem) {
         case STEM_PERMILLE:
             return MeasureUnit::getPermille();
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -204,7 +205,7 @@ Precision stem_to_object::precision(skeleton::StemEnum stem) {
         case STEM_PRECISION_CURRENCY_CASH:
             return Precision::currency(UCURR_USAGE_CASH);
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -233,7 +234,7 @@ UNumberFormatRoundingMode stem_to_object::roundingMode(skeleton::StemEnum stem) 
         case STEM_ROUNDING_MODE_UNNECESSARY:
             return UNUM_ROUND_UNNECESSARY;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -348,7 +349,7 @@ void enum_to_stem_string::roundingMode(UNumberFormatRoundingMode value, UnicodeS
             sb.append(u"rounding-mode-unnecessary", -1);
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -370,7 +371,7 @@ void enum_to_stem_string::groupingStrategy(UNumberGroupingStrategy value, Unicod
             sb.append(u"group-thousands", -1);
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -398,7 +399,7 @@ void enum_to_stem_string::unitWidth(UNumberUnitWidth value, UnicodeString& sb) {
             sb.append(u"unit-width-hidden", -1);
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -432,7 +433,7 @@ void enum_to_stem_string::signDisplay(UNumberSignDisplay value, UnicodeString& s
             sb.append(u"sign-accounting-negative", -1);
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -446,7 +447,7 @@ enum_to_stem_string::decimalSeparatorDisplay(UNumberDecimalSeparatorDisplay valu
             sb.append(u"decimal-always", -1);
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -700,6 +701,11 @@ skeleton::parseStem(const StringSegment& segment, const UCharsTrie& stemTrie, Se
             macros.roundingMode = stem_to_object::roundingMode(stem);
             return STATE_NULL;
 
+        case STEM_INTEGER_WIDTH_TRUNC:
+            CHECK_NULL(seen, integerWidth, status);
+            macros.integerWidth = IntegerWidth::zeroFillTo(0).truncateAt(0);
+            return STATE_NULL;
+
         case STEM_GROUP_OFF:
         case STEM_GROUP_MIN2:
         case STEM_GROUP_AUTO:
@@ -785,7 +791,7 @@ skeleton::parseStem(const StringSegment& segment, const UCharsTrie& stemTrie, Se
             return STATE_SCALE;
 
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -1016,7 +1022,7 @@ void blueprint_helpers::parseCurrencyOption(const StringSegment& segment, MacroP
         status = U_NUMBER_SKELETON_SYNTAX_ERROR;
         return;
     }
-    const UChar* currencyCode = segment.toTempUnicodeString().getBuffer();
+    const char16_t* currencyCode = segment.toTempUnicodeString().getBuffer();
     UErrorCode localStatus = U_ZERO_ERROR;
     CurrencyUnit currency(currencyCode, localStatus);
     if (U_FAILURE(localStatus)) {
@@ -1051,7 +1057,7 @@ void blueprint_helpers::parseMeasureUnitOption(const StringSegment& segment, Mac
         return;
     }
 
-    // Need to do char <-> UChar conversion...
+    // Need to do char <-> char16_t conversion...
     CharString type;
     SKELETON_UCHAR_TO_CHAR(type, stemString, 0, firstHyphen, status);
     CharString subType;
@@ -1092,7 +1098,7 @@ void blueprint_helpers::parseMeasurePerUnitOption(const StringSegment& segment, 
 
 void blueprint_helpers::parseIdentifierUnitOption(const StringSegment& segment, MacroProps& macros,
                                                   UErrorCode& status) {
-    // Need to do char <-> UChar conversion...
+    // Need to do char <-> char16_t conversion...
     U_ASSERT(U_SUCCESS(status));
     CharString buffer;
     SKELETON_UCHAR_TO_CHAR(buffer, segment.toTempUnicodeString(), 0, segment.length(), status);
@@ -1108,7 +1114,7 @@ void blueprint_helpers::parseIdentifierUnitOption(const StringSegment& segment, 
 
 void blueprint_helpers::parseUnitUsageOption(const StringSegment &segment, MacroProps &macros,
                                              UErrorCode &status) {
-    // Need to do char <-> UChar conversion...
+    // Need to do char <-> char16_t conversion...
     U_ASSERT(U_SUCCESS(status));
     CharString buffer;
     SKELETON_UCHAR_TO_CHAR(buffer, segment.toTempUnicodeString(), 0, segment.length(), status);
@@ -1338,8 +1344,9 @@ bool blueprint_helpers::parseFracSigOption(const StringSegment& segment, MacroPr
         // @, @@, @@@
         maxSig = minSig;
     }
-    UNumberRoundingPriority priority;
+    auto& oldPrecision = static_cast<const FractionPrecision&>(macros.precision);
     if (offset < segment.length()) {
+        UNumberRoundingPriority priority;
         if (maxSig == -1) {
             // The wildcard character is not allowed with the priority annotation
             status = U_NUMBER_SKELETON_SYNTAX_ERROR;
@@ -1352,29 +1359,28 @@ bool blueprint_helpers::parseFracSigOption(const StringSegment& segment, MacroPr
             priority = UNUM_ROUNDING_PRIORITY_STRICT;
             offset++;
         } else {
-            U_ASSERT(offset < segment.length());
+            // Invalid digits option for fraction rounder
+            status = U_NUMBER_SKELETON_SYNTAX_ERROR;
+            return false;
         }
         if (offset < segment.length()) {
             // Invalid digits option for fraction rounder
             status = U_NUMBER_SKELETON_SYNTAX_ERROR;
             return false;
         }
+        macros.precision = oldPrecision.withSignificantDigits(minSig, maxSig, priority);
     } else if (maxSig == -1) {
         // withMinDigits
-        maxSig = minSig;
-        minSig = 1;
-        priority = UNUM_ROUNDING_PRIORITY_RELAXED;
+        macros.precision = oldPrecision.withMinDigits(minSig);
     } else if (minSig == 1) {
         // withMaxDigits
-        priority = UNUM_ROUNDING_PRIORITY_STRICT;
+        macros.precision = oldPrecision.withMaxDigits(maxSig);
     } else {
         // Digits options with both min and max sig require the priority option
         status = U_NUMBER_SKELETON_SYNTAX_ERROR;
         return false;
     }
 
-    auto& oldPrecision = static_cast<const FractionPrecision&>(macros.precision);
-    macros.precision = oldPrecision.withSignificantDigits(minSig, maxSig, priority);
     return true;
 }
 
@@ -1391,18 +1397,18 @@ void blueprint_helpers::parseIncrementOption(const StringSegment &segment, Macro
     number::impl::parseIncrementOption(segment, macros.precision, status);
 }
 
-void blueprint_helpers::generateIncrementOption(double increment, int32_t trailingZeros, UnicodeString& sb,
-                                                UErrorCode&) {
+void blueprint_helpers::generateIncrementOption(
+        uint32_t increment,
+        digits_t incrementMagnitude,
+        int32_t minFrac,
+        UnicodeString& sb,
+        UErrorCode&) {
     // Utilize DecimalQuantity/double_conversion to format this for us.
     DecimalQuantity dq;
-    dq.setToDouble(increment);
-    dq.roundToInfinity();
+    dq.setToLong(increment);
+    dq.adjustMagnitude(incrementMagnitude);
+    dq.setMinFraction(minFrac);
     sb.append(dq.toPlainString());
-
-    // We might need to append extra trailing zeros for min fraction...
-    if (trailingZeros > 0) {
-        appendMultiple(sb, u'0', trailingZeros);
-    }
 }
 
 void blueprint_helpers::parseIntegerWidthOption(const StringSegment& segment, MacroProps& macros,
@@ -1460,7 +1466,7 @@ void blueprint_helpers::generateIntegerWidthOption(int32_t minInt, int32_t maxIn
 
 void blueprint_helpers::parseNumberingSystemOption(const StringSegment& segment, MacroProps& macros,
                                                    UErrorCode& status) {
-    // Need to do char <-> UChar conversion...
+    // Need to do char <-> char16_t conversion...
     U_ASSERT(U_SUCCESS(status));
     CharString buffer;
     SKELETON_UCHAR_TO_CHAR(buffer, segment.toTempUnicodeString(), 0, segment.length(), status);
@@ -1477,13 +1483,13 @@ void blueprint_helpers::parseNumberingSystemOption(const StringSegment& segment,
 
 void blueprint_helpers::generateNumberingSystemOption(const NumberingSystem& ns, UnicodeString& sb,
                                                       UErrorCode&) {
-    // Need to do char <-> UChar conversion...
+    // Need to do char <-> char16_t conversion...
     sb.append(UnicodeString(ns.getName(), -1, US_INV));
 }
 
 void blueprint_helpers::parseScaleOption(const StringSegment& segment, MacroProps& macros,
                                               UErrorCode& status) {
-    // Need to do char <-> UChar conversion...
+    // Need to do char <-> char16_t conversion...
     U_ASSERT(U_SUCCESS(status));
     CharString buffer;
     SKELETON_UCHAR_TO_CHAR(buffer, segment.toTempUnicodeString(), 0, segment.length(), status);
@@ -1491,7 +1497,7 @@ void blueprint_helpers::parseScaleOption(const StringSegment& segment, MacroProp
     LocalPointer<DecNum> decnum(new DecNum(), status);
     if (U_FAILURE(status)) { return; }
     decnum->setTo({buffer.data(), buffer.length()}, status);
-    if (U_FAILURE(status)) {
+    if (U_FAILURE(status) || decnum->isSpecial()) {
         // This is a skeleton syntax error; don't let the low-level decnum error bubble up
         status = U_NUMBER_SKELETON_SYNTAX_ERROR;
         return;
@@ -1613,11 +1619,21 @@ bool GeneratorHelpers::precision(const MacroProps& macros, UnicodeString& sb, UE
         const Precision::FractionSignificantSettings& impl = macros.precision.fUnion.fracSig;
         blueprint_helpers::generateFractionStem(impl.fMinFrac, impl.fMaxFrac, sb, status);
         sb.append(u'/');
-        blueprint_helpers::generateDigitsStem(impl.fMinSig, impl.fMaxSig, sb, status);
-        if (impl.fPriority == UNUM_ROUNDING_PRIORITY_RELAXED) {
-            sb.append(u'r');
+        if (impl.fRetain) {
+            if (impl.fPriority == UNUM_ROUNDING_PRIORITY_RELAXED) {
+                // withMinDigits
+                blueprint_helpers::generateDigitsStem(impl.fMaxSig, -1, sb, status);
+            } else {
+                // withMaxDigits
+                blueprint_helpers::generateDigitsStem(1, impl.fMaxSig, sb, status);
+            }
         } else {
-            sb.append(u's');
+            blueprint_helpers::generateDigitsStem(impl.fMinSig, impl.fMaxSig, sb, status);
+            if (impl.fPriority == UNUM_ROUNDING_PRIORITY_RELAXED) {
+                sb.append(u'r');
+            } else {
+                sb.append(u's');
+            }
         }
     } else if (macros.precision.fType == Precision::RND_INCREMENT
             || macros.precision.fType == Precision::RND_INCREMENT_ONE
@@ -1626,7 +1642,8 @@ bool GeneratorHelpers::precision(const MacroProps& macros, UnicodeString& sb, UE
         sb.append(u"precision-increment/", -1);
         blueprint_helpers::generateIncrementOption(
                 impl.fIncrement,
-                impl.fMinFrac - impl.fMaxFrac,
+                impl.fIncrementMagnitude,
+                impl.fMinFrac,
                 sb,
                 status);
     } else if (macros.precision.fType == Precision::RND_CURRENCY) {
@@ -1677,10 +1694,15 @@ bool GeneratorHelpers::integerWidth(const MacroProps& macros, UnicodeString& sb,
         // Error or Default
         return false;
     }
+    const auto& minMaxInt = macros.integerWidth.fUnion.minMaxInt;
+    if (minMaxInt.fMinInt == 0 && minMaxInt.fMaxInt == 0) {
+        sb.append(u"integer-width-trunc", -1);
+        return true;
+    }
     sb.append(u"integer-width/", -1);
     blueprint_helpers::generateIntegerWidthOption(
-            macros.integerWidth.fUnion.minMaxInt.fMinInt,
-            macros.integerWidth.fUnion.minMaxInt.fMaxInt,
+            minMaxInt.fMinInt,
+            minMaxInt.fMaxInt,
             sb,
             status);
     return true;

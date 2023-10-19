@@ -9,10 +9,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-
-//------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
+const { getGraphemeCount } = require("../shared/string-utils");
 
 /**
  * Checks whether a string contains a line terminator as defined in
@@ -133,15 +130,15 @@ function initOptions(toOptions, fromOptions) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing between keys and values in object literal properties",
-            category: "Stylistic Issues",
+            description: "Enforce consistent spacing between keys and values in object literal properties",
             recommended: false,
-            url: "https://eslint.org/docs/rules/key-spacing"
+            url: "https://eslint.org/docs/latest/rules/key-spacing"
         },
 
         fixable: "whitespace",
@@ -329,44 +326,7 @@ module.exports = {
             singleLineOptions = ruleOptions.singleLine,
             alignmentOptions = ruleOptions.align || null;
 
-        const sourceCode = context.getSourceCode();
-
-        /**
-         * Checks whether a property is a member of the property group it follows.
-         * @param {ASTNode} lastMember The last Property known to be in the group.
-         * @param {ASTNode} candidate The next Property that might be in the group.
-         * @returns {boolean} True if the candidate property is part of the group.
-         */
-        function continuesPropertyGroup(lastMember, candidate) {
-            const groupEndLine = lastMember.loc.start.line,
-                candidateStartLine = candidate.loc.start.line;
-
-            if (candidateStartLine - groupEndLine <= 1) {
-                return true;
-            }
-
-            /*
-             * Check that the first comment is adjacent to the end of the group, the
-             * last comment is adjacent to the candidate property, and that successive
-             * comments are adjacent to each other.
-             */
-            const leadingComments = sourceCode.getCommentsBefore(candidate);
-
-            if (
-                leadingComments.length &&
-                leadingComments[0].loc.start.line - groupEndLine <= 1 &&
-                candidateStartLine - last(leadingComments).loc.end.line <= 1
-            ) {
-                for (let i = 1; i < leadingComments.length; i++) {
-                    if (leadingComments[i].loc.start.line - leadingComments[i - 1].loc.end.line > 1) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-
-            return false;
-        }
+        const sourceCode = context.sourceCode;
 
         /**
          * Determines if the given property is key-value property.
@@ -382,25 +342,74 @@ module.exports = {
         }
 
         /**
-         * Starting from the given a node (a property.key node here) looks forward
-         * until it finds the last token before a colon punctuator and returns it.
-         * @param {ASTNode} node The node to start looking from.
-         * @returns {ASTNode} The last token before a colon punctuator.
-         */
-        function getLastTokenBeforeColon(node) {
-            const colonToken = sourceCode.getTokenAfter(node, astUtils.isColonToken);
-
-            return sourceCode.getTokenBefore(colonToken);
-        }
-
-        /**
-         * Starting from the given a node (a property.key node here) looks forward
+         * Starting from the given node (a property.key node here) looks forward
          * until it finds the colon punctuator and returns it.
          * @param {ASTNode} node The node to start looking from.
          * @returns {ASTNode} The colon punctuator.
          */
         function getNextColon(node) {
             return sourceCode.getTokenAfter(node, astUtils.isColonToken);
+        }
+
+        /**
+         * Starting from the given node (a property.key node here) looks forward
+         * until it finds the last token before a colon punctuator and returns it.
+         * @param {ASTNode} node The node to start looking from.
+         * @returns {ASTNode} The last token before a colon punctuator.
+         */
+        function getLastTokenBeforeColon(node) {
+            const colonToken = getNextColon(node);
+
+            return sourceCode.getTokenBefore(colonToken);
+        }
+
+        /**
+         * Starting from the given node (a property.key node here) looks forward
+         * until it finds the first token after a colon punctuator and returns it.
+         * @param {ASTNode} node The node to start looking from.
+         * @returns {ASTNode} The first token after a colon punctuator.
+         */
+        function getFirstTokenAfterColon(node) {
+            const colonToken = getNextColon(node);
+
+            return sourceCode.getTokenAfter(colonToken);
+        }
+
+        /**
+         * Checks whether a property is a member of the property group it follows.
+         * @param {ASTNode} lastMember The last Property known to be in the group.
+         * @param {ASTNode} candidate The next Property that might be in the group.
+         * @returns {boolean} True if the candidate property is part of the group.
+         */
+        function continuesPropertyGroup(lastMember, candidate) {
+            const groupEndLine = lastMember.loc.start.line,
+                candidateValueStartLine = (isKeyValueProperty(candidate) ? getFirstTokenAfterColon(candidate.key) : candidate).loc.start.line;
+
+            if (candidateValueStartLine - groupEndLine <= 1) {
+                return true;
+            }
+
+            /*
+             * Check that the first comment is adjacent to the end of the group, the
+             * last comment is adjacent to the candidate property, and that successive
+             * comments are adjacent to each other.
+             */
+            const leadingComments = sourceCode.getCommentsBefore(candidate);
+
+            if (
+                leadingComments.length &&
+                leadingComments[0].loc.start.line - groupEndLine <= 1 &&
+                candidateValueStartLine - last(leadingComments).loc.end.line <= 1
+            ) {
+                for (let i = 1; i < leadingComments.length; i++) {
+                    if (leadingComments[i].loc.start.line - leadingComments[i - 1].loc.end.line > 1) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            return false;
         }
 
         /**
@@ -428,19 +437,7 @@ module.exports = {
          * @returns {void}
          */
         function report(property, side, whitespace, expected, mode) {
-            const diff = whitespace.length - expected,
-                nextColon = getNextColon(property.key),
-                tokenBeforeColon = sourceCode.getTokenBefore(nextColon, { includeComments: true }),
-                tokenAfterColon = sourceCode.getTokenAfter(nextColon, { includeComments: true }),
-                isKeySide = side === "key",
-                isExtra = diff > 0,
-                diffAbs = Math.abs(diff),
-                spaces = Array(diffAbs + 1).join(" ");
-
-            const locStart = isKeySide ? tokenBeforeColon.loc.end : nextColon.loc.start;
-            const locEnd = isKeySide ? nextColon.loc.start : tokenAfterColon.loc.start;
-            const missingLoc = isKeySide ? tokenBeforeColon.loc : tokenAfterColon.loc;
-            const loc = isExtra ? { start: locStart, end: locEnd } : missingLoc;
+            const diff = whitespace.length - expected;
 
             if ((
                 diff && mode === "strict" ||
@@ -448,6 +445,19 @@ module.exports = {
                 diff > 0 && !expected && mode === "minimum") &&
                 !(expected && containsLineTerminator(whitespace))
             ) {
+                const nextColon = getNextColon(property.key),
+                    tokenBeforeColon = sourceCode.getTokenBefore(nextColon, { includeComments: true }),
+                    tokenAfterColon = sourceCode.getTokenAfter(nextColon, { includeComments: true }),
+                    isKeySide = side === "key",
+                    isExtra = diff > 0,
+                    diffAbs = Math.abs(diff),
+                    spaces = Array(diffAbs + 1).join(" ");
+
+                const locStart = isKeySide ? tokenBeforeColon.loc.end : nextColon.loc.start;
+                const locEnd = isKeySide ? nextColon.loc.start : tokenAfterColon.loc.start;
+                const missingLoc = isKeySide ? tokenBeforeColon.loc : tokenAfterColon.loc;
+                const loc = isExtra ? { start: locStart, end: locEnd } : missingLoc;
+
                 let fix;
 
                 if (isExtra) {
@@ -507,7 +517,7 @@ module.exports = {
             const startToken = sourceCode.getFirstToken(property);
             const endToken = getLastTokenBeforeColon(property.key);
 
-            return endToken.range[1] - startToken.range[0];
+            return getGraphemeCount(sourceCode.getText().slice(startToken.range[0], endToken.range[1]));
         }
 
         /**
@@ -531,8 +541,8 @@ module.exports = {
 
         /**
          * Creates groups of properties.
-         * @param  {ASTNode} node ObjectExpression node being evaluated.
-         * @returns {Array.<ASTNode[]>} Groups of property AST node lists.
+         * @param {ASTNode} node ObjectExpression node being evaluated.
+         * @returns {Array<ASTNode[]>} Groups of property AST node lists.
          */
         function createGroups(node) {
             if (node.properties.length === 1) {
@@ -600,7 +610,7 @@ module.exports = {
 
         /**
          * Verifies spacing of property conforms to specified options.
-         * @param  {ASTNode} node Property node being evaluated.
+         * @param {ASTNode} node Property node being evaluated.
          * @param {Object} lineOptions Configured singleLine or multiLine options
          * @returns {void}
          */
@@ -629,7 +639,7 @@ module.exports = {
 
         /**
          * Verifies vertical alignment, taking into account groups of properties.
-         * @param  {ASTNode} node ObjectExpression node being evaluated.
+         * @param {ASTNode} node ObjectExpression node being evaluated.
          * @returns {void}
          */
         function verifyAlignment(node) {

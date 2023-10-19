@@ -1,7 +1,7 @@
 /*
- * Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -10,11 +10,14 @@
 #ifndef OSSL_TESTUTIL_H
 # define OSSL_TESTUTIL_H
 
-#include <stdarg.h>
+# include <stdarg.h>
 
-#include <openssl/err.h>
-#include <openssl/e_os2.h>
-#include <openssl/bn.h>
+# include <openssl/provider.h>
+# include <openssl/err.h>
+# include <openssl/e_os2.h>
+# include <openssl/bn.h>
+# include <openssl/x509.h>
+# include "opt.h"
 
 /*-
  * Simple unit tests should implement setup_tests().
@@ -66,6 +69,7 @@
  * object called "fixture". It will also allocate the "result" variable used
  * by EXECUTE_TEST. set_up() should take a const char* specifying the test
  * case name and return a TEST_FIXTURE_TYPE by reference.
+ * If case set_up() fails then 0 is returned.
  *
  * EXECUTE_TEST will pass fixture to execute_func() by reference, call
  * tear_down(), and return the result of execute_func(). execute_func() should
@@ -93,7 +97,11 @@
  */
 # define SETUP_TEST_FIXTURE(TEST_FIXTURE_TYPE, set_up)\
     TEST_FIXTURE_TYPE *fixture = set_up(TEST_CASE_NAME); \
-    int result = 0
+    int result = 0; \
+\
+    if (fixture == NULL) \
+        return 0
+
 
 # define EXECUTE_TEST(execute_func, tear_down)\
     if (fixture != NULL) {\
@@ -117,22 +125,99 @@
 #  define TEST_CASE_NAME __func__
 # endif                         /* __STDC_VERSION__ */
 
+
+/* The default test enum which should be common to all tests */
+# define OPT_TEST_ENUM \
+    OPT_TEST_HELP = 500, \
+    OPT_TEST_LIST, \
+    OPT_TEST_SINGLE, \
+    OPT_TEST_ITERATION, \
+    OPT_TEST_INDENT, \
+    OPT_TEST_SEED
+
+/* The Default test OPTIONS common to all tests (without a usage string) */
+# define OPT_TEST_OPTIONS \
+    { OPT_HELP_STR, 1,  '-', "Valid options are:\n" }, \
+    { "help", OPT_TEST_HELP, '-', "Display this summary" }, \
+    { "list", OPT_TEST_LIST, '-', "Display the list of tests available" }, \
+    { "test", OPT_TEST_SINGLE, 's', "Run a single test by id or name" }, \
+    { "iter", OPT_TEST_ITERATION, 'n', "Run a single iteration of a test" }, \
+    { "indent", OPT_TEST_INDENT,'p', "Number of tabs added to output" }, \
+    { "seed", OPT_TEST_SEED, 'n', "Seed value to randomize tests with" }
+
+/* The Default test OPTIONS common to all tests starting with an additional usage string */
+# define OPT_TEST_OPTIONS_WITH_EXTRA_USAGE(usage) \
+    { OPT_HELP_STR, 1, '-', "Usage: %s [options] " usage }, \
+    OPT_TEST_OPTIONS
+
+/* The Default test OPTIONS common to all tests with an default usage string */
+# define OPT_TEST_OPTIONS_DEFAULT_USAGE \
+    { OPT_HELP_STR, 1, '-', "Usage: %s [options]\n" }, \
+    OPT_TEST_OPTIONS
+
 /*
- * Tests that need access to command line arguments should use the functions:
- * test_get_argument(int n) to get the nth argument, the first argument is
- *      argument 0.  This function returns NULL on error.
- * test_get_argument_count() to get the count of the arguments.
- * test_has_option(const char *) to check if the specified option was passed.
- * test_get_option_argument(const char *) to get an option which includes an
- *      argument.  NULL is returns if the option is not found.
- * const char *test_get_program_name(void) returns the name of the test program
- *      being executed.
+ * Optional Cases that need to be ignored by the test app when using opt_next(),
+ * (that are handled internally).
  */
-const char *test_get_program_name(void);
+# define OPT_TEST_CASES \
+         OPT_TEST_HELP: \
+    case OPT_TEST_LIST: \
+    case OPT_TEST_SINGLE: \
+    case OPT_TEST_ITERATION: \
+    case OPT_TEST_INDENT: \
+    case OPT_TEST_SEED
+
+/*
+ * Tests that use test_get_argument() that dont have any additional options
+ * (i.e- dont use opt_next()) can use this to set the usage string.
+ * It embeds test_get_options() which gives default command line options for
+ * the test system.
+ *
+ * Tests that need to use opt_next() need to specify
+ *  (1) test_get_options() containing an options[] which should include either
+ *    OPT_TEST_OPTIONS_DEFAULT_USAGE or
+ *    OPT_TEST_OPTIONS_WITH_EXTRA_USAGE(...).
+ *  (2) An enum outside the test_get_options() which contains OPT_TEST_ENUM, as
+ *      well as the additional options that need to be handled.
+ *  (3) case OPT_TEST_CASES: break; inside the opt_next() handling code.
+ */
+# define OPT_TEST_DECLARE_USAGE(usage_str) \
+const OPTIONS *test_get_options(void) \
+{ \
+    enum { OPT_TEST_ENUM }; \
+    static const OPTIONS options[] = { \
+        OPT_TEST_OPTIONS_WITH_EXTRA_USAGE(usage_str), \
+        { NULL } \
+    }; \
+    return options; \
+}
+
+/*
+ * Used to read non optional command line values that follow after the options.
+ * Returns NULL if there is no argument.
+ */
 char *test_get_argument(size_t n);
+/* Return the number of additional non optional command line arguments */
 size_t test_get_argument_count(void);
-int test_has_option(const char *option);
-const char *test_get_option_argument(const char *option);
+
+/*
+ * Skip over common test options. Should be called before calling
+ * test_get_argument()
+ */
+int test_skip_common_options(void);
+
+/*
+ * Get a library context for the tests, populated with the specified provider
+ * and configuration. If default_null_prov is not NULL, a "null" provider is
+ * loaded into the default library context to prevent it being used.
+ * If libctx is NULL, the specified provider is loaded into the default library
+ * context.
+ */
+int test_get_libctx(OSSL_LIB_CTX **libctx, OSSL_PROVIDER **default_null_prov,
+                    const char *config_file,
+                    OSSL_PROVIDER **provider, const char *module_name);
+int test_arg_libctx(OSSL_LIB_CTX **libctx, OSSL_PROVIDER **default_null_prov,
+                    OSSL_PROVIDER **provider, int argn, const char *usage);
 
 /*
  * Internal helpers. Test programs shouldn't use these directly, but should
@@ -152,20 +237,68 @@ int setup_tests(void);
 void cleanup_tests(void);
 
 /*
+ * Helper functions to detect specific versions of the FIPS provider being in use.
+ * Because of FIPS rules, code changes after a module has been validated are
+ * difficult and because we provide a hard guarantee of ABI and behavioural
+ * stability going forwards, it is a requirement to have tests be conditional
+ * on specific FIPS provider versions.  Without this, bug fixes cannot be tested
+ * in later releases.
+ *
+ * The reason for not including e.g. a less than test is to help avoid any
+ * temptation to use FIPS provider version numbers that don't exist.  Until the
+ * `new' provider is validated, its version isn't set in stone.  Thus a change
+ * in test behaviour must depend on already validated module versions only.
+ *
+ * In all cases, the function returns true if:
+ *      1. the FIPS provider version matches the criteria specified or
+ *      2. the FIPS provider isn't being used.
+ */
+int fips_provider_version_eq(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
+int fips_provider_version_ne(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
+int fips_provider_version_le(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
+int fips_provider_version_lt(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
+int fips_provider_version_gt(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
+int fips_provider_version_ge(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
+
+/*
+ * This function matches fips provider version with (potentially multiple)
+ * <operator>maj.min.patch version strings in versions.
+ * The operator can be one of = ! <= or > comparison symbols.
+ * If the fips provider matches all the version comparisons (or if there is no
+ * fips provider available) the function returns 1.
+ * If the fips provider does not match the version comparisons, it returns 0.
+ * On error the function returns -1.
+ */
+int fips_provider_version_match(OSSL_LIB_CTX *libctx, const char *versions);
+
+/*
+ * Used to supply test specific command line options,
+ * If non optional parameters are used, then the first entry in the OPTIONS[]
+ * should contain:
+ * { OPT_HELP_STR, 1, '-', "<list of non-optional commandline params>\n"},
+ * The last entry should always be { NULL }.
+ *
+ * Run the test locally using './test/test_name -help' to check the usage.
+ */
+const OPTIONS *test_get_options(void);
+
+/*
  *  Test assumption verification helpers.
  */
 
-#define PRINTF_FORMAT(a, b)
-#if defined(__GNUC__) && defined(__STDC_VERSION__)
+# define PRINTF_FORMAT(a, b)
+# if defined(__GNUC__) && defined(__STDC_VERSION__) \
+    && !defined(__MINGW32__) && !defined(__MINGW64__) \
+    && !defined(__APPLE__)
   /*
    * Because we support the 'z' modifier, which made its appearance in C99,
    * we can't use __attribute__ with pre C99 dialects.
    */
-# if __STDC_VERSION__ >= 199901L
-#  undef PRINTF_FORMAT
-#  define PRINTF_FORMAT(a, b)   __attribute__ ((format(printf, a, b)))
+#  if __STDC_VERSION__ >= 199901L
+#   undef PRINTF_FORMAT
+#   define PRINTF_FORMAT(a, b)   __attribute__ ((format(printf, a, b)))
+#  endif
 # endif
-#endif
 
 # define DECLARE_COMPARISON(type, name, opname)                         \
     int test_ ## name ## _ ## opname(const char *, int,                 \
@@ -186,7 +319,9 @@ DECLARE_COMPARISONS(char, char)
 DECLARE_COMPARISONS(unsigned char, uchar)
 DECLARE_COMPARISONS(long, long)
 DECLARE_COMPARISONS(unsigned long, ulong)
+DECLARE_COMPARISONS(double, double)
 DECLARE_COMPARISONS(time_t, time_t)
+
 /*
  * Because this comparison uses a printf format specifier that's not
  * universally known (yet), we provide an option to not have it declared.
@@ -219,9 +354,9 @@ DECLARE_COMPARISON(char *, str, ne)
  * Same as above, but for strncmp.
  */
 int test_strn_eq(const char *file, int line, const char *, const char *,
-                 const char *a, const char *b, size_t s);
+                 const char *a, size_t an, const char *b, size_t bn);
 int test_strn_ne(const char *file, int line, const char *, const char *,
-                 const char *a, const char *b, size_t s);
+                 const char *a, size_t an, const char *b, size_t bn);
 
 /*
  * Equality test for memory blocks where NULL is a legitimate value.
@@ -275,6 +410,9 @@ void test_info(const char *file, int line, const char *desc, ...)
     PRINTF_FORMAT(3, 4);
 void test_info_c90(const char *desc, ...) PRINTF_FORMAT(1, 2);
 void test_note(const char *desc, ...) PRINTF_FORMAT(1, 2);
+int test_skip(const char *file, int line, const char *desc, ...)
+    PRINTF_FORMAT(3, 4);
+int test_skip_c90(const char *desc, ...) PRINTF_FORMAT(1, 2);
 void test_openssl_errors(void);
 void test_perror(const char *s);
 
@@ -337,6 +475,13 @@ void test_perror(const char *s);
 # define TEST_size_t_gt(a, b) test_size_t_gt(__FILE__, __LINE__, #a, #b, a, b)
 # define TEST_size_t_ge(a, b) test_size_t_ge(__FILE__, __LINE__, #a, #b, a, b)
 
+# define TEST_double_eq(a, b) test_double_eq(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_double_ne(a, b) test_double_ne(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_double_lt(a, b) test_double_lt(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_double_le(a, b) test_double_le(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_double_gt(a, b) test_double_gt(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_double_ge(a, b) test_double_ge(__FILE__, __LINE__, #a, #b, a, b)
+
 # define TEST_time_t_eq(a, b) test_time_t_eq(__FILE__, __LINE__, #a, #b, a, b)
 # define TEST_time_t_ne(a, b) test_time_t_ne(__FILE__, __LINE__, #a, #b, a, b)
 # define TEST_time_t_lt(a, b) test_time_t_lt(__FILE__, __LINE__, #a, #b, a, b)
@@ -351,8 +496,10 @@ void test_perror(const char *s);
 
 # define TEST_str_eq(a, b)    test_str_eq(__FILE__, __LINE__, #a, #b, a, b)
 # define TEST_str_ne(a, b)    test_str_ne(__FILE__, __LINE__, #a, #b, a, b)
-# define TEST_strn_eq(a, b, n) test_strn_eq(__FILE__, __LINE__, #a, #b, a, b, n)
-# define TEST_strn_ne(a, b, n) test_strn_ne(__FILE__, __LINE__, #a, #b, a, b, n)
+# define TEST_strn_eq(a, b, n) test_strn_eq(__FILE__, __LINE__, #a, #b, a, n, b, n)
+# define TEST_strn_ne(a, b, n) test_strn_ne(__FILE__, __LINE__, #a, #b, a, n, b, n)
+# define TEST_strn2_eq(a, m, b, n) test_strn_eq(__FILE__, __LINE__, #a, #b, a, m, b, n)
+# define TEST_strn2_ne(a, m, b, n) test_strn_ne(__FILE__, __LINE__, #a, #b, a, m, b, n)
 
 # define TEST_mem_eq(a, m, b, n) test_mem_eq(__FILE__, __LINE__, #a, #b, a, m, b, n)
 # define TEST_mem_ne(a, m, b, n) test_mem_ne(__FILE__, __LINE__, #a, #b, a, m, b, n)
@@ -385,9 +532,11 @@ void test_perror(const char *s);
 # if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901L
 #  define TEST_error         test_error_c90
 #  define TEST_info          test_info_c90
+#  define TEST_skip          test_skip_c90
 # else
 #  define TEST_error(...)    test_error(__FILE__, __LINE__, __VA_ARGS__)
 #  define TEST_info(...)     test_info(__FILE__, __LINE__, __VA_ARGS__)
+#  define TEST_skip(...)     test_skip(__FILE__, __LINE__, __VA_ARGS__)
 # endif
 # define TEST_note           test_note
 # define TEST_openssl_errors test_openssl_errors
@@ -407,7 +556,7 @@ void test_output_memory(const char *name, const unsigned char *m, size_t l);
 /*
  * Utilities to parse a test file.
  */
-#define TESTMAXPAIRS        20
+# define TESTMAXPAIRS        150
 
 typedef struct pair_st {
     char *key;
@@ -462,7 +611,25 @@ char *glue_strings(const char *list[], size_t *out_len);
 uint32_t test_random(void);
 void test_random_seed(uint32_t sd);
 
+/* Fake non-secure random number generator */
+typedef int fake_random_generate_cb(unsigned char *out, size_t outlen,
+                                    const char *name, EVP_RAND_CTX *ctx);
+
+OSSL_PROVIDER *fake_rand_start(OSSL_LIB_CTX *libctx);
+void fake_rand_finish(OSSL_PROVIDER *p);
+void fake_rand_set_callback(EVP_RAND_CTX *ctx,
+                            int (*cb)(unsigned char *out, size_t outlen,
+                                      const char *name, EVP_RAND_CTX *ctx));
+void fake_rand_set_public_private_callbacks(OSSL_LIB_CTX *libctx,
+                                            fake_random_generate_cb *cb);
+
 /* Create a file path from a directory and a filename */
 char *test_mk_file_path(const char *dir, const char *file);
+
+EVP_PKEY *load_pkey_pem(const char *file, OSSL_LIB_CTX *libctx);
+X509 *load_cert_pem(const char *file, OSSL_LIB_CTX *libctx);
+X509 *load_cert_der(const unsigned char *bytes, int len);
+STACK_OF(X509) *load_certs_pem(const char *file);
+X509_REQ *load_csr_der(const char *file, OSSL_LIB_CTX *libctx);
 
 #endif                          /* OSSL_TESTUTIL_H */

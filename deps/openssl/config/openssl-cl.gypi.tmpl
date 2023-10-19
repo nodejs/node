@@ -10,6 +10,9 @@
     foreach $define (@{$target{defines}}) {
       $OUT .= "      '$define',\n";
     }
+    foreach $define (@{lib_defines}) {
+      $OUT .= "      '$define',\n";
+    }
     foreach $define (@{$config{lib_defines}}) {
   $OUT .= "      '$define',\n";
 } -%%    ],
@@ -22,8 +25,12 @@
     ],
     'openssl_cli_srcs_%%-$arch-%%': [
 %%- foreach $src (@apps_openssl_srcs) {
-  unless ($src eq "apps/openssl.rc") {
-    $OUT .= "      'openssl/$src',\n";
+  if ($src eq 'apps/progs.c') {
+    $OUT .= "      './config/archs/$arch/$asm/$src',\n";
+  } else {
+    unless ($src eq "apps/openssl.rc") {
+      $OUT .= "      'openssl/$src',\n";
+    }
   }
 }
 foreach $src (@libapps_srcs) {

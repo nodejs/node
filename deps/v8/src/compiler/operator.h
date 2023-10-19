@@ -5,14 +5,13 @@
 #ifndef V8_COMPILER_OPERATOR_H_
 #define V8_COMPILER_OPERATOR_H_
 
-#include <ostream>  // NOLINT(readability/streams)
+#include <ostream>
 
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/base/functional.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
-#include "src/objects/feedback-cell.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -73,7 +72,7 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   // A small integer unique to all instances of a particular kind of operator,
   // useful for quick matching for specific kinds of operators. For fast access
   // the opcode is stored directly in the operator object.
-  Opcode opcode() const { return opcode_; }
+  constexpr Opcode opcode() const { return opcode_; }
 
   // Returns a constant string representing the mnemonic of the operator,
   // without the static parameters. Useful for debugging.

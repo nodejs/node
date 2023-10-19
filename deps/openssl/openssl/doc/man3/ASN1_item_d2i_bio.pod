@@ -1,0 +1,88 @@
+=pod
+
+=head1 NAME
+
+ASN1_item_d2i_ex, ASN1_item_d2i, ASN1_item_d2i_bio_ex, ASN1_item_d2i_bio,
+ASN1_item_d2i_fp_ex, ASN1_item_d2i_fp, ASN1_item_i2d_mem_bio
+- decode and encode DER-encoded ASN.1 structures
+
+=head1 SYNOPSIS
+
+ #include <openssl/asn1.h>
+
+ ASN1_VALUE *ASN1_item_d2i_ex(ASN1_VALUE **pval, const unsigned char **in,
+                              long len, const ASN1_ITEM *it,
+                              OSSL_LIB_CTX *libctx, const char *propq);
+ ASN1_VALUE *ASN1_item_d2i(ASN1_VALUE **pval, const unsigned char **in,
+                           long len, const ASN1_ITEM *it);
+
+ void *ASN1_item_d2i_bio_ex(const ASN1_ITEM *it, BIO *in, void *x,
+                            OSSL_LIB_CTX *libctx, const char *propq);
+ void *ASN1_item_d2i_bio(const ASN1_ITEM *it, BIO *in, void *x);
+
+ void *ASN1_item_d2i_fp_ex(const ASN1_ITEM *it, FILE *in, void *x,
+                           OSSL_LIB_CTX *libctx, const char *propq);
+ void *ASN1_item_d2i_fp(const ASN1_ITEM *it, FILE *in, void *x);
+
+ BIO *ASN1_item_i2d_mem_bio(const ASN1_ITEM *it, const ASN1_VALUE *val);
+
+=head1 DESCRIPTION
+
+ASN1_item_d2i_ex() decodes the contents of the data stored in I<*in> of length
+I<len> which must be a DER-encoded ASN.1 structure, using the ASN.1 template
+I<it>. It places the result in I<*pval> unless I<pval> is NULL. If I<*pval> is
+non-NULL on entry then the B<ASN1_VALUE> present there will be reused. Otherwise
+a new B<ASN1_VALUE> will be allocated. If any algorithm fetches are required
+during the process then they will use the B<OSSL_LIB_CTX>provided in the
+I<libctx> parameter and the property query string in I<propq>. See
+L<crypto(7)/ALGORITHM FETCHING> for more information about algorithm fetching.
+On exit I<*in> will be updated to point to the next byte in the buffer after the
+decoded structure.
+
+ASN1_item_d2i() is the same as ASN1_item_d2i_ex() except that the default
+OSSL_LIB_CTX is used (i.e. NULL) and with a NULL property query string.
+
+ASN1_item_d2i_bio_ex() decodes the contents of its input BIO I<in>,
+which must be a DER-encoded ASN.1 structure, using the ASN.1 template I<it>
+and places the result in I<*pval> unless I<pval> is NULL.
+If I<in> is NULL it returns NULL, else a pointer to the parsed structure. If any
+algorithm fetches are required during the process then they will use the
+B<OSSL_LIB_CTX> provided in the I<libctx> parameter and the property query
+string in I<propq>. See L<crypto(7)/ALGORITHM FETCHING> for more information
+about algorithm fetching.
+
+ASN1_item_d2i_bio() is the same as ASN1_item_d2i_bio_ex() except that the
+default B<OSSL_LIB_CTX> is used (i.e. NULL) and with a NULL property query
+string.
+
+ASN1_item_d2i_fp_ex() is the same as ASN1_item_d2i_bio_ex() except that a FILE
+pointer is provided instead of a BIO.
+
+ASN1_item_d2i_fp() is the same as ASN1_item_d2i_fp_ex() except that the
+default B<OSSL_LIB_CTX> is used (i.e. NULL) and with a NULL property query
+string.
+
+ASN1_item_i2d_mem_bio() encodes the given ASN.1 value I<val>
+using the ASN.1 template I<it> and returns the result in a memory BIO.
+
+=head1 RETURN VALUES
+
+ASN1_item_d2i_bio() returns a pointer to an B<ASN1_VALUE> or NULL.
+
+ASN1_item_i2d_mem_bio() returns a pointer to a memory BIO or NULL on error.
+
+=head1 HISTORY
+
+The functions ASN1_item_d2i_ex(), ASN1_item_d2i_bio_ex(), ASN1_item_d2i_fp_ex()
+and ASN1_item_i2d_mem_bio() were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

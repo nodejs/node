@@ -1,5 +1,9 @@
 # libnpmpublish
 
+[![npm version](https://img.shields.io/npm/v/libnpmpublish.svg)](https://npm.im/libnpmpublish)
+[![license](https://img.shields.io/npm/l/libnpmpublish.svg)](https://npm.im/libnpmpublish)
+[![CI - libnpmpublish](https://github.com/npm/cli/actions/workflows/ci-libnpmpublish.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmpublish.yml)
+
 [`libnpmpublish`](https://github.com/npm/libnpmpublish) is a Node.js
 library for programmatically publishing and unpublishing npm packages. Give
 it a manifest as an object and a tarball as a Buffer, and it'll put them on
@@ -40,12 +44,23 @@ A couple of options of note:
   defaults to `latest`.
 
 * `opts.access` - tells the registry whether this package should be
-  published as public or restricted. Only applies to scoped packages, which
-  default to restricted.
+  published as `public` or `restricted`. Only applies to scoped
+  packages.  Defaults to `public`.
 
 * `opts.token` - can be passed in and will be used as the authentication
   token for the registry. For other ways to pass in auth details, see the
   n-r-f docs.
+
+* `opts.provenance` - when running in a supported CI environment, will trigger
+  the generation of a signed provenance statement to be published alongside
+  the package. Mutually exclusive with the `provenanceFile` option.
+
+* `opts.provenanceFile` - specifies the path to an externally-generated
+  provenance statement to be published alongside the package. Mutually
+  exclusive with the `provenance` option. The specified file should be a
+  [Sigstore Bundle](https://github.com/sigstore/protobuf-specs/blob/main/protos/sigstore_bundle.proto)
+  containing a [DSSE](https://github.com/secure-systems-lab/dsse)-packaged
+  provenance statement.
 
 #### <a name="publish"></a> `> libpub.publish(manifest, tarData, [opts]) -> Promise`
 

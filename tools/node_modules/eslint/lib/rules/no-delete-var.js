@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow deleting variables",
-            category: "Variables",
+            description: "Disallow deleting variables",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-delete-var"
+            url: "https://eslint.org/docs/latest/rules/no-delete-var"
         },
 
         schema: [],

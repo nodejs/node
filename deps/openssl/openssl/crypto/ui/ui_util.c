@@ -1,7 +1,7 @@
 /*
- * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -32,7 +32,7 @@ int UI_UTIL_read_pw_string(char *buf, int length, const char *prompt,
 int UI_UTIL_read_pw(char *buf, char *buff, int size, const char *prompt,
                     int verify)
 {
-    int ok = 0;
+    int ok = -2;
     UI *ui;
 
     if (size < 1)
@@ -47,8 +47,6 @@ int UI_UTIL_read_pw(char *buf, char *buff, int size, const char *prompt,
             ok = UI_process(ui);
         UI_free(ui);
     }
-    if (ok > 0)
-        ok = 0;
     return ok;
 }
 
@@ -71,12 +69,14 @@ static void ui_new_method_data(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
 }
 
 static int ui_dup_method_data(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from,
-                              void *from_d, int idx, long argl, void *argp)
+                              void **pptr, int idx, long argl, void *argp)
 {
-    void **pptr = (void **)from_d;
-    if (*pptr != NULL)
+    if (*pptr != NULL) {
         *pptr = OPENSSL_memdup(*pptr, sizeof(struct pem_password_cb_data));
-    return 1;
+        if (*pptr != NULL)
+            return 1;
+    }
+    return 0;
 }
 
 static void ui_free_method_data(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
@@ -115,7 +115,7 @@ static int ui_read(UI *ui, UI_STRING *uis)
 
             if (len >= 0)
                 result[len] = '\0';
-            if (len <= 0)
+            if (len < 0)
                 return len;
             if (UI_set_result_ex(ui, uis, result, len) >= 0)
                 return 1;
@@ -151,7 +151,7 @@ UI_METHOD *UI_UTIL_wrap_read_pem_callback(pem_password_cb *cb, int rwflag)
         || UI_method_set_writer(ui_method, ui_write) < 0
         || UI_method_set_closer(ui_method, ui_close) < 0
         || !RUN_ONCE(&get_index_once, ui_method_data_index_init)
-        || UI_method_set_ex_data(ui_method, ui_method_data_index, data) < 0) {
+        || !UI_method_set_ex_data(ui_method, ui_method_data_index, data)) {
         UI_destroy_method(ui_method);
         OPENSSL_free(data);
         return NULL;

@@ -87,3 +87,40 @@ paused with reason: instrumentation
     sourceMapURL : boo.js
     url : foo.js
 }
+
+Running test: testRemoveAfterCompile
+set breakpoint..
+compile script..
+Remove instrumentation breakpoint..
+evaluate script..
+no breakpoint was hit
+
+Running test: testRemoveBeforeEvaluate
+set breakpoint..
+Remove instrumentation breakpoint..
+evaluate script..
+no breakpoint was hit
+
+Running test: testRemoveAfterOnePause
+set breakpoint..
+evaluate script..
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    url : foo.js
+}
+Remove instrumentation breakpoint..
+evaluate another script..
+no breakpoint was hit
+
+Running test: testInstrumentationCoincideWithScheduledPauseOnNextStatement
+set breakpoint..
+set instrumentation
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    url : 
+}
+paused with reason: instrumentation:scriptFirstStatement
+{
+}

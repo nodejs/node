@@ -3,25 +3,39 @@
 // found in the LICENSE file.
 
 namespace array {
+macro ConvertRelativeIndex(index: Number, length: Number):
+    Number labels OutOfBoundsLow, OutOfBoundsHigh {
+  const relativeIndex = index >= 0 ? index : length + index;
+  if (relativeIndex < 0) goto OutOfBoundsLow;
+  if (relativeIndex >= length) goto OutOfBoundsHigh;
+  return relativeIndex;
+}
+
 // https://tc39.es/proposal-item-method/#sec-array.prototype.at
 transitioning javascript builtin ArrayPrototypeAt(
     js-implicit context: NativeContext, receiver: JSAny)(index: JSAny): JSAny {
   // 1. Let O be ? ToObject(this value).
   const o = ToObject_Inline(context, receiver);
+
   // 2. Let len be ? LengthOfArrayLike(O).
   const len = GetLengthProperty(o);
-  // 3. Let relativeIndex be ? ToInteger(index).
-  const relativeIndex = ToInteger_Inline(index);
-  // 4. If relativeIndex ≥ 0, then
-  //   a. Let k be relativeIndex.
-  // 5. Else,
-  //   a. Let k be len + relativeIndex.
-  const k = relativeIndex >= 0 ? relativeIndex : len + relativeIndex;
-  // 6. If k < 0 or k ≥ len, then return undefined.
-  if (k < 0 || k >= len) {
+
+  try {
+    // 3. Let relativeIndex be ? ToInteger(index).
+    const relativeIndex = ToInteger_Inline(index);
+
+    // 4. If relativeIndex ≥ 0, then
+    //   a. Let k be relativeIndex.
+    // 5. Else,
+    //   a. Let k be len + relativeIndex.
+    const k = ConvertRelativeIndex(relativeIndex, len) otherwise OutOfBounds,
+          OutOfBounds;
+
+    // 7. Return ? Get(O, ! ToString(k)).
+    return GetProperty(o, k);
+  } label OutOfBounds {
+    // 6. If k < 0 or k ≥ len, then return undefined.
     return Undefined;
   }
-  // 7. Return ? Get(O, ! ToString(k)).
-  return GetProperty(o, k);
 }
 }

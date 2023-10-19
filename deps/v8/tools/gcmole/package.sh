@@ -14,6 +14,7 @@ PACKAGE_DIR="${THIS_DIR}/gcmole-tools"
 PACKAGE_FILE="${THIS_DIR}/gcmole-tools.tar.gz"
 PACKAGE_SUM="${THIS_DIR}/gcmole-tools.tar.gz.sha1"
 BUILD_DIR="${THIS_DIR}/bootstrap/build"
+V8_ROOT_DIR= `realpath "${THIS_DIR}/../.."`
 
 # Echo all commands
 set -x
@@ -33,9 +34,17 @@ mkdir -p "${PACKAGE_DIR}/lib"
 cp -r "${BUILD_DIR}/lib/clang" "${PACKAGE_DIR}/lib"
 cp "${THIS_DIR}/libgcmole.so" "${PACKAGE_DIR}"
 
-# Generate the archive
+# Generate the archive. Set some flags on tar to make the output more
+# deterministic (e.g. not dependent on timestamps by using the timestamp of
+# gcmole.cc for all files)
 cd "$(dirname "${PACKAGE_DIR}")"
-tar -c -z -f "${PACKAGE_FILE}" "$(basename "${PACKAGE_DIR}")"
+tar \
+  --sort=name \
+  --owner=root:0 \
+  --group=root:0 \
+  --mtime="${THIS_DIR}/gcmole.cc" \
+  --create \
+  "$(basename "${PACKAGE_DIR}")" | gzip --no-name >"${PACKAGE_FILE}"
 
 # Generate checksum
 sha1sum "${PACKAGE_FILE}" | awk '{print $1}' > "${PACKAGE_SUM}"
@@ -64,5 +73,8 @@ echo "sudo chroot \$CHROOT_DIR bash -c 'PATH=/docs/depot_tools:\$PATH; /docs/v8/
 echo
 echo You can now run gcmole using this command:
 echo
-echo CLANG_BIN=\"tools/gcmole/gcmole-tools/bin\" python tools/gcmole/gcmole.py
+echo 'tools/gcmole/gcmole.py \'
+echo '   --clang-bin-dir="tools/gcmole/gcmole-tools/bin" \'
+echo '   --clang-plugins-dir="tools/gcmole/gcmole-tools" \'
+echo '   --v8-target-cpu=$CPU'
 echo

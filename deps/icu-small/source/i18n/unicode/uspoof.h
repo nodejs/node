@@ -35,7 +35,7 @@
 
 /**
  * \file
- * \brief Unicode Security and Spoofing Detection, C API.
+ * \brief C API: Unicode Security and Spoofing Detection
  *
  * <p>
  * This class, based on <a href="http://unicode.org/reports/tr36">Unicode Technical Report #36</a> and
@@ -1134,7 +1134,7 @@ uspoof_getCheckResultNumerics(const USpoofCheckResult *checkResult, UErrorCode *
  * @param sc      The USpoofChecker
  * @param id1     The first of the two identifiers to be compared for
  *                confusability.  The strings are in UTF-16 format.
- * @param length1 the length of the first identifer, expressed in
+ * @param length1 the length of the first identifier, expressed in
  *                16 bit UTF-16 code units, or -1 if the string is
  *                nul terminated.
  * @param id2     The second of the two identifiers to be compared for
@@ -1433,7 +1433,7 @@ uspoof_getAllowedUnicodeSet(const USpoofChecker *sc, UErrorCode *status);
  * @param position  Deprecated in ICU 51.  Always returns zero.
  *                Originally, an out parameter for the index of the first
  *                string position that failed a check.
- *                This parameter may be NULL.
+ *                This parameter may be nullptr.
  * @param status  The error code, set if an error occurred while attempting to
  *                perform the check.
  *                Spoofing or security issues detected with the input string are
@@ -1460,7 +1460,7 @@ uspoof_checkUnicodeString(const USpoofChecker *sc,
  * @param sc      The USpoofChecker
  * @param id      A identifier to be checked for possible security issues.
  * @param checkResult  An instance of USpoofCheckResult to be filled with
- *                details about the identifier.  Can be NULL.
+ *                details about the identifier.  Can be nullptr.
  * @param status  The error code, set if an error occurred while attempting to
  *                perform the check.
  *                Spoofing or security issues detected with the input string are

@@ -3,11 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_keys.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer.h"
 #include "async_wrap.h"
 #include "base_object.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "v8.h"
@@ -16,6 +15,7 @@ namespace node {
 namespace crypto {
 namespace Keygen {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Keygen
 
 enum class KeyGenJobStatus {
@@ -58,6 +58,10 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     CryptoJob<KeyGenTraits>::Initialize(New, env, target);
   }
 
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    CryptoJob<KeyGenTraits>::RegisterExternalReferences(New, registry);
+  }
+
   KeyGenJob(
       Environment* env,
       v8::Local<v8::Object> object,
@@ -71,9 +75,6 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
             std::move(params)) {}
 
   void DoThreadPoolWork() override {
-    // Make sure the CSPRNG is properly seeded so the results are secure.
-    CheckEntropy();
-
     AdditionalParams* params = CryptoJob<KeyGenTraits>::params();
 
     switch (KeyGenTraits::DoKeyGen(AsyncWrap::env(), params)) {
@@ -182,16 +183,12 @@ struct KeyPairGenTraits final {
       AdditionalParameters* params,
       v8::Local<v8::Value>* result) {
     v8::Local<v8::Value> keys[2];
-    if (ManagedEVPPKey::ToEncodedPublicKey(
-            env,
-            std::move(params->key),
-            params->public_key_encoding,
-            &keys[0]).IsNothing() ||
-        ManagedEVPPKey::ToEncodedPrivateKey(
-            env,
-            std::move(params->key),
-            params->private_key_encoding,
-            &keys[1]).IsNothing()) {
+    if (params->key
+            .ToEncodedPublicKey(env, params->public_key_encoding, &keys[0])
+            .IsNothing() ||
+        params->key
+            .ToEncodedPrivateKey(env, params->private_key_encoding, &keys[1])
+            .IsNothing()) {
       return v8::Nothing<bool>();
     }
     *result = v8::Array::New(env->isolate(), keys, arraysize(keys));
@@ -200,8 +197,8 @@ struct KeyPairGenTraits final {
 };
 
 struct SecretKeyGenConfig final : public MemoryRetainer {
-  size_t length;  // Expressed a a number of bits
-  char* out = nullptr;  // Placeholder for the generated key bytes
+  size_t length;        // In bytes.
+  ByteSource out;       // Placeholder for the generated key bytes.
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(SecretKeyGenConfig)
@@ -296,6 +293,6 @@ using SecretKeyGenJob = KeyGenJob<SecretKeyGenTraits>;
 }  // namespace crypto
 }  // namespace node
 
-#endif  // !defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_KEYGEN_H_
 

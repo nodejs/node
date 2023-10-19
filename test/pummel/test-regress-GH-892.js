@@ -58,7 +58,7 @@ function makeRequest() {
   const child = spawn(process.execPath, args);
 
   child.on('exit', function(code) {
-    assert.ok(/DONE/.test(stderrBuffer));
+    assert.match(stderrBuffer, /DONE/);
     assert.strictEqual(code, 0);
   });
 
@@ -78,7 +78,7 @@ function makeRequest() {
 
 const serverOptions = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 let uploadCount = 0;

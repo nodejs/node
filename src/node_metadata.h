@@ -8,6 +8,9 @@
 
 #if HAVE_OPENSSL
 #include <openssl/crypto.h>
+#if NODE_OPENSSL_HAS_QUIC
+#include <openssl/quic.h>
+#endif
 #endif  // HAVE_OPENSSL
 
 namespace node {
@@ -24,6 +27,12 @@ namespace node {
 #define NODE_HAS_RELEASE_URLS
 #endif
 
+#ifndef NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
+#define NODE_VERSIONS_KEY_UNDICI(V) V(undici)
+#else
+#define NODE_VERSIONS_KEY_UNDICI(V)
+#endif
+
 #define NODE_VERSIONS_KEYS_BASE(V)                                             \
   V(node)                                                                      \
   V(v8)                                                                        \
@@ -35,6 +44,13 @@ namespace node {
   V(nghttp2)                                                                   \
   V(napi)                                                                      \
   V(llhttp)                                                                    \
+  V(uvwasi)                                                                    \
+  V(acorn)                                                                     \
+  V(simdutf)                                                                   \
+  V(ada)                                                                       \
+  NODE_VERSIONS_KEY_UNDICI(V)                                                  \
+  V(cjs_module_lexer)                                                          \
+  V(base64)
 
 #if HAVE_OPENSSL
 #define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl)

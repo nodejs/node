@@ -48,7 +48,7 @@ static int shutdown_cb_called = 0;
 static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
   buf->len = size;
   buf->base = malloc(size);
-  ASSERT(buf->base != NULL);
+  ASSERT_NOT_NULL(buf->base);
 }
 
 
@@ -199,6 +199,6 @@ TEST_IMPL(callback_stack) {
   ASSERT(shutdown_cb_called == 1 && "shutdown_cb must be called exactly once");
   ASSERT(close_cb_called == 2 && "close_cb must be called exactly twice");
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

@@ -8,15 +8,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow template literal placeholder syntax in regular strings",
-            category: "Possible Errors",
+            description: "Disallow template literal placeholder syntax in regular strings",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-template-curly-in-string"
+            url: "https://eslint.org/docs/latest/rules/no-template-curly-in-string"
         },
 
         schema: [],

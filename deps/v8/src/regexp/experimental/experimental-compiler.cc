@@ -4,6 +4,7 @@
 
 #include "src/regexp/experimental/experimental-compiler.h"
 
+#include "src/base/strings.h"
 #include "src/regexp/experimental/experimental.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -14,13 +15,15 @@ namespace {
 
 // TODO(mbid, v8:10765): Currently the experimental engine doesn't support
 // UTF-16, but this shouldn't be too hard to implement.
-constexpr uc32 kMaxSupportedCodepoint = 0xFFFFu;
+constexpr base::uc32 kMaxSupportedCodepoint = 0xFFFFu;
+#ifdef DEBUG
+constexpr base::uc32 kMaxCodePoint = 0x10ffff;
+#endif  // DEBUG
 
 class CanBeHandledVisitor final : private RegExpVisitor {
   // Visitor to implement `ExperimentalRegExp::CanBeHandled`.
  public:
-  static bool Check(RegExpTree* tree, JSRegExp::Flags flags,
-                    int capture_count) {
+  static bool Check(RegExpTree* tree, RegExpFlags flags, int capture_count) {
     if (!AreSuitableFlags(flags)) return false;
     CanBeHandledVisitor visitor;
     tree->Accept(&visitor, nullptr);
@@ -30,15 +33,15 @@ class CanBeHandledVisitor final : private RegExpVisitor {
  private:
   CanBeHandledVisitor() = default;
 
-  static bool AreSuitableFlags(JSRegExp::Flags flags) {
+  static bool AreSuitableFlags(RegExpFlags flags) {
     // TODO(mbid, v8:10765): We should be able to support all flags in the
     // future.
-    static constexpr JSRegExp::Flags kAllowedFlags =
-        JSRegExp::kGlobal | JSRegExp::kSticky | JSRegExp::kMultiline |
-        JSRegExp::kDotAll | JSRegExp::kLinear;
+    static constexpr RegExpFlags kAllowedFlags =
+        RegExpFlag::kGlobal | RegExpFlag::kSticky | RegExpFlag::kMultiline |
+        RegExpFlag::kDotAll | RegExpFlag::kLinear;
     // We support Unicode iff kUnicode is among the supported flags.
-    STATIC_ASSERT(ExperimentalRegExp::kSupportsUnicode ==
-                  ((kAllowedFlags & JSRegExp::kUnicode) != 0));
+    static_assert(ExperimentalRegExp::kSupportsUnicode ==
+                  IsUnicode(kAllowedFlags));
     return (flags & ~kAllowedFlags) == 0;
   }
 
@@ -62,18 +65,26 @@ class CanBeHandledVisitor final : private RegExpVisitor {
     return nullptr;
   }
 
-  void* VisitCharacterClass(RegExpCharacterClass* node, void*) override {
-    result_ = result_ && AreSuitableFlags(node->flags());
+  void* VisitClassRanges(RegExpClassRanges* node, void*) override {
+    return nullptr;
+  }
+
+  void* VisitClassSetOperand(RegExpClassSetOperand* node, void*) override {
+    result_ = !node->has_strings();
+    return nullptr;
+  }
+
+  void* VisitClassSetExpression(RegExpClassSetExpression* node,
+                                void*) override {
+    result_ = false;
     return nullptr;
   }
 
   void* VisitAssertion(RegExpAssertion* node, void*) override {
-    result_ = result_ && AreSuitableFlags(node->flags());
     return nullptr;
   }
 
   void* VisitAtom(RegExpAtom* node, void*) override {
-    result_ = result_ && AreSuitableFlags(node->flags());
     return nullptr;
   }
 
@@ -175,7 +186,7 @@ class CanBeHandledVisitor final : private RegExpVisitor {
 }  // namespace
 
 bool ExperimentalRegExpCompiler::CanBeHandled(RegExpTree* tree,
-                                              JSRegExp::Flags flags,
+                                              RegExpFlags flags,
                                               int capture_count) {
   return CanBeHandledVisitor::Check(tree, flags, capture_count);
 }
@@ -221,7 +232,7 @@ class BytecodeAssembler {
 
   void Accept() { code_.Add(RegExpInstruction::Accept(), zone_); }
 
-  void Assertion(RegExpAssertion::AssertionType t) {
+  void Assertion(RegExpAssertion::Type t) {
     code_.Add(RegExpInstruction::Assertion(t), zone_);
   }
 
@@ -229,7 +240,7 @@ class BytecodeAssembler {
     code_.Add(RegExpInstruction::ClearRegister(register_index), zone_);
   }
 
-  void ConsumeRange(uc16 from, uc16 to) {
+  void ConsumeRange(base::uc16 from, base::uc16 to) {
     code_.Add(RegExpInstruction::ConsumeRange(from, to), zone_);
   }
 
@@ -296,11 +307,10 @@ class BytecodeAssembler {
 class CompileVisitor : private RegExpVisitor {
  public:
   static ZoneList<RegExpInstruction> Compile(RegExpTree* tree,
-                                             JSRegExp::Flags flags,
-                                             Zone* zone) {
+                                             RegExpFlags flags, Zone* zone) {
     CompileVisitor compiler(zone);
 
-    if ((flags & JSRegExp::kSticky) == 0 && !tree->IsAnchoredAtStart()) {
+    if (!IsSticky(flags) && !tree->IsAnchoredAtStart()) {
       // The match is not anchored, i.e. may start at any input position, so we
       // emit a preamble corresponding to /.*?/.  This skips an arbitrary
       // prefix in the input non-greedily.
@@ -386,11 +396,10 @@ class CompileVisitor : private RegExpVisitor {
     return nullptr;
   }
 
-  void* VisitCharacterClass(RegExpCharacterClass* node, void*) override {
+  void CompileCharacterRanges(ZoneList<CharacterRange>* ranges, bool negated) {
     // A character class is compiled as Disjunction over its `CharacterRange`s.
-    ZoneList<CharacterRange>* ranges = node->ranges(zone_);
     CharacterRange::Canonicalize(ranges);
-    if (node->is_negated()) {
+    if (negated) {
       // The complement of a disjoint, non-adjacent (i.e. `Canonicalize`d)
       // union of k intervals is a union of at most k + 1 intervals.
       ZoneList<CharacterRange>* negated =
@@ -402,24 +411,43 @@ class CompileVisitor : private RegExpVisitor {
 
     CompileDisjunction(ranges->length(), [&](int i) {
       // We don't support utf16 for now, so only ranges that can be specified
-      // by (complements of) ranges with uc16 bounds.
-      STATIC_ASSERT(kMaxSupportedCodepoint <= std::numeric_limits<uc16>::max());
+      // by (complements of) ranges with base::uc16 bounds.
+      static_assert(kMaxSupportedCodepoint <=
+                    std::numeric_limits<base::uc16>::max());
 
-      uc32 from = (*ranges)[i].from();
+      base::uc32 from = (*ranges)[i].from();
       DCHECK_LE(from, kMaxSupportedCodepoint);
-      uc16 from_uc16 = static_cast<uc16>(from);
+      base::uc16 from_uc16 = static_cast<base::uc16>(from);
 
-      uc32 to = (*ranges)[i].to();
-      DCHECK_IMPLIES(to > kMaxSupportedCodepoint, to == String::kMaxCodePoint);
-      uc16 to_uc16 = static_cast<uc16>(std::min(to, kMaxSupportedCodepoint));
+      base::uc32 to = (*ranges)[i].to();
+      DCHECK_IMPLIES(to > kMaxSupportedCodepoint, to == kMaxCodePoint);
+      base::uc16 to_uc16 =
+          static_cast<base::uc16>(std::min(to, kMaxSupportedCodepoint));
 
       assembler_.ConsumeRange(from_uc16, to_uc16);
     });
+  }
+
+  void* VisitClassRanges(RegExpClassRanges* node, void*) override {
+    CompileCharacterRanges(node->ranges(zone_), node->is_negated());
     return nullptr;
   }
 
+  void* VisitClassSetOperand(RegExpClassSetOperand* node, void*) override {
+    // TODO(v8:11935): Support strings.
+    DCHECK(!node->has_strings());
+    CompileCharacterRanges(node->ranges(), false);
+    return nullptr;
+  }
+
+  void* VisitClassSetExpression(RegExpClassSetExpression* node,
+                                void*) override {
+    // TODO(v8:11935): Add support.
+    UNREACHABLE();
+  }
+
   void* VisitAtom(RegExpAtom* node, void*) override {
-    for (uc16 c : node->data()) {
+    for (base::uc16 c : node->data()) {
       assembler_.ConsumeRange(c, c);
     }
     return nullptr;
@@ -627,7 +655,7 @@ class CompileVisitor : private RegExpVisitor {
 }  // namespace
 
 ZoneList<RegExpInstruction> ExperimentalRegExpCompiler::Compile(
-    RegExpTree* tree, JSRegExp::Flags flags, Zone* zone) {
+    RegExpTree* tree, RegExpFlags flags, Zone* zone) {
   return CompileVisitor::Compile(tree, flags, zone);
 }
 

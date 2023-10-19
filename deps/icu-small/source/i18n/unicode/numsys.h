@@ -42,7 +42,7 @@ U_NAMESPACE_BEGIN
 constexpr const size_t kInternalNumSysNameCapacity = 8;
 
 /**
- * Defines numbering systems. A numbering system describes the scheme by which
+ * Defines numbering systems. A numbering system describes the scheme by which 
  * numbers are to be presented to the end user.  In its simplest form, a numbering
  * system describes the set of digit characters that are to be used to display
  * numbers, such as Western digits, Thai digits, Arabic-Indic digits, etc., in a
@@ -100,7 +100,7 @@ public:
     static NumberingSystem* U_EXPORT2 createInstance(UErrorCode& status);
 
     /**
-     * Create a numbering system using the specified radix, type, and description.
+     * Create a numbering system using the specified radix, type, and description. 
      * @param radix         The radix (base) for this numbering system.
      * @param isAlgorithmic true if the numbering system is algorithmic rather than numeric.
      * @param description   The string representing the set of digits used in a numeric system, or the name of the RBNF
@@ -148,7 +148,7 @@ public:
 
     /**
      * Returns the name of this numbering system if it was created using one of the predefined names
-     * known to ICU.  Otherwise, returns NULL.
+     * known to ICU.  Otherwise, returns nullptr.
      * The predefined names are identical to the numbering system names as defined by
      * the BCP47 definition in Unicode CLDR.
      * See also, http://www.unicode.org/repos/cldr/tags/latest/common/bcp47/number.xml
@@ -192,7 +192,7 @@ public:
      *
      * @stable ICU 4.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
 
 private:
@@ -208,10 +208,6 @@ private:
     void setDesc(const UnicodeString &desc);
 
     void setName(const char* name);
-
-    static UBool isValidDigitString(const UnicodeString &str);
-
-    UBool hasContiguousDecimalDigits() const;
 };
 
 U_NAMESPACE_END

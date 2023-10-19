@@ -43,16 +43,15 @@
 #include <stdio.h>
 
 #include <memory>
-#include <vector>
 
+#include "src/base/numbers/double.h"
+#include "src/base/small-vector.h"
 #include "src/codegen/arm/constants-arm.h"
 #include "src/codegen/arm/register-arm.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
 #include "src/codegen/machine-type.h"
-#include "src/numbers/double.h"
 #include "src/utils/boxed-float.h"
-
 namespace v8 {
 namespace internal {
 
@@ -86,14 +85,14 @@ class V8_EXPORT_PRIVATE Operand {
  public:
   // immediate
   V8_INLINE explicit Operand(int32_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NONE)
+                             RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rmode_(rmode) {
     value_.immediate = immediate;
   }
   V8_INLINE static Operand Zero();
   V8_INLINE explicit Operand(const ExternalReference& f);
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value);
+  V8_INLINE explicit Operand(Tagged<Smi> value);
 
   // rm
   V8_INLINE explicit Operand(Register rm);
@@ -104,11 +103,11 @@ class V8_EXPORT_PRIVATE Operand {
     return Operand(rm, ASR, kSmiTagSize);
   }
   V8_INLINE static Operand PointerOffsetFromSmiKey(Register key) {
-    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
     return Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize);
   }
   V8_INLINE static Operand DoubleOffsetFromSmiKey(Register key) {
-    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
     return Operand(key, LSL, kDoubleSizeLog2 - kSmiTagSize);
   }
 
@@ -116,7 +115,6 @@ class V8_EXPORT_PRIVATE Operand {
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
   bool IsRegister() const {
@@ -148,21 +146,21 @@ class V8_EXPORT_PRIVATE Operand {
 
   inline int32_t immediate() const {
     DCHECK(IsImmediate());
-    DCHECK(!IsHeapObjectRequest());
+    DCHECK(!IsHeapNumberRequest());
     return value_.immediate;
   }
   bool IsImmediate() const { return !rm_.is_valid(); }
 
-  HeapObjectRequest heap_object_request() const {
-    DCHECK(IsHeapObjectRequest());
-    return value_.heap_object_request;
+  HeapNumberRequest heap_number_request() const {
+    DCHECK(IsHeapNumberRequest());
+    return value_.heap_number_request;
   }
-  bool IsHeapObjectRequest() const {
-    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
-    DCHECK_IMPLIES(is_heap_object_request_,
+  bool IsHeapNumberRequest() const {
+    DCHECK_IMPLIES(is_heap_number_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_number_request_,
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_object_request_;
+    return is_heap_number_request_;
   }
 
   Register rm() const { return rm_; }
@@ -176,10 +174,10 @@ class V8_EXPORT_PRIVATE Operand {
   int shift_imm_;  // valid if rm_ != no_reg && rs_ == no_reg
   union Value {
     Value() {}
-    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    HeapNumberRequest heap_number_request;  // if is_heap_number_request_
     int32_t immediate;                      // otherwise
   } value_;                                 // valid if rm_ == no_reg
-  bool is_heap_object_request_ = false;
+  bool is_heap_number_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -209,7 +207,7 @@ class V8_EXPORT_PRIVATE MemOperand {
   V8_INLINE static MemOperand PointerAddressFromSmiKey(Register array,
                                                        Register key,
                                                        AddrMode am = Offset) {
-    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
     return MemOperand(array, key, LSL, kPointerSizeLog2 - kSmiTagSize, am);
   }
 
@@ -310,17 +308,25 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   ~Assembler() override;
 
-  void AbortedCodeGeneration() override { pending_32_bit_constants_.clear(); }
+  static RegList DefaultTmpList();
+  static VfpRegList DefaultFPTmpList();
+
+  void AbortedCodeGeneration() override {
+    pending_32_bit_constants_.clear();
+    first_const_pool_32_use_ = -1;
+  }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
-  void GetCode(Isolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
+  // Convenience wrapper for allocating with an Isolate.
+  void GetCode(Isolate* isolate, CodeDesc* desc);
   // Convenience wrapper for code without safepoint or handler tables.
-  void GetCode(Isolate* isolate, CodeDesc* desc) {
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
@@ -365,7 +371,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Code code, Address target);
+      Address constant_pool_entry, Tagged<Code> code, Address target);
 
   // Get the size of the special target encoded at 'location'.
   inline static int deserialization_special_target_size(Address location);
@@ -386,7 +392,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // ---------------------------------------------------------------------------
-  // Code generation
+  // InstructionStream generation
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -397,12 +403,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void LoopHeaderAlign() { CodeTargetAlign(); }
 
   // Branch instructions
   void b(int branch_offset, Condition cond = al,
-         RelocInfo::Mode rmode = RelocInfo::NONE);
+         RelocInfo::Mode rmode = RelocInfo::NO_INFO);
   void bl(int branch_offset, Condition cond = al,
-          RelocInfo::Mode rmode = RelocInfo::NONE);
+          RelocInfo::Mode rmode = RelocInfo::NO_INFO);
   void blx(int branch_offset);                     // v5 and above
   void blx(Register target, Condition cond = al);  // v5 and above
   void bx(Register target, Condition cond = al);   // v5 and above, plus v4t
@@ -711,7 +718,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
             SwVfpRegister last, Condition cond = al);
 
   void vmov(const SwVfpRegister dst, Float32 imm);
-  void vmov(const DwVfpRegister dst, Double imm,
+  void vmov(const DwVfpRegister dst, base::Double imm,
             const Register extra_scratch = no_reg);
   void vmov(const SwVfpRegister dst, const SwVfpRegister src,
             const Condition cond = al);
@@ -887,6 +894,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void veor(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vbsl(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vorr(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vorn(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
@@ -918,6 +926,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
              DwVfpRegister src2);
 
+  void vpadal(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src);
   void vpaddl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src);
   void vqrdmulh(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
                 QwNeonRegister src2);
@@ -1051,7 +1060,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     ~BlockConstPoolScope() { assem_->EndBlockConstPool(); }
 
    private:
-    Assembler* assem_;
+    Assembler* const assem_;
 
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
@@ -1061,8 +1070,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
-                         int id);
+  void RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
+                         SourcePosition position, int id);
 
   // Record the emission of a constant pool.
   //
@@ -1088,11 +1097,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // called before any use of db/dd/dq/dp to ensure that constant pools
   // are not emitted as part of the tables generated.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
-    dd(data, rmode);
-  }
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dd(data); }
 
   // Read/patch instructions
   Instr instr_at(int pos) {
@@ -1147,13 +1154,24 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static int DecodeShiftImm(Instr instr);
   static Instr PatchShiftImm(Instr instr, int immed);
 
-  // Constants in pools are accessed via pc relative addressing, which can
-  // reach +/-4KB for integer PC-relative loads and +/-1KB for floating-point
+  // Constants are accessed via pc relative addressing, which can reach −4095 to
+  // 4095 for integer PC-relative loads, and −1020 to 1020 for floating-point
   // PC-relative loads, thereby defining a maximum distance between the
-  // instruction and the accessed constant.
-  static constexpr int kMaxDistToIntPool = 4 * KB;
-  // All relocations could be integer, it therefore acts as the limit.
-  static constexpr int kMinNumPendingConstants = 4;
+  // instruction and the accessed constant. Additionally, PC-relative loads
+  // start at a delta from the actual load instruction's PC, so we can add this
+  // on to the (positive) distance.
+  static constexpr int kMaxDistToPcRelativeConstant =
+      4095 + Instruction::kPcLoadDelta;
+  // The constant pool needs to be jumped over, and has a marker, so the actual
+  // distance from the instruction and start of the constant pool has to include
+  // space for these two instructions.
+  static constexpr int kMaxDistToIntPool =
+      kMaxDistToPcRelativeConstant - 2 * kInstrSize;
+  // Experimentally derived as sufficient for ~95% of compiles.
+  static constexpr int kTypicalNumPending32Constants = 32;
+  // The maximum number of pending constants is reached by a sequence of only
+  // constant loads, which limits it to the number of constant loads that can
+  // fit between the first constant load and the distance to the constant pool.
   static constexpr int kMaxNumPending32Constants =
       kMaxDistToIntPool / kInstrSize;
 
@@ -1164,8 +1182,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
-  void MaybeCheckConstPool() {
-    if (pc_offset() >= next_buffer_check_) {
+  V8_INLINE void MaybeCheckConstPool() {
+    if (V8_UNLIKELY(pc_offset() >= constant_pool_deadline_)) {
       CheckConstPool(false, true);
     }
   }
@@ -1191,9 +1209,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // number of call to EndBlockConstpool.
   void StartBlockConstPool() {
     if (const_pool_blocked_nesting_++ == 0) {
-      // Prevent constant pool checks happening by setting the next check to
-      // the biggest possible offset.
-      next_buffer_check_ = kMaxInt;
+      // Prevent constant pool checks happening by resetting the deadline.
+      constant_pool_deadline_ = kMaxInt;
     }
   }
 
@@ -1201,25 +1218,26 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // StartBlockConstPool to have an effect.
   void EndBlockConstPool() {
     if (--const_pool_blocked_nesting_ == 0) {
+      if (first_const_pool_32_use_ >= 0) {
 #ifdef DEBUG
-      // Max pool start (if we need a jump and an alignment).
-      int start = pc_offset() + kInstrSize + 2 * kPointerSize;
-      // Check the constant pool hasn't been blocked for too long.
-      DCHECK(pending_32_bit_constants_.empty() ||
-             (start < first_const_pool_32_use_ + kMaxDistToIntPool));
+        // Check the constant pool hasn't been blocked for too long.
+        DCHECK_LE(pc_offset(), first_const_pool_32_use_ + kMaxDistToIntPool);
 #endif
-      // Two cases:
-      //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
-      //    still blocked
-      //  * no_const_pool_before_ < next_buffer_check_ and the next emit will
-      //    trigger a check.
-      next_buffer_check_ = no_const_pool_before_;
+        // Reset the constant pool check back to the deadline.
+        constant_pool_deadline_ = first_const_pool_32_use_ + kCheckPoolDeadline;
+      }
     }
   }
 
   bool is_const_pool_blocked() const {
     return (const_pool_blocked_nesting_ > 0) ||
            (pc_offset() < no_const_pool_before_);
+  }
+
+  bool has_pending_constants() const {
+    bool result = !pending_32_bit_constants_.empty();
+    DCHECK_EQ(result, first_const_pool_32_use_ != -1);
+    return result;
   }
 
   bool VfpRegisterIsAvailable(DwVfpRegister reg) {
@@ -1236,13 +1254,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   inline void emit(Instr x);
 
-  // Code generation
+  // InstructionStream generation
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 32;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
@@ -1257,7 +1275,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // pending relocation entry per instruction.
 
   // The buffers of pending constant pool entries.
-  std::vector<ConstantPoolEntry> pending_32_bit_constants_;
+  base::SmallVector<ConstantPoolEntry, kTypicalNumPending32Constants>
+      pending_32_bit_constants_;
 
   // Scratch registers available for use by the Assembler.
   RegList scratch_register_list_;
@@ -1266,8 +1285,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
-
-  int next_buffer_check_;  // pc offset of next buffer check
 
   // Constant pool generation
   // Pools are emitted in the instruction stream, preferably after unconditional
@@ -1280,11 +1297,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // if so, a relocation info entry is associated to the constant pool entry.
 
   // Repeated checking whether the constant pool should be emitted is rather
-  // expensive. By default we only check again once a number of instructions
-  // has been generated. That also means that the sizing of the buffers is not
-  // an exact science, and that we rely on some slop to not overrun buffers.
-  static constexpr int kCheckPoolIntervalInst = 32;
-  static constexpr int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
+  // expensive. Instead, we check once a deadline is hit; the deadline being
+  // when there is a possibility that MaybeCheckConstPool won't be called before
+  // kMaxDistToIntPoolWithHeader is exceeded. Since MaybeCheckConstPool is
+  // called in CheckBuffer, this means that kGap is an upper bound on this
+  // check. Use 2 * kGap just to give it some slack around BlockConstPoolScopes.
+  static constexpr int kCheckPoolDeadline = kMaxDistToIntPool - 2 * kGap;
+
+  // pc offset of the upcoming constant pool deadline. Equivalent to
+  // first_const_pool_32_use_ + kCheckPoolDeadline.
+  int constant_pool_deadline_;
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
@@ -1297,7 +1319,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
-  inline void CheckBuffer();
+  V8_INLINE void CheckBuffer();
   void GrowBuffer();
 
   // Instruction generation
@@ -1323,7 +1345,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   void ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                             intptr_t value);
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
 
   int WriteCodeComments();
 
@@ -1340,7 +1362,7 @@ class EnsureSpace {
 
 class PatchingAssembler : public Assembler {
  public:
-  PatchingAssembler(const AssemblerOptions& options, byte* address,
+  PatchingAssembler(const AssemblerOptions& options, uint8_t* address,
                     int instructions);
   ~PatchingAssembler();
 
@@ -1359,11 +1381,20 @@ class PatchingAssembler : public Assembler {
 // constructors. We do not have assertions for this.
 class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(Assembler* assembler);
-  ~UseScratchRegisterScope();
+  explicit UseScratchRegisterScope(Assembler* assembler)
+      : assembler_(assembler),
+        old_available_(*assembler->GetScratchRegisterList()),
+        old_available_vfp_(*assembler->GetScratchVfpRegisterList()) {}
+
+  ~UseScratchRegisterScope() {
+    *assembler_->GetScratchRegisterList() = old_available_;
+    *assembler_->GetScratchVfpRegisterList() = old_available_vfp_;
+  }
 
   // Take a register from the list and return it.
-  Register Acquire();
+  Register Acquire() {
+    return assembler_->GetScratchRegisterList()->PopFirst();
+  }
   SwVfpRegister AcquireS() { return AcquireVfp<SwVfpRegister>(); }
   LowDwVfpRegister AcquireLowD() { return AcquireVfp<LowDwVfpRegister>(); }
   DwVfpRegister AcquireD() {
@@ -1378,12 +1409,59 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   }
 
   // Check if we have registers available to acquire.
-  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+  bool CanAcquire() const {
+    return !assembler_->GetScratchRegisterList()->is_empty();
+  }
+  bool CanAcquireS() const { return CanAcquireVfp<SwVfpRegister>(); }
   bool CanAcquireD() const { return CanAcquireVfp<DwVfpRegister>(); }
+  bool CanAcquireQ() const { return CanAcquireVfp<QwNeonRegister>(); }
+
+  RegList Available() { return *assembler_->GetScratchRegisterList(); }
+  void SetAvailable(RegList available) {
+    *assembler_->GetScratchRegisterList() = available;
+  }
+
+  VfpRegList AvailableVfp() { return *assembler_->GetScratchVfpRegisterList(); }
+  void SetAvailableVfp(VfpRegList available) {
+    *assembler_->GetScratchVfpRegisterList() = available;
+  }
+
+  void Include(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK(!available->has(reg1));
+    DCHECK(!available->has(reg2));
+    available->set(reg1);
+    available->set(reg2);
+  }
+  void Include(RegList list) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    *available = *available | list;
+  }
+  void Include(VfpRegList list) {
+    VfpRegList* available = assembler_->GetScratchVfpRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK_EQ((*available & list), 0x0);
+    *available = *available | list;
+  }
+  void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK(available->has(reg1));
+    DCHECK_IMPLIES(reg2.is_valid(), available->has(reg2));
+    available->clear(RegList{reg1, reg2});
+  }
+  void Exclude(VfpRegList list) {
+    VfpRegList* available = assembler_->GetScratchVfpRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK_EQ((*available | list), *available);
+    *available = *available & ~list;
+  }
 
  private:
   friend class Assembler;
-  friend class TurboAssembler;
+  friend class MacroAssembler;
 
   template <typename T>
   bool CanAcquireVfp() const;

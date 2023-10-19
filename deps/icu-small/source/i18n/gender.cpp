@@ -31,13 +31,13 @@
 #include "umutex.h"
 #include "uhash.h"
 
-static UHashtable* gGenderInfoCache = NULL;
+static UHashtable* gGenderInfoCache = nullptr;
 
 static const char* gNeutralStr = "neutral";
 static const char* gMailTaintsStr = "maleTaints";
 static const char* gMixedNeutralStr = "mixedNeutral";
-static icu::GenderInfo* gObjs = NULL;
-static icu::UInitOnce gGenderInitOnce = U_INITONCE_INITIALIZER;
+static icu::GenderInfo* gObjs = nullptr;
+static icu::UInitOnce gGenderInitOnce {};
 
 enum GenderStyle {
   NEUTRAL,
@@ -48,14 +48,14 @@ enum GenderStyle {
 
 U_CDECL_BEGIN
 
-static UBool U_CALLCONV gender_cleanup(void) {
-  if (gGenderInfoCache != NULL) {
+static UBool U_CALLCONV gender_cleanup() {
+  if (gGenderInfoCache != nullptr) {
     uhash_close(gGenderInfoCache);
-    gGenderInfoCache = NULL;
+    gGenderInfoCache = nullptr;
     delete [] gObjs;
   }
   gGenderInitOnce.reset();
-  return TRUE;
+  return true;
 }
 
 U_CDECL_END
@@ -64,19 +64,19 @@ U_NAMESPACE_BEGIN
 
 void U_CALLCONV GenderInfo_initCache(UErrorCode &status) {
   ucln_i18n_registerCleanup(UCLN_I18N_GENDERINFO, gender_cleanup);
-  U_ASSERT(gGenderInfoCache == NULL);
+  U_ASSERT(gGenderInfoCache == nullptr);
   if (U_FAILURE(status)) {
       return;
   }
   gObjs = new GenderInfo[GENDER_STYLE_LENGTH];
-  if (gObjs == NULL) {
+  if (gObjs == nullptr) {
     status = U_MEMORY_ALLOCATION_ERROR;
     return;
   }
   for (int i = 0; i < GENDER_STYLE_LENGTH; i++) {
     gObjs[i]._style = i;
   }
-  gGenderInfoCache = uhash_open(uhash_hashChars, uhash_compareChars, NULL, &status);
+  gGenderInfoCache = uhash_open(uhash_hashChars, uhash_compareChars, nullptr, &status);
   if (U_FAILURE(status)) {
     delete [] gObjs;
     return;
@@ -95,11 +95,11 @@ const GenderInfo* GenderInfo::getInstance(const Locale& locale, UErrorCode& stat
   // Make sure our cache exists.
   umtx_initOnce(gGenderInitOnce, &GenderInfo_initCache, status);
   if (U_FAILURE(status)) {
-    return NULL;
+    return nullptr;
   }
 
   static UMutex gGenderMetaLock;
-  const GenderInfo* result = NULL;
+  const GenderInfo* result = nullptr;
   const char* key = locale.getName();
   {
     Mutex lock(&gGenderMetaLock);
@@ -112,7 +112,7 @@ const GenderInfo* GenderInfo::getInstance(const Locale& locale, UErrorCode& stat
   // On cache miss, try to create GenderInfo from CLDR data
   result = loadInstance(locale, status);
   if (U_FAILURE(status)) {
-    return NULL;
+    return nullptr;
   }
 
   // Try to put our GenderInfo object in cache. If there is a race condition,
@@ -125,7 +125,7 @@ const GenderInfo* GenderInfo::getInstance(const Locale& locale, UErrorCode& stat
     } else {
       uhash_put(gGenderInfoCache, uprv_strdup(key), (void*) result, &status);
       if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
       }
     }
   }
@@ -134,30 +134,30 @@ const GenderInfo* GenderInfo::getInstance(const Locale& locale, UErrorCode& stat
 
 const GenderInfo* GenderInfo::loadInstance(const Locale& locale, UErrorCode& status) {
   LocalUResourceBundlePointer rb(
-      ures_openDirect(NULL, "genderList", &status));
+      ures_openDirect(nullptr, "genderList", &status));
   if (U_FAILURE(status)) {
-    return NULL;
+    return nullptr;
   }
-  LocalUResourceBundlePointer locRes(ures_getByKey(rb.getAlias(), "genderList", NULL, &status));
+  LocalUResourceBundlePointer locRes(ures_getByKey(rb.getAlias(), "genderList", nullptr, &status));
   if (U_FAILURE(status)) {
-    return NULL;
+    return nullptr;
   }
   int32_t resLen = 0;
   const char* curLocaleName = locale.getName();
   UErrorCode key_status = U_ZERO_ERROR;
-  const UChar* s = ures_getStringByKey(locRes.getAlias(), curLocaleName, &resLen, &key_status);
-  if (s == NULL) {
+  const char16_t* s = ures_getStringByKey(locRes.getAlias(), curLocaleName, &resLen, &key_status);
+  if (s == nullptr) {
     key_status = U_ZERO_ERROR;
     char parentLocaleName[ULOC_FULLNAME_CAPACITY];
     uprv_strcpy(parentLocaleName, curLocaleName);
-    while (s == NULL && uloc_getParent(parentLocaleName, parentLocaleName, ULOC_FULLNAME_CAPACITY, &key_status) > 0) {
+    while (s == nullptr && uloc_getParent(parentLocaleName, parentLocaleName, ULOC_FULLNAME_CAPACITY, &key_status) > 0) {
       key_status = U_ZERO_ERROR;
       resLen = 0;
       s = ures_getStringByKey(locRes.getAlias(), parentLocaleName, &resLen, &key_status);
       key_status = U_ZERO_ERROR;
     }
   }
-  if (s == NULL) {
+  if (s == nullptr) {
     return &gObjs[NEUTRAL];
   }
   char type_str[256] = "";
@@ -166,7 +166,7 @@ const GenderInfo* GenderInfo::loadInstance(const Locale& locale, UErrorCode& sta
     return &gObjs[NEUTRAL];
   }
   if (uprv_strcmp(type_str, gMixedNeutralStr) == 0) {
-    return &gObjs[MIXED_NEUTRAL];
+    return &gObjs[MIXED_NEUTRAL]; 
   }
   if (uprv_strcmp(type_str, gMailTaintsStr) == 0) {
     return &gObjs[MALE_TAINTS];
@@ -184,8 +184,8 @@ UGender GenderInfo::getListGender(const UGender* genders, int32_t length, UError
   if (length == 1) {
     return genders[0];
   }
-  UBool has_female = FALSE;
-  UBool has_male = FALSE;
+  UBool has_female = false;
+  UBool has_male = false;
   switch (_style) {
     case NEUTRAL:
       return UGENDER_OTHER;
@@ -199,13 +199,13 @@ UGender GenderInfo::getListGender(const UGender* genders, int32_t length, UError
             if (has_male) {
               return UGENDER_OTHER;
             }
-            has_female = TRUE;
+            has_female = true;
             break;
           case UGENDER_MALE:
             if (has_female) {
               return UGENDER_OTHER;
             }
-            has_male = TRUE;
+            has_male = true;
             break;
           default:
             break;

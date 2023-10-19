@@ -27,9 +27,9 @@ assertFalse(%HasOwnConstDataProperty(o3, "b"));
 Object.defineProperty(o2, "a", {
   value:2, enumerable: false, configurable: true, writable: true,
 });
-assertFalse(%HasOwnConstDataProperty(o1, "a"));
+assertTrue(%HasOwnConstDataProperty(o1, "a"));
 assertFalse(%HasOwnConstDataProperty(o1, "b"));
-assertFalse(%HasOwnConstDataProperty(o3, "a"));
+assertTrue(%HasOwnConstDataProperty(o3, "a"));
 assertFalse(%HasOwnConstDataProperty(o3, "b"));
 
 assertFalse(%HasOwnConstDataProperty(o2, "a"));

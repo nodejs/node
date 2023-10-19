@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_ADD_TYPE_ASSERTIONS_REDUCER_H_
 #define V8_COMPILER_ADD_TYPE_ASSERTIONS_REDUCER_H_
 
-#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-aux-data.h"
@@ -15,29 +14,9 @@ namespace v8 {
 namespace internal {
 
 namespace compiler {
+class Schedule;
 
-class V8_EXPORT_PRIVATE AddTypeAssertionsReducer final
-    : public NON_EXPORTED_BASE(AdvancedReducer) {
- public:
-  AddTypeAssertionsReducer(Editor* editor, JSGraph* jsgraph, Zone* zone);
-  ~AddTypeAssertionsReducer() final;
-
-  AddTypeAssertionsReducer(const AddTypeAssertionsReducer&) = delete;
-  AddTypeAssertionsReducer& operator=(const AddTypeAssertionsReducer&) = delete;
-
-  const char* reducer_name() const override {
-    return "AddTypeAssertionsReducer";
-  }
-
-  Reduction Reduce(Node* node) final;
-
- private:
-  JSGraph* const jsgraph_;
-  NodeAuxData<bool> visited_;
-
-  Graph* graph() { return jsgraph_->graph(); }
-  SimplifiedOperatorBuilder* simplified() { return jsgraph_->simplified(); }
-};
+void AddTypeAssertions(JSGraph* jsgraph, Schedule* schedule, Zone* phase_zone);
 
 }  // namespace compiler
 }  // namespace internal

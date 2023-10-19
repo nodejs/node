@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -18,32 +18,44 @@
 #
 # ChaCha20 for ARMv8.
 #
+# April 2019
+#
+# Replace 3xNEON+1xIALU code path with 4+1. 4+1 is actually fastest
+# option on most(*), but not all, processors, yet 6+2 is retained.
+# This is because penalties are considered tolerable in comparison to
+# improvement on processors where 6+2 helps. Most notably +37% on
+# ThunderX2. It's server-oriented processor which will have to serve
+# as many requests as possible. While others are mostly clients, when
+# performance doesn't have to be absolute top-notch, just fast enough,
+# as majority of time is spent "entertaining" relatively slow human.
+#
 # Performance in cycles per byte out of large buffer.
 #
-#			IALU/gcc-4.9    3xNEON+1xIALU	6xNEON+2xIALU
+#			IALU/gcc-4.9	4xNEON+1xIALU	6xNEON+2xIALU
 #
-# Apple A7		5.50/+49%       3.33            1.70
-# Cortex-A53		8.40/+80%       4.72		4.72(*)
-# Cortex-A57		8.06/+43%       4.90            4.43(**)
-# Denver		4.50/+82%       2.63		2.67(*)
-# X-Gene		9.50/+46%       8.82		8.89(*)
-# Mongoose		8.00/+44%	3.64		3.25
-# Kryo			8.17/+50%	4.83		4.65
+# Apple A7		5.50/+49%	2.72		1.60
+# Cortex-A53		8.40/+80%	4.06		4.45(*)
+# Cortex-A57		8.06/+43%	4.15		4.40(*)
+# Denver		4.50/+82%	2.30		2.70(*)
+# X-Gene		9.50/+46%	8.20		8.90(*)
+# Mongoose		8.00/+44%	2.74		3.12(*)
+# Kryo			8.17/+50%	4.47		4.65(*)
+# ThunderX2		7.22/+48%	5.64		4.10
 #
-# (*)	it's expected that doubling interleave factor doesn't help
-#	all processors, only those with higher NEON latency and
-#	higher instruction issue rate;
-# (**)	expected improvement was actually higher;
+# (*)	slower than 4+1:-(
 
-$flavour=shift;
-$output=shift;
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
 ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
 die "can't locate arm-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" $xlate $flavour \"$output\""
+    or die "can't call $xlate: $!";
 *STDOUT=*OUT;
 
 sub AUTOLOAD()		# thunk [simplified] x86-style perlasm
@@ -120,42 +132,37 @@ my ($a3,$b3,$c3,$d3)=map(($_&~3)+(($_+1)&3),($a2,$b2,$c2,$d2));
 }
 
 $code.=<<___;
-#include "arm_arch.h"
-
-.text
-
+#ifndef	__KERNEL__
+# include "arm_arch.h"
 .extern	OPENSSL_armcap_P
 .hidden	OPENSSL_armcap_P
+#endif
+
+.text
 
 .align	5
 .Lsigma:
 .quad	0x3320646e61707865,0x6b20657479622d32		// endian-neutral
 .Lone:
-.long	1,0,0,0
-.LOPENSSL_armcap_P:
-#ifdef	__ILP32__
-.long	OPENSSL_armcap_P-.
-#else
-.quad	OPENSSL_armcap_P-.
-#endif
-.asciz	"ChaCha20 for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
+.long	1,2,3,4
+.Lrot24:
+.long	0x02010003,0x06050407,0x0a09080b,0x0e0d0c0f
+.asciz	"ChaCha20 for ARMv8, CRYPTOGAMS by \@dot-asm"
 
 .globl	ChaCha20_ctr32
 .type	ChaCha20_ctr32,%function
 .align	5
 ChaCha20_ctr32:
 	cbz	$len,.Labort
-	adr	@x[0],.LOPENSSL_armcap_P
 	cmp	$len,#192
 	b.lo	.Lshort
-#ifdef	__ILP32__
-	ldrsw	@x[1],[@x[0]]
-#else
-	ldr	@x[1],[@x[0]]
-#endif
-	ldr	w17,[@x[1],@x[0]]
+
+#ifndef	__KERNEL__
+	adrp	x17,OPENSSL_armcap_P
+	ldr	w17,[x17,#:lo12:OPENSSL_armcap_P]
 	tst	w17,#ARMV7_NEON
-	b.ne	ChaCha20_neon
+	b.ne	.LChaCha20_neon
+#endif
 
 .Lshort:
 	.inst	0xd503233f			// paciasp
@@ -174,7 +181,7 @@ ChaCha20_ctr32:
 	ldp	@d[2],@d[3],[$key]		// load key
 	ldp	@d[4],@d[5],[$key,#16]
 	ldp	@d[6],@d[7],[$ctr]		// load counter
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	@d[2],@d[2],#32
 	ror	@d[3],@d[3],#32
 	ror	@d[4],@d[4],#32
@@ -243,7 +250,7 @@ $code.=<<___;
 	add	@x[14],@x[14],@x[15],lsl#32
 	ldp	@x[13],@x[15],[$inp,#48]
 	add	$inp,$inp,#64
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	@x[0],@x[0]
 	rev	@x[2],@x[2]
 	rev	@x[4],@x[4]
@@ -300,7 +307,7 @@ $code.=<<___;
 	add	@x[10],@x[10],@x[11],lsl#32
 	add	@x[12],@x[12],@x[13],lsl#32
 	add	@x[14],@x[14],@x[15],lsl#32
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	@x[0],@x[0]
 	rev	@x[2],@x[2]
 	rev	@x[4],@x[4]
@@ -341,46 +348,91 @@ $code.=<<___;
 ___
 
 {{{
-my ($A0,$B0,$C0,$D0,$A1,$B1,$C1,$D1,$A2,$B2,$C2,$D2,$T0,$T1,$T2,$T3) =
-    map("v$_.4s",(0..7,16..23));
-my (@K)=map("v$_.4s",(24..30));
-my $ONE="v31.4s";
+my @K = map("v$_.4s",(0..3));
+my ($xt0,$xt1,$xt2,$xt3, $CTR,$ROT24) = map("v$_.4s",(4..9));
+my @X = map("v$_.4s",(16,20,24,28, 17,21,25,29, 18,22,26,30, 19,23,27,31));
+my ($xa0,$xa1,$xa2,$xa3, $xb0,$xb1,$xb2,$xb3,
+    $xc0,$xc1,$xc2,$xc3, $xd0,$xd1,$xd2,$xd3) = @X;
 
-sub NEONROUND {
-my $odd = pop;
-my ($a,$b,$c,$d,$t)=@_;
+sub NEON_lane_ROUND {
+my ($a0,$b0,$c0,$d0)=@_;
+my ($a1,$b1,$c1,$d1)=map(($_&~3)+(($_+1)&3),($a0,$b0,$c0,$d0));
+my ($a2,$b2,$c2,$d2)=map(($_&~3)+(($_+1)&3),($a1,$b1,$c1,$d1));
+my ($a3,$b3,$c3,$d3)=map(($_&~3)+(($_+1)&3),($a2,$b2,$c2,$d2));
+my @x=map("'$_'",@X);
 
 	(
-	"&add		('$a','$a','$b')",
-	"&eor		('$d','$d','$a')",
-	"&rev32_16	('$d','$d')",		# vrot ($d,16)
+	"&add		(@x[$a0],@x[$a0],@x[$b0])",	# Q1
+	 "&add		(@x[$a1],@x[$a1],@x[$b1])",	# Q2
+	  "&add		(@x[$a2],@x[$a2],@x[$b2])",	# Q3
+	   "&add	(@x[$a3],@x[$a3],@x[$b3])",	# Q4
+	"&eor		(@x[$d0],@x[$d0],@x[$a0])",
+	 "&eor		(@x[$d1],@x[$d1],@x[$a1])",
+	  "&eor		(@x[$d2],@x[$d2],@x[$a2])",
+	   "&eor	(@x[$d3],@x[$d3],@x[$a3])",
+	"&rev32_16	(@x[$d0],@x[$d0])",
+	 "&rev32_16	(@x[$d1],@x[$d1])",
+	  "&rev32_16	(@x[$d2],@x[$d2])",
+	   "&rev32_16	(@x[$d3],@x[$d3])",
 
-	"&add		('$c','$c','$d')",
-	"&eor		('$t','$b','$c')",
-	"&ushr		('$b','$t',20)",
-	"&sli		('$b','$t',12)",
+	"&add		(@x[$c0],@x[$c0],@x[$d0])",
+	 "&add		(@x[$c1],@x[$c1],@x[$d1])",
+	  "&add		(@x[$c2],@x[$c2],@x[$d2])",
+	   "&add	(@x[$c3],@x[$c3],@x[$d3])",
+	"&eor		('$xt0',@x[$b0],@x[$c0])",
+	 "&eor		('$xt1',@x[$b1],@x[$c1])",
+	  "&eor		('$xt2',@x[$b2],@x[$c2])",
+	   "&eor	('$xt3',@x[$b3],@x[$c3])",
+	"&ushr		(@x[$b0],'$xt0',20)",
+	 "&ushr		(@x[$b1],'$xt1',20)",
+	  "&ushr	(@x[$b2],'$xt2',20)",
+	   "&ushr	(@x[$b3],'$xt3',20)",
+	"&sli		(@x[$b0],'$xt0',12)",
+	 "&sli		(@x[$b1],'$xt1',12)",
+	  "&sli		(@x[$b2],'$xt2',12)",
+	   "&sli	(@x[$b3],'$xt3',12)",
 
-	"&add		('$a','$a','$b')",
-	"&eor		('$t','$d','$a')",
-	"&ushr		('$d','$t',24)",
-	"&sli		('$d','$t',8)",
+	"&add		(@x[$a0],@x[$a0],@x[$b0])",
+	 "&add		(@x[$a1],@x[$a1],@x[$b1])",
+	  "&add		(@x[$a2],@x[$a2],@x[$b2])",
+	   "&add	(@x[$a3],@x[$a3],@x[$b3])",
+	"&eor		('$xt0',@x[$d0],@x[$a0])",
+	 "&eor		('$xt1',@x[$d1],@x[$a1])",
+	  "&eor		('$xt2',@x[$d2],@x[$a2])",
+	   "&eor	('$xt3',@x[$d3],@x[$a3])",
+	"&tbl		(@x[$d0],'{$xt0}','$ROT24')",
+	 "&tbl		(@x[$d1],'{$xt1}','$ROT24')",
+	  "&tbl		(@x[$d2],'{$xt2}','$ROT24')",
+	   "&tbl	(@x[$d3],'{$xt3}','$ROT24')",
 
-	"&add		('$c','$c','$d')",
-	"&eor		('$t','$b','$c')",
-	"&ushr		('$b','$t',25)",
-	"&sli		('$b','$t',7)",
-
-	"&ext		('$c','$c','$c',8)",
-	"&ext		('$d','$d','$d',$odd?4:12)",
-	"&ext		('$b','$b','$b',$odd?12:4)"
+	"&add		(@x[$c0],@x[$c0],@x[$d0])",
+	 "&add		(@x[$c1],@x[$c1],@x[$d1])",
+	  "&add		(@x[$c2],@x[$c2],@x[$d2])",
+	   "&add	(@x[$c3],@x[$c3],@x[$d3])",
+	"&eor		('$xt0',@x[$b0],@x[$c0])",
+	 "&eor		('$xt1',@x[$b1],@x[$c1])",
+	  "&eor		('$xt2',@x[$b2],@x[$c2])",
+	   "&eor	('$xt3',@x[$b3],@x[$c3])",
+	"&ushr		(@x[$b0],'$xt0',25)",
+	 "&ushr		(@x[$b1],'$xt1',25)",
+	  "&ushr	(@x[$b2],'$xt2',25)",
+	   "&ushr	(@x[$b3],'$xt3',25)",
+	"&sli		(@x[$b0],'$xt0',7)",
+	 "&sli		(@x[$b1],'$xt1',7)",
+	  "&sli		(@x[$b2],'$xt2',7)",
+	   "&sli	(@x[$b3],'$xt3',7)"
 	);
 }
 
 $code.=<<___;
 
+#ifdef	__KERNEL__
+.globl	ChaCha20_neon
+#endif
 .type	ChaCha20_neon,%function
 .align	5
 ChaCha20_neon:
+.LChaCha20_neon:
 	.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
@@ -403,8 +455,9 @@ ChaCha20_neon:
 	ld1	{@K[1],@K[2]},[$key]
 	ldp	@d[6],@d[7],[$ctr]		// load counter
 	ld1	{@K[3]},[$ctr]
-	ld1	{$ONE},[@x[0]]
-#ifdef	__ARMEB__
+	stp	d8,d9,[sp]			// meet ABI requirements
+	ld1	{$CTR,$ROT24},[@x[0]]
+#ifdef	__AARCH64EB__
 	rev64	@K[0],@K[0]
 	ror	@d[2],@d[2],#32
 	ror	@d[3],@d[3],#32
@@ -413,115 +466,129 @@ ChaCha20_neon:
 	ror	@d[6],@d[6],#32
 	ror	@d[7],@d[7],#32
 #endif
-	add	@K[3],@K[3],$ONE		// += 1
-	add	@K[4],@K[3],$ONE
-	add	@K[5],@K[4],$ONE
-	shl	$ONE,$ONE,#2			// 1 -> 4
 
 .Loop_outer_neon:
-	mov.32	@x[0],@d[0]			// unpack key block
-	lsr	@x[1],@d[0],#32
-	 mov	$A0,@K[0]
-	mov.32	@x[2],@d[1]
-	lsr	@x[3],@d[1],#32
-	 mov	$A1,@K[0]
-	mov.32	@x[4],@d[2]
-	lsr	@x[5],@d[2],#32
-	 mov	$A2,@K[0]
-	mov.32	@x[6],@d[3]
-	 mov	$B0,@K[1]
-	lsr	@x[7],@d[3],#32
-	 mov	$B1,@K[1]
-	mov.32	@x[8],@d[4]
-	 mov	$B2,@K[1]
-	lsr	@x[9],@d[4],#32
-	 mov	$D0,@K[3]
-	mov.32	@x[10],@d[5]
-	 mov	$D1,@K[4]
-	lsr	@x[11],@d[5],#32
-	 mov	$D2,@K[5]
-	mov.32	@x[12],@d[6]
-	 mov	$C0,@K[2]
-	lsr	@x[13],@d[6],#32
-	 mov	$C1,@K[2]
-	mov.32	@x[14],@d[7]
-	 mov	$C2,@K[2]
-	lsr	@x[15],@d[7],#32
+	dup	$xa0,@{K[0]}[0]			// unpack key block
+	 mov.32	@x[0],@d[0]
+	dup	$xa1,@{K[0]}[1]
+	 lsr	@x[1],@d[0],#32
+	dup	$xa2,@{K[0]}[2]
+	 mov.32	@x[2],@d[1]
+	dup	$xa3,@{K[0]}[3]
+	 lsr	@x[3],@d[1],#32
+	dup	$xb0,@{K[1]}[0]
+	 mov.32	@x[4],@d[2]
+	dup	$xb1,@{K[1]}[1]
+	 lsr	@x[5],@d[2],#32
+	dup	$xb2,@{K[1]}[2]
+	 mov.32	@x[6],@d[3]
+	dup	$xb3,@{K[1]}[3]
+	 lsr	@x[7],@d[3],#32
+	dup	$xd0,@{K[3]}[0]
+	 mov.32	@x[8],@d[4]
+	dup	$xd1,@{K[3]}[1]
+	 lsr	@x[9],@d[4],#32
+	dup	$xd2,@{K[3]}[2]
+	 mov.32	@x[10],@d[5]
+	dup	$xd3,@{K[3]}[3]
+	 lsr	@x[11],@d[5],#32
+	add	$xd0,$xd0,$CTR
+	 mov.32	@x[12],@d[6]
+	dup	$xc0,@{K[2]}[0]
+	 lsr	@x[13],@d[6],#32
+	dup	$xc1,@{K[2]}[1]
+	 mov.32	@x[14],@d[7]
+	dup	$xc2,@{K[2]}[2]
+	 lsr	@x[15],@d[7],#32
+	dup	$xc3,@{K[2]}[3]
 
 	mov	$ctr,#10
-	subs	$len,$len,#256
+	subs	$len,$len,#320
 .Loop_neon:
 	sub	$ctr,$ctr,#1
 ___
-	my @thread0=&NEONROUND($A0,$B0,$C0,$D0,$T0,0);
-	my @thread1=&NEONROUND($A1,$B1,$C1,$D1,$T1,0);
-	my @thread2=&NEONROUND($A2,$B2,$C2,$D2,$T2,0);
-	my @thread3=&ROUND(0,4,8,12);
+	my @plus_one=&ROUND(0,4,8,12);
+	foreach (&NEON_lane_ROUND(0,4,8,12))  { eval; eval(shift(@plus_one)); }
 
-	foreach (@thread0) {
-		eval;			eval(shift(@thread3));
-		eval(shift(@thread1));	eval(shift(@thread3));
-		eval(shift(@thread2));	eval(shift(@thread3));
-	}
-
-	@thread0=&NEONROUND($A0,$B0,$C0,$D0,$T0,1);
-	@thread1=&NEONROUND($A1,$B1,$C1,$D1,$T1,1);
-	@thread2=&NEONROUND($A2,$B2,$C2,$D2,$T2,1);
-	@thread3=&ROUND(0,5,10,15);
-
-	foreach (@thread0) {
-		eval;			eval(shift(@thread3));
-		eval(shift(@thread1));	eval(shift(@thread3));
-		eval(shift(@thread2));	eval(shift(@thread3));
-	}
+	@plus_one=&ROUND(0,5,10,15);
+	foreach (&NEON_lane_ROUND(0,5,10,15)) { eval; eval(shift(@plus_one)); }
 $code.=<<___;
 	cbnz	$ctr,.Loop_neon
 
-	add.32	@x[0],@x[0],@d[0]		// accumulate key block
-	 add	$A0,$A0,@K[0]
-	add	@x[1],@x[1],@d[0],lsr#32
-	 add	$A1,$A1,@K[0]
-	add.32	@x[2],@x[2],@d[1]
-	 add	$A2,$A2,@K[0]
-	add	@x[3],@x[3],@d[1],lsr#32
-	 add	$C0,$C0,@K[2]
-	add.32	@x[4],@x[4],@d[2]
-	 add	$C1,$C1,@K[2]
-	add	@x[5],@x[5],@d[2],lsr#32
-	 add	$C2,$C2,@K[2]
-	add.32	@x[6],@x[6],@d[3]
-	 add	$D0,$D0,@K[3]
-	add	@x[7],@x[7],@d[3],lsr#32
-	add.32	@x[8],@x[8],@d[4]
-	 add	$D1,$D1,@K[4]
-	add	@x[9],@x[9],@d[4],lsr#32
-	add.32	@x[10],@x[10],@d[5]
-	 add	$D2,$D2,@K[5]
-	add	@x[11],@x[11],@d[5],lsr#32
-	add.32	@x[12],@x[12],@d[6]
-	 add	$B0,$B0,@K[1]
-	add	@x[13],@x[13],@d[6],lsr#32
-	add.32	@x[14],@x[14],@d[7]
-	 add	$B1,$B1,@K[1]
-	add	@x[15],@x[15],@d[7],lsr#32
-	 add	$B2,$B2,@K[1]
+	add	$xd0,$xd0,$CTR
+
+	zip1	$xt0,$xa0,$xa1			// transpose data
+	zip1	$xt1,$xa2,$xa3
+	zip2	$xt2,$xa0,$xa1
+	zip2	$xt3,$xa2,$xa3
+	zip1.64	$xa0,$xt0,$xt1
+	zip2.64	$xa1,$xt0,$xt1
+	zip1.64	$xa2,$xt2,$xt3
+	zip2.64	$xa3,$xt2,$xt3
+
+	zip1	$xt0,$xb0,$xb1
+	zip1	$xt1,$xb2,$xb3
+	zip2	$xt2,$xb0,$xb1
+	zip2	$xt3,$xb2,$xb3
+	zip1.64	$xb0,$xt0,$xt1
+	zip2.64	$xb1,$xt0,$xt1
+	zip1.64	$xb2,$xt2,$xt3
+	zip2.64	$xb3,$xt2,$xt3
+
+	zip1	$xt0,$xc0,$xc1
+	 add.32	@x[0],@x[0],@d[0]		// accumulate key block
+	zip1	$xt1,$xc2,$xc3
+	 add	@x[1],@x[1],@d[0],lsr#32
+	zip2	$xt2,$xc0,$xc1
+	 add.32	@x[2],@x[2],@d[1]
+	zip2	$xt3,$xc2,$xc3
+	 add	@x[3],@x[3],@d[1],lsr#32
+	zip1.64	$xc0,$xt0,$xt1
+	 add.32	@x[4],@x[4],@d[2]
+	zip2.64	$xc1,$xt0,$xt1
+	 add	@x[5],@x[5],@d[2],lsr#32
+	zip1.64	$xc2,$xt2,$xt3
+	 add.32	@x[6],@x[6],@d[3]
+	zip2.64	$xc3,$xt2,$xt3
+	 add	@x[7],@x[7],@d[3],lsr#32
+
+	zip1	$xt0,$xd0,$xd1
+	 add.32	@x[8],@x[8],@d[4]
+	zip1	$xt1,$xd2,$xd3
+	 add	@x[9],@x[9],@d[4],lsr#32
+	zip2	$xt2,$xd0,$xd1
+	 add.32	@x[10],@x[10],@d[5]
+	zip2	$xt3,$xd2,$xd3
+	 add	@x[11],@x[11],@d[5],lsr#32
+	zip1.64	$xd0,$xt0,$xt1
+	 add.32	@x[12],@x[12],@d[6]
+	zip2.64	$xd1,$xt0,$xt1
+	 add	@x[13],@x[13],@d[6],lsr#32
+	zip1.64	$xd2,$xt2,$xt3
+	 add.32	@x[14],@x[14],@d[7]
+	zip2.64	$xd3,$xt2,$xt3
+	 add	@x[15],@x[15],@d[7],lsr#32
 
 	b.lo	.Ltail_neon
 
 	add	@x[0],@x[0],@x[1],lsl#32	// pack
 	add	@x[2],@x[2],@x[3],lsl#32
 	ldp	@x[1],@x[3],[$inp,#0]		// load input
+	 add	$xa0,$xa0,@K[0]			// accumulate key block
 	add	@x[4],@x[4],@x[5],lsl#32
 	add	@x[6],@x[6],@x[7],lsl#32
 	ldp	@x[5],@x[7],[$inp,#16]
+	 add	$xb0,$xb0,@K[1]
 	add	@x[8],@x[8],@x[9],lsl#32
 	add	@x[10],@x[10],@x[11],lsl#32
 	ldp	@x[9],@x[11],[$inp,#32]
+	 add	$xc0,$xc0,@K[2]
 	add	@x[12],@x[12],@x[13],lsl#32
 	add	@x[14],@x[14],@x[15],lsl#32
 	ldp	@x[13],@x[15],[$inp,#48]
+	 add	$xd0,$xd0,@K[3]
 	add	$inp,$inp,#64
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	@x[0],@x[0]
 	rev	@x[2],@x[2]
 	rev	@x[4],@x[4]
@@ -531,47 +598,67 @@ $code.=<<___;
 	rev	@x[12],@x[12]
 	rev	@x[14],@x[14]
 #endif
-	ld1.8	{$T0-$T3},[$inp],#64
+	ld1.8	{$xt0-$xt3},[$inp],#64
 	eor	@x[0],@x[0],@x[1]
+	 add	$xa1,$xa1,@K[0]
 	eor	@x[2],@x[2],@x[3]
+	 add	$xb1,$xb1,@K[1]
 	eor	@x[4],@x[4],@x[5]
+	 add	$xc1,$xc1,@K[2]
 	eor	@x[6],@x[6],@x[7]
+	 add	$xd1,$xd1,@K[3]
 	eor	@x[8],@x[8],@x[9]
-	 eor	$A0,$A0,$T0
+	 eor	$xa0,$xa0,$xt0
+	 movi	$xt0,#5
 	eor	@x[10],@x[10],@x[11]
-	 eor	$B0,$B0,$T1
+	 eor	$xb0,$xb0,$xt1
 	eor	@x[12],@x[12],@x[13]
-	 eor	$C0,$C0,$T2
+	 eor	$xc0,$xc0,$xt2
 	eor	@x[14],@x[14],@x[15]
-	 eor	$D0,$D0,$T3
-	 ld1.8	{$T0-$T3},[$inp],#64
+	 eor	$xd0,$xd0,$xt3
+	 add	$CTR,$CTR,$xt0			// += 5
+	 ld1.8	{$xt0-$xt3},[$inp],#64
 
 	stp	@x[0],@x[2],[$out,#0]		// store output
-	 add	@d[6],@d[6],#4			// increment counter
+	 add	@d[6],@d[6],#5			// increment counter
 	stp	@x[4],@x[6],[$out,#16]
-	 add	@K[3],@K[3],$ONE		// += 4
 	stp	@x[8],@x[10],[$out,#32]
-	 add	@K[4],@K[4],$ONE
 	stp	@x[12],@x[14],[$out,#48]
-	 add	@K[5],@K[5],$ONE
 	add	$out,$out,#64
 
-	st1.8	{$A0-$D0},[$out],#64
-	ld1.8	{$A0-$D0},[$inp],#64
+	st1.8	{$xa0-$xd0},[$out],#64
+	 add	$xa2,$xa2,@K[0]
+	 add	$xb2,$xb2,@K[1]
+	 add	$xc2,$xc2,@K[2]
+	 add	$xd2,$xd2,@K[3]
+	ld1.8	{$xa0-$xd0},[$inp],#64
 
-	eor	$A1,$A1,$T0
-	eor	$B1,$B1,$T1
-	eor	$C1,$C1,$T2
-	eor	$D1,$D1,$T3
-	st1.8	{$A1-$D1},[$out],#64
+	eor	$xa1,$xa1,$xt0
+	eor	$xb1,$xb1,$xt1
+	eor	$xc1,$xc1,$xt2
+	eor	$xd1,$xd1,$xt3
+	st1.8	{$xa1-$xd1},[$out],#64
+	 add	$xa3,$xa3,@K[0]
+	 add	$xb3,$xb3,@K[1]
+	 add	$xc3,$xc3,@K[2]
+	 add	$xd3,$xd3,@K[3]
+	ld1.8	{$xa1-$xd1},[$inp],#64
 
-	eor	$A2,$A2,$A0
-	eor	$B2,$B2,$B0
-	eor	$C2,$C2,$C0
-	eor	$D2,$D2,$D0
-	st1.8	{$A2-$D2},[$out],#64
+	eor	$xa2,$xa2,$xa0
+	eor	$xb2,$xb2,$xb0
+	eor	$xc2,$xc2,$xc0
+	eor	$xd2,$xd2,$xd0
+	st1.8	{$xa2-$xd2},[$out],#64
+
+	eor	$xa3,$xa3,$xa1
+	eor	$xb3,$xb3,$xb1
+	eor	$xc3,$xc3,$xc1
+	eor	$xd3,$xd3,$xd1
+	st1.8	{$xa3-$xd3},[$out],#64
 
 	b.hi	.Loop_outer_neon
+
+	ldp	d8,d9,[sp]			// meet ABI requirements
 
 	ldp	x19,x20,[x29,#16]
 	add	sp,sp,#64
@@ -583,8 +670,10 @@ $code.=<<___;
 	.inst	0xd50323bf			// autiasp
 	ret
 
+.align	4
 .Ltail_neon:
-	add	$len,$len,#256
+	add	$len,$len,#320
+	ldp	d8,d9,[sp]			// meet ABI requirements
 	cmp	$len,#64
 	b.lo	.Less_than_64
 
@@ -601,7 +690,7 @@ $code.=<<___;
 	add	@x[14],@x[14],@x[15],lsl#32
 	ldp	@x[13],@x[15],[$inp,#48]
 	add	$inp,$inp,#64
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	@x[0],@x[0]
 	rev	@x[2],@x[2]
 	rev	@x[4],@x[4]
@@ -621,48 +710,68 @@ $code.=<<___;
 	eor	@x[14],@x[14],@x[15]
 
 	stp	@x[0],@x[2],[$out,#0]		// store output
-	 add	@d[6],@d[6],#4			// increment counter
+	 add	$xa0,$xa0,@K[0]			// accumulate key block
 	stp	@x[4],@x[6],[$out,#16]
+	 add	$xb0,$xb0,@K[1]
 	stp	@x[8],@x[10],[$out,#32]
+	 add	$xc0,$xc0,@K[2]
 	stp	@x[12],@x[14],[$out,#48]
+	 add	$xd0,$xd0,@K[3]
 	add	$out,$out,#64
 	b.eq	.Ldone_neon
 	sub	$len,$len,#64
 	cmp	$len,#64
-	b.lo	.Less_than_128
+	b.lo	.Last_neon
 
-	ld1.8	{$T0-$T3},[$inp],#64
-	eor	$A0,$A0,$T0
-	eor	$B0,$B0,$T1
-	eor	$C0,$C0,$T2
-	eor	$D0,$D0,$T3
-	st1.8	{$A0-$D0},[$out],#64
+	ld1.8	{$xt0-$xt3},[$inp],#64
+	eor	$xa0,$xa0,$xt0
+	eor	$xb0,$xb0,$xt1
+	eor	$xc0,$xc0,$xt2
+	eor	$xd0,$xd0,$xt3
+	st1.8	{$xa0-$xd0},[$out],#64
 	b.eq	.Ldone_neon
+
+	add	$xa0,$xa1,@K[0]
+	add	$xb0,$xb1,@K[1]
 	sub	$len,$len,#64
+	add	$xc0,$xc1,@K[2]
 	cmp	$len,#64
-	b.lo	.Less_than_192
+	add	$xd0,$xd1,@K[3]
+	b.lo	.Last_neon
 
-	ld1.8	{$T0-$T3},[$inp],#64
-	eor	$A1,$A1,$T0
-	eor	$B1,$B1,$T1
-	eor	$C1,$C1,$T2
-	eor	$D1,$D1,$T3
-	st1.8	{$A1-$D1},[$out],#64
+	ld1.8	{$xt0-$xt3},[$inp],#64
+	eor	$xa1,$xa0,$xt0
+	eor	$xb1,$xb0,$xt1
+	eor	$xc1,$xc0,$xt2
+	eor	$xd1,$xd0,$xt3
+	st1.8	{$xa1-$xd1},[$out],#64
 	b.eq	.Ldone_neon
+
+	add	$xa0,$xa2,@K[0]
+	add	$xb0,$xb2,@K[1]
+	sub	$len,$len,#64
+	add	$xc0,$xc2,@K[2]
+	cmp	$len,#64
+	add	$xd0,$xd2,@K[3]
+	b.lo	.Last_neon
+
+	ld1.8	{$xt0-$xt3},[$inp],#64
+	eor	$xa2,$xa0,$xt0
+	eor	$xb2,$xb0,$xt1
+	eor	$xc2,$xc0,$xt2
+	eor	$xd2,$xd0,$xt3
+	st1.8	{$xa2-$xd2},[$out],#64
+	b.eq	.Ldone_neon
+
+	add	$xa0,$xa3,@K[0]
+	add	$xb0,$xb3,@K[1]
+	add	$xc0,$xc3,@K[2]
+	add	$xd0,$xd3,@K[3]
 	sub	$len,$len,#64
 
-	st1.8	{$A2-$D2},[sp]
-	b	.Last_neon
-
-.Less_than_128:
-	st1.8	{$A0-$D0},[sp]
-	b	.Last_neon
-.Less_than_192:
-	st1.8	{$A1-$D1},[sp]
-	b	.Last_neon
-
-.align	4
 .Last_neon:
+	st1.8	{$xa0-$xd0},[sp]
+
 	sub	$out,$out,#1
 	add	$inp,$inp,$len
 	add	$out,$out,$len
@@ -695,9 +804,41 @@ $code.=<<___;
 .size	ChaCha20_neon,.-ChaCha20_neon
 ___
 {
+my @K = map("v$_.4s",(0..6));
 my ($T0,$T1,$T2,$T3,$T4,$T5)=@K;
 my ($A0,$B0,$C0,$D0,$A1,$B1,$C1,$D1,$A2,$B2,$C2,$D2,
-    $A3,$B3,$C3,$D3,$A4,$B4,$C4,$D4,$A5,$B5,$C5,$D5) = map("v$_.4s",(0..23));
+    $A3,$B3,$C3,$D3,$A4,$B4,$C4,$D4,$A5,$B5,$C5,$D5) = map("v$_.4s",(8..31));
+my $rot24 = @K[6];
+my $ONE = "v7.4s";
+
+sub NEONROUND {
+my $odd = pop;
+my ($a,$b,$c,$d,$t)=@_;
+
+	(
+	"&add		('$a','$a','$b')",
+	"&eor		('$d','$d','$a')",
+	"&rev32_16	('$d','$d')",		# vrot ($d,16)
+
+	"&add		('$c','$c','$d')",
+	"&eor		('$t','$b','$c')",
+	"&ushr		('$b','$t',20)",
+	"&sli		('$b','$t',12)",
+
+	"&add		('$a','$a','$b')",
+	"&eor		('$d','$d','$a')",
+	"&tbl		('$d','{$d}','$rot24')",
+
+	"&add		('$c','$c','$d')",
+	"&eor		('$t','$b','$c')",
+	"&ushr		('$b','$t',25)",
+	"&sli		('$b','$t',7)",
+
+	"&ext		('$c','$c','$c',8)",
+	"&ext		('$d','$d','$d',$odd?4:12)",
+	"&ext		('$b','$b','$b',$odd?12:4)"
+	);
+}
 
 $code.=<<___;
 .type	ChaCha20_512_neon,%function
@@ -717,6 +858,7 @@ ChaCha20_512_neon:
 .L512_or_more_neon:
 	sub	sp,sp,#128+64
 
+	eor	$ONE,$ONE,$ONE
 	ldp	@d[0],@d[1],[@x[0]]		// load sigma
 	ld1	{@K[0]},[@x[0]],#16
 	ldp	@d[2],@d[3],[$key]		// load key
@@ -724,8 +866,9 @@ ChaCha20_512_neon:
 	ld1	{@K[1],@K[2]},[$key]
 	ldp	@d[6],@d[7],[$ctr]		// load counter
 	ld1	{@K[3]},[$ctr]
-	ld1	{$ONE},[@x[0]]
-#ifdef	__ARMEB__
+	ld1	{$ONE}[0],[@x[0]]
+	add	$key,@x[0],#16			// .Lrot24
+#ifdef	__AARCH64EB__
 	rev64	@K[0],@K[0]
 	ror	@d[2],@d[2],#32
 	ror	@d[3],@d[3],#32
@@ -792,9 +935,10 @@ ChaCha20_512_neon:
 	 mov	$C4,@K[2]
 	 stp	@K[3],@K[4],[sp,#48]		// off-load key block, variable part
 	 mov	$C5,@K[2]
-	 str	@K[5],[sp,#80]
+	 stp	@K[5],@K[6],[sp,#80]
 
 	mov	$ctr,#5
+	ld1	{$rot24},[$key]
 	subs	$len,$len,#512
 .Loop_upper_neon:
 	sub	$ctr,$ctr,#1
@@ -867,7 +1011,7 @@ $code.=<<___;
 	add	@x[14],@x[14],@x[15],lsl#32
 	ldp	@x[13],@x[15],[$inp,#48]
 	add	$inp,$inp,#64
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	@x[0],@x[0]
 	rev	@x[2],@x[2]
 	rev	@x[4],@x[4]
@@ -956,6 +1100,7 @@ $code.=<<___;
 	add.32	@x[2],@x[2],@d[1]
 	 ldp	@K[4],@K[5],[sp,#64]
 	add	@x[3],@x[3],@d[1],lsr#32
+	 ldr	@K[6],[sp,#96]
 	 add	$A0,$A0,@K[0]
 	add.32	@x[4],@x[4],@d[2]
 	 add	$A1,$A1,@K[0]
@@ -1008,7 +1153,7 @@ $code.=<<___;
 	add	$inp,$inp,#64
 	 add	$B5,$B5,@K[1]
 
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	@x[0],@x[0]
 	rev	@x[2],@x[2]
 	rev	@x[4],@x[4]
@@ -1086,26 +1231,26 @@ $code.=<<___;
 	b.hs	.Loop_outer_512_neon
 
 	adds	$len,$len,#512
-	ushr	$A0,$ONE,#2			// 4 -> 1
+	ushr	$ONE,$ONE,#1			// 4 -> 2
 
-	ldp	d8,d9,[sp,#128+0]		// meet ABI requirements
-	ldp	d10,d11,[sp,#128+16]
+	ldp	d10,d11,[sp,#128+16]		// meet ABI requirements
 	ldp	d12,d13,[sp,#128+32]
 	ldp	d14,d15,[sp,#128+48]
 
-	stp	@K[0],$ONE,[sp,#0]		// wipe off-load area
-	stp	@K[0],$ONE,[sp,#32]
-	stp	@K[0],$ONE,[sp,#64]
+	stp	@K[0],@K[0],[sp,#0]		// wipe off-load area
+	stp	@K[0],@K[0],[sp,#32]
+	stp	@K[0],@K[0],[sp,#64]
 
 	b.eq	.Ldone_512_neon
 
+	sub	$key,$key,#16			// .Lone
 	cmp	$len,#192
-	sub	@K[3],@K[3],$A0			// -= 1
-	sub	@K[4],@K[4],$A0
-	sub	@K[5],@K[5],$A0
 	add	sp,sp,#128
+	sub	@K[3],@K[3],$ONE		// -= 2
+	ld1	{$CTR,$ROT24},[$key]
 	b.hs	.Loop_outer_neon
 
+	ldp	d8,d9,[sp,#0]			// meet ABI requirements
 	eor	@K[1],@K[1],@K[1]
 	eor	@K[2],@K[2],@K[2]
 	eor	@K[3],@K[3],@K[3]
@@ -1115,6 +1260,7 @@ $code.=<<___;
 	b	.Loop_outer
 
 .Ldone_512_neon:
+	ldp	d8,d9,[sp,#128+0]		// meet ABI requirements
 	ldp	x19,x20,[x29,#16]
 	add	sp,sp,#128+64
 	ldp	x21,x22,[x29,#32]
@@ -1133,9 +1279,11 @@ foreach (split("\n",$code)) {
 	s/\`([^\`]*)\`/eval $1/geo;
 
 	(s/\b([a-z]+)\.32\b/$1/ and (s/x([0-9]+)/w$1/g or 1))	or
-	(m/\b(eor|ext|mov)\b/ and (s/\.4s/\.16b/g or 1))	or
+	(m/\b(eor|ext|mov|tbl)\b/ and (s/\.4s/\.16b/g or 1))	or
 	(s/\b((?:ld|st)1)\.8\b/$1/ and (s/\.4s/\.16b/g or 1))	or
 	(m/\b(ld|st)[rp]\b/ and (s/v([0-9]+)\.4s/q$1/g or 1))	or
+	(m/\b(dup|ld1)\b/ and (s/\.4(s}?\[[0-3]\])/.$1/g or 1))	or
+	(s/\b(zip[12])\.64\b/$1/ and (s/\.4s/\.2d/g or 1))	or
 	(s/\brev32\.16\b/rev32/ and (s/\.4s/\.8h/g or 1));
 
 	#s/\bq([0-9]+)#(lo|hi)/sprintf "d%d",2*$1+($2 eq "hi")/geo;

@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -34,7 +34,7 @@ BUF_MEM *BUF_MEM_new(void)
 
     ret = OPENSSL_zalloc(sizeof(*ret));
     if (ret == NULL) {
-        BUFerr(BUF_F_BUF_MEM_NEW, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BUF, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
     return ret;
@@ -87,7 +87,7 @@ size_t BUF_MEM_grow(BUF_MEM *str, size_t len)
     }
     /* This limit is sufficient to ensure (len+3)/3*4 < 2**31 */
     if (len > LIMIT_BEFORE_EXPANSION) {
-        BUFerr(BUF_F_BUF_MEM_GROW, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BUF, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     n = (len + 3) / 3 * 4;
@@ -96,7 +96,7 @@ size_t BUF_MEM_grow(BUF_MEM *str, size_t len)
     else
         ret = OPENSSL_realloc(str->data, n);
     if (ret == NULL) {
-        BUFerr(BUF_F_BUF_MEM_GROW, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BUF, ERR_R_MALLOC_FAILURE);
         len = 0;
     } else {
         str->data = ret;
@@ -125,7 +125,7 @@ size_t BUF_MEM_grow_clean(BUF_MEM *str, size_t len)
     }
     /* This limit is sufficient to ensure (len+3)/3*4 < 2**31 */
     if (len > LIMIT_BEFORE_EXPANSION) {
-        BUFerr(BUF_F_BUF_MEM_GROW_CLEAN, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BUF, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     n = (len + 3) / 3 * 4;
@@ -134,7 +134,7 @@ size_t BUF_MEM_grow_clean(BUF_MEM *str, size_t len)
     else
         ret = OPENSSL_clear_realloc(str->data, str->max, n);
     if (ret == NULL) {
-        BUFerr(BUF_F_BUF_MEM_GROW_CLEAN, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BUF, ERR_R_MALLOC_FAILURE);
         len = 0;
     } else {
         str->data = ret;

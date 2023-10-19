@@ -1,4 +1,4 @@
-# Copyright 2018 The Chromium Authors. All rights reserved.
+# Copyright 2018 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -27,6 +27,9 @@ def assignType(item, type, is_array=False, map_binary_to_string=False):
     type = 'string'
   if map_binary_to_string and type == 'binary':
     type = 'string'
+    if 'description' in item:
+      item['description'] = (item['description'] +
+          ' (Encoded as a base64 string when passed over JSON)')
   if type in primitiveTypes:
     item['type'] = type
   else:

@@ -43,7 +43,7 @@ static void close_cb(uv_handle_t* handle) {
 
 
 static void sv_send_cb(uv_udp_send_t* req, int status) {
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
   ASSERT(status == 0 || status == UV_ENETUNREACH || status == UV_EPERM);
   CHECK_HANDLE(req->handle);
 
@@ -99,6 +99,6 @@ TEST_IMPL(udp_multicast_interface) {
   ASSERT(client.send_queue_size == 0);
   ASSERT(server.send_queue_size == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

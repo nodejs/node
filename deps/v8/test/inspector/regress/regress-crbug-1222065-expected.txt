@@ -1,0 +1,13 @@
+Regression test for crbug.com/1222065
+
+Running test: test
+- Debugger.setBreakpoint(foo.js:2:9)
+function foo(x) {
+  return x;#
+}
+
+- Debugger.setBreakpoint(foo.js:3)
+function foo(x) {
+  return x;#
+}
+

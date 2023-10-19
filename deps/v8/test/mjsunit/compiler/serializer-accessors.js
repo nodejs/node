@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --turboshaft-enable-debug-features
 
 var expect_interpreted = true;
 
@@ -11,7 +12,12 @@ class C {
     return 42;
   }
   set prop(v) {
-    assertEquals(expect_interpreted, %IsBeingInterpreted());
+    if (!%IsDictPropertyConstTrackingEnabled()) {
+      // TODO(v8:11457) If v8_dict_property_const_tracking is enabled, then
+      // C.prototype is a dictionary mode object and we cannot inline the call
+      // to this setter, yet.
+      assertEquals(expect_interpreted, %IsBeingInterpreted());
+    }
     %TurbofanStaticAssert(v === 43);
   }
 }
@@ -32,6 +38,6 @@ function foo() {
 
 foo();
 foo();
-%OptimizeFunctionOnNextCall(foo);
 expect_interpreted = false;
+%OptimizeFunctionOnNextCall(foo);
 foo();

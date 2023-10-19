@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+test(() => {
+  const decoder = new TextDecoder('utf-8');
+  const buffer = new SharedArrayBuffer(4);
+  assert_throws_js(TypeError, () => {
+    decoder.decode(new Uint8Array(buffer));
+  }, 'constructing TextDecoder with SharedArrayBuffer view should throw');
+}, 'decoding SharedArrayBuffer');
+
+</script>

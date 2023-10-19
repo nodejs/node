@@ -5,7 +5,7 @@ const bench = common.createBenchmark(main, {
   type: ['Double', 'Float'],
   endian: ['LE'],
   value: ['zero', 'big', 'small', 'inf', 'nan'],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, type, endian, value }) {

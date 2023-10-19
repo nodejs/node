@@ -5,11 +5,11 @@
 #ifndef V8_OBJECTS_MODULE_H_
 #define V8_OBJECTS_MODULE_H_
 
+#include "include/v8-script.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
-#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,14 +17,10 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
-class Isolate;
 class JSModuleNamespace;
 class SourceTextModuleDescriptor;
 class SourceTextModuleInfo;
 class SourceTextModuleInfoEntry;
-class String;
 class Zone;
 
 #include "torque-generated/src/objects/module-tq.inc"
@@ -32,42 +28,26 @@ class Zone;
 // Module is the base class for ECMAScript module types, roughly corresponding
 // to Abstract Module Record.
 // https://tc39.github.io/ecma262/#sec-abstract-module-records
-class Module : public HeapObject {
+class Module : public TorqueGeneratedModule<Module, HeapObject> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_CAST(Module)
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
 
-  // The complete export table, mapping an export name to its cell.
-  DECL_ACCESSORS(exports, ObjectHashTable)
-
-  // Hash for this object (a random non-zero Smi).
-  DECL_INT_ACCESSORS(hash)
-
-  // Status.
-  DECL_INT_ACCESSORS(status)
   enum Status {
     // Order matters!
-    kUninstantiated,
-    kPreInstantiating,
-    kInstantiating,
-    kInstantiated,
+    kUnlinked,
+    kPreLinking,
+    kLinking,
+    kLinked,
     kEvaluating,
+    kEvaluatingAsync,
     kEvaluated,
     kErrored
   };
 
-  // The namespace object (or undefined).
-  DECL_ACCESSORS(module_namespace, HeapObject)
-
   // The exception in the case {status} is kErrored.
-  Object GetException();
-  DECL_ACCESSORS(exception, Object)
-
-  // The top level promise capability of this module. Will only be defined
-  // for cycle roots.
-  DECL_ACCESSORS(top_level_capability, HeapObject)
+  Tagged<Object> GetException();
 
   // Returns if this module or any transitively requested module is [[Async]],
   // i.e. has a top-level await.
@@ -101,10 +81,6 @@ class Module : public HeapObject {
   static Handle<JSModuleNamespace> GetModuleNamespace(Isolate* isolate,
                                                       Handle<Module> module);
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_MODULE_FIELDS)
-
   using BodyDescriptor =
       FixedBodyDescriptor<kExportsOffset, kHeaderSize, kHeaderSize>;
 
@@ -136,26 +112,16 @@ class Module : public HeapObject {
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,
       Zone* zone);
 
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> EvaluateMaybeAsync(
-      Isolate* isolate, Handle<Module> module);
-
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerEvaluate(
-      Isolate* isolate, Handle<Module> module);
-
-  // Set module's status back to kUninstantiated and reset other internal state.
+  // Set module's status back to kUnlinked and reset other internal state.
   // This is used when instantiation fails.
   static void Reset(Isolate* isolate, Handle<Module> module);
   static void ResetGraph(Isolate* isolate, Handle<Module> module);
 
-  // To set status to kErrored, RecordError or RecordErrorUsingPendingException
-  // should be used.
+  // To set status to kErrored, RecordError should be used.
   void SetStatus(Status status);
-  static void RecordErrorUsingPendingException(Isolate* isolate,
-                                               Handle<Module>);
-  static void RecordError(Isolate* isolate, Handle<Module> module,
-                          Handle<Object> error);
+  void RecordError(Isolate* isolate, Tagged<Object> error);
 
-  OBJECT_CONSTRUCTORS(Module, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(Module)
 };
 
 // When importing a module namespace (import * as foo from "bar"), a
@@ -173,11 +139,17 @@ class JSModuleNamespace
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetExport(Isolate* isolate,
                                                       Handle<String> name);
 
+  bool HasExport(Isolate* isolate, Handle<String> name);
+
   // Return the (constant) property attributes for the referenced property,
   // which is assumed to correspond to an export. If the export is
   // uninitialized, schedule an exception and return Nothing.
   static V8_WARN_UNUSED_RESULT Maybe<PropertyAttributes> GetPropertyAttributes(
       LookupIterator* it);
+
+  static V8_WARN_UNUSED_RESULT Maybe<bool> DefineOwnProperty(
+      Isolate* isolate, Handle<JSModuleNamespace> o, Handle<Object> key,
+      PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   // In-object fields.
   enum {
@@ -191,6 +163,16 @@ class JSModuleNamespace
       kHeaderSize + (kTaggedSize * kInObjectFieldCount);
 
   TQ_OBJECT_CONSTRUCTORS(JSModuleNamespace)
+};
+
+class ScriptOrModule
+    : public TorqueGeneratedScriptOrModule<ScriptOrModule, Struct> {
+ public:
+  DECL_PRINTER(ScriptOrModule)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(ScriptOrModule)
 };
 
 }  // namespace internal

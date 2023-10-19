@@ -1,10 +1,9 @@
 #include "crypto/crypto_rsa.h"
+#include "async_wrap-inl.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
@@ -15,6 +14,8 @@
 
 namespace node {
 
+using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Just;
@@ -63,17 +64,31 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
       return EVPKeyCtxPointer();
     }
 
-    if (params->params.mgf1_md != nullptr &&
+    // TODO(tniessen): This appears to only be necessary in OpenSSL 3, while
+    // OpenSSL 1.1.1 behaves as recommended by RFC 8017 and defaults the MGF1
+    // hash algorithm to the RSA-PSS hashAlgorithm. Remove this code if the
+    // behavior of OpenSSL 3 changes.
+    const EVP_MD* mgf1_md = params->params.mgf1_md;
+    if (mgf1_md == nullptr && params->params.md != nullptr) {
+      mgf1_md = params->params.md;
+    }
+
+    if (mgf1_md != nullptr &&
         EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(
             ctx.get(),
-            params->params.mgf1_md) <= 0) {
+            mgf1_md) <= 0) {
       return EVPKeyCtxPointer();
     }
 
-    if (params->params.saltlen >= 0 &&
+    int saltlen = params->params.saltlen;
+    if (saltlen < 0 && params->params.md != nullptr) {
+      saltlen = EVP_MD_size(params->params.md);
+    }
+
+    if (saltlen >= 0 &&
         EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(
             ctx.get(),
-            params->params.saltlen) <= 0) {
+            saltlen) <= 0) {
       return EVPKeyCtxPointer();
     }
   }
@@ -138,7 +153,7 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset]);
       params->params.md = EVP_get_digestbyname(*digest);
       if (params->params.md == nullptr) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "md specifies an invalid digest");
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
         return Nothing<bool>();
       }
     }
@@ -148,8 +163,8 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset + 1]);
       params->params.mgf1_md = EVP_get_digestbyname(*digest);
       if (params->params.mgf1_md == nullptr) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env,
-          "mgf1_md specifies an invalid digest");
+        THROW_ERR_CRYPTO_INVALID_DIGEST(
+            env, "Invalid MGF1 digest: %s", *digest);
         return Nothing<bool>();
       }
     }
@@ -206,15 +221,7 @@ WebCryptoCipherStatus RSA_Cipher(
     return WebCryptoCipherStatus::FAILED;
   }
 
-  size_t label_len = params.label.size();
-  if (label_len > 0) {
-    void* label = OPENSSL_memdup(params.label.get(), label_len);
-    CHECK_NOT_NULL(label);
-    if (EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.get(), label, label_len) <= 0) {
-      OPENSSL_free(label);
-      return WebCryptoCipherStatus::FAILED;
-    }
-  }
+  if (!SetRsaOaepLabel(ctx, params.label)) return WebCryptoCipherStatus::FAILED;
 
   size_t out_len = 0;
   if (cipher(
@@ -226,22 +233,17 @@ WebCryptoCipherStatus RSA_Cipher(
     return WebCryptoCipherStatus::FAILED;
   }
 
-  char* data = MallocOpenSSL<char>(out_len);
-  ByteSource buf = ByteSource::Allocated(data, out_len);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  ByteSource::Builder buf(out_len);
 
-  if (cipher(
-          ctx.get(),
-          ptr,
-          &out_len,
-          in.data<unsigned char>(),
-          in.size()) <= 0) {
+  if (cipher(ctx.get(),
+             buf.data<unsigned char>(),
+             &out_len,
+             in.data<unsigned char>(),
+             in.size()) <= 0) {
     return WebCryptoCipherStatus::FAILED;
   }
 
-  buf.Resize(out_len);
-
-  *out = std::move(buf);
+  *out = std::move(buf).release(out_len);
   return WebCryptoCipherStatus::OK;
 }
 }  // namespace
@@ -315,11 +317,11 @@ Maybe<bool> RSACipherTraits::AdditionalConfig(
 
       params->digest = EVP_get_digestbyname(*digest);
       if (params->digest == nullptr) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env);
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
         return Nothing<bool>();
       }
 
-      if (IsAnyByteSource(args[offset + 2])) {
+      if (IsAnyBufferSource(args[offset + 2])) {
         ArrayBufferOrViewContents<char> label(args[offset + 2]);
         if (UNLIKELY(!label.CheckSizeInt32())) {
           THROW_ERR_OUT_OF_RANGE(env, "label is too big");
@@ -527,7 +529,7 @@ Maybe<bool> GetRsaKeyDetail(
 
   RSA_get0_key(rsa, &n, &e, nullptr);
 
-  size_t modulus_length = BN_num_bytes(n) * CHAR_BIT;
+  size_t modulus_length = BN_num_bits(n);
 
   if (target
           ->Set(
@@ -538,16 +540,100 @@ Maybe<bool> GetRsaKeyDetail(
     return Nothing<bool>();
   }
 
-  int len = BN_num_bytes(e);
-  AllocatedBuffer public_exponent = AllocatedBuffer::AllocateManaged(env, len);
-  unsigned char* data =
-      reinterpret_cast<unsigned char*>(public_exponent.data());
-  CHECK_EQ(BN_bn2binpad(e, data, len), len);
+  std::unique_ptr<BackingStore> public_exponent;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    public_exponent =
+        ArrayBuffer::NewBackingStore(env->isolate(), BN_num_bytes(e));
+  }
+  CHECK_EQ(BN_bn2binpad(e,
+                        static_cast<unsigned char*>(public_exponent->Data()),
+                        public_exponent->ByteLength()),
+           static_cast<int>(public_exponent->ByteLength()));
 
-  return target->Set(
-      env->context(),
-      env->public_exponent_string(),
-      public_exponent.ToArrayBuffer());
+  if (target
+          ->Set(env->context(),
+                env->public_exponent_string(),
+                ArrayBuffer::New(env->isolate(), std::move(public_exponent)))
+          .IsNothing()) {
+    return Nothing<bool>();
+  }
+
+  if (type == EVP_PKEY_RSA_PSS) {
+    // Due to the way ASN.1 encoding works, default values are omitted when
+    // encoding the data structure. However, there are also RSA-PSS keys for
+    // which no parameters are set. In that case, the ASN.1 RSASSA-PSS-params
+    // sequence will be missing entirely and RSA_get0_pss_params will return
+    // nullptr. If parameters are present but all parameters are set to their
+    // default values, an empty sequence will be stored in the ASN.1 structure.
+    // In that case, RSA_get0_pss_params does not return nullptr but all fields
+    // of the returned RSA_PSS_PARAMS will be set to nullptr.
+
+    const RSA_PSS_PARAMS* params = RSA_get0_pss_params(rsa);
+    if (params != nullptr) {
+      int hash_nid = NID_sha1;
+      int mgf_nid = NID_mgf1;
+      int mgf1_hash_nid = NID_sha1;
+      int64_t salt_length = 20;
+
+      if (params->hashAlgorithm != nullptr) {
+        const ASN1_OBJECT* hash_obj;
+        X509_ALGOR_get0(&hash_obj, nullptr, nullptr, params->hashAlgorithm);
+        hash_nid = OBJ_obj2nid(hash_obj);
+      }
+
+      if (target
+              ->Set(
+                  env->context(),
+                  env->hash_algorithm_string(),
+                  OneByteString(env->isolate(), OBJ_nid2ln(hash_nid)))
+              .IsNothing()) {
+        return Nothing<bool>();
+      }
+
+      if (params->maskGenAlgorithm != nullptr) {
+        const ASN1_OBJECT* mgf_obj;
+        X509_ALGOR_get0(&mgf_obj, nullptr, nullptr, params->maskGenAlgorithm);
+        mgf_nid = OBJ_obj2nid(mgf_obj);
+        if (mgf_nid == NID_mgf1) {
+          const ASN1_OBJECT* mgf1_hash_obj;
+          X509_ALGOR_get0(&mgf1_hash_obj, nullptr, nullptr, params->maskHash);
+          mgf1_hash_nid = OBJ_obj2nid(mgf1_hash_obj);
+        }
+      }
+
+      // If, for some reason, the MGF is not MGF1, then the MGF1 hash function
+      // is intentionally not added to the object.
+      if (mgf_nid == NID_mgf1) {
+        if (target
+                ->Set(
+                    env->context(),
+                    env->mgf1_hash_algorithm_string(),
+                    OneByteString(env->isolate(), OBJ_nid2ln(mgf1_hash_nid)))
+                .IsNothing()) {
+          return Nothing<bool>();
+        }
+      }
+
+      if (params->saltLength != nullptr) {
+        if (ASN1_INTEGER_get_int64(&salt_length, params->saltLength) != 1) {
+          ThrowCryptoError(env, ERR_get_error(), "ASN1_INTEGER_get_in64 error");
+          return Nothing<bool>();
+        }
+      }
+
+      if (target
+              ->Set(
+                  env->context(),
+                  env->salt_length_string(),
+                  Number::New(env->isolate(), static_cast<double>(salt_length)))
+              .IsNothing()) {
+        return Nothing<bool>();
+      }
+    }
+  }
+
+  return Just<bool>(true);
 }
 
 namespace RSAAlg {
@@ -559,6 +645,12 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_SSA_PKCS1_v1_5);
   NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_PSS);
   NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_OAEP);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  RSAKeyPairGenJob::RegisterExternalReferences(registry);
+  RSAKeyExportJob::RegisterExternalReferences(registry);
+  RSACipherJob::RegisterExternalReferences(registry);
 }
 }  // namespace RSAAlg
 }  // namespace crypto

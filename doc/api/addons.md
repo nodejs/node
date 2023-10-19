@@ -1,6 +1,7 @@
 # C++ addons
 
 <!--introduced_in=v0.10.0-->
+
 <!-- type=misc -->
 
 _Addons_ are dynamically-linked shared objects written in C++. The
@@ -8,7 +9,7 @@ _Addons_ are dynamically-linked shared objects written in C++. The
 Addons provide an interface between JavaScript and C/C++ libraries.
 
 There are three options for implementing addons: Node-API, nan, or direct
-use of internal V8, libuv and Node.js libraries. Unless there is a need for
+use of internal V8, libuv, and Node.js libraries. Unless there is a need for
 direct access to functionality which is not exposed by Node-API, use Node-API.
 Refer to [C/C++ addons with Node-API](n-api.md) for more information on
 Node-API.
@@ -26,7 +27,7 @@ involving knowledge of several components and APIs:
   threads and all of the asynchronous behaviors of the platform. It also
   serves as a cross-platform abstraction library, giving easy, POSIX-like
   access across all major operating systems to many common system tasks, such
-  as interacting with the filesystem, sockets, timers, and system events. libuv
+  as interacting with the file system, sockets, timers, and system events. libuv
   also provides a threading abstraction similar to POSIX threads for
   more sophisticated asynchronous addons that need to move beyond the
   standard event loop. Addon authors should
@@ -39,7 +40,7 @@ involving knowledge of several components and APIs:
 
 * Node.js includes other statically linked libraries including OpenSSL. These
   other libraries are located in the `deps/` directory in the Node.js source
-  tree. Only the libuv, OpenSSL, V8 and zlib symbols are purposefully
+  tree. Only the libuv, OpenSSL, V8, and zlib symbols are purposefully
   re-exported by Node.js and may be used to various extents by addons. See
   [Linking to libraries included with Node.js][] for additional information.
 
@@ -105,6 +106,9 @@ and the addon module name is `addon`.
 When building addons with `node-gyp`, using the macro `NODE_GYP_MODULE_NAME` as
 the first parameter of `NODE_MODULE()` will ensure that the name of the final
 binary will be passed to `NODE_MODULE()`.
+
+Addons defined with `NODE_MODULE()` can not be loaded in multiple contexts or
+multiple threads at the same time.
 
 ### Context-aware addons
 
@@ -234,6 +238,7 @@ NODE_MODULE_INIT(/* exports, module, context */) {
 ```
 
 #### Worker support
+
 <!-- YAML
 changes:
   - version:
@@ -391,7 +396,7 @@ try {
 
 ### Linking to libraries included with Node.js
 
-Node.js uses statically linked libraries such as V8, libuv and OpenSSL. All
+Node.js uses statically linked libraries such as V8, libuv, and OpenSSL. All
 addons are required to link to V8 and may link to any of the other dependencies
 as well. Typically, this is as simple as including the appropriate
 `#include <...>` statements (e.g. `#include <v8.h>`) and `node-gyp` will locate
@@ -456,7 +461,7 @@ in the Node-API are used.
 
 Creating and maintaining an addon that benefits from the ABI stability
 provided by Node-API carries with it certain
-[implementation considerations](n-api.md#n_api_implications_of_abi_stability).
+[implementation considerations][].
 
 To use Node-API in the above "Hello world" example, replace the content of
 `hello.cc` with the following. All other instructions remain the same.
@@ -527,8 +532,8 @@ filename to the `sources` array:
 Once the `binding.gyp` file is ready, the example addons can be configured and
 built using `node-gyp`:
 
-```console
-$ node-gyp configure build
+```bash
+node-gyp configure build
 ```
 
 ### Function arguments
@@ -907,7 +912,8 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     const int argc = 1;
     Local<Value> argv[argc] = { args[0] };
     Local<Function> cons =
-        args.Data().As<Object>()->GetInternalField(0).As<Function>();
+        args.Data().As<Object>()->GetInternalField(0)
+            .As<Value>().As<Function>();
     Local<Object> result =
         cons->NewInstance(context, argc, argv).ToLocalChecked();
     args.GetReturnValue().Set(result);
@@ -964,6 +970,10 @@ can be used to make it possible to force garbage collection. These flags are
 provided by the underlying V8 JavaScript engine. They are subject to change
 or removal at any time. They are not documented by Node.js or V8, and they
 should never be used outside of testing.
+
+During shutdown of the process or worker threads destructors are not called
+by the JS engine. Therefore it's the responsibility of the user to track
+these objects and ensure proper destruction to avoid resource leaks.
 
 ### Factory of wrapped objects
 
@@ -1361,16 +1371,17 @@ console.log(result);
 ```
 
 [Electron]: https://electronjs.org/
-[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
-[Linking to libraries included with Node.js]: #addons_linking_to_libraries_included_with_node_js
+[Embedder's Guide]: https://v8.dev/docs/embed
+[Linking to libraries included with Node.js]: #linking-to-libraries-included-with-nodejs
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [V8]: https://v8.dev/
-[`Worker`]: worker_threads.md#worker_threads_class_worker
+[`Worker`]: worker_threads.md#class-worker
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
 [examples]: https://github.com/nodejs/nan/tree/HEAD/examples/
+[implementation considerations]: n-api.md#implications-of-abi-stability
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp
-[require]: modules.md#modules_require_id
+[require]: modules.md#requireid
 [v8-docs]: https://v8docs.nodesource.com/

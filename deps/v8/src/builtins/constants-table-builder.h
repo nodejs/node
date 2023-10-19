@@ -15,6 +15,7 @@ namespace internal {
 
 class Isolate;
 class Object;
+class ByteArray;
 
 // Utility class to build the builtins constants table and store it on the root
 // list. The constants table contains constants used by builtins, and is there
@@ -33,10 +34,10 @@ class BuiltinsConstantsTableBuilder final {
   uint32_t AddObject(Handle<Object> object);
 
   // Self-references during code generation start out by referencing a handle
-  // with a temporary dummy object. Once the final Code object exists, such
-  // entries in the constants map must be patched up.
+  // with a temporary dummy object. Once the final InstructionStream object
+  // exists, such entries in the constants map must be patched up.
   void PatchSelfReference(Handle<Object> self_reference,
-                          Handle<Code> code_object);
+                          Handle<InstructionStream> code_object);
 
   // References to the array that stores basic block usage counters start out as
   // references to a unique oddball. Once the actual array has been allocated,

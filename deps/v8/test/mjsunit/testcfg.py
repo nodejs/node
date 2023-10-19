@@ -35,10 +35,6 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 from testrunner.outproc import base as outproc
 
-try:
-  basestring       # Python 2
-except NameError:  # Python 3
-  basestring = str
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
@@ -98,7 +94,7 @@ class TestCase(testcase.D8TestCase):
         break
     files = [ os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
               for f in files_list ]
-    testfilename = self._get_source_path()
+    testfilename = str(self._get_source_path())
     if SELF_SCRIPT_PATTERN.search(source):
       files = (
         ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")] +
@@ -107,10 +103,10 @@ class TestCase(testcase.D8TestCase):
     if NO_HARNESS_PATTERN.search(source):
       mjsunit_files = []
     else:
-      mjsunit_files = [os.path.join(self.suite.root, "mjsunit.js")]
+      mjsunit_files = [self.suite.root / "mjsunit.js"]
 
-    if self.suite.framework_name == 'num_fuzzer':
-      mjsunit_files.append(os.path.join(self.suite.root, "mjsunit_numfuzz.js"))
+    if self.framework_name == 'num_fuzzer':
+      mjsunit_files.append(self.suite.root / "mjsunit_numfuzz.js")
 
     self._source_files = files
     self._source_flags = self._parse_source_flags(source)
@@ -132,10 +128,10 @@ class TestCase(testcase.D8TestCase):
 
   def _get_files_params(self):
     files = list(self._source_files)
-    if not self._test_config.no_harness:
+    if not self.test_config.no_harness:
       files += self._mjsunit_files
     files += self._files_suffix
-    if self._test_config.isolates:
+    if self.test_config.isolates:
       files += ['--isolate'] + files
 
     return files
@@ -144,13 +140,13 @@ class TestCase(testcase.D8TestCase):
     return self._env
 
   def _get_source_path(self):
-    base_path = os.path.join(self.suite.root, self.path)
     # Try .js first, and fall back to .mjs.
     # TODO(v8:9406): clean this up by never separating the path from
     # the extension in the first place.
-    if os.path.exists(base_path + self._get_suffix()):
-      return base_path + self._get_suffix()
-    return base_path + '.mjs'
+    js_file = self.suite.root / self.path_js
+    if js_file.exists():
+      return js_file
+    return self.suite.root / self.path_mjs
 
 
 class TestCombiner(testsuite.TestCombiner):
@@ -194,8 +190,7 @@ class CombinedTest(testcase.D8TestCase):
       passed as arguments.
   """
   def __init__(self, name, tests):
-    super(CombinedTest, self).__init__(tests[0].suite, '', name,
-                                       tests[0]._test_config)
+    super(CombinedTest, self).__init__(tests[0].suite, '', name)
     self._tests = tests
 
   def _prepare_outcomes(self, force_update=True):
@@ -206,18 +201,18 @@ class CombinedTest(testcase.D8TestCase):
     """In addition to standard set of shell flags it appends:
       --disable-abortjs: %AbortJS can abort the test even inside
         trycatch-wrapper, so we disable it.
-      --es-staging: We skip all harmony flags due to false positives,
+      --harmony: We skip all harmony flags due to false positives,
           but always pass the staging flag to cover the mature features.
       --omit-quit: Calling quit() in JS would otherwise early terminate.
       --quiet-load: suppress any stdout from load() function used by
         trycatch-wrapper.
     """
     return [
-      '--test',
-      '--disable-abortjs',
-      '--es-staging',
-      '--omit-quit',
-      '--quiet-load',
+        '--test',
+        '--disable-abortjs',
+        '--harmony',
+        '--omit-quit',
+        '--quiet-load',
     ]
 
   def _get_cmd_params(self):
@@ -249,7 +244,7 @@ class CombinedTest(testcase.D8TestCase):
 
   def _is_flag_blocked(self, flag):
     for item in MISBEHAVING_COMBINED_TESTS_FLAGS:
-      if isinstance(item, basestring):
+      if isinstance(item, str):
         if item == flag:
           return True
       elif item.match(flag):
@@ -279,7 +274,3 @@ class CombinedTest(testcase.D8TestCase):
     # Combine flags from all status file entries.
     return self._get_combined_flags(
         test._get_statusfile_flags() for test in self._tests)
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

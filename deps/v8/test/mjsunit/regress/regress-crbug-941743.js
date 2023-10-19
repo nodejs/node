@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --noenable-slow-asserts
 // This test triggers optimization manually, no stress mode necessary.
-// Flags: --nostress-opt --noalways-opt
+// Flags: --noalways-turbofan
 
 // This call ensures that TurboFan won't inline array constructors.
 Array(2 ** 30);

@@ -11,9 +11,9 @@ bitfield struct JSRegExpFlags extends uint31 {
   dot_all: bool: 1 bit;
   linear: bool: 1 bit;
   has_indices: bool: 1 bit;
+  unicode_sets: bool: 1 bit;
 }
 
-@generateCppClass
 extern class JSRegExp extends JSObject {
   data: FixedArray|Undefined;
   source: String|Undefined;
@@ -26,14 +26,16 @@ extern class JSRegExp extends JSObject {
 // validate the lastIndex is positive smi when used in fast paths.
 transient type FastJSRegExp extends JSRegExp;
 
-extern operator '.global' macro
-RegExpBuiltinsAssembler::FastFlagGetterGlobal(FastJSRegExp): bool;
-extern operator '.unicode' macro
-RegExpBuiltinsAssembler::FastFlagGetterUnicode(FastJSRegExp): bool;
-extern operator '.lastIndex' macro
-RegExpBuiltinsAssembler::FastLoadLastIndex(FastJSRegExp): Smi;
-extern operator '.lastIndex=' macro
-RegExpBuiltinsAssembler::FastStoreLastIndex(FastJSRegExp, Smi): void;
+extern operator '.global' macro RegExpBuiltinsAssembler::FastFlagGetterGlobal(
+    FastJSRegExp): bool;
+extern operator '.unicode' macro RegExpBuiltinsAssembler::FastFlagGetterUnicode(
+    FastJSRegExp): bool;
+extern operator '.unicodeSets' macro
+    RegExpBuiltinsAssembler::FastFlagGetterUnicodeSets(FastJSRegExp): bool;
+extern operator '.lastIndex' macro RegExpBuiltinsAssembler::FastLoadLastIndex(
+    FastJSRegExp): Smi;
+extern operator '.lastIndex=' macro RegExpBuiltinsAssembler::FastStoreLastIndex(
+    FastJSRegExp, Smi): void;
 
 @doNotGenerateCast
 extern class JSRegExpConstructor extends JSFunction

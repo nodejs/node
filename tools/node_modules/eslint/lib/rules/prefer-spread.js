@@ -43,15 +43,15 @@ function isValidThisArg(expectedThis, thisArg, context) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require spread operators instead of `.apply()`",
-            category: "ECMAScript 6",
+            description: "Require spread operators instead of `.apply()`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-spread"
+            url: "https://eslint.org/docs/latest/rules/prefer-spread"
         },
 
         schema: [],
@@ -63,7 +63,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             CallExpression(node) {

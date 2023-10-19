@@ -140,6 +140,12 @@
         'cflags!': [ '-Wall', '-Wextra' ],
         'cflags': [ '-Wno-return-type' ],
       }],
+      ['clang or OS!="win"', {
+        'cflags': [ '-Wno-invalid-offsetof' ],
+        'xcode_settings': {
+          'WARNING_CFLAGS': ['-Wno-invalid-offsetof']
+        },
+      }],
       ['v8_target_arch=="arm"', {
         'defines': [
           'V8_TARGET_ARCH_ARM',
@@ -280,6 +286,11 @@
           'CAN_USE_FPU_INSTRUCTIONS'
         ],
       }],
+      ['v8_target_arch=="loong64"', {
+        'defines': [
+          'V8_TARGET_ARCH_LOONG64',
+        ],
+      }],
       ['v8_target_arch=="s390x"', {
         'defines': [
           'V8_TARGET_ARCH_S390',
@@ -325,11 +336,11 @@
               'V8_TARGET_ARCH_PPC_BE',
             ],
             'conditions': [
-              ['OS=="aix"', {
+              ['OS=="aix" or OS=="os400"', {
                 # Work around AIX ceil, trunc and round oddities.
                 'cflags': [ '-mcpu=power5+ -mfprnd' ],
               }],
-              ['OS=="aix"', {
+              ['OS=="aix" or OS=="os400"', {
                 # Work around AIX assembler popcntb bug.
                 'cflags': [ '-mno-popcntb' ],
               }],
@@ -342,8 +353,7 @@
           'V8_TARGET_ARCH_IA32',
         ],
       }],  # v8_target_arch=="ia32"
-      ['v8_target_arch=="mips" or v8_target_arch=="mipsel" \
-        or v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
+      ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
         'target_conditions': [
           ['_toolset=="target"', {
             'conditions': [
@@ -385,451 +395,6 @@
           }],  #'_toolset=="host"
         ],
       }],
-      ['v8_target_arch=="mips"', {
-        'defines': [
-          'V8_TARGET_ARCH_MIPS',
-        ],
-        'conditions': [
-          [ 'v8_can_use_fpu_instructions=="true"', {
-            'defines': [
-              'CAN_USE_FPU_INSTRUCTIONS',
-            ],
-          }],
-          [ 'v8_use_mips_abi_hardfloat=="true"', {
-            'defines': [
-              '__mips_hard_float=1',
-              'CAN_USE_FPU_INSTRUCTIONS',
-            ],
-          }, {
-            'defines': [
-              '__mips_soft_float=1'
-            ]
-          }],
-        ],
-        'target_conditions': [
-          ['_toolset=="target"', {
-            'conditions': [
-              ['v8_target_arch==target_arch', {
-                # Target built with a Mips CXX compiler.
-                'cflags': [
-                  '-EB',
-                  '-Wno-error=array-bounds',  # Workaround https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56273
-                ],
-                'ldflags': ['-EB'],
-                'conditions': [
-                  [ 'v8_use_mips_abi_hardfloat=="true"', {
-                    'cflags': ['-mhard-float'],
-                    'ldflags': ['-mhard-float'],
-                  }, {
-                    'cflags': ['-msoft-float'],
-                    'ldflags': ['-msoft-float'],
-                  }],
-                  ['mips_arch_variant=="r6"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32R6',
-                      'FPU_MODE_FP64',
-                    ],
-                    'cflags!': ['-mfp32', '-mfpxx'],
-                    'conditions': [
-                      [ 'clang==0', {
-                        'cflags': ['-Wa,-mips32r6'],
-                      }],
-                    ],
-                    'cflags': ['-mips32r6'],
-                    'ldflags': ['-mips32r6'],
-                  }],
-                  ['mips_arch_variant=="r6" and mips_use_msa==1', {
-                    'defines': [ '_MIPS_MSA' ],
-                  }],
-                  ['mips_arch_variant=="r2"', {
-                    'conditions': [
-                      [ 'mips_fpu_mode=="fp64"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FP64',
-                        ],
-                        'cflags': ['-mfp64'],
-                      }],
-                      ['mips_fpu_mode=="fpxx"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FPXX',
-                        ],
-                        'cflags': ['-mfpxx'],
-                      }],
-                      ['mips_fpu_mode=="fp32"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FP32',
-                        ],
-                        'cflags': ['-mfp32'],
-                      }],
-                      [ 'clang==0', {
-                        'cflags': ['-Wa,-mips32r2'],
-                      }],
-                    ],
-                    'cflags': ['-mips32r2'],
-                    'ldflags': ['-mips32r2'],
-                  }],
-                  ['mips_arch_variant=="r1"', {
-                    'defines': [
-                      'FPU_MODE_FP32',
-                    ],
-                    'cflags!': ['-mfp64', '-mfpxx'],
-                    'conditions': [
-                      [ 'clang==0', {
-                        'cflags': ['-Wa,-mips32'],
-                      }],
-                    ],
-                    'cflags': ['-mips32'],
-                    'ldflags': ['-mips32'],
-                  }],
-                  ['mips_arch_variant=="rx"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32RX',
-                      'FPU_MODE_FPXX',
-                    ],
-                    'cflags!': ['-mfp64', '-mfp32'],
-                    'conditions': [
-                      [ 'clang==0', {
-                        'cflags': ['-Wa,-mips32'],
-                      }],
-                    ],
-                    'cflags': ['-mips32', '-mfpxx'],
-                    'ldflags': ['-mips32'],
-                  }],
-                ],
-              }, {
-                # 'v8_target_arch!=target_arch'
-                # Target not built with an MIPS CXX compiler (simulator build).
-                'conditions': [
-                  ['mips_arch_variant=="r6"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32R6',
-                      'FPU_MODE_FP64',
-                    ],
-                  }],
-                  ['mips_arch_variant=="r6" and mips_use_msa==1', {
-                    'defines': [ '_MIPS_MSA' ],
-                  }],
-                  ['mips_arch_variant=="r2"', {
-                    'conditions': [
-                      [ 'mips_fpu_mode=="fp64"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FP64',
-                        ],
-                      }],
-                      ['mips_fpu_mode=="fpxx"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FPXX',
-                        ],
-                      }],
-                      ['mips_fpu_mode=="fp32"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FP32',
-                        ],
-                      }],
-                    ],
-                  }],
-                  ['mips_arch_variant=="r1"', {
-                    'defines': [
-                      'FPU_MODE_FP32',
-                    ],
-                  }],
-                  ['mips_arch_variant=="rx"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32RX',
-                      'FPU_MODE_FPXX',
-                    ],
-                  }],
-                ],
-              }],
-            ],
-          }],  #_toolset=="target"
-          ['_toolset=="host"', {
-            'conditions': [
-              ['mips_arch_variant=="rx"', {
-                'defines': [
-                  '_MIPS_ARCH_MIPS32RX',
-                  'FPU_MODE_FPXX',
-                ],
-              }],
-              ['mips_arch_variant=="r6"', {
-                'defines': [
-                  '_MIPS_ARCH_MIPS32R6',
-                  'FPU_MODE_FP64',
-                ],
-              }],
-              ['mips_arch_variant=="r6" and mips_use_msa==1', {
-                'defines': [ '_MIPS_MSA' ],
-              }],
-              ['mips_arch_variant=="r2"', {
-                'conditions': [
-                  ['mips_fpu_mode=="fp64"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32R2',
-                      'FPU_MODE_FP64',
-                    ],
-                  }],
-                  ['mips_fpu_mode=="fpxx"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32R2',
-                      'FPU_MODE_FPXX',
-                    ],
-                  }],
-                  ['mips_fpu_mode=="fp32"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32R2',
-                      'FPU_MODE_FP32'
-                    ],
-                  }],
-                ],
-              }],
-              ['mips_arch_variant=="r1"', {
-                'defines': ['FPU_MODE_FP32',],
-              }],
-            ]
-          }],  #_toolset=="host"
-        ],
-      }],  # v8_target_arch=="mips"
-      ['v8_target_arch=="mipsel"', {
-        'defines': [
-          'V8_TARGET_ARCH_MIPS',
-        ],
-        'conditions': [
-          [ 'v8_can_use_fpu_instructions=="true"', {
-            'defines': [
-              'CAN_USE_FPU_INSTRUCTIONS',
-            ],
-          }],
-          [ 'v8_use_mips_abi_hardfloat=="true"', {
-            'defines': [
-              '__mips_hard_float=1',
-              'CAN_USE_FPU_INSTRUCTIONS',
-            ],
-          }, {
-            'defines': [
-              '__mips_soft_float=1'
-            ],
-          }],
-        ],
-        'target_conditions': [
-          ['_toolset=="target"', {
-            'conditions': [
-              ['v8_target_arch==target_arch', {
-                # Target built with a Mips CXX compiler.
-                'cflags': [
-                  '-EL',
-                  '-Wno-error=array-bounds',  # Workaround https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56273
-                ],
-                'ldflags': ['-EL'],
-                'conditions': [
-                  [ 'v8_use_mips_abi_hardfloat=="true"', {
-                    'cflags': ['-mhard-float'],
-                    'ldflags': ['-mhard-float'],
-                  }, {
-                    'cflags': ['-msoft-float'],
-                    'ldflags': ['-msoft-float'],
-                  }],
-                  ['mips_arch_variant=="r6"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32R6',
-                      'FPU_MODE_FP64',
-                    ],
-                    'cflags!': ['-mfp32', '-mfpxx'],
-                    'conditions': [
-                      [ 'clang==0', {
-                        'cflags': ['-Wa,-mips32r6'],
-                      }],
-                    ],
-                    'cflags': ['-mips32r6'],
-                    'ldflags': ['-mips32r6'],
-                  }],
-                  ['mips_arch_variant=="r6" and mips_use_msa==1', {
-                    'defines': [ '_MIPS_MSA' ],
-                  }],
-                  ['mips_arch_variant=="r2"', {
-                    'conditions': [
-                      [ 'mips_fpu_mode=="fp64"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FP64',
-                        ],
-                        'cflags': ['-mfp64'],
-                      }],
-                      ['mips_fpu_mode=="fpxx"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FPXX',
-                        ],
-                        'cflags': ['-mfpxx'],
-                      }],
-                      ['mips_fpu_mode=="fp32"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FP32',
-                        ],
-                        'cflags': ['-mfp32'],
-                      }],
-                      [ 'clang==0', {
-                        'cflags': ['-Wa,-mips32r2'],
-                      }],
-                    ],
-                    'cflags': ['-mips32r2'],
-                    'ldflags': ['-mips32r2'],
-                  }],
-                  ['mips_arch_variant=="r1"', {
-                    'defines': [
-                      'FPU_MODE_FP32',
-                    ],
-                    'cflags!': ['-mfp64', '-mfpxx'],
-                    'conditions': [
-                      [ 'clang==0', {
-                        'cflags': ['-Wa,-mips32'],
-                      }],
-                    ],
-                    'cflags': ['-mips32'],
-                    'ldflags': ['-mips32'],
-                  }],
-                  ['mips_arch_variant=="rx"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32RX',
-                      'FPU_MODE_FPXX',
-                    ],
-                    'cflags!': ['-mfp64', '-mfp32'],
-                    'conditions': [
-                      [ 'clang==0', {
-                        'cflags': ['-Wa,-mips32'],
-                      }],
-                    ],
-                    'cflags': ['-mips32', '-mfpxx'],
-                    'ldflags': ['-mips32'],
-                  }],
-                  ['mips_arch_variant=="loongson"', {
-                    'defines': [
-                      '_MIPS_ARCH_LOONGSON',
-                      'FPU_MODE_FP32',
-                    ],
-                    'cflags!': ['-mfp64', '-mfpxx'],
-                    'conditions': [
-                      [ 'clang==0', {
-                        'cflags': ['-Wa,-mips3'],
-                      }],
-                    ],
-                    'cflags': ['-mips3', '-mfp32'],
-                  }],
-                ],
-              }, {
-                # 'v8_target_arch!=target_arch'
-                # Target not built with an MIPS CXX compiler (simulator build).
-                'conditions': [
-                  ['mips_arch_variant=="r6"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32R6',
-                      'FPU_MODE_FP64',
-                    ],
-                  }],
-                  ['mips_arch_variant=="r6" and mips_use_msa==1', {
-                    'defines': [ '_MIPS_MSA' ],
-                  }],
-                  ['mips_arch_variant=="r2"', {
-                    'conditions': [
-                      [ 'mips_fpu_mode=="fp64"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FP64',
-                        ],
-                      }],
-                      ['mips_fpu_mode=="fpxx"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FPXX',
-                        ],
-                      }],
-                      ['mips_fpu_mode=="fp32"', {
-                        'defines': [
-                          '_MIPS_ARCH_MIPS32R2',
-                          'FPU_MODE_FP32',
-                        ],
-                      }],
-                    ],
-                  }],
-                  ['mips_arch_variant=="r1"', {
-                    'defines': [
-                      'FPU_MODE_FP32',
-                    ],
-                  }],
-                  ['mips_arch_variant=="rx"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32RX',
-                      'FPU_MODE_FPXX',
-                    ],
-                  }],
-                  ['mips_arch_variant=="loongson"', {
-                    'defines': [
-                      '_MIPS_ARCH_LOONGSON',
-                      'FPU_MODE_FP32',
-                    ],
-                  }],
-                ],
-              }],
-            ],
-          }], #_toolset=="target
-          ['_toolset=="host"', {
-            'conditions': [
-              ['mips_arch_variant=="rx"', {
-                'defines': [
-                  '_MIPS_ARCH_MIPS32RX',
-                  'FPU_MODE_FPXX',
-                ],
-              }],
-              ['mips_arch_variant=="r6"', {
-                'defines': [
-                  '_MIPS_ARCH_MIPS32R6',
-                  'FPU_MODE_FP64',
-                ],
-              }],
-              ['mips_arch_variant=="r6" and mips_use_msa==1', {
-                'defines': [ '_MIPS_MSA' ],
-              }],
-              ['mips_arch_variant=="r2"', {
-                'conditions': [
-                  ['mips_fpu_mode=="fp64"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32R2',
-                      'FPU_MODE_FP64',
-                    ],
-                  }],
-                  ['mips_fpu_mode=="fpxx"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32R2',
-                      'FPU_MODE_FPXX',
-                    ],
-                  }],
-                  ['mips_fpu_mode=="fp32"', {
-                    'defines': [
-                      '_MIPS_ARCH_MIPS32R2',
-                      'FPU_MODE_FP32'
-                    ],
-                  }],
-                ],
-              }],
-              ['mips_arch_variant=="r1"', {
-                'defines': ['FPU_MODE_FP32',],
-              }],
-              ['mips_arch_variant=="loongson"', {
-                'defines': [
-                  '_MIPS_ARCH_LOONGSON',
-                  'FPU_MODE_FP32',
-                ],
-              }],
-            ]
-          }],
-        ],
-      }],  # v8_target_arch=="mipsel"
       ['v8_target_arch=="mips64el" or v8_target_arch=="mips64"', {
         'defines': [
           'V8_TARGET_ARCH_MIPS64',
@@ -954,25 +519,11 @@
         },
         'msvs_configuration_platform': 'x64',
       }],  # v8_target_arch=="x64"
-      ['v8_target_arch=="x32"', {
-        'defines': [
-          # x32 port shares the source code with x64 port.
-          'V8_TARGET_ARCH_X64',
-          'V8_TARGET_ARCH_32_BIT',
-        ],
-        'cflags': [
-          '-mx32',
-          # Inhibit warning if long long type is used.
-          '-Wno-long-long',
-        ],
-        'ldflags': [
-          '-mx32',
-        ],
-      }],  # v8_target_arch=="x32"
       ['OS=="win"', {
         'defines': [
           'WIN32',
           'NOMINMAX',  # Refs: https://chromium-review.googlesource.com/c/v8/v8/+/1456620
+          '_WIN32_WINNT=0x0602',  # Windows 8
         ],
         # 4351: VS 2005 and later are warning us that they've fixed a bug
         #       present in VS 2003 and earlier.
@@ -996,6 +547,36 @@
           },
         },
       }],
+      ['OS=="android"', {
+        'defines': [
+          'V8_HAVE_TARGET_OS',
+          'V8_TARGET_OS_ANDROID',
+        ]
+      }],
+      ['OS=="ios"', {
+        'defines': [
+          'V8_HAVE_TARGET_OS',
+          'V8_TARGET_OS_IOS',
+        ]
+      }],
+      ['OS=="linux"', {
+        'defines': [
+          'V8_HAVE_TARGET_OS',
+          'V8_TARGET_OS_LINUX',
+        ]
+      }],
+      ['OS=="mac"', {
+        'defines': [
+          'V8_HAVE_TARGET_OS',
+          'V8_TARGET_OS_MACOS',
+        ]
+      }],
+      ['OS=="win"', {
+        'defines': [
+          'V8_HAVE_TARGET_OS',
+          'V8_TARGET_OS_WIN',
+        ]
+      }],
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         v8_target_arch=="ia32"', {
@@ -1008,7 +589,6 @@
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
-         v8_target_arch=="mips" or v8_target_arch=="mipsel" or \
          v8_target_arch=="ppc")', {
         'target_conditions': [
           ['_toolset=="host"', {
@@ -1077,7 +657,7 @@
         ],
       }],
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="qnx" or OS=="aix"', {
+         or OS=="netbsd" or OS=="qnx" or OS=="aix" or OS=="os400"', {
         'conditions': [
           [ 'v8_no_strict_aliasing==1', {
             'cflags': [ '-fno-strict-aliasing' ],
@@ -1093,7 +673,7 @@
       ['OS=="netbsd"', {
         'cflags': [ '-I/usr/pkg/include' ],
       }],
-      ['OS=="aix"', {
+      ['OS=="aix" or OS=="os400"', {
         'defines': [
           # Support for malloc(0)
           '_LINUX_SOURCE_COMPAT=1',
@@ -1104,7 +684,7 @@
             'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
           }],
           [ 'v8_target_arch=="ppc64"', {
-            'cflags': [ '-maix64', '-fdollars-in-identifiers' ],
+            'cflags': [ '-maix64', '-fdollars-in-identifiers', '-fno-extern-tls-init' ],
             'ldflags': [ '-maix64 -Wl,-bbigtoc' ],
           }],
         ],
@@ -1126,7 +706,7 @@
             # Support for backtrace_symbols.
             'ldflags': [ '-rdynamic' ],
           }],
-          ['OS=="aix"', {
+          ['OS=="aix" or OS=="os400"', {
             'ldflags': [ '-Wl,-bbigtoc' ],
             'conditions': [
               ['v8_target_arch=="ppc64"', {
@@ -1170,7 +750,7 @@
             },
             'conditions': [
               ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix"', {
+            OS=="qnx" or OS=="aix" or OS=="os400"', {
                 'cflags!': [
                   '-O3',
                   '-O2',
@@ -1221,7 +801,7 @@
             },
             'conditions': [
               ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix"', {
+            OS=="qnx" or OS=="aix" or OS=="os400"', {
                 'cflags!': [
                   '-O0',
                   '-O1',
@@ -1271,7 +851,7 @@
         'defines!': ['ENABLE_HANDLE_ZAPPING',],
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
-            or OS=="aix"', {
+            or OS=="aix" or OS=="os400"', {
             'cflags!': [
               '-Os',
             ],

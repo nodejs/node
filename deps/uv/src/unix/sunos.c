@@ -148,13 +148,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct port_event events[1024];
   struct port_event* pe;
   struct timespec spec;
-  QUEUE* q;
+  struct uv__queue* q;
   uv__io_t* w;
   sigset_t* pset;
   sigset_t set;
   uint64_t base;
   uint64_t diff;
-  uint64_t idle_poll;
   unsigned int nfds;
   unsigned int i;
   int saved_errno;
@@ -167,16 +166,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int reset_timeout;
 
   if (loop->nfds == 0) {
-    assert(QUEUE_EMPTY(&loop->watcher_queue));
+    assert(uv__queue_empty(&loop->watcher_queue));
     return;
   }
 
-  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
-    q = QUEUE_HEAD(&loop->watcher_queue);
-    QUEUE_REMOVE(q);
-    QUEUE_INIT(q);
+  while (!uv__queue_empty(&loop->watcher_queue)) {
+    q = uv__queue_head(&loop->watcher_queue);
+    uv__queue_remove(q);
+    uv__queue_init(q);
 
-    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
+    w = uv__queue_data(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
 
     if (port_associate(loop->backend_fd,
@@ -317,13 +316,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;  /* Disabled by callback. */
 
       /* Events Ports operates in oneshot mode, rearm timer on next run. */
-      if (w->pevents != 0 && QUEUE_EMPTY(&w->watcher_queue))
-        QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
+      if (w->pevents != 0 && uv__queue_empty(&w->watcher_queue))
+        uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
     }
 
+    uv__metrics_inc_events(loop, nevents);
     if (reset_timeout != 0) {
       timeout = user_timeout;
       reset_timeout = 0;
+      uv__metrics_inc_events_waiting(loop, nevents);
     }
 
     if (have_signals != 0) {
@@ -416,6 +417,11 @@ uint64_t uv_get_constrained_memory(void) {
 }
 
 
+uint64_t uv_get_available_memory(void) {
+  return uv_get_free_memory();
+}
+
+
 void uv_loadavg(double avg[3]) {
   (void) getloadavg(avg, 3);
 }
@@ -424,7 +430,7 @@ void uv_loadavg(double avg[3]) {
 #if defined(PORT_SOURCE_FILE)
 
 static int uv__fs_event_rearm(uv_fs_event_t *handle) {
-  if (handle->fd == -1)
+  if (handle->fd == PORT_DELETED)
     return UV_EBADF;
 
   if (port_associate(handle->loop->fs_fd,
@@ -474,6 +480,12 @@ static void uv__fs_event_read(uv_loop_t* loop,
 
     handle = (uv_fs_event_t*) pe.portev_user;
     assert((r == 0) && "unexpected port_get() error");
+
+    if (uv__is_closing(handle)) {
+      uv__handle_stop(handle);
+      uv__make_close_pending((uv_handle_t*) handle);
+      break;
+    }
 
     events = 0;
     if (pe.portev_events & (FILE_ATTRIB | FILE_MODIFIED))
@@ -542,12 +554,14 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 }
 
 
-int uv_fs_event_stop(uv_fs_event_t* handle) {
+static int uv__fs_event_stop(uv_fs_event_t* handle) {
+  int ret = 0;
+
   if (!uv__is_active(handle))
     return 0;
 
-  if (handle->fd == PORT_FIRED || handle->fd == PORT_LOADED) {
-    port_dissociate(handle->loop->fs_fd,
+  if (handle->fd == PORT_LOADED) {
+    ret = port_dissociate(handle->loop->fs_fd,
                     PORT_SOURCE_FILE,
                     (uintptr_t) &handle->fo);
   }
@@ -556,13 +570,28 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   uv__free(handle->path);
   handle->path = NULL;
   handle->fo.fo_name = NULL;
-  uv__handle_stop(handle);
+  if (ret == 0)
+    uv__handle_stop(handle);
 
+  return ret;
+}
+
+int uv_fs_event_stop(uv_fs_event_t* handle) {
+  (void) uv__fs_event_stop(handle);
   return 0;
 }
 
 void uv__fs_event_close(uv_fs_event_t* handle) {
-  uv_fs_event_stop(handle);
+  /*
+   * If we were unable to dissociate the port here, then it is most likely
+   * that there is a pending queued event. When this happens, we don't want
+   * to complete the close as it will free the underlying memory for the
+   * handle, causing a use-after-free problem when the event is processed.
+   * We defer the final cleanup until after the event is consumed in
+   * uv__fs_event_read().
+   */
+  if (uv__fs_event_stop(handle) == 0)
+    uv__make_close_pending((uv_handle_t*) handle);
 }
 
 #else /* !defined(PORT_SOURCE_FILE) */
@@ -865,3 +894,14 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses,
 
   uv__free(addresses);
 }
+
+
+#if !defined(_POSIX_VERSION) || _POSIX_VERSION < 200809L
+size_t strnlen(const char* s, size_t maxlen) {
+  const char* end;
+  end = memchr(s, '\0', maxlen);
+  if (end == NULL)
+    return maxlen;
+  return end - s;
+}
+#endif

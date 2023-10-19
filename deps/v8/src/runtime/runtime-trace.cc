@@ -26,9 +26,7 @@ namespace internal {
 namespace {
 
 void AdvanceToOffsetForTracing(
-    interpreter::BytecodeArrayIterator&
-        bytecode_iterator,  // NOLINT(runtime/references)
-    int offset) {
+    interpreter::BytecodeArrayIterator& bytecode_iterator, int offset) {
   while (bytecode_iterator.current_offset() +
              bytecode_iterator.current_bytecode_size() <=
          offset) {
@@ -40,9 +38,22 @@ void AdvanceToOffsetForTracing(
               interpreter::OperandScale::kSingle));
 }
 
+void PrintRegisterRange(UnoptimizedFrame* frame, std::ostream& os,
+                        interpreter::BytecodeArrayIterator& bytecode_iterator,
+                        const int& reg_field_width, const char* arrow_direction,
+                        interpreter::Register first_reg, int range) {
+  for (int reg_index = first_reg.index(); reg_index < first_reg.index() + range;
+       reg_index++) {
+    Tagged<Object> reg_object = frame->ReadInterpreterRegister(reg_index);
+    os << "      [ " << std::setw(reg_field_width)
+       << interpreter::Register(reg_index).ToString() << arrow_direction;
+    ShortPrint(reg_object, os);
+    os << " ]" << std::endl;
+  }
+}
+
 void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
-                    interpreter::BytecodeArrayAccessor&
-                        bytecode_accessor,  // NOLINT(runtime/references)
+                    interpreter::BytecodeArrayIterator& bytecode_iterator,
                     Handle<Object> accumulator) {
   static const char kAccumulator[] = "accumulator";
   static const int kRegFieldWidth = static_cast<int>(sizeof(kAccumulator) - 1);
@@ -50,17 +61,18 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
   static const char* kOutputColourCode = "\033[0;35m";
   static const char* kNormalColourCode = "\033[0;m";
   const char* kArrowDirection = is_input ? " -> " : " <- ";
-  if (FLAG_log_colour) {
+  if (v8_flags.log_colour) {
     os << (is_input ? kInputColourCode : kOutputColourCode);
   }
 
-  interpreter::Bytecode bytecode = bytecode_accessor.current_bytecode();
+  interpreter::Bytecode bytecode = bytecode_iterator.current_bytecode();
 
   // Print accumulator.
   if ((is_input && interpreter::Bytecodes::ReadsAccumulator(bytecode)) ||
-      (!is_input && interpreter::Bytecodes::WritesAccumulator(bytecode))) {
+      (!is_input &&
+       interpreter::Bytecodes::WritesOrClobbersAccumulator(bytecode))) {
     os << "      [ " << kAccumulator << kArrowDirection;
-    accumulator->ShortPrint(os);
+    ShortPrint(*accumulator, os);
     os << " ]" << std::endl;
   }
 
@@ -75,21 +87,18 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
             : interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
     if (should_print) {
       interpreter::Register first_reg =
-          bytecode_accessor.GetRegisterOperand(operand_index);
-      int range = bytecode_accessor.GetRegisterOperandRange(operand_index);
-      for (int reg_index = first_reg.index();
-           reg_index < first_reg.index() + range; reg_index++) {
-        Object reg_object = frame->ReadInterpreterRegister(reg_index);
-        os << "      [ " << std::setw(kRegFieldWidth)
-           << interpreter::Register(reg_index).ToString(
-                  bytecode_accessor.bytecode_array()->parameter_count())
-           << kArrowDirection;
-        reg_object.ShortPrint(os);
-        os << " ]" << std::endl;
-      }
+          bytecode_iterator.GetRegisterOperand(operand_index);
+      int range = bytecode_iterator.GetRegisterOperandRange(operand_index);
+      PrintRegisterRange(frame, os, bytecode_iterator, kRegFieldWidth,
+                         kArrowDirection, first_reg, range);
     }
   }
-  if (FLAG_log_colour) {
+  if (!is_input && interpreter::Bytecodes::IsShortStar(bytecode)) {
+    PrintRegisterRange(frame, os, bytecode_iterator, kRegFieldWidth,
+                       kArrowDirection,
+                       interpreter::Register::FromShortStar(bytecode), 1);
+  }
+  if (v8_flags.log_colour) {
     os << kNormalColourCode;
   }
 }
@@ -97,26 +106,26 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
-  if (!FLAG_trace_ignition && !FLAG_trace_baseline_exec) {
+  if (!v8_flags.trace_ignition && !v8_flags.trace_baseline_exec) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  JavaScriptFrameIterator frame_iterator(isolate);
+  JavaScriptStackFrameIterator frame_iterator(isolate);
   UnoptimizedFrame* frame =
       reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
 
-  if (frame->is_interpreted() && !FLAG_trace_ignition) {
+  if (frame->is_interpreted() && !v8_flags.trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
-  if (frame->is_baseline() && !FLAG_trace_baseline_exec) {
+  if (frame->is_baseline() && !v8_flags.trace_baseline_exec) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
-  CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, accumulator, 2);
+  Handle<BytecodeArray> bytecode_array = args.at<BytecodeArray>(0);
+  int bytecode_offset = args.smi_value_at(1);
+  Handle<Object> accumulator = args.at(2);
 
   int offset = bytecode_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecode_array);
@@ -136,8 +145,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
     }
     os << static_cast<const void*>(bytecode_address) << " @ " << std::setw(4)
        << offset << " : ";
-    interpreter::BytecodeDecoder::Decode(os, bytecode_address,
-                                         bytecode_array->parameter_count());
+    interpreter::BytecodeDecoder::Decode(os, bytecode_address);
     os << std::endl;
     // Print all input registers and accumulator.
     PrintRegisters(frame, os, true, bytecode_iterator, accumulator);
@@ -148,26 +156,26 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
 }
 
 RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
-  if (!FLAG_trace_ignition && !FLAG_trace_baseline_exec) {
+  if (!v8_flags.trace_ignition && !v8_flags.trace_baseline_exec) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  JavaScriptFrameIterator frame_iterator(isolate);
+  JavaScriptStackFrameIterator frame_iterator(isolate);
   UnoptimizedFrame* frame =
       reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
 
-  if (frame->is_interpreted() && !FLAG_trace_ignition) {
+  if (frame->is_interpreted() && !v8_flags.trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
-  if (frame->is_baseline() && !FLAG_trace_baseline_exec) {
+  if (frame->is_baseline() && !v8_flags.trace_baseline_exec) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
-  CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, accumulator, 2);
+  Handle<BytecodeArray> bytecode_array = args.at<BytecodeArray>(0);
+  int bytecode_offset = args.smi_value_at(1);
+  Handle<Object> accumulator = args.at(2);
 
   int offset = bytecode_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecode_array);
@@ -192,23 +200,23 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
 #ifdef V8_TRACE_FEEDBACK_UPDATES
 
 RUNTIME_FUNCTION(Runtime_TraceUpdateFeedback) {
-  if (!FLAG_trace_feedback_updates) {
+  if (!v8_flags.trace_feedback_updates) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  CONVERT_SMI_ARG_CHECKED(slot, 1);
-  CONVERT_ARG_CHECKED(String, reason, 2);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  int slot = args.smi_value_at(1);
+  auto reason = String::cast(args[2]);
 
-  int slot_count = function->feedback_vector().metadata().slot_count();
+  int slot_count = function->feedback_vector()->metadata()->slot_count();
 
   StdoutStream os;
   os << "[Feedback slot " << slot << "/" << slot_count << " in ";
-  function->shared().ShortPrint(os);
+  ShortPrint(function->shared(), os);
   os << " updated to ";
-  function->feedback_vector().FeedbackSlotPrint(os, FeedbackSlot(slot));
+  function->feedback_vector()->FeedbackSlotPrint(os, FeedbackSlot(slot));
   os << " - ";
 
   StringCharacterStream stream(reason);

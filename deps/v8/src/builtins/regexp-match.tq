@@ -16,13 +16,14 @@ const kAtomPatternIndex: constexpr int31
 extern transitioning macro RegExpBuiltinsAssembler::FlagGetter(
     implicit context: Context)(Object, constexpr Flag, constexpr bool): bool;
 
-extern macro UnsafeLoadFixedArrayElement(
-    RegExpMatchInfo, constexpr int31): Object;
+extern macro UnsafeLoadFixedArrayElement(RegExpMatchInfo, constexpr int31):
+    Object;
 
-transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
-    regexp: JSReceiver, string: String, isFastPath: constexpr bool): JSAny {
+transitioning macro RegExpPrototypeMatchBody(
+    implicit context: Context)(regexp: JSReceiver, string: String,
+    isFastPath: constexpr bool): JSAny {
   if constexpr (isFastPath) {
-    assert(Is<FastJSRegExp>(regexp));
+    dcheck(Is<FastJSRegExp>(regexp));
   }
 
   const isGlobal: bool = FlagGetter(regexp, Flag::kGlobal, isFastPath);
@@ -32,8 +33,9 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
                         RegExpExec(regexp, string);
   }
 
-  assert(isGlobal);
-  const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath);
+  dcheck(isGlobal);
+  const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath) ||
+      FlagGetter(regexp, Flag::kUnicodeSets, isFastPath);
 
   StoreLastIndex(regexp, 0, isFastPath);
 
@@ -74,7 +76,7 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
               string, UnsafeCast<Smi>(matchFrom), UnsafeCast<Smi>(matchTo));
         }
       } else {
-        assert(!isFastPath);
+        dcheck(!isFastPath);
         const resultTemp = RegExpExec(regexp, string);
         if (resultTemp == Null) {
           goto IfDidNotMatch;
@@ -96,7 +98,7 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
       }
       let lastIndex = LoadLastIndex(regexp, isFastPath);
       if constexpr (isFastPath) {
-        assert(TaggedIsPositiveSmi(lastIndex));
+        dcheck(TaggedIsPositiveSmi(lastIndex));
       } else {
         lastIndex = ToLength_Inline(lastIndex);
       }
@@ -109,7 +111,7 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
         // incremented to overflow the Smi range since the maximal string
         // length is less than the maximal Smi value.
         StaticAssertStringLengthFitsSmi();
-        assert(TaggedIsPositiveSmi(newLastIndex));
+        dcheck(TaggedIsPositiveSmi(newLastIndex));
       }
 
       StoreLastIndex(regexp, newLastIndex, isFastPath);
@@ -119,28 +121,29 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
   VerifiedUnreachable();
 }
 
-transitioning macro FastRegExpPrototypeMatchBody(implicit context: Context)(
-    receiver: FastJSRegExp, string: String): JSAny {
+transitioning macro FastRegExpPrototypeMatchBody(
+    implicit context: Context)(receiver: FastJSRegExp, string: String): JSAny {
   return RegExpPrototypeMatchBody(receiver, string, true);
 }
 
-transitioning macro SlowRegExpPrototypeMatchBody(implicit context: Context)(
-    receiver: JSReceiver, string: String): JSAny {
+transitioning macro SlowRegExpPrototypeMatchBody(
+    implicit context: Context)(receiver: JSReceiver, string: String): JSAny {
   return RegExpPrototypeMatchBody(receiver, string, false);
 }
 
 // Helper that skips a few initial checks. and assumes...
 // 1) receiver is a "fast" RegExp
 // 2) pattern is a string
-transitioning builtin RegExpMatchFast(implicit context: Context)(
-    receiver: FastJSRegExp, string: String): JSAny {
+transitioning builtin RegExpMatchFast(
+    implicit context: Context)(receiver: FastJSRegExp, string: String): JSAny {
   return FastRegExpPrototypeMatchBody(receiver, string);
 }
 
 // ES#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
 transitioning javascript builtin RegExpPrototypeMatch(
-    js-implicit context: NativeContext, receiver: JSAny)(string: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    string: JSAny): JSAny {
   ThrowIfNotJSReceiver(
       receiver, MessageTemplate::kIncompatibleMethodReceiver,
       'RegExp.prototype.@@match');

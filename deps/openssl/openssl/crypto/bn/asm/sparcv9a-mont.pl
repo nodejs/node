@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -62,8 +62,10 @@
 # key length, more for longer keys] on USI&II cores and 30-80% - on
 # USIII&IV.
 
-$output = pop;
-open STDOUT,">$output";
+# $output is the last argument if it looks like a file (it has an extension)
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+
+$output and open STDOUT,">$output";
 
 $fname="bn_mul_mont_fpu";
 
@@ -124,7 +126,10 @@ $nhia="%f56"; $nhib="%f58"; $nhic="%f60"; $nhid="%f62";
 $ASI_FL16_P=0xD2;	# magic ASI value to engage 16-bit FP load
 
 $code=<<___;
-#include "sparc_arch.h"
+#ifndef __ASSEMBLER__
+# define __ASSEMBLER__ 1
+#endif
+#include "crypto/sparc_arch.h"
 
 .section	".text",#alloc,#execinstr
 

@@ -18,13 +18,13 @@ namespace internal {
 //
 
 // static
-MaybeObject MaybeObject::FromSmi(Smi smi) {
+MaybeObject MaybeObject::FromSmi(Tagged<Smi> smi) {
   DCHECK(HAS_SMI_TAG(smi.ptr()));
   return MaybeObject(smi.ptr());
 }
 
 // static
-MaybeObject MaybeObject::FromObject(Object object) {
+MaybeObject MaybeObject::FromObject(Tagged<Object> object) {
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(object.ptr()));
   return MaybeObject(object.ptr());
 }
@@ -38,34 +38,34 @@ MaybeObject MaybeObject::MakeWeak(MaybeObject object) {
 MaybeObject MaybeObject::Create(MaybeObject o) { return o; }
 
 // static
-MaybeObject MaybeObject::Create(Object o) { return FromObject(o); }
+MaybeObject MaybeObject::Create(Tagged<Object> o) { return FromObject(o); }
 
 // static
-MaybeObject MaybeObject::Create(Smi smi) { return FromSmi(smi); }
+MaybeObject MaybeObject::Create(Tagged<Smi> smi) { return FromSmi(smi); }
 
 //
 // HeapObjectReference implementation.
 //
 
-HeapObjectReference::HeapObjectReference(Object object)
+HeapObjectReference::HeapObjectReference(Tagged<Object> object)
     : MaybeObject(object.ptr()) {}
 
 // static
-HeapObjectReference HeapObjectReference::Strong(Object object) {
+HeapObjectReference HeapObjectReference::Strong(Tagged<Object> object) {
   DCHECK(!object.IsSmi());
   DCHECK(!HasWeakHeapObjectTag(object));
   return HeapObjectReference(object);
 }
 
 // static
-HeapObjectReference HeapObjectReference::Weak(Object object) {
+HeapObjectReference HeapObjectReference::Weak(Tagged<Object> object) {
   DCHECK(!object.IsSmi());
   DCHECK(!HasWeakHeapObjectTag(object));
   return HeapObjectReference(object.ptr() | kWeakHeapObjectMask);
 }
 
 // static
-HeapObjectReference HeapObjectReference::From(Object object,
+HeapObjectReference HeapObjectReference::From(Tagged<Object> object,
                                               HeapObjectReferenceType type) {
   DCHECK(!object.IsSmi());
   DCHECK(!HasWeakHeapObjectTag(object));
@@ -78,13 +78,14 @@ HeapObjectReference HeapObjectReference::From(Object object,
 }
 
 // static
-HeapObjectReference HeapObjectReference::ClearedValue(IsolateRoot isolate) {
+HeapObjectReference HeapObjectReference::ClearedValue(
+    PtrComprCageBase cage_base) {
   // Construct cleared weak ref value.
 #ifdef V8_COMPRESS_POINTERS
   // This is necessary to make pointer decompression computation also
   // suitable for cleared weak references.
-  Address raw_value =
-      DecompressTaggedPointer(isolate, kClearedWeakHeapObjectLower32);
+  Address raw_value = V8HeapCompressionScheme::DecompressTagged(
+      cage_base, kClearedWeakHeapObjectLower32);
 #else
   Address raw_value = kClearedWeakHeapObjectLower32;
 #endif
@@ -94,7 +95,8 @@ HeapObjectReference HeapObjectReference::ClearedValue(IsolateRoot isolate) {
 }
 
 template <typename THeapObjectSlot>
-void HeapObjectReference::Update(THeapObjectSlot slot, HeapObject value) {
+void HeapObjectReference::Update(THeapObjectSlot slot,
+                                 Tagged<HeapObject> value) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");

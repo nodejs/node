@@ -10,23 +10,23 @@ process.argv.splice(2, 0, 'exec')
 const removedSwitches = new Set([
   'always-spawn',
   'ignore-existing',
-  'shell-auto-fallback'
+  'shell-auto-fallback',
 ])
 
 const removedOpts = new Set([
   'npm',
   'node-arg',
-  'n'
+  'n',
 ])
 
 const removed = new Set([
   ...removedSwitches,
-  ...removedOpts
+  ...removedOpts,
 ])
 
-const { definitions, shorthands } = require('../lib/utils/config/index.js')
+const { definitions, shorthands } = require('@npmcli/config/lib/definitions')
 const npmSwitches = Object.entries(definitions)
-  .filter(([key, {type}]) => type === Boolean ||
+  .filter(([key, { type }]) => type === Boolean ||
     (Array.isArray(type) && type.includes(Boolean)))
   .map(([key]) => key)
 
@@ -40,7 +40,7 @@ const switches = new Set([
   'version',
   'v',
   'help',
-  'h'
+  'h',
 ])
 
 // things that do take a value
@@ -55,7 +55,7 @@ const opts = new Set([
   'shell',
   'npm',
   'node-arg',
-  'n'
+  'n',
 ])
 
 // break out of loop when we find a positional argument or --
@@ -98,6 +98,7 @@ for (i = 3; i < process.argv.length; i++) {
     }
 
     if (removed.has(key)) {
+      // eslint-disable-next-line no-console
       console.error(`npx: the --${key} argument has been removed.`)
       sawRemovedFlags = true
       process.argv.splice(i, 1)
@@ -122,6 +123,7 @@ for (i = 3; i < process.argv.length; i++) {
 }
 
 if (sawRemovedFlags) {
+  // eslint-disable-next-line no-console
   console.error('See `npm help exec` for more information')
 }
 

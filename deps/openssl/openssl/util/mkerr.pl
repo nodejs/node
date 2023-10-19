@@ -1,13 +1,16 @@
 #! /usr/bin/env perl
-# Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
 
 use strict;
 use warnings;
+
+use File::Basename;
+use File::Spec::Functions qw(abs2rel rel2abs);
 
 use lib ".";
 use configdata;
@@ -114,27 +117,25 @@ if ( $internal ) {
     die "Cannot mix -internal and -static\n" if $static;
     die "Extra parameters given.\n" if @ARGV;
     @source = ( glob('crypto/*.c'), glob('crypto/*/*.c'),
-                glob('ssl/*.c'), glob('ssl/*/*.c') );
+                glob('ssl/*.c'), glob('ssl/*/*.c'), glob('providers/*.c'),
+                glob('providers/*/*.c'), glob('providers/*/*/*.c') );
 } else {
     die "-module isn't useful without -internal\n" if scalar keys %modules > 0;
     @source = @ARGV;
 }
 
 # Data parsed out of the config and state files.
-my %hinc;       # lib -> header
-my %libinc;     # header -> lib
+my %hpubinc;    # lib -> public header
+my %libpubinc;  # public header -> lib
+my %hprivinc;   # lib -> private header
+my %libprivinc; # private header -> lib
 my %cskip;      # error_file -> lib
 my %errorfile;  # lib -> error file name
-my %fmax;       # lib -> max assigned function code
 my %rmax;       # lib -> max assigned reason code
-my %fassigned;  # lib -> colon-separated list of assigned function codes
 my %rassigned;  # lib -> colon-separated list of assigned reason codes
-my %fnew;       # lib -> count of new function codes
 my %rnew;       # lib -> count of new reason codes
 my %rextra;     # "extra" reason code -> lib
 my %rcodes;     # reason-name -> value
-my %ftrans;     # old name -> #define-friendly name (all caps)
-my %fcodes;     # function-name -> value
 my $statefile;  # state file with assigned reason and function codes
 my %strings;    # define -> text
 
@@ -142,21 +143,27 @@ my %strings;    # define -> text
 open(IN, "$config") || die "Can't open config file $config, $!,";
 while ( <IN> ) {
     next if /^#/ || /^$/;
-    if ( /^L\s+(\S+)\s+(\S+)\s+(\S+)/ ) {
+    if ( /^L\s+(\S+)\s+(\S+)\s+(\S+)(?:\s+(\S+))?\s+$/ ) {
         my $lib = $1;
-        my $hdr = $2;
+        my $pubhdr = $2;
         my $err = $3;
-        $hinc{$lib}   = $hdr;
-        $libinc{$hdr} = $lib;
+        my $privhdr = $4 // 'NONE';
+        $hpubinc{$lib}   = $pubhdr;
+        $libpubinc{$pubhdr} = $lib;
+        $hprivinc{$lib}   = $privhdr;
+        $libprivinc{$privhdr} = $lib;
         $cskip{$err}  = $lib;
-        next if $err eq 'NONE';
         $errorfile{$lib} = $err;
-        $fmax{$lib}      = 100;
+        next if $err eq 'NONE';
         $rmax{$lib}      = 100;
-        $fassigned{$lib} = ":";
         $rassigned{$lib} = ":";
-        $fnew{$lib}      = 0;
         $rnew{$lib}      = 0;
+        die "Public header file must be in include/openssl ($pubhdr is not)\n"
+            if ($internal
+                && $pubhdr ne 'NONE'
+                && $pubhdr !~ m|^include/openssl/|);
+        die "Private header file may only be specified with -internal ($privhdr given)\n"
+            unless ($privhdr eq 'NONE' || $internal);
     } elsif ( /^R\s+(\S+)\s+(\S+)/ ) {
         $rextra{$1} = $2;
         $rcodes{$1} = $2;
@@ -208,6 +215,7 @@ if ( ! $reindex && $statefile ) {
             $skippedstate++;
             next;
         }
+        next if $errorfile{$lib} eq 'NONE';
         if ( $name =~ /^(?:OSSL_|OPENSSL_)?[A-Z0-9]{2,}_R_/ ) {
             die "$lib reason code $code collision at $name\n"
                 if $rassigned{$lib} =~ /:$code:/;
@@ -217,11 +225,7 @@ if ( ! $reindex && $statefile ) {
             }
             $rcodes{$name} = $code;
         } elsif ( $name =~ /^(?:OSSL_|OPENSSL_)?[A-Z0-9]{2,}_F_/ ) {
-            die "$lib function code $code collision at $name\n"
-                if $fassigned{$lib} =~ /:$code:/;
-            $fassigned{$lib} .= "$code:";
-            $fmax{$lib} = $code if $code > $fmax{$lib};
-            $fcodes{$name} = $code;
+            # We do nothing with the function codes, just let them go away
         } else {
             die "Bad line in $statefile:\n$_\n";
         }
@@ -238,130 +242,19 @@ if ( ! $reindex && $statefile ) {
                 print STDERR "  --none--\n";
             }
         }
-        print STDERR "\n";
-        foreach my $lib ( sort keys %fmax ) {
-            print STDERR "Function codes for ${lib}:\n";
-            if ( $fassigned{$lib} =~ m/^:(.*):$/ ) {
-                my @fassigned = sort { $a <=> $b } split( ":", $1 );
-                print STDERR "  ", join(' ', @fassigned), "\n";
-            } else {
-                print STDERR "  --none--\n";
-            }
-        }
     }
 }
 
-# Scan each header file and make a list of error codes
-# and function names
-&phase("Scanning headers");
-while ( ( my $hdr, my $lib ) = each %libinc ) {
-    next if $hdr eq "NONE";
-    print STDERR " ." if $debug;
-    my $line = "";
-    my $def = "";
-    my $linenr = 0;
-    my $cpp = 0;
-
-    open(IN, "<$hdr") || die "Can't open $hdr, $!,";
-    while ( <IN> ) {
-        $linenr++;
-
-        if ( $line ne '' ) {
-            $_    = $line . $_;
-            $line = '';
-        }
-
-        if ( /\\$/ ) {
-            $line = $_;
-            next;
-        }
-
-        if ( /\/\*/ ) {
-            if ( not /\*\// ) {    # multiline comment...
-                $line = $_;        # ... just accumulate
-                next;
-            } else {
-                s/\/\*.*?\*\///gs;    # wipe it
-            }
-        }
-
-        if ( $cpp ) {
-            $cpp++ if /^#\s*if/;
-            $cpp-- if /^#\s*endif/;
-            next;
-        }
-        $cpp = 1 if /^#.*ifdef.*cplusplus/;    # skip "C" declaration
-
-        next if /^\#/;    # skip preprocessor directives
-
-        s/{[^{}]*}//gs;     # ignore {} blocks
-
-        if ( /\{|\/\*/ ) {    # Add a so editor works...
-            $line = $_;
-        } else {
-            $def .= $_;
-        }
-    }
-
-    # Delete any DECLARE_ macros
-    my $defnr = 0;
-    $def =~ s/DECLARE_\w+\([\w,\s]+\)//gs;
-    foreach ( split /;/, $def ) {
-        $defnr++;
-        # The goal is to collect function names from function declarations.
-
-        s/^[\n\s]*//g;
-        s/[\n\s]*$//g;
-
-        # Skip over recognized non-function declarations
-        next if /typedef\W/ or /DECLARE_STACK_OF/ or /TYPEDEF_.*_OF/;
-
-        # Remove STACK_OF(foo)
-        s/STACK_OF\(\w+\)/void/;
-
-        # Reduce argument lists to empty ()
-        # fold round brackets recursively: (t(*v)(t),t) -> (t{}{},t) -> {}
-        while ( /\(.*\)/s ) {
-            s/\([^\(\)]+\)/\{\}/gs;
-            s/\(\s*\*\s*(\w+)\s*\{\}\s*\)/$1/gs;    #(*f{}) -> f
-        }
-
-        # pretend as we didn't use curly braces: {} -> ()
-        s/\{\}/\(\)/gs;
-
-        # Last token just before the first () is a function name.
-        if ( /(\w+)\s*\(\).*/s ) {
-            my $name = $1;
-            $name =~ tr/[a-z]/[A-Z]/;
-            $ftrans{$name} = $1;
-        } elsif ( /[\(\)]/ and not(/=/) ) {
-            print STDERR "Header $hdr: cannot parse: $_;\n";
-        }
-    }
-
-    next if $reindex;
-
-    if ( $lib eq "SSL" && $rmax{$lib} >= 1000 ) {
-        print STDERR "SSL error codes 1000+ are reserved for alerts.\n";
-        print STDERR "Any new alerts must be added to $config.\n";
-        $errors++;
-    }
-    close IN;
-}
-print STDERR "\n" if $debug;
-
-# Scan each C source file and look for function and reason codes
-# This is done by looking for strings that "look like" function or
-# reason codes: basically anything consisting of all upper case and
-# numerics which has _F_ or _R_ in it and which has the name of an
-# error library at the start.  This seems to work fine except for the
-# oddly named structure BIO_F_CTX which needs to be ignored.
+# Scan each C source file and look for reason codes.  This is done by
+# looking for strings that "look like" reason codes: basically anything
+# consisting of all upper case and numerics which _R_ in it and which has
+# the name of an error library at the start.  Should there be anything else,
+# such as a type name, we add exceptions here.
 # If a code doesn't exist in list compiled from headers then mark it
 # with the value "X" as a place holder to give it a value later.
-# Store all function and reason codes found in %usedfuncs and %usedreasons
-# so all those unreferenced can be printed out.
+# Store all reason codes found in and %usedreasons so all those unreferenced
+# can be printed out.
 &phase("Scanning source");
-my %usedfuncs;
 my %usedreasons;
 foreach my $file ( @source ) {
     # Don't parse the error source file.
@@ -375,31 +268,10 @@ foreach my $file ( @source ) {
         # skip obsoleted source files entirely!
         last if /^#error\s+obsolete/;
         $linenr++;
-        if ( !/;$/ && /^\**([a-zA-Z_].*[\s*])?([A-Za-z_0-9]+)\(.*([),]|$)/ ) {
-            /^([^()]*(\([^()]*\)[^()]*)*)\(/;
-            $1 =~ /([A-Za-z_0-9]*)$/;
-            $func = $1;
-        }
 
-        if ( /(((?:OSSL_|OPENSSL_)?[A-Z0-9]{2,})_F_([A-Z0-9_]+))/ ) {
-            next unless exists $errorfile{$2};
-            next if $1 eq "BIO_F_BUFFER_CTX";
-            $usedfuncs{$1} = 1;
-            if ( !exists $fcodes{$1} ) {
-                print STDERR "  New function $1\n" if $debug;
-                $fcodes{$1} = "X";
-                $fnew{$2}++;
-            }
-            $ftrans{$3} = $func unless exists $ftrans{$3};
-            if ( uc($func) ne $3 ) {
-                print STDERR "ERROR: mismatch $file:$linenr $func:$3\n";
-                $errors++;
-            }
-            print STDERR "  Function $1 = $fcodes{$1}\n"
-              if $debug;
-        }
         if ( /(((?:OSSL_|OPENSSL_)?[A-Z0-9]{2,})_R_[A-Z0-9_]+)/ ) {
             next unless exists $errorfile{$2};
+            next if $errorfile{$2} eq 'NONE';
             $usedreasons{$1} = 1;
             if ( !exists $rcodes{$1} ) {
                 print STDERR "  New reason $1\n" if $debug;
@@ -417,10 +289,9 @@ print STDERR "\n" if $debug;
 &phase("Writing files");
 my $newstate = 0;
 foreach my $lib ( keys %errorfile ) {
-    next if ! $fnew{$lib} && ! $rnew{$lib} && ! $rebuild;
+    next if ! $rnew{$lib} && ! $rebuild;
     next if scalar keys %modules > 0 && !$modules{$lib};
     next if $nowrite;
-    print STDERR "$lib: $fnew{$lib} new functions\n" if $fnew{$lib};
     print STDERR "$lib: $rnew{$lib} new reasons\n" if $rnew{$lib};
     $newstate = 1;
 
@@ -428,221 +299,300 @@ foreach my $lib ( keys %errorfile ) {
     # need to rebuild the header file and C file.
 
     # Make a sorted list of error and reason codes for later use.
-    my @function = sort grep( /^${lib}_/, keys %fcodes );
     my @reasons  = sort grep( /^${lib}_/, keys %rcodes );
 
     # indent level for innermost preprocessor lines
     my $indent = " ";
 
-    # Rewrite the header file
+    # Flag if the sub-library is disablable
+    # There are a few exceptions, where disabling the sub-library
+    # doesn't actually remove the whole sub-library, but rather implements
+    # it with a NULL backend.
+    my $disablable =
+        ($lib ne "SSL" && $lib ne "ASYNC" && $lib ne "DSO"
+         && (grep { $lib eq uc $_ } @disablables, @disablables_int));
 
-    my $hfile = $hinc{$lib};
-    $hfile =~ s/.h$/err.h/ if $internal;
-    open( OUT, ">$hfile" ) || die "Can't write to $hfile, $!,";
-    print OUT <<"EOF";
+    # Rewrite the internal header file if there is one ($internal only!)
+
+    if ($hprivinc{$lib} ne 'NONE') {
+        my $hfile = $hprivinc{$lib};
+        my $guard = $hfile;
+
+        if ($guard =~ m|^include/|) {
+            $guard = $';
+        } else {
+            $guard = basename($guard);
+        }
+        $guard = "OSSL_" . join('_', split(m|[./]|, uc $guard));
+
+        open( OUT, ">$hfile" ) || die "Can't write to $hfile, $!,";
+        print OUT <<"EOF";
 /*
  * Generated by util/mkerr.pl DO NOT EDIT
- * Copyright 1995-$YEAR The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-$YEAR The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the \"License\").  You may not use
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_${lib}ERR_H
-# define HEADER_${lib}ERR_H
+#ifndef $guard
+# define $guard
+# pragma once
 
+# include <openssl/opensslconf.h>
 # include <openssl/symhacks.h>
 
-EOF
-    if ( $internal ) {
-        # Declare the load function because the generate C file
-        # includes "fooerr.h" not "foo.h"
-        if ($lib ne "SSL" && $lib ne "ASYNC"
-                && grep { $lib eq uc $_ } @disablables) {
-            print OUT <<"EOF";
-# include <openssl/opensslconf.h>
+# ifdef  __cplusplus
+extern \"C\" {
+# endif
 
+EOF
+        $indent = ' ';
+        if ($disablable) {
+            print OUT <<"EOF";
 # ifndef OPENSSL_NO_${lib}
 
 EOF
             $indent = "  ";
         }
         print OUT <<"EOF";
-#${indent}ifdef  __cplusplus
-extern \"C\"
-#${indent}endif
-int ERR_load_${lib}_strings(void);
+int ossl_err_load_${lib}_strings(void);
 EOF
-    } else {
+
+        # If this library doesn't have a public header file, we write all
+        # definitions that would end up there here instead
+        if ($hpubinc{$lib} eq 'NONE') {
+            print OUT "\n/*\n * $lib reason codes.\n */\n";
+            foreach my $i ( @reasons ) {
+                my $z = 48 - length($i);
+                $z = 0 if $z < 0;
+                if ( $rcodes{$i} eq "X" ) {
+                    $rassigned{$lib} =~ m/^:([^:]*):/;
+                    my $findcode = $1;
+                    $findcode = $rmax{$lib} if !defined $findcode;
+                    while ( $rassigned{$lib} =~ m/:$findcode:/ ) {
+                        $findcode++;
+                    }
+                    $rcodes{$i} = $findcode;
+                    $rassigned{$lib} .= "$findcode:";
+                    print STDERR "New Reason code $i\n" if $debug;
+                }
+                printf OUT "#${indent}define $i%s $rcodes{$i}\n", " " x $z;
+            }
+            print OUT "\n";
+        }
+
+        # This doesn't go all the way down to zero, to allow for the ending
+        # brace for 'extern "C" {'.
+        while (length($indent) > 1) {
+            $indent = substr $indent, 0, -1;
+            print OUT "#${indent}endif\n";
+        }
+
         print OUT <<"EOF";
-# define ${lib}err(f, r) ERR_${lib}_error((f), (r), OPENSSL_FILE, OPENSSL_LINE)
+
+# ifdef  __cplusplus
+}
+# endif
+#endif
+EOF
+        close OUT;
+    }
+
+    # Rewrite the public header file
+
+    if ($hpubinc{$lib} ne 'NONE') {
+        my $extra_include =
+            $internal
+            ? ($lib ne 'SSL'
+               ? "# include <openssl/cryptoerr_legacy.h>\n"
+               : "# include <openssl/sslerr_legacy.h>\n")
+            : '';
+        my $hfile = $hpubinc{$lib};
+        my $guard = $hfile;
+        $guard =~ s|^include/||;
+        $guard = join('_', split(m|[./]|, uc $guard));
+        $guard = "OSSL_" . $guard unless $internal;
+
+        open( OUT, ">$hfile" ) || die "Can't write to $hfile, $!,";
+        print OUT <<"EOF";
+/*
+ * Generated by util/mkerr.pl DO NOT EDIT
+ * Copyright 1995-$YEAR The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+#ifndef $guard
+# define $guard
+# pragma once
+
+# include <openssl/opensslconf.h>
+# include <openssl/symhacks.h>
+$extra_include
 
 EOF
-        if ( ! $static ) {
+        $indent = ' ';
+        if ( $internal ) {
+            if ($disablable) {
+                print OUT <<"EOF";
+# ifndef OPENSSL_NO_${lib}
+
+EOF
+                $indent .= ' ';
+            }
+        } else {
             print OUT <<"EOF";
+# define ${lib}err(f, r) ERR_${lib}_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
+
+EOF
+            if ( ! $static ) {
+                print OUT <<"EOF";
 
 # ifdef  __cplusplus
 extern \"C\" {
 # endif
 int ERR_load_${lib}_strings(void);
 void ERR_unload_${lib}_strings(void);
-void ERR_${lib}_error(int function, int reason, char *file, int line);
+void ERR_${lib}_error(int function, int reason, const char *file, int line);
 # ifdef  __cplusplus
 }
 # endif
 EOF
-        }
-    }
-
-    print OUT "\n/*\n * $lib function codes.\n */\n";
-    foreach my $i ( @function ) {
-        my $z = 48 - length($i);
-        $z = 0 if $z < 0;
-        if ( $fcodes{$i} eq "X" ) {
-            $fassigned{$lib} =~ m/^:([^:]*):/;
-            my $findcode = $1;
-            $findcode = $fmax{$lib} if !defined $findcode;
-            while ( $fassigned{$lib} =~ m/:$findcode:/ ) {
-                $findcode++;
             }
-            $fcodes{$i} = $findcode;
-            $fassigned{$lib} .= "$findcode:";
-            print STDERR "New Function code $i\n" if $debug;
         }
-        printf OUT "#${indent}define $i%s $fcodes{$i}\n", " " x $z;
-    }
 
-    print OUT "\n/*\n * $lib reason codes.\n */\n";
-    foreach my $i ( @reasons ) {
-        my $z = 48 - length($i);
-        $z = 0 if $z < 0;
-        if ( $rcodes{$i} eq "X" ) {
-            $rassigned{$lib} =~ m/^:([^:]*):/;
-            my $findcode = $1;
-            $findcode = $rmax{$lib} if !defined $findcode;
-            while ( $rassigned{$lib} =~ m/:$findcode:/ ) {
-                $findcode++;
+        print OUT "\n/*\n * $lib reason codes.\n */\n";
+        foreach my $i ( @reasons ) {
+            my $z = 48 - length($i);
+            $z = 0 if $z < 0;
+            if ( $rcodes{$i} eq "X" ) {
+                $rassigned{$lib} =~ m/^:([^:]*):/;
+                my $findcode = $1;
+                $findcode = $rmax{$lib} if !defined $findcode;
+                while ( $rassigned{$lib} =~ m/:$findcode:/ ) {
+                    $findcode++;
+                }
+                $rcodes{$i} = $findcode;
+                $rassigned{$lib} .= "$findcode:";
+                print STDERR "New Reason code $i\n" if $debug;
             }
-            $rcodes{$i} = $findcode;
-            $rassigned{$lib} .= "$findcode:";
-            print STDERR "New Reason code $i\n" if $debug;
+            printf OUT "#${indent}define $i%s $rcodes{$i}\n", " " x $z;
         }
-        printf OUT "#${indent}define $i%s $rcodes{$i}\n", " " x $z;
-    }
-    print OUT "\n";
+        print OUT "\n";
 
-    while (length($indent) > 0) {
-        $indent = substr $indent, 0, -1;
-        print OUT "#${indent}endif\n";
+        while (length($indent) > 0) {
+            $indent = substr $indent, 0, -1;
+            print OUT "#${indent}endif\n";
+        }
+        close OUT;
     }
 
     # Rewrite the C source file containing the error details.
 
-    # First, read any existing reason string definitions:
-    my $cfile = $errorfile{$lib};
-    my $pack_lib = $internal ? "ERR_LIB_${lib}" : "0";
-    my $hincf = $hfile;
-    $hincf =~ s|.*include/||;
-    if ( $hincf =~ m|^openssl/| ) {
-        $hincf = "<${hincf}>";
-    } else {
-        $hincf = "\"${hincf}\"";
-    }
+    if ($errorfile{$lib} ne 'NONE') {
+        # First, read any existing reason string definitions:
+        my $cfile = $errorfile{$lib};
+        my $pack_lib = $internal ? "ERR_LIB_${lib}" : "0";
+        my $hpubincf = $hpubinc{$lib};
+        my $hprivincf = $hprivinc{$lib};
+        my $includes = '';
+        if ($internal) {
+            if ($hpubincf ne 'NONE') {
+                $hpubincf =~ s|^include/||;
+                $includes .= "#include <${hpubincf}>\n";
+            }
+            if ($hprivincf =~ m|^include/|) {
+                $hprivincf = $';
+            } else {
+                $hprivincf = abs2rel(rel2abs($hprivincf),
+                                     rel2abs(dirname($cfile)));
+            }
+            $includes .= "#include \"${hprivincf}\"\n";
+        } else {
+            $includes .= "#include \"${hpubincf}\"\n";
+        }
 
-    open( OUT, ">$cfile" )
-        || die "Can't open $cfile for writing, $!, stopped";
+        open( OUT, ">$cfile" )
+            || die "Can't open $cfile for writing, $!, stopped";
 
-    my $const = $internal ? 'const ' : '';
+        my $const = $internal ? 'const ' : '';
 
-    print OUT <<"EOF";
+        print OUT <<"EOF";
 /*
  * Generated by util/mkerr.pl DO NOT EDIT
  * Copyright 1995-$YEAR The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
 #include <openssl/err.h>
-#include $hincf
-
-#ifndef OPENSSL_NO_ERR
-
-static ${const}ERR_STRING_DATA ${lib}_str_functs[] = {
+$includes
 EOF
+        $indent = '';
+        if ( $internal ) {
+            if ($disablable) {
+                print OUT <<"EOF";
+#ifndef OPENSSL_NO_${lib}
 
-    # Add each function code: if a function name is found then use it.
-    foreach my $i ( @function ) {
-        my $fn;
-        if ( exists $strings{$i} and $strings{$i} ne '' ) {
-            $fn = $strings{$i};
-            $fn = "" if $fn eq '*';
-        } else {
-            $i =~ /^${lib}_F_(\S+)$/;
-            $fn = $1;
-            $fn = $ftrans{$fn} if exists $ftrans{$fn};
-            $strings{$i} = $fn;
+EOF
+                $indent .= ' ';
+            }
         }
-        my $short = "    {ERR_PACK($pack_lib, $i, 0), \"$fn\"},";
-        if ( length($short) <= 80 ) {
-            print OUT "$short\n";
-        } else {
-            print OUT "    {ERR_PACK($pack_lib, $i, 0),\n     \"$fn\"},\n";
-        }
-    }
-    print OUT <<"EOF";
-    {0, NULL}
-};
+        print OUT <<"EOF";
+#${indent}ifndef OPENSSL_NO_ERR
 
 static ${const}ERR_STRING_DATA ${lib}_str_reasons[] = {
 EOF
 
-    # Add each reason code.
-    foreach my $i ( @reasons ) {
-        my $rn;
-        if ( exists $strings{$i} ) {
-            $rn = $strings{$i};
-            $rn = "" if $rn eq '*';
-        } else {
-            $i =~ /^${lib}_R_(\S+)$/;
-            $rn = $1;
-            $rn =~ tr/_[A-Z]/ [a-z]/;
-            $strings{$i} = $rn;
+        # Add each reason code.
+        foreach my $i ( @reasons ) {
+            my $rn;
+            if ( exists $strings{$i} ) {
+                $rn = $strings{$i};
+                $rn = "" if $rn eq '*';
+            } else {
+                $i =~ /^${lib}_R_(\S+)$/;
+                $rn = $1;
+                $rn =~ tr/_[A-Z]/ [a-z]/;
+                $strings{$i} = $rn;
+            }
+            my $short = "    {ERR_PACK($pack_lib, 0, $i), \"$rn\"},";
+            if ( length($short) <= 80 ) {
+                print OUT "$short\n";
+            } else {
+                print OUT "    {ERR_PACK($pack_lib, 0, $i),\n    \"$rn\"},\n";
+            }
         }
-        my $short = "    {ERR_PACK($pack_lib, 0, $i), \"$rn\"},";
-        if ( length($short) <= 80 ) {
-            print OUT "$short\n";
-        } else {
-            print OUT "    {ERR_PACK($pack_lib, 0, $i),\n    \"$rn\"},\n";
-        }
-    }
-    print OUT <<"EOF";
+        print OUT <<"EOF";
     {0, NULL}
 };
 
-#endif
+#${indent}endif
 EOF
-    if ( $internal ) {
-        print OUT <<"EOF";
+        if ( $internal ) {
+            print OUT <<"EOF";
 
-int ERR_load_${lib}_strings(void)
+int ossl_err_load_${lib}_strings(void)
 {
-#ifndef OPENSSL_NO_ERR
-    if (ERR_func_error_string(${lib}_str_functs[0].error) == NULL) {
-        ERR_load_strings_const(${lib}_str_functs);
+#${indent}ifndef OPENSSL_NO_ERR
+    if (ERR_reason_error_string(${lib}_str_reasons[0].error) == NULL)
         ERR_load_strings_const(${lib}_str_reasons);
-    }
-#endif
+#${indent}endif
     return 1;
 }
 EOF
-    } else {
-        my $st = $static ? "static " : "";
-        print OUT <<"EOF";
+        } else {
+            my $st = $static ? "static " : "";
+            print OUT <<"EOF";
 
 static int lib_code = 0;
 static int error_loaded = 0;
@@ -654,7 +604,6 @@ ${st}int ERR_load_${lib}_strings(void)
 
     if (!error_loaded) {
 #ifndef OPENSSL_NO_ERR
-        ERR_load_strings(lib_code, ${lib}_str_functs);
         ERR_load_strings(lib_code, ${lib}_str_reasons);
 #endif
         error_loaded = 1;
@@ -666,42 +615,44 @@ ${st}void ERR_unload_${lib}_strings(void)
 {
     if (error_loaded) {
 #ifndef OPENSSL_NO_ERR
-        ERR_unload_strings(lib_code, ${lib}_str_functs);
         ERR_unload_strings(lib_code, ${lib}_str_reasons);
 #endif
         error_loaded = 0;
     }
 }
 
-${st}void ERR_${lib}_error(int function, int reason, char *file, int line)
+${st}void ERR_${lib}_error(int function, int reason, const char *file, int line)
 {
     if (lib_code == 0)
         lib_code = ERR_get_next_error_library();
-    ERR_PUT_error(lib_code, function, reason, file, line);
+    ERR_raise(lib_code, reason);
+    ERR_set_debug(file, line, NULL);
 }
 EOF
 
-    }
+        }
 
-    close OUT;
+        while (length($indent) > 1) {
+            $indent = substr $indent, 0, -1;
+            print OUT "#${indent}endif\n";
+        }
+        if ($internal && $disablable) {
+            print OUT <<"EOF";
+#else
+NON_EMPTY_TRANSLATION_UNIT
+#endif
+EOF
+        }
+        close OUT;
+    }
 }
 
 &phase("Ending");
-# Make a list of unreferenced function and reason codes
+# Make a list of unreferenced reason codes
 if ( $unref ) {
-    my @funref;
-    foreach ( keys %fcodes ) {
-        push( @funref, $_ ) unless exists $usedfuncs{$_};
-    }
     my @runref;
     foreach ( keys %rcodes ) {
         push( @runref, $_ ) unless exists $usedreasons{$_};
-    }
-    if ( @funref ) {
-        print STDERR "The following function codes were not referenced:\n";
-        foreach ( sort @funref ) {
-            print STDERR "  $_\n";
-        }
     }
     if ( @runref ) {
         print STDERR "The following reason codes were not referenced:\n";
@@ -720,18 +671,11 @@ if ( $newstate )  {
     print OUT <<"EOF";
 # Copyright 1999-$YEAR The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
 EOF
-    print OUT "\n# Function codes\n";
-    foreach my $i ( sort keys %fcodes ) {
-        my $short = "$i:$fcodes{$i}:";
-        my $t = exists $strings{$i} ? $strings{$i} : "";
-        $t = "\\\n\t" . $t if length($short) + length($t) > 80;
-        print OUT "$short$t\n";
-    }
     print OUT "\n#Reason codes\n";
     foreach my $i ( sort keys %rcodes ) {
         my $short = "$i:$rcodes{$i}:";

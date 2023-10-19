@@ -8,27 +8,32 @@
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
 
 namespace {
-struct JSOps {
+
+struct CodeOps {
   Handle<Code> code;
 
   Address constant_pool() const { return code->constant_pool(); }
-  Address instruction_start() const { return code->InstructionStart(); }
-  Address instruction_end() const { return code->InstructionEnd(); }
-  int instruction_size() const { return code->InstructionSize(); }
-  const byte* relocation_start() const { return code->relocation_start(); }
-  const byte* relocation_end() const { return code->relocation_end(); }
+  Address instruction_start() const { return code->instruction_start(); }
+  Address instruction_end() const { return code->instruction_end(); }
+  int instruction_size() const { return code->instruction_size(); }
+  const uint8_t* relocation_start() const { return code->relocation_start(); }
+  const uint8_t* relocation_end() const { return code->relocation_end(); }
   int relocation_size() const { return code->relocation_size(); }
   Address code_comments() const { return code->code_comments(); }
   int code_comments_size() const { return code->code_comments_size(); }
 };
 
-struct WasmOps {
+#if V8_ENABLE_WEBASSEMBLY
+struct WasmCodeOps {
   const wasm::WasmCode* code;
 
   Address constant_pool() const { return code->constant_pool(); }
@@ -40,14 +45,15 @@ struct WasmOps {
                                      code->instructions().size());
   }
   int instruction_size() const { return code->instructions().length(); }
-  const byte* relocation_start() const { return code->reloc_info().begin(); }
-  const byte* relocation_end() const {
+  const uint8_t* relocation_start() const { return code->reloc_info().begin(); }
+  const uint8_t* relocation_end() const {
     return code->reloc_info().begin() + code->reloc_info().length();
   }
   int relocation_size() const { return code->reloc_info().length(); }
   Address code_comments() const { return code->code_comments(); }
   int code_comments_size() const { return code->code_comments_size(); }
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 struct CodeDescOps {
   const CodeDesc* code_desc;
@@ -62,10 +68,10 @@ struct CodeDescOps {
     return instruction_start() + code_desc->instr_size;
   }
   int instruction_size() const { return code_desc->instr_size; }
-  const byte* relocation_start() const {
+  const uint8_t* relocation_start() const {
     return code_desc->buffer + code_desc->reloc_offset;
   }
-  const byte* relocation_end() const {
+  const uint8_t* relocation_end() const {
     return code_desc->buffer + code_desc->buffer_size;
   }
   int relocation_size() const { return code_desc->reloc_size; }
@@ -76,32 +82,39 @@ struct CodeDescOps {
 };
 }  // namespace
 
-#define DISPATCH(ret, method)                    \
-  ret CodeReference::method() const {            \
-    DCHECK(!is_null());                          \
-    switch (kind_) {                             \
-      case JS:                                   \
-        return JSOps{js_code_}.method();         \
-      case WASM:                                 \
-        return WasmOps{wasm_code_}.method();     \
-      case CODE_DESC:                            \
-        return CodeDescOps{code_desc_}.method(); \
-      default:                                   \
-        UNREACHABLE();                           \
-    }                                            \
+#if V8_ENABLE_WEBASSEMBLY
+#define HANDLE_WASM(...) __VA_ARGS__
+#else
+#define HANDLE_WASM(...) UNREACHABLE()
+#endif
+
+#define DISPATCH(ret, method)                                 \
+  ret CodeReference::method() const {                         \
+    DCHECK(!is_null());                                       \
+    switch (kind_) {                                          \
+      case Kind::CODE:                                        \
+        return CodeOps{code_}.method();                       \
+      case Kind::WASM_CODE:                                   \
+        HANDLE_WASM(return WasmCodeOps{wasm_code_}.method()); \
+      case Kind::CODE_DESC:                                   \
+        return CodeDescOps{code_desc_}.method();              \
+      default:                                                \
+        UNREACHABLE();                                        \
+    }                                                         \
   }
 
 DISPATCH(Address, constant_pool)
 DISPATCH(Address, instruction_start)
 DISPATCH(Address, instruction_end)
 DISPATCH(int, instruction_size)
-DISPATCH(const byte*, relocation_start)
-DISPATCH(const byte*, relocation_end)
+DISPATCH(const uint8_t*, relocation_start)
+DISPATCH(const uint8_t*, relocation_end)
 DISPATCH(int, relocation_size)
 DISPATCH(Address, code_comments)
 DISPATCH(int, code_comments_size)
 
 #undef DISPATCH
+#undef HANDLE_WASM
 
 }  // namespace internal
 }  // namespace v8

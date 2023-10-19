@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -66,10 +67,27 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
     }));
 }
 
+{
+  assert.throws(() => {
+    testCwd({
+      cwd: new URL('http://example.com/'),
+    }, 'number', 0, tmpdir.path);
+  }, /The URL must be of scheme file/);
+
+  if (process.platform !== 'win32') {
+    assert.throws(() => {
+      testCwd({
+        cwd: new URL('file://host/dev/null'),
+      }, 'number', 0, tmpdir.path);
+    }, /File URL host must be "localhost" or empty on/);
+  }
+}
+
 // Assume these exist, and 'pwd' gives us the right directory back
 testCwd({ cwd: tmpdir.path }, 'number', 0, tmpdir.path);
 const shouldExistDir = common.isWindows ? process.env.windir : '/dev';
 testCwd({ cwd: shouldExistDir }, 'number', 0, shouldExistDir);
+testCwd({ cwd: tmpdir.fileURL() }, 'number', 0, tmpdir.path);
 
 // Spawn() shouldn't try to chdir() to invalid arg, so this should just work
 testCwd({ cwd: '' }, 'number');

@@ -5,8 +5,9 @@
 #ifndef V8_EXECUTION_ARGUMENTS_H_
 #define V8_EXECUTION_ARGUMENTS_H_
 
+#include "src/execution/clobber-registers.h"
 #include "src/handles/handles.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
 #include "src/tracing/trace-event.h"
@@ -33,33 +34,42 @@ namespace internal {
 template <ArgumentsType arguments_type>
 class Arguments {
  public:
+  // Scope to temporarily change the value of an argument.
+  class ChangeValueScope {
+   public:
+    inline ChangeValueScope(Isolate* isolate, Arguments* args, int index,
+                            Tagged<Object> value);
+    ~ChangeValueScope() { *location_ = (*old_value_).ptr(); }
+
+   private:
+    Address* location_;
+    Handle<Object> old_value_;
+  };
+
   Arguments(int length, Address* arguments)
       : length_(length), arguments_(arguments) {
     DCHECK_GE(length_, 0);
   }
 
-  Object operator[](int index) const {
+  V8_INLINE Tagged<Object> operator[](int index) const {
     return Object(*address_of_arg_at(index));
   }
 
   template <class S = Object>
-  inline Handle<S> at(int index) const;
+  V8_INLINE Handle<S> at(int index) const;
 
-  inline int smi_at(int index) const;
+  V8_INLINE FullObjectSlot slot_from_address_at(int index, int offset) const;
 
-  inline int tagged_index_at(int index) const;
+  V8_INLINE int smi_value_at(int index) const;
+  V8_INLINE uint32_t positive_smi_value_at(int index) const;
 
-  inline double number_at(int index) const;
+  V8_INLINE int tagged_index_value_at(int index) const;
 
-  inline void set_at(int index, Object value) {
-    *address_of_arg_at(index) = value.ptr();
-  }
+  V8_INLINE double number_value_at(int index) const;
 
-  inline FullObjectSlot slot_at(int index) const {
-    return FullObjectSlot(address_of_arg_at(index));
-  }
+  V8_INLINE Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
 
-  inline Address* address_of_arg_at(int index) const {
+  V8_INLINE Address* address_of_arg_at(int index) const {
     DCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     uintptr_t offset = index * kSystemPointerSize;
     if (arguments_type == ArgumentsType::kJS) {
@@ -70,20 +80,7 @@ class Arguments {
   }
 
   // Get the total number of arguments including the receiver.
-  int length() const { return static_cast<int>(length_); }
-
-  // Arguments on the stack are in reverse order (compared to an array).
-  FullObjectSlot first_slot() const {
-    int index = length() - 1;
-    if (arguments_type == ArgumentsType::kJS) index = 0;
-    return slot_at(index);
-  }
-
-  FullObjectSlot last_slot() const {
-    int index = 0;
-    if (arguments_type == ArgumentsType::kJS) index = length() - 1;
-    return slot_at(index);
-  }
+  V8_INLINE int length() const { return static_cast<int>(length_); }
 
  private:
   intptr_t length_;
@@ -97,7 +94,11 @@ Handle<S> Arguments<T>::at(int index) const {
   return Handle<S>::cast(obj);
 }
 
-double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
+template <ArgumentsType T>
+FullObjectSlot Arguments<T>::slot_from_address_at(int index, int offset) const {
+  Address* location = *reinterpret_cast<Address**>(address_of_arg_at(index));
+  return FullObjectSlot(location + offset);
+}
 
 #ifdef DEBUG
 #define CLOBBER_DOUBLE_REGISTERS() ClobberDoubleRegisters(1, 2, 3, 4);
@@ -107,40 +108,56 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
-#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)      \
-  static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,       \
-                                                 Isolate* isolate);           \
-                                                                              \
+#ifdef V8_RUNTIME_CALL_STATS
+#define RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)             \
   V8_NOINLINE static Type Stats_##Name(int args_length, Address* args_object, \
                                        Isolate* isolate) {                    \
-    RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::k##Name);      \
+    RCS_SCOPE(isolate, RuntimeCallCounterId::k##Name);                        \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
                  "V8.Runtime_" #Name);                                        \
     RuntimeArguments args(args_length, args_object);                          \
     return Convert(__RT_impl_##Name(args, isolate));                          \
-  }                                                                           \
-                                                                              \
-  Type Name(int args_length, Address* args_object, Isolate* isolate) {        \
-    DCHECK(isolate->context().is_null() || isolate->context().IsContext());   \
-    CLOBBER_DOUBLE_REGISTERS();                                               \
-    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {              \
-      return Stats_##Name(args_length, args_object, isolate);                 \
-    }                                                                         \
-    RuntimeArguments args(args_length, args_object);                          \
-    return Convert(__RT_impl_##Name(args, isolate));                          \
-  }                                                                           \
-                                                                              \
+  }
+
+#define TEST_AND_CALL_RCS(Name)                                \
+  if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) { \
+    return Stats_##Name(args_length, args_object, isolate);    \
+  }
+
+#else  // V8_RUNTIME_CALL_STATS
+#define RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)
+#define TEST_AND_CALL_RCS(Name)
+
+#endif  // V8_RUNTIME_CALL_STATS
+
+#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)   \
+  static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,    \
+                                                 Isolate* isolate);        \
+  RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)                \
+  Type Name(int args_length, Address* args_object, Isolate* isolate) {     \
+    DCHECK(isolate->context().is_null() || IsContext(isolate->context())); \
+    CLOBBER_DOUBLE_REGISTERS();                                            \
+    TEST_AND_CALL_RCS(Name)                                                \
+    RuntimeArguments args(args_length, args_object);                       \
+    return Convert(__RT_impl_##Name(args, isolate));                       \
+  }                                                                        \
+                                                                           \
   static InternalType __RT_impl_##Name(RuntimeArguments args, Isolate* isolate)
 
-#define CONVERT_OBJECT(x) (x).ptr()
-#define CONVERT_OBJECTPAIR(x) (x)
+#ifdef DEBUG
+#define BUILTIN_CONVERT_RESULT(x) (isolate->VerifyBuiltinsResult(x)).ptr()
+#define BUILTIN_CONVERT_RESULT_PAIR(x) isolate->VerifyBuiltinsResult(x)
+#else  // DEBUG
+#define BUILTIN_CONVERT_RESULT(x) (x).ptr()
+#define BUILTIN_CONVERT_RESULT_PAIR(x) (x)
+#endif  // DEBUG
 
 #define RUNTIME_FUNCTION(Name) \
-  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Object, CONVERT_OBJECT, Name)
+  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Object, BUILTIN_CONVERT_RESULT, Name)
 
-#define RUNTIME_FUNCTION_RETURN_PAIR(Name)                                  \
-  RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, ObjectPair, CONVERT_OBJECTPAIR, \
-                                Name)
+#define RUNTIME_FUNCTION_RETURN_PAIR(Name)              \
+  RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, ObjectPair, \
+                                BUILTIN_CONVERT_RESULT_PAIR, Name)
 
 }  // namespace internal
 }  // namespace v8

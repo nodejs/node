@@ -115,12 +115,12 @@ class EscapeTransliterator : public Transliterator {
     /**
      * Transliterator API.
      */
-    virtual EscapeTransliterator* clone() const;
+    virtual EscapeTransliterator* clone() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -133,7 +133,7 @@ class EscapeTransliterator : public Transliterator {
      * Implements {@link Transliterator#handleTransliterate}.
      */
     virtual void handleTransliterate(Replaceable& text, UTransPosition& offset,
-                             UBool isIncremental) const;
+                             UBool isIncremental) const override;
 
 };
 

@@ -14,15 +14,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent line breaks inside function parentheses",
-            category: "Stylistic Issues",
+            description: "Enforce consistent line breaks inside function parentheses",
             recommended: false,
-            url: "https://eslint.org/docs/rules/function-paren-newline"
+            url: "https://eslint.org/docs/latest/rules/function-paren-newline"
         },
 
         fixable: "whitespace",
@@ -57,7 +57,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const rawOption = context.options[0] || "multiline";
         const multilineOption = rawOption === "multiline";
         const multilineArgumentsOption = rawOption === "multiline-arguments";
@@ -183,6 +183,7 @@ module.exports = {
         /**
          * Gets the left paren and right paren tokens of a node.
          * @param {ASTNode} node The node with parens
+         * @throws {TypeError} Unexpected node type.
          * @returns {Object} An object with keys `leftParen` for the left paren token, and `rightParen` for the right paren token.
          * Can also return `null` if an expression has no parens (e.g. a NewExpression with no arguments, or an ArrowFunctionExpression
          * with a single parameter)
@@ -190,10 +191,13 @@ module.exports = {
         function getParenTokens(node) {
             switch (node.type) {
                 case "NewExpression":
-                    if (!node.arguments.length && !(
-                        astUtils.isOpeningParenToken(sourceCode.getLastToken(node, { skip: 1 })) &&
-                        astUtils.isClosingParenToken(sourceCode.getLastToken(node))
-                    )) {
+                    if (!node.arguments.length &&
+                        !(
+                            astUtils.isOpeningParenToken(sourceCode.getLastToken(node, { skip: 1 })) &&
+                            astUtils.isClosingParenToken(sourceCode.getLastToken(node)) &&
+                            node.callee.range[1] < node.range[1]
+                        )
+                    ) {
 
                         // If the NewExpression does not have parens (e.g. `new Foo`), return null.
                         return null;
@@ -226,9 +230,13 @@ module.exports = {
                         return null;
                     }
 
+                    const rightParen = node.params.length
+                        ? sourceCode.getTokenAfter(node.params[node.params.length - 1], astUtils.isClosingParenToken)
+                        : sourceCode.getTokenAfter(firstToken);
+
                     return {
                         leftParen: firstToken,
-                        rightParen: sourceCode.getTokenBefore(node.body, astUtils.isClosingParenToken)
+                        rightParen
                     };
                 }
 

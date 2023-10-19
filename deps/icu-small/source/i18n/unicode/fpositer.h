@@ -84,7 +84,7 @@ public:
      * equal array of run values.
      * @stable ICU 4.4
      */
-    UBool operator==(const FieldPositionIterator&) const;
+    bool operator==(const FieldPositionIterator&) const;
 
     /**
      * Returns the complement of the result of operator==
@@ -92,7 +92,7 @@ public:
      * @return the complement of the result of operator==
      * @stable ICU 4.4
      */
-    UBool operator!=(const FieldPositionIterator& rhs) const { return !operator==(rhs); }
+    bool operator!=(const FieldPositionIterator& rhs) const { return !operator==(rhs); }
 
     /**
      * If the current position is valid, updates the FieldPosition values, advances the iterator,
@@ -104,7 +104,7 @@ public:
 private:
     /**
      * Sets the data used by the iterator, and resets the position.
-     * Returns U_ILLEGAL_ARGUMENT_ERROR in status if the data is not valid
+     * Returns U_ILLEGAL_ARGUMENT_ERROR in status if the data is not valid 
      * (length is not a multiple of 3, or start >= limit for any run).
      */
     void setData(UVector32 *adopt, UErrorCode& status);

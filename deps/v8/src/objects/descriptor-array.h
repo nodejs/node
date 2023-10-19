@@ -20,10 +20,7 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
-
-class Isolate;
+class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/descriptor-array-tq.inc"
 
@@ -31,6 +28,8 @@ class Isolate;
 class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
  public:
   DECL_VERIFIER(EnumCache)
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(EnumCache)
 };
@@ -40,8 +39,7 @@ class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
 //   Header:
 //     [16:0  bits]: number_of_all_descriptors (including slack)
 //     [32:16 bits]: number_of_descriptors
-//     [48:32 bits]: raw_number_of_marked_descriptors (used by GC)
-//     [64:48 bits]: alignment filler
+//     [64:32 bits]: raw_gc_state (used by GC)
 //     [kEnumCacheOffset]: enum cache
 //   Elements:
 //     [kHeaderSize + 0]: first key (and internalized String)
@@ -61,36 +59,37 @@ class DescriptorArray
   inline int number_of_entries() const;
 
   void ClearEnumCache();
-  inline void CopyEnumCacheFrom(DescriptorArray array);
-  static void InitializeOrChangeEnumCache(Handle<DescriptorArray> descriptors,
-                                          Isolate* isolate,
-                                          Handle<FixedArray> keys,
-                                          Handle<FixedArray> indices);
+  inline void CopyEnumCacheFrom(Tagged<DescriptorArray> array);
+  static void InitializeOrChangeEnumCache(
+      Handle<DescriptorArray> descriptors, Isolate* isolate,
+      Handle<FixedArray> keys, Handle<FixedArray> indices,
+      AllocationType allocation_if_initialize);
 
   // Accessors for fetching instance descriptor at descriptor number.
-  inline Name GetKey(InternalIndex descriptor_number) const;
-  inline Name GetKey(IsolateRoot isolate,
-                     InternalIndex descriptor_number) const;
-  inline Object GetStrongValue(InternalIndex descriptor_number);
-  inline Object GetStrongValue(IsolateRoot isolate,
-                               InternalIndex descriptor_number);
+  inline Tagged<Name> GetKey(InternalIndex descriptor_number) const;
+  inline Tagged<Name> GetKey(PtrComprCageBase cage_base,
+                             InternalIndex descriptor_number) const;
+  inline Tagged<Object> GetStrongValue(InternalIndex descriptor_number);
+  inline Tagged<Object> GetStrongValue(PtrComprCageBase cage_base,
+                                       InternalIndex descriptor_number);
   inline MaybeObject GetValue(InternalIndex descriptor_number);
-  inline MaybeObject GetValue(IsolateRoot isolate,
+  inline MaybeObject GetValue(PtrComprCageBase cage_base,
                               InternalIndex descriptor_number);
   inline PropertyDetails GetDetails(InternalIndex descriptor_number);
   inline int GetFieldIndex(InternalIndex descriptor_number);
-  inline FieldType GetFieldType(InternalIndex descriptor_number);
-  inline FieldType GetFieldType(IsolateRoot isolate,
-                                InternalIndex descriptor_number);
+  inline Tagged<FieldType> GetFieldType(InternalIndex descriptor_number);
+  inline Tagged<FieldType> GetFieldType(PtrComprCageBase cage_base,
+                                        InternalIndex descriptor_number);
 
-  inline Name GetSortedKey(int descriptor_number);
-  inline Name GetSortedKey(IsolateRoot isolate, int descriptor_number);
+  inline Tagged<Name> GetSortedKey(int descriptor_number);
+  inline Tagged<Name> GetSortedKey(PtrComprCageBase cage_base,
+                                   int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
 
   // Accessor for complete descriptor.
   inline void Set(InternalIndex descriptor_number, Descriptor* desc);
-  inline void Set(InternalIndex descriptor_number, Name key, MaybeObject value,
-                  PropertyDetails details);
+  inline void Set(InternalIndex descriptor_number, Tagged<Name> key,
+                  MaybeObject value, PropertyDetails details);
   void Replace(InternalIndex descriptor_number, Descriptor* descriptor);
 
   // Generalizes constness, representation and field type of all field
@@ -110,50 +109,59 @@ class DescriptorArray
       Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
       PropertyAttributes attributes, int slack = 0);
 
-  static Handle<DescriptorArray> CopyForFastObjectClone(
-      Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
-      int slack = 0);
-
   // Sort the instance descriptors by the hash codes of their keys.
   V8_EXPORT_PRIVATE void Sort();
+
+  // Iterate through Name hash collisions in the descriptor array starting from
+  // insertion index checking for Name collisions. Note: If we ever add binary
+  // insertion for large DescriptorArrays it would need to be hardened in a
+  // similar way. This function only expects to be called on Sorted
+  // DescriptorArrays.
+  V8_EXPORT_PRIVATE void CheckNameCollisionDuringInsertion(
+      Descriptor* desc, uint32_t descriptor_hash, int insertion_index);
 
   // Search the instance descriptors for given name. {concurrent_search} signals
   // if we are doing the search on a background thread. If so, we will sacrifice
   // speed for thread-safety.
-  V8_INLINE InternalIndex Search(Name name, int number_of_own_descriptors,
+  V8_INLINE InternalIndex Search(Tagged<Name> name,
+                                 int number_of_own_descriptors,
                                  bool concurrent_search = false);
-  V8_INLINE InternalIndex Search(Name name, Map map,
+  V8_INLINE InternalIndex Search(Tagged<Name> name, Tagged<Map> map,
                                  bool concurrent_search = false);
+
+  // Search the instance descriptors for given field offset.
+  V8_INLINE InternalIndex Search(int field_offset,
+                                 int number_of_own_descriptors);
+  V8_INLINE InternalIndex Search(int field_offset, Tagged<Map> map);
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
-  V8_INLINE InternalIndex SearchWithCache(Isolate* isolate, Name name, Map map);
+  V8_INLINE InternalIndex SearchWithCache(Isolate* isolate, Tagged<Name> name,
+                                          Tagged<Map> map);
 
-  bool IsEqualUpTo(DescriptorArray desc, int nof_descriptors);
+  bool IsEqualUpTo(Tagged<DescriptorArray> desc, int nof_descriptors);
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_EXPORT_PRIVATE static Handle<DescriptorArray> Allocate(
-      LocalIsolate* isolate, int nof_descriptors, int slack,
+      IsolateT* isolate, int nof_descriptors, int slack,
       AllocationType allocation = AllocationType::kYoung);
 
-  void Initialize(EnumCache enum_cache, HeapObject undefined_value,
-                  int nof_descriptors, int slack);
+  void Initialize(Tagged<EnumCache> enum_cache,
+                  Tagged<HeapObject> undefined_value, int nof_descriptors,
+                  int slack, uint32_t raw_gc_state);
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  STATIC_ASSERT(IsAligned(kStartOfWeakFieldsOffset, kTaggedSize));
-  STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
+  static_assert(IsAligned(kStartOfWeakFieldsOffset, kTaggedSize));
+  static_assert(IsAligned(kHeaderSize, kTaggedSize));
 
   // Garbage collection support.
-  DECL_INT16_ACCESSORS(raw_number_of_marked_descriptors)
-  // Atomic compare-and-swap operation on the raw_number_of_marked_descriptors.
-  int16_t CompareAndSwapRawNumberOfMarkedDescriptors(int16_t expected,
-                                                     int16_t value);
-  int16_t UpdateNumberOfMarkedDescriptors(unsigned mark_compact_epoch,
-                                          int16_t number_of_marked_descriptors);
+  DECL_RELAXED_UINT32_ACCESSORS(raw_gc_state)
+  static constexpr size_t kSizeOfRawGcState =
+      kRawGcStateOffsetEnd - kRawGcStateOffset + 1;
 
   static constexpr int SizeFor(int number_of_all_descriptors) {
     return OffsetOfDescriptorAt(number_of_all_descriptors);
@@ -196,7 +204,7 @@ class DescriptorArray
   V8_EXPORT_PRIVATE bool IsSortedNoDuplicates();
 
   // Are two DescriptorArrays equal?
-  bool IsEqualTo(DescriptorArray other);
+  bool IsEqualTo(Tagged<DescriptorArray> other);
 #endif
 
   static constexpr int ToDetailsIndex(int descriptor_number) {
@@ -217,16 +225,14 @@ class DescriptorArray
   using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
 
  private:
-  DECL_INT16_ACCESSORS(filler16bits)
-
-  inline void SetKey(InternalIndex descriptor_number, Name key);
+  inline void SetKey(InternalIndex descriptor_number, Tagged<Name> key);
   inline void SetValue(InternalIndex descriptor_number, MaybeObject value);
   inline void SetDetails(InternalIndex descriptor_number,
                          PropertyDetails details);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
-  void CopyFrom(InternalIndex index, DescriptorArray src);
+  void CopyFrom(InternalIndex index, Tagged<DescriptorArray> src);
 
   inline void SetSortedKey(int pointer, int descriptor_number);
 
@@ -236,40 +242,72 @@ class DescriptorArray
   TQ_OBJECT_CONSTRUCTORS(DescriptorArray)
 };
 
-class NumberOfMarkedDescriptors {
+// Custom DescriptorArray marking state for visitors that are allowed to write
+// into the heap. The marking state uses DescriptorArray::raw_gc_state() as
+// storage.
+//
+// The state essentially keeps track of 3 fields:
+// 1. The collector epoch: The rest of the state is only valid if the epoch
+//    matches. If the epoch doesn't match, the other fields should be considered
+//    invalid. The epoch is necessary, as not all DescriptorArray objects are
+//    eventually trimmed in the atomic pause and thus available for resetting
+//    the state.
+// 2. Number of already marked descriptors.
+// 3. Delta of to be marked descriptors in this cycle. This must be 0 after
+//    marking is done.
+class DescriptorArrayMarkingState final {
  public:
-// Bit positions for |bit_field|.
 #define BIT_FIELD_FIELDS(V, _) \
   V(Epoch, unsigned, 2, _)     \
-  V(Marked, int16_t, 14, _)
+  V(Marked, uint16_t, 14, _)   \
+  V(Delta, uint16_t, 16, _)
   DEFINE_BIT_FIELDS(BIT_FIELD_FIELDS)
 #undef BIT_FIELD_FIELDS
-  static const int kMaxNumberOfMarkedDescriptors = Marked::kMax;
-  // Decodes the raw value of the number of marked descriptors for the
-  // given mark compact garbage collection epoch.
-  static inline int16_t decode(unsigned mark_compact_epoch, int16_t raw_value) {
-    unsigned epoch_from_value = Epoch::decode(static_cast<uint16_t>(raw_value));
-    int16_t marked_from_value =
-        Marked::decode(static_cast<uint16_t>(raw_value));
-    unsigned actual_epoch = mark_compact_epoch & Epoch::kMask;
-    if (actual_epoch == epoch_from_value) return marked_from_value;
-    // If the epochs do not match, then either the raw_value is zero (freshly
-    // allocated descriptor array) or the epoch from value lags by 1.
-    DCHECK_IMPLIES(raw_value != 0,
-                   Epoch::decode(epoch_from_value + 1) == actual_epoch);
-    // Not matching epochs means that the no descriptors were marked in the
-    // current epoch.
-    return 0;
+  static_assert(Marked::kMax <= Delta::kMax);
+  static_assert(kMaxNumberOfDescriptors <= Marked::kMax);
+
+  using DescriptorIndex = uint16_t;
+  using RawGCStateType = uint32_t;
+
+  static constexpr RawGCStateType kInitialGCState = 0;
+
+  static constexpr RawGCStateType GetFullyMarkedState(
+      unsigned epoch, DescriptorIndex number_of_descriptors) {
+    return NewState(epoch & Epoch::kMask, number_of_descriptors, 0);
   }
 
-  // Encodes the number of marked descriptors for the given mark compact
-  // garbage collection epoch.
-  static inline int16_t encode(unsigned mark_compact_epoch, int16_t value) {
-    // TODO(ulan): avoid casting to int16_t by adding support for uint16_t
-    // atomics.
-    return static_cast<int16_t>(
-        Epoch::encode(mark_compact_epoch & Epoch::kMask) |
-        Marked::encode(value));
+  // Potentially updates the delta of to be marked descriptors. Returns true if
+  // the update was successful and the object should be processed via a marking
+  // visitor.
+  //
+  // The call issues and Acq/Rel barrier to allow synchronizing other state
+  // (e.g. value of descriptor slots) with it.
+  static inline bool TryUpdateIndicesToMark(unsigned gc_epoch,
+                                            Tagged<DescriptorArray> array,
+                                            DescriptorIndex index_to_mark);
+
+  // Used from the visitor when processing a DescriptorArray. Returns a range of
+  // start and end descriptor indices. No processing is required for start ==
+  // end. The method signals the first invocation by returning start == 0, and
+  // end != 0.
+  static inline std::pair<DescriptorIndex, DescriptorIndex>
+  AcquireDescriptorRangeToMark(unsigned gc_epoch,
+                               Tagged<DescriptorArray> array);
+
+ private:
+  static constexpr RawGCStateType NewState(unsigned masked_epoch,
+                                           DescriptorIndex marked,
+                                           DescriptorIndex delta) {
+    return Epoch::encode(masked_epoch) | Marked::encode(marked) |
+           Delta::encode(delta);
+  }
+
+  static bool SwapState(Tagged<DescriptorArray> array, RawGCStateType old_state,
+                        RawGCStateType new_state) {
+    return static_cast<RawGCStateType>(base::AcquireRelease_CompareAndSwap(
+               reinterpret_cast<base::Atomic32*>(
+                   FIELD_ADDR(array, DescriptorArray::kRawGcStateOffset)),
+               old_state, new_state)) == old_state;
   }
 };
 

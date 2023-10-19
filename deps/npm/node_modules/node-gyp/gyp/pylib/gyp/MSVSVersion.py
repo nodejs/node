@@ -11,14 +11,12 @@ import subprocess
 import sys
 import glob
 
-PY3 = bytes != str
-
 
 def JoinPath(*args):
     return os.path.normpath(os.path.join(*args))
 
 
-class VisualStudioVersion(object):
+class VisualStudioVersion:
     """Information regarding a version of Visual Studio."""
 
     def __init__(
@@ -176,9 +174,7 @@ def _RegistryQueryBase(sysdir, key, value):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # Obtain the stdout from reg.exe, reading to the end so p.returncode is valid
     # Note that the error text may be in [1] in some cases
-    text = p.communicate()[0]
-    if PY3:
-        text = text.decode("utf-8")
+    text = p.communicate()[0].decode("utf-8")
     # Check return code from reg.exe; officially 0==success and 1==error
     if p.returncode:
         return None
@@ -221,21 +217,15 @@ def _RegistryGetValueUsingWinReg(key, value):
     value: The particular registry value to read.
   Return:
     contents of the registry key's value, or None on failure.  Throws
-    ImportError if _winreg is unavailable.
+    ImportError if winreg is unavailable.
   """
-    try:
-        # Python 2
-        from _winreg import HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx
-    except ImportError:
-        # Python 3
-        from winreg import HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx
-
+    from winreg import HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx
     try:
         root, subkey = key.split("\\", 1)
         assert root == "HKLM"  # Only need HKLM for now.
         with OpenKey(HKEY_LOCAL_MACHINE, subkey) as hkey:
             return QueryValueEx(hkey, value)[0]
-    except WindowsError:
+    except OSError:
         return None
 
 
@@ -279,6 +269,18 @@ def _CreateVersion(name, path, sdk_based=False):
     if path:
         path = os.path.normpath(path)
     versions = {
+        "2022": VisualStudioVersion(
+            "2022",
+            "Visual Studio 2022",
+            solution_version="12.00",
+            project_version="17.0",
+            flat_sln=False,
+            uses_vcxproj=True,
+            path=path,
+            sdk_based=sdk_based,
+            default_toolset="v143",
+            compatible_sdks=["v8.1", "v10.0"],
+        ),
         "2019": VisualStudioVersion(
             "2019",
             "Visual Studio 2019",
@@ -426,9 +428,7 @@ def _ConvertToCygpath(path):
     """Convert to cygwin path if we are using cygwin."""
     if sys.platform == "cygwin":
         p = subprocess.Popen(["cygpath", path], stdout=subprocess.PIPE)
-        path = p.communicate()[0].strip()
-        if PY3:
-            path = path.decode("utf-8")
+        path = p.communicate()[0].decode("utf-8").strip()
     return path
 
 
@@ -448,6 +448,7 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
       2015    - Visual Studio 2015 (14)
       2017    - Visual Studio 2017 (15)
       2019    - Visual Studio 2019 (16)
+      2022    - Visual Studio 2022 (17)
     Where (e) is e for express editions of MSVS and blank otherwise.
   """
     version_to_year = {
@@ -459,6 +460,7 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
         "14.0": "2015",
         "15.0": "2017",
         "16.0": "2019",
+        "17.0": "2022",
     }
     versions = []
     for version in versions_to_check:
@@ -534,7 +536,7 @@ def SelectVisualStudioVersion(version="auto", allow_fallback=True):
     if version == "auto":
         version = os.environ.get("GYP_MSVS_VERSION", "auto")
     version_map = {
-        "auto": ("16.0", "15.0", "14.0", "12.0", "10.0", "9.0", "8.0", "11.0"),
+        "auto": ("17.0", "16.0", "15.0", "14.0", "12.0", "10.0", "9.0", "8.0", "11.0"),
         "2005": ("8.0",),
         "2005e": ("8.0",),
         "2008": ("9.0",),
@@ -548,6 +550,7 @@ def SelectVisualStudioVersion(version="auto", allow_fallback=True):
         "2015": ("14.0",),
         "2017": ("15.0",),
         "2019": ("16.0",),
+        "2022": ("17.0",),
     }
     override_path = os.environ.get("GYP_MSVS_OVERRIDE_PATH")
     if override_path:

@@ -74,17 +74,18 @@ function isDefaultRadix(radix) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce the consistent use of the radix argument when using `parseInt()`",
-            category: "Best Practices",
+            description: "Enforce the consistent use of the radix argument when using `parseInt()`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/radix",
-            suggestion: true
+            url: "https://eslint.org/docs/latest/rules/radix"
         },
+
+        hasSuggestions: true,
 
         schema: [
             {
@@ -103,6 +104,7 @@ module.exports = {
 
     create(context) {
         const mode = context.options[0] || MODE_ALWAYS;
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks the arguments of a given CallExpression node and reports it if it
@@ -130,7 +132,6 @@ module.exports = {
                                 {
                                     messageId: "addRadixParameter10",
                                     fix(fixer) {
-                                        const sourceCode = context.getSourceCode();
                                         const tokens = sourceCode.getTokens(node);
                                         const lastToken = tokens[tokens.length - 1]; // Parenthesis.
                                         const secondToLastToken = tokens[tokens.length - 2]; // May or may not be a comma.
@@ -161,18 +162,18 @@ module.exports = {
         }
 
         return {
-            "Program:exit"() {
-                const scope = context.getScope();
+            "Program:exit"(node) {
+                const scope = sourceCode.getScope(node);
                 let variable;
 
                 // Check `parseInt()`
                 variable = astUtils.getVariableByName(scope, "parseInt");
                 if (variable && !isShadowed(variable)) {
                     variable.references.forEach(reference => {
-                        const node = reference.identifier;
+                        const idNode = reference.identifier;
 
-                        if (astUtils.isCallee(node)) {
-                            checkArguments(node.parent);
+                        if (astUtils.isCallee(idNode)) {
+                            checkArguments(idNode.parent);
                         }
                     });
                 }
@@ -181,12 +182,12 @@ module.exports = {
                 variable = astUtils.getVariableByName(scope, "Number");
                 if (variable && !isShadowed(variable)) {
                     variable.references.forEach(reference => {
-                        const node = reference.identifier.parent;
-                        const maybeCallee = node.parent.type === "ChainExpression"
-                            ? node.parent
-                            : node;
+                        const parentNode = reference.identifier.parent;
+                        const maybeCallee = parentNode.parent.type === "ChainExpression"
+                            ? parentNode.parent
+                            : parentNode;
 
-                        if (isParseIntMethod(node) && astUtils.isCallee(maybeCallee)) {
+                        if (isParseIntMethod(parentNode) && astUtils.isCallee(maybeCallee)) {
                             checkArguments(maybeCallee.parent);
                         }
                     });

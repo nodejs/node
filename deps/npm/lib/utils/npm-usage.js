@@ -1,9 +1,17 @@
-const { dirname } = require('path')
-const { cmdList } = require('./cmd-list')
+const { commands } = require('./cmd-list')
+
+const COL_MAX = 60
+const COL_MIN = 24
+const COL_GUTTER = 16
+const INDENT = 4
+
+const indent = (repeat = INDENT) => ' '.repeat(repeat)
+const indentNewline = (repeat) => `\n${indent(repeat)}`
 
 module.exports = (npm) => {
-  const usesBrowser = npm.config.get('viewer') === 'browser'
-    ? ' (in a browser)' : ''
+  const browser = npm.config.get('viewer') === 'browser' ? ' (in a browser)' : ''
+  const allCommands = npm.config.get('long') ? cmdUsages(npm.constructor) : cmdNames()
+
   return `npm <command>
 
 Usage:
@@ -14,56 +22,53 @@ npm test           run this project's tests
 npm run <foo>      run the script named <foo>
 npm <command> -h   quick help on <command>
 npm -l             display usage info for all commands
-npm help <term>    search for help on <term>${usesBrowser}
-npm help npm       more involved overview${usesBrowser}
+npm help <term>    search for help on <term>${browser}
+npm help npm       more involved overview${browser}
 
 All commands:
-${allCommands(npm)}
+${allCommands}
 
 Specify configs in the ini-formatted file:
-    ${npm.config.get('userconfig')}
+${indent() + npm.config.get('userconfig')}
 or on the command line via: npm <command> --key=value
 
 More configuration info: npm help config
 Configuration fields: npm help 7 config
 
-npm@${npm.version} ${dirname(dirname(__dirname))}`
+npm@${npm.version} ${npm.npmRoot}`
 }
 
-const allCommands = (npm) => {
-  if (npm.config.get('long'))
-    return usages(npm)
-  return ('\n    ' + wrap(cmdList))
-}
-
-const wrap = (arr) => {
+const cmdNames = () => {
   const out = ['']
 
-  const line = !process.stdout.columns ? 60
-    : Math.min(60, Math.max(process.stdout.columns - 16, 24))
+  const line = !process.stdout.columns ? COL_MAX
+    : Math.min(COL_MAX, Math.max(process.stdout.columns - COL_GUTTER, COL_MIN))
 
   let l = 0
-  for (const c of arr.sort((a, b) => a < b ? -1 : 1)) {
-    if (out[l].length + c.length + 2 < line)
+  for (const c of commands) {
+    if (out[l].length + c.length + 2 < line) {
       out[l] += ', ' + c
-    else {
+    } else {
       out[l++] += ','
       out[l] = c
     }
   }
-  return out.join('\n    ').substr(2)
+
+  return indentNewline() + out.join(indentNewline()).slice(2)
 }
 
-const usages = (npm) => {
+const cmdUsages = (Npm) => {
   // return a string of <command>: <usage>
   let maxLen = 0
-  return cmdList.reduce((set, c) => {
-    set.push([c, npm.commands[c].usage])
+  const set = []
+  for (const c of commands) {
+    set.push([c, Npm.cmd(c).describeUsage.split('\n')])
     maxLen = Math.max(maxLen, c.length)
-    return set
-  }, [])
-    .sort((a, b) => a[0].localeCompare(b[0], 'en'))
-    .map(([c, usage]) => `\n    ${c}${' '.repeat(maxLen - c.length + 1)}${
-      (usage.split('\n').join('\n' + ' '.repeat(maxLen + 5)))}`)
-    .join('\n')
+  }
+
+  return set.map(([name, usageLines]) => {
+    const gutter = indent(maxLen - name.length + 1)
+    const usage = usageLines.join(indentNewline(INDENT + maxLen + 1))
+    return indentNewline() + name + gutter + usage
+  }).join('\n')
 }

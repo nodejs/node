@@ -55,7 +55,7 @@ for (const test of failureTests) {
     () => new URL(test.input, test.base),
     (error) => {
       assert.throws(() => { throw error; }, expectedError);
-      assert.strictEqual(`${error}`, 'TypeError [ERR_INVALID_URL]: Invalid URL');
+      assert.strictEqual(`${error}`, 'TypeError: Invalid URL');
       assert.strictEqual(error.message, 'Invalid URL');
       return true;
     });
@@ -78,3 +78,10 @@ for (const test of additional_tests) {
   if (test.search) assert.strictEqual(url.search, test.search);
   if (test.hash) assert.strictEqual(url.hash, test.hash);
 }
+
+assert.throws(() => {
+  new URL();
+}, {
+  name: 'TypeError',
+  code: 'ERR_MISSING_ARGS',
+});

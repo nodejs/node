@@ -10,21 +10,28 @@ RSA_new_method - select RSA method
 
  #include <openssl/rsa.h>
 
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  void RSA_set_default_method(const RSA_METHOD *meth);
 
- RSA_METHOD *RSA_get_default_method(void);
+ const RSA_METHOD *RSA_get_default_method(void);
 
  int RSA_set_method(RSA *rsa, const RSA_METHOD *meth);
 
- RSA_METHOD *RSA_get_method(const RSA *rsa);
+ const RSA_METHOD *RSA_get_method(const RSA *rsa);
 
- RSA_METHOD *RSA_PKCS1_OpenSSL(void);
+ const RSA_METHOD *RSA_PKCS1_OpenSSL(void);
 
  int RSA_flags(const RSA *rsa);
 
  RSA *RSA_new_method(ENGINE *engine);
 
 =head1 DESCRIPTION
+
+All of the functions described on this page are deprecated.
+Applications should instead use the OSSL_PROVIDER APIs.
 
 An B<RSA_METHOD> specifies the functions that OpenSSL uses for RSA
 operations. By modifying the method, alternative implementations such as
@@ -129,7 +136,7 @@ the default method is used.
                        const unsigned char *m, unsigned int m_length,
                        const unsigned char *sigbuf, unsigned int siglen,
                        const RSA *rsa);
-     /* keygen. If NULL builtin RSA key generation will be used */
+     /* keygen. If NULL built-in RSA key generation will be used */
      int (*rsa_keygen)(RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb);
 
  } RSA_METHOD;
@@ -171,14 +178,16 @@ L<RSA_new(3)>
 
 =head1 HISTORY
 
+All of these functions were deprecated in OpenSSL 3.0.
+
 The RSA_null_method(), which was a partial attempt to avoid patent issues,
 was replaced to always return NULL in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

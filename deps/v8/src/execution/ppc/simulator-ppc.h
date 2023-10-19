@@ -21,7 +21,6 @@
 #include "src/base/hashmap.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/ppc/constants-ppc.h"
 #include "src/execution/simulator-base.h"
@@ -126,7 +125,42 @@ class Simulator : public SimulatorBase {
     d29,
     d30,
     d31,
-    kNumFPRs = 32
+    kNumFPRs = 32,
+    // PPC Simd registers are a serapre set from Floating Point registers. Refer
+    // to register-ppc.h for more details.
+    v0 = 0,
+    v1,
+    v2,
+    v3,
+    v4,
+    v5,
+    v6,
+    v7,
+    v8,
+    v9,
+    v10,
+    v11,
+    v12,
+    v13,
+    v14,
+    v15,
+    v16,
+    v17,
+    v18,
+    v19,
+    v20,
+    v21,
+    v22,
+    v23,
+    v24,
+    v25,
+    v26,
+    v27,
+    v28,
+    v29,
+    v30,
+    v31,
+    kNumSIMDRs = 32
   };
 
   explicit Simulator(Isolate* isolate);
@@ -142,11 +176,11 @@ class Simulator : public SimulatorBase {
   double get_double_from_register_pair(int reg);
   void set_d_register_from_double(int dreg, const double dbl) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    *bit_cast<double*>(&fp_registers_[dreg]) = dbl;
+    *base::bit_cast<double*>(&fp_registers_[dreg]) = dbl;
   }
   double get_double_from_d_register(int dreg) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    return *bit_cast<double*>(&fp_registers_[dreg]);
+    return *base::bit_cast<double*>(&fp_registers_[dreg]);
   }
   void set_d_register(int dreg, int64_t value) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
@@ -166,8 +200,12 @@ class Simulator : public SimulatorBase {
   // Accessor to the internal Link Register
   intptr_t get_lr() const;
 
-  // Accessor to the internal simulator stack area.
+  // Accessor to the internal simulator stack area. Adds a safety
+  // margin to prevent overflows.
   uintptr_t StackLimit(uintptr_t c_limit) const;
+  // Return current stack view, without additional safety margins.
+  // Users, for example wasm::StackMemory, can add their own.
+  base::Vector<uint8_t> GetCurrentStackView() const;
 
   // Executes PPC instructions until the PC reaches end_sim_pc.
   void Execute();
@@ -204,7 +242,6 @@ class Simulator : public SimulatorBase {
   // below (bad_lr, end_sim_pc).
   bool has_bad_pc() const;
 
- private:
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
     // without being properly setup.
@@ -253,7 +290,7 @@ class Simulator : public SimulatorBase {
   template <typename T>
   inline void Read(uintptr_t address, T* value) {
     base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
-    base::Memcpy(value, reinterpret_cast<const char*>(address), sizeof(T));
+    memcpy(value, reinterpret_cast<const char*>(address), sizeof(T));
   }
 
   template <typename T>
@@ -262,7 +299,7 @@ class Simulator : public SimulatorBase {
     GlobalMonitor::Get()->NotifyLoadExcl(
         address, static_cast<TransactionSize>(sizeof(T)),
         isolate_->thread_id());
-    base::Memcpy(value, reinterpret_cast<const char*>(address), sizeof(T));
+    memcpy(value, reinterpret_cast<const char*>(address), sizeof(T));
   }
 
   template <typename T>
@@ -271,7 +308,7 @@ class Simulator : public SimulatorBase {
     GlobalMonitor::Get()->NotifyStore(address,
                                       static_cast<TransactionSize>(sizeof(T)),
                                       isolate_->thread_id());
-    base::Memcpy(reinterpret_cast<char*>(address), &value, sizeof(T));
+    memcpy(reinterpret_cast<char*>(address), &value, sizeof(T));
   }
 
   template <typename T>
@@ -280,17 +317,31 @@ class Simulator : public SimulatorBase {
     if (GlobalMonitor::Get()->NotifyStoreExcl(
             address, static_cast<TransactionSize>(sizeof(T)),
             isolate_->thread_id())) {
-      base::Memcpy(reinterpret_cast<char*>(address), &value, sizeof(T));
+      memcpy(reinterpret_cast<char*>(address), &value, sizeof(T));
       return 0;
     } else {
       return 1;
     }
   }
 
-#define RW_VAR_LIST(V) \
-  V(DWU, uint64_t)     \
-  V(DW, int64_t)       \
-  V(WU, uint32_t)      \
+  // Byte Reverse.
+  static inline __uint128_t __builtin_bswap128(__uint128_t v) {
+    union {
+      uint64_t u64[2];
+      __uint128_t u128;
+    } res, val;
+    val.u128 = v;
+    res.u64[0] = ByteReverse<int64_t>(val.u64[1]);
+    res.u64[1] = ByteReverse<int64_t>(val.u64[0]);
+    return res.u128;
+  }
+
+#define RW_VAR_LIST(V)      \
+  V(QWU, unsigned __int128) \
+  V(QW, __int128)           \
+  V(DWU, uint64_t)          \
+  V(DW, int64_t)            \
+  V(WU, uint32_t)           \
   V(W, int32_t) V(HU, uint16_t) V(H, int16_t) V(BU, uint8_t) V(B, int8_t)
 
 #define GENERATE_RW_FUNC(size, type)                   \
@@ -304,6 +355,7 @@ class Simulator : public SimulatorBase {
 
   void Trace(Instruction* instr);
   void SetCR0(intptr_t result, bool setSO = false);
+  void SetCR6(bool true_for_all);
   void ExecuteBranchConditional(Instruction* instr, BCType type);
   void ExecuteGeneric(Instruction* instr);
 
@@ -342,9 +394,97 @@ class Simulator : public SimulatorBase {
 
   int64_t fp_registers_[kNumFPRs];
 
+  // Simd registers.
+  union simdr_t {
+    int8_t int8[16];
+    uint8_t uint8[16];
+    int16_t int16[8];
+    uint16_t uint16[8];
+    int32_t int32[4];
+    uint32_t uint32[4];
+    int64_t int64[2];
+    uint64_t uint64[2];
+    float f32[4];
+    double f64[2];
+  };
+  simdr_t simd_registers_[kNumSIMDRs];
+
+  // Vector register lane numbers on IBM machines are reversed compared to
+  // x64. For example, doing an I32x4 extract_lane with lane number 0 on x64
+  // will be equal to lane number 3 on IBM machines. Vector registers are only
+  // used for compiling Wasm code at the moment. To keep the Wasm
+  // simulation accurate, we need to make sure accessing a lane is correctly
+  // simulated and as such we reverse the lane number on the getters and setters
+  // below. We need to be careful when getting/setting values on the Low or High
+  // side of a simulated register. In the simulation, "Low" is equal to the MSB
+  // and "High" is equal to the LSB in memory. "force_ibm_lane_numbering" could
+  // be used to disabled automatic lane number reversal and help with accessing
+  // the Low or High side of a simulated register.
+  template <class T>
+  T get_simd_register_by_lane(int reg, int lane,
+                              bool force_ibm_lane_numbering = true) {
+    if (force_ibm_lane_numbering) {
+      lane = (kSimd128Size / sizeof(T)) - 1 - lane;
+    }
+    CHECK_LE(lane, kSimd128Size / sizeof(T));
+    CHECK_LT(reg, kNumSIMDRs);
+    CHECK_GE(lane, 0);
+    CHECK_GE(reg, 0);
+    return (reinterpret_cast<T*>(&simd_registers_[reg]))[lane];
+  }
+
+  template <class T>
+  T get_simd_register_bytes(int reg, int byte_from) {
+    // Byte location is reversed in memory.
+    int from = kSimd128Size - 1 - (byte_from + sizeof(T) - 1);
+    void* src = base::bit_cast<uint8_t*>(&simd_registers_[reg]) + from;
+    T dst;
+    memcpy(&dst, src, sizeof(T));
+    return dst;
+  }
+
+  template <class T>
+  void set_simd_register_by_lane(int reg, int lane, const T& value,
+                                 bool force_ibm_lane_numbering = true) {
+    if (force_ibm_lane_numbering) {
+      lane = (kSimd128Size / sizeof(T)) - 1 - lane;
+    }
+    CHECK_LE(lane, kSimd128Size / sizeof(T));
+    CHECK_LT(reg, kNumSIMDRs);
+    CHECK_GE(lane, 0);
+    CHECK_GE(reg, 0);
+    (reinterpret_cast<T*>(&simd_registers_[reg]))[lane] = value;
+  }
+
+  template <class T>
+  void set_simd_register_bytes(int reg, int byte_from, T value) {
+    // Byte location is reversed in memory.
+    int from = kSimd128Size - 1 - (byte_from + sizeof(T) - 1);
+    void* dst = base::bit_cast<uint8_t*>(&simd_registers_[reg]) + from;
+    memcpy(dst, &value, sizeof(T));
+  }
+
+  simdr_t& get_simd_register(int reg) { return simd_registers_[reg]; }
+
+  void set_simd_register(int reg, const simdr_t& value) {
+    simd_registers_[reg] = value;
+  }
+
   // Simulator support.
-  char* stack_;
-  static const size_t stack_protection_size_ = 256 * kSystemPointerSize;
+  uint8_t* stack_;
+  static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
+  // This includes a protection margin at each end of the stack area.
+  static size_t AllocatedStackSize() {
+#if V8_TARGET_ARCH_PPC64
+    size_t stack_size = v8_flags.sim_stack_size * KB;
+#else
+    size_t stack_size = MB;  // allocate 1MB for stack
+#endif
+    return stack_size + (2 * kStackProtectionSize);
+  }
+  static size_t UsableStackSize() {
+    return AllocatedStackSize() - kStackProtectionSize;
+  }
   bool pc_modified_;
   int icount_;
 

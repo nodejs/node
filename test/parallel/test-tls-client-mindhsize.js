@@ -34,14 +34,15 @@ function test(size, err, next) {
     if (next) next();
   });
 
-  server.listen(0, '127.0.0.1', function() {
+  server.listen(0, function() {
     // Client set minimum DH parameter size to 2048 bits so that
     // it fails when it make a connection to the tls server where
     // dhparams is 1024 bits
     const client = tls.connect({
       minDHSize: 2048,
       port: this.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
+      maxVersion: 'TLSv1.2',
     }, function() {
       nsuccess++;
       server.close();
@@ -73,16 +74,23 @@ testDHE1024();
 assert.throws(() => test(512, true, common.mustNotCall()),
               /DH parameter is less than 1024 bits/);
 
-let errMessage = /minDHSize is not a positive number/;
-[0, -1, -Infinity, NaN].forEach((minDHSize) => {
-  assert.throws(() => tls.connect({ minDHSize }),
-                errMessage);
-});
+for (const minDHSize of [0, -1, -Infinity, NaN]) {
+  assert.throws(() => {
+    tls.connect({ minDHSize });
+  }, {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+  });
+}
 
-errMessage = /minDHSize is not a number/;
-[true, false, null, undefined, {}, [], '', '1'].forEach((minDHSize) => {
-  assert.throws(() => tls.connect({ minDHSize }), errMessage);
-});
+for (const minDHSize of [true, false, null, undefined, {}, [], '', '1']) {
+  assert.throws(() => {
+    tls.connect({ minDHSize });
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+  });
+}
 
 process.on('exit', function() {
   assert.strictEqual(nsuccess, 1);

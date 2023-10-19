@@ -1,18 +1,19 @@
 /**
  * @fileoverview Rule to check for jsdoc presence.
  * @author Gyandeep Singh
+ * @deprecated in ESLint v5.10.0
  */
 "use strict";
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require JSDoc comments",
-            category: "Stylistic Issues",
+            description: "Require JSDoc comments",
             recommended: false,
-            url: "https://eslint.org/docs/rules/require-jsdoc"
+            url: "https://eslint.org/docs/latest/rules/require-jsdoc"
         },
 
         schema: [
@@ -60,7 +61,7 @@ module.exports = {
     },
 
     create(context) {
-        const source = context.getSourceCode();
+        const source = context.sourceCode;
         const DEFAULT_OPTIONS = {
             FunctionDeclaration: true,
             MethodDefinition: false,

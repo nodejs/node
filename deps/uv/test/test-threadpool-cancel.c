@@ -87,8 +87,39 @@ static void unblock_threadpool(void) {
 }
 
 
+static int known_broken(uv_req_t* req) {
+  if (req->type != UV_FS)
+    return 0;
+
+#ifdef __linux__
+  /* TODO(bnoordhuis) make cancellation work with io_uring */
+  switch (((uv_fs_t*) req)->fs_type) {
+    case UV_FS_CLOSE:
+    case UV_FS_FDATASYNC:
+    case UV_FS_FSTAT:
+    case UV_FS_FSYNC:
+    case UV_FS_LINK:
+    case UV_FS_LSTAT:
+    case UV_FS_MKDIR:
+    case UV_FS_OPEN:
+    case UV_FS_READ:
+    case UV_FS_RENAME:
+    case UV_FS_STAT:
+    case UV_FS_SYMLINK:
+    case UV_FS_WRITE:
+    case UV_FS_UNLINK:
+      return 1;
+    default:  /* Squelch -Wswitch warnings. */
+      break;
+  }
+#endif
+
+  return 0;
+}
+
+
 static void fs_cb(uv_fs_t* req) {
-  ASSERT(req->result == UV_ECANCELED);
+  ASSERT(known_broken((uv_req_t*) req) || req->result == UV_ECANCELED);
   uv_fs_req_cleanup(req);
   fs_cb_called++;
 }
@@ -98,7 +129,7 @@ static void getaddrinfo_cb(uv_getaddrinfo_t* req,
                            int status,
                            struct addrinfo* res) {
   ASSERT(status == UV_EAI_CANCELED);
-  ASSERT(res == NULL);
+  ASSERT_NULL(res);
   uv_freeaddrinfo(res);  /* Should not crash. */
 }
 
@@ -108,8 +139,8 @@ static void getnameinfo_cb(uv_getnameinfo_t* handle,
                            const char* hostname,
                            const char* service) {
   ASSERT(status == UV_EAI_CANCELED);
-  ASSERT(hostname == NULL);
-  ASSERT(service == NULL);
+  ASSERT_NULL(hostname);
+  ASSERT_NULL(service);
 }
 
 
@@ -133,7 +164,7 @@ static void timer_cb(uv_timer_t* handle) {
 
   for (i = 0; i < ci->nreqs; i++) {
     req = (uv_req_t*) ((char*) ci->reqs + i * ci->stride);
-    ASSERT(0 == uv_cancel(req));
+    ASSERT(known_broken(req) || 0 == uv_cancel(req));
   }
 
   uv_close((uv_handle_t*) &ci->timer_handle, NULL);
@@ -189,7 +220,7 @@ TEST_IMPL(threadpool_cancel_getaddrinfo) {
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(1 == timer_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -225,7 +256,7 @@ TEST_IMPL(threadpool_cancel_getnameinfo) {
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(1 == timer_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -248,7 +279,7 @@ TEST_IMPL(threadpool_cancel_random) {
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(1 == done_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -272,7 +303,7 @@ TEST_IMPL(threadpool_cancel_work) {
   ASSERT(1 == timer_cb_called);
   ASSERT(ARRAY_SIZE(reqs) == done2_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -305,7 +336,7 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(0 == uv_fs_lstat(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_mkdir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_open(loop, reqs + n++, "/", 0, 0, fs_cb));
-  ASSERT(0 == uv_fs_read(loop, reqs + n++, 0, &iov, 1, 0, fs_cb));
+  ASSERT(0 == uv_fs_read(loop, reqs + n++, -1, &iov, 1, 0, fs_cb));
   ASSERT(0 == uv_fs_scandir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_readlink(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_realpath(loop, reqs + n++, "/", fs_cb));
@@ -316,7 +347,7 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(0 == uv_fs_symlink(loop, reqs + n++, "/", "/", 0, fs_cb));
   ASSERT(0 == uv_fs_unlink(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_utime(loop, reqs + n++, "/", 0, 0, fs_cb));
-  ASSERT(0 == uv_fs_write(loop, reqs + n++, 0, &iov, 1, 0, fs_cb));
+  ASSERT(0 == uv_fs_write(loop, reqs + n++, -1, &iov, 1, 0, fs_cb));
   ASSERT(n == ARRAY_SIZE(reqs));
 
   ASSERT(0 == uv_timer_init(loop, &ci.timer_handle));
@@ -326,7 +357,7 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(1 == timer_cb_called);
 
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -344,6 +375,39 @@ TEST_IMPL(threadpool_cancel_single) {
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(1 == done_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+}
+
+
+static void after_busy_cb(uv_work_t* req, int status) {
+  ASSERT_OK(status);
+  done_cb_called++;
+}
+
+static void busy_cb(uv_work_t* req) {
+  uv_sem_post((uv_sem_t*) req->data);
+  /* Assume that calling uv_cancel() takes less than 10ms. */
+  uv_sleep(10);
+}
+
+TEST_IMPL(threadpool_cancel_when_busy) {
+  uv_sem_t sem_lock;
+  uv_work_t req;
+
+  req.data = &sem_lock;
+
+  ASSERT_OK(uv_sem_init(&sem_lock, 0));
+  ASSERT_OK(uv_queue_work(uv_default_loop(), &req, busy_cb, after_busy_cb));
+
+  uv_sem_wait(&sem_lock);
+
+  ASSERT_EQ(uv_cancel((uv_req_t*) &req), UV_EBUSY);
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_EQ(done_cb_called, 1);
+
+  uv_sem_destroy(&sem_lock);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

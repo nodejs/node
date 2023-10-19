@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-EVP_SignInit, EVP_SignInit_ex, EVP_SignUpdate, EVP_SignFinal
+EVP_SignInit, EVP_SignInit_ex, EVP_SignUpdate,
+EVP_SignFinal_ex, EVP_SignFinal
 - EVP signing functions
 
 =head1 SYNOPSIS
@@ -11,7 +12,10 @@ EVP_SignInit, EVP_SignInit_ex, EVP_SignUpdate, EVP_SignFinal
 
  int EVP_SignInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl);
  int EVP_SignUpdate(EVP_MD_CTX *ctx, const void *d, unsigned int cnt);
- int EVP_SignFinal(EVP_MD_CTX *ctx, unsigned char *sig, unsigned int *s, EVP_PKEY *pkey);
+ int EVP_SignFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *s,
+                      EVP_PKEY *pkey, OSSL_LIB_CTX *libctx, const char *propq);
+ int EVP_SignFinal(EVP_MD_CTX *ctx, unsigned char *sig, unsigned int *s,
+                   EVP_PKEY *pkey);
 
  void EVP_SignInit(EVP_MD_CTX *ctx, const EVP_MD *type);
 
@@ -28,20 +32,25 @@ EVP_SignUpdate() hashes I<cnt> bytes of data at I<d> into the
 signature context I<ctx>. This function can be called several times on the
 same I<ctx> to include additional data.
 
-EVP_SignFinal() signs the data in I<ctx> using the private key I<pkey> and
-places the signature in I<sig>. I<sig> must be at least C<EVP_PKEY_size(pkey)>
-bytes in size. I<s> is an OUT parameter, and not used as an IN parameter.
+EVP_SignFinal_ex() signs the data in I<ctx> using the private key
+I<pkey> and places the signature in I<sig>. The library context I<libctx> and
+property query I<propq> are used when creating a context to use with the key
+I<pkey>. I<sig> must be at least C<EVP_PKEY_get_size(pkey)> bytes in size.
+I<s> is an OUT parameter, and not used as an IN parameter.
 The number of bytes of data written (i.e. the length of the signature)
-will be written to the integer at I<s>, at most C<EVP_PKEY_size(pkey)> bytes
-will be written.
+will be written to the integer at I<s>, at most C<EVP_PKEY_get_size(pkey)>
+bytes will be written.
+
+EVP_SignFinal() is similar to EVP_SignFinal_ex() but uses default
+values of NULL for the library context I<libctx> and the property query I<propq>.
 
 EVP_SignInit() initializes a signing context I<ctx> to use the default
 implementation of digest I<type>.
 
 =head1 RETURN VALUES
 
-EVP_SignInit_ex(), EVP_SignUpdate() and EVP_SignFinal() return 1
-for success and 0 for failure.
+EVP_SignInit_ex(), EVP_SignUpdate(), EVP_SignFinal_ex() and
+EVP_SignFinal() return 1 for success and 0 for failure.
 
 The error codes can be obtained by L<ERR_get_error(3)>.
 
@@ -51,10 +60,9 @@ The B<EVP> interface to digital signatures should almost always be used in
 preference to the low-level interfaces. This is because the code then becomes
 transparent to the algorithm used and much more flexible.
 
-When signing with DSA private keys the random number generator must be seeded.
-If the automatic seeding or reseeding of the OpenSSL CSPRNG fails due to
-external circumstances (see L<RAND(7)>), the operation will fail.
-This requirement does not hold for RSA signatures.
+When signing with some private key types the random number generator must
+be seeded. If the automatic seeding or reseeding of the OpenSSL CSPRNG fails
+due to external circumstances (see L<RAND(7)>), the operation will fail.
 
 The call to EVP_SignFinal() internally finalizes a copy of the digest context.
 This means that calls to EVP_SignUpdate() and EVP_SignFinal() can be called
@@ -76,22 +84,27 @@ data have been passed through EVP_SignUpdate().
 
 It is not possible to change the signing parameters using these function.
 
-The previous two bugs are fixed in the newer EVP_SignDigest*() function.
+The previous two bugs are fixed in the newer EVP_DigestSign*() functions.
 
 =head1 SEE ALSO
 
-L<EVP_PKEY_size(3)>, L<EVP_PKEY_bits(3)>, L<EVP_PKEY_security_bits(3)>,
+L<EVP_PKEY_get_size(3)>, L<EVP_PKEY_get_bits(3)>,
+L<EVP_PKEY_get_security_bits(3)>,
 L<EVP_VerifyInit(3)>,
 L<EVP_DigestInit(3)>,
 L<evp(7)>, L<HMAC(3)>, L<MD2(3)>,
 L<MD5(3)>, L<MDC2(3)>, L<RIPEMD160(3)>,
-L<SHA1(3)>, L<dgst(1)>
+L<SHA1(3)>, L<openssl-dgst(1)>
+
+=head1 HISTORY
+
+The function EVP_SignFinal_ex() was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

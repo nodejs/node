@@ -14,7 +14,7 @@ namespace debug_helper_internal {
 
 bool IsPointerCompressed(uintptr_t address) {
 #if COMPRESS_POINTERS_BOOL
-  return address < i::kPtrComprHeapReservationSize;
+  return address < i::kPtrComprCageReservationSize;
 #else
   return false;
 #endif
@@ -23,8 +23,17 @@ bool IsPointerCompressed(uintptr_t address) {
 uintptr_t EnsureDecompressed(uintptr_t address,
                              uintptr_t any_uncompressed_ptr) {
   if (!COMPRESS_POINTERS_BOOL || !IsPointerCompressed(address)) return address;
-  return i::DecompressTaggedAny(any_uncompressed_ptr,
-                                static_cast<i::Tagged_t>(address));
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  Address base =
+      V8HeapCompressionScheme::GetPtrComprCageBaseAddress(any_uncompressed_ptr);
+  if (base != V8HeapCompressionScheme::base()) {
+    V8HeapCompressionScheme::InitBase(base);
+  }
+#endif
+  // TODO(v8:11880): ExternalCodeCompressionScheme might be needed here for
+  // decompressing Code pointers from external code space.
+  return i::V8HeapCompressionScheme::DecompressTagged(
+      any_uncompressed_ptr, static_cast<i::Tagged_t>(address));
 }
 
 d::PropertyKind GetArrayKind(d::MemoryAccessResult mem_result) {

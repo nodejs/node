@@ -15,6 +15,7 @@ WPT harness and have automatic updates. There are also a few
 This folder covers the tests that have been migrated.
 
 <a id="add-tests"></a>
+
 ## How to add tests for a new module
 
 ### 1. Create a status file
@@ -33,9 +34,9 @@ See [Format of a status JSON file](#status-format) for details.
 Use the [git node wpt][] command to download the WPT files into
 `test/fixtures/wpt`. For example, to add URL tests:
 
-```text
-$ cd /path/to/node/project
-$ git node wpt url
+```bash
+cd /path/to/node/project
+git node wpt url
 ```
 
 ### 3. Create the test driver
@@ -45,7 +46,6 @@ For example, for the URL tests, add a file `test/wpt/test-url.js`:
 ```js
 'use strict';
 
-require('../common');
 const { WPTRunner } = require('../common/wpt');
 
 const runner = new WPTRunner('url');
@@ -71,14 +71,14 @@ with the WPT harness while taking the status file into account.
 Run the test using `tools/test.py` and see if there are any failures.
 For example, to run all the URL tests under `test/fixtures/wpt/url`:
 
-```text
-$ tools/test.py wpt/test-url
+```bash
+tools/test.py wpt/test-url
 ```
 
 To run a specific test in WPT, for example, `url/url-searchparams.any.js`,
 pass the file name as argument to the corresponding test driver:
 
-```text
+```bash
 node test/wpt/test-url.js url-searchparams.any.js
 ```
 
@@ -90,7 +90,11 @@ add this to `test/wpt/status/url.json`:
 
 ```json
   "url-searchparams.any.js": {
-    "fail": "explain why the test fails, ideally with links"
+    "fail": {
+      "expected": [
+        "test name in the WPT test case, e.g. second argument passed to test()"
+      ]
+    }
   }
 ```
 
@@ -142,9 +146,10 @@ skipping tests that cannot be run because of lack of dependency or
 expected failures.
 
 <a id="status-format"></a>
+
 ## Format of a status JSON file
 
-```text
+```json
 {
   "something.scope.js": {  // the file name
     // Optional: If the requirement is not met, this test will be skipped
@@ -153,8 +158,17 @@ expected failures.
     // Optional: the test will be skipped with the reason printed
     "skip": "explain why we cannot run a test that's supposed to pass",
 
-    // Optional: the test will be skipped with the reason printed
-    "fail": "explain why we the test is expected to fail"
+    // Optional: failing tests
+    "fail": {
+      "note": "You may leave an optional arbitrary note e.g. with TODOs",
+      "expected": [
+        "test name in the WPT test case, e.g. second argument passed to test()",
+        "another test name"
+      ],
+      "flaky": [
+        "flaky test name"
+      ]
+    }
   }
 }
 ```
@@ -165,4 +179,4 @@ In that case it needs to be marked with `skip` instead of `fail`.
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`test/fixtures/wpt/README.md`]: ../fixtures/wpt/README.md
-[git node wpt]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt
+[git node wpt]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-wpt

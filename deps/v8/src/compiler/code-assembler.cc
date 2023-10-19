@@ -6,11 +6,9 @@
 
 #include <ostream>
 
-#include "src/base/bits.h"
 #include "src/codegen/code-factory.h"
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
-#include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
@@ -19,9 +17,9 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/schedule.h"
-#include "src/execution/frames.h"
-#include "src/interpreter/bytecodes.h"
-#include "src/objects/objects-inl.h"
+#include "src/handles/handles-inl.h"
+#include "src/heap/factory-inl.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/smi.h"
 #include "src/utils/memcopy.h"
 #include "src/zone/zone.h"
@@ -46,8 +44,7 @@ static_assert(
 
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
-    CodeKind kind, const char* name, PoisoningMitigationLevel poisoning_level,
-    int32_t builtin_index)
+    CodeKind kind, const char* name, Builtin builtin)
     // TODO(rmcilroy): Should we use Linkage::GetBytecodeDispatchDescriptor for
     // bytecode handlers?
     : CodeAssemblerState(
@@ -55,32 +52,29 @@ CodeAssemblerState::CodeAssemblerState(
           Linkage::GetStubCallDescriptor(
               zone, descriptor, descriptor.GetStackParameterCount(),
               CallDescriptor::kNoFlags, Operator::kNoProperties),
-          kind, name, poisoning_level, builtin_index) {}
+          kind, name, builtin) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        int parameter_count, CodeKind kind,
-                                       const char* name,
-                                       PoisoningMitigationLevel poisoning_level,
-                                       int32_t builtin_index)
+                                       const char* name, Builtin builtin)
     : CodeAssemblerState(
           isolate, zone,
           Linkage::GetJSCallDescriptor(zone, false, parameter_count,
                                        CallDescriptor::kCanUseRoots),
-          kind, name, poisoning_level, builtin_index) {}
+          kind, name, builtin) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        CallDescriptor* call_descriptor,
                                        CodeKind kind, const char* name,
-                                       PoisoningMitigationLevel poisoning_level,
-                                       int32_t builtin_index)
+                                       Builtin builtin)
     : raw_assembler_(new RawMachineAssembler(
           isolate, zone->New<Graph>(zone), call_descriptor,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements(), poisoning_level)),
+          InstructionSelector::AlignmentRequirements())),
       kind_(kind),
       name_(name),
-      builtin_index_(builtin_index),
+      builtin_(builtin),
       code_generated_(false),
       variables_(zone),
       jsgraph_(zone->New<JSGraph>(
@@ -167,10 +161,6 @@ bool CodeAssembler::Word32ShiftIsSafe() const {
   return raw_assembler()->machine()->Word32ShiftIsSafe();
 }
 
-PoisoningMitigationLevel CodeAssembler::poisoning_level() const {
-  return raw_assembler()->poisoning_level();
-}
-
 // static
 Handle<Code> CodeAssembler::GenerateCode(
     CodeAssemblerState* state, const AssemblerOptions& options,
@@ -182,12 +172,11 @@ Handle<Code> CodeAssembler::GenerateCode(
   Handle<Code> code;
   Graph* graph = rasm->ExportForOptimization();
 
-  code =
-      Pipeline::GenerateCodeForCodeStub(
-          rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
-          rasm->source_positions(), state->kind_, state->name_,
-          state->builtin_index_, rasm->poisoning_level(), options, profile_data)
-          .ToHandleChecked();
+  code = Pipeline::GenerateCodeForCodeStub(
+             rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
+             rasm->source_positions(), state->kind_, state->name_,
+             state->builtin_, options, profile_data)
+             .ToHandleChecked();
 
   state->code_generated_ = true;
   return code;
@@ -225,31 +214,40 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
                 : IsInt32AbsWithOverflowSupported();
 }
 
-#ifdef DEBUG
-void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
-                                                     const char* location) {
-  Label ok(this);
-  GotoIf(WordNotEqual(WordAnd(BitcastMaybeObjectToWord(node),
-                              IntPtrConstant(kHeapObjectTagMask)),
-                      IntPtrConstant(kWeakHeapObjectTag)),
-         &ok);
-  EmbeddedVector<char, 1024> message;
-  SNPrintF(message, "no Object: %s", location);
-  TNode<String> message_node = StringConstant(message.begin());
-  // This somewhat misuses the AbortCSAAssert runtime function. This will print
-  // "abort: CSA_ASSERT failed: <message>", which is good enough.
-  AbortCSAAssert(message_node);
-  Unreachable();
-  Bind(&ok);
+bool CodeAssembler::IsWord32PopcntSupported() const {
+  return raw_assembler()->machine()->Word32Popcnt().IsSupported();
 }
-#endif
+
+bool CodeAssembler::IsWord64PopcntSupported() const {
+  return raw_assembler()->machine()->Word64Popcnt().IsSupported();
+}
+
+bool CodeAssembler::IsWord32CtzSupported() const {
+  return raw_assembler()->machine()->Word32Ctz().IsSupported();
+}
+
+bool CodeAssembler::IsWord64CtzSupported() const {
+  return raw_assembler()->machine()->Word64Ctz().IsSupported();
+}
+
+TNode<Int32T> CodeAssembler::UniqueInt32Constant(int32_t value) {
+  return UncheckedCast<Int32T>(jsgraph()->UniqueInt32Constant(value));
+}
 
 TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
   return UncheckedCast<Int32T>(jsgraph()->Int32Constant(value));
 }
 
+TNode<Int64T> CodeAssembler::UniqueInt64Constant(int64_t value) {
+  return UncheckedCast<Int64T>(jsgraph()->UniqueInt64Constant(value));
+}
+
 TNode<Int64T> CodeAssembler::Int64Constant(int64_t value) {
   return UncheckedCast<Int64T>(jsgraph()->Int64Constant(value));
+}
+
+TNode<IntPtrT> CodeAssembler::UniqueIntPtrConstant(intptr_t value) {
+  return UncheckedCast<IntPtrT>(jsgraph()->UniqueIntPtrConstant(value));
 }
 
 TNode<IntPtrT> CodeAssembler::IntPtrConstant(intptr_t value) {
@@ -268,14 +266,14 @@ TNode<Number> CodeAssembler::NumberConstant(double value) {
   } else {
     // We allocate the heap number constant eagerly at this point instead of
     // deferring allocation to code generation
-    // (see AllocateAndInstallRequestedHeapObjects) since that makes it easier
+    // (see AllocateAndInstallRequestedHeapNumbers) since that makes it easier
     // to generate constant lookups for embedded builtins.
     return UncheckedCast<Number>(HeapConstant(
         isolate()->factory()->NewHeapNumberForCodeAssembler(value)));
   }
 }
 
-TNode<Smi> CodeAssembler::SmiConstant(Smi value) {
+TNode<Smi> CodeAssembler::SmiConstant(Tagged<Smi> value) {
   return UncheckedCast<Smi>(BitcastWordToTaggedSigned(
       IntPtrConstant(static_cast<intptr_t>(value.ptr()))));
 }
@@ -291,13 +289,13 @@ TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
 
 TNode<String> CodeAssembler::StringConstant(const char* str) {
   Handle<String> internalized_string =
-      factory()->InternalizeString(OneByteVector(str));
+      factory()->InternalizeString(base::OneByteVector(str));
   return UncheckedCast<String>(HeapConstant(internalized_string));
 }
 
-TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
-  Handle<Object> object = isolate()->factory()->ToBoolean(value);
-  return UncheckedCast<Oddball>(
+TNode<Boolean> CodeAssembler::BooleanConstant(bool value) {
+  Handle<Boolean> object = isolate()->factory()->ToBoolean(value);
+  return UncheckedCast<Boolean>(
       jsgraph()->HeapConstant(Handle<HeapObject>::cast(object)));
 }
 
@@ -313,6 +311,10 @@ TNode<Float32T> CodeAssembler::Float32Constant(double value) {
 
 TNode<Float64T> CodeAssembler::Float64Constant(double value) {
   return UncheckedCast<Float64T>(jsgraph()->Float64Constant(value));
+}
+
+bool CodeAssembler::IsMapOffsetConstant(Node* node) {
+  return raw_assembler()->IsMapOffsetConstant(node);
 }
 
 bool CodeAssembler::TryToInt32Constant(TNode<IntegralT> node,
@@ -345,7 +347,7 @@ bool CodeAssembler::TryToInt64Constant(TNode<IntegralT> node,
   return m.HasResolvedValue();
 }
 
-bool CodeAssembler::TryToSmiConstant(TNode<Smi> tnode, Smi* out_value) {
+bool CodeAssembler::TryToSmiConstant(TNode<Smi> tnode, Tagged<Smi>* out_value) {
   Node* node = tnode;
   if (node->opcode() == IrOpcode::kBitcastWordToTaggedSigned) {
     node = node->InputAt(0);
@@ -353,7 +355,8 @@ bool CodeAssembler::TryToSmiConstant(TNode<Smi> tnode, Smi* out_value) {
   return TryToSmiConstant(ReinterpretCast<IntPtrT>(tnode), out_value);
 }
 
-bool CodeAssembler::TryToSmiConstant(TNode<IntegralT> node, Smi* out_value) {
+bool CodeAssembler::TryToSmiConstant(TNode<IntegralT> node,
+                                     Tagged<Smi>* out_value) {
   IntPtrMatcher m(node);
   if (m.HasResolvedValue()) {
     intptr_t value = m.ResolvedValue();
@@ -477,9 +480,24 @@ void CodeAssembler::Return(TNode<WordT> value1, TNode<WordT> value2) {
   return raw_assembler()->Return(value1, value2);
 }
 
+void CodeAssembler::Return(TNode<WordT> value1, TNode<Object> value2) {
+  DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(
+      MachineType::PointerRepresentation(),
+      raw_assembler()->call_descriptor()->GetReturnType(0).representation());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
+  return raw_assembler()->Return(value1, value2);
+}
+
 void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
   DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
   return raw_assembler()->PopAndReturn(pop, value);
+}
+
+void CodeAssembler::PopAndReturn(Node* pop, Node* value1, Node* value2,
+                                 Node* value3, Node* value4) {
+  DCHECK_EQ(4, raw_assembler()->call_descriptor()->ReturnCount());
+  return raw_assembler()->PopAndReturn(pop, value1, value2, value3, value4);
 }
 
 void CodeAssembler::ReturnIf(TNode<BoolT> condition, TNode<Object> value) {
@@ -490,8 +508,8 @@ void CodeAssembler::ReturnIf(TNode<BoolT> condition, TNode<Object> value) {
   Bind(&if_continue);
 }
 
-void CodeAssembler::AbortCSAAssert(Node* message) {
-  raw_assembler()->AbortCSAAssert(message);
+void CodeAssembler::AbortCSADcheck(Node* message) {
+  raw_assembler()->AbortCSADcheck(message);
 }
 
 void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
@@ -502,7 +520,7 @@ void CodeAssembler::Unreachable() {
 }
 
 void CodeAssembler::Comment(std::string str) {
-  if (!FLAG_code_comments) return;
+  if (!v8_flags.code_comments) return;
   raw_assembler()->Comment(str);
 }
 
@@ -544,19 +562,19 @@ TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
-TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(TNode<Object> value) {
-  return UncheckedCast<Object>(
-      raw_assembler()->TaggedPoisonOnSpeculation(value));
+TNode<RawPtrT> CodeAssembler::LoadPointerFromRootRegister(
+    TNode<IntPtrT> offset) {
+  return UncheckedCast<RawPtrT>(
+      Load(MachineType::IntPtr(), raw_assembler()->LoadRootRegister(), offset));
 }
 
-TNode<WordT> CodeAssembler::WordPoisonOnSpeculation(TNode<WordT> value) {
-  return UncheckedCast<WordT>(raw_assembler()->WordPoisonOnSpeculation(value));
+TNode<RawPtrT> CodeAssembler::StackSlotPtr(int size, int alignment) {
+  return UncheckedCast<RawPtrT>(raw_assembler()->StackSlot(size, alignment));
 }
 
-#define DEFINE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \
-  TNode<ResType> CodeAssembler::name(SloppyTNode<Arg1Type> a,              \
-                                     SloppyTNode<Arg2Type> b) {            \
-    return UncheckedCast<ResType>(raw_assembler()->name(a, b));            \
+#define DEFINE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type)   \
+  TNode<ResType> CodeAssembler::name(TNode<Arg1Type> a, TNode<Arg2Type> b) { \
+    return UncheckedCast<ResType>(raw_assembler()->name(a, b));              \
   }
 CODE_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_ASSEMBLER_BINARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_BINARY_OP
@@ -651,59 +669,81 @@ TNode<Int32T> CodeAssembler::TruncateFloat32ToInt32(TNode<Float32T> value) {
       value, TruncateKind::kSetOverflowToMin));
 }
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
-  TNode<ResType> CodeAssembler::name(SloppyTNode<ArgType> a) { \
+  TNode<ResType> CodeAssembler::name(TNode<ArgType> a) {       \
     return UncheckedCast<ResType>(raw_assembler()->name(a));   \
   }
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_UNARY_OP
 
-Node* CodeAssembler::Load(MachineType type, Node* base,
-                          LoadSensitivity needs_poisoning) {
-  return raw_assembler()->Load(type, base, needs_poisoning);
+Node* CodeAssembler::Load(MachineType type, Node* base) {
+  return raw_assembler()->Load(type, base);
 }
 
-Node* CodeAssembler::Load(MachineType type, Node* base, Node* offset,
-                          LoadSensitivity needs_poisoning) {
-  return raw_assembler()->Load(type, base, offset, needs_poisoning);
+Node* CodeAssembler::Load(MachineType type, Node* base, Node* offset) {
+  return raw_assembler()->Load(type, base, offset);
 }
 
-TNode<Object> CodeAssembler::LoadFullTagged(Node* base,
-                                            LoadSensitivity needs_poisoning) {
-  return BitcastWordToTagged(
-      Load(MachineType::Pointer(), base, needs_poisoning));
+TNode<Object> CodeAssembler::LoadFullTagged(Node* base) {
+  return BitcastWordToTagged(Load<RawPtrT>(base));
 }
 
-TNode<Object> CodeAssembler::LoadFullTagged(Node* base, Node* offset,
-                                            LoadSensitivity needs_poisoning) {
-  return BitcastWordToTagged(
-      Load(MachineType::Pointer(), base, offset, needs_poisoning));
+TNode<Object> CodeAssembler::LoadFullTagged(Node* base, TNode<IntPtrT> offset) {
+  // Please use LoadFromObject(MachineType::MapInHeader(), object,
+  // IntPtrConstant(-kHeapObjectTag)) instead.
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
+  return BitcastWordToTagged(Load<RawPtrT>(base, offset));
 }
 
-Node* CodeAssembler::AtomicLoad(MachineType type, TNode<RawPtrT> base,
-                                TNode<WordT> offset) {
-  return raw_assembler()->AtomicLoad(type, base, offset);
+Node* CodeAssembler::AtomicLoad(MachineType type, AtomicMemoryOrder order,
+                                TNode<RawPtrT> base, TNode<WordT> offset) {
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
+  return raw_assembler()->AtomicLoad(AtomicLoadParameters(type, order), base,
+                                     offset);
 }
 
 template <class Type>
-TNode<Type> CodeAssembler::AtomicLoad64(TNode<RawPtrT> base,
+TNode<Type> CodeAssembler::AtomicLoad64(AtomicMemoryOrder order,
+                                        TNode<RawPtrT> base,
                                         TNode<WordT> offset) {
-  return UncheckedCast<Type>(raw_assembler()->AtomicLoad64(base, offset));
+  return UncheckedCast<Type>(raw_assembler()->AtomicLoad64(
+      AtomicLoadParameters(MachineType::Uint64(), order), base, offset));
 }
 
 template TNode<AtomicInt64> CodeAssembler::AtomicLoad64<AtomicInt64>(
-    TNode<RawPtrT> base, TNode<WordT> offset);
+    AtomicMemoryOrder order, TNode<RawPtrT> base, TNode<WordT> offset);
 template TNode<AtomicUint64> CodeAssembler::AtomicLoad64<AtomicUint64>(
-    TNode<RawPtrT> base, TNode<WordT> offset);
+    AtomicMemoryOrder order, TNode<RawPtrT> base, TNode<WordT> offset);
 
 Node* CodeAssembler::LoadFromObject(MachineType type, TNode<Object> object,
                                     TNode<IntPtrT> offset) {
   return raw_assembler()->LoadFromObject(type, object, offset);
 }
 
+#ifdef V8_MAP_PACKING
+Node* CodeAssembler::PackMapWord(Node* value) {
+  TNode<IntPtrT> map_word =
+      BitcastTaggedToWordForTagAndSmiBits(UncheckedCast<AnyTaggedT>(value));
+  TNode<WordT> packed = WordXor(UncheckedCast<WordT>(map_word),
+                                IntPtrConstant(Internals::kMapWordXorMask));
+  return BitcastWordToTaggedSigned(packed);
+}
+#endif
+
+TNode<AnyTaggedT> CodeAssembler::LoadRootMapWord(RootIndex root_index) {
+#ifdef V8_MAP_PACKING
+  Handle<Object> root = isolate()->root_handle(root_index);
+  Node* map = HeapConstant(Handle<Map>::cast(root));
+  map = PackMapWord(map);
+  return ReinterpretCast<AnyTaggedT>(map);
+#else
+  return LoadRoot(root_index);
+#endif
+}
+
 TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   if (RootsTable::IsImmortalImmovable(root_index)) {
     Handle<Object> root = isolate()->root_handle(root_index);
-    if (root->IsSmi()) {
+    if (IsSmi(*root)) {
       return SmiConstant(Smi::cast(*root));
     } else {
       return HeapConstant(Handle<HeapObject>::cast(root));
@@ -718,6 +758,11 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   int offset = IsolateData::root_slot_offset(root_index);
   return UncheckedCast<Object>(
       LoadFullTagged(isolate_root, IntPtrConstant(offset)));
+}
+
+Node* CodeAssembler::UnalignedLoad(MachineType type, TNode<RawPtrT> base,
+                                   TNode<WordT> offset) {
+  return raw_assembler()->UnalignedLoad(type, static_cast<Node*>(base), offset);
 }
 
 void CodeAssembler::Store(Node* base, Node* value) {
@@ -756,6 +801,21 @@ void CodeAssembler::OptimizedStoreField(MachineRepresentation rep,
                                        WriteBarrierKind::kFullWriteBarrier);
 }
 
+void CodeAssembler::OptimizedStoreIndirectPointerField(TNode<HeapObject> object,
+                                                       int offset,
+                                                       Node* value) {
+  raw_assembler()->OptimizedStoreField(
+      MachineRepresentation::kIndirectPointer, object, offset, value,
+      WriteBarrierKind::kIndirectPointerWriteBarrier);
+}
+
+void CodeAssembler::OptimizedStoreIndirectPointerFieldNoWriteBarrier(
+    TNode<HeapObject> object, int offset, Node* value) {
+  raw_assembler()->OptimizedStoreField(MachineRepresentation::kIndirectPointer,
+                                       object, offset, value,
+                                       WriteBarrierKind::kNoWriteBarrier);
+}
+
 void CodeAssembler::OptimizedStoreFieldAssertNoWriteBarrier(
     MachineRepresentation rep, TNode<HeapObject> object, int offset,
     Node* value) {
@@ -776,11 +836,14 @@ void CodeAssembler::OptimizedStoreMap(TNode<HeapObject> object,
 }
 
 void CodeAssembler::Store(Node* base, Node* offset, Node* value) {
+  // Please use OptimizedStoreMap(base, value) instead.
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   raw_assembler()->Store(MachineRepresentation::kTagged, base, offset, value,
                          kFullWriteBarrier);
 }
 
 void CodeAssembler::StoreEphemeronKey(Node* base, Node* offset, Node* value) {
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   raw_assembler()->Store(MachineRepresentation::kTagged, base, offset, value,
                          kEphemeronKeyWriteBarrier);
 }
@@ -794,6 +857,8 @@ void CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
 
 void CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                         Node* offset, Node* value) {
+  // Please use OptimizedStoreMap(base, value) instead.
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   raw_assembler()->Store(
       rep, base, offset, value,
       CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
@@ -807,6 +872,8 @@ void CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
 void CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
                                               Node* base, Node* offset,
                                               Node* value) {
+  // Please use OptimizedStoreMap(base, value) instead.
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   raw_assembler()->Store(rep, base, offset, value, kNoWriteBarrier);
 }
 
@@ -819,19 +886,28 @@ void CodeAssembler::StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base,
 void CodeAssembler::StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base,
                                                   TNode<IntPtrT> offset,
                                                   TNode<Object> tagged_value) {
+  // Please use OptimizedStoreMap(base, tagged_value) instead.
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), base, offset,
                       BitcastTaggedToWord(tagged_value));
 }
 
-void CodeAssembler::AtomicStore(MachineRepresentation rep, TNode<RawPtrT> base,
+void CodeAssembler::AtomicStore(MachineRepresentation rep,
+                                AtomicMemoryOrder order, TNode<RawPtrT> base,
                                 TNode<WordT> offset, TNode<Word32T> value) {
-  raw_assembler()->AtomicStore(rep, base, offset, value);
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
+  raw_assembler()->AtomicStore(
+      AtomicStoreParameters(rep, WriteBarrierKind::kNoWriteBarrier, order),
+      base, offset, value);
 }
 
-void CodeAssembler::AtomicStore64(TNode<RawPtrT> base, TNode<WordT> offset,
-                                  TNode<UintPtrT> value,
+void CodeAssembler::AtomicStore64(AtomicMemoryOrder order, TNode<RawPtrT> base,
+                                  TNode<WordT> offset, TNode<UintPtrT> value,
                                   TNode<UintPtrT> value_high) {
-  raw_assembler()->AtomicStore64(base, offset, value, value_high);
+  raw_assembler()->AtomicStore64(
+      AtomicStoreParameters(MachineRepresentation::kWord64,
+                            WriteBarrierKind::kNoWriteBarrier, order),
+      base, offset, value, value_high);
 }
 
 #define ATOMIC_FUNCTION(name)                                                 \
@@ -893,6 +969,10 @@ CodeAssembler::AtomicCompareExchange64<AtomicUint64>(
     TNode<UintPtrT> new_value, TNode<UintPtrT> old_value_high,
     TNode<UintPtrT> new_value_high);
 
+void CodeAssembler::MemoryBarrier(AtomicMemoryOrder order) {
+  raw_assembler()->MemoryBarrier(order);
+}
+
 void CodeAssembler::StoreRoot(RootIndex root_index, TNode<Object> value) {
   DCHECK(!RootsTable::IsImmortalImmovable(root_index));
   TNode<ExternalReference> isolate_root =
@@ -906,11 +986,10 @@ Node* CodeAssembler::Projection(int index, Node* value) {
   return raw_assembler()->Projection(index, value);
 }
 
-TNode<HeapObject> CodeAssembler::OptimizedAllocate(
-    TNode<IntPtrT> size, AllocationType allocation,
-    AllowLargeObjects allow_large_objects) {
-  return UncheckedCast<HeapObject>(raw_assembler()->OptimizedAllocate(
-      size, allocation, allow_large_objects));
+TNode<HeapObject> CodeAssembler::OptimizedAllocate(TNode<IntPtrT> size,
+                                                   AllocationType allocation) {
+  return UncheckedCast<HeapObject>(
+      raw_assembler()->OptimizedAllocate(size, allocation));
 }
 
 void CodeAssembler::HandleException(Node* node) {
@@ -954,14 +1033,17 @@ class NodeArray {
   Node* arr_[kMaxSize];
   Node** ptr_ = arr_;
 };
+
 }  // namespace
 
 Node* CodeAssembler::CallRuntimeImpl(
     Runtime::FunctionId function, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
-  TNode<Code> centry =
-      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
+  bool switch_to_the_central_stack =
+      Runtime::SwitchToTheCentralStackForTarget(function);
+  TNode<Code> centry = HeapConstant(CodeFactory::RuntimeCEntry(
+      isolate(), result_size, switch_to_the_central_stack));
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());
@@ -993,8 +1075,10 @@ void CodeAssembler::TailCallRuntimeImpl(
     Runtime::FunctionId function, TNode<Int32T> arity, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
-  TNode<Code> centry =
-      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
+  bool switch_to_the_central_stack =
+      Runtime::SwitchToTheCentralStackForTarget(function);
+  TNode<Code> centry = HeapConstant(CodeFactory::RuntimeCEntry(
+      isolate(), result_size, switch_to_the_central_stack));
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());
@@ -1091,7 +1175,7 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
 Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
                                     TNode<Object> target, TNode<Object> context,
                                     TNode<Object> function,
-                                    TNode<Object> new_target,
+                                    base::Optional<TNode<Object>> new_target,
                                     TNode<Int32T> arity,
                                     std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 10;
@@ -1099,8 +1183,8 @@ Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
   NodeArray<kMaxNumArgs + 5> inputs;
   inputs.Add(target);
   inputs.Add(function);
-  if (!new_target.is_null()) {
-    inputs.Add(new_target);
+  if (new_target) {
+    inputs.Add(*new_target);
   }
   inputs.Add(arity);
   for (auto arg : args) inputs.Add(arg);
@@ -1275,7 +1359,8 @@ void CodeAssembler::Branch(TNode<BoolT> condition,
 void CodeAssembler::Switch(Node* index, Label* default_label,
                            const int32_t* case_values, Label** case_labels,
                            size_t case_count) {
-  RawMachineLabel** labels = zone()->NewArray<RawMachineLabel*>(case_count);
+  RawMachineLabel** labels =
+      zone()->AllocateArray<RawMachineLabel*>(case_count);
   for (size_t i = 0; i < case_count; ++i) {
     labels[i] = case_labels[i]->label_;
     case_labels[i]->MergeVariables();
@@ -1513,7 +1598,7 @@ void CodeAssemblerLabel::Bind(AssemblerDebugInfo debug_info) {
         << "\n#    previous: " << *label_->block();
     FATAL("%s", str.str().c_str());
   }
-  if (FLAG_enable_source_at_csa_bind) {
+  if (v8_flags.enable_source_at_csa_bind) {
     state_->raw_assembler_->SetCurrentExternalSourcePosition(
         {debug_info.file, debug_info.line});
   }
@@ -1688,46 +1773,6 @@ ScopedExceptionHandler::~ScopedExceptionHandler() {
 }
 
 }  // namespace compiler
-
-Address CheckObjectType(Address raw_value, Address raw_type,
-                        Address raw_location) {
-#ifdef DEBUG
-  Object value(raw_value);
-  Smi type(raw_type);
-  String location = String::cast(Object(raw_location));
-  const char* expected;
-  switch (static_cast<ObjectType>(type.value())) {
-#define TYPE_CASE(Name)                                 \
-  case ObjectType::k##Name:                             \
-    if (value.Is##Name()) return Smi::FromInt(0).ptr(); \
-    expected = #Name;                                   \
-    break;
-#define TYPE_STRUCT_CASE(NAME, Name, name)              \
-  case ObjectType::k##Name:                             \
-    if (value.Is##Name()) return Smi::FromInt(0).ptr(); \
-    expected = #Name;                                   \
-    break;
-
-    TYPE_CASE(Object)
-    TYPE_CASE(Smi)
-    TYPE_CASE(TaggedIndex)
-    TYPE_CASE(HeapObject)
-    OBJECT_TYPE_LIST(TYPE_CASE)
-    HEAP_OBJECT_TYPE_LIST(TYPE_CASE)
-    STRUCT_LIST(TYPE_STRUCT_CASE)
-#undef TYPE_CASE
-#undef TYPE_STRUCT_CASE
-  }
-  std::stringstream value_description;
-  value.Print(value_description);
-  FATAL(
-      "Type cast failed in %s\n"
-      "  Expected %s but found %s",
-      location.ToAsciiArray(), expected, value_description.str().c_str());
-#else
-  UNREACHABLE();
-#endif
-}
 
 }  // namespace internal
 }  // namespace v8

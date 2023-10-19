@@ -1,9 +1,13 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
-Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "nodemsi", "nodemsi.wixproj", "{1D808FF0-B5A9-4BE9-859D-B334B6F48BE2}"
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.33027.164
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{B7DD6F7E-DEF8-4E67-B5B7-07EF123DB6F0}") = "nodemsi", "nodemsi\nodemsi.wixproj", "{1D808FF0-B5A9-4BE9-859D-B334B6F48BE2}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B70585F8-DAB7-40FA-9904-13CF53A73A06} = {B70585F8-DAB7-40FA-9904-13CF53A73A06}
+	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "custom_actions", "custom_actions.vcxproj", "{B70585F8-DAB7-40FA-9904-13CF53A73A06}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "custom_actions", "custom_actions\custom_actions.vcxproj", "{B70585F8-DAB7-40FA-9904-13CF53A73A06}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,5 +46,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FB650322-7A09-471D-A635-F2DBDCEECDB8}
 	EndGlobalSection
 EndGlobal

@@ -5,14 +5,9 @@
 #include "src/runtime/runtime.h"
 
 #include "src/base/hashmap.h"
-#include "src/base/platform/wrappers.h"
-#include "src/codegen/reloc-info.h"
 #include "src/execution/isolate.h"
-#include "src/handles/handles-inl.h"
-#include "src/heap/heap.h"
-#include "src/objects/contexts.h"
-#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/strings/string-hasher-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -104,8 +99,6 @@ bool Runtime::NeedsExactContext(FunctionId id) {
       // us to usually eliminate the catch context for the implicit
       // try-catch in async function.
       return false;
-    case Runtime::kAddPrivateField:
-    case Runtime::kAddPrivateBrand:
     case Runtime::kCreatePrivateAccessors:
     case Runtime::kCopyDataProperties:
     case Runtime::kCreateDataProperty:
@@ -114,6 +107,7 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kLoadPrivateGetter:
     case Runtime::kLoadPrivateSetter:
     case Runtime::kReThrow:
+    case Runtime::kReThrowWithMessage:
     case Runtime::kThrow:
     case Runtime::kThrowApplyNonFunction:
     case Runtime::kThrowCalledNonCallable:
@@ -138,8 +132,11 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kThrowThrowMethodMissing:
     case Runtime::kThrowTypeError:
     case Runtime::kThrowUnsupportedSuperError:
+    case Runtime::kTerminateExecution:
+#if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:
     case Runtime::kThrowWasmStackOverflow:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return false;
     default:
       return true;
@@ -154,6 +151,7 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowSuperAlreadyCalledError:
     case Runtime::kThrowSuperNotCalled:
     case Runtime::kReThrow:
+    case Runtime::kReThrowWithMessage:
     case Runtime::kThrow:
     case Runtime::kThrowApplyNonFunction:
     case Runtime::kThrowCalledNonCallable:
@@ -173,8 +171,11 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowSymbolAsyncIteratorInvalid:
     case Runtime::kThrowTypeError:
     case Runtime::kThrowConstAssignError:
+    case Runtime::kTerminateExecution:
+#if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:
     case Runtime::kThrowWasmStackOverflow:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return true;
     default:
       return false;
@@ -192,21 +193,25 @@ bool Runtime::MayAllocate(FunctionId id) {
 }
 
 bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
-  CHECK(FLAG_fuzzing);
+  CHECK(v8_flags.fuzzing);
   switch (id) {
     // Runtime functions allowlisted for all fuzzers. Only add functions that
     // help increase coverage.
     case Runtime::kArrayBufferDetach:
     case Runtime::kDeoptimizeFunction:
     case Runtime::kDeoptimizeNow:
+    case Runtime::kDisableOptimizationFinalization:
     case Runtime::kEnableCodeLoggingForTesting:
+    case Runtime::kFinalizeOptimization:
     case Runtime::kGetUndetectable:
     case Runtime::kNeverOptimizeFunction:
     case Runtime::kOptimizeFunctionOnNextCall:
     case Runtime::kOptimizeOsr:
     case Runtime::kPrepareFunctionForOptimization:
+    case Runtime::kPretenureAllocationSite:
     case Runtime::kSetAllocationTimeout:
     case Runtime::kSimulateNewspaceFull:
+    case Runtime::kWaitForBackgroundOptimization:
       return true;
     // Runtime functions only permitted for non-differential fuzzers.
     // This list may contain functions performing extra checks or returning
@@ -214,7 +219,28 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kGetOptimizationStatus:
     case Runtime::kHeapObjectVerify:
     case Runtime::kIsBeingInterpreted:
-      return !FLAG_allow_natives_for_differential_fuzzing;
+      return !v8_flags.allow_natives_for_differential_fuzzing;
+    case Runtime::kVerifyType:
+      return !v8_flags.allow_natives_for_differential_fuzzing &&
+             !v8_flags.concurrent_recompilation;
+    case Runtime::kBaselineOsr:
+    case Runtime::kCompileBaseline:
+      return ENABLE_SPARKPLUG;
+    default:
+      return false;
+  }
+}
+
+bool Runtime::SwitchToTheCentralStackForTarget(FunctionId id) {
+  // Runtime functions called from Wasm directly or
+  // from Wasm runtime stubs should execute on the central stack.
+  switch (id) {
+#if V8_ENABLE_WEBASSEMBLY
+#define WASM_CASE(Name, ...) case Runtime::k##Name:
+    FOR_EACH_INTRINSIC_WASM(WASM_CASE, WASM_CASE)
+#undef WASM_CASE
+    return true;
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       return false;
   }
@@ -255,8 +281,8 @@ const Runtime::Function* Runtime::RuntimeFunctionTable(Isolate* isolate) {
   if (!isolate->runtime_state()->redirected_intrinsic_functions()) {
     size_t function_count = arraysize(kIntrinsicFunctions);
     Function* redirected_functions = new Function[function_count];
-    base::Memcpy(redirected_functions, kIntrinsicFunctions,
-                 sizeof(kIntrinsicFunctions));
+    memcpy(redirected_functions, kIntrinsicFunctions,
+           sizeof(kIntrinsicFunctions));
     for (size_t i = 0; i < function_count; i++) {
       ExternalReference redirected_entry =
           ExternalReference::Create(static_cast<Runtime::FunctionId>(i));

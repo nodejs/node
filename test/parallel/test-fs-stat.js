@@ -27,8 +27,8 @@ const fs = require('fs');
 
 fs.stat('.', common.mustSucceed(function(stats) {
   assert.ok(stats.mtime instanceof Date);
-  assert.ok(stats.hasOwnProperty('blksize'));
-  assert.ok(stats.hasOwnProperty('blocks'));
+  assert.ok(Object.hasOwn(stats, 'blksize'));
+  assert.ok(Object.hasOwn(stats, 'blocks'));
   // Confirm that we are not running in the context of the internal binding
   // layer.
   // Ref: https://github.com/nodejs/node/commit/463d6bac8b349acc462d345a6e298a76f7d06fb1
@@ -151,12 +151,12 @@ fs.stat(__filename, common.mustSucceed((s) => {
 });
 
 // Should not throw an error
-fs.stat(__filename, undefined, common.mustCall(() => {}));
+fs.stat(__filename, undefined, common.mustCall());
 
 fs.open(__filename, 'r', undefined, common.mustCall((err, fd) => {
   // Should not throw an error
-  fs.fstat(fd, undefined, common.mustCall(() => {}));
+  fs.fstat(fd, undefined, common.mustCall());
 }));
 
 // Should not throw an error
-fs.lstat(__filename, undefined, common.mustCall(() => {}));
+fs.lstat(__filename, undefined, common.mustCall());

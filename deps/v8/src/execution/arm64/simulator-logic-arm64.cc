@@ -18,7 +18,7 @@ inline double FPRoundToDouble(int64_t sign, int64_t exponent, uint64_t mantissa,
                               FPRounding round_mode) {
   uint64_t bits = FPRound<uint64_t, kDoubleExponentBits, kDoubleMantissaBits>(
       sign, exponent, mantissa, round_mode);
-  return bit_cast<double>(bits);
+  return base::bit_cast<double>(bits);
 }
 
 // See FPRound for a description of this function.
@@ -26,7 +26,7 @@ inline float FPRoundToFloat(int64_t sign, int64_t exponent, uint64_t mantissa,
                             FPRounding round_mode) {
   uint32_t bits = FPRound<uint32_t, kFloatExponentBits, kFloatMantissaBits>(
       sign, exponent, mantissa, round_mode);
-  return bit_cast<float>(bits);
+  return base::bit_cast<float>(bits);
 }
 
 // See FPRound for a description of this function.
@@ -101,7 +101,7 @@ double Simulator::FPToDouble(float value) {
       //  - The mantissa is transferred entirely, except that the top bit is
       //    forced to '1', making the result a quiet NaN. The unused (low-order)
       //    mantissa bits are set to 0.
-      uint32_t raw = bit_cast<uint32_t>(value);
+      uint32_t raw = base::bit_cast<uint32_t>(value);
 
       uint64_t sign = raw >> 31;
       uint64_t exponent = (1 << kDoubleExponentBits) - 1;
@@ -306,7 +306,7 @@ float Simulator::FPToFloat(double value, FPRounding round_mode) {
       //  - The mantissa is transferred as much as possible, except that the
       //    top bit is forced to '1', making the result a quiet NaN.
 
-      uint64_t raw = bit_cast<uint64_t>(value);
+      uint64_t raw = base::bit_cast<uint64_t>(value);
 
       uint32_t sign = raw >> 63;
       uint32_t exponent = (1 << 8) - 1;
@@ -586,32 +586,32 @@ LogicVRegister Simulator::cmp(VectorFormat vform, LogicVRegister dst,
                               const LogicVRegister& src2, Condition cond) {
   dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+    bool result = false;
     int64_t sa = src1.Int(vform, i);
     int64_t sb = src2.Int(vform, i);
     uint64_t ua = src1.Uint(vform, i);
     uint64_t ub = src2.Uint(vform, i);
-    bool result = false;
     switch (cond) {
       case eq:
-        result = (ua == ub);
+        result = (src1.Is(src2) || ua == ub);
         break;
       case ge:
-        result = (sa >= sb);
+        result = (src1.Is(src2) || sa >= sb);
         break;
       case gt:
-        result = (sa > sb);
+        result = (!src1.Is(src2) && sa > sb);
         break;
       case hi:
-        result = (ua > ub);
+        result = (!src1.Is(src2) && ua > ub);
         break;
       case hs:
-        result = (ua >= ub);
+        result = (src1.Is(src2) || ua >= ub);
         break;
       case lt:
-        result = (sa < sb);
+        result = (!src1.Is(src2) && sa < sb);
         break;
       case le:
-        result = (sa <= sb);
+        result = (src1.Is(src2) || sa <= sb);
         break;
       default:
         UNREACHABLE();
@@ -1023,7 +1023,8 @@ LogicVRegister Simulator::eor(VectorFormat vform, LogicVRegister dst,
                               const LogicVRegister& src2) {
   dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
-    dst.SetUint(vform, i, src1.Uint(vform, i) ^ src2.Uint(vform, i));
+    dst.SetUint(vform, i,
+                src1.Is(src2) ? 0 : src1.Uint(vform, i) ^ src2.Uint(vform, i));
   }
   return dst;
 }
@@ -1659,7 +1660,7 @@ LogicVRegister Simulator::suqadd(VectorFormat vform, LogicVRegister dst,
     uint64_t ub = src.UintLeftJustified(vform, i);
     uint64_t ur = sa + ub;
 
-    int64_t sr = bit_cast<int64_t>(ur);
+    int64_t sr = base::bit_cast<int64_t>(ur);
     if (sr < sa) {  // Test for signed positive saturation.
       dst.SetInt(vform, i, MaxIntFromFormat(vform));
     } else {
@@ -3219,42 +3220,22 @@ double Simulator::FPRoundInt(double value, FPRounding round_mode) {
 
 int32_t Simulator::FPToInt32(double value, FPRounding rmode) {
   value = FPRoundInt(value, rmode);
-  if (value >= kWMaxInt) {
-    return kWMaxInt;
-  } else if (value < kWMinInt) {
-    return kWMinInt;
-  }
-  return std::isnan(value) ? 0 : static_cast<int32_t>(value);
+  return base::saturated_cast<int32_t>(value);
 }
 
 int64_t Simulator::FPToInt64(double value, FPRounding rmode) {
   value = FPRoundInt(value, rmode);
-  if (value >= kXMaxInt) {
-    return kXMaxInt;
-  } else if (value < kXMinInt) {
-    return kXMinInt;
-  }
-  return std::isnan(value) ? 0 : static_cast<int64_t>(value);
+  return base::saturated_cast<int64_t>(value);
 }
 
 uint32_t Simulator::FPToUInt32(double value, FPRounding rmode) {
   value = FPRoundInt(value, rmode);
-  if (value >= kWMaxUInt) {
-    return kWMaxUInt;
-  } else if (value < 0.0) {
-    return 0;
-  }
-  return std::isnan(value) ? 0 : static_cast<uint32_t>(value);
+  return base::saturated_cast<uint32_t>(value);
 }
 
 uint64_t Simulator::FPToUInt64(double value, FPRounding rmode) {
   value = FPRoundInt(value, rmode);
-  if (value >= kXMaxUInt) {
-    return kXMaxUInt;
-  } else if (value < 0.0) {
-    return 0;
-  }
-  return std::isnan(value) ? 0 : static_cast<uint64_t>(value);
+  return base::saturated_cast<uint64_t>(value);
 }
 
 #define DEFINE_NEON_FP_VECTOR_OP(FN, OP, PROCNAN)                      \
@@ -3466,12 +3447,12 @@ LogicVRegister Simulator::fcmp_zero(VectorFormat vform, LogicVRegister dst,
   SimVRegister temp;
   if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     LogicVRegister zero_reg =
-        dup_immediate(vform, temp, bit_cast<uint32_t>(0.0f));
+        dup_immediate(vform, temp, base::bit_cast<uint32_t>(0.0f));
     fcmp<float>(vform, dst, src, zero_reg, cond);
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
     LogicVRegister zero_reg =
-        dup_immediate(vform, temp, bit_cast<uint64_t>(0.0));
+        dup_immediate(vform, temp, base::bit_cast<uint64_t>(0.0));
     fcmp<double>(vform, dst, src, zero_reg, cond);
   }
   return dst;
@@ -3971,7 +3952,7 @@ T Simulator::FPRecipSqrtEstimate(T op) {
       result_exp = (3068 - exp) / 2;
     }
 
-    uint64_t estimate = bit_cast<uint64_t>(recip_sqrt_estimate(scaled));
+    uint64_t estimate = base::bit_cast<uint64_t>(recip_sqrt_estimate(scaled));
 
     if (sizeof(T) == sizeof(float)) {
       uint32_t exp_bits = static_cast<uint32_t>(Bits(result_exp, 7, 0));

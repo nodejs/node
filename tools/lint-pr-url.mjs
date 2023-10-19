@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Usage:
-// git diff upstream/master...HEAD -G"pr-url:" -- "*.md" | \
+// git diff upstream/main...HEAD -G"pr-url:" -- "*.md" | \
 // ./tools/lint-pr-url.mjs <expected-pr-url>
 
 import process from 'node:process';
@@ -28,7 +28,7 @@ for await (const line of diff) {
   } else if (!validatePrUrl(line.match(prUrlDefinition)?.[1])) {
     console.warn(
       `::warning file=${currentFile},line=${currentLine++},col=${line.length}` +
-      '::pr-url doesn\'t match the URL of the current PR.'
+      '::pr-url doesn\'t match the URL of the current PR.',
     );
   } else if (line[0] !== '-') {
     // Increment line counter if line is not being deleted.

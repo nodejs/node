@@ -2,12 +2,11 @@
 require('../common');
 const fs = require('fs');
 const cp = require('child_process');
-const path = require('path');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const LOG_FILE = path.join(tmpdir.path, 'tick-processor.log');
+const LOG_FILE = tmpdir.resolve('tick-processor.log');
 const RETRY_TIMEOUT = 150;
 
 function runTest(test) {
@@ -17,7 +16,7 @@ function runTest(test) {
     '--prof',
     '-pe', test.code,
   ], {
-    stdio: [ 'ignore', 'pipe', 'inherit' ]
+    stdio: [ 'ignore', 'pipe', 'inherit' ],
   });
 
   let ticks = '';
@@ -39,7 +38,7 @@ function match(pattern, parent, ticks, flags = []) {
     ...flags,
     LOG_FILE,
   ], {
-    stdio: [ 'ignore', 'pipe', 'inherit' ]
+    stdio: [ 'ignore', 'pipe', 'inherit' ],
   });
 
   let out = '';

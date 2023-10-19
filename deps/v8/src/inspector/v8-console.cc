@@ -4,7 +4,13 @@
 
 #include "src/inspector/v8-console.h"
 
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-inspector.h"
+#include "include/v8-microtask-queue.h"
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
@@ -16,8 +22,7 @@
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
-
-#include "include/v8-inspector.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8_inspector {
 
@@ -162,14 +167,9 @@ class ConsoleHelper {
   int m_groupId;
 };
 
-void returnDataCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(info.Data());
-}
-
 void createBoundFunctionProperty(
     v8::Local<v8::Context> context, v8::Local<v8::Object> console,
     v8::Local<v8::Value> data, const char* name, v8::FunctionCallback callback,
-    const char* description = nullptr,
     v8::SideEffectType side_effect_type = v8::SideEffectType::kHasSideEffect) {
   v8::Local<v8::String> funcName =
       toV8StringInternalized(context->GetIsolate(), name);
@@ -179,18 +179,6 @@ void createBoundFunctionProperty(
            .ToLocal(&func))
     return;
   func->SetName(funcName);
-  if (description) {
-    v8::Local<v8::String> returnValue =
-        toV8String(context->GetIsolate(), description);
-    v8::Local<v8::Function> toStringFunction;
-    if (v8::Function::New(context, returnDataCallback, returnValue, 0,
-                          v8::ConstructorBehavior::kThrow,
-                          v8::SideEffectType::kHasNoSideEffect)
-            .ToLocal(&toStringFunction))
-      createDataProperty(context, func, toV8StringInternalized(
-                                            context->GetIsolate(), "toString"),
-                         toStringFunction);
-  }
   createDataProperty(context, console, funcName, func);
 }
 
@@ -202,54 +190,63 @@ V8Console::V8Console(V8InspectorImpl* inspector) : m_inspector(inspector) {}
 
 void V8Console::Debug(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Debug");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kDebug);
 }
 
 void V8Console::Error(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Error");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kError);
 }
 
 void V8Console::Info(const v8::debug::ConsoleCallArguments& info,
                      const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Info");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kInfo);
 }
 
 void V8Console::Log(const v8::debug::ConsoleCallArguments& info,
                     const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Log");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kLog);
 }
 
 void V8Console::Warn(const v8::debug::ConsoleCallArguments& info,
                      const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Warn");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kWarning);
 }
 
 void V8Console::Dir(const v8::debug::ConsoleCallArguments& info,
                     const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Dir");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kDir);
 }
 
 void V8Console::DirXml(const v8::debug::ConsoleCallArguments& info,
                        const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::DirXml");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kDirXML);
 }
 
 void V8Console::Table(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Table");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kTable);
 }
 
 void V8Console::Trace(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Trace");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCallWithDefaultArgument(ConsoleAPIType::kTrace,
                                      String16("console.trace"));
@@ -257,6 +254,7 @@ void V8Console::Trace(const v8::debug::ConsoleCallArguments& info,
 
 void V8Console::Group(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Group");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCallWithDefaultArgument(ConsoleAPIType::kStartGroup,
                                      String16("console.group"));
@@ -265,6 +263,8 @@ void V8Console::Group(const v8::debug::ConsoleCallArguments& info,
 void V8Console::GroupCollapsed(
     const v8::debug::ConsoleCallArguments& info,
     const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+               "V8Console::GroupCollapsed");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCallWithDefaultArgument(ConsoleAPIType::kStartGroupCollapsed,
                                      String16("console.groupCollapsed"));
@@ -272,6 +272,8 @@ void V8Console::GroupCollapsed(
 
 void V8Console::GroupEnd(const v8::debug::ConsoleCallArguments& info,
                          const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+               "V8Console::GroupEnd");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCallWithDefaultArgument(ConsoleAPIType::kEndGroup,
                                      String16("console.groupEnd"));
@@ -279,6 +281,7 @@ void V8Console::GroupEnd(const v8::debug::ConsoleCallArguments& info,
 
 void V8Console::Clear(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Clear");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   if (!helper.groupId()) return;
   m_inspector->client()->consoleClear(helper.groupId());
@@ -293,7 +296,7 @@ static String16 identifierFromTitleOrStackTrace(
   String16 identifier;
   if (title.isEmpty()) {
     std::unique_ptr<V8StackTraceImpl> stackTrace =
-        V8StackTraceImpl::capture(inspector->debugger(), helper.groupId(), 1);
+        V8StackTraceImpl::capture(inspector->debugger(), 1);
     if (stackTrace && !stackTrace->isEmpty()) {
       identifier = toString16(stackTrace->topSourceURL()) + ":" +
                    String16::fromInteger(stackTrace->topLineNumber());
@@ -309,6 +312,8 @@ static String16 identifierFromTitleOrStackTrace(
 
 void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                     "V8Console::Count");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   String16 title = helper.firstArgToString(String16("default"), false);
   String16 identifier = identifierFromTitleOrStackTrace(
@@ -320,10 +325,15 @@ void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
   helper.reportCallWithArgument(
       ConsoleAPIType::kCount,
       title.isEmpty() ? countString : (title + ": " + countString));
+  TRACE_EVENT_END2(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                   "V8Console::Count", "title",
+                   TRACE_STR_COPY(title.utf8().c_str()), "count", count);
 }
 
 void V8Console::CountReset(const v8::debug::ConsoleCallArguments& info,
                            const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                     "V8Console::CountReset");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   String16 title = helper.firstArgToString(String16("default"), false);
   String16 identifier = identifierFromTitleOrStackTrace(
@@ -334,10 +344,14 @@ void V8Console::CountReset(const v8::debug::ConsoleCallArguments& info,
     helper.reportCallWithArgument(ConsoleAPIType::kWarning,
                                   "Count for '" + title + "' does not exist");
   }
+  TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                   "V8Console::CountReset", "title",
+                   TRACE_STR_COPY(title.utf8().c_str()));
 }
 
 void V8Console::Assert(const v8::debug::ConsoleCallArguments& info,
                        const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Assert");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   DCHECK(!helper.firstArgToBoolean(false));
 
@@ -352,20 +366,30 @@ void V8Console::Assert(const v8::debug::ConsoleCallArguments& info,
 
 void V8Console::Profile(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                     "V8Console::Profile");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  helper.forEachSession([&helper](V8InspectorSessionImpl* session) {
-    session->profilerAgent()->consoleProfile(
-        helper.firstArgToString(String16()));
+  String16 title = helper.firstArgToString(String16());
+  helper.forEachSession([&title](V8InspectorSessionImpl* session) {
+    session->profilerAgent()->consoleProfile(title);
   });
+  TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                   "V8Console::Profile", "title",
+                   TRACE_STR_COPY(title.utf8().c_str()));
 }
 
 void V8Console::ProfileEnd(const v8::debug::ConsoleCallArguments& info,
                            const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                     "V8Console::ProfileEnd");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  helper.forEachSession([&helper](V8InspectorSessionImpl* session) {
-    session->profilerAgent()->consoleProfileEnd(
-        helper.firstArgToString(String16()));
+  String16 title = helper.firstArgToString(String16());
+  helper.forEachSession([&title](V8InspectorSessionImpl* session) {
+    session->profilerAgent()->consoleProfileEnd(title);
   });
+  TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                   "V8Console::ProfileEnd", "title",
+                   TRACE_STR_COPY(title.utf8().c_str()));
 }
 
 static void timeFunction(const v8::debug::ConsoleCallArguments& info,
@@ -422,21 +446,26 @@ static void timeEndFunction(const v8::debug::ConsoleCallArguments& info,
 
 void V8Console::Time(const v8::debug::ConsoleCallArguments& info,
                      const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Time");
   timeFunction(info, consoleContext, false, m_inspector);
 }
 
 void V8Console::TimeLog(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeLog");
   timeEndFunction(info, consoleContext, true, m_inspector);
 }
 
 void V8Console::TimeEnd(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeEnd");
   timeEndFunction(info, consoleContext, false, m_inspector);
 }
 
 void V8Console::TimeStamp(const v8::debug::ConsoleCallArguments& info,
                           const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+               "V8Console::TimeStamp");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   String16 title = helper.firstArgToString(String16());
   m_inspector->client()->consoleTimeStamp(toStringView(title));
@@ -458,6 +487,116 @@ void V8Console::memorySetterCallback(
   // We can't make the attribute readonly as it breaks existing code that relies
   // on being able to assign to console.memory in strict mode. Instead, the
   // setter just ignores the passed value.  http://crbug.com/468611
+}
+
+void V8Console::createTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+
+  v8::debug::RecordAsyncStackTaggingCreateTaskCall(isolate);
+
+  if (info.Length() < 1 || !info[0]->IsString() ||
+      !info[0].As<v8::String>()->Length()) {
+    isolate->ThrowError("First argument must be a non-empty string.");
+    return;
+  }
+
+  v8::Local<v8::Object> task = taskTemplate()
+                                   ->NewInstance(isolate->GetCurrentContext())
+                                   .ToLocalChecked();
+
+  auto taskInfo = std::make_unique<TaskInfo>(isolate, this, task);
+  void* taskId = taskInfo->Id();
+  auto [iter, inserted] = m_tasks.emplace(taskId, std::move(taskInfo));
+  CHECK(inserted);
+
+  String16 nameArgument = toProtocolString(isolate, info[0].As<v8::String>());
+  StringView taskName =
+      StringView(nameArgument.characters16(), nameArgument.length());
+  m_inspector->asyncTaskScheduled(taskName, taskId, /* recurring */ true);
+
+  info.GetReturnValue().Set(task);
+}
+
+void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  if (info.Length() < 1 || !info[0]->IsFunction()) {
+    isolate->ThrowError("First argument must be a function.");
+    return;
+  }
+  v8::Local<v8::Function> function = info[0].As<v8::Function>();
+
+  v8::Local<v8::Object> task = info.This();
+  v8::Local<v8::Value> maybeTaskExternal;
+  if (!task->GetPrivate(isolate->GetCurrentContext(), taskInfoKey())
+           .ToLocal(&maybeTaskExternal)) {
+    // An exception is already thrown.
+    return;
+  }
+
+  if (!maybeTaskExternal->IsExternal()) {
+    isolate->ThrowError("'run' called with illegal receiver.");
+    return;
+  }
+
+  v8::Local<v8::External> taskExternal = maybeTaskExternal.As<v8::External>();
+  TaskInfo* taskInfo = reinterpret_cast<TaskInfo*>(taskExternal->Value());
+
+  m_inspector->asyncTaskStarted(taskInfo->Id());
+  v8::Local<v8::Value> result;
+  if (function
+          ->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), 0, {})
+          .ToLocal(&result)) {
+    info.GetReturnValue().Set(result);
+  }
+  m_inspector->asyncTaskFinished(taskInfo->Id());
+}
+
+v8::Local<v8::Private> V8Console::taskInfoKey() {
+  v8::Isolate* isolate = m_inspector->isolate();
+  if (m_taskInfoKey.IsEmpty()) {
+    m_taskInfoKey.Reset(isolate, v8::Private::New(isolate));
+  }
+  return m_taskInfoKey.Get(isolate);
+}
+
+v8::Local<v8::ObjectTemplate> V8Console::taskTemplate() {
+  v8::Isolate* isolate = m_inspector->isolate();
+  if (!m_taskTemplate.IsEmpty()) {
+    return m_taskTemplate.Get(isolate);
+  }
+
+  v8::Local<v8::External> data = v8::External::New(isolate, this);
+  v8::Local<v8::ObjectTemplate> taskTemplate = v8::ObjectTemplate::New(isolate);
+  v8::Local<v8::FunctionTemplate> funcTemplate = v8::FunctionTemplate::New(
+      isolate, &V8Console::call<&V8Console::runTask>, data);
+  taskTemplate->Set(isolate, "run", funcTemplate);
+
+  m_taskTemplate.Reset(isolate, taskTemplate);
+  return taskTemplate;
+}
+
+void V8Console::cancelConsoleTask(TaskInfo* taskInfo) {
+  m_inspector->asyncTaskCanceled(taskInfo->Id());
+  m_tasks.erase(taskInfo->Id());
+}
+
+namespace {
+
+void cleanupTaskInfo(const v8::WeakCallbackInfo<TaskInfo>& info) {
+  TaskInfo* task = info.GetParameter();
+  CHECK(task);
+  task->Cancel();
+}
+
+}  // namespace
+
+TaskInfo::TaskInfo(v8::Isolate* isolate, V8Console* console,
+                   v8::Local<v8::Object> task)
+    : m_task(isolate, task), m_console(console) {
+  task->SetPrivate(isolate->GetCurrentContext(), console->taskInfoKey(),
+                   v8::External::New(isolate, this))
+      .Check();
+  m_task.SetWeak(this, cleanupTaskInfo, v8::WeakCallbackType::kParameter);
 }
 
 void V8Console::keysCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
@@ -498,11 +637,11 @@ void V8Console::valuesCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   info.GetReturnValue().Set(values);
 }
 
-static void setFunctionBreakpoint(
-    ConsoleHelper& helper,  // NOLINT(runtime/references)
-    int sessionId, v8::Local<v8::Function> function,
-    V8DebuggerAgentImpl::BreakpointSource source,
-    v8::Local<v8::String> condition, bool enable) {
+static void setFunctionBreakpoint(ConsoleHelper& helper, int sessionId,
+                                  v8::Local<v8::Function> function,
+                                  V8DebuggerAgentImpl::BreakpointSource source,
+                                  v8::Local<v8::String> condition,
+                                  bool enable) {
   V8InspectorSessionImpl* session = helper.session(sessionId);
   if (session == nullptr) return;
   if (!session->debuggerAgent()->enabled()) return;
@@ -557,8 +696,9 @@ void V8Console::monitorFunctionCallback(
   else
     builder.append(functionName);
   builder.append(
-      " called\" + (arguments.length > 0 ? \" with arguments: \" + "
-      "Array.prototype.join.call(arguments, \", \") : \"\")) && false");
+      " called\" + (typeof arguments !== \"undefined\" && arguments.length > 0 "
+      "? \" with arguments: \" + Array.prototype.join.call(arguments, \", \") "
+      ": \"\")) && false");
   setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::MonitorCommandBreakpointSource,
                         toV8String(info.GetIsolate(), builder.toString()),
@@ -596,7 +736,7 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
   if (!injectedScript) return;
   std::unique_ptr<protocol::Runtime::RemoteObject> wrappedObject;
   protocol::Response response = injectedScript->wrapObject(
-      value, "", WrapMode::kNoPreview, &wrappedObject);
+      value, "", WrapOptions({WrapMode::kIdOnly}), &wrappedObject);
   if (!response.IsSuccess()) return;
 
   std::unique_ptr<protocol::DictionaryValue> hints =
@@ -607,8 +747,8 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
     hints->setBoolean("queryObjects", true);
   }
   if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
-    session->runtimeAgent()->inspect(std::move(wrappedObject),
-                                     std::move(hints));
+    session->runtimeAgent()->inspect(std::move(wrappedObject), std::move(hints),
+                                     helper.contextId());
   }
 }
 
@@ -679,10 +819,22 @@ void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
       static_cast<v8::PropertyAttribute>(v8::None), v8::DEFAULT);
 }
 
+void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
+                                            v8::Local<v8::Object> console) {
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::Local<v8::External> data = v8::External::New(isolate, this);
+
+  v8::MicrotasksScope microtasksScope(context,
+                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
+
+  createBoundFunctionProperty(context, console, data, "createTask",
+                              &V8Console::call<&V8Console::createTask>);
+}
+
 v8::Local<v8::Object> V8Console::createCommandLineAPI(
     v8::Local<v8::Context> context, int sessionId) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::Object> commandLineAPI = v8::Object::New(isolate);
@@ -696,80 +848,62 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   *static_cast<CommandLineAPIData*>(data->GetBackingStore()->Data()) =
       CommandLineAPIData(this, sessionId);
   createBoundFunctionProperty(context, commandLineAPI, data, "dir",
-                              &V8Console::call<&V8Console::Dir>,
-                              "function dir(value) { [Command Line API] }");
+                              &V8Console::call<&V8Console::Dir>);
   createBoundFunctionProperty(context, commandLineAPI, data, "dirxml",
-                              &V8Console::call<&V8Console::DirXml>,
-                              "function dirxml(value) { [Command Line API] }");
+                              &V8Console::call<&V8Console::DirXml>);
   createBoundFunctionProperty(context, commandLineAPI, data, "profile",
-                              &V8Console::call<&V8Console::Profile>,
-                              "function profile(title) { [Command Line API] }");
-  createBoundFunctionProperty(
-      context, commandLineAPI, data, "profileEnd",
-      &V8Console::call<&V8Console::ProfileEnd>,
-      "function profileEnd(title) { [Command Line API] }");
+                              &V8Console::call<&V8Console::Profile>);
+  createBoundFunctionProperty(context, commandLineAPI, data, "profileEnd",
+                              &V8Console::call<&V8Console::ProfileEnd>);
   createBoundFunctionProperty(context, commandLineAPI, data, "clear",
-                              &V8Console::call<&V8Console::Clear>,
-                              "function clear() { [Command Line API] }");
-  createBoundFunctionProperty(
-      context, commandLineAPI, data, "table",
-      &V8Console::call<&V8Console::Table>,
-      "function table(data, [columns]) { [Command Line API] }");
+                              &V8Console::call<&V8Console::Clear>);
+  createBoundFunctionProperty(context, commandLineAPI, data, "table",
+                              &V8Console::call<&V8Console::Table>);
 
   createBoundFunctionProperty(context, commandLineAPI, data, "keys",
                               &V8Console::call<&V8Console::keysCallback>,
-                              "function keys(object) { [Command Line API] }",
                               v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "values",
                               &V8Console::call<&V8Console::valuesCallback>,
-                              "function values(object) { [Command Line API] }",
                               v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "debug",
-      &V8Console::call<&V8Console::debugFunctionCallback>,
-      "function debug(function, condition) { [Command Line API] }");
+      &V8Console::call<&V8Console::debugFunctionCallback>);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "undebug",
-      &V8Console::call<&V8Console::undebugFunctionCallback>,
-      "function undebug(function) { [Command Line API] }");
+      &V8Console::call<&V8Console::undebugFunctionCallback>);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "monitor",
-      &V8Console::call<&V8Console::monitorFunctionCallback>,
-      "function monitor(function) { [Command Line API] }");
+      &V8Console::call<&V8Console::monitorFunctionCallback>);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "unmonitor",
-      &V8Console::call<&V8Console::unmonitorFunctionCallback>,
-      "function unmonitor(function) { [Command Line API] }");
-  createBoundFunctionProperty(
-      context, commandLineAPI, data, "inspect",
-      &V8Console::call<&V8Console::inspectCallback>,
-      "function inspect(object) { [Command Line API] }");
+      &V8Console::call<&V8Console::unmonitorFunctionCallback>);
+  createBoundFunctionProperty(context, commandLineAPI, data, "inspect",
+                              &V8Console::call<&V8Console::inspectCallback>);
   createBoundFunctionProperty(context, commandLineAPI, data, "copy",
-                              &V8Console::call<&V8Console::copyCallback>,
-                              "function copy(value) { [Command Line API] }");
+                              &V8Console::call<&V8Console::copyCallback>);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "queryObjects",
-      &V8Console::call<&V8Console::queryObjectsCallback>,
-      "function queryObjects(constructor) { [Command Line API] }");
+      &V8Console::call<&V8Console::queryObjectsCallback>);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "$_",
-      &V8Console::call<&V8Console::lastEvaluationResultCallback>, nullptr,
+      &V8Console::call<&V8Console::lastEvaluationResultCallback>,
       v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$0",
                               &V8Console::call<&V8Console::inspectedObject0>,
-                              nullptr, v8::SideEffectType::kHasNoSideEffect);
+                              v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$1",
                               &V8Console::call<&V8Console::inspectedObject1>,
-                              nullptr, v8::SideEffectType::kHasNoSideEffect);
+                              v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$2",
                               &V8Console::call<&V8Console::inspectedObject2>,
-                              nullptr, v8::SideEffectType::kHasNoSideEffect);
+                              v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$3",
                               &V8Console::call<&V8Console::inspectedObject3>,
-                              nullptr, v8::SideEffectType::kHasNoSideEffect);
+                              v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$4",
                               &V8Console::call<&V8Console::inspectedObject4>,
-                              nullptr, v8::SideEffectType::kHasNoSideEffect);
+                              v8::SideEffectType::kHasNoSideEffect);
 
   m_inspector->client()->installAdditionalCommandLineAPI(context,
                                                          commandLineAPI);
@@ -799,7 +933,7 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
   if (isCommandLineAPIGetter(
           toProtocolStringWithTypeCheck(info.GetIsolate(), name))) {
     DCHECK(value->IsFunction());
-    v8::MicrotasksScope microtasks(info.GetIsolate(),
+    v8::MicrotasksScope microtasks(context,
                                    v8::MicrotasksScope::kDoNotRunMicrotasks);
     if (value.As<v8::Function>()
             ->Call(context, commandLineAPI, 0, nullptr)
@@ -830,7 +964,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
       m_commandLineAPI(commandLineAPI),
       m_global(global),
       m_installedMethods(v8::Set::New(context->GetIsolate())) {
-  v8::MicrotasksScope microtasksScope(context->GetIsolate(),
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> names;
   if (!m_commandLineAPI->GetOwnPropertyNames(context).ToLocal(&names)) return;
@@ -860,7 +994,9 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
 }
 
 V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
-  v8::MicrotasksScope microtasksScope(m_context->GetIsolate(),
+  auto isolate = m_context->GetIsolate();
+  if (isolate->IsExecutionTerminating()) return;
+  v8::MicrotasksScope microtasksScope(m_context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   *static_cast<CommandLineAPIScope**>(
       m_thisReference->GetBackingStore()->Data()) = nullptr;

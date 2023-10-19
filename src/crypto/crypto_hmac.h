@@ -3,11 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "base_object.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_sig.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer.h"
-#include "base_object.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "v8.h"
@@ -17,6 +16,7 @@ namespace crypto {
 class Hmac : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Hmac)

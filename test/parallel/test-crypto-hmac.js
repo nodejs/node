@@ -422,8 +422,8 @@ assert.strictEqual(
   }
   {
     const h = crypto.createHmac('sha1', 'key').update('data');
-    assert.deepStrictEqual(h.digest('latin1'), expected);
-    assert.deepStrictEqual(h.digest('latin1'), '');
+    assert.strictEqual(h.digest('latin1'), expected);
+    assert.strictEqual(h.digest('latin1'), '');
   }
 }
 
@@ -440,8 +440,8 @@ assert.strictEqual(
   }
   {
     const h = crypto.createHmac('sha1', 'key');
-    assert.deepStrictEqual(h.digest('latin1'), expected);
-    assert.deepStrictEqual(h.digest('latin1'), '');
+    assert.strictEqual(h.digest('latin1'), expected);
+    assert.strictEqual(h.digest('latin1'), '');
   }
 }
 
@@ -449,4 +449,13 @@ assert.strictEqual(
   assert.throws(
     () => crypto.createHmac('sha7', 'key'),
     /Invalid digest/);
+}
+
+{
+  const buf = Buffer.alloc(0);
+  const keyObject = crypto.createSecretKey(Buffer.alloc(0));
+  assert.deepStrictEqual(
+    crypto.createHmac('sha256', buf).update('foo').digest(),
+    crypto.createHmac('sha256', keyObject).update('foo').digest(),
+  );
 }

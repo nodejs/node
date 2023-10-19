@@ -8,7 +8,7 @@
 #include <sstream>
 #include <string>
 
-#include "src/base/platform/wrappers.h"
+#include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"
@@ -23,12 +23,15 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/scheduler.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/vector.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/function-body-decoder.h"
+#include "src/wasm/names-provider.h"
+#include "src/wasm/string-builder.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -36,8 +39,8 @@ namespace compiler {
 
 const char* get_cached_trace_turbo_filename(OptimizedCompilationInfo* info) {
   if (!info->trace_turbo_filename()) {
-    info->set_trace_turbo_filename(
-        GetVisualizerLogFileName(info, FLAG_trace_turbo_path, nullptr, "json"));
+    info->set_trace_turbo_filename(GetVisualizerLogFileName(
+        info, v8_flags.trace_turbo_path, nullptr, "json"));
   }
   return info->trace_turbo_filename();
 }
@@ -65,29 +68,16 @@ std::ostream& operator<<(std::ostream& out, const NodeOriginAsJSON& asJSON) {
   return out;
 }
 
-class JSONEscaped {
- public:
-  explicit JSONEscaped(const std::ostringstream& os) : str_(os.str()) {}
-
-  friend std::ostream& operator<<(std::ostream& os, const JSONEscaped& e) {
-    for (char c : e.str_) PipeCharacter(os, c);
-    return os;
-  }
-
- private:
-  static std::ostream& PipeCharacter(std::ostream& os, char c) {
-    if (c == '"') return os << "\\\"";
-    if (c == '\\') return os << "\\\\";
-    if (c == '\b') return os << "\\b";
-    if (c == '\f') return os << "\\f";
-    if (c == '\n') return os << "\\n";
-    if (c == '\r') return os << "\\r";
-    if (c == '\t') return os << "\\t";
-    return os << c;
-  }
-
-  const std::string str_;
-};
+void JsonPrintBytecodeSource(std::ostream& os, int source_id,
+                             std::unique_ptr<char[]> function_name,
+                             Handle<BytecodeArray> bytecode_array) {
+  os << "\"" << source_id << "\" : {";
+  os << "\"sourceId\": " << source_id;
+  os << ", \"functionName\": \"" << function_name.get() << "\"";
+  os << ", \"bytecodeSource\": ";
+  bytecode_array->PrintJson(os);
+  os << "}";
+}
 
 void JsonPrintFunctionSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
@@ -101,24 +91,60 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
 
   int start = 0;
   int end = 0;
-  if (!script.is_null() && !script->IsUndefined(isolate) && !shared.is_null()) {
-    Object source_name = script->name();
+  if (!script.is_null() && !IsUndefined(*script, isolate) &&
+      !shared.is_null()) {
+    Tagged<Object> source_name = script->name();
     os << ", \"sourceName\": \"";
-    if (source_name.IsString()) {
+    if (IsString(source_name)) {
       std::ostringstream escaped_name;
-      escaped_name << String::cast(source_name).ToCString().get();
+      escaped_name << String::cast(source_name)->ToCString().get();
       os << JSONEscaped(escaped_name);
     }
     os << "\"";
     {
-      DisallowGarbageCollection no_gc;
       start = shared->StartPosition();
       end = shared->EndPosition();
       os << ", \"sourceText\": \"";
-      int len = shared->EndPosition() - start;
-      SubStringRange source(String::cast(script->source()), no_gc, start, len);
-      for (const auto& c : source) {
-        os << AsEscapedUC16ForJSON(c);
+      if (!IsUndefined(script->source())) {
+        DisallowGarbageCollection no_gc;
+        int len = shared->EndPosition() - start;
+        SubStringRange source(String::cast(script->source()), no_gc, start,
+                              len);
+        for (auto c : source) {
+          os << AsEscapedUC16ForJSON(c);
+        }
+#if V8_ENABLE_WEBASSEMBLY
+      } else if (shared->HasWasmExportedFunctionData()) {
+        Tagged<WasmExportedFunctionData> function_data =
+            shared->wasm_exported_function_data();
+        Handle<WasmInstanceObject> instance(function_data->instance(), isolate);
+        const wasm::WasmModule* module = instance->module();
+        wasm::NativeModule* native_module =
+            instance->module_object()->native_module();
+
+        // Add a comment with the wasm debug name as the sourceName above will
+        // be something like "wasm://wasm/5b5cdc9e:js-to-wasm:n:i".
+        std::ostringstream str;
+        wasm::StringBuilder sb;
+        sb << "// debug name: ";
+        native_module->GetNamesProvider()->PrintFunctionName(
+            sb, function_data->function_index(),
+            wasm::NamesProvider::kDevTools);
+        sb << '\n';
+        str.write(sb.start(), sb.length());
+
+        wasm::WireBytesRef wire_bytes_ref =
+            module->functions[function_data->function_index()].code;
+        base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
+            wire_bytes_ref.offset(), wire_bytes_ref.end_offset()));
+        wasm::FunctionBody func_body{function_data->sig(),
+                                     wire_bytes_ref.offset(), bytes.begin(),
+                                     bytes.end()};
+        AccountingAllocator allocator;
+        wasm::PrintRawWasmCode(&allocator, func_body, module,
+                               wasm::kPrintLocals, str);
+        os << JSONEscaped(str);
+#endif  // V8_ENABLE_WEBASSEMBLY
       }
       os << "\"";
     }
@@ -161,6 +187,32 @@ void JsonPrintInlinedFunctionInfo(
 
 }  // namespace
 
+void JsonPrintAllBytecodeSources(std::ostream& os,
+                                 OptimizedCompilationInfo* info) {
+  os << "\"bytecodeSources\" : {";
+
+  JsonPrintBytecodeSource(os, -1, info->shared_info()->DebugNameCStr(),
+                          info->bytecode_array());
+
+  const auto& inlined = info->inlined_functions();
+  SourceIdAssigner id_assigner(info->inlined_functions().size());
+
+  for (unsigned id = 0; id < inlined.size(); id++) {
+    Handle<SharedFunctionInfo> shared_info = inlined[id].shared_info;
+#if V8_ENABLE_WEBASSEMBLY
+    if (shared_info->HasWasmFunctionData()) {
+      continue;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    os << ", ";
+    const int source_id = id_assigner.GetIdFor(shared_info);
+    JsonPrintBytecodeSource(os, source_id, shared_info->DebugNameCStr(),
+                            inlined[id].bytecode_array);
+  }
+
+  os << "}";
+}
+
 void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,
                                      Isolate* isolate) {
@@ -197,31 +249,93 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   os << "}";
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+void JsonPrintAllSourceWithPositionsWasm(
+    std::ostream& os, const wasm::WasmModule* module,
+    const wasm::WireBytesStorage* wire_bytes,
+    base::Vector<WasmInliningPosition> positions) {
+  // Filter out duplicate sources. (A single wasm function might be inlined more
+  // than once.)
+  std::vector<int /*function id*/> sources;
+  std::unordered_map<int /*function id*/, size_t /*source index*/> source_map;
+  for (WasmInliningPosition pos : positions) {
+    auto [_, inserted] =
+        source_map.emplace(pos.inlinee_func_index, sources.size());
+    if (inserted) {
+      // The function wasn't inlined yet. Add a new entry to the sources.
+      // The hashmap stores the index to the entry in the source map.
+      sources.push_back(pos.inlinee_func_index);
+    }
+    // Don't do anything if it was already inserted.
+  }
+
+  // Print inlining sources.
+  os << "\"sources\": {";
+  for (size_t i = 0; i < sources.size(); ++i) {
+    if (i != 0) os << ", ";
+    int function_id = sources[i];
+    const wasm::WasmFunction& fct = module->functions[function_id];
+    os << '"' << i << "\": {\"sourceId\": " << i << ", \"functionName\": \""
+       << fct.func_index << "\", \"sourceName\": \"\", \"sourceText\": \"";
+    wasm::WireBytesRef wire_bytes_ref = fct.code;
+    base::Vector<const uint8_t> bytes = wire_bytes->GetCode(wire_bytes_ref);
+    wasm::FunctionBody func_body{fct.sig, wire_bytes_ref.offset(),
+                                 bytes.begin(), bytes.end()};
+    AccountingAllocator allocator;
+    std::ostringstream wasm_str;
+    wasm::PrintRawWasmCode(&allocator, func_body, module, wasm::kPrintLocals,
+                           wasm_str);
+    os << JSONEscaped(wasm_str) << "\"}";
+  }
+  os << "},\n";
+  // Print inlining mappings.
+  // This maps the inlining position to the deduplicated source in the sources
+  // object generated above.
+  os << "\"inlinings\": {";
+  for (size_t i = 0; i < positions.size(); ++i) {
+    if (i != 0) os << ", ";
+    size_t source_id = source_map.find(positions[i].inlinee_func_index)->second;
+    SourcePosition inlining_pos = positions[i].caller_pos;
+    os << '"' << i << "\": {\"inliningId\": " << i
+       << ", \"sourceId\": " << source_id
+       << ", \"inliningPosition\": " << AsJSON(inlining_pos) << "}";
+  }
+}
+#endif
+
 std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix) {
-  EmbeddedVector<char, 256> filename(0);
+  base::EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
+  const char* file_prefix = v8_flags.trace_turbo_file_prefix.value();
   int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
   if (strlen(debug_name.get()) > 0) {
-    SNPrintF(filename, "turbo-%s-%i", debug_name.get(), optimization_id);
-  } else if (info->has_shared_info()) {
-    SNPrintF(filename, "turbo-%p-%i",
-             reinterpret_cast<void*>(info->shared_info()->address()),
+    if (strcmp(debug_name.get(), "WasmJSFastApiCall") == 0) {
+      // Don't clobber one wrapper's output with another's.
+      static int fast_call_wrappers_count = 0;
+      optimization_id = ++fast_call_wrappers_count;
+    }
+    SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.get(),
              optimization_id);
+  } else if (info->has_shared_info()) {
+    SNPrintF(filename,  "%s-%p-%i", file_prefix,
+            reinterpret_cast<void*>(info->shared_info()->address()),
+            optimization_id);
   } else {
-    SNPrintF(filename, "turbo-none-%i", optimization_id);
+    SNPrintF(filename, "%s-none-%i", file_prefix, optimization_id);
   }
-  EmbeddedVector<char, 256> source_file(0);
+  base::EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
-  if (FLAG_trace_file_names && info->has_shared_info() &&
-      info->shared_info()->script().IsScript()) {
-    Object source_name = Script::cast(info->shared_info()->script()).name();
-    if (source_name.IsString()) {
-      String str = String::cast(source_name);
-      if (str.length() > 0) {
-        SNPrintF(source_file, "%s", str.ToCString().get());
+  if (v8_flags.trace_file_names && info->has_shared_info() &&
+      IsScript(info->shared_info()->script())) {
+    Tagged<Object> source_name =
+        Script::cast(info->shared_info()->script())->name();
+    if (IsString(source_name)) {
+      Tagged<String> str = String::cast(source_name);
+      if (str->length() > 0) {
+        SNPrintF(source_file, "%s", str->ToCString().get());
         std::replace(source_file.begin(),
                      source_file.begin() + source_file.length(), '/', '_');
         source_available = true;
@@ -233,7 +347,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   std::replace(filename.begin(), filename.begin() + filename.length(), ':',
                '-');
 
-  EmbeddedVector<char, 256> base_dir;
+  base::EmbeddedVector<char, 256> base_dir;
   if (optional_base_dir != nullptr) {
     SNPrintF(base_dir, "%s%c", optional_base_dir,
              base::OS::DirectorySeparator());
@@ -241,7 +355,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
     base_dir[0] = '\0';
   }
 
-  EmbeddedVector<char, 256> full_filename;
+  base::EmbeddedVector<char, 256> full_filename;
   if (phase == nullptr && !source_available) {
     SNPrintF(full_filename, "%s%s.%s", base_dir.begin(), filename.begin(),
              suffix);
@@ -257,7 +371,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   }
 
   char* buffer = new char[full_filename.length() + 1];
-  base::Memcpy(buffer, full_filename.begin(), full_filename.length());
+  memcpy(buffer, full_filename.begin(), full_filename.length());
   buffer[full_filename.length()] = '\0';
   return std::unique_ptr<char[]>(buffer);
 }
@@ -268,160 +382,146 @@ static const char* SafeMnemonic(Node* node) {
   return node == nullptr ? "null" : node->op()->mnemonic();
 }
 
-class JSONGraphNodeWriter {
- public:
-  JSONGraphNodeWriter(std::ostream& os, Zone* zone, const Graph* graph,
-                      const SourcePositionTable* positions,
-                      const NodeOriginTable* origins)
-      : os_(os),
-        all_(zone, graph, false),
-        live_(zone, graph, true),
-        positions_(positions),
-        origins_(origins),
-        first_node_(true) {}
-  JSONGraphNodeWriter(const JSONGraphNodeWriter&) = delete;
-  JSONGraphNodeWriter& operator=(const JSONGraphNodeWriter&) = delete;
+JSONGraphWriter::JSONGraphWriter(std::ostream& os, const Graph* graph,
+                                 const SourcePositionTable* positions,
+                                 const NodeOriginTable* origins)
+    : os_(os),
+      zone_(nullptr),
+      graph_(graph),
+      positions_(positions),
+      origins_(origins),
+      first_node_(true),
+      first_edge_(true) {}
 
-  void Print() {
-    for (Node* const node : all_.reachable) PrintNode(node);
-    os_ << "\n";
-  }
+void JSONGraphWriter::PrintPhase(const char* phase_name) {
+  os_ << "{\"name\":\"" << phase_name << "\",\"type\":\"graph\",\"data\":";
+  Print();
+  os_ << "},\n";
+}
 
-  void PrintNode(Node* node) {
-    if (first_node_) {
-      first_node_ = false;
-    } else {
-      os_ << ",\n";
-    }
-    std::ostringstream label, title, properties;
-    node->op()->PrintTo(label, Operator::PrintVerbosity::kSilent);
-    node->op()->PrintTo(title, Operator::PrintVerbosity::kVerbose);
-    node->op()->PrintPropsTo(properties);
-    os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << JSONEscaped(label)
-        << "\""
-        << ",\"title\":\"" << JSONEscaped(title) << "\""
-        << ",\"live\": " << (live_.IsLive(node) ? "true" : "false")
-        << ",\"properties\":\"" << JSONEscaped(properties) << "\"";
-    IrOpcode::Value opcode = node->opcode();
-    if (IrOpcode::IsPhiOpcode(opcode)) {
-      os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
-          << "]";
-      os_ << ",\"rankWithInput\":[" << NodeProperties::FirstControlIndex(node)
-          << "]";
-    } else if (opcode == IrOpcode::kIfTrue || opcode == IrOpcode::kIfFalse ||
-               opcode == IrOpcode::kLoop) {
-      os_ << ",\"rankInputs\":[" << NodeProperties::FirstControlIndex(node)
-          << "]";
-    }
-    if (opcode == IrOpcode::kBranch) {
-      os_ << ",\"rankInputs\":[0]";
-    }
-    if (positions_ != nullptr) {
-      SourcePosition position = positions_->GetSourcePosition(node);
-      if (position.IsKnown()) {
-        os_ << ", \"sourcePosition\" : " << AsJSON(position);
-      }
-    }
-    if (origins_) {
-      NodeOrigin origin = origins_->GetNodeOrigin(node);
-      if (origin.IsKnown()) {
-        os_ << ", \"origin\" : " << AsJSON(origin);
-      }
-    }
-    os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
-    os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
-                                                               : "false");
-    os_ << ",\"opinfo\":\"" << node->op()->ValueInputCount() << " v "
-        << node->op()->EffectInputCount() << " eff "
-        << node->op()->ControlInputCount() << " ctrl in, "
-        << node->op()->ValueOutputCount() << " v "
-        << node->op()->EffectOutputCount() << " eff "
-        << node->op()->ControlOutputCount() << " ctrl out\"";
-    if (NodeProperties::IsTyped(node)) {
-      Type type = NodeProperties::GetType(node);
-      std::ostringstream type_out;
-      type.PrintTo(type_out);
-      os_ << ",\"type\":\"" << JSONEscaped(type_out) << "\"";
-    }
-    os_ << "}";
-  }
-
- private:
-  std::ostream& os_;
-  AllNodes all_;
-  AllNodes live_;
-  const SourcePositionTable* positions_;
-  const NodeOriginTable* origins_;
-  bool first_node_;
-};
-
-
-class JSONGraphEdgeWriter {
- public:
-  JSONGraphEdgeWriter(std::ostream& os, Zone* zone, const Graph* graph)
-      : os_(os), all_(zone, graph, false), first_edge_(true) {}
-  JSONGraphEdgeWriter(const JSONGraphEdgeWriter&) = delete;
-  JSONGraphEdgeWriter& operator=(const JSONGraphEdgeWriter&) = delete;
-
-  void Print() {
-    for (Node* const node : all_.reachable) PrintEdges(node);
-    os_ << "\n";
-  }
-
-  void PrintEdges(Node* node) {
-    for (int i = 0; i < node->InputCount(); i++) {
-      Node* input = node->InputAt(i);
-      if (input == nullptr) continue;
-      PrintEdge(node, i, input);
-    }
-  }
-
-  void PrintEdge(Node* from, int index, Node* to) {
-    if (first_edge_) {
-      first_edge_ = false;
-    } else {
-      os_ << ",\n";
-    }
-    const char* edge_type = nullptr;
-    if (index < NodeProperties::FirstValueIndex(from)) {
-      edge_type = "unknown";
-    } else if (index < NodeProperties::FirstContextIndex(from)) {
-      edge_type = "value";
-    } else if (index < NodeProperties::FirstFrameStateIndex(from)) {
-      edge_type = "context";
-    } else if (index < NodeProperties::FirstEffectIndex(from)) {
-      edge_type = "frame-state";
-    } else if (index < NodeProperties::FirstControlIndex(from)) {
-      edge_type = "effect";
-    } else {
-      edge_type = "control";
-    }
-    os_ << "{\"source\":" << SafeId(to) << ",\"target\":" << SafeId(from)
-        << ",\"index\":" << index << ",\"type\":\"" << edge_type << "\"}";
-  }
-
- private:
-  std::ostream& os_;
-  AllNodes all_;
-  bool first_edge_;
-};
-
-std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
+void JSONGraphWriter::Print() {
   AccountingAllocator allocator;
   Zone tmp_zone(&allocator, ZONE_NAME);
-  os << "{\n\"nodes\":[";
-  JSONGraphNodeWriter(os, &tmp_zone, &ad.graph, ad.positions, ad.origins)
-      .Print();
-  os << "],\n\"edges\":[";
-  JSONGraphEdgeWriter(os, &tmp_zone, &ad.graph).Print();
-  os << "]}";
+  zone_ = &tmp_zone;
+
+  AllNodes all(zone_, graph_, false);
+  AllNodes live(zone_, graph_, true);
+
+  os_ << "{\n\"nodes\":[";
+  for (Node* const node : all.reachable) PrintNode(node, live.IsLive(node));
+  os_ << "\n";
+  os_ << "],\n\"edges\":[";
+  for (Node* const node : all.reachable) PrintEdges(node);
+  os_ << "\n";
+  os_ << "]}";
+  zone_ = nullptr;
+}
+
+void JSONGraphWriter::PrintNode(Node* node, bool is_live) {
+  if (first_node_) {
+    first_node_ = false;
+  } else {
+    os_ << ",\n";
+  }
+  std::ostringstream label, title, properties;
+  node->op()->PrintTo(label, Operator::PrintVerbosity::kSilent);
+  node->op()->PrintTo(title, Operator::PrintVerbosity::kVerbose);
+  node->op()->PrintPropsTo(properties);
+  os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << JSONEscaped(label)
+      << "\""
+      << ",\"title\":\"" << JSONEscaped(title) << "\""
+      << ",\"live\": " << (is_live ? "true" : "false") << ",\"properties\":\""
+      << JSONEscaped(properties) << "\"";
+  IrOpcode::Value opcode = node->opcode();
+  if (IrOpcode::IsPhiOpcode(opcode)) {
+    os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
+        << "]";
+    os_ << ",\"rankWithInput\":[" << NodeProperties::FirstControlIndex(node)
+        << "]";
+  } else if (opcode == IrOpcode::kIfTrue || opcode == IrOpcode::kIfFalse ||
+             opcode == IrOpcode::kLoop) {
+    os_ << ",\"rankInputs\":[" << NodeProperties::FirstControlIndex(node)
+        << "]";
+  }
+  if (opcode == IrOpcode::kBranch) {
+    os_ << ",\"rankInputs\":[0]";
+  }
+  if (positions_ != nullptr) {
+    SourcePosition position = positions_->GetSourcePosition(node);
+    if (position.IsKnown()) {
+      os_ << ", \"sourcePosition\" : " << AsJSON(position);
+    }
+  }
+  if (origins_) {
+    NodeOrigin origin = origins_->GetNodeOrigin(node);
+    if (origin.IsKnown()) {
+      os_ << ", \"origin\" : " << AsJSON(origin);
+    }
+  }
+  os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
+  os_ << ",\"control\":"
+      << (NodeProperties::IsControl(node) ? "true" : "false");
+  os_ << ",\"opinfo\":\"" << node->op()->ValueInputCount() << " v "
+      << node->op()->EffectInputCount() << " eff "
+      << node->op()->ControlInputCount() << " ctrl in, "
+      << node->op()->ValueOutputCount() << " v "
+      << node->op()->EffectOutputCount() << " eff "
+      << node->op()->ControlOutputCount() << " ctrl out\"";
+  if (auto type_opt = GetType(node)) {
+    std::ostringstream type_out;
+    type_opt->PrintTo(type_out);
+    os_ << ",\"type\":\"" << JSONEscaped(type_out) << "\"";
+  }
+  os_ << "}";
+}
+
+void JSONGraphWriter::PrintEdges(Node* node) {
+  for (int i = 0; i < node->InputCount(); i++) {
+    Node* input = node->InputAt(i);
+    if (input == nullptr) continue;
+    PrintEdge(node, i, input);
+  }
+}
+
+void JSONGraphWriter::PrintEdge(Node* from, int index, Node* to) {
+  if (first_edge_) {
+    first_edge_ = false;
+  } else {
+    os_ << ",\n";
+  }
+  const char* edge_type = nullptr;
+  if (index < NodeProperties::FirstValueIndex(from)) {
+    edge_type = "unknown";
+  } else if (index < NodeProperties::FirstContextIndex(from)) {
+    edge_type = "value";
+  } else if (index < NodeProperties::FirstFrameStateIndex(from)) {
+    edge_type = "context";
+  } else if (index < NodeProperties::FirstEffectIndex(from)) {
+    edge_type = "frame-state";
+  } else if (index < NodeProperties::FirstControlIndex(from)) {
+    edge_type = "effect";
+  } else {
+    edge_type = "control";
+  }
+  os_ << "{\"source\":" << SafeId(to) << ",\"target\":" << SafeId(from)
+      << ",\"index\":" << index << ",\"type\":\"" << edge_type << "\"}";
+}
+
+base::Optional<Type> JSONGraphWriter::GetType(Node* node) {
+  if (!NodeProperties::IsTyped(node)) return base::nullopt;
+  return NodeProperties::GetType(node);
+}
+
+std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
+  JSONGraphWriter writer(os, &ad.graph, ad.positions, ad.origins);
+  writer.Print();
   return os;
 }
 
 
 class GraphC1Visualizer {
  public:
-  GraphC1Visualizer(std::ostream& os, Zone* zone);  // NOLINT
+  GraphC1Visualizer(std::ostream& os, Zone* zone);
   GraphC1Visualizer(const GraphC1Visualizer&) = delete;
   GraphC1Visualizer& operator=(const GraphC1Visualizer&) = delete;
 
@@ -524,9 +624,8 @@ void GraphC1Visualizer::PrintCompilation(const OptimizedCompilationInfo* info) {
     PrintStringProperty("name", name.get());
     PrintStringProperty("method", "stub");
   }
-  PrintLongProperty(
-      "date",
-      static_cast<int64_t>(V8::GetCurrentPlatform()->CurrentClockTimeMillis()));
+  PrintLongProperty("date",
+                    V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds());
 }
 
 
@@ -633,21 +732,21 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       Tag states_tag(this, "states");
       Tag locals_tag(this, "locals");
       int total = 0;
-      for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-           ++i) {
-        if ((*i)->opcode() == IrOpcode::kPhi) total++;
+      for (BasicBlock::const_iterator it = current->begin();
+           it != current->end(); ++it) {
+        if ((*it)->opcode() == IrOpcode::kPhi) total++;
       }
       PrintIntProperty("size", total);
       PrintStringProperty("method", "None");
       int index = 0;
-      for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-           ++i) {
-        if ((*i)->opcode() != IrOpcode::kPhi) continue;
+      for (BasicBlock::const_iterator it = current->begin();
+           it != current->end(); ++it) {
+        if ((*it)->opcode() != IrOpcode::kPhi) continue;
         PrintIndent();
         os_ << index << " ";
-        PrintNodeId(*i);
+        PrintNodeId(*it);
         os_ << " [";
-        PrintInputs(*i);
+        PrintInputs(*it);
         os_ << "]\n";
         index++;
       }
@@ -655,15 +754,15 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
 
     {
       Tag HIR_tag(this, "HIR");
-      for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-           ++i) {
-        Node* node = *i;
+      for (BasicBlock::const_iterator it = current->begin();
+           it != current->end(); ++it) {
+        Node* node = *it;
         if (node->opcode() == IrOpcode::kPhi) continue;
         int uses = node->UseCount();
         PrintIndent();
         os_ << "0 " << uses << " ";
         PrintNode(node);
-        if (FLAG_trace_turbo_types) {
+        if (v8_flags.trace_turbo_types) {
           os_ << " ";
           PrintType(node);
         }
@@ -693,7 +792,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
         for (BasicBlock* successor : current->successors()) {
           os_ << " B" << successor->rpo_number();
         }
-        if (FLAG_trace_turbo_types && current->control_input() != nullptr) {
+        if (v8_flags.trace_turbo_types && current->control_input() != nullptr) {
           os_ << " ";
           PrintType(current->control_input());
         }
@@ -753,6 +852,10 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
         os_ << " \"" << DoubleRegister::from_code(op.register_code()) << "\"";
       } else if (op.IsFloatRegister()) {
         os_ << " \"" << FloatRegister::from_code(op.register_code()) << "\"";
+#if defined(V8_TARGET_ARCH_X64)
+      } else if (op.IsSimd256Register()) {
+        os_ << " \"" << Simd256Register::from_code(op.register_code()) << "\"";
+#endif
       } else {
         DCHECK(op.IsSimd128Register());
         os_ << " \"" << Simd128Register::from_code(op.register_code()) << "\"";
@@ -780,24 +883,21 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     os_ << " " << parent->vreg() << ":" << parent->relative_id();
 
     // TODO(herhut) Find something useful to print for the hint field
-    if (range->get_bundle() != nullptr) {
-      os_ << " B" << range->get_bundle()->id();
+    if (parent->get_bundle() != nullptr) {
+      os_ << " B" << parent->get_bundle()->id();
     } else {
       os_ << " unknown";
     }
 
-    for (const UseInterval* interval = range->first_interval();
-         interval != nullptr; interval = interval->next()) {
-      os_ << " [" << interval->start().value() << ", "
-          << interval->end().value() << "[";
+    for (const UseInterval& interval : range->intervals()) {
+      os_ << " [" << interval.start().value() << ", " << interval.end().value()
+          << "[";
     }
 
-    UsePosition* current_pos = range->first_pos();
-    while (current_pos != nullptr) {
-      if (current_pos->RegisterIsBeneficial() || FLAG_trace_all_uses) {
-        os_ << " " << current_pos->pos().value() << " M";
+    for (const UsePosition* pos : range->positions()) {
+      if (pos->RegisterIsBeneficial() || v8_flags.trace_all_uses) {
+        os_ << " " << pos->pos().value() << " M";
       }
-      current_pos = current_pos->next();
     }
 
     os_ << " \"\"\n";
@@ -856,7 +956,7 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
   // the node itself, if there are no cycles. Any cycles are broken
   // arbitrarily.
 
-  ZoneVector<byte> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
+  ZoneVector<uint8_t> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
   ZoneStack<Node*> stack(&local_zone);
 
   stack.push(ar.graph.end());
@@ -935,9 +1035,9 @@ void PrintScheduledGraph(std::ostream& os, const Schedule* schedule) {
     }
     os << ")" << std::endl;
 
-    for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-         ++i) {
-      Node* node = *i;
+    for (BasicBlock::const_iterator it = current->begin(); it != current->end();
+         ++it) {
+      Node* node = *it;
       PrintScheduledNode(os, indent, node);
       os << std::endl;
     }
@@ -998,27 +1098,25 @@ std::ostream& operator<<(std::ostream& os,
 
   os << ",\"intervals\":[";
   bool first = true;
-  for (const UseInterval* interval = range.first_interval();
-       interval != nullptr; interval = interval->next()) {
+  for (const UseInterval& interval : range.intervals()) {
     if (first) {
       first = false;
     } else {
       os << ",";
     }
-    os << "[" << interval->start().value() << "," << interval->end().value()
+    os << "[" << interval.start().value() << "," << interval.end().value()
        << "]";
   }
 
   os << "],\"uses\":[";
   first = true;
-  for (UsePosition* current_pos = range.first_pos(); current_pos != nullptr;
-       current_pos = current_pos->next()) {
+  for (const UsePosition* pos : range.positions()) {
     if (first) {
       first = false;
     } else {
       os << ",";
     }
-    os << current_pos->pos().value();
+    os << pos->pos().value();
   }
 
   os << "]}";
@@ -1030,6 +1128,7 @@ std::ostream& operator<<(
     const TopLevelLiveRangeAsJSON& top_level_live_range_json) {
   int vreg = top_level_live_range_json.range_.vreg();
   bool first = true;
+  int instruction_range[2] = {INT32_MAX, -1};
   os << "\"" << (vreg > 0 ? vreg : -vreg) << "\":{ \"child_ranges\":[";
   for (const LiveRange* child = &(top_level_live_range_json.range_);
        child != nullptr; child = child->next()) {
@@ -1040,6 +1139,14 @@ std::ostream& operator<<(
         os << ",";
       }
       os << LiveRangeAsJSON{*child, top_level_live_range_json.code_};
+      // Record the minimum and maximum positions observed within this
+      // TopLevelLiveRange
+      for (const UseInterval& interval : child->intervals()) {
+        if (interval.start().value() < instruction_range[0])
+          instruction_range[0] = interval.start().value();
+        if (interval.end().value() > instruction_range[1])
+          instruction_range[1] = interval.end().value();
+      }
     }
   }
   os << "]";
@@ -1048,7 +1155,8 @@ std::ostream& operator<<(
        << (top_level_live_range_json.range_.IsDeferredFixed() ? "true"
                                                               : "false");
   }
-  os << "}";
+  os << ", \"instruction_range\": [" << instruction_range[0] << ","
+     << instruction_range[1] << "]}";
   return os;
 }
 
@@ -1132,8 +1240,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
           os << ",\"tooltip\": \"MUST_HAVE_SLOT\"";
           break;
         }
-        case UnallocatedOperand::SAME_AS_FIRST_INPUT: {
-          os << ",\"tooltip\": \"SAME_AS_FIRST_INPUT\"";
+        case UnallocatedOperand::SAME_AS_INPUT: {
+          os << ",\"tooltip\": \"SAME_AS_INPUT: " << unalloc->input_index()
+             << "\"";
           break;
         }
         case UnallocatedOperand::REGISTER_OR_SLOT: {
@@ -1164,11 +1273,16 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
       os << "\"type\": \"immediate\", ";
       const ImmediateOperand* imm = ImmediateOperand::cast(op);
       switch (imm->type()) {
-        case ImmediateOperand::INLINE: {
-          os << "\"text\": \"#" << imm->inline_value() << "\"";
+        case ImmediateOperand::INLINE_INT32: {
+          os << "\"text\": \"#" << imm->inline_int32_value() << "\"";
           break;
         }
-        case ImmediateOperand::INDEXED: {
+        case ImmediateOperand::INLINE_INT64: {
+          os << "\"text\": \"#" << imm->inline_int64_value() << "\"";
+          break;
+        }
+        case ImmediateOperand::INDEXED_RPO:
+        case ImmediateOperand::INDEXED_IMM: {
           int index = imm->indexed_value();
           os << "\"text\": \"imm:" << index << "\",";
           os << "\"tooltip\": \"";
@@ -1201,6 +1315,10 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
         os << DoubleRegister::from_code(allocated->register_code());
       } else if (op->IsFloatRegister()) {
         os << FloatRegister::from_code(allocated->register_code());
+#if defined(V8_TARGET_ARCH_X64)
+      } else if (op->IsSimd256Register()) {
+        os << Simd256Register::from_code(allocated->register_code());
+#endif
       } else {
         DCHECK(op->IsSimd128Register());
         os << Simd128Register::from_code(allocated->register_code());

@@ -1,4 +1,4 @@
-# ansi-regex [![Build Status](https://travis-ci.org/chalk/ansi-regex.svg?branch=master)](https://travis-ci.org/chalk/ansi-regex)
+# ansi-regex
 
 > Regular expression for matching [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code)
 

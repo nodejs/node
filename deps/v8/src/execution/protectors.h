@@ -26,6 +26,9 @@ class Protectors : public AllStatic {
     is_concat_spreadable_protector)                                           \
   V(NoElements, NoElementsProtector, no_elements_protector)                   \
                                                                               \
+  V(MegaDOM, MegaDOMProtector, mega_dom_protector)                            \
+  V(NoProfiling, NoProfilingProtector, no_profiling_protector)                \
+                                                                              \
   /* The MapIterator protector protects the original iteration behaviors   */ \
   /* of Map.prototype.keys(), Map.prototype.values(), and                  */ \
   /* Set.prototype.entries(). It does not protect the original iteration   */ \
@@ -38,6 +41,17 @@ class Protectors : public AllStatic {
   /*   property holder is the %IteratorPrototype%. Note that this also     */ \
   /*   invalidates the SetIterator protector (see below).                  */ \
   V(MapIteratorLookupChain, MapIteratorProtector, map_iterator_protector)     \
+  /* String.prototype.{matchAll|replace|split} looks up                    */ \
+  /* Symbol.{matchAll|replace|split} (aka @@matchAll, @@replace @split) on */ \
+  /* the search term to check if it is regexp-like.                        */ \
+  /* This protector ensures the prototype chain of String.prototype and    */ \
+  /* Number.prototype does not contain Symbol.{matchAll|replace|split}.    */ \
+  /* It enables a fast-path for String.prototype.{matchAll|replace|split}  */ \
+  /* by ensuring that                                                      */ \
+  /* the implicit wrapper object for strings and numbers do not contain    */ \
+  /* the property Symbol.{matchAll|replace|split}.                         */ \
+  V(NumberStringNotRegexpLike, NumberStringNotRegexpLikeProtector,            \
+    number_string_not_regexp_like_protector)                                  \
   V(RegExpSpeciesLookupChain, RegExpSpeciesProtector,                         \
     regexp_species_protector)                                                 \
   V(PromiseHook, PromiseHookProtector, promise_hook_protector)                \

@@ -28,7 +28,7 @@ SortKeyByteSink::~SortKeyByteSink() {}
 
 void
 SortKeyByteSink::Append(const char *bytes, int32_t n) {
-    if (n <= 0 || bytes == NULL) {
+    if (n <= 0 || bytes == nullptr) {
         return;
     }
     if (ignore_ > 0) {
@@ -63,7 +63,7 @@ SortKeyByteSink::GetAppendBuffer(int32_t min_capacity,
                                  int32_t *result_capacity) {
     if (min_capacity < 1 || scratch_capacity < min_capacity) {
         *result_capacity = 0;
-        return NULL;
+        return nullptr;
     }
     if (ignore_ > 0) {
         // Do not write ignored bytes right at the end of the buffer.
@@ -90,10 +90,10 @@ namespace {
  */
 class SortKeyLevel : public UMemory {
 public:
-    SortKeyLevel() : len(0), ok(TRUE) {}
+    SortKeyLevel() : len(0), ok(true) {}
     ~SortKeyLevel() {}
 
-    /** @return FALSE if memory allocation failed */
+    /** @return false if memory allocation failed */
     UBool isOk() const { return ok; }
     UBool isEmpty() const { return len == 0; }
     int32_t length() const { return len; }
@@ -182,7 +182,7 @@ SortKeyLevel::appendReverseWeight16(uint32_t w) {
 
 UBool SortKeyLevel::ensureCapacity(int32_t appendCapacity) {
     if(!ok) {
-        return FALSE;
+        return false;
     }
     int32_t newCapacity = 2 * buffer.getCapacity();
     int32_t altCapacity = len + 2 * appendCapacity;
@@ -192,10 +192,10 @@ UBool SortKeyLevel::ensureCapacity(int32_t appendCapacity) {
     if (newCapacity < 200) {
         newCapacity = 200;
     }
-    if(buffer.resize(newCapacity, len)==NULL) {
-        return ok = FALSE;
+    if(buffer.resize(newCapacity, len)==nullptr) {
+        return ok = false;
     }
-    return TRUE;
+    return true;
 }
 
 }  // namespace
@@ -203,7 +203,7 @@ UBool SortKeyLevel::ensureCapacity(int32_t appendCapacity) {
 CollationKeys::LevelCallback::~LevelCallback() {}
 
 UBool
-CollationKeys::LevelCallback::needToWrite(Collation::Level /*level*/) { return TRUE; }
+CollationKeys::LevelCallback::needToWrite(Collation::Level /*level*/) { return true; }
 
 /**
  * Map from collation strength (UColAttributeValue)
@@ -619,7 +619,7 @@ CollationKeys::writeSortKeyUpToQuaternary(CollationIterator &iter,
     if(U_FAILURE(errorCode)) { return; }
 
     // Append the beyond-primary levels.
-    UBool ok = TRUE;
+    UBool ok = true;
     if((levels & Collation::SECONDARY_LEVEL_FLAG) != 0) {
         if(!callback.needToWrite(Collation::SECONDARY_LEVEL)) { return; }
         ok &= secondaries.isOk();

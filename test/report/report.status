@@ -1,0 +1,11 @@
+prefix report
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+
+[$system==solaris] # Also applies to SmartOS
+# https://github.com/nodejs/node/issues/43457
+test-report-fatal-error: PASS, FLAKY

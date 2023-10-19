@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --correctness-fuzzer-suppressions
-// Files: tools/clusterfuzz/v8_mock.js
+// Files: tools/clusterfuzz/foozzie/v8_mock.js
 
 // Test foozzie mocks for differential fuzzing.
 
@@ -31,6 +31,8 @@ if (this.Intl) {
 
 // Dummy performance methods.
 assertEquals(1.2, performance.now());
+assertEquals(undefined, performance.mark("a mark"));
+assertEquals(undefined, performance.measure("a measure"));
 assertEquals([], performance.measureMemory());
 
 // Worker messages follow a predefined deterministic pattern.
@@ -119,3 +121,17 @@ assertEquals(unoptimized, callPow(6996));
 let then_called = false;
 Atomics.waitAsync().value.then(() => {then_called = true;});
 assertEquals(true, then_called);
+
+// Test .caller access is neutralized.
+function callee() {
+  assertEquals(null, callee.caller);
+}
+function caller() {
+  callee();
+}
+caller();
+
+// Neutralized serializer API.
+let object = {'foo': 42}
+assertEquals(d8.serializer.serialize(object), object)
+assertEquals(d8.serializer.deserialize(object), object)

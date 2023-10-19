@@ -39,12 +39,12 @@ class iterator_range {
   iterator_range(ForwardIterator begin, ForwardIterator end)
       : begin_(begin), end_(end) {}
 
-  iterator begin() { return begin_; }
-  iterator end() { return end_; }
-  const_iterator begin() const { return begin_; }
-  const_iterator end() const { return end_; }
+  iterator begin() const { return begin_; }
+  iterator end() const { return end_; }
   const_iterator cbegin() const { return begin_; }
   const_iterator cend() const { return end_; }
+  auto rbegin() const { return std::make_reverse_iterator(end_); }
+  auto rend() const { return std::make_reverse_iterator(begin_); }
 
   bool empty() const { return cbegin() == cend(); }
 
@@ -62,6 +62,24 @@ auto make_iterator_range(ForwardIterator begin, ForwardIterator end) {
   return iterator_range<ForwardIterator>{begin, end};
 }
 
+template <class T>
+struct DerefPtrIterator : base::iterator<std::bidirectional_iterator_tag, T> {
+  T* const* ptr;
+
+  explicit DerefPtrIterator(T* const* ptr) : ptr(ptr) {}
+
+  T& operator*() { return **ptr; }
+  DerefPtrIterator& operator++() {
+    ++ptr;
+    return *this;
+  }
+  DerefPtrIterator& operator--() {
+    --ptr;
+    return *this;
+  }
+  bool operator!=(DerefPtrIterator other) { return ptr != other.ptr; }
+};
+
 // {Reversed} returns a container adapter usable in a range-based "for"
 // statement for iterating a reversible container in reverse order.
 //
@@ -71,9 +89,45 @@ auto make_iterator_range(ForwardIterator begin, ForwardIterator end) {
 //   for (int i : base::Reversed(v)) {
 //     // iterates through v from back to front
 //   }
+//
+// The signature avoids binding to temporaries (T&& / const T&) on purpose. The
+// lifetime of a temporary would not extend to a range-based for loop using it.
 template <typename T>
-auto Reversed(T& t) {  // NOLINT(runtime/references): match {rbegin} and {rend}
+auto Reversed(T& t) {
   return make_iterator_range(std::rbegin(t), std::rend(t));
+}
+
+// This overload of `Reversed` is safe even when the argument is a temporary,
+// because we rely on the wrapped iterators instead of the `iterator_range`
+// object itself.
+template <typename T>
+auto Reversed(const iterator_range<T>& t) {
+  return make_iterator_range(std::rbegin(t), std::rend(t));
+}
+
+// {IterateWithoutLast} returns a container adapter usable in a range-based
+// "for" statement for iterating all elements without the last in a forward
+// order. It performs a check whether the container is empty.
+//
+// Example:
+//
+//   std::vector<int> v = ...;
+//   for (int i : base::IterateWithoutLast(v)) {
+//     // iterates through v front to --back
+//   }
+//
+// The signature avoids binding to temporaries, see the remark in {Reversed}.
+template <typename T>
+auto IterateWithoutLast(T& t) {
+  DCHECK_NE(std::begin(t), std::end(t));
+  auto new_end = std::end(t);
+  return make_iterator_range(std::begin(t), --new_end);
+}
+
+template <typename T>
+auto IterateWithoutLast(const iterator_range<T>& t) {
+  iterator_range<T> range_copy = {t.begin(), t.end()};
+  return IterateWithoutLast(range_copy);
 }
 
 }  // namespace base

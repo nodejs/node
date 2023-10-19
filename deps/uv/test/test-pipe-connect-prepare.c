@@ -42,7 +42,7 @@ static uv_connect_t conn_req;
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -78,6 +78,6 @@ TEST_IMPL(pipe_connect_on_prepare) {
   ASSERT(close_cb_called == 2);
   ASSERT(connect_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

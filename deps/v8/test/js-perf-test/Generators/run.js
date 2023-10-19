@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 
-load('../base.js');
-load('generators.js');
+d8.file.execute('../base.js');
+d8.file.execute('generators.js');
 
 var success = true;
 

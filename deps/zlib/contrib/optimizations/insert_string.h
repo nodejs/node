@@ -1,73 +1,39 @@
 /* insert_string.h
  *
- * Copyright 2019 The Chromium Authors. All rights reserved.
+ * Copyright 2019 The Chromium Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the Chromium source repository LICENSE file.
  */
-#ifdef _MSC_VER
+
+#ifndef INSERT_STRING_H
+#define INSERT_STRING_H
+
+#ifndef INLINE
+#if defined(_MSC_VER) && !defined(__clang__)
 #define INLINE __inline
 #else
 #define INLINE inline
 #endif
-
-/* Optimized insert_string block */
-#if defined(CRC32_SIMD_SSE42_PCLMUL) || defined(CRC32_ARMV8_CRC32)
-#define TARGET_CPU_WITH_CRC
-// clang-format off
-#if defined(CRC32_SIMD_SSE42_PCLMUL)
-  /* Required to make MSVC bot build pass. */
-  #include <smmintrin.h>
-  #if defined(__GNUC__) || defined(__clang__)
-    #undef TARGET_CPU_WITH_CRC
-    #define TARGET_CPU_WITH_CRC __attribute__((target("sse4.2")))
-  #endif
-
-  #define _cpu_crc32_u32 _mm_crc32_u32
-
-#elif defined(CRC32_ARMV8_CRC32)
-  #include "arm_features.h"
-  #if defined(__clang__)
-    #undef TARGET_CPU_WITH_CRC
-    #define __crc32cw __builtin_arm_crc32cw
-  #endif
-
-  #define _cpu_crc32_u32 __crc32cw
-
-  #if defined(__aarch64__)
-    #define TARGET_CPU_WITH_CRC __attribute__((target("crc")))
-  #else  // !defined(__aarch64__)
-    #define TARGET_CPU_WITH_CRC __attribute__((target("armv8-a,crc")))
-  #endif  // defined(__aarch64__)
 #endif
-// clang-format on
-TARGET_CPU_WITH_CRC
-local INLINE Pos insert_string_optimized(deflate_state* const s,
-                                         const Pos str) {
-  Pos ret;
-  unsigned *ip, val, h = 0;
 
-  ip = (unsigned*)&s->window[str];
-  val = *ip;
+#include <stdint.h>
 
-  if (s->level >= 6)
-    val &= 0xFFFFFF;
-
-  /* Unlike the case of data integrity checks for GZIP format where the
-   * polynomial used is defined (https://tools.ietf.org/html/rfc1952#page-11),
-   * here it is just a hash function for the hash table used while
-   * performing compression.
-   */
-  h = _cpu_crc32_u32(h, val);
-
-  ret = s->head[h & s->hash_mask];
-  s->head[h & s->hash_mask] = str;
-  s->prev[str & s->w_mask] = ret;
-  return ret;
-}
-#endif /* Optimized insert_string block */
+/**
+ * Some applications need to match zlib DEFLATE output exactly [3]. Use the
+ * canonical zlib Rabin-Karp rolling hash [1,2] in that case.
+ *
+ *  [1] For a description of the Rabin and Karp algorithm, see "Algorithms"
+ *      book by R. Sedgewick, Addison-Wesley, p252.
+ *  [2] https://www.euccas.me/zlib/#zlib_rabin_karp and also "rolling hash"
+ *      https://en.wikipedia.org/wiki/Rolling_hash
+ *  [3] crbug.com/1316541 AOSP incremental client APK package OTA upgrades.
+ */
+#ifdef CHROMIUM_ZLIB_NO_CASTAGNOLI
+#define USE_ZLIB_RABIN_KARP_ROLLING_HASH
+#endif
 
 /* ===========================================================================
- * Update a hash value with the given input byte
+ * Update a hash value with the given input byte (Rabin-Karp rolling hash).
  * IN  assertion: all calls to UPDATE_HASH are made with consecutive input
  *    characters, so that a running hash key can be computed from the previous
  *    key instead of complete recalculation each time.
@@ -84,10 +50,23 @@ local INLINE Pos insert_string_optimized(deflate_state* const s,
  *    characters and the first MIN_MATCH bytes of str are valid (except for
  *    the last MIN_MATCH-1 bytes of the input file).
  */
-local INLINE Pos insert_string_c(deflate_state* const s, const Pos str) {
+local INLINE Pos insert_string(deflate_state* const s, const Pos str) {
   Pos ret;
-
+/* insert_string dictionary insertion: ANZAC++ hasher
+ * significantly improves data compression speed.
+ *
+ * Note: the generated compressed output is a valid DEFLATE stream, but will
+ * differ from canonical zlib output.
+ */
+#if defined(USE_ZLIB_RABIN_KARP_ROLLING_HASH)
   UPDATE_HASH(s, s->ins_h, s->window[(str) + (MIN_MATCH - 1)]);
+#else
+  uint32_t value;
+  // Validated for little endian archs (i.e. x86, Arm). YMMV for big endian.
+  zmemcpy(&value, &s->window[str], sizeof(value));
+  s->ins_h = ((value * 66521 + 66521) >> 16) & s->hash_mask;
+#endif
+
 #ifdef FASTEST
   ret = s->head[s->ins_h];
 #else
@@ -98,25 +77,4 @@ local INLINE Pos insert_string_c(deflate_state* const s, const Pos str) {
   return ret;
 }
 
-local INLINE Pos insert_string(deflate_state* const s, const Pos str) {
-/* String dictionary insertion: faster symbol hashing has a positive impact
- * on data compression speeds (around 20% on Intel and 36% on Arm Cortex big
- * cores).
- * A misfeature is that the generated compressed output will differ from
- * vanilla zlib (even though it is still valid 'DEFLATE-d' content).
- *
- * We offer here a way to disable the optimization if there is the expectation
- * that compressed content should match when compared to vanilla zlib.
- */
-#if !defined(CHROMIUM_ZLIB_NO_CASTAGNOLI)
-  /* TODO(cavalcantii): unify CPU features code. */
-#if defined(CRC32_ARMV8_CRC32)
-  if (arm_cpu_enable_crc32)
-    return insert_string_optimized(s, str);
-#elif defined(CRC32_SIMD_SSE42_PCLMUL)
-  if (x86_cpu_enable_simd)
-    return insert_string_optimized(s, str);
-#endif
-#endif
-  return insert_string_c(s, str);
-}
+#endif /* INSERT_STRING_H */

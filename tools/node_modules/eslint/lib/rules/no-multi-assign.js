@@ -10,15 +10,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow use of chained assignment expressions",
-            category: "Stylistic Issues",
+            description: "Disallow use of chained assignment expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-multi-assign"
+            url: "https://eslint.org/docs/latest/rules/no-multi-assign"
         },
 
         schema: [{
@@ -45,16 +45,21 @@ module.exports = {
         const options = context.options[0] || {
             ignoreNonDeclaration: false
         };
-        const targetParent = options.ignoreNonDeclaration ? ["VariableDeclarator"] : ["AssignmentExpression", "VariableDeclarator"];
+        const selectors = [
+            "VariableDeclarator > AssignmentExpression.init",
+            "PropertyDefinition > AssignmentExpression.value"
+        ];
+
+        if (!options.ignoreNonDeclaration) {
+            selectors.push("AssignmentExpression > AssignmentExpression.right");
+        }
 
         return {
-            AssignmentExpression(node) {
-                if (targetParent.indexOf(node.parent.type) !== -1) {
-                    context.report({
-                        node,
-                        messageId: "unexpectedChain"
-                    });
-                }
+            [selectors](node) {
+                context.report({
+                    node,
+                    messageId: "unexpectedChain"
+                });
             }
         };
 

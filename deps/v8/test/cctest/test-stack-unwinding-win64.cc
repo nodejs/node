@@ -2,14 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/win32-headers.h"
-#include "src/init/v8.h"
+#include <windows.h>
+
+// This has to come after windows.h.
+#include <versionhelpers.h>  // For IsWindows8OrGreater().
+
+#include "include/v8-external.h"
+#include "include/v8-function.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-template.h"
+#include "src/base/macros.h"
 #include "test/cctest/cctest.h"
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN_X64)  // Native x64 compilation
 #define CONTEXT_PC(context) (context.Rip)
 #elif defined(V8_OS_WIN_ARM64)
+#if defined(V8_HOST_ARCH_ARM64)  // Native ARM64 compilation
 #define CONTEXT_PC(context) (context.Pc)
+#else  // x64 to ARM64 cross-compilation
+#define CONTEXT_PC(context) (context.Rip)
+#endif
 #endif
 
 class UnwindingWin64Callbacks {
@@ -70,8 +83,8 @@ UNINITIALIZED_TEST(StackUnwindingWin64) {
     return;
   }
 
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_win64_unwinding_info = true;
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.win64_unwinding_info = true;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

@@ -1,7 +1,7 @@
 /*
- * Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -139,18 +139,18 @@ int custom_ext_parse(SSL *s, unsigned int context, unsigned int ext_type,
          * extensions not sent in ClientHello.
          */
         if ((meth->ext_flags & SSL_EXT_FLAG_SENT) == 0) {
-            SSLfatal(s, TLS1_AD_UNSUPPORTED_EXTENSION, SSL_F_CUSTOM_EXT_PARSE,
-                     SSL_R_BAD_EXTENSION);
+            SSLfatal(s, TLS1_AD_UNSUPPORTED_EXTENSION, SSL_R_BAD_EXTENSION);
             return 0;
         }
     }
 
     /*
-     * Extensions received in the ClientHello are marked with the
-     * SSL_EXT_FLAG_RECEIVED. This is so we know to add the equivalent
-     * extensions in the ServerHello/EncryptedExtensions message
+     * Extensions received in the ClientHello or CertificateRequest are marked
+     * with the SSL_EXT_FLAG_RECEIVED. This is so we know to add the equivalent
+     * extensions in the response messages
      */
-    if ((context & SSL_EXT_CLIENT_HELLO) != 0)
+    if ((context & (SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_CERTIFICATE_REQUEST))
+            != 0)
         meth->ext_flags |= SSL_EXT_FLAG_RECEIVED;
 
     /* If no parse function set return success */
@@ -159,7 +159,7 @@ int custom_ext_parse(SSL *s, unsigned int context, unsigned int ext_type,
 
     if (meth->parse_cb(s, ext_type, context, ext_data, ext_size, x, chainidx,
                        &al, meth->parse_arg) <= 0) {
-        SSLfatal(s, al, SSL_F_CUSTOM_EXT_PARSE, SSL_R_BAD_EXTENSION);
+        SSLfatal(s, al, SSL_R_BAD_EXTENSION);
         return 0;
     }
 
@@ -192,7 +192,7 @@ int custom_ext_add(SSL *s, int context, WPACKET *pkt, X509 *x, size_t chainidx,
                         | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
                         | SSL_EXT_TLS1_3_CERTIFICATE
                         | SSL_EXT_TLS1_3_HELLO_RETRY_REQUEST)) != 0) {
-            /* Only send extensions present in ClientHello. */
+            /* Only send extensions present in ClientHello/CertificateRequest */
             if (!(meth->ext_flags & SSL_EXT_FLAG_RECEIVED))
                 continue;
         }
@@ -209,7 +209,7 @@ int custom_ext_add(SSL *s, int context, WPACKET *pkt, X509 *x, size_t chainidx,
                                          meth->add_arg);
 
             if (cb_retval < 0) {
-                SSLfatal(s, al, SSL_F_CUSTOM_EXT_ADD, SSL_R_CALLBACK_FAILED);
+                SSLfatal(s, al, SSL_R_CALLBACK_FAILED);
                 return 0;       /* error */
             }
             if (cb_retval == 0)
@@ -220,8 +220,7 @@ int custom_ext_add(SSL *s, int context, WPACKET *pkt, X509 *x, size_t chainidx,
                 || !WPACKET_start_sub_packet_u16(pkt)
                 || (outlen > 0 && !WPACKET_memcpy(pkt, out, outlen))
                 || !WPACKET_close(pkt)) {
-            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_CUSTOM_EXT_ADD,
-                     ERR_R_INTERNAL_ERROR);
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return 0;
         }
         if ((context & SSL_EXT_CLIENT_HELLO) != 0) {
@@ -229,8 +228,7 @@ int custom_ext_add(SSL *s, int context, WPACKET *pkt, X509 *x, size_t chainidx,
              * We can't send duplicates: code logic should prevent this.
              */
             if (!ossl_assert((meth->ext_flags & SSL_EXT_FLAG_SENT) == 0)) {
-                SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_CUSTOM_EXT_ADD,
-                         ERR_R_INTERNAL_ERROR);
+                SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
                 return 0;
             }
             /*
@@ -491,11 +489,9 @@ int SSL_extension_supported(unsigned int ext_type)
     switch (ext_type) {
         /* Internally supported extensions. */
     case TLSEXT_TYPE_application_layer_protocol_negotiation:
-#ifndef OPENSSL_NO_EC
     case TLSEXT_TYPE_ec_point_formats:
     case TLSEXT_TYPE_supported_groups:
     case TLSEXT_TYPE_key_share:
-#endif
 #ifndef OPENSSL_NO_NEXTPROTONEG
     case TLSEXT_TYPE_next_proto_neg:
 #endif

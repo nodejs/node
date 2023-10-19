@@ -2,25 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function exportImmutableGlobal() {
   var builder = new WasmModuleBuilder();
   let globals = [
-    [kWasmI32, 'i32_noinit'],
-    [kWasmI32, 'i32', 4711],
-    [kWasmF32, 'f32_noinit'],
-    [kWasmF32, 'f32', Math.fround(3.14)],
-    [kWasmF64, 'f64_noinit'],
-    [kWasmF64, 'f64', 1 / 7]
+    [kWasmI32, 'i32', 4711, wasmI32Const(4711)],
+    [kWasmF32, 'f32', Math.fround(3.14), wasmF32Const(Math.fround(3.14))],
+    [kWasmF64, 'f64', 1/7, wasmF64Const(1 / 7)]
   ];
-  for (let [type, name, value] of globals) {
-    let global_builder = builder.addGlobal(type, false).exportAs(name);
-    if (value) global_builder.init = value;
+  for (let [type, name, value, bytes] of globals) {
+    builder.addGlobal(type, false, bytes).exportAs(name);
   }
   var instance = builder.instantiate();
 
-  for (let [type, name, value] of globals) {
+  for (let [type, name, value, bytes] of globals) {
     let obj = instance.exports[name];
     assertEquals("object", typeof obj, name);
     assertTrue(obj instanceof WebAssembly.Global, name);
@@ -48,16 +44,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function exportMutableGlobal() {
   var builder = new WasmModuleBuilder();
   let globals = [
-    [kWasmI32, 'i32_noinit'],              // -
-    [kWasmI32, 'i32', 4711],               // -
-    [kWasmF32, 'f32_noinit'],              // -
-    [kWasmF32, 'f32', Math.fround(3.14)],  // -
-    [kWasmF64, 'f64_noinit'],              // -
-    [kWasmF64, 'f64', 1 / 7]               // -
+    [kWasmI32, 'i32', 4711, wasmI32Const(4711)],
+    [kWasmF32, 'f32', Math.fround(3.14), wasmF32Const(Math.fround(3.14))],
+    [kWasmF64, 'f64', 1/7, wasmF64Const(1 / 7)]
   ];
-  for (let [index, [type, name, value]] of globals.entries()) {
-    let global_builder = builder.addGlobal(type, true).exportAs(name);
-    if (value) global_builder.init = value;
+  for (let [index, [type, name, value, bytes]] of globals.entries()) {
+    builder.addGlobal(type, true, bytes).exportAs(name);
     builder.addFunction("get " + name, makeSig([], [type]))
       .addBody([kExprGlobalGet, index])
       .exportFunc();
@@ -67,7 +59,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   }
   var instance = builder.instantiate();
 
-  for (let [type, name, value] of globals) {
+  for (let [type, name, value, bytes] of globals) {
     let obj = instance.exports[name];
 
     assertEquals(value || 0, obj.value, name);

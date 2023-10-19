@@ -71,18 +71,11 @@ int32_t BuddhistCalendar::handleGetExtendedYear()
     if (newerField(UCAL_EXTENDED_YEAR, UCAL_YEAR) == UCAL_EXTENDED_YEAR) {
         year = internalGet(UCAL_EXTENDED_YEAR, kGregorianEpoch);
     } else {
-        // extended year is a gregorian year, where 1 = 1AD,  0 = 1BC, -1 = 2BC, etc
+        // extended year is a gregorian year, where 1 = 1AD,  0 = 1BC, -1 = 2BC, etc 
         year = internalGet(UCAL_YEAR, kGregorianEpoch - kBuddhistEraStart)
                 + kBuddhistEraStart;
     }
     return year;
-}
-
-int32_t BuddhistCalendar::handleComputeMonthStart(int32_t eyear, int32_t month,
-
-                                                  UBool useMonth) const
-{
-    return GregorianCalendar::handleComputeMonthStart(eyear, month, useMonth);
 }
 
 void BuddhistCalendar::handleComputeFields(int32_t julianDay, UErrorCode& status)
@@ -133,12 +126,12 @@ void BuddhistCalendar::timeToFields(UDate theTime, UBool quick, UErrorCode& stat
  */
 static UDate     gSystemDefaultCenturyStart       = DBL_MIN;
 static int32_t   gSystemDefaultCenturyStartYear   = -1;
-static icu::UInitOnce gBCInitOnce = U_INITONCE_INITIALIZER;
+static icu::UInitOnce gBCInitOnce {};
 
 
 UBool BuddhistCalendar::haveDefaultCentury() const
 {
-    return TRUE;
+    return true;
 }
 
 static void U_CALLCONV
@@ -170,7 +163,7 @@ UDate BuddhistCalendar::defaultCenturyStart() const
 
 int32_t BuddhistCalendar::defaultCenturyStartYear() const
 {
-    // lazy-evaluate systemDefaultCenturyStartYear and systemDefaultCenturyStart
+    // lazy-evaluate systemDefaultCenturyStartYear and systemDefaultCenturyStart 
     umtx_initOnce(gBCInitOnce, &initializeSystemDefaultCentury);
     return gSystemDefaultCenturyStartYear;
 }

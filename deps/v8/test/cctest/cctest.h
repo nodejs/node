@@ -35,11 +35,9 @@
 #include "src/base/enum-set.h"
 #include "src/codegen/register-configuration.h"
 #include "src/debug/debug-interface.h"
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 #include "src/execution/simulator.h"
-#include "src/flags/flags.h"
 #include "src/heap/factory.h"
-#include "src/init/v8.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects.h"
 #include "src/zone/accounting-allocator.h"
@@ -56,6 +54,7 @@ namespace internal {
 const auto GetRegConfig = RegisterConfiguration::Default;
 
 class HandleScope;
+class ManualGCScope;
 class Zone;
 
 namespace compiler {
@@ -69,25 +68,55 @@ class JSHeapBroker;
 }  // namespace v8
 
 #ifndef TEST
-#define TEST(Name)                                                      \
-  static void Test##Name();                                             \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true); \
+#define TEST(Name)                                                     \
+  static void Test##Name();                                            \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true, \
+                              nullptr);                                \
   static void Test##Name()
 #endif
 
 #ifndef UNINITIALIZED_TEST
-#define UNINITIALIZED_TEST(Name)                                         \
-  static void Test##Name();                                              \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, false); \
+#define UNINITIALIZED_TEST(Name)                                        \
+  static void Test##Name();                                             \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, false, \
+                              nullptr);                                 \
   static void Test##Name()
 #endif
 
+#ifndef TEST_WITH_PLATFORM
+#define TEST_WITH_PLATFORM(Name, PlatformClass)                            \
+  static void Test##Name(PlatformClass& platform);                         \
+  static void TestWithoutPlatform##Name() {                                \
+    Test##Name(*static_cast<PlatformClass*>(i::V8::GetCurrentPlatform())); \
+  }                                                                        \
+  CcTest register_test_##Name(TestWithoutPlatform##Name, __FILE__, #Name,  \
+                              true, true,                                  \
+                              []() -> std::unique_ptr<TestPlatform> {      \
+                                return std::make_unique<PlatformClass>();  \
+                              });                                          \
+  static void Test##Name(PlatformClass& platform)
+#endif
+
 #ifndef DISABLED_TEST
-#define DISABLED_TEST(Name)                                              \
-  static void Test##Name();                                              \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true); \
+#define DISABLED_TEST(Name)                                             \
+  static void Test##Name();                                             \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true, \
+                              nullptr);                                 \
   static void Test##Name()
 #endif
+
+// Similar to TEST, but used when test definitions appear as members of a
+// (probably parameterized) class. This allows re-using the given tests multiple
+// times. For this to work, the following conditions must hold:
+//   1. The class has a template parameter named kTestFileName of type  char
+//      const*, which is instantiated with __FILE__ at the *use site*, in order
+//      to correctly associate the tests with the test suite using them.
+//   2. To actually execute the tests, create an instance of the class
+//      containing the MEMBER_TESTs.
+#define MEMBER_TEST(Name)                                            \
+  CcTest register_test_##Name =                                      \
+      CcTest(Test##Name, kTestFileName, #Name, true, true, nullptr); \
+  static void Test##Name()
 
 #define EXTENSION_LIST(V)                                                      \
   V(GC_EXTENSION,       "v8/gc")                                               \
@@ -106,18 +135,19 @@ static constexpr const char* kExtensionName[kMaxExtensions] = {
     EXTENSION_LIST(DEFINE_EXTENSION_NAME)};
 #undef DEFINE_EXTENSION_NAME
 
+class CcTest;
+class TestPlatform;
+
+using CcTestMapType = std::map<std::string, CcTest*>;
+
 class CcTest {
  public:
   using TestFunction = void();
+  using TestPlatformFactory = std::unique_ptr<TestPlatform>();
   CcTest(TestFunction* callback, const char* file, const char* name,
-         bool enabled, bool initialize);
-  ~CcTest() { i::DeleteArray(file_); }
-  void Run();
-  static CcTest* last() { return last_; }
-  CcTest* prev() { return prev_; }
-  const char* file() { return file_; }
-  const char* name() { return name_; }
-  bool enabled() { return enabled_; }
+         bool enabled, bool initialize,
+         TestPlatformFactory* platform_factory = nullptr);
+  void Run(const char* argv0);
 
   static v8::Isolate* isolate() {
     CHECK_NOT_NULL(isolate_);
@@ -137,13 +167,10 @@ class CcTest {
   static i::Heap* heap();
   static i::ReadOnlyHeap* read_only_heap();
 
+  static v8::Platform* default_platform() { return default_platform_; }
+
   static void AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
                                 v8::FunctionCallback callback);
-  static void CollectGarbage(i::AllocationSpace space,
-                             i::Isolate* isolate = nullptr);
-  static void CollectAllGarbage(i::Isolate* isolate = nullptr);
-  static void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr);
-  static void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr);
 
   static i::Handle<i::String> MakeString(const char* str);
   static i::Handle<i::String> MakeName(const char* str, int suffix);
@@ -165,9 +192,6 @@ class CcTest {
   // This must be called first in a test.
   static void InitializeVM();
 
-  // Only for UNINITIALIZED_TESTs
-  static void DisableAutomaticDispose();
-
   // Helper function to configure a context.
   // Must be in a HandleScope.
   static v8::Local<v8::Context> NewContext(
@@ -183,21 +207,20 @@ class CcTest {
     return NewContext(CcTestExtensionFlags{extensions}, isolate);
   }
 
-  static void TearDown();
-
  private:
-  friend int main(int argc, char** argv);
-  TestFunction* callback_;
-  const char* file_;
-  const char* name_;
-  bool enabled_;
-  bool initialize_;
-  CcTest* prev_;
-  static CcTest* last_;
+  static std::unordered_map<std::string, CcTest*>* tests_;
   static v8::ArrayBuffer::Allocator* allocator_;
   static v8::Isolate* isolate_;
+  static v8::Platform* default_platform_;
   static bool initialize_called_;
   static v8::base::Atomic32 isolate_used_;
+
+  TestFunction* callback_;
+  bool initialize_;
+  TestPlatformFactory* test_platform_factory_;
+
+  friend int main(int argc, char** argv);
+  friend class v8::internal::ManualGCScope;
 };
 
 // Switches between all the Api tests using the threading support.
@@ -212,6 +235,8 @@ class CcTest {
 // to that thread, suspending the current test.
 class ApiTestFuzzer: public v8::base::Thread {
  public:
+  ~ApiTestFuzzer() override = default;
+
   void CallTest();
 
   // The ApiTestFuzzer is also a Thread, so it has a Run method.
@@ -242,19 +267,22 @@ class ApiTestFuzzer: public v8::base::Thread {
         test_number_(num),
         gate_(0),
         active_(true) {}
-  ~ApiTestFuzzer() override = default;
 
-  static bool fuzzing_;
-  static int tests_being_run_;
-  static int current_;
-  static int active_tests_;
   static bool NextThread();
+  void ContextSwitch();
+  static int GetNextFuzzer();
+
+  static unsigned linear_congruential_generator;
+  static std::vector<std::unique_ptr<ApiTestFuzzer>> fuzzers_;
+  static bool fuzzing_;
+  static v8::base::Semaphore all_tests_done_;
+  static int tests_being_run_;
+  static int active_tests_;
+  static int current_fuzzer_;
+
   int test_number_;
   v8::base::Semaphore gate_;
   bool active_;
-  void ContextSwitch();
-  static int GetNextTestNumber();
-  static v8::base::Semaphore all_tests_done_;
 };
 
 
@@ -267,30 +295,23 @@ class RegisterThreadedTest {
  public:
   explicit RegisterThreadedTest(CcTest::TestFunction* callback,
                                 const char* name)
-      : fuzzer_(nullptr), callback_(callback), name_(name) {
-    prev_ = first_;
-    first_ = this;
-    count_++;
+      : callback_(callback), name_(name) {
+    tests_.push_back(this);
   }
-  static int count() { return count_; }
-  static RegisterThreadedTest* nth(int i) {
-    CHECK(i < count());
-    RegisterThreadedTest* current = first_;
-    while (i > 0) {
-      i--;
-      current = current->prev_;
-    }
-    return current;
+  static int count() { return static_cast<int>(tests_.size()); }
+  static const RegisterThreadedTest* nth(int i) {
+    DCHECK_LE(0, i);
+    DCHECK_LT(i, count());
+    // Added tests used to be prepended to a linked list and therefore the last
+    // one to be added was at index 0. This ensures that we keep this behavior.
+    return tests_[count() - i - 1];
   }
-  CcTest::TestFunction* callback() { return callback_; }
-  ApiTestFuzzer* fuzzer_;
-  const char* name() { return name_; }
+  CcTest::TestFunction* callback() const { return callback_; }
+  const char* name() const { return name_; }
 
  private:
-  static RegisterThreadedTest* first_;
-  static int count_;
+  static std::vector<const RegisterThreadedTest*> tests_;
   CcTest::TestFunction* callback_;
-  RegisterThreadedTest* prev_;
   const char* name_;
 };
 
@@ -314,9 +335,7 @@ class LocalContext {
 
   virtual ~LocalContext();
 
-  v8::Context* operator->() {
-    return *reinterpret_cast<v8::Context**>(&context_);
-  }
+  v8::Context* operator->() { return i::ValueHelper::HandleAsValue(context_); }
   v8::Context* operator*() { return operator->(); }
   bool IsReady() { return !context_.IsEmpty(); }
 
@@ -338,6 +357,15 @@ static inline uint16_t* AsciiToTwoByteString(const char* source) {
   size_t array_length = strlen(source) + 1;
   uint16_t* converted = i::NewArray<uint16_t>(array_length);
   for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
+  return converted;
+}
+
+static inline uint16_t* AsciiToTwoByteString(const char16_t* source,
+                                             size_t* length_out = nullptr) {
+  size_t array_length = std::char_traits<char16_t>::length(source) + 1;
+  uint16_t* converted = i::NewArray<uint16_t>(array_length);
+  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
+  if (length_out != nullptr) *length_out = array_length - 1;
   return converted;
 }
 
@@ -515,15 +543,31 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
   return CompileRunWithOrigin(v8_str(source), origin_url);
 }
 
+// Run a ScriptStreamingTask in a separate thread.
+class StreamerThread : public v8::base::Thread {
+ public:
+  static void StartThreadForTaskAndJoin(
+      v8::ScriptCompiler::ScriptStreamingTask* task) {
+    StreamerThread thread(task);
+    CHECK(thread.Start());
+    thread.Join();
+  }
+
+  explicit StreamerThread(v8::ScriptCompiler::ScriptStreamingTask* task)
+      : Thread(Thread::Options()), task_(task) {}
+
+  void Run() override { task_->Run(); }
+
+ private:
+  v8::ScriptCompiler::ScriptStreamingTask* task_;
+};
+
 // Takes a JSFunction and runs it through the test version of the optimizing
 // pipeline, allocating the temporary compilation artifacts in a given Zone.
-// For possible {flags} values, look at OptimizedCompilationInfo::Flag.  If
-// {out_broker} is not nullptr, returns the JSHeapBroker via that (transferring
-// ownership to the caller).
-i::Handle<i::JSFunction> Optimize(
-    i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
-    uint32_t flags,
-    std::unique_ptr<i::compiler::JSHeapBroker>* out_broker = nullptr);
+// For possible {flags} values, look at OptimizedCompilationInfo::Flag.
+i::Handle<i::JSFunction> Optimize(i::Handle<i::JSFunction> function,
+                                  i::Zone* zone, i::Isolate* isolate,
+                                  uint32_t flags);
 
 static inline void ExpectString(const char* code, const char* expected) {
   v8::Local<v8::Value> result = CompileRun(code);
@@ -531,7 +575,6 @@ static inline void ExpectString(const char* code, const char* expected) {
   v8::String::Utf8Value utf8(v8::Isolate::GetCurrent(), result);
   CHECK_EQ(0, strcmp(expected, *utf8));
 }
-
 
 static inline void ExpectInt32(const char* code, int expected) {
   v8::Local<v8::Value> result = CompileRun(code);
@@ -597,8 +640,7 @@ static inline void DisableDebugger(v8::Isolate* isolate) {
 
 
 static inline void EmptyMessageQueues(v8::Isolate* isolate) {
-  while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
-                                       isolate)) {
+  while (v8::platform::PumpMessageLoop(CcTest::default_platform(), isolate)) {
   }
 }
 
@@ -606,7 +648,7 @@ class InitializedHandleScopeImpl;
 
 class V8_NODISCARD InitializedHandleScope {
  public:
-  InitializedHandleScope();
+  explicit InitializedHandleScope(i::Isolate* isolate = nullptr);
   ~InitializedHandleScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
@@ -644,113 +686,34 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
   const char* data_;
 };
 
-class V8_NODISCARD ManualGCScope {
- public:
-  ManualGCScope()
-      : flag_concurrent_marking_(i::FLAG_concurrent_marking),
-        flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
-        flag_stress_concurrent_allocation_(
-            i::FLAG_stress_concurrent_allocation),
-        flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking),
-        flag_parallel_marking_(i::FLAG_parallel_marking),
-        flag_detect_ineffective_gcs_near_heap_limit_(
-            i::FLAG_detect_ineffective_gcs_near_heap_limit) {
-    i::FLAG_concurrent_marking = false;
-    i::FLAG_concurrent_sweeping = false;
-    i::FLAG_stress_incremental_marking = false;
-    i::FLAG_stress_concurrent_allocation = false;
-    // Parallel marking has a dependency on concurrent marking.
-    i::FLAG_parallel_marking = false;
-    i::FLAG_detect_ineffective_gcs_near_heap_limit = false;
-  }
-  ~ManualGCScope() {
-    i::FLAG_concurrent_marking = flag_concurrent_marking_;
-    i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
-    i::FLAG_stress_concurrent_allocation = flag_stress_concurrent_allocation_;
-    i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
-    i::FLAG_parallel_marking = flag_parallel_marking_;
-    i::FLAG_detect_ineffective_gcs_near_heap_limit =
-        flag_detect_ineffective_gcs_near_heap_limit_;
-  }
-
- private:
-  bool flag_concurrent_marking_;
-  bool flag_concurrent_sweeping_;
-  bool flag_stress_concurrent_allocation_;
-  bool flag_stress_incremental_marking_;
-  bool flag_parallel_marking_;
-  bool flag_detect_ineffective_gcs_near_heap_limit_;
-};
-
-// This is an abstract base class that can be overridden to implement a test
-// platform. It delegates all operations to a given platform at the time
-// of construction.
+// This is a base class that can be overridden to implement a test platform. It
+// delegates all operations to the default platform.
 class TestPlatform : public v8::Platform {
  public:
-  TestPlatform(const TestPlatform&) = delete;
-  TestPlatform& operator=(const TestPlatform&) = delete;
+  ~TestPlatform() override = default;
 
   // v8::Platform implementation.
-  v8::PageAllocator* GetPageAllocator() override {
-    return old_platform_->GetPageAllocator();
-  }
-
-  void OnCriticalMemoryPressure() override {
-    old_platform_->OnCriticalMemoryPressure();
-  }
-
-  bool OnCriticalMemoryPressure(size_t length) override {
-    return old_platform_->OnCriticalMemoryPressure(length);
-  }
-
-  int NumberOfWorkerThreads() override {
-    return old_platform_->NumberOfWorkerThreads();
-  }
-
+  v8::PageAllocator* GetPageAllocator() override;
+  void OnCriticalMemoryPressure() override;
+  int NumberOfWorkerThreads() override;
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate* isolate) override {
-    return old_platform_->GetForegroundTaskRunner(isolate);
-  }
-
-  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
-    old_platform_->CallOnWorkerThread(std::move(task));
-  }
-
+      v8::Isolate* isolate) override;
+  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override;
   void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
-                                 double delay_in_seconds) override {
-    old_platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
-  }
-
+                                 double delay_in_seconds) override;
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority priority,
-      std::unique_ptr<v8::JobTask> job_task) override {
-    return old_platform_->PostJob(priority, std::move(job_task));
-  }
-
-  double MonotonicallyIncreasingTime() override {
-    return old_platform_->MonotonicallyIncreasingTime();
-  }
-
-  double CurrentClockTimeMillis() override {
-    return old_platform_->CurrentClockTimeMillis();
-  }
-
-  bool IdleTasksEnabled(v8::Isolate* isolate) override {
-    return old_platform_->IdleTasksEnabled(isolate);
-  }
-
-  v8::TracingController* GetTracingController() override {
-    return old_platform_->GetTracingController();
-  }
+      std::unique_ptr<v8::JobTask> job_task) override;
+  std::unique_ptr<v8::JobHandle> CreateJob(
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::JobTask> job_task) override;
+  double MonotonicallyIncreasingTime() override;
+  double CurrentClockTimeMillis() override;
+  bool IdleTasksEnabled(v8::Isolate* isolate) override;
+  v8::TracingController* GetTracingController() override;
 
  protected:
-  TestPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {}
-  ~TestPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
-
-  v8::Platform* old_platform() const { return old_platform_; }
-
- private:
-  v8::Platform* old_platform_;
+  TestPlatform() = default;
 };
 
 #if defined(USE_SIMULATOR)
@@ -785,12 +748,20 @@ class SimulatorHelper {
     state->sp = reinterpret_cast<void*>(simulator_->sp());
     state->fp = reinterpret_cast<void*>(simulator_->fp());
     state->lr = reinterpret_cast<void*>(simulator_->lr());
-#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#elif V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::sp));
     state->fp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::fp));
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
+    state->sp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::sp));
+    state->fp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::fp));
+    state->lr = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::ra));
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(
@@ -829,11 +800,11 @@ DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
 
 bool IsValidUnwrapObject(v8::Object* object);
 
-template <typename T, int offset>
+template <typename T>
 T* GetInternalField(v8::Object* wrapper) {
-  assert(offset < wrapper->InternalFieldCount());
+  assert(kV8WrapperObjectIndex < wrapper->InternalFieldCount());
   return reinterpret_cast<T*>(
-      wrapper->GetAlignedPointerFromInternalField(offset));
+      wrapper->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
 }
 
 #endif  // ifndef CCTEST_H_

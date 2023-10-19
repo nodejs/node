@@ -21,6 +21,7 @@ namespace internal {
 
 class BreakPoint;
 class BytecodeArray;
+class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/debug-objects-tq.inc"
 
@@ -37,7 +38,10 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   // --- Debug execution ---
   // -----------------------
 
-  enum ExecutionMode { kBreakpoints = 0, kSideEffects = kDebugExecutionMode };
+  enum ExecutionMode : uint8_t {
+    kBreakpoints = 0,
+    kSideEffects = kDebugExecutionMode
+  };
 
   // Returns current debug execution mode. Debug execution mode defines by
   // applied to bytecode patching. False for breakpoints, true for side effect
@@ -45,16 +49,13 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   ExecutionMode DebugExecutionMode() const;
   void SetDebugExecutionMode(ExecutionMode value);
 
-  DECL_RELEASE_ACQUIRE_ACCESSORS(debug_bytecode_array, HeapObject)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(original_bytecode_array, HeapObject)
-
   // Specifies whether the associated function has an instrumented bytecode
   // array. If so, OriginalBytecodeArray returns the non-instrumented bytecode,
   // and DebugBytecodeArray returns the instrumented bytecode.
   inline bool HasInstrumentedBytecodeArray();
 
-  inline BytecodeArray OriginalBytecodeArray();
-  inline BytecodeArray DebugBytecodeArray();
+  inline Tagged<BytecodeArray> OriginalBytecodeArray();
+  inline Tagged<BytecodeArray> DebugBytecodeArray();
 
   // --- Break points ---
   // --------------------
@@ -132,9 +133,11 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
+  using BodyDescriptor = StructBodyDescriptor;
+
  private:
   // Get the break point info object for a source position.
-  Object GetBreakPointInfo(Isolate* isolate, int source_position);
+  Tagged<Object> GetBreakPointInfo(Isolate* isolate, int source_position);
 
   TQ_OBJECT_CONSTRUCTORS(DebugInfo)
 };
@@ -162,6 +165,8 @@ class BreakPointInfo
   int GetBreakPointCount(Isolate* isolate);
 
   int GetStatementPosition(Handle<DebugInfo> debug_info);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(BreakPointInfo)
 };
@@ -193,7 +198,70 @@ class CoverageInfo
 // Holds breakpoint related information. This object is used by inspector.
 class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
  public:
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(BreakPoint)
+};
+
+class StackFrameInfo
+    : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  static int GetSourcePosition(Handle<StackFrameInfo> info);
+
+  // The script for the stack frame.
+  inline Tagged<Script> script() const;
+
+  // The bytecode offset or source position for the stack frame.
+  DECL_INT_ACCESSORS(bytecode_offset_or_source_position)
+
+  // Indicates that the frame corresponds to a 'new' invocation.
+  DECL_BOOLEAN_ACCESSORS(is_constructor)
+
+  // Dispatched behavior.
+  DECL_VERIFIER(StackFrameInfo)
+
+  // Bit positions in |flags|.
+  DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
+};
+
+class ErrorStackData
+    : public TorqueGeneratedErrorStackData<ErrorStackData, Struct> {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  inline bool HasFormattedStack() const;
+  DECL_ACCESSORS(formatted_stack, Tagged<Object>)
+  inline bool HasCallSiteInfos() const;
+  DECL_ACCESSORS(call_site_infos, Tagged<FixedArray>)
+
+  static void EnsureStackFrameInfos(Isolate* isolate,
+                                    Handle<ErrorStackData> error_stack);
+
+  DECL_VERIFIER(ErrorStackData)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(ErrorStackData)
+};
+
+class PromiseOnStack
+    : public TorqueGeneratedPromiseOnStack<PromiseOnStack, Struct> {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  static MaybeHandle<JSObject> GetPromise(
+      Handle<PromiseOnStack> promise_on_stack);
+
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(PromiseOnStack)
 };
 
 }  // namespace internal

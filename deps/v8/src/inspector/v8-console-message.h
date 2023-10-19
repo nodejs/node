@@ -10,7 +10,8 @@
 #include <memory>
 #include <set>
 
-#include "include/v8.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-persistent-handle.h"
 #include "src/inspector/protocol/Console.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
@@ -85,6 +86,8 @@ class V8ConsoleMessage {
   void setLocation(const String16& url, unsigned lineNumber,
                    unsigned columnNumber, std::unique_ptr<V8StackTraceImpl>,
                    int scriptId);
+  std::unique_ptr<protocol::DictionaryValue> getAssociatedExceptionData(
+      V8InspectorImpl* inspector, V8InspectorSessionImpl* session) const;
 
   V8MessageOrigin m_origin;
   double m_timestamp;

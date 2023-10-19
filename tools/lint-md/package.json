@@ -1,0 +1,22 @@
+{
+  "name": "lint-md",
+  "description": "markdown linting",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "rollup -f es -p '@rollup/plugin-node-resolve={exportConditions: [\"node\"]}'  -p @rollup/plugin-commonjs -p rollup-plugin-cleanup lint-md.src.mjs --file lint-md.mjs"
+  },
+  "dependencies": {
+    "remark-parse": "^11.0.0",
+    "remark-preset-lint-node": "^5.0.0",
+    "remark-stringify": "^11.0.0",
+    "to-vfile": "^8.0.0",
+    "unified": "^11.0.3",
+    "vfile-reporter": "^8.1.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.5",
+    "@rollup/plugin-node-resolve": "^15.2.2",
+    "rollup": "^4.0.2",
+    "rollup-plugin-cleanup": "^3.2.1"
+  }
+}

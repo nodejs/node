@@ -160,8 +160,12 @@ class Simulator : public SimulatorBase {
 
   Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
-  // Accessor to the internal simulator stack area.
+  // Accessor to the internal simulator stack area. Adds a safety
+  // margin to prevent overflows.
   uintptr_t StackLimit(uintptr_t c_limit) const;
+  // Return current stack view, without additional safety margins.
+  // Users, for example wasm::StackMemory, can add their own.
+  base::Vector<uint8_t> GetCurrentStackView() const;
 
   // Executes S390 instructions until the PC reaches end_sim_pc.
   void Execute();
@@ -240,57 +244,23 @@ class Simulator : public SimulatorBase {
   inline void IncreaseStopCounter(uint32_t bkpt_code);
   void PrintStopInfo(uint32_t code);
 
-  // Byte Reverse
-  static inline __uint128_t __builtin_bswap128(__uint128_t v) {
-    union {
-      uint64_t u64[2];
-      __uint128_t u128;
-    } res, val;
-    val.u128 = v;
-    res.u64[0] = __builtin_bswap64(val.u64[1]);
-    res.u64[1] = __builtin_bswap64(val.u64[0]);
-    return res.u128;
-  }
-
-  template <class T>
-  static inline T ByteReverse(T val) {
-    constexpr int size = sizeof(T);
-#define CASE(type, size_in_bits)                                              \
-  case sizeof(type): {                                                        \
-    type res = __builtin_bswap##size_in_bits(*reinterpret_cast<type*>(&val)); \
-    return *reinterpret_cast<T*>(&res);                                       \
-  }
-    switch (size) {
-      case 1:
-        return val;
-        CASE(uint16_t, 16);
-        CASE(uint32_t, 32);
-        CASE(uint64_t, 64);
-        CASE(__uint128_t, 128);
-      default:
-        UNREACHABLE();
-    }
-#undef CASE
-    return val;
-  }
-
   // Read and write memory.
   inline uint8_t ReadBU(intptr_t addr);
   inline int8_t ReadB(intptr_t addr);
   inline void WriteB(intptr_t addr, uint8_t value);
   inline void WriteB(intptr_t addr, int8_t value);
 
-  inline uint16_t ReadHU(intptr_t addr, Instruction* instr);
-  inline int16_t ReadH(intptr_t addr, Instruction* instr);
+  inline uint16_t ReadHU(intptr_t addr);
+  inline int16_t ReadH(intptr_t addr);
   // Note: Overloaded on the sign of the value.
-  inline void WriteH(intptr_t addr, uint16_t value, Instruction* instr);
-  inline void WriteH(intptr_t addr, int16_t value, Instruction* instr);
+  inline void WriteH(intptr_t addr, uint16_t value);
+  inline void WriteH(intptr_t addr, int16_t value);
 
-  inline uint32_t ReadWU(intptr_t addr, Instruction* instr);
-  inline int32_t ReadW(intptr_t addr, Instruction* instr);
-  inline int64_t ReadW64(intptr_t addr, Instruction* instr);
-  inline void WriteW(intptr_t addr, uint32_t value, Instruction* instr);
-  inline void WriteW(intptr_t addr, int32_t value, Instruction* instr);
+  inline uint32_t ReadWU(intptr_t addr);
+  inline int32_t ReadW(intptr_t addr);
+  inline int64_t ReadW64(intptr_t addr);
+  inline void WriteW(intptr_t addr, uint32_t value);
+  inline void WriteW(intptr_t addr, int32_t value);
 
   inline int64_t ReadDW(intptr_t addr);
   inline double ReadDouble(intptr_t addr);
@@ -399,12 +369,10 @@ class Simulator : public SimulatorBase {
 
   static constexpr fpr_t fp_zero = {{0}};
 
-  fpr_t get_simd_register(int reg) {
-    return get_simd_register_by_lane<fpr_t>(reg, 0);
-  }
+  fpr_t get_simd_register(int reg) { return fp_registers_[reg]; }
 
-  void set_simd_register(int reg, const fpr_t& v) {
-    set_simd_register_by_lane(reg, 0, v);
+  void set_simd_register(int reg, const fpr_t& value) {
+    fp_registers_[reg] = value;
   }
 
   // Vector register lane numbers on IBM machines are reversed compared to
@@ -454,8 +422,20 @@ class Simulator : public SimulatorBase {
   intptr_t special_reg_pc_;
 
   // Simulator support.
-  char* stack_;
-  static const size_t stack_protection_size_ = 256 * kSystemPointerSize;
+  uint8_t* stack_;
+  static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
+  // This includes a protection margin at each end of the stack area.
+  static size_t AllocatedStackSize() {
+#if V8_TARGET_ARCH_S390X
+    size_t stack_size = v8_flags.sim_stack_size * KB;
+#else
+    size_t stack_size = MB;  // allocate 1MB for stack
+#endif
+    return stack_size + (2 * kStackProtectionSize);
+  }
+  static size_t UsableStackSize() {
+    return AllocatedStackSize() - kStackProtectionSize;
+  }
   bool pc_modified_;
   int64_t icount_;
 
@@ -1241,6 +1221,9 @@ class Simulator : public SimulatorBase {
   EVALUATE(CZXT);
   EVALUATE(CDZT);
   EVALUATE(CXZT);
+  EVALUATE(MG);
+  EVALUATE(MGRK);
+
 #undef EVALUATE
 };
 

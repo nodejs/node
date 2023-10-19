@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
   // Use 'url' to avoid name clash with other http benchmark
   url: types.concat(['wpt']),
   arg: ['URL', 'string', 'options'],
-  e: [1]
+  e: [1],
 });
 
 function noop() {}
@@ -25,7 +25,7 @@ function main({ url: type, arg, e }) {
   switch (arg) {
     case 'options': {
       const options = data.map((i) => ({
-        path: new URL(i).path, createConnection: noop
+        path: new URL(i).path, createConnection: noop,
       }));
       bench.start();
       for (let i = 0; i < len; i++) {

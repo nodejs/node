@@ -24,7 +24,7 @@ function run({ command, expected, useColors = false }) {
   if (typeof expected === 'string') {
     assert.strictEqual(accum, expected);
   } else {
-    assert(expected.test(accum), accum);
+    assert.match(accum, expected);
   }
 
   // Verify that the repl is still working as expected.

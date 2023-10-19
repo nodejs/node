@@ -1,8 +1,8 @@
 #! /usr/bin/env perl
 # -*- mode: perl; -*-
-# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -32,19 +32,18 @@ my %shared_info;
         return {
             %{$shared_info{'gnu-shared'}},
             shared_defflag    => '-Wl,--version-script=',
+            dso_ldflags       =>
+                (grep /(?:^|\s)-fsanitize/,
+                 @{$config{CFLAGS}}, @{$config{cflags}})
+                ? ''
+                : '-Wl,-z,defs',
         };
     },
     'bsd-gcc-shared' => sub { return $shared_info{'linux-shared'}; },
-    'bsd-shared' => sub {
-        return $shared_info{'gnu-shared'} if detect_gnu_ld();
-        return {
-            shared_ldflag     => '-shared -nostdlib',
-        };
-    },
     'darwin-shared' => {
         module_ldflags        => '-bundle',
         shared_ldflag         => '-dynamiclib -current_version $(SHLIB_VERSION_NUMBER) -compatibility_version $(SHLIB_VERSION_NUMBER)',
-        shared_sonameflag     => '-install_name $(INSTALLTOP)/$(LIBDIR)/',
+        shared_sonameflag     => '-install_name $(libdir)/',
     },
     'cygwin-shared' => {
         shared_ldflag         => '-shared -Wl,--enable-auto-image-base',
@@ -53,9 +52,10 @@ my %shared_info;
     'mingw-shared' => sub {
         return {
             %{$shared_info{'cygwin-shared'}},
-            # def_flag made to empty string so  it still generates
+            # def_flag made to empty string so it still generates
             # something
             shared_defflag    => '',
+            shared_argfileflag => '@',
         };
     },
     'alpha-osf1-shared' => sub {
@@ -77,6 +77,18 @@ my %shared_info;
         return {
             shared_ldflag     => detect_gnu_cc() ? '-shared' : '-G',
             shared_sonameflag => '-h ',
+        };
+    },
+    'solaris-gcc-shared' => sub {
+        return $shared_info{'linux-shared'} if detect_gnu_ld();
+        return {
+            # Note: we should also have -shared here, but because some
+            # config targets define it with an added -static-libgcc
+            # following it, we don't want to change the order.  This
+            # forces all solaris gcc config targets to define shared_ldflag
+            shared_ldflag     => '-Wl,-Bsymbolic',
+            shared_defflag    => "-Wl,-M,",
+            shared_sonameflag => "-Wl,-h,",
         };
     },
 );

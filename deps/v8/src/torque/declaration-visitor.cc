@@ -5,6 +5,7 @@
 #include "src/torque/declaration-visitor.h"
 
 #include "src/torque/ast.h"
+#include "src/torque/kythe-data.h"
 #include "src/torque/server-data.h"
 #include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
@@ -67,6 +68,12 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
   Builtin::Kind kind = !javascript ? Builtin::kStub
                                    : varargs ? Builtin::kVarArgsJavaScript
                                              : Builtin::kFixedArgsJavaScript;
+  bool has_custom_interface_descriptor = false;
+  if (decl->kind == AstNode::Kind::kTorqueBuiltinDeclaration) {
+    has_custom_interface_descriptor =
+        static_cast<TorqueBuiltinDeclaration*>(decl)
+            ->has_custom_interface_descriptor;
+  }
 
   if (varargs && !javascript) {
     Error("Rest parameters require ", decl->name,
@@ -91,10 +98,23 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
   }
 
   for (size_t i = 0; i < signature.types().size(); ++i) {
-    if (signature.types()[i]->StructSupertype()) {
+    const Type* parameter_type = signature.types()[i];
+    if (parameter_type->StructSupertype()) {
       Error("Builtin do not support structs as arguments, but argument ",
             signature.parameter_names[i], " has type ", *signature.types()[i],
             ".");
+    }
+    if (parameter_type->IsFloat32() || parameter_type->IsFloat64()) {
+      if (!has_custom_interface_descriptor) {
+        Error("Builtin ", external_name,
+              " needs a custom interface descriptor, "
+              "because it uses type ",
+              *parameter_type, " for argument ", signature.parameter_names[i],
+              ". One reason being "
+              "that the default descriptor defines xmm0 to be the first "
+              "floating point argument register, which is current used as "
+              "scratch on ia32 and cannot be allocated.");
+      }
     }
   }
 
@@ -109,16 +129,23 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
     Error("Builtins cannot have return type void.");
   }
 
-  return Declarations::CreateBuiltin(std::move(external_name),
-                                     std::move(readable_name), kind,
-                                     std::move(signature), body);
+  Builtin::Flags flags = Builtin::Flag::kNone;
+  if (has_custom_interface_descriptor)
+    flags |= Builtin::Flag::kCustomInterfaceDescriptor;
+  Builtin* builtin = Declarations::CreateBuiltin(
+      std::move(external_name), std::move(readable_name), kind, flags,
+      std::move(signature), body);
+  // TODO(v8:12261): Recheck this.
+  // builtin->SetIdentifierPosition(decl->name->pos);
+  return builtin;
 }
 
 void DeclarationVisitor::Visit(ExternalBuiltinDeclaration* decl) {
-  Declarations::Declare(
-      decl->name->value,
+  Builtin* builtin =
       CreateBuiltin(decl, decl->name->value, decl->name->value,
-                    TypeVisitor::MakeSignature(decl), base::nullopt));
+                    TypeVisitor::MakeSignature(decl), base::nullopt);
+  builtin->SetIdentifierPosition(decl->name->pos);
+  Declarations::Declare(decl->name->value, builtin);
 }
 
 void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
@@ -141,7 +168,7 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
     ReportError(
         "runtime functions can only return strong tagged values, but "
         "found type ",
-        signature.return_type);
+        *signature.return_type);
   }
   for (const Type* parameter_type : signature.parameter_types.types) {
     if (!parameter_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {
@@ -152,29 +179,43 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
     }
   }
 
-  Declarations::DeclareRuntimeFunction(decl->name->value, signature);
+  RuntimeFunction* function =
+      Declarations::DeclareRuntimeFunction(decl->name->value, signature);
+  function->SetIdentifierPosition(decl->name->pos);
+  function->SetPosition(decl->pos);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddFunctionDefinition(function);
+  }
 }
 
 void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl) {
-  Declarations::DeclareMacro(
+  Macro* macro = Declarations::DeclareMacro(
       decl->name->value, true, decl->external_assembler_name,
       TypeVisitor::MakeSignature(decl), base::nullopt, decl->op);
+  macro->SetIdentifierPosition(decl->name->pos);
+  macro->SetPosition(decl->pos);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddFunctionDefinition(macro);
+  }
 }
 
 void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl) {
-  Declarations::Declare(
-      decl->name->value,
-      CreateBuiltin(decl, decl->name->value, decl->name->value,
-                    TypeVisitor::MakeSignature(decl), decl->body));
+  auto builtin = CreateBuiltin(decl, decl->name->value, decl->name->value,
+                               TypeVisitor::MakeSignature(decl), decl->body);
+  builtin->SetIdentifierPosition(decl->name->pos);
+  builtin->SetPosition(decl->pos);
+  Declarations::Declare(decl->name->value, builtin);
 }
 
 void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl) {
   Macro* macro = Declarations::DeclareMacro(
       decl->name->value, decl->export_to_csa, base::nullopt,
       TypeVisitor::MakeSignature(decl), decl->body, decl->op);
-  // TODO(szuend): Set identifier_position to decl->name->pos once all callable
-  // names are changed from std::string to Identifier*.
+  macro->SetIdentifierPosition(decl->name->pos);
   macro->SetPosition(decl->pos);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddFunctionDefinition(macro);
+  }
 }
 
 void DeclarationVisitor::Visit(IntrinsicDeclaration* decl) {
@@ -183,8 +224,11 @@ void DeclarationVisitor::Visit(IntrinsicDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(ConstDeclaration* decl) {
-  Declarations::DeclareNamespaceConstant(
+  auto constant = Declarations::DeclareNamespaceConstant(
       decl->name, TypeVisitor::ComputeType(decl->type), decl->expression);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddConstantDefinition(constant);
+  }
 }
 
 void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
@@ -260,7 +304,11 @@ void DeclarationVisitor::Visit(ExternConstDeclaration* decl) {
     ReportError(stream.str());
   }
 
-  Declarations::DeclareExternConstant(decl->name, type, decl->literal);
+  ExternConstant* constant =
+      Declarations::DeclareExternConstant(decl->name, type, decl->literal);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddConstantDefinition(constant);
+  }
 }
 
 void DeclarationVisitor::Visit(CppIncludeDeclaration* decl) {

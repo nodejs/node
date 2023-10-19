@@ -36,10 +36,19 @@
 /* Actual tests and helpers are defined in test-list.h */
 #include "test-list.h"
 
+#ifdef __MVS__
+#include "zos-base.h"
+/* Initialize environment and zoslib */
+__attribute__((constructor)) void init() {
+  zoslib_config_t config;
+  init_zoslib_config(&config);
+  init_zoslib(config);
+}
+#endif
+
 int ipc_helper(int listen_after_write);
 int ipc_helper_heavy_traffic_deadlock_bug(void);
 int ipc_helper_tcp_connection(void);
-int ipc_helper_closed_handle(void);
 int ipc_send_recv_helper(void);
 int ipc_helper_bind_twice(void);
 int ipc_helper_send_zero(void);
@@ -76,10 +85,6 @@ int main(int argc, char **argv) {
     fflush(stderr);
     return EXIT_FAILURE;
   }
-
-#ifndef __SUNPRO_C
-  return EXIT_SUCCESS;
-#endif
 }
 
 
@@ -107,10 +112,6 @@ static int maybe_run_test(int argc, char **argv) {
 
   if (strcmp(argv[1], "ipc_helper_tcp_connection") == 0) {
     return ipc_helper_tcp_connection();
-  }
-
-  if (strcmp(argv[1], "ipc_helper_closed_handle") == 0) {
-    return ipc_helper_closed_handle();
   }
 
   if (strcmp(argv[1], "ipc_helper_bind_twice") == 0) {
@@ -153,7 +154,7 @@ static int maybe_run_test(int argc, char **argv) {
   if (strcmp(argv[1], "spawn_helper4") == 0) {
     notify_parent_process();
     /* Never surrender, never return! */
-    while (1) uv_sleep(10000);
+    for (;;) uv_sleep(10000);
   }
 
   if (strcmp(argv[1], "spawn_helper5") == 0) {
@@ -198,7 +199,7 @@ static int maybe_run_test(int argc, char **argv) {
 
     /* Test if the test value from the parent is still set */
     test = getenv("ENV_TEST");
-    ASSERT(test != NULL);
+    ASSERT_NOT_NULL(test);
 
     r = fprintf(stdout, "%s", test);
     ASSERT(r > 0);

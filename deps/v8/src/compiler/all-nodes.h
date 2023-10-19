@@ -6,7 +6,7 @@
 #define V8_COMPILER_ALL_NODES_H_
 
 #include "src/compiler/node.h"
-#include "src/zone/zone-containers.h"
+#include "src/utils/bit-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -32,8 +32,8 @@ class AllNodes {
 
   bool IsReachable(const Node* node) const {
     if (!node) return false;
-    size_t id = node->id();
-    return id < is_reachable_.size() && is_reachable_[id];
+    int id = node->id();
+    return id < is_reachable_.length() && is_reachable_.Contains(id);
   }
 
   NodeVector reachable;  // Nodes reachable from end.
@@ -41,7 +41,7 @@ class AllNodes {
  private:
   void Mark(Zone* local_zone, Node* end, const Graph* graph);
 
-  BoolVector is_reachable_;
+  BitVector is_reachable_;
   const bool only_inputs_;
 };
 

@@ -1,6 +1,6 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-/*
+/*  
 **********************************************************************
 *   Copyright (C) 2002-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -76,7 +76,7 @@
 #endif
 
 /**
- * Determines whether to enable auto cleanup of libraries.
+ * Determines whether to enable auto cleanup of libraries. 
  * @internal
  */
 #ifndef UCLN_NO_AUTO_CLEANUP
@@ -256,7 +256,7 @@
 #   define UCONFIG_NO_FILE_IO 0
 #endif
 
-#if UCONFIG_NO_FILE_IO && defined(U_TIMEZONE_FILES_DIR)
+#if UCONFIG_NO_FILE_IO && defined(U_TIMEZONE_FILES_DIR) 
 #   error Contradictory file io switches in uconfig.h.
 #endif
 
@@ -323,6 +323,16 @@
 #   define UCONFIG_NO_NORMALIZATION 0
 #endif
 
+/**
+ * \def UCONFIG_USE_ML_PHRASE_BREAKING
+ * This switch turns on BudouX ML phrase-based line breaking, rather than using the dictionary.
+ *
+ * @internal
+ */
+#ifndef UCONFIG_USE_ML_PHRASE_BREAKING
+#   define UCONFIG_USE_ML_PHRASE_BREAKING 0
+#endif
+
 #if UCONFIG_NO_NORMALIZATION
     /* common library */
     /* ICU 50 CJK dictionary BreakIterator uses normalization */
@@ -374,7 +384,7 @@
  * On platforms where U_PLATFORM_HAS_WIN32_API is true, this switch determines
  * if the Windows platform APIs are used for LCID<->Locale Name conversions.
  * Otherwise, only the built-in ICU tables are used.
- *
+ * 
  * @internal ICU 64
  */
 #ifndef UCONFIG_USE_WINDOWS_LCID_MAPPING_API

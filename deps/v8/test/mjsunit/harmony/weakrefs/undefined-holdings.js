@@ -4,34 +4,39 @@
 
 // Flags: --expose-gc --noincremental-marking
 
-let cleanup_call_count = 0;
-let cleanup_holdings_count = 0;
-let cleanup = function(holdings) {
-  assertEquals(holdings, undefined);
-  ++cleanup_holdings_count;
-  ++cleanup_call_count;
-}
+(async function () {
 
-let fg = new FinalizationRegistry(cleanup);
+  let cleanup_call_count = 0;
+  let cleanup = function (holdings) {
+    assertEquals(holdings, undefined);
+    ++cleanup_call_count;
+  }
 
-// Create an object and register it in the FinalizationRegistry. The object needs to be inside
-// a closure so that we can reliably kill them!
+  let fg = new FinalizationRegistry(cleanup);
 
-(function() {
-  let object = {};
-  fg.register(object);
+  // Create an object and register it in the FinalizationRegistry. The object needs to be inside
+  // a closure so that we can reliably kill them!
 
-  // object goes out of scope.
+  (function () {
+    let object = {};
+    fg.register(object);
+
+    // object goes out of scope.
+  })();
+
+  // This GC will reclaim the target object and schedule cleanup.
+  // We need to invoke GC asynchronously and wait for it to finish, so that
+  // it doesn't need to scan the stack. Otherwise, the objects may not be
+  // reclaimed because of conservative stack scanning and the test may not
+  // work as intended.
+  await gc({ type: 'major', execution: 'async' });
+  assertEquals(0, cleanup_call_count);
+
+  // Assert that the cleanup function was called.
+  let timeout_func = function () {
+    assertEquals(1, cleanup_call_count);
+  }
+
+  setTimeout(timeout_func, 0);
+
 })();
-
-// This GC will reclaim the target object and schedule cleanup.
-gc();
-assertEquals(0, cleanup_call_count);
-
-// Assert that the cleanup function was called.
-let timeout_func = function() {
-  assertEquals(1, cleanup_call_count);
-  assertEquals(1, cleanup_holdings_count);
-}
-
-setTimeout(timeout_func, 0);

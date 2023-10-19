@@ -1,7 +1,7 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -12,6 +12,7 @@
 #include <openssl/asn1t.h>
 #include <openssl/pkcs7.h>
 #include <openssl/x509.h>
+#include "pk7_local.h"
 
 /* PKCS#7 ASN1 module */
 
@@ -62,7 +63,61 @@ ASN1_NDEF_SEQUENCE_cb(PKCS7, pk7_cb) = {
         ASN1_ADB_OBJECT(PKCS7)
 }ASN1_NDEF_SEQUENCE_END_cb(PKCS7, PKCS7)
 
-IMPLEMENT_ASN1_FUNCTIONS(PKCS7)
+PKCS7 *d2i_PKCS7(PKCS7 **a, const unsigned char **in, long len)
+{
+    PKCS7 *ret;
+    OSSL_LIB_CTX *libctx = NULL;
+    const char *propq = NULL;
+
+    if (a != NULL && *a != NULL) {
+        libctx = (*a)->ctx.libctx;
+        propq = (*a)->ctx.propq;
+    }
+
+    ret = (PKCS7 *)ASN1_item_d2i_ex((ASN1_VALUE **)a, in, len, (PKCS7_it()),
+                                    libctx, propq);
+    if (ret != NULL)
+        ossl_pkcs7_resolve_libctx(ret);
+    return ret;
+}
+
+int i2d_PKCS7(const PKCS7 *a, unsigned char **out)
+{
+    return ASN1_item_i2d((const ASN1_VALUE *)a, out, (PKCS7_it()));\
+}
+
+PKCS7 *PKCS7_new(void)
+{
+    return (PKCS7 *)ASN1_item_new(ASN1_ITEM_rptr(PKCS7));
+}
+
+PKCS7 *PKCS7_new_ex(OSSL_LIB_CTX *libctx, const char *propq)
+{
+    PKCS7 *pkcs7 = (PKCS7 *)ASN1_item_new_ex(ASN1_ITEM_rptr(PKCS7), libctx,
+                                             propq);
+
+    if (pkcs7 != NULL) {
+        pkcs7->ctx.libctx = libctx;
+        pkcs7->ctx.propq = NULL;
+        if (propq != NULL) {
+            pkcs7->ctx.propq = OPENSSL_strdup(propq);
+            if (pkcs7->ctx.propq == NULL) {
+                PKCS7_free(pkcs7);
+                pkcs7 = NULL;
+                ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
+            }
+        }
+    }
+    return pkcs7;
+}
+
+void PKCS7_free(PKCS7 *p7)
+{
+    if (p7 != NULL) {
+        OPENSSL_free(p7->ctx.propq);
+        ASN1_item_free((ASN1_VALUE *)p7, ASN1_ITEM_rptr(PKCS7));
+    }
+}
 
 IMPLEMENT_ASN1_NDEF_FUNCTION(PKCS7)
 

@@ -42,11 +42,12 @@ action("protocol_compatibility") {
 }
 
 inspector_protocol_generate("protocol_generated_sources") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
   deps = [ ":protocol_compatibility" ]
 
   inspector_protocol_dir = _inspector_protocol
   out_dir = target_gen_dir
+  _protocol_path = rebase_path(v8_inspector_js_protocol, root_build_dir)
+  config_values = [ "protocol.path=$_protocol_path" ]
   config_file = v8_path_prefix + "/src/inspector/inspector_protocol_config.json"
   inputs = [
     v8_inspector_js_protocol,
@@ -101,6 +102,8 @@ v8_source_set("inspector") {
     "../../include/v8-inspector.h",
   ]
   sources += [
+    "crc32.cc",
+    "crc32.h",
     "custom-preview.cc",
     "custom-preview.h",
     "injected-script.cc",
@@ -124,12 +127,16 @@ v8_source_set("inspector") {
     "v8-console.h",
     "v8-debugger-agent-impl.cc",
     "v8-debugger-agent-impl.h",
+    "v8-debugger-barrier.cc",
+    "v8-debugger-barrier.h",
     "v8-debugger-id.cc",
     "v8-debugger-id.h",
     "v8-debugger-script.cc",
     "v8-debugger-script.h",
     "v8-debugger.cc",
     "v8-debugger.h",
+    "v8-deep-serializer.cc",
+    "v8-deep-serializer.h",
     "v8-heap-profiler-agent-impl.cc",
     "v8-heap-profiler-agent-impl.h",
     "v8-inspector-impl.cc",
@@ -144,6 +151,8 @@ v8_source_set("inspector") {
     "v8-runtime-agent-impl.h",
     "v8-schema-agent-impl.cc",
     "v8-schema-agent-impl.h",
+    "v8-serialization-duplicate-tracker.cc",
+    "v8-serialization-duplicate-tracker.h",
     "v8-stack-trace-impl.cc",
     "v8-stack-trace-impl.h",
     "v8-value-utils.cc",

@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --turbo-filter=*
+// Flags: --allow-natives-syntax --turbofan --turbo-filter=*
 
 function foo() {
   with ({ value:"fooed" }) { return value; }
 }
 
 %PrepareFunctionForOptimization(foo);
+foo();
+foo();
 %OptimizeFunctionOnNextCall(foo);
 assertEquals("fooed", foo());
 assertOptimized(foo);
@@ -18,6 +20,7 @@ function bar() {
 }
 
 %PrepareFunctionForOptimization(bar);
+assertEquals("bared", bar());
 assertEquals("bared", bar());
 %OptimizeFunctionOnNextCall(bar);
 assertEquals("bared", bar());

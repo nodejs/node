@@ -5,12 +5,13 @@
 extern "C" {
 #endif
 
+#include "uv.h"
 #include "wasi_serdes.h"
 #include "wasi_types.h"
 
 #define UVWASI_VERSION_MAJOR 0
 #define UVWASI_VERSION_MINOR 0
-#define UVWASI_VERSION_PATCH 11
+#define UVWASI_VERSION_PATCH 19
 #define UVWASI_VERSION_HEX ((UVWASI_VERSION_MAJOR << 16) | \
                             (UVWASI_VERSION_MINOR <<  8) | \
                             (UVWASI_VERSION_PATCH))
@@ -47,6 +48,7 @@ typedef struct uvwasi_s {
   char* env_buf;
   uvwasi_size_t env_buf_size;
   const uvwasi_mem_t* allocator;
+  uv_loop_t* loop;
 } uvwasi_t;
 
 typedef struct uvwasi_preopen_s {
@@ -54,10 +56,17 @@ typedef struct uvwasi_preopen_s {
   const char* real_path;
 } uvwasi_preopen_t;
 
+typedef struct uvwasi_preopen_socket_s {
+  const char* address;
+  int port;
+} uvwasi_preopen_socket_t;
+
 typedef struct uvwasi_options_s {
   uvwasi_size_t fd_table_size;
   uvwasi_size_t preopenc;
   uvwasi_preopen_t* preopens;
+  uvwasi_size_t preopen_socketc;
+  uvwasi_preopen_socket_t* preopen_sockets;
   uvwasi_size_t argc;
   const char** argv;
   const char** envp;
@@ -68,7 +77,7 @@ typedef struct uvwasi_options_s {
 } uvwasi_options_t;
 
 /* Embedder API. */
-uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, uvwasi_options_t* options);
+uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, const uvwasi_options_t* options);
 void uvwasi_destroy(uvwasi_t* uvwasi);
 void uvwasi_options_init(uvwasi_options_t* options);
 /* Use int instead of uv_file to avoid needing uv.h */
@@ -251,6 +260,10 @@ uvwasi_errno_t uvwasi_random_get(uvwasi_t* uvwasi,
                                  void* buf,
                                  uvwasi_size_t buf_len);
 uvwasi_errno_t uvwasi_sched_yield(uvwasi_t* uvwasi);
+uvwasi_errno_t uvwasi_sock_accept(uvwasi_t* uvwasi,
+                                  uvwasi_fd_t sock,
+                                  uvwasi_fdflags_t flags,
+                                  uvwasi_fd_t* fd);
 uvwasi_errno_t uvwasi_sock_recv(uvwasi_t* uvwasi,
                                 uvwasi_fd_t sock,
                                 const uvwasi_iovec_t* ri_data,

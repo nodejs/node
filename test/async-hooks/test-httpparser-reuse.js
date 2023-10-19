@@ -29,7 +29,7 @@ createHook({
 
     if (resource[reused]) {
       reusedParser.push(
-        `resource reused: ${asyncId}, ${triggerAsyncId}, ${type}`
+        `resource reused: ${asyncId}, ${triggerAsyncId}, ${type}`,
       );
     }
     resource[reused] = true;
@@ -40,7 +40,7 @@ createHook({
     } else {
       destroyed.push(asyncId);
     }
-  }
+  },
 }).enable();
 
 const server = http.createServer((req, res) => {

@@ -8,10 +8,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/type-cache.h"
 #include "src/compiler/types.h"
-#include "src/execution/isolate.h"
-#include "src/heap/factory.h"
-
-#include "src/objects/objects-inl.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
@@ -19,26 +16,26 @@ namespace compiler {
 
 OperationTyper::OperationTyper(JSHeapBroker* broker, Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
-  Factory* factory = broker->isolate()->factory();
   infinity_ = Type::Constant(V8_INFINITY, zone);
   minus_infinity_ = Type::Constant(-V8_INFINITY, zone);
   Type truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero.Maybe(Type::Integral32()));
 
   singleton_empty_string_ =
-      Type::Constant(broker, factory->empty_string(), zone);
-  singleton_NaN_string_ = Type::Constant(broker, factory->NaN_string(), zone);
-  singleton_zero_string_ = Type::Constant(broker, factory->zero_string(), zone);
-  singleton_false_ = Type::Constant(broker, factory->false_value(), zone);
-  singleton_true_ = Type::Constant(broker, factory->true_value(), zone);
-  singleton_the_hole_ = Type::Hole();
+      Type::Constant(broker, broker->empty_string(), zone);
+  singleton_NaN_string_ = Type::Constant(broker, broker->NaN_string(), zone);
+  singleton_zero_string_ = Type::Constant(broker, broker->zero_string(), zone);
+  singleton_false_ = Type::Constant(broker, broker->false_value(), zone);
+  singleton_true_ = Type::Constant(broker, broker->true_value(), zone);
   signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
 
+  // TODO(chromium:1445008): when splitting the hole into different holes,
+  // figure which ones of them are falsish.
   falsish_ = Type::Union(
       Type::Undetectable(),
       Type::Union(Type::Union(singleton_false_, cache_->kZeroish, zone),
-                  Type::Union(singleton_empty_string_, Type::Hole(), zone),
+                  Type::Union(singleton_empty_string_, Type::TheHole(), zone),
                   zone),
       zone);
   truish_ = Type::Union(
@@ -93,7 +90,7 @@ Type OperationTyper::WeakenRange(Type previous_range, Type current_range) {
                                             140737488355327.0,
                                             281474976710655.0,
                                             562949953421311.0};
-  STATIC_ASSERT(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
+  static_assert(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
 
   double current_min = current_range.Min();
   double new_min = current_min;
@@ -309,6 +306,27 @@ Type OperationTyper::ToNumberConvertBigInt(Type type) {
 
   // Any BigInt is rounded to an integer Number in the range [-inf, inf].
   return maybe_bigint ? Type::Union(type, cache_->kInteger, zone()) : type;
+}
+
+Type OperationTyper::ToBigInt(Type type) {
+  if (type.Is(Type::BigInt())) {
+    return type;
+  }
+
+  return Type::BigInt();
+}
+
+Type OperationTyper::ToBigIntConvertNumber(Type type) {
+  if (type.Is(Type::Unsigned32OrMinusZero())) {
+    return Type::UnsignedBigInt63();
+  } else if (type.Is(Type::Signed32OrMinusZero())) {
+    return Type::SignedBigInt64();
+  }
+
+  bool maybe_number =
+      type.Maybe(Type::Number()) || type.Maybe(Type::Receiver());
+  type = ToBigInt(Type::Intersect(type, Type::NonNumber(), zone()));
+  return maybe_number ? Type::Union(type, Type::BigInt(), zone()) : type;
 }
 
 Type OperationTyper::ToNumeric(Type type) {
@@ -567,6 +585,18 @@ Type OperationTyper::NumberToUint8Clamped(Type type) {
   return cache_->kUint8;
 }
 
+Type OperationTyper::Integral32OrMinusZeroToBigInt(Type type) {
+  DCHECK(type.Is(Type::Number()));
+
+  if (type.Is(Type::Unsigned32OrMinusZero())) {
+    return Type::UnsignedBigInt63();
+  }
+  if (type.Is(Type::Signed32OrMinusZero())) {
+    return Type::SignedBigInt64();
+  }
+  return Type::BigInt();
+}
+
 Type OperationTyper::NumberSilenceNaN(Type type) {
   DCHECK(type.Is(Type::Number()));
   // TODO(jarin): This is a terrible hack; we definitely need a dedicated type
@@ -576,12 +606,19 @@ Type OperationTyper::NumberSilenceNaN(Type type) {
   return type;
 }
 
-Type OperationTyper::BigIntAsUintN(Type type) {
-  DCHECK(type.Is(Type::BigInt()));
-  return Type::BigInt();
+Type OperationTyper::SpeculativeBigIntAsIntN(Type) {
+  return Type::SignedBigInt64();
+}
+
+Type OperationTyper::SpeculativeBigIntAsUintN(Type) {
+  return Type::UnsignedBigInt64();
 }
 
 Type OperationTyper::CheckBigInt(Type type) { return Type::BigInt(); }
+
+Type OperationTyper::CheckedBigIntToBigInt64(Type type) {
+  return Type::SignedBigInt64();
+}
 
 Type OperationTyper::NumberAdd(Type lhs, Type rhs) {
   DCHECK(lhs.Is(Type::Number()));
@@ -1115,6 +1152,7 @@ Type OperationTyper::NumberPow(Type lhs, Type rhs) {
 SPECULATIVE_NUMBER_BINOP(NumberAdd)
 SPECULATIVE_NUMBER_BINOP(NumberSubtract)
 SPECULATIVE_NUMBER_BINOP(NumberMultiply)
+SPECULATIVE_NUMBER_BINOP(NumberPow)
 SPECULATIVE_NUMBER_BINOP(NumberDivide)
 SPECULATIVE_NUMBER_BINOP(NumberModulus)
 SPECULATIVE_NUMBER_BINOP(NumberBitwiseOr)
@@ -1125,34 +1163,47 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRight)
 SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
 
-Type OperationTyper::BigIntAdd(Type lhs, Type rhs) {
-  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
-  return Type::BigInt();
+#define MACHINE_BINOP(Name) \
+  Type OperationTyper::Name(Type, Type) { return Type::Machine(); }
+TYPER_SUPPORTED_MACHINE_BINOP_LIST(MACHINE_BINOP)
+#undef MACHINE_BINOP
+
+Type OperationTyper::ChangeUint32ToUint64(Type input) {
+  return Type::Machine();
 }
 
-Type OperationTyper::BigIntSubtract(Type lhs, Type rhs) {
-  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
-  return Type::BigInt();
-}
+#define BIGINT_BINOP(Name)                                 \
+  Type OperationTyper::Name(Type lhs, Type rhs) {          \
+    DCHECK(lhs.Is(Type::BigInt()));                        \
+    DCHECK(rhs.Is(Type::BigInt()));                        \
+    if (lhs.IsNone() || rhs.IsNone()) return Type::None(); \
+    return Type::BigInt();                                 \
+  }
+SIMPLIFIED_BIGINT_BINOP_LIST(BIGINT_BINOP)
+#undef BIGINT_BINOP
 
 Type OperationTyper::BigIntNegate(Type type) {
+  DCHECK(type.Is(Type::BigInt()));
+
   if (type.IsNone()) return type;
   return Type::BigInt();
 }
 
-Type OperationTyper::SpeculativeBigIntAdd(Type lhs, Type rhs) {
-  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
-  return Type::BigInt();
-}
-
-Type OperationTyper::SpeculativeBigIntSubtract(Type lhs, Type rhs) {
-  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
-  return Type::BigInt();
-}
+#define SPECULATIVE_BIGINT_BINOP(Name)                     \
+  Type OperationTyper::Name(Type lhs, Type rhs) {          \
+    if (lhs.IsNone() || rhs.IsNone()) return Type::None(); \
+    return Type::BigInt();                                 \
+  }
+SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(SPECULATIVE_BIGINT_BINOP)
+#undef SPECULATIVE_BIGINT_BINOP
 
 Type OperationTyper::SpeculativeBigIntNegate(Type type) {
   if (type.IsNone()) return type;
   return Type::BigInt();
+}
+
+Type OperationTyper::SpeculativeToBigInt(Type type) {
+  return ToBigInt(Type::Intersect(type, Type::BigInt(), zone()));
 }
 
 Type OperationTyper::SpeculativeToNumber(Type type) {
@@ -1263,18 +1314,16 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
 Type OperationTyper::CheckBounds(Type index, Type length) {
   DCHECK(length.Is(cache_->kPositiveSafeInteger));
   if (length.Is(cache_->kSingletonZero)) return Type::None();
-  Type mask = Type::Range(0.0, length.Max() - 1, zone());
+  Type const upper_bound = Type::Range(0.0, length.Max() - 1, zone());
+  if (index.Maybe(Type::String())) return upper_bound;
   if (index.Maybe(Type::MinusZero())) {
     index = Type::Union(index, cache_->kSingletonZero, zone());
   }
-  if (index.Maybe(Type::String())) {
-    index = Type::Union(index, cache_->kIntPtr, zone());
-  }
-  return Type::Intersect(index, mask, zone());
+  return Type::Intersect(index, upper_bound, zone());
 }
 
 Type OperationTyper::CheckFloat64Hole(Type type) {
-  if (type.Maybe(Type::Hole())) {
+  if (type.Maybe(Type::TheHole())) {
     // Turn "the hole" into undefined.
     type = Type::Intersect(type, Type::Number(), zone());
     type = Type::Union(type, Type::Undefined(), zone());
@@ -1291,7 +1340,7 @@ Type OperationTyper::TypeTypeGuard(const Operator* sigma_op, Type input) {
 }
 
 Type OperationTyper::ConvertTaggedHoleToUndefined(Type input) {
-  if (input.Maybe(Type::Hole())) {
+  if (input.Maybe(Type::TheHole())) {
     // Turn "the hole" into undefined.
     Type type = Type::Intersect(input, Type::NonInternal(), zone());
     return Type::Union(type, Type::Undefined(), zone());

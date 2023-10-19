@@ -40,6 +40,10 @@
 #include <sys/time.h>
 #include <pthread.h>
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 extern char** environ;
 
 static void closefd(int fd) {
@@ -131,7 +135,11 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
   p->terminated = 0;
   p->status = 0;
 
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  pid = -1;
+#else
   pid = fork();
+#endif
 
   if (pid < 0) {
     perror("fork");
@@ -144,7 +152,9 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
       closefd(pipefd[0]);
     dup2(stdout_fd, STDOUT_FILENO);
     dup2(stdout_fd, STDERR_FILENO);
+#if !(defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH))
     execve(args[0], args, environ);
+#endif
     perror("execve()");
     _exit(127);
   }
@@ -197,7 +207,7 @@ static void* dowait(void* data) {
   process_info_t* p;
 
   for (i = 0; i < args->n; i++) {
-    p = (process_info_t*)(args->vec + i * sizeof(process_info_t));
+    p = &args->vec[i];
     if (p->terminated) continue;
     r = waitpid(p->pid, &p->status, 0);
     if (r < 0) {
@@ -323,7 +333,7 @@ int process_wait(process_info_t* vec, int n, int timeout) {
   } else {
     /* Timeout. Kill all the children. */
     for (i = 0; i < n; i++) {
-      p = (process_info_t*)(vec + i * sizeof(process_info_t));
+      p = &vec[i];
       kill(p->pid, SIGTERM);
     }
     retval = -2;
@@ -333,8 +343,8 @@ int process_wait(process_info_t* vec, int n, int timeout) {
     abort();
 
 terminate:
-  close(args.pipe[0]);
-  close(args.pipe[1]);
+  closefd(args.pipe[0]);
+  closefd(args.pipe[1]);
   return retval;
 }
 
@@ -344,6 +354,7 @@ long int process_output_size(process_info_t *p) {
   /* Size of the p->stdout_file */
   struct stat buf;
 
+  memset(&buf, 0, sizeof(buf));
   int r = fstat(fileno(p->stdout_file), &buf);
   if (r < 0) {
     return -1;

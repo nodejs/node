@@ -1,5 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
-
 'use strict';
 
 const assert = require('assert');
@@ -17,7 +15,7 @@ function runBenchmark(name, env) {
 
   const child = fork(runjs, argv, {
     env: mergedEnv,
-    stdio: ['inherit', 'pipe', 'inherit', 'ipc']
+    stdio: ['inherit', 'pipe', 'inherit', 'ipc'],
   });
   child.stdout.setEncoding('utf8');
 
@@ -37,7 +35,7 @@ function runBenchmark(name, env) {
     // get from testing the benchmark file.
     assert.ok(
       /^(?:\n.+?\n.+?\n)+$/.test(stdout),
-      `benchmark file not running exactly one configuration in test: ${stdout}`
+      `benchmark file not running exactly one configuration in test: ${stdout}`,
     );
   });
 }

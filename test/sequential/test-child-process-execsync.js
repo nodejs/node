@@ -30,7 +30,13 @@ const { execFileSync, execSync, spawnSync } = require('child_process');
 const { getSystemErrorName } = require('util');
 
 const TIMER = 200;
-const SLEEP = 2000;
+let SLEEP = 2000;
+if (common.isWindows) {
+  // Some of the windows machines in the CI need more time to launch
+  // and receive output from child processes.
+  // https://github.com/nodejs/build/issues/3014
+  SLEEP = 10000;
+}
 
 const execOpts = { encoding: 'utf8', shell: true };
 
@@ -60,7 +66,7 @@ try {
   assert.ok(caught, 'execSync should throw');
   const end = Date.now() - start;
   assert(end < SLEEP);
-  assert(err.status > 128 || err.signal);
+  assert(err.status > 128 || err.signal, `status: ${err.status}, signal: ${err.signal}`);
 }
 
 assert.throws(function() {

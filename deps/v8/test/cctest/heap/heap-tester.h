@@ -31,7 +31,6 @@
   V(InvalidatedSlotsResetObjectRegression)                  \
   V(InvalidatedSlotsRightTrimFixedArray)                    \
   V(InvalidatedSlotsRightTrimLargeFixedArray)               \
-  V(InvalidatedSlotsLeftTrimFixedArray)                     \
   V(InvalidatedSlotsFastToSlow)                             \
   V(InvalidatedSlotsSomeInvalidatedRanges)                  \
   V(TestNewSpaceRefsInCopiedCode)                           \
@@ -82,10 +81,6 @@
 
 namespace v8 {
 namespace internal {
-
-template <typename T>
-class Handle;
-
 namespace heap {
 
 class HeapTester {
@@ -116,7 +111,7 @@ class HeapTester {
   static AllocationResult AllocateFixedArrayForTest(Heap* heap, int length,
                                                     AllocationType allocation);
 
-  static void UncommitFromSpace(Heap* heap);
+  static void UncommitUnusedMemory(Heap* heap);
 };
 
 }  // namespace heap

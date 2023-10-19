@@ -15,15 +15,15 @@ const { getStaticPropertyName } = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of the `__iterator__` property",
-            category: "Best Practices",
+            description: "Disallow the use of the `__iterator__` property",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-iterator"
+            url: "https://eslint.org/docs/latest/rules/no-iterator"
         },
 
         schema: [],

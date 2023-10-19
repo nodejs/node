@@ -27,6 +27,7 @@ const {session, contextGroup, Protocol} = InspectorTest.start(
   const contextGroup = new InspectorTest.ContextGroup();
   const session2 = contextGroup.connect();
   const Protocol2 = session2.Protocol;
+  session2.setupScriptMap();
 
   Protocol2.Runtime.enable();
   Protocol2.Debugger.enable();
@@ -40,7 +41,8 @@ const {session, contextGroup, Protocol} = InspectorTest.start(
   });
 
   const paused = (await Protocol2.Debugger.oncePaused()).params;
-  InspectorTest.log(`paused in: ${paused.callFrames[0].url}`);
+  InspectorTest.log(
+      `paused in: ${session2.getCallFrameUrl(paused.callFrames[0])}`);
 
   // Now if we're paused in the wrong place, we will likely crash.
   session2.disconnect();

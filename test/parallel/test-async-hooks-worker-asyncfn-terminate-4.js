@@ -12,6 +12,7 @@ const { Worker } = require('worker_threads');
 const workerData = new Int32Array(new SharedArrayBuffer(4));
 const w = new Worker(`
 const { createHook } = require('async_hooks');
+const { workerData } = require('worker_threads');
 
 setImmediate(async () => {
   createHook({ init() {} }).enable();

@@ -46,10 +46,10 @@ typedef struct ngtcp2_log ngtcp2_log;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 /* NGTCP2_PV_ENTRY_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_PV_ENTRY_FLAG_NONE 0x00
+#define NGTCP2_PV_ENTRY_FLAG_NONE 0x00u
 /* NGTCP2_PV_ENTRY_FLAG_UNDERSIZED indicates that UDP datagram which
    contains PATH_CHALLENGE is undersized (< 1200 bytes) */
-#define NGTCP2_PV_ENTRY_FLAG_UNDERSIZED 0x01
+#define NGTCP2_PV_ENTRY_FLAG_UNDERSIZED 0x01u
 
 typedef struct ngtcp2_pv_entry {
   /* expiry is the timestamp when this PATH_CHALLENGE expires. */
@@ -64,25 +64,30 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
                           ngtcp2_tstamp expiry, uint8_t flags);
 
 /* NGTCP2_PV_FLAG_NONE indicates no flag is set. */
-#define NGTCP2_PV_FLAG_NONE 0x00
+#define NGTCP2_PV_FLAG_NONE 0x00u
 /* NGTCP2_PV_FLAG_DONT_CARE indicates that the outcome of path
    validation should be ignored entirely. */
-#define NGTCP2_PV_FLAG_DONT_CARE 0x01
+#define NGTCP2_PV_FLAG_DONT_CARE 0x01u
 /* NGTCP2_PV_FLAG_CANCEL_TIMER indicates that the expiry timer is
    cancelled. */
-#define NGTCP2_PV_FLAG_CANCEL_TIMER 0x02
+#define NGTCP2_PV_FLAG_CANCEL_TIMER 0x02u
 /* NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE indicates that fallback DCID is
    available in ngtcp2_pv.  If path validation fails, fallback to the
    fallback DCID.  If path validation succeeds, fallback DCID is
    retired if it does not equal to the current DCID. */
-#define NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE 0x04
+#define NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE 0x04u
 /* NGTCP2_PV_FLAG_MTU_PROBE indicates that a validation must probe
    least MTU that QUIC requires, which is 1200 bytes.  If it fails, a
    path is not viable. */
-#define NGTCP2_PV_FLAG_MTU_PROBE 0x08
+#define NGTCP2_PV_FLAG_MTU_PROBE 0x08u
+/* NGTCP2_PV_FLAG_PREFERRED_ADDR indicates that client is migrating to
+   server's preferred address.  This flag is only used by client. */
+#define NGTCP2_PV_FLAG_PREFERRED_ADDR 0x10u
 
 typedef struct ngtcp2_pv ngtcp2_pv;
 
+ngtcp2_static_ringbuf_def(pv_ents, NGTCP2_PV_MAX_ENTRIES,
+                          sizeof(ngtcp2_pv_entry));
 /*
  * ngtcp2_pv is the context of a single path validation.
  */
@@ -95,7 +100,7 @@ struct ngtcp2_pv {
      fallback if this path validation fails. */
   ngtcp2_dcid fallback_dcid;
   /* ents is the ring buffer of ngtcp2_pv_entry */
-  ngtcp2_ringbuf ents;
+  ngtcp2_static_ringbuf_pv_ents ents;
   /* timeout is the duration within which this path validation should
      succeed. */
   ngtcp2_duration timeout;

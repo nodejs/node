@@ -7,10 +7,10 @@
 #include <string.h>
 
 #include "include/libplatform/v8-tracing.h"
-
 #include "src/base/atomicops.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
+#include "src/base/platform/wrappers.h"
 
 #ifdef V8_USE_PERFETTO
 #include "perfetto/ext/trace_processor/export_json.h"
@@ -106,7 +106,7 @@ void TracingController::Initialize(TraceBuffer* trace_buffer) {
 }
 
 int64_t TracingController::CurrentTimestampMicroseconds() {
-  return base::TimeTicks::HighResolutionNow().ToInternalValue();
+  return base::TimeTicks::Now().ToInternalValue();
 }
 
 int64_t TracingController::CurrentCpuTimestampMicroseconds() {
@@ -206,18 +206,19 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
 #endif  // V8_USE_PERFETTO
 
   trace_config_.reset(trace_config);
+  recording_.store(true, std::memory_order_release);
+
+#ifndef V8_USE_PERFETTO
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
     base::MutexGuard lock(mutex_.get());
-    recording_.store(true, std::memory_order_release);
-#ifndef V8_USE_PERFETTO
     UpdateCategoryGroupEnabledFlags();
-#endif
     observers_copy = observers_;
   }
   for (auto o : observers_copy) {
     o->OnTraceEnabled();
   }
+#endif
 }
 
 void TracingController::StopTracing() {
@@ -227,7 +228,6 @@ void TracingController::StopTracing() {
   }
 #ifndef V8_USE_PERFETTO
   UpdateCategoryGroupEnabledFlags();
-#endif
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
     base::MutexGuard lock(mutex_.get());
@@ -236,6 +236,7 @@ void TracingController::StopTracing() {
   for (auto o : observers_copy) {
     o->OnTraceDisabled();
   }
+#endif
 
 #ifdef V8_USE_PERFETTO
   tracing_session_->StopBlocking();
@@ -325,7 +326,7 @@ const uint8_t* TracingController::GetCategoryGroupEnabled(
     // Don't hold on to the category_group pointer, so that we can create
     // category groups with strings not known at compile time (this is
     // required by SetWatchEvent).
-    const char* new_group = strdup(category_group);
+    const char* new_group = base::Strdup(category_group);
     g_category_groups[category_index] = new_group;
     DCHECK(!g_category_group_enabled[category_index]);
     // Note that if both included and excluded patterns in the
@@ -341,7 +342,6 @@ const uint8_t* TracingController::GetCategoryGroupEnabled(
   }
   return category_group_enabled;
 }
-#endif  // !defined(V8_USE_PERFETTO)
 
 void TracingController::AddTraceStateObserver(
     v8::TracingController::TraceStateObserver* observer) {
@@ -360,6 +360,7 @@ void TracingController::RemoveTraceStateObserver(
   DCHECK(observers_.find(observer) != observers_.end());
   observers_.erase(observer);
 }
+#endif  // !defined(V8_USE_PERFETTO)
 
 }  // namespace tracing
 }  // namespace platform

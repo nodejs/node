@@ -13,7 +13,7 @@ functions
  #include <openssl/x509.h>
 
  int X509_CRL_get0_by_serial(X509_CRL *crl,
-                             X509_REVOKED **ret, ASN1_INTEGER *serial);
+                             X509_REVOKED **ret, const ASN1_INTEGER *serial);
  int X509_CRL_get0_by_cert(X509_CRL *crl, X509_REVOKED **ret, X509 *x);
 
  STACK_OF(X509_REVOKED) *X509_CRL_get_REVOKED(X509_CRL *crl);
@@ -30,42 +30,42 @@ functions
 
 =head1 DESCRIPTION
 
-X509_CRL_get0_by_serial() attempts to find a revoked entry in B<crl> for
-serial number B<serial>. If it is successful it sets B<*ret> to the internal
-pointer of the matching entry, as a result B<*ret> must not be freed up
+X509_CRL_get0_by_serial() attempts to find a revoked entry in I<crl> for
+serial number I<serial>. If it is successful, it sets I<*ret> to the internal
+pointer of the matching entry. As a result, I<*ret> B<MUST NOT> be freed
 after the call.
 
 X509_CRL_get0_by_cert() is similar to X509_get0_by_serial() except it
-looks for a revoked entry using the serial number of certificate B<x>.
+looks for a revoked entry using the serial number of certificate I<x>.
 
-X509_CRL_get_REVOKED() returns an internal pointer to a stack of all
-revoked entries for B<crl>.
+X509_CRL_get_REVOKED() returns an internal pointer to a STACK of all
+revoked entries for I<crl>.
 
 X509_REVOKED_get0_serialNumber() returns an internal pointer to the
-serial number of B<r>.
+serial number of I<r>.
 
 X509_REVOKED_get0_revocationDate() returns an internal pointer to the
-revocation date of B<r>.
+revocation date of I<r>.
 
-X509_REVOKED_set_serialNumber() sets the serial number of B<r> to B<serial>.
-The supplied B<serial> pointer is not used internally so it should be
-freed up after use.
+X509_REVOKED_set_serialNumber() sets the serial number of I<r> to I<serial>.
+The supplied I<serial> pointer is not used internally so it should be
+freed after use.
 
-X509_REVOKED_set_revocationDate() sets the revocation date of B<r> to
-B<tm>. The supplied B<tm> pointer is not used internally so it should be
-freed up after use.
+X509_REVOKED_set_revocationDate() sets the revocation date of I<r> to
+I<tm>. The supplied I<tm> pointer is not used internally so it should be
+freed after use.
 
-X509_CRL_add0_revoked() appends revoked entry B<rev> to CRL B<crl>. The
-pointer B<rev> is used internally so it must not be freed up after the call:
+X509_CRL_add0_revoked() appends revoked entry I<rev> to CRL I<crl>. The
+pointer I<rev> is used internally so it B<MUST NOT> be freed after the call:
 it is freed when the parent CRL is freed.
 
-X509_CRL_sort() sorts the revoked entries of B<crl> into ascending serial
+X509_CRL_sort() sorts the revoked entries of I<crl> into ascending serial
 number order.
 
 =head1 NOTES
 
 Applications can determine the number of revoked entries returned by
-X509_CRL_get_revoked() using sk_X509_REVOKED_num() and examine each one
+X509_CRL_get_REVOKED() using sk_X509_REVOKED_num() and examine each one
 in turn using sk_X509_REVOKED_value().
 
 =head1 RETURN VALUES
@@ -74,15 +74,15 @@ X509_CRL_get0_by_serial() and X509_CRL_get0_by_cert() return 0 for failure,
 1 on success except if the revoked entry has the reason C<removeFromCRL> (8),
 in which case 2 is returned.
 
+X509_CRL_get_REVOKED() returns a STACK of revoked entries.
+
+X509_REVOKED_get0_serialNumber() returns an B<ASN1_INTEGER> structure.
+
+X509_REVOKED_get0_revocationDate() returns an B<ASN1_TIME> structure.
+
 X509_REVOKED_set_serialNumber(), X509_REVOKED_set_revocationDate(),
 X509_CRL_add0_revoked() and X509_CRL_sort() return 1 for success and 0 for
 failure.
-
-X509_REVOKED_get0_serialNumber() returns an B<ASN1_INTEGER> pointer.
-
-X509_REVOKED_get0_revocationDate() returns an B<ASN1_TIME> value.
-
-X509_CRL_get_REVOKED() returns a STACK of revoked entries.
 
 =head1 SEE ALSO
 
@@ -105,9 +105,9 @@ L<X509_verify_cert(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

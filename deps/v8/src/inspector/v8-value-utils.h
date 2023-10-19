@@ -5,9 +5,8 @@
 #ifndef V8_INSPECTOR_V8_VALUE_UTILS_H_
 #define V8_INSPECTOR_V8_VALUE_UTILS_H_
 
+#include "include/v8-local-handle.h"
 #include "src/inspector/protocol/Protocol.h"
-
-#include "include/v8.h"
 
 namespace v8_inspector {
 

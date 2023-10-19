@@ -8,16 +8,16 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-DEFINE_CONTEXTUAL_VARIABLE(GlobalContext)
-DEFINE_CONTEXTUAL_VARIABLE(TargetArchitecture)
-
 GlobalContext::GlobalContext(Ast ast)
     : collect_language_server_data_(false),
+      collect_kythe_data_(false),
       force_assert_statements_(false),
+      annotate_ir_(false),
       ast_(std::move(ast)) {
   CurrentScope::Scope current_scope(nullptr);
   CurrentSourcePosition::Scope current_source_position(
-      SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
+      SourcePosition{CurrentSourceFile::Get(), LineAndColumn::Invalid(),
+                     LineAndColumn::Invalid()});
   default_namespace_ =
       RegisterDeclarable(std::make_unique<Namespace>(kBaseNamespaceName));
 }
@@ -28,8 +28,10 @@ TargetArchitecture::TargetArchitecture(bool force_32bit)
       smi_tag_and_shift_size_(
           kSmiTagSize + (force_32bit ? SmiTagging<kApiInt32Size>::kSmiShiftSize
                                      : kSmiShiftSize)),
-      external_ptr_size_(force_32bit ? sizeof(int32_t) : kExternalPointerSize) {
-}
+      external_ptr_size_(force_32bit ? sizeof(int32_t)
+                                     : kExternalPointerSlotSize),
+      indirect_ptr_size_(force_32bit ? sizeof(int32_t)
+                                     : kIndirectPointerSlotSize) {}
 
 }  // namespace torque
 }  // namespace internal

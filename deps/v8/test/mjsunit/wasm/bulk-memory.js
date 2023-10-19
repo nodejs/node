@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-bulk-memory
-
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestPassiveDataSegment() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   builder.addPassiveDataSegment([0, 1, 2]);
   builder.addPassiveDataSegment([3, 4]);
 
@@ -17,6 +16,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function TestPassiveElementSegment() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('f', kSig_v_v).addBody([]);
   builder.setTableBounds(1, 1);
@@ -29,7 +29,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function getMemoryInit(mem, segment_data) {
   const builder = new WasmModuleBuilder();
-  builder.addImportedMemory("", "mem", 0);
+  builder.addImportedMemory('', 'mem', 0);
   builder.addPassiveDataSegment(segment_data);
   builder.addFunction('init', kSig_v_iii)
       .addBody([
@@ -45,6 +45,7 @@ function getMemoryInit(mem, segment_data) {
 }
 
 (function TestMemoryInitOutOfBoundsGrow() {
+  print(arguments.callee.name);
   const mem = new WebAssembly.Memory({initial: 1});
   // Create a data segment that has a length of kPageSize.
   const memoryInit = getMemoryInit(mem, new Array(kPageSize));
@@ -60,6 +61,7 @@ function getMemoryInit(mem, segment_data) {
 })();
 
 (function TestMemoryInitOnActiveSegment() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addMemory(1);
   builder.addPassiveDataSegment([1, 2, 3]);
@@ -88,6 +90,7 @@ function getMemoryInit(mem, segment_data) {
 })();
 
 (function TestDataDropOnActiveSegment() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addMemory(1);
   builder.addPassiveDataSegment([1, 2, 3]);
@@ -117,6 +120,7 @@ function getMemoryCopy(mem) {
 }
 
 (function TestMemoryCopyOutOfBoundsGrow() {
+  print(arguments.callee.name);
   const mem = new WebAssembly.Memory({initial: 1});
   const memoryCopy = getMemoryCopy(mem);
 
@@ -143,6 +147,7 @@ function getMemoryFill(mem) {
 }
 
 (function TestMemoryFillOutOfBoundsGrow() {
+  print(arguments.callee.name);
   const mem = new WebAssembly.Memory({initial: 1});
   const memoryFill = getMemoryFill(mem);
   const v = 123;
@@ -158,9 +163,10 @@ function getMemoryFill(mem) {
 })();
 
 (function TestElemDropActive() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(5, 5);
-  builder.addElementSegment(0, 0, false, [0, 0, 0]);
+  builder.addActiveElementSegment(0, wasmI32Const(0), [0, 0, 0]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
         kNumericPrefix, kExprElemDrop,
@@ -175,6 +181,7 @@ function getMemoryFill(mem) {
 })();
 
 (function TestLazyDataSegmentBoundsCheck() {
+  print(arguments.callee.name);
   const memory = new WebAssembly.Memory({initial: 1});
   const view = new Uint8Array(memory.buffer);
   const builder = new WasmModuleBuilder();
@@ -185,7 +192,8 @@ function getMemoryFill(mem) {
   assertEquals(0, view[kPageSize - 1]);
 
   // Instantiation fails, memory remains unmodified.
-  assertThrows(() => builder.instantiate({m: {memory}}), WebAssembly.RuntimeError);
+  assertThrows(
+      () => builder.instantiate({m: {memory}}), WebAssembly.RuntimeError);
 
   assertEquals(0, view[kPageSize - 1]);
   // The second segment is not initialized.
@@ -193,6 +201,7 @@ function getMemoryFill(mem) {
 })();
 
 (function TestLazyDataAndElementSegments() {
+  print(arguments.callee.name);
   const table = new WebAssembly.Table({initial: 1, element: 'anyfunc'});
   const memory = new WebAssembly.Memory({initial: 1});
   const view = new Uint8Array(memory.buffer);
@@ -203,19 +212,23 @@ function getMemoryFill(mem) {
   const f = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, 42]);
 
   const tableIndex = 0;
-  const isGlobal = false;
-  builder.addElementSegment(tableIndex, 0, isGlobal, [f.index, f.index]);
+  builder.addActiveElementSegment(
+      tableIndex,
+      wasmI32Const(0),
+      [f.index, f.index]);
   builder.addDataSegment(0, [42]);
 
   // Instantiation fails, but still modifies the table. The memory is not
   // modified, since data segments are initialized after element segments.
   assertThrows(
-      () => builder.instantiate({m: {memory, table}}), WebAssembly.RuntimeError);
+      () => builder.instantiate({m: {memory, table}}),
+      WebAssembly.RuntimeError);
 
   assertEquals(0, view[0]);
 })();
 
 (function TestPassiveDataSegmentNoMemory() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addPassiveDataSegment([0, 1, 2]);
 
@@ -224,10 +237,22 @@ function getMemoryFill(mem) {
 })();
 
 (function TestPassiveElementSegmentNoMemory() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('f', kSig_v_v).addBody([]);
   builder.addPassiveElementSegment([0, 0, 0]);
 
   // Should not throw.
   builder.instantiate();
+})();
+
+(function TestIllegalNumericOpcode() {
+  // Regression test for https://crbug.com/1382816.
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_v_v).addBody([kNumericPrefix, 0x90, 0x0f]);
+  assertEquals(false, WebAssembly.validate(builder.toBuffer()));
+  assertThrows(
+      () => builder.toModule(), WebAssembly.CompileError,
+      /invalid numeric opcode: 0xfc790/);
 })();

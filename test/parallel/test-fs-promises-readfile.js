@@ -1,20 +1,20 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
 
 const assert = require('assert');
-const path = require('path');
 const { writeFile, readFile } = require('fs').promises;
 const tmpdir = require('../common/tmpdir');
+const { internalBinding } = require('internal/test/binding');
+const fsBinding = internalBinding('fs');
 tmpdir.refresh();
 
-const fn = path.join(tmpdir.path, 'large-file');
+const fn = tmpdir.resolve('large-file');
 
 // Creating large buffer with random content
 const largeBuffer = Buffer.from(
-  Array.apply(null, { length: 16834 * 2 })
-    .map(Math.random)
-    .map((number) => (number * (1 << 8)))
+  Array.from({ length: 1024 ** 2 + 19 }, (_, index) => index)
 );
 
 async function createLargeFile() {
@@ -63,10 +63,20 @@ async function validateWrongSignalParam() {
   // is passed, ERR_INVALID_ARG_TYPE is thrown
 
   await assert.rejects(async () => {
-    const callback = common.mustNotCall(() => {});
+    const callback = common.mustNotCall();
     await readFile(fn, { signal: 'hello' }, callback);
   }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
 
+}
+
+async function validateZeroByteLiar() {
+  const originalFStat = fsBinding.fstat;
+  fsBinding.fstat = common.mustCall(
+    () => (/* stat fields */ [0, 1, 2, 3, 4, 5, 6, 7, 0 /* size */])
+  );
+  const readBuffer = await readFile(fn);
+  assert.strictEqual(readBuffer.toString(), largeBuffer.toString());
+  fsBinding.fstat = originalFStat;
 }
 
 (async () => {
@@ -76,4 +86,5 @@ async function validateWrongSignalParam() {
   await validateReadFileAbortLogicBefore();
   await validateReadFileAbortLogicDuring();
   await validateWrongSignalParam();
+  await validateZeroByteLiar();
 })().then(common.mustCall());

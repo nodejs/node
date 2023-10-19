@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 
-load('../base.js');
-load('baseline-babel-es2017.js');
-load('baseline-naive-promises.js');
-load('native.js');
+d8.file.execute('../base.js');
+d8.file.execute('baseline-babel-es2017.js');
+d8.file.execute('baseline-naive-promises.js');
+d8.file.execute('native.js');
 
 var success = true;
 

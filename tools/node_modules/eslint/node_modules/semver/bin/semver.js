@@ -23,20 +23,26 @@ let rtl = false
 
 let identifier
 
+let identifierBase
+
 const semver = require('../')
+const parseOptions = require('../internal/parse-options')
 
 let reverse = false
 
-const options = {}
+let options = {}
 
 const main = () => {
-  if (!argv.length) return help()
+  if (!argv.length) {
+    return help()
+  }
   while (argv.length) {
     let a = argv.shift()
     const indexOfEqualSign = a.indexOf('=')
     if (indexOfEqualSign !== -1) {
+      const value = a.slice(indexOfEqualSign + 1)
       a = a.slice(0, indexOfEqualSign)
-      argv.unshift(a.slice(indexOfEqualSign + 1))
+      argv.unshift(value)
     }
     switch (a) {
       case '-rv': case '-rev': case '--rev': case '--reverse':
@@ -68,6 +74,12 @@ const main = () => {
       case '-r': case '--range':
         range.push(argv.shift())
         break
+      case '-n':
+        identifierBase = argv.shift()
+        if (identifierBase === 'false') {
+          identifierBase = false
+        }
+        break
       case '-c': case '--coerce':
         coerce = true
         break
@@ -85,25 +97,30 @@ const main = () => {
     }
   }
 
-  const options = { loose: loose, includePrerelease: includePrerelease, rtl: rtl }
+  options = parseOptions({ loose, includePrerelease, rtl })
 
   versions = versions.map((v) => {
     return coerce ? (semver.coerce(v, options) || { version: v }).version : v
   }).filter((v) => {
     return semver.valid(v)
   })
-  if (!versions.length) return fail()
-  if (inc && (versions.length !== 1 || range.length)) { return failInc() }
+  if (!versions.length) {
+    return fail()
+  }
+  if (inc && (versions.length !== 1 || range.length)) {
+    return failInc()
+  }
 
   for (let i = 0, l = range.length; i < l; i++) {
     versions = versions.filter((v) => {
       return semver.satisfies(v, range[i], options)
     })
-    if (!versions.length) return fail()
+    if (!versions.length) {
+      return fail()
+    }
   }
   return success(versions)
 }
-
 
 const failInc = () => {
   console.error('--inc can only be used on a single version with no range')
@@ -119,8 +136,10 @@ const success = () => {
   }).map((v) => {
     return semver.clean(v, options)
   }).map((v) => {
-    return inc ? semver.inc(v, inc, options, identifier) : v
-  }).forEach((v, i, _) => { console.log(v) })
+    return inc ? semver.inc(v, inc, options, identifier, identifierBase) : v
+  }).forEach((v, i, _) => {
+    console.log(v)
+  })
 }
 
 const help = () => console.log(
@@ -161,6 +180,11 @@ Options:
 
 --ltr
         Coerce version strings left to right (default)
+
+-n <base>
+        Base number to be used for the prerelease identifier.
+        Can be either 0 or 1, or false to omit the number altogether.
+        Defaults to 0.
 
 Program exits successfully if any valid version satisfies
 all supplied ranges, and prints all satisfying versions.

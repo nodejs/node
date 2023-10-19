@@ -8,16 +8,15 @@ namespace proxy {
 
 // ES #sec-proxy-object-internal-methods-and-internal-slots-preventextensions
 // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-preventextensions
-transitioning builtin
-ProxyPreventExtensions(implicit context: Context)(
-    proxy: JSProxy, doThrow: Boolean): JSAny {
+transitioning builtin ProxyPreventExtensions(
+    implicit context: Context)(proxy: JSProxy, doThrow: Boolean): JSAny {
   PerformStackCheck();
   const kTrapName: constexpr string = 'preventExtensions';
   try {
     // 1. Let handler be O.[[ProxyHandler]].
     // 2. If handler is null, throw a TypeError exception.
     // 3. Assert: Type(handler) is Object.
-    assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    dcheck(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
     const handler =
         Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
 
@@ -38,7 +37,7 @@ ProxyPreventExtensions(implicit context: Context)(
     //    8.b If extensibleTarget is true, throw a TypeError exception.
     if (ToBoolean(trapResult)) {
       const extensibleTarget: JSAny = object::ObjectIsExtensibleImpl(target);
-      assert(extensibleTarget == True || extensibleTarget == False);
+      dcheck(extensibleTarget == True || extensibleTarget == False);
       if (extensibleTarget == True) {
         ThrowTypeError(MessageTemplate::kProxyPreventExtensionsExtensible);
       }

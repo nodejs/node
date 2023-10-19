@@ -4,6 +4,8 @@
 
 #include "src/extensions/ignition-statistics-extension.h"
 
+#include "include/v8-template.h"
+#include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/execution/isolate.h"
 #include "src/interpreter/bytecodes.h"
@@ -26,11 +28,12 @@ const char* const IgnitionStatisticsExtension::kSource =
     "native function getIgnitionDispatchCounters();";
 
 void IgnitionStatisticsExtension::GetIgnitionDispatchCounters(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  DCHECK(FLAG_trace_ignition_dispatches);
-  args.GetReturnValue().Set(reinterpret_cast<Isolate*>(args.GetIsolate())
-                                ->interpreter()
-                                ->GetDispatchCountersObject());
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  info.GetReturnValue().Set(
+      Utils::ToLocal(reinterpret_cast<Isolate*>(info.GetIsolate())
+                         ->interpreter()
+                         ->GetDispatchCountersObject()));
 }
 
 }  // namespace internal

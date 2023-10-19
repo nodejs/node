@@ -34,7 +34,7 @@ InputText::InputText(UErrorCode &status)
       fRawInput(0),
       fRawLength(0)
 {
-    if (fInputBytes == NULL || fByteStats == NULL) {
+    if (fInputBytes == nullptr || fByteStats == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
     }
 }
@@ -49,7 +49,7 @@ InputText::~InputText()
 void InputText::setText(const char *in, int32_t len)
 {
     fInputLen  = 0;
-    fC1Bytes   = FALSE;
+    fC1Bytes   = false;
     fRawInput  = (const uint8_t *) in;
     fRawLength = len == -1? (int32_t)uprv_strlen(in) : len;
 }
@@ -68,22 +68,22 @@ void InputText::setDeclaredEncoding(const char* encoding, int32_t len)
     }
 }
 
-UBool InputText::isSet() const
+UBool InputText::isSet() const 
 {
-    return fRawInput != NULL;
+    return fRawInput != nullptr;
 }
 
 /**
 *  MungeInput - after getting a set of raw input data to be analyzed, preprocess
 *               it by removing what appears to be html markup.
-*
+* 
 * @internal
 */
 void InputText::MungeInput(UBool fStripTags) {
     int     srci = 0;
     int     dsti = 0;
     uint8_t b;
-    bool    inMarkup = FALSE;
+    bool    inMarkup = false;
     int32_t openTags = 0;
     int32_t badTags  = 0;
 
@@ -103,7 +103,7 @@ void InputText::MungeInput(UBool fStripTags) {
                     badTags += 1;
                 }
 
-                inMarkup = TRUE;
+                inMarkup = true;
                 openTags += 1;
             }
 
@@ -112,7 +112,7 @@ void InputText::MungeInput(UBool fStripTags) {
             }
 
             if (b == (uint8_t)0x3E) { /* Check for the ASCII '>' */
-                inMarkup = FALSE;
+                inMarkup = false;
             }
         }
 
@@ -124,7 +124,7 @@ void InputText::MungeInput(UBool fStripTags) {
     //    essentially nothing but markup abandon the markup stripping.
     //    Detection will have to work on the unstripped input.
     //
-    if (openTags<5 || openTags/5 < badTags ||
+    if (openTags<5 || openTags/5 < badTags || 
         (fInputLen < 100 && fRawLength>600))
     {
         int32_t limit = fRawLength;
@@ -141,7 +141,7 @@ void InputText::MungeInput(UBool fStripTags) {
     }
 
     //
-    // Tally up the byte occurence statistics.
+    // Tally up the byte occurrence statistics.
     // These are available for use by the various detectors.
     //
 
@@ -153,7 +153,7 @@ void InputText::MungeInput(UBool fStripTags) {
 
     for (int32_t i = 0x80; i <= 0x9F; i += 1) {
         if (fByteStats[i] != 0) {
-            fC1Bytes = TRUE;
+            fC1Bytes = true;
             break;
         }
     }
@@ -161,3 +161,4 @@ void InputText::MungeInput(UBool fStripTags) {
 
 U_NAMESPACE_END
 #endif
+

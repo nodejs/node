@@ -37,21 +37,23 @@ static int connect_cb_called = 0;
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
 
 static void connect_cb(uv_connect_t* connect_req, int status) {
-  ASSERT(status == UV_ENOENT);
-  uv_close((uv_handle_t*)connect_req->handle, close_cb);
+  ASSERT_EQ(status, UV_ENOENT);
+  uv_close((uv_handle_t*) connect_req->handle, close_cb);
   connect_cb_called++;
 }
 
 
 static void connect_cb_file(uv_connect_t* connect_req, int status) {
-  ASSERT(status == UV_ENOTSOCK || status == UV_ECONNREFUSED);
-  uv_close((uv_handle_t*)connect_req->handle, close_cb);
+  if (status != UV_ENOTSOCK)
+    if (status != UV_EACCES)
+      ASSERT_EQ(status, UV_ECONNREFUSED);
+  uv_close((uv_handle_t*) connect_req->handle, close_cb);
   connect_cb_called++;
 }
 
@@ -62,37 +64,34 @@ TEST_IMPL(pipe_connect_bad_name) {
   int r;
 
   r = uv_pipe_init(uv_default_loop(), &client, 0);
-  ASSERT(r == 0);
+  ASSERT_EQ(r, 0);
   uv_pipe_connect(&req, &client, BAD_PIPENAME, connect_cb);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(close_cb_called == 1);
-  ASSERT(connect_cb_called == 1);
+  ASSERT_EQ(close_cb_called, 1);
+  ASSERT_EQ(connect_cb_called, 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
 
 TEST_IMPL(pipe_connect_to_file) {
-#if defined(__ASAN__)
-  RETURN_SKIP("Test does not currently work in ASAN");
-#endif
   const char* path = "test/fixtures/empty_file";
   uv_pipe_t client;
   uv_connect_t req;
   int r;
 
   r = uv_pipe_init(uv_default_loop(), &client, 0);
-  ASSERT(r == 0);
+  ASSERT_EQ(r, 0);
   uv_pipe_connect(&req, &client, path, connect_cb_file);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(close_cb_called == 1);
-  ASSERT(connect_cb_called == 1);
+  ASSERT_EQ(close_cb_called, 1);
+  ASSERT_EQ(connect_cb_called, 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

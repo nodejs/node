@@ -46,7 +46,7 @@ static void connect_cb(uv_connect_t* conn_req, int status) {
   buf = uv_buf_init("PING", 4);
   for (i = 0; i < NUM_WRITE_REQS; i++) {
     req = malloc(sizeof *req);
-    ASSERT(req != NULL);
+    ASSERT_NOT_NULL(req);
 
     r = uv_write(req, (uv_stream_t*)&tcp_handle, &buf, 1, write_cb);
     ASSERT(r == 0);
@@ -131,6 +131,6 @@ TEST_IMPL(tcp_close) {
   ASSERT(write_cb_called == NUM_WRITE_REQS);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

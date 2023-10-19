@@ -3,8 +3,9 @@ Short Name: markupsafe
 URL: https://github.com/mitsuhiko/markupsafe
 Version: 0.18
 License: BSD 3-clause License
-License File: NOT_SHIPPED
+License File: LICENSE
 Security Critical: no
+Shipped: no
 
 Description:
 Safe string class, used by Jinja2 template engine.
@@ -22,3 +23,4 @@ Also includes install script (get_markupsafe.sh) and files of hashes (MD5 is
 also posted on website, SHA-512 computed locally); script checks hash then
 unpacks archive and installs desired files.
 Retrieve or update by executing markupsafe/get_markupsafe.sh from third_party.
+We also add markupsafe.gni to list sources.

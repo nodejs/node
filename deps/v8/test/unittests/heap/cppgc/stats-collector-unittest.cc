@@ -18,8 +18,9 @@ constexpr size_t kMinReportedSize = StatsCollector::kAllocationThresholdBytes;
 
 class StatsCollectorTest : public ::testing::Test {
  public:
-  StatsCollectorTest()
-      : stats(nullptr /* metric_recorder */, nullptr /* platform */) {}
+  static constexpr Platform* kNoPlatform = nullptr;
+
+  StatsCollectorTest() : stats(kNoPlatform) {}
 
   void FakeAllocate(size_t bytes) {
     stats.NotifyAllocation(bytes);
@@ -37,19 +38,21 @@ class StatsCollectorTest : public ::testing::Test {
 }  // namespace
 
 TEST_F(StatsCollectorTest, NoMarkedBytes) {
-  stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
-                             GarbageCollector::Config::IsForcedGC::kNotForced);
+  stats.NotifyMarkingStarted(CollectionType::kMajor,
+                             GCConfig::MarkingType::kAtomic,
+                             GCConfig::IsForcedGC::kNotForced);
   stats.NotifyMarkingCompleted(kNoMarkedBytes);
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
   auto event = stats.GetPreviousEventForTesting();
   EXPECT_EQ(0u, event.marked_bytes);
 }
 
 TEST_F(StatsCollectorTest, EventPrevGCMarkedObjectSize) {
-  stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
-                             GarbageCollector::Config::IsForcedGC::kNotForced);
+  stats.NotifyMarkingStarted(CollectionType::kMajor,
+                             GCConfig::MarkingType::kAtomic,
+                             GCConfig::IsForcedGC::kNotForced);
   stats.NotifyMarkingCompleted(1024);
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
   auto event = stats.GetPreviousEventForTesting();
   EXPECT_EQ(1024u, event.marked_bytes);
 }
@@ -69,46 +72,50 @@ TEST_F(StatsCollectorTest, AlllocationReportAboveAllocationThresholdBytes) {
 }
 
 TEST_F(StatsCollectorTest, InitialAllocatedObjectSize) {
-  stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
-                             GarbageCollector::Config::IsForcedGC::kNotForced);
+  stats.NotifyMarkingStarted(CollectionType::kMajor,
+                             GCConfig::MarkingType::kAtomic,
+                             GCConfig::IsForcedGC::kNotForced);
   EXPECT_EQ(0u, stats.allocated_object_size());
   stats.NotifyMarkingCompleted(kNoMarkedBytes);
   EXPECT_EQ(0u, stats.allocated_object_size());
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
   EXPECT_EQ(0u, stats.allocated_object_size());
 }
 
 TEST_F(StatsCollectorTest, AllocatedObjectSize) {
-  stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
-                             GarbageCollector::Config::IsForcedGC::kNotForced);
+  stats.NotifyMarkingStarted(CollectionType::kMajor,
+                             GCConfig::MarkingType::kAtomic,
+                             GCConfig::IsForcedGC::kNotForced);
   FakeAllocate(kMinReportedSize);
   EXPECT_EQ(kMinReportedSize, stats.allocated_object_size());
   stats.NotifyMarkingCompleted(kMinReportedSize);
   EXPECT_EQ(kMinReportedSize, stats.allocated_object_size());
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
   EXPECT_EQ(kMinReportedSize, stats.allocated_object_size());
 }
 
 TEST_F(StatsCollectorTest, AllocatedObjectSizeNoMarkedBytes) {
-  stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
-                             GarbageCollector::Config::IsForcedGC::kNotForced);
+  stats.NotifyMarkingStarted(CollectionType::kMajor,
+                             GCConfig::MarkingType::kAtomic,
+                             GCConfig::IsForcedGC::kNotForced);
   FakeAllocate(kMinReportedSize);
   EXPECT_EQ(kMinReportedSize, stats.allocated_object_size());
   stats.NotifyMarkingCompleted(kNoMarkedBytes);
   EXPECT_EQ(0u, stats.allocated_object_size());
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
   EXPECT_EQ(0u, stats.allocated_object_size());
 }
 
 TEST_F(StatsCollectorTest, AllocatedObjectSizeAllocateAfterMarking) {
-  stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
-                             GarbageCollector::Config::IsForcedGC::kNotForced);
+  stats.NotifyMarkingStarted(CollectionType::kMajor,
+                             GCConfig::MarkingType::kAtomic,
+                             GCConfig::IsForcedGC::kNotForced);
   FakeAllocate(kMinReportedSize);
   EXPECT_EQ(kMinReportedSize, stats.allocated_object_size());
   stats.NotifyMarkingCompleted(kMinReportedSize);
   FakeAllocate(kMinReportedSize);
   EXPECT_EQ(2 * kMinReportedSize, stats.allocated_object_size());
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
   EXPECT_EQ(2 * kMinReportedSize, stats.allocated_object_size());
 }
 
@@ -140,10 +147,11 @@ TEST_F(StatsCollectorTest, ObserveAllocatedObjectSizeIncreaseAndDecrease) {
 namespace {
 
 void FakeGC(StatsCollector* stats, size_t marked_bytes) {
-  stats->NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
-                              GarbageCollector::Config::IsForcedGC::kNotForced);
+  stats->NotifyMarkingStarted(CollectionType::kMajor,
+                              GCConfig::MarkingType::kAtomic,
+                              GCConfig::IsForcedGC::kNotForced);
   stats->NotifyMarkingCompleted(marked_bytes);
-  stats->NotifySweepingCompleted();
+  stats->NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
 }
 
 }  // namespace
@@ -225,6 +233,42 @@ TEST_F(StatsCollectorTest, ObserverTriggersGC) {
 
   stats.UnregisterObserver(&gc_observer);
   stats.UnregisterObserver(&mock_observer);
+}
+
+TEST_F(StatsCollectorTest, AllocatedMemorySize) {
+  EXPECT_EQ(0u, stats.allocated_memory_size());
+  stats.NotifyAllocatedMemory(1024);
+  EXPECT_EQ(1024u, stats.allocated_memory_size());
+  stats.NotifyFreedMemory(1024);
+  EXPECT_EQ(0u, stats.allocated_memory_size());
+}
+
+TEST_F(StatsCollectorTest, DiscardedMemorySize) {
+  EXPECT_EQ(0u, stats.discarded_memory_size());
+  stats.IncrementDiscardedMemory(1024);
+  EXPECT_EQ(1024u, stats.discarded_memory_size());
+  stats.DecrementDiscardedMemory(1024);
+  EXPECT_EQ(0u, stats.discarded_memory_size());
+}
+
+TEST_F(StatsCollectorTest, ResidentMemorySizeWithoutDiscarded) {
+  EXPECT_EQ(0u, stats.resident_memory_size());
+  stats.NotifyAllocatedMemory(1024);
+  EXPECT_EQ(1024u, stats.resident_memory_size());
+  stats.NotifyFreedMemory(1024);
+  EXPECT_EQ(0u, stats.resident_memory_size());
+}
+
+TEST_F(StatsCollectorTest, ResidentMemorySizeWithDiscarded) {
+  EXPECT_EQ(0u, stats.resident_memory_size());
+  stats.NotifyAllocatedMemory(8192);
+  EXPECT_EQ(8192u, stats.resident_memory_size());
+  stats.IncrementDiscardedMemory(4096);
+  EXPECT_EQ(4096u, stats.resident_memory_size());
+  stats.DecrementDiscardedMemory(4096);
+  EXPECT_EQ(8192u, stats.resident_memory_size());
+  stats.NotifyFreedMemory(8192);
+  EXPECT_EQ(0u, stats.resident_memory_size());
 }
 
 }  // namespace internal

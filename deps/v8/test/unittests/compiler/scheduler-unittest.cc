@@ -37,7 +37,7 @@ class SchedulerTest : public TestWithIsolateAndZone {
         js_(zone()) {}
 
   Schedule* ComputeAndVerifySchedule(size_t expected) {
-    if (FLAG_trace_turbo) {
+    if (v8_flags.trace_turbo) {
       SourcePositionTable table(graph());
       NodeOriginTable table2(graph());
       StdoutStream{} << AsJSON(*graph(), &table, &table2);
@@ -46,7 +46,7 @@ class SchedulerTest : public TestWithIsolateAndZone {
     Schedule* schedule = Scheduler::ComputeSchedule(
         zone(), graph(), Scheduler::kSplitNodes, tick_counter(), nullptr);
 
-    if (FLAG_trace_turbo_scheduler) {
+    if (v8_flags.trace_turbo_scheduler) {
       StdoutStream{} << *schedule << std::endl;
     }
     ScheduleVerifier::Run(schedule);

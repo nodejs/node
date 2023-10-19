@@ -2,11 +2,15 @@
 
 =head1 NAME
 
-CMS_add1_recipient_cert, CMS_add0_recipient_key - add recipients to a CMS enveloped data structure
+CMS_add1_recipient, CMS_add1_recipient_cert, CMS_add0_recipient_key - add recipients to a CMS enveloped data structure
 
 =head1 SYNOPSIS
 
  #include <openssl/cms.h>
+
+ CMS_RecipientInfo *CMS_add1_recipient(CMS_ContentInfo *cms, X509 *recip,
+                                       EVP_PKEY *originatorPrivKey,
+                                       X509 *originator, unsigned int flags);
 
  CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms,
                                             X509 *recip, unsigned int flags);
@@ -19,6 +23,11 @@ CMS_add1_recipient_cert, CMS_add0_recipient_key - add recipients to a CMS envelo
                                            ASN1_TYPE *otherType);
 
 =head1 DESCRIPTION
+
+CMS_add1_recipient() adds recipient B<recip> and provides the originator pkey
+B<originatorPrivKey> and originator certificate B<originator> to CMS_ContentInfo.
+The originator-related fields are relevant only in case when the keyAgreement
+method of providing of the shared key is in use.
 
 CMS_add1_recipient_cert() adds recipient B<recip> to CMS_ContentInfo enveloped
 data structure B<cms> as a KeyTransRecipientInfo structure.
@@ -60,11 +69,16 @@ occurs.
 L<ERR_get_error(3)>, L<CMS_decrypt(3)>,
 L<CMS_final(3)>,
 
+=head1 HISTORY
+
+B<CMS_add1_recipient_cert> and B<CMS_add0_recipient_key> were added in
+OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

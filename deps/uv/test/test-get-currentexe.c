@@ -35,6 +35,9 @@ TEST_IMPL(get_currentexe) {
 #if defined(__QEMU__)
   RETURN_SKIP("Test does not currently work in QEMU");
 #endif
+#if defined(__OpenBSD__)
+  RETURN_SKIP("Test does not currently work in OpenBSD");
+#endif
 
   char buffer[PATHMAX];
   char path[PATHMAX];
@@ -49,7 +52,7 @@ TEST_IMPL(get_currentexe) {
 #ifdef _WIN32
   snprintf(path, sizeof(path), "%s", executable_path);
 #else
-  ASSERT(NULL != realpath(executable_path, path));
+  ASSERT_NOT_NULL(realpath(executable_path, path));
 #endif
 
   match = strstr(buffer, path);

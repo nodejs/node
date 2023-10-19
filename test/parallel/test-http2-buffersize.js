@@ -5,7 +5,7 @@ if (!hasCrypto)
   skip('missing crypto');
 const assert = require('assert');
 const { createServer, connect } = require('http2');
-const { once } = require('events');
+const Countdown = require('../common/countdown');
 
 // This test ensures that `bufferSize` of Http2Session and Http2Stream work
 // as expected.
@@ -16,20 +16,18 @@ const { once } = require('events');
   const server = createServer();
 
   let client;
-
-  const getStream = async () => {
-    const [ stream ] = await once(server, 'stream');
-    stream.on('data', mustCall());
-    stream.on('end', mustCall());
-    stream.on('close', mustCall());
-    return once(stream, 'close');
-  };
-
-  const promises = [...new Array(kSockets)].map(getStream);
-  Promise.all(promises).then(mustCall(() => {
+  const countdown = new Countdown(kSockets, () => {
     client.close();
     server.close();
-  }));
+  });
+
+  server.on('stream', mustCall((stream) => {
+    stream.on('data', mustCall());
+    stream.on('end', mustCall());
+    stream.on('close', mustCall(() => {
+      countdown.dec();
+    }));
+  }, kSockets));
 
   server.listen(0, mustCall(() => {
     const authority = `http://localhost:${server.address().port}`;

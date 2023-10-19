@@ -69,7 +69,7 @@ StringMatcher* StringMatcher::clone() const {
 UnicodeMatcher* StringMatcher::toMatcher() const {
   StringMatcher  *nonconst_this = const_cast<StringMatcher *>(this);
   UnicodeMatcher *nonconst_base = static_cast<UnicodeMatcher *>(nonconst_this);
-
+  
   return nonconst_base;
 }
 
@@ -80,7 +80,7 @@ UnicodeMatcher* StringMatcher::toMatcher() const {
 UnicodeReplacer* StringMatcher::toReplacer() const {
   StringMatcher  *nonconst_this = const_cast<StringMatcher *>(this);
   UnicodeReplacer *nonconst_base = static_cast<UnicodeReplacer *>(nonconst_this);
-
+  
   return nonconst_base;
 }
 
@@ -96,7 +96,7 @@ UMatchDegree StringMatcher::matches(const Replaceable& text,
     if (limit < cursor) {
         // Match in the reverse direction
         for (i=pattern.length()-1; i>=0; --i) {
-            UChar keyChar = pattern.charAt(i);
+            char16_t keyChar = pattern.charAt(i);
             UnicodeMatcher* subm = data->lookupMatcher(keyChar);
             if (subm == 0) {
                 if (cursor > limit &&
@@ -127,11 +127,11 @@ UMatchDegree StringMatcher::matches(const Replaceable& text,
                 // without completing our match.
                 return U_PARTIAL_MATCH;
             }
-            UChar keyChar = pattern.charAt(i);
+            char16_t keyChar = pattern.charAt(i);
             UnicodeMatcher* subm = data->lookupMatcher(keyChar);
             if (subm == 0) {
                 // Don't need the cursor < limit check if
-                // incremental is TRUE (because it's done above); do need
+                // incremental is true (because it's done above); do need
                 // it otherwise.
                 if (cursor < limit &&
                     keyChar == text.charAt(cursor)) {
@@ -165,24 +165,24 @@ UnicodeString& StringMatcher::toPattern(UnicodeString& result,
     result.truncate(0);
     UnicodeString str, quoteBuf;
     if (segmentNumber > 0) {
-        result.append((UChar)40); /*(*/
+        result.append((char16_t)40); /*(*/
     }
     for (int32_t i=0; i<pattern.length(); ++i) {
-        UChar keyChar = pattern.charAt(i);
+        char16_t keyChar = pattern.charAt(i);
         const UnicodeMatcher* m = data->lookupMatcher(keyChar);
         if (m == 0) {
-            ICU_Utility::appendToRule(result, keyChar, FALSE, escapeUnprintable, quoteBuf);
+            ICU_Utility::appendToRule(result, keyChar, false, escapeUnprintable, quoteBuf);
         } else {
             ICU_Utility::appendToRule(result, m->toPattern(str, escapeUnprintable),
-                         TRUE, escapeUnprintable, quoteBuf);
+                         true, escapeUnprintable, quoteBuf);
         }
     }
     if (segmentNumber > 0) {
-        result.append((UChar)41); /*)*/
+        result.append((char16_t)41); /*)*/
     }
     // Flush quoteBuf out to result
     ICU_Utility::appendToRule(result, -1,
-                              TRUE, escapeUnprintable, quoteBuf);
+                              true, escapeUnprintable, quoteBuf);
     return result;
 }
 
@@ -191,7 +191,7 @@ UnicodeString& StringMatcher::toPattern(UnicodeString& result,
  */
 UBool StringMatcher::matchesIndexValue(uint8_t v) const {
     if (pattern.length() == 0) {
-        return TRUE;
+        return true;
     }
     UChar32 c = pattern.char32At(0);
     const UnicodeMatcher *m = data->lookupMatcher(c);
@@ -206,7 +206,7 @@ void StringMatcher::addMatchSetTo(UnicodeSet& toUnionTo) const {
     for (int32_t i=0; i<pattern.length(); i+=U16_LENGTH(ch)) {
         ch = pattern.char32At(i);
         const UnicodeMatcher* matcher = data->lookupMatcher(ch);
-        if (matcher == NULL) {
+        if (matcher == nullptr) {
             toUnionTo.add(ch);
         } else {
             matcher->addMatchSetTo(toUnionTo);
@@ -221,9 +221,9 @@ int32_t StringMatcher::replace(Replaceable& text,
                                int32_t start,
                                int32_t limit,
                                int32_t& /*cursor*/) {
-
+    
     int32_t outLen = 0;
-
+    
     // Copy segment with out-of-band data
     int32_t dest = limit;
     // If there was no match, that means that a quantifier
@@ -234,9 +234,9 @@ int32_t StringMatcher::replace(Replaceable& text,
             outLen = matchLimit - matchStart;
         }
     }
-
+    
     text.handleReplaceBetween(start, limit, UnicodeString()); // delete original text
-
+    
     return outLen;
 }
 
@@ -247,7 +247,7 @@ UnicodeString& StringMatcher::toReplacerPattern(UnicodeString& rule,
                                                 UBool /*escapeUnprintable*/) const {
     // assert(segmentNumber > 0);
     rule.truncate(0);
-    rule.append((UChar)0x0024 /*$*/);
+    rule.append((char16_t)0x0024 /*$*/);
     ICU_Utility::appendNumber(rule, segmentNumber, 10, 1);
     return rule;
 }
@@ -282,7 +282,7 @@ void StringMatcher::setData(const TransliterationRuleData* d) {
     while (i<pattern.length()) {
         UChar32 c = pattern.char32At(i);
         UnicodeFunctor* f = data->lookup(c);
-        if (f != NULL) {
+        if (f != nullptr) {
             f->setData(data);
         }
         i += U16_LENGTH(c);

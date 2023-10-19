@@ -23,37 +23,57 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(FreeSpace)
 
 RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
-int FreeSpace::Size() { return size(); }
+int FreeSpace::Size() { return size(kRelaxedLoad); }
 
-FreeSpace FreeSpace::next() {
+Tagged<FreeSpace> FreeSpace::next() const {
   DCHECK(IsValid());
+#ifdef V8_EXTERNAL_CODE_SPACE
+  intptr_t diff_to_next =
+      static_cast<intptr_t>(TaggedField<Smi, kNextOffset>::load(*this).value());
+  if (diff_to_next == 0) {
+    return FreeSpace();
+  }
+  Address next_ptr = ptr() + diff_to_next * kObjectAlignment;
+  return FreeSpace::unchecked_cast(Object(next_ptr));
+#else
   return FreeSpace::unchecked_cast(
       TaggedField<Object, kNextOffset>::load(*this));
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-void FreeSpace::set_next(FreeSpace next) {
+void FreeSpace::set_next(Tagged<FreeSpace> next) {
   DCHECK(IsValid());
-  RELAXED_WRITE_FIELD(*this, kNextOffset, next);
+#ifdef V8_EXTERNAL_CODE_SPACE
+  if (next.is_null()) {
+    TaggedField<Smi, kNextOffset>::Relaxed_Store(*this, Smi::zero());
+    return;
+  }
+  intptr_t diff_to_next = next.ptr() - ptr();
+  DCHECK(IsAligned(diff_to_next, kObjectAlignment));
+  TaggedField<Smi, kNextOffset>::Relaxed_Store(
+      *this, Smi::FromIntptr(diff_to_next / kObjectAlignment));
+#else
+  TaggedField<Object, kNextOffset>::Relaxed_Store(*this, next);
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-FreeSpace FreeSpace::cast(HeapObject o) {
+Tagged<FreeSpace> FreeSpace::cast(Tagged<HeapObject> o) {
   SLOW_DCHECK((!GetHeapFromWritableObject(o)->deserialization_complete()) ||
-              o.IsFreeSpace());
-  return bit_cast<FreeSpace>(o);
+              IsFreeSpace(o));
+  return base::bit_cast<FreeSpace>(o);
 }
 
-FreeSpace FreeSpace::unchecked_cast(const Object o) {
-  return bit_cast<FreeSpace>(o);
+Tagged<FreeSpace> FreeSpace::unchecked_cast(const Tagged<Object> o) {
+  return base::bit_cast<FreeSpace>(o);
 }
 
-bool FreeSpace::IsValid() {
+bool FreeSpace::IsValid() const {
   Heap* heap = GetHeapFromWritableObject(*this);
-  Object free_space_map =
+  Tagged<Object> free_space_map =
       Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
-  CHECK_IMPLIES(!map_slot().contains_value(free_space_map.ptr()),
-                !heap->deserialization_complete() &&
-                    map_slot().contains_value(kNullAddress));
-  CHECK_LE(kNextOffset + kTaggedSize, relaxed_read_size());
+  CHECK(!heap->deserialization_complete() ||
+        map_slot().contains_map_value(free_space_map.ptr()));
+  CHECK_LE(kNextOffset + kTaggedSize, size(kRelaxedLoad));
   return true;
 }
 

@@ -26,6 +26,7 @@ expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
 expect('--no_warnings', 'B\n');
 expect('--trace-warnings', 'B\n');
+expect('--no-extra-info-on-fatal-exception', 'B\n');
 expect('--redirect-warnings=_', 'B\n');
 expect('--trace-deprecation', 'B\n');
 expect('--trace-sync-io', 'B\n');
@@ -71,6 +72,7 @@ expect('--disallow-code-generation-from-strings', 'B\n');
 expect('--huge-max-old-generation-size', 'B\n');
 expect('--jitless', 'B\n');
 expect('--max-old-space-size=0', 'B\n');
+expect('--max-semi-space-size=0', 'B\n');
 expect('--stack-trace-limit=100',
        /(\s*at f \(\[(eval|worker eval)\]:1:\d*\)\r?\n)/,
        '(function f() { f(); })();',

@@ -71,9 +71,9 @@
 
 U_NAMESPACE_USE
 
-static UBool gIncludeCopyright = FALSE;
-static UBool gUsePoolBundle = FALSE;
-static UBool gIsDefaultFormatVersion = TRUE;
+static UBool gIncludeCopyright = false;
+static UBool gUsePoolBundle = false;
+static UBool gIsDefaultFormatVersion = true;
 static int32_t gFormatVersion = 3;
 
 /* How do we store string values? */
@@ -89,7 +89,7 @@ static const ResFile kNoPoolBundle;
 /*
  * res_none() returns the address of kNoResource,
  * for use in non-error cases when no resource is to be added to the bundle.
- * (NULL is used in error cases.)
+ * (nullptr is used in error cases.)
  */
 static SResource kNoResource;  // TODO: const
 
@@ -99,7 +99,7 @@ static UDataInfo dataInfo= {
 
     U_IS_BIG_ENDIAN,
     U_CHARSET_FAMILY,
-    sizeof(UChar),
+    sizeof(char16_t),
     0,
 
     {0x52, 0x65, 0x73, 0x42},     /* dataFormat="ResB" */
@@ -126,12 +126,12 @@ void setIncludeCopyright(UBool val){
     gIncludeCopyright=val;
 }
 
-UBool getIncludeCopyright(void){
+UBool getIncludeCopyright(){
     return gIncludeCopyright;
 }
 
 void setFormatVersion(int32_t formatVersion) {
-    gIsDefaultFormatVersion = FALSE;
+    gIsDefaultFormatVersion = false;
     gFormatVersion = formatVersion;
 }
 
@@ -149,18 +149,18 @@ struct SResource* res_none() {
 }
 
 SResource::SResource()
-        : fType(URES_NONE), fWritten(FALSE), fRes(RES_BOGUS), fRes16(-1), fKey(-1), fKey16(-1),
-          line(0), fNext(NULL) {
+        : fType(URES_NONE), fWritten(false), fRes(RES_BOGUS), fRes16(-1), fKey(-1), fKey16(-1),
+          line(0), fNext(nullptr) {
     ustr_init(&fComment);
 }
 
 SResource::SResource(SRBRoot *bundle, const char *tag, int8_t type, const UString* comment,
                      UErrorCode &errorCode)
-        : fType(type), fWritten(FALSE), fRes(RES_BOGUS), fRes16(-1),
-          fKey(bundle != NULL ? bundle->addTag(tag, errorCode) : -1), fKey16(-1),
-          line(0), fNext(NULL) {
+        : fType(type), fWritten(false), fRes(RES_BOGUS), fRes16(-1),
+          fKey(bundle != nullptr ? bundle->addTag(tag, errorCode) : -1), fKey16(-1),
+          line(0), fNext(nullptr) {
     ustr_init(&fComment);
-    if(comment != NULL) {
+    if(comment != nullptr) {
         ustr_cpy(&fComment, comment, &errorCode);
     }
 }
@@ -171,7 +171,7 @@ SResource::~SResource() {
 
 ContainerResource::~ContainerResource() {
     SResource *current = fFirst;
-    while (current != NULL) {
+    while (current != nullptr) {
         SResource *next = current->fNext;
         delete current;
         current = next;
@@ -182,7 +182,7 @@ TableResource::~TableResource() {}
 
 // TODO: clarify that containers adopt new items, even in error cases; use LocalPointer
 void TableResource::add(SResource *res, int linenumber, UErrorCode &errorCode) {
-    if (U_FAILURE(errorCode) || res == NULL || res == &kNoResource) {
+    if (U_FAILURE(errorCode) || res == nullptr || res == &kNoResource) {
         return;
     }
 
@@ -193,9 +193,9 @@ void TableResource::add(SResource *res, int linenumber, UErrorCode &errorCode) {
     ++fCount;
 
     /* is the list still empty? */
-    if (fFirst == NULL) {
+    if (fFirst == nullptr) {
         fFirst = res;
-        res->fNext = NULL;
+        res->fNext = nullptr;
         return;
     }
 
@@ -203,8 +203,8 @@ void TableResource::add(SResource *res, int linenumber, UErrorCode &errorCode) {
 
     SResource *current = fFirst;
 
-    SResource *prev = NULL;
-    while (current != NULL) {
+    SResource *prev = nullptr;
+    while (current != nullptr) {
         const char *currentKeyString = fRoot->fKeys + current->fKey;
         int diff;
         /*
@@ -221,7 +221,7 @@ void TableResource::add(SResource *res, int linenumber, UErrorCode &errorCode) {
             current = current->fNext;
         } else if (diff > 0) {
             /* we're either in front of the list, or in the middle */
-            if (prev == NULL) {
+            if (prev == nullptr) {
                 /* front of the list */
                 fFirst = res;
             } else {
@@ -241,14 +241,14 @@ void TableResource::add(SResource *res, int linenumber, UErrorCode &errorCode) {
 
     /* end of list */
     prev->fNext = res;
-    res->fNext  = NULL;
+    res->fNext  = nullptr;
 }
 
 ArrayResource::~ArrayResource() {}
 
 void ArrayResource::add(SResource *res) {
-    if (res != NULL && res != &kNoResource) {
-        if (fFirst == NULL) {
+    if (res != nullptr && res != &kNoResource) {
+        if (fFirst == nullptr) {
             fFirst = res;
         } else {
             fLast->fNext = res;
@@ -261,7 +261,7 @@ void ArrayResource::add(SResource *res) {
 PseudoListResource::~PseudoListResource() {}
 
 void PseudoListResource::add(SResource *res) {
-    if (res != NULL && res != &kNoResource) {
+    if (res != nullptr && res != &kNoResource) {
         res->fNext = fFirst;
         fFirst = res;
         ++fCount;
@@ -269,12 +269,12 @@ void PseudoListResource::add(SResource *res) {
 }
 
 StringBaseResource::StringBaseResource(SRBRoot *bundle, const char *tag, int8_t type,
-                                       const UChar *value, int32_t len,
+                                       const char16_t *value, int32_t len,
                                        const UString* comment, UErrorCode &errorCode)
         : SResource(bundle, tag, type, comment, errorCode) {
     if (len == 0 && gFormatVersion > 1) {
         fRes = URES_MAKE_EMPTY_RESOURCE(type);
-        fWritten = TRUE;
+        fWritten = true;
         return;
     }
 
@@ -287,10 +287,10 @@ StringBaseResource::StringBaseResource(SRBRoot *bundle, const char *tag, int8_t 
 
 StringBaseResource::StringBaseResource(SRBRoot *bundle, int8_t type,
                                        const icu::UnicodeString &value, UErrorCode &errorCode)
-        : SResource(bundle, NULL, type, NULL, errorCode), fString(value) {
+        : SResource(bundle, nullptr, type, nullptr, errorCode), fString(value) {
     if (value.isEmpty() && gFormatVersion > 1) {
         fRes = URES_MAKE_EMPTY_RESOURCE(type);
-        fWritten = TRUE;
+        fWritten = true;
         return;
     }
 
@@ -301,9 +301,9 @@ StringBaseResource::StringBaseResource(SRBRoot *bundle, int8_t type,
 }
 
 // Pool bundle string, alias the buffer. Guaranteed NUL-terminated and not empty.
-StringBaseResource::StringBaseResource(int8_t type, const UChar *value, int32_t len,
+StringBaseResource::StringBaseResource(int8_t type, const char16_t *value, int32_t len,
                                        UErrorCode &errorCode)
-        : SResource(NULL, NULL, type, NULL, errorCode), fString(TRUE, value, len) {
+        : SResource(nullptr, nullptr, type, nullptr, errorCode), fString(true, value, len) {
     assert(len > 0);
     assert(!fString.isBogus());
 }
@@ -332,7 +332,7 @@ IntResource::IntResource(SRBRoot *bundle, const char *tag, int32_t value,
         : SResource(bundle, tag, URES_INT, comment, errorCode) {
     fValue = value;
     fRes = URES_MAKE_RESOURCE(URES_INT, value & RES_MAX_OFFSET);
-    fWritten = TRUE;
+    fWritten = true;
 }
 
 IntResource::~IntResource() {}
@@ -342,7 +342,7 @@ IntVectorResource::IntVectorResource(SRBRoot *bundle, const char *tag,
         : SResource(bundle, tag, URES_INT_VECTOR, comment, errorCode),
           fCount(0), fSize(RESLIST_INT_VECTOR_INIT_SIZE),
           fArray(new uint32_t[fSize]) {
-    if (fArray == NULL) {
+    if (fArray == nullptr) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -373,13 +373,13 @@ BinaryResource::BinaryResource(SRBRoot *bundle, const char *tag,
                                uint32_t length, uint8_t *data, const char* fileName,
                                const UString* comment, UErrorCode &errorCode)
         : SResource(bundle, tag, URES_BINARY, comment, errorCode),
-          fLength(length), fData(NULL), fFileName(NULL) {
+          fLength(length), fData(nullptr), fFileName(nullptr) {
     if (U_FAILURE(errorCode)) {
         return;
     }
-    if (fileName != NULL && *fileName != 0){
+    if (fileName != nullptr && *fileName != 0){
         fFileName = new char[uprv_strlen(fileName)+1];
-        if (fFileName == NULL) {
+        if (fFileName == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -387,7 +387,7 @@ BinaryResource::BinaryResource(SRBRoot *bundle, const char *tag,
     }
     if (length > 0) {
         fData = new uint8_t[length];
-        if (fData == NULL) {
+        if (fData == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -395,7 +395,7 @@ BinaryResource::BinaryResource(SRBRoot *bundle, const char *tag,
     } else {
         if (gFormatVersion > 1) {
             fRes = URES_MAKE_EMPTY_RESOURCE(URES_BINARY);
-            fWritten = TRUE;
+            fWritten = true;
         }
     }
 }
@@ -410,9 +410,9 @@ BinaryResource::~BinaryResource() {
 void
 StringResource::handlePreflightStrings(SRBRoot *bundle, UHashtable *stringSet,
                                        UErrorCode &errorCode) {
-    assert(fSame == NULL);
+    assert(fSame == nullptr);
     fSame = static_cast<StringResource *>(uhash_get(stringSet, this));
-    if (fSame != NULL) {
+    if (fSame != nullptr) {
         // This is a duplicate of a pool bundle string or of an earlier-visited string.
         if (++fSame->fNumCopies == 1) {
             assert(fSame->fWritten);
@@ -430,7 +430,7 @@ StringResource::handlePreflightStrings(SRBRoot *bundle, UHashtable *stringSet,
     if (bundle->fStringsForm != STRINGS_UTF16_V1) {
         int32_t len = length();
         if (len <= MAX_IMPLICIT_STRING_LENGTH &&
-                !U16_IS_TRAIL(fString[0]) && fString.indexOf((UChar)0) < 0) {
+                !U16_IS_TRAIL(fString[0]) && fString.indexOf((char16_t)0) < 0) {
             /*
              * This string will be stored without an explicit length.
              * Runtime will detect !U16_IS_TRAIL(s[0]) and call u_strlen().
@@ -450,7 +450,7 @@ StringResource::handlePreflightStrings(SRBRoot *bundle, UHashtable *stringSet,
 void
 ContainerResource::handlePreflightStrings(SRBRoot *bundle, UHashtable *stringSet,
                                           UErrorCode &errorCode) {
-    for (SResource *current = fFirst; current != NULL; current = current->fNext) {
+    for (SResource *current = fFirst; current != nullptr; current = current->fNext) {
         current->preflightStrings(bundle, stringSet, errorCode);
     }
 }
@@ -503,7 +503,7 @@ SRBRoot::makeRes16(uint32_t resWord) const {
 int32_t
 SRBRoot::mapKey(int32_t oldpos) const {
     const KeyMapEntry *map = fKeyMap;
-    if (map == NULL) {
+    if (map == nullptr) {
         return oldpos;
     }
     int32_t i, start, limit;
@@ -531,7 +531,7 @@ SRBRoot::mapKey(int32_t oldpos) const {
 void
 StringResource::handleWrite16(SRBRoot * /*bundle*/) {
     SResource *same;
-    if ((same = fSame) != NULL) {
+    if ((same = fSame) != nullptr) {
         /* This is a duplicate. */
         assert(same->fRes != RES_BOGUS && same->fWritten);
         fRes = same->fRes;
@@ -541,28 +541,28 @@ StringResource::handleWrite16(SRBRoot * /*bundle*/) {
 
 void
 ContainerResource::writeAllRes16(SRBRoot *bundle) {
-    for (SResource *current = fFirst; current != NULL; current = current->fNext) {
-        bundle->f16BitUnits.append((UChar)current->fRes16);
+    for (SResource *current = fFirst; current != nullptr; current = current->fNext) {
+        bundle->f16BitUnits.append((char16_t)current->fRes16);
     }
-    fWritten = TRUE;
+    fWritten = true;
 }
 
 void
 ArrayResource::handleWrite16(SRBRoot *bundle) {
     if (fCount == 0 && gFormatVersion > 1) {
         fRes = URES_MAKE_EMPTY_RESOURCE(URES_ARRAY);
-        fWritten = TRUE;
+        fWritten = true;
         return;
     }
 
     int32_t res16 = 0;
-    for (SResource *current = fFirst; current != NULL; current = current->fNext) {
+    for (SResource *current = fFirst; current != nullptr; current = current->fNext) {
         current->write16(bundle);
         res16 |= current->fRes16;
     }
     if (fCount <= 0xffff && res16 >= 0 && gFormatVersion > 1) {
         fRes = URES_MAKE_RESOURCE(URES_ARRAY16, bundle->f16BitUnits.length());
-        bundle->f16BitUnits.append((UChar)fCount);
+        bundle->f16BitUnits.append((char16_t)fCount);
         writeAllRes16(bundle);
     }
 }
@@ -571,13 +571,13 @@ void
 TableResource::handleWrite16(SRBRoot *bundle) {
     if (fCount == 0 && gFormatVersion > 1) {
         fRes = URES_MAKE_EMPTY_RESOURCE(URES_TABLE);
-        fWritten = TRUE;
+        fWritten = true;
         return;
     }
     /* Find the smallest table type that fits the data. */
     int32_t key16 = 0;
     int32_t res16 = 0;
-    for (SResource *current = fFirst; current != NULL; current = current->fNext) {
+    for (SResource *current = fFirst; current != nullptr; current = current->fNext) {
         current->write16(bundle);
         key16 |= current->fKey16;
         res16 |= current->fRes16;
@@ -589,9 +589,9 @@ TableResource::handleWrite16(SRBRoot *bundle) {
         if (res16 >= 0 && gFormatVersion > 1) {
             /* 16-bit count, key offsets and values */
             fRes = URES_MAKE_RESOURCE(URES_TABLE16, bundle->f16BitUnits.length());
-            bundle->f16BitUnits.append((UChar)fCount);
-            for (SResource *current = fFirst; current != NULL; current = current->fNext) {
-                bundle->f16BitUnits.append((UChar)current->fKey16);
+            bundle->f16BitUnits.append((char16_t)fCount);
+            for (SResource *current = fFirst; current != nullptr; current = current->fNext) {
+                bundle->f16BitUnits.append((char16_t)current->fKey16);
             }
             writeAllRes16(bundle);
         } else {
@@ -607,7 +607,7 @@ TableResource::handleWrite16(SRBRoot *bundle) {
 void
 PseudoListResource::handleWrite16(SRBRoot * /*bundle*/) {
     fRes = URES_MAKE_EMPTY_RESOURCE(URES_TABLE);
-    fWritten = TRUE;
+    fWritten = true;
 }
 
 void
@@ -669,7 +669,7 @@ void
 IntVectorResource::handlePreWrite(uint32_t *byteOffset) {
     if (fCount == 0 && gFormatVersion > 1) {
         fRes = URES_MAKE_EMPTY_RESOURCE(URES_INT_VECTOR);
-        fWritten = TRUE;
+        fWritten = true;
     } else {
         fRes = URES_MAKE_RESOURCE(URES_INT_VECTOR, *byteOffset >> 2);
         *byteOffset += (1 + fCount) * 4;
@@ -691,7 +691,7 @@ BinaryResource::handlePreWrite(uint32_t *byteOffset) {
 
 void
 ContainerResource::preWriteAllRes(uint32_t *byteOffset) {
-    for (SResource *current = fFirst; current != NULL; current = current->fNext) {
+    for (SResource *current = fFirst; current != nullptr; current = current->fNext) {
         current->preWrite(byteOffset);
     }
 }
@@ -734,7 +734,7 @@ SResource::preWrite(uint32_t *byteOffset) {
 
 void
 SResource::handlePreWrite(uint32_t * /*byteOffset*/) {
-    assert(FALSE);
+    assert(false);
 }
 
 /*
@@ -748,13 +748,13 @@ StringBaseResource::handleWrite(UNewDataMemory *mem, uint32_t *byteOffset) {
     udata_write32(mem, len);
     udata_writeUString(mem, getBuffer(), len + 1);
     *byteOffset += 4 + (len + 1) * U_SIZEOF_UCHAR;
-    fWritten = TRUE;
+    fWritten = true;
 }
 
 void
 ContainerResource::writeAllRes(UNewDataMemory *mem, uint32_t *byteOffset) {
     uint32_t i = 0;
-    for (SResource *current = fFirst; current != NULL; ++i, current = current->fNext) {
+    for (SResource *current = fFirst; current != nullptr; ++i, current = current->fNext) {
         current->write(mem, byteOffset);
     }
     assert(i == fCount);
@@ -762,7 +762,7 @@ ContainerResource::writeAllRes(UNewDataMemory *mem, uint32_t *byteOffset) {
 
 void
 ContainerResource::writeAllRes32(UNewDataMemory *mem, uint32_t *byteOffset) {
-    for (SResource *current = fFirst; current != NULL; current = current->fNext) {
+    for (SResource *current = fFirst; current != nullptr; current = current->fNext) {
         udata_write32(mem, current->fRes);
     }
     *byteOffset += fCount * 4;
@@ -808,7 +808,7 @@ TableResource::handleWrite(UNewDataMemory *mem, uint32_t *byteOffset) {
     writeAllRes(mem, byteOffset);
     if(fTableType == URES_TABLE) {
         udata_write16(mem, (uint16_t)fCount);
-        for (SResource *current = fFirst; current != NULL; current = current->fNext) {
+        for (SResource *current = fFirst; current != nullptr; current = current->fNext) {
             udata_write16(mem, current->fKey16);
         }
         *byteOffset += (1 + fCount)* 2;
@@ -819,7 +819,7 @@ TableResource::handleWrite(UNewDataMemory *mem, uint32_t *byteOffset) {
         }
     } else /* URES_TABLE32 */ {
         udata_write32(mem, fCount);
-        for (SResource *current = fFirst; current != NULL; current = current->fNext) {
+        for (SResource *current = fFirst; current != nullptr; current = current->fNext) {
             udata_write32(mem, (uint32_t)current->fKey);
         }
         *byteOffset += (1 + fCount)* 4;
@@ -839,18 +839,18 @@ SResource::write(UNewDataMemory *mem, uint32_t *byteOffset) {
         udata_writePadding(mem, paddingSize);
         *byteOffset += paddingSize;
     }
-    fWritten = TRUE;
+    fWritten = true;
 }
 
 void
 SResource::handleWrite(UNewDataMemory * /*mem*/, uint32_t * /*byteOffset*/) {
-    assert(FALSE);
+    assert(false);
 }
 
 void SRBRoot::write(const char *outputDir, const char *outputPkg,
                     char *writtenFilename, int writtenFilenameLen,
                     UErrorCode &errorCode) {
-    UNewDataMemory *mem        = NULL;
+    UNewDataMemory *mem        = nullptr;
     uint32_t        byteOffset = 0;
     uint32_t        top, size;
     char            dataName[1024];
@@ -886,9 +886,9 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
     if (gFormatVersion > 1) {
         stringSet = uhash_open(string_hash, string_comp, string_comp, &errorCode);
         if (U_SUCCESS(errorCode) &&
-                fUsePoolBundle != NULL && fUsePoolBundle->fStrings != NULL) {
+                fUsePoolBundle != nullptr && fUsePoolBundle->fStrings != nullptr) {
             for (SResource *current = fUsePoolBundle->fStrings->fFirst;
-                    current != NULL;
+                    current != nullptr;
                     current = current->fNext) {
                 StringResource *sr = static_cast<StringResource *>(current);
                 sr->fNumCopies = 0;
@@ -898,7 +898,7 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
         }
         fRoot->preflightStrings(this, stringSet, errorCode);
     } else {
-        stringSet = NULL;
+        stringSet = nullptr;
     }
     if (fStringsForm == STRINGS_UTF16_V2 && f16BitStringsLength > 0) {
         compactStringsV2(stringSet, errorCode);
@@ -938,7 +938,7 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
         return;
     }
     if (f16BitUnits.length() & 1) {
-        f16BitUnits.append((UChar)0xaaaa);  /* pad to multiple of 4 bytes */
+        f16BitUnits.append((char16_t)0xaaaa);  /* pad to multiple of 4 bytes */
     }
 
     byteOffset = fKeysTop + f16BitUnits.length() * 2;
@@ -954,18 +954,14 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
     if (writtenFilename) {
        int32_t off = 0, len = 0;
        if (outputDir) {
-           len = (int32_t)uprv_strlen(outputDir);
-           if (len > writtenFilenameLen) {
-               len = writtenFilenameLen;
-           }
-           uprv_strncpy(writtenFilename, outputDir, len);
+           uprv_strncpy(writtenFilename, outputDir, writtenFilenameLen);
        }
        if (writtenFilenameLen -= len) {
            off += len;
            writtenFilename[off] = U_FILE_SEP_CHAR;
            if (--writtenFilenameLen) {
                ++off;
-               if(outputPkg != NULL)
+               if(outputPkg != nullptr)
                {
                    uprv_strcpy(writtenFilename+off, outputPkg);
                    off += (int32_t)uprv_strlen(outputPkg);
@@ -977,14 +973,10 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
                if (len > writtenFilenameLen) {
                    len = writtenFilenameLen;
                }
-               uprv_strncpy(writtenFilename + off, fLocale, len);
+               uprv_strncpy(writtenFilename + off, fLocale, writtenFilenameLen - off);
                if (writtenFilenameLen -= len) {
                    off += len;
-                   len = 5;
-                   if (len > writtenFilenameLen) {
-                       len = writtenFilenameLen;
-                   }
-                   uprv_strncpy(writtenFilename +  off, ".res", len);
+                   uprv_strncpy(writtenFilename +  off, ".res", writtenFilenameLen - off);
                }
            }
        }
@@ -1004,7 +996,7 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
     uprv_memcpy(dataInfo.formatVersion, gFormatVersions + formatVersion, sizeof(UVersionInfo));
 
     mem = udata_create(outputDir, "res", dataName,
-                       &dataInfo, (gIncludeCopyright==TRUE)? U_COPYRIGHT_STRING:NULL, &errorCode);
+                       &dataInfo, (gIncludeCopyright==true)? U_COPYRIGHT_STRING:nullptr, &errorCode);
     if(U_FAILURE(errorCode)){
         return;
     }
@@ -1103,53 +1095,53 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
 
 TableResource* table_open(struct SRBRoot *bundle, const char *tag, const struct UString* comment, UErrorCode *status) {
     LocalPointer<TableResource> res(new TableResource(bundle, tag, comment, *status), *status);
-    return U_SUCCESS(*status) ? res.orphan() : NULL;
+    return U_SUCCESS(*status) ? res.orphan() : nullptr;
 }
 
 ArrayResource* array_open(struct SRBRoot *bundle, const char *tag, const struct UString* comment, UErrorCode *status) {
     LocalPointer<ArrayResource> res(new ArrayResource(bundle, tag, comment, *status), *status);
-    return U_SUCCESS(*status) ? res.orphan() : NULL;
+    return U_SUCCESS(*status) ? res.orphan() : nullptr;
 }
 
-struct SResource *string_open(struct SRBRoot *bundle, const char *tag, const UChar *value, int32_t len, const struct UString* comment, UErrorCode *status) {
+struct SResource *string_open(struct SRBRoot *bundle, const char *tag, const char16_t *value, int32_t len, const struct UString* comment, UErrorCode *status) {
     LocalPointer<SResource> res(
             new StringResource(bundle, tag, value, len, comment, *status), *status);
-    return U_SUCCESS(*status) ? res.orphan() : NULL;
+    return U_SUCCESS(*status) ? res.orphan() : nullptr;
 }
 
-struct SResource *alias_open(struct SRBRoot *bundle, const char *tag, UChar *value, int32_t len, const struct UString* comment, UErrorCode *status) {
+struct SResource *alias_open(struct SRBRoot *bundle, const char *tag, char16_t *value, int32_t len, const struct UString* comment, UErrorCode *status) {
     LocalPointer<SResource> res(
             new AliasResource(bundle, tag, value, len, comment, *status), *status);
-    return U_SUCCESS(*status) ? res.orphan() : NULL;
+    return U_SUCCESS(*status) ? res.orphan() : nullptr;
 }
 
 IntVectorResource *intvector_open(struct SRBRoot *bundle, const char *tag, const struct UString* comment, UErrorCode *status) {
     LocalPointer<IntVectorResource> res(
             new IntVectorResource(bundle, tag, comment, *status), *status);
-    return U_SUCCESS(*status) ? res.orphan() : NULL;
+    return U_SUCCESS(*status) ? res.orphan() : nullptr;
 }
 
 struct SResource *int_open(struct SRBRoot *bundle, const char *tag, int32_t value, const struct UString* comment, UErrorCode *status) {
     LocalPointer<SResource> res(new IntResource(bundle, tag, value, comment, *status), *status);
-    return U_SUCCESS(*status) ? res.orphan() : NULL;
+    return U_SUCCESS(*status) ? res.orphan() : nullptr;
 }
 
 struct SResource *bin_open(struct SRBRoot *bundle, const char *tag, uint32_t length, uint8_t *data, const char* fileName, const struct UString* comment, UErrorCode *status) {
     LocalPointer<SResource> res(
             new BinaryResource(bundle, tag, length, data, fileName, comment, *status), *status);
-    return U_SUCCESS(*status) ? res.orphan() : NULL;
+    return U_SUCCESS(*status) ? res.orphan() : nullptr;
 }
 
 SRBRoot::SRBRoot(const UString *comment, UBool isPoolBundle, UErrorCode &errorCode)
-        : fRoot(NULL), fLocale(NULL), fIndexLength(0), fMaxTableLength(0), fNoFallback(FALSE),
+        : fRoot(nullptr), fLocale(nullptr), fIndexLength(0), fMaxTableLength(0), fNoFallback(false),
           fStringsForm(STRINGS_UTF16_V1), fIsPoolBundle(isPoolBundle),
-          fKeys(NULL), fKeyMap(NULL),
+          fKeys(nullptr), fKeyMap(nullptr),
           fKeysBottom(0), fKeysTop(0), fKeysCapacity(0),
           fKeysCount(0), fLocalKeyLimit(0),
           f16BitUnits(), f16BitStringsLength(0),
           fUsePoolBundle(&kNoPoolBundle),
           fPoolStringIndexLimit(0), fPoolStringIndex16Limit(0), fLocalStringIndexLimit(0),
-          fWritePoolBundle(NULL) {
+          fWritePoolBundle(nullptr) {
     if (U_FAILURE(errorCode)) {
         return;
     }
@@ -1157,16 +1149,16 @@ SRBRoot::SRBRoot(const UString *comment, UBool isPoolBundle, UErrorCode &errorCo
     if (gFormatVersion > 1) {
         // f16BitUnits must start with a zero for empty resources.
         // We might be able to omit it if there are no empty 16-bit resources.
-        f16BitUnits.append((UChar)0);
+        f16BitUnits.append((char16_t)0);
     }
 
     fKeys = (char *) uprv_malloc(sizeof(char) * KEY_SPACE_SIZE);
     if (isPoolBundle) {
         fRoot = new PseudoListResource(this, errorCode);
     } else {
-        fRoot = new TableResource(this, NULL, comment, errorCode);
+        fRoot = new TableResource(this, nullptr, comment, errorCode);
     }
-    if (fKeys == NULL || fRoot == NULL || U_FAILURE(errorCode)) {
+    if (fKeys == nullptr || fRoot == nullptr || U_FAILURE(errorCode)) {
         if (U_SUCCESS(errorCode)) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
         }
@@ -1208,14 +1200,14 @@ SRBRoot::~SRBRoot() {
 
 /* Misc Functions */
 
-void SRBRoot::setLocale(UChar *locale, UErrorCode &errorCode) {
+void SRBRoot::setLocale(char16_t *locale, UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
         return;
     }
 
     uprv_free(fLocale);
     fLocale = (char*) uprv_malloc(sizeof(char) * (u_strlen(locale)+1));
-    if(fLocale == NULL) {
+    if(fLocale == nullptr) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -1235,7 +1227,7 @@ SRBRoot::getKeyString(int32_t key) const {
 const char *
 SResource::getKeyString(const SRBRoot *bundle) const {
     if (fKey == -1) {
-        return NULL;
+        return nullptr;
     }
     return bundle->getKeyString(fKey);
 }
@@ -1256,7 +1248,7 @@ SRBRoot::addKeyBytes(const char *keyBytes, int32_t length, UErrorCode &errorCode
     if (U_FAILURE(errorCode)) {
         return -1;
     }
-    if (length < 0 || (keyBytes == NULL && length != 0)) {
+    if (length < 0 || (keyBytes == nullptr && length != 0)) {
         errorCode = U_ILLEGAL_ARGUMENT_ERROR;
         return -1;
     }
@@ -1270,7 +1262,7 @@ SRBRoot::addKeyBytes(const char *keyBytes, int32_t length, UErrorCode &errorCode
         /* overflow - resize the keys buffer */
         fKeysCapacity += KEY_SPACE_SIZE;
         fKeys = static_cast<char *>(uprv_realloc(fKeys, fKeysCapacity));
-        if(fKeys == NULL) {
+        if(fKeys == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return -1;
         }
@@ -1289,7 +1281,7 @@ SRBRoot::addTag(const char *tag, UErrorCode &errorCode) {
         return -1;
     }
 
-    if (tag == NULL) {
+    if (tag == nullptr) {
         /* no error: the root table and array items have no keys */
         return -1;
     }
@@ -1360,7 +1352,7 @@ void SResource::collectKeys(std::function<void(int32_t)> collector) const {
 
 void ContainerResource::collectKeys(std::function<void(int32_t)> collector) const {
     collector(fKey);
-    for (SResource* curr = fFirst; curr != NULL; curr = curr->fNext) {
+    for (SResource* curr = fFirst; curr != nullptr; curr = curr->fNext) {
         curr->collectKeys(collector);
     }
 }
@@ -1384,11 +1376,11 @@ SRBRoot::compactKeys(UErrorCode &errorCode) {
     }
 
     int32_t keysCount = fUsePoolBundle->fKeysCount + fKeysCount;
-    if (U_FAILURE(errorCode) || fKeyMap != NULL) {
+    if (U_FAILURE(errorCode) || fKeyMap != nullptr) {
         return;
     }
     map = (KeyMapEntry *)uprv_malloc(keysCount * sizeof(KeyMapEntry));
-    if (map == NULL) {
+    if (map == nullptr) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -1421,7 +1413,7 @@ SRBRoot::compactKeys(UErrorCode &errorCode) {
     }
     /* Sort the keys so that each one is immediately followed by all of its suffixes. */
     uprv_sortArray(map, keysCount, (int32_t)sizeof(KeyMapEntry),
-                   compareKeySuffixes, this, FALSE, &errorCode);
+                   compareKeySuffixes, this, false, &errorCode);
     /*
      * Make suffixes point into earlier, longer strings that contain them
      * and mark the old, now unused suffix bytes as deleted.
@@ -1474,7 +1466,7 @@ SRBRoot::compactKeys(UErrorCode &errorCode) {
          * to squeeze out unused bytes, and readjust the newpos offsets.
          */
         uprv_sortArray(map, keysCount, (int32_t)sizeof(KeyMapEntry),
-                       compareKeyNewpos, NULL, FALSE, &errorCode);
+                       compareKeyNewpos, nullptr, false, &errorCode);
         if (U_SUCCESS(errorCode)) {
             int32_t oldpos, newpos, limit;
             oldpos = newpos = fKeysBottom;
@@ -1499,11 +1491,11 @@ SRBRoot::compactKeys(UErrorCode &errorCode) {
             fKeysTop = newpos;
             /* Re-sort once more, by old offsets for binary searching. */
             uprv_sortArray(map, keysCount, (int32_t)sizeof(KeyMapEntry),
-                           compareKeyOldpos, NULL, FALSE, &errorCode);
+                           compareKeyOldpos, nullptr, false, &errorCode);
             if (U_SUCCESS(errorCode)) {
                 /* key size reduction by limit - newpos */
                 fKeyMap = map;
-                map = NULL;
+                map = nullptr;
             }
         }
     }
@@ -1514,10 +1506,10 @@ static int32_t U_CALLCONV
 compareStringSuffixes(const void * /*context*/, const void *l, const void *r) {
     const StringResource *left = *((const StringResource **)l);
     const StringResource *right = *((const StringResource **)r);
-    const UChar *lStart = left->getBuffer();
-    const UChar *lLimit = lStart + left->length();
-    const UChar *rStart = right->getBuffer();
-    const UChar *rLimit = rStart + right->length();
+    const char16_t *lStart = left->getBuffer();
+    const char16_t *lLimit = lStart + left->length();
+    const char16_t *rStart = right->getBuffer();
+    const char16_t *rLimit = rStart + right->length();
     int32_t diff;
     /* compare keys in reverse character order */
     while (lStart < lLimit && rStart < rLimit) {
@@ -1536,7 +1528,7 @@ compareStringLengths(const void * /*context*/, const void *l, const void *r) {
     const StringResource *right = *((const StringResource **)r);
     int32_t diff;
     /* Make "is suffix of another string" compare greater than a non-suffix. */
-    diff = (int)(left->fSame != NULL) - (int)(right->fSame != NULL);
+    diff = (int)(left->fSame != nullptr) - (int)(right->fSame != nullptr);
     if (diff != 0) {
         return diff;
     }
@@ -1558,27 +1550,27 @@ void
 StringResource::writeUTF16v2(int32_t base, UnicodeString &dest) {
     int32_t len = length();
     fRes = URES_MAKE_RESOURCE(URES_STRING_V2, base + dest.length());
-    fWritten = TRUE;
+    fWritten = true;
     switch(fNumCharsForLength) {
     case 0:
         break;
     case 1:
-        dest.append((UChar)(0xdc00 + len));
+        dest.append((char16_t)(0xdc00 + len));
         break;
     case 2:
-        dest.append((UChar)(0xdfef + (len >> 16)));
-        dest.append((UChar)len);
+        dest.append((char16_t)(0xdfef + (len >> 16)));
+        dest.append((char16_t)len);
         break;
     case 3:
-        dest.append((UChar)0xdfff);
-        dest.append((UChar)(len >> 16));
-        dest.append((UChar)len);
+        dest.append((char16_t)0xdfff);
+        dest.append((char16_t)(len >> 16));
+        dest.append((char16_t)len);
         break;
     default:
         break;  /* will not occur */
     }
     dest.append(fString);
-    dest.append((UChar)0);
+    dest.append((char16_t)0);
 }
 
 void
@@ -1599,7 +1591,7 @@ SRBRoot::compactStringsV2(UHashtable *stringSet, UErrorCode &errorCode) {
     }
     /* Sort the strings so that each one is immediately followed by all of its suffixes. */
     uprv_sortArray(array.getAlias(), count, (int32_t)sizeof(struct SResource **),
-                   compareStringSuffixes, NULL, FALSE, &errorCode);
+                   compareStringSuffixes, nullptr, false, &errorCode);
     if (U_FAILURE(errorCode)) {
         return;
     }
@@ -1639,7 +1631,7 @@ SRBRoot::compactStringsV2(UHashtable *stringSet, UErrorCode &errorCode) {
                         if (poolStringIndex >= fPoolStringIndexLimit) {
                             fPoolStringIndexLimit = poolStringIndex + 1;
                         }
-                        suffixRes->fWritten = TRUE;
+                        suffixRes->fWritten = true;
                     }
                     res->fNumUnitsSaved += suffixRes->fNumCopies * suffixRes->get16BitStringsLength();
                 } else {
@@ -1657,7 +1649,7 @@ SRBRoot::compactStringsV2(UHashtable *stringSet, UErrorCode &errorCode) {
      * Keep as many as possible within reach of 16-bit offsets.
      */
     uprv_sortArray(array.getAlias(), count, (int32_t)sizeof(struct SResource **),
-                   compareStringLengths, NULL, FALSE, &errorCode);
+                   compareStringLengths, nullptr, false, &errorCode);
     if (U_FAILURE(errorCode)) {
         return;
     }
@@ -1680,7 +1672,7 @@ SRBRoot::compactStringsV2(UHashtable *stringSet, UErrorCode &errorCode) {
             } else {
                 numUnitsNotSaved += res->fNumUnitsSaved;
                 res->fRes = URES_MAKE_EMPTY_RESOURCE(URES_STRING);
-                res->fWritten = TRUE;
+                res->fWritten = true;
             }
         }
         if (f16BitUnits.isBogus()) {
@@ -1699,7 +1691,7 @@ SRBRoot::compactStringsV2(UHashtable *stringSet, UErrorCode &errorCode) {
         assert(fPoolStringIndexLimit <= fUsePoolBundle->fStringIndexLimit);
         /* Write the non-suffix strings. */
         int32_t i;
-        for (i = 0; i < count && array[i]->fSame == NULL; ++i) {
+        for (i = 0; i < count && array[i]->fSame == nullptr; ++i) {
             StringResource *res = array[i];
             if (!res->fWritten) {
                 int32_t localStringIndex = f16BitUnits.length();
@@ -1713,14 +1705,14 @@ SRBRoot::compactStringsV2(UHashtable *stringSet, UErrorCode &errorCode) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
-        if (fWritePoolBundle != NULL && gFormatVersion >= 3) {
+        if (fWritePoolBundle != nullptr && gFormatVersion >= 3) {
             PseudoListResource *poolStrings =
                     static_cast<PseudoListResource *>(fWritePoolBundle->fRoot);
-            for (i = 0; i < count && array[i]->fSame == NULL; ++i) {
+            for (i = 0; i < count && array[i]->fSame == nullptr; ++i) {
                 assert(!array[i]->fString.isEmpty());
                 StringResource *poolString =
                         new StringResource(fWritePoolBundle, array[i]->fString, errorCode);
-                if (poolString == NULL) {
+                if (poolString == nullptr) {
                     errorCode = U_MEMORY_ALLOCATION_ERROR;
                     break;
                 }
@@ -1742,7 +1734,7 @@ SRBRoot::compactStringsV2(UHashtable *stringSet, UErrorCode &errorCode) {
             if (localStringIndex >= fLocalStringIndexLimit) {
                 fLocalStringIndexLimit = localStringIndex + 1;
             }
-            res->fWritten = TRUE;
+            res->fWritten = true;
         }
     }
     // +1 to account for the initial zero in f16BitUnits

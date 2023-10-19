@@ -13,7 +13,7 @@ namespace internal {
 
 void FlushInstructionCache(void* start, size_t size) {
   if (size == 0) return;
-  if (FLAG_jitless) return;
+  if (v8_flags.jitless) return;
 
 #if defined(USE_SIMULATOR)
   base::MutexGuard lock_guard(Simulator::i_cache_mutex());

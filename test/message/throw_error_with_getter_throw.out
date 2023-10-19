@@ -1,6 +1,0 @@
-
-*:3
-throw {  // eslint-disable-line no-throw-literal
-^
-[object Object]
-(Use `* --trace-uncaught ...` to show where the exception was thrown)

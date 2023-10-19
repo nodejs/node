@@ -8,7 +8,6 @@
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
-#include "src/objects/source-text-module-inl.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/synthetic-module.h"
@@ -21,68 +20,61 @@ namespace internal {
 
 #include "torque-generated/src/objects/module-tq-inl.inc"
 
-OBJECT_CONSTRUCTORS_IMPL(Module, HeapObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Module)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ScriptOrModule)
 
 NEVER_READ_ONLY_SPACE_IMPL(Module)
 NEVER_READ_ONLY_SPACE_IMPL(ModuleRequest)
 NEVER_READ_ONLY_SPACE_IMPL(SourceTextModule)
 NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
 
-CAST_ACCESSOR(Module)
-ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
-ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
-ACCESSORS(Module, exception, Object, kExceptionOffset)
-ACCESSORS(Module, top_level_capability, HeapObject, kTopLevelCapabilityOffset)
-SMI_ACCESSORS(Module, status, kStatusOffset)
-SMI_ACCESSORS(Module, hash, kHashOffset)
-
 BOOL_ACCESSORS(SourceTextModule, flags, async, AsyncBit::kShift)
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluating_ordinal,
                     SourceTextModule::AsyncEvaluatingOrdinalBits)
-ACCESSORS(SourceTextModule, async_parent_modules, ArrayList,
+ACCESSORS(SourceTextModule, async_parent_modules, Tagged<ArrayList>,
           kAsyncParentModulesOffset)
 
 struct Module::Hash {
   V8_INLINE size_t operator()(Module const& module) const {
-    return module.hash();
+    return module->hash();
   }
 };
 
-SourceTextModuleInfo SourceTextModule::info() const {
-  return GetSharedFunctionInfo().scope_info().ModuleDescriptorInfo();
+Tagged<SourceTextModuleInfo> SourceTextModule::info() const {
+  return GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
 }
 
 OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfo, FixedArray)
 CAST_ACCESSOR(SourceTextModuleInfo)
 
-FixedArray SourceTextModuleInfo::module_requests() const {
+Tagged<FixedArray> SourceTextModuleInfo::module_requests() const {
   return FixedArray::cast(get(kModuleRequestsIndex));
 }
 
-FixedArray SourceTextModuleInfo::special_exports() const {
+Tagged<FixedArray> SourceTextModuleInfo::special_exports() const {
   return FixedArray::cast(get(kSpecialExportsIndex));
 }
 
-FixedArray SourceTextModuleInfo::regular_exports() const {
+Tagged<FixedArray> SourceTextModuleInfo::regular_exports() const {
   return FixedArray::cast(get(kRegularExportsIndex));
 }
 
-FixedArray SourceTextModuleInfo::regular_imports() const {
+Tagged<FixedArray> SourceTextModuleInfo::regular_imports() const {
   return FixedArray::cast(get(kRegularImportsIndex));
 }
 
-FixedArray SourceTextModuleInfo::namespace_imports() const {
+Tagged<FixedArray> SourceTextModuleInfo::namespace_imports() const {
   return FixedArray::cast(get(kNamespaceImportsIndex));
 }
 
 #ifdef DEBUG
-bool SourceTextModuleInfo::Equals(SourceTextModuleInfo other) const {
-  return regular_exports() == other.regular_exports() &&
-         regular_imports() == other.regular_imports() &&
-         special_exports() == other.special_exports() &&
-         namespace_imports() == other.namespace_imports() &&
-         module_requests() == other.module_requests();
+bool SourceTextModuleInfo::Equals(Tagged<SourceTextModuleInfo> other) const {
+  return regular_exports() == other->regular_exports() &&
+         regular_imports() == other->regular_imports() &&
+         special_exports() == other->special_exports() &&
+         namespace_imports() == other->namespace_imports() &&
+         module_requests() == other->module_requests();
 }
 #endif
 
@@ -113,7 +105,7 @@ class UnorderedModuleSet
 Handle<SourceTextModule> SourceTextModule::GetCycleRoot(
     Isolate* isolate) const {
   CHECK_GE(status(), kEvaluated);
-  DCHECK(!cycle_root().IsTheHole(isolate));
+  DCHECK(!IsTheHole(cycle_root(), isolate));
   Handle<SourceTextModule> root(SourceTextModule::cast(cycle_root()), isolate);
   return root;
 }
@@ -131,12 +123,12 @@ void SourceTextModule::AddAsyncParentModule(Isolate* isolate,
 Handle<SourceTextModule> SourceTextModule::GetAsyncParentModule(
     Isolate* isolate, int index) {
   Handle<SourceTextModule> module(
-      SourceTextModule::cast(async_parent_modules().Get(index)), isolate);
+      SourceTextModule::cast(async_parent_modules()->Get(index)), isolate);
   return module;
 }
 
 int SourceTextModule::AsyncParentModuleCount() {
-  return async_parent_modules().Length();
+  return async_parent_modules()->Length();
 }
 
 bool SourceTextModule::IsAsyncEvaluating() const {

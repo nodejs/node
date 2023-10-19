@@ -8,12 +8,16 @@
 #include <stack>
 #include <vector>
 
-#include "src/deoptimizer/translation-array.h"
+#include "src/deoptimizer/frame-translation-builder.h"
+#include "src/objects/deoptimization-data.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/boxed-float.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -24,15 +28,15 @@ class TranslatedState;
 // TODO(jgruber): This duplicates decoding logic already present in
 // TranslatedState/TranslatedFrame. Deduplicate into one class, e.g. by basing
 // printing off TranslatedFrame.
-void TranslationArrayPrintSingleFrame(std::ostream& os,
-                                      TranslationArray translation_array,
-                                      int translation_index,
-                                      FixedArray literal_array);
+void DeoptimizationFrameTranslationPrintSingleOpcode(
+    std::ostream& os, TranslationOpcode opcode,
+    DeoptimizationFrameTranslation::Iterator& iterator,
+    Tagged<DeoptimizationLiteralArray> literal_array);
 
 // The Translated{Value,Frame,State} class hierarchy are a set of utility
 // functions to work with the combination of translations (built from a
-// TranslationArray) and the actual current CPU state (represented by
-// RegisterValues).
+// DeoptimizationFrameTranslation) and the actual current CPU state (represented
+// by RegisterValues).
 //
 // TranslatedState: describes the entire stack state of the current optimized
 // frame, contains:
@@ -46,7 +50,7 @@ class TranslatedValue {
   // Allocation-free getter of the value.
   // Returns ReadOnlyRoots::arguments_marker() if allocation would be necessary
   // to get the value. In the case of numbers, returns a Smi if possible.
-  Object GetRawValue() const;
+  Tagged<Object> GetRawValue() const;
 
   // Convenience wrapper around GetRawValue (checked).
   int GetSmiValue() const;
@@ -70,10 +74,12 @@ class TranslatedValue {
     kInt32,
     kInt64,
     kInt64ToBigInt,
+    kUint64ToBigInt,
     kUInt32,
     kBoolBit,
     kFloat,
     kDouble,
+    kHoleyDouble,
     kCapturedObject,   // Object captured by the escape analysis.
                        // The number of nested objects can be obtained
                        // with the DeferredObjectLength() method
@@ -104,13 +110,18 @@ class TranslatedValue {
   static TranslatedValue NewDuplicateObject(TranslatedState* container, int id);
   static TranslatedValue NewFloat(TranslatedState* container, Float32 value);
   static TranslatedValue NewDouble(TranslatedState* container, Float64 value);
+  static TranslatedValue NewHoleyDouble(TranslatedState* container,
+                                        Float64 value);
   static TranslatedValue NewInt32(TranslatedState* container, int32_t value);
   static TranslatedValue NewInt64(TranslatedState* container, int64_t value);
   static TranslatedValue NewInt64ToBigInt(TranslatedState* container,
                                           int64_t value);
+  static TranslatedValue NewUint64ToBigInt(TranslatedState* container,
+                                           uint64_t value);
   static TranslatedValue NewUInt32(TranslatedState* container, uint32_t value);
   static TranslatedValue NewBool(TranslatedState* container, uint32_t value);
-  static TranslatedValue NewTagged(TranslatedState* container, Object literal);
+  static TranslatedValue NewTagged(TranslatedState* container,
+                                   Tagged<Object> literal);
   static TranslatedValue NewInvalid(TranslatedState* container);
 
   Isolate* isolate() const;
@@ -144,26 +155,29 @@ class TranslatedValue {
 
   union {
     // kind kTagged. After handlification it is always nullptr.
-    Object raw_literal_;
+    Tagged<Object> raw_literal_;
     // kind is kUInt32 or kBoolBit.
     uint32_t uint32_value_;
     // kind is kInt32.
     int32_t int32_value_;
-    // kind is kInt64.
+    // kind is kUint64ToBigInt.
+    uint64_t uint64_value_;
+    // kind is kInt64 or kInt64ToBigInt.
     int64_t int64_value_;
     // kind is kFloat
     Float32 float_value_;
-    // kind is kDouble
+    // kind is kDouble or kHoleyDouble
     Float64 double_value_;
     // kind is kDuplicatedObject or kCapturedObject.
     MaterializedObjectInfo materialization_info_;
   };
 
   // Checked accessors for the union members.
-  Object raw_literal() const;
+  Tagged<Object> raw_literal() const;
   int32_t int32_value() const;
   int64_t int64_value() const;
   uint32_t uint32_value() const;
+  uint64_t uint64_value() const;
   Float32 float_value() const;
   Float64 double_value() const;
   int object_length() const;
@@ -174,10 +188,14 @@ class TranslatedFrame {
  public:
   enum Kind {
     kUnoptimizedFunction,
-    kArgumentsAdaptor,
-    kConstructStub,
+    kInlinedExtraArguments,
+    kConstructCreateStub,
+    kConstructInvokeStub,
     kBuiltinContinuation,
+#if V8_ENABLE_WEBASSEMBLY
+    kWasmInlinedIntoJS,
     kJSToWasmBuiltinContinuation,
+#endif  // V8_ENABLE_WEBASSEMBLY
     kJavaScriptBuiltinContinuation,
     kJavaScriptBuiltinContinuationWithCatch,
     kInvalid
@@ -199,7 +217,7 @@ class TranslatedFrame {
   int return_value_offset() const { return return_value_offset_; }
   int return_value_count() const { return return_value_count_; }
 
-  SharedFunctionInfo raw_shared_info() const {
+  Tagged<SharedFunctionInfo> raw_shared_info() const {
     CHECK(!raw_shared_info_.is_null());
     return raw_shared_info_;
   }
@@ -252,37 +270,47 @@ class TranslatedFrame {
   reference front() { return values_.front(); }
   const_reference front() const { return values_.front(); }
 
+#if V8_ENABLE_WEBASSEMBLY
   // Only for Kind == kJSToWasmBuiltinContinuation
-  base::Optional<wasm::ValueKind> wasm_call_return_type() const {
+  base::Optional<wasm::ValueKind> wasm_call_return_kind() const {
     DCHECK_EQ(kind(), kJSToWasmBuiltinContinuation);
-    return return_type_;
+    return return_kind_;
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
   friend class TranslatedState;
   friend class Deoptimizer;
 
   // Constructor static methods.
-  static TranslatedFrame UnoptimizedFrame(BytecodeOffset bytecode_offset,
-                                          SharedFunctionInfo shared_info,
-                                          int height, int return_value_offset,
-                                          int return_value_count);
+  static TranslatedFrame UnoptimizedFrame(
+      BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
+      int height, int return_value_offset, int return_value_count);
   static TranslatedFrame AccessorFrame(Kind kind,
-                                       SharedFunctionInfo shared_info);
-  static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo shared_info,
-                                               int height);
-  static TranslatedFrame ConstructStubFrame(BytecodeOffset bailout_id,
-                                            SharedFunctionInfo shared_info,
-                                            int height);
+                                       Tagged<SharedFunctionInfo> shared_info);
+  static TranslatedFrame InlinedExtraArguments(
+      Tagged<SharedFunctionInfo> shared_info, int height);
+  static TranslatedFrame ConstructCreateStubFrame(
+      Tagged<SharedFunctionInfo> shared_info, int height);
+  static TranslatedFrame ConstructInvokeStubFrame(
+      Tagged<SharedFunctionInfo> shared_info);
   static TranslatedFrame BuiltinContinuationFrame(
-      BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
+      BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
+      int height);
+#if V8_ENABLE_WEBASSEMBLY
+  static TranslatedFrame WasmInlinedIntoJSFrame(
+      BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
+      int height);
   static TranslatedFrame JSToWasmBuiltinContinuationFrame(
-      BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height,
-      base::Optional<wasm::ValueKind> return_type);
+      BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
+      int height, base::Optional<wasm::ValueKind> return_type);
+#endif  // V8_ENABLE_WEBASSEMBLY
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
-      BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
+      BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
+      int height);
   static TranslatedFrame JavaScriptBuiltinContinuationWithCatchFrame(
-      BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
+      BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
+      int height);
   static TranslatedFrame InvalidFrame() {
     return TranslatedFrame(kInvalid, SharedFunctionInfo());
   }
@@ -290,7 +318,7 @@ class TranslatedFrame {
   static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
 
   TranslatedFrame(Kind kind,
-                  SharedFunctionInfo shared_info = SharedFunctionInfo(),
+                  Tagged<SharedFunctionInfo> shared_info = SharedFunctionInfo(),
                   int height = 0, int return_value_offset = 0,
                   int return_value_count = 0)
       : kind_(kind),
@@ -302,7 +330,7 @@ class TranslatedFrame {
 
   void Add(const TranslatedValue& value) { values_.push_back(value); }
   TranslatedValue* ValueAt(int index) { return &(values_[index]); }
-  void Handlify();
+  void Handlify(Isolate* isolate);
 
   Kind kind_;
   BytecodeOffset bytecode_offset_;
@@ -316,8 +344,10 @@ class TranslatedFrame {
 
   ValuesContainer values_;
 
+#if V8_ENABLE_WEBASSEMBLY
   // Only for Kind == kJSToWasmBuiltinContinuation
-  base::Optional<wasm::ValueKind> return_type_;
+  base::Optional<wasm::ValueKind> return_kind_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 // Auxiliary class for translating deoptimization values.
@@ -370,9 +400,11 @@ class TranslatedState {
   Isolate* isolate() { return isolate_; }
 
   void Init(Isolate* isolate, Address input_frame_pointer,
-            Address stack_frame_pointer, TranslationArrayIterator* iterator,
-            FixedArray literal_array, RegisterValues* registers,
-            FILE* trace_file, int parameter_count, int actual_argument_count);
+            Address stack_frame_pointer,
+            DeoptimizationFrameTranslation::Iterator* iterator,
+            Tagged<DeoptimizationLiteralArray> literal_array,
+            RegisterValues* registers, FILE* trace_file, int parameter_count,
+            int actual_argument_count);
 
   void VerifyMaterializedObjects();
   bool DoUpdateFeedback();
@@ -386,13 +418,14 @@ class TranslatedState {
   // details, see the code around ReplaceElementsArrayWithCopy.
   enum Purpose { kDeoptimization, kFrameInspection };
 
-  TranslatedFrame CreateNextTranslatedFrame(TranslationArrayIterator* iterator,
-                                            FixedArray literal_array,
-                                            Address fp, FILE* trace_file);
-  int CreateNextTranslatedValue(int frame_index,
-                                TranslationArrayIterator* iterator,
-                                FixedArray literal_array, Address fp,
-                                RegisterValues* registers, FILE* trace_file);
+  TranslatedFrame CreateNextTranslatedFrame(
+      DeoptimizationFrameTranslation::Iterator* iterator,
+      Tagged<DeoptimizationLiteralArray> literal_array, Address fp,
+      FILE* trace_file);
+  int CreateNextTranslatedValue(
+      int frame_index, DeoptimizationFrameTranslation::Iterator* iterator,
+      Tagged<DeoptimizationLiteralArray> literal_array, Address fp,
+      RegisterValues* registers, FILE* trace_file);
   Address DecompressIfNeeded(intptr_t value);
   void CreateArgumentsElementsTranslatedValues(int frame_index,
                                                Address input_frame_pointer,
@@ -427,8 +460,9 @@ class TranslatedState {
       TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
       Handle<Map> map, const DisallowGarbageCollection& no_gc);
 
-  void ReadUpdateFeedback(TranslationArrayIterator* iterator,
-                          FixedArray literal_array, FILE* trace_file);
+  void ReadUpdateFeedback(DeoptimizationFrameTranslation::Iterator* iterator,
+                          Tagged<DeoptimizationLiteralArray> literal_array,
+                          FILE* trace_file);
 
   TranslatedValue* ResolveCapturedObject(TranslatedValue* slot);
   TranslatedValue* GetValueByObjectIndex(int object_index);
@@ -459,8 +493,8 @@ class TranslatedState {
   FeedbackSlot feedback_slot_;
 };
 
-// Return type encoding for a Wasm function returning void.
-const int kNoWasmReturnType = -1;
+// Return kind encoding for a Wasm function returning void.
+const int kNoWasmReturnKind = -1;
 
 }  // namespace internal
 }  // namespace v8

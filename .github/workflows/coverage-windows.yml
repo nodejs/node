@@ -1,34 +1,49 @@
-name: coverage-windows
+name: Coverage Windows
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
-      - 'doc/**'
-      - 'deps/**'
-      - 'benchmark/**'
-      - 'tools/**'
+      - '**.md'
+      - benchmark/**
+      - deps/**
+      - doc/**
+      - tools/**
+      - .github/**
+      - '!.github/workflows/coverage-windows.yml'
   push:
     branches:
-      - master
       - main
     paths-ignore:
-      - 'doc/**'
-      - 'deps/**'
-      - 'benchmark/**'
-      - 'tools/**'
+      - '**.md'
+      - benchmark/**
+      - deps/**
+      - doc/**
+      - tools/**
+      - .github/**
+      - '!.github/workflows/coverage-windows.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: 3.9
-  FLAKY_TESTS: dontcare
+  PYTHON_VERSION: '3.11'
+  FLAKY_TESTS: keep_retrying
+
+permissions:
+  contents: read
 
 jobs:
   coverage-windows:
     if: github.event.pull_request.draft == false
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install deps
@@ -50,6 +65,6 @@ jobs:
       - name: Clean tmp
         run: npx rimraf ./coverage/tmp
       - name: Upload
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d  # v3.1.4
         with:
           directory: ./coverage

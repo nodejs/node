@@ -17,7 +17,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segments.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "unicode/brkiter.h"
 
@@ -72,7 +72,7 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
     Isolate* isolate, Handle<JSSegmentIterator> segment_iterator) {
   Factory* factory = isolate->factory();
   icu::BreakIterator* icu_break_iterator =
-      segment_iterator->icu_break_iterator().raw();
+      segment_iterator->icu_break_iterator()->raw();
   // 5. Let startIndex be iterator.[[IteratedStringNextSegmentCodeUnitIndex]].
   int32_t start_index = icu_break_iterator->current();
   // 6. Let endIndex be ! FindBoundary(segmenter, string, startIndex, after).

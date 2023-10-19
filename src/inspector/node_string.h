@@ -64,21 +64,24 @@ double toDouble(const char* buffer, size_t length, bool* ok);
 String StringViewToUtf8(v8_inspector::StringView view);
 
 // NOLINTNEXTLINE(runtime/references)
-void builderAppendQuotedString(StringBuilder& builder, const String&);
-std::unique_ptr<Value> parseJSON(const String&);
+void builderAppendQuotedString(StringBuilder& builder, const std::string_view);
+std::unique_ptr<Value> parseJSON(const std::string_view);
 std::unique_ptr<Value> parseJSON(v8_inspector::StringView view);
 
-std::unique_ptr<Value> parseMessage(const std::string& message, bool binary);
 ProtocolMessage jsonToMessage(String message);
 ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
 String fromUTF8(const uint8_t* data, size_t length);
 String fromUTF16(const uint16_t* data, size_t length);
-const uint8_t* CharactersUTF8(const String& s);
-size_t CharacterCount(const String& s);
+const uint8_t* CharactersUTF8(const std::string_view s);
+size_t CharacterCount(const std::string_view s);
 
 // Unimplemented. The generated code will fall back to CharactersUTF8().
-inline uint8_t* CharactersLatin1(const String& s) { return nullptr; }
-inline const uint16_t* CharactersUTF16(const String& s) { return nullptr; }
+inline uint8_t* CharactersLatin1(const std::string_view s) {
+  return nullptr;
+}
+inline const uint16_t* CharactersUTF16(const std::string_view s) {
+  return nullptr;
+}
 
 extern size_t kNotFound;
 }  // namespace StringUtil
@@ -92,7 +95,7 @@ class Binary {
   const uint8_t* data() const { UNREACHABLE(); }
   size_t size() const { UNREACHABLE(); }
   String toBase64() const { UNREACHABLE(); }
-  static Binary fromBase64(const String& base64, bool* success) {
+  static Binary fromBase64(const std::string_view base64, bool* success) {
     UNREACHABLE();
   }
   static Binary fromSpan(const uint8_t* data, size_t size) { UNREACHABLE(); }

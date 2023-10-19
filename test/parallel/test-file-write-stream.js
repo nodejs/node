@@ -23,10 +23,9 @@
 const common = require('../common');
 const assert = require('assert');
 
-const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
-const fn = path.join(tmpdir.path, 'write.txt');
+const fn = tmpdir.resolve('write.txt');
 tmpdir.refresh();
 const file = fs.createWriteStream(fn, {
   highWaterMark: 10

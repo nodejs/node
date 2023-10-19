@@ -69,6 +69,9 @@ class V8_EXPORT_PRIVATE DecompressionOptimizer final {
   // Change node's load into a compressed one.
   void ChangeLoad(Node* const node);
 
+  // Change node's 64-bit bitwise operator into a compressed one.
+  void ChangeWord64BitwiseOp(Node* const node, const Operator* new_op);
+
   // Go through the already marked nodes and changed the operation for the nodes
   // that can use compressed outputs.
   void ChangeNodes();
@@ -82,6 +85,8 @@ class V8_EXPORT_PRIVATE DecompressionOptimizer final {
   // Mark node's input as appropriate, according to node's opcode. Some input
   // State may be updated, and therefore has to be revisited.
   void MarkNodeInputs(Node* node);
+
+  void MarkAddressingBase(Node* base);
 
   // Mark node's State to be state. We only do this if we have new information,
   // i.e either if:

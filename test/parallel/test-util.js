@@ -21,7 +21,7 @@
 
 'use strict';
 // Flags: --expose-internals
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 const errors = require('internal/errors');
@@ -38,7 +38,7 @@ assert.strictEqual(util.isArray({}), false);
 assert.strictEqual(util.isArray({ push: function() {} }), false);
 assert.strictEqual(util.isArray(/regexp/), false);
 assert.strictEqual(util.isArray(new Error()), false);
-assert.strictEqual(util.isArray(Object.create(Array.prototype)), false);
+assert.strictEqual(util.isArray({ __proto__: Array.prototype }), false);
 
 // isRegExp
 assert.strictEqual(util.isRegExp(/regexp/), true);
@@ -48,7 +48,7 @@ assert.strictEqual(util.isRegExp(context('RegExp')()), true);
 assert.strictEqual(util.isRegExp({}), false);
 assert.strictEqual(util.isRegExp([]), false);
 assert.strictEqual(util.isRegExp(new Date()), false);
-assert.strictEqual(util.isRegExp(Object.create(RegExp.prototype)), false);
+assert.strictEqual(util.isRegExp({ __proto__: RegExp.prototype }), false);
 
 // isDate
 assert.strictEqual(util.isDate(new Date()), true);
@@ -58,7 +58,7 @@ assert.strictEqual(util.isDate(Date()), false);
 assert.strictEqual(util.isDate({}), false);
 assert.strictEqual(util.isDate([]), false);
 assert.strictEqual(util.isDate(new Error()), false);
-assert.strictEqual(util.isDate(Object.create(Date.prototype)), false);
+assert.strictEqual(util.isDate({ __proto__: Date.prototype }), false);
 
 // isError
 assert.strictEqual(util.isError(new Error()), true);
@@ -70,7 +70,7 @@ assert.strictEqual(util.isError(new (context('SyntaxError'))()), true);
 assert.strictEqual(util.isError({}), false);
 assert.strictEqual(util.isError({ name: 'Error', message: '' }), false);
 assert.strictEqual(util.isError([]), false);
-assert.strictEqual(util.isError(Object.create(Error.prototype)), true);
+assert.strictEqual(util.isError({ __proto__: Error.prototype }), true);
 
 // isObject
 assert.strictEqual(util.isObject({}), true);
@@ -148,6 +148,8 @@ assert.strictEqual(util.isFunction(function() {}), true);
 assert.strictEqual(util.isFunction(), false);
 assert.strictEqual(util.isFunction('string'), false);
 
+assert.strictEqual(util.toUSVString('string\ud801'), 'string\ufffd');
+
 {
   assert.strictEqual(util.types.isNativeError(new Error()), true);
   assert.strictEqual(util.types.isNativeError(new TypeError()), true);
@@ -168,7 +170,7 @@ assert.strictEqual(util.isFunction('string'), false);
   );
   assert.strictEqual(util.types.isNativeError([]), false);
   assert.strictEqual(
-    util.types.isNativeError(Object.create(Error.prototype)),
+    util.types.isNativeError({ __proto__: Error.prototype }),
     false
   );
   assert.strictEqual(
@@ -176,3 +178,11 @@ assert.strictEqual(util.isFunction('string'), false);
     true
   );
 }
+
+assert.throws(() => {
+  util.stripVTControlCharacters({});
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "str" argument must be of type string.' +
+           common.invalidArgTypeHelper({})
+});

@@ -1,11 +1,14 @@
-const { promisify } = require('util')
-const readdir = promisify(require('readdir-scoped-modules'))
+const { readdirScoped } = require('@npmcli/fs')
 
 const installedShallow = async (npm, opts) => {
-  const names = global => readdir(global ? npm.globalDir : npm.localDir)
+  const names = async global => {
+    const paths = await readdirScoped(global ? npm.globalDir : npm.localDir)
+    return paths.map(p => p.replace(/\\/g, '/'))
+  }
   const { conf: { argv: { remain } } } = opts
-  if (remain.length > 3)
+  if (remain.length > 3) {
     return null
+  }
 
   const { global } = npm.flatOptions
   const locals = global ? [] : await names(false)

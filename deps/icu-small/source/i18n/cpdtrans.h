@@ -70,7 +70,7 @@ public:
      * @param id compound ID
      * @param dir either UTRANS_FORWARD or UTRANS_REVERSE
      * @param adoptedFilter a global filter for this compound transliterator
-     * or NULL
+     * or nullptr
      */
     CompoundTransliterator(const UnicodeString& id,
                            UTransDirection dir,
@@ -80,7 +80,7 @@ public:
 
     /**
      * Constructs a new compound transliterator in the FORWARD
-     * direction with a NULL filter.
+     * direction with a nullptr filter.
      */
     CompoundTransliterator(const UnicodeString& id,
                            UParseError& parseError,
@@ -98,13 +98,13 @@ public:
     /**
      * Transliterator API.
      */
-    virtual CompoundTransliterator* clone() const;
+    virtual CompoundTransliterator* clone() const override;
 
     /**
      * Returns the number of transliterators in this chain.
      * @return number of transliterators in this chain.
      */
-    virtual int32_t getCount(void) const;
+    virtual int32_t getCount() const;
 
     /**
      * Returns the transliterator at the given index in this chain.
@@ -137,33 +137,33 @@ public:
      * U+000A, U+0020..U+007E.
      */
     virtual UnicodeString& toRules(UnicodeString& result,
-                                   UBool escapeUnprintable) const;
+                                   UBool escapeUnprintable) const override;
 
  protected:
     /**
      * Implement Transliterator framework
      */
-    virtual void handleGetSourceSet(UnicodeSet& result) const;
+    virtual void handleGetSourceSet(UnicodeSet& result) const override;
 
  public:
     /**
      * Override Transliterator framework
      */
-    virtual UnicodeSet& getTargetSet(UnicodeSet& result) const;
+    virtual UnicodeSet& getTargetSet(UnicodeSet& result) const override;
 
 protected:
     /**
      * Implements {@link Transliterator#handleTransliterate}.
      */
     virtual void handleTransliterate(Replaceable& text, UTransPosition& idx,
-                                     UBool incremental) const;
+                                     UBool incremental) const override;
 
 public:
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -171,7 +171,7 @@ public:
     static UClassID U_EXPORT2 getStaticClassID();
 
     /* @internal */
-    static const UChar PASS_STRING[];
+    static const char16_t PASS_STRING[];
 
 private:
 
@@ -192,7 +192,7 @@ private:
                            int32_t numAnonymousRBTs,
                            UParseError& parseError,
                            UErrorCode& status);
-
+    
     CompoundTransliterator(UVector& list,
                            UParseError& parseError,
                            UErrorCode& status);
@@ -220,9 +220,9 @@ private:
     UnicodeString joinIDs(Transliterator* const transliterators[],
                           int32_t transCount);
 
-    void freeTransliterators(void);
+    void freeTransliterators();
 
-    void computeMaximumContextLength(void);
+    void computeMaximumContextLength();
 };
 
 U_NAMESPACE_END

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --noalways-opt
+// Flags: --allow-natives-syntax --turbofan --noalways-turbofan
 
 // Test that JSResolvePromise takes a proper stability dependency
 // on the resolutions map if the infer receiver maps are unreliable
@@ -28,6 +28,13 @@
   // Now invalidate the stability of a's map.
   const b = makeObjectWithStableMap();
   b.d = 1;
+
+  if (%IsDictPropertyConstTrackingEnabled()) {
+    // TODO(v8:11457) In this mode we weren't able to inline the access, yet, so
+    // it stays optimized. See related TODO in
+    // JSNativeContextSpecialization::ReduceJSResolvePromise.
+    return;
+  }
 
   // This should deoptimize foo.
   assertUnoptimized(foo);
@@ -57,6 +64,13 @@
   // Now invalidate the stability of a's map.
   const b = makeObjectWithStableMap();
   b.z = 1;
+
+  if (%IsDictPropertyConstTrackingEnabled()) {
+    // TODO(v8:11457) In this mode we weren't able to inline the access, yet, so
+    // it stays optimized. See related TODO in
+    // JSNativeContextSpecialization::ReduceJSResolvePromise.
+    return;
+  }
 
   // This should deoptimize foo.
   assertUnoptimized(foo);

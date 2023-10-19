@@ -2,10 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// No reason to stress-opt this; save some time.
-// Flags: --no-stress-opt
-
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Test that we can generate at least 50 memories of small size.
 // More memories are currently not possible if the trap handler is enabled,

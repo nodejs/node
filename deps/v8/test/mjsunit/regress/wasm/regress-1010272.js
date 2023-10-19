@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-grow-shared-memory --experimental-wasm-threads
+// Flags: --wasm-grow-shared-memory
 
 const kNumWorkers = 100;
 const kNumMessages = 50;

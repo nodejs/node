@@ -7,21 +7,10 @@ description: Run a command from a local or remote npm package
 ### Synopsis
 
 ```bash
-npm exec -- <pkg>[@<version>] [args...]
-npm exec --package=<pkg>[@<version>] -- <cmd> [args...]
-npm exec -c '<cmd> [args...]'
-npm exec --package=foo -c '<cmd> [args...]'
-
-npx <pkg>[@<specifier>] [args...]
-npx -p <pkg>[@<specifier>] <cmd> [args...]
+npx -- <pkg>[@<version>] [args...]
+npx --package=<pkg>[@<version>] -- <cmd> [args...]
 npx -c '<cmd> [args...]'
-npx -p <pkg>[@<specifier>] -c '<cmd> [args...]'
-
-alias: npm x, npx
-
---package=<pkg> (may be specified multiple times)
--p is a shorthand for --package only when using npx executable
--c <cmd> --call=<cmd> (may not be mixed with positional arguments)
+npx --package=foo -c '<cmd> [args...]'
 ```
 
 ### Description
@@ -175,3 +164,4 @@ This resulted in some shifts in its functionality:
 * [npm restart](/commands/npm-restart)
 * [npm stop](/commands/npm-stop)
 * [npm config](/commands/npm-config)
+* [npm exec](/commands/npm-exec)

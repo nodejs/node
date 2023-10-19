@@ -27,41 +27,27 @@ class ConcurrentMarkingTest : public testing::TestWithHeap {
   static constexpr int kNumStep = 10;
 #endif  // defined(THREAD_SANITIZER)
 
-  using Config = Heap::Config;
-  static constexpr Config ConcurrentPreciseConfig = {
-      Config::CollectionType::kMajor, Config::StackState::kNoHeapPointers,
-      Config::MarkingType::kIncrementalAndConcurrent,
-      Config::SweepingType::kIncrementalAndConcurrent};
-
   void StartConcurrentGC() {
     Heap* heap = Heap::From(GetHeap());
     heap->DisableHeapGrowingForTesting();
-    heap->StartIncrementalGarbageCollection(ConcurrentPreciseConfig);
+    heap->StartIncrementalGarbageCollection(
+        GCConfig::PreciseConcurrentConfig());
     heap->marker()->SetMainThreadMarkingDisabledForTesting(true);
   }
 
-  bool SingleStep(Config::StackState stack_state) {
+  bool SingleStep(StackState stack_state) {
     MarkerBase* marker = Heap::From(GetHeap())->marker();
     DCHECK(marker);
     return marker->IncrementalMarkingStepForTesting(stack_state);
-  }
-
-  void FinishSteps(Config::StackState stack_state) {
-    while (!SingleStep(stack_state)) {
-    }
   }
 
   void FinishGC() {
     Heap* heap = Heap::From(GetHeap());
     heap->marker()->SetMainThreadMarkingDisabledForTesting(false);
     heap->FinalizeIncrementalGarbageCollectionIfRunning(
-        ConcurrentPreciseConfig);
+        GCConfig::PreciseConcurrentConfig());
   }
 };
-
-// static
-constexpr ConcurrentMarkingTest::Config
-    ConcurrentMarkingTest::ConcurrentPreciseConfig;
 
 template <typename T>
 struct GCedHolder : public GarbageCollected<GCedHolder<T>> {
@@ -114,8 +100,8 @@ TEST_F(ConcurrentMarkingTest, MarkingObjects) {
       *last_object = MakeGarbageCollected<GCed>(GetAllocationHandle());
       last_object = &(*last_object)->child_;
     }
-    // Use SignleStep to re-post concurrent jobs.
-    SingleStep(Config::StackState::kNoHeapPointers);
+    // Use SingleStep to re-post concurrent jobs.
+    SingleStep(StackState::kNoHeapPointers);
   }
   FinishGC();
 }
@@ -133,8 +119,8 @@ TEST_F(ConcurrentMarkingTest, MarkingInConstructionObjects) {
             last_object = &(*last_object)->child_;
           });
     }
-    // Use SignleStep to re-post concurrent jobs.
-    SingleStep(Config::StackState::kNoHeapPointers);
+    // Use SingleStep to re-post concurrent jobs.
+    SingleStep(StackState::kNoHeapPointers);
   }
   FinishGC();
 }
@@ -149,8 +135,8 @@ TEST_F(ConcurrentMarkingTest, MarkingMixinObjects) {
       *last_object = MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
       last_object = &(*last_object)->child_;
     }
-    // Use SignleStep to re-post concurrent jobs.
-    SingleStep(Config::StackState::kNoHeapPointers);
+    // Use SingleStep to re-post concurrent jobs.
+    SingleStep(StackState::kNoHeapPointers);
   }
   FinishGC();
 }

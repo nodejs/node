@@ -5,9 +5,9 @@
 namespace array {
 // Array.from( items [, mapfn [, thisArg ] ] )
 // ES #sec-array.from
-transitioning javascript builtin
-ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
-    JSReceiver {
+transitioning javascript builtin ArrayFrom(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSReceiver {
   const c = HasBuiltinSubclassingFlag() ? receiver : GetArrayFunction();
 
   // Use fast path if:
@@ -35,7 +35,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
   } else {
     // a. If IsCallable(mapfn) is false, throw a TypeError exception.
     if (!Is<Callable>(mapfn)) deferred {
-        ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfn);
+        ThrowCalledNonCallable(mapfn);
       }
     // b. Let mapping be true.
     mapping = true;
@@ -78,8 +78,8 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       // done to true and a target array which somehow never ran out of
       // memory, e.g. a proxy that discarded the values. Ignoring this case
       // just means we would repeatedly call CreateDataProperty with index =
-      // 2^53
-      assert(k < kMaxSafeInteger);
+      // 2^53.
+      dcheck(k < kMaxSafeInteger);
 
       // ii. Let Pk be ! ToString(k).
 
@@ -110,9 +110,9 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
         try {
           mappedValue =
               Call(context, UnsafeCast<Callable>(mapfn), thisArg, nextValue, k);
-        } catch (e) {
+        } catch (e, message) {
           iterator::IteratorCloseOnException(iteratorRecord);
-          ReThrow(context, e);
+          ReThrowWithMessage(context, e, message);
         }
       } else {
         mappedValue = nextValue;
@@ -123,9 +123,9 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       //     return ? IteratorClose(iteratorRecord, defineStatus).
       try {
         FastCreateDataProperty(a, k, mappedValue);
-      } catch (e) deferred {
+      } catch (e, message) deferred {
         iterator::IteratorCloseOnException(iteratorRecord);
-        ReThrow(context, e);
+        ReThrowWithMessage(context, e, message);
       }
       // x. Set k to k + 1.
       k += 1;
@@ -140,14 +140,26 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
 
     let a: JSReceiver;
     // 9. If IsConstructor(C) is true, then
-    typeswitch (c) {
-      case (c: Constructor): {
-        // a. Let A be ? Construct(C, « len »).
-        a = Construct(c, len);
-      }
-      case (JSAny): {
-        // a. Let A be ? ArrayCreate(len).
-        a = ArrayCreate(len);
+    try {
+      // Allocate an array with PACKED elements kind for fast-path rather than
+      // calling the constructor which creates an array with HOLEY kind.
+      if (c != GetArrayFunction()) goto CreateWithConstructor;
+      if (len > kMaxFastArrayLength) goto CreateWithConstructor;
+      const smiLen: Smi = 0;
+      const capacity: intptr = Convert<intptr>(len);
+      const map: Map = GetFastPackedSmiElementsJSArrayMap();
+      a = AllocateJSArray(
+          ElementsKind::PACKED_SMI_ELEMENTS, map, capacity, smiLen);
+    } label CreateWithConstructor {
+      typeswitch (c) {
+        case (c: Constructor): {
+          // a. Let A be ? Construct(C, « len »).
+          a = Construct(c, len);
+        }
+        case (JSAny): {
+          // a. Let A be ? ArrayCreate(len).
+          a = ArrayCreate(len);
+        }
       }
     }
 
@@ -179,7 +191,9 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
     // 14. Return A.
     return a;
   } label IteratorNotCallable(_value: JSAny) deferred {
-    ThrowTypeError(MessageTemplate::kIteratorSymbolNonCallable);
+    ThrowTypeError(
+        MessageTemplate::kFirstArgumentIteratorSymbolNonCallable,
+        '%Array%.from');
   }
 }
 }

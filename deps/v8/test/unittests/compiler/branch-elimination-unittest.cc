@@ -3,14 +3,12 @@
 // found in the LICENSE file.
 
 #include "src/compiler/branch-elimination.h"
+
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
-#include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
-#include "testing/gmock-support.h"
 
 namespace v8 {
 namespace internal {

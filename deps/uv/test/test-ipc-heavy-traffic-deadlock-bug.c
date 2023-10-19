@@ -66,7 +66,7 @@ static void do_write(uv_stream_t* handle) {
   int r;
 
   write_info = malloc(sizeof *write_info);
-  ASSERT(write_info != NULL);
+  ASSERT_NOT_NULL(write_info);
 
   for (i = 0; i < BUFFERS_PER_WRITE; i++) {
     memset(&write_info->buffers[i], BUFFER_CONTENT, BUFFER_SIZE);
@@ -137,7 +137,7 @@ TEST_IMPL(ipc_heavy_traffic_deadlock_bug) {
   spawn_helper(&pipe, &process, "ipc_helper_heavy_traffic_deadlock_bug");
   do_writes_and_reads((uv_stream_t*) &pipe);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(pipe.loop);
   return 0;
 }
 
@@ -154,6 +154,6 @@ int ipc_helper_heavy_traffic_deadlock_bug(void) {
   do_writes_and_reads((uv_stream_t*) &pipe);
   uv_sleep(100);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

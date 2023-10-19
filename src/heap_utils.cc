@@ -2,8 +2,20 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_external_reference.h"
+#include "permission/permission.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
+
+// Copied from https://github.com/nodejs/node/blob/b07dc4d19fdbc15b4f76557dc45b3ce3a43ad0c3/src/util.cc#L36-L41.
+#ifdef _WIN32
+#include <io.h>  // _S_IREAD _S_IWRITE
+#ifndef S_IRUSR
+#define S_IRUSR _S_IREAD
+#endif  // S_IRUSR
+#ifndef S_IWUSR
+#define S_IWUSR _S_IWRITE
+#endif  // S_IWUSR
+#endif
 
 using v8::Array;
 using v8::Boolean;
@@ -14,14 +26,19 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;
 using v8::HandleScope;
+using v8::HeapProfiler;
 using v8::HeapSnapshot;
 using v8::Isolate;
+using v8::JustVoid;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace node {
@@ -206,7 +223,7 @@ void BuildEmbedderGraph(const FunctionCallbackInfo<Value>& args) {
 namespace {
 class FileOutputStream : public v8::OutputStream {
  public:
-  explicit FileOutputStream(FILE* stream) : stream_(stream) {}
+  FileOutputStream(const int fd, uv_fs_t* req) : fd_(fd), req_(req) {}
 
   int GetChunkSize() override {
     return 65536;  // big chunks == faster
@@ -214,18 +231,36 @@ class FileOutputStream : public v8::OutputStream {
 
   void EndOfStream() override {}
 
-  WriteResult WriteAsciiChunk(char* data, int size) override {
-    const size_t len = static_cast<size_t>(size);
-    size_t off = 0;
-
-    while (off < len && !feof(stream_) && !ferror(stream_))
-      off += fwrite(data + off, 1, len - off, stream_);
-
-    return off == len ? kContinue : kAbort;
+  WriteResult WriteAsciiChunk(char* data, const int size) override {
+    DCHECK_EQ(status_, 0);
+    int offset = 0;
+    while (offset < size) {
+      const uv_buf_t buf = uv_buf_init(data + offset, size - offset);
+      const int num_bytes_written = uv_fs_write(nullptr,
+                                                req_,
+                                                fd_,
+                                                &buf,
+                                                1,
+                                                -1,
+                                                nullptr);
+      uv_fs_req_cleanup(req_);
+      if (num_bytes_written < 0) {
+        status_ = num_bytes_written;
+        return kAbort;
+      }
+      DCHECK_LE(static_cast<size_t>(num_bytes_written), buf.len);
+      offset += num_bytes_written;
+    }
+    DCHECK_EQ(offset, size);
+    return kContinue;
   }
 
+  int status() const { return status_; }
+
  private:
-  FILE* stream_;
+  const int fd_;
+  uv_fs_t* req_;
+  int status_ = 0;
 };
 
 class HeapSnapshotStream : public AsyncWrap,
@@ -308,22 +343,49 @@ class HeapSnapshotStream : public AsyncWrap,
   HeapSnapshotPointer snapshot_;
 };
 
-inline void TakeSnapshot(Isolate* isolate, v8::OutputStream* out) {
-  HeapSnapshotPointer snapshot {
-      isolate->GetHeapProfiler()->TakeHeapSnapshot() };
+inline void TakeSnapshot(Environment* env,
+                         v8::OutputStream* out,
+                         HeapProfiler::HeapSnapshotOptions options) {
+  HeapSnapshotPointer snapshot{
+      env->isolate()->GetHeapProfiler()->TakeHeapSnapshot(options)};
   snapshot->Serialize(out, HeapSnapshot::kJSON);
 }
 
 }  // namespace
 
-bool WriteSnapshot(Isolate* isolate, const char* filename) {
-  FILE* fp = fopen(filename, "w");
-  if (fp == nullptr)
-    return false;
-  FileOutputStream stream(fp);
-  TakeSnapshot(isolate, &stream);
-  fclose(fp);
-  return true;
+Maybe<void> WriteSnapshot(Environment* env,
+                          const char* filename,
+                          HeapProfiler::HeapSnapshotOptions options) {
+  uv_fs_t req;
+  int err;
+
+  const int fd = uv_fs_open(nullptr,
+                            &req,
+                            filename,
+                            O_WRONLY | O_CREAT | O_TRUNC,
+                            S_IWUSR | S_IRUSR,
+                            nullptr);
+  uv_fs_req_cleanup(&req);
+  if ((err = fd) < 0) {
+    env->ThrowUVException(err, "open", nullptr, filename);
+    return Nothing<void>();
+  }
+
+  FileOutputStream stream(fd, &req);
+  TakeSnapshot(env, &stream, options);
+  if ((err = stream.status()) < 0) {
+    env->ThrowUVException(err, "write", nullptr, filename);
+    return Nothing<void>();
+  }
+
+  err = uv_fs_close(nullptr, &req, fd, nullptr);
+  uv_fs_req_cleanup(&req);
+  if (err < 0) {
+    env->ThrowUVException(err, "close", nullptr, filename);
+    return Nothing<void>();
+  }
+
+  return JustVoid();
 }
 
 void DeleteHeapSnapshot(const HeapSnapshot* snapshot) {
@@ -355,10 +417,28 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
   return MakeBaseObject<HeapSnapshotStream>(env, std::move(snapshot), obj);
 }
 
+HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
+    Local<Value> options_value) {
+  CHECK(options_value->IsUint8Array());
+  Local<Uint8Array> arr = options_value.As<Uint8Array>();
+  uint8_t* options =
+      static_cast<uint8_t*>(arr->Buffer()->Data()) + arr->ByteOffset();
+  HeapProfiler::HeapSnapshotOptions result;
+  result.snapshot_mode = options[0]
+                             ? HeapProfiler::HeapSnapshotMode::kExposeInternals
+                             : HeapProfiler::HeapSnapshotMode::kRegular;
+  result.numerics_mode = options[1]
+                             ? HeapProfiler::NumericsMode::kExposeNumericValues
+                             : HeapProfiler::NumericsMode::kHideNumericValues;
+  return result;
+}
+
 void CreateHeapSnapshotStream(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  HeapSnapshotPointer snapshot {
-      env->isolate()->GetHeapProfiler()->TakeHeapSnapshot() };
+  CHECK_EQ(args.Length(), 1);
+  auto options = GetHeapSnapshotOptions(args[0]);
+  HeapSnapshotPointer snapshot{
+      env->isolate()->GetHeapProfiler()->TakeHeapSnapshot(options)};
   CHECK(snapshot);
   BaseObjectPtr<AsyncWrap> stream =
       CreateHeapSnapshotStream(env, std::move(snapshot));
@@ -369,13 +449,17 @@ void CreateHeapSnapshotStream(const FunctionCallbackInfo<Value>& args) {
 void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-
+  CHECK_EQ(args.Length(), 2);
   Local<Value> filename_v = args[0];
+  auto options = GetHeapSnapshotOptions(args[1]);
 
   if (filename_v->IsUndefined()) {
     DiagnosticFilename name(env, "Heap", "heapsnapshot");
-    if (!WriteSnapshot(isolate, *name))
-      return;
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env,
+        permission::PermissionScope::kFileSystemWrite,
+        Environment::GetCwd(env->exec_path()));
+    if (WriteSnapshot(env, *name, options).IsNothing()) return;
     if (String::NewFromUtf8(isolate, *name).ToLocal(&filename_v)) {
       args.GetReturnValue().Set(filename_v);
     }
@@ -384,8 +468,9 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, filename_v);
   CHECK_NOT_NULL(*path);
-  if (!WriteSnapshot(isolate, *path))
-    return;
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
+  if (WriteSnapshot(env, *path, options).IsNothing()) return;
   return args.GetReturnValue().Set(filename_v);
 }
 
@@ -393,11 +478,10 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-
-  env->SetMethod(target, "buildEmbedderGraph", BuildEmbedderGraph);
-  env->SetMethod(target, "triggerHeapSnapshot", TriggerHeapSnapshot);
-  env->SetMethod(target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
+  SetMethod(context, target, "buildEmbedderGraph", BuildEmbedderGraph);
+  SetMethod(context, target, "triggerHeapSnapshot", TriggerHeapSnapshot);
+  SetMethod(
+      context, target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -409,6 +493,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace heap
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(heap_utils, node::heap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(heap_utils,
-                               node::heap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(heap_utils, node::heap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(heap_utils,
+                                node::heap::RegisterExternalReferences)

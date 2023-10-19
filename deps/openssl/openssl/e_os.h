@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -21,51 +21,6 @@
  * <openssl/e_os2.h> contains what we can justify to make visible to the
  * outside; this file e_os.h is not part of the exported interface.
  */
-
-# ifndef DEVRANDOM
-/*
- * set this to a comma-separated list of 'random' device files to try out. By
- * default, we will try to read at least one of these files
- */
-#  define DEVRANDOM "/dev/urandom", "/dev/random", "/dev/hwrng", "/dev/srandom"
-#  if defined(__linux) && !defined(__ANDROID__)
-#   ifndef DEVRANDOM_WAIT
-#    define DEVRANDOM_WAIT   "/dev/random"
-#   endif
-/*
- * Linux kernels 4.8 and later changes how their random device works and there
- * is no reliable way to tell that /dev/urandom has been seeded -- getentropy(2)
- * should be used instead.
- */
-#   ifndef DEVRANDOM_SAFE_KERNEL
-#    define DEVRANDOM_SAFE_KERNEL        4, 8
-#   endif
-/*
- * Some operating systems do not permit select(2) on their random devices,
- * defining this to zero will force the use of read(2) to extract one byte
- * from /dev/random.
- */
-#   ifndef DEVRANDM_WAIT_USE_SELECT
-#    define DEVRANDM_WAIT_USE_SELECT     1
-#   endif
-/*
- * Define the shared memory identifier used to indicate if the operating
- * system has properly seeded the DEVRANDOM source.
- */
-#   ifndef OPENSSL_RAND_SEED_DEVRANDOM_SHM_ID
-#    define OPENSSL_RAND_SEED_DEVRANDOM_SHM_ID 114
-#   endif
-
-#  endif
-# endif
-# if !defined(OPENSSL_NO_EGD) && !defined(DEVRANDOM_EGD)
-/*
- * set this to a comma-separated list of 'egd' sockets to try out. These
- * sockets will be tried in the order listed in case accessing the device
- * files listed in DEVRANDOM did not return enough randomness.
- */
-#  define DEVRANDOM_EGD "/var/run/egd-pool", "/dev/egd-pool", "/etc/egd-pool", "/etc/entropy"
-# endif
 
 # if defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_UEFI)
 #  define NO_CHMOD
@@ -110,7 +65,6 @@
 #   define _setmode setmode
 #   define _O_TEXT O_TEXT
 #   define _O_BINARY O_BINARY
-#   define HAS_LFN_SUPPORT(name)  (pathconf((name), _PC_NAME_MAX) > 12)
 #   undef DEVRANDOM_EGD  /*  Neither MS-DOS nor FreeDOS provide 'egd' sockets.  */
 #   undef DEVRANDOM
 #   define DEVRANDOM "/dev/urandom\x24"
@@ -154,6 +108,14 @@
         */
 #    include <winsock2.h>
 #    include <ws2tcpip.h>
+       /*
+        * Clang-based C++Builder 10.3.3 toolchains cannot find C inline
+        * definitions at link-time.  This header defines WspiapiLoad() as an
+        * __inline function.  https://quality.embarcadero.com/browse/RSP-33806
+        */
+#    if !defined(__BORLANDC__) || !defined(__clang__)
+#     include <wspiapi.h>
+#    endif
        /* yes, they have to be #included prior to <windows.h> */
 #   endif
 #   include <windows.h>
@@ -185,21 +147,6 @@ FILE *__iob_func();
 #     define stdin  (&__iob_func()[0])
 #     define stdout (&__iob_func()[1])
 #     define stderr (&__iob_func()[2])
-#    elif _MSC_VER<1300 && defined(I_CAN_LIVE_WITH_LNK4049)
-#     undef stdin
-#     undef stdout
-#     undef stderr
-         /*
-          * pre-1300 has __p__iob(), but it's available only in msvcrt.lib,
-          * or in other words with /MD. Declaring implicit import, i.e. with
-          * _imp_ prefix, works correctly with all compiler options, but
-          * without /MD results in LINK warning LNK4049: 'locally defined
-          * symbol "__iob" imported'.
-          */
-extern FILE *_imp___iob;
-#     define stdin  (&_imp___iob[0])
-#     define stdout (&_imp___iob[1])
-#     define stderr (&_imp___iob[2])
 #    endif
 #   endif
 #  endif
@@ -236,7 +183,7 @@ extern FILE *_imp___iob;
 # else                          /* The non-microsoft world */
 
 #  if defined(OPENSSL_SYS_VXWORKS)
-#   include <sys/times.h>
+#   include <time.h>
 #  else
 #   include <sys/time.h>
 #  endif
@@ -286,11 +233,7 @@ extern FILE *_imp___iob;
 
 #  else
      /* !defined VMS */
-#   ifdef OPENSSL_UNISTD
-#    include OPENSSL_UNISTD
-#   else
-#    include <unistd.h>
-#   endif
+#   include <unistd.h>
 #   include <sys/types.h>
 #   ifdef OPENSSL_SYS_WIN32_CYGWIN
 #    include <io.h>
@@ -306,8 +249,6 @@ extern FILE *_imp___iob;
 /***********************************************/
 
 # if defined(OPENSSL_SYS_WINDOWS)
-#  define strcasecmp _stricmp
-#  define strncasecmp _strnicmp
 #  if (_MSC_VER >= 1310) && !defined(_WIN32_WCE)
 #   define open _open
 #   define fdopen _fdopen
@@ -345,15 +286,147 @@ struct servent *getservbyname(const char *name, const char *proto);
 # endif
 /* end vxworks */
 
+/* system-specific variants defining ossl_sleep() */
+#if defined(OPENSSL_SYS_UNIX) || defined(__DJGPP__)
+# include <unistd.h>
+static ossl_inline void ossl_sleep(unsigned long millis)
+{
+# ifdef OPENSSL_SYS_VXWORKS
+    struct timespec ts;
+    ts.tv_sec = (long int) (millis / 1000);
+    ts.tv_nsec = (long int) (millis % 1000) * 1000000ul;
+    nanosleep(&ts, NULL);
+# elif defined(__TANDEM)
+#  if !defined(_REENTRANT)
+#   include <cextdecs.h(PROCESS_DELAY_)>
+    /* HPNS does not support usleep for non threaded apps */
+    PROCESS_DELAY_(millis * 1000);
+#  elif defined(_SPT_MODEL_)
+#   include <spthread.h>
+#   include <spt_extensions.h>
+    usleep(millis * 1000);
+#  else
+    usleep(millis * 1000);
+#  endif
+# else
+    usleep(millis * 1000);
+# endif
+}
+#elif defined(_WIN32)
+# include <windows.h>
+static ossl_inline void ossl_sleep(unsigned long millis)
+{
+    Sleep(millis);
+}
+#else
+/* Fallback to a busy wait */
+static ossl_inline void ossl_sleep(unsigned long millis)
+{
+    struct timeval start, now;
+    unsigned long elapsedms;
+
+    gettimeofday(&start, NULL);
+    do {
+        gettimeofday(&now, NULL);
+        elapsedms = (((now.tv_sec - start.tv_sec) * 1000000)
+                     + now.tv_usec - start.tv_usec) / 1000;
+    } while (elapsedms < millis);
+}
+#endif /* defined OPENSSL_SYS_UNIX */
+
+/* ----------------------------- HP NonStop -------------------------------- */
+/* Required to support platform variant without getpid() and pid_t. */
+# if defined(__TANDEM) && defined(_GUARDIAN_TARGET)
+#  include <strings.h>
+#  include <netdb.h>
+#  define getservbyname(name,proto)          getservbyname((char*)name,proto)
+#  define gethostbyname(name)                gethostbyname((char*)name)
+#  define ioctlsocket(a,b,c)	ioctl(a,b,c)
+#  ifdef NO_GETPID
+inline int nssgetpid();
+#   ifndef NSSGETPID_MACRO
+#    define NSSGETPID_MACRO
+#    include <cextdecs.h(PROCESSHANDLE_GETMINE_)>
+#    include <cextdecs.h(PROCESSHANDLE_DECOMPOSE_)>
+       inline int nssgetpid()
+       {
+         short phandle[10]={0};
+         union pseudo_pid {
+          struct {
+           short cpu;
+           short pin;
+         } cpu_pin ;
+         int ppid;
+        } ppid = { 0 };
+        PROCESSHANDLE_GETMINE_(phandle);
+        PROCESSHANDLE_DECOMPOSE_(phandle, &ppid.cpu_pin.cpu, &ppid.cpu_pin.pin);
+        return ppid.ppid;
+       }
+#    define getpid(a) nssgetpid(a)
+#   endif /* NSSGETPID_MACRO */
+#  endif /* NO_GETPID */
+/*#  define setsockopt(a,b,c,d,f) setsockopt(a,b,c,(char*)d,f)*/
+/*#  define getsockopt(a,b,c,d,f) getsockopt(a,b,c,(char*)d,f)*/
+/*#  define connect(a,b,c) connect(a,(struct sockaddr *)b,c)*/
+/*#  define bind(a,b,c) bind(a,(struct sockaddr *)b,c)*/
+/*#  define sendto(a,b,c,d,e,f) sendto(a,(char*)b,c,d,(struct sockaddr *)e,f)*/
+#  if defined(OPENSSL_THREADS) && !defined(_PUT_MODEL_)
+  /*
+   * HPNS SPT threads
+   */
+#   define  SPT_THREAD_SIGNAL 1
+#   define  SPT_THREAD_AWARE 1
+#   include <spthread.h>
+#   undef close
+#   define close spt_close
+/*
+#   define get_last_socket_error()	errno
+#   define clear_socket_error()	errno=0
+#   define ioctlsocket(a,b,c)	ioctl(a,b,c)
+#   define closesocket(s)		close(s)
+#   define readsocket(s,b,n)	read((s),(char*)(b),(n))
+#   define writesocket(s,b,n)	write((s),(char*)(b),(n)
+*/
+#   define accept(a,b,c)        accept(a,(struct sockaddr *)b,c)
+#   define recvfrom(a,b,c,d,e,f) recvfrom(a,b,(socklen_t)c,d,e,f)
+#  endif
+# endif
+
 # ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 #  define CRYPTO_memcmp memcmp
 # endif
 
-/* unistd.h defines _POSIX_VERSION */
-# if !defined(OPENSSL_NO_SECURE_MEMORY) && defined(OPENSSL_SYS_UNIX) \
-     && ( (defined(_POSIX_VERSION) && _POSIX_VERSION >= 200112L)      \
-          || defined(__sun) || defined(__hpux) || defined(__sgi)      \
-          || defined(__osf__) )
-#  define OPENSSL_SECURE_MEMORY  /* secure memory is implemented */
+# ifndef OPENSSL_NO_SECURE_MEMORY
+   /* unistd.h defines _POSIX_VERSION */
+#  if (defined(OPENSSL_SYS_UNIX) \
+        && ( (defined(_POSIX_VERSION) && _POSIX_VERSION >= 200112L)      \
+             || defined(__sun) || defined(__hpux) || defined(__sgi)      \
+             || defined(__osf__) )) \
+      || defined(_WIN32)
+      /* secure memory is implemented */
+#   else
+#     define OPENSSL_NO_SECURE_MEMORY
+#   endif
 # endif
+
+/*
+ * str[n]casecmp_l is defined in POSIX 2008-01. Value is taken accordingly
+ * https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html
+ * There are also equivalent functions on Windows.
+ * There is no locale_t on NONSTOP.
+ */
+# if defined(OPENSSL_SYS_WINDOWS)
+#  define locale_t _locale_t
+#  define freelocale _free_locale
+#  define strcasecmp_l _stricmp_l
+#  define strncasecmp_l _strnicmp_l
+#  define strcasecmp _stricmp
+#  define strncasecmp _strnicmp
+# elif !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200809L \
+     || defined(OPENSSL_SYS_TANDEM)
+#  ifndef OPENSSL_NO_LOCALE
+#   define OPENSSL_NO_LOCALE
+#  endif
+# endif
+
 #endif

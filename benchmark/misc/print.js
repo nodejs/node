@@ -4,7 +4,7 @@ const { spawn } = require('child_process');
 
 const bench = common.createBenchmark(main, {
   dur: [1],
-  code: ['1', '"string"', 'process.versions', 'process']
+  code: ['1', '"string"', 'process.versions', 'process'],
 });
 
 function spawnProcess(code) {
@@ -47,7 +47,7 @@ function start(state, code, bench, getNode) {
 function main({ dur, code }) {
   const state = {
     go: true,
-    throughput: 0
+    throughput: 0,
   };
 
   setTimeout(() => {

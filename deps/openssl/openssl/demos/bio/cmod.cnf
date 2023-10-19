@@ -4,6 +4,9 @@
 # and section containing configuration
 testapp = test_sect
 
+# Comment out the next line to ignore configuration errors
+config_diagnostics = 1
+
 [test_sect]
 # list of configuration modules
 

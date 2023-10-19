@@ -49,7 +49,7 @@ export class SplayTree {
    * @return {boolean} Whether the tree is empty.
    */
   isEmpty() {
-    return !this.root_;
+    return this.root_ === null;
   }
 
   /**
@@ -100,7 +100,7 @@ export class SplayTree {
       throw Error(`Key not found: ${key}`);
     }
     const removed = this.root_;
-    if (!this.root_.left) {
+    if (this.root_.left === null) {
       this.root_ = this.root_.right;
     } else {
       const { right } = this.root_;
@@ -133,7 +133,7 @@ export class SplayTree {
   findMin() {
     if (this.isEmpty()) return null;
     let current = this.root_;
-    while (current.left) {
+    while (current.left !== null) {
       current = current.left;
     }
     return current;
@@ -145,7 +145,7 @@ export class SplayTree {
   findMax(opt_startNode) {
     if (this.isEmpty()) return null;
     let current = opt_startNode || this.root_;
-    while (current.right) {
+    while (current.right !== null) {
       current = current.right;
     }
     return current;
@@ -164,7 +164,7 @@ export class SplayTree {
     // the left subtree.
     if (this.root_.key <= key) {
       return this.root_;
-    } else if (this.root_.left) {
+    } else if (this.root_.left !== null) {
       return this.findMax(this.root_.left);
     } else {
       return null;
@@ -186,7 +186,7 @@ export class SplayTree {
    */
   exportValues() {
     const result = [];
-    this.traverse_(function(node) { result.push(node.value); });
+    this.traverse_(function(node) { result.push(node.value) });
     return result;
   }
 
@@ -212,36 +212,28 @@ export class SplayTree {
     let current = this.root_;
     while (true) {
       if (key < current.key) {
-        if (!current.left) {
-          break;
-        }
+        if (current.left === null) break;
         if (key < current.left.key) {
           // Rotate right.
           const tmp = current.left;
           current.left = tmp.right;
           tmp.right = current;
           current = tmp;
-          if (!current.left) {
-            break;
-          }
+          if (current.left === null) break;
         }
         // Link right.
         right.left = current;
         right = current;
         current = current.left;
       } else if (key > current.key) {
-        if (!current.right) {
-          break;
-        }
+        if (current.right === null) break;
         if (key > current.right.key) {
           // Rotate left.
           const tmp = current.right;
           current.right = tmp.left;
           tmp.left = current;
           current = tmp;
-          if (!current.right) {
-            break;
-          }
+          if (current.right === null) break;
         }
         // Link left.
         left.right = current;
@@ -269,9 +261,7 @@ export class SplayTree {
     const nodesToVisit = [this.root_];
     while (nodesToVisit.length > 0) {
       const node = nodesToVisit.shift();
-      if (node == null) {
-        continue;
-      }
+      if (node === null) continue;
       f(node);
       nodesToVisit.push(node.left);
       nodesToVisit.push(node.right);

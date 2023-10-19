@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<mete charset=utf-8>
+<title>Console Logging Manual Test</title>
+<p>Open the console inside the developer tools. It should contain one entry saying "test passed".</p>
+<script>
+const sr = new ShadowRealm();
+sr.evaluate(`
+  console.log("test passed");
+`);
+</script>

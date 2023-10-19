@@ -6,12 +6,11 @@
 #define V8_ASMJS_ASM_PARSER_H_
 
 #include <memory>
-#include <string>
 
 #include "src/asmjs/asm-scanner.h"
 #include "src/asmjs/asm-types.h"
 #include "src/base/enum-set.h"
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/zone/zone-containers.h"
 
@@ -82,11 +81,11 @@ class AsmJsParser {
   // function is used with different signatures. {cache} keeps the wasm
   // imports for the single asm.js import of name {function_name}.
   struct FunctionImportInfo {
-    Vector<const char> function_name;
+    base::Vector<const char> function_name;
     ZoneUnorderedMap<FunctionSig, uint32_t> cache;
 
     // Constructor.
-    FunctionImportInfo(Vector<const char> name, Zone* zone)
+    FunctionImportInfo(base::Vector<const char> name, Zone* zone)
         : function_name(name), cache(zone) {}
   };
 
@@ -102,7 +101,7 @@ class AsmJsParser {
   };
 
   struct GlobalImport {
-    Vector<const char> import_name;
+    base::Vector<const char> import_name;
     ValueType value_type;
     VarInfo* var_info;
   };
@@ -134,7 +133,7 @@ class AsmJsParser {
    public:
     explicit CachedVectors(Zone* zone) : reusable_vectors_(zone) {}
 
-    Zone* zone() const { return reusable_vectors_.get_allocator().zone(); }
+    Zone* zone() const { return reusable_vectors_.zone(); }
 
     inline void fill(ZoneVector<T>* vec) {
       if (reusable_vectors_.empty()) return;
@@ -171,8 +170,8 @@ class AsmJsParser {
   AsmType* return_type_ = nullptr;
   uintptr_t stack_limit_;
   StdlibSet stdlib_uses_;
-  Vector<VarInfo> global_var_info_;
-  Vector<VarInfo> local_var_info_;
+  base::Vector<VarInfo> global_var_info_;
+  base::Vector<VarInfo> local_var_info_;
   size_t num_globals_ = 0;
 
   CachedVectors<ValueType> cached_valuetype_vectors_{zone_};
@@ -314,17 +313,17 @@ class AsmJsParser {
   VarInfo* GetVarInfo(AsmJsScanner::token_t token);
   uint32_t VarIndex(VarInfo* info);
   void DeclareGlobal(VarInfo* info, bool mutable_variable, AsmType* type,
-                     ValueType vtype, WasmInitExpr init = WasmInitExpr());
+                     ValueType vtype, WasmInitExpr init);
   void DeclareStdlibFunc(VarInfo* info, VarKind kind, AsmType* type);
-  void AddGlobalImport(Vector<const char> name, AsmType* type, ValueType vtype,
-                       bool mutable_variable, VarInfo* info);
+  void AddGlobalImport(base::Vector<const char> name, AsmType* type,
+                       ValueType vtype, bool mutable_variable, VarInfo* info);
 
   // Allocates a temporary local variable. The given {index} is absolute within
   // the function body, consider using {TemporaryVariableScope} when nesting.
   uint32_t TempVariable(int index);
 
   // Preserves a copy of the scanner's current identifier string in the zone.
-  Vector<const char> CopyCurrentIdentifierString();
+  base::Vector<const char> CopyCurrentIdentifierString();
 
   // Use to set up block stack layers (including synthetic ones for if-else).
   // Begin/Loop/End below are implemented with these plus code generation.

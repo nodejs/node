@@ -24,10 +24,17 @@ function run({ command, expected }) {
   });
 
   r.write(`${command}\n`);
-  assert.strictEqual(
-    accum.replace(stackRegExp, '$1:*:*'),
-    expected.replace(stackRegExp, '$1:*:*')
-  );
+  if (typeof expected === 'string') {
+    assert.strictEqual(
+      accum.replace(stackRegExp, '$1:*:*'),
+      expected.replace(stackRegExp, '$1:*:*')
+    );
+  } else {
+    assert.match(
+      accum.replace(stackRegExp, '$1:*:*'),
+      expected
+    );
+  }
   r.close();
 }
 
@@ -53,8 +60,7 @@ const tests = [
   },
   {
     command: 'let x y;',
-    expected: 'let x y;\n      ^\n\n' +
-              'Uncaught SyntaxError: Unexpected identifier\n'
+    expected: /let x y;\n {6}\^\n\nUncaught SyntaxError: Unexpected identifier.*\n/
   },
   {
     command: 'throw new Error(\'Whoops!\')',

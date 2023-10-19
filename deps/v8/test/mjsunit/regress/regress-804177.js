@@ -25,7 +25,7 @@
   }
   b = Array.of.call(f,1,2);
   b[4] = 1;
-  assertEquals(b, [1, 2, undefined, undefined, 1]);
+  assertEquals(b, [1, 2, , , 1]);
 })();
 
 // Tests that using Array.of with a constructor returning an object with an

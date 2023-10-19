@@ -30,7 +30,7 @@ static int close_cb_called = 0;
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -79,6 +79,6 @@ TEST_IMPL(active) {
 
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

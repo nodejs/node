@@ -41,8 +41,9 @@ const compare = require('../functions/compare.js')
 // - Else return true
 
 const subset = (sub, dom, options = {}) => {
-  if (sub === dom)
+  if (sub === dom) {
     return true
+  }
 
   sub = new Range(sub, options)
   dom = new Range(dom, options)
@@ -52,73 +53,87 @@ const subset = (sub, dom, options = {}) => {
     for (const simpleDom of dom.set) {
       const isSub = simpleSubset(simpleSub, simpleDom, options)
       sawNonNull = sawNonNull || isSub !== null
-      if (isSub)
+      if (isSub) {
         continue OUTER
+      }
     }
     // the null set is a subset of everything, but null simple ranges in
     // a complex range should be ignored.  so if we saw a non-null range,
     // then we know this isn't a subset, but if EVERY simple range was null,
     // then it is a subset.
-    if (sawNonNull)
+    if (sawNonNull) {
       return false
+    }
   }
   return true
 }
 
+const minimumVersionWithPreRelease = [new Comparator('>=0.0.0-0')]
+const minimumVersion = [new Comparator('>=0.0.0')]
+
 const simpleSubset = (sub, dom, options) => {
-  if (sub === dom)
+  if (sub === dom) {
     return true
+  }
 
   if (sub.length === 1 && sub[0].semver === ANY) {
-    if (dom.length === 1 && dom[0].semver === ANY)
+    if (dom.length === 1 && dom[0].semver === ANY) {
       return true
-    else if (options.includePrerelease)
-      sub = [ new Comparator('>=0.0.0-0') ]
-    else
-      sub = [ new Comparator('>=0.0.0') ]
+    } else if (options.includePrerelease) {
+      sub = minimumVersionWithPreRelease
+    } else {
+      sub = minimumVersion
+    }
   }
 
   if (dom.length === 1 && dom[0].semver === ANY) {
-    if (options.includePrerelease)
+    if (options.includePrerelease) {
       return true
-    else
-      dom = [ new Comparator('>=0.0.0') ]
+    } else {
+      dom = minimumVersion
+    }
   }
 
   const eqSet = new Set()
   let gt, lt
   for (const c of sub) {
-    if (c.operator === '>' || c.operator === '>=')
+    if (c.operator === '>' || c.operator === '>=') {
       gt = higherGT(gt, c, options)
-    else if (c.operator === '<' || c.operator === '<=')
+    } else if (c.operator === '<' || c.operator === '<=') {
       lt = lowerLT(lt, c, options)
-    else
+    } else {
       eqSet.add(c.semver)
+    }
   }
 
-  if (eqSet.size > 1)
+  if (eqSet.size > 1) {
     return null
+  }
 
   let gtltComp
   if (gt && lt) {
     gtltComp = compare(gt.semver, lt.semver, options)
-    if (gtltComp > 0)
+    if (gtltComp > 0) {
       return null
-    else if (gtltComp === 0 && (gt.operator !== '>=' || lt.operator !== '<='))
+    } else if (gtltComp === 0 && (gt.operator !== '>=' || lt.operator !== '<=')) {
       return null
+    }
   }
 
   // will iterate one or zero times
   for (const eq of eqSet) {
-    if (gt && !satisfies(eq, String(gt), options))
+    if (gt && !satisfies(eq, String(gt), options)) {
       return null
+    }
 
-    if (lt && !satisfies(eq, String(lt), options))
+    if (lt && !satisfies(eq, String(lt), options)) {
       return null
+    }
 
     for (const c of dom) {
-      if (!satisfies(eq, String(c), options))
+      if (!satisfies(eq, String(c), options)) {
         return false
+      }
     }
 
     return true
@@ -154,10 +169,12 @@ const simpleSubset = (sub, dom, options) => {
       }
       if (c.operator === '>' || c.operator === '>=') {
         higher = higherGT(gt, c, options)
-        if (higher === c && higher !== gt)
+        if (higher === c && higher !== gt) {
           return false
-      } else if (gt.operator === '>=' && !satisfies(gt.semver, String(c), options))
+        }
+      } else if (gt.operator === '>=' && !satisfies(gt.semver, String(c), options)) {
         return false
+      }
     }
     if (lt) {
       if (needDomLTPre) {
@@ -170,37 +187,44 @@ const simpleSubset = (sub, dom, options) => {
       }
       if (c.operator === '<' || c.operator === '<=') {
         lower = lowerLT(lt, c, options)
-        if (lower === c && lower !== lt)
+        if (lower === c && lower !== lt) {
           return false
-      } else if (lt.operator === '<=' && !satisfies(lt.semver, String(c), options))
+        }
+      } else if (lt.operator === '<=' && !satisfies(lt.semver, String(c), options)) {
         return false
+      }
     }
-    if (!c.operator && (lt || gt) && gtltComp !== 0)
+    if (!c.operator && (lt || gt) && gtltComp !== 0) {
       return false
+    }
   }
 
   // if there was a < or >, and nothing in the dom, then must be false
   // UNLESS it was limited by another range in the other direction.
   // Eg, >1.0.0 <1.0.1 is still a subset of <2.0.0
-  if (gt && hasDomLT && !lt && gtltComp !== 0)
+  if (gt && hasDomLT && !lt && gtltComp !== 0) {
     return false
+  }
 
-  if (lt && hasDomGT && !gt && gtltComp !== 0)
+  if (lt && hasDomGT && !gt && gtltComp !== 0) {
     return false
+  }
 
   // we needed a prerelease range in a specific tuple, but didn't get one
   // then this isn't a subset.  eg >=1.2.3-pre is not a subset of >=1.0.0,
   // because it includes prereleases in the 1.2.3 tuple
-  if (needDomGTPre || needDomLTPre)
+  if (needDomGTPre || needDomLTPre) {
     return false
+  }
 
   return true
 }
 
 // >=1.2.3 is lower than >1.2.3
 const higherGT = (a, b, options) => {
-  if (!a)
+  if (!a) {
     return b
+  }
   const comp = compare(a.semver, b.semver, options)
   return comp > 0 ? a
     : comp < 0 ? b
@@ -210,8 +234,9 @@ const higherGT = (a, b, options) => {
 
 // <=1.2.3 is higher than <1.2.3
 const lowerLT = (a, b, options) => {
-  if (!a)
+  if (!a) {
     return b
+  }
   const comp = compare(a.semver, b.semver, options)
   return comp < 0 ? a
     : comp > 0 ? b

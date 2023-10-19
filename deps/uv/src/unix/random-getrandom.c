@@ -24,8 +24,6 @@
 
 #ifdef __linux__
 
-#include "linux-syscalls.h"
-
 #define uv__random_getrandom_init() 0
 
 #else  /* !__linux__ */

@@ -566,7 +566,7 @@ float StrtofTrimmed(Vector<const char> trimmed, int exponent) {
   //    low-precision (3 digits):
   //       when read from input: 123
   //       when rounded from high precision: 124.
-  // To do this we simply look at the neigbors of the correct result and see
+  // To do this we simply look at the neighbors of the correct result and see
   // if they would round to the same float. If the guess is not correct we have
   // to look at four values (since two different doubles could be the correct
   // double).

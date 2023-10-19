@@ -6,9 +6,7 @@
 #define V8_COMPILER_JS_TYPED_LOWERING_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/opcodes.h"
 
 namespace v8 {
 namespace internal {
@@ -20,6 +18,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
+class CompilationDependencies;
 class JSGraph;
 class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
@@ -62,6 +61,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSToName(Node* node);
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToNumber(Node* node);
+  Reduction ReduceJSToBigInt(Node* node);
+  Reduction ReduceJSToBigIntConvertNumber(Node* node);
   Reduction ReduceJSToNumeric(Node* node);
   Reduction ReduceJSToStringInput(Node* input);
   Reduction ReduceJSToString(Node* node);
@@ -93,6 +94,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   JSHeapBroker* broker() const { return broker_; }
+  CompilationDependencies* dependencies() const;
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;

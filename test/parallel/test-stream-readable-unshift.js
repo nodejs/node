@@ -165,6 +165,6 @@ const { Readable } = require('stream');
 
   const stream = new ArrayReader();
   stream.once('readable', common.mustCall(onRead));
-  stream.on('end', common.mustCall(() => {}));
+  stream.on('end', common.mustCall());
 
 }

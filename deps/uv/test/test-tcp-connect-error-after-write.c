@@ -55,18 +55,17 @@ static void write_cb(uv_write_t* req, int status) {
  * Related issue: https://github.com/joyent/libuv/issues/443
  */
 TEST_IMPL(tcp_connect_error_after_write) {
+#ifdef _WIN32
+  RETURN_SKIP("This test is disabled on Windows for now. "
+              "See https://github.com/joyent/libuv/issues/444\n");
+#else
+
   uv_connect_t connect_req;
   struct sockaddr_in addr;
   uv_write_t write_req;
   uv_tcp_t conn;
   uv_buf_t buf;
   int r;
-
-#ifdef _WIN32
-  fprintf(stderr, "This test is disabled on Windows for now.\n");
-  fprintf(stderr, "See https://github.com/joyent/libuv/issues/444\n");
-  return 0; /* windows slackers... */
-#endif
 
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   buf = uv_buf_init("TEST", 4);
@@ -93,6 +92,7 @@ TEST_IMPL(tcp_connect_error_after_write) {
   ASSERT(write_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
+#endif
 }

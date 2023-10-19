@@ -17,7 +17,7 @@ const hooks = initHooks();
 hooks.enable();
 
 const {
-  HTTP2_HEADER_CONTENT_TYPE
+  HTTP2_HEADER_CONTENT_TYPE,
 } = http2.constants;
 
 // Use large fixture to get several file operations.
@@ -27,7 +27,7 @@ const fd = fs.openSync(fname, 'r');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFD(fd, {
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
   });
 });
 server.on('close', common.mustCall(() => fs.closeSync(fd)));

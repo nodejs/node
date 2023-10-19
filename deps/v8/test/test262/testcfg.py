@@ -25,14 +25,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import imp
 import itertools
 import os
 import re
 import sys
+
+from pathlib import Path
 
 from testrunner.local import statusfile
 from testrunner.local import testsuite
@@ -43,36 +42,45 @@ from testrunner.outproc import test262
 
 
 # TODO(littledan): move the flag mapping into the status file
+#
+# Multiple flags are allowed, separated by space.
 FEATURE_FLAGS = {
-  'Intl.DateTimeFormat-dayPeriod': '--harmony-intl-dateformat-day-period',
-  'String.prototype.replaceAll': '--harmony_string_replaceall',
-  'Symbol.prototype.description': '--harmony-symbol-description',
-  'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
-  'WeakRef': '--harmony-weak-refs-with-cleanup-some',
-  'host-gc-required': '--expose-gc-as=v8GC',
-  'IsHTMLDDA': '--allow-natives-syntax',
-  'top-level-await': '--harmony-top-level-await',
-  'regexp-match-indices': '--harmony-regexp-match-indices',
-  # https://github.com/tc39/test262/pull/2395
-  'regexp-named-groups': '--harmony-regexp-match-indices',
-  'logical-assignment-operators': '--harmony-logical-assignment',
-  'Atomics.waitAsync': '--harmony-atomics-waitasync',
+    'Intl.DurationFormat': '--harmony-intl-duration-format',
+    'Intl.Locale-info': '--harmony-intl-locale-info-func',
+    'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
+    'WeakRef': '--harmony-weak-refs-with-cleanup-some',
+    'host-gc-required': '--expose-gc-as=v8GC',
+    'IsHTMLDDA': '--allow-natives-syntax',
+    'import-assertions': '--harmony-import-assertions',
+    'resizable-arraybuffer': '--harmony-rab-gsab-transfer',
+    'Temporal': '--harmony-temporal',
+    'array-find-from-last': '--harmony-array-find-last',
+    'ShadowRealm': '--harmony-shadow-realm',
+    'regexp-v-flag': '--harmony-regexp-unicode-sets',
+    'array-grouping': '--harmony-array-grouping',
+    'change-array-by-copy': '--harmony-change-array-by-copy',
+    'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
+    'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
+    'arraybuffer-transfer': '--harmony-rab-gsab-transfer',
+    'json-parse-with-source': '--harmony-json-parse-with-source',
+    'iterator-helpers': '--harmony-iterator-helpers',
+    'set-methods': '--harmony-set-methods',
 }
 
 SKIPPED_FEATURES = set([])
 
-DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+TEST262_DIR = Path(__file__).resolve().parent
+BASE_DIR = TEST262_DIR.parents[1]
 
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
 
-TEST_262_SUITE_PATH = ["data", "test"]
-TEST_262_HARNESS_PATH = ["data", "harness"]
-TEST_262_TOOLS_PATH = ["harness", "src"]
-TEST_262_LOCAL_TESTS_PATH = ["local-tests", "test"]
+TEST_262_SUITE_PATH = Path("data") / "test"
+TEST_262_HARNESS_PATH = Path("data") / "harness"
+TEST_262_TOOLS_ABS_PATH = BASE_DIR / "third_party" / "test262-harness" / "src"
+TEST_262_LOCAL_TESTS_PATH = Path("local-tests") / "test"
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             *TEST_262_TOOLS_PATH))
+sys.path.append(str(TEST_262_TOOLS_ABS_PATH))
 
 
 class VariantsGenerator(testsuite.VariantsGenerator):
@@ -103,7 +111,7 @@ class TestLoader(testsuite.JSTestLoader):
   def test_dirs(self):
     return [
       self.test_root,
-      os.path.join(self.suite.root, *TEST_262_LOCAL_TESTS_PATH),
+      self.suite.root / TEST_262_LOCAL_TESTS_PATH,
     ]
 
   @property
@@ -112,7 +120,7 @@ class TestLoader(testsuite.JSTestLoader):
 
   @property
   def excluded_dirs(self):
-    return {"intl402"} if self.test_config.noi18n else set()
+    return {"intl402", "Intl402"} if self.test_config.noi18n else set()
 
   def _should_filter_by_test(self, test):
     features = test.test_record.get("features", [])
@@ -120,28 +128,27 @@ class TestLoader(testsuite.JSTestLoader):
 
 
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
-    self.test_root = os.path.join(self.root, *TEST_262_SUITE_PATH)
+
+  def __init__(self, ctx, *args, **kwargs):
+    super(TestSuite, self).__init__(ctx, *args, **kwargs)
+    self.test_root = self.root / TEST_262_SUITE_PATH
     # TODO: this makes the TestLoader mutable, refactor it.
     self._test_loader.test_root = self.test_root
-    self.harnesspath = os.path.join(self.root, *TEST_262_HARNESS_PATH)
-    self.harness = [os.path.join(self.harnesspath, f)
-                    for f in TEST_262_HARNESS_FILES]
-    self.harness += [os.path.join(self.root, "harness-adapt.js")]
-    self.local_test_root = os.path.join(self.root, *TEST_262_LOCAL_TESTS_PATH)
+    self.harnesspath = self.root / TEST_262_HARNESS_PATH
+    self.harness = [self.harnesspath / f for f in TEST_262_HARNESS_FILES]
+    self.harness += [self.root / "harness-adapt.js"]
+    self.local_test_root = self.root / TEST_262_LOCAL_TESTS_PATH
     self.parse_test_record = self._load_parse_test_record()
 
   def _load_parse_test_record(self):
-    root = os.path.join(self.root, *TEST_262_TOOLS_PATH)
+    root = TEST_262_TOOLS_ABS_PATH
     f = None
     try:
       (f, pathname, description) = imp.find_module("parseTestRecord", [root])
       module = imp.load_module("parseTestRecord", f, pathname, description)
       return module.parseTestRecord
     except:
-      print ('Cannot load parseTestRecord; '
-             'you may need to gclient sync for test262')
+      print('Cannot load parseTestRecord')
       raise
     finally:
       if f:
@@ -168,6 +175,7 @@ class TestCase(testcase.D8TestCase):
           .get('negative', {})
           .get('type', None)
     )
+    self._async = 'async' in self.test_record.get('flags', [])
 
     # We disallow combining FAIL_PHASE_ONLY with any other fail outcome types.
     # Outcome parsing logic in the base class converts all outcomes specified in
@@ -191,37 +199,39 @@ class TestCase(testcase.D8TestCase):
     return 'fail-phase-reverse' in self.procid
 
   def __needs_harness_agent(self):
-    tokens = self.path.split(os.path.sep)
-    return tokens[:2] == ["built-ins", "Atomics"]
+    return self.path.parts[:2] == ("built-ins", "Atomics")
 
   def _get_files_params(self):
-    return (
-        list(self.suite.harness) +
-        ([os.path.join(self.suite.root, "harness-agent.js")]
-         if self.__needs_harness_agent() else []) +
-        ([os.path.join(self.suite.root, "harness-ishtmldda.js")]
-         if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
-        ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
-         if self.fail_phase_only and not self._fail_phase_reverse else []) +
-        self._get_includes() +
-        (["--module"] if "module" in self.test_record else []) +
-        [self._get_source_path()]
-    )
+    harness_args = []
+    if "raw" not in self.test_record.get("flags", []):
+      harness_args = list(self.suite.harness)
+    return (harness_args + ([self.suite.root / "harness-agent.js"]
+                            if self.__needs_harness_agent() else []) +
+            ([self.suite.root / "harness-ishtmldda.js"]
+             if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
+            ([self.suite.root / "harness-adapt-donotevaluate.js"]
+             if self.fail_phase_only and not self._fail_phase_reverse else []) +
+            ([self.suite.root / "harness-done.js"]
+             if "async" in self.test_record.get("flags", []) else []) +
+            self._get_includes() +
+            (["--module"] if "module" in self.test_record else []) +
+            [self._get_source_path()])
 
   def _get_suite_flags(self):
-    return (
-        ["--ignore-unhandled-promises"] +
-        (["--throws"] if "negative" in self.test_record else []) +
-        (["--allow-natives-syntax"]
-         if "detachArrayBuffer.js" in self.test_record.get("includes", [])
-         else []) +
-        [flag for (feature, flag) in FEATURE_FLAGS.items()
-          if feature in self.test_record.get("features", [])] +
-        ["--no-arguments"]  # disable top-level arguments in d8
-    )
+    feature_flags = []
+    for (feature, flags_string) in FEATURE_FLAGS.items():
+      if feature in self.test_record.get("features", []):
+        for flag in flags_string.split(" "):
+          feature_flags.append(flag)
+    return (["--ignore-unhandled-promises"] +
+            (["--throws"] if "negative" in self.test_record else []) +
+            (["--allow-natives-syntax"] if "detachArrayBuffer.js"
+             in self.test_record.get("includes", []) else []) + feature_flags +
+            ["--no-arguments"]  # disable top-level arguments in d8
+           )
 
   def _get_includes(self):
-    return [os.path.join(self._base_path(filename), filename)
+    return [self._base_path(filename) / filename
             for filename in self.test_record.get("includes", [])]
 
   def _base_path(self, filename):
@@ -231,26 +241,24 @@ class TestCase(testcase.D8TestCase):
       return self.suite.harnesspath
 
   def _get_source_path(self):
-    filename = self.path + self._get_suffix()
-    path = os.path.join(self.suite.local_test_root, filename)
-    if os.path.exists(path):
+    path = self.suite.local_test_root / self.path_js
+    if path.exists():
       return path
-    return os.path.join(self.suite.test_root, filename)
+    return self.suite.test_root / self.path_js
 
   @property
   def output_proc(self):
     if self._expected_exception is not None:
       return test262.ExceptionOutProc(self.expected_outcomes,
                                       self._expected_exception,
-                                      self._fail_phase_reverse)
+                                      self._fail_phase_reverse, self._async)
     else:
       # We only support fail phase reverse on tests that expect an exception.
       assert not self._fail_phase_reverse
 
     if self.expected_outcomes == outproc.OUTCOMES_PASS:
-      return test262.PASS_NO_EXCEPTION
-    return test262.NoExceptionOutProc(self.expected_outcomes)
+      return test262.PassNoExceptionOutProc(self._async)
+    return test262.NoExceptionOutProc(self.expected_outcomes, self._async)
 
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+  def skip_rdb(self, result):
+    return not result.has_unexpected_output

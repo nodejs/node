@@ -3,16 +3,12 @@
 // found in the LICENSE file.
 
 #include "src/compiler/typed-optimization.h"
-#include "src/codegen/code-factory.h"
-#include "src/compiler/access-builder.h"
+
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node-properties.h"
-#include "src/compiler/operator-properties.h"
 #include "src/execution/isolate-inl.h"
-#include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
@@ -101,6 +97,26 @@ TEST_F(TypedOptimizationTest, ToBooleanWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_FALSE(r.Changed());
+}
+
+// -----------------------------------------------------------------------------
+// ReferenceEqual
+TEST_F(TypedOptimizationTest, ReferenceEqualWithBooleanTrueConstant) {
+  Node* left = Parameter(Type::Boolean(), 0);
+  Node* right = TrueConstant();
+  Reduction r =
+      Reduce(graph()->NewNode(simplified()->ReferenceEqual(), left, right));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), left);
+}
+
+TEST_F(TypedOptimizationTest, ReferenceEqualWithBooleanFalseConstant) {
+  Node* left = Parameter(Type::Boolean(), 0);
+  Node* right = FalseConstant();
+  Reduction r =
+      Reduce(graph()->NewNode(simplified()->ReferenceEqual(), left, right));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsBooleanNot(left));
 }
 
 }  // namespace typed_optimization_unittest

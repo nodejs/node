@@ -112,7 +112,7 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
     // Exponent for double values for [1.0 .. 2.0)
     static const uint64_t kExponentBits = uint64_t{0x3FF0000000000000};
     uint64_t random = (state0 >> 12) | kExponentBits;
-    return bit_cast<double>(random) - 1;
+    return base::bit_cast<double>(random) - 1;
   }
 
   // Static and exposed for external use.
@@ -128,6 +128,14 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
   }
 
   static uint64_t MurmurHash3(uint64_t);
+
+  // Implement the UniformRandomBitGenerator interface.
+  using result_type = unsigned;
+  result_type operator()() { return NextInt(); }
+  static constexpr result_type min() { return 0; }
+  static constexpr result_type max() {
+    return std::numeric_limits<result_type>::max();
+  }
 
  private:
   static const int64_t kMultiplier = 0x5'deec'e66d;

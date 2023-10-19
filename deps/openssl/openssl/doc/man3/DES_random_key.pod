@@ -16,6 +16,10 @@ DES_fcrypt, DES_crypt - DES encryption
 
  #include <openssl/des.h>
 
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  void DES_random_key(DES_cblock *ret);
 
  int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule);
@@ -94,6 +98,10 @@ DES_fcrypt, DES_crypt - DES encryption
 
 =head1 DESCRIPTION
 
+All of the functions described on this page are deprecated. Applications should
+instead use L<EVP_EncryptInit_ex(3)>, L<EVP_EncryptUpdate(3)> and
+L<EVP_EncryptFinal_ex(3)> or the equivalently named decrypt functions.
+
 This library contains a fast implementation of the DES encryption
 algorithm.
 
@@ -119,11 +127,8 @@ and is not a weak or semi-weak key.  If the parity is wrong, then -1
 is returned.  If the key is a weak key, then -2 is returned.  If an
 error is returned, the key schedule is not generated.
 
-DES_set_key() works like
-DES_set_key_checked() if the I<DES_check_key> flag is nonzero,
-otherwise like DES_set_key_unchecked().  These functions are available
-for compatibility; it is recommended to use a function that does not
-depend on a global variable.
+DES_set_key() works like DES_set_key_checked() and remains for
+backward compatibility.
 
 DES_set_odd_parity() sets the parity of the passed I<key> to odd.
 
@@ -289,8 +294,11 @@ not suitable for most applications; see L<des_modes(7)>.
 
 =head1 RETURN VALUES
 
-DES_set_key(), DES_key_sched(), DES_set_key_checked() and DES_is_weak_key()
+DES_set_key(), DES_key_sched(), and DES_set_key_checked()
 return 0 on success or negative values on error.
+
+DES_is_weak_key() returns 1 if the passed key is a weak key, 0 if it
+is ok.
 
 DES_cbc_cksum() and DES_quad_cksum() return 4-byte integer representing the
 last 4 bytes of the checksum of the input.
@@ -305,6 +313,8 @@ L<EVP_EncryptInit(3)>
 
 =head1 HISTORY
 
+All of these functions were deprecated in OpenSSL 3.0.
+
 The requirement that the B<salt> parameter to DES_crypt() and DES_fcrypt()
 be two ASCII characters was first enforced in
 OpenSSL 1.1.0.  Previous versions tried to use the letter uppercase B<A>
@@ -313,9 +323,9 @@ on some platforms.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

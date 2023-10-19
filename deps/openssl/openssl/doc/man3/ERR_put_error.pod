@@ -1,19 +1,43 @@
 =pod
 
+=for openssl foreign manual errno(3)
+
 =head1 NAME
 
-ERR_put_error, ERR_add_error_data, ERR_add_error_vdata - record an error
+ERR_raise, ERR_raise_data,
+ERR_put_error, ERR_add_error_data, ERR_add_error_vdata,
+ERR_add_error_txt, ERR_add_error_mem_bio
+- record an error
 
 =head1 SYNOPSIS
 
  #include <openssl/err.h>
 
- void ERR_put_error(int lib, int func, int reason, const char *file, int line);
+ void ERR_raise(int lib, int reason);
+ void ERR_raise_data(int lib, int reason, const char *fmt, ...);
 
  void ERR_add_error_data(int num, ...);
  void ERR_add_error_vdata(int num, va_list arg);
+ void ERR_add_error_txt(const char *sep, const char *txt);
+ void ERR_add_error_mem_bio(const char *sep, BIO *bio);
+
+The following function has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
+ void ERR_put_error(int lib, int func, int reason, const char *file, int line);
 
 =head1 DESCRIPTION
+
+ERR_raise() adds a new error to the thread's error queue.  The
+error occurred in the library B<lib> for the reason given by the
+B<reason> code.  Furthermore, the name of the file, the line, and name
+of the function where the error occurred is saved with the error
+record.
+
+ERR_raise_data() does the same thing as ERR_raise(), but also lets the
+caller specify additional information as a format string B<fmt> and an
+arbitrary number of values, which are processed with L<BIO_snprintf(3)>.
 
 ERR_put_error() adds an error code to the thread's error queue. It
 signals that the error of reason code B<reason> occurred in function
@@ -21,8 +45,23 @@ B<func> of library B<lib>, in line number B<line> of B<file>.
 This function is usually called by a macro.
 
 ERR_add_error_data() associates the concatenation of its B<num> string
-arguments with the error code added last.
+arguments as additional data with the error code added last.
 ERR_add_error_vdata() is similar except the argument is a B<va_list>.
+Multiple calls to these functions append to the current top of the error queue.
+The total length of the string data per error is limited to 4096 characters.
+
+ERR_add_error_txt() appends the given text string as additional data to the
+last error queue entry, after inserting the optional separator string if it is
+not NULL and the top error entry does not yet have additional data.
+In case the separator is at the end of the text it is not appended to the data.
+The B<sep> argument may be for instance "\n" to insert a line break when needed.
+If the associated data would become more than 4096 characters long
+(which is the limit given above)
+it is split over sufficiently many new copies of the last error queue entry.
+
+ERR_add_error_mem_bio() is the same as ERR_add_error_txt() except that
+the text string is taken from the given memory BIO.
+It appends '\0' to the BIO contents if not already NUL-terminated.
 
 L<ERR_load_strings(3)> can be used to register
 error strings so that the application can a generate human-readable
@@ -30,44 +69,119 @@ error messages for the error code.
 
 =head2 Reporting errors
 
-Each sub-library has a specific macro XXXerr() that is used to report
-errors. Its first argument is a function code B<XXX_F_...>, the second
-argument is a reason code B<XXX_R_...>. Function codes are derived
-from the function names; reason codes consist of textual error
+=head3 OpenSSL library reports
+
+Each OpenSSL sub-library has library code B<ERR_LIB_XXX> and has its own set
+of reason codes B<XXX_R_...>.  These are both passed in combination to
+ERR_raise() and ERR_raise_data(), and the combination ultimately produces
+the correct error text for the reported error.
+
+All these macros and the numbers they have as values are specific to
+OpenSSL's libraries.  OpenSSL reason codes normally consist of textual error
 descriptions. For example, the function ssl3_read_bytes() reports a
 "handshake failure" as follows:
 
- SSLerr(SSL_F_SSL3_READ_BYTES, SSL_R_SSL_HANDSHAKE_FAILURE);
+ ERR_raise(ERR_LIB_SSL, SSL_R_SSL_HANDSHAKE_FAILURE);
 
-Function and reason codes should consist of uppercase characters,
-numbers and underscores only. The error file generation script translates
-function codes into function names by looking in the header files
-for an appropriate function name, if none is found it just uses
-the capitalized form such as "SSL3_READ_BYTES" in the above example.
+There are two exceptions:
 
-The trailing section of a reason code (after the "_R_") is translated
-into lowercase and underscores changed to spaces.
+=over 4
+
+=item B<ERR_LIB_SYS>
+
+This "library code" indicates that a system error is being reported.  In
+this case, the reason code given to ERR_raise() and ERR_raise_data() I<must>
+be L<errno(3)>.
+
+ ERR_raise(ERR_LIB_SYS, errno);
+
+=item B<ERR_R_XXX>
+
+This set of error codes is considered global, and may be used in combination
+with any sub-library code.
+
+ ERR_raise(ERR_LIB_RSA, ERR_R_PASSED_INVALID_ARGUMENT);
+
+=back
+
+=head3 Other pieces of software
+
+Other pieces of software that may want to use OpenSSL's error reporting
+system, such as engines or applications, must normally get their own
+numbers.
+
+=over 4
+
+=item *
+
+To get a "library" code, call L<ERR_get_next_error_library(3)>; this gives
+the calling code a dynamic number, usable for the duration of the process.
+
+=item *
+
+Reason codes for each such "library" are determined or generated by the
+authors of that code.  They must be numbers in the range 1 to 524287 (in
+other words, they must be nonzero unsigned 18 bit integers).
+
+=back
+
+The exceptions mentioned in L</OpenSSL library reports> above are valid for
+other pieces of software, i.e. they may use B<ERR_LIB_SYS> to report system
+errors:
+
+ ERR_raise(ERR_LIB_SYS, errno);
+
+... and they may use B<ERR_R_XXX> macros together with their own "library"
+code.
+
+ int app_lib_code = ERR_get_next_error_library();
+
+ /* ... */
+
+ ERR_raise(app_lib_code, ERR_R_PASSED_INVALID_ARGUMENT);
+
+=begin comment
+
+[These are OpenSSL specific recommendations]
+
+Reason codes should consist of uppercase characters, numbers and underscores
+only. The error file generation script translates the trailing section of a
+reason code (after the "_R_") into lowercase with underscores changed to
+spaces.
 
 Although a library will normally report errors using its own specific
-XXXerr macro, another library's macro can be used. This is normally
-only done when a library wants to include ASN1 code which must use
-the ASN1err() macro.
+B<ERR_LIB_XXX> macro, another library's macro can be used, together with
+that other library's reason codes. This is normally only done when a library
+wants to include ASN1 code which must be combined with B<ERR_LIB_ASN1>
+macro.
 
+=end comment
 
 =head1 RETURN VALUES
 
-ERR_put_error() and ERR_add_error_data() return
-no values.
+ERR_raise(), ERR_raise_data(), ERR_put_error(),
+ERR_add_error_data(), ERR_add_error_vdata()
+ERR_add_error_txt(), and ERR_add_error_mem_bio()
+return no values.
+
+=head1 NOTES
+
+ERR_raise(), ERR_raise() and ERR_put_error() are implemented as macros.
 
 =head1 SEE ALSO
 
-L<ERR_load_strings(3)>
+L<ERR_load_strings(3)>, L<ERR_get_next_error_library(3)>
+
+=head1 HISTORY
+
+ERR_raise, ERR_raise_data, ERR_add_error_txt() and ERR_add_error_mem_bio()
+were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

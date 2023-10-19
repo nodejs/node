@@ -66,16 +66,16 @@ UCharCharacterIterator::operator=(const UCharCharacterIterator& that) {
 UCharCharacterIterator::~UCharCharacterIterator() {
 }
 
-UBool
+bool
 UCharCharacterIterator::operator==(const ForwardCharacterIterator& that) const {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
     if (typeid(*this) != typeid(that)) {
-        return FALSE;
+        return false;
     }
 
-    UCharCharacterIterator&    realThat = (UCharCharacterIterator&)that;
+    const UCharCharacterIterator&    realThat = static_cast<const UCharCharacterIterator&>(that);
 
     return text == realThat.text
         && textLength == realThat.textLength
@@ -94,7 +94,7 @@ UCharCharacterIterator::clone() const {
     return new UCharCharacterIterator(*this);
 }
 
-UChar
+char16_t
 UCharCharacterIterator::first() {
     pos = begin;
     if(pos < end) {
@@ -104,7 +104,7 @@ UCharCharacterIterator::first() {
     }
 }
 
-UChar
+char16_t
 UCharCharacterIterator::firstPostInc() {
     pos = begin;
     if(pos < end) {
@@ -114,7 +114,7 @@ UCharCharacterIterator::firstPostInc() {
     }
 }
 
-UChar
+char16_t
 UCharCharacterIterator::last() {
     pos = end;
     if(pos > begin) {
@@ -124,7 +124,7 @@ UCharCharacterIterator::last() {
     }
 }
 
-UChar
+char16_t
 UCharCharacterIterator::setIndex(int32_t position) {
     if(position < begin) {
         pos = begin;
@@ -140,7 +140,7 @@ UCharCharacterIterator::setIndex(int32_t position) {
     }
 }
 
-UChar
+char16_t
 UCharCharacterIterator::current() const {
     if (pos >= begin && pos < end) {
         return text[pos];
@@ -149,7 +149,7 @@ UCharCharacterIterator::current() const {
     }
 }
 
-UChar
+char16_t
 UCharCharacterIterator::next() {
     if (pos + 1 < end) {
         return text[++pos];
@@ -160,7 +160,7 @@ UCharCharacterIterator::next() {
     }
 }
 
-UChar
+char16_t
 UCharCharacterIterator::nextPostInc() {
     if (pos < end) {
         return text[pos++];
@@ -171,10 +171,10 @@ UCharCharacterIterator::nextPostInc() {
 
 UBool
 UCharCharacterIterator::hasNext() {
-    return (UBool)(pos < end ? TRUE : FALSE);
+    return (UBool)(pos < end ? true : false);
 }
 
-UChar
+char16_t
 UCharCharacterIterator::previous() {
     if (pos > begin) {
         return text[--pos];
@@ -185,7 +185,7 @@ UCharCharacterIterator::previous() {
 
 UBool
 UCharCharacterIterator::hasPrevious() {
-    return (UBool)(pos > begin ? TRUE : FALSE);
+    return (UBool)(pos > begin ? true : false);
 }
 
 UChar32

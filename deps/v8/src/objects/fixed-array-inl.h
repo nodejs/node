@@ -5,21 +5,20 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_INL_H_
 #define V8_OBJECTS_FIXED_ARRAY_INL_H_
 
-#include "src/objects/fixed-array.h"
-
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/bigint.h"
 #include "src/objects/compressed-slots.h"
-#include "src/objects/heap-number-inl.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/slots.h"
 #include "src/roots/roots-inl.h"
-#include "src/sanitizer/tsan.h"
+#include "src/torque/runtime-macro-shims.h"
+#include "src/torque/runtime-support.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -30,28 +29,22 @@ namespace internal {
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase)
-FixedArrayBase::FixedArrayBase(Address ptr,
-                               HeapObject::AllowInlineSmiStorage allow_smi)
-    : TorqueGeneratedFixedArrayBase(ptr, allow_smi) {}
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ByteArray)
-ByteArray::ByteArray(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi)
-    : TorqueGeneratedByteArray(ptr, allow_smi) {}
+TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
-SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
-SYNCHRONIZED_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 
-SYNCHRONIZED_SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
-
-Object FixedArrayBase::unchecked_synchronized_length() const {
+Tagged<Object> FixedArrayBase::unchecked_length(AcquireLoadTag) const {
   return ACQUIRE_READ_FIELD(*this, kLengthOffset);
 }
 
@@ -60,54 +53,53 @@ ObjectSlot FixedArray::GetFirstElementAddress() {
 }
 
 bool FixedArray::ContainsOnlySmisOrHoles() {
-  Object the_hole = GetReadOnlyRoots().the_hole_value();
+  Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
   ObjectSlot current = GetFirstElementAddress();
   for (int i = 0; i < length(); ++i, ++current) {
-    Object candidate = *current;
-    if (!candidate.IsSmi() && candidate != the_hole) return false;
+    Tagged<Object> candidate = *current;
+    if (!IsSmi(candidate) && candidate != the_hole) return false;
   }
   return true;
 }
 
-Object FixedArray::get(int index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
+Tagged<Object> FixedArray::get(int index) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
 }
 
-Object FixedArray::get(IsolateRoot isolate, int index) const {
+Tagged<Object> FixedArray::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return TaggedField<Object>::Relaxed_Load(isolate, *this,
+  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
                                            OffsetOfElementAt(index));
 }
 
-Handle<Object> FixedArray::get(FixedArray array, int index, Isolate* isolate) {
-  return handle(array.get(isolate, index), isolate);
+Handle<Object> FixedArray::get(Tagged<FixedArray> array, int index,
+                               Isolate* isolate) {
+  return handle(array->get(isolate, index), isolate);
 }
 
 bool FixedArray::is_the_hole(Isolate* isolate, int index) {
-  return get(isolate, index).IsTheHole(isolate);
+  return IsTheHole(get(isolate, index), isolate);
 }
 
-#if !defined(_WIN32) || defined(_WIN64)
-void FixedArray::set(int index, Smi value) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+void FixedArray::set(int index, Tagged<Smi> value) {
+  DCHECK_NE(map(), EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(Object(value).IsSmi());
+  DCHECK(IsSmi(Object(value)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
-#endif
 
-void FixedArray::set(int index, Object value) {
-  DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
-  DCHECK(IsFixedArray());
+void FixedArray::set(int index, Tagged<Object> value) {
+  DCHECK_NE(EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map(), map());
+  DCHECK(IsFixedArray(*this));
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   WRITE_BARRIER(*this, offset, value);
 }
 
-void FixedArray::set(int index, Object value, WriteBarrierMode mode) {
+void FixedArray::set(int index, Tagged<Object> value, WriteBarrierMode mode) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = OffsetOfElementAt(index);
@@ -116,26 +108,28 @@ void FixedArray::set(int index, Object value, WriteBarrierMode mode) {
 }
 
 // static
-void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
-  DCHECK_NE(array.map(), array.GetReadOnlyRoots().fixed_cow_array_map());
+void FixedArray::NoWriteBarrierSet(Tagged<FixedArray> array, int index,
+                                   Tagged<Object> value) {
+  DCHECK_NE(array->map(), array->GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(array.length()));
+            static_cast<unsigned>(array->length()));
   DCHECK(!ObjectInYoungGeneration(value));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(array, offset, value);
 }
 
-Object FixedArray::get(int index, RelaxedLoadTag) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
+Tagged<Object> FixedArray::get(int index, RelaxedLoadTag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
 }
 
-Object FixedArray::get(IsolateRoot isolate, int index, RelaxedLoadTag) const {
+Tagged<Object> FixedArray::get(PtrComprCageBase cage_base, int index,
+                               RelaxedLoadTag) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return RELAXED_READ_FIELD(*this, OffsetOfElementAt(index));
 }
 
-void FixedArray::set(int index, Object value, RelaxedStoreTag,
+void FixedArray::set(int index, Tagged<Object> value, RelaxedStoreTag,
                      WriteBarrierMode mode) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
@@ -143,22 +137,47 @@ void FixedArray::set(int index, Object value, RelaxedStoreTag,
   CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
 }
 
-void FixedArray::set(int index, Smi value, RelaxedStoreTag tag) {
-  DCHECK(Object(value).IsSmi());
+void FixedArray::set(int index, Tagged<Smi> value, RelaxedStoreTag tag) {
+  DCHECK(IsSmi(Object(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
-Object FixedArray::get(int index, AcquireLoadTag) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
+Tagged<Object> FixedArray::get(int index, SeqCstAccessTag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
 }
 
-Object FixedArray::get(IsolateRoot isolate, int index, AcquireLoadTag) const {
+Tagged<Object> FixedArray::get(PtrComprCageBase cage_base, int index,
+                               SeqCstAccessTag) const {
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  return SEQ_CST_READ_FIELD(*this, OffsetOfElementAt(index));
+}
+
+void FixedArray::set(int index, Tagged<Object> value, SeqCstAccessTag,
+                     WriteBarrierMode mode) {
+  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  SEQ_CST_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
+  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+}
+
+void FixedArray::set(int index, Tagged<Smi> value, SeqCstAccessTag tag) {
+  DCHECK(IsSmi(Object(value)));
+  set(index, value, tag, SKIP_WRITE_BARRIER);
+}
+
+Tagged<Object> FixedArray::get(int index, AcquireLoadTag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
+}
+
+Tagged<Object> FixedArray::get(PtrComprCageBase cage_base, int index,
+                               AcquireLoadTag) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
 }
 
-void FixedArray::set(int index, Object value, ReleaseStoreTag,
+void FixedArray::set(int index, Tagged<Object> value, ReleaseStoreTag,
                      WriteBarrierMode mode) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
@@ -166,8 +185,8 @@ void FixedArray::set(int index, Object value, ReleaseStoreTag,
   CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
 }
 
-void FixedArray::set(int index, Smi value, ReleaseStoreTag tag) {
-  DCHECK(Object(value).IsSmi());
+void FixedArray::set(int index, Tagged<Smi> value, ReleaseStoreTag tag) {
+  DCHECK(IsSmi(Object(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -205,6 +224,36 @@ void FixedArray::set_the_hole(ReadOnlyRoots ro_roots, int index) {
   FixedArray::NoWriteBarrierSet(*this, index, ro_roots.the_hole_value());
 }
 
+Tagged<Object> FixedArray::swap(int index, Tagged<Object> value,
+                                SeqCstAccessTag, WriteBarrierMode mode) {
+  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  Tagged<Object> previous_value =
+      SEQ_CST_SWAP_FIELD(*this, OffsetOfElementAt(index), value);
+  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+  return previous_value;
+}
+
+Tagged<Object> FixedArray::compare_and_swap(int index, Tagged<Object> expected,
+                                            Tagged<Object> value,
+                                            SeqCstAccessTag,
+                                            WriteBarrierMode mode) {
+  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  Tagged<Object> previous_value = SEQ_CST_COMPARE_AND_SWAP_FIELD(
+      *this, OffsetOfElementAt(index), expected, value);
+  if (previous_value == expected) {
+    CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+  }
+  return previous_value;
+}
+
+Tagged<Object> FixedArray::swap(int index, Tagged<Smi> value,
+                                SeqCstAccessTag tag) {
+  DCHECK(IsSmi(value));
+  return swap(index, value, tag, SKIP_WRITE_BARRIER);
+}
+
 void FixedArray::FillWithHoles(int from, int to) {
   for (int i = from; i < to; i++) {
     set_the_hole(i);
@@ -228,34 +277,31 @@ void FixedArray::MoveElements(Isolate* isolate, int dst_index, int src_index,
   isolate->heap()->MoveRange(*this, dst_slot, src_slot, len, mode);
 }
 
-void FixedArray::CopyElements(Isolate* isolate, int dst_index, FixedArray src,
-                              int src_index, int len, WriteBarrierMode mode) {
+void FixedArray::CopyElements(Isolate* isolate, int dst_index,
+                              Tagged<FixedArray> src, int src_index, int len,
+                              WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(dst_index + len, length());
-  DCHECK_LE(src_index + len, src.length());
+  DCHECK_LE(src_index + len, src->length());
   DisallowGarbageCollection no_gc;
 
   ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
-  ObjectSlot src_slot(src.RawFieldOfElementAt(src_index));
+  ObjectSlot src_slot(src->RawFieldOfElementAt(src_index));
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
 // Due to left- and right-trimming, concurrent visitors need to read the length
 // with acquire semantics.
 // TODO(ulan): Acquire should not be needed anymore.
-inline int FixedArray::AllocatedSize() {
-  return SizeFor(synchronized_length());
-}
+inline int FixedArray::AllocatedSize() { return SizeFor(length(kAcquireLoad)); }
 inline int WeakFixedArray::AllocatedSize() {
-  return SizeFor(synchronized_length());
+  return SizeFor(length(kAcquireLoad));
 }
-inline int WeakArrayList::AllocatedSize() {
-  return SizeFor(synchronized_capacity());
-}
+inline int WeakArrayList::AllocatedSize() { return SizeFor(capacity()); }
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
-int BinarySearch(T* array, Name name, int valid_entries,
+int BinarySearch(T* array, Tagged<Name> name, int valid_entries,
                  int* out_insertion_index) {
   DCHECK_IMPLIES(search_mode == VALID_ENTRIES, out_insertion_index == nullptr);
   int low = 0;
@@ -265,15 +311,15 @@ int BinarySearch(T* array, Name name, int valid_entries,
   // index). After doing the binary search and getting the correct internal
   // index we check to have the index lower than valid_entries, if needed.
   int high = array->number_of_entries() - 1;
-  uint32_t hash = name.hash();
+  uint32_t hash = name->hash();
   int limit = high;
 
   DCHECK(low <= high);
 
   while (low != high) {
     int mid = low + (high - low) / 2;
-    Name mid_name = array->GetSortedKey(mid);
-    uint32_t mid_hash = mid_name.hash();
+    Tagged<Name> mid_name = array->GetSortedKey(mid);
+    uint32_t mid_hash = mid_name->hash();
 
     if (mid_hash >= hash) {
       high = mid;
@@ -284,8 +330,8 @@ int BinarySearch(T* array, Name name, int valid_entries,
 
   for (; low <= limit; ++low) {
     int sort_index = array->GetSortedKeyIndex(low);
-    Name entry = array->GetKey(InternalIndex(sort_index));
-    uint32_t current_hash = entry.hash();
+    Tagged<Name> entry = array->GetKey(InternalIndex(sort_index));
+    uint32_t current_hash = entry->hash();
     if (current_hash != hash) {
       // 'search_mode == ALL_ENTRIES' here and below is not needed since
       // 'out_insertion_index != nullptr' implies 'search_mode == ALL_ENTRIES'.
@@ -314,15 +360,15 @@ int BinarySearch(T* array, Name name, int valid_entries,
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
 template <SearchMode search_mode, typename T>
-int LinearSearch(T* array, Name name, int valid_entries,
+int LinearSearch(T* array, Tagged<Name> name, int valid_entries,
                  int* out_insertion_index) {
   if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
-    uint32_t hash = name.hash();
+    uint32_t hash = name->hash();
     int len = array->number_of_entries();
     for (int number = 0; number < len; number++) {
       int sorted_index = array->GetSortedKeyIndex(number);
-      Name entry = array->GetKey(InternalIndex(sorted_index));
-      uint32_t current_hash = entry.hash();
+      Tagged<Name> entry = array->GetKey(InternalIndex(sorted_index));
+      uint32_t current_hash = entry->hash();
       if (current_hash > hash) {
         *out_insertion_index = sorted_index;
         return T::kNotFound;
@@ -342,8 +388,8 @@ int LinearSearch(T* array, Name name, int valid_entries,
 }
 
 template <SearchMode search_mode, typename T>
-int Search(T* array, Name name, int valid_entries, int* out_insertion_index,
-           bool concurrent_search) {
+int Search(T* array, Tagged<Name> name, int valid_entries,
+           int* out_insertion_index, bool concurrent_search) {
   SLOW_DCHECK_IMPLIES(!concurrent_search, array->IsSortedNoDuplicates());
 
   if (valid_entries == 0) {
@@ -382,12 +428,12 @@ uint64_t FixedDoubleArray::get_representation(int index) {
   return base::ReadUnalignedValue<uint64_t>(field_address(offset));
 }
 
-Handle<Object> FixedDoubleArray::get(FixedDoubleArray array, int index,
+Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
                                      Isolate* isolate) {
-  if (array.is_the_hole(index)) {
+  if (array->is_the_hole(index)) {
     return ReadOnlyRoots(isolate).the_hole_value_handle();
   } else {
-    return isolate->factory()->NewNumber(array.get_scalar(index));
+    return isolate->factory()->NewNumber(array->get_scalar(index));
   }
 }
 
@@ -439,17 +485,27 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 MaybeObject WeakFixedArray::Get(int index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return Get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return Get(cage_base, index);
 }
 
-MaybeObject WeakFixedArray::Get(IsolateRoot isolate, int index) const {
+MaybeObject WeakFixedArray::Get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return objects(isolate, index);
+  return objects(cage_base, index, kRelaxedLoad);
 }
 
 void WeakFixedArray::Set(int index, MaybeObject value, WriteBarrierMode mode) {
   set_objects(index, value, mode);
+}
+
+Handle<WeakFixedArray> WeakFixedArray::EnsureSpace(Isolate* isolate,
+                                                   Handle<WeakFixedArray> array,
+                                                   int length) {
+  if (array->length() < length) {
+    int grow_by = length - array->length();
+    array = isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by);
+  }
+  return array;
 }
 
 MaybeObjectSlot WeakFixedArray::data_start() {
@@ -461,30 +517,34 @@ MaybeObjectSlot WeakFixedArray::RawFieldOfElementAt(int index) {
 }
 
 void WeakFixedArray::CopyElements(Isolate* isolate, int dst_index,
-                                  WeakFixedArray src, int src_index, int len,
-                                  WriteBarrierMode mode) {
+                                  Tagged<WeakFixedArray> src, int src_index,
+                                  int len, WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(dst_index + len, length());
-  DCHECK_LE(src_index + len, src.length());
+  DCHECK_LE(src_index + len, src->length());
   DisallowGarbageCollection no_gc;
 
   MaybeObjectSlot dst_slot(data_start() + dst_index);
-  MaybeObjectSlot src_slot(src.data_start() + src_index);
+  MaybeObjectSlot src_slot(src->data_start() + src_index);
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
 MaybeObject WeakArrayList::Get(int index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return Get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return Get(cage_base, index);
 }
 
-MaybeObject WeakArrayList::Get(IsolateRoot isolate, int index) const {
+MaybeObject WeakArrayList::Get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(capacity()));
-  return objects(isolate, index);
+  return objects(cage_base, index, kRelaxedLoad);
 }
 
 void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
   set_objects(index, value, mode);
+}
+
+void WeakArrayList::Set(int index, Tagged<Smi> value) {
+  Set(index, MaybeObject::FromSmi(value), SKIP_WRITE_BARRIER);
 }
 
 MaybeObjectSlot WeakArrayList::data_start() {
@@ -492,115 +552,135 @@ MaybeObjectSlot WeakArrayList::data_start() {
 }
 
 void WeakArrayList::CopyElements(Isolate* isolate, int dst_index,
-                                 WeakArrayList src, int src_index, int len,
-                                 WriteBarrierMode mode) {
+                                 Tagged<WeakArrayList> src, int src_index,
+                                 int len, WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(dst_index + len, capacity());
-  DCHECK_LE(src_index + len, src.capacity());
+  DCHECK_LE(src_index + len, src->capacity());
   DisallowGarbageCollection no_gc;
 
   MaybeObjectSlot dst_slot(data_start() + dst_index);
-  MaybeObjectSlot src_slot(src.data_start() + src_index);
+  MaybeObjectSlot src_slot(src->data_start() + src_index);
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
-HeapObject WeakArrayList::Iterator::Next() {
+Tagged<HeapObject> WeakArrayList::Iterator::Next() {
   if (!array_.is_null()) {
-    while (index_ < array_.length()) {
-      MaybeObject item = array_.Get(index_++);
+    while (index_ < array_->length()) {
+      MaybeObject item = array_->Get(index_++);
       DCHECK(item->IsWeakOrCleared());
-      if (!item->IsCleared()) return item->GetHeapObjectAssumeWeak();
+      if (!item->IsCleared()) return item.GetHeapObjectAssumeWeak();
     }
     array_ = WeakArrayList();
   }
-  return HeapObject();
+  return Tagged<HeapObject>();
 }
 
 int ArrayList::Length() const {
-  if (FixedArray::cast(*this).length() == 0) return 0;
-  return Smi::ToInt(FixedArray::cast(*this).get(kLengthIndex));
+  if (FixedArray::cast(*this)->length() == 0) return 0;
+  return Smi::ToInt(FixedArray::cast(*this)->get(kLengthIndex));
 }
 
 void ArrayList::SetLength(int length) {
-  return FixedArray::cast(*this).set(kLengthIndex, Smi::FromInt(length));
+  return FixedArray::cast(*this)->set(kLengthIndex, Smi::FromInt(length));
 }
 
-Object ArrayList::Get(int index) const {
-  return FixedArray::cast(*this).get(kFirstIndex + index);
+Tagged<Object> ArrayList::Get(int index) const {
+  return FixedArray::cast(*this)->get(kFirstIndex + index);
 }
 
-Object ArrayList::Get(IsolateRoot isolate, int index) const {
-  return FixedArray::cast(*this).get(isolate, kFirstIndex + index);
+Tagged<Object> ArrayList::Get(PtrComprCageBase cage_base, int index) const {
+  return FixedArray::cast(*this)->get(cage_base, kFirstIndex + index);
 }
 
 ObjectSlot ArrayList::Slot(int index) {
   return RawField(OffsetOfElementAt(kFirstIndex + index));
 }
 
-void ArrayList::Set(int index, Object obj, WriteBarrierMode mode) {
-  FixedArray::cast(*this).set(kFirstIndex + index, obj, mode);
+void ArrayList::Set(int index, Tagged<Object> obj, WriteBarrierMode mode) {
+  FixedArray::cast(*this)->set(kFirstIndex + index, obj, mode);
 }
 
-void ArrayList::Clear(int index, Object undefined) {
-  DCHECK(undefined.IsUndefined());
-  FixedArray::cast(*this).set(kFirstIndex + index, undefined,
-                              SKIP_WRITE_BARRIER);
+void ArrayList::Set(int index, Tagged<Smi> value) {
+  DCHECK(IsSmi(Object(value)));
+  Set(index, value, SKIP_WRITE_BARRIER);
+}
+void ArrayList::Clear(int index, Tagged<Object> undefined) {
+  DCHECK(IsUndefined(undefined));
+  FixedArray::cast(*this)->set(kFirstIndex + index, undefined,
+                               SKIP_WRITE_BARRIER);
 }
 
 int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
 
-byte ByteArray::get(int index) const {
-  DCHECK(index >= 0 && index < this->length());
-  return ReadField<byte>(kHeaderSize + index * kCharSize);
+uint8_t ByteArray::get(int offset) const {
+  DCHECK_GE(offset, 0);
+  DCHECK_LT(offset, length());
+  return ReadField<uint8_t>(kHeaderSize + offset);
 }
 
-void ByteArray::set(int index, byte value) {
-  DCHECK(index >= 0 && index < this->length());
-  WriteField<byte>(kHeaderSize + index * kCharSize, value);
+void ByteArray::set(int offset, uint8_t value) {
+  DCHECK_GE(offset, 0);
+  DCHECK_LT(offset, length());
+  WriteField<uint8_t>(kHeaderSize + offset, value);
 }
 
-void ByteArray::copy_in(int index, const byte* buffer, int length) {
-  DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
-         index + length <= this->length());
-  Address dst_addr = field_address(kHeaderSize + index * kCharSize);
-  base::Memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
+int ByteArray::get_int(int offset) const {
+  DCHECK_GE(offset, 0);
+  DCHECK_LE(offset + sizeof(int), length());
+  return ReadField<int>(kHeaderSize + offset);
 }
 
-void ByteArray::copy_out(int index, byte* buffer, int length) {
-  DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
-         index + length <= this->length());
-  Address src_addr = field_address(kHeaderSize + index * kCharSize);
-  base::Memcpy(buffer, reinterpret_cast<void*>(src_addr), length);
+void ByteArray::set_int(int offset, int value) {
+  DCHECK_GE(offset, 0);
+  DCHECK_LE(offset + sizeof(int), length());
+  WriteField<int>(kHeaderSize + offset, value);
 }
 
-int ByteArray::get_int(int index) const {
-  DCHECK(index >= 0 && index < this->length() / kIntSize);
-  return ReadField<int>(kHeaderSize + index * kIntSize);
+Address FixedAddressArray::get_sandboxed_pointer(int offset) const {
+  DCHECK_GE(offset, 0);
+  DCHECK_GT(length(), offset);
+  int actual_offset = offset * sizeof(Address);
+  PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
+  return ReadSandboxedPointerField(kHeaderSize + actual_offset, sandbox_base);
 }
 
-void ByteArray::set_int(int index, int value) {
-  DCHECK(index >= 0 && index < this->length() / kIntSize);
-  WriteField<int>(kHeaderSize + index * kIntSize, value);
+void FixedAddressArray::set_sandboxed_pointer(int offset, Address value) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GT(length(), offset);
+  int actual_offset = offset * sizeof(Address);
+  PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
+  WriteSandboxedPointerField(kHeaderSize + actual_offset, sandbox_base, value);
 }
 
-uint32_t ByteArray::get_uint32(int index) const {
-  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
-  return ReadField<uint32_t>(kHeaderSize + index * kUInt32Size);
+// static
+Handle<FixedAddressArray> FixedAddressArray::New(Isolate* isolate, int length,
+                                                 AllocationType allocation) {
+  return Handle<FixedAddressArray>::cast(
+      FixedIntegerArray<Address>::New(isolate, length, allocation));
 }
 
-void ByteArray::set_uint32(int index, uint32_t value) {
-  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
-  WriteField<uint32_t>(kHeaderSize + index * kUInt32Size, value);
+FixedAddressArray::FixedAddressArray(Address ptr)
+    : FixedIntegerArray<Address>(ptr) {}
+
+CAST_ACCESSOR(FixedAddressArray)
+
+void ByteArray::copy_in(int offset, const uint8_t* buffer, int slice_length) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GE(slice_length, 0);
+  DCHECK_LE(slice_length, kMaxInt - offset);
+  DCHECK_LE(offset + slice_length, length());
+  Address dst_addr = field_address(kHeaderSize + offset);
+  memcpy(reinterpret_cast<void*>(dst_addr), buffer, slice_length);
 }
 
-uint32_t ByteArray::get_uint32_relaxed(int index) const {
-  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
-  return RELAXED_READ_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size);
-}
-
-void ByteArray::set_uint32_relaxed(int index, uint32_t value) {
-  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
-  RELAXED_WRITE_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size, value);
+void ByteArray::copy_out(int offset, uint8_t* buffer, int slice_length) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GE(slice_length, 0);
+  DCHECK_LE(slice_length, kMaxInt - offset);
+  DCHECK_LE(offset + slice_length, length());
+  Address src_addr = field_address(kHeaderSize + offset);
+  memcpy(buffer, reinterpret_cast<void*>(src_addr), slice_length);
 }
 
 void ByteArray::clear_padding() {
@@ -608,37 +688,106 @@ void ByteArray::clear_padding() {
   memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);
 }
 
-ByteArray ByteArray::FromDataStartAddress(Address address) {
+Tagged<ByteArray> ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
   return ByteArray::cast(Object(address - kHeaderSize + kHeapObjectTag));
 }
 
 int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
 
-int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
-
-byte* ByteArray::GetDataStartAddress() {
-  return reinterpret_cast<byte*>(address() + kHeaderSize);
+uint8_t* ByteArray::GetDataStartAddress() {
+  return reinterpret_cast<uint8_t*>(address() + kHeaderSize);
 }
 
-byte* ByteArray::GetDataEndAddress() {
+uint8_t* ByteArray::GetDataEndAddress() {
   return GetDataStartAddress() + length();
+}
+
+template <typename T>
+FixedIntegerArray<T>::FixedIntegerArray(Address ptr) : ByteArray(ptr) {
+  DCHECK_EQ(ByteArray::length() % sizeof(T), 0);
+}
+
+template <typename T>
+CAST_ACCESSOR(FixedIntegerArray<T>)
+
+// static
+template <typename T>
+Handle<FixedIntegerArray<T>> FixedIntegerArray<T>::New(
+    Isolate* isolate, int length, AllocationType allocation) {
+  int byte_length;
+  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+  return Handle<FixedIntegerArray<T>>::cast(
+      isolate->factory()->NewByteArray(byte_length, allocation));
+}
+
+template <typename T>
+T FixedIntegerArray<T>::get(int index) const {
+  static_assert(std::is_integral<T>::value);
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, length());
+  return ReadField<T>(kHeaderSize + index * sizeof(T));
+}
+
+template <typename T>
+void FixedIntegerArray<T>::set(int index, T value) {
+  static_assert(std::is_integral<T>::value);
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, length());
+  WriteField<T>(kHeaderSize + index * sizeof(T), value);
+}
+
+template <typename T>
+int FixedIntegerArray<T>::length() const {
+  DCHECK_EQ(ByteArray::length() % sizeof(T), 0);
+  return ByteArray::length() / sizeof(T);
+}
+
+template <ExternalPointerTag tag>
+inline Address ExternalPointerArray::get(int index, Isolate* isolate) {
+  return ReadExternalPointerField<tag>(OffsetOfElementAt(index), isolate);
+}
+
+template <ExternalPointerTag tag>
+inline void ExternalPointerArray::set(int index, Isolate* isolate,
+                                      Address value) {
+  WriteLazilyInitializedExternalPointerField<tag>(OffsetOfElementAt(index),
+                                                  isolate, value);
+}
+
+inline void ExternalPointerArray::clear(int index) {
+  ResetLazilyInitializedExternalPointerField(OffsetOfElementAt(index));
+}
+
+// static
+Handle<ExternalPointerArray> ExternalPointerArray::New(
+    Isolate* isolate, int length, AllocationType allocation) {
+  return isolate->factory()->NewExternalPointerArray(length, allocation);
 }
 
 template <class T>
 PodArray<T>::PodArray(Address ptr) : ByteArray(ptr) {}
 
 template <class T>
-PodArray<T> PodArray<T>::cast(Object object) {
-  return PodArray<T>(object.ptr());
-}
+CAST_ACCESSOR(PodArray<T>)
 
 // static
 template <class T>
 Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
                                      AllocationType allocation) {
+  int byte_length;
+  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
   return Handle<PodArray<T>>::cast(
-      isolate->factory()->NewByteArray(length * sizeof(T), allocation));
+      isolate->factory()->NewByteArray(byte_length, allocation));
+}
+
+// static
+template <class T>
+Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length) {
+  int byte_length;
+  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+  return Handle<PodArray<T>>::cast(
+      isolate->factory()->NewByteArray(byte_length, AllocationType::kOld));
 }
 
 template <class T>
@@ -647,25 +796,24 @@ int PodArray<T>::length() const {
 }
 
 int TemplateList::length() const {
-  return Smi::ToInt(FixedArray::cast(*this).get(kLengthIndex));
+  return Smi::ToInt(FixedArray::cast(*this)->get(kLengthIndex));
 }
 
-Object TemplateList::get(int index) const {
-  return FixedArray::cast(*this).get(kFirstElementIndex + index);
+Tagged<Object> TemplateList::get(int index) const {
+  return FixedArray::cast(*this)->get(kFirstElementIndex + index);
 }
 
-Object TemplateList::get(IsolateRoot isolate, int index) const {
-  return FixedArray::cast(*this).get(isolate, kFirstElementIndex + index);
+Tagged<Object> TemplateList::get(PtrComprCageBase cage_base, int index) const {
+  return FixedArray::cast(*this)->get(cage_base, kFirstElementIndex + index);
 }
 
-void TemplateList::set(int index, Object value) {
-  FixedArray::cast(*this).set(kFirstElementIndex + index, value);
+void TemplateList::set(int index, Tagged<Object> value) {
+  FixedArray::cast(*this)->set(kFirstElementIndex + index, value);
 }
 
 }  // namespace internal
 }  // namespace v8
 
-#include "src/base/platform/wrappers.h"
 #include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_FIXED_ARRAY_INL_H_

@@ -10,15 +10,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow `new` operators outside of assignments or comparisons",
-            category: "Best Practices",
+            description: "Disallow `new` operators outside of assignments or comparisons",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-new"
+            url: "https://eslint.org/docs/latest/rules/no-new"
         },
 
         schema: [],

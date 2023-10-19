@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -26,10 +26,8 @@ static int mem_buf_sync(BIO *h);
 static const BIO_METHOD mem_method = {
     BIO_TYPE_MEM,
     "memory buffer",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     mem_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     mem_read,
     mem_puts,
@@ -43,10 +41,8 @@ static const BIO_METHOD mem_method = {
 static const BIO_METHOD secmem_method = {
     BIO_TYPE_MEM,
     "secure memory buffer",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     mem_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     mem_read,
     mem_puts,
@@ -91,7 +87,7 @@ BIO *BIO_new_mem_buf(const void *buf, int len)
     size_t sz;
 
     if (buf == NULL) {
-        BIOerr(BIO_F_BIO_NEW_MEM_BUF, BIO_R_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_BIO, ERR_R_PASSED_NULL_PARAMETER);
         return NULL;
     }
     sz = (len < 0) ? strlen(buf) : (size_t)len;
@@ -176,6 +172,7 @@ static int mem_buf_free(BIO *a)
 
 /*
  * Reallocate memory buffer if read pointer differs
+ * NOT FOR RDONLY
  */
 static int mem_buf_sync(BIO *b)
 {
@@ -220,17 +217,17 @@ static int mem_write(BIO *b, const char *in, int inl)
     int blen;
     BIO_BUF_MEM *bbm = (BIO_BUF_MEM *)b->ptr;
 
-    if (in == NULL) {
-        BIOerr(BIO_F_MEM_WRITE, BIO_R_NULL_PARAMETER);
-        goto end;
-    }
     if (b->flags & BIO_FLAGS_MEM_RDONLY) {
-        BIOerr(BIO_F_MEM_WRITE, BIO_R_WRITE_TO_READ_ONLY_BIO);
+        ERR_raise(ERR_LIB_BIO, BIO_R_WRITE_TO_READ_ONLY_BIO);
         goto end;
     }
     BIO_clear_retry_flags(b);
     if (inl == 0)
         return 0;
+    if (in == NULL) {
+        ERR_raise(ERR_LIB_BIO, ERR_R_PASSED_NULL_PARAMETER);
+        goto end;
+    }
     blen = bbm->readp->length;
     mem_buf_sync(b);
     if (BUF_MEM_grow_clean(bbm->buf, blen + inl) == 0)
@@ -247,12 +244,18 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
     long ret = 1;
     char **pptr;
     BIO_BUF_MEM *bbm = (BIO_BUF_MEM *)b->ptr;
-    BUF_MEM *bm;
+    BUF_MEM *bm, *bo;            /* bio_mem, bio_other */
+    long off, remain;
 
-    if (b->flags & BIO_FLAGS_MEM_RDONLY)
+    if (b->flags & BIO_FLAGS_MEM_RDONLY) {
         bm = bbm->buf;
-    else
+        bo = bbm->readp;
+    } else {
         bm = bbm->readp;
+        bo = bbm->buf;
+    }
+    off = (bm->data == bo->data) ? 0 : bm->data - bo->data;
+    remain = bm->length;
 
     switch (cmd) {
     case BIO_CTRL_RESET:
@@ -270,6 +273,18 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
             }
         }
         break;
+    case BIO_C_FILE_SEEK:
+        if (num < 0 || num > off + remain)
+            return -1;   /* Can't see outside of the current buffer */
+
+        bm->data = (num != 0) ? bo->data + num : bo->data;
+        bm->length = bo->length - num;
+        bm->max = bo->max - num;
+        off = num;
+        /* FALLTHRU */
+    case BIO_C_FILE_TELL:
+        ret = off;
+        break;
     case BIO_CTRL_EOF:
         ret = (long)(bm->length == 0);
         break;
@@ -280,7 +295,7 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
         ret = (long)bm->length;
         if (ptr != NULL) {
             pptr = (char **)ptr;
-            *pptr = (char *)&(bm->data[0]);
+            *pptr = (char *)(bm->data);
         }
         break;
     case BIO_C_SET_BUF_MEM:

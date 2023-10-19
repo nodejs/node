@@ -9,26 +9,28 @@
 #include <errno.h>
 #include <limits.h>
 #include <pthread.h>
+
+#include "src/base/logging.h"
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <pthread_np.h>  // for pthread_set_name_np
 #endif
+#include <fcntl.h>
 #include <sched.h>  // for sched_yield
 #include <stdio.h>
-#include <time.h>
-#include <unistd.h>
-
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 #if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) || \
     defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/sysctl.h>  // NOLINT, for sysctl
+#include <sys/sysctl.h>  // for sysctl
 #endif
 
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
 #define LOG_TAG "v8"
-#include <android/log.h>  // NOLINT
+#include <android/log.h>
 #endif
 
 #include <cmath>
@@ -46,13 +48,19 @@
 #include <atomic>
 #endif
 
-#if V8_OS_MACOSX
-#include <dlfcn.h>
+#if V8_OS_DARWIN || V8_OS_LINUX
+#include <dlfcn.h>  // for dlsym
+#endif
+
+#if V8_OS_DARWIN
 #include <mach/mach.h>
+#include <malloc/malloc.h>
+#else
+#include <malloc.h>
 #endif
 
 #if V8_OS_LINUX
-#include <sys/prctl.h>  // NOLINT, for prctl
+#include <sys/prctl.h>  // for prctl
 #endif
 
 #if defined(V8_OS_FUCHSIA)
@@ -65,7 +73,7 @@
 #include <sys/syscall.h>
 #endif
 
-#if V8_OS_FREEBSD || V8_OS_MACOSX || V8_OS_OPENBSD || V8_OS_SOLARIS
+#if V8_OS_FREEBSD || V8_OS_DARWIN || V8_OS_OPENBSD || V8_OS_SOLARIS
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
@@ -82,7 +90,7 @@ extern int madvise(caddr_t, size_t, int);
 #endif
 
 #if defined(V8_LIBC_GLIBC)
-extern "C" void* __libc_stack_end;  // NOLINT
+extern "C" void* __libc_stack_end;
 #endif
 
 namespace v8 {
@@ -102,16 +110,16 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 #if !V8_OS_FUCHSIA
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 // kMmapFd is used to pass vm_alloc flags to tag the region with the user
 // defined tag 255 This helps identify V8-allocated regions in memory analysis
 // tools like vmmap(1).
 const int kMmapFd = VM_MAKE_TAG(255);
-#else   // !V8_OS_MACOSX
+#else   // !V8_OS_DARWIN
 const int kMmapFd = -1;
-#endif  // !V8_OS_MACOSX
+#endif  // !V8_OS_DARWIN
 
-#if defined(V8_TARGET_OS_MACOSX) && V8_HOST_ARCH_ARM64
+#if defined(V8_TARGET_OS_MACOS) && V8_HOST_ARCH_ARM64
 // During snapshot generation in cross builds, sysconf() runs on the Intel
 // host and returns host page size, while the snapshot needs to use the
 // target page size.
@@ -119,6 +127,66 @@ constexpr int kAppleArmPageSize = 1 << 14;
 #endif
 
 const int kMmapFdOffset = 0;
+
+enum class PageType { kShared, kPrivate };
+
+int GetFlagsForMemoryPermission(OS::MemoryPermission access,
+                                PageType page_type) {
+  int flags = MAP_ANONYMOUS;
+  flags |= (page_type == PageType::kShared) ? MAP_SHARED : MAP_PRIVATE;
+  if (access == OS::MemoryPermission::kNoAccess) {
+#if !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
+    flags |= MAP_NORESERVE;
+#endif  // !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
+#if V8_OS_QNX
+    flags |= MAP_LAZY;
+#endif  // V8_OS_QNX
+  }
+#if V8_OS_DARWIN
+  // MAP_JIT is required to obtain writable and executable pages when the
+  // hardened runtime/memory protection is enabled, which is optional (via code
+  // signing) on Intel-based Macs but mandatory on Apple silicon ones. See also
+  // https://developer.apple.com/documentation/apple-silicon/porting-just-in-time-compilers-to-apple-silicon.
+  if (access == OS::MemoryPermission::kNoAccessWillJitLater) {
+    flags |= MAP_JIT;
+  }
+#endif  // V8_OS_DARWIN
+  return flags;
+}
+
+void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
+               PageType page_type) {
+  int prot = GetProtectionFromMemoryPermission(access);
+  int flags = GetFlagsForMemoryPermission(access, page_type);
+  void* result = mmap(hint, size, prot, flags, kMmapFd, kMmapFdOffset);
+  if (result == MAP_FAILED) return nullptr;
+
+#if V8_OS_LINUX && V8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION
+  // This is advisory, so we ignore errors.
+  madvise(result, size, MADV_DONTFORK);
+#endif
+
+#if ENABLE_HUGEPAGE
+  if (result != nullptr && size >= kHugePageSize) {
+    const uintptr_t huge_start =
+        RoundUp(reinterpret_cast<uintptr_t>(result), kHugePageSize);
+    const uintptr_t huge_end =
+        RoundDown(reinterpret_cast<uintptr_t>(result) + size, kHugePageSize);
+    if (huge_end > huge_start) {
+      // Bail out in case the aligned addresses do not provide a block of at
+      // least kHugePageSize size.
+      madvise(reinterpret_cast<void*>(huge_start), huge_end - huge_start,
+              MADV_HUGEPAGE);
+    }
+  }
+#endif
+
+  return result;
+}
+
+#endif  // !V8_OS_FUCHSIA
+
+}  // namespace
 
 // TODO(v8:10026): Add the right permission flag to make executable pages
 // guarded.
@@ -138,41 +206,6 @@ int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   }
   UNREACHABLE();
 }
-
-enum class PageType { kShared, kPrivate };
-
-int GetFlagsForMemoryPermission(OS::MemoryPermission access,
-                                PageType page_type) {
-  int flags = MAP_ANONYMOUS;
-  flags |= (page_type == PageType::kShared) ? MAP_SHARED : MAP_PRIVATE;
-  if (access == OS::MemoryPermission::kNoAccess) {
-#if !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
-    flags |= MAP_NORESERVE;
-#endif  // !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
-#if V8_OS_QNX
-    flags |= MAP_LAZY;
-#endif  // V8_OS_QNX
-  }
-#if V8_OS_MACOSX && V8_HOST_ARCH_ARM64 && defined(MAP_JIT)
-  if (access == OS::MemoryPermission::kNoAccessWillJitLater) {
-    flags |= MAP_JIT;
-  }
-#endif
-  return flags;
-}
-
-void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
-               PageType page_type) {
-  int prot = GetProtectionFromMemoryPermission(access);
-  int flags = GetFlagsForMemoryPermission(access, page_type);
-  void* result = mmap(hint, size, prot, flags, kMmapFd, kMmapFdOffset);
-  if (result == MAP_FAILED) return nullptr;
-  return result;
-}
-
-#endif  // !V8_OS_FUCHSIA
-
-}  // namespace
 
 #if V8_OS_LINUX || V8_OS_FREEBSD
 #ifdef __arm__
@@ -218,10 +251,16 @@ bool OS::ArmUsingHardFloat() {
 #endif  // def __arm__
 #endif
 
-void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
+void PosixInitializeCommon(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
   g_gc_fake_mmap = gc_fake_mmap;
 }
+
+#if !V8_OS_FUCHSIA
+void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
+  PosixInitializeCommon(hard_abort, gc_fake_mmap);
+}
+#endif  // !V8_OS_FUCHSIA
 
 int OS::ActivationFrameAlignment() {
 #if V8_TARGET_ARCH_ARM
@@ -244,7 +283,7 @@ int OS::ActivationFrameAlignment() {
 
 // static
 size_t OS::AllocatePageSize() {
-#if defined(V8_TARGET_OS_MACOSX) && V8_HOST_ARCH_ARM64
+#if defined(V8_TARGET_OS_MACOS) && V8_HOST_ARCH_ARM64
   return kAppleArmPageSize;
 #else
   static size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
@@ -274,7 +313,7 @@ void* OS::GetRandomMmapAddr() {
     GetPlatformRandomNumberGenerator()->NextBytes(&raw_addr, sizeof(raw_addr));
   }
 #if V8_HOST_ARCH_ARM64
-#if defined(V8_TARGET_OS_MACOSX)
+#if defined(V8_TARGET_OS_MACOS)
   DCHECK_EQ(1 << 14, AllocatePageSize());
 #endif
   // Keep the address page-aligned, AArch64 supports 4K, 16K and 64K
@@ -325,6 +364,14 @@ void* OS::GetRandomMmapAddr() {
 #elif V8_TARGET_ARCH_RISCV64
   // TODO(RISCV): We need more information from the kernel to correctly mask
   // this address for RISC-V. https://github.com/v8-riscv/v8/issues/375
+  raw_addr &= uint64_t{0xFFFFFF0000};
+#elif V8_TARGET_ARCH_RISCV32
+  // TODO(RISCV): We need more information from the kernel to correctly mask
+  // this address for RISC-V. https://github.com/v8-riscv/v8/issues/375
+  raw_addr &= 0x3FFFF000;
+#elif V8_TARGET_ARCH_LOONG64
+  // 42 bits of virtual addressing. Truncate to 40 bits to allow kernel chance
+  // to fulfill request.
   raw_addr &= uint64_t{0xFFFFFF0000};
 #else
   raw_addr &= 0x3FFFF000;
@@ -377,14 +424,14 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
   if (aligned_base != base) {
     DCHECK_LT(base, aligned_base);
     size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    CHECK(Free(base, prefix_size));
+    Free(base, prefix_size);
     request_size -= prefix_size;
   }
   // Unmap memory allocated after the potentially unaligned end.
   if (size != request_size) {
     DCHECK_LT(size, request_size);
     size_t suffix_size = request_size - size;
-    CHECK(Free(aligned_base + size, suffix_size));
+    Free(aligned_base + size, suffix_size);
     request_size -= suffix_size;
   }
 
@@ -399,17 +446,37 @@ void* OS::AllocateShared(size_t size, MemoryPermission access) {
 }
 
 // static
-bool OS::Free(void* address, const size_t size) {
+void OS::Free(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
   DCHECK_EQ(0, size % AllocatePageSize());
-  return munmap(address, size) == 0;
+  CHECK_EQ(0, munmap(address, size));
+}
+
+// Darwin specific implementation in platform-darwin.cc.
+#if !defined(V8_OS_DARWIN)
+// static
+void* OS::AllocateShared(void* hint, size_t size, MemoryPermission access,
+                         PlatformSharedMemoryHandle handle, uint64_t offset) {
+  DCHECK_EQ(0, size % AllocatePageSize());
+  int prot = GetProtectionFromMemoryPermission(access);
+  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  void* result = mmap(hint, size, prot, MAP_SHARED, fd, offset);
+  if (result == MAP_FAILED) return nullptr;
+  return result;
+}
+#endif  // !defined(V8_OS_DARWIN)
+
+// static
+void OS::FreeShared(void* address, size_t size) {
+  DCHECK_EQ(0, size % AllocatePageSize());
+  CHECK_EQ(0, munmap(address, size));
 }
 
 // static
-bool OS::Release(void* address, size_t size) {
+void OS::Release(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
-  return munmap(address, size) == 0;
+  CHECK_EQ(0, munmap(address, size));
 }
 
 // static
@@ -420,9 +487,15 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   int prot = GetProtectionFromMemoryPermission(access);
   int ret = mprotect(address, size, prot);
 
+  // Setting permissions can fail if the limit of VMAs is exceeded.
+  // Any failure that's not OOM likely indicates a bug in the caller (e.g.
+  // using an invalid mapping) so attempt to catch that here to facilitate
+  // debugging of these failures.
+  if (ret != 0) CHECK_EQ(ENOMEM, errno);
+
   // MacOS 11.2 on Apple Silicon refuses to switch permissions from
   // rwx to none. Just use madvise instead.
-#if defined(V8_OS_MACOSX)
+#if defined(V8_OS_DARWIN)
   if (ret != 0 && access == OS::MemoryPermission::kNoAccess) {
     ret = madvise(address, size, MADV_FREE_REUSABLE);
     return ret == 0;
@@ -440,45 +513,168 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 // The cost is a syscall that effectively no-ops.
 // TODO(erikchen): Fix this to only call MADV_FREE_REUSE when necessary.
 // https://crbug.com/823915
-#if defined(V8_OS_MACOSX)
-  if (access != OS::MemoryPermission::kNoAccess)
+#if defined(V8_OS_DARWIN)
+  if (access != OS::MemoryPermission::kNoAccess) {
     madvise(address, size, MADV_FREE_REUSE);
-#endif
-
-  return ret == 0;
-}
-
-bool OS::DiscardSystemPages(void* address, size_t size) {
-  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
-  DCHECK_EQ(0, size % CommitPageSize());
-#if defined(V8_OS_MACOSX)
-  // On OSX, MADV_FREE_REUSABLE has comparable behavior to MADV_FREE, but also
-  // marks the pages with the reusable bit, which allows both Activity Monitor
-  // and memory-infra to correctly track the pages.
-  int ret = madvise(address, size, MADV_FREE_REUSABLE);
-#elif defined(_AIX) || defined(V8_OS_SOLARIS)
-  int ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_FREE);
-#else
-  int ret = madvise(address, size, MADV_FREE);
-#endif
-  if (ret != 0 && errno == ENOSYS)
-    return true;  // madvise is not available on all systems.
-  if (ret != 0 && errno == EINVAL) {
-// MADV_FREE only works on Linux 4.5+ . If request failed, retry with older
-// MADV_DONTNEED . Note that MADV_FREE being defined at compile time doesn't
-// imply runtime support.
-#if defined(_AIX) || defined(V8_OS_SOLARIS)
-    ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_DONTNEED);
-#else
-    ret = madvise(address, size, MADV_DONTNEED);
-#endif
   }
+#endif
+
   return ret == 0;
 }
 
 // static
+void OS::SetDataReadOnly(void* address, size_t size) {
+  CHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  CHECK_EQ(0, size % CommitPageSize());
+
+  if (mprotect(address, size, PROT_READ) != 0) {
+    FATAL("Failed to protect data memory at %p +%zu; error %d\n", address, size,
+          errno);
+  }
+}
+
+// static
+bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+
+#if defined(V8_OS_DARWIN)
+  while (madvise(address, size, MADV_FREE_REUSE) == -1 && errno == EAGAIN) {
+  }
+  return true;
+#else
+  return SetPermissions(address, size, access);
+#endif  // defined(V8_OS_DARWIN)
+}
+
+// static
+bool OS::DiscardSystemPages(void* address, size_t size) {
+  // Roughly based on PartitionAlloc's DiscardSystemPagesInternal
+  // (base/allocator/partition_allocator/page_allocator_internals_posix.h)
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+#if defined(V8_OS_DARWIN)
+  // On OSX, MADV_FREE_REUSABLE has comparable behavior to MADV_FREE, but also
+  // marks the pages with the reusable bit, which allows both Activity Monitor
+  // and memory-infra to correctly track the pages.
+  int ret;
+  do {
+    ret = madvise(address, size, MADV_FREE_REUSABLE);
+  } while (ret != 0 && errno == EAGAIN);
+  if (ret) {
+    // MADV_FREE_REUSABLE sometimes fails, so fall back to MADV_DONTNEED.
+    ret = madvise(address, size, MADV_DONTNEED);
+  }
+#elif defined(_AIX) || defined(V8_OS_SOLARIS)
+  int ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_FREE);
+  if (ret != 0 && errno == ENOSYS) {
+    return true;  // madvise is not available on all systems.
+  }
+  if (ret != 0 && errno == EINVAL) {
+    ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_DONTNEED);
+  }
+#else
+  int ret = madvise(address, size, MADV_DONTNEED);
+#endif
+  // madvise with MADV_DONTNEED only fails on illegal parameters. That's a bug
+  // in the caller.
+  CHECK_EQ(0, ret);
+  return true;
+}
+
+#if !defined(_AIX)
+// See AIX version for details.
+// static
+bool OS::DecommitPages(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  // From https://pubs.opengroup.org/onlinepubs/9699919799/functions/mmap.html:
+  // "If a MAP_FIXED request is successful, then any previous mappings [...] for
+  // those whole pages containing any part of the address range [pa,pa+len)
+  // shall be removed, as if by an appropriate call to munmap(), before the new
+  // mapping is established." As a consequence, the memory will be
+  // zero-initialized on next access.
+  void* ret = mmap(address, size, PROT_NONE,
+                   MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  if (V8_UNLIKELY(ret == MAP_FAILED)) {
+    // Decommitting pages can fail if the limit of VMAs is exceeded.
+    CHECK_EQ(ENOMEM, errno);
+    return false;
+  }
+  CHECK_EQ(ret, address);
+  return true;
+}
+#endif  // !defined(_AIX)
+
+// static
+bool OS::CanReserveAddressSpace() { return true; }
+
+// static
+Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
+    void* hint, size_t size, size_t alignment,
+    MemoryPermission max_permission) {
+  // On POSIX, address space reservations are backed by private memory mappings.
+  MemoryPermission permission = MemoryPermission::kNoAccess;
+  if (max_permission == MemoryPermission::kReadWriteExecute) {
+    permission = MemoryPermission::kNoAccessWillJitLater;
+  }
+
+  void* reservation = Allocate(hint, size, alignment, permission);
+  if (!reservation && permission == MemoryPermission::kNoAccessWillJitLater) {
+    // Retry without MAP_JIT, for example in case we are running on an old OS X.
+    permission = MemoryPermission::kNoAccess;
+    reservation = Allocate(hint, size, alignment, permission);
+  }
+
+  if (!reservation) return {};
+
+  return AddressSpaceReservation(reservation, size);
+}
+
+// static
+void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
+  Free(reservation.base(), reservation.size());
+}
+
+// Darwin specific implementation in platform-darwin.cc.
+#if !defined(V8_OS_DARWIN)
+// static
+// Need to disable CFI_ICALL due to the indirect call to memfd_create.
+DISABLE_CFI_ICALL
+PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+#if V8_OS_LINUX && !V8_OS_ANDROID
+  // Use memfd_create if available, otherwise mkstemp.
+  using memfd_create_t = int (*)(const char*, unsigned int);
+  memfd_create_t memfd_create =
+      reinterpret_cast<memfd_create_t>(dlsym(RTLD_DEFAULT, "memfd_create"));
+  int fd = -1;
+  if (memfd_create) {
+    fd = memfd_create("V8MemFDForTesting", 0);
+  }
+  if (fd == -1) {
+    char filename[] = "/tmp/v8_tmp_file_for_testing_XXXXXX";
+    fd = mkstemp(filename);
+    if (fd != -1) CHECK_EQ(0, unlink(filename));
+  }
+  if (fd == -1) return kInvalidSharedMemoryHandle;
+  CHECK_EQ(0, ftruncate(fd, size));
+  return SharedMemoryHandleFromFileDescriptor(fd);
+#else
+  return kInvalidSharedMemoryHandle;
+#endif
+}
+
+// static
+void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
+  DCHECK_NE(kInvalidSharedMemoryHandle, handle);
+  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  CHECK_EQ(0, close(fd));
+}
+#endif  // !defined(V8_OS_DARWIN)
+
+// static
 bool OS::HasLazyCommits() {
-#if V8_OS_AIX || V8_OS_LINUX || V8_OS_MACOSX
+#if V8_OS_AIX || V8_OS_LINUX || V8_OS_DARWIN
   return true;
 #else
   // TODO(bbudge) Return true for all POSIX platforms.
@@ -499,7 +695,7 @@ void OS::Sleep(TimeDelta interval) {
 
 void OS::Abort() {
   if (g_hard_abort) {
-    V8_IMMEDIATE_CRASH();
+    IMMEDIATE_CRASH();
   }
   // Redirect to std abort to signal abnormal program termination.
   abort();
@@ -515,6 +711,8 @@ void OS::DebugBreak() {
   asm("break");
 #elif V8_HOST_ARCH_MIPS64
   asm("break");
+#elif V8_HOST_ARCH_LOONG64
+  asm("break 0");
 #elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
   asm("twge 2,2");
 #elif V8_HOST_ARCH_IA32
@@ -525,6 +723,8 @@ void OS::DebugBreak() {
   // Software breakpoint instruction is 0x0001
   asm volatile(".word 0x0001");
 #elif V8_HOST_ARCH_RISCV64
+  asm("ebreak");
+#elif V8_HOST_ARCH_RISCV32
   asm("ebreak");
 #else
 #error Unsupported host architecture.
@@ -551,25 +751,29 @@ class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
                                                  FileMode mode) {
   const char* fopen_mode = (mode == FileMode::kReadOnly) ? "r" : "r+";
-  if (FILE* file = fopen(name, fopen_mode)) {
-    if (fseek(file, 0, SEEK_END) == 0) {
-      long size = ftell(file);  // NOLINT(runtime/int)
-      if (size == 0) return new PosixMemoryMappedFile(file, nullptr, 0);
-      if (size > 0) {
-        int prot = PROT_READ;
-        int flags = MAP_PRIVATE;
-        if (mode == FileMode::kReadWrite) {
-          prot |= PROT_WRITE;
-          flags = MAP_SHARED;
-        }
-        void* const memory =
-            mmap(OS::GetRandomMmapAddr(), size, prot, flags, fileno(file), 0);
-        if (memory != MAP_FAILED) {
-          return new PosixMemoryMappedFile(file, memory, size);
+  struct stat statbuf;
+  // Make sure path exists and is not a directory.
+  if (stat(name, &statbuf) == 0 && !S_ISDIR(statbuf.st_mode)) {
+    if (FILE* file = fopen(name, fopen_mode)) {
+      if (fseek(file, 0, SEEK_END) == 0) {
+        long size = ftell(file);  // NOLINT(runtime/int)
+        if (size == 0) return new PosixMemoryMappedFile(file, nullptr, 0);
+        if (size > 0) {
+          int prot = PROT_READ;
+          int flags = MAP_PRIVATE;
+          if (mode == FileMode::kReadWrite) {
+            prot |= PROT_WRITE;
+            flags = MAP_SHARED;
+          }
+          void* const memory =
+              mmap(OS::GetRandomMmapAddr(), size, prot, flags, fileno(file), 0);
+          if (memory != MAP_FAILED) {
+            return new PosixMemoryMappedFile(file, memory, size);
+          }
         }
       }
+      fclose(file);
     }
-    fclose(file);
   }
   return nullptr;
 }
@@ -594,7 +798,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) CHECK(OS::Free(memory_, RoundUp(size_, OS::AllocatePageSize())));
+  if (memory_) OS::Free(memory_, RoundUp(size_, OS::AllocatePageSize()));
   fclose(file_);
 }
 
@@ -605,7 +809,7 @@ int OS::GetCurrentProcessId() {
 
 
 int OS::GetCurrentThreadId() {
-#if V8_OS_MACOSX || (V8_OS_ANDROID && defined(__APPLE__))
+#if V8_OS_DARWIN || (V8_OS_ANDROID && defined(__APPLE__))
   return static_cast<int>(pthread_mach_thread_np(pthread_self()));
 #elif V8_OS_LINUX
   return static_cast<int>(syscall(__NR_gettid));
@@ -727,10 +931,12 @@ void OS::FPrint(FILE* out, const char* format, ...) {
 
 void OS::VFPrint(FILE* out, const char* format, va_list args) {
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
-  __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
-#else
-  vfprintf(out, format, args);
+  if (out == stdout) {
+    __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
+    return;
+  }
 #endif
+  vfprintf(out, format, args);
 }
 
 
@@ -784,6 +990,89 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
   strncpy(dest, src, n);
 }
 
+// ----------------------------------------------------------------------------
+// POSIX Address space reservation support.
+//
+
+#if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
+
+Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(
+    void* address, size_t size, OS::MemoryPermission max_permission) {
+  DCHECK(Contains(address, size));
+  DCHECK_EQ(0, size % OS::AllocatePageSize());
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % OS::AllocatePageSize());
+
+  return AddressSpaceReservation(address, size);
+}
+
+bool AddressSpaceReservation::FreeSubReservation(
+    AddressSpaceReservation reservation) {
+  // Nothing to do.
+  // Pages allocated inside the reservation must've already been freed.
+  return true;
+}
+
+bool AddressSpaceReservation::Allocate(void* address, size_t size,
+                                       OS::MemoryPermission access) {
+  // The region is already mmap'ed, so it just has to be made accessible now.
+  DCHECK(Contains(address, size));
+  if (access == OS::MemoryPermission::kNoAccess) {
+    // Nothing to do. We don't want to call SetPermissions with kNoAccess here
+    // as that will for example mark the pages as discardable, which is
+    // probably not desired here.
+    return true;
+  }
+  return OS::SetPermissions(address, size, access);
+}
+
+bool AddressSpaceReservation::Free(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  return OS::DecommitPages(address, size);
+}
+
+// Darwin specific implementation in platform-darwin.cc.
+#if !defined(V8_OS_DARWIN)
+bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
+                                             OS::MemoryPermission access,
+                                             PlatformSharedMemoryHandle handle,
+                                             uint64_t offset) {
+  DCHECK(Contains(address, size));
+  int prot = GetProtectionFromMemoryPermission(access);
+  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  return mmap(address, size, prot, MAP_SHARED | MAP_FIXED, fd, offset) !=
+         MAP_FAILED;
+}
+#endif  // !defined(V8_OS_DARWIN)
+
+bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  return mmap(address, size, PROT_NONE, MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE,
+              -1, 0) == address;
+}
+
+bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
+                                             OS::MemoryPermission access) {
+  DCHECK(Contains(address, size));
+  return OS::SetPermissions(address, size, access);
+}
+
+bool AddressSpaceReservation::RecommitPages(void* address, size_t size,
+                                            OS::MemoryPermission access) {
+  DCHECK(Contains(address, size));
+  return OS::RecommitPages(address, size, access);
+}
+
+bool AddressSpaceReservation::DiscardSystemPages(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  return OS::DiscardSystemPages(address, size);
+}
+
+bool AddressSpaceReservation::DecommitPages(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  return OS::DecommitPages(address, size);
+}
+
+#endif  // !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 
 // ----------------------------------------------------------------------------
 // POSIX thread support.
@@ -800,13 +1089,12 @@ class Thread::PlatformData {
 Thread::Thread(const Options& options)
     : data_(new PlatformData),
       stack_size_(options.stack_size()),
+      priority_(options.priority()),
       start_semaphore_(nullptr) {
-  if (stack_size_ > 0 && static_cast<size_t>(stack_size_) < PTHREAD_STACK_MIN) {
-    stack_size_ = PTHREAD_STACK_MIN;
-  }
+  const int min_stack_size = static_cast<int>(PTHREAD_STACK_MIN);
+  if (stack_size_ > 0) stack_size_ = std::max(stack_size_, min_stack_size);
   set_name(options.name());
 }
-
 
 Thread::~Thread() {
   delete data_;
@@ -817,9 +1105,9 @@ static void SetThreadName(const char* name) {
 #if V8_OS_DRAGONFLYBSD || V8_OS_FREEBSD || V8_OS_OPENBSD
   pthread_set_name_np(pthread_self(), name);
 #elif V8_OS_NETBSD
-  STATIC_ASSERT(Thread::kMaxThreadNameLength <= PTHREAD_MAX_NAMELEN_NP);
+  static_assert(Thread::kMaxThreadNameLength <= PTHREAD_MAX_NAMELEN_NP);
   pthread_setname_np(pthread_self(), "%s", name);
-#elif V8_OS_MACOSX
+#elif V8_OS_DARWIN
   // pthread_setname_np is only available in 10.6 or later, so test
   // for it at runtime.
   int (*dynamic_pthread_setname_np)(const char*);
@@ -829,7 +1117,7 @@ static void SetThreadName(const char* name) {
 
   // Mac OS X does not expose the length limit of the name, so hardcode it.
   static const int kMaxNameLength = 63;
-  STATIC_ASSERT(Thread::kMaxThreadNameLength <= kMaxNameLength);
+  static_assert(Thread::kMaxThreadNameLength <= kMaxNameLength);
   dynamic_pthread_setname_np(name);
 #elif defined(PR_SET_NAME)
   prctl(PR_SET_NAME,
@@ -838,7 +1126,6 @@ static void SetThreadName(const char* name) {
 #endif
 }
 
-
 static void* ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
   // We take the lock here to make sure that pthread_create finished first since
@@ -846,6 +1133,35 @@ static void* ThreadEntry(void* arg) {
   // one).
   { MutexGuard lock_guard(&thread->data()->thread_creation_mutex_); }
   SetThreadName(thread->name());
+#if V8_OS_DARWIN
+  switch (thread->priority()) {
+    case Thread::Priority::kBestEffort:
+      pthread_set_qos_class_self_np(QOS_CLASS_BACKGROUND, 0);
+      break;
+    case Thread::Priority::kUserVisible:
+      pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, -1);
+      break;
+    case Thread::Priority::kUserBlocking:
+      pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);
+      break;
+    case Thread::Priority::kDefault:
+      break;
+  }
+#elif V8_OS_LINUX
+  switch (thread->priority()) {
+    case Thread::Priority::kBestEffort:
+      setpriority(PRIO_PROCESS, 0, 10);
+      break;
+    case Thread::Priority::kUserVisible:
+      setpriority(PRIO_PROCESS, 0, 1);
+      break;
+    case Thread::Priority::kUserBlocking:
+      setpriority(PRIO_PROCESS, 0, 0);
+      break;
+    case Thread::Priority::kDefault:
+      break;
+  }
+#endif
   DCHECK_NE(thread->data()->thread_, kNoThread);
   thread->NotifyStartedAndRun();
   return nullptr;
@@ -865,7 +1181,7 @@ bool Thread::Start() {
   if (result != 0) return false;
   size_t stack_size = stack_size_;
   if (stack_size == 0) {
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
     // Default on Mac OS X is 512kB -- bump up to 1MB
     stack_size = 1 * 1024 * 1024;
 #elif V8_OS_AIX
@@ -895,7 +1211,7 @@ static Thread::LocalStorageKey PthreadKeyToLocalKey(pthread_key_t pthread_key) {
   // We need to cast pthread_key_t to Thread::LocalStorageKey in two steps
   // because pthread_key_t is a pointer type on Cygwin. This will probably not
   // work on 64-bit platforms, but Cygwin doesn't support 64-bit anyway.
-  STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
+  static_assert(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
   intptr_t ptr_key = reinterpret_cast<intptr_t>(pthread_key);
   return static_cast<Thread::LocalStorageKey>(ptr_key);
 #else
@@ -906,7 +1222,7 @@ static Thread::LocalStorageKey PthreadKeyToLocalKey(pthread_key_t pthread_key) {
 
 static pthread_key_t LocalKeyToPthreadKey(Thread::LocalStorageKey local_key) {
 #if V8_OS_CYGWIN
-  STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
+  static_assert(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
   intptr_t ptr_key = static_cast<intptr_t>(local_key);
   return reinterpret_cast<pthread_key_t>(ptr_key);
 #else
@@ -914,48 +1230,7 @@ static pthread_key_t LocalKeyToPthreadKey(Thread::LocalStorageKey local_key) {
 #endif
 }
 
-
-#ifdef V8_FAST_TLS_SUPPORTED
-
-static std::atomic<bool> tls_base_offset_initialized{false};
-intptr_t kMacTlsBaseOffset = 0;
-
-// It's safe to do the initialization more that once, but it has to be
-// done at least once.
-static void InitializeTlsBaseOffset() {
-  const size_t kBufferSize = 128;
-  char buffer[kBufferSize];
-  size_t buffer_size = kBufferSize;
-  int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
-  if (sysctl(ctl_name, 2, buffer, &buffer_size, nullptr, 0) != 0) {
-    FATAL("V8 failed to get kernel version");
-  }
-  // The buffer now contains a string of the form XX.YY.ZZ, where
-  // XX is the major kernel version component.
-  // Make sure the buffer is 0-terminated.
-  buffer[kBufferSize - 1] = '\0';
-  char* period_pos = strchr(buffer, '.');
-  *period_pos = '\0';
-  int kernel_version_major =
-      static_cast<int>(strtol(buffer, nullptr, 10));  // NOLINT
-  // The constants below are taken from pthreads.s from the XNU kernel
-  // sources archive at www.opensource.apple.com.
-  if (kernel_version_major < 11) {
-    // 8.x.x (Tiger), 9.x.x (Leopard), 10.x.x (Snow Leopard) have the
-    // same offsets.
-#if V8_HOST_ARCH_IA32
-    kMacTlsBaseOffset = 0x48;
-#else
-    kMacTlsBaseOffset = 0x60;
-#endif
-  } else {
-    // 11.x.x (Lion) changed the offset.
-    kMacTlsBaseOffset = 0;
-  }
-
-  tls_base_offset_initialized.store(true, std::memory_order_release);
-}
-
+#if defined(V8_FAST_TLS_SUPPORTED) && defined(DEBUG)
 
 static void CheckFastTls(Thread::LocalStorageKey key) {
   void* expected = reinterpret_cast<void*>(0x1234CAFE);
@@ -967,29 +1242,19 @@ static void CheckFastTls(Thread::LocalStorageKey key) {
   Thread::SetThreadLocal(key, nullptr);
 }
 
-#endif  // V8_FAST_TLS_SUPPORTED
-
+#endif  // defined(V8_FAST_TLS_SUPPORTED) && defined(DEBUG)
 
 Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
-#ifdef V8_FAST_TLS_SUPPORTED
-  bool check_fast_tls = false;
-  if (!tls_base_offset_initialized.load(std::memory_order_acquire)) {
-    check_fast_tls = true;
-    InitializeTlsBaseOffset();
-  }
-#endif
   pthread_key_t key;
   int result = pthread_key_create(&key, nullptr);
   DCHECK_EQ(0, result);
   USE(result);
   LocalStorageKey local_key = PthreadKeyToLocalKey(key);
-#ifdef V8_FAST_TLS_SUPPORTED
-  // If we just initialized fast TLS support, make sure it works.
-  if (check_fast_tls) CheckFastTls(local_key);
+#if defined(V8_FAST_TLS_SUPPORTED) && defined(DEBUG)
+  CheckFastTls(local_key);
 #endif
   return local_key;
 }
-
 
 void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
   pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
@@ -1015,33 +1280,58 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 // pthread_getattr_np used below is non portable (hence the _np suffix). We
 // keep this version in POSIX as most Linux-compatible derivatives will
 // support it. MacOS and FreeBSD are different here.
-#if !defined(V8_OS_FREEBSD) && !defined(V8_OS_MACOSX) && !defined(_AIX) && \
+#if !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) && !defined(_AIX) && \
     !defined(V8_OS_SOLARIS)
 
+namespace {
+#if DEBUG
+bool MainThreadIsCurrentThread() {
+  // This method assumes the first time is called is from the main thread.
+  // It returns true for subsequent calls only if they are called from the
+  // same thread.
+  static int main_thread_id = -1;
+  if (main_thread_id == -1) {
+    main_thread_id = OS::GetCurrentThreadId();
+  }
+  return main_thread_id == OS::GetCurrentThreadId();
+}
+#endif  // DEBUG
+}  // namespace
+
 // static
-Stack::StackSlot Stack::GetStackStart() {
+Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);
-  if (!error) {
-    void* base;
-    size_t size;
-    error = pthread_attr_getstack(&attr, &base, &size);
-    CHECK(!error);
-    pthread_attr_destroy(&attr);
-    return reinterpret_cast<uint8_t*>(base) + size;
-  }
-
+  if (error) {
+    DCHECK(MainThreadIsCurrentThread());
 #if defined(V8_LIBC_GLIBC)
-  // pthread_getattr_np can fail for the main thread. In this case
-  // just like NaCl we rely on the __libc_stack_end to give us
-  // the start of the stack.
-  // See https://code.google.com/p/nativeclient/issues/detail?id=3431.
-  return __libc_stack_end;
+    // pthread_getattr_np can fail for the main thread.
+    // For the main thread we prefer using __libc_stack_end (if it exists) since
+    // it generally provides a tighter limit for CSS.
+    return __libc_stack_end;
+#else
+    return nullptr;
 #endif  // !defined(V8_LIBC_GLIBC)
-  return nullptr;
+  }
+  void* base;
+  size_t size;
+  error = pthread_attr_getstack(&attr, &base, &size);
+  CHECK(!error);
+  pthread_attr_destroy(&attr);
+  void* stack_start = reinterpret_cast<uint8_t*>(base) + size;
+#if defined(V8_LIBC_GLIBC)
+  // __libc_stack_end is process global and thus is only valid for
+  // the main thread. Check whether this is the main thread by checking
+  // __libc_stack_end is within the thread's stack.
+  if ((base <= __libc_stack_end) && (__libc_stack_end <= stack_start)) {
+    DCHECK(MainThreadIsCurrentThread());
+    return __libc_stack_end;
+  }
+#endif  // !defined(V8_LIBC_GLIBC)
+  return stack_start;
 }
 
-#endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_MACOSX) &&
+#endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) &&
         // !defined(_AIX) && !defined(V8_OS_SOLARIS)
 
 // static

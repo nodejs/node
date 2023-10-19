@@ -15,15 +15,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow labels that share a name with a variable",
-            category: "Variables",
+            description: "Disallow labels that share a name with a variable",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-label-var"
+            url: "https://eslint.org/docs/latest/rules/no-label-var"
         },
 
         schema: [],
@@ -34,6 +34,7 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -59,7 +60,7 @@ module.exports = {
             LabeledStatement(node) {
 
                 // Fetch the innermost scope.
-                const scope = context.getScope();
+                const scope = sourceCode.getScope(node);
 
                 /*
                  * Recursively find the identifier walking up the scope, starting

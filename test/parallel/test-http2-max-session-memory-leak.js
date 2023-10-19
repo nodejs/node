@@ -9,7 +9,7 @@ const http2 = require('http2');
 // mechanism.
 
 const bodyLength = 8192;
-const maxSessionMemory = 1;  // 1 MB
+const maxSessionMemory = 1;  // 1 MiB
 const requestCount = 1000;
 
 const server = http2.createServer({ maxSessionMemory });

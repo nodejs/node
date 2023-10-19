@@ -26,7 +26,7 @@ public:
         map = uhash_openSize(uhash_hashChars, uhash_compareChars, uhash_compareChars,
                              size, &errorCode);
     }
-    CharStringMap(CharStringMap &&other) U_NOEXCEPT : map(other.map) {
+    CharStringMap(CharStringMap &&other) noexcept : map(other.map) {
         other.map = nullptr;
     }
     CharStringMap(const CharStringMap &other) = delete;
@@ -34,7 +34,7 @@ public:
         uhash_close(map);
     }
 
-    CharStringMap &operator=(CharStringMap &&other) U_NOEXCEPT {
+    CharStringMap &operator=(CharStringMap &&other) noexcept {
         map = other.map;
         other.map = nullptr;
         return *this;

@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 const JS = false;  // for testing the tests.
 const WRONG1 = 0x0DEDFACE;

@@ -1,27 +1,33 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
+const { spawnSyncAndExit } = require('../common/child_process');
 const { internalBinding } = require('internal/test/binding');
-const os = require('os');
 
 const { hasSmallICU } = internalBinding('config');
 if (!(common.hasIntl && hasSmallICU))
   common.skip('missing Intl');
 
-const assert = require('assert');
-const { spawnSync } = require('child_process');
-
-const expected =
-    'could not initialize ICU (check NODE_ICU_DATA or ' +
-    `--icu-data-dir parameters)${os.EOL}`;
-
 {
-  const child = spawnSync(process.execPath, ['--icu-data-dir=/', '-e', '0']);
-  assert(child.stderr.toString().includes(expected));
+  spawnSyncAndExit(
+    process.execPath,
+    ['--icu-data-dir=/', '-e', '0'],
+    {
+      status: 9,
+      signal: null,
+      stderr: /Could not initialize ICU/
+    });
 }
 
 {
   const env = { ...process.env, NODE_ICU_DATA: '/' };
-  const child = spawnSync(process.execPath, ['-e', '0'], { env });
-  assert(child.stderr.toString().includes(expected));
+  spawnSyncAndExit(
+    process.execPath,
+    ['-e', '0'],
+    { env },
+    {
+      status: 9,
+      signal: null,
+      stderr: /Could not initialize ICU/
+    });
 }

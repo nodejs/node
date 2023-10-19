@@ -9,22 +9,23 @@ const arg = process.argv[2];
 switch (arg) {
   case 'test_init_callback':
     initHooks({
-      oninit: common.mustCall(() => { throw new Error(arg); })
+      oninit: common.mustCall(() => { throw new Error(arg); }),
     }).enable();
     new async_hooks.AsyncResource(`${arg}_type`);
     return;
 
-  case 'test_callback':
+  case 'test_callback': {
     initHooks({
-      onbefore: common.mustCall(() => { throw new Error(arg); })
+      onbefore: common.mustCall(() => { throw new Error(arg); }),
     }).enable();
     const resource = new async_hooks.AsyncResource(`${arg}_type`);
     resource.runInAsyncScope(() => {});
     return;
+  }
 
   case 'test_callback_abort':
     initHooks({
-      oninit: common.mustCall(() => { throw new Error(arg); })
+      oninit: common.mustCall(() => { throw new Error(arg); }),
     }).enable();
     new async_hooks.AsyncResource(`${arg}_type`);
     return;

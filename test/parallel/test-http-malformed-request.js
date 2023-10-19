@@ -41,7 +41,7 @@ server.listen(0);
 server.on('listening', function() {
   const c = net.createConnection(this.address().port);
   c.on('connect', function() {
-    c.write('GET /hello?foo=%99bar HTTP/1.1\r\n\r\n');
+    c.write('GET /hello?foo=%99bar HTTP/1.1\r\nHost: example.com\r\n\r\n');
     c.end();
   });
 });

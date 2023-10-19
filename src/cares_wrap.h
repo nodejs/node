@@ -9,8 +9,9 @@
 #include "base_object.h"
 #include "env.h"
 #include "memory_tracker.h"
-#include "util.h"
 #include "node.h"
+#include "node_internals.h"
+#include "util.h"
 
 #include "ares.h"
 #include "v8.h"
@@ -22,15 +23,7 @@
 # include <netdb.h>
 #endif  // __POSIX__
 
-#if defined(__ANDROID__) || \
-    defined(__MINGW32__) || \
-    defined(__OpenBSD__) || \
-    defined(_MSC_VER)
-
-# include <nameser.h>
-#else
-# include <arpa/nameser.h>
-#endif
+# include <ares_nameser.h>
 
 namespace node {
 namespace cares_wrap {
@@ -155,7 +148,11 @@ struct NodeAresTask final : public MemoryRetainer {
 
 class ChannelWrap final : public AsyncWrap {
  public:
-  ChannelWrap(Environment* env, v8::Local<v8::Object> object, int timeout);
+  ChannelWrap(
+      Environment* env,
+      v8::Local<v8::Object> object,
+      int timeout,
+      int tries);
   ~ChannelWrap() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -189,6 +186,7 @@ class ChannelWrap final : public AsyncWrap {
   bool is_servers_default_ = true;
   bool library_inited_ = false;
   int timeout_;
+  int tries_;
   int active_query_count_ = 0;
   NodeAresTask::List task_list_;
 };

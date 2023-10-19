@@ -5,9 +5,13 @@
 #ifndef V8_EXTENSIONS_TRIGGER_FAILURE_EXTENSION_H_
 #define V8_EXTENSIONS_TRIGGER_FAILURE_EXTENSION_H_
 
-#include "include/v8.h"
+#include "include/v8-extension.h"
 
 namespace v8 {
+
+template <typename T>
+class FunctionCallbackInfo;
+
 namespace internal {
 
 class TriggerFailureExtension : public v8::Extension {
@@ -16,11 +20,11 @@ class TriggerFailureExtension : public v8::Extension {
   v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) override;
   static void TriggerCheckFalse(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& info);
   static void TriggerAssertFalse(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& info);
   static void TriggerSlowAssertFalse(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& info);
 
  private:
   static const char* const kSource;

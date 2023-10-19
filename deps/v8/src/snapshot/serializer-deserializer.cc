@@ -4,57 +4,77 @@
 
 #include "src/snapshot/serializer-deserializer.h"
 
-#include "src/objects/foreign-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-// The startup object cache is terminated by undefined. We visit the context
-// snapshot...
-//  - during deserialization to populate it.
-//  - during normal GC to keep its content alive.
-//  - not during serialization. The context serializer adds to it explicitly.
+namespace {
 DISABLE_CFI_PERF
-void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
-  std::vector<Object>* cache = isolate->startup_object_cache();
+void IterateObjectCache(Isolate* isolate, std::vector<Object>* cache,
+                        Root root_id, RootVisitor* visitor) {
   for (size_t i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
     if (cache->size() <= i) cache->push_back(Smi::zero());
-    // During deserialization, the visitor populates the startup object cache
-    // and eventually terminates the cache with undefined.
-    visitor->VisitRootPointer(Root::kStartupObjectCache, nullptr,
-                              FullObjectSlot(&cache->at(i)));
-    if (cache->at(i).IsUndefined(isolate)) break;
+    // During deserialization, the visitor populates the object cache and
+    // eventually terminates the cache with undefined.
+    visitor->VisitRootPointer(root_id, nullptr, FullObjectSlot(&cache->at(i)));
+    if (IsUndefined(cache->at(i), isolate)) break;
   }
 }
+}  // namespace
 
-bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
-  // 1. Maps cannot be deferred as objects are expected to have a valid map
-  // immediately.
-  // 2. Internalized strings cannot be deferred as they might be
-  // converted to thin strings during post processing, at which point forward
-  // references to the now-thin string will already have been written.
-  // 3. JS objects with embedder fields cannot be deferred because the
-  // serialize/deserialize callbacks need the back reference immediately to
-  // identify the object.
+// The startup and shared heap object caches are terminated by undefined. We
+// visit these caches...
+//  - during deserialization to populate it.
+//  - during normal GC to keep its content alive.
+//  - not during serialization. The context serializer adds to it explicitly.
+void SerializerDeserializer::IterateStartupObjectCache(Isolate* isolate,
+                                                       RootVisitor* visitor) {
+  IterateObjectCache(isolate, isolate->startup_object_cache(),
+                     Root::kStartupObjectCache, visitor);
+}
+
+void SerializerDeserializer::IterateSharedHeapObjectCache(
+    Isolate* isolate, RootVisitor* visitor) {
+  IterateObjectCache(isolate, isolate->shared_heap_object_cache(),
+                     Root::kSharedHeapObjectCache, visitor);
+}
+
+bool SerializerDeserializer::CanBeDeferred(Tagged<HeapObject> o,
+                                           SlotType slot_type) {
+  // HeapObjects' map slots cannot be deferred as objects are expected to have a
+  // valid map immediately.
+  if (slot_type == SlotType::kMapSlot) {
+    DCHECK(IsMap(o));
+    return false;
+  }
+  // * Internalized strings cannot be deferred as they might be
+  //   converted to thin strings during post processing, at which point forward
+  //   references to the now-thin string will already have been written.
+  // * JS objects with embedder fields cannot be deferred because the
+  //   serialize/deserialize callbacks need the back reference immediately to
+  //   identify the object.
+  // * ByteArray cannot be deferred as JSTypedArray needs the base_pointer
+  //   ByteArray immediately if it's on heap.
+  //
   // TODO(leszeks): Could we defer string serialization if forward references
   // were resolved after object post processing?
-  return !o.IsMap() && !o.IsInternalizedString() &&
-         !(o.IsJSObject() && JSObject::cast(o).GetEmbedderFieldCount() > 0);
+  return !IsInternalizedString(o) &&
+         !(IsJSObject(o) && JSObject::cast(o)->GetEmbedderFieldCount() > 0) &&
+         !IsByteArray(o);
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, Handle<AccessorInfo> accessor_info) {
-  // Restore wiped accessor infos.
-  Foreign::cast(accessor_info->js_getter())
-      .set_foreign_address(isolate, accessor_info->redirected_getter());
+    Isolate* isolate, Tagged<AccessorInfo> accessor_info) {
+  DisallowGarbageCollection no_gc;
+  accessor_info->init_getter_redirection(isolate);
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, Handle<CallHandlerInfo> call_handler_info) {
-  Foreign::cast(call_handler_info->js_callback())
-      .set_foreign_address(isolate, call_handler_info->redirected_callback());
+    Isolate* isolate, Tagged<CallHandlerInfo> call_handler_info) {
+  DisallowGarbageCollection no_gc;
+  call_handler_info->init_callback_redirection(isolate);
 }
 
 }  // namespace internal

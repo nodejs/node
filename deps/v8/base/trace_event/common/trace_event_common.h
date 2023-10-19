@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -56,12 +56,12 @@
 //     static int send_count = 0;
 //     ++send_count;
 //     TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-//         "ipc", "message", TRACE_ID_LOCAL(send_count));
+//         "ipc", "message", TRACE_ID_WITH_SCOPE("message", send_count));
 //     Send(new MyMessage(send_count));
 //   [receive code]
 //     void OnMyMessage(send_count) {
 //       TRACE_NESTABLE_EVENT_ASYNC_END0(
-//           "ipc", "message", TRACE_ID_LOCAL(send_count));
+//           "ipc", "message", TRACE_ID_WITH_SCOPE("message", send_count));
 //     }
 // The third parameter is a unique ID to match NESTABLE_ASYNC_BEGIN/ASYNC_END
 // pairs. NESTABLE_ASYNC_BEGIN and ASYNC_END can occur on any thread of any
@@ -71,10 +71,12 @@
 //   class MyTracedClass {
 //    public:
 //     MyTracedClass() {
-//       TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("category", "MyTracedClass", this);
+//       TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("category", "MyTracedClass",
+//                                         TRACE_ID_LOCAL(this));
 //     }
 //     ~MyTracedClass() {
-//       TRACE_EVENT_NESTABLE_ASYNC_END0("category", "MyTracedClass", this);
+//       TRACE_EVENT_NESTABLE_ASYNC_END0("category", "MyTracedClass",
+//                                       TRACE_ID_LOCAL(this));
 //     }
 //   }
 //
@@ -142,12 +144,15 @@
 //   class MyData : public base::trace_event::ConvertableToTraceFormat {
 //    public:
 //     MyData() {}
+//
+//     MyData(const MyData&) = delete;
+//     MyData& operator=(const MyData&) = delete;
+//
 //     void AppendAsTraceFormat(std::string* out) const override {
 //       out->append("{\"foo\":1}");
 //     }
 //    private:
 //     ~MyData() override {}
-//     DISALLOW_COPY_AND_ASSIGN(MyData);
 //   };
 //
 //   TRACE_EVENT1("foo", "bar", "data",
@@ -201,9 +206,7 @@
 
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
-
-// Export Perfetto symbols in the same way as //base symbols.
-#define PERFETTO_COMPONENT_EXPORT BASE_EXPORT
+#include "build/build_config.h"
 
 // Enable legacy trace event macros (e.g., TRACE_EVENT{0,1,2}).
 #define PERFETTO_ENABLE_LEGACY_TRACE_EVENTS 1
@@ -217,17 +220,6 @@
 // to keep instrumentation overhead low. These macros give each temporary
 // variable a unique name based on the line number to prevent name collisions.
 #define INTERNAL_TRACE_EVENT_UID(name_prefix) PERFETTO_UID(name_prefix)
-
-// Special trace event macro to trace task execution with the location where it
-// was posted from.
-// TODO(skyostil): Convert this into a regular typed trace event.
-#define TRACE_TASK_EXECUTION(run_function, task) \
-  INTERNAL_TRACE_TASK_EXECUTION(run_function, task)
-
-// Special trace event macro to trace log messages.
-// TODO(skyostil): Convert this into a regular typed trace event.
-#define TRACE_LOG_MESSAGE(file, message, line) \
-  INTERNAL_TRACE_LOG_MESSAGE(file, message, line)
 
 // Declare debug annotation converters for base time types, so they can be
 // passed as trace event arguments.
@@ -250,22 +242,28 @@ WriteDebugAnnotation(protos::pbzero::DebugAnnotation* annotation, ::base::Time);
 }  // namespace perfetto
 
 // Pull in the tracing macro definitions from Perfetto.
-#include "third_party/perfetto/include/perfetto/tracing.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_legacy.h"
 
 namespace perfetto {
 namespace legacy {
 
 template <>
-bool BASE_EXPORT ConvertThreadId(const ::base::PlatformThreadId& thread,
-                                 uint64_t* track_uuid_out,
-                                 int32_t* pid_override_out,
-                                 int32_t* tid_override_out);
+perfetto::ThreadTrack BASE_EXPORT
+ConvertThreadId(const ::base::PlatformThreadId& thread);
+
+#if BUILDFLAG(IS_WIN)
+template <>
+perfetto::ThreadTrack BASE_EXPORT ConvertThreadId(const int& thread);
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace legacy
 
 template <>
-BASE_EXPORT TraceTimestamp
-ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
+struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
+  static TraceTimestamp ConvertTimestampToTraceTimeNs(
+      const ::base::TimeTicks& ticks);
+};
 
 }  // namespace perfetto
 
@@ -390,12 +388,19 @@ ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
                            TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val,     \
                            arg2_name, arg2_val)
 
-// Similar to TRACE_EVENT_BEGINx but with a custom |at| timestamp provided.
+// Similar to TRACE_EVENT_BEGINx but with a custom |timestamp| provided.
 // - |id| is used to match the _BEGIN event with the _END event.
 //   Events are considered to match if their category_group, name and id values
 //   all match. |id| must either be a pointer or an integer value up to 64 bits.
 //   If it's a pointer, the bits will be xored with a hash of the process ID so
 //   that the same pointer on two different processes will not collide.
+// - |timestamp| must be non-null or it crashes. Use DCHECK(timestamp) before
+//   calling this to detect an invalid timestamp even when tracing is not
+//   enabled, as the commit queue doesn't run all tests with tracing enabled.
+// Note: This legacy macro is deprecated. It should not be used in new code.
+//       If thread_id is different from current thread id, it will result into
+//       DCHECK failure. This note is also applicable to `_COPY` and `_END`
+//       variant of this macro.
 #define TRACE_EVENT_BEGIN_WITH_ID_TID_AND_TIMESTAMP0(category_group, name, id, \
                                                      thread_id, timestamp)     \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                          \
@@ -446,6 +451,10 @@ ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
                            TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val,   \
                            arg2_name, arg2_val)
 
+// Adds a trace event with the given |name| and |timestamp|. |timestamp| must be
+// non-null or it crashes. Use DCHECK(timestamp) before calling this to detect
+// an invalid timestamp even when tracing is not enabled, as the commit queue
+// doesn't run all tests with tracing enabled.
 #define TRACE_EVENT_MARK_WITH_TIMESTAMP0(category_group, name, timestamp) \
   INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                                \
       TRACE_EVENT_PHASE_MARK, category_group, name, timestamp,            \
@@ -476,12 +485,15 @@ ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
       TRACE_EVENT_PHASE_MARK, category_group, name, timestamp,                \
       TRACE_EVENT_FLAG_COPY)
 
-// Similar to TRACE_EVENT_ENDx but with a custom |at| timestamp provided.
+// Similar to TRACE_EVENT_ENDx but with a custom |timestamp| provided.
 // - |id| is used to match the _BEGIN event with the _END event.
 //   Events are considered to match if their category_group, name and id values
 //   all match. |id| must either be a pointer or an integer value up to 64 bits.
 //   If it's a pointer, the bits will be xored with a hash of the process ID so
 //   that the same pointer on two different processes will not collide.
+// - |timestamp| must be non-null or it crashes. Use DCHECK(timestamp) before
+//   calling this to detect an invalid timestamp even when tracing is not
+//   enabled, as the commit queue doesn't run all tests with tracing enabled.
 #define TRACE_EVENT_END_WITH_ID_TID_AND_TIMESTAMP0(category_group, name, id, \
                                                    thread_id, timestamp)     \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                        \
@@ -540,6 +552,9 @@ ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
                            static_cast<int>(value2_val))
 
 // Similar to TRACE_COUNTERx, but with a custom |timestamp| provided.
+// - |timestamp| must be non-null or it crashes. Use DCHECK(timestamp) before
+//   calling this to detect an invalid timestamp even when tracing is not
+//   enabled, as the commit queue doesn't run all tests with tracing enabled.
 #define TRACE_COUNTER_WITH_TIMESTAMP1(category_group, name, timestamp, value) \
   INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                                    \
       TRACE_EVENT_PHASE_COUNTER, category_group, name, timestamp,             \
@@ -925,6 +940,16 @@ ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, \
                                    category_group, name, id,               \
                                    TRACE_EVENT_FLAG_COPY)
+#define TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN1(category_group, name, id,   \
+                                               arg1_name, arg1_val)        \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, \
+                                   category_group, name, id,               \
+                                   TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
+#define TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN2(                         \
+    category_group, name, id, arg1_name, arg1_val, arg2_name, arg2_val) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                     \
+      TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, category_group, name, id, \
+      TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val, arg2_name, arg2_val)
 #define TRACE_EVENT_COPY_NESTABLE_ASYNC_END0(category_group, name, id)   \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_NESTABLE_ASYNC_END, \
                                    category_group, name, id,             \
@@ -934,6 +959,12 @@ ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                   \
       TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, category_group, name, id, \
       TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_COPY)
+#define TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP1(             \
+    category_group, name, id, timestamp, arg1_name, arg1_val)              \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                      \
+      TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, category_group, name, id,    \
+      TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_COPY, \
+      arg1_name, arg1_val)
 #define TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(          \
     category_group, name, id, timestamp)                              \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                 \
@@ -944,15 +975,6 @@ ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_NESTABLE_ASYNC_END, \
                                    category_group, name, id,             \
                                    TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
-
-// Special trace event macro to trace task execution with the location where it
-// was posted from.
-#define TRACE_TASK_EXECUTION(run_function, task) \
-  INTERNAL_TRACE_TASK_EXECUTION(run_function, task)
-
-// Special trace event macro to trace log messages.
-#define TRACE_LOG_MESSAGE(file, message, line) \
-  INTERNAL_TRACE_LOG_MESSAGE(file, message, line)
 
 // TRACE_EVENT_METADATA* events are information related to other
 // injected events, not events in their own right.
@@ -993,18 +1015,6 @@ ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
 #define TRACE_EVENT_OBJECT_DELETED_WITH_ID(category_group, name, id) \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                  \
       TRACE_EVENT_PHASE_DELETE_OBJECT, category_group, name, id,     \
-      TRACE_EVENT_FLAG_NONE)
-
-// Records entering and leaving trace event contexts. |category_group| and
-// |name| specify the context category and type. |context| is a
-// snapshotted context object id.
-#define TRACE_EVENT_ENTER_CONTEXT(category_group, name, context)      \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                   \
-      TRACE_EVENT_PHASE_ENTER_CONTEXT, category_group, name, context, \
-      TRACE_EVENT_FLAG_NONE)
-#define TRACE_EVENT_LEAVE_CONTEXT(category_group, name, context)      \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                   \
-      TRACE_EVENT_PHASE_LEAVE_CONTEXT, category_group, name, context, \
       TRACE_EVENT_FLAG_NONE)
 
 // Macro to efficiently determine if a given category group is enabled.
@@ -1070,12 +1080,15 @@ ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
 #define TRACE_EVENT_PHASE_MEMORY_DUMP ('v')
 #define TRACE_EVENT_PHASE_MARK ('R')
 #define TRACE_EVENT_PHASE_CLOCK_SYNC ('c')
-#define TRACE_EVENT_PHASE_ENTER_CONTEXT ('(')
-#define TRACE_EVENT_PHASE_LEAVE_CONTEXT (')')
 
 // Flags for changing the behavior of TRACE_EVENT_API_ADD_TRACE_EVENT.
 #define TRACE_EVENT_FLAG_NONE (static_cast<unsigned int>(0))
+
+// Should not be used outside this file or
+// except `trace_event_impl.cc` (implementation details).
+// If used, it will result in CHECK failure in SDK build.
 #define TRACE_EVENT_FLAG_COPY (static_cast<unsigned int>(1 << 0))
+
 #define TRACE_EVENT_FLAG_HAS_ID (static_cast<unsigned int>(1 << 1))
 #define TRACE_EVENT_FLAG_SCOPE_OFFSET (static_cast<unsigned int>(1 << 2))
 #define TRACE_EVENT_FLAG_SCOPE_EXTRA (static_cast<unsigned int>(1 << 3))
@@ -1088,9 +1101,6 @@ ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
 #define TRACE_EVENT_FLAG_HAS_PROCESS_ID (static_cast<unsigned int>(1 << 10))
 #define TRACE_EVENT_FLAG_HAS_LOCAL_ID (static_cast<unsigned int>(1 << 11))
 #define TRACE_EVENT_FLAG_HAS_GLOBAL_ID (static_cast<unsigned int>(1 << 12))
-// TODO(eseckler): Remove once we have native support for typed proto events in
-// TRACE_EVENT macros.
-#define TRACE_EVENT_FLAG_TYPED_PROTO_ARGS (static_cast<unsigned int>(1 << 15))
 #define TRACE_EVENT_FLAG_JAVA_STRING_LITERALS \
   (static_cast<unsigned int>(1 << 16))
 

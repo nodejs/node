@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_TEMPLATES_H_
 #define V8_OBJECTS_TEMPLATES_H_
 
+#include "src/handles/handles.h"
 #include "src/objects/struct.h"
 #include "torque-generated/bit-fields.h"
 
@@ -12,20 +13,37 @@
 #include "src/objects/object-macros.h"
 
 namespace v8 {
+
+class CFunctionInfo;
+class StructBodyDescriptor;
+
 namespace internal {
 
 #include "torque-generated/src/objects/templates-tq.inc"
 
 class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
   // While we could grow the slow cache until we run out of memory, we put
   // a limit on it anyway to not crash for embedders that re-create templates
   // instead of caching them.
   static const int kSlowTemplateInstantiationsCacheSize = 1 * MB;
+
+  // If the serial number is set to kDoNotCache, then we should never cache this
+  // TemplateInfo.
+  static const int kDoNotCache = -1;
+  // If the serial number is set to kUncached, it means that this TemplateInfo
+  // has not been cached yet but it can be.
+  static const int kUncached = -2;
+
+  inline bool should_cache() const;
+  inline bool is_cached() const;
+
+  inline bool TryGetIsolate(Isolate** isolate) const;
+  inline Isolate* GetIsolateChecked() const;
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(TemplateInfo)
 };
@@ -35,6 +53,10 @@ class FunctionTemplateRareData
     : public TorqueGeneratedFunctionTemplateRareData<FunctionTemplateRareData,
                                                      Struct> {
  public:
+  DECL_VERIFIER(FunctionTemplateRareData)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(FunctionTemplateRareData)
 };
 
@@ -44,7 +66,7 @@ class FunctionTemplateInfo
                                                  TemplateInfo> {
  public:
 #define DECL_RARE_ACCESSORS(Name, CamelName, Type)                           \
-  DECL_GETTER(Get##CamelName, Type)                                          \
+  DECL_GETTER(Get##CamelName, Tagged<Type>)                                  \
   static inline void Set##CamelName(                                         \
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info, \
       Handle<Type> Name);
@@ -83,11 +105,8 @@ class FunctionTemplateInfo
 
   DECL_RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject)
 
-  DECL_RARE_ACCESSORS(c_function, CFunction, Object)
-  DECL_RARE_ACCESSORS(c_signature, CSignature, Object)
+  DECL_RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray)
 #undef DECL_RARE_ACCESSORS
-
-  DECL_RELEASE_ACQUIRE_ACCESSORS(call_code, HeapObject)
 
   // Begin flag bits ---------------------
   DECL_BOOLEAN_ACCESSORS(undetectable)
@@ -103,18 +122,23 @@ class FunctionTemplateInfo
   // prototype_provoider_template are instantiated.
   DECL_BOOLEAN_ACCESSORS(remove_prototype)
 
-  // If set, do not attach a serial number to this FunctionTemplate and thus do
-  // not keep an instance boilerplate around.
-  DECL_BOOLEAN_ACCESSORS(do_not_cache)
-
   // If not set an access may be performed on calling the associated JSFunction.
   DECL_BOOLEAN_ACCESSORS(accept_any_receiver)
+
+  // This flag is used to check that the FunctionTemplateInfo instance is not
+  // changed after it became visible to TurboFan (either set in a
+  // SharedFunctionInfo or an accessor), because TF relies on immutability to
+  // safely read concurrently.
+  DECL_BOOLEAN_ACCESSORS(published)
+
+  // This specifies the permissable range of instance type of objects that can
+  // be allowed to be used as receivers with the given template.
+  DECL_INT16_ACCESSORS(allowed_receiver_instance_type_range_start)
+  DECL_INT16_ACCESSORS(allowed_receiver_instance_type_range_end)
   // End flag bits ---------------------
 
-  // Dispatched behavior.
-  DECL_PRINTER(FunctionTemplateInfo)
-
-  static const int kInvalidSerialNumber = 0;
+  inline int InstanceType() const;
+  inline void SetInstanceType(int instance_type);
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info,
@@ -129,26 +153,46 @@ class FunctionTemplateInfo
   }
 
   // Returns parent function template or a null FunctionTemplateInfo.
-  inline FunctionTemplateInfo GetParent(Isolate* isolate);
+  inline Tagged<FunctionTemplateInfo> GetParent(Isolate* isolate);
   // Returns true if |object| is an instance of this function template.
-  inline bool IsTemplateFor(JSObject object);
-  bool IsTemplateFor(Map map);
+  inline bool IsTemplateFor(Tagged<JSObject> object) const;
+  bool IsTemplateFor(Tagged<Map> map) const;
+  // Returns true if |object| is an API object and is constructed by this
+  // particular function template (skips walking up the chain of inheriting
+  // functions that is done by IsTemplateFor).
+  bool IsLeafTemplateForApiObject(Tagged<Object> object) const;
   inline bool instantiated();
 
-  inline bool BreakAtEntry();
+  bool BreakAtEntry(Isolate* isolate);
+  bool HasInstanceType();
 
   // Helper function for cached accessors.
-  static MaybeHandle<Name> TryGetCachedPropertyName(Isolate* isolate,
-                                                    Handle<Object> getter);
+  static base::Optional<Tagged<Name>> TryGetCachedPropertyName(
+      Isolate* isolate, Tagged<Object> getter);
+  // Fast API overloads.
+  int GetCFunctionsCount() const;
+  Address GetCFunction(int index) const;
+  const CFunctionInfo* GetCSignature(int index) const;
+
+  // CFunction data for a set of overloads is stored into a FixedArray, as
+  // [address_0, signature_0, ... address_n-1, signature_n-1].
+  static const int kFunctionOverloadEntrySize = 2;
 
   // Bit position in the flag, from least significant bit position.
   DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()
 
+  using BodyDescriptor = StructBodyDescriptor;
+
  private:
-  static inline FunctionTemplateRareData EnsureFunctionTemplateRareData(
+  // For ease of use of the BITFIELD macro.
+  inline int32_t relaxed_flag() const;
+  inline void set_relaxed_flag(int32_t flags);
+
+  static constexpr int kNoJSApiObjectType = 0;
+  static inline Tagged<FunctionTemplateRareData> EnsureFunctionTemplateRareData(
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
 
-  static FunctionTemplateRareData AllocateFunctionTemplateRareData(
+  static Tagged<FunctionTemplateRareData> AllocateFunctionTemplateRareData(
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
 
   TQ_OBJECT_CONSTRUCTORS(FunctionTemplateInfo)
@@ -158,16 +202,17 @@ class ObjectTemplateInfo
     : public TorqueGeneratedObjectTemplateInfo<ObjectTemplateInfo,
                                                TemplateInfo> {
  public:
+  NEVER_READ_ONLY_SPACE
+
   DECL_INT_ACCESSORS(embedder_field_count)
   DECL_BOOLEAN_ACCESSORS(immutable_proto)
   DECL_BOOLEAN_ACCESSORS(code_like)
 
-  // Dispatched behavior.
-  DECL_PRINTER(ObjectTemplateInfo)
-
   // Starting from given object template's constructor walk up the inheritance
   // chain till a function template that has an instance template is found.
-  inline ObjectTemplateInfo GetParent(Isolate* isolate);
+  inline Tagged<ObjectTemplateInfo> GetParent(Isolate* isolate);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
  private:
   DEFINE_TORQUE_GENERATED_OBJECT_TEMPLATE_INFO_FLAGS()

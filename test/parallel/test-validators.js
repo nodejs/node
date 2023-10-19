@@ -9,7 +9,13 @@ const {
   validateInteger,
   validateNumber,
   validateObject,
+  kValidateObjectAllowNullable,
+  kValidateObjectAllowArray,
+  kValidateObjectAllowFunction,
   validateString,
+  validateInt32,
+  validateUint32,
+  validateLinkHeaderValue,
 } = require('internal/validators');
 const { MAX_SAFE_INTEGER, MIN_SAFE_INTEGER } = Number;
 const outOfRangeError = {
@@ -41,6 +47,34 @@ const invalidArgValueError = {
   // validateInteger() works with unsafe integers.
   validateInteger(MAX_SAFE_INTEGER + 1, 'foo', 0, MAX_SAFE_INTEGER + 1);
   validateInteger(MIN_SAFE_INTEGER - 1, 'foo', MIN_SAFE_INTEGER - 1);
+
+  // validateInt32() and validateUint32()
+  [
+    Symbol(), 1n, {}, [], false, true, undefined, null, () => {}, '', '1',
+  ].forEach((val) => assert.throws(() => validateInt32(val, 'name'), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }));
+  [
+    2147483647 + 1, -2147483648 - 1, NaN,
+  ].forEach((val) => assert.throws(() => validateInt32(val, 'name'), {
+    code: 'ERR_OUT_OF_RANGE'
+  }));
+  [
+    0, 1, -1,
+  ].forEach((val) => validateInt32(val, 'name'));
+  [
+    Symbol(), 1n, {}, [], false, true, undefined, null, () => {}, '', '1',
+  ].forEach((val) => assert.throws(() => validateUint32(val, 'name'), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }));
+  [
+    4294967296, -1, NaN,
+  ].forEach((val) => assert.throws(() => validateUint32(val, 'name'), {
+    code: 'ERR_OUT_OF_RANGE'
+  }));
+  [
+    0, 1,
+  ].forEach((val) => validateUint32(val, 'name'));
 }
 
 {
@@ -55,9 +89,9 @@ const invalidArgValueError = {
       }, invalidArgTypeError);
     });
 
-  validateArray([1], 'foo', { minLength: 1 });
+  validateArray([1], 'foo', 1);
   assert.throws(() => {
-    validateArray([], 'foo', { minLength: 1 });
+    validateArray([], 'foo', 1);
   }, invalidArgValueError);
 }
 
@@ -86,9 +120,14 @@ const invalidArgValueError = {
     });
 
   // validateObject options tests:
-  validateObject(null, 'foo', { nullable: true });
-  validateObject([], 'foo', { allowArray: true });
-  validateObject(() => {}, 'foo', { allowFunction: true });
+  validateObject(null, 'foo', kValidateObjectAllowNullable);
+  validateObject([], 'foo', kValidateObjectAllowArray);
+  validateObject(() => {}, 'foo', kValidateObjectAllowFunction);
+
+  // validateObject should not be affected by Object.prototype tampering.
+  assert.throws(() => validateObject(null, 'foo', kValidateObjectAllowArray), invalidArgTypeError);
+  assert.throws(() => validateObject([], 'foo', kValidateObjectAllowNullable), invalidArgTypeError);
+  assert.throws(() => validateObject(() => {}, 'foo', kValidateObjectAllowNullable), invalidArgTypeError);
 }
 
 {
@@ -110,4 +149,16 @@ const invalidArgValueError = {
   ].forEach((i) => assert.throws(() => validateNumber(i, 'name'), {
     code: 'ERR_INVALID_ARG_TYPE'
   }));
+}
+
+{
+  // validateLinkHeaderValue type validation.
+  [
+    ['</styles.css>; rel=preload; as=style', '</styles.css>; rel=preload; as=style'],
+    ['</styles.css>; rel=preload; title=hello', '</styles.css>; rel=preload; title=hello'],
+    ['</styles.css>; rel=preload; crossorigin=hello', '</styles.css>; rel=preload; crossorigin=hello'],
+    ['</styles.css>; rel=preload; disabled=true', '</styles.css>; rel=preload; disabled=true'],
+    ['</styles.css>; rel=preload; fetchpriority=high', '</styles.css>; rel=preload; fetchpriority=high'],
+    ['</styles.css>; rel=preload; referrerpolicy=origin', '</styles.css>; rel=preload; referrerpolicy=origin'],
+  ].forEach(([value, expected]) => assert.strictEqual(validateLinkHeaderValue(value), expected));
 }

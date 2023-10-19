@@ -48,7 +48,7 @@ const OPTIONS_OR_INTEGER_SCHEMA = {
 /**
  * Given a list of comment nodes, return a map with numeric keys (source code line numbers) and comment token values.
  * @param {Array} comments An array of comment nodes.
- * @returns {Map.<string,Node>} A map with numeric keys (source code line numbers) and comment token values.
+ * @returns {Map<string, Node>} A map with numeric keys (source code line numbers) and comment token values.
  */
 function getCommentLineNumbers(comments) {
     const map = new Map();
@@ -65,15 +65,15 @@ function getCommentLineNumbers(comments) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce a maximum number of lines of code in a function",
-            category: "Stylistic Issues",
+            description: "Enforce a maximum number of lines of code in a function",
             recommended: false,
-            url: "https://eslint.org/docs/rules/max-lines-per-function"
+            url: "https://eslint.org/docs/latest/rules/max-lines-per-function"
         },
 
         schema: [
@@ -85,7 +85,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const lines = sourceCode.lines;
 
         const option = context.options[0];

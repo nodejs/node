@@ -216,20 +216,6 @@ uint8_t *ngtcp2_encode_ipv6(uint8_t *dest, const uint8_t *addr) {
   return dest;
 }
 
-int ngtcp2_verify_stateless_reset_token(const uint8_t *want,
-                                        const uint8_t *got) {
-  return !ngtcp2_check_invalid_stateless_reset_token(got) &&
-                 ngtcp2_cmemeq(want, got, NGTCP2_STATELESS_RESET_TOKENLEN)
-             ? 0
-             : NGTCP2_ERR_INVALID_ARGUMENT;
-}
-
-int ngtcp2_check_invalid_stateless_reset_token(const uint8_t *token) {
-  static uint8_t invalid_token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0};
-
-  return 0 == memcmp(invalid_token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
-}
-
 int ngtcp2_cmemeq(const uint8_t *a, const uint8_t *b, size_t n) {
   size_t i;
   int rv = 0;

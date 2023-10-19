@@ -11,7 +11,7 @@ const {
 [
   undefined,
   {},
-  Object.create(null),
+  { __proto__: null },
   new Date(),
   new (class Foo {})(),
 ].forEach((input) => {

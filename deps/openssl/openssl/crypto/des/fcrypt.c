@@ -1,11 +1,17 @@
 /*
- * Copyright 1998-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * DES low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
 
 /* NOCW */
 #include <stdio.h>
@@ -25,7 +31,7 @@
  * Added more values to handle illegal salt values the way normal crypt()
  * implementations do.
  */
-static unsigned const char con_salt[128] = {
+static const unsigned char con_salt[128] = {
     0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9,
     0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1,
     0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9,
@@ -44,7 +50,7 @@ static unsigned const char con_salt[128] = {
     0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44,
 };
 
-static unsigned const char cov_2char[64] = {
+static const unsigned char cov_2char[64] = {
     0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35,
     0x36, 0x37, 0x38, 0x39, 0x41, 0x42, 0x43, 0x44,
     0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C,

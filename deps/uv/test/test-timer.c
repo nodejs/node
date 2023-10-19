@@ -25,9 +25,12 @@
 
 static int once_cb_called = 0;
 static int once_close_cb_called = 0;
+static int twice_cb_called = 0;
+static int twice_close_cb_called = 0;
 static int repeat_cb_called = 0;
 static int repeat_close_cb_called = 0;
 static int order_cb_called = 0;
+static int timer_check_double_call_called = 0;
 static uint64_t start_time;
 static uv_timer_t tiny_timer;
 static uv_timer_t huge_timer1;
@@ -37,7 +40,7 @@ static uv_timer_t huge_timer2;
 static void once_close_cb(uv_handle_t* handle) {
   printf("ONCE_CLOSE_CB\n");
 
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   ASSERT(0 == uv_is_active(handle));
 
   once_close_cb_called++;
@@ -47,7 +50,7 @@ static void once_close_cb(uv_handle_t* handle) {
 static void once_cb(uv_timer_t* handle) {
   printf("ONCE_CB %d\n", once_cb_called);
 
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   ASSERT(0 == uv_is_active((uv_handle_t*) handle));
 
   once_cb_called++;
@@ -58,11 +61,32 @@ static void once_cb(uv_timer_t* handle) {
   uv_update_time(uv_default_loop());
 }
 
+static void twice_close_cb(uv_handle_t* handle) {
+  printf("TWICE_CLOSE_CB\n");
+
+  ASSERT_NOT_NULL(handle);
+  ASSERT(0 == uv_is_active(handle));
+
+  twice_close_cb_called++;
+}
+
+static void twice_cb(uv_timer_t* handle) {
+  printf("TWICE_CB %d\n", twice_cb_called);
+
+  ASSERT_NOT_NULL(handle);
+  ASSERT(0 == uv_is_active((uv_handle_t*) handle));
+
+  twice_cb_called++;
+
+  uv_close((uv_handle_t*)handle, twice_close_cb);
+}
+
+
 
 static void repeat_close_cb(uv_handle_t* handle) {
   printf("REPEAT_CLOSE_CB\n");
 
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
 
   repeat_close_cb_called++;
 }
@@ -71,7 +95,7 @@ static void repeat_close_cb(uv_handle_t* handle) {
 static void repeat_cb(uv_timer_t* handle) {
   printf("REPEAT_CB\n");
 
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   ASSERT(1 == uv_is_active((uv_handle_t*) handle));
 
   repeat_cb_called++;
@@ -131,7 +155,7 @@ TEST_IMPL(timer) {
 
   ASSERT(500 <= uv_now(uv_default_loop()) - start_time);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -144,14 +168,14 @@ TEST_IMPL(timer_start_twice) {
   ASSERT(r == 0);
   r = uv_timer_start(&once, never_cb, 86400 * 1000, 0);
   ASSERT(r == 0);
-  r = uv_timer_start(&once, once_cb, 10, 0);
+  r = uv_timer_start(&once, twice_cb, 10, 0);
   ASSERT(r == 0);
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  ASSERT(once_cb_called == 1);
+  ASSERT(twice_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -164,7 +188,7 @@ TEST_IMPL(timer_init) {
   ASSERT_UINT64_LE(0, uv_timer_get_due_in(&handle));
   ASSERT(0 == uv_is_active((uv_handle_t*) &handle));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -213,7 +237,7 @@ TEST_IMPL(timer_order) {
 
   ASSERT(order_cb_called == 2);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -237,7 +261,7 @@ TEST_IMPL(timer_huge_timeout) {
   ASSERT_UINT64_EQ(281474976710655, uv_timer_get_due_in(&huge_timer1));
   ASSERT_UINT64_LE(0, uv_timer_get_due_in(&huge_timer2));
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -263,7 +287,7 @@ TEST_IMPL(timer_huge_repeat) {
   ASSERT(0 == uv_timer_start(&tiny_timer, huge_repeat_cb, 2, 2));
   ASSERT(0 == uv_timer_start(&huge_timer1, huge_repeat_cb, 1, (uint64_t) -1));
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -291,7 +315,7 @@ TEST_IMPL(timer_run_once) {
   uv_close((uv_handle_t*) &timer_handle, NULL);
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_ONCE));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -304,7 +328,7 @@ TEST_IMPL(timer_is_closing) {
 
   ASSERT(UV_EINVAL == uv_timer_start(&handle, never_cb, 100, 100));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -315,7 +339,7 @@ TEST_IMPL(timer_null_callback) {
   ASSERT(0 == uv_timer_init(uv_default_loop(), &handle));
   ASSERT(UV_EINVAL == uv_timer_start(&handle, NULL, 100, 100));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -342,6 +366,56 @@ TEST_IMPL(timer_early_check) {
   uv_close((uv_handle_t*) &timer_handle, NULL);
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+static void timer_check_double_call(uv_timer_t* handle) {
+  timer_check_double_call_called++;
+}
+
+TEST_IMPL(timer_no_double_call_once) {
+  uv_timer_t timer_handle;
+  const uint64_t timeout_ms = 10;
+
+  ASSERT_EQ(0, uv_timer_init(uv_default_loop(), &timer_handle));
+  ASSERT_EQ(0, uv_timer_start(&timer_handle,
+                              timer_check_double_call,
+                              timeout_ms,
+                              timeout_ms));
+  uv_sleep(timeout_ms * 2);
+  ASSERT_EQ(1, uv_run(uv_default_loop(), UV_RUN_ONCE));
+  ASSERT_EQ(1, timer_check_double_call_called);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+TEST_IMPL(timer_no_double_call_nowait) {
+  uv_timer_t timer_handle;
+  const uint64_t timeout_ms = 10;
+
+  ASSERT_EQ(0, uv_timer_init(uv_default_loop(), &timer_handle));
+  ASSERT_EQ(0, uv_timer_start(&timer_handle,
+                              timer_check_double_call,
+                              timeout_ms,
+                              timeout_ms));
+  uv_sleep(timeout_ms * 2);
+  ASSERT_EQ(1, uv_run(uv_default_loop(), UV_RUN_NOWAIT));
+  ASSERT_EQ(1, timer_check_double_call_called);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+TEST_IMPL(timer_no_run_on_unref) {
+  uv_timer_t timer_handle;
+
+  ASSERT_OK(uv_timer_init(uv_default_loop(), &timer_handle));
+  ASSERT_OK(uv_timer_start(&timer_handle, (uv_timer_cb) abort, 0, 0));
+  uv_unref((uv_handle_t*) &timer_handle);
+  ASSERT_EQ(uv_run(uv_default_loop(), UV_RUN_DEFAULT), 0);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

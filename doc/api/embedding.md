@@ -37,15 +37,18 @@ the `node` and `v8` C++ namespaces, respectively.
 int main(int argc, char** argv) {
   argv = uv_setup_args(argc, argv);
   std::vector<std::string> args(argv, argv + argc);
-  std::vector<std::string> exec_args;
-  std::vector<std::string> errors;
   // Parse Node.js CLI options, and print any errors that have occurred while
   // trying to parse them.
-  int exit_code = node::InitializeNodeWithArgs(&args, &exec_args, &errors);
-  for (const std::string& error : errors)
+  std::unique_ptr<node::InitializationResult> result =
+      node::InitializeOncePerProcess(args, {
+        node::ProcessInitializationFlags::kNoInitializeV8,
+        node::ProcessInitializationFlags::kNoInitializeNodeV8Platform
+      });
+
+  for (const std::string& error : result->errors())
     fprintf(stderr, "%s: %s\n", args[0].c_str(), error.c_str());
-  if (exit_code != 0) {
-    return exit_code;
+  if (result->early_return() != 0) {
+    return result->exit_code();
   }
 
   // Create a v8::Platform instance. `MultiIsolatePlatform::Create()` is a way
@@ -58,15 +61,19 @@ int main(int argc, char** argv) {
   V8::Initialize();
 
   // See below for the contents of this function.
-  int ret = RunNodeInstance(platform.get(), args, exec_args);
+  int ret = RunNodeInstance(
+      platform.get(), result->args(), result->exec_args());
 
   V8::Dispose();
-  V8::ShutdownPlatform();
+  V8::DisposePlatform();
+
+  node::TearDownOncePerProcess();
   return ret;
 }
 ```
 
 ### Per-instance state
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -123,6 +130,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
+    HandleScope handle_scope(isolate);
     // The v8::Context needs to be entered when node::CreateEnvironment() and
     // node::LoadEnvironment() are being called.
     Context::Scope context_scope(setup->context());
@@ -139,9 +147,9 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     MaybeLocal<Value> loadenv_ret = node::LoadEnvironment(
         env,
         "const publicRequire ="
-        "  require('module').createRequire(process.cwd() + '/');"
+        "  require('node:module').createRequire(process.cwd() + '/');"
         "globalThis.require = publicRequire;"
-        "require('vm').runInThisContext(process.argv[1]);");
+        "require('node:vm').runInThisContext(process.argv[1]);");
 
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
       return 1;
@@ -159,7 +167,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 ```
 
 [CLI options]: cli.md
-[`process.memoryUsage()`]: process.md#process_process_memoryusage
+[`process.memoryUsage()`]: process.md#processmemoryusage
 [deprecation policy]: deprecations.md
 [embedtest.cc]: https://github.com/nodejs/node/blob/HEAD/test/embedding/embedtest.cc
 [src/node.h]: https://github.com/nodejs/node/blob/HEAD/src/node.h

@@ -1,7 +1,7 @@
 /*
- * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -14,7 +14,8 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
 /*
  * Returns 'ret' such that ret^2 == a (mod p), using the Tonelli/Shanks
  * algorithm (cf. Henri Cohen, "A Course in Algebraic Computational Number
- * Theory", algorithm 1.5.1). 'p' must be prime!
+ * Theory", algorithm 1.5.1). 'p' must be prime, otherwise an error or
+ * an incorrect "result" will be returned.
  */
 {
     BIGNUM *ret = in;
@@ -22,6 +23,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
     int r;
     BIGNUM *A, *b, *q, *t, *x, *y;
     int e, i, j;
+    int used_ctx = 0;
 
     if (!BN_is_odd(p) || BN_abs_is_word(p, 1)) {
         if (BN_abs_is_word(p, 2)) {
@@ -38,7 +40,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
             return ret;
         }
 
-        BNerr(BN_F_BN_MOD_SQRT, BN_R_P_IS_NOT_PRIME);
+        ERR_raise(ERR_LIB_BN, BN_R_P_IS_NOT_PRIME);
         return NULL;
     }
 
@@ -57,6 +59,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
     }
 
     BN_CTX_start(ctx);
+    used_ctx = 1;
     A = BN_CTX_get(ctx);
     b = BN_CTX_get(ctx);
     q = BN_CTX_get(ctx);
@@ -180,7 +183,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
             if (!BN_set_word(y, i))
                 goto end;
         } else {
-            if (!BN_priv_rand(y, BN_num_bits(p), 0, 0))
+            if (!BN_priv_rand_ex(y, BN_num_bits(p), 0, 0, 0, ctx))
                 goto end;
             if (BN_ucmp(y, p) >= 0) {
                 if (!(p->neg ? BN_add : BN_sub) (y, y, p))
@@ -197,7 +200,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
             goto end;
         if (r == 0) {
             /* m divides p */
-            BNerr(BN_F_BN_MOD_SQRT, BN_R_P_IS_NOT_PRIME);
+            ERR_raise(ERR_LIB_BN, BN_R_P_IS_NOT_PRIME);
             goto end;
         }
     }
@@ -209,7 +212,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
          * than just bad luck. Even if p is not prime, we should have found
          * some y such that r == -1.
          */
-        BNerr(BN_F_BN_MOD_SQRT, BN_R_TOO_MANY_ITERATIONS);
+        ERR_raise(ERR_LIB_BN, BN_R_TOO_MANY_ITERATIONS);
         goto end;
     }
 
@@ -224,7 +227,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
     if (!BN_mod_exp(y, y, q, p, ctx))
         goto end;
     if (BN_is_one(y)) {
-        BNerr(BN_F_BN_MOD_SQRT, BN_R_P_IS_NOT_PRIME);
+        ERR_raise(ERR_LIB_BN, BN_R_P_IS_NOT_PRIME);
         goto end;
     }
 
@@ -301,18 +304,23 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
             goto vrfy;
         }
 
-        /* find smallest  i  such that  b^(2^i) = 1 */
-        i = 1;
-        if (!BN_mod_sqr(t, b, p, ctx))
-            goto end;
-        while (!BN_is_one(t)) {
-            i++;
-            if (i == e) {
-                BNerr(BN_F_BN_MOD_SQRT, BN_R_NOT_A_SQUARE);
-                goto end;
+        /* Find the smallest i, 0 < i < e, such that b^(2^i) = 1. */
+        for (i = 1; i < e; i++) {
+            if (i == 1) {
+                if (!BN_mod_sqr(t, b, p, ctx))
+                    goto end;
+
+            } else {
+                if (!BN_mod_mul(t, t, t, p, ctx))
+                    goto end;
             }
-            if (!BN_mod_mul(t, t, t, p, ctx))
-                goto end;
+            if (BN_is_one(t))
+                break;
+        }
+        /* If not found, a is not a square or p is not prime. */
+        if (i >= e) {
+            ERR_raise(ERR_LIB_BN, BN_R_NOT_A_SQUARE);
+            goto end;
         }
 
         /* t := y^2^(e - i - 1) */
@@ -342,7 +350,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
             err = 1;
 
         if (!err && 0 != BN_cmp(x, A)) {
-            BNerr(BN_F_BN_MOD_SQRT, BN_R_NOT_A_SQUARE);
+            ERR_raise(ERR_LIB_BN, BN_R_NOT_A_SQUARE);
             err = 1;
         }
     }
@@ -353,7 +361,8 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
             BN_clear_free(ret);
         ret = NULL;
     }
-    BN_CTX_end(ctx);
+    if (used_ctx)
+        BN_CTX_end(ctx);
     bn_check_top(ret);
     return ret;
 }

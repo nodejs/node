@@ -16,7 +16,7 @@ const REQUEST = HTTPParser.REQUEST;
 const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
 
 const request = Buffer.from(
-  'GET /hello HTTP/1.1\r\n\r\n'
+  'GET /hello HTTP/1.1\r\n\r\n',
 );
 
 const parser = new HTTPParser();

@@ -3,21 +3,18 @@
 // Yes, this is a silly benchmark.  Most benchmarks are silly.
 'use strict';
 
-const path = require('path');
 const common = require('../common.js');
 const fs = require('fs');
-const assert = require('assert');
 const tmpdir = require('../../test/common/tmpdir');
 
 tmpdir.refresh();
-const filename = path.resolve(tmpdir.path,
-                              `.removeme-benchmark-garbage-${process.pid}`);
+const filename = tmpdir.resolve(`.removeme-benchmark-garbage-${process.pid}`);
 let filesWritten = 0;
 const bench = common.createBenchmark(main, {
   duration: [5],
   encodingType: ['buf', 'asc', 'utf'],
   size: [2, 1024, 65535, 1024 * 1024],
-  concurrent: [1, 10]
+  concurrent: [1, 10],
 });
 
 function main({ encodingType, duration, concurrent, size }) {
@@ -40,16 +37,26 @@ function main({ encodingType, duration, concurrent, size }) {
   }
 
   let writes = 0;
-  let benchEnded = false;
+  let waitConcurrent = 0;
+
+  const startedAt = Date.now();
+  const endAt = startedAt + (duration * 1000);
+
   bench.start();
-  setTimeout(() => {
-    benchEnded = true;
+
+  function stop() {
     bench.end(writes);
+
     for (let i = 0; i < filesWritten; i++) {
-      try { fs.unlinkSync(`${filename}-${i}`); } catch { }
+      try {
+        fs.unlinkSync(`${filename}-${i}`);
+      } catch {
+        // Continue regardless of error.
+      }
     }
+
     process.exit(0);
-  }, duration * 1000);
+  }
 
   function write() {
     fs.promises.writeFile(`${filename}-${filesWritten++}`, chunk, encoding)
@@ -59,18 +66,18 @@ function main({ encodingType, duration, concurrent, size }) {
 
   function afterWrite(er) {
     if (er) {
-      if (er.code === 'ENOENT') {
-        // Only OK if unlinked by the timer from main.
-        assert.ok(benchEnded);
-        return;
-      }
       throw er;
     }
 
     writes++;
-    if (!benchEnded)
+    const benchEnded = Date.now() >= endAt;
+
+    if (benchEnded && (++waitConcurrent) === concurrent) {
+      stop();
+    } else if (!benchEnded) {
       write();
+    }
   }
 
-  while (concurrent--) write();
+  for (let i = 0; i < concurrent; i++) write();
 }

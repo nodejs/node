@@ -4,7 +4,6 @@
 
 extern class AllocationSite extends Struct;
 
-@generateCppClass
 extern class AllocationMemento extends Struct {
   allocation_site: AllocationSite;
 }

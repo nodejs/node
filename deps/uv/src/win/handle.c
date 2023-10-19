@@ -77,63 +77,63 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
   /* Handle-specific close actions */
   switch (handle->type) {
     case UV_TCP:
-      uv_tcp_close(loop, (uv_tcp_t*)handle);
+      uv__tcp_close(loop, (uv_tcp_t*)handle);
       return;
 
     case UV_NAMED_PIPE:
-      uv_pipe_close(loop, (uv_pipe_t*) handle);
+      uv__pipe_close(loop, (uv_pipe_t*) handle);
       return;
 
     case UV_TTY:
-      uv_tty_close((uv_tty_t*) handle);
+      uv__tty_close((uv_tty_t*) handle);
       return;
 
     case UV_UDP:
-      uv_udp_close(loop, (uv_udp_t*) handle);
+      uv__udp_close(loop, (uv_udp_t*) handle);
       return;
 
     case UV_POLL:
-      uv_poll_close(loop, (uv_poll_t*) handle);
+      uv__poll_close(loop, (uv_poll_t*) handle);
       return;
 
     case UV_TIMER:
       uv_timer_stop((uv_timer_t*)handle);
       uv__handle_closing(handle);
-      uv_want_endgame(loop, handle);
+      uv__want_endgame(loop, handle);
       return;
 
     case UV_PREPARE:
       uv_prepare_stop((uv_prepare_t*)handle);
       uv__handle_closing(handle);
-      uv_want_endgame(loop, handle);
+      uv__want_endgame(loop, handle);
       return;
 
     case UV_CHECK:
       uv_check_stop((uv_check_t*)handle);
       uv__handle_closing(handle);
-      uv_want_endgame(loop, handle);
+      uv__want_endgame(loop, handle);
       return;
 
     case UV_IDLE:
       uv_idle_stop((uv_idle_t*)handle);
       uv__handle_closing(handle);
-      uv_want_endgame(loop, handle);
+      uv__want_endgame(loop, handle);
       return;
 
     case UV_ASYNC:
-      uv_async_close(loop, (uv_async_t*) handle);
+      uv__async_close(loop, (uv_async_t*) handle);
       return;
 
     case UV_SIGNAL:
-      uv_signal_close(loop, (uv_signal_t*) handle);
+      uv__signal_close(loop, (uv_signal_t*) handle);
       return;
 
     case UV_PROCESS:
-      uv_process_close(loop, (uv_process_t*) handle);
+      uv__process_close(loop, (uv_process_t*) handle);
       return;
 
     case UV_FS_EVENT:
-      uv_fs_event_close(loop, (uv_fs_event_t*) handle);
+      uv__fs_event_close(loop, (uv_fs_event_t*) handle);
       return;
 
     case UV_FS_POLL:

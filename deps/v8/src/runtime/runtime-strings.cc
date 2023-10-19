@@ -4,28 +4,62 @@
 
 #include "src/execution/arguments-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
-#include "src/regexp/regexp-utils.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/strings/string-search.h"
+#include "src/strings/unicode-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+// TODO(chromium:1236668): Drop this when the "SaveAndClearThreadInWasmFlag"
+// approach is no longer needed.
+#include "src/trap-handler/trap-handler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
 
+namespace {
+
+#if V8_ENABLE_WEBASSEMBLY
+class V8_NODISCARD SaveAndClearThreadInWasmFlag {
+ public:
+  explicit SaveAndClearThreadInWasmFlag(Isolate* isolate) : isolate_(isolate) {
+    if (trap_handler::IsTrapHandlerEnabled()) {
+      if (trap_handler::IsThreadInWasm()) {
+        thread_was_in_wasm_ = true;
+        trap_handler::ClearThreadInWasm();
+      }
+    }
+  }
+  ~SaveAndClearThreadInWasmFlag() {
+    if (thread_was_in_wasm_ && !isolate_->has_pending_exception()) {
+      trap_handler::SetThreadInWasm();
+    }
+  }
+
+ private:
+  bool thread_was_in_wasm_{false};
+  Isolate* isolate_;
+};
+#define CLEAR_THREAD_IN_WASM_SCOPE \
+  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate)
+#else
+#define CLEAR_THREAD_IN_WASM_SCOPE (void)0
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_GetSubstitution) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, matched, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
-  CONVERT_SMI_ARG_CHECKED(position, 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, replacement, 3);
-  CONVERT_SMI_ARG_CHECKED(start_index, 4);
+  Handle<String> matched = args.at<String>(0);
+  Handle<String> subject = args.at<String>(1);
+  int position = args.smi_value_at(2);
+  Handle<String> replacement = args.at<String>(3);
+  int start_index = args.smi_value_at(4);
 
   // A simple match without captures.
   class SimpleMatch : public String::Match {
@@ -74,10 +108,10 @@ MaybeHandle<String> StringReplaceOneCharWithString(
     return MaybeHandle<String>();
   }
   recursion_limit--;
-  if (subject->IsConsString()) {
+  if (IsConsString(*subject)) {
     ConsString cons = ConsString::cast(*subject);
-    Handle<String> first = handle(cons.first(), isolate);
-    Handle<String> second = handle(cons.second(), isolate);
+    Handle<String> first = handle(cons->first(), isolate);
+    Handle<String> second = handle(cons->second(), isolate);
     Handle<String> new_first;
     if (!StringReplaceOneCharWithString(isolate, first, search, replace, found,
                                         recursion_limit).ToHandle(&new_first)) {
@@ -112,9 +146,9 @@ MaybeHandle<String> StringReplaceOneCharWithString(
 RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, search, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, replace, 2);
+  Handle<String> subject = args.at<String>(0);
+  Handle<String> search = args.at<String>(1);
+  Handle<String> replace = args.at<String>(2);
 
   // If the cons string tree is too deep, we simply abort the recursion and
   // retry with a flattened subject string.
@@ -148,22 +182,22 @@ RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
 RUNTIME_FUNCTION(Runtime_StringSubstring) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
-  CONVERT_INT32_ARG_CHECKED(start, 1);
-  CONVERT_INT32_ARG_CHECKED(end, 2);
+  Handle<String> string = args.at<String>(0);
+  int start = args.smi_value_at(1);
+  int end = args.smi_value_at(2);
   DCHECK_LE(0, start);
   DCHECK_LE(start, end);
   DCHECK_LE(end, string->length());
-  isolate->counters()->sub_string_runtime()->Increment();
   return *isolate->factory()->NewSubString(string, start, end);
 }
 
 RUNTIME_FUNCTION(Runtime_StringAdd) {
+  // This is used by Wasm stringrefs.
+  CLEAR_THREAD_IN_WASM_SCOPE;
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, str2, 1);
-  isolate->counters()->string_add_runtime()->Increment();
+  Handle<String> str1 = args.at<String>(0);
+  Handle<String> str2 = args.at<String>(1);
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->factory()->NewConsString(str1, str2));
 }
@@ -172,7 +206,7 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
   HandleScope handles(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
+  Handle<String> string = args.at<String>(0);
   return *isolate->factory()->InternalizeString(string);
 }
 
@@ -180,8 +214,8 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, i, Uint32, args[1]);
+  Handle<String> subject = args.at<String>(0);
+  uint32_t i = NumberToUint32(args[1]);
 
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
@@ -195,47 +229,67 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   return Smi::FromInt(subject->Get(i));
 }
 
+RUNTIME_FUNCTION(Runtime_StringCodePointAt) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  Handle<String> subject = args.at<String>(0);
+  uint32_t i = NumberToUint32(args[1]);
+
+  // Flatten the string.  If someone wants to get a char at an index
+  // in a cons string, it is likely that more indices will be
+  // accessed.
+  subject = String::Flatten(isolate, subject);
+
+  if (i >= static_cast<uint32_t>(subject->length())) {
+    return ReadOnlyRoots(isolate).nan_value();
+  }
+
+  int first_code_point = subject->Get(i);
+  if ((first_code_point & 0xFC00) != 0xD800) {
+    return Smi::FromInt(first_code_point);
+  }
+
+  if (i + 1 >= static_cast<uint32_t>(subject->length())) {
+    return Smi::FromInt(first_code_point);
+  }
+
+  int second_code_point = subject->Get(i + 1);
+  if ((second_code_point & 0xFC00) != 0xDC00) {
+    return Smi::FromInt(first_code_point);
+  }
+
+  int surrogate_offset = 0x10000 - (0xD800 << 10) - 0xDC00;
+  return Smi::FromInt((first_code_point << 10) +
+                      (second_code_point + surrogate_offset));
+}
+
 RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  int32_t array_length;
-  if (!args[1].ToInt32(&array_length)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
-  }
-  CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
+  Handle<FixedArray> array = args.at<FixedArray>(0);
 
-  size_t actual_array_length = 0;
-  CHECK(TryNumberToSize(array->length(), &actual_array_length));
-  CHECK_GE(array_length, 0);
-  CHECK(static_cast<size_t>(array_length) <= actual_array_length);
+  int array_length = args.smi_value_at(1);
+
+  Handle<String> special = args.at<String>(2);
 
   // This assumption is used by the slice encoding in one or two smis.
   DCHECK_GE(Smi::kMaxValue, String::kMaxLength);
 
-  CHECK(array->HasFastElements());
-  JSObject::EnsureCanContainHeapObjectElements(array);
-
   int special_length = special->length();
-  if (!array->HasObjectElements()) {
-    return isolate->Throw(ReadOnlyRoots(isolate).illegal_argument_string());
-  }
 
   int length;
   bool one_byte = special->IsOneByteRepresentation();
 
   {
     DisallowGarbageCollection no_gc;
-    FixedArray fixed_array = FixedArray::cast(array->elements());
-    if (fixed_array.length() < array_length) {
-      array_length = fixed_array.length();
-    }
+    FixedArray fixed_array = *array;
 
     if (array_length == 0) {
       return ReadOnlyRoots(isolate).empty_string();
     } else if (array_length == 1) {
-      Object first = fixed_array.get(0);
-      if (first.IsString()) return first;
+      Object first = fixed_array->get(0);
+      if (IsString(first)) return first;
     }
     length = StringBuilderConcatLength(special_length, fixed_array,
                                        array_length, &one_byte);
@@ -253,8 +307,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawOneByteString(length));
     DisallowGarbageCollection no_gc;
-    StringBuilderConcatHelper(*special, answer->GetChars(no_gc),
-                              FixedArray::cast(array->elements()),
+    StringBuilderConcatHelper(*special, answer->GetChars(no_gc), *array,
                               array_length);
     return *answer;
   } else {
@@ -262,41 +315,10 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawTwoByteString(length));
     DisallowGarbageCollection no_gc;
-    StringBuilderConcatHelper(*special, answer->GetChars(no_gc),
-                              FixedArray::cast(array->elements()),
+    StringBuilderConcatHelper(*special, answer->GetChars(no_gc), *array,
                               array_length);
     return *answer;
   }
-}
-
-
-// Copies Latin1 characters to the given fixed array looking up
-// one-char strings in the cache. Gives up on the first char that is
-// not in the cache and fills the remainder with smi zeros. Returns
-// the length of the successfully copied prefix.
-static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
-                                         FixedArray elements, int length) {
-  DisallowGarbageCollection no_gc;
-  FixedArray one_byte_cache = heap->single_character_string_cache();
-  Object undefined = ReadOnlyRoots(heap).undefined_value();
-  int i;
-  WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
-  for (i = 0; i < length; ++i) {
-    Object value = one_byte_cache.get(chars[i]);
-    if (value == undefined) break;
-    elements.set(i, value, mode);
-  }
-  if (i < length) {
-    MemsetTagged(elements.RawFieldOfElementAt(i), Smi::zero(), length - i);
-  }
-#ifdef DEBUG
-  for (int j = 0; j < length; ++j) {
-    Object element = elements.get(j);
-    DCHECK(element == Smi::zero() ||
-           (element.IsString() && String::cast(element).LooksValid()));
-  }
-#endif
-  return i;
 }
 
 // Converts a String to JSArray.
@@ -304,43 +326,50 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
 RUNTIME_FUNCTION(Runtime_StringToArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
+  Handle<String> s = args.at<String>(0);
+  uint32_t limit = NumberToUint32(args[1]);
 
   s = String::Flatten(isolate, s);
   const int length =
       static_cast<int>(std::min(static_cast<uint32_t>(s->length()), limit));
 
-  Handle<FixedArray> elements;
-  int position = 0;
-  if (s->IsFlat() && s->IsOneByteRepresentation()) {
-    // Try using cached chars where possible.
-    elements = isolate->factory()->NewUninitializedFixedArray(length);
+  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(length);
+  bool elements_are_initialized = false;
 
+  if (s->IsFlat() && s->IsOneByteRepresentation()) {
     DisallowGarbageCollection no_gc;
     String::FlatContent content = s->GetFlatContent(no_gc);
+    // Use pre-initialized single characters to intialize all the elements.
+    // This can be false if the string is sliced from an externalized
+    // two-byte string that has only one-byte chars, in that case we will do
+    // a LookupSingleCharacterStringFromCode for each of the characters.
     if (content.IsOneByte()) {
-      Vector<const uint8_t> chars = content.ToOneByteVector();
-      // Note, this will initialize all elements (not only the prefix)
-      // to prevent GC from seeing partially initialized array.
-      position = CopyCachedOneByteCharsToArray(isolate->heap(), chars.begin(),
-                                               *elements, length);
-    } else {
-      MemsetTagged(elements->data_start(),
-                   ReadOnlyRoots(isolate).undefined_value(), length);
+      base::Vector<const uint8_t> chars = content.ToOneByteVector();
+      FixedArray one_byte_table =
+          isolate->heap()->single_character_string_table();
+      for (int i = 0; i < length; ++i) {
+        Object value = one_byte_table->get(chars[i]);
+        DCHECK(IsString(value));
+        DCHECK(ReadOnlyHeap::Contains(HeapObject::cast(value)));
+        // The single-character strings are in RO space so it should
+        // be safe to skip the write barriers.
+        elements->set(i, value, SKIP_WRITE_BARRIER);
+      }
+      elements_are_initialized = true;
     }
-  } else {
-    elements = isolate->factory()->NewFixedArray(length);
   }
-  for (int i = position; i < length; ++i) {
-    Handle<Object> str =
-        isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
-    elements->set(i, *str);
+
+  if (!elements_are_initialized) {
+    for (int i = 0; i < length; ++i) {
+      Handle<Object> str =
+          isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
+      elements->set(i, *str);
+    }
   }
 
 #ifdef DEBUG
   for (int i = 0; i < length; ++i) {
-    DCHECK_EQ(String::cast(elements->get(i)).length(), 1);
+    DCHECK_EQ(String::cast(elements->get(i))->length(), 1);
   }
 #endif
 
@@ -350,8 +379,8 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
 RUNTIME_FUNCTION(Runtime_StringLessThan) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  Handle<String> x = args.at<String>(0);
+  Handle<String> y = args.at<String>(1);
   ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
@@ -361,8 +390,8 @@ RUNTIME_FUNCTION(Runtime_StringLessThan) {
 RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  Handle<String> x = args.at<String>(0);
+  Handle<String> y = args.at<String>(1);
   ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
@@ -372,8 +401,8 @@ RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
 RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  Handle<String> x = args.at<String>(0);
+  Handle<String> y = args.at<String>(1);
   ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
@@ -383,8 +412,8 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
 RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  Handle<String> x = args.at<String>(0);
+  Handle<String> y = args.at<String>(1);
   ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
@@ -394,15 +423,26 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
 RUNTIME_FUNCTION(Runtime_StringEqual) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  Handle<String> x = args.at<String>(0);
+  Handle<String> y = args.at<String>(1);
   return isolate->heap()->ToBoolean(String::Equals(isolate, x, y));
+}
+
+RUNTIME_FUNCTION(Runtime_StringCompare) {
+  CLEAR_THREAD_IN_WASM_SCOPE;
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  Handle<String> lhs(String::cast(args[0]), isolate);
+  Handle<String> rhs(String::cast(args[1]), isolate);
+  ComparisonResult result = String::Compare(isolate, lhs, rhs);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return Smi::FromInt(static_cast<int>(result));
 }
 
 RUNTIME_FUNCTION(Runtime_FlattenString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
+  Handle<String> str = args.at<String>(0);
   return *String::Flatten(isolate, str);
 }
 
@@ -414,7 +454,7 @@ RUNTIME_FUNCTION(Runtime_StringMaxLength) {
 RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
+  Handle<String> string = args.at<String>(0);
 
   // Equivalent to global replacement `string.replace(/"/g, "&quot")`, but this
   // does not modify any global state (e.g. the regexp match info).
@@ -423,17 +463,17 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
   Handle<String> quotes =
       isolate->factory()->LookupSingleCharacterStringFromCode('"');
 
-  int index = String::IndexOf(isolate, string, quotes, 0);
+  int quote_index = String::IndexOf(isolate, string, quotes, 0);
 
   // No quotes, nothing to do.
-  if (index == -1) return *string;
+  if (quote_index == -1) return *string;
 
   // Find all quotes.
-  std::vector<int> indices = {index};
-  while (index + 1 < string_length) {
-    index = String::IndexOf(isolate, string, quotes, index + 1);
-    if (index == -1) break;
-    indices.emplace_back(index);
+  std::vector<int> indices = {quote_index};
+  while (quote_index + 1 < string_length) {
+    quote_index = String::IndexOf(isolate, string, quotes, quote_index + 1);
+    if (quote_index == -1) break;
+    indices.emplace_back(quote_index);
   }
 
   // Build the replacement string.
@@ -459,6 +499,33 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
   }
 
   return *builder.ToString().ToHandleChecked();
+}
+
+RUNTIME_FUNCTION(Runtime_StringIsWellFormed) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<String> string = args.at<String>(0);
+  return isolate->heap()->ToBoolean(
+      String::IsWellFormedUnicode(isolate, string));
+}
+
+RUNTIME_FUNCTION(Runtime_StringToWellFormed) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<String> source = args.at<String>(0);
+  if (String::IsWellFormedUnicode(isolate, source)) return *source;
+  // String::IsWellFormedUnicode would have returned true above otherwise.
+  DCHECK(!String::IsOneByteRepresentationUnderneath(*source));
+  const int length = source->length();
+  Handle<SeqTwoByteString> dest =
+      isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
+  DisallowGarbageCollection no_gc;
+  String::FlatContent source_contents = source->GetFlatContent(no_gc);
+  DCHECK(source_contents.IsFlat());
+  const uint16_t* source_data = source_contents.ToUC16Vector().begin();
+  uint16_t* dest_data = dest->GetChars(no_gc);
+  unibrow::Utf16::ReplaceUnpairedSurrogates(source_data, dest_data, length);
+  return *dest;
 }
 
 }  // namespace internal

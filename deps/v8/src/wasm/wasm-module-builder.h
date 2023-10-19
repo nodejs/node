@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_MODULE_BUILDER_H_
 #define V8_WASM_WASM_MODULE_BUILDER_H_
 
 #include "src/base/memory.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/vector.h"
 #include "src/codegen/signature.h"
-#include "src/utils/vector.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/value-type.h"
@@ -28,7 +32,7 @@ class ZoneBuffer : public ZoneObject {
 
   static constexpr size_t kInitialSize = 1024;
   explicit ZoneBuffer(Zone* zone, size_t initial = kInitialSize)
-      : zone_(zone), buffer_(zone->NewArray<byte, Buffer>(initial)) {
+      : zone_(zone), buffer_(zone->AllocateArray<uint8_t, Buffer>(initial)) {
     pos_ = buffer_;
     end_ = buffer_ + initial;
   }
@@ -82,20 +86,20 @@ class ZoneBuffer : public ZoneObject {
     LEBHelper::write_u32v(&pos_, static_cast<uint32_t>(val));
   }
 
-  void write_f32(float val) { write_u32(bit_cast<uint32_t>(val)); }
+  void write_f32(float val) { write_u32(base::bit_cast<uint32_t>(val)); }
 
-  void write_f64(double val) { write_u64(bit_cast<uint64_t>(val)); }
+  void write_f64(double val) { write_u64(base::bit_cast<uint64_t>(val)); }
 
-  void write(const byte* data, size_t size) {
+  void write(const uint8_t* data, size_t size) {
     if (size == 0) return;
     EnsureSpace(size);
-    base::Memcpy(pos_, data, size);
+    memcpy(pos_, data, size);
     pos_ += size;
   }
 
-  void write_string(Vector<const char> name) {
+  void write_string(base::Vector<const char> name) {
     write_size(name.length());
-    write(reinterpret_cast<const byte*>(name.begin()), name.length());
+    write(reinterpret_cast<const uint8_t*>(name.begin()), name.length());
   }
 
   size_t reserve_u32v() {
@@ -107,10 +111,10 @@ class ZoneBuffer : public ZoneObject {
 
   // Patch a (padded) u32v at the given offset to be the given value.
   void patch_u32v(size_t offset, uint32_t val) {
-    byte* ptr = buffer_ + offset;
+    uint8_t* ptr = buffer_ + offset;
     for (size_t pos = 0; pos != kPaddedVarInt32Size; ++pos) {
       uint32_t next = val >> 7;
-      byte out = static_cast<byte>(val & 0x7f);
+      uint8_t out = static_cast<uint8_t>(val & 0x7f);
       if (pos != kPaddedVarInt32Size - 1) {
         *(ptr++) = 0x80 | out;
         val = next;
@@ -120,22 +124,22 @@ class ZoneBuffer : public ZoneObject {
     }
   }
 
-  void patch_u8(size_t offset, byte val) {
+  void patch_u8(size_t offset, uint8_t val) {
     DCHECK_GE(size(), offset);
     buffer_[offset] = val;
   }
 
   size_t offset() const { return static_cast<size_t>(pos_ - buffer_); }
   size_t size() const { return static_cast<size_t>(pos_ - buffer_); }
-  const byte* data() const { return buffer_; }
-  const byte* begin() const { return buffer_; }
-  const byte* end() const { return pos_; }
+  const uint8_t* data() const { return buffer_; }
+  const uint8_t* begin() const { return buffer_; }
+  const uint8_t* end() const { return pos_; }
 
   void EnsureSpace(size_t size) {
     if ((pos_ + size) > end_) {
       size_t new_size = size + (end_ - buffer_) * 2;
-      byte* new_buffer = zone_->NewArray<byte, Buffer>(new_size);
-      base::Memcpy(new_buffer, buffer_, (pos_ - buffer_));
+      uint8_t* new_buffer = zone_->AllocateArray<uint8_t, Buffer>(new_size);
+      memcpy(new_buffer, buffer_, (pos_ - buffer_));
       pos_ = new_buffer + (pos_ - buffer_);
       buffer_ = new_buffer;
       end_ = new_buffer + new_size;
@@ -148,13 +152,13 @@ class ZoneBuffer : public ZoneObject {
     pos_ = buffer_ + size;
   }
 
-  byte** pos_ptr() { return &pos_; }
+  uint8_t** pos_ptr() { return &pos_; }
 
  private:
   Zone* zone_;
-  byte* buffer_;
-  byte* pos_;
-  byte* end_;
+  uint8_t* buffer_;
+  uint8_t* pos_;
+  uint8_t* end_;
 };
 
 class WasmModuleBuilder;
@@ -162,12 +166,13 @@ class WasmModuleBuilder;
 class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
  public:
   // Building methods.
-  void SetSignature(FunctionSig* sig);
+  void SetSignature(const FunctionSig* sig);
+  void SetSignature(uint32_t sig_index);
   uint32_t AddLocal(ValueType type);
-  void EmitByte(byte b);
+  void EmitByte(uint8_t b);
   void EmitI32V(int32_t val);
   void EmitU32V(uint32_t val);
-  void EmitCode(const byte* code, uint32_t code_size);
+  void EmitCode(const uint8_t* code, uint32_t code_size);
   void Emit(WasmOpcode opcode);
   void EmitWithPrefix(WasmOpcode opcode);
   void EmitGetLocal(uint32_t index);
@@ -178,12 +183,13 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitF32Const(float val);
   void EmitF64Const(double val);
   void EmitS128Const(Simd128 val);
-  void EmitWithU8(WasmOpcode opcode, const byte immediate);
-  void EmitWithU8U8(WasmOpcode opcode, const byte imm1, const byte imm2);
+  void EmitWithU8(WasmOpcode opcode, const uint8_t immediate);
+  void EmitWithU8U8(WasmOpcode opcode, const uint8_t imm1, const uint8_t imm2);
   void EmitWithI32V(WasmOpcode opcode, int32_t immediate);
   void EmitWithU32V(WasmOpcode opcode, uint32_t immediate);
+  void EmitValueType(ValueType type);
   void EmitDirectCallIndex(uint32_t index);
-  void SetName(Vector<const char> name);
+  void SetName(base::Vector<const char> name);
   void AddAsmWasmOffset(size_t call_position, size_t to_number_position);
   void SetAsmFunctionStartPosition(size_t function_position);
   void SetCompilationHint(WasmCompilationHintStrategy strategy,
@@ -191,7 +197,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
                           WasmCompilationHintTier top_tier);
 
   size_t GetPosition() const { return body_.size(); }
-  void FixupByte(size_t position, byte value) {
+  void FixupByte(size_t position, uint8_t value) {
     body_.patch_u8(position, value);
   }
   void DeleteCodeAfter(size_t position);
@@ -202,7 +208,8 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
 
   WasmModuleBuilder* builder() const { return builder_; }
   uint32_t func_index() { return func_index_; }
-  FunctionSig* signature();
+  uint32_t sig_index() { return signature_index_; }
+  inline const FunctionSig* signature();
 
  private:
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
@@ -219,7 +226,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   uint32_t signature_index_;
   uint32_t func_index_;
   ZoneBuffer body_;
-  Vector<const char> name_;
+  base::Vector<const char> name_;
   ZoneVector<uint32_t> i32_temps_;
   ZoneVector<uint32_t> i64_temps_;
   ZoneVector<uint32_t> f32_temps_;
@@ -240,39 +247,142 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   WasmModuleBuilder(const WasmModuleBuilder&) = delete;
   WasmModuleBuilder& operator=(const WasmModuleBuilder&) = delete;
 
+  // Static representation of wasm element segment (table initializer). This is
+  // different than the version in wasm-module.h.
+  class WasmElemSegment {
+   public:
+    // asm.js gives function indices starting with the first non-imported
+    // function.
+    enum FunctionIndexingMode {
+      kRelativeToImports,
+      kRelativeToDeclaredFunctions
+    };
+    enum Status {
+      kStatusActive,      // copied automatically during instantiation.
+      kStatusPassive,     // copied explicitly after instantiation.
+      kStatusDeclarative  // purely declarative and never copied.
+    };
+    struct Entry {
+      enum Kind { kGlobalGetEntry, kRefFuncEntry, kRefNullEntry } kind;
+      uint32_t index;
+      Entry(Kind kind, uint32_t index) : kind(kind), index(index) {}
+      Entry() : kind(kRefNullEntry), index(0) {}
+    };
+
+    // Construct an active segment.
+    WasmElemSegment(Zone* zone, ValueType type, uint32_t table_index,
+                    WasmInitExpr offset)
+        : type(type),
+          table_index(table_index),
+          offset(offset),
+          entries(zone),
+          status(kStatusActive) {
+      DCHECK(IsValidOffsetKind(offset.kind()));
+    }
+
+    // Construct a passive or declarative segment, which has no table
+    // index or offset.
+    WasmElemSegment(Zone* zone, ValueType type, bool declarative,
+                    WasmInitExpr offset)
+        : type(type),
+          table_index(0),
+          offset(offset),
+          entries(zone),
+          status(declarative ? kStatusDeclarative : kStatusPassive) {
+      DCHECK(IsValidOffsetKind(offset.kind()));
+    }
+
+    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmElemSegment);
+
+    ValueType type;
+    uint32_t table_index;
+    WasmInitExpr offset;
+    FunctionIndexingMode indexing_mode = kRelativeToImports;
+    ZoneVector<Entry> entries;
+    Status status;
+
+   private:
+    // This ensures no {WasmInitExpr} with subexpressions is used, which would
+    // cause a memory leak because those are stored in an std::vector. Such
+    // offset would also be mistyped.
+    bool IsValidOffsetKind(WasmInitExpr::Operator kind) {
+      return kind == WasmInitExpr::kI32Const ||
+             kind == WasmInitExpr::kGlobalGet ||
+             kind == WasmInitExpr::kRefNullConst;
+    }
+  };
+
   // Building methods.
-  uint32_t AddImport(Vector<const char> name, FunctionSig* sig,
-                     Vector<const char> module = {});
-  WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
-  uint32_t AddGlobal(ValueType type, bool mutability = true,
-                     WasmInitExpr init = WasmInitExpr());
-  uint32_t AddGlobalImport(Vector<const char> name, ValueType type,
-                           bool mutability, Vector<const char> module = {});
-  void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
-  uint32_t AddSignature(FunctionSig* sig);
-  uint32_t AddException(FunctionSig* type);
-  uint32_t AddStructType(StructType* type);
-  uint32_t AddArrayType(ArrayType* type);
-  // In the current implementation, it's supported to have uninitialized slots
-  // at the beginning and/or end of the indirect function table, as long as
-  // the filled slots form a contiguous block in the middle.
-  uint32_t AllocateIndirectFunctions(uint32_t count);
-  void SetIndirectFunction(uint32_t indirect, uint32_t direct);
-  void SetMaxTableSize(uint32_t max);
+  uint32_t AddImport(base::Vector<const char> name, FunctionSig* sig,
+                     base::Vector<const char> module = {});
+  WasmFunctionBuilder* AddFunction(const FunctionSig* sig = nullptr);
+  WasmFunctionBuilder* AddFunction(uint32_t sig_index);
+  uint32_t AddGlobal(ValueType type, bool mutability, WasmInitExpr init);
+  uint32_t AddGlobalImport(base::Vector<const char> name, ValueType type,
+                           bool mutability,
+                           base::Vector<const char> module = {});
+  void AddDataSegment(const uint8_t* data, uint32_t size, uint32_t dest);
+  void AddPassiveDataSegment(const uint8_t* data, uint32_t size);
+  // Add an element segment to this {WasmModuleBuilder}. {segment}'s enties
+  // have to be initialized.
+  uint32_t AddElementSegment(WasmElemSegment segment);
+  // Helper method to create an active segment with one function. Assumes that
+  // table segment at {table_index} is typed as funcref.
+  void SetIndirectFunction(uint32_t table_index, uint32_t index_in_table,
+                           uint32_t direct_function_index,
+                           WasmElemSegment::FunctionIndexingMode indexing_mode);
+  // Increase the starting size of the table at {table_index} by {count}. Also
+  // increases the maximum table size if needed. Returns the former starting
+  // size, or the maximum uint32_t value if the maximum table size has been
+  // exceeded.
+  uint32_t IncreaseTableMinSize(uint32_t table_index, uint32_t count);
+  // Adds the signature to the module if it does not already exist.
+  uint32_t AddSignature(const FunctionSig* sig, bool is_final,
+                        uint32_t supertype = kNoSuperType);
+  // Does not deduplicate function signatures.
+  uint32_t ForceAddSignature(const FunctionSig* sig, bool is_final,
+                             uint32_t supertype = kNoSuperType);
+  uint32_t AddException(const FunctionSig* type);
+  uint32_t AddStructType(StructType* type, bool is_final,
+                         uint32_t supertype = kNoSuperType);
+  uint32_t AddArrayType(ArrayType* type, bool is_final,
+                        uint32_t supertype = kNoSuperType);
   uint32_t AddTable(ValueType type, uint32_t min_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size);
+  uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size,
+                    WasmInitExpr init);
   void MarkStartFunction(WasmFunctionBuilder* builder);
-  void AddExport(Vector<const char> name, ImportExportKindCode kind,
+  void AddExport(base::Vector<const char> name, ImportExportKindCode kind,
                  uint32_t index);
-  void AddExport(Vector<const char> name, WasmFunctionBuilder* builder) {
+  void AddExport(base::Vector<const char> name, WasmFunctionBuilder* builder) {
     AddExport(name, kExternalFunction, builder->func_index());
   }
   uint32_t AddExportedGlobal(ValueType type, bool mutability, WasmInitExpr init,
-                             Vector<const char> name);
-  void ExportImportedFunction(Vector<const char> name, int import_index);
+                             base::Vector<const char> name);
+  void ExportImportedFunction(base::Vector<const char> name, int import_index);
   void SetMinMemorySize(uint32_t value);
   void SetMaxMemorySize(uint32_t value);
   void SetHasSharedMemory();
+
+  void StartRecursiveTypeGroup() {
+    DCHECK_EQ(current_recursive_group_start_, -1);
+    current_recursive_group_start_ = static_cast<int>(types_.size());
+  }
+
+  void EndRecursiveTypeGroup() {
+    // Make sure we are in a recursive group.
+    DCHECK_NE(current_recursive_group_start_, -1);
+    // Make sure the current recursive group has at least one element.
+    DCHECK_GT(static_cast<int>(types_.size()), current_recursive_group_start_);
+    recursive_groups_.emplace(
+        current_recursive_group_start_,
+        static_cast<uint32_t>(types_.size()) - current_recursive_group_start_);
+    current_recursive_group_start_ = -1;
+  }
+
+  void AddRecursiveTypeGroup(uint32_t start, uint32_t size) {
+    recursive_groups_.emplace(start, size);
+  }
 
   // Writing methods.
   void WriteTo(ZoneBuffer* buffer) const;
@@ -280,56 +390,69 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   Zone* zone() { return zone_; }
 
-  FunctionSig* GetSignature(uint32_t index) {
-    DCHECK(types_[index].kind == Type::kFunctionSig);
-    return types_[index].sig;
+  ValueType GetTableType(uint32_t index) { return tables_[index].type; }
+
+  bool IsSignature(uint32_t index) {
+    return types_[index].kind == TypeDefinition::kFunction;
   }
 
+  const FunctionSig* GetSignature(uint32_t index) {
+    DCHECK(types_[index].kind == TypeDefinition::kFunction);
+    return types_[index].function_sig;
+  }
+
+  bool IsStructType(uint32_t index) {
+    return types_[index].kind == TypeDefinition::kStruct;
+  }
+  const StructType* GetStructType(uint32_t index) {
+    return types_[index].struct_type;
+  }
+
+  bool IsArrayType(uint32_t index) {
+    return types_[index].kind == TypeDefinition::kArray;
+  }
+  const ArrayType* GetArrayType(uint32_t index) {
+    return types_[index].array_type;
+  }
+
+  uint32_t GetSuperType(uint32_t index) { return types_[index].supertype; }
+
+  WasmFunctionBuilder* GetFunction(uint32_t index) { return functions_[index]; }
   int NumExceptions() { return static_cast<int>(exceptions_.size()); }
 
-  FunctionSig* GetExceptionType(int index) {
-    return types_[exceptions_[index]].sig;
+  int NumTypes() { return static_cast<int>(types_.size()); }
+
+  int NumTables() { return static_cast<int>(tables_.size()); }
+
+  int NumFunctions() { return static_cast<int>(functions_.size()); }
+
+  int NumDataSegments() { return static_cast<int>(data_segments_.size()); }
+
+  const FunctionSig* GetExceptionType(int index) {
+    return types_[exceptions_[index]].function_sig;
   }
 
  private:
-  struct Type {
-    enum Kind { kFunctionSig, kStructType, kArrayType };
-    explicit Type(FunctionSig* signature)
-        : kind(kFunctionSig), sig(signature) {}
-    explicit Type(StructType* struct_type)
-        : kind(kStructType), struct_type(struct_type) {}
-    explicit Type(ArrayType* array_type)
-        : kind(kArrayType), array_type(array_type) {}
-    Kind kind;
-    union {
-      FunctionSig* sig;
-      StructType* struct_type;
-      ArrayType* array_type;
-    };
-  };
-
   struct WasmFunctionImport {
-    Vector<const char> module;
-    Vector<const char> name;
+    base::Vector<const char> module;
+    base::Vector<const char> name;
     uint32_t sig_index;
   };
 
   struct WasmGlobalImport {
-    Vector<const char> module;
-    Vector<const char> name;
+    base::Vector<const char> module;
+    base::Vector<const char> name;
     ValueTypeCode type_code;
     bool mutability;
   };
 
   struct WasmExport {
-    Vector<const char> name;
+    base::Vector<const char> name;
     ImportExportKindCode kind;
     int index;  // Can be negative for re-exported imports.
   };
 
   struct WasmGlobal {
-    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmGlobal);
-
     ValueType type;
     bool mutability;
     WasmInitExpr init;
@@ -340,28 +463,32 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     uint32_t min_size;
     uint32_t max_size;
     bool has_maximum;
+    base::Optional<WasmInitExpr> init;
   };
 
   struct WasmDataSegment {
-    ZoneVector<byte> data;
+    ZoneVector<uint8_t> data;
     uint32_t dest;
+    bool is_active = true;
   };
 
   friend class WasmFunctionBuilder;
   Zone* zone_;
-  ZoneVector<Type> types_;
+  ZoneVector<TypeDefinition> types_;
   ZoneVector<WasmFunctionImport> function_imports_;
   ZoneVector<WasmGlobalImport> global_imports_;
   ZoneVector<WasmExport> exports_;
   ZoneVector<WasmFunctionBuilder*> functions_;
   ZoneVector<WasmTable> tables_;
   ZoneVector<WasmDataSegment> data_segments_;
-  ZoneVector<uint32_t> indirect_functions_;
+  ZoneVector<WasmElemSegment> element_segments_;
   ZoneVector<WasmGlobal> globals_;
   ZoneVector<int> exceptions_;
   ZoneUnorderedMap<FunctionSig, uint32_t> signature_map_;
+  int current_recursive_group_start_;
+  // first index -> size
+  ZoneUnorderedMap<uint32_t, uint32_t> recursive_groups_;
   int start_function_index_;
-  uint32_t max_table_size_ = 0;
   uint32_t min_memory_size_;
   uint32_t max_memory_size_;
   bool has_max_memory_size_;
@@ -369,13 +496,11 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 #if DEBUG
   // Once AddExportedImport is called, no more imports can be added.
   bool adding_imports_allowed_ = true;
-  // Indirect functions must be allocated before adding extra tables.
-  bool allocating_indirect_functions_allowed_ = true;
 #endif
 };
 
-inline FunctionSig* WasmFunctionBuilder::signature() {
-  return builder_->types_[signature_index_].sig;
+const FunctionSig* WasmFunctionBuilder::signature() {
+  return builder_->types_[signature_index_].function_sig;
 }
 
 }  // namespace wasm

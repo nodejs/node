@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -49,7 +49,7 @@ my $globl = sub {
 	/osx/		&& do { $name = "_$name";
 				last;
 			      };
-	/linux.*(32|64le)/
+	/linux.*(32|64(le|v2))/
 			&& do {	$ret .= ".globl	$name";
 				if (!$$type) {
 				    $ret .= "\n.type	$name,\@function";
@@ -80,7 +80,11 @@ my $globl = sub {
 };
 my $text = sub {
     my $ret = ($flavour =~ /aix/) ? ".csect\t.text[PR],7" : ".text";
-    $ret = ".abiversion	2\n".$ret	if ($flavour =~ /linux.*64le/);
+    $ret = ".abiversion	2\n".$ret	if ($flavour =~ /linux.*64(le|v2)/);
+    $ret;
+};
+my $p2align = sub {
+    my $ret = ($flavour =~ /aix64-as/) ? "" : ".p2align $line";
     $ret;
 };
 my $machine = sub {
@@ -136,6 +140,72 @@ my $quad = sub {
 };
 
 ################################################################
+# vector register number hacking
+################################################################
+
+# It is convenient to be able to set a variable like:
+#   my $foo = "v33";
+# and use this in different contexts where:
+# * a VSR (Vector-Scaler Register) number (i.e. "v33") is required
+# * a VR (Vector Register) number (i.e. "v1") is required
+# Map VSR numbering to VR number for certain vector instructions.
+
+# vs<N> -> v<N-32> if N > 32
+sub vsr2vr1 {
+    my $in = shift;
+    my ($prefix, $reg) = ($in =~ m/(\D*)(\d+)/);
+
+    my $n = int($reg);
+    if ($n >= 32) {
+	    $n -= 32;
+    }
+
+    return "${prefix}${n}";
+}
+# As above for first $num register args, returns list
+sub _vsr2vr {
+    my $num = shift;
+    my @rest = @_;
+    my @subst = splice(@rest, 0, $num);
+
+    @subst = map { vsr2vr1($_); } @subst;
+
+    return (@subst, @rest);
+}
+# As above but 1st arg ($f) is extracted and reinserted after
+# processing so that it can be ignored by a code generation function
+# that consumes the result
+sub vsr2vr_args {
+    my $num = shift;
+    my $f = shift;
+
+    my @out = _vsr2vr($num, @_);
+
+    return ($f, @out);
+}
+# As above but 1st arg is mnemonic, return formatted instruction
+sub vsr2vr {
+    my $mnemonic = shift;
+    my $num = shift;
+    my $f = shift;
+
+    my @out = _vsr2vr($num, @_);
+
+    "	${mnemonic}${f}	" . join(",", @out);
+}
+
+# ISA 2.03
+my $vsel	= sub { vsr2vr("vsel",		4, @_); };
+my $vsl		= sub { vsr2vr("vsl",		3, @_); };
+my $vspltisb	= sub { vsr2vr("vspltisb",	1, @_); };
+my $vspltisw	= sub { vsr2vr("vspltisw",	1, @_); };
+my $vsr		= sub { vsr2vr("vsr",		3, @_); };
+my $vsro	= sub { vsr2vr("vsro",		3, @_); };
+
+# ISA 3.0
+my $lxsd	= sub { vsr2vr("lxsd",		1, @_); };
+
+################################################################
 # simplified mnemonics not handled by at least one assembler
 ################################################################
 my $cmplw = sub {
@@ -186,7 +256,7 @@ my $vmr = sub {
 
 # Some ABIs specify vrsave, special-purpose register #256, as reserved
 # for system use.
-my $no_vrsave = ($flavour =~ /aix|linux64le/);
+my $no_vrsave = ($flavour =~ /aix|linux64(le|v2)/);
 my $mtspr = sub {
     my ($f,$idx,$ra) = @_;
     if ($idx == 256 && $no_vrsave) {
@@ -226,13 +296,18 @@ my $vpermdi	= sub {				# xxpermdi
 
 # PowerISA 2.07 stuff
 sub vcrypto_op {
-    my ($f, $vrt, $vra, $vrb, $op) = @_;
+    my ($f, $vrt, $vra, $vrb, $op) = vsr2vr_args(3, @_);
     "	.long	".sprintf "0x%X",(4<<26)|($vrt<<21)|($vra<<16)|($vrb<<11)|$op;
 }
 sub vfour {
     my ($f, $vrt, $vra, $vrb, $vrc, $op) = @_;
     "	.long	".sprintf "0x%X",(4<<26)|($vrt<<21)|($vra<<16)|($vrb<<11)|($vrc<<6)|$op;
 };
+sub vfour_vsr {
+    my ($f, $vrt, $vra, $vrb, $vrc, $op) = vsr2vr_args(4, @_);
+    "	.long	".sprintf "0x%X",(4<<26)|($vrt<<21)|($vra<<16)|($vrb<<11)|($vrc<<6)|$op;
+};
+
 my $vcipher	= sub { vcrypto_op(@_, 1288); };
 my $vcipherlast	= sub { vcrypto_op(@_, 1289); };
 my $vncipher	= sub { vcrypto_op(@_, 1352); };
@@ -254,10 +329,10 @@ my $vsld	= sub { vcrypto_op(@_, 1476); };
 my $vsrd	= sub { vcrypto_op(@_, 1732); };
 my $vsubudm	= sub { vcrypto_op(@_, 1216); };
 my $vaddcuq	= sub { vcrypto_op(@_, 320);  };
-my $vaddeuqm	= sub { vfour(@_,60); };
-my $vaddecuq	= sub { vfour(@_,61); };
-my $vmrgew	= sub { vfour(@_,0,1932); };
-my $vmrgow	= sub { vfour(@_,0,1676); };
+my $vaddeuqm	= sub { vfour_vsr(@_,60); };
+my $vaddecuq	= sub { vfour_vsr(@_,61); };
+my $vmrgew	= sub { vfour_vsr(@_,0,1932); };
+my $vmrgow	= sub { vfour_vsr(@_,0,1676); };
 
 my $mtsle	= sub {
     my ($f, $arg) = @_;
@@ -273,6 +348,8 @@ my $mtvrwz	= sub {
     my ($f, $vrt, $ra) = @_;
     "	.long	".sprintf "0x%X",(31<<26)|($vrt<<21)|($ra<<16)|(243<<1)|1;
 };
+my $lvwzx_u	= sub { vsxmem_op(@_, 12); };	# lxsiwzx
+my $stvwx_u	= sub { vsxmem_op(@_, 140); };	# stxsiwx
 
 # PowerISA 3.0 stuff
 my $maddhdu	= sub { vfour(@_,49); };
@@ -298,13 +375,13 @@ my $addex = sub {
     my ($f, $rt, $ra, $rb, $cy) = @_;	# only cy==0 is specified in 3.0B
     "	.long	".sprintf "0x%X",(31<<26)|($rt<<21)|($ra<<16)|($rb<<11)|($cy<<9)|(170<<1);
 };
-my $vmsumudm	= sub { vfour(@_,35); };
+my $vmsumudm	= sub { vfour_vsr(@_, 35); };
 
 while($line=<>) {
 
     $line =~ s|[#!;].*$||;	# get rid of asm-style comments...
     $line =~ s|/\*.*\*/||;	# ... and C-style comments...
-    $line =~ s|^\s+||;		# ... and skip white spaces in beginning...
+    $line =~ s|^\s+||;		# ... and skip whitespaces in beginning...
     $line =~ s|\s+$||;		# ... and at the end
 
     {
@@ -318,7 +395,7 @@ while($line=<>) {
 	if ($label) {
 	    my $xlated = ($GLOBALS{$label} or $label);
 	    print "$xlated:";
-	    if ($flavour =~ /linux.*64le/) {
+	    if ($flavour =~ /linux.*64(le|v2)/) {
 		if ($TYPES{$label} =~ /function/) {
 		    printf "\n.localentry	%s,0\n",$xlated;
 		}

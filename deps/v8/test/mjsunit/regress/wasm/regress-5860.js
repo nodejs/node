@@ -4,7 +4,7 @@
 //
 // Flags: --expose-wasm
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let module1 = (() => {
   let builder = new WasmModuleBuilder();

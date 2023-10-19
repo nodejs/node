@@ -5,11 +5,13 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const internalUtil = require('internal/util');
 const { internalBinding } = require('internal/test/binding');
-const binding = internalBinding('util');
+const {
+  privateSymbols: {
+    arrow_message_private_symbol,
+    decorated_private_symbol,
+  }
+} = internalBinding('util');
 const spawnSync = require('child_process').spawnSync;
-
-const kArrowMessagePrivateSymbolIndex = binding.arrow_message_private_symbol;
-const kDecoratedPrivateSymbolIndex = binding.decorated_private_symbol;
 
 const decorateErrorStack = internalUtil.decorateErrorStack;
 
@@ -31,9 +33,9 @@ function checkStack(stack) {
   // displays the line of code (`var foo bar;`) that is causing a problem.
   // ChakraCore does not display the line of code but includes `;` in the phrase
   // `Expected ';' `.
-  assert.ok(/;/g.test(stack));
+  assert.match(stack, /;/g);
   // Test that it's a multiline string.
-  assert.ok(/\n/g.test(stack));
+  assert.match(stack, /\n/g);
 }
 let err;
 const badSyntaxPath =
@@ -56,7 +58,7 @@ checkStack(err.stack);
 // Verify that the stack is only decorated once for uncaught exceptions.
 const args = [
   '-e',
-  `require('${badSyntaxPath}')`,
+  `require(${JSON.stringify(badSyntaxPath)})`,
 ];
 const result = spawnSync(process.argv[0], args, { encoding: 'utf8' });
 checkStack(result.stderr);
@@ -73,9 +75,8 @@ const arrowMessage = 'arrow_message';
 err = new Error('foo');
 originalStack = err.stack;
 
-binding.setHiddenValue(err, kArrowMessagePrivateSymbolIndex, arrowMessage);
+err[arrow_message_private_symbol] = arrowMessage;
 decorateErrorStack(err);
 
 assert.strictEqual(err.stack, `${arrowMessage}${originalStack}`);
-assert.strictEqual(
-  binding.getHiddenValue(err, kDecoratedPrivateSymbolIndex), true);
+assert.strictEqual(err[decorated_private_symbol], true);

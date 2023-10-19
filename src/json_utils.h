@@ -4,13 +4,21 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <iomanip>
-#include <ostream>
 #include <limits>
+#include <ostream>
 #include <string>
+#include <string_view>
 
 namespace node {
 
-std::string EscapeJsonChars(const std::string& str);
+constexpr bool NeedsJsonEscape(std::string_view str) {
+  for (const char c : str) {
+    if (c == '\\' || c == '"' || c < 0x20) return true;
+  }
+  return false;
+}
+
+std::string EscapeJsonChars(std::string_view str);
 std::string Reindent(const std::string& str, int indentation);
 
 // JSON compiler definitions.
@@ -128,24 +136,27 @@ class JSONWriter {
             typename test_for_number = typename std::
                 enable_if<std::numeric_limits<T>::is_specialized, bool>::type>
   inline void write_value(T number) {
-    if (std::is_same<T, bool>::value)
+    if constexpr (std::is_same<T, bool>::value)
       out_ << (number ? "true" : "false");
     else
       out_ << number;
   }
 
   inline void write_value(Null null) { out_ << "null"; }
-  inline void write_value(const char* str) { write_string(str); }
-  inline void write_value(const std::string& str) { write_string(str); }
+  inline void write_value(std::string_view str) { write_string(str); }
 
   inline void write_value(const ForeignJSON& json) {
     out_ << Reindent(json.as_string, indent_);
   }
 
-  inline void write_string(const std::string& str) {
-    out_ << '"' << EscapeJsonChars(str) << '"';
+  inline void write_string(std::string_view str) {
+    out_ << '"';
+    if (NeedsJsonEscape(str))  // only create temporary std::string if necessary
+      out_ << EscapeJsonChars(str);
+    else
+      out_ << str;
+    out_ << '"';
   }
-  inline void write_string(const char* str) { write_string(std::string(str)); }
 
   enum JSONState { kObjectStart, kAfterValue };
   std::ostream& out_;

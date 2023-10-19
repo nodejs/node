@@ -53,7 +53,7 @@ nonStringInputs.forEach(common.mustCall((input) => {
 
 unzips.forEach(common.mustCall((uz, i) => {
   uz.on('error', common.mustCall());
-  uz.on('end', common.mustNotCall);
+  uz.on('end', common.mustNotCall());
 
   // This will trigger error event
   uz.write('this is not valid compressed data.');

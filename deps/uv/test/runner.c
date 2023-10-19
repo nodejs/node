@@ -37,28 +37,14 @@ static int compare_task(const void* va, const void* vb) {
 }
 
 
-const char* fmt(double d) {
-  static char buf[1024];
-  static char* p;
+char* fmt(char (*buf)[32], double d) {
   uint64_t v;
+  char* p;
 
-  if (p == NULL)
-    p = buf;
-
-  p += 31;
-
-  if (p >= buf + sizeof(buf))
-    return "<buffer too small>";
-
+  p = &(*buf)[32];
   v = (uint64_t) d;
 
-#if 0 /* works but we don't care about fractional precision */
-  if (d - v >= 0.01) {
-    *--p = '0' + (uint64_t) (d * 100) % 10;
-    *--p = '0' + (uint64_t) (d * 10) % 10;
-    *--p = '.';
-  }
-#endif
+  *--p = '\0';
 
   if (v == 0)
     *--p = '0';
@@ -77,9 +63,7 @@ const char* fmt(double d) {
 int run_tests(int benchmark_output) {
   int actual;
   int total;
-  int passed;
   int failed;
-  int skipped;
   int current;
   int test_result;
   int skip;
@@ -98,13 +82,11 @@ int run_tests(int benchmark_output) {
   skip = (actual > 0 && 0 == strcmp(TASKS[0].task_name, "platform_output"));
   qsort(TASKS + skip, actual - skip, sizeof(TASKS[0]), compare_task);
 
-  fprintf(stderr, "1..%d\n", total);
-  fflush(stderr);
+  fprintf(stdout, "1..%d\n", total);
+  fflush(stdout);
 
   /* Run all tests. */
-  passed = 0;
   failed = 0;
-  skipped = 0;
   current = 1;
   for (task = TASKS; task->main; task++) {
     if (task->is_helper) {
@@ -113,8 +95,8 @@ int run_tests(int benchmark_output) {
 
     test_result = run_test(task->task_name, benchmark_output, current);
     switch (test_result) {
-    case TEST_OK: passed++; break;
-    case TEST_SKIP: skipped++; break;
+    case TEST_OK: break;
+    case TEST_SKIP: break;
     default: failed++;
     }
     current++;
@@ -156,8 +138,8 @@ void log_tap_result(int test_count,
     reason[0] = '\0';
   }
 
-  fprintf(stderr, "%s %d - %s%s%s\n", result, test_count, test, directive, reason);
-  fflush(stderr);
+  fprintf(stdout, "%s %d - %s%s%s\n", result, test_count, test, directive, reason);
+  fflush(stdout);
 }
 
 
@@ -307,28 +289,28 @@ out:
   /* Show error and output from processes if the test failed. */
   if ((status != TEST_OK && status != TEST_SKIP) || task->show_output) {
     if (strlen(errmsg) > 0)
-      fprintf(stderr, "# %s\n", errmsg);
-    fprintf(stderr, "# ");
-    fflush(stderr);
+      fprintf(stdout, "# %s\n", errmsg);
+    fprintf(stdout, "# ");
+    fflush(stdout);
 
     for (i = 0; i < process_count; i++) {
       switch (process_output_size(&processes[i])) {
        case -1:
-        fprintf(stderr, "Output from process `%s`: (unavailable)\n",
+        fprintf(stdout, "Output from process `%s`: (unavailable)\n",
                 process_get_name(&processes[i]));
-        fflush(stderr);
+        fflush(stdout);
         break;
 
        case 0:
-        fprintf(stderr, "Output from process `%s`: (no output)\n",
+        fprintf(stdout, "Output from process `%s`: (no output)\n",
                 process_get_name(&processes[i]));
-        fflush(stderr);
+        fflush(stdout);
         break;
 
        default:
-        fprintf(stderr, "Output from process `%s`:\n", process_get_name(&processes[i]));
-        fflush(stderr);
-        process_copy_output(&processes[i], stderr);
+        fprintf(stdout, "Output from process `%s`:\n", process_get_name(&processes[i]));
+        fflush(stdout);
+        process_copy_output(&processes[i], stdout);
         break;
       }
     }
@@ -337,18 +319,18 @@ out:
   } else if (benchmark_output) {
     switch (process_output_size(main_proc)) {
      case -1:
-      fprintf(stderr, "%s: (unavailable)\n", test);
-      fflush(stderr);
+      fprintf(stdout, "%s: (unavailable)\n", test);
+      fflush(stdout);
       break;
 
      case 0:
-      fprintf(stderr, "%s: (no output)\n", test);
-      fflush(stderr);
+      fprintf(stdout, "%s: (no output)\n", test);
+      fflush(stdout);
       break;
 
      default:
       for (i = 0; i < process_count; i++) {
-        process_copy_output(&processes[i], stderr);
+        process_copy_output(&processes[i], stdout);
       }
       break;
     }
@@ -378,8 +360,8 @@ int run_test_part(const char* test, const char* part) {
     }
   }
 
-  fprintf(stderr, "No test part with that name: %s:%s\n", test, part);
-  fflush(stderr);
+  fprintf(stdout, "No test part with that name: %s:%s\n", test, part);
+  fflush(stdout);
   return 255;
 }
 

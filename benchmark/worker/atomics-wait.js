@@ -1,9 +1,12 @@
 'use strict';
-/* global SharedArrayBuffer */
+
+if (typeof SharedArrayBuffer === 'undefined') {
+  throw new Error('SharedArrayBuffers must be enabled to run this benchmark');
+}
 
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  n: [1e7]
+  n: [1e7],
 });
 
 function main({ n }) {

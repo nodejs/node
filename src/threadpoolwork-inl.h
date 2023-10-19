@@ -24,23 +24,36 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util-inl.h"
 #include "node_internals.h"
+#include "tracing/trace_event.h"
+#include "util-inl.h"
 
 namespace node {
 
 void ThreadPoolWork::ScheduleWork() {
   env_->IncreaseWaitingRequestCounter();
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
+      TRACING_CATEGORY_NODE2(threadpoolwork, async), type_, this);
   int status = uv_queue_work(
       env_->event_loop(),
       &work_req_,
       [](uv_work_t* req) {
         ThreadPoolWork* self = ContainerOf(&ThreadPoolWork::work_req_, req);
+        TRACE_EVENT_BEGIN0(TRACING_CATEGORY_NODE2(threadpoolwork, sync),
+                           self->type_);
         self->DoThreadPoolWork();
+        TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(threadpoolwork, sync),
+                         self->type_);
       },
       [](uv_work_t* req, int status) {
         ThreadPoolWork* self = ContainerOf(&ThreadPoolWork::work_req_, req);
         self->env_->DecreaseWaitingRequestCounter();
+        TRACE_EVENT_NESTABLE_ASYNC_END1(
+            TRACING_CATEGORY_NODE2(threadpoolwork, async),
+            self->type_,
+            self,
+            "result",
+            status);
         self->AfterThreadPoolWork(status);
       });
   CHECK_EQ(status, 0);

@@ -5,8 +5,7 @@
 #ifndef V8_CODEGEN_S390_REGISTER_S390_H_
 #define V8_CODEGEN_S390_REGISTER_S390_H_
 
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
+#include "src/codegen/register-base.h"
 
 namespace v8 {
 namespace internal {
@@ -16,9 +15,19 @@ namespace internal {
   V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  \
   V(r8)  V(r9)  V(r10) V(fp) V(ip) V(r13) V(r14) V(sp)
 
-#define ALLOCATABLE_GENERAL_REGISTERS(V)                  \
+#define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V)                  \
   V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)                \
-  V(r8)  V(r9)  V(r13)
+  V(r8)  V(r13)
+
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
+#else
+#define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V) V(r9)
+#endif
+
+#define ALLOCATABLE_GENERAL_REGISTERS(V)  \
+  ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
+  MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
 
 #define DOUBLE_REGISTERS(V)                               \
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
@@ -35,56 +44,6 @@ namespace internal {
   V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
   V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
 // clang-format on
-
-// Register list in load/store instructions
-// Note that the bit values must match those used in actual instruction encoding
-
-// Caller-saved/arguments registers
-const RegList kJSCallerSaved = 1 << 1 | 1 << 2 |  // r2  a1
-                               1 << 3 |           // r3  a2
-                               1 << 4 |           // r4  a3
-                               1 << 5;            // r5  a4
-
-const int kNumJSCallerSaved = 5;
-
-// Callee-saved registers preserved when switching from C to JavaScript
-const RegList kCalleeSaved =
-    1 << 6 |   // r6 (argument passing in CEntryStub)
-               //    (HandleScope logic in MacroAssembler)
-    1 << 7 |   // r7 (argument passing in CEntryStub)
-               //    (HandleScope logic in MacroAssembler)
-    1 << 8 |   // r8 (argument passing in CEntryStub)
-               //    (HandleScope logic in MacroAssembler)
-    1 << 9 |   // r9 (HandleScope logic in MacroAssembler)
-    1 << 10 |  // r10 (Roots register in Javascript)
-    1 << 11 |  // r11 (fp in Javascript)
-    1 << 12 |  // r12 (ip in Javascript)
-    1 << 13;   // r13 (cp in Javascript)
-// 1 << 15;   // r15 (sp in Javascript)
-
-const int kNumCalleeSaved = 8;
-
-const RegList kCallerSavedDoubles = 1 << 0 |  // d0
-                                    1 << 1 |  // d1
-                                    1 << 2 |  // d2
-                                    1 << 3 |  // d3
-                                    1 << 4 |  // d4
-                                    1 << 5 |  // d5
-                                    1 << 6 |  // d6
-                                    1 << 7;   // d7
-
-const int kNumCallerSavedDoubles = 8;
-
-const RegList kCalleeSavedDoubles = 1 << 8 |   // d8
-                                    1 << 9 |   // d9
-                                    1 << 10 |  // d10
-                                    1 << 11 |  // d11
-                                    1 << 12 |  // d12
-                                    1 << 13 |  // d12
-                                    1 << 14 |  // d12
-                                    1 << 15;   // d13
-
-const int kNumCalleeSavedDoubles = 8;
 
 // The following constants describe the stack frame linkage area as
 // defined by the ABI.
@@ -154,8 +113,15 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
+static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
+
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
 
 #define DEFINE_REGISTER(R) \
   constexpr Register R = Register::from_code(kRegCode_##R);
@@ -165,10 +131,26 @@ constexpr Register no_reg = Register::no_reg();
 
 // Register aliases
 constexpr Register kRootRegister = r10;  // Roots array pointer.
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+constexpr Register kPtrComprCageBaseRegister = r9;  // callee save
+#else
+constexpr Register kPtrComprCageBaseRegister = kRootRegister;
+#endif
 constexpr Register cp = r13;             // JavaScript context pointer.
 
-constexpr bool kPadArguments = false;
-constexpr bool kSimpleFPAliasing = true;
+// s390x calling convention
+constexpr Register arg_reg_1 = r2;
+constexpr Register arg_reg_2 = r3;
+constexpr Register arg_reg_3 = r4;
+constexpr Register arg_reg_4 = r5;
+
+// Returns the number of padding slots needed for stack pointer alignment.
+constexpr int ArgumentPaddingSlots(int argument_count) {
+  // No argument padding required.
+  return 0;
+}
+
+constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;
 constexpr bool kSimdMaskRegisters = false;
 
 enum DoubleRegisterCode {
@@ -199,7 +181,7 @@ class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(DoubleRegister);
-static_assert(sizeof(DoubleRegister) == sizeof(int),
+static_assert(sizeof(DoubleRegister) <= sizeof(int),
               "DoubleRegister can efficiently be passed by value");
 
 using FloatRegister = DoubleRegister;
@@ -248,7 +230,6 @@ constexpr Register kReturnRegister2 = r4;
 constexpr Register kJSFunctionRegister = r3;
 constexpr Register kContextRegister = r13;
 constexpr Register kAllocateSizeRegister = r3;
-constexpr Register kSpeculationPoisonRegister = r9;
 constexpr Register kInterpreterAccumulatorRegister = r2;
 constexpr Register kInterpreterBytecodeOffsetRegister = r6;
 constexpr Register kInterpreterBytecodeArrayRegister = r7;
@@ -260,7 +241,6 @@ constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = r5;
 constexpr Register kJavaScriptCallExtraArg1Register = r4;
 
-constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r3;
 constexpr Register kRuntimeCallArgCountRegister = r2;
 constexpr Register kRuntimeCallArgvRegister = r4;

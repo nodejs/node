@@ -14,15 +14,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow confusing multiline expressions",
-            category: "Possible Errors",
+            description: "Disallow confusing multiline expressions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unexpected-multiline"
+            url: "https://eslint.org/docs/latest/rules/no-unexpected-multiline"
         },
 
         schema: [],
@@ -38,7 +38,7 @@ module.exports = {
 
         const REGEX_FLAG_MATCHER = /^[gimsuy]+$/u;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Check to see if there is a newline between the node and the following open bracket

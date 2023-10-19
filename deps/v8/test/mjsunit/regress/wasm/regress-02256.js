@@ -4,7 +4,7 @@
 //
 // Flags: --expose-gc --allow-natives-syntax
 // Flags: --gc-interval=207 --stress-compaction --validate-asm
-// Flags: --opt --no-always-opt
+// Flags: --turbofan --no-always-turbofan
 //
 // /v8/test/mjsunit/wasm/grow-memory.js
 // /v8/test/mjsunit/regress/regress-540.js
@@ -264,7 +264,7 @@ var __v_11 = this;
 var __v_12 = {};
 var __v_13 = {};
 try {
-    load("test/mjsunit/wasm/wasm-module-__v_1.js");
+    d8.file.execute("test/mjsunit/wasm/wasm-module-__v_1.js");
     __v_2 = 0x10000;
 } catch (e) {
     print("Caught: " + e);
@@ -304,7 +304,7 @@ function __f_16() {
 
 function __f_14() {
     var __v_4 = __f_16();
-    __v_1.addMemory(1, 1, false);
+    __v_1.addMemory(1, 1);
     var module = __v_1.instantiate();
     var __v_3;
 
@@ -363,7 +363,7 @@ function __f_13() {
         gc();
         return __f_28(__v_1);
     });
-    __v_1.addMemory(1, 1, false);
+    __v_1.addMemory(1, 1);
     var module = __v_1.instantiate();
     assertEquals(0, __f_30(0));
     var __v_3;
@@ -419,7 +419,7 @@ try {
 
 function __f_10() {
     var __v_1 = __f_16();
-    __v_1.addMemory(1, 1, false);
+    __v_1.addMemory(1, 1);
     var module = __v_1.instantiate();
     var __v_3;
 
@@ -522,7 +522,7 @@ try {
 
 function __f_12() {
     var __v_1 = __f_16();
-    __v_1.addMemory(1, 1, false);
+    __v_1.addMemory(1, 1);
     var module = __v_9.instantiate();
     __v_4.__p_1905062277 = __v_4[getRandomProperty(__v_4, 1905062277)];
     __v_4.__defineGetter__(getRandomProperty(__v_4, 1764398743), function() {
@@ -560,7 +560,7 @@ try {
 
 function __f_4() {
     var __v_1 = __f_16();
-    __v_1.addMemory(1, 1, false);
+    __v_1.addMemory(1, 1);
     __v_1.addFunction("memory_size", kSig_i_v)
         .addBody([kExprMemorySize])
         .exportFunc();
@@ -586,7 +586,7 @@ try {
 
 function __f_6() {
     var __v_1 = __f_16();
-    __v_1.addMemory(1, 1, false);
+    __v_1.addMemory(1, 1);
     var module = __v_1.instantiate();
     var __v_3, __v_0;
     gc();
@@ -625,7 +625,7 @@ try {
 
 function __f_11() {
     var __v_1 = __f_16();
-    __v_1.addMemory(1, 1, false);
+    __v_1.addMemory(1, 1);
     var module = __v_2.instantiate();
     var __v_3, __v_0;
 
@@ -657,7 +657,7 @@ try {
 
 function __f_15() {
     var __v_1 = __f_16();
-    __v_1.addMemory(1, 1, false);
+    __v_1.addMemory(1, 1);
     var module = __v_1.instantiate();
     var __v_3, __v_0 = 0;
 
@@ -692,7 +692,7 @@ try {
 
 function __f_3() {
     var __v_1 = __f_16();
-    __v_1.addMemory(1, 1, false);
+    __v_1.addMemory(1, 1);
     var module = __v_1.instantiate();
     var __v_3, __v_0;
 

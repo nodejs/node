@@ -26,13 +26,18 @@ class ProfileDataFromFileInternal : public ProfileDataFromFile {
     hash_has_value_ = true;
   }
 
-  void AddCountToBlock(size_t block_id, double count) {
-    if (block_counts_by_id_.size() <= block_id) {
-      // std::vector initializes new data to zero when resizing.
-      block_counts_by_id_.resize(block_id + 1);
-    }
-    block_counts_by_id_[block_id] += count;
+  void AddHintToBlock(size_t true_block_id, size_t false_block_id,
+                      uint64_t hint) {
+    CHECK_LT(hint, 2);
+    block_hints_by_id.insert(std::make_pair(
+        std::make_pair(true_block_id, false_block_id), hint != 0));
   }
+
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+  void AddBlockExecutionCount(size_t block_id, uint64_t executed_count) {
+    executed_count_.emplace(block_id, executed_count);
+  }
+#endif
 
  private:
   bool hash_has_value_ = false;
@@ -47,7 +52,57 @@ EnsureInitProfileData() {
 
   if (initialized) return *data.get();
   initialized = true;
-  const char* filename = FLAG_turbo_profiling_log_file;
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+  if (v8_flags.turbo_log_builtins_count_input) {
+    std::ifstream raw_count_file(
+        v8_flags.turbo_log_builtins_count_input.value());
+    CHECK_WITH_MSG(raw_count_file.good(),
+                   "Can't read raw count file for log builtin hotness.");
+    for (std::string line; std::getline(raw_count_file, line);) {
+      std::string token;
+      std::istringstream line_stream(line);
+      if (!std::getline(line_stream, token, '\t')) continue;
+      if (token == ProfileDataFromFileConstants::kBlockCounterMarker) {
+        // Any line starting with kBlockCounterMarker is a basic block execution
+        // count. The format is:
+        //   literal kBlockCounterMarker \t builtin_name \t block_id \t count
+        std::string builtin_name;
+        CHECK(std::getline(line_stream, builtin_name, '\t'));
+        std::string block_id_str;
+        CHECK(std::getline(line_stream, block_id_str, '\t'));
+        char* end = nullptr;
+        errno = 0;
+        uint32_t block_id =
+            static_cast<uint32_t>(strtoul(block_id_str.c_str(), &end, 10));
+        CHECK(errno == 0);
+        std::string executed_count_str;
+        CHECK(std::getline(line_stream, executed_count_str, '\t'));
+        uint64_t executed_count = static_cast<uint64_t>(
+            strtoul(executed_count_str.c_str(), &end, 10));
+        CHECK(errno == 0 && end != token.c_str());
+        std::getline(line_stream, token, '\t');
+        ProfileDataFromFileInternal& block_count = (*data.get())[builtin_name];
+        block_count.AddBlockExecutionCount(block_id, executed_count);
+        CHECK(line_stream.eof());
+      } else if (token == ProfileDataFromFileConstants::kBuiltinHashMarker) {
+        // Any line starting with kBuiltinHashMarker is a function hash record.
+        // As defined by V8FileLogger::BuiltinHashEvent, the format is:
+        //   literal kBuiltinHashMarker \t builtin_name \t hash
+        std::string builtin_name;
+        CHECK(std::getline(line_stream, builtin_name, '\t'));
+        std::getline(line_stream, token, '\t');
+        CHECK(line_stream.eof());
+        char* end = nullptr;
+        int hash = static_cast<int>(strtol(token.c_str(), &end, 0));
+        CHECK(errno == 0 && end != token.c_str());
+        ProfileDataFromFileInternal& block_count = (*data.get())[builtin_name];
+        CHECK_IMPLIES(block_count.hash_has_value(), block_count.hash() == hash);
+        block_count.set_hash(hash);
+      }
+    }
+  }
+#endif
+  const char* filename = v8_flags.turbo_profiling_input;
   if (filename == nullptr) return *data.get();
   std::ifstream file(filename);
   CHECK_WITH_MSG(file.good(), "Can't read log file");
@@ -55,28 +110,32 @@ EnsureInitProfileData() {
     std::string token;
     std::istringstream line_stream(line);
     if (!std::getline(line_stream, token, ',')) continue;
-    if (token == ProfileDataFromFileConstants::kBlockCounterMarker) {
-      // Any line starting with kBlockCounterMarker is a block usage count.
-      // As defined by Logger::BasicBlockCounterEvent, the format is:
-      //   literal kBlockCounterMarker , builtin_name , block_id , usage_count
+    if (token == ProfileDataFromFileConstants::kBlockHintMarker) {
+      // Any line starting with kBlockHintMarker is a basic block branch hint.
+      // The format is:
+      //   literal kBlockHintMarker , builtin_name , true_id , false_id , hint
       std::string builtin_name;
       CHECK(std::getline(line_stream, builtin_name, ','));
       CHECK(std::getline(line_stream, token, ','));
       char* end = nullptr;
-      uint32_t id = static_cast<uint32_t>(strtoul(token.c_str(), &end, 0));
+      errno = 0;
+      uint32_t true_id = static_cast<uint32_t>(strtoul(token.c_str(), &end, 0));
+      CHECK(errno == 0 && end != token.c_str());
+      CHECK(std::getline(line_stream, token, ','));
+      uint32_t false_id =
+          static_cast<uint32_t>(strtoul(token.c_str(), &end, 0));
       CHECK(errno == 0 && end != token.c_str());
       std::getline(line_stream, token, ',');
       CHECK(line_stream.eof());
-      double count = strtod(token.c_str(), &end);
+      uint64_t hint = strtoul(token.c_str(), &end, 10);
       CHECK(errno == 0 && end != token.c_str());
-      ProfileDataFromFileInternal& counters_and_hash =
-          (*data.get())[builtin_name];
-      // We allow concatenating data from several Isolates, so we might see the
-      // same block multiple times. Just sum them all.
-      counters_and_hash.AddCountToBlock(id, count);
+      ProfileDataFromFileInternal& hints_and_hash = (*data.get())[builtin_name];
+      // Only the first hint for each branch will be used.
+      hints_and_hash.AddHintToBlock(true_id, false_id, hint);
+      CHECK(line_stream.eof());
     } else if (token == ProfileDataFromFileConstants::kBuiltinHashMarker) {
       // Any line starting with kBuiltinHashMarker is a function hash record.
-      // As defined by Logger::BuiltinHashEvent, the format is:
+      // As defined by V8FileLogger::BuiltinHashEvent, the format is:
       //   literal kBuiltinHashMarker , builtin_name , hash
       std::string builtin_name;
       CHECK(std::getline(line_stream, builtin_name, ','));
@@ -85,27 +144,19 @@ EnsureInitProfileData() {
       char* end = nullptr;
       int hash = static_cast<int>(strtol(token.c_str(), &end, 0));
       CHECK(errno == 0 && end != token.c_str());
-      ProfileDataFromFileInternal& counters_and_hash =
-          (*data.get())[builtin_name];
+      ProfileDataFromFileInternal& hints_and_hash = (*data.get())[builtin_name];
       // We allow concatenating data from several Isolates, but expect them all
       // to be running the same build. Any file with mismatched hashes for a
       // function is considered ill-formed.
-      CHECK_IMPLIES(counters_and_hash.hash_has_value(),
-                    counters_and_hash.hash() == hash);
-      counters_and_hash.set_hash(hash);
+      CHECK_IMPLIES(hints_and_hash.hash_has_value(),
+                    hints_and_hash.hash() == hash);
+      hints_and_hash.set_hash(hash);
     }
   }
   for (const auto& pair : *data.get()) {
     // Every function is required to have a hash in the log.
     CHECK(pair.second.hash_has_value());
   }
-  if (data.get()->size() == 0) {
-    PrintF(
-        "No basic block counters were found in log file.\n"
-        "Did you build with v8_enable_builtins_profiling=true\n"
-        "and run with --turbo-profiling-log-builtins?\n");
-  }
-
   return *data.get();
 }
 

@@ -1,3 +1,4 @@
+// META: global=window,dedicatedworker,shadowrealm
 /**
  * These tests assert the non-existence of certain
  * legacy Console methods that are not included in

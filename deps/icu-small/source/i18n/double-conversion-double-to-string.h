@@ -114,7 +114,7 @@ class DoubleToStringConverter {
   //    preserved.
   //
   // Infinity symbol and nan_symbol provide the string representation for these
-  // special values. If the string is NULL and the special value is encountered
+  // special values. If the string is nullptr and the special value is encountered
   // then the conversion functions return false.
   //
   // The exponent_character is used in exponential representations. It is
@@ -138,7 +138,7 @@ class DoubleToStringConverter {
   // Example with max_leading_padding_zeroes_in_precision_mode = 6.
   //   ToPrecision(0.0000012345, 2) -> "0.0000012"
   //   ToPrecision(0.00000012345, 2) -> "1.2e-7"
-  // Similarily the converter may add up to
+  // Similarly the converter may add up to
   // max_trailing_padding_zeroes_in_precision_mode in precision mode to avoid
   // returning an exponential representation. A zero added by the
   // EMIT_TRAILING_ZERO_AFTER_POINT flag is counted for this limit.
@@ -196,7 +196,7 @@ class DoubleToStringConverter {
   // Example with decimal_in_shortest_low = -6,
   //              decimal_in_shortest_high = 21,
   //              EMIT_POSITIVE_EXPONENT_SIGN activated, and
-  //              EMIT_TRAILING_DECIMAL_POINT deactived:
+  //              EMIT_TRAILING_DECIMAL_POINT deactivated:
   //   ToShortest(0.000001)  -> "0.000001"
   //   ToShortest(0.0000001) -> "1e-7"
   //   ToShortest(111111111111111111111.0)  -> "111111111111111110000"
@@ -320,7 +320,7 @@ class DoubleToStringConverter {
   // Example with max_leading_padding_zeroes_in_precision_mode = 6.
   //   ToPrecision(0.0000012345, 2) -> "0.0000012"
   //   ToPrecision(0.00000012345, 2) -> "1.2e-7"
-  // Similarily the converter may add up to
+  // Similarly the converter may add up to
   // max_trailing_padding_zeroes_in_precision_mode in precision mode to avoid
   // returning an exponential representation. A zero added by the
   // EMIT_TRAILING_ZERO_AFTER_POINT flag is counted for this limit.
@@ -429,7 +429,7 @@ class DoubleToStringConverter {
 
   // If the value is a special value (NaN or Infinity) constructs the
   // corresponding string using the configured infinity/nan-symbol.
-  // If either of them is NULL or the value is not special then the
+  // If either of them is nullptr or the value is not special then the
   // function returns false.
   bool HandleSpecialValues(double value, StringBuilder* result_builder) const;
   // Constructs an exponential representation (i.e. 1.234e56).

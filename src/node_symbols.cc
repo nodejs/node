@@ -16,10 +16,12 @@ static void Initialize(Local<Object> target,
                        Local<Context> context,
                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
-#define V(PropertyName, StringValue)                                          \
-  target->Set(env->context(),                                                 \
-              env->PropertyName()->Description(),                             \
-              env->PropertyName()).Check();
+#define V(PropertyName, StringValue)                                           \
+  target                                                                       \
+      ->Set(env->context(),                                                    \
+            env->PropertyName()->Description(env->isolate()),                  \
+            env->PropertyName())                                               \
+      .Check();
   PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
 }
@@ -27,4 +29,4 @@ static void Initialize(Local<Object> target,
 }  // namespace symbols
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(symbols, node::symbols::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(symbols, node::symbols::Initialize)

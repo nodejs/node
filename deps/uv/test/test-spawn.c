@@ -193,7 +193,7 @@ TEST_IMPL(spawn_fails) {
   uv_close((uv_handle_t*) &process, NULL);
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -223,7 +223,7 @@ TEST_IMPL(spawn_fails_check_for_waitpid_cleanup) {
   uv_close((uv_handle_t*) &process, NULL);
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 #endif
@@ -253,7 +253,7 @@ TEST_IMPL(spawn_empty_env) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -272,7 +272,7 @@ TEST_IMPL(spawn_exit_code) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -305,7 +305,7 @@ TEST_IMPL(spawn_stdout) {
   printf("output is: %s", output);
   ASSERT(strcmp("hello world\n", output) == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -359,7 +359,7 @@ TEST_IMPL(spawn_stdout_to_file) {
   /* Cleanup. */
   unlink("stdout_file");
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -415,7 +415,7 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file) {
   /* Cleanup. */
   unlink("stdout_file");
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -477,7 +477,7 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file2) {
   /* Cleanup. */
   unlink("stdout_file");
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 #else
   RETURN_SKIP("Unix only test");
@@ -569,7 +569,7 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file_swap) {
   unlink("stdout_file");
   unlink("stderr_file");
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 #else
   RETURN_SKIP("Unix only test");
@@ -615,7 +615,7 @@ TEST_IMPL(spawn_stdin) {
   ASSERT(close_cb_called == 3); /* Once for process twice for the pipe. */
   ASSERT(strcmp(buffer, output) == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -650,7 +650,7 @@ TEST_IMPL(spawn_stdio_greater_than_3) {
   printf("output from stdio[3] is: %s", output);
   ASSERT(strcmp("fourth stdio!\n", output) == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -728,7 +728,7 @@ TEST_IMPL(spawn_tcp_server) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -750,7 +750,7 @@ TEST_IMPL(spawn_ignored_stdio) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -775,7 +775,7 @@ TEST_IMPL(spawn_and_kill) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 2); /* Once for process and once for timer. */
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -815,7 +815,7 @@ TEST_IMPL(spawn_preserve_env) {
   printf("output is: %s", output);
   ASSERT(strcmp("testval", output) == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -845,7 +845,7 @@ TEST_IMPL(spawn_detached) {
   r = uv_kill(process.pid, SIGTERM);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -903,7 +903,7 @@ TEST_IMPL(spawn_and_kill_with_std) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 5); /* process x 1, timer x 1, stdio x 3. */
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -950,7 +950,7 @@ TEST_IMPL(spawn_and_ping) {
   ASSERT(exit_cb_called == 1);
   ASSERT(strcmp(output, "TEST") == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -997,7 +997,7 @@ TEST_IMPL(spawn_same_stdout_stderr) {
   ASSERT(exit_cb_called == 1);
   ASSERT(strcmp(output, "TEST") == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -1029,7 +1029,7 @@ TEST_IMPL(spawn_closed_process_io) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 2); /* process, child stdin */
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -1083,7 +1083,7 @@ TEST_IMPL(kill) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -1108,7 +1108,7 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
   /* Create a pipe that'll cause a collision. */
   snprintf(name,
            sizeof(name),
-           "\\\\.\\pipe\\uv\\%p-%d",
+           "\\\\.\\pipe\\uv\\%p-%lu",
            &out,
            GetCurrentProcessId());
   pipe_handle = CreateNamedPipeA(name,
@@ -1135,7 +1135,7 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
   printf("output is: %s", output);
   ASSERT(strcmp("hello world\n", output) == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -1176,7 +1176,7 @@ TEST_IMPL(argument_escaping) {
   WCHAR* non_verbatim_output;
 
   test_output = calloc(count, sizeof(WCHAR*));
-  ASSERT(test_output != NULL);
+  ASSERT_NOT_NULL(test_output);
   for (i = 0; i < count; ++i) {
     test_output[i] = calloc(2 * (wcslen(test_str[i]) + 2), sizeof(WCHAR));
     quote_cmd_arg(test_str[i], test_output[i]);
@@ -1185,7 +1185,7 @@ TEST_IMPL(argument_escaping) {
     total_size += wcslen(test_output[i]) + 1;
   }
   command_line = calloc(total_size + 1, sizeof(WCHAR));
-  ASSERT(command_line != NULL);
+  ASSERT_NOT_NULL(command_line);
   for (i = 0; i < count; ++i) {
     wcscat(command_line, test_output[i]);
     wcscat(command_line, L" ");
@@ -1351,7 +1351,7 @@ TEST_IMPL(spawn_with_an_odd_path) {
 
   char newpath[2048];
   char *path = getenv("PATH");
-  ASSERT(path != NULL);
+  ASSERT_NOT_NULL(path);
   snprintf(newpath, 2048, ";.;%s", path);
   SetEnvironmentVariable("PATH", newpath);
 
@@ -1363,7 +1363,7 @@ TEST_IMPL(spawn_with_an_odd_path) {
   uv_close((uv_handle_t*) &process, NULL);
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 #endif
@@ -1385,7 +1385,7 @@ TEST_IMPL(spawn_setuid_setgid) {
 
   /* become the "nobody" user. */
   pw = getpwnam("nobody");
-  ASSERT(pw != NULL);
+  ASSERT_NOT_NULL(pw);
   options.uid = pw->pw_uid;
   options.gid = pw->pw_gid;
   snprintf(uidstr, sizeof(uidstr), "%d", pw->pw_uid);
@@ -1406,7 +1406,7 @@ TEST_IMPL(spawn_setuid_setgid) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 #endif
@@ -1423,7 +1423,7 @@ TEST_IMPL(spawn_setuid_fails) {
   if (uid == 0) {
     struct passwd* pw;
     pw = getpwnam("nobody");
-    ASSERT(pw != NULL);
+    ASSERT_NOT_NULL(pw);
     ASSERT(0 == setgid(pw->pw_gid));
     ASSERT(0 == setuid(pw->pw_uid));
   }
@@ -1459,7 +1459,7 @@ TEST_IMPL(spawn_setuid_fails) {
 
   ASSERT(close_cb_called == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -1474,7 +1474,7 @@ TEST_IMPL(spawn_setgid_fails) {
   if (uid == 0) {
     struct passwd* pw;
     pw = getpwnam("nobody");
-    ASSERT(pw != NULL);
+    ASSERT_NOT_NULL(pw);
     ASSERT(0 == setgid(pw->pw_gid));
     ASSERT(0 == setuid(pw->pw_uid));
   }
@@ -1504,7 +1504,7 @@ TEST_IMPL(spawn_setgid_fails) {
 
   ASSERT(close_cb_called == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 #endif
@@ -1535,7 +1535,7 @@ TEST_IMPL(spawn_setuid_fails) {
 
   ASSERT(close_cb_called == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -1556,7 +1556,7 @@ TEST_IMPL(spawn_setgid_fails) {
 
   ASSERT(close_cb_called == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 #endif
@@ -1570,7 +1570,7 @@ TEST_IMPL(spawn_auto_unref) {
   uv_close((uv_handle_t*) &process, NULL);
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
   ASSERT(1 == uv_is_closing((uv_handle_t*) &process));
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -1633,7 +1633,7 @@ TEST_IMPL(spawn_fs_open) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 2);  /* One for `in`, one for process */
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -1675,9 +1675,6 @@ TEST_IMPL(closed_fd_events) {
   ASSERT(req.result == 1);
   uv_fs_req_cleanup(&req);
 
-#ifdef _WIN32
-  ASSERT(1 == uv_run(uv_default_loop(), UV_RUN_ONCE));
-#endif
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_ONCE));
 
   /* should have received just one byte */
@@ -1708,7 +1705,7 @@ TEST_IMPL(closed_fd_events) {
   ASSERT(0 == close(fd[1]));
 #endif
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -1778,7 +1775,7 @@ TEST_IMPL(spawn_reads_child_path) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -1862,7 +1859,7 @@ TEST_IMPL(spawn_inherit_streams) {
   r = memcmp(ubuf, output, sizeof ubuf);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -1886,9 +1883,47 @@ TEST_IMPL(spawn_quoted_path) {
   /* We test if libuv will not segfault. */
   uv_spawn(uv_default_loop(), &process, &options);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 #endif
+}
+
+TEST_IMPL(spawn_exercise_sigchld_issue) {
+  int r;
+  int i;
+  uv_process_options_t dummy_options = {0};
+  uv_process_t dummy_processes[100];
+  char* args[2];
+
+  init_process_options("spawn_helper1", exit_cb);
+
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  ASSERT_EQ(r, 0);
+
+  // This test exercises a bug in the darwin kernel that causes SIGCHLD not to
+  // be delivered sometimes. Calling posix_spawn many times increases the
+  // likelihood of encountering this issue, so spin a few times to make this
+  // test more reliable.
+  dummy_options.file = args[0] = "program-that-had-better-not-exist";
+  args[1] = NULL;
+  dummy_options.args = args;
+  dummy_options.exit_cb = fail_cb;
+  dummy_options.flags = 0;
+  for (i = 0; i < 100; i++) {
+    r = uv_spawn(uv_default_loop(), &dummy_processes[i], &dummy_options);
+    if (r != UV_ENOENT)
+      ASSERT_EQ(r, UV_EACCES);
+    uv_close((uv_handle_t*) &dummy_processes[i], close_cb);
+  }
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT_EQ(r, 0);
+
+  ASSERT_EQ(exit_cb_called, 1);
+  ASSERT_EQ(close_cb_called, 101);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
 }
 
 /* Helper for child process of spawn_inherit_streams */
@@ -1943,3 +1978,37 @@ void spawn_stdin_stdout(void) {
   }
 }
 #endif /* !_WIN32 */
+
+TEST_IMPL(spawn_relative_path) {
+  char* sep;
+
+  init_process_options("spawn_helper1", exit_cb);
+
+  exepath_size = sizeof(exepath) - 2;
+  ASSERT_EQ(0, uv_exepath(exepath, &exepath_size));
+  exepath[exepath_size] = '\0';
+
+  /* Poor man's basename(3). */
+  sep = strrchr(exepath, '/');
+  if (sep == NULL)
+    sep = strrchr(exepath, '\\');
+  ASSERT_NOT_NULL(sep);
+
+  /* Split into dirname and basename and make basename relative. */
+  memmove(sep + 2, sep, 1 + strlen(sep));
+  sep[0] = '\0';
+  sep[1] = '.';
+  sep[2] = '/';
+
+  options.cwd = exepath;
+  options.file = options.args[0] = sep + 1;
+
+  ASSERT_EQ(0, uv_spawn(uv_default_loop(), &process, &options));
+  ASSERT_EQ(0, uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+
+  ASSERT_EQ(1, exit_cb_called);
+  ASSERT_EQ(1, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}

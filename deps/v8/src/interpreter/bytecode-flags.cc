@@ -6,7 +6,6 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
-#include "src/builtins/builtins-constructor.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -31,9 +30,9 @@ uint8_t CreateObjectLiteralFlags::Encode(int runtime_flags,
 
 // static
 uint8_t CreateClosureFlags::Encode(bool pretenure, bool is_function_scope,
-                                   bool might_always_opt) {
+                                   bool might_always_turbofan) {
   uint8_t result = PretenuredBit::encode(pretenure);
-  if (!might_always_opt && !pretenure && is_function_scope) {
+  if (!might_always_turbofan && !pretenure && is_function_scope) {
     result |= FastNewClosureBit::encode(true);
   }
   return result;
@@ -76,12 +75,35 @@ TestTypeOfFlags::LiteralFlag TestTypeOfFlags::Decode(uint8_t raw_flag) {
 }
 
 // static
+const char* TestTypeOfFlags::ToString(LiteralFlag literal_flag) {
+  switch (literal_flag) {
+#define CASE(Name, name)     \
+  case LiteralFlag::k##Name: \
+    return #name;
+    TYPEOF_LITERAL_LIST(CASE)
+#undef CASE
+    default:
+      return "<invalid>";
+  }
+}
+
+// static
 uint8_t StoreLookupSlotFlags::Encode(LanguageMode language_mode,
                                      LookupHoistingMode lookup_hoisting_mode) {
   DCHECK_IMPLIES(lookup_hoisting_mode == LookupHoistingMode::kLegacySloppy,
                  language_mode == LanguageMode::kSloppy);
   return LanguageModeBit::encode(language_mode) |
          LookupHoistingModeBit::encode(static_cast<bool>(lookup_hoisting_mode));
+}
+
+// static
+LanguageMode StoreLookupSlotFlags::GetLanguageMode(uint8_t flags) {
+  return LanguageModeBit::decode(flags);
+}
+
+// static
+bool StoreLookupSlotFlags::IsLookupHoistingMode(uint8_t flags) {
+  return LookupHoistingModeBit::decode(flags);
 }
 
 }  // namespace interpreter

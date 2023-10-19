@@ -5,9 +5,8 @@
 #ifndef V8_CODEGEN_ARM64_DECODER_ARM64_INL_H_
 #define V8_CODEGEN_ARM64_DECODER_ARM64_INL_H_
 
+#include "src/base/v8-fallthrough.h"
 #include "src/codegen/arm64/decoder-arm64.h"
-#include "src/common/globals.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -77,6 +76,11 @@ void Decoder<V>::Decode(Instruction* instr) {
       //      Load/store register immediate post-index.
       //      Load/store register immediate pre-index.
       //      Load/store register offset.
+      //      Load/store exclusive.
+      //      Load/store ordered.
+      //      Compare and swap [Armv8.1].
+      //      Compare and swap pair [Armv8.1].
+      //      Atomic memory operations [Armv8.1].
       // C,D: Load/store register pair offset.
       //      Load/store register pair pre-index.
       //      Load/store register unsigned immediate.
@@ -219,15 +223,17 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
     if (instr->Bit(28) == 0) {
       if (instr->Bit(29) == 0) {
         if (instr->Bit(26) == 0) {
-          if (instr->Mask(0xA08000) == 0x800000 ||
-              instr->Mask(0xA00000) == 0xA00000) {
+          if (instr->Mask(0xA08000) == 0x800000) {
             V::VisitUnallocated(instr);
-          } else if (instr->Mask(0x808000) == 0) {
+          } else if (instr->Mask(0xA08000) == 0) {
             // Load/Store exclusive without acquire/release are unimplemented.
             V::VisitUnimplemented(instr);
           } else {
             V::VisitLoadStoreAcquireRelease(instr);
           }
+        } else {
+          // This is handled by DecodeNEONLoadStore().
+          UNREACHABLE();
         }
       } else {
         if ((instr->Bits(31, 30) == 0x3) ||
@@ -254,8 +260,7 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
           V::VisitLoadLiteral(instr);
         }
       } else {
-        if ((instr->Mask(0x84C00000) == 0x80C00000) ||
-            (instr->Mask(0x44800000) == 0x44800000) ||
+        if ((instr->Mask(0x44800000) == 0x44800000) ||
             (instr->Mask(0x84800000) == 0x84800000)) {
           V::VisitUnallocated(instr);
         } else {
@@ -295,7 +300,21 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
                 V::VisitLoadStoreRegisterOffset(instr);
               }
             } else {
-              V::VisitUnallocated(instr);
+              if ((instr->Bits(11, 10) == 0x0) &&
+                  (instr->Bits(26, 25) == 0x0)) {
+                if ((instr->Bit(15) == 1) &&
+                    ((instr->Bits(14, 12) == 0x1) || (instr->Bit(13) == 1) ||
+                     (instr->Bits(14, 12) == 0x5) ||
+                     ((instr->Bits(14, 12) == 0x4) &&
+                      ((instr->Bit(23) == 0) ||
+                       (instr->Bits(23, 22) == 0x3))))) {
+                  V::VisitUnallocated(instr);
+                } else {
+                  V::VisitAtomicMemory(instr);
+                }
+              } else {
+                V::VisitUnallocated(instr);
+              }
             }
           }
         }

@@ -6,19 +6,19 @@
 
 #include "src/api/api-inl.h"
 #include "src/common/assert-scope.h"
-#include "src/heap/heap-inl.h"
-#include "src/objects/slots.h"
-#include "src/snapshot/snapshot.h"
+#include "src/logging/counters-scopes.h"
 
 namespace v8 {
 namespace internal {
 
+// static
 MaybeHandle<Context> ContextDeserializer::DeserializeContext(
     Isolate* isolate, const SnapshotData* data, bool can_rehash,
     Handle<JSGlobalProxy> global_proxy,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
+  NestedTimedHistogramScope histogram_timer(
+      isolate->counters()->snapshot_deserialize_context());
   ContextDeserializer d(isolate, data, can_rehash);
-
   MaybeHandle<Object> maybe_result =
       d.Deserialize(isolate, global_proxy, embedder_fields_deserializer);
 
@@ -50,21 +50,9 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
     WeakenDescriptorArrays();
   }
 
-  if (FLAG_rehash_snapshot && can_rehash()) Rehash();
-  SetupOffHeapArrayBufferBackingStores();
+  if (should_rehash()) Rehash();
 
   return result;
-}
-
-void ContextDeserializer::SetupOffHeapArrayBufferBackingStores() {
-  for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
-    uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
-    auto bs = backing_store(store_index);
-    buffer->AllocateExternalPointerEntries(isolate());
-    SharedFlag shared =
-        bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
-    buffer->Setup(shared, bs);
-  }
 }
 
 void ContextDeserializer::DeserializeEmbedderFields(
@@ -78,10 +66,10 @@ void ContextDeserializer::DeserializeEmbedderFields(
        code = source()->Get()) {
     HandleScope scope(isolate());
     Handle<JSObject> obj = Handle<JSObject>::cast(GetBackReferencedObject());
-    int index = source()->GetInt();
-    int size = source()->GetInt();
+    int index = source()->GetUint30();
+    int size = source()->GetUint30();
     // TODO(yangguo,jgruber): Turn this into a reusable shared buffer.
-    byte* data = new byte[size];
+    uint8_t* data = new uint8_t[size];
     source()->CopyRaw(data, size);
     embedder_fields_deserializer.callback(v8::Utils::ToLocal(obj), index,
                                           {reinterpret_cast<char*>(data), size},

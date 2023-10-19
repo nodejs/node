@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
   dur: [5],
 }, {
   test: { len: 64 },
-  flags: ['--expose-internals']
+  flags: ['--expose-internals'],
 });
 
 let chunk;

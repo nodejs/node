@@ -96,7 +96,7 @@
 #    define U_ATTRIBUTE_DEPRECATED __attribute__ ((deprecated))
 /**
  * \def U_ATTRIBUTE_DEPRECATED
- * This is used for Visual C++ specific attributes
+ * This is used for Visual C++ specific attributes 
  * @internal
  */
 #elif defined(_MSC_VER) && (_MSC_VER >= 1400)
@@ -118,28 +118,6 @@
 #define U_OBSOLETE U_CAPI
 /** Obsolete/same as U_CAPI; was used to declare a function as an internal ICU C API  */
 #define U_INTERNAL U_CAPI
-
-/**
- * \def U_OVERRIDE
- * Defined to the C++11 "override" keyword if available.
- * Denotes a class or member which is an override of the base class.
- * May result in an error if it applied to something not an override.
- * @internal
- */
-#ifndef U_OVERRIDE
-#define U_OVERRIDE override
-#endif
-
-/**
- * \def U_FINAL
- * Defined to the C++11 "final" keyword if available.
- * Denotes a class or member which may not be overridden in subclasses.
- * May result in an error if subclasses attempt to override.
- * @internal
- */
-#if !defined(U_FINAL) || defined(U_IN_DOXYGEN)
-#define U_FINAL final
-#endif
 
 // Before ICU 65, function-like, multi-statement ICU macros were just defined as
 // series of statements wrapped in { } blocks and the caller could choose to
@@ -282,14 +260,8 @@ typedef int8_t UBool;
  */
 #ifdef U_DEFINE_FALSE_AND_TRUE
     // Use the predefined value.
-#elif defined(U_COMBINED_IMPLEMENTATION) || \
-        defined(U_COMMON_IMPLEMENTATION) || defined(U_I18N_IMPLEMENTATION) || \
-        defined(U_IO_IMPLEMENTATION) || defined(U_LAYOUTEX_IMPLEMENTATION) || \
-        defined(U_TOOLUTIL_IMPLEMENTATION)
-    // Inside ICU: Keep FALSE & TRUE available.
-#   define U_DEFINE_FALSE_AND_TRUE 1
 #else
-    // Outside ICU: Avoid collision with non-macro definitions of FALSE & TRUE.
+    // Default to avoiding collision with non-macro definitions of FALSE & TRUE.
 #   define U_DEFINE_FALSE_AND_TRUE 0
 #endif
 
@@ -354,7 +326,7 @@ typedef int8_t UBool;
 
 /* UChar and UChar32 definitions -------------------------------------------- */
 
-/** Number of bytes in a UChar. @stable ICU 2.0 */
+/** Number of bytes in a UChar (always 2). @stable ICU 2.0 */
 #define U_SIZEOF_UCHAR 2
 
 /**
@@ -362,11 +334,7 @@ typedef int8_t UBool;
  * If 1, then char16_t is a typedef and not a real type (yet)
  * @internal
  */
-#if (U_PLATFORM == U_PF_AIX) && defined(__cplusplus) &&(U_CPLUSPLUS_VERSION < 11)
-// for AIX, uchar.h needs to be included
-# include <uchar.h>
-# define U_CHAR16_IS_TYPEDEF 1
-#elif defined(_MSC_VER) && (_MSC_VER < 1900)
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
 // Versions of Visual Studio/MSVC below 2015 do not support char16_t as a real type,
 // and instead use a typedef.  https://msdn.microsoft.com/library/bb531344.aspx
 # define U_CHAR16_IS_TYPEDEF 1
@@ -414,10 +382,10 @@ typedef int8_t UBool;
     typedef char16_t UChar;
 #elif defined(UCHAR_TYPE)
     typedef UCHAR_TYPE UChar;
-#elif (U_CPLUSPLUS_VERSION >= 11)
-    typedef char16_t UChar;
+#elif U_CPLUSPLUS_VERSION != 0
+    typedef char16_t UChar;  // C++
 #else
-    typedef uint16_t UChar;
+    typedef uint16_t UChar;  // C
 #endif
 
 /**
@@ -470,7 +438,7 @@ typedef int32_t UChar32;
  * This value is intended for sentinel values for APIs that
  * (take or) return single code points (UChar32).
  * It is outside of the Unicode code point range 0..0x10ffff.
- *
+ * 
  * For example, a "done" or "error" value in a new API
  * could be indicated with U_SENTINEL.
  *

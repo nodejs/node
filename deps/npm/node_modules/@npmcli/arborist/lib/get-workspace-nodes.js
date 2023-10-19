@@ -1,7 +1,10 @@
 // Get the actual nodes corresponding to a root node's child workspaces,
 // given a list of workspace names.
+
+const log = require('proc-log')
 const relpath = require('./relpath.js')
-const getWorkspaceNodes = (tree, workspaces, log) => {
+
+const getWorkspaceNodes = (tree, workspaces) => {
   const wsMap = tree.workspaces
   if (!wsMap) {
     log.warn('workspaces', 'filter set, but no workspaces present')

@@ -53,7 +53,7 @@ TimeZoneRule::operator=(const TimeZoneRule& right) {
     return *this;
 }
 
-UBool
+bool
 TimeZoneRule::operator==(const TimeZoneRule& that) const {
     return ((this == &that) ||
             (typeid(*this) == typeid(that) &&
@@ -62,7 +62,7 @@ TimeZoneRule::operator==(const TimeZoneRule& that) const {
             fDSTSavings == that.fDSTSavings));
 }
 
-UBool
+bool
 TimeZoneRule::operator!=(const TimeZoneRule& that) const {
     return !operator==(that);
 }
@@ -74,12 +74,12 @@ TimeZoneRule::getName(UnicodeString& name) const {
 }
 
 int32_t
-TimeZoneRule::getRawOffset(void) const {
+TimeZoneRule::getRawOffset() const {
     return fRawOffset;
 }
 
 int32_t
-TimeZoneRule::getDSTSavings(void) const {
+TimeZoneRule::getDSTSavings() const {
     return fDSTSavings;
 }
 
@@ -120,14 +120,14 @@ InitialTimeZoneRule::operator=(const InitialTimeZoneRule& right) {
     return *this;
 }
 
-UBool
+bool
 InitialTimeZoneRule::operator==(const TimeZoneRule& that) const {
     return ((this == &that) ||
             (typeid(*this) == typeid(that) &&
             TimeZoneRule::operator==(that)));
 }
 
-UBool
+bool
 InitialTimeZoneRule::operator!=(const TimeZoneRule& that) const {
     return !operator==(that);
 }
@@ -135,26 +135,26 @@ InitialTimeZoneRule::operator!=(const TimeZoneRule& that) const {
 UBool
 InitialTimeZoneRule::isEquivalentTo(const TimeZoneRule& other) const {
     if (this == &other) {
-        return TRUE;
+        return true;
     }
-    if (typeid(*this) != typeid(other) || TimeZoneRule::isEquivalentTo(other) == FALSE) {
-        return FALSE;
+    if (typeid(*this) != typeid(other) || TimeZoneRule::isEquivalentTo(other) == false) {
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 UBool
 InitialTimeZoneRule::getFirstStart(int32_t /*prevRawOffset*/,
                                   int32_t /*prevDSTSavings*/,
                                   UDate& /*result*/) const {
-    return FALSE;
+    return false;
 }
 
 UBool
 InitialTimeZoneRule::getFinalStart(int32_t /*prevRawOffset*/,
                                   int32_t /*prevDSTSavings*/,
                                   UDate& /*result*/) const {
-    return FALSE;
+    return false;
 }
 
 UBool
@@ -163,7 +163,7 @@ InitialTimeZoneRule::getNextStart(UDate /*base*/,
                                  int32_t /*prevDSTSavings*/,
                                  UBool /*inclusive*/,
                                  UDate& /*result*/) const {
-    return FALSE;
+    return false;
 }
 
 UBool
@@ -172,7 +172,7 @@ InitialTimeZoneRule::getPreviousStart(UDate /*base*/,
                                      int32_t /*prevDSTSavings*/,
                                      UBool /*inclusive*/,
                                      UDate& /*result*/) const {
-    return FALSE;
+    return false;
 }
 
 
@@ -182,7 +182,7 @@ const int32_t AnnualTimeZoneRule::MAX_YEAR = 0x7FFFFFFF; /* max signed int32 */
 
 AnnualTimeZoneRule::AnnualTimeZoneRule(const UnicodeString& name,
                                        int32_t rawOffset,
-                                       int32_t dstSavings,
+                                       int32_t dstSavings, 
                                        const DateTimeRule& dateTimeRule,
                                        int32_t startYear,
                                        int32_t endYear)
@@ -192,7 +192,7 @@ AnnualTimeZoneRule::AnnualTimeZoneRule(const UnicodeString& name,
 
 AnnualTimeZoneRule::AnnualTimeZoneRule(const UnicodeString& name,
                                        int32_t rawOffset,
-                                       int32_t dstSavings,
+                                       int32_t dstSavings, 
                                        DateTimeRule* dateTimeRule,
                                        int32_t startYear,
                                        int32_t endYear)
@@ -210,7 +210,7 @@ AnnualTimeZoneRule::~AnnualTimeZoneRule() {
 }
 
 AnnualTimeZoneRule*
-AnnualTimeZoneRule::clone(void) const {
+AnnualTimeZoneRule::clone() const {
     return new AnnualTimeZoneRule(*this);
 }
 
@@ -226,13 +226,13 @@ AnnualTimeZoneRule::operator=(const AnnualTimeZoneRule& right) {
     return *this;
 }
 
-UBool
+bool
 AnnualTimeZoneRule::operator==(const TimeZoneRule& that) const {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
     if (typeid(*this) != typeid(that)) {
-        return FALSE;
+        return false;
     }
     AnnualTimeZoneRule *atzr = (AnnualTimeZoneRule*)&that;
     return (*fDateTimeRule == *(atzr->fDateTimeRule) &&
@@ -240,7 +240,7 @@ AnnualTimeZoneRule::operator==(const TimeZoneRule& that) const {
             fEndYear == atzr->fEndYear);
 }
 
-UBool
+bool
 AnnualTimeZoneRule::operator!=(const TimeZoneRule& that) const {
     return !operator==(that);
 }
@@ -266,14 +266,14 @@ AnnualTimeZoneRule::getStartInYear(int32_t year,
                                    int32_t prevDSTSavings,
                                    UDate &result) const {
     if (year < fStartYear || year > fEndYear) {
-        return FALSE;
+        return false;
     }
     double ruleDay;
     DateTimeRule::DateRuleType type = fDateTimeRule->getDateRuleType();
     if (type == DateTimeRule::DOM) {
         ruleDay = Grego::fieldsToDay(year, fDateTimeRule->getRuleMonth(), fDateTimeRule->getRuleDayOfMonth());
     } else {
-        UBool after = TRUE;
+        UBool after = true;
         if (type == DateTimeRule::DOW) {
             // Normalize DOW rule into DOW_GEQ_DOM or DOW_LEQ_DOM
             int32_t weeks = fDateTimeRule->getRuleWeekInMonth();
@@ -281,7 +281,7 @@ AnnualTimeZoneRule::getStartInYear(int32_t year,
                 ruleDay = Grego::fieldsToDay(year, fDateTimeRule->getRuleMonth(), 1);
                 ruleDay += 7 * (weeks - 1);
             } else {
-                after = FALSE;
+                after = false;
                 ruleDay = Grego::fieldsToDay(year, fDateTimeRule->getRuleMonth(),
                     Grego::monthLength(year, fDateTimeRule->getRuleMonth()));
                 ruleDay += 7 * (weeks + 1);
@@ -290,7 +290,7 @@ AnnualTimeZoneRule::getStartInYear(int32_t year,
             int32_t month = fDateTimeRule->getRuleMonth();
             int32_t dom = fDateTimeRule->getRuleDayOfMonth();
             if (type == DateTimeRule::DOW_LEQ_DOM) {
-                after = FALSE;
+                after = false;
                 // Handle Feb <=29
                 if (month == UCAL_FEBRUARY && dom == 29 && !Grego::isLeapYear(year)) {
                     dom--;
@@ -315,16 +315,16 @@ AnnualTimeZoneRule::getStartInYear(int32_t year,
     if (fDateTimeRule->getTimeRuleType() == DateTimeRule::WALL_TIME) {
         result -= prevDSTSavings;
     }
-    return TRUE;
+    return true;
 }
 
 UBool
 AnnualTimeZoneRule::isEquivalentTo(const TimeZoneRule& other) const {
     if (this == &other) {
-        return TRUE;
+        return true;
     }
-    if (typeid(*this) != typeid(other) || TimeZoneRule::isEquivalentTo(other) == FALSE) {
-        return FALSE;
+    if (typeid(*this) != typeid(other) || TimeZoneRule::isEquivalentTo(other) == false) {
+        return false;
     }
     AnnualTimeZoneRule* that = (AnnualTimeZoneRule*)&other;
     return (*fDateTimeRule == *(that->fDateTimeRule) &&
@@ -344,7 +344,7 @@ AnnualTimeZoneRule::getFinalStart(int32_t prevRawOffset,
                                   int32_t prevDSTSavings,
                                   UDate& result) const {
     if (fEndYear == MAX_YEAR) {
-        return FALSE;
+        return false;
     }
     return getStartInYear(fEndYear, prevRawOffset, prevDSTSavings, result);
 }
@@ -367,10 +367,10 @@ AnnualTimeZoneRule::getNextStart(UDate base,
             return getStartInYear(year + 1, prevRawOffset, prevDSTSavings, result);
         } else {
             result = tmp;
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 UBool
@@ -391,10 +391,10 @@ AnnualTimeZoneRule::getPreviousStart(UDate base,
             return getStartInYear(year - 1, prevRawOffset, prevDSTSavings, result);
         } else {
             result = tmp;
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(TimeArrayTimeZoneRule)
@@ -406,7 +406,7 @@ TimeArrayTimeZoneRule::TimeArrayTimeZoneRule(const UnicodeString& name,
                                              int32_t numStartTimes,
                                              DateTimeRule::TimeRuleType timeRuleType)
 : TimeZoneRule(name, rawOffset, dstSavings), fTimeRuleType(timeRuleType),
-  fStartTimes(NULL) {
+  fStartTimes(nullptr) {
     UErrorCode status = U_ZERO_ERROR;
     initStartTimes(startTimes, numStartTimes, status);
     //TODO - status?
@@ -414,7 +414,7 @@ TimeArrayTimeZoneRule::TimeArrayTimeZoneRule(const UnicodeString& name,
 
 
 TimeArrayTimeZoneRule::TimeArrayTimeZoneRule(const TimeArrayTimeZoneRule& source)
-: TimeZoneRule(source), fTimeRuleType(source.fTimeRuleType), fStartTimes(NULL) {
+: TimeZoneRule(source), fTimeRuleType(source.fTimeRuleType), fStartTimes(nullptr) {
     UErrorCode status = U_ZERO_ERROR;
     initStartTimes(source.fStartTimes, source.fNumStartTimes, status);
     //TODO - status?
@@ -422,13 +422,13 @@ TimeArrayTimeZoneRule::TimeArrayTimeZoneRule(const TimeArrayTimeZoneRule& source
 
 
 TimeArrayTimeZoneRule::~TimeArrayTimeZoneRule() {
-    if (fStartTimes != NULL && fStartTimes != fLocalStartTimes) {
+    if (fStartTimes != nullptr && fStartTimes != fLocalStartTimes) {
         uprv_free(fStartTimes);
     }
 }
 
 TimeArrayTimeZoneRule*
-TimeArrayTimeZoneRule::clone(void) const {
+TimeArrayTimeZoneRule::clone() const {
     return new TimeArrayTimeZoneRule(*this);
 }
 
@@ -440,77 +440,77 @@ TimeArrayTimeZoneRule::operator=(const TimeArrayTimeZoneRule& right) {
         UErrorCode status = U_ZERO_ERROR;
         initStartTimes(right.fStartTimes, right.fNumStartTimes, status);
         //TODO - status?
-        fTimeRuleType = right.fTimeRuleType;
+        fTimeRuleType = right.fTimeRuleType;        
     }
     return *this;
 }
 
-UBool
+bool
 TimeArrayTimeZoneRule::operator==(const TimeZoneRule& that) const {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
-    if (typeid(*this) != typeid(that) || TimeZoneRule::operator==(that) == FALSE) {
-        return FALSE;
+    if (typeid(*this) != typeid(that) || !TimeZoneRule::operator==(that)) {
+        return false;
     }
     TimeArrayTimeZoneRule *tatzr = (TimeArrayTimeZoneRule*)&that;
     if (fTimeRuleType != tatzr->fTimeRuleType ||
         fNumStartTimes != tatzr->fNumStartTimes) {
-        return FALSE;
+        return false;
     }
     // Compare start times
-    UBool res = TRUE;
+    bool res = true;
     for (int32_t i = 0; i < fNumStartTimes; i++) {
         if (fStartTimes[i] != tatzr->fStartTimes[i]) {
-            res = FALSE;
+            res = false;
             break;
         }
     }
     return res;
 }
 
-UBool
+bool
 TimeArrayTimeZoneRule::operator!=(const TimeZoneRule& that) const {
     return !operator==(that);
 }
 
 DateTimeRule::TimeRuleType
-TimeArrayTimeZoneRule::getTimeType(void) const {
+TimeArrayTimeZoneRule::getTimeType() const {
     return fTimeRuleType;
 }
 
 UBool
 TimeArrayTimeZoneRule::getStartTimeAt(int32_t index, UDate& result) const {
     if (index >= fNumStartTimes || index < 0) {
-        return FALSE;
+        return false;
     }
     result = fStartTimes[index];
-    return TRUE;
+    return true;
 }
 
 int32_t
-TimeArrayTimeZoneRule::countStartTimes(void) const {
+TimeArrayTimeZoneRule::countStartTimes() const {
     return fNumStartTimes;
 }
 
 UBool
 TimeArrayTimeZoneRule::isEquivalentTo(const TimeZoneRule& other) const {
     if (this == &other) {
-        return TRUE;
+        return true;
     }
-    if (typeid(*this) != typeid(other) || TimeZoneRule::isEquivalentTo(other) == FALSE) {
-        return FALSE;
+    if (typeid(*this) != typeid(other) || TimeZoneRule::isEquivalentTo(other) == false) {
+        return false;
     }
     TimeArrayTimeZoneRule* that = (TimeArrayTimeZoneRule*)&other;
     if (fTimeRuleType != that->fTimeRuleType ||
         fNumStartTimes != that->fNumStartTimes) {
-        return FALSE;
+        return false;
     }
     // Compare start times
-    UBool res = TRUE;
+    UBool res = true;
     for (int32_t i = 0; i < fNumStartTimes; i++) {
         if (fStartTimes[i] != that->fStartTimes[i]) {
-            res = FALSE;
+            res = false;
             break;
         }
     }
@@ -521,22 +521,22 @@ UBool
 TimeArrayTimeZoneRule::getFirstStart(int32_t prevRawOffset,
                                              int32_t prevDSTSavings,
                                              UDate& result) const {
-    if (fNumStartTimes <= 0 || fStartTimes == NULL) {
-        return FALSE;
+    if (fNumStartTimes <= 0 || fStartTimes == nullptr) {
+        return false;
     }
     result = getUTC(fStartTimes[0], prevRawOffset, prevDSTSavings);
-    return TRUE;
+    return true;
 }
 
 UBool
 TimeArrayTimeZoneRule::getFinalStart(int32_t prevRawOffset,
                                      int32_t prevDSTSavings,
                                      UDate& result) const {
-    if (fNumStartTimes <= 0 || fStartTimes == NULL) {
-        return FALSE;
+    if (fNumStartTimes <= 0 || fStartTimes == nullptr) {
+        return false;
     }
     result = getUTC(fStartTimes[fNumStartTimes - 1], prevRawOffset, prevDSTSavings);
-    return TRUE;
+    return true;
 }
 
 UBool
@@ -554,9 +554,9 @@ TimeArrayTimeZoneRule::getNextStart(UDate base,
         result = time;
     }
     if (i == fNumStartTimes - 1) {
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 UBool
@@ -570,10 +570,10 @@ TimeArrayTimeZoneRule::getPreviousStart(UDate base,
         UDate time = getUTC(fStartTimes[i], prevRawOffset, prevDSTSavings);
         if (time < base || (inclusive && time == base)) {
             result = time;
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 
@@ -582,16 +582,16 @@ TimeArrayTimeZoneRule::getPreviousStart(UDate base,
 UBool
 TimeArrayTimeZoneRule::initStartTimes(const UDate source[], int32_t size, UErrorCode& status) {
     // Free old array
-    if (fStartTimes != NULL && fStartTimes != fLocalStartTimes) {
+    if (fStartTimes != nullptr && fStartTimes != fLocalStartTimes) {
         uprv_free(fStartTimes);
     }
     // Allocate new one if needed
     if (size > TIMEARRAY_STACK_BUFFER_SIZE) {
         fStartTimes = (UDate*)uprv_malloc(sizeof(UDate)*size);
-        if (fStartTimes == NULL) {
+        if (fStartTimes == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             fNumStartTimes = 0;
-            return FALSE;
+            return false;
         }
     } else {
         fStartTimes = (UDate*)fLocalStartTimes;
@@ -599,15 +599,15 @@ TimeArrayTimeZoneRule::initStartTimes(const UDate source[], int32_t size, UError
     uprv_memcpy(fStartTimes, source, sizeof(UDate)*size);
     fNumStartTimes = size;
     // Sort dates
-    uprv_sortArray(fStartTimes, fNumStartTimes, (int32_t)sizeof(UDate), compareDates, NULL, TRUE, &status);
+    uprv_sortArray(fStartTimes, fNumStartTimes, (int32_t)sizeof(UDate), compareDates, nullptr, true, &status);
     if (U_FAILURE(status)) {
-        if (fStartTimes != NULL && fStartTimes != fLocalStartTimes) {
+        if (fStartTimes != nullptr && fStartTimes != fLocalStartTimes) {
             uprv_free(fStartTimes);
         }
         fNumStartTimes = 0;
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 UDate
@@ -626,3 +626,4 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
 //eof
+

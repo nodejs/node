@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let initialMemoryPages = 1;
 let maximumMemoryPages = 5;
@@ -23,7 +23,7 @@ function generateBuilder(add_memory, import_sig) {
   }
   if (add_memory) {
     // Add the memory if we expect a module builder with memory and load/store.
-    builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+    builder.addMemory(initialMemoryPages, maximumMemoryPages);
     builder.addFunction('load', kSig_i_i)
         .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
         .exportFunc();
@@ -80,7 +80,7 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   let kPages = 1;
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(kPages, kPages, true);
+  builder.addMemory(kPages, kPages);
   builder.addFunction("store", kSig_v_ii)
     .addBody([
       kExprLocalGet, 0,     // --
@@ -100,7 +100,7 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   // The {b} instance forwards all {store} calls to the imported function.
   builder = new WasmModuleBuilder();
   builder.addImport("mod", "store", kSig_v_ii);
-  builder.addMemory(kPages, kPages, true);
+  builder.addMemory(kPages, kPages);
   builder.addFunction("store", kSig_v_ii)
     .addBody([
       kExprLocalGet, 0,     // --
@@ -260,7 +260,7 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   let kPages = 1;
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(kPages, kPages, true);
+  builder.addMemory(kPages, kPages);
   builder.addFunction("store", kSig_v_ii)
     .addBody([
       kExprLocalGet, 0,     // --

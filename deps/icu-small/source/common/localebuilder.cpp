@@ -15,7 +15,7 @@ U_NAMESPACE_BEGIN
 #define UPRV_ISDIGIT(c) (((c) >= '0') && ((c) <= '9'))
 #define UPRV_ISALPHANUM(c) (uprv_isASCIILetter(c) || UPRV_ISDIGIT(c) )
 
-const char* kAttributeKey = "attribute";
+constexpr const char* kAttributeKey = "attribute";
 
 static bool _isExtensionSubtags(char key, const char* s, int32_t len) {
     switch (uprv_tolower(key)) {
@@ -228,7 +228,7 @@ LocaleBuilder& LocaleBuilder::setExtension(char key, StringPiece value)
         return *this;
     }
     if (extensions_ == nullptr) {
-        extensions_ = new Locale();
+        extensions_ = Locale::getRoot().clone();
         if (extensions_ == nullptr) {
             status_ = U_MEMORY_ALLOCATION_ERROR;
             return *this;
@@ -259,11 +259,11 @@ LocaleBuilder& LocaleBuilder::setUnicodeLocaleKeyword(
       return *this;
     }
     if (extensions_ == nullptr) {
-        extensions_ = new Locale();
-    }
-    if (extensions_ == nullptr) {
-        status_ = U_MEMORY_ALLOCATION_ERROR;
-        return *this;
+        extensions_ = Locale::getRoot().clone();
+        if (extensions_ == nullptr) {
+            status_ = U_MEMORY_ALLOCATION_ERROR;
+            return *this;
+        }
     }
     extensions_->setUnicodeKeywordValue(key, type, status_);
     return *this;
@@ -280,7 +280,7 @@ LocaleBuilder& LocaleBuilder::addUnicodeLocaleAttribute(
         return *this;
     }
     if (extensions_ == nullptr) {
-        extensions_ = new Locale();
+        extensions_ = Locale::getRoot().clone();
         if (extensions_ == nullptr) {
             status_ = U_MEMORY_ALLOCATION_ERROR;
             return *this;
@@ -415,7 +415,7 @@ void LocaleBuilder::copyExtensionsFrom(const Locale& src, UErrorCode& errorCode)
         return;
     }
     if (extensions_ == nullptr) {
-        extensions_ = new Locale();
+        extensions_ = Locale::getRoot().clone();
         if (extensions_ == nullptr) {
             status_ = U_MEMORY_ALLOCATION_ERROR;
             return;
@@ -459,7 +459,7 @@ Locale LocaleBuilder::build(UErrorCode& errorCode)
 UBool LocaleBuilder::copyErrorTo(UErrorCode &outErrorCode) const {
     if (U_FAILURE(outErrorCode)) {
         // Do not overwrite the older error code
-        return TRUE;
+        return true;
     }
     outErrorCode = status_;
     return U_FAILURE(outErrorCode);

@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of `arguments.caller` or `arguments.callee`",
-            category: "Best Practices",
+            description: "Disallow the use of `arguments.caller` or `arguments.callee`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-caller"
+            url: "https://eslint.org/docs/latest/rules/no-caller"
         },
 
         schema: [],

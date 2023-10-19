@@ -1,5 +1,5 @@
 /* deflate.h -- internal compression state
- * Copyright (C) 1995-2016 Jean-loup Gailly
+ * Copyright (C) 1995-2018 Jean-loup Gailly
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -268,6 +268,11 @@ typedef struct internal_state {
      * updated to the new high water mark.
      */
 
+    uInt chromium_zlib_hash;
+    /* 0 if Rabin-Karp rolling hash is enabled, non-zero if chromium zlib
+     * hash is enabled.
+     */
+
 } FAR deflate_state;
 
 /* Output a byte on the stream.
@@ -291,14 +296,14 @@ typedef struct internal_state {
    memory checker errors from longest match routines */
 
         /* in trees.c */
-void ZLIB_INTERNAL _tr_init OF((deflate_state *s));
-int ZLIB_INTERNAL _tr_tally OF((deflate_state *s, unsigned dist, unsigned lc));
-void ZLIB_INTERNAL _tr_flush_block OF((deflate_state *s, charf *buf,
-                        ulg stored_len, int last));
-void ZLIB_INTERNAL _tr_flush_bits OF((deflate_state *s));
-void ZLIB_INTERNAL _tr_align OF((deflate_state *s));
-void ZLIB_INTERNAL _tr_stored_block OF((deflate_state *s, charf *buf,
-                        ulg stored_len, int last));
+void ZLIB_INTERNAL _tr_init(deflate_state *s);
+int ZLIB_INTERNAL _tr_tally(deflate_state *s, unsigned dist, unsigned lc);
+void ZLIB_INTERNAL _tr_flush_block(deflate_state *s, charf *buf,
+                                   ulg stored_len, int last);
+void ZLIB_INTERNAL _tr_flush_bits(deflate_state *s);
+void ZLIB_INTERNAL _tr_align(deflate_state *s);
+void ZLIB_INTERNAL _tr_stored_block(deflate_state *s, charf *buf,
+                                    ulg stored_len, int last);
 
 #define d_code(dist) \
    ((dist) < 256 ? _dist_code[dist] : _dist_code[256+((dist)>>7)])
@@ -329,8 +334,8 @@ void ZLIB_INTERNAL _tr_stored_block OF((deflate_state *s, charf *buf,
 # define _tr_tally_dist(s, distance, length, flush) \
   { uch len = (uch)(length); \
     ush dist = (ush)(distance); \
-    s->sym_buf[s->sym_next++] = dist; \
-    s->sym_buf[s->sym_next++] = dist >> 8; \
+    s->sym_buf[s->sym_next++] = (uch)dist; \
+    s->sym_buf[s->sym_next++] = (uch)(dist >> 8); \
     s->sym_buf[s->sym_next++] = len; \
     dist--; \
     s->dyn_ltree[_length_code[len]+LITERALS+1].Freq++; \
@@ -350,7 +355,5 @@ void ZLIB_INTERNAL crc_fold_copy(deflate_state* const s,
                                  const unsigned char* src,
                                  long len);
 unsigned ZLIB_INTERNAL crc_fold_512to32(deflate_state* const s);
-
-void ZLIB_INTERNAL fill_window_sse(deflate_state* s);
 
 #endif /* DEFLATE_H */

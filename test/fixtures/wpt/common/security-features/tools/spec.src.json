@@ -106,6 +106,7 @@
         "object-tag",
         "picture-tag",
         "script-tag",
+        "script-tag-dynamic-import",
         "sharedworker-classic",
         "sharedworker-import",
         "sharedworker-import-data",
@@ -327,26 +328,6 @@
       ],
       "subresourcePolicyDeliveries": []
     },
-    "worker-classic-inherit": {
-      // This is applicable to upgrade-insecure-requests and mixed-content tests.
-      // Use "worker-classic" for referrer-policy.
-      "description": "dedicated workers should inherit its parent's policy.",
-      "sourceContextList": [
-        {
-          "sourceContextType": "top",
-          "policyDeliveries": [
-            "policy"
-          ]
-        },
-        {
-          "sourceContextType": "worker-classic",
-          "policyDeliveries": [
-            "anotherPolicy"
-          ]
-        }
-      ],
-      "subresourcePolicyDeliveries": []
-    },
     "worker-classic-data": {
       "description": "data: dedicated workers should inherit its parent's policy.",
       "sourceContextList": [
@@ -365,7 +346,6 @@
     },
     "worker-module": {
       // This is applicable to referrer-policy tests.
-      // Use "worker-module-inherit" for CSP (mixed-content, etc.).
       "description": "dedicated workers shouldn't inherit its parent's policy.",
       "sourceContextList": [
         {
@@ -378,26 +358,6 @@
           "sourceContextType": "worker-module",
           "policyDeliveries": [
             "policy"
-          ]
-        }
-      ],
-      "subresourcePolicyDeliveries": []
-    },
-    "worker-module-inherit": {
-      // This is applicable to upgrade-insecure-requests and mixed-content tests.
-      // Use "worker-module" for referrer-policy.
-      "description": "dedicated workers should inherit its parent's policy.",
-      "sourceContextList": [
-        {
-          "sourceContextType": "top",
-          "policyDeliveries": [
-            "policy"
-          ]
-        },
-        {
-          "sourceContextType": "worker-module",
-          "policyDeliveries": [
-            "anotherPolicy"
           ]
         }
       ],
@@ -505,10 +465,8 @@
       "iframe",
       "iframe-blank-inherit",
       "worker-classic",
-      "worker-classic-inherit",
       "worker-classic-data",
       "worker-module",
-      "worker-module-inherit",
       "worker-module-data",
       "sharedworker-classic",
       "sharedworker-classic-data",
@@ -550,6 +508,7 @@
       "object-tag",
       "picture-tag",
       "script-tag",
+      "script-tag-dynamic-import",
       "sharedworker-classic",
       "sharedworker-import",
       "sharedworker-import-data",

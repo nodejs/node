@@ -168,9 +168,9 @@ TypeAlias* Declarations::DeclareType(const Identifier* name, const Type* type) {
                                   new TypeAlias(type, true, name->pos)));
 }
 
-const TypeAlias* Declarations::PredeclareTypeAlias(const Identifier* name,
-                                                   TypeDeclaration* type,
-                                                   bool redeclaration) {
+TypeAlias* Declarations::PredeclareTypeAlias(const Identifier* name,
+                                             TypeDeclaration* type,
+                                             bool redeclaration) {
   CheckAlreadyDeclared<TypeAlias>(name->value, "type");
   std::unique_ptr<TypeAlias> alias_ptr(
       new TypeAlias(type, redeclaration, name->pos));
@@ -202,9 +202,12 @@ Macro* Declarations::DeclareMacro(
     base::Optional<std::string> external_assembler_name,
     const Signature& signature, base::Optional<Statement*> body,
     base::Optional<std::string> op, bool is_user_defined) {
-  if (TryLookupMacro(name, signature.GetExplicitTypes())) {
-    ReportError("cannot redeclare macro ", name,
-                " with identical explicit parameters");
+  if (Macro* existing_macro =
+          TryLookupMacro(name, signature.GetExplicitTypes())) {
+    if (existing_macro->ParentScope() == CurrentScope::Get()) {
+      ReportError("cannot redeclare macro ", name,
+                  " with identical explicit parameters");
+    }
   }
   Macro* macro;
   if (external_assembler_name) {
@@ -253,21 +256,20 @@ Intrinsic* Declarations::DeclareIntrinsic(const std::string& name,
 
 Builtin* Declarations::CreateBuiltin(std::string external_name,
                                      std::string readable_name,
-                                     Builtin::Kind kind, Signature signature,
-
+                                     Builtin::Kind kind, Builtin::Flags flags,
+                                     Signature signature,
                                      base::Optional<Statement*> body) {
   return RegisterDeclarable(std::unique_ptr<Builtin>(
       new Builtin(std::move(external_name), std::move(readable_name), kind,
-                  std::move(signature), body)));
+                  flags, std::move(signature), body)));
 }
 
 Builtin* Declarations::DeclareBuiltin(const std::string& name,
-                                      Builtin::Kind kind,
+                                      Builtin::Kind kind, Builtin::Flags flags,
                                       const Signature& signature,
-
                                       base::Optional<Statement*> body) {
   CheckAlreadyDeclared<Builtin>(name, "builtin");
-  return Declare(name, CreateBuiltin(name, name, kind, signature, body));
+  return Declare(name, CreateBuiltin(name, name, kind, flags, signature, body));
 }
 
 RuntimeFunction* Declarations::DeclareRuntimeFunction(
@@ -277,11 +279,12 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
                            new RuntimeFunction(name, signature))));
 }
 
-void Declarations::DeclareExternConstant(Identifier* name, const Type* type,
-                                         std::string value) {
+ExternConstant* Declarations::DeclareExternConstant(Identifier* name,
+                                                    const Type* type,
+                                                    std::string value) {
   CheckAlreadyDeclared<Value>(name->value, "constant");
-  Declare(name->value, std::unique_ptr<ExternConstant>(
-                           new ExternConstant(name, type, value)));
+  return Declare(name->value, std::unique_ptr<ExternConstant>(
+                                  new ExternConstant(name, type, value)));
 }
 
 NamespaceConstant* Declarations::DeclareNamespaceConstant(Identifier* name,

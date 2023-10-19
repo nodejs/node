@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing - Check that workerStart is TAO protected</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help"
+  href="https://www.w3.org/TR/resource-timing-2/#sec-performanceresourcetiming">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/entry-invariants.js"></script>
+<script src="resources/resource-loaders.js"></script>
+</head>
+<body>
+<script>
+
+const {HTTPS_REMOTE_ORIGIN} = get_host_info();
+
+const worker_has_unregistered = new Promise(resolve => {
+  addEventListener("message", e => {
+    if (e.data === "unregistered") {
+      resolve();
+    }
+  });
+});
+
+// Open window to remote origin with a SW install.
+let openee;
+const service_worker_has_installed = new Promise(resolve => {
+  addEventListener("message", e => {
+    if (e.data === 'installed') {
+      resolve();
+    }
+  });
+  openee = window.open(HTTPS_REMOTE_ORIGIN +
+    "/resource-timing/resources/sw-install.html");
+});
+
+const load_after_sw_install = async path => {
+  await service_worker_has_installed;
+  return load.iframe(path);
+}
+
+attribute_test(load_after_sw_install,
+  `${HTTPS_REMOTE_ORIGIN}/resource-timing/resources/green.html`,
+  entry => {
+    assert_equals(entry.workerStart, 0, "workerStart must be zero");
+    invariants.assert_tao_failure_resource(entry);
+  },
+  "A resource from a cross-origin service worker must not expose workerStart " +
+  "when there is a TAO failure");
+
+attribute_test(load_after_sw_install,
+  `${HTTPS_REMOTE_ORIGIN}/resource-timing/resources/blank-with-tao.html`,
+  entry => {
+    assert_greater_than(entry.workerStart, 0,
+      "workerStart must be greater than zero");
+    // TODO(crbug.com/925239): need to add coverage for transferSize,
+    // encoded/decodedBodySize but that's broken right now.
+    // TODO(crbug.com/1171767): need to add coverage for SW-handled resources
+    // that redirect. Should workerStart be non-zero if any piece of the
+    // redirect chain is handled by a SW?
+  },
+  "A resource from a cross-origin service worker must expose workerStart " +
+  "when there is a TAO match");
+
+promise_test(async () => {
+  openee.postMessage("unregister", "*");
+  await worker_has_unregistered;
+  openee.close();
+}, "Not a test - needed to unregister the SW and close its embedder");
+
+</script>
+</body>
+</html>

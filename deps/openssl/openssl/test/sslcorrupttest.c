@@ -1,14 +1,14 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
 #include <string.h>
-#include "ssltestlib.h"
+#include "helpers/ssltestlib.h"
 #include "testutil.h"
 
 static int docorrupt = 0;
@@ -41,7 +41,7 @@ static int tls_corrupt_write(BIO *bio, const char *in, int inl)
     char *copy;
 
     if (docorrupt) {
-        if (!TEST_ptr(copy = BUF_memdup(in, inl)))
+        if (!TEST_ptr(copy = OPENSSL_memdup(in, inl)))
             return 0;
         /* corrupt last bit of application data */
         copy[inl-1] ^= 1;
@@ -188,17 +188,20 @@ static int test_ssl_corrupt(int testidx)
     int testresult = 0;
     STACK_OF(SSL_CIPHER) *ciphers;
     const SSL_CIPHER *currcipher;
+    int err;
 
     docorrupt = 0;
 
     TEST_info("Starting #%d, %s", testidx, cipher_list[testidx]);
 
-    if (!TEST_true(create_ssl_ctx_pair(TLS_server_method(), TLS_client_method(),
-                                       TLS1_VERSION, TLS_MAX_VERSION,
+    if (!TEST_true(create_ssl_ctx_pair(NULL, TLS_server_method(),
+                                       TLS_client_method(),
+                                       TLS1_VERSION, 0,
                                        &sctx, &cctx, cert, privkey)))
         return 0;
 
-    if (!TEST_true(SSL_CTX_set_cipher_list(cctx, cipher_list[testidx]))
+    if (!TEST_true(SSL_CTX_set_dh_auto(sctx, 1))
+            || !TEST_true(SSL_CTX_set_cipher_list(cctx, cipher_list[testidx]))
             || !TEST_true(SSL_CTX_set_ciphersuites(cctx, ""))
             || !TEST_ptr(ciphers = SSL_CTX_get_ciphers(cctx))
             || !TEST_int_eq(sk_SSL_CIPHER_num(ciphers), 1)
@@ -231,9 +234,14 @@ static int test_ssl_corrupt(int testidx)
     if (!TEST_int_lt(SSL_read(server, junk, sizeof(junk)), 0))
         goto end;
 
-    if (!TEST_int_eq(ERR_GET_REASON(ERR_peek_error()),
-                     SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC))
-        goto end;
+    do {
+        err = ERR_get_error();
+
+        if (err == 0) {
+            TEST_error("Decryption failed or bad record MAC not seen");
+            goto end;
+        }
+    } while (ERR_GET_REASON(err) != SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC);
 
     testresult = 1;
  end:
@@ -244,15 +252,20 @@ static int test_ssl_corrupt(int testidx)
     return testresult;
 }
 
+OPT_TEST_DECLARE_USAGE("certfile privkeyfile\n")
+
 int setup_tests(void)
 {
     int n;
 
-    if (!TEST_ptr(cert = test_get_argument(0))
-            || !TEST_ptr(privkey = test_get_argument(1))) {
-        TEST_note("Usage error: require cert and private key files");
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
         return 0;
     }
+
+    if (!TEST_ptr(cert = test_get_argument(0))
+            || !TEST_ptr(privkey = test_get_argument(1)))
+        return 0;
 
     n = setup_cipher_list();
     if (n > 0)

@@ -1,0 +1,36 @@
+<!DOCTYPE HTML>
+<html>
+<head onload>
+<meta charset="utf-8" />
+<title>This test validates the behavior of read and clear operation in onresourcetimingbufferfull callback of resource timing.</title>
+<link rel="author" title="Intel" href="http://www.intel.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performance-onresourcetimingbufferfull"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/buffer-full-utilities.js"></script>
+</head>
+<body>
+<script>
+promise_test(async () => {
+    await fillUpTheBufferWithSingleResource();
+    const entryBuffer = [];
+    performance.addEventListener('resourcetimingbufferfull', () => {
+      entryBuffer.push(...performance.getEntriesByType('resource'));
+      performance.clearResourceTimings();
+    });
+    load.script(scriptResources[1]);
+    await bufferFullFirePromise;
+    const entries = performance.getEntriesByType('resource');
+    assert_equals(entries.length, 1,
+        "Only the last entry should be stored in resource timing buffer since it's cleared once it overflows.");
+    assert_true(entries[0].name.includes(scriptResources[1]),
+        scriptResources[1]  + " is in the entries buffer");
+    assert_equals(entryBuffer.length, 1,
+        '1 resource timing entry should be moved to entryBuffer.');
+    assert_true(entryBuffer[0].name.includes(scriptResources[0]),
+        scriptResources[0] + ' is in the entryBuffer');
+}, "Test that entries overflowing the buffer trigger the buffer full event, can be stored, and make their way to the primary buffer after it's cleared in the buffer full event.");
+</script>
+</body>
+</html>

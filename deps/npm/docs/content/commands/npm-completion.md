@@ -7,7 +7,7 @@ description: Tab Completion for npm
 ### Synopsis
 
 ```bash
-source <(npm completion)
+npm completion
 ```
 
 Note: This command is unaware of workspaces.

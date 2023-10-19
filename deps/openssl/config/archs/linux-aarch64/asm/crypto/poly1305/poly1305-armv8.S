@@ -22,17 +22,12 @@ poly1305_init:
 	csel	x0,xzr,x0,eq
 	b.eq	.Lno_key
 
-#ifdef	__ILP32__
-	ldrsw	x11,.LOPENSSL_armcap_P
-#else
-	ldr	x11,.LOPENSSL_armcap_P
-#endif
-	adr	x10,.LOPENSSL_armcap_P
+	adrp	x17,OPENSSL_armcap_P
+	ldr	w17,[x17,#:lo12:OPENSSL_armcap_P]
 
 	ldp	x7,x8,[x1]		// load key
 	mov	x9,#0xfffffffc0fffffff
 	movk	x9,#0x0fff,lsl#48
-	ldr	w17,[x10,x11]
 #ifdef	__ARMEB__
 	rev	x7,x7			// flip bytes
 	rev	x8,x8
@@ -44,10 +39,10 @@ poly1305_init:
 
 	tst	w17,#ARMV7_NEON
 
-	adr	x12,poly1305_blocks
-	adr	x7,poly1305_blocks_neon
-	adr	x13,poly1305_emit
-	adr	x8,poly1305_emit_neon
+	adr	x12,.Lpoly1305_blocks
+	adr	x7,.Lpoly1305_blocks_neon
+	adr	x13,.Lpoly1305_emit
+	adr	x8,.Lpoly1305_emit_neon
 
 	csel	x12,x12,x7,eq
 	csel	x13,x13,x8,eq
@@ -66,6 +61,7 @@ poly1305_init:
 .type	poly1305_blocks,%function
 .align	5
 poly1305_blocks:
+.Lpoly1305_blocks:
 	ands	x2,x2,#-16
 	b.eq	.Lno_data
 
@@ -130,6 +126,7 @@ poly1305_blocks:
 .type	poly1305_emit,%function
 .align	5
 poly1305_emit:
+.Lpoly1305_emit:
 	ldp	x4,x5,[x0]		// load hash base 2^64
 	ldr	x6,[x0,#16]
 	ldp	x10,x11,[x2]	// load nonce
@@ -224,10 +221,11 @@ poly1305_splat:
 .type	poly1305_blocks_neon,%function
 .align	5
 poly1305_blocks_neon:
+.Lpoly1305_blocks_neon:
 	ldr	x17,[x0,#24]
 	cmp	x2,#128
 	b.hs	.Lblocks_neon
-	cbz	x17,poly1305_blocks
+	cbz	x17,.Lpoly1305_blocks
 
 .Lblocks_neon:
 .inst	0xd503233f		// paciasp
@@ -370,7 +368,7 @@ poly1305_blocks_neon:
 	csel	x16,x17,x16,lo
 
 	mov	x4,#1
-	str	x4,[x0,#-24]		// set is_base2_26
+	stur	x4,[x0,#-24]		// set is_base2_26
 	sub	x0,x0,#48		// restore original x0
 	b	.Ldo_neon
 
@@ -807,6 +805,7 @@ poly1305_blocks_neon:
 .type	poly1305_emit_neon,%function
 .align	5
 poly1305_emit_neon:
+.Lpoly1305_emit_neon:
 	ldr	x17,[x0,#24]
 	cbz	x17,poly1305_emit
 
@@ -859,12 +858,6 @@ poly1305_emit_neon:
 .align	5
 .Lzeros:
 .long	0,0,0,0,0,0,0,0
-.LOPENSSL_armcap_P:
-#ifdef	__ILP32__
-.long	OPENSSL_armcap_P-.
-#else
-.quad	OPENSSL_armcap_P-.
-#endif
 .byte	80,111,108,121,49,51,48,53,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2

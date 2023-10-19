@@ -25,7 +25,7 @@ U_NAMESPACE_BEGIN
 
 TransliterationRuleData::TransliterationRuleData(UErrorCode& status)
  : UMemory(), ruleSet(status), variableNames(status),
-    variables(0), variablesAreOwned(TRUE)
+    variables(0), variablesAreOwned(true)
 {
     if (U_FAILURE(status)) {
         return;
@@ -37,7 +37,7 @@ TransliterationRuleData::TransliterationRuleData(UErrorCode& status)
 
 TransliterationRuleData::TransliterationRuleData(const TransliterationRuleData& other) :
     UMemory(other), ruleSet(other.ruleSet),
-    variablesAreOwned(TRUE),
+    variablesAreOwned(true),
     variablesBase(other.variablesBase),
     variablesLength(other.variablesLength)
 {
@@ -50,8 +50,8 @@ TransliterationRuleData::TransliterationRuleData(const TransliterationRuleData& 
         UnicodeString* value =
             new UnicodeString(*(const UnicodeString*)e->value.pointer);
         // Exit out if value could not be created.
-        if (value == NULL) {
-		return;
+        if (value == nullptr) {
+        	return;
         }
         variableNames.put(*(UnicodeString*)e->key.pointer, value, status);
     }
@@ -59,26 +59,26 @@ TransliterationRuleData::TransliterationRuleData(const TransliterationRuleData& 
     variables = 0;
     if (other.variables != 0) {
         variables = (UnicodeFunctor **)uprv_malloc(variablesLength * sizeof(UnicodeFunctor *));
-        /* test for NULL */
+        /* test for nullptr */
         if (variables == 0) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
         for (i=0; i<variablesLength; ++i) {
             variables[i] = other.variables[i]->clone();
-            if (variables[i] == NULL) {
+            if (variables[i] == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 break;
             }
         }
     }
-    // Remove the array and exit if memory allocation error occured.
+    // Remove the array and exit if memory allocation error occurred.
     if (U_FAILURE(status)) {
         for (int32_t n = i-1; n >= 0; n--) {
             delete variables[n];
         }
         uprv_free(variables);
-        variables = NULL;
+        variables = nullptr;
         return;
     }
 

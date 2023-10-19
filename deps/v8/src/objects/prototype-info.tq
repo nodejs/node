@@ -6,7 +6,6 @@ bitfield struct PrototypeInfoFlags extends uint31 {
   should_be_fast: bool: 1 bit;
 }
 
-@generateCppClass
 extern class PrototypeInfo extends Struct {
   // [module_namespace]: A backpointer to JSModuleNamespace from its
   // PrototypeInfo (or undefined). This field is only used for JSModuleNamespace
@@ -24,8 +23,8 @@ extern class PrototypeInfo extends Struct {
   // is stored. Returns UNREGISTERED if this prototype has not been registered.
   registry_slot: Smi;
 
+  bit_field: SmiTagged<PrototypeInfoFlags>;
+
   // [object_create_map]: A field caching the map for Object.create(prototype).
   object_create_map: Weak<Map>|Undefined;
-
-  bit_field: SmiTagged<PrototypeInfoFlags>;
 }

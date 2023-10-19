@@ -5,7 +5,8 @@
 #include "req_wrap-inl.h"
 #include "tracing/agent.h"
 #include "v8.h"
-#include "v8abbr.h"
+
+#define NODE_OFF_EXTSTR_DATA sizeof(void*)
 
 extern "C" {
 extern uintptr_t
@@ -194,7 +195,8 @@ TEST_F(DebugSymbolsTest, ReqWrapList) {
   // ARM64 CI machinies.
   for (auto it : *(*env)->req_wrap_queue()) (void) &it;
 
-  auto last = tail + nodedbg_offset_ListNode_ReqWrap__next___uintptr_t;
+  volatile uintptr_t last =
+      tail + nodedbg_offset_ListNode_ReqWrap__next___uintptr_t;
   last = *reinterpret_cast<uintptr_t*>(last);
 
   auto expected = reinterpret_cast<uintptr_t>(&obj);

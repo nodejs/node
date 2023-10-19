@@ -60,7 +60,7 @@ function fromArray(list) {
 
   assert.deepStrictEqual(v1, { one: '1' });
   assert.deepStrictEqual(v2, { two: '2' });
-  assert.deepStrictEqual(v3, null);
+  assert.strictEqual(v3, null);
 }
 
 {

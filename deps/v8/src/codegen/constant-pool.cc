@@ -308,12 +308,14 @@ void ConstantPool::Clear() {
   entry32_count_ = 0;
   entry64_count_ = 0;
   next_check_ = 0;
+  old_next_check_ = 0;
 }
 
 void ConstantPool::StartBlock() {
   if (blocked_nesting_ == 0) {
     // Prevent constant pool checks from happening by setting the next check to
     // the biggest possible offset.
+    old_next_check_ = next_check_;
     next_check_ = kMaxInt;
   }
   ++blocked_nesting_;
@@ -323,8 +325,10 @@ void ConstantPool::EndBlock() {
   --blocked_nesting_;
   if (blocked_nesting_ == 0) {
     DCHECK(IsInImmRangeIfEmittedAt(assm_->pc_offset()));
-    // Make sure a check happens quickly after getting unblocked.
-    next_check_ = 0;
+    // Restore the old next_check_ value if it's less than the current
+    // next_check_. This accounts for any attempt to emit pools sooner whilst
+    // pools were blocked.
+    next_check_ = std::min(next_check_, old_next_check_);
   }
 }
 
@@ -459,7 +463,7 @@ void ConstantPool::MaybeCheck() {
 
 #endif  // defined(V8_TARGET_ARCH_ARM64)
 
-#if defined(V8_TARGET_ARCH_RISCV64)
+#if defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
 
 // Constant Pool.
 
@@ -706,7 +710,7 @@ void ConstantPool::MaybeCheck() {
   }
 }
 
-#endif  // defined(V8_TARGET_ARCH_RISCV64)
+#endif  // defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
 
 }  // namespace internal
 }  // namespace v8

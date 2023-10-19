@@ -53,7 +53,7 @@ class UnwindingInfoWriter {
   }
 
  private:
-  bool enabled() const { return FLAG_perf_prof_unwinding_info; }
+  bool enabled() const { return v8_flags.perf_prof_unwinding_info; }
 
   class BlockInitialState : public ZoneObject {
    public:

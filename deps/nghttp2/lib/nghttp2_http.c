@@ -30,6 +30,8 @@
 
 #include "nghttp2_hd.h"
 #include "nghttp2_helper.h"
+#include "nghttp2_extpri.h"
+#include "sfparse.h"
 
 static uint8_t downcase(uint8_t c) {
   return 'A' <= c && c <= 'Z' ? (uint8_t)(c - 'A' + 'a') : c;
@@ -72,25 +74,12 @@ static int64_t parse_uint(const uint8_t *s, size_t len) {
   return n;
 }
 
-static int lws(const uint8_t *s, size_t n) {
-  size_t i;
-  for (i = 0; i < n; ++i) {
-    if (s[i] != ' ' && s[i] != '\t') {
-      return 0;
-    }
-  }
-  return 1;
-}
-
 static int check_pseudo_header(nghttp2_stream *stream, const nghttp2_hd_nv *nv,
-                               int flag) {
-  if (stream->http_flags & flag) {
+                               uint32_t flag) {
+  if ((stream->http_flags & flag) || nv->value->len == 0) {
     return 0;
   }
-  if (lws(nv->value->base, nv->value->len)) {
-    return 0;
-  }
-  stream->http_flags = (uint16_t)(stream->http_flags | flag);
+  stream->http_flags = stream->http_flags | flag;
   return 1;
 }
 
@@ -114,6 +103,8 @@ static int check_path(nghttp2_stream *stream) {
 
 static int http_request_on_header(nghttp2_stream *stream, nghttp2_hd_nv *nv,
                                   int trailer, int connect_protocol) {
+  nghttp2_extpri extpri;
+
   if (nv->name->base[0] == ':') {
     if (trailer ||
         (stream->http_flags & NGHTTP2_HTTP_FLAG_PSEUDO_HEADER_DISALLOWED)) {
@@ -210,6 +201,23 @@ static int http_request_on_header(nghttp2_stream *stream, nghttp2_hd_nv *nv,
   case NGHTTP2_TOKEN_TE:
     if (!lstrieq("trailers", nv->value->base, nv->value->len)) {
       return NGHTTP2_ERR_HTTP_HEADER;
+    }
+    break;
+  case NGHTTP2_TOKEN_PRIORITY:
+    if (!trailer &&
+        /* Do not parse the header field in PUSH_PROMISE. */
+        (stream->stream_id & 1) &&
+        (stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES) &&
+        !(stream->http_flags & NGHTTP2_HTTP_FLAG_BAD_PRIORITY)) {
+      nghttp2_extpri_from_uint8(&extpri, stream->http_extpri);
+      if (nghttp2_http_parse_priority(&extpri, nv->value->base,
+                                      nv->value->len) == 0) {
+        stream->http_extpri = nghttp2_extpri_to_uint8(&extpri);
+        stream->http_flags |= NGHTTP2_HTTP_FLAG_PRIORITY;
+      } else {
+        stream->http_flags &= (uint32_t)~NGHTTP2_HTTP_FLAG_PRIORITY;
+        stream->http_flags |= NGHTTP2_HTTP_FLAG_BAD_PRIORITY;
+      }
     }
     break;
   default:
@@ -329,6 +337,16 @@ static int check_scheme(const uint8_t *value, size_t len) {
   return 1;
 }
 
+static int lws(const uint8_t *s, size_t n) {
+  size_t i;
+  for (i = 0; i < n; ++i) {
+    if (s[i] != ' ' && s[i] != '\t') {
+      return 0;
+    }
+  }
+  return 1;
+}
+
 int nghttp2_http_on_header(nghttp2_session *session, nghttp2_stream *stream,
                            nghttp2_frame *frame, nghttp2_hd_nv *nv,
                            int trailer) {
@@ -360,13 +378,46 @@ int nghttp2_http_on_header(nghttp2_session *session, nghttp2_stream *stream,
     return NGHTTP2_ERR_IGN_HTTP_HEADER;
   }
 
-  if (nv->token == NGHTTP2_TOKEN__AUTHORITY ||
-      nv->token == NGHTTP2_TOKEN_HOST) {
-    rv = nghttp2_check_authority(nv->value->base, nv->value->len);
-  } else if (nv->token == NGHTTP2_TOKEN__SCHEME) {
+  switch (nv->token) {
+  case NGHTTP2_TOKEN__METHOD:
+    rv = nghttp2_check_method(nv->value->base, nv->value->len);
+    break;
+  case NGHTTP2_TOKEN__PATH:
+    rv = nghttp2_check_path(nv->value->base, nv->value->len);
+    break;
+  case NGHTTP2_TOKEN__AUTHORITY:
+  case NGHTTP2_TOKEN_HOST:
+    if (session->server || frame->hd.type == NGHTTP2_PUSH_PROMISE) {
+      rv = nghttp2_check_authority(nv->value->base, nv->value->len);
+    } else if (
+        stream->flags &
+        NGHTTP2_STREAM_FLAG_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION) {
+      rv = nghttp2_check_header_value(nv->value->base, nv->value->len);
+    } else {
+      rv = nghttp2_check_header_value_rfc9113(nv->value->base, nv->value->len);
+    }
+    break;
+  case NGHTTP2_TOKEN__SCHEME:
     rv = check_scheme(nv->value->base, nv->value->len);
-  } else {
-    rv = nghttp2_check_header_value(nv->value->base, nv->value->len);
+    break;
+  case NGHTTP2_TOKEN__PROTOCOL:
+    /* Check the value consists of just white spaces, which was done
+       in check_pseudo_header before
+       nghttp2_check_header_value_rfc9113 has been introduced. */
+    if ((stream->flags &
+         NGHTTP2_STREAM_FLAG_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION) &&
+        lws(nv->value->base, nv->value->len)) {
+      rv = 0;
+      break;
+    }
+    /* fall through */
+  default:
+    if (stream->flags &
+        NGHTTP2_STREAM_FLAG_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION) {
+      rv = nghttp2_check_header_value(nv->value->base, nv->value->len);
+    } else {
+      rv = nghttp2_check_header_value_rfc9113(nv->value->base, nv->value->len);
+    }
   }
 
   if (rv == 0) {
@@ -434,16 +485,15 @@ int nghttp2_http_on_response_headers(nghttp2_stream *stream) {
 
   if (stream->status_code / 100 == 1) {
     /* non-final response */
-    stream->http_flags =
-        (uint16_t)((stream->http_flags & NGHTTP2_HTTP_FLAG_METH_ALL) |
-                   NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE);
+    stream->http_flags = (stream->http_flags & NGHTTP2_HTTP_FLAG_METH_ALL) |
+                         NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE;
     stream->content_length = -1;
     stream->status_code = -1;
     return 0;
   }
 
   stream->http_flags =
-      (uint16_t)(stream->http_flags & ~NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE);
+      stream->http_flags & (uint32_t)~NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE;
 
   if (!expect_response_body(stream)) {
     stream->content_length = 0;
@@ -527,4 +577,55 @@ void nghttp2_http_record_request_method(nghttp2_stream *stream,
     }
     return;
   }
+}
+
+int nghttp2_http_parse_priority(nghttp2_extpri *dest, const uint8_t *value,
+                                size_t valuelen) {
+  nghttp2_extpri pri = *dest;
+  sf_parser sfp;
+  sf_vec key;
+  sf_value val;
+  int rv;
+
+  sf_parser_init(&sfp, value, valuelen);
+
+  for (;;) {
+    rv = sf_parser_dict(&sfp, &key, &val);
+    if (rv != 0) {
+      if (rv == SF_ERR_EOF) {
+        break;
+      }
+
+      return NGHTTP2_ERR_INVALID_ARGUMENT;
+    }
+
+    if (key.len != 1) {
+      continue;
+    }
+
+    switch (key.base[0]) {
+    case 'i':
+      if (val.type != SF_TYPE_BOOLEAN) {
+        return NGHTTP2_ERR_INVALID_ARGUMENT;
+      }
+
+      pri.inc = val.boolean;
+
+      break;
+    case 'u':
+      if (val.type != SF_TYPE_INTEGER ||
+          val.integer < NGHTTP2_EXTPRI_URGENCY_HIGH ||
+          NGHTTP2_EXTPRI_URGENCY_LOW < val.integer) {
+        return NGHTTP2_ERR_INVALID_ARGUMENT;
+      }
+
+      pri.urgency = (uint32_t)val.integer;
+
+      break;
+    }
+  }
+
+  *dest = pri;
+
+  return 0;
 }

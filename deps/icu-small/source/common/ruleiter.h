@@ -39,7 +39,7 @@ class RuleCharacterIterator : public UMemory {
 private:
     /**
      * Text being iterated.
-     */
+     */    
     const UnicodeString& text;
 
     /**
@@ -51,7 +51,7 @@ private:
      * Symbol table used to parse and dereference variables.  May be 0.
      */
     const SymbolTable* sym;
-
+    
     /**
      * Current variable expansion, or 0 if none.
      */
@@ -66,35 +66,35 @@ public:
     /**
      * Value returned when there are no more characters to iterate.
      */
-    enum { DONE = -1 };
+    static constexpr int32_t DONE = -1;
 
     /**
      * Bitmask option to enable parsing of variable names.  If (options &
      * PARSE_VARIABLES) != 0, then an embedded variable will be expanded to
      * its value.  Variables are parsed using the SymbolTable API.
      */
-    enum { PARSE_VARIABLES = 1 };
+    static constexpr int32_t PARSE_VARIABLES = 1;
 
     /**
      * Bitmask option to enable parsing of escape sequences.  If (options &
      * PARSE_ESCAPES) != 0, then an embedded escape sequence will be expanded
      * to its value.  Escapes are parsed using Utility.unescapeAt().
      */
-    enum { PARSE_ESCAPES   = 2 };
+    static constexpr int32_t PARSE_ESCAPES   = 2;
 
     /**
      * Bitmask option to enable skipping of whitespace.  If (options &
      * SKIP_WHITESPACE) != 0, then Pattern_White_Space characters will be silently
      * skipped, as if they were not present in the input.
      */
-    enum { SKIP_WHITESPACE = 4 };
+    static constexpr int32_t SKIP_WHITESPACE = 4;
 
     /**
      * Constructs an iterator over the given text, starting at the given
      * position.
      * @param text the text to be iterated
      * @param sym the symbol table, or null if there is none.  If sym is null,
-     * then variables will not be deferenced, even if the PARSE_VARIABLES
+     * then variables will not be dereferenced, even if the PARSE_VARIABLES
      * option is set.
      * @param pos upon input, the index of the next character to return.  If a
      * variable has been dereferenced, then pos will <em>not</em> increment as
@@ -102,7 +102,7 @@ public:
      */
     RuleCharacterIterator(const UnicodeString& text, const SymbolTable* sym,
                           ParsePosition& pos);
-
+    
     /**
      * Returns true if this iterator has no more characters to return.
      */
@@ -207,7 +207,7 @@ public:
      * representation of this object
      */
 //    UnicodeString& toString(UnicodeString& result) const;
-
+    
 private:
     /**
      * Returns the current 32-bit code point without parsing escapes, parsing
@@ -215,7 +215,7 @@ private:
      * @return the current 32-bit code point
      */
     UChar32 _current() const;
-
+    
     /**
      * Advances the position by the given amount.
      * @param count the number of 16-bit code units to advance past

@@ -112,6 +112,7 @@ typedef enum {
   NGHTTP2_TOKEN_PROXY_CONNECTION,
   NGHTTP2_TOKEN_UPGRADE,
   NGHTTP2_TOKEN__PROTOCOL,
+  NGHTTP2_TOKEN_PRIORITY,
 } nghttp2_token;
 
 struct nghttp2_hd_entry;

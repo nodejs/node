@@ -21,13 +21,13 @@ namespace cppgc {
 
 // [[no_unique_address]] comes in C++20 but supported in clang with -std >=
 // c++11.
-#if CPPGC_HAS_CPP_ATTRIBUTE(no_unique_address)  // NOLINTNEXTLINE
+#if CPPGC_HAS_CPP_ATTRIBUTE(no_unique_address)
 #define CPPGC_NO_UNIQUE_ADDRESS [[no_unique_address]]
 #else
 #define CPPGC_NO_UNIQUE_ADDRESS
 #endif
 
-#if CPPGC_HAS_ATTRIBUTE(unused)  // NOLINTNEXTLINE
+#if CPPGC_HAS_ATTRIBUTE(unused)
 #define CPPGC_UNUSED __attribute__((unused))
 #else
 #define CPPGC_UNUSED

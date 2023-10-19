@@ -99,6 +99,13 @@ struct U_I18N_API UnitPreference : public UMemory {
     CharString unit;
     double geq;
     UnicodeString skeleton;
+
+    UnitPreference(const UnitPreference &other) {
+        UErrorCode status = U_ZERO_ERROR;
+        this->unit.append(other.unit, status);
+        this->geq = other.geq;
+        this->skeleton = other.skeleton;
+    }
 };
 
 /**
@@ -189,12 +196,11 @@ class U_I18N_API UnitPreferences {
      * @param preferenceCount The number of unit preferences that belong to the
      * result set.
      * @param status Receives status.
-     *
-     * TODO(hugovdm): maybe replace `UnitPreference **&outPreferences` with a slice class?
      */
-    void getPreferencesFor(StringPiece category, StringPiece usage, StringPiece region,
-                           const UnitPreference *const *&outPreferences, int32_t &preferenceCount,
-                           UErrorCode &status) const;
+    MaybeStackVector<UnitPreference> getPreferencesFor(StringPiece category, StringPiece usage,
+                                                       const Locale &locale,
+
+                                                       UErrorCode &status) const;
 
   protected:
     // Metadata about the sets of preferences, this is the index for looking up

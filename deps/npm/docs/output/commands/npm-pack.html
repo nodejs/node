@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-pack</title>
 <style>
 body {
@@ -141,21 +142,19 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#pack-destination"><code>pack-destination</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm pack [[&lt;@scope&gt;/]&lt;pkg&gt;...] [--dry-run] [--json]
+<pre><code class="language-bash">npm pack &lt;package-spec&gt;
 </code></pre>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="dry-run"><code>dry-run</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don’t want npm to make any changes and that it should
+<p>Indicates that you don't want npm to make any changes and that it should
 only report what it would have done. This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
@@ -167,7 +166,17 @@ commands that modify your local installation, eg, <code>install</code>, <code>up
 <li>Type: Boolean</li>
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
 <p>Not supported by all npm commands.</p>
+<h4 id="pack-destination"><code>pack-destination</code></h4>
+<ul>
+<li>Default: "."</li>
+<li>Type: String</li>
+</ul>
+<p>Directory in which <code>npm pack</code> will save tarballs.</p>
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
@@ -180,8 +189,8 @@ this configuration option.</p>
 <ul>
 <li>Workspace names</li>
 <li>Path to a workspace directory</li>
-<li>Path to a parent workspace directory (will result to selecting all of the
-nested workspaces)</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
 </ul>
 <p>When set for the <code>npm init</code> command, this may be set to the folder of a
 workspace which does not yet exist, to create the folder and set it up as a
@@ -189,15 +198,32 @@ brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Enable running a command in the context of <strong>all</strong> the configured
-workspaces.</p>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
+all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
-<p>For anything that’s installable (that is, a package folder, tarball,
+<p>For anything that's installable (that is, a package folder, tarball,
 tarball url, git url, name@tag, name@version, name, or scoped name), this
 command will fetch it to the cache, copy the tarball to the current working
 directory as <code>&lt;name&gt;-&lt;version&gt;.tgz</code>, and then write the filenames out to
@@ -207,13 +233,13 @@ overwritten the second time.</p>
 <p>If no arguments are supplied, then npm packs the current package folder.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
 <li><a href="http://npm.im/npm-packlist">npm-packlist package</a></li>
 <li><a href="../commands/npm-cache.html">npm cache</a></li>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-pack.md">

@@ -470,7 +470,8 @@
     assertEquals(4, f());
   }
 
-  assertEquals(4, f());
+  // B.3.2.6 Changes to BlockDeclarationInstantiation
+  assertEquals(5, f());
 })();
 
 // B.3.5 interacts with B.3.3 to allow this.

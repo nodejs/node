@@ -36,8 +36,6 @@ const char *nghttp3_strerror(int liberr) {
     return "ERR_WOULDBLOCK";
   case NGHTTP3_ERR_STREAM_IN_USE:
     return "ERR_STREAM_IN_USE";
-  case NGHTTP3_ERR_PUSH_ID_BLOCKED:
-    return "ERR_PUSH_ID_BLOCKED";
   case NGHTTP3_ERR_MALFORMED_HTTP_HEADER:
     return "ERR_MALFORMED_HTTP_HEADER";
   case NGHTTP3_ERR_REMOVE_HTTP_HEADER:
@@ -48,14 +46,12 @@ const char *nghttp3_strerror(int liberr) {
     return "ERR_QPACK_FATAL";
   case NGHTTP3_ERR_QPACK_HEADER_TOO_LARGE:
     return "ERR_QPACK_HEADER_TOO_LARGE";
-  case NGHTTP3_ERR_IGNORE_STREAM:
-    return "ERR_IGNORE_STREAM";
   case NGHTTP3_ERR_STREAM_NOT_FOUND:
     return "ERR_STREAM_NOT_FOUND";
-  case NGHTTP3_ERR_IGNORE_PUSH_PROMISE:
-    return "ERR_IGNORE_PUSH_PROMISE";
   case NGHTTP3_ERR_CONN_CLOSING:
     return "ERR_CONN_CLOSING";
+  case NGHTTP3_ERR_STREAM_DATA_OVERFLOW:
+    return "ERR_STREAM_DATA_OVERFLOW";
   case NGHTTP3_ERR_QPACK_DECOMPRESSION_FAILED:
     return "ERR_QPACK_DECOMPRESSION_FAILED";
   case NGHTTP3_ERR_QPACK_ENCODER_STREAM_ERROR:
@@ -106,6 +102,8 @@ uint64_t nghttp3_err_infer_quic_app_error_code(int liberr) {
   case NGHTTP3_ERR_H3_MISSING_SETTINGS:
     return NGHTTP3_H3_MISSING_SETTINGS;
   case NGHTTP3_ERR_H3_INTERNAL_ERROR:
+  case NGHTTP3_ERR_NOMEM:
+  case NGHTTP3_ERR_CALLBACK_FAILURE:
     return NGHTTP3_H3_INTERNAL_ERROR;
   case NGHTTP3_ERR_H3_CLOSED_CRITICAL_STREAM:
     return NGHTTP3_H3_CLOSED_CRITICAL_STREAM;
@@ -124,3 +122,5 @@ uint64_t nghttp3_err_infer_quic_app_error_code(int liberr) {
     return NGHTTP3_H3_GENERAL_PROTOCOL_ERROR;
   }
 }
+
+int nghttp3_err_is_fatal(int liberr) { return liberr < NGHTTP3_ERR_FATAL; }

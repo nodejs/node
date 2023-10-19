@@ -4,20 +4,27 @@
 
 // Flags: --expose-gc --noincremental-marking
 
-let call_count = 0;
-let reentrant_gc = function(holdings) {
-  gc();
-  call_count++;
-}
+(async function () {
 
-let fg = new FinalizationRegistry(reentrant_gc);
+  let call_count = 0;
+  const reentrant_gc = function (holdings) {
+    gc();
+    call_count++;
+  }
 
-(function() {
-fg.register({}, 42);
-})();
+  const fg = new FinalizationRegistry(reentrant_gc);
 
-gc();
+  (function () {
+    fg.register({}, 42);
+  })();
 
-setTimeout(function() {
-  assertEquals(1, call_count);
-}, 0);
+  // We need to invoke GC asynchronously and wait for it to finish, so that
+  // it doesn't need to scan the stack. Otherwise, the objects may not be
+  // reclaimed because of conservative stack scanning and the test may not
+  // work as intended.
+  await gc({ type: 'major', execution: 'async' });
+  assertEquals(0, call_count);
+
+  setTimeout(function () { assertEquals(1, call_count); }, 0);
+
+ })();

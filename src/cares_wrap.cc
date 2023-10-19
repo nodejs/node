@@ -19,18 +19,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
-#include "base64-inl.h"
 #include "cares_wrap.h"
+#include "ada.h"
+#include "async_wrap-inl.h"
+#include "base64-inl.h"
+#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"
-#include "v8.h"
 #include "uv.h"
+#include "v8.h"
 
 #include <cerrno>
 #include <cstring>
@@ -63,7 +65,10 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
+using v8::Nothing;
 using v8::Null;
 using v8::Object;
 using v8::String;
@@ -229,8 +234,7 @@ int ParseGeneralReply(
       status = ares_parse_ptr_reply(buf, len, nullptr, 0, AF_INET, &host);
       break;
     default:
-      CHECK(0 && "Bad NS type");
-      break;
+      UNREACHABLE("Bad NS type");
   }
 
   if (status != ARES_SUCCESS)
@@ -631,9 +635,14 @@ int ParseSoaReply(
 }
 }  // anonymous namespace
 
-ChannelWrap::ChannelWrap(Environment* env, Local<Object> object, int timeout)
+ChannelWrap::ChannelWrap(
+      Environment* env,
+      Local<Object> object,
+      int timeout,
+      int tries)
     : AsyncWrap(env, object, PROVIDER_DNSCHANNEL),
-      timeout_(timeout) {
+      timeout_(timeout),
+      tries_(tries) {
   MakeWeak();
 
   Setup();
@@ -647,11 +656,13 @@ void ChannelWrap::MemoryInfo(MemoryTracker* tracker) const {
 
 void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK_EQ(args.Length(), 1);
+  CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsInt32());
   const int timeout = args[0].As<Int32>()->Value();
+  const int tries = args[1].As<Int32>()->Value();
   Environment* env = Environment::GetCurrent(args);
-  new ChannelWrap(env, args.This(), timeout);
+  new ChannelWrap(env, args.This(), timeout, tries);
 }
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(
@@ -704,6 +715,7 @@ void ChannelWrap::Setup() {
   options.sock_state_cb = ares_sockstate_cb;
   options.sock_state_cb_data = this;
   options.timeout = timeout_;
+  options.tries = tries_;
 
   int r;
   if (!library_inited_) {
@@ -717,7 +729,8 @@ void ChannelWrap::Setup() {
 
   /* We do the call to ares_init_option for caller. */
   const int optmask =
-      ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS | ARES_OPT_SOCK_STATE_CB;
+      ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS |
+      ARES_OPT_SOCK_STATE_CB | ARES_OPT_TRIES;
   r = ares_init_options(&channel_, &options, optmask);
 
   if (r != ARES_SUCCESS) {
@@ -817,62 +830,62 @@ void ChannelWrap::EnsureServers() {
 
 int AnyTraits::Send(QueryWrap<AnyTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_any);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int ATraits::Send(QueryWrap<ATraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_a);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int AaaaTraits::Send(QueryWrap<AaaaTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_aaaa);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int CaaTraits::Send(QueryWrap<CaaTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, T_CAA);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int CnameTraits::Send(QueryWrap<CnameTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_cname);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int MxTraits::Send(QueryWrap<MxTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_mx);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int NsTraits::Send(QueryWrap<NsTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_ns);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int TxtTraits::Send(QueryWrap<TxtTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_txt);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int SrvTraits::Send(QueryWrap<SrvTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_srv);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int PtrTraits::Send(QueryWrap<PtrTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_ptr);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int NaptrTraits::Send(QueryWrap<NaptrTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_naptr);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int SoaTraits::Send(QueryWrap<SoaTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_soa);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int AnyTraits::Parse(
@@ -1039,7 +1052,7 @@ int AnyTraits::Parse(
     return status;
 
   wrap->CallOnComplete(ret);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int ATraits::Parse(
@@ -1073,7 +1086,7 @@ int ATraits::Parse(
   Local<Array> ttls = AddrTTLToArray<ares_addrttl>(env, addrttls, naddrttls);
 
   wrap->CallOnComplete(ret, ttls);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int AaaaTraits::Parse(
@@ -1107,7 +1120,7 @@ int AaaaTraits::Parse(
   Local<Array> ttls = AddrTTLToArray<ares_addr6ttl>(env, addrttls, naddrttls);
 
   wrap->CallOnComplete(ret, ttls);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int CaaTraits::Parse(
@@ -1129,7 +1142,7 @@ int CaaTraits::Parse(
     return status;
 
   wrap->CallOnComplete(ret);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int CnameTraits::Parse(
@@ -1152,7 +1165,7 @@ int CnameTraits::Parse(
     return status;
 
   wrap->CallOnComplete(ret);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int MxTraits::Parse(
@@ -1175,7 +1188,7 @@ int MxTraits::Parse(
     return status;
 
   wrap->CallOnComplete(mx_records);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int NsTraits::Parse(
@@ -1198,7 +1211,7 @@ int NsTraits::Parse(
     return status;
 
   wrap->CallOnComplete(names);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int TxtTraits::Parse(
@@ -1220,7 +1233,7 @@ int TxtTraits::Parse(
     return status;
 
   wrap->CallOnComplete(txt_records);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int SrvTraits::Parse(
@@ -1242,7 +1255,7 @@ int SrvTraits::Parse(
     return status;
 
   wrap->CallOnComplete(srv_records);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int PtrTraits::Parse(
@@ -1266,7 +1279,7 @@ int PtrTraits::Parse(
     return status;
 
   wrap->CallOnComplete(aliases);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int NaptrTraits::Parse(
@@ -1288,7 +1301,7 @@ int NaptrTraits::Parse(
     return status;
 
   wrap->CallOnComplete(naptr_records);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int SoaTraits::Parse(
@@ -1339,7 +1352,7 @@ int SoaTraits::Parse(
   ares_free_data(soa_out);
 
   wrap->CallOnComplete(soa_record);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int ReverseTraits::Send(GetHostByAddrWrap* wrap, const char* name) {
@@ -1368,7 +1381,7 @@ int ReverseTraits::Send(GetHostByAddrWrap* wrap, const char* name) {
       family,
       GetHostByAddrWrap::Callback,
       wrap->MakeCallbackPointer());
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int ReverseTraits::Parse(
@@ -1383,7 +1396,7 @@ int ReverseTraits::Parse(
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   wrap->CallOnComplete(HostentToNames(env, host));
-  return 0;
+  return ARES_SUCCESS;
 }
 
 namespace {
@@ -1401,9 +1414,11 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   Local<String> string = args[1].As<String>();
   auto wrap = std::make_unique<Wrap>(channel, req_wrap_obj);
 
-  node::Utf8Value name(env->isolate(), string);
+  node::Utf8Value utf8name(env->isolate(), string);
+  auto plain_name = utf8name.ToStringView();
+  std::string name = ada::idna::to_ascii(plain_name);
   channel->ModifyActivityQueryCount(1);
-  int err = wrap->Send(*name);
+  int err = wrap->Send(name.c_str());
   if (err) {
     channel->ModifyActivityQueryCount(-1);
   } else {
@@ -1416,7 +1431,8 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
 
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
-  std::unique_ptr<GetAddrInfoReqWrap> req_wrap {
+  auto cleanup = OnScopeLeave([&]() { uv_freeaddrinfo(res); });
+  BaseObjectPtr<GetAddrInfoReqWrap> req_wrap{
       static_cast<GetAddrInfoReqWrap*>(req->data)};
   Environment* env = req_wrap->env();
 
@@ -1434,7 +1450,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   if (status == 0) {
     Local<Array> results = Array::New(env->isolate());
 
-    auto add = [&] (bool want_ipv4, bool want_ipv6) {
+    auto add = [&] (bool want_ipv4, bool want_ipv6) -> Maybe<bool> {
       for (auto p = res; p != nullptr; p = p->ai_next) {
         CHECK_EQ(p->ai_socktype, SOCK_STREAM);
 
@@ -1454,14 +1470,19 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
           continue;
 
         Local<String> s = OneByteString(env->isolate(), ip);
-        results->Set(env->context(), n, s).Check();
+        if (results->Set(env->context(), n, s).IsNothing())
+          return Nothing<bool>();
         n++;
       }
+      return Just(true);
     };
 
-    add(true, verbatim);
-    if (verbatim == false)
-      add(false, true);
+    if (add(true, verbatim).IsNothing())
+      return;
+    if (verbatim == false) {
+      if (add(false, true).IsNothing())
+        return;
+    }
 
     // No responses were found to return
     if (n == 0) {
@@ -1470,8 +1491,6 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
     argv[1] = results;
   }
-
-  uv_freeaddrinfo(res);
 
   TRACE_EVENT_NESTABLE_ASYNC_END2(
       TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
@@ -1486,7 +1505,7 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
                       int status,
                       const char* hostname,
                       const char* service) {
-  std::unique_ptr<GetNameInfoReqWrap> req_wrap {
+  BaseObjectPtr<GetNameInfoReqWrap> req_wrap{
       static_cast<GetNameInfoReqWrap*>(req->data)};
   Environment* env = req_wrap->env();
 
@@ -1516,28 +1535,18 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 }
 
-using ParseIPResult =
-    decltype(static_cast<ares_addr_port_node*>(nullptr)->addr);
-
-int ParseIP(const char* ip, ParseIPResult* result = nullptr) {
-  ParseIPResult tmp;
-  if (result == nullptr) result = &tmp;
-  if (0 == uv_inet_pton(AF_INET, ip, result)) return 4;
-  if (0 == uv_inet_pton(AF_INET6, ip, result)) return 6;
-  return 0;
-}
-
 void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   node::Utf8Value ip(isolate, args[0]);
 
-  ParseIPResult result;
-  const int rc = ParseIP(*ip, &result);
-  if (rc == 0) return;
+  int af;
+  unsigned char result[sizeof(ares_addr_port_node::addr)];
+  if (uv_inet_pton(af = AF_INET, *ip, result) != 0 &&
+      uv_inet_pton(af = AF_INET6, *ip, result) != 0)
+    return;
 
   char canonical_ip[INET6_ADDRSTRLEN];
-  const int af = (rc == 4 ? AF_INET : AF_INET6);
-  CHECK_EQ(0, uv_inet_ntop(af, &result, canonical_ip, sizeof(canonical_ip)));
+  CHECK_EQ(0, uv_inet_ntop(af, result, canonical_ip, sizeof(canonical_ip)));
   Local<String> val = String::NewFromUtf8(isolate, canonical_ip)
       .ToLocalChecked();
   args.GetReturnValue().Set(val);
@@ -1552,6 +1561,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->IsBoolean());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(env->isolate(), args[1]);
+  std::string ascii_hostname = ada::idna::to_ascii(hostname.ToStringView());
 
   int32_t flags = 0;
   if (args[3]->IsInt32()) {
@@ -1571,7 +1581,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
       family = AF_INET6;
       break;
     default:
-      CHECK(0 && "bad address family");
+      UNREACHABLE("bad address family");
   }
 
   auto req_wrap = std::make_unique<GetAddrInfoReqWrap>(env,
@@ -1584,17 +1594,18 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = flags;
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
-      "hostname", TRACE_STR_COPY(*hostname),
-      "family",
-      family == AF_INET ? "ipv4" : family == AF_INET6 ? "ipv6" : "unspec");
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(TRACING_CATEGORY_NODE2(dns, native),
+                                    "lookup",
+                                    req_wrap.get(),
+                                    "hostname",
+                                    TRACE_STR_COPY(ascii_hostname.data()),
+                                    "family",
+                                    family == AF_INET    ? "ipv4"
+                                    : family == AF_INET6 ? "ipv6"
+                                                         : "unspec");
 
-  int err = req_wrap->Dispatch(uv_getaddrinfo,
-                               AfterGetAddrInfo,
-                               *hostname,
-                               nullptr,
-                               &hints);
+  int err = req_wrap->Dispatch(
+      uv_getaddrinfo, AfterGetAddrInfo, ascii_hostname.data(), nullptr, &hints);
   if (err == 0)
     // Release ownership of the pointer allowing the ownership to be transferred
     USE(req_wrap.release());
@@ -1684,7 +1695,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsArray());
 
-  Local<Array> arr = Local<Array>::Cast(args[0]);
+  Local<Array> arr = args[0].As<Array>();
 
   uint32_t len = arr->Length();
 
@@ -1701,8 +1712,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   for (uint32_t i = 0; i < len; i++) {
     CHECK(arr->Get(env->context(), i).ToLocalChecked()->IsArray());
 
-    Local<Array> elm =
-        Local<Array>::Cast(arr->Get(env->context(), i).ToLocalChecked());
+    Local<Array> elm = arr->Get(env->context(), i).ToLocalChecked().As<Array>();
 
     CHECK(elm->Get(env->context(),
                    0).ToLocalChecked()->Int32Value(env->context()).FromJust());
@@ -1730,7 +1740,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
         err = uv_inet_pton(AF_INET6, *ip, &cur->addr);
         break;
       default:
-        CHECK(0 && "Bad address family.");
+        UNREACHABLE("Bad address family");
     }
 
     if (err)
@@ -1745,7 +1755,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (err == 0)
-    err = ares_set_servers_ports(channel->cares_channel(), &servers[0]);
+    err = ares_set_servers_ports(channel->cares_channel(), servers.data());
   else
     err = ARES_EBADSTR;
 
@@ -1871,12 +1881,13 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  env->SetMethod(target, "getaddrinfo", GetAddrInfo);
-  env->SetMethod(target, "getnameinfo", GetNameInfo);
-  env->SetMethodNoSideEffect(target, "canonicalizeIP", CanonicalizeIP);
+  SetMethod(context, target, "getaddrinfo", GetAddrInfo);
+  SetMethod(context, target, "getnameinfo", GetNameInfo);
+  SetMethodNoSideEffect(context, target, "canonicalizeIP", CanonicalizeIP);
 
-  env->SetMethod(target, "strerror", StrError);
+  SetMethod(context, target, "strerror", StrError);
 
   target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
               Integer::New(env->isolate(), AF_INET)).Check();
@@ -1898,47 +1909,77 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> aiw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
   aiw->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetConstructorFunction(target, "GetAddrInfoReqWrap", aiw);
+  SetConstructorFunction(context, target, "GetAddrInfoReqWrap", aiw);
 
   Local<FunctionTemplate> niw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
   niw->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetConstructorFunction(target, "GetNameInfoReqWrap", niw);
+  SetConstructorFunction(context, target, "GetNameInfoReqWrap", niw);
 
   Local<FunctionTemplate> qrw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
   qrw->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetConstructorFunction(target, "QueryReqWrap", qrw);
+  SetConstructorFunction(context, target, "QueryReqWrap", qrw);
 
   Local<FunctionTemplate> channel_wrap =
-      env->NewFunctionTemplate(ChannelWrap::New);
+      NewFunctionTemplate(isolate, ChannelWrap::New);
   channel_wrap->InstanceTemplate()->SetInternalFieldCount(
       ChannelWrap::kInternalFieldCount);
   channel_wrap->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(channel_wrap, "queryAny", Query<QueryAnyWrap>);
-  env->SetProtoMethod(channel_wrap, "queryA", Query<QueryAWrap>);
-  env->SetProtoMethod(channel_wrap, "queryAaaa", Query<QueryAaaaWrap>);
-  env->SetProtoMethod(channel_wrap, "queryCaa", Query<QueryCaaWrap>);
-  env->SetProtoMethod(channel_wrap, "queryCname", Query<QueryCnameWrap>);
-  env->SetProtoMethod(channel_wrap, "queryMx", Query<QueryMxWrap>);
-  env->SetProtoMethod(channel_wrap, "queryNs", Query<QueryNsWrap>);
-  env->SetProtoMethod(channel_wrap, "queryTxt", Query<QueryTxtWrap>);
-  env->SetProtoMethod(channel_wrap, "querySrv", Query<QuerySrvWrap>);
-  env->SetProtoMethod(channel_wrap, "queryPtr", Query<QueryPtrWrap>);
-  env->SetProtoMethod(channel_wrap, "queryNaptr", Query<QueryNaptrWrap>);
-  env->SetProtoMethod(channel_wrap, "querySoa", Query<QuerySoaWrap>);
-  env->SetProtoMethod(channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryAny", Query<QueryAnyWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryA", Query<QueryAWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryAaaa", Query<QueryAaaaWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryCaa", Query<QueryCaaWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryCname", Query<QueryCnameWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryMx", Query<QueryMxWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryNs", Query<QueryNsWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryTxt", Query<QueryTxtWrap>);
+  SetProtoMethod(isolate, channel_wrap, "querySrv", Query<QuerySrvWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryPtr", Query<QueryPtrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryNaptr", Query<QueryNaptrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "querySoa", Query<QuerySoaWrap>);
+  SetProtoMethod(
+      isolate, channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
 
-  env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
-  env->SetProtoMethod(channel_wrap, "setServers", SetServers);
-  env->SetProtoMethod(channel_wrap, "setLocalAddress", SetLocalAddress);
-  env->SetProtoMethod(channel_wrap, "cancel", Cancel);
+  SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
+  SetProtoMethod(isolate, channel_wrap, "setServers", SetServers);
+  SetProtoMethod(isolate, channel_wrap, "setLocalAddress", SetLocalAddress);
+  SetProtoMethod(isolate, channel_wrap, "cancel", Cancel);
 
-  env->SetConstructorFunction(target, "ChannelWrap", channel_wrap);
+  SetConstructorFunction(context, target, "ChannelWrap", channel_wrap);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetAddrInfo);
+  registry->Register(GetNameInfo);
+  registry->Register(CanonicalizeIP);
+  registry->Register(StrError);
+  registry->Register(ChannelWrap::New);
+
+  registry->Register(Query<QueryAnyWrap>);
+  registry->Register(Query<QueryAWrap>);
+  registry->Register(Query<QueryAaaaWrap>);
+  registry->Register(Query<QueryCaaWrap>);
+  registry->Register(Query<QueryCnameWrap>);
+  registry->Register(Query<QueryMxWrap>);
+  registry->Register(Query<QueryNsWrap>);
+  registry->Register(Query<QueryTxtWrap>);
+  registry->Register(Query<QuerySrvWrap>);
+  registry->Register(Query<QueryPtrWrap>);
+  registry->Register(Query<QueryNaptrWrap>);
+  registry->Register(Query<QuerySoaWrap>);
+  registry->Register(Query<GetHostByAddrWrap>);
+
+  registry->Register(GetServers);
+  registry->Register(SetServers);
+  registry->Register(SetLocalAddress);
+  registry->Register(Cancel);
 }
 
 }  // namespace cares_wrap
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, node::cares_wrap::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(cares_wrap, node::cares_wrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(cares_wrap,
+                                node::cares_wrap::RegisterExternalReferences)

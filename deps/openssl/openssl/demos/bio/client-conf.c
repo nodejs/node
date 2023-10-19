@@ -1,7 +1,7 @@
 /*
- * Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -88,9 +88,6 @@ int main(int argc, char **argv)
         goto end;
     }
 
-    /* Don't want any retries */
-    SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
-
     /* We might want to do other things with ssl here */
 
     BIO_set_conn_hostname(sbio, connect_str);
@@ -98,12 +95,6 @@ int main(int argc, char **argv)
     out = BIO_new_fp(stdout, BIO_NOCLOSE);
     if (BIO_do_connect(sbio) <= 0) {
         fprintf(stderr, "Error connecting to server\n");
-        ERR_print_errors_fp(stderr);
-        goto end;
-    }
-
-    if (BIO_do_handshake(sbio) <= 0) {
-        fprintf(stderr, "Error establishing SSL connection\n");
         ERR_print_errors_fp(stderr);
         goto end;
     }

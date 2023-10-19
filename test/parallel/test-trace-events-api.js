@@ -12,7 +12,6 @@ try {
 
 const assert = require('assert');
 const cp = require('child_process');
-const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 const {
@@ -147,7 +146,7 @@ function testApiInChildProcess(execArgs, cb) {
                        });
 
   proc.once('exit', common.mustCall(() => {
-    const file = path.join(tmpdir.path, 'node_trace.1.log');
+    const file = tmpdir.resolve('node_trace.1.log');
 
     assert(fs.existsSync(file));
     fs.readFile(file, common.mustSucceed((data) => {
@@ -161,16 +160,18 @@ function testApiInChildProcess(execArgs, cb) {
       traces.forEach((trace) => {
         assert.strictEqual(trace.pid, proc.pid);
         switch (trace.ph) {
-          case 'b':
+          case 'b': {
             const expectedBegin = expectedBegins.shift();
             assert.strictEqual(trace.cat, expectedBegin.cat);
             assert.strictEqual(trace.name, expectedBegin.name);
             break;
-          case 'e':
+          }
+          case 'e': {
             const expectedEnd = expectedEnds.shift();
             assert.strictEqual(trace.cat, expectedEnd.cat);
             assert.strictEqual(trace.name, expectedEnd.name);
             break;
+          }
           default:
             assert.fail('Unexpected trace event phase');
         }

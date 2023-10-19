@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --always-opt
+// Flags: --always-turbofan
 
 // This causes the register used by the call in the later try-catch block to be
 // used by the ToName conversion for null which causes a DCHECK fail when

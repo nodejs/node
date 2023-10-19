@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+<title></title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+</head>
+<body>
+<script>
+<!--
+promise_test(t => {
+  return new Promise((resolve) => {
+    let ifr = document.createElement("iframe");
+    ifr.src =
+      "data:text/html,<script> let bc = new BroadcastChannel(\"test\");" +
+      "bc.onmessage = (e) => {" +
+      "  if (e.data == \"ping\") bc.postMessage('pong');"+
+      "  else parent.postMessage({workerMessageOrigin: e.data, messageOrigin: e.origin}, \"*\"); };" +
+      "new Worker(URL.createObjectURL(new Blob([\"" +
+      "let bc2 = new BroadcastChannel('test'); bc2.postMessage('ping'); " +
+      "bc2.onmessage = e => bc2.postMessage(e.origin);" +
+      "\"], {type: 'text/javascript'}))); </script>";
+    window.addEventListener("message", t.step_func(e => {
+        assert_equals(e.data.workerMessageOrigin, "null");
+        assert_equals(e.data.messageOrigin, "null");
+        resolve();
+      }), {once: true});
+    t.add_cleanup(() => { document.body.removeChild(ifr) });
+    document.body.appendChild(ifr);
+    });
+}, "Opaque origin should be serialized to \"null\"");
+
+
+const iframe_src = (channel_name, iframe_name) => `data:text/html,<script>
+let bc2 = new BroadcastChannel("${channel_name}");
+bc2.onmessage = (e) => {
+  if (e.data == "from-${iframe_name}") {
+    parent.postMessage("${iframe_name}-done", "*");
+  } else {
+    parent.postMessage("fail", "*");
+  }
+};
+let bc3 = new BroadcastChannel("${channel_name}");
+bc3.postMessage("from-${iframe_name}");
+</script>`;
+
+promise_test(t => {
+  return new Promise((resolve, reject) => {
+    const channel_name = "opaque-origin-test-2";
+    const bc1 = new BroadcastChannel(channel_name);
+    bc1.onmessage = t.unreached_func("Received message from an opaque origin");
+
+    // We'll create an iframe and have it send a BroadcastChannel message
+    // between two instances. Once the message is received, it will postMessage
+    // back and we'll repeat this with another iframe. If the first
+    // BroadcastChannel message is received by `bc1`, or if the second
+    // BroadcastChannel message is received by `bc1` or `bc2` in the first
+    // iframe, then the test should fail.
+
+    window.addEventListener("message", e => {
+      if(e.data == "iframe1-done") {
+        let iframe2 = document.createElement("iframe");
+        iframe2.src = iframe_src(channel_name, "iframe2");
+        t.add_cleanup(() => { document.body.removeChild(iframe2) });
+        document.body.appendChild(iframe2);
+      } else if(e.data == "iframe2-done") {
+        resolve();
+      } else if(e.data == "fail") {
+        reject("One opaque origin received a message from the other");
+      } else {
+        reject("An unexpected error occurred");
+      }
+    });
+
+    let iframe1 = document.createElement("iframe");
+    iframe1.src = iframe_src(channel_name, "iframe1");
+    t.add_cleanup(() => { document.body.removeChild(iframe1) });
+    document.body.appendChild(iframe1);
+    });
+}, "BroadcastChannel messages from opaque origins should be self-contained");
+
+const data_url_worker_src = (channel_name, worker_name) => {
+  const source = `
+const handler = (reply) => {
+  let bc2 = new BroadcastChannel("${channel_name}");
+  bc2.onmessage = (e) => {
+    if (e.data == "from-${worker_name}") {
+      reply("${worker_name}-done");
+    } else {
+      reply("fail");
+    }
+  };
+  let bc3 = new BroadcastChannel("${channel_name}");
+  bc3.postMessage("from-${worker_name}");
+};
+// For dedicated workers:
+self.addEventListener("message", () => handler(self.postMessage));
+// For shared workers:
+self.addEventListener("connect", (e) => {
+  var port = e.ports[0];
+  port.onmessage = () => handler(msg => port.postMessage(msg));
+  port.start();
+
+});
+`;
+  return "data:,".concat(encodeURIComponent(source));
+}
+
+promise_test(t => {
+  return new Promise((resolve, reject) => {
+    const channel_name = "opaque-origin-test-3";
+    const bc1 = new BroadcastChannel(channel_name);
+    bc1.onmessage = e => { reject("Received message from an opaque origin"); };
+
+    // Same as the previous test but with data URL dedicated workers (which
+    // should have opaque origins per the HTML spec).
+    const worker_name_prefix = "data-url-dedicated-worker";
+    const worker_1_name = `${worker_name_prefix}-1`;
+    const worker_2_name = `${worker_name_prefix}-2`;
+
+    const handler = e => {
+      if(e.data == `${worker_1_name}-done`) {
+        const worker2 = new Worker(data_url_worker_src(channel_name, worker_2_name));
+        t.add_cleanup(() => worker2.terminate());
+        worker2.addEventListener("message", handler);
+        worker2.postMessage("go!");
+      } else if(e.data == `${worker_2_name}-done`) {
+        resolve();
+      } else if(e.data == "fail") {
+        reject("One opaque origin received a message from the other");
+      } else {
+        reject("An unexpected error occurred");
+      }
+    };
+
+    let worker1 = new Worker(data_url_worker_src(channel_name, worker_1_name));
+    t.add_cleanup(() => worker1.terminate());
+    worker1.addEventListener("message", handler);
+    worker1.postMessage("go!");
+    });
+}, "BroadcastChannel messages from data URL dedicated workers should be self-contained");
+
+promise_test(() => {
+  return new Promise((resolve, reject) => {
+    const channel_name = "opaque-origin-test-4";
+    const bc1 = new BroadcastChannel(channel_name);
+
+    // Same as the previous test but with data URL shared workers (which
+    // should have opaque origins per the HTML spec).
+    const worker_name_prefix = "data-url-shared-worker";
+    const worker_1_name = `${worker_name_prefix}-1`;
+    const worker_2_name = `${worker_name_prefix}-2`;
+
+    const handler = e => {
+      if (e.data == `${worker_1_name}-done`) {
+        const worker_script = data_url_worker_src(channel_name, worker_2_name);
+        const worker2 = new SharedWorker(worker_script, worker_2_name);
+        worker2.port.addEventListener("message", handler);
+        worker2.port.start();
+        worker2.port.postMessage("go!");
+      } else if(e.data == `${worker_2_name}-done`) {
+        resolve();
+      } else if(e.data == "fail") {
+        reject("One opaque origin received a message from the other");
+      } else {
+        reject("An unexpected error occurred");
+      }
+    };
+
+    bc1.onmessage = e => {
+      if (e.data == "go!") {
+        const worker_script = data_url_worker_src(channel_name, worker_1_name);
+        const worker1 = new SharedWorker(worker_script, worker_1_name);
+        worker1.port.addEventListener("message", handler);
+        worker1.port.start();
+        worker1.port.postMessage("go!");
+      } else {
+        reject("Received message from an opaque origin");
+      }
+    };
+
+    // Ensure that the BroadcastChannel instance above can receive messages
+    // before we create the first shared worker.
+    const bc2 = new BroadcastChannel(channel_name);
+    bc2.postMessage("go!");
+    });
+}, "BroadcastChannel messages from data URL shared workers should be self-contained");
+//-->
+</script>
+</body>
+</html>

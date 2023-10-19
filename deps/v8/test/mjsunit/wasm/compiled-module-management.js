@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --expose-gc --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Use global variables for all values where the test wants to maintain strict
 // control over value lifetime. Using local variables would not give sufficient
@@ -18,7 +18,7 @@ var instance4;
 (function CompiledModuleInstancesInitialize1to3() {
   var builder = new WasmModuleBuilder();
 
-  builder.addMemory(1,1, true);
+  builder.addMemory(1, 1);
   builder.addImport("", "getValue", kSig_i_v);
   builder.addFunction("f", kSig_i_v)
     .addBody([

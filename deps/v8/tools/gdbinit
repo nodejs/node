@@ -21,17 +21,75 @@ Usage: jh internal_handle
 end
 
 # Print content of v8::Local handle.
-define jlh
-call (void) _v8_internal_Print_Object(*((v8::internal::Object**)($arg0).val_))
+python
+import gdb
+
+class PrintV8LocalCommand(gdb.Command):
+  """Print content of v8::Local handle."""
+
+  PRINT_CMD = "call (void) _v8_internal_Print_Object(*(v8::internal::Address**)({0}))"
+
+  def __init__ (self):
+    super(PrintV8LocalCommand, self).__init__ ("print-v8-local", gdb.COMMAND_DATA)
+
+  @staticmethod
+  def get_address_from_local(value):
+    if gdb.types.get_basic_type(value.type).code != gdb.TYPE_CODE_STRUCT:
+      return None
+    # After https://crrev.com/c/4335544, v8::MaybeLocal contains a local_.
+    if gdb.types.has_field(value.type, "local_"):
+      value = value["local_"]
+    # After https://crrev.com/c/4335544, v8::Local contains a location_.
+    if gdb.types.has_field(value.type, "location_"):
+      return value["location_"].format_string()
+    # Before https://crrev.com/c/4335544, v8::Local contained a val_.
+    if gdb.types.has_field(value.type, "val_"):
+      return value["val_"].format_string()
+    # We don't know how to print this...
+    return None
+
+  def invoke (self, arg, from_tty):
+    argv = gdb.string_to_argv(arg)
+    if len(argv) != 1:
+      raise gdb.GdbError("print-local takes exactly one argument.")
+    value = gdb.parse_and_eval(argv[0])
+    indirect_pointer = self.get_address_from_local(value)
+    if indirect_pointer is not None:
+      gdb.execute(self.PRINT_CMD.format(indirect_pointer), from_tty)
+    else:
+      raise gdb.GdbError("print-local cannot print a value of type {}".format(
+        value.type))
+
+PrintV8LocalCommand()
 end
-document jlh
-Print content of a v8::Local handle
-Usage: jlh local_handle
-end
+
+alias jlh = print-v8-local
+alias jl = print-v8-local
 
 # Print Code objects containing given PC.
 define jco
-call (void) _v8_internal_Print_Code((void*)($arg0))
+  if $argc == 0
+    call (void) _v8_internal_Print_Code((void*)($pc))
+  else
+    call (void) _v8_internal_Print_Code((void*)($arg0))
+  end
+end
+document jco
+Print a v8 Code object from an internal code address
+Usage: jco pc
+end
+
+# Print Code objects assembly code surrounding given PC.
+define jca
+  if $argc == 0
+    call (void) _v8_internal_Print_OnlyCode((void*)($pc), 30)
+  else
+    if $argc == 0
+      call (void) _v8_internal_Print_OnlyCode((void*)($arg0), 30)
+    else
+      call (void) _v8_internal_Print_OnlyCode((void*)($arg0), (size_t)($arg1))
+    end
+  end
 end
 document jco
 Print a v8 Code object from an internal code address
@@ -88,7 +146,8 @@ class SimCommand(gdb.Command):
     super (SimCommand, self).__init__ ("sim", gdb.COMMAND_SUPPORT)
 
   def invoke (self, arg, from_tty):
-    arg_c_string = gdb.Value(arg)
+    arg_bytes = arg.encode("utf-8") + b'\0'
+    arg_c_string = gdb.Value(arg_bytes, gdb.lookup_type('char').array(len(arg_bytes) - 1))
     cmd_func = gdb.selected_frame().read_var("_v8_internal_Simulator_ExecDebugCommand")
     cmd_func(arg_c_string)
 
@@ -154,21 +213,35 @@ try:
 except gdb.error:
   pass
 end
-set disable-randomization off
+
+# Configuring ASLR may not be possible on some platforms, such running via the
+# `rr` debuggger.
+python
+try:
+  gdb.execute("set disable-randomization off")
+except gdb.error:
+  pass
+end
 
 # Install a handler whenever the debugger stops due to a signal. It walks up the
-# stack looking for V8_Dcheck and moves the frame to the one above it so it's
-# immediately at the line of code that triggered the DCHECK.
+# stack looking for V8_Dcheck / V8_Fatal / OS::DebugBreak frame and moves the
+# frame to the one above it so it's immediately at the line of code that
+# triggered the stop condition.
 python
-def dcheck_stop_handler(event):
+def v8_stop_handler(event):
   frame = gdb.selected_frame()
   select_frame = None
   message = None
   count = 0
-  # limit stack scanning since they're usually shallow and otherwise stack
-  # overflows can be very slow.
-  while frame is not None and count < 7:
+  # Limit stack scanning since the frames we look for are near the top anyway,
+  # and otherwise stack overflows can be very slow.
+  while frame is not None and count < 10:
     count += 1
+    # If we are in a frame created by gdb (e.g. for `(gdb) call foo()`), gdb
+    # emits a dummy frame between its stack and the program's stack. Abort the
+    # walk if we see this frame.
+    if frame.type() == gdb.DUMMY_FRAME: break
+
     if frame.name() == 'V8_Dcheck':
       frame_message = gdb.lookup_symbol('message', frame.block())[0]
       if frame_message:
@@ -176,6 +249,8 @@ def dcheck_stop_handler(event):
       select_frame = frame.older()
       break
     if frame.name() is not None and frame.name().startswith('V8_Fatal'):
+      select_frame = frame.older()
+    if frame.name() == 'v8::base::OS::DebugBreak':
       select_frame = frame.older()
     frame = frame.older()
 
@@ -185,7 +260,7 @@ def dcheck_stop_handler(event):
     if message:
       print('DCHECK error: {}'.format(message))
 
-gdb.events.stop.connect(dcheck_stop_handler)
+gdb.events.stop.connect(v8_stop_handler)
 end
 
 # Code imported from chromium/src/tools/gdb/gdbinit
@@ -237,5 +312,66 @@ def newobj_handler(event):
 gdb.events.new_objfile.connect(newobj_handler)
 
 gdb.execute("set environment V8_GDBINIT_SOURCED=1")
+
+end
+
+### CppGC helpers.
+
+# Print compressed pointer.
+define cpcp
+call _cppgc_internal_Decompress_Compressed_Pointer((unsigned)($arg0))
+end
+document cpcp
+Prints compressed pointer (raw value) after decompression.
+Usage: cpcp compressed_pointer
+end
+
+# Print member.
+define cpm
+call _cppgc_internal_Print_Member((cppgc::internal::MemberBase*)(&$arg0))
+end
+document cpm
+Prints member, compressed or not.
+Usage: cpm member
+end
+
+# Pretty printer for cppgc::Member.
+python
+
+import re
+
+
+class CppGCMemberPrinter(object):
+  """Print cppgc Member types."""
+
+  def __init__(self, val, category, pointee_type):
+    self.val = val
+    self.category = category
+    self.pointee_type = pointee_type
+
+  def to_string(self):
+    pointer = gdb.parse_and_eval(
+        "_cppgc_internal_Uncompress_Member((void*){})".format(
+            self.val.address))
+    return "{}Member<{}> pointing to {}".format(
+        '' if self.category is None else self.category, self.pointee_type,
+        pointer)
+
+  def display_hint(self):
+    return "{}Member<{}>".format('' if self.category is None else self.category,
+                                 self.pointee_type)
+
+
+def cppgc_pretty_printers(val):
+  typename = val.type.name or val.type.tag or str(val.type)
+  regex = re.compile("^(cppgc|blink)::(Weak|Untraced)?Member<(.*)>$")
+  match = regex.match(typename)
+  if match is None:
+    return None
+  return CppGCMemberPrinter(
+      val, category=match.group(2), pointee_type=match.group(3))
+
+
+gdb.pretty_printers.append(cppgc_pretty_printers)
 
 end

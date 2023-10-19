@@ -13,14 +13,14 @@
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
+#include "src/debug/debug-stack-trace-iterator.h"
 #include "src/debug/debug.h"
+#include "src/debug/liveedit-diff.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/isolate-inl.h"
 #include "src/execution/v8threads.h"
-#include "src/init/v8.h"
 #include "src/logging/log.h"
-#include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
@@ -28,242 +28,6 @@
 namespace v8 {
 namespace internal {
 namespace {
-// A general-purpose comparator between 2 arrays.
-class Comparator {
- public:
-  // Holds 2 arrays of some elements allowing to compare any pair of
-  // element from the first array and element from the second array.
-  class Input {
-   public:
-    virtual int GetLength1() = 0;
-    virtual int GetLength2() = 0;
-    virtual bool Equals(int index1, int index2) = 0;
-
-   protected:
-    virtual ~Input() = default;
-  };
-
-  // Receives compare result as a series of chunks.
-  class Output {
-   public:
-    // Puts another chunk in result list. Note that technically speaking
-    // only 3 arguments actually needed with 4th being derivable.
-    virtual void AddChunk(int pos1, int pos2, int len1, int len2) = 0;
-
-   protected:
-    virtual ~Output() = default;
-  };
-
-  // Finds the difference between 2 arrays of elements.
-  static void CalculateDifference(Input* input, Output* result_writer);
-};
-
-// A simple implementation of dynamic programming algorithm. It solves
-// the problem of finding the difference of 2 arrays. It uses a table of results
-// of subproblems. Each cell contains a number together with 2-bit flag
-// that helps building the chunk list.
-class Differencer {
- public:
-  explicit Differencer(Comparator::Input* input)
-      : input_(input), len1_(input->GetLength1()), len2_(input->GetLength2()) {
-    buffer_ = NewArray<int>(len1_ * len2_);
-  }
-  ~Differencer() {
-    DeleteArray(buffer_);
-  }
-
-  void Initialize() {
-    int array_size = len1_ * len2_;
-    for (int i = 0; i < array_size; i++) {
-      buffer_[i] = kEmptyCellValue;
-    }
-  }
-
-  // Makes sure that result for the full problem is calculated and stored
-  // in the table together with flags showing a path through subproblems.
-  void FillTable() {
-    CompareUpToTail(0, 0);
-  }
-
-  void SaveResult(Comparator::Output* chunk_writer) {
-    ResultWriter writer(chunk_writer);
-
-    int pos1 = 0;
-    int pos2 = 0;
-    while (true) {
-      if (pos1 < len1_) {
-        if (pos2 < len2_) {
-          Direction dir = get_direction(pos1, pos2);
-          switch (dir) {
-            case EQ:
-              writer.eq();
-              pos1++;
-              pos2++;
-              break;
-            case SKIP1:
-              writer.skip1(1);
-              pos1++;
-              break;
-            case SKIP2:
-            case SKIP_ANY:
-              writer.skip2(1);
-              pos2++;
-              break;
-            default:
-              UNREACHABLE();
-          }
-        } else {
-          writer.skip1(len1_ - pos1);
-          break;
-        }
-      } else {
-        if (len2_ != pos2) {
-          writer.skip2(len2_ - pos2);
-        }
-        break;
-      }
-    }
-    writer.close();
-  }
-
- private:
-  Comparator::Input* input_;
-  int* buffer_;
-  int len1_;
-  int len2_;
-
-  enum Direction {
-    EQ = 0,
-    SKIP1,
-    SKIP2,
-    SKIP_ANY,
-
-    MAX_DIRECTION_FLAG_VALUE = SKIP_ANY
-  };
-
-  // Computes result for a subtask and optionally caches it in the buffer table.
-  // All results values are shifted to make space for flags in the lower bits.
-  int CompareUpToTail(int pos1, int pos2) {
-    if (pos1 < len1_) {
-      if (pos2 < len2_) {
-        int cached_res = get_value4(pos1, pos2);
-        if (cached_res == kEmptyCellValue) {
-          Direction dir;
-          int res;
-          if (input_->Equals(pos1, pos2)) {
-            res = CompareUpToTail(pos1 + 1, pos2 + 1);
-            dir = EQ;
-          } else {
-            int res1 = CompareUpToTail(pos1 + 1, pos2) +
-                (1 << kDirectionSizeBits);
-            int res2 = CompareUpToTail(pos1, pos2 + 1) +
-                (1 << kDirectionSizeBits);
-            if (res1 == res2) {
-              res = res1;
-              dir = SKIP_ANY;
-            } else if (res1 < res2) {
-              res = res1;
-              dir = SKIP1;
-            } else {
-              res = res2;
-              dir = SKIP2;
-            }
-          }
-          set_value4_and_dir(pos1, pos2, res, dir);
-          cached_res = res;
-        }
-        return cached_res;
-      } else {
-        return (len1_ - pos1) << kDirectionSizeBits;
-      }
-    } else {
-      return (len2_ - pos2) << kDirectionSizeBits;
-    }
-  }
-
-  inline int& get_cell(int i1, int i2) {
-    return buffer_[i1 + i2 * len1_];
-  }
-
-  // Each cell keeps a value plus direction. Value is multiplied by 4.
-  void set_value4_and_dir(int i1, int i2, int value4, Direction dir) {
-    DCHECK_EQ(0, value4 & kDirectionMask);
-    get_cell(i1, i2) = value4 | dir;
-  }
-
-  int get_value4(int i1, int i2) {
-    return get_cell(i1, i2) & (kMaxUInt32 ^ kDirectionMask);
-  }
-  Direction get_direction(int i1, int i2) {
-    return static_cast<Direction>(get_cell(i1, i2) & kDirectionMask);
-  }
-
-  static const int kDirectionSizeBits = 2;
-  static const int kDirectionMask = (1 << kDirectionSizeBits) - 1;
-  static const int kEmptyCellValue = ~0u << kDirectionSizeBits;
-
-  // This method only holds static assert statement (unfortunately you cannot
-  // place one in class scope).
-  void StaticAssertHolder() {
-    STATIC_ASSERT(MAX_DIRECTION_FLAG_VALUE < (1 << kDirectionSizeBits));
-  }
-
-  class ResultWriter {
-   public:
-    explicit ResultWriter(Comparator::Output* chunk_writer)
-        : chunk_writer_(chunk_writer), pos1_(0), pos2_(0),
-          pos1_begin_(-1), pos2_begin_(-1), has_open_chunk_(false) {
-    }
-    void eq() {
-      FlushChunk();
-      pos1_++;
-      pos2_++;
-    }
-    void skip1(int len1) {
-      StartChunk();
-      pos1_ += len1;
-    }
-    void skip2(int len2) {
-      StartChunk();
-      pos2_ += len2;
-    }
-    void close() {
-      FlushChunk();
-    }
-
-   private:
-    Comparator::Output* chunk_writer_;
-    int pos1_;
-    int pos2_;
-    int pos1_begin_;
-    int pos2_begin_;
-    bool has_open_chunk_;
-
-    void StartChunk() {
-      if (!has_open_chunk_) {
-        pos1_begin_ = pos1_;
-        pos2_begin_ = pos2_;
-        has_open_chunk_ = true;
-      }
-    }
-
-    void FlushChunk() {
-      if (has_open_chunk_) {
-        chunk_writer_->AddChunk(pos1_begin_, pos2_begin_,
-                                pos1_ - pos1_begin_, pos2_ - pos2_begin_);
-        has_open_chunk_ = false;
-      }
-    }
-  };
-};
-
-void Comparator::CalculateDifference(Comparator::Input* input,
-                                     Comparator::Output* result_writer) {
-  Differencer differencer(input);
-  differencer.Initialize();
-  differencer.FillTable();
-  differencer.SaveResult(result_writer);
-}
 
 bool CompareSubstrings(Handle<String> s1, int pos1, Handle<String> s2, int pos2,
                        int len) {
@@ -748,17 +512,20 @@ class CollectFunctionLiterals final
 };
 
 bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
-                 bool compile_as_well, std::vector<FunctionLiteral*>* literals,
+                 MaybeHandle<ScopeInfo> outer_scope_info, bool compile_as_well,
+                 std::vector<FunctionLiteral*>* literals,
                  debug::LiveEditResult* result) {
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   Handle<SharedFunctionInfo> shared;
   bool success = false;
   if (compile_as_well) {
-    success = Compiler::CompileForLiveEdit(parse_info, script, isolate)
+    success = Compiler::CompileForLiveEdit(parse_info, script, outer_scope_info,
+                                           isolate)
                   .ToHandle(&shared);
   } else {
-    success = parsing::ParseProgram(parse_info, script, isolate,
-                                    parsing::ReportStatisticsMode::kYes);
+    success =
+        parsing::ParseProgram(parse_info, script, outer_scope_info, isolate,
+                              parsing::ReportStatisticsMode::kYes);
     if (!success) {
       // Throw the parser error.
       parse_info->pending_error_handler()->PrepareErrors(
@@ -770,8 +537,8 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
     isolate->OptionalRescheduleException(false);
     DCHECK(try_catch.HasCaught());
     result->message = try_catch.Message()->Get();
-    auto self = Utils::OpenHandle(*try_catch.Message());
-    auto msg = i::Handle<i::JSMessageObject>::cast(self);
+    i::Handle<i::JSMessageObject> msg = Utils::OpenHandle(*try_catch.Message());
+    i::JSMessageObject::EnsureSourcePositionsAvailable(isolate, msg);
     result->line_number = msg->GetLineNumber();
     result->column_number = msg->GetColumnNumber();
     result->status = debug::LiveEditResult::COMPILE_ERROR;
@@ -782,10 +549,8 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
 }
 
 struct FunctionData {
-  FunctionData(FunctionLiteral* literal, bool should_restart)
-      : literal(literal),
-        stack_position(NOT_ON_STACK),
-        should_restart(should_restart) {}
+  explicit FunctionData(FunctionLiteral* literal)
+      : literal(literal), stack_position(NOT_ON_STACK) {}
 
   FunctionLiteral* literal;
   MaybeHandle<SharedFunctionInfo> shared;
@@ -794,32 +559,23 @@ struct FunctionData {
   // In case of multiple functions with different stack position, the latest
   // one (in the order below) is used, since it is the most restrictive.
   // This is important only for functions to be restarted.
-  enum StackPosition {
-    NOT_ON_STACK,
-    ABOVE_BREAK_FRAME,
-    PATCHABLE,
-    BELOW_NON_DROPPABLE_FRAME,
-    ARCHIVED_THREAD,
-  };
+  enum StackPosition { NOT_ON_STACK, ON_TOP_ONLY, ON_STACK };
   StackPosition stack_position;
-  bool should_restart;
 };
 
 class FunctionDataMap : public ThreadVisitor {
  public:
-  void AddInterestingLiteral(int script_id, FunctionLiteral* literal,
-                             bool should_restart) {
-    map_.emplace(GetFuncId(script_id, literal),
-                 FunctionData{literal, should_restart});
+  void AddInterestingLiteral(int script_id, FunctionLiteral* literal) {
+    map_.emplace(GetFuncId(script_id, literal), FunctionData{literal});
   }
 
-  bool Lookup(SharedFunctionInfo sfi, FunctionData** data) {
-    int start_position = sfi.StartPosition();
-    if (!sfi.script().IsScript() || start_position == -1) {
+  bool Lookup(Tagged<SharedFunctionInfo> sfi, FunctionData** data) {
+    int start_position = sfi->StartPosition();
+    if (!IsScript(sfi->script()) || start_position == -1) {
       return false;
     }
-    Script script = Script::cast(sfi.script());
-    return Lookup(GetFuncId(script.id(), sfi), data);
+    Tagged<Script> script = Script::cast(sfi->script());
+    return Lookup(GetFuncId(script->id(), sfi), data);
   }
 
   bool Lookup(Handle<Script> script, FunctionLiteral* literal,
@@ -827,65 +583,38 @@ class FunctionDataMap : public ThreadVisitor {
     return Lookup(GetFuncId(script->id(), literal), data);
   }
 
-  void Fill(Isolate* isolate, Address* restart_frame_fp) {
+  void Fill(Isolate* isolate) {
     {
       HeapObjectIterator iterator(isolate->heap(),
                                   HeapObjectIterator::kFilterUnreachable);
-      for (HeapObject obj = iterator.Next(); !obj.is_null();
+      for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
            obj = iterator.Next()) {
-        if (obj.IsSharedFunctionInfo()) {
-          SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
+        if (IsSharedFunctionInfo(obj)) {
+          Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(obj);
           FunctionData* data = nullptr;
           if (!Lookup(sfi, &data)) continue;
           data->shared = handle(sfi, isolate);
-        } else if (obj.IsJSFunction()) {
-          JSFunction js_function = JSFunction::cast(obj);
-          SharedFunctionInfo sfi = js_function.shared();
+        } else if (IsJSFunction(obj)) {
+          Tagged<JSFunction> js_function = JSFunction::cast(obj);
+          Tagged<SharedFunctionInfo> sfi = js_function->shared();
           FunctionData* data = nullptr;
           if (!Lookup(sfi, &data)) continue;
           data->js_functions.emplace_back(js_function, isolate);
-        } else if (obj.IsJSGeneratorObject()) {
-          JSGeneratorObject gen = JSGeneratorObject::cast(obj);
-          if (gen.is_closed()) continue;
-          SharedFunctionInfo sfi = gen.function().shared();
+        } else if (IsJSGeneratorObject(obj)) {
+          Tagged<JSGeneratorObject> gen = JSGeneratorObject::cast(obj);
+          if (gen->is_closed()) continue;
+          Tagged<SharedFunctionInfo> sfi = gen->function()->shared();
           FunctionData* data = nullptr;
           if (!Lookup(sfi, &data)) continue;
           data->running_generators.emplace_back(gen, isolate);
         }
       }
     }
-    FunctionData::StackPosition stack_position =
-        isolate->debug()->break_frame_id() == StackFrameId::NO_ID
-            ? FunctionData::PATCHABLE
-            : FunctionData::ABOVE_BREAK_FRAME;
-    for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-      StackFrame* frame = it.frame();
-      if (stack_position == FunctionData::ABOVE_BREAK_FRAME) {
-        if (frame->id() == isolate->debug()->break_frame_id()) {
-          stack_position = FunctionData::PATCHABLE;
-        }
-      }
-      if (stack_position == FunctionData::PATCHABLE &&
-          (frame->is_exit() || frame->is_builtin_exit())) {
-        stack_position = FunctionData::BELOW_NON_DROPPABLE_FRAME;
-        continue;
-      }
-      if (!frame->is_java_script()) continue;
-      std::vector<Handle<SharedFunctionInfo>> sfis;
-      JavaScriptFrame::cast(frame)->GetFunctions(&sfis);
-      for (auto& sfi : sfis) {
-        if (stack_position == FunctionData::PATCHABLE &&
-            IsResumableFunction(sfi->kind())) {
-          stack_position = FunctionData::BELOW_NON_DROPPABLE_FRAME;
-        }
-        FunctionData* data = nullptr;
-        if (!Lookup(*sfi, &data)) continue;
-        if (!data->should_restart) continue;
-        data->stack_position = stack_position;
-        *restart_frame_fp = frame->fp();
-      }
-    }
 
+    // Visit the current thread stack.
+    VisitCurrentThread(isolate);
+
+    // Visit the stacks of all archived threads.
     isolate->thread_manager()->IterateArchivedThreads(this);
   }
 
@@ -906,11 +635,11 @@ class FunctionDataMap : public ThreadVisitor {
     return FuncId(script_id, start_position);
   }
 
-  FuncId GetFuncId(int script_id, SharedFunctionInfo sfi) {
-    DCHECK_EQ(script_id, Script::cast(sfi.script()).id());
-    int start_position = sfi.StartPosition();
+  FuncId GetFuncId(int script_id, Tagged<SharedFunctionInfo> sfi) {
+    DCHECK_EQ(script_id, Script::cast(sfi->script())->id());
+    int start_position = sfi->StartPosition();
     DCHECK_NE(start_position, -1);
-    if (sfi.is_toplevel()) {
+    if (sfi->is_toplevel()) {
       // This is the top-level function, so special case its start position
       DCHECK_EQ(start_position, 0);
       start_position = -1;
@@ -926,25 +655,46 @@ class FunctionDataMap : public ThreadVisitor {
   }
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
-    for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+    for (JavaScriptStackFrameIterator it(isolate, top); !it.done();
+         it.Advance()) {
       std::vector<Handle<SharedFunctionInfo>> sfis;
       it.frame()->GetFunctions(&sfis);
       for (auto& sfi : sfis) {
         FunctionData* data = nullptr;
         if (!Lookup(*sfi, &data)) continue;
-        data->stack_position = FunctionData::ARCHIVED_THREAD;
+        data->stack_position = FunctionData::ON_STACK;
       }
+    }
+  }
+
+  void VisitCurrentThread(Isolate* isolate) {
+    // We allow live editing the function that's currently top-of-stack. But
+    // only if no activation of that function is anywhere else on the stack.
+    bool is_top = true;
+    for (DebugStackTraceIterator it(isolate, /* index */ 0); !it.Done();
+         it.Advance(), is_top = false) {
+      auto sfi = it.GetSharedFunctionInfo();
+      if (sfi.is_null()) continue;
+      FunctionData* data = nullptr;
+      if (!Lookup(*sfi, &data)) continue;
+
+      // ON_TOP_ONLY will only be set on the first iteration (and if the frame
+      // can be restarted). Further activations will change the ON_TOP_ONLY to
+      // ON_STACK and prevent the live edit from happening.
+      data->stack_position = is_top && it.CanBeRestarted()
+                                 ? FunctionData::ON_TOP_ONLY
+                                 : FunctionData::ON_STACK;
     }
   }
 
   std::map<FuncId, FunctionData> map_;
 };
 
-bool CanPatchScript(
-    const LiteralMap& changed, Handle<Script> script, Handle<Script> new_script,
-    FunctionDataMap& function_data_map,  // NOLINT(runtime/references)
-    debug::LiveEditResult* result) {
-  debug::LiveEditResult::Status status = debug::LiveEditResult::OK;
+bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
+                    Handle<Script> new_script,
+                    FunctionDataMap& function_data_map,
+                    bool allow_top_frame_live_editing,
+                    debug::LiveEditResult* result) {
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
     function_data_map.Lookup(script, mapping.first, &data);
@@ -953,56 +703,23 @@ bool CanPatchScript(
     Handle<SharedFunctionInfo> sfi;
     if (!data->shared.ToHandle(&sfi)) {
       continue;
-    } else if (!data->should_restart) {
-      UNREACHABLE();
-    } else if (data->stack_position == FunctionData::ABOVE_BREAK_FRAME) {
-      status = debug::LiveEditResult::BLOCKED_BY_FUNCTION_ABOVE_BREAK_FRAME;
-    } else if (data->stack_position ==
-               FunctionData::BELOW_NON_DROPPABLE_FRAME) {
-      status =
-          debug::LiveEditResult::BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME;
-    } else if (!data->running_generators.empty()) {
-      status = debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR;
-    } else if (data->stack_position == FunctionData::ARCHIVED_THREAD) {
-      status = debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION;
-    }
-    if (status != debug::LiveEditResult::OK) {
-      result->status = status;
-      return false;
-    }
-  }
-  return true;
-}
-
-bool CanRestartFrame(
-    Isolate* isolate, Address fp,
-    FunctionDataMap& function_data_map,  // NOLINT(runtime/references)
-    const LiteralMap& changed, debug::LiveEditResult* result) {
-  DCHECK_GT(fp, 0);
-  StackFrame* restart_frame = nullptr;
-  StackFrameIterator it(isolate);
-  for (; !it.done(); it.Advance()) {
-    if (it.frame()->fp() == fp) {
-      restart_frame = it.frame();
-      break;
-    }
-  }
-  DCHECK(restart_frame && restart_frame->is_java_script());
-  if (!LiveEdit::kFrameDropperSupported) {
-    result->status = debug::LiveEditResult::FRAME_RESTART_IS_NOT_SUPPORTED;
-    return false;
-  }
-  std::vector<Handle<SharedFunctionInfo>> sfis;
-  JavaScriptFrame::cast(restart_frame)->GetFunctions(&sfis);
-  for (auto& sfi : sfis) {
-    FunctionData* data = nullptr;
-    if (!function_data_map.Lookup(*sfi, &data)) continue;
-    auto new_literal_it = changed.find(data->literal);
-    if (new_literal_it == changed.end()) continue;
-    if (new_literal_it->second->scope()->new_target_var()) {
+    } else if (IsModule(sfi->kind())) {
+      DCHECK(script->origin_options().IsModule() && sfi->is_toplevel());
       result->status =
-          debug::LiveEditResult::BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME;
+          debug::LiveEditResult::BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE;
       return false;
+    } else if (data->stack_position == FunctionData::ON_STACK) {
+      result->status = debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION;
+      return false;
+    } else if (!data->running_generators.empty()) {
+      result->status = debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR;
+      return false;
+    } else if (data->stack_position == FunctionData::ON_TOP_ONLY) {
+      if (!allow_top_frame_live_editing) {
+        result->status = debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION;
+        return false;
+      }
+      result->restart_top_frame_required = true;
     }
   }
   return true;
@@ -1028,29 +745,91 @@ void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
   code->set_source_position_table(*new_source_position_table, kReleaseStore);
   LOG_CODE_EVENT(isolate,
                  CodeLinePosInfoRecordEvent(code->GetFirstBytecodeAddress(),
-                                            *new_source_position_table));
+                                            *new_source_position_table,
+                                            JitCodeEvent::BYTE_CODE));
 }
 
 void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
+                     FunctionLiteral* new_function,
                      const std::vector<SourceChangeRange>& diffs) {
-  int old_start_position = sfi->StartPosition();
-  int new_start_position =
-      LiveEdit::TranslatePosition(diffs, old_start_position);
-  int new_end_position = LiveEdit::TranslatePosition(diffs, sfi->EndPosition());
-  int new_function_token_position =
-      LiveEdit::TranslatePosition(diffs, sfi->function_token_position());
-  sfi->SetPosition(new_start_position, new_end_position);
-  sfi->SetFunctionTokenPosition(new_function_token_position,
-                                new_start_position);
+  sfi->UpdateFromFunctionLiteralForLiveEdit(new_function);
   if (sfi->HasBytecodeArray()) {
     TranslateSourcePositionTable(
         isolate, handle(sfi->GetBytecodeArray(isolate), isolate), diffs);
   }
 }
+
+#ifdef DEBUG
+Tagged<ScopeInfo> FindOuterScopeInfoFromScriptSfi(Isolate* isolate,
+                                                  Handle<Script> script) {
+  // We take some SFI from the script and walk outwards until we find the
+  // EVAL_SCOPE. Then we do the same search as `DetermineOuterScopeInfo` and
+  // check that we found the same ScopeInfo.
+  SharedFunctionInfo::ScriptIterator it(isolate, *script);
+  Tagged<ScopeInfo> other_scope_info;
+  for (Tagged<SharedFunctionInfo> sfi = it.Next(); !sfi.is_null();
+       sfi = it.Next()) {
+    if (!sfi->scope_info()->IsEmpty()) {
+      other_scope_info = sfi->scope_info();
+      break;
+    }
+  }
+  if (other_scope_info.is_null()) return other_scope_info;
+
+  while (!other_scope_info->IsEmpty() &&
+         other_scope_info->scope_type() != EVAL_SCOPE &&
+         other_scope_info->HasOuterScopeInfo()) {
+    other_scope_info = other_scope_info->OuterScopeInfo();
+  }
+
+  // This function is only called when we found a ScopeInfo candidate, so
+  // technically the EVAL_SCOPE must have an outer_scope_info. But, the GC can
+  // clean up some ScopeInfos it thinks are no longer needed. Abort the check
+  // in that case.
+  if (!other_scope_info->HasOuterScopeInfo()) return ScopeInfo();
+
+  DCHECK_EQ(other_scope_info->scope_type(), EVAL_SCOPE);
+  other_scope_info = other_scope_info->OuterScopeInfo();
+
+  while (!other_scope_info->IsEmpty() && !other_scope_info->HasContext() &&
+         other_scope_info->HasOuterScopeInfo()) {
+    other_scope_info = other_scope_info->OuterScopeInfo();
+  }
+  return other_scope_info;
+}
+#endif
+
+// For sloppy eval we need to know the ScopeInfo the eval was compiled in and
+// re-use it when we compile the new version of the script.
+MaybeHandle<ScopeInfo> DetermineOuterScopeInfo(Isolate* isolate,
+                                               Handle<Script> script) {
+  if (!script->has_eval_from_shared()) return kNullMaybeHandle;
+  DCHECK_EQ(script->compilation_type(), Script::CompilationType::kEval);
+  Tagged<ScopeInfo> scope_info = script->eval_from_shared()->scope_info();
+  // Sloppy eval compiles use the ScopeInfo of the context. Let's find it.
+  while (!scope_info->IsEmpty()) {
+    if (scope_info->HasContext()) {
+#ifdef DEBUG
+      Tagged<ScopeInfo> other_scope_info =
+          FindOuterScopeInfoFromScriptSfi(isolate, script);
+      DCHECK_IMPLIES(!other_scope_info.is_null(),
+                     scope_info == other_scope_info);
+#endif
+      return handle(scope_info, isolate);
+    } else if (!scope_info->HasOuterScopeInfo()) {
+      break;
+    }
+    scope_info = scope_info->OuterScopeInfo();
+  }
+
+  return kNullMaybeHandle;
+}
+
 }  // anonymous namespace
 
 void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
                            Handle<String> new_source, bool preview,
+                           bool allow_top_frame_live_editing,
                            debug::LiveEditResult* result) {
   std::vector<SourceChangeRange> diffs;
   LiveEdit::CompareStrings(isolate,
@@ -1061,25 +840,32 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     return;
   }
 
-  UnoptimizedCompileState compile_state(isolate);
+  ReusableUnoptimizedCompileState reusable_state(isolate);
+
+  UnoptimizedCompileState compile_state;
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_eager(true);
-  ParseInfo parse_info(isolate, flags, &compile_state);
+  flags.set_is_reparse(true);
+  ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
+  MaybeHandle<ScopeInfo> outer_scope_info =
+      DetermineOuterScopeInfo(isolate, script);
   std::vector<FunctionLiteral*> literals;
-  if (!ParseScript(isolate, script, &parse_info, false, &literals, result))
+  if (!ParseScript(isolate, script, &parse_info, outer_scope_info, false,
+                   &literals, result))
     return;
 
-  Handle<Script> new_script = isolate->factory()->CloneScript(script);
-  new_script->set_source(*new_source);
-  UnoptimizedCompileState new_compile_state(isolate);
+  Handle<Script> new_script =
+      isolate->factory()->CloneScript(script, new_source);
+  UnoptimizedCompileState new_compile_state;
   UnoptimizedCompileFlags new_flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *new_script);
   new_flags.set_is_eager(true);
-  ParseInfo new_parse_info(isolate, new_flags, &new_compile_state);
+  ParseInfo new_parse_info(isolate, new_flags, &new_compile_state,
+                           &reusable_state);
   std::vector<FunctionLiteral*> new_literals;
-  if (!ParseScript(isolate, new_script, &new_parse_info, true, &new_literals,
-                   result)) {
+  if (!ParseScript(isolate, new_script, &new_parse_info, outer_scope_info, true,
+                   &new_literals, result)) {
     return;
   }
 
@@ -1092,22 +878,16 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
 
   FunctionDataMap function_data_map;
   for (const auto& mapping : changed) {
-    function_data_map.AddInterestingLiteral(script->id(), mapping.first, true);
-    function_data_map.AddInterestingLiteral(new_script->id(), mapping.second,
-                                            false);
+    function_data_map.AddInterestingLiteral(script->id(), mapping.first);
+    function_data_map.AddInterestingLiteral(new_script->id(), mapping.second);
   }
   for (const auto& mapping : unchanged) {
-    function_data_map.AddInterestingLiteral(script->id(), mapping.first, false);
+    function_data_map.AddInterestingLiteral(script->id(), mapping.first);
   }
-  Address restart_frame_fp = 0;
-  function_data_map.Fill(isolate, &restart_frame_fp);
+  function_data_map.Fill(isolate);
 
-  if (!CanPatchScript(changed, script, new_script, function_data_map, result)) {
-    return;
-  }
-  if (restart_frame_fp &&
-      !CanRestartFrame(isolate, restart_frame_fp, function_data_map, changed,
-                       result)) {
+  if (!CanPatchScript(changed, script, new_script, function_data_map,
+                      allow_top_frame_live_editing, result)) {
     return;
   }
 
@@ -1115,6 +895,13 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     result->status = debug::LiveEditResult::OK;
     return;
   }
+
+  // Patching a script means that the bytecode on the stack may no longer
+  // correspond to the bytecode of the JSFunction for that frame. As a result
+  // it is no longer safe to flush bytecode since we might flush the new
+  // bytecode for a JSFunction that is on the stack with an old bytecode, which
+  // breaks the invariant that any JSFunction active on the stack is compiled.
+  isolate->set_disable_bytecode_flushing(true);
 
   std::map<int, int> start_position_to_unchanged_id;
   for (const auto& mapping : unchanged) {
@@ -1126,16 +913,16 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
 
     isolate->compilation_cache()->Remove(sfi);
     isolate->debug()->DeoptimizeFunction(sfi);
-    if (sfi->HasDebugInfo()) {
-      Handle<DebugInfo> debug_info(sfi->GetDebugInfo(), isolate);
+    if (base::Optional<DebugInfo> di = sfi->TryGetDebugInfo(isolate)) {
+      Handle<DebugInfo> debug_info(di.value(), isolate);
       isolate->debug()->RemoveBreakInfoAndMaybeFree(debug_info);
     }
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, sfi);
-    UpdatePositions(isolate, sfi, diffs);
+    UpdatePositions(isolate, sfi, mapping.second, diffs);
 
-    sfi->set_script(*new_script);
+    sfi->set_script(*new_script, kReleaseStore);
     sfi->set_function_literal_id(mapping.second->function_literal_id());
-    new_script->shared_function_infos().Set(
+    new_script->shared_function_infos()->Set(
         mapping.second->function_literal_id(), HeapObjectReference::Weak(*sfi));
     DCHECK_EQ(sfi->function_literal_id(),
               mapping.second->function_literal_id());
@@ -1154,16 +941,18 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
           *isolate->factory()->many_closures_cell());
       if (!js_function->is_compiled()) continue;
       IsCompiledScope is_compiled_scope(
-          js_function->shared().is_compiled_scope(isolate));
-      JSFunction::EnsureFeedbackVector(js_function, &is_compiled_scope);
+          js_function->shared()->is_compiled_scope(isolate));
+      JSFunction::EnsureFeedbackVector(isolate, js_function,
+                                       &is_compiled_scope);
     }
 
     if (!sfi->HasBytecodeArray()) continue;
-    FixedArray constants = sfi->GetBytecodeArray(isolate).constant_pool();
-    for (int i = 0; i < constants.length(); ++i) {
-      if (!constants.get(i).IsSharedFunctionInfo()) continue;
-      FunctionData* data = nullptr;
-      if (!function_data_map.Lookup(SharedFunctionInfo::cast(constants.get(i)),
+    Tagged<FixedArray> constants =
+        sfi->GetBytecodeArray(isolate)->constant_pool();
+    for (int i = 0; i < constants->length(); ++i) {
+      if (!IsSharedFunctionInfo(constants->get(i))) continue;
+      data = nullptr;
+      if (!function_data_map.Lookup(SharedFunctionInfo::cast(constants->get(i)),
                                     &data)) {
         continue;
       }
@@ -1174,13 +963,17 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       }
       Handle<SharedFunctionInfo> new_sfi;
       if (!data->shared.ToHandle(&new_sfi)) continue;
-      constants.set(i, *new_sfi);
+      constants->set(i, *new_sfi);
     }
   }
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
     if (!function_data_map.Lookup(new_script, mapping.second, &data)) continue;
-    Handle<SharedFunctionInfo> new_sfi = data->shared.ToHandleChecked();
+    Handle<SharedFunctionInfo> new_sfi;
+    // In most cases the new FunctionLiteral should also have an SFI, but there
+    // are some exceptions. E.g the compiler doesn't create SFIs for
+    // inner functions that are never referenced.
+    if (!data->shared.ToHandle(&new_sfi)) continue;
     DCHECK_EQ(new_sfi->script(), *new_script);
 
     if (!function_data_map.Lookup(script, mapping.first, &data)) continue;
@@ -1191,41 +984,45 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     isolate->compilation_cache()->Remove(sfi);
     for (auto& js_function : data->js_functions) {
       js_function->set_shared(*new_sfi);
-      js_function->set_code(js_function->shared().GetCode(), kReleaseStore);
+      js_function->set_code(js_function->shared()->GetCode(isolate));
 
       js_function->set_raw_feedback_cell(
           *isolate->factory()->many_closures_cell());
       if (!js_function->is_compiled()) continue;
       IsCompiledScope is_compiled_scope(
-          js_function->shared().is_compiled_scope(isolate));
-      JSFunction::EnsureFeedbackVector(js_function, &is_compiled_scope);
+          js_function->shared()->is_compiled_scope(isolate));
+      JSFunction::EnsureFeedbackVector(isolate, js_function,
+                                       &is_compiled_scope);
     }
   }
   SharedFunctionInfo::ScriptIterator it(isolate, *new_script);
-  for (SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
-    if (!sfi.HasBytecodeArray()) continue;
-    FixedArray constants = sfi.GetBytecodeArray(isolate).constant_pool();
-    for (int i = 0; i < constants.length(); ++i) {
-      if (!constants.get(i).IsSharedFunctionInfo()) continue;
-      SharedFunctionInfo inner_sfi = SharedFunctionInfo::cast(constants.get(i));
+  for (Tagged<SharedFunctionInfo> sfi = it.Next(); !sfi.is_null();
+       sfi = it.Next()) {
+    if (!sfi->HasBytecodeArray()) continue;
+    Tagged<FixedArray> constants =
+        sfi->GetBytecodeArray(isolate)->constant_pool();
+    for (int i = 0; i < constants->length(); ++i) {
+      if (!IsSharedFunctionInfo(constants->get(i))) continue;
+      Tagged<SharedFunctionInfo> inner_sfi =
+          SharedFunctionInfo::cast(constants->get(i));
       // See if there is a mapping from this function's start position to a
       // unchanged function's id.
       auto unchanged_it =
-          start_position_to_unchanged_id.find(inner_sfi.StartPosition());
+          start_position_to_unchanged_id.find(inner_sfi->StartPosition());
       if (unchanged_it == start_position_to_unchanged_id.end()) continue;
 
       // Grab that function id from the new script's SFI list, which should have
       // already been updated in in the unchanged pass.
-      SharedFunctionInfo old_unchanged_inner_sfi =
+      Tagged<SharedFunctionInfo> old_unchanged_inner_sfi =
           SharedFunctionInfo::cast(new_script->shared_function_infos()
-                                       .Get(unchanged_it->second)
-                                       ->GetHeapObject());
+                                       ->Get(unchanged_it->second)
+                                       .GetHeapObject());
       if (old_unchanged_inner_sfi == inner_sfi) continue;
       DCHECK_NE(old_unchanged_inner_sfi, inner_sfi);
       // Now some sanity checks. Make sure that the unchanged SFI has already
       // been processed and patched to be on the new script ...
-      DCHECK_EQ(old_unchanged_inner_sfi.script(), *new_script);
-      constants.set(i, old_unchanged_inner_sfi);
+      DCHECK_EQ(old_unchanged_inner_sfi->script(), *new_script);
+      constants->set(i, old_unchanged_inner_sfi);
     }
   }
 #ifdef DEBUG
@@ -1235,88 +1032,44 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     // unique.
     DisallowGarbageCollection no_gc;
 
-    SharedFunctionInfo::ScriptIterator it(isolate, *new_script);
+    SharedFunctionInfo::ScriptIterator script_it(isolate, *new_script);
     std::set<int> start_positions;
-    for (SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
-      DCHECK_EQ(sfi.script(), *new_script);
-      DCHECK_EQ(sfi.function_literal_id(), it.CurrentIndex());
+    for (Tagged<SharedFunctionInfo> sfi = script_it.Next(); !sfi.is_null();
+         sfi = script_it.Next()) {
+      DCHECK_EQ(sfi->script(), *new_script);
+      DCHECK_EQ(sfi->function_literal_id(), script_it.CurrentIndex());
       // Don't check the start position of the top-level function, as it can
       // overlap with a function in the script.
-      if (sfi.is_toplevel()) {
-        DCHECK_EQ(start_positions.find(sfi.StartPosition()),
+      if (sfi->is_toplevel()) {
+        DCHECK_EQ(start_positions.find(sfi->StartPosition()),
                   start_positions.end());
-        start_positions.insert(sfi.StartPosition());
+        start_positions.insert(sfi->StartPosition());
       }
 
-      if (!sfi.HasBytecodeArray()) continue;
+      if (!sfi->HasBytecodeArray()) continue;
       // Check that all the functions in this function's constant pool are also
       // on the new script, and that their id matches their index in the new
       // scripts function list.
-      FixedArray constants = sfi.GetBytecodeArray(isolate).constant_pool();
-      for (int i = 0; i < constants.length(); ++i) {
-        if (!constants.get(i).IsSharedFunctionInfo()) continue;
-        SharedFunctionInfo inner_sfi =
-            SharedFunctionInfo::cast(constants.get(i));
-        DCHECK_EQ(inner_sfi.script(), *new_script);
+      Tagged<FixedArray> constants =
+          sfi->GetBytecodeArray(isolate)->constant_pool();
+      for (int i = 0; i < constants->length(); ++i) {
+        if (!IsSharedFunctionInfo(constants->get(i))) continue;
+        Tagged<SharedFunctionInfo> inner_sfi =
+            SharedFunctionInfo::cast(constants->get(i));
+        DCHECK_EQ(inner_sfi->script(), *new_script);
         DCHECK_EQ(inner_sfi, new_script->shared_function_infos()
-                                 .Get(inner_sfi.function_literal_id())
-                                 ->GetHeapObject());
+                                 ->Get(inner_sfi->function_literal_id())
+                                 .GetHeapObject());
       }
     }
   }
 #endif
-
-  if (restart_frame_fp) {
-    for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-      if (it.frame()->fp() == restart_frame_fp) {
-        isolate->debug()->ScheduleFrameRestart(it.frame());
-        result->stack_changed = true;
-        break;
-      }
-    }
-  }
 
   int script_id = script->id();
   script->set_id(new_script->id());
   new_script->set_id(script_id);
   result->status = debug::LiveEditResult::OK;
   result->script = ToApiHandle<v8::debug::Script>(new_script);
-}
-
-void LiveEdit::InitializeThreadLocal(Debug* debug) {
-  debug->thread_local_.restart_fp_ = 0;
-}
-
-bool LiveEdit::RestartFrame(JavaScriptFrame* frame) {
-  if (!LiveEdit::kFrameDropperSupported) return false;
-  Isolate* isolate = frame->isolate();
-  StackFrameId break_frame_id = isolate->debug()->break_frame_id();
-  bool break_frame_found = break_frame_id == StackFrameId::NO_ID;
-  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-    StackFrame* current = it.frame();
-    break_frame_found = break_frame_found || break_frame_id == current->id();
-    if (current->fp() == frame->fp()) {
-      if (break_frame_found) {
-        isolate->debug()->ScheduleFrameRestart(current);
-        return true;
-      } else {
-        return false;
-      }
-    }
-    if (!break_frame_found) continue;
-    if (current->is_exit() || current->is_builtin_exit()) {
-      return false;
-    }
-    if (!current->is_java_script()) continue;
-    std::vector<Handle<SharedFunctionInfo>> shareds;
-    JavaScriptFrame::cast(current)->GetFunctions(&shareds);
-    for (auto& shared : shareds) {
-      if (IsResumableFunction(shared->kind())) {
-        return false;
-      }
-    }
-  }
-  return false;
 }
 
 void LiveEdit::CompareStrings(Isolate* isolate, Handle<String> s1,

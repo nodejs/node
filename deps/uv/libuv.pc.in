@@ -2,6 +2,7 @@ prefix=@prefix@
 exec_prefix=${prefix}
 libdir=@libdir@
 includedir=@includedir@
+LIBUV_STATIC=-L${libdir} -l:libuv.a @LIBS@
 
 Name: libuv
 Version: @PACKAGE_VERSION@

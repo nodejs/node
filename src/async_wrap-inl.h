@@ -80,12 +80,11 @@ inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
   return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
 }
 
-
-// Defined here to avoid a circular dependency with env-inl.h.
-inline AsyncHooks::DefaultTriggerAsyncIdScope ::DefaultTriggerAsyncIdScope(
-    AsyncWrap* async_wrap)
-    : DefaultTriggerAsyncIdScope(async_wrap->env(),
-                                 async_wrap->get_async_id()) {}
+// static
+inline v8::Local<v8::FunctionTemplate> AsyncWrap::GetConstructorTemplate(
+    Environment* env) {
+  return GetConstructorTemplate(env->isolate_data());
+}
 
 }  // namespace node
 

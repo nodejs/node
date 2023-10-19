@@ -26,7 +26,7 @@
 #include "handle-inl.h"
 
 
-void uv_loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
+void uv__loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
     handle->flags |= UV_HANDLE_CLOSED;
@@ -104,7 +104,7 @@ void uv_loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
   }                                                                           \
                                                                               \
                                                                               \
-  void uv_##name##_invoke(uv_loop_t* loop) {                                  \
+  void uv__##name##_invoke(uv_loop_t* loop) {                                 \
     uv_##name##_t* handle;                                                    \
                                                                               \
     (loop)->next_##name##_handle = (loop)->name##_handles;                    \

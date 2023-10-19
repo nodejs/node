@@ -1,4 +1,6 @@
-   1: *wasm-function[8] "main" {
+   1: *wasm-function[9] "main" {
+   2:  *wasm-function[8] "void" {
+   2:  }
    2:  *wasm-function[1] "call_23" {
    3:   *wasm-function[0] "ret_23" {
    3:   } -> 23

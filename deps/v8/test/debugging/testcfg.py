@@ -7,6 +7,8 @@ import re
 import shlex
 import sys
 
+from pathlib import Path
+
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
@@ -17,13 +19,17 @@ PY_FLAGS_PATTERN = re.compile(r"#\s+Flags:(.*)")
 class PYTestCase(testcase.TestCase):
 
   def get_shell(self):
-    return os.path.splitext(sys.executable)[0]
+    return Path(sys.executable).stem
 
   def get_command(self):
     return super(PYTestCase, self).get_command()
 
   def _get_cmd_params(self):
-    return self._get_files_params() + ['--', os.path.join(self._test_config.shell_dir, 'd8')] + self._get_source_flags()
+    return (
+        self._get_files_params() +
+        ['--', self.test_config.shell_dir / 'd8'] +
+        self._get_source_flags()
+    )
 
   def _get_shell_flags(self):
     return []
@@ -66,10 +72,10 @@ class TestCase(PYTestCase):
     return self._source_flags
 
   def _get_source_path(self):
-    base_path = os.path.join(self.suite.root, self.path)
-    if os.path.exists(base_path + self._get_suffix()):
-      return base_path + self._get_suffix()
-    return base_path + '.py'
+    js_file = self.suite.root / self.path_js
+    if js_file.exists():
+      return js_file
+    return self.suite.root / self.path_and_suffix('.py')
 
   def skip_predictable(self):
     return super(TestCase, self).skip_predictable() or self._expected_fail()
@@ -94,7 +100,3 @@ class TestSuite(testsuite.TestSuite):
 
   def _test_class(self):
     return TestCase
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

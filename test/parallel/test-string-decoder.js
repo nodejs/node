@@ -203,12 +203,19 @@ assert.throws(
 
 if (common.enoughTestMem) {
   assert.throws(
-    () => new StringDecoder().write(Buffer.alloc(0x1fffffe8 + 1).fill('a')),
+    () => new StringDecoder().write(Buffer.alloc((process.arch === 'ia32' ? 0x18ffffe8 : 0x1fffffe8) + 1).fill('a')),
     {
       code: 'ERR_STRING_TOO_LONG',
     }
   );
 }
+
+assert.throws(
+  () => new StringDecoder('utf8').__proto__.write(Buffer.from('abc')), // eslint-disable-line no-proto
+  {
+    code: 'ERR_INVALID_THIS',
+  }
+);
 
 // Test verifies that StringDecoder will correctly decode the given input
 // buffer with the given encoding to the expected output. It will attempt all

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 
 // This test checks for accidental sign extension. The Wasm spec says we do
@@ -15,7 +15,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function() {
   let builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   builder.addFunction('test', kSig_v_v)
       .addBody([
         kExprI32Const, 0x7c, // address = -4

@@ -74,12 +74,13 @@ source/sink BIO is non blocking.
 
 BIO_f_buffer() returns the buffering BIO method.
 
-BIO_get_buffer_num_lines() returns the number of lines buffered (may be 0).
+BIO_get_buffer_num_lines() returns the number of lines buffered (may be 0) or
+a negative value in case of errors.
 
 BIO_set_read_buffer_size(), BIO_set_write_buffer_size() and BIO_set_buffer_size()
-return 1 if the buffer was successfully resized or 0 for failure.
+return 1 if the buffer was successfully resized or <=0 for failure.
 
-BIO_set_buffer_read_data() returns 1 if the data was set correctly or 0 if
+BIO_set_buffer_read_data() returns 1 if the data was set correctly or <=0 if
 there was an error.
 
 =head1 SEE ALSO
@@ -92,9 +93,9 @@ L<BIO_ctrl(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

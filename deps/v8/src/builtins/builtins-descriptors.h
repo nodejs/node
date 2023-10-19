@@ -5,28 +5,28 @@
 #ifndef V8_BUILTINS_BUILTINS_DESCRIPTORS_H_
 #define V8_BUILTINS_BUILTINS_DESCRIPTORS_H_
 
-#include "src/builtins/builtins.h"
+#include "src/builtins/builtins-definitions.h"
 #include "src/codegen/interface-descriptors.h"
-#include "src/compiler/code-assembler.h"
-#include "src/objects/shared-function-info.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 
 // Define interface descriptors for builtins with JS linkage.
-#define DEFINE_TFJ_INTERFACE_DESCRIPTOR(Name, Argc, ...)                \
-  struct Builtin_##Name##_InterfaceDescriptor {                         \
-    enum ParameterIndices {                                             \
-      kJSTarget = compiler::CodeAssembler::kTargetParameterIndex,       \
-      ##__VA_ARGS__,                                                    \
-      kJSNewTarget,                                                     \
-      kJSActualArgumentsCount,                                          \
-      kContext,                                                         \
-      kParameterCount,                                                  \
-    };                                                                  \
-    static_assert((Argc) == static_cast<uint16_t>(kParameterCount - 4), \
-                  "Inconsistent set of arguments");                     \
-    static_assert(kJSTarget == -1, "Unexpected kJSTarget index value"); \
+#define DEFINE_TFJ_INTERFACE_DESCRIPTOR(Name, Argc, ...)                 \
+  struct Builtin_##Name##_InterfaceDescriptor {                          \
+    enum ParameterIndices {                                              \
+      kJSTarget = kJSCallClosureParameterIndex,                          \
+      ##__VA_ARGS__,                                                     \
+      kJSNewTarget,                                                      \
+      kJSActualArgumentsCount,                                           \
+      kContext,                                                          \
+      kParameterCount,                                                   \
+    };                                                                   \
+    static_assert((Argc) == static_cast<uint16_t>(kParameterCount - 4 +  \
+                                                  kJSArgcReceiverSlots), \
+                  "Inconsistent set of arguments");                      \
+    static_assert(kJSTarget == -1, "Unexpected kJSTarget index value");  \
   };
 
 // Define interface descriptors for builtins with StubCall linkage.

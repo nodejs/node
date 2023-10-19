@@ -24,7 +24,7 @@
  * \file
  * \brief C API: Format a list in a locale-appropriate way.
  *
- * A UListFormatter is used to format a list of items in a locale-appropriate way,
+ * A UListFormatter is used to format a list of items in a locale-appropriate way, 
  * using data from CLDR.
  * Example: Input data ["Alice", "Bob", "Charlie", "Delta"] will be formatted
  * as "Alice, Bob, Charlie, and Delta" in English.

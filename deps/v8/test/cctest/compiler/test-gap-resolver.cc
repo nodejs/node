@@ -17,7 +17,7 @@ const auto GetRegConfig = RegisterConfiguration::Default;
 // simplify ParallelMove equivalence testing.
 void GetCanonicalOperands(const InstructionOperand& op,
                           std::vector<InstructionOperand>* fragments) {
-  CHECK(!kSimpleFPAliasing);
+  CHECK_EQ(kFPAliasing, AliasingKind::kCombine);
   CHECK(op.IsFPLocationOperand());
   const LocationOperand& loc = LocationOperand::cast(op);
   MachineRepresentation rep = loc.representation();
@@ -41,6 +41,12 @@ void GetCanonicalOperands(const InstructionOperand& op,
   }
 }
 
+// Fake frame size. The test's stack operand indices should be below this value.
+// Stack slots above this value correspond to temporaries pushed by the gap
+// resolver to resolve move cycles, and are ignored when comparing interpreter
+// states.
+constexpr int kLastFrameSlotId = 1000;
+
 // The state of our move interpreter is the mapping of operands to values. Note
 // that the actual values don't really matter, all we care about is equality.
 class InterpreterState {
@@ -51,7 +57,7 @@ class InterpreterState {
       CHECK(!m->IsRedundant());
       const InstructionOperand& src = m->source();
       const InstructionOperand& dst = m->destination();
-      if (!kSimpleFPAliasing && src.IsFPLocationOperand() &&
+      if (kFPAliasing == AliasingKind::kCombine && src.IsFPLocationOperand() &&
           dst.IsFPLocationOperand()) {
         // Canonicalize FP location-location moves by fragmenting them into
         // an equivalent sequence of float32 moves, to simplify state
@@ -73,8 +79,55 @@ class InterpreterState {
     }
   }
 
+  void ExecuteMove(Zone* zone, InstructionOperand* source,
+                   InstructionOperand* dest) {
+    ParallelMove* moves = zone->New<ParallelMove>(zone);
+    moves->AddMove(*source, *dest);
+    ExecuteInParallel(moves);
+  }
+
+  void MoveToTempLocation(InstructionOperand& source) {
+    scratch_ = KeyFor(source);
+  }
+
+  void MoveFromTempLocation(InstructionOperand& dst) {
+    AllocatedOperand src(scratch_.kind, scratch_.rep, scratch_.index);
+    if (kFPAliasing == AliasingKind::kCombine && src.IsFPLocationOperand() &&
+        dst.IsFPLocationOperand()) {
+      // Canonicalize FP location-location moves by fragmenting them into
+      // an equivalent sequence of float32 moves, to simplify state
+      // equivalence testing.
+      std::vector<InstructionOperand> src_fragments;
+      GetCanonicalOperands(src, &src_fragments);
+      CHECK(!src_fragments.empty());
+      std::vector<InstructionOperand> dst_fragments;
+      GetCanonicalOperands(dst, &dst_fragments);
+      CHECK_EQ(src_fragments.size(), dst_fragments.size());
+
+      for (size_t i = 0; i < src_fragments.size(); ++i) {
+        write(dst_fragments[i], KeyFor(src_fragments[i]));
+      }
+      return;
+    }
+    write(dst, scratch_);
+  }
+
   bool operator==(const InterpreterState& other) const {
     return values_ == other.values_;
+  }
+
+  // Clear stack operands above kLastFrameSlotId. They correspond to temporaries
+  // pushed by the gap resolver to break cycles.
+  void ClearTemps() {
+    auto it = values_.begin();
+    while (it != values_.end()) {
+      if (it->first.kind == LocationOperand::STACK_SLOT &&
+          it->first.index >= kLastFrameSlotId) {
+        it = values_.erase(it);
+      } else {
+        it++;
+      }
+    }
   }
 
  private:
@@ -137,8 +190,15 @@ class InterpreterState {
       // Preserve FP representation when FP register aliasing is complex.
       // Otherwise, canonicalize to kFloat64.
       if (IsFloatingPoint(loc_op.representation())) {
-        rep = kSimpleFPAliasing ? MachineRepresentation::kFloat64
-                                : loc_op.representation();
+        if (kFPAliasing == AliasingKind::kIndependent) {
+          rep = IsSimd128(loc_op.representation())
+                    ? MachineRepresentation::kSimd128
+                    : MachineRepresentation::kFloat64;
+        } else if (kFPAliasing == AliasingKind::kOverlap) {
+          rep = MachineRepresentation::kFloat64;
+        } else {
+          rep = loc_op.representation();
+        }
       }
       if (loc_op.IsAnyRegister()) {
         index = loc_op.register_code();
@@ -176,6 +236,7 @@ class InterpreterState {
   }
 
   OperandMap values_;
+  Key scratch_ = {};
 };
 
 // An abstract interpreter for moves, swaps and parallel moves.
@@ -183,13 +244,46 @@ class MoveInterpreter : public GapResolver::Assembler {
  public:
   explicit MoveInterpreter(Zone* zone) : zone_(zone) {}
 
+  AllocatedOperand Push(InstructionOperand* source) override {
+    auto rep = LocationOperand::cast(source)->representation();
+    int new_slots = ElementSizeInPointers(rep);
+    AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep,
+                                kLastFrameSlotId + sp_delta_ + new_slots);
+    ParallelMove* moves = zone_->New<ParallelMove>(zone_);
+    moves->AddMove(*source, stack_slot);
+    state_.ExecuteMove(zone_, source, &stack_slot);
+    sp_delta_ += new_slots;
+    return stack_slot;
+  }
+
+  void Pop(InstructionOperand* dest, MachineRepresentation rep) override {
+    int new_slots = ElementSizeInPointers(rep);
+    int temp_slot = kLastFrameSlotId + sp_delta_ + new_slots;
+    AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, temp_slot);
+    state_.ExecuteMove(zone_, &stack_slot, dest);
+    sp_delta_ -= new_slots;
+  }
+
+  void PopTempStackSlots() override {
+    sp_delta_ = 0;
+    state_.ClearTemps();
+  }
+
+  void MoveToTempLocation(InstructionOperand* source,
+                          MachineRepresentation rep) final {
+    state_.MoveToTempLocation(*source);
+  }
+  void MoveTempLocationTo(InstructionOperand* dest,
+                          MachineRepresentation rep) final {
+    state_.MoveFromTempLocation(*dest);
+  }
+  void SetPendingMove(MoveOperands* move) final {}
   void AssembleMove(InstructionOperand* source,
                     InstructionOperand* destination) override {
     ParallelMove* moves = zone_->New<ParallelMove>(zone_);
     moves->AddMove(*source, *destination);
     state_.ExecuteInParallel(moves);
   }
-
   void AssembleSwap(InstructionOperand* source,
                     InstructionOperand* destination) override {
     ParallelMove* moves = zone_->New<ParallelMove>(zone_);
@@ -197,7 +291,6 @@ class MoveInterpreter : public GapResolver::Assembler {
     moves->AddMove(*destination, *source);
     state_.ExecuteInParallel(moves);
   }
-
   void AssembleParallelMove(const ParallelMove* moves) {
     state_.ExecuteInParallel(moves);
   }
@@ -207,6 +300,7 @@ class MoveInterpreter : public GapResolver::Assembler {
  private:
   Zone* const zone_;
   InterpreterState state_;
+  int sp_delta_ = 0;
 };
 
 class ParallelMoveCreator : public HandleAndZoneScope {
@@ -234,13 +328,14 @@ class ParallelMoveCreator : public HandleAndZoneScope {
       // On architectures where FP register aliasing is non-simple, update the
       // destinations set with the float equivalents of the operand and check
       // that all destinations are unique and do not alias each other.
-      if (!kSimpleFPAliasing && mo.destination().IsFPLocationOperand()) {
-        std::vector<InstructionOperand> fragments;
-        GetCanonicalOperands(dst, &fragments);
-        CHECK(!fragments.empty());
-        for (size_t i = 0; i < fragments.size(); ++i) {
-          if (destinations.find(fragments[i]) == destinations.end()) {
-            destinations.insert(fragments[i]);
+      if (kFPAliasing == AliasingKind::kCombine &&
+          mo.destination().IsFPLocationOperand()) {
+        std::vector<InstructionOperand> dst_fragments;
+        GetCanonicalOperands(dst, &dst_fragments);
+        CHECK(!dst_fragments.empty());
+        for (size_t j = 0; j < dst_fragments.size(); ++j) {
+          if (destinations.find(dst_fragments[j]) == destinations.end()) {
+            destinations.insert(dst_fragments[j]);
           } else {
             reject = true;
             break;
@@ -250,18 +345,18 @@ class ParallelMoveCreator : public HandleAndZoneScope {
         // representations.
         const InstructionOperand& src = mo.source();
         if (src.IsFPRegister()) {
-          std::vector<InstructionOperand> fragments;
+          std::vector<InstructionOperand> src_fragments;
           MachineRepresentation src_rep =
               LocationOperand::cast(src).representation();
-          GetCanonicalOperands(src, &fragments);
-          CHECK(!fragments.empty());
-          for (size_t i = 0; i < fragments.size(); ++i) {
-            auto find_it = sources.find(fragments[i]);
+          GetCanonicalOperands(src, &src_fragments);
+          CHECK(!src_fragments.empty());
+          for (size_t j = 0; j < src_fragments.size(); ++j) {
+            auto find_it = sources.find(src_fragments[j]);
             if (find_it != sources.end() && find_it->second != src_rep) {
               reject = true;
               break;
             }
-            sources.insert(std::make_pair(fragments[i], src_rep));
+            sources.insert(std::make_pair(src_fragments[j], src_rep));
           }
         }
       } else {
@@ -378,12 +473,13 @@ void RunTest(ParallelMove* pm, Zone* zone) {
   GapResolver resolver(&mi2);
   resolver.Resolve(pm);
 
-  CHECK_EQ(mi1.state(), mi2.state());
+  auto mi2_state = mi2.state();
+  CHECK_EQ(mi1.state(), mi2_state);
 }
 
 TEST(Aliasing) {
   // On platforms with simple aliasing, these parallel moves are ill-formed.
-  if (kSimpleFPAliasing) return;
+  if (kFPAliasing != AliasingKind::kCombine) return;
 
   ParallelMoveCreator pmc;
   Zone* zone = pmc.main_zone();
@@ -488,6 +584,75 @@ TEST(Aliasing) {
         dSlot, d0,     // dSlot <- d0
         d1,    dSlot,  // d1 <- dSlot
         s0,    s3      // s0 <- s3
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+}
+
+// Test parallel moves that change the frame layout. These typically happen when
+// preparing tail-calls.
+TEST(ComplexParallelMoves) {
+  ParallelMoveCreator pmc;
+  Zone* zone = pmc.main_zone();
+
+  auto w64_2 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord64, 2);
+  auto w64_5 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord64, 5);
+  auto s128_1 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                 MachineRepresentation::kSimd128, 1);
+  auto s128_4 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                 MachineRepresentation::kSimd128, 4);
+  auto s128_5 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                 MachineRepresentation::kSimd128, 5);
+  auto s128_2 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                 MachineRepresentation::kSimd128, 2);
+  auto w64_3 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord64, 3);
+  auto w64_0 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord64, 0);
+  auto s128_6 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                 MachineRepresentation::kSimd128, 6);
+  auto w64_6 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord64, 6);
+  auto s128_reg = AllocatedOperand(LocationOperand::REGISTER,
+                                   MachineRepresentation::kSimd128, 0);
+
+  {
+    // A parallel move with multiple cycles that requires > 1 temporary
+    // location.
+    std::vector<InstructionOperand> moves = {
+        w64_2,  w64_5,   // -
+        s128_1, s128_4,  // -
+        s128_5, s128_2,  // -
+        w64_3,  w64_0    // -
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  // Regression test for https://crbug.com/1335537.
+  {
+    std::vector<InstructionOperand> moves = {
+        s128_5, s128_6,  // -
+        s128_1, s128_6,  // -
+        w64_6,  w64_0    // -
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  // A cycle with 2 moves that should not use a swap, because the
+  // interfering operands don't have the same base address.
+  {
+    std::vector<InstructionOperand> moves = {
+        s128_1, s128_reg,  // -
+        s128_reg, s128_2   // -
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  // Another cycle with 2 moves that should not use a swap, because the
+  // interfering operands don't have the same representation.
+  {
+    std::vector<InstructionOperand> moves = {
+        s128_2, s128_5,  // -
+        w64_2, w64_5     // -
     };
     RunTest(pmc.Create(moves), zone);
   }

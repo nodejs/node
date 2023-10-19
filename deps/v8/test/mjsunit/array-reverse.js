@@ -10,6 +10,8 @@ assertArrayEquals(["str4", "str3", "str2"], ["str2", "str3", "str4"].reverse());
 assertArrayEquals([4,3,,1], [1,,3,4].reverse());
 assertArrayEquals([4,,2,1], [1,2,,4].reverse());
 assertArrayEquals([5,,3,,1], [1,,3,,5].reverse());
+assertArrayEquals([0.5,,0.3,,0.1], [0.1,,0.3,,0.5].reverse());
+assertArrayEquals(["5",,"3",,"1"], ["1",,"3",,"5"].reverse());
 
 function TestReverseWithObject() {
   let obj = { length: 5 };

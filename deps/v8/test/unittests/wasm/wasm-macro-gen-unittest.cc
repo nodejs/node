@@ -14,7 +14,7 @@ class WasmMacroGenTest : public TestWithZone {};
 
 #define EXPECT_SIZE(size, ...)                          \
   do {                                                  \
-    byte code[] = {__VA_ARGS__};                        \
+    uint8_t code[] = {__VA_ARGS__};                     \
     USE(code);                                          \
     EXPECT_EQ(static_cast<size_t>(size), sizeof(code)); \
   } while (false)
@@ -80,7 +80,7 @@ TEST_F(WasmMacroGenTest, Statements) {
   EXPECT_SIZE(7, WASM_LOOP(WASM_BR_IF(0, WASM_ZERO)));
 
   EXPECT_SIZE(1, WASM_RETURN0);
-  EXPECT_SIZE(3, WASM_RETURN1(WASM_ZERO));
+  EXPECT_SIZE(3, WASM_RETURN(WASM_ZERO));
 
   EXPECT_SIZE(1, WASM_UNREACHABLE);
 }

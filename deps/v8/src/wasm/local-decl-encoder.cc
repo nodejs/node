@@ -4,7 +4,6 @@
 
 #include "src/wasm/local-decl-encoder.h"
 
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/leb-helper.h"
 
@@ -15,21 +14,22 @@ namespace wasm {
 // This struct is just a type tag for Zone::NewArray<T>(size_t) call.
 struct LocalDeclEncoderBuffer {};
 
-void LocalDeclEncoder::Prepend(Zone* zone, const byte** start,
-                               const byte** end) const {
+void LocalDeclEncoder::Prepend(Zone* zone, const uint8_t** start,
+                               const uint8_t** end) const {
   size_t size = (*end - *start);
-  byte* buffer = zone->NewArray<byte, LocalDeclEncoderBuffer>(Size() + size);
+  uint8_t* buffer =
+      zone->AllocateArray<uint8_t, LocalDeclEncoderBuffer>(Size() + size);
   size_t pos = Emit(buffer);
   if (size > 0) {
-    base::Memcpy(buffer + pos, *start, size);
+    memcpy(buffer + pos, *start, size);
   }
   pos += size;
   *start = buffer;
   *end = buffer + pos;
 }
 
-size_t LocalDeclEncoder::Emit(byte* buffer) const {
-  byte* pos = buffer;
+size_t LocalDeclEncoder::Emit(uint8_t* buffer) const {
+  uint8_t* pos = buffer;
   LEBHelper::write_u32v(&pos, static_cast<uint32_t>(local_decls.size()));
   for (auto& local_decl : local_decls) {
     uint32_t locals_count = local_decl.first;
@@ -37,10 +37,6 @@ size_t LocalDeclEncoder::Emit(byte* buffer) const {
     LEBHelper::write_u32v(&pos, locals_count);
     *pos = locals_type.value_type_code();
     ++pos;
-    if (locals_type.has_depth()) {
-      *pos = locals_type.depth();
-      ++pos;
-    }
     if (locals_type.is_rtt()) {
       LEBHelper::write_u32v(&pos, locals_type.ref_index());
     }
@@ -72,7 +68,6 @@ size_t LocalDeclEncoder::Size() const {
     size +=
         LEBHelper::sizeof_u32v(p.first) +  // number of locals
         1 +                                // Opcode
-        (p.second.has_depth() ? 1 : 0) +   // Inheritance depth
         (p.second.encoding_needs_heap_type()
              ? LEBHelper::sizeof_i32v(p.second.heap_type().code())
              : 0) +

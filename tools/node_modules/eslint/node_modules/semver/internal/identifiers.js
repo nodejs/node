@@ -19,5 +19,5 @@ const rcompareIdentifiers = (a, b) => compareIdentifiers(b, a)
 
 module.exports = {
   compareIdentifiers,
-  rcompareIdentifiers
+  rcompareIdentifiers,
 }

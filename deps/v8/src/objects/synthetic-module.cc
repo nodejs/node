@@ -25,14 +25,14 @@ Maybe<bool> SyntheticModule::SetExport(Isolate* isolate,
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   Handle<Object> export_object(exports->Lookup(export_name), isolate);
 
-  if (!export_object->IsCell()) {
+  if (!IsCell(*export_object)) {
     isolate->Throw(*isolate->factory()->NewReferenceError(
         MessageTemplate::kModuleExportUndefined, export_name));
     return Nothing<bool>();
   }
 
   // Spec step 2: Set the mutable binding of export_name to export_value
-  Cell::cast(*export_object).set_value(*export_value);
+  Cell::cast(*export_object)->set_value(*export_value);
 
   return Just(true);
 }
@@ -43,7 +43,7 @@ void SyntheticModule::SetExportStrict(Isolate* isolate,
                                       Handle<Object> export_value) {
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   Handle<Object> export_object(exports->Lookup(export_name), isolate);
-  CHECK(export_object->IsCell());
+  CHECK(IsCell(*export_object));
   Maybe<bool> set_export_result =
       SetExport(isolate, module, export_name, export_value);
   CHECK(set_export_result.FromJust());
@@ -55,8 +55,8 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
     Isolate* isolate, Handle<SyntheticModule> module,
     Handle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve) {
-  Handle<Object> object(module->exports().Lookup(export_name), isolate);
-  if (object->IsCell()) return Handle<Cell>::cast(object);
+  Handle<Object> object(module->exports()->Lookup(export_name), isolate);
+  if (IsCell(*object)) return Handle<Cell>::cast(object);
 
   if (!must_resolve) return MaybeHandle<Cell>();
 
@@ -77,10 +77,9 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
   for (int i = 0, n = export_names->length(); i < n; ++i) {
     // Spec step 7.1: Create a new mutable binding for export_name.
     // Spec step 7.2: Initialize the new mutable binding to undefined.
-    Handle<Cell> cell =
-        isolate->factory()->NewCell(isolate->factory()->undefined_value());
+    Handle<Cell> cell = isolate->factory()->NewCell();
     Handle<String> name(String::cast(export_names->get(i)), isolate);
-    CHECK(exports->Lookup(name).IsTheHole(isolate));
+    CHECK(IsTheHole(exports->Lookup(name), isolate));
     exports = ObjectHashTable::Put(exports, name, cell);
   }
   module->set_exports(*exports);
@@ -92,7 +91,7 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
 // just update status.
 bool SyntheticModule::FinishInstantiate(Isolate* isolate,
                                         Handle<SyntheticModule> module) {
-  module->SetStatus(kInstantiated);
+  module->SetStatus(kLinked);
   return true;
 }
 
@@ -104,14 +103,13 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
 
   v8::Module::SyntheticModuleEvaluationSteps evaluation_steps =
       FUNCTION_CAST<v8::Module::SyntheticModuleEvaluationSteps>(
-          module->evaluation_steps().foreign_address());
+          module->evaluation_steps()->foreign_address());
   v8::Local<v8::Value> result;
-  if (!evaluation_steps(
-           Utils::ToLocal(Handle<Context>::cast(isolate->native_context())),
-           Utils::ToLocal(Handle<Module>::cast(module)))
+  if (!evaluation_steps(Utils::ToLocal(isolate->native_context()),
+                        Utils::ToLocal(Handle<Module>::cast(module)))
            .ToLocal(&result)) {
     isolate->PromoteScheduledException();
-    Module::RecordErrorUsingPendingException(isolate, module);
+    module->RecordError(isolate, isolate->pending_exception());
     return MaybeHandle<Object>();
   }
 
@@ -119,22 +117,20 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
 
   Handle<Object> result_from_callback = Utils::OpenHandle(*result);
 
-  if (FLAG_harmony_top_level_await) {
-    Handle<JSPromise> capability;
-    if (result_from_callback->IsJSPromise()) {
-      capability = Handle<JSPromise>::cast(result_from_callback);
-    } else {
-      // The host's evaluation steps should have returned a resolved Promise,
-      // but as an allowance to hosts that have not yet finished the migration
-      // to top-level await, create a Promise if the callback result didn't give
-      // us one.
-      capability = isolate->factory()->NewJSPromise();
-      JSPromise::Resolve(capability, isolate->factory()->undefined_value())
-          .ToHandleChecked();
-    }
-
-    module->set_top_level_capability(*capability);
+  Handle<JSPromise> capability;
+  if (IsJSPromise(*result_from_callback)) {
+    capability = Handle<JSPromise>::cast(result_from_callback);
+  } else {
+    // The host's evaluation steps should have returned a resolved Promise,
+    // but as an allowance to hosts that have not yet finished the migration
+    // to top-level await, create a Promise if the callback result didn't give
+    // us one.
+    capability = isolate->factory()->NewJSPromise();
+    JSPromise::Resolve(capability, isolate->factory()->undefined_value())
+        .ToHandleChecked();
   }
+
+  module->set_top_level_capability(*capability);
 
   return result_from_callback;
 }

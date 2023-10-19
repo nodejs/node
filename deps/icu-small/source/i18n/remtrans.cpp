@@ -17,7 +17,7 @@
 #include "remtrans.h"
 #include "unicode/unifilt.h"
 
-static const UChar CURR_ID[] = {65, 110, 121, 45, 0x52, 0x65, 0x6D, 0x6F, 0x76, 0x65, 0x00}; /* "Any-Remove" */
+static const char16_t CURR_ID[] = {65, 110, 121, 45, 0x52, 0x65, 0x6D, 0x6F, 0x76, 0x65, 0x00}; /* "Any-Remove" */
 
 U_NAMESPACE_BEGIN
 
@@ -37,20 +37,20 @@ static Transliterator* RemoveTransliterator_create(const UnicodeString& /*ID*/,
  */
 void RemoveTransliterator::registerIDs() {
 
-    Transliterator::_registerFactory(UnicodeString(TRUE, ::CURR_ID, -1),
+    Transliterator::_registerFactory(UnicodeString(true, ::CURR_ID, -1),
                                      RemoveTransliterator_create, integerToken(0));
 
     Transliterator::_registerSpecialInverse(UNICODE_STRING_SIMPLE("Remove"),
-                                            UNICODE_STRING_SIMPLE("Null"), FALSE);
+                                            UNICODE_STRING_SIMPLE("Null"), false);
 }
 
-RemoveTransliterator::RemoveTransliterator() : Transliterator(UnicodeString(TRUE, ::CURR_ID, -1), 0) {}
+RemoveTransliterator::RemoveTransliterator() : Transliterator(UnicodeString(true, ::CURR_ID, -1), 0) {}
 
 RemoveTransliterator::~RemoveTransliterator() {}
 
 RemoveTransliterator* RemoveTransliterator::clone() const {
     RemoveTransliterator* result = new RemoveTransliterator();
-    if (result != NULL && getFilter() != 0) {
+    if (result != nullptr && getFilter() != 0) {
         result->adoptFilter(getFilter()->clone());
     }
     return result;

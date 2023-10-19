@@ -30,8 +30,8 @@ function testStrictMode() {
   const cli = initRepl(repl.REPL_MODE_STRICT);
 
   cli.input.emit('data', 'x = 3\n');
-  assert.ok(/ReferenceError: x is not defined/.test(
-    cli.output.accumulator.join('')));
+  assert.match(cli.output.accumulator.join(''),
+               /ReferenceError: x is not defined/);
   cli.output.accumulator.length = 0;
 
   cli.input.emit('data', 'let y = 3\n');

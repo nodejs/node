@@ -24,7 +24,7 @@ const caCert = loadPEM('ca1-cert');
 const opts = {
   host: 'www.nodejs.org',
   port: 443,
-  rejectUnauthorized: true
+  rejectUnauthorized: true,
 };
 
 // Success relies on the compiled in well-known root CAs

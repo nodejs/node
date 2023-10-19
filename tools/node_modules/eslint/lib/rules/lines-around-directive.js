@@ -1,7 +1,7 @@
 /**
  * @fileoverview Require or disallow newlines around directives.
  * @author Kai Cataldo
- * @deprecated
+ * @deprecated in ESLint v4.0.0
  */
 
 "use strict";
@@ -12,15 +12,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "require or disallow newlines around directives",
-            category: "Stylistic Issues",
+            description: "Require or disallow newlines around directives",
             recommended: false,
-            url: "https://eslint.org/docs/rules/lines-around-directive"
+            url: "https://eslint.org/docs/latest/rules/lines-around-directive"
         },
 
         schema: [{
@@ -54,7 +54,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const config = context.options[0] || "always";
         const expectLineBefore = typeof config === "string" ? config : config.before;
         const expectLineAfter = typeof config === "string" ? config : config.after;

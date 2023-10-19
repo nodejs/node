@@ -31,11 +31,13 @@ struct CompactableGCed : public GarbageCollected<CompactableGCed> {
  public:
   ~CompactableGCed() { ++g_destructor_callcount; }
   void Trace(Visitor* visitor) const {
-    visitor->Trace(other);
-    visitor->RegisterMovableReference(other.GetSlotForTesting());
+    VisitorBase::TraceRawForTesting(visitor,
+                                    const_cast<const CompactableGCed*>(other));
+    visitor->RegisterMovableReference(
+        const_cast<const CompactableGCed**>(&other));
   }
   static size_t g_destructor_callcount;
-  Member<CompactableGCed> other;
+  CompactableGCed* other = nullptr;
   size_t id = 0;
 };
 // static
@@ -52,11 +54,13 @@ struct CompactableHolder
 
   void Trace(Visitor* visitor) const {
     for (int i = 0; i < kNumObjects; ++i) {
-      visitor->Trace(objects[i]);
-      visitor->RegisterMovableReference(objects[i].GetSlotForTesting());
+      VisitorBase::TraceRawForTesting(
+          visitor, const_cast<const CompactableGCed*>(objects[i]));
+      visitor->RegisterMovableReference(
+          const_cast<const CompactableGCed**>(&objects[i]));
     }
   }
-  Member<CompactableGCed> objects[kNumObjects];
+  CompactableGCed* objects[kNumObjects]{};
 };
 
 class CompactorTest : public testing::TestWithPlatform {
@@ -70,17 +74,9 @@ class CompactorTest : public testing::TestWithPlatform {
 
   void StartCompaction() {
     compactor().EnableForNextGCForTesting();
-    compactor().InitializeIfShouldCompact(
-        GarbageCollector::Config::MarkingType::kIncremental,
-        GarbageCollector::Config::StackState::kNoHeapPointers);
+    compactor().InitializeIfShouldCompact(GCConfig::MarkingType::kIncremental,
+                                          StackState::kNoHeapPointers);
     EXPECT_TRUE(compactor().IsEnabledForTesting());
-  }
-
-  void CancelCompaction() {
-    bool cancelled = compactor().CancelIfShouldNotCompact(
-        GarbageCollector::Config::MarkingType::kAtomic,
-        GarbageCollector::Config::StackState::kMayContainHeapPointers);
-    EXPECT_TRUE(cancelled);
   }
 
   void FinishCompaction() { compactor().CompactSpacesIfEnabled(); }
@@ -89,17 +85,17 @@ class CompactorTest : public testing::TestWithPlatform {
     CompactableGCed::g_destructor_callcount = 0u;
     StartCompaction();
     heap()->StartIncrementalGarbageCollection(
-        GarbageCollector::Config::PreciseIncrementalConfig());
+        GCConfig::PreciseIncrementalConfig());
   }
 
   void EndGC() {
-    heap()->marker()->FinishMarking(
-        GarbageCollector::Config::StackState::kNoHeapPointers);
+    heap()->marker()->FinishMarking(StackState::kNoHeapPointers);
+    heap()->GetMarkerRefForTesting().reset();
     FinishCompaction();
     // Sweeping also verifies the object start bitmap.
-    const Sweeper::SweepingConfig sweeping_config{
-        Sweeper::SweepingConfig::SweepingType::kAtomic,
-        Sweeper::SweepingConfig::CompactableSpaceHandling::kIgnore};
+    const SweepingConfig sweeping_config{
+        SweepingConfig::SweepingType::kAtomic,
+        SweepingConfig::CompactableSpaceHandling::kIgnore};
     heap()->sweeper().Start(sweeping_config);
   }
 
@@ -127,16 +123,12 @@ namespace internal {
 TEST_F(CompactorTest, NothingToCompact) {
   StartCompaction();
   heap()->stats_collector()->NotifyMarkingStarted(
-      GarbageCollector::Config::CollectionType::kMajor,
-      GarbageCollector::Config::IsForcedGC::kNotForced);
+      CollectionType::kMajor, GCConfig::MarkingType::kAtomic,
+      GCConfig::IsForcedGC::kNotForced);
   heap()->stats_collector()->NotifyMarkingCompleted(0);
   FinishCompaction();
-  heap()->stats_collector()->NotifySweepingCompleted();
-}
-
-TEST_F(CompactorTest, CancelledNothingToCompact) {
-  StartCompaction();
-  CancelCompaction();
+  heap()->stats_collector()->NotifySweepingCompleted(
+      GCConfig::SweepingType::kAtomic);
 }
 
 TEST_F(CompactorTest, NonEmptySpaceAllLive) {
@@ -206,7 +198,7 @@ TEST_F(CompactorTest, CompactAcrossPages) {
   // Last allocated object should be on a new page.
   EXPECT_NE(reference, holder->objects[0]);
   EXPECT_NE(BasePage::FromInnerAddress(heap(), reference),
-            BasePage::FromInnerAddress(heap(), holder->objects[0].Get()));
+            BasePage::FromInnerAddress(heap(), holder->objects[0]));
   StartGC();
   EndGC();
   // Half of object were destroyed.

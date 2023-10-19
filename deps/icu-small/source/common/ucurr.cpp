@@ -49,7 +49,7 @@ using namespace icu;
 #endif
 
 typedef struct IsoCodeEntry {
-    const UChar *isoCode; /* const because it's a reference to a resource bundle string. */
+    const char16_t *isoCode; /* const because it's a reference to a resource bundle string. */
     UDate from;
     UDate to;
 } IsoCodeEntry;
@@ -96,12 +96,12 @@ static const char CURRENCIES_VARIANT[] = "Currencies%variant";
 static const char CURRENCYPLURALS[] = "CurrencyPlurals";
 
 // ISO codes mapping table
-static const UHashtable* gIsoCodes = NULL;
-static icu::UInitOnce gIsoCodesInitOnce = U_INITONCE_INITIALIZER;
+static const UHashtable* gIsoCodes = nullptr;
+static icu::UInitOnce gIsoCodesInitOnce {};
 
 // Currency symbol equivalances
-static const icu::Hashtable* gCurrSymbolsEquiv = NULL;
-static icu::UInitOnce gCurrSymbolsEquivInitOnce = U_INITONCE_INITIALIZER;
+static const icu::Hashtable* gCurrSymbolsEquiv = nullptr;
+static icu::UInitOnce gCurrSymbolsEquivInitOnce {};
 
 U_NAMESPACE_BEGIN
 
@@ -112,13 +112,13 @@ public:
     // Constructor. hash stores the equivalence relationships; s is the string
     // for which we find equivalent strings.
     inline EquivIterator(const icu::Hashtable& hash, const icu::UnicodeString& s)
-        : _hash(hash) {
+        : _hash(hash) { 
         _start = _current = &s;
     }
     inline ~EquivIterator() { }
 
-    // next returns the next equivalent string or NULL if there are no more.
-    // If s has no equivalent strings, next returns NULL on the first call.
+    // next returns the next equivalent string or nullptr if there are no more.
+    // If s has no equivalent strings, next returns nullptr on the first call.
     const icu::UnicodeString *next();
 private:
     const icu::Hashtable& _hash;
@@ -129,12 +129,12 @@ private:
 const icu::UnicodeString *
 EquivIterator::next() {
     const icu::UnicodeString* _next = (const icu::UnicodeString*) _hash.get(*_current);
-    if (_next == NULL) {
+    if (_next == nullptr) {
         U_ASSERT(_current == _start);
-        return NULL;
+        return nullptr;
     }
     if (*_next == *_start) {
-        return NULL;
+        return nullptr;
     }
     _current = _next;
     return _next;
@@ -161,7 +161,7 @@ static void makeEquivalent(
     const icu::UnicodeString *firstRight = rightIter.next();
     const icu::UnicodeString *nextLeft = firstLeft;
     const icu::UnicodeString *nextRight = firstRight;
-    while (nextLeft != NULL && nextRight != NULL) {
+    while (nextLeft != nullptr && nextRight != nullptr) {
         if (*nextLeft == rhs || *nextRight == lhs) {
             // Already equivalent
             return;
@@ -172,17 +172,17 @@ static void makeEquivalent(
     // Not equivalent. Must join.
     icu::UnicodeString *newFirstLeft;
     icu::UnicodeString *newFirstRight;
-    if (firstRight == NULL && firstLeft == NULL) {
+    if (firstRight == nullptr && firstLeft == nullptr) {
         // Neither lhs or rhs belong to an equivalence circle, so we form
         // a new equivalnce circle of just lhs and rhs.
         newFirstLeft = new icu::UnicodeString(rhs);
         newFirstRight = new icu::UnicodeString(lhs);
-    } else if (firstRight == NULL) {
+    } else if (firstRight == nullptr) {
         // lhs belongs to an equivalence circle, but rhs does not, so we link
         // rhs into lhs' circle.
         newFirstLeft = new icu::UnicodeString(rhs);
         newFirstRight = new icu::UnicodeString(*firstLeft);
-    } else if (firstLeft == NULL) {
+    } else if (firstLeft == nullptr) {
         // rhs belongs to an equivlance circle, but lhs does not, so we link
         // lhs into rhs' circle.
         newFirstLeft = new icu::UnicodeString(*firstRight);
@@ -193,7 +193,7 @@ static void makeEquivalent(
         newFirstLeft = new icu::UnicodeString(*firstRight);
         newFirstRight = new icu::UnicodeString(*firstLeft);
     }
-    if (newFirstLeft == NULL || newFirstRight == NULL) {
+    if (newFirstLeft == nullptr || newFirstRight == nullptr) {
         delete newFirstLeft;
         delete newFirstRight;
         status = U_MEMORY_ALLOCATION_ERROR;
@@ -209,7 +209,7 @@ static void makeEquivalent(
 static int32_t countEquivalent(const icu::Hashtable &hash, const icu::UnicodeString &s) {
     int32_t result = 0;
     icu::EquivIterator iter(hash, s);
-    while (iter.next() != NULL) {
+    while (iter.next() != nullptr) {
         ++result;
     }
 #ifdef UCURR_DEBUG_EQUIV
@@ -230,31 +230,31 @@ static const icu::Hashtable* getCurrSymbolsEquiv();
 /**
  * Cleanup callback func
  */
-static UBool U_CALLCONV
-isoCodes_cleanup(void)
+static UBool U_CALLCONV 
+isoCodes_cleanup()
 {
-    if (gIsoCodes != NULL) {
+    if (gIsoCodes != nullptr) {
         uhash_close(const_cast<UHashtable *>(gIsoCodes));
-        gIsoCodes = NULL;
+        gIsoCodes = nullptr;
     }
     gIsoCodesInitOnce.reset();
-    return TRUE;
+    return true;
 }
 
 /**
  * Cleanup callback func
  */
-static UBool U_CALLCONV
-currSymbolsEquiv_cleanup(void)
+static UBool U_CALLCONV 
+currSymbolsEquiv_cleanup()
 {
     delete const_cast<icu::Hashtable *>(gCurrSymbolsEquiv);
-    gCurrSymbolsEquiv = NULL;
+    gCurrSymbolsEquiv = nullptr;
     gCurrSymbolsEquivInitOnce.reset();
-    return TRUE;
+    return true;
 }
 
 /**
- * Deleter for OlsonToMetaMappingEntry
+ * Deleter for IsoCodeEntry
  */
 static void U_CALLCONV
 deleteIsoCodeEntry(void *obj) {
@@ -272,11 +272,11 @@ deleteUnicode(void *obj) {
 }
 
 /**
- * Unfortunately, we have to convert the UChar* currency code to char*
+ * Unfortunately, we have to convert the char16_t* currency code to char*
  * to use it as a resource key.
  */
 static inline char*
-myUCharsToChars(char* resultOfLen4, const UChar* currency) {
+myUCharsToChars(char* resultOfLen4, const char16_t* currency) {
     u_UCharsToChars(currency, resultOfLen4, ISO_CURRENCY_CODE_LENGTH);
     resultOfLen4[ISO_CURRENCY_CODE_LENGTH] = 0;
     return resultOfLen4;
@@ -287,11 +287,11 @@ myUCharsToChars(char* resultOfLen4, const UChar* currency) {
  * four integers.  The first is the fraction digits.  The second is the
  * rounding increment, or 0 if none.  The rounding increment is in
  * units of 10^(-fraction_digits).  The third and fourth are the same
- * except that they are those used in cash transations ( cashDigits
+ * except that they are those used in cash transactions ( cashDigits
  * and cashRounding ).
  */
 static const int32_t*
-_findMetaData(const UChar* currency, UErrorCode& ec) {
+_findMetaData(const char16_t* currency, UErrorCode& ec) {
 
     if (currency == 0 || *currency == 0) {
         if (U_SUCCESS(ec)) {
@@ -315,10 +315,10 @@ _findMetaData(const UChar* currency, UErrorCode& ec) {
     // Look up our currency, or if that's not available, then DEFAULT
     char buf[ISO_CURRENCY_CODE_LENGTH+1];
     UErrorCode ec2 = U_ZERO_ERROR; // local error code: soft failure
-    UResourceBundle* rb = ures_getByKey(currencyMeta, myUCharsToChars(buf, currency), NULL, &ec2);
+    UResourceBundle* rb = ures_getByKey(currencyMeta, myUCharsToChars(buf, currency), nullptr, &ec2);
       if (U_FAILURE(ec2)) {
         ures_close(rb);
-        rb = ures_getByKey(currencyMeta,DEFAULT_META, NULL, &ec);
+        rb = ures_getByKey(currencyMeta,DEFAULT_META, nullptr, &ec);
         if (U_FAILURE(ec)) {
             ures_close(currencyMeta);
             ures_close(rb);
@@ -349,7 +349,7 @@ _findMetaData(const UChar* currency, UErrorCode& ec) {
 static void
 idForLocale(const char* locale, char* countryAndVariant, int capacity, UErrorCode* ec)
 {
-    ulocimp_getRegionForSupplementalData(locale, FALSE, countryAndVariant, capacity, ec);
+    ulocimp_getRegionForSupplementalData(locale, false, countryAndVariant, capacity, ec);
 }
 
 // ------------------------------------------
@@ -361,7 +361,7 @@ idForLocale(const char* locale, char* countryAndVariant, int capacity, UErrorCod
 // don't use ICUService since we don't need fallback
 
 U_CDECL_BEGIN
-static UBool U_CALLCONV currency_cleanup(void);
+static UBool U_CALLCONV currency_cleanup();
 U_CDECL_END
 
 #if !UCONFIG_NO_SERVICE
@@ -372,10 +372,10 @@ static CReg* gCRegHead = 0;
 
 struct CReg : public icu::UMemory {
     CReg *next;
-    UChar iso[ISO_CURRENCY_CODE_LENGTH+1];
+    char16_t iso[ISO_CURRENCY_CODE_LENGTH+1];
     char  id[ULOC_FULLNAME_CAPACITY];
 
-    CReg(const UChar* _iso, const char* _id)
+    CReg(const char16_t* _iso, const char* _id)
         : next(0)
     {
         int32_t len = (int32_t)uprv_strlen(_id);
@@ -388,7 +388,7 @@ struct CReg : public icu::UMemory {
         iso[ISO_CURRENCY_CODE_LENGTH] = 0;
     }
 
-    static UCurrRegistryKey reg(const UChar* _iso, const char* _id, UErrorCode* status)
+    static UCurrRegistryKey reg(const char16_t* _iso, const char* _id, UErrorCode* status)
     {
         if (status && U_SUCCESS(*status) && _iso && _id) {
             CReg* n = new CReg(_iso, _id);
@@ -409,7 +409,7 @@ struct CReg : public icu::UMemory {
     }
 
     static UBool unreg(UCurrRegistryKey key) {
-        UBool found = FALSE;
+        UBool found = false;
         umtx_lock(&gCRegLock);
 
         CReg** p = &gCRegHead;
@@ -417,7 +417,7 @@ struct CReg : public icu::UMemory {
             if (*p == key) {
                 *p = ((CReg*)key)->next;
                 delete (CReg*)key;
-                found = TRUE;
+                found = true;
                 break;
             }
             p = &((*p)->next);
@@ -427,8 +427,8 @@ struct CReg : public icu::UMemory {
         return found;
     }
 
-    static const UChar* get(const char* id) {
-        const UChar* result = NULL;
+    static const char16_t* get(const char* id) {
+        const char16_t* result = nullptr;
         umtx_lock(&gCRegLock);
         CReg* p = gCRegHead;
 
@@ -446,7 +446,7 @@ struct CReg : public icu::UMemory {
     }
 
     /* This doesn't need to be thread safe. It's for u_cleanup only. */
-    static void cleanup(void) {
+    static void cleanup() {
         while (gCRegHead) {
             CReg* n = gCRegHead;
             gCRegHead = gCRegHead->next;
@@ -458,14 +458,14 @@ struct CReg : public icu::UMemory {
 // -------------------------------------
 
 U_CAPI UCurrRegistryKey U_EXPORT2
-ucurr_register(const UChar* isoCode, const char* locale, UErrorCode *status)
+ucurr_register(const char16_t* isoCode, const char* locale, UErrorCode *status)
 {
     if (status && U_SUCCESS(*status)) {
         char id[ULOC_FULLNAME_CAPACITY];
         idForLocale(locale, id, sizeof(id), status);
         return CReg::reg(isoCode, id, status);
     }
-    return NULL;
+    return nullptr;
 }
 
 // -------------------------------------
@@ -476,7 +476,7 @@ ucurr_unregister(UCurrRegistryKey key, UErrorCode* status)
     if (status && U_SUCCESS(*status)) {
         return CReg::unreg(key);
     }
-    return FALSE;
+    return false;
 }
 #endif /* UCONFIG_NO_SERVICE */
 
@@ -485,14 +485,14 @@ ucurr_unregister(UCurrRegistryKey key, UErrorCode* status)
 /**
  * Release all static memory held by currency.
  */
-/*The declaration here is needed so currency_cleanup(void)
+/*The declaration here is needed so currency_cleanup()
  * can call this function.
  */
 static UBool U_CALLCONV
-currency_cache_cleanup(void);
+currency_cache_cleanup();
 
 U_CDECL_BEGIN
-static UBool U_CALLCONV currency_cleanup(void) {
+static UBool U_CALLCONV currency_cleanup() {
 #if !UCONFIG_NO_SERVICE
     CReg::cleanup();
 #endif
@@ -503,7 +503,7 @@ static UBool U_CALLCONV currency_cleanup(void) {
     isoCodes_cleanup();
     currSymbolsEquiv_cleanup();
 
-    return TRUE;
+    return true;
 }
 U_CDECL_END
 
@@ -511,7 +511,7 @@ U_CDECL_END
 
 U_CAPI int32_t U_EXPORT2
 ucurr_forLocale(const char* locale,
-                UChar* buff,
+                char16_t* buff,
                 int32_t buffCapacity,
                 UErrorCode* ec) {
     if (U_FAILURE(*ec)) { return 0; }
@@ -540,7 +540,7 @@ ucurr_forLocale(const char* locale,
     }
 
 #if !UCONFIG_NO_SERVICE
-    const UChar* result = CReg::get(id);
+    const char16_t* result = CReg::get(id);
     if (result) {
         if(buffCapacity > u_strlen(result)) {
             u_strcpy(buff, result);
@@ -555,7 +555,7 @@ ucurr_forLocale(const char* locale,
         idDelim[0] = 0;
     }
 
-    const UChar* s = NULL;  // Currency code from data file.
+    const char16_t* s = nullptr;  // Currency code from data file.
     if (id[0] == 0) {
         // No point looking in the data for an empty string.
         // This is what we would get.
@@ -566,9 +566,32 @@ ucurr_forLocale(const char* locale,
         UResourceBundle *rb = ures_openDirect(U_ICUDATA_CURR, CURRENCY_DATA, &localStatus);
         UResourceBundle *cm = ures_getByKey(rb, CURRENCY_MAP, rb, &localStatus);
         UResourceBundle *countryArray = ures_getByKey(rb, id, cm, &localStatus);
-        UResourceBundle *currencyReq = ures_getByIndex(countryArray, 0, NULL, &localStatus);
-        s = ures_getStringByKey(currencyReq, "id", &resLen, &localStatus);
-        ures_close(currencyReq);
+        // https://unicode-org.atlassian.net/browse/ICU-21997
+        // Prefer to use currencies that are legal tender.
+        if (U_SUCCESS(localStatus)) {
+            int32_t arrayLength = ures_getSize(countryArray);
+            for (int32_t i = 0; i < arrayLength; ++i) {
+                LocalUResourceBundlePointer currencyReq(
+                    ures_getByIndex(countryArray, i, nullptr, &localStatus));
+                // The currency is legal tender if it is *not* marked with tender{"false"}.
+                UErrorCode tenderStatus = localStatus;
+                const char16_t *tender =
+                    ures_getStringByKey(currencyReq.getAlias(), "tender", nullptr, &tenderStatus);
+                bool isTender = U_FAILURE(tenderStatus) || u_strcmp(tender, u"false") != 0;
+                if (!isTender && s != nullptr) {
+                    // We already have a non-tender currency. Ignore all following non-tender ones.
+                    continue;
+                }
+                // Fetch the currency code.
+                s = ures_getStringByKey(currencyReq.getAlias(), "id", &resLen, &localStatus);
+                if (isTender) {
+                    break;
+                }
+            }
+            if (U_SUCCESS(localStatus) && s == nullptr) {
+                localStatus = U_MISSING_RESOURCE_ERROR;
+            }
+        }
         ures_close(countryArray);
     }
 
@@ -598,12 +621,12 @@ ucurr_forLocale(const char* locale,
  * Modify the given locale name by removing the rightmost _-delimited
  * element.  If there is none, empty the string ("" == root).
  * NOTE: The string "root" is not recognized; do not use it.
- * @return TRUE if the fallback happened; FALSE if locale is already
+ * @return true if the fallback happened; false if locale is already
  * root ("").
  */
 static UBool fallback(char *loc) {
     if (!*loc) {
-        return FALSE;
+        return false;
     }
     UErrorCode status = U_ZERO_ERROR;
     if (uprv_strcmp(loc, "en_GB") == 0) {
@@ -618,17 +641,17 @@ static UBool fallback(char *loc) {
     }
  /*
     char *i = uprv_strrchr(loc, '_');
-    if (i == NULL) {
+    if (i == nullptr) {
         i = loc;
     }
     *i = 0;
  */
-    return TRUE;
+    return true;
 }
 
 
-U_CAPI const UChar* U_EXPORT2
-ucurr_getName(const UChar* currency,
+U_CAPI const char16_t* U_EXPORT2
+ucurr_getName(const char16_t* currency,
               const char* locale,
               UCurrNameStyle nameStyle,
               UBool* isChoiceFormat, // fillin
@@ -678,11 +701,11 @@ ucurr_getName(const UChar* currency,
 
     char buf[ISO_CURRENCY_CODE_LENGTH+1];
     myUCharsToChars(buf, currency);
-
+    
     /* Normalize the keyword value to uppercase */
     T_CString_toUpperCase(buf);
-
-    const UChar* s = NULL;
+    
+    const char16_t* s = nullptr;
     ec2 = U_ZERO_ERROR;
     LocalUResourceBundlePointer rb(ures_open(U_ICUDATA_CURR, loc, &ec2));
 
@@ -711,7 +734,7 @@ ucurr_getName(const UChar* currency,
             choice = UCURR_SYMBOL_NAME;
         }
     }
-    if (s == NULL) {
+    if (s == nullptr) {
         ures_getByKey(rb.getAlias(), CURRENCIES, rb.getAlias(), &ec2);
         ures_getByKeyWithFallback(rb.getAlias(), buf, rb.getAlias(), &ec2);
         s = ures_getStringByIndex(rb.getAlias(), choice, len, &ec2);
@@ -728,11 +751,11 @@ ucurr_getName(const UChar* currency,
 
     // We no longer support choice format data in names.  Data should not contain
     // choice patterns.
-    if (isChoiceFormat != NULL) {
-        *isChoiceFormat = FALSE;
+    if (isChoiceFormat != nullptr) {
+        *isChoiceFormat = false;
     }
     if (U_SUCCESS(ec2)) {
-        U_ASSERT(s != NULL);
+        U_ASSERT(s != nullptr);
         return s;
     }
 
@@ -742,8 +765,8 @@ ucurr_getName(const UChar* currency,
     return currency;
 }
 
-U_CAPI const UChar* U_EXPORT2
-ucurr_getPluralName(const UChar* currency,
+U_CAPI const char16_t* U_EXPORT2
+ucurr_getPluralName(const char16_t* currency,
                     const char* locale,
                     UBool* isChoiceFormat,
                     const char* pluralCount,
@@ -778,7 +801,7 @@ ucurr_getPluralName(const UChar* currency,
     char buf[ISO_CURRENCY_CODE_LENGTH+1];
     myUCharsToChars(buf, currency);
 
-    const UChar* s = NULL;
+    const char16_t* s = nullptr;
     ec2 = U_ZERO_ERROR;
     UResourceBundle* rb = ures_open(U_ICUDATA_CURR, loc, &ec2);
 
@@ -791,11 +814,11 @@ ucurr_getPluralName(const UChar* currency,
     if (U_FAILURE(ec2)) {
         //  fall back to "other"
         ec2 = U_ZERO_ERROR;
-        s = ures_getStringByKeyWithFallback(rb, "other", len, &ec2);
+        s = ures_getStringByKeyWithFallback(rb, "other", len, &ec2);     
         if (U_FAILURE(ec2)) {
             ures_close(rb);
             // fall back to long name in Currencies
-            return ucurr_getName(currency, locale, UCURR_LONG_NAME,
+            return ucurr_getName(currency, locale, UCURR_LONG_NAME, 
                                  isChoiceFormat, len, ec);
         }
     }
@@ -808,7 +831,7 @@ ucurr_getPluralName(const UChar* currency,
             || (ec2 == U_USING_FALLBACK_WARNING && *ec != U_USING_DEFAULT_WARNING)) {
             *ec = ec2;
         }
-        U_ASSERT(s != NULL);
+        U_ASSERT(s != nullptr);
         return s;
     }
 
@@ -829,7 +852,7 @@ ucurr_getPluralName(const UChar* currency,
 
 typedef struct {
     const char* IsoCode;  // key
-    UChar* currencyName;  // value
+    char16_t* currencyName;  // value
     int32_t currencyNameLen;  // value length
     int32_t flag;  // flags
 } CurrencyNameStruct;
@@ -848,7 +871,7 @@ typedef struct {
 static int U_CALLCONV currencyNameComparator(const void* a, const void* b) {
     const CurrencyNameStruct* currName_1 = (const CurrencyNameStruct*)a;
     const CurrencyNameStruct* currName_2 = (const CurrencyNameStruct*)b;
-    for (int32_t i = 0;
+    for (int32_t i = 0; 
          i < MIN(currName_1->currencyNameLen, currName_2->currencyNameLen);
          ++i) {
         if (currName_1->currencyName[i] < currName_2->currencyName[i]) {
@@ -870,7 +893,7 @@ static int U_CALLCONV currencyNameComparator(const void* a, const void* b) {
 // Give a locale, return the maximum number of currency names associated with
 // this locale.
 // It gets currency names from resource bundles using fallback.
-// It is the maximum number because in the fallback chain, some of the
+// It is the maximum number because in the fallback chain, some of the 
 // currency names are duplicated.
 // For example, given locale as "en_US", the currency names get from resource
 // bundle in "en_US" and "en" are duplicated. The fallback mechanism will count
@@ -880,7 +903,7 @@ getCurrencyNameCount(const char* loc, int32_t* total_currency_name_count, int32_
     U_NAMESPACE_USE
     *total_currency_name_count = 0;
     *total_currency_symbol_count = 0;
-    const UChar* s = NULL;
+    const char16_t* s = nullptr;
     char locale[ULOC_FULLNAME_CAPACITY] = "";
     uprv_strcpy(locale, loc);
     const icu::Hashtable *currencySymbolsEquiv = getCurrSymbolsEquiv();
@@ -888,15 +911,15 @@ getCurrencyNameCount(const char* loc, int32_t* total_currency_name_count, int32_
         UErrorCode ec2 = U_ZERO_ERROR;
         // TODO: ures_openDirect?
         UResourceBundle* rb = ures_open(U_ICUDATA_CURR, locale, &ec2);
-        UResourceBundle* curr = ures_getByKey(rb, CURRENCIES, NULL, &ec2);
+        UResourceBundle* curr = ures_getByKey(rb, CURRENCIES, nullptr, &ec2);
         int32_t n = ures_getSize(curr);
         for (int32_t i=0; i<n; ++i) {
-            UResourceBundle* names = ures_getByIndex(curr, i, NULL, &ec2);
+            UResourceBundle* names = ures_getByIndex(curr, i, nullptr, &ec2);
             int32_t len;
             s = ures_getStringByIndex(names, UCURR_SYMBOL_NAME, &len, &ec2);
             ++(*total_currency_symbol_count);  // currency symbol
-            if (currencySymbolsEquiv != NULL) {
-                *total_currency_symbol_count += countEquivalent(*currencySymbolsEquiv, UnicodeString(TRUE, s, len));
+            if (currencySymbolsEquiv != nullptr) {
+                *total_currency_symbol_count += countEquivalent(*currencySymbolsEquiv, UnicodeString(true, s, len));
             }
             ++(*total_currency_symbol_count); // iso code
             ++(*total_currency_name_count); // long name
@@ -905,10 +928,10 @@ getCurrencyNameCount(const char* loc, int32_t* total_currency_name_count, int32_
 
         // currency plurals
         UErrorCode ec3 = U_ZERO_ERROR;
-        UResourceBundle* curr_p = ures_getByKey(rb, CURRENCYPLURALS, NULL, &ec3);
+        UResourceBundle* curr_p = ures_getByKey(rb, CURRENCYPLURALS, nullptr, &ec3);
         n = ures_getSize(curr_p);
         for (int32_t i=0; i<n; ++i) {
-            UResourceBundle* names = ures_getByIndex(curr_p, i, NULL, &ec3);
+            UResourceBundle* names = ures_getByIndex(curr_p, i, nullptr, &ec3);
             *total_currency_name_count += ures_getSize(names);
             ures_close(names);
         }
@@ -922,18 +945,18 @@ getCurrencyNameCount(const char* loc, int32_t* total_currency_name_count, int32_
     }
 }
 
-static UChar*
-toUpperCase(const UChar* source, int32_t len, const char* locale) {
-    UChar* dest = NULL;
+static char16_t*
+toUpperCase(const char16_t* source, int32_t len, const char* locale) {
+    char16_t* dest = nullptr;
     UErrorCode ec = U_ZERO_ERROR;
     int32_t destLen = u_strToUpper(dest, 0, source, len, locale, &ec);
 
     ec = U_ZERO_ERROR;
-    dest = (UChar*)uprv_malloc(sizeof(UChar) * MAX(destLen, len));
+    dest = (char16_t*)uprv_malloc(sizeof(char16_t) * MAX(destLen, len));
     u_strToUpper(dest, destLen, source, len, locale, &ec);
     if (U_FAILURE(ec)) {
         u_memcpy(dest, source, len);
-    }
+    } 
     return dest;
 }
 
@@ -945,11 +968,11 @@ toUpperCase(const UChar* source, int32_t len, const char* locale) {
 // return the malloc-ed currency name arrays and the total number of currency
 // names in the array.
 static void
-collectCurrencyNames(const char* locale,
-                     CurrencyNameStruct** currencyNames,
-                     int32_t* total_currency_name_count,
-                     CurrencyNameStruct** currencySymbols,
-                     int32_t* total_currency_symbol_count,
+collectCurrencyNames(const char* locale, 
+                     CurrencyNameStruct** currencyNames, 
+                     int32_t* total_currency_name_count, 
+                     CurrencyNameStruct** currencySymbols, 
+                     int32_t* total_currency_symbol_count, 
                      UErrorCode& ec) {
     U_NAMESPACE_USE
     const icu::Hashtable *currencySymbolsEquiv = getCurrSymbolsEquiv();
@@ -970,14 +993,14 @@ collectCurrencyNames(const char* locale,
     *currencySymbols = (CurrencyNameStruct*)uprv_malloc
         (sizeof(CurrencyNameStruct) * (*total_currency_symbol_count));
 
-    if(currencyNames == NULL || currencySymbols == NULL) {
+    if(currencyNames == nullptr || currencySymbols == nullptr) {
       ec = U_MEMORY_ALLOCATION_ERROR;
     }
 
     if (U_FAILURE(ec)) return;
 
-    const UChar* s = NULL;  // currency name
-    char* iso = NULL;  // currency ISO code
+    const char16_t* s = nullptr;  // currency name
+    char* iso = nullptr;  // currency ISO code
 
     *total_currency_name_count = 0;
     *total_currency_symbol_count = 0;
@@ -986,44 +1009,44 @@ collectCurrencyNames(const char* locale,
     UErrorCode ec4 = U_ZERO_ERROR;
 
     // Using hash to remove duplicates caused by locale fallback
-    UHashtable* currencyIsoCodes = uhash_open(uhash_hashChars, uhash_compareChars, NULL, &ec3);
-    UHashtable* currencyPluralIsoCodes = uhash_open(uhash_hashChars, uhash_compareChars, NULL, &ec4);
+    UHashtable* currencyIsoCodes = uhash_open(uhash_hashChars, uhash_compareChars, nullptr, &ec3);
+    UHashtable* currencyPluralIsoCodes = uhash_open(uhash_hashChars, uhash_compareChars, nullptr, &ec4);
     for (int32_t localeLevel = 0; ; ++localeLevel) {
         ec2 = U_ZERO_ERROR;
         // TODO: ures_openDirect
         UResourceBundle* rb = ures_open(U_ICUDATA_CURR, loc, &ec2);
-        UResourceBundle* curr = ures_getByKey(rb, CURRENCIES, NULL, &ec2);
+        UResourceBundle* curr = ures_getByKey(rb, CURRENCIES, nullptr, &ec2);
         int32_t n = ures_getSize(curr);
         for (int32_t i=0; i<n; ++i) {
-            UResourceBundle* names = ures_getByIndex(curr, i, NULL, &ec2);
+            UResourceBundle* names = ures_getByIndex(curr, i, nullptr, &ec2);
             int32_t len;
             s = ures_getStringByIndex(names, UCURR_SYMBOL_NAME, &len, &ec2);
             // TODO: uhash_put wont change key/value?
             iso = (char*)ures_getKey(names);
             if (localeLevel == 0) {
-                uhash_put(currencyIsoCodes, iso, iso, &ec3);
+                uhash_put(currencyIsoCodes, iso, iso, &ec3); 
             } else {
-                if (uhash_get(currencyIsoCodes, iso) != NULL) {
+                if (uhash_get(currencyIsoCodes, iso) != nullptr) {
                     ures_close(names);
                     continue;
                 } else {
-                    uhash_put(currencyIsoCodes, iso, iso, &ec3);
+                    uhash_put(currencyIsoCodes, iso, iso, &ec3); 
                 }
             }
             // Add currency symbol.
             (*currencySymbols)[*total_currency_symbol_count].IsoCode = iso;
-            (*currencySymbols)[*total_currency_symbol_count].currencyName = (UChar*)s;
+            (*currencySymbols)[*total_currency_symbol_count].currencyName = (char16_t*)s;
             (*currencySymbols)[*total_currency_symbol_count].flag = 0;
             (*currencySymbols)[(*total_currency_symbol_count)++].currencyNameLen = len;
             // Add equivalent symbols
-            if (currencySymbolsEquiv != NULL) {
-                UnicodeString str(TRUE, s, len);
+            if (currencySymbolsEquiv != nullptr) {
+                UnicodeString str(true, s, len);
                 icu::EquivIterator iter(*currencySymbolsEquiv, str);
                 const UnicodeString *symbol;
-                while ((symbol = iter.next()) != NULL) {
+                while ((symbol = iter.next()) != nullptr) {
                     (*currencySymbols)[*total_currency_symbol_count].IsoCode = iso;
                     (*currencySymbols)[*total_currency_symbol_count].currencyName =
-                        const_cast<UChar*>(symbol->getBuffer());
+                        const_cast<char16_t*>(symbol->getBuffer());
                     (*currencySymbols)[*total_currency_symbol_count].flag = 0;
                     (*currencySymbols)[(*total_currency_symbol_count)++].currencyNameLen = symbol->length();
                 }
@@ -1032,7 +1055,7 @@ collectCurrencyNames(const char* locale,
             // Add currency long name.
             s = ures_getStringByIndex(names, UCURR_LONG_NAME, &len, &ec2);
             (*currencyNames)[*total_currency_name_count].IsoCode = iso;
-            UChar* upperName = toUpperCase(s, len, locale);
+            char16_t* upperName = toUpperCase(s, len, locale);
             (*currencyNames)[*total_currency_name_count].currencyName = upperName;
             (*currencyNames)[*total_currency_name_count].flag = NEED_TO_BE_DELETED;
             (*currencyNames)[(*total_currency_name_count)++].currencyNameLen = len;
@@ -1040,7 +1063,7 @@ collectCurrencyNames(const char* locale,
             // put (iso, 3, and iso) in to array
             // Add currency ISO code.
             (*currencySymbols)[*total_currency_symbol_count].IsoCode = iso;
-            (*currencySymbols)[*total_currency_symbol_count].currencyName = (UChar*)uprv_malloc(sizeof(UChar)*3);
+            (*currencySymbols)[*total_currency_symbol_count].currencyName = (char16_t*)uprv_malloc(sizeof(char16_t)*3);
             // Must convert iso[] into Unicode
             u_charsToUChars(iso, (*currencySymbols)[*total_currency_symbol_count].currencyName, 3);
             (*currencySymbols)[*total_currency_symbol_count].flag = NEED_TO_BE_DELETED;
@@ -1051,30 +1074,30 @@ collectCurrencyNames(const char* locale,
 
         // currency plurals
         UErrorCode ec5 = U_ZERO_ERROR;
-        UResourceBundle* curr_p = ures_getByKey(rb, CURRENCYPLURALS, NULL, &ec5);
+        UResourceBundle* curr_p = ures_getByKey(rb, CURRENCYPLURALS, nullptr, &ec5);
         n = ures_getSize(curr_p);
         for (int32_t i=0; i<n; ++i) {
-            UResourceBundle* names = ures_getByIndex(curr_p, i, NULL, &ec5);
+            UResourceBundle* names = ures_getByIndex(curr_p, i, nullptr, &ec5);
             iso = (char*)ures_getKey(names);
             // Using hash to remove duplicated ISO codes in fallback chain.
             if (localeLevel == 0) {
-                uhash_put(currencyPluralIsoCodes, iso, iso, &ec4);
+                uhash_put(currencyPluralIsoCodes, iso, iso, &ec4); 
             } else {
-                if (uhash_get(currencyPluralIsoCodes, iso) != NULL) {
+                if (uhash_get(currencyPluralIsoCodes, iso) != nullptr) {
                     ures_close(names);
                     continue;
                 } else {
-                    uhash_put(currencyPluralIsoCodes, iso, iso, &ec4);
+                    uhash_put(currencyPluralIsoCodes, iso, iso, &ec4); 
                 }
             }
             int32_t num = ures_getSize(names);
             int32_t len;
             for (int32_t j = 0; j < num; ++j) {
-                // TODO: remove duplicates between singular name and
+                // TODO: remove duplicates between singular name and 
                 // currency long name?
                 s = ures_getStringByIndex(names, j, &len, &ec5);
                 (*currencyNames)[*total_currency_name_count].IsoCode = iso;
-                UChar* upperName = toUpperCase(s, len, locale);
+                char16_t* upperName = toUpperCase(s, len, locale);
                 (*currencyNames)[*total_currency_name_count].currencyName = upperName;
                 (*currencyNames)[*total_currency_name_count].flag = NEED_TO_BE_DELETED;
                 (*currencyNames)[(*total_currency_name_count)++].currencyNameLen = len;
@@ -1094,9 +1117,9 @@ collectCurrencyNames(const char* locale,
     uhash_close(currencyPluralIsoCodes);
 
     // quick sort the struct
-    qsort(*currencyNames, *total_currency_name_count,
+    qsort(*currencyNames, *total_currency_name_count, 
           sizeof(CurrencyNameStruct), currencyNameComparator);
-    qsort(*currencySymbols, *total_currency_symbol_count,
+    qsort(*currencySymbols, *total_currency_symbol_count, 
           sizeof(CurrencyNameStruct), currencyNameComparator);
 
 #ifdef UCURR_DEBUG
@@ -1133,15 +1156,15 @@ collectCurrencyNames(const char* locale,
 }
 
 // @param  currencyNames: currency names array
-// @param  indexInCurrencyNames: the index of the character in currency names
+// @param  indexInCurrencyNames: the index of the character in currency names 
 //         array against which the comparison is done
 // @param  key: input text char to compare against
 // @param  begin(IN/OUT): the begin index of matching range in currency names array
 // @param  end(IN/OUT): the end index of matching range in currency names array.
 static int32_t
-binarySearch(const CurrencyNameStruct* currencyNames,
+binarySearch(const CurrencyNameStruct* currencyNames, 
              int32_t indexInCurrencyNames,
-             const UChar key,
+             const char16_t key,
              int32_t* begin, int32_t* end) {
 #ifdef UCURR_DEBUG
     printf("key = %x\n", key);
@@ -1253,16 +1276,16 @@ binarySearch(const CurrencyNameStruct* currencyNames,
 // @param  maxMatchIndex: the index in currencyName which has the longest
 //                        match with input text.
 static void
-linearSearch(const CurrencyNameStruct* currencyNames,
+linearSearch(const CurrencyNameStruct* currencyNames, 
              int32_t begin, int32_t end,
-             const UChar* text, int32_t textLen,
+             const char16_t* text, int32_t textLen,
              int32_t *partialMatchLen,
              int32_t *maxMatchLen, int32_t* maxMatchIndex) {
     int32_t initialPartialMatchLen = *partialMatchLen;
     for (int32_t index = begin; index <= end; ++index) {
         int32_t len = currencyNames[index].currencyNameLen;
         if (len > *maxMatchLen && len <= textLen &&
-            uprv_memcmp(currencyNames[index].currencyName, text, len * sizeof(UChar)) == 0) {
+            uprv_memcmp(currencyNames[index].currencyName, text, len * sizeof(char16_t)) == 0) {
             *partialMatchLen = MAX(*partialMatchLen, len);
             *maxMatchIndex = index;
             *maxMatchLen = len;
@@ -1292,9 +1315,9 @@ linearSearch(const CurrencyNameStruct* currencyNames,
 // @param  maxMatchIndex: the index in currencyName which has the longest
 //                        match with input text.
 static void
-searchCurrencyName(const CurrencyNameStruct* currencyNames,
+searchCurrencyName(const CurrencyNameStruct* currencyNames, 
                    int32_t total_currency_count,
-                   const UChar* text, int32_t textLen,
+                   const char16_t* text, int32_t textLen,
                    int32_t *partialMatchLen,
                    int32_t* maxMatchLen, int32_t* maxMatchIndex) {
     *maxMatchIndex = -1;
@@ -1312,7 +1335,7 @@ searchCurrencyName(const CurrencyNameStruct* currencyNames,
     // The 2nd round binary search search the second "B" in the text against
     // the 2nd char in currency names, and narrow the matching range to
     // "BB BBEX BBEXYZ" (and the maximum matching "BB").
-    // The 3rd round returnes the range as "BBEX BBEXYZ" (without changing
+    // The 3rd round returns the range as "BBEX BBEXYZ" (without changing
     // maximum matching).
     // The 4th round returns the same range (the maximum matching is "BBEX").
     // The 5th round returns no matching range.
@@ -1326,8 +1349,8 @@ searchCurrencyName(const CurrencyNameStruct* currencyNames,
             break;
         }
         *partialMatchLen = MAX(*partialMatchLen, index + 1);
-        if (matchIndex != -1) {
-            // find an exact match for text from text[0] to text[index]
+        if (matchIndex != -1) { 
+            // find an exact match for text from text[0] to text[index] 
             // in currencyNames array.
             *maxMatchLen = index + 1;
             *maxMatchIndex = matchIndex;
@@ -1356,7 +1379,7 @@ typedef struct {
     // reference count.
     // reference count is set to 1 when an entry is put to cache.
     // it increases by 1 before accessing, and decreased by 1 after accessing.
-    // The entry is deleted when ref count is zero, which means
+    // The entry is deleted when ref count is zero, which means 
     // the entry is replaced out of cache and no process is accessing it.
     int32_t refCount;
 } CurrencyNameCacheEntry;
@@ -1365,7 +1388,7 @@ typedef struct {
 #define CURRENCY_NAME_CACHE_NUM 10
 
 // Reserve 10 cache entries.
-static CurrencyNameCacheEntry* currCache[CURRENCY_NAME_CACHE_NUM] = {NULL};
+static CurrencyNameCacheEntry* currCache[CURRENCY_NAME_CACHE_NUM] = {nullptr};
 // Using an index to indicate which entry to be replaced when cache is full.
 // It is a simple round-robin replacement strategy.
 static int8_t currentCacheEntryIndex = 0;
@@ -1394,14 +1417,14 @@ deleteCacheEntry(CurrencyNameCacheEntry* entry) {
 
 // Cache clean up
 static UBool U_CALLCONV
-currency_cache_cleanup(void) {
+currency_cache_cleanup() {
     for (int32_t i = 0; i < CURRENCY_NAME_CACHE_NUM; ++i) {
         if (currCache[i]) {
             deleteCacheEntry(currCache[i]);
             currCache[i] = 0;
         }
     }
-    return TRUE;
+    return true;
 }
 
 
@@ -1414,17 +1437,17 @@ static CurrencyNameCacheEntry*
 getCacheEntry(const char* locale, UErrorCode& ec) {
 
     int32_t total_currency_name_count = 0;
-    CurrencyNameStruct* currencyNames = NULL;
+    CurrencyNameStruct* currencyNames = nullptr;
     int32_t total_currency_symbol_count = 0;
-    CurrencyNameStruct* currencySymbols = NULL;
-    CurrencyNameCacheEntry* cacheEntry = NULL;
+    CurrencyNameStruct* currencySymbols = nullptr;
+    CurrencyNameCacheEntry* cacheEntry = nullptr;
 
     umtx_lock(&gCurrencyCacheMutex);
     // in order to handle racing correctly,
     // not putting 'search' in a separate function.
     int8_t found = -1;
     for (int8_t i = 0; i < CURRENCY_NAME_CACHE_NUM; ++i) {
-        if (currCache[i]!= NULL &&
+        if (currCache[i]!= nullptr &&
             uprv_strcmp(locale, currCache[i]->locale) == 0) {
             found = i;
             break;
@@ -1438,21 +1461,21 @@ getCacheEntry(const char* locale, UErrorCode& ec) {
     if (found == -1) {
         collectCurrencyNames(locale, &currencyNames, &total_currency_name_count, &currencySymbols, &total_currency_symbol_count, ec);
         if (U_FAILURE(ec)) {
-            return NULL;
+            return nullptr;
         }
         umtx_lock(&gCurrencyCacheMutex);
         // check again.
         for (int8_t i = 0; i < CURRENCY_NAME_CACHE_NUM; ++i) {
-            if (currCache[i]!= NULL &&
+            if (currCache[i]!= nullptr &&
                 uprv_strcmp(locale, currCache[i]->locale) == 0) {
                 found = i;
                 break;
             }
         }
         if (found == -1) {
-            // insert new entry to
+            // insert new entry to 
             // currentCacheEntryIndex % CURRENCY_NAME_CACHE_NUM
-            // and remove the existing entry
+            // and remove the existing entry 
             // currentCacheEntryIndex % CURRENCY_NAME_CACHE_NUM
             // from cache.
             cacheEntry = currCache[currentCacheEntryIndex];
@@ -1500,7 +1523,7 @@ uprv_parseCurrency(const char* locale,
                    icu::ParsePosition& pos,
                    int8_t type,
                    int32_t* partialMatchLen,
-                   UChar* result,
+                   char16_t* result,
                    UErrorCode& ec) {
     U_NAMESPACE_USE
     if (U_FAILURE(ec)) {
@@ -1518,8 +1541,8 @@ uprv_parseCurrency(const char* locale,
 
     int32_t start = pos.getIndex();
 
-    UChar inputText[MAX_CURRENCY_NAME_LEN];
-    UChar upperText[MAX_CURRENCY_NAME_LEN];
+    char16_t inputText[MAX_CURRENCY_NAME_LEN];
+    char16_t upperText[MAX_CURRENCY_NAME_LEN];
     int32_t textLen = MIN(MAX_CURRENCY_NAME_LEN, text.length() - start);
     text.extract(start, textLen, inputText);
     UErrorCode ec1 = U_ZERO_ERROR;
@@ -1531,7 +1554,7 @@ uprv_parseCurrency(const char* locale,
     int32_t max = 0;
     int32_t matchIndex = -1;
     // case in-sensitive comparison against currency names
-    searchCurrencyName(currencyNames, total_currency_name_count,
+    searchCurrencyName(currencyNames, total_currency_name_count, 
                        upperText, textLen, partialMatchLen, &max, &matchIndex);
 
 #ifdef UCURR_DEBUG
@@ -1542,7 +1565,7 @@ uprv_parseCurrency(const char* locale,
     int32_t matchIndexInSymbol = -1;
     if (type != UCURR_LONG_NAME) {  // not name only
         // case sensitive comparison against currency symbols and ISO code.
-        searchCurrencyName(currencySymbols, total_currency_symbol_count,
+        searchCurrencyName(currencySymbols, total_currency_symbol_count, 
                            inputText, textLen,
                            partialMatchLen,
                            &maxInSymbol, &matchIndexInSymbol);
@@ -1607,13 +1630,13 @@ void uprv_currencyLeads(const char* locale, icu::UnicodeSet& result, UErrorCode&
  * DecimalFormat and DecimalFormatSymbols.
  */
 U_CAPI void
-uprv_getStaticCurrencyName(const UChar* iso, const char* loc,
+uprv_getStaticCurrencyName(const char16_t* iso, const char* loc,
                            icu::UnicodeString& result, UErrorCode& ec)
 {
     U_NAMESPACE_USE
 
     int32_t len;
-    const UChar* currname = ucurr_getName(iso, loc, UCURR_SYMBOL_NAME,
+    const char16_t* currname = ucurr_getName(iso, loc, UCURR_SYMBOL_NAME,
                                           nullptr /* isChoiceFormat */, &len, &ec);
     if (U_SUCCESS(ec)) {
         result.setTo(currname, len);
@@ -1621,12 +1644,12 @@ uprv_getStaticCurrencyName(const UChar* iso, const char* loc,
 }
 
 U_CAPI int32_t U_EXPORT2
-ucurr_getDefaultFractionDigits(const UChar* currency, UErrorCode* ec) {
+ucurr_getDefaultFractionDigits(const char16_t* currency, UErrorCode* ec) {
     return ucurr_getDefaultFractionDigitsForUsage(currency,UCURR_USAGE_STANDARD,ec);
 }
 
 U_CAPI int32_t U_EXPORT2
-ucurr_getDefaultFractionDigitsForUsage(const UChar* currency, const UCurrencyUsage usage, UErrorCode* ec) {
+ucurr_getDefaultFractionDigitsForUsage(const char16_t* currency, const UCurrencyUsage usage, UErrorCode* ec) {
     int32_t fracDigits = 0;
     if (U_SUCCESS(*ec)) {
         switch (usage) {
@@ -1644,12 +1667,12 @@ ucurr_getDefaultFractionDigitsForUsage(const UChar* currency, const UCurrencyUsa
 }
 
 U_CAPI double U_EXPORT2
-ucurr_getRoundingIncrement(const UChar* currency, UErrorCode* ec) {
+ucurr_getRoundingIncrement(const char16_t* currency, UErrorCode* ec) {
     return ucurr_getRoundingIncrementForUsage(currency, UCURR_USAGE_STANDARD, ec);
 }
 
 U_CAPI double U_EXPORT2
-ucurr_getRoundingIncrementForUsage(const UChar* currency, const UCurrencyUsage usage, UErrorCode* ec) {
+ucurr_getRoundingIncrementForUsage(const char16_t* currency, const UCurrencyUsage usage, UErrorCode* ec) {
     double result = 0.0;
 
     const int32_t *data = _findMetaData(currency, *ec);
@@ -1791,7 +1814,6 @@ static const struct CurrencyList {
     {"ECV", UCURR_UNCOMMON|UCURR_DEPRECATED},
     {"EEK", UCURR_COMMON|UCURR_DEPRECATED},
     {"EGP", UCURR_COMMON|UCURR_NON_DEPRECATED},
-    {"EQE", UCURR_COMMON|UCURR_DEPRECATED}, // questionable, remove?
     {"ERN", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"ESA", UCURR_UNCOMMON|UCURR_DEPRECATED},
     {"ESB", UCURR_UNCOMMON|UCURR_DEPRECATED},
@@ -1929,6 +1951,7 @@ static const struct CurrencyList {
     {"SHP", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SIT", UCURR_COMMON|UCURR_DEPRECATED},
     {"SKK", UCURR_COMMON|UCURR_DEPRECATED},
+    {"SLE", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SLL", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SOS", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SRD", UCURR_COMMON|UCURR_NON_DEPRECATED},
@@ -1963,9 +1986,12 @@ static const struct CurrencyList {
     {"UYI", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
     {"UYP", UCURR_COMMON|UCURR_DEPRECATED},
     {"UYU", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"UYW", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
     {"UZS", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"VEB", UCURR_COMMON|UCURR_DEPRECATED},
+    {"VED", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
     {"VEF", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"VES", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"VND", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"VNN", UCURR_COMMON|UCURR_DEPRECATED},
     {"VUV", UCURR_COMMON|UCURR_NON_DEPRECATED},
@@ -2006,7 +2032,7 @@ static const struct CurrencyList {
     {"ZWD", UCURR_COMMON|UCURR_DEPRECATED},
     {"ZWL", UCURR_COMMON|UCURR_DEPRECATED},
     {"ZWR", UCURR_COMMON|UCURR_DEPRECATED},
-    { NULL, 0 } // Leave here to denote the end of the list.
+    { nullptr, 0 } // Leave here to denote the end of the list.
 };
 
 #define UCURR_MATCHES_BITMASK(variable, typeToMatch) \
@@ -2019,7 +2045,7 @@ ucurr_countCurrencyList(UEnumeration *enumerator, UErrorCode * /*pErrorCode*/) {
     int32_t count = 0;
 
     /* Count the number of items matching the type we are looking for. */
-    for (int32_t idx = 0; gCurrencyList[idx].currency != NULL; idx++) {
+    for (int32_t idx = 0; gCurrencyList[idx].currency != nullptr; idx++) {
         if (UCURR_MATCHES_BITMASK(gCurrencyList[idx].currType, currType)) {
             count++;
         }
@@ -2049,7 +2075,7 @@ ucurr_nextCurrencyList(UEnumeration *enumerator,
     if (resultLength) {
         *resultLength = 0;
     }
-    return NULL;
+    return nullptr;
 }
 
 static void U_CALLCONV
@@ -2072,37 +2098,37 @@ ucurr_createCurrencyList(UHashtable *isoCodes, UErrorCode* status){
     UResourceBundle *currencyMapArray = ures_getByKey(rb, CURRENCY_MAP, rb, &localStatus);
 
     if (U_SUCCESS(localStatus)) {
-        // process each entry in currency map
+        // process each entry in currency map 
         for (int32_t i=0; i<ures_getSize(currencyMapArray); i++) {
             // get the currency resource
-            UResourceBundle *currencyArray = ures_getByIndex(currencyMapArray, i, NULL, &localStatus);
-            // process each currency
+            UResourceBundle *currencyArray = ures_getByIndex(currencyMapArray, i, nullptr, &localStatus);
+            // process each currency 
             if (U_SUCCESS(localStatus)) {
                 for (int32_t j=0; j<ures_getSize(currencyArray); j++) {
                     // get the currency resource
-                    UResourceBundle *currencyRes = ures_getByIndex(currencyArray, j, NULL, &localStatus);
+                    UResourceBundle *currencyRes = ures_getByIndex(currencyArray, j, nullptr, &localStatus);
                     IsoCodeEntry *entry = (IsoCodeEntry*)uprv_malloc(sizeof(IsoCodeEntry));
-                    if (entry == NULL) {
+                    if (entry == nullptr) {
                         *status = U_MEMORY_ALLOCATION_ERROR;
                         return;
                     }
 
                     // get the ISO code
                     int32_t isoLength = 0;
-                    UResourceBundle *idRes = ures_getByKey(currencyRes, "id", NULL, &localStatus);
-                    if (idRes == NULL) {
+                    UResourceBundle *idRes = ures_getByKey(currencyRes, "id", nullptr, &localStatus);
+                    if (idRes == nullptr) {
                         continue;
                     }
-                    const UChar *isoCode = ures_getString(idRes, &isoLength, &localStatus);
+                    const char16_t *isoCode = ures_getString(idRes, &isoLength, &localStatus);
 
                     // get from date
                     UDate fromDate = U_DATE_MIN;
-                    UResourceBundle *fromRes = ures_getByKey(currencyRes, "from", NULL, &localStatus);
+                    UResourceBundle *fromRes = ures_getByKey(currencyRes, "from", nullptr, &localStatus);
 
                     if (U_SUCCESS(localStatus)) {
                         int32_t fromLength = 0;
                         const int32_t *fromArray = ures_getIntVector(fromRes, &fromLength, &localStatus);
-                        int64_t currDate64 = (int64_t)fromArray[0] << 32;
+                        int64_t currDate64 = ((uint64_t)fromArray[0]) << 32;
                         currDate64 |= ((int64_t)fromArray[1] & (int64_t)INT64_C(0x00000000FFFFFFFF));
                         fromDate = (UDate)currDate64;
                     }
@@ -2111,12 +2137,12 @@ ucurr_createCurrencyList(UHashtable *isoCodes, UErrorCode* status){
                     // get to date
                     UDate toDate = U_DATE_MAX;
                     localStatus = U_ZERO_ERROR;
-                    UResourceBundle *toRes = ures_getByKey(currencyRes, "to", NULL, &localStatus);
+                    UResourceBundle *toRes = ures_getByKey(currencyRes, "to", nullptr, &localStatus);
 
                     if (U_SUCCESS(localStatus)) {
                         int32_t toLength = 0;
                         const int32_t *toArray = ures_getIntVector(toRes, &toLength, &localStatus);
-                        int64_t currDate64 = (int64_t)toArray[0] << 32;
+                        int64_t currDate64 = (uint64_t)toArray[0] << 32;
                         currDate64 |= ((int64_t)toArray[1] & (int64_t)INT64_C(0x00000000FFFFFFFF));
                         toDate = (UDate)currDate64;
                     }
@@ -2130,7 +2156,7 @@ ucurr_createCurrencyList(UHashtable *isoCodes, UErrorCode* status){
                     entry->to = toDate;
 
                     localStatus = U_ZERO_ERROR;
-                    uhash_put(isoCodes, (UChar *)isoCode, entry, &localStatus);
+                    uhash_put(isoCodes, (char16_t *)isoCode, entry, &localStatus);
                 }
             } else {
                 *status = localStatus;
@@ -2145,8 +2171,8 @@ ucurr_createCurrencyList(UHashtable *isoCodes, UErrorCode* status){
 }
 
 static const UEnumeration gEnumCurrencyList = {
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     ucurr_closeCurrencyList,
     ucurr_countCurrencyList,
     uenum_unextDefault,
@@ -2157,10 +2183,10 @@ U_CDECL_END
 
 
 static void U_CALLCONV initIsoCodes(UErrorCode &status) {
-    U_ASSERT(gIsoCodes == NULL);
+    U_ASSERT(gIsoCodes == nullptr);
     ucln_common_registerCleanup(UCLN_COMMON_CURRENCY, currency_cleanup);
 
-    UHashtable *isoCodes = uhash_open(uhash_hashUChars, uhash_compareUChars, NULL, &status);
+    UHashtable *isoCodes = uhash_open(uhash_hashUChars, uhash_compareUChars, nullptr, &status);
     if (U_FAILURE(status)) {
         return;
     }
@@ -2195,11 +2221,11 @@ static void populateCurrSymbolsEquiv(icu::Hashtable *hash, UErrorCode &status) {
 }
 
 static void U_CALLCONV initCurrSymbolsEquiv() {
-    U_ASSERT(gCurrSymbolsEquiv == NULL);
+    U_ASSERT(gCurrSymbolsEquiv == nullptr);
     UErrorCode status = U_ZERO_ERROR;
     ucln_common_registerCleanup(UCLN_COMMON_CURRENCY, currency_cleanup);
     icu::Hashtable *temp = new icu::Hashtable(status);
-    if (temp == NULL) {
+    if (temp == nullptr) {
         return;
     }
     if (U_FAILURE(status)) {
@@ -2216,22 +2242,22 @@ static void U_CALLCONV initCurrSymbolsEquiv() {
 }
 
 U_CAPI UBool U_EXPORT2
-ucurr_isAvailable(const UChar* isoCode, UDate from, UDate to, UErrorCode* eErrorCode) {
+ucurr_isAvailable(const char16_t* isoCode, UDate from, UDate to, UErrorCode* eErrorCode) {
     umtx_initOnce(gIsoCodesInitOnce, &initIsoCodes, *eErrorCode);
     if (U_FAILURE(*eErrorCode)) {
-        return FALSE;
+        return false;
     }
 
     IsoCodeEntry* result = (IsoCodeEntry *) uhash_get(gIsoCodes, isoCode);
-    if (result == NULL) {
-        return FALSE;
+    if (result == nullptr) {
+        return false;
     } else if (from > to) {
         *eErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     } else if  ((from > result->to) || (to < result->from)) {
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 static const icu::Hashtable* getCurrSymbolsEquiv() {
@@ -2241,20 +2267,20 @@ static const icu::Hashtable* getCurrSymbolsEquiv() {
 
 U_CAPI UEnumeration * U_EXPORT2
 ucurr_openISOCurrencies(uint32_t currType, UErrorCode *pErrorCode) {
-    UEnumeration *myEnum = NULL;
+    UEnumeration *myEnum = nullptr;
     UCurrencyContext *myContext;
 
     myEnum = (UEnumeration*)uprv_malloc(sizeof(UEnumeration));
-    if (myEnum == NULL) {
+    if (myEnum == nullptr) {
         *pErrorCode = U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
     uprv_memcpy(myEnum, &gEnumCurrencyList, sizeof(UEnumeration));
     myContext = (UCurrencyContext*)uprv_malloc(sizeof(UCurrencyContext));
-    if (myContext == NULL) {
+    if (myContext == nullptr) {
         *pErrorCode = U_MEMORY_ALLOCATION_ERROR;
         uprv_free(myEnum);
-        return NULL;
+        return nullptr;
     }
     myContext->currType = currType;
     myContext->listIdx = 0;
@@ -2263,13 +2289,13 @@ ucurr_openISOCurrencies(uint32_t currType, UErrorCode *pErrorCode) {
 }
 
 U_CAPI int32_t U_EXPORT2
-ucurr_countCurrencies(const char* locale,
-                 UDate date,
+ucurr_countCurrencies(const char* locale, 
+                 UDate date, 
                  UErrorCode* ec)
 {
     int32_t currCount = 0;
 
-    if (ec != NULL && U_SUCCESS(*ec))
+    if (ec != nullptr && U_SUCCESS(*ec)) 
     {
         // local variables
         UErrorCode localStatus = U_ZERO_ERROR;
@@ -2303,21 +2329,21 @@ ucurr_countCurrencies(const char* locale,
             for (int32_t i=0; i<ures_getSize(countryArray); i++)
             {
                 // get the currency resource
-                UResourceBundle *currencyRes = ures_getByIndex(countryArray, i, NULL, &localStatus);
+                UResourceBundle *currencyRes = ures_getByIndex(countryArray, i, nullptr, &localStatus);
 
                 // get the from date
                 int32_t fromLength = 0;
-                UResourceBundle *fromRes = ures_getByKey(currencyRes, "from", NULL, &localStatus);
+                UResourceBundle *fromRes = ures_getByKey(currencyRes, "from", nullptr, &localStatus);
                 const int32_t *fromArray = ures_getIntVector(fromRes, &fromLength, &localStatus);
 
-                int64_t currDate64 = (int64_t)fromArray[0] << 32;
+                int64_t currDate64 = (int64_t)((uint64_t)(fromArray[0]) << 32);
                 currDate64 |= ((int64_t)fromArray[1] & (int64_t)INT64_C(0x00000000FFFFFFFF));
                 UDate fromDate = (UDate)currDate64;
 
                 if (ures_getSize(currencyRes)> 2)
                 {
                     int32_t toLength = 0;
-                    UResourceBundle *toRes = ures_getByKey(currencyRes, "to", NULL, &localStatus);
+                    UResourceBundle *toRes = ures_getByKey(currencyRes, "to", nullptr, &localStatus);
                     const int32_t *toArray = ures_getIntVector(toRes, &toLength, &localStatus);
 
                     currDate64 = (int64_t)toArray[0] << 32;
@@ -2351,7 +2377,7 @@ ucurr_countCurrencies(const char* locale,
         // Check for errors
         if (*ec == U_ZERO_ERROR || localStatus != U_ZERO_ERROR)
         {
-            // There is nothing to fallback to.
+            // There is nothing to fallback to. 
             // Report the failure/warning if possible.
             *ec = localStatus;
         }
@@ -2369,19 +2395,19 @@ ucurr_countCurrencies(const char* locale,
     return 0;
 }
 
-U_CAPI int32_t U_EXPORT2
-ucurr_forLocaleAndDate(const char* locale,
-                UDate date,
+U_CAPI int32_t U_EXPORT2 
+ucurr_forLocaleAndDate(const char* locale, 
+                UDate date, 
                 int32_t index,
-                UChar* buff,
-                int32_t buffCapacity,
+                char16_t* buff,
+                int32_t buffCapacity, 
                 UErrorCode* ec)
 {
     int32_t resLen = 0;
 	int32_t currIndex = 0;
-    const UChar* s = NULL;
+    const char16_t* s = nullptr;
 
-    if (ec != NULL && U_SUCCESS(*ec))
+    if (ec != nullptr && U_SUCCESS(*ec))
     {
         // check the arguments passed
         if ((buff && buffCapacity) || !buffCapacity )
@@ -2425,22 +2451,22 @@ ucurr_forLocaleAndDate(const char* locale,
                 for (int32_t i=0; i<ures_getSize(countryArray); i++)
                 {
                     // get the currency resource
-                    UResourceBundle *currencyRes = ures_getByIndex(countryArray, i, NULL, &localStatus);
+                    UResourceBundle *currencyRes = ures_getByIndex(countryArray, i, nullptr, &localStatus);
                     s = ures_getStringByKey(currencyRes, "id", &resLen, &localStatus);
 
                     // get the from date
                     int32_t fromLength = 0;
-                    UResourceBundle *fromRes = ures_getByKey(currencyRes, "from", NULL, &localStatus);
+                    UResourceBundle *fromRes = ures_getByKey(currencyRes, "from", nullptr, &localStatus);
                     const int32_t *fromArray = ures_getIntVector(fromRes, &fromLength, &localStatus);
 
-                    int64_t currDate64 = (int64_t)fromArray[0] << 32;
+                    int64_t currDate64 = (int64_t)((uint64_t)fromArray[0] << 32);
                     currDate64 |= ((int64_t)fromArray[1] & (int64_t)INT64_C(0x00000000FFFFFFFF));
                     UDate fromDate = (UDate)currDate64;
 
                     if (ures_getSize(currencyRes)> 2)
                     {
                         int32_t toLength = 0;
-                        UResourceBundle *toRes = ures_getByKey(currencyRes, "to", NULL, &localStatus);
+                        UResourceBundle *toRes = ures_getByKey(currencyRes, "to", nullptr, &localStatus);
                         const int32_t *toArray = ures_getIntVector(toRes, &toLength, &localStatus);
 
                         currDate64 = (int64_t)toArray[0] << 32;
@@ -2488,7 +2514,7 @@ ucurr_forLocaleAndDate(const char* locale,
             // Check for errors
             if (*ec == U_ZERO_ERROR || localStatus != U_ZERO_ERROR)
             {
-                // There is nothing to fallback to.
+                // There is nothing to fallback to. 
                 // Report the failure/warning if possible.
                 *ec = localStatus;
             }
@@ -2524,37 +2550,37 @@ ucurr_forLocaleAndDate(const char* locale,
 }
 
 static const UEnumeration defaultKeywordValues = {
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     ulist_close_keyword_values_iterator,
     ulist_count_keyword_values,
     uenum_unextDefault,
-    ulist_next_keyword_value,
+    ulist_next_keyword_value, 
     ulist_reset_keyword_values_iterator
 };
 
 U_CAPI UEnumeration *U_EXPORT2 ucurr_getKeywordValuesForLocale(const char *key, const char *locale, UBool commonlyUsed, UErrorCode* status) {
     // Resolve region
     char prefRegion[ULOC_COUNTRY_CAPACITY];
-    ulocimp_getRegionForSupplementalData(locale, TRUE, prefRegion, sizeof(prefRegion), status);
-
+    ulocimp_getRegionForSupplementalData(locale, true, prefRegion, sizeof(prefRegion), status);
+    
     // Read value from supplementalData
     UList *values = ulist_createEmptyList(status);
     UList *otherValues = ulist_createEmptyList(status);
     UEnumeration *en = (UEnumeration *)uprv_malloc(sizeof(UEnumeration));
-    if (U_FAILURE(*status) || en == NULL) {
-        if (en == NULL) {
+    if (U_FAILURE(*status) || en == nullptr) {
+        if (en == nullptr) {
             *status = U_MEMORY_ALLOCATION_ERROR;
         } else {
             uprv_free(en);
         }
         ulist_deleteList(values);
         ulist_deleteList(otherValues);
-        return NULL;
+        return nullptr;
     }
     memcpy(en, &defaultKeywordValues, sizeof(UEnumeration));
     en->context = values;
-
+    
     UResourceBundle *bundle = ures_openDirect(U_ICUDATA_CURR, "supplementalData", status);
     ures_getByKey(bundle, "CurrencyMap", bundle, status);
     UResourceBundle bundlekey, regbndl, curbndl, to;
@@ -2562,14 +2588,14 @@ U_CAPI UEnumeration *U_EXPORT2 ucurr_getKeywordValuesForLocale(const char *key, 
     ures_initStackObject(&regbndl);
     ures_initStackObject(&curbndl);
     ures_initStackObject(&to);
-
+    
     while (U_SUCCESS(*status) && ures_hasNext(bundle)) {
         ures_getNextResource(bundle, &bundlekey, status);
         if (U_FAILURE(*status)) {
             break;
         }
         const char *region = ures_getKey(&bundlekey);
-        UBool isPrefRegion = uprv_strcmp(region, prefRegion) == 0 ? TRUE : FALSE;
+        UBool isPrefRegion = uprv_strcmp(region, prefRegion) == 0 ? true : false;
         if (!isPrefRegion && commonlyUsed) {
             // With commonlyUsed=true, we do not put
             // currencies for other regions in the
@@ -2588,48 +2614,48 @@ U_CAPI UEnumeration *U_EXPORT2 ucurr_getKeywordValuesForLocale(const char *key, 
             }
             char *curID = (char *)uprv_malloc(sizeof(char) * ULOC_KEYWORDS_CAPACITY);
             int32_t curIDLength = ULOC_KEYWORDS_CAPACITY;
-            if (curID == NULL) {
+            if (curID == nullptr) {
                 *status = U_MEMORY_ALLOCATION_ERROR;
                 break;
             }
 
 #if U_CHARSET_FAMILY==U_ASCII_FAMILY
-            ures_getUTF8StringByKey(&curbndl, "id", curID, &curIDLength, TRUE, status);
+            ures_getUTF8StringByKey(&curbndl, "id", curID, &curIDLength, true, status);
             /* optimize - use the utf-8 string */
 #else
             {
-                       const UChar* defString = ures_getStringByKey(&curbndl, "id", &curIDLength, status);
+                       const char16_t* defString = ures_getStringByKey(&curbndl, "id", &curIDLength, status);
                        if(U_SUCCESS(*status)) {
 			   if(curIDLength+1 > ULOC_KEYWORDS_CAPACITY) {
 				*status = U_BUFFER_OVERFLOW_ERROR;
 			   } else {
-				u_UCharsToChars(defString, curID, curIDLength+1);
+                           	u_UCharsToChars(defString, curID, curIDLength+1);
 			   }
                        }
             }
-#endif
+#endif	
 
             if (U_FAILURE(*status)) {
                 break;
             }
-            UBool hasTo = FALSE;
+            UBool hasTo = false;
             ures_getByKey(&curbndl, "to", &to, status);
             if (U_FAILURE(*status)) {
                 // Do nothing here...
                 *status = U_ZERO_ERROR;
             } else {
-                hasTo = TRUE;
+                hasTo = true;
             }
             if (isPrefRegion && !hasTo && !ulist_containsString(values, curID, (int32_t)uprv_strlen(curID))) {
                 // Currently active currency for the target country
-                ulist_addItemEndList(values, curID, TRUE, status);
+                ulist_addItemEndList(values, curID, true, status);
             } else if (!ulist_containsString(otherValues, curID, (int32_t)uprv_strlen(curID)) && !commonlyUsed) {
-                ulist_addItemEndList(otherValues, curID, TRUE, status);
+                ulist_addItemEndList(otherValues, curID, true, status);
             } else {
                 uprv_free(curID);
             }
         }
-
+        
     }
     if (U_SUCCESS(*status)) {
         if (commonlyUsed) {
@@ -2637,45 +2663,45 @@ U_CAPI UEnumeration *U_EXPORT2 ucurr_getKeywordValuesForLocale(const char *key, 
                 // This could happen if no valid region is supplied in the input
                 // locale. In this case, we use the CLDR's default.
                 uenum_close(en);
-                en = ucurr_getKeywordValuesForLocale(key, "und", TRUE, status);
+                en = ucurr_getKeywordValuesForLocale(key, "und", true, status);
             }
         } else {
             // Consolidate the list
-            char *value = NULL;
+            char *value = nullptr;
             ulist_resetList(otherValues);
-            while ((value = (char *)ulist_getNext(otherValues)) != NULL) {
+            while ((value = (char *)ulist_getNext(otherValues)) != nullptr) {
                 if (!ulist_containsString(values, value, (int32_t)uprv_strlen(value))) {
                     char *tmpValue = (char *)uprv_malloc(sizeof(char) * ULOC_KEYWORDS_CAPACITY);
                     uprv_memcpy(tmpValue, value, uprv_strlen(value) + 1);
-                    ulist_addItemEndList(values, tmpValue, TRUE, status);
+                    ulist_addItemEndList(values, tmpValue, true, status);
                     if (U_FAILURE(*status)) {
                         break;
                     }
                 }
             }
         }
-
+        
         ulist_resetList((UList *)(en->context));
     } else {
         ulist_deleteList(values);
         uprv_free(en);
-        values = NULL;
-        en = NULL;
+        values = nullptr;
+        en = nullptr;
     }
     ures_close(&to);
     ures_close(&curbndl);
     ures_close(&regbndl);
     ures_close(&bundlekey);
     ures_close(bundle);
-
+    
     ulist_deleteList(otherValues);
-
+    
     return en;
 }
 
 
 U_CAPI int32_t U_EXPORT2
-ucurr_getNumericCode(const UChar* currency) {
+ucurr_getNumericCode(const char16_t* currency) {
     int32_t code = 0;
     if (currency && u_strlen(currency) == ISO_CURRENCY_CODE_LENGTH) {
         UErrorCode status = U_ZERO_ERROR;

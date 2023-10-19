@@ -7,6 +7,8 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
+#include "src/codegen/register.h"
+#include "src/codegen/reglist.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
 
@@ -47,7 +49,7 @@ class EntryFrameConstants : public AllStatic {
  public:
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
-  static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
+  static constexpr int kNextExitFrameFPOffset = -3 * kSystemPointerSize;
   static constexpr int kFixedFrameSize = 4 * kSystemPointerSize;
 
   // The following constants are defined so we can static-assert their values
@@ -70,22 +72,29 @@ class EntryFrameConstants : public AllStatic {
       kCalleeSavedRegisterBytesPushedBeforeFpLrPair;
 };
 
-class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 8;
+  // Number of gp parameters, without the instance.
+  static constexpr int kNumberOfSavedGpParamRegs = 6;
   static constexpr int kNumberOfSavedFpParamRegs = 8;
 
-  // FP-relative.
-  // The instance is pushed as part of the saved registers. Being in {r7}, it is
-  // the first register pushed (highest register code in
-  // {wasm::kGpParamRegisters}). Because of padding of the frame header, it is
-  // actually one word further down the stack though (thus at position {1}).
-  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  static constexpr int kFixedFrameSizeFromFp =
-      // Header is padded to 16 byte (see {MacroAssembler::EnterFrame}).
-      RoundUp<16>(TypedFrameConstants::kFixedFrameSizeFromFp) +
-      kNumberOfSavedGpParamRegs * kSystemPointerSize +
-      kNumberOfSavedFpParamRegs * kSimd128Size;
+  // On arm, spilled registers are implicitly sorted backwards by number.
+  // We spill:
+  //   x0, x2, x3, x4, x5, x6: param1, param2, ..., param6
+  // in the following FP-relative order: [x6, x5, x4, x3, x2, x0].
+  // The instance slot is in position '0', the first spill slot is at '1'.
+  static constexpr int kInstanceSpillOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+
+  static constexpr int kParameterSpillsOffset[] = {
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(6), TYPED_FRAME_PUSHED_VALUE_OFFSET(5),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(4), TYPED_FRAME_PUSHED_VALUE_OFFSET(3),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(2), TYPED_FRAME_PUSHED_VALUE_OFFSET(1)};
+
+  // SP-relative.
+  static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
+  static constexpr int kDeclaredFunctionIndexOffset = 1 * kSystemPointerSize;
+  static constexpr int kNativeModuleOffset = 0;
 };
 
 // Frame constructed by the {WasmDebugBreak} builtin.
@@ -93,17 +102,23 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 // registers (see liftoff-assembler-defs.h).
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
-  // {x0 .. x28} \ {x16, x17, x18, x26, x27}
-  static constexpr uint32_t kPushedGpRegs =
-      (1 << 29) - 1 - (1 << 16) - (1 << 17) - (1 << 18) - (1 << 26) - (1 << 27);
-  // {d0 .. d29}; {d15} is not used, but we still keep it for alignment reasons
-  // (the frame size needs to be a multiple of 16).
-  static constexpr uint32_t kPushedFpRegs = (1 << 30) - 1;
+  // x16: ip0, x17: ip1, x18: platform register, x26: root, x28: base, x29: fp,
+  // x30: lr, x31: xzr.
+  static constexpr RegList kPushedGpRegs = {
+      x0,  x1,  x2,  x3,  x4,  x5,  x6,  x7,  x8,  x9,  x10, x11,
+      x12, x13, x14, x15, x19, x20, x21, x22, x23, x24, x25, x27};
 
-  static constexpr int kNumPushedGpRegisters =
-      base::bits::CountPopulation(kPushedGpRegs);
-  static constexpr int kNumPushedFpRegisters =
-      base::bits::CountPopulation(kPushedFpRegs);
+  // We push FpRegs as 128-bit SIMD registers, so 16-byte frame alignment
+  // is guaranteed regardless of register count.
+  static constexpr DoubleRegList kPushedFpRegs = {
+      d0,  d1,  d2,  d3,  d4,  d5,  d6,  d7,  d8,  d9,  d10, d11, d12, d13, d14,
+      d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29};
+
+  static constexpr int kNumPushedGpRegisters = kPushedGpRegs.Count();
+  static_assert(kNumPushedGpRegisters % 2 == 0,
+                "stack frames need to be 16-byte aligned");
+
+  static constexpr int kNumPushedFpRegisters = kPushedFpRegs.Count();
 
   static constexpr int kLastPushedGpRegisterOffset =
       // Header is padded to 16 byte (see {MacroAssembler::EnterFrame}).
@@ -114,15 +129,17 @@ class WasmDebugBreakFrameConstants : public TypedFrameConstants {
 
   // Offsets are fp-relative.
   static int GetPushedGpRegisterOffset(int reg_code) {
-    DCHECK_NE(0, kPushedGpRegs & (1 << reg_code));
-    uint32_t lower_regs = kPushedGpRegs & ((uint32_t{1} << reg_code) - 1);
+    DCHECK_NE(0, kPushedGpRegs.bits() & (1 << reg_code));
+    uint32_t lower_regs =
+        kPushedGpRegs.bits() & ((uint32_t{1} << reg_code) - 1);
     return kLastPushedGpRegisterOffset +
            base::bits::CountPopulation(lower_regs) * kSystemPointerSize;
   }
 
   static int GetPushedFpRegisterOffset(int reg_code) {
-    DCHECK_NE(0, kPushedFpRegs & (1 << reg_code));
-    uint32_t lower_regs = kPushedFpRegs & ((uint32_t{1} << reg_code) - 1);
+    DCHECK_NE(0, kPushedFpRegs.bits() & (1 << reg_code));
+    uint32_t lower_regs =
+        kPushedFpRegs.bits() & ((uint32_t{1} << reg_code) - 1);
     return kLastPushedFpRegisterOffset +
            base::bits::CountPopulation(lower_regs) * kSimd128Size;
   }

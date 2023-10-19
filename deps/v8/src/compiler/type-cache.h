@@ -5,9 +5,9 @@
 #ifndef V8_COMPILER_TYPE_CACHE_H_
 #define V8_COMPILER_TYPE_CACHE_H_
 
+#include "src/compiler/globals.h"
 #include "src/compiler/types.h"
 #include "src/date/date.h"
-#include "src/objects/code.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/string.h"
 
@@ -36,15 +36,19 @@ class V8_EXPORT_PRIVATE TypeCache final {
   Type const kUnsigned31 = Type::Unsigned31();
   Type const kInt32 = Type::Signed32();
   Type const kUint32 = Type::Unsigned32();
-  Type const kInt64 = CreateRange<int64_t>();
-  Type const kUint64 = CreateRange<uint64_t>();
-  Type const kIntPtr = CreateRange<intptr_t>();
+  Type const kDoubleRepresentableInt64 = CreateRange(
+      std::numeric_limits<int64_t>::min(), kMaxDoubleRepresentableInt64);
+  Type const kDoubleRepresentableInt64OrMinusZero =
+      Type::Union(kDoubleRepresentableInt64, Type::MinusZero(), zone());
+  Type const kDoubleRepresentableUint64 = CreateRange(
+      std::numeric_limits<uint64_t>::min(), kMaxDoubleRepresentableUint64);
   Type const kFloat32 = Type::Number();
   Type const kFloat64 = Type::Number();
-  Type const kBigInt64 = Type::BigInt();
-  Type const kBigUint64 = Type::BigInt();
+  Type const kBigInt64 = Type::SignedBigInt64();
+  Type const kBigUint64 = Type::UnsignedBigInt64();
 
-  Type const kHoleySmi = Type::Union(Type::SignedSmall(), Type::Hole(), zone());
+  Type const kHoleySmi =
+      Type::Union(Type::SignedSmall(), Type::TheHole(), zone());
 
   Type const kSingletonZero = CreateRange(0.0, 0.0);
   Type const kSingletonOne = CreateRange(1.0, 1.0);
@@ -190,8 +194,11 @@ class V8_EXPORT_PRIVATE TypeCache final {
  private:
   template <typename T>
   Type CreateRange() {
-    return CreateRange(std::numeric_limits<T>::min(),
-                       std::numeric_limits<T>::max());
+    T min = std::numeric_limits<T>::min();
+    T max = std::numeric_limits<T>::max();
+    DCHECK_EQ(min, static_cast<T>(static_cast<double>(min)));
+    DCHECK_EQ(max, static_cast<T>(static_cast<double>(max)));
+    return CreateRange(min, max);
   }
 
   Type CreateRange(double min, double max) {

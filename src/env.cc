@@ -1,5 +1,4 @@
 #include "env.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
@@ -7,10 +6,13 @@
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
+#include "node_contextify.h"
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_process-inl.h"
+#include "node_shadow_realm.h"
+#include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
 #include "node_worker.h"
 #include "req_wrap-inl.h"
@@ -18,6 +20,7 @@
 #include "tracing/agent.h"
 #include "tracing/traced_value.h"
 #include "util-inl.h"
+#include "v8-cppgc.h"
 #include "v8-profiler.h"
 
 #include <algorithm>
@@ -27,6 +30,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <unordered_map>
 
 namespace node {
 
@@ -34,10 +38,13 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::EmbedderGraph;
+using v8::EscapableHandleScope;
 using v8::Function;
-using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
 using v8::Integer;
 using v8::Isolate;
@@ -46,6 +53,7 @@ using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Private;
 using v8::Script;
 using v8::SnapshotCreator;
@@ -56,15 +64,245 @@ using v8::TracingController;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
+using v8::WrapperDescriptor;
 using worker::Worker;
 
-int const Environment::kNodeContextTag = 0x6e6f64;
-void* const Environment::kNodeContextTagPtr = const_cast<void*>(
-    static_cast<const void*>(&Environment::kNodeContextTag));
+int const ContextEmbedderTag::kNodeContextTag = 0x6e6f64;
+void* const ContextEmbedderTag::kNodeContextTagPtr = const_cast<void*>(
+    static_cast<const void*>(&ContextEmbedderTag::kNodeContextTag));
 
-std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
+void AsyncHooks::ResetPromiseHooks(Local<Function> init,
+                                   Local<Function> before,
+                                   Local<Function> after,
+                                   Local<Function> resolve) {
+  js_promise_hooks_[0].Reset(env()->isolate(), init);
+  js_promise_hooks_[1].Reset(env()->isolate(), before);
+  js_promise_hooks_[2].Reset(env()->isolate(), after);
+  js_promise_hooks_[3].Reset(env()->isolate(), resolve);
+}
+
+void Environment::ResetPromiseHooks(Local<Function> init,
+                                    Local<Function> before,
+                                    Local<Function> after,
+                                    Local<Function> resolve) {
+  async_hooks()->ResetPromiseHooks(init, before, after, resolve);
+
+  for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
+    if (it->IsEmpty()) {
+      contexts_.erase(it--);
+      continue;
+    }
+    PersistentToLocal::Weak(isolate_, *it)
+        ->SetPromiseHooks(init, before, after, resolve);
+  }
+}
+
+// Remember to keep this code aligned with pushAsyncContext() in JS.
+void AsyncHooks::push_async_context(double async_id,
+                                    double trigger_async_id,
+                                    Local<Object> resource) {
+  // Since async_hooks is experimental, do only perform the check
+  // when async_hooks is enabled.
+  if (fields_[kCheck] > 0) {
+    CHECK_GE(async_id, -1);
+    CHECK_GE(trigger_async_id, -1);
+  }
+
+  uint32_t offset = fields_[kStackLength];
+  if (offset * 2 >= async_ids_stack_.Length()) grow_async_ids_stack();
+  async_ids_stack_[2 * offset] = async_id_fields_[kExecutionAsyncId];
+  async_ids_stack_[2 * offset + 1] = async_id_fields_[kTriggerAsyncId];
+  fields_[kStackLength] += 1;
+  async_id_fields_[kExecutionAsyncId] = async_id;
+  async_id_fields_[kTriggerAsyncId] = trigger_async_id;
+
+#ifdef DEBUG
+  for (uint32_t i = offset; i < native_execution_async_resources_.size(); i++)
+    CHECK(native_execution_async_resources_[i].IsEmpty());
+#endif
+
+  // When this call comes from JS (as a way of increasing the stack size),
+  // `resource` will be empty, because JS caches these values anyway.
+  if (!resource.IsEmpty()) {
+    native_execution_async_resources_.resize(offset + 1);
+    // Caveat: This is a v8::Local<> assignment, we do not keep a v8::Global<>!
+    native_execution_async_resources_[offset] = resource;
+  }
+}
+
+// Remember to keep this code aligned with popAsyncContext() in JS.
+bool AsyncHooks::pop_async_context(double async_id) {
+  // In case of an exception then this may have already been reset, if the
+  // stack was multiple MakeCallback()'s deep.
+  if (UNLIKELY(fields_[kStackLength] == 0)) return false;
+
+  // Ask for the async_id to be restored as a check that the stack
+  // hasn't been corrupted.
+  if (UNLIKELY(fields_[kCheck] > 0 &&
+               async_id_fields_[kExecutionAsyncId] != async_id)) {
+    FailWithCorruptedAsyncStack(async_id);
+  }
+
+  uint32_t offset = fields_[kStackLength] - 1;
+  async_id_fields_[kExecutionAsyncId] = async_ids_stack_[2 * offset];
+  async_id_fields_[kTriggerAsyncId] = async_ids_stack_[2 * offset + 1];
+  fields_[kStackLength] = offset;
+
+  if (LIKELY(offset < native_execution_async_resources_.size() &&
+             !native_execution_async_resources_[offset].IsEmpty())) {
+#ifdef DEBUG
+    for (uint32_t i = offset + 1; i < native_execution_async_resources_.size();
+         i++) {
+      CHECK(native_execution_async_resources_[i].IsEmpty());
+    }
+#endif
+    native_execution_async_resources_.resize(offset);
+    if (native_execution_async_resources_.size() <
+            native_execution_async_resources_.capacity() / 2 &&
+        native_execution_async_resources_.size() > 16) {
+      native_execution_async_resources_.shrink_to_fit();
+    }
+  }
+
+  if (UNLIKELY(js_execution_async_resources()->Length() > offset)) {
+    HandleScope handle_scope(env()->isolate());
+    USE(js_execution_async_resources()->Set(
+        env()->context(),
+        env()->length_string(),
+        Integer::NewFromUnsigned(env()->isolate(), offset)));
+  }
+
+  return fields_[kStackLength] > 0;
+}
+
+void AsyncHooks::clear_async_id_stack() {
+  if (!js_execution_async_resources_.IsEmpty() && env()->can_call_into_js()) {
+    Isolate* isolate = env()->isolate();
+    HandleScope handle_scope(isolate);
+    USE(PersistentToLocal::Strong(js_execution_async_resources_)
+            ->Set(env()->context(),
+                  env()->length_string(),
+                  Integer::NewFromUnsigned(isolate, 0)));
+  }
+
+  native_execution_async_resources_.clear();
+  native_execution_async_resources_.shrink_to_fit();
+
+  async_id_fields_[kExecutionAsyncId] = 0;
+  async_id_fields_[kTriggerAsyncId] = 0;
+  fields_[kStackLength] = 0;
+}
+
+void AsyncHooks::InstallPromiseHooks(Local<Context> ctx) {
+  ctx->SetPromiseHooks(js_promise_hooks_[0].IsEmpty()
+                           ? Local<Function>()
+                           : PersistentToLocal::Strong(js_promise_hooks_[0]),
+                       js_promise_hooks_[1].IsEmpty()
+                           ? Local<Function>()
+                           : PersistentToLocal::Strong(js_promise_hooks_[1]),
+                       js_promise_hooks_[2].IsEmpty()
+                           ? Local<Function>()
+                           : PersistentToLocal::Strong(js_promise_hooks_[2]),
+                       js_promise_hooks_[3].IsEmpty()
+                           ? Local<Function>()
+                           : PersistentToLocal::Strong(js_promise_hooks_[3]));
+}
+
+void Environment::TrackContext(Local<Context> context) {
+  size_t id = contexts_.size();
+  contexts_.resize(id + 1);
+  contexts_[id].Reset(isolate_, context);
+  contexts_[id].SetWeak();
+}
+
+void Environment::UntrackContext(Local<Context> context) {
+  HandleScope handle_scope(isolate_);
+  contexts_.erase(std::remove_if(contexts_.begin(),
+                                 contexts_.end(),
+                                 [&](auto&& el) { return el.IsEmpty(); }),
+                  contexts_.end());
+  for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
+    Local<Context> saved_context = PersistentToLocal::Weak(isolate_, *it);
+    if (saved_context == context) {
+      it->Reset();
+      contexts_.erase(it);
+      break;
+    }
+  }
+}
+
+void Environment::TrackShadowRealm(shadow_realm::ShadowRealm* realm) {
+  shadow_realms_.insert(realm);
+}
+
+void Environment::UntrackShadowRealm(shadow_realm::ShadowRealm* realm) {
+  shadow_realms_.erase(realm);
+}
+
+AsyncHooks::DefaultTriggerAsyncIdScope::DefaultTriggerAsyncIdScope(
+    Environment* env, double default_trigger_async_id)
+    : async_hooks_(env->async_hooks()) {
+  if (env->async_hooks()->fields()[AsyncHooks::kCheck] > 0) {
+    CHECK_GE(default_trigger_async_id, 0);
+  }
+
+  old_default_trigger_async_id_ =
+      async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId];
+  async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] =
+      default_trigger_async_id;
+}
+
+AsyncHooks::DefaultTriggerAsyncIdScope::~DefaultTriggerAsyncIdScope() {
+  async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] =
+      old_default_trigger_async_id_;
+}
+
+AsyncHooks::DefaultTriggerAsyncIdScope::DefaultTriggerAsyncIdScope(
+    AsyncWrap* async_wrap)
+    : DefaultTriggerAsyncIdScope(async_wrap->env(),
+                                 async_wrap->get_async_id()) {}
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<SnapshotIndex>& v) {
+  output << "{ ";
+  for (const SnapshotIndex i : v) {
+    output << i << ", ";
+  }
+  output << " }";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const IsolateDataSerializeInfo& i) {
+  output << "{\n"
+         << "// -- primitive begins --\n"
+         << i.primitive_values << ",\n"
+         << "// -- primitive ends --\n"
+         << "// -- template_values begins --\n"
+         << i.template_values << ",\n"
+         << "// -- template_values ends --\n"
+         << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& i) {
+  output << "{\n"
+         << "  "
+         << (i.type == SnapshotMetadata::Type::kDefault
+                 ? "SnapshotMetadata::Type::kDefault"
+                 : "SnapshotMetadata::Type::kFullyCustomized")
+         << ", // type\n"
+         << "  \"" << i.node_version << "\", // node_version\n"
+         << "  \"" << i.node_arch << "\", // node_arch\n"
+         << "  \"" << i.node_platform << "\", // node_platform\n"
+         << "  " << i.v8_cache_version_tag << ", // v8_cache_version_tag\n"
+         << "}";
+  return output;
+}
+
+IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
   Isolate* isolate = creator->GetIsolate();
-  std::vector<size_t> indexes;
+  IsolateDataSerializeInfo info;
   HandleScope handle_scope(isolate);
   // XXX(joyeecheung): technically speaking, the indexes here should be
   // consecutive and we could just return a range instead of an array,
@@ -74,32 +312,59 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
 #define VP(PropertyName, StringValue) V(Private, PropertyName)
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
+#define VR(PropertyName, TypeName) V(Private, per_realm_##PropertyName)
 #define V(TypeName, PropertyName)                                              \
-  indexes.push_back(creator->AddData(PropertyName##_.Get(isolate)));
+  info.primitive_values.push_back(                                             \
+      creator->AddData(PropertyName##_.Get(isolate)));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_REALM_STRONG_PERSISTENT_VALUES(VR)
 #undef V
+#undef VR
 #undef VY
 #undef VS
 #undef VP
-  for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
-    indexes.push_back(creator->AddData(async_wrap_provider(i)));
 
-  return indexes;
+  for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
+    info.primitive_values.push_back(creator->AddData(async_wrap_provider(i)));
+
+  uint32_t id = 0;
+#define VM(PropertyName) V(PropertyName##_binding_template, ObjectTemplate)
+#define V(PropertyName, TypeName)                                              \
+  do {                                                                         \
+    Local<TypeName> field = PropertyName();                                    \
+    if (!field.IsEmpty()) {                                                    \
+      size_t index = creator->AddData(field);                                  \
+      info.template_values.push_back({#PropertyName, id, index});              \
+    }                                                                          \
+    id++;                                                                      \
+  } while (0);
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+  NODE_BINDINGS_WITH_PER_ISOLATE_INIT(VM)
+#undef V
+
+  return info;
 }
 
-void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
+void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   size_t i = 0;
   HandleScope handle_scope(isolate_);
+
+  if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
+    fprintf(stderr, "deserializing IsolateDataSerializeInfo...\n");
+    std::cerr << *info << "\n";
+  }
 
 #define VP(PropertyName, StringValue) V(Private, PropertyName)
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
+#define VR(PropertyName, TypeName) V(Private, per_realm_##PropertyName)
 #define V(TypeName, PropertyName)                                              \
   do {                                                                         \
     MaybeLocal<TypeName> maybe_field =                                         \
-        isolate_->GetDataFromSnapshotOnce<TypeName>((*indexes)[i++]);          \
+        isolate_->GetDataFromSnapshotOnce<TypeName>(                           \
+            info->primitive_values[i++]);                                      \
     Local<TypeName> field;                                                     \
     if (!maybe_field.ToLocal(&field)) {                                        \
       fprintf(stderr, "Failed to deserialize " #PropertyName "\n");            \
@@ -109,20 +374,49 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_REALM_STRONG_PERSISTENT_VALUES(VR)
 #undef V
+#undef VR
 #undef VY
 #undef VS
 #undef VP
 
   for (size_t j = 0; j < AsyncWrap::PROVIDERS_LENGTH; j++) {
     MaybeLocal<String> maybe_field =
-        isolate_->GetDataFromSnapshotOnce<String>((*indexes)[i++]);
+        isolate_->GetDataFromSnapshotOnce<String>(info->primitive_values[i++]);
     Local<String> field;
     if (!maybe_field.ToLocal(&field)) {
       fprintf(stderr, "Failed to deserialize AsyncWrap provider %zu\n", j);
     }
     async_wrap_providers_[j].Set(isolate_, field);
   }
+
+  const std::vector<PropInfo>& values = info->template_values;
+  i = 0;  // index to the array
+  uint32_t id = 0;
+#define VM(PropertyName) V(PropertyName##_binding_template, ObjectTemplate)
+#define V(PropertyName, TypeName)                                              \
+  do {                                                                         \
+    if (values.size() > i && id == values[i].id) {                             \
+      const PropInfo& d = values[i];                                           \
+      DCHECK_EQ(d.name, #PropertyName);                                        \
+      MaybeLocal<TypeName> maybe_field =                                       \
+          isolate_->GetDataFromSnapshotOnce<TypeName>(d.index);                \
+      Local<TypeName> field;                                                   \
+      if (!maybe_field.ToLocal(&field)) {                                      \
+        fprintf(stderr,                                                        \
+                "Failed to deserialize isolate data template " #PropertyName   \
+                "\n");                                                         \
+      }                                                                        \
+      set_##PropertyName(field);                                               \
+      i++;                                                                     \
+    }                                                                          \
+    id++;                                                                      \
+  } while (0);
+
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V);
+  NODE_BINDINGS_WITH_PER_ISOLATE_INIT(VM);
+#undef V
 }
 
 void IsolateData::CreateProperties() {
@@ -150,6 +444,19 @@ void IsolateData::CreateProperties() {
                        sizeof(StringValue) - 1)                                \
                        .ToLocalChecked()));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+#define V(PropertyName, TypeName)                                              \
+  per_realm_##PropertyName##_.Set(                                             \
+      isolate_,                                                                \
+      Private::New(                                                            \
+          isolate_,                                                            \
+          String::NewFromOneByte(                                              \
+              isolate_,                                                        \
+              reinterpret_cast<const uint8_t*>("per_realm_" #PropertyName),    \
+              NewStringType::kInternalized,                                    \
+              sizeof("per_realm_" #PropertyName) - 1)                          \
+              .ToLocalChecked()));
+  PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 #define V(PropertyName, StringValue)                                           \
   PropertyName##_.Set(                                                         \
@@ -187,26 +494,102 @@ void IsolateData::CreateProperties() {
         sizeof(#Provider) - 1).ToLocalChecked());
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate());
+  templ->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  set_binding_data_default_template(templ);
+  binding::CreateInternalBindingTemplates(this);
+
+  contextify::ContextifyContext::InitializeGlobalTemplates(this);
 }
+
+constexpr uint16_t kDefaultCppGCEmebdderID = 0x90de;
+Mutex IsolateData::isolate_data_mutex_;
+std::unordered_map<uint16_t, std::unique_ptr<PerIsolateWrapperData>>
+    IsolateData::wrapper_data_map_;
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
                          ArrayBufferAllocator* node_allocator,
-                         const std::vector<size_t>* indexes)
+                         const SnapshotData* snapshot_data)
     : isolate_(isolate),
       event_loop_(event_loop),
       node_allocator_(node_allocator == nullptr ? nullptr
                                                 : node_allocator->GetImpl()),
-      platform_(platform) {
+      platform_(platform),
+      snapshot_data_(snapshot_data) {
   options_.reset(
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
+  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
 
-  if (indexes == nullptr) {
+  uint16_t cppgc_id = kDefaultCppGCEmebdderID;
+  if (cpp_heap != nullptr) {
+    // The general convention of the wrappable layout for cppgc in the
+    // ecosystem is:
+    // [  0  ] -> embedder id
+    // [  1  ] -> wrappable instance
+    // If the Isolate includes a CppHeap attached by another embedder,
+    // And if they also use the field 0 for the ID, we DCHECK that
+    // the layout matches our layout, and record the embedder ID for cppgc
+    // to avoid accidentally enabling cppgc on non-cppgc-managed wrappers .
+    v8::WrapperDescriptor descriptor = cpp_heap->wrapper_descriptor();
+    if (descriptor.wrappable_type_index == BaseObject::kEmbedderType) {
+      cppgc_id = descriptor.embedder_id_for_garbage_collected;
+      DCHECK_EQ(descriptor.wrappable_instance_index, BaseObject::kSlot);
+    }
+    // If the CppHeap uses the slot we use to put non-cppgc-traced BaseObject
+    // for embedder ID, V8 could accidentally enable cppgc on them. So
+    // safe guard against this.
+    DCHECK_NE(descriptor.wrappable_type_index, BaseObject::kSlot);
+  } else {
+    cpp_heap_ = CppHeap::Create(
+        platform,
+        CppHeapCreateParams{
+            {},
+            WrapperDescriptor(
+                BaseObject::kEmbedderType, BaseObject::kSlot, cppgc_id)});
+    isolate->AttachCppHeap(cpp_heap_.get());
+  }
+  // We do not care about overflow since we just want this to be different
+  // from the cppgc id.
+  uint16_t non_cppgc_id = cppgc_id + 1;
+
+  {
+    // GC could still be run after the IsolateData is destroyed, so we store
+    // the ids in a static map to ensure pointers to them are still valid
+    // then. In practice there should be very few variants of the cppgc id
+    // in one process so the size of this map should be very small.
+    node::Mutex::ScopedLock lock(isolate_data_mutex_);
+    auto it = wrapper_data_map_.find(cppgc_id);
+    if (it == wrapper_data_map_.end()) {
+      auto pair = wrapper_data_map_.emplace(
+          cppgc_id, new PerIsolateWrapperData{cppgc_id, non_cppgc_id});
+      it = pair.first;
+    }
+    wrapper_data_ = it->second.get();
+  }
+
+  if (snapshot_data == nullptr) {
     CreateProperties();
   } else {
-    DeserializeProperties(indexes);
+    DeserializeProperties(&snapshot_data->isolate_data_info);
   }
+}
+
+IsolateData::~IsolateData() {
+  if (cpp_heap_ != nullptr) {
+    // The CppHeap must be detached before being terminated.
+    isolate_->DetachCppHeap();
+    cpp_heap_->Terminate();
+  }
+}
+
+// Public API
+void SetCppgcReference(Isolate* isolate,
+                       Local<Object> object,
+                       void* wrappable) {
+  IsolateData::SetCppgcReference(isolate, object, wrappable);
 }
 
 void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
@@ -239,6 +622,10 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
     return;
   }
 
+  if (env_->principal_realm() == nullptr) {
+    return;
+  }
+
   bool async_hooks_enabled = (*(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
                                  TRACING_CATEGORY_NODE1(async_hooks)))) != 0;
 
@@ -253,63 +640,102 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   USE(cb->Call(env_->context(), Undefined(isolate), arraysize(args), args));
 }
 
-void Environment::CreateProperties() {
-  HandleScope handle_scope(isolate_);
-  Local<Context> ctx = context();
+void Environment::AssignToContext(Local<v8::Context> context,
+                                  Realm* realm,
+                                  const ContextInfo& info) {
+  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+                                           this);
+  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, realm);
 
-  {
-    Context::Scope context_scope(ctx);
-    Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
-    templ->InstanceTemplate()->SetInternalFieldCount(
-        BaseObject::kInternalFieldCount);
-    templ->Inherit(BaseObject::GetConstructorTemplate(this));
+  // ContextifyContexts will update this to a pointer to the native object.
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kContextifyContext, nullptr);
 
-    set_binding_data_ctor_template(templ);
-  }
+  // This must not be done before other context fields are initialized.
+  ContextEmbedderTag::TagNodeContext(context);
 
-  // Store primordials setup by the per-context script in the environment.
-  Local<Object> per_context_bindings =
-      GetPerContextExports(ctx).ToLocalChecked();
-  Local<Value> primordials =
-      per_context_bindings->Get(ctx, primordials_string()).ToLocalChecked();
-  CHECK(primordials->IsObject());
-  set_primordials(primordials.As<Object>());
+#if HAVE_INSPECTOR
+  inspector_agent()->ContextCreated(context, info);
+#endif  // HAVE_INSPECTOR
 
-  Local<String> prototype_string =
-      FIXED_ONE_BYTE_STRING(isolate(), "prototype");
-
-#define V(EnvPropertyName, PrimordialsPropertyName)                            \
-  {                                                                            \
-    Local<Value> ctor =                                                        \
-        primordials.As<Object>()                                               \
-            ->Get(ctx,                                                         \
-                  FIXED_ONE_BYTE_STRING(isolate(), PrimordialsPropertyName))   \
-            .ToLocalChecked();                                                 \
-    CHECK(ctor->IsObject());                                                   \
-    Local<Value> prototype =                                                   \
-        ctor.As<Object>()->Get(ctx, prototype_string).ToLocalChecked();        \
-    CHECK(prototype->IsObject());                                              \
-    set_##EnvPropertyName(prototype.As<Object>());                             \
-  }
-
-  V(primordials_safe_map_prototype_object, "SafeMap");
-  V(primordials_safe_set_prototype_object, "SafeSet");
-  V(primordials_safe_weak_map_prototype_object, "SafeWeakMap");
-  V(primordials_safe_weak_set_prototype_object, "SafeWeakSet");
-#undef V
-
-  Local<Object> process_object =
-      node::CreateProcessObject(this).FromMaybe(Local<Object>());
-  set_process_object(process_object);
+  this->async_hooks()->InstallPromiseHooks(context);
+  TrackContext(context);
 }
 
-std::string GetExecPath(const std::vector<std::string>& argv) {
+void Environment::UnassignFromContext(Local<v8::Context> context) {
+  if (!context.IsEmpty()) {
+    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+                                             nullptr);
+    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm,
+                                             nullptr);
+    context->SetAlignedPointerInEmbedderData(
+        ContextEmbedderIndex::kContextifyContext, nullptr);
+  }
+  UntrackContext(context);
+}
+
+void Environment::TryLoadAddon(
+    const char* filename,
+    int flags,
+    const std::function<bool(binding::DLib*)>& was_loaded) {
+  loaded_addons_.emplace_back(filename, flags);
+  if (!was_loaded(&loaded_addons_.back())) {
+    loaded_addons_.pop_back();
+  }
+}
+
+std::string Environment::GetCwd(const std::string& exec_path) {
+  char cwd[PATH_MAX_BYTES];
+  size_t size = PATH_MAX_BYTES;
+  const int err = uv_cwd(cwd, &size);
+
+  if (err == 0) {
+    CHECK_GT(size, 0);
+    return cwd;
+  }
+
+  // This can fail if the cwd is deleted. In that case, fall back to
+  // exec_path.
+  return exec_path.substr(0, exec_path.find_last_of(kPathSeparator));
+}
+
+void Environment::add_refs(int64_t diff) {
+  task_queues_async_refs_ += diff;
+  CHECK_GE(task_queues_async_refs_, 0);
+  if (task_queues_async_refs_ == 0)
+    uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+  else
+    uv_ref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+}
+
+uv_buf_t Environment::allocate_managed_buffer(const size_t suggested_size) {
+  NoArrayBufferZeroFillScope no_zero_fill_scope(isolate_data());
+  std::unique_ptr<v8::BackingStore> bs =
+      v8::ArrayBuffer::NewBackingStore(isolate(), suggested_size);
+  uv_buf_t buf = uv_buf_init(static_cast<char*>(bs->Data()), bs->ByteLength());
+  released_allocated_buffers_.emplace(buf.base, std::move(bs));
+  return buf;
+}
+
+std::unique_ptr<v8::BackingStore> Environment::release_managed_buffer(
+    const uv_buf_t& buf) {
+  std::unique_ptr<v8::BackingStore> bs;
+  if (buf.base != nullptr) {
+    auto it = released_allocated_buffers_.find(buf.base);
+    CHECK_NE(it, released_allocated_buffers_.end());
+    bs = std::move(it->second);
+    released_allocated_buffers_.erase(it);
+  }
+  return bs;
+}
+
+std::string Environment::GetExecPath(const std::vector<std::string>& argv) {
   char exec_path_buf[2 * PATH_MAX];
   size_t exec_path_len = sizeof(exec_path_buf);
   std::string exec_path;
   if (uv_exepath(exec_path_buf, &exec_path_len) == 0) {
     exec_path = std::string(exec_path_buf, exec_path_len);
-  } else {
+  } else if (argv.size() > 0) {
     exec_path = argv[0];
   }
 
@@ -340,11 +766,14 @@ Environment::Environment(IsolateData* isolate_data,
       isolate_data_(isolate_data),
       async_hooks_(isolate, MAYBE_FIELD_PTR(env_info, async_hooks)),
       immediate_info_(isolate, MAYBE_FIELD_PTR(env_info, immediate_info)),
+      timeout_info_(isolate_, 1, MAYBE_FIELD_PTR(env_info, timeout_info)),
       tick_info_(isolate, MAYBE_FIELD_PTR(env_info, tick_info)),
       timer_base_(uv_now(isolate_data->event_loop())),
       exec_argv_(exec_args),
       argv_(args),
-      exec_path_(GetExecPath(args)),
+      exec_path_(Environment::GetExecPath(args)),
+      exit_info_(
+          isolate_, kExitInfoFieldCount, MAYBE_FIELD_PTR(env_info, exit_info)),
       should_abort_on_uncaught_toggle_(
           isolate_,
           1,
@@ -352,11 +781,31 @@ Environment::Environment(IsolateData* isolate_data,
       stream_base_state_(isolate_,
                          StreamBase::kNumStreamBaseStateFields,
                          MAYBE_FIELD_PTR(env_info, stream_base_state)),
-      environment_start_time_(PERFORMANCE_NOW()),
+      time_origin_(performance::performance_process_start),
+      time_origin_timestamp_(performance::performance_process_start_timestamp),
+      environment_start_(PERFORMANCE_NOW()),
       flags_(flags),
       thread_id_(thread_id.id == static_cast<uint64_t>(-1)
                      ? AllocateEnvironmentThreadId().id
                      : thread_id.id) {
+  constexpr bool is_shared_ro_heap =
+#ifdef NODE_V8_SHARED_RO_HEAP
+      true;
+#else
+      false;
+#endif
+  if (is_shared_ro_heap && !is_main_thread()) {
+    // If this is a Worker thread and we are in shared-readonly-heap mode,
+    // we can always safely use the parent's Isolate's code cache.
+    CHECK_NOT_NULL(isolate_data->worker_context());
+    builtin_loader()->CopySourceAndCodeCacheReferenceFrom(
+        isolate_data->worker_context()->env()->builtin_loader());
+  } else if (isolate_data->snapshot_data() != nullptr) {
+    // ... otherwise, if a snapshot was provided, use its code cache.
+    builtin_loader()->RefreshCodeCache(
+        isolate_data->snapshot_data()->code_cache);
+  }
+
   // We'll be creating new objects so make sure we've entered the context.
   HandleScope handle_scope(isolate);
 
@@ -369,10 +818,7 @@ Environment::Environment(IsolateData* isolate_data,
   }
 
   set_env_vars(per_process::system_environment);
-  // TODO(joyeecheung): pass Isolate* and env_vars to it instead of the entire
-  // env, when the recursive dependency inclusion in "debug-utils.h" is
-  // resolved.
-  enabled_debug_list_.Parse(this);
+  enabled_debug_list_.Parse(env_vars(), isolate);
 
   // We create new copies of the per-Environment option sets, so that it is
   // easier to modify them after Environment creation. The defaults are
@@ -382,6 +828,9 @@ Environment::Environment(IsolateData* isolate_data,
       *isolate_data->options()->per_env);
   inspector_host_port_ = std::make_shared<ExclusiveAccess<HostPort>>(
       options_->debug_options().host_port);
+
+  heap_snapshot_near_heap_limit_ =
+      static_cast<uint32_t>(options_->heap_snapshot_near_heap_limit);
 
   if (!(flags_ & EnvironmentFlags::kOwnsProcessState)) {
     set_abort_on_uncaught_exception(false);
@@ -401,7 +850,7 @@ Environment::Environment(IsolateData* isolate_data,
   destroy_async_id_list_.reserve(512);
 
   performance_state_ = std::make_unique<performance::PerformanceState>(
-      isolate, MAYBE_FIELD_PTR(env_info, performance_state));
+      isolate, time_origin_, MAYBE_FIELD_PTR(env_info, performance_state));
 
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(environment)) != 0) {
@@ -418,51 +867,67 @@ Environment::Environment(IsolateData* isolate_data,
                                       "args",
                                       std::move(traced_value));
   }
-}
 
-Environment::Environment(IsolateData* isolate_data,
-                         Local<Context> context,
-                         const std::vector<std::string>& args,
-                         const std::vector<std::string>& exec_args,
-                         const EnvSerializeInfo* env_info,
-                         EnvironmentFlags::Flags flags,
-                         ThreadId thread_id)
-    : Environment(isolate_data,
-                  context->GetIsolate(),
-                  args,
-                  exec_args,
-                  env_info,
-                  flags,
-                  thread_id) {
-  InitializeMainContext(context, env_info);
+  if (options_->experimental_permission) {
+    permission()->EnablePermissions();
+    // The process shouldn't be able to neither
+    // spawn/worker nor use addons or enable inspector
+    // unless explicitly allowed by the user
+    options_->allow_native_addons = false;
+    flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
+    permission()->Apply({"*"}, permission::PermissionScope::kInspector);
+    if (!options_->allow_child_process) {
+      permission()->Apply({"*"}, permission::PermissionScope::kChildProcess);
+    }
+    if (!options_->allow_worker_threads) {
+      permission()->Apply({"*"}, permission::PermissionScope::kWorkerThreads);
+    }
+
+    if (!options_->allow_fs_read.empty()) {
+      permission()->Apply(options_->allow_fs_read,
+                          permission::PermissionScope::kFileSystemRead);
+    }
+
+    if (!options_->allow_fs_write.empty()) {
+      permission()->Apply(options_->allow_fs_write,
+                          permission::PermissionScope::kFileSystemWrite);
+    }
+  }
 }
 
 void Environment::InitializeMainContext(Local<Context> context,
                                         const EnvSerializeInfo* env_info) {
-  context_.Reset(context->GetIsolate(), context);
-  AssignToContext(context, ContextInfo(""));
+  principal_realm_ = std::make_unique<PrincipalRealm>(
+      this, context, MAYBE_FIELD_PTR(env_info, principal_realm));
   if (env_info != nullptr) {
     DeserializeProperties(env_info);
-  } else {
-    CreateProperties();
   }
 
-  if (options_->no_force_async_hooks_checks) {
+  if (!options_->force_async_hooks_checks) {
     async_hooks_.no_force_checks();
   }
 
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
 
+  // The process is not exiting by default.
+  set_exiting(false);
+
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT,
-                           environment_start_time_);
+                           environment_start_);
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
                            per_process::node_start_time);
-  performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_V8_START,
-                           performance::performance_v8_start);
+
+  if (per_process::v8_initialized) {
+    performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_V8_START,
+                            performance::performance_v8_start);
+  }
 }
 
 Environment::~Environment() {
+  HandleScope handle_scope(isolate());
+  Local<Context> ctx = context();
+
   if (Environment** interrupt_data = interrupt_data_.load()) {
     // There are pending RequestInterrupt() callbacks. Tell them not to run,
     // then force V8 to run interrupts by compiling and running an empty script
@@ -470,9 +935,8 @@ Environment::~Environment() {
     *interrupt_data = nullptr;
 
     Isolate::AllowJavascriptExecutionScope allow_js_here(isolate());
-    HandleScope handle_scope(isolate());
     TryCatch try_catch(isolate());
-    Context::Scope context_scope(context());
+    Context::Scope context_scope(ctx);
 
 #ifdef DEBUG
     bool consistency_check = false;
@@ -482,8 +946,8 @@ Environment::~Environment() {
 #endif
 
     Local<Script> script;
-    if (Script::Compile(context(), String::Empty(isolate())).ToLocal(&script))
-      USE(script->Run(context()));
+    if (Script::Compile(ctx, String::Empty(isolate())).ToLocal(&script))
+      USE(script->Run(ctx));
 
     DCHECK(consistency_check);
   }
@@ -491,15 +955,12 @@ Environment::~Environment() {
   // FreeEnvironment() should have set this.
   CHECK(is_stopping());
 
-  if (options_->heap_snapshot_near_heap_limit > heap_limit_snapshot_taken_) {
-    isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
-                                          0);
+  if (heapsnapshot_near_heap_limit_callback_added_) {
+    RemoveHeapSnapshotNearHeapLimitCallback(0);
   }
 
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
-
-  HandleScope handle_scope(isolate());
 
 #if HAVE_INSPECTOR
   // Destroy inspector agent before erasing the context. The inspector
@@ -507,8 +968,9 @@ Environment::~Environment() {
   inspector_agent_.reset();
 #endif
 
-  context()->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
-                                             nullptr);
+  // Sub-realms should have been cleared with Environment's cleanup.
+  DCHECK_EQ(shadow_realms_.size(), 0);
+  principal_realm_.reset();
 
   if (trace_state_observer_) {
     tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
@@ -531,8 +993,6 @@ Environment::~Environment() {
       addon.Close();
     }
   }
-
-  CHECK_EQ(base_object_count_, 0);
 }
 
 void Environment::InitializeLibuv() {
@@ -542,21 +1002,21 @@ void Environment::InitializeLibuv() {
   CHECK_EQ(0, uv_timer_init(event_loop(), timer_handle()));
   uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
 
-  uv_check_init(event_loop(), immediate_check_handle());
+  CHECK_EQ(0, uv_check_init(event_loop(), immediate_check_handle()));
   uv_unref(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
 
-  uv_idle_init(event_loop(), immediate_idle_handle());
+  CHECK_EQ(0, uv_idle_init(event_loop(), immediate_idle_handle()));
 
-  uv_check_start(immediate_check_handle(), CheckImmediate);
+  CHECK_EQ(0, uv_check_start(immediate_check_handle(), CheckImmediate));
 
   // Inform V8's CPU profiler when we're idle.  The profiler is sampling-based
   // but not all samples are created equal; mark the wall clock time spent in
   // epoll_wait() and friends so profiling tools can filter it out.  The samples
   // still end up in v8.log but with state=IDLE rather than state=EXTERNAL.
-  uv_prepare_init(event_loop(), &idle_prepare_handle_);
-  uv_check_init(event_loop(), &idle_check_handle_);
+  CHECK_EQ(0, uv_prepare_init(event_loop(), &idle_prepare_handle_));
+  CHECK_EQ(0, uv_check_init(event_loop(), &idle_check_handle_));
 
-  uv_async_init(
+  CHECK_EQ(0, uv_async_init(
       event_loop(),
       &task_queues_async_,
       [](uv_async_t* async) {
@@ -565,7 +1025,7 @@ void Environment::InitializeLibuv() {
         HandleScope handle_scope(env->isolate());
         Context::Scope context_scope(env->context());
         env->RunAndClearNativeImmediates();
-      });
+      }));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
@@ -588,11 +1048,15 @@ void Environment::InitializeLibuv() {
   StartProfilerIdleNotifier();
 }
 
-void Environment::ExitEnv() {
-  set_can_call_into_js(false);
+void Environment::ExitEnv(StopFlags::Flags flags) {
+  // Should not access non-thread-safe methods here.
   set_stopping(true);
-  isolate_->TerminateExecution();
-  SetImmediateThreadsafe([](Environment* env) { uv_stop(env->event_loop()); });
+  if ((flags & StopFlags::kDoNotTerminateIsolate) == 0)
+    isolate_->TerminateExecution();
+  SetImmediateThreadsafe([](Environment* env) {
+    env->set_can_call_into_js(false);
+    uv_stop(env->event_loop());
+  });
 }
 
 void Environment::RegisterHandleCleanups() {
@@ -669,40 +1133,40 @@ void Environment::PrintSyncTrace() const {
                       isolate(), stack_trace_limit(), StackTrace::kDetailed));
 }
 
+MaybeLocal<Value> Environment::RunSnapshotSerializeCallback() const {
+  EscapableHandleScope handle_scope(isolate());
+  if (!snapshot_serialize_callback().IsEmpty()) {
+    Context::Scope context_scope(context());
+    return handle_scope.EscapeMaybe(snapshot_serialize_callback()->Call(
+        context(), v8::Undefined(isolate()), 0, nullptr));
+  }
+  return handle_scope.Escape(Undefined(isolate()));
+}
+
+MaybeLocal<Value> Environment::RunSnapshotDeserializeMain() const {
+  EscapableHandleScope handle_scope(isolate());
+  if (!snapshot_deserialize_main().IsEmpty()) {
+    Context::Scope context_scope(context());
+    return handle_scope.EscapeMaybe(snapshot_deserialize_main()->Call(
+        context(), v8::Undefined(isolate()), 0, nullptr));
+  }
+  return handle_scope.Escape(Undefined(isolate()));
+}
+
 void Environment::RunCleanup() {
   started_cleanup_ = true;
-  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
-                              "RunCleanup", this);
-  bindings_.clear();
+  TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "RunCleanup");
+  // Only BaseObject's cleanups are registered as per-realm cleanup hooks now.
+  // Defer the BaseObject cleanup after handles are cleaned up.
   CleanupHandles();
 
-  while (!cleanup_hooks_.empty() ||
+  while (!cleanup_queue_.empty() || principal_realm_->HasCleanupHooks() ||
          native_immediates_.size() > 0 ||
          native_immediates_threadsafe_.size() > 0 ||
          native_immediates_interrupts_.size() > 0) {
-    // Copy into a vector, since we can't sort an unordered_set in-place.
-    std::vector<CleanupHookCallback> callbacks(
-        cleanup_hooks_.begin(), cleanup_hooks_.end());
-    // We can't erase the copied elements from `cleanup_hooks_` yet, because we
-    // need to be able to check whether they were un-scheduled by another hook.
-
-    std::sort(callbacks.begin(), callbacks.end(),
-              [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
-      // Sort in descending order so that the most recently inserted callbacks
-      // are run first.
-      return a.insertion_order_counter_ > b.insertion_order_counter_;
-    });
-
-    for (const CleanupHookCallback& cb : callbacks) {
-      if (cleanup_hooks_.count(cb) == 0) {
-        // This hook was removed from the `cleanup_hooks_` set during another
-        // hook that was run earlier. Nothing to do here.
-        continue;
-      }
-
-      cb.fn_(cb.arg_);
-      cleanup_hooks_.erase(cb);
-    }
+    // TODO(legendecas): cleanup handles in per-realm cleanup hooks as well.
+    principal_realm_->RunCleanup();
+    cleanup_queue_.Drain();
     CleanupHandles();
   }
 
@@ -714,8 +1178,7 @@ void Environment::RunCleanup() {
 }
 
 void Environment::RunAtExitCallbacks() {
-  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
-                              "AtExit", this);
+  TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "AtExit");
   for (ExitCallback at_exit : at_exit_functions_) {
     at_exit.cb_(at_exit.arg_);
   }
@@ -741,10 +1204,16 @@ void Environment::RunAndClearInterrupts() {
 }
 
 void Environment::RunAndClearNativeImmediates(bool only_refed) {
-  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
-                              "RunAndClearNativeImmediates", this);
+  TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment),
+               "RunAndClearNativeImmediates");
   HandleScope handle_scope(isolate_);
-  InternalCallbackScope cb_scope(this, Object::New(isolate_), { 0, 0 });
+  // In case the Isolate is no longer accessible just use an empty Local. This
+  // is not an issue for InternalCallbackScope as this case is already handled
+  // in its constructor but we avoid calls into v8 which can crash the process
+  // in debug builds.
+  Local<Object> obj =
+      can_call_into_js() ? Object::New(isolate_) : Local<Object>();
+  InternalCallbackScope cb_scope(this, obj, {0, 0});
 
   size_t ref_count = 0;
 
@@ -846,8 +1315,7 @@ void Environment::ToggleTimerRef(bool ref) {
 
 void Environment::RunTimers(uv_timer_t* handle) {
   Environment* env = Environment::from_timer_handle(handle);
-  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
-                              "RunTimers", env);
+  TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "RunTimers");
 
   if (!env->can_call_into_js())
     return;
@@ -908,8 +1376,7 @@ void Environment::RunTimers(uv_timer_t* handle) {
 
 void Environment::CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
-  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
-                              "CheckImmediate", env);
+  TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "CheckImmediate");
 
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -943,12 +1410,16 @@ void Environment::ToggleImmediateRef(bool ref) {
   }
 }
 
-
-Local<Value> Environment::GetNow() {
+uint64_t Environment::GetNowUint64() {
   uv_update_time(event_loop());
   uint64_t now = uv_now(event_loop());
   CHECK_GE(now, timer_base());
   now -= timer_base();
+  return now;
+}
+
+Local<Value> Environment::GetNow() {
+  uint64_t now = GetNowUint64();
   if (now <= 0xffffffff)
     return Integer::NewFromUnsigned(isolate(), static_cast<uint32_t>(now));
   else
@@ -1093,32 +1564,31 @@ void AsyncHooks::Deserialize(Local<Context> context) {
   async_ids_stack_.Deserialize(context);
   fields_.Deserialize(context);
   async_id_fields_.Deserialize(context);
-  if (info_->js_execution_async_resources != 0) {
-    Local<Array> arr = context->GetDataFromSnapshotOnce<Array>(
-                                  info_->js_execution_async_resources)
-                              .ToLocalChecked();
-    js_execution_async_resources_.Reset(context->GetIsolate(), arr);
-  }
 
-  native_execution_async_resources_.resize(
-      info_->native_execution_async_resources.size());
+  Local<Array> js_execution_async_resources;
+  if (info_->js_execution_async_resources != 0) {
+    js_execution_async_resources =
+        context->GetDataFromSnapshotOnce<Array>(
+            info_->js_execution_async_resources).ToLocalChecked();
+  } else {
+    js_execution_async_resources = Array::New(context->GetIsolate());
+  }
+  js_execution_async_resources_.Reset(
+      context->GetIsolate(), js_execution_async_resources);
+
+  // The native_execution_async_resources_ field requires v8::Local<> instances
+  // for async calls whose resources were on the stack as JS objects when they
+  // were entered. We cannot recreate this here; however, storing these values
+  // on the JS equivalent gives the same result, so we do that instead.
   for (size_t i = 0; i < info_->native_execution_async_resources.size(); ++i) {
+    if (info_->native_execution_async_resources[i] == SIZE_MAX)
+      continue;
     Local<Object> obj = context->GetDataFromSnapshotOnce<Object>(
                                    info_->native_execution_async_resources[i])
                                .ToLocalChecked();
-    native_execution_async_resources_[i].Reset(context->GetIsolate(), obj);
+    js_execution_async_resources->Set(context, i, obj).Check();
   }
   info_ = nullptr;
-}
-
-std::ostream& operator<<(std::ostream& output,
-                         const std::vector<SnapshotIndex>& v) {
-  output << "{ ";
-  for (const SnapshotIndex i : v) {
-    output << i << ", ";
-  }
-  output << " }";
-  return output;
 }
 
 std::ostream& operator<<(std::ostream& output,
@@ -1138,6 +1608,7 @@ std::ostream& operator<<(std::ostream& output,
 AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
                                                 SnapshotCreator* creator) {
   SerializeInfo info;
+  // TODO(joyeecheung): some of these probably don't need to be serialized.
   info.async_ids_stack = async_ids_stack_.Serialize(context, creator);
   info.fields = fields_.Serialize(context, creator);
   info.async_id_fields = async_id_fields_.Serialize(context, creator);
@@ -1152,12 +1623,15 @@ AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
   info.native_execution_async_resources.resize(
       native_execution_async_resources_.size());
   for (size_t i = 0; i < native_execution_async_resources_.size(); i++) {
-    info.native_execution_async_resources[i] = creator->AddData(
-        context,
-        native_execution_async_resources_[i].Get(context->GetIsolate()));
+    info.native_execution_async_resources[i] =
+        native_execution_async_resources_[i].IsEmpty() ? SIZE_MAX :
+            creator->AddData(
+                context,
+                native_execution_async_resources_[i]);
   }
-  CHECK_EQ(contexts_.size(), 1);
-  CHECK_EQ(contexts_[0], env()->context());
+
+  // At the moment, promise hooks are not supported in the startup snapshot.
+  // TODO(joyeecheung): support promise hooks in the startup snapshot.
   CHECK(js_promise_hooks_[0].IsEmpty());
   CHECK(js_promise_hooks_[1].IsEmpty());
   CHECK(js_promise_hooks_[2].IsEmpty());
@@ -1182,7 +1656,22 @@ void AsyncHooks::grow_async_ids_stack() {
       async_ids_stack_.GetJSArray()).Check();
 }
 
-void Environment::Exit(int exit_code) {
+void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {
+  fprintf(stderr,
+          "Error: async hook stack has become corrupted ("
+          "actual: %.f, expected: %.f)\n",
+          async_id_fields_.GetValue(kExecutionAsyncId),
+          expected_async_id);
+  DumpBacktrace(stderr);
+  fflush(stderr);
+  // TODO(joyeecheung): should this exit code be more specific?
+  if (!env()->abort_on_uncaught_exception()) Exit(ExitCode::kGenericUserError);
+  fprintf(stderr, "\n");
+  fflush(stderr);
+  ABORT_NO_BACKTRACE();
+}
+
+void Environment::Exit(ExitCode exit_code) {
   if (options()->trace_exit) {
     HandleScope handle_scope(isolate());
     Isolate::DisallowJavascriptExecutionScope disallow_js(
@@ -1195,8 +1684,9 @@ void Environment::Exit(int exit_code) {
               uv_os_getpid(), thread_id());
     }
 
-    fprintf(
-        stderr, "WARNING: Exited the environment with code %d\n", exit_code);
+    fprintf(stderr,
+            "WARNING: Exited the environment with code %d\n",
+            static_cast<int>(exit_code));
     PrintStackTrace(isolate(),
                     StackTrace::CurrentStackTrace(
                         isolate(), stack_trace_limit(), StackTrace::kDetailed));
@@ -1210,7 +1700,7 @@ void Environment::stop_sub_worker_contexts() {
   while (!sub_worker_contexts_.empty()) {
     Worker* w = *sub_worker_contexts_.begin();
     remove_sub_worker_context(w);
-    w->Exit(1);
+    w->Exit(ExitCode::kGenericUserError);
     w->JoinThread();
   }
 }
@@ -1240,165 +1730,38 @@ void Environment::RemoveUnmanagedFd(int fd) {
 
 void Environment::PrintInfoForSnapshotIfDebug() {
   if (enabled_debug_list()->enabled(DebugCategory::MKSNAPSHOT)) {
-    fprintf(stderr, "BaseObjects at the exit of the Environment:\n");
-    PrintAllBaseObjects();
-    fprintf(stderr, "\nNative modules without cache:\n");
-    for (const auto& s : native_modules_without_cache) {
-      fprintf(stderr, "%s\n", s.c_str());
-    }
-    fprintf(stderr, "\nNative modules with cache:\n");
-    for (const auto& s : native_modules_with_cache) {
-      fprintf(stderr, "%s\n", s.c_str());
-    }
-    fprintf(stderr, "\nStatic bindings (need to be registered):\n");
-    for (const auto mod : internal_bindings) {
-      fprintf(stderr, "%s:%s\n", mod->nm_filename, mod->nm_modname);
-    }
+    fprintf(stderr, "At the exit of the Environment:\n");
+    principal_realm()->PrintInfoForSnapshot();
   }
-}
-
-void Environment::PrintAllBaseObjects() {
-  size_t i = 0;
-  std::cout << "BaseObjects\n";
-  ForEachBaseObject([&](BaseObject* obj) {
-    std::cout << "#" << i++ << " " << obj << ": " <<
-      obj->MemoryInfoName() << "\n";
-  });
-}
-
-void Environment::VerifyNoStrongBaseObjects() {
-  // When a process exits cleanly, i.e. because the event loop ends up without
-  // things to wait for, the Node.js objects that are left on the heap should
-  // be:
-  //
-  //   1. weak, i.e. ready for garbage collection once no longer referenced, or
-  //   2. detached, i.e. scheduled for destruction once no longer referenced, or
-  //   3. an unrefed libuv handle, i.e. does not keep the event loop alive, or
-  //   4. an inactive libuv handle (essentially the same here)
-  //
-  // There are a few exceptions to this rule, but generally, if there are
-  // C++-backed Node.js objects on the heap that do not fall into the above
-  // categories, we may be looking at a potential memory leak. Most likely,
-  // the cause is a missing MakeWeak() call on the corresponding object.
-  //
-  // In order to avoid this kind of problem, we check the list of BaseObjects
-  // for these criteria. Currently, we only do so when explicitly instructed to
-  // or when in debug mode (where --verify-base-objects is always-on).
-
-  if (!options()->verify_base_objects) return;
-
-  ForEachBaseObject([](BaseObject* obj) {
-    if (obj->IsNotIndicativeOfMemoryLeakAtExit()) return;
-    fprintf(stderr, "Found bad BaseObject during clean exit: %s\n",
-            obj->MemoryInfoName().c_str());
-    fflush(stderr);
-    ABORT();
-  });
 }
 
 EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   EnvSerializeInfo info;
   Local<Context> ctx = context();
 
-  SerializeBindingData(this, creator, &info);
-  // Currently all modules are compiled without cache in builtin snapshot
-  // builder.
-  info.native_modules = std::vector<std::string>(
-      native_modules_without_cache.begin(), native_modules_without_cache.end());
-
   info.async_hooks = async_hooks_.Serialize(ctx, creator);
   info.immediate_info = immediate_info_.Serialize(ctx, creator);
+  info.timeout_info = timeout_info_.Serialize(ctx, creator);
   info.tick_info = tick_info_.Serialize(ctx, creator);
   info.performance_state = performance_state_->Serialize(ctx, creator);
+  info.exit_info = exit_info_.Serialize(ctx, creator);
   info.stream_base_state = stream_base_state_.Serialize(ctx, creator);
   info.should_abort_on_uncaught_toggle =
       should_abort_on_uncaught_toggle_.Serialize(ctx, creator);
 
-  size_t id = 0;
-#define V(PropertyName, TypeName)                                              \
-  do {                                                                         \
-    Local<TypeName> field = PropertyName();                                    \
-    if (!field.IsEmpty()) {                                                    \
-      size_t index = creator->AddData(field);                                  \
-      info.persistent_templates.push_back({#PropertyName, id, index});         \
-    }                                                                          \
-    id++;                                                                      \
-  } while (0);
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
-#undef V
-
-  id = 0;
-#define V(PropertyName, TypeName)                                              \
-  do {                                                                         \
-    Local<TypeName> field = PropertyName();                                    \
-    if (!field.IsEmpty()) {                                                    \
-      size_t index = creator->AddData(ctx, field);                             \
-      info.persistent_values.push_back({#PropertyName, id, index});            \
-    }                                                                          \
-    id++;                                                                      \
-  } while (0);
-  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-#undef V
-
-  info.context = creator->AddData(ctx, context());
+  info.principal_realm = principal_realm_->Serialize(creator);
+  // For now we only support serialization of the main context.
+  // TODO(joyeecheung): support de/serialization of vm contexts.
+  CHECK_EQ(contexts_.size(), 1);
+  CHECK_EQ(contexts_[0], context());
   return info;
-}
-
-std::ostream& operator<<(std::ostream& output,
-                         const std::vector<PropInfo>& vec) {
-  output << "{\n";
-  for (const auto& info : vec) {
-    output << "  { \"" << info.name << "\", " << std::to_string(info.id) << ", "
-           << std::to_string(info.index) << " },\n";
-  }
-  output << "}";
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output,
-                         const std::vector<std::string>& vec) {
-  output << "{\n";
-  for (const auto& info : vec) {
-    output << "  \"" << info << "\",\n";
-  }
-  output << "}";
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
-  output << "{\n"
-         << "// -- bindings begins --\n"
-         << i.bindings << ",\n"
-         << "// -- bindings ends --\n"
-         << "// -- native_modules begins --\n"
-         << i.native_modules << ",\n"
-         << "// -- native_modules ends --\n"
-         << "// -- async_hooks begins --\n"
-         << i.async_hooks << ",\n"
-         << "// -- async_hooks ends --\n"
-         << i.tick_info << ",  // tick_info\n"
-         << i.immediate_info << ",  // immediate_info\n"
-         << "// -- performance_state begins --\n"
-         << i.performance_state << ",\n"
-         << "// -- performance_state ends --\n"
-         << i.stream_base_state << ",  // stream_base_state\n"
-         << i.should_abort_on_uncaught_toggle
-         << ",  // should_abort_on_uncaught_toggle\n"
-         << "// -- persistent_templates begins --\n"
-         << i.persistent_templates << ",\n"
-         << "// persistent_templates ends --\n"
-         << "// -- persistent_values begins --\n"
-         << i.persistent_values << ",\n"
-         << "// -- persistent_values ends --\n"
-         << i.context << ",  // context\n"
-         << "}";
-  return output;
 }
 
 void Environment::EnqueueDeserializeRequest(DeserializeRequestCallback cb,
                                             Local<Object> holder,
                                             int index,
-                                            InternalFieldInfo* info) {
+                                            InternalFieldInfoBase* info) {
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   DeserializeRequest request{cb, {isolate(), holder}, index, info};
   deserialize_requests_.push_back(std::move(request));
 }
@@ -1420,64 +1783,24 @@ void Environment::RunDeserializeRequests() {
 void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   Local<Context> ctx = context();
 
-  RunDeserializeRequests();
-
-  native_modules_in_snapshot = info->native_modules;
-  async_hooks_.Deserialize(ctx);
-  immediate_info_.Deserialize(ctx);
-  tick_info_.Deserialize(ctx);
-  performance_state_->Deserialize(ctx);
-  stream_base_state_.Deserialize(ctx);
-  should_abort_on_uncaught_toggle_.Deserialize(ctx);
-
   if (enabled_debug_list_.enabled(DebugCategory::MKSNAPSHOT)) {
-    fprintf(stderr, "deserializing...\n");
+    fprintf(stderr, "deserializing EnvSerializeInfo...\n");
     std::cerr << *info << "\n";
   }
 
-  const std::vector<PropInfo>& templates = info->persistent_templates;
-  size_t i = 0;  // index to the array
-  size_t id = 0;
-#define SetProperty(PropertyName, TypeName, vector, type, from)                \
-  do {                                                                         \
-    if (vector.size() > i && id == vector[i].id) {                             \
-      const PropInfo& d = vector[i];                                           \
-      DCHECK_EQ(d.name, #PropertyName);                                        \
-      MaybeLocal<TypeName> maybe_field =                                       \
-          from->GetDataFromSnapshotOnce<TypeName>(d.index);                    \
-      Local<TypeName> field;                                                   \
-      if (!maybe_field.ToLocal(&field)) {                                      \
-        fprintf(stderr,                                                        \
-                "Failed to deserialize environment " #type " " #PropertyName   \
-                "\n");                                                         \
-      }                                                                        \
-      set_##PropertyName(field);                                               \
-      i++;                                                                     \
-    }                                                                          \
-  } while (0);                                                                 \
-  id++;
-#define V(PropertyName, TypeName) SetProperty(PropertyName, TypeName,          \
-                                              templates, template, isolate_)
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V);
-#undef V
+  // Deserialize the realm's properties before running the deserialize
+  // requests as the requests may need to access the realm's properties.
+  principal_realm_->DeserializeProperties(&info->principal_realm);
+  RunDeserializeRequests();
 
-  i = 0;  // index to the array
-  id = 0;
-  const std::vector<PropInfo>& values = info->persistent_values;
-#define V(PropertyName, TypeName) SetProperty(PropertyName, TypeName,          \
-                                              values, value, ctx)
-  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V);
-#undef V
-#undef SetProperty
-
-  MaybeLocal<Context> maybe_ctx_from_snapshot =
-      ctx->GetDataFromSnapshotOnce<Context>(info->context);
-  Local<Context> ctx_from_snapshot;
-  if (!maybe_ctx_from_snapshot.ToLocal(&ctx_from_snapshot)) {
-    fprintf(stderr,
-            "Failed to deserialize context back reference from the snapshot\n");
-  }
-  CHECK_EQ(ctx_from_snapshot, ctx);
+  async_hooks_.Deserialize(ctx);
+  immediate_info_.Deserialize(ctx);
+  timeout_info_.Deserialize(ctx);
+  tick_info_.Deserialize(ctx);
+  performance_state_->Deserialize(ctx, time_origin_);
+  exit_info_.Deserialize(ctx);
+  stream_base_state_.Deserialize(ctx);
+  should_abort_on_uncaught_toggle_.Deserialize(ctx);
 }
 
 uint64_t GuessMemoryAvailableToTheProcess() {
@@ -1504,11 +1827,8 @@ void Environment::BuildEmbedderGraph(Isolate* isolate,
                                      void* data) {
   MemoryTracker tracker(isolate, graph);
   Environment* env = static_cast<Environment*>(data);
+  // Start traversing embedder objects from the root Environment object.
   tracker.Track(env);
-  env->ForEachBaseObject([&](BaseObject* obj) {
-    if (obj->IsDoneInitializing())
-      tracker.Track(obj);
-  });
 }
 
 size_t Environment::NearHeapLimitCallback(void* data,
@@ -1521,7 +1841,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
         "Invoked NearHeapLimitCallback, processing=%d, "
         "current_limit=%" PRIu64 ", "
         "initial_limit=%" PRIu64 "\n",
-        env->is_processing_heap_limit_callback_,
+        env->is_in_heapsnapshot_heap_limit_callback_,
         static_cast<uint64_t>(current_heap_limit),
         static_cast<uint64_t>(initial_heap_limit));
 
@@ -1573,8 +1893,8 @@ size_t Environment::NearHeapLimitCallback(void* data,
   // new limit, so in a heap with unbounded growth the isolate
   // may eventually crash with this new limit - effectively raising
   // the heap limit to the new one.
-  if (env->is_processing_heap_limit_callback_) {
-    size_t new_limit = initial_heap_limit + max_young_gen_size;
+  size_t new_limit = current_heap_limit + max_young_gen_size;
+  if (env->is_in_heapsnapshot_heap_limit_callback_) {
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Not generating snapshots in nested callback. "
@@ -1590,36 +1910,42 @@ size_t Environment::NearHeapLimitCallback(void* data,
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Not generating snapshots because it's too risky.\n");
-    env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
-                                                initial_heap_limit);
-    return current_heap_limit;
+    env->RemoveHeapSnapshotNearHeapLimitCallback(0);
+    // The new limit must be higher than current_heap_limit or V8 might
+    // crash.
+    return new_limit;
   }
 
   // Take the snapshot synchronously.
-  env->is_processing_heap_limit_callback_ = true;
+  env->is_in_heapsnapshot_heap_limit_callback_ = true;
 
   std::string dir = env->options()->diagnostic_dir;
   if (dir.empty()) {
-    dir = env->GetCwd();
+    dir = Environment::GetCwd(env->exec_path_);
   }
   DiagnosticFilename name(env, "Heap", "heapsnapshot");
   std::string filename = dir + kPathSeparator + (*name);
 
   Debug(env, DebugCategory::DIAGNOSTICS, "Start generating %s...\n", *name);
 
-  // Remove the callback first in case it's triggered when generating
-  // the snapshot.
-  env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
-                                              initial_heap_limit);
-
-  heap::WriteSnapshot(env->isolate(), filename.c_str());
+  HeapProfiler::HeapSnapshotOptions options;
+  options.numerics_mode = HeapProfiler::NumericsMode::kExposeNumericValues;
+  options.snapshot_mode = HeapProfiler::HeapSnapshotMode::kExposeInternals;
+  heap::WriteSnapshot(env, filename.c_str(), options);
   env->heap_limit_snapshot_taken_ += 1;
 
-  // Don't take more snapshots than the number specified by
-  // --heapsnapshot-near-heap-limit.
-  if (env->heap_limit_snapshot_taken_ <
-      env->options_->heap_snapshot_near_heap_limit) {
-    env->isolate()->AddNearHeapLimitCallback(NearHeapLimitCallback, env);
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "%" PRIu32 "/%" PRIu32 " snapshots taken.\n",
+        env->heap_limit_snapshot_taken_,
+        env->heap_snapshot_near_heap_limit_);
+
+  // Don't take more snapshots than the limit specified.
+  if (env->heap_limit_snapshot_taken_ == env->heap_snapshot_near_heap_limit_) {
+    Debug(env,
+          DebugCategory::DIAGNOSTICS,
+          "Removing the near heap limit callback");
+    env->RemoveHeapSnapshotNearHeapLimitCallback(0);
   }
 
   FPrintF(stderr, "Wrote snapshot to %s\n", filename.c_str());
@@ -1627,8 +1953,11 @@ size_t Environment::NearHeapLimitCallback(void* data,
   // 95% of the initial limit.
   env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95);
 
-  env->is_processing_heap_limit_callback_ = false;
-  return initial_heap_limit;
+  env->is_in_heapsnapshot_heap_limit_callback_ = false;
+
+  // The new limit must be higher than current_heap_limit or V8 might
+  // crash.
+  return new_limit;
 }
 
 inline size_t Environment::SelfSize() const {
@@ -1638,6 +1967,7 @@ inline size_t Environment::SelfSize() const {
   // this can be done for common types within the Track* calls automatically
   // if a certain scope is entered.
   size -= sizeof(async_hooks_);
+  size -= sizeof(cleanup_queue_);
   size -= sizeof(tick_info_);
   size -= sizeof(immediate_info_);
   return size;
@@ -1647,24 +1977,19 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   // Iteratable STLs have their own sizes subtracted from the parent
   // by default.
   tracker->TrackField("isolate_data", isolate_data_);
-  tracker->TrackField("native_modules_with_cache", native_modules_with_cache);
-  tracker->TrackField("native_modules_without_cache",
-                      native_modules_without_cache);
   tracker->TrackField("destroy_async_id_list", destroy_async_id_list_);
   tracker->TrackField("exec_argv", exec_argv_);
+  tracker->TrackField("exit_info", exit_info_);
   tracker->TrackField("should_abort_on_uncaught_toggle",
                       should_abort_on_uncaught_toggle_);
   tracker->TrackField("stream_base_state", stream_base_state_);
-  tracker->TrackFieldWithSize(
-      "cleanup_hooks", cleanup_hooks_.size() * sizeof(CleanupHookCallback));
+  tracker->TrackField("cleanup_queue", cleanup_queue_);
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
+  tracker->TrackField("timeout_info", timeout_info_);
   tracker->TrackField("tick_info", tick_info_);
-
-#define V(PropertyName, TypeName)                                              \
-  tracker->TrackField(#PropertyName, PropertyName());
-  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-#undef V
+  tracker->TrackField("principal_realm", principal_realm_);
+  tracker->TrackField("shadow_realms", shadow_realms_);
 
   // FIXME(joyeecheung): track other fields in Environment.
   // Currently MemoryTracker is unable to track these
@@ -1680,39 +2005,4 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
 void Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
 }
-
-// Not really any better place than env.cc at this moment.
-void BaseObject::DeleteMe(void* data) {
-  BaseObject* self = static_cast<BaseObject*>(data);
-  if (self->has_pointer_data() &&
-      self->pointer_data()->strong_ptr_count > 0) {
-    return self->Detach();
-  }
-  delete self;
-}
-
-bool BaseObject::IsDoneInitializing() const { return true; }
-
-Local<Object> BaseObject::WrappedObject() const {
-  return object();
-}
-
-bool BaseObject::IsRootNode() const {
-  return !persistent_handle_.IsWeak();
-}
-
-Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
-  Local<FunctionTemplate> tmpl = env->base_object_ctor_template();
-  if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(nullptr);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BaseObject"));
-    env->set_base_object_ctor_template(tmpl);
-  }
-  return tmpl;
-}
-
-bool BaseObject::IsNotIndicativeOfMemoryLeakAtExit() const {
-  return IsWeakOrDetached();
-}
-
 }  // namespace node

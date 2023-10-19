@@ -7,100 +7,103 @@ import './map-panel/map-transitions.mjs';
 import {MapLogEntry} from '../log/map.mjs';
 
 import {FocusEvent} from './events.mjs';
-import {DOM, V8CustomElement} from './helper.mjs';
+import {CollapsableElement, DOM} from './helper.mjs';
 
-DOM.defineCustomElement(
-    'view/map-panel', (templateText) => class MapPanel extends V8CustomElement {
-      _map;
-      _timeline;
-      _selectedLogEntries = [];
-      _displayedLogEntries = [];
+DOM.defineCustomElement('view/map-panel',
+                        (templateText) =>
+                            class MapPanel extends CollapsableElement {
+  _map;
+  _timeline;
+  _selectedLogEntries = [];
+  _displayedLogEntries = [];
 
-      constructor() {
-        super(templateText);
-        this.searchBarBtn.addEventListener('click', e => this._handleSearch(e));
-        this.showAllRadio.onclick = _ => this._showEntries(this._timeline);
-        this.showTimerangeRadio.onclick = _ =>
-            this._showEntries(this._timeline.selectionOrSelf);
-        this.showSelectionRadio.onclick = _ =>
-            this._showEntries(this._selectedLogEntries);
-      }
+  constructor() {
+    super(templateText);
+    this.searchBarBtn.addEventListener('click', e => this._handleSearch(e));
+    this.showAllRadio.onclick = _ => this._showEntries(this._timeline);
+    this.showTimerangeRadio.onclick = _ =>
+        this._showEntries(this._timeline.selectionOrSelf);
+    this.showSelectionRadio.onclick = _ =>
+        this._showEntries(this._selectedLogEntries);
+  }
 
-      get showAllRadio() {
-        return this.$('#show-all');
-      }
-      get showTimerangeRadio() {
-        return this.$('#show-timerange');
-      }
-      get showSelectionRadio() {
-        return this.$('#show-selection');
-      }
+  get showAllRadio() {
+    return this.$('#show-all');
+  }
 
-      get mapTransitionsPanel() {
-        return this.$('#map-transitions');
-      }
+  get showTimerangeRadio() {
+    return this.$('#show-timerange');
+  }
 
-      get mapDetailsTransitionsPanel() {
-        return this.$('#map-details-transitions');
-      }
+  get showSelectionRadio() {
+    return this.$('#show-selection');
+  }
 
-      get mapDetailsPanel() {
-        return this.$('#map-details');
-      }
+  get mapTransitionsPanel() {
+    return this.$('#map-transitions');
+  }
 
-      get searchBarBtn() {
-        return this.$('#searchBarBtn');
-      }
+  get mapDetailsTransitionsPanel() {
+    return this.$('#map-details-transitions');
+  }
 
-      get searchBar() {
-        return this.$('#searchBar');
-      }
+  get mapDetailsPanel() {
+    return this.$('#map-details');
+  }
 
-      set timeline(timeline) {
-        console.assert(timeline !== undefined, 'timeline undefined!');
-        this._timeline = timeline;
-        this.$('.panel').style.display =
-            timeline.isEmpty() ? 'none' : 'inherit';
-        this.mapTransitionsPanel.timeline = timeline;
-        this.mapDetailsTransitionsPanel.timeline = timeline;
-      }
+  get searchBarBtn() {
+    return this.$('#searchBarBtn');
+  }
 
-      set selectedLogEntries(entries) {
-        if (entries === this._timeline.selection) {
-          this.showTimerangeRadio.click();
-        } else if (entries == this._timeline) {
-          this.showAllRadio.click();
-        } else {
-          this._selectedLogEntries = entries;
-          this.showSelectionRadio.click();
-        }
-      }
+  get searchBar() {
+    return this.$('#searchBar');
+  }
 
-      set map(map) {
-        this._map = map;
-        this.mapDetailsTransitionsPanel.selectedLogEntries = [map];
-        this.mapDetailsPanel.map = map;
-      }
+  set timeline(timeline) {
+    console.assert(timeline !== undefined, 'timeline undefined!');
+    this._timeline = timeline;
+    this.$('.panel').style.display = timeline.isEmpty() ? 'none' : 'inherit';
+    this.mapTransitionsPanel.timeline = timeline;
+    this.mapDetailsTransitionsPanel.timeline = timeline;
+  }
 
-      _showEntries(entries) {
-        this._displayedLogEntries = entries;
-        this.mapTransitionsPanel.selectedLogEntries = entries;
-      }
+  set selectedLogEntries(entries) {
+    if (entries === this._timeline.selection) {
+      this.showTimerangeRadio.click();
+    } else if (entries == this._timeline) {
+      this.showAllRadio.click();
+    } else {
+      this._selectedLogEntries = entries;
+      this.showSelectionRadio.click();
+    }
+  }
 
-      update() {
-        // nothing to do
-      }
+  set map(map) {
+    this._map = map;
+    this.requestUpdate();
+  }
 
-      _handleSearch(e) {
-        let searchBar = this.$('#searchBarInput');
-        let searchBarInput = searchBar.value;
-        // access the map from model cache
-        let selectedMap = MapLogEntry.get(searchBarInput);
-        if (selectedMap) {
-          searchBar.className = 'success';
-          this.dispatchEvent(new FocusEvent(selectedMap));
-        } else {
-          searchBar.className = 'failure';
-        }
-      }
-    });
+  _showEntries(entries) {
+    this._displayedLogEntries = entries;
+    this.requestUpdate();
+  }
+
+  _update() {
+    this.mapDetailsTransitionsPanel.selectedLogEntries = [this._map];
+    this.mapDetailsPanel.map = this._map;
+    this.mapTransitionsPanel.selectedLogEntries = this._displayedLogEntries;
+  }
+
+  _handleSearch(e) {
+    const searchBar = this.$('#searchBarInput');
+    const searchBarInput = searchBar.value;
+    // access the map from model cache
+    const selectedMap = MapLogEntry.get(searchBarInput);
+    if (selectedMap) {
+      searchBar.className = 'success';
+      this.dispatchEvent(new FocusEvent(selectedMap));
+    } else {
+      searchBar.className = 'failure';
+    }
+  }
+});

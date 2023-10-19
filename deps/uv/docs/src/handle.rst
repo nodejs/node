@@ -153,6 +153,9 @@ API
     In-progress requests, like uv_connect_t or uv_write_t, are cancelled and
     have their callbacks called asynchronously with status=UV_ECANCELED.
 
+    `close_cb` can be `NULL` in cases where no cleanup or deallocation is
+    necessary.
+
 .. c:function:: void uv_ref(uv_handle_t* handle)
 
     Reference the given handle. References are idempotent, that is, if a handle

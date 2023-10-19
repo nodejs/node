@@ -6,7 +6,7 @@ Running test: testKeys
     result : {
         result : {
             className : Function
-            description : function keys(object) { [Command Line API] }
+            description : function keys() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -40,6 +40,7 @@ Running test: testInspect
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -53,6 +54,7 @@ Running test: testInspect
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -65,6 +67,7 @@ Running test: testInspect
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -77,6 +80,7 @@ Running test: testInspect
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
             copyToClipboard : true
         }
@@ -97,6 +101,7 @@ Running test: testInspect
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -114,7 +119,7 @@ Running test: testQueryObjects
     result : {
         result : {
             className : Function
-            description : function queryObjects(constructor) { [Command Line API] }
+            description : function queryObjects() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -123,6 +128,7 @@ Running test: testQueryObjects
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
             queryObjects : true
         }
@@ -138,6 +144,7 @@ Is Promise.prototype: true
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
             queryObjects : true
         }
@@ -153,6 +160,7 @@ Is Promise.prototype: true
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
             queryObjects : true
         }
@@ -168,6 +176,7 @@ Is p: true
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
             queryObjects : true
         }
@@ -235,7 +244,7 @@ Running test: testDebug
     result : {
         result : {
             className : Function
-            description : function debug(function, condition) { [Command Line API] }
+            description : function debug() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -246,7 +255,7 @@ Running test: testDebug
     result : {
         result : {
             className : Function
-            description : function undebug(function) { [Command Line API] }
+            description : function undebug() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -295,7 +304,7 @@ Running test: testMonitor
     result : {
         result : {
             className : Function
-            description : function monitor(function) { [Command Line API] }
+            description : function monitor() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -306,7 +315,7 @@ Running test: testMonitor
     result : {
         result : {
             className : Function
-            description : function unmonitor(function) { [Command Line API] }
+            description : function unmonitor() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -325,7 +334,7 @@ Running test: testProfile
     result : {
         result : {
             className : Function
-            description : function profile(title) { [Command Line API] }
+            description : function profile() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -336,7 +345,7 @@ Running test: testProfile
     result : {
         result : {
             className : Function
-            description : function profileEnd(title) { [Command Line API] }
+            description : function profileEnd() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -399,7 +408,7 @@ Running test: testDir
     result : {
         result : {
             className : Function
-            description : function dir(value) { [Command Line API] }
+            description : function dir() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -506,7 +515,7 @@ Running test: testDirXML
     result : {
         result : {
             className : Function
-            description : function dirxml(value) { [Command Line API] }
+            description : function dirxml() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -579,7 +588,7 @@ Running test: testTable
     result : {
         result : {
             className : Function
-            description : function table(data, [columns]) { [Command Line API] }
+            description : function table() { [native code] }
             objectId : <objectId>
             type : function
         }
@@ -652,7 +661,7 @@ Running test: testClear
     result : {
         result : {
             className : Function
-            description : function clear() { [Command Line API] }
+            description : function clear() { [native code] }
             objectId : <objectId>
             type : function
         }

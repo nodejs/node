@@ -59,12 +59,12 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
   AllowHandleDereference allow_handle_dereference;
   // Skip the exit block in profiles, since the register allocator can't handle
   // it and entry into it means falling off the end of the function anyway.
-  size_t n_blocks = schedule->RpoBlockCount() - 1;
+  size_t n_blocks = schedule->RpoBlockCount();
   BasicBlockProfilerData* data = BasicBlockProfiler::Get()->NewData(n_blocks);
   // Set the function name.
   data->SetFunctionName(info->GetDebugName());
   // Capture the schedule string before instrumentation.
-  if (FLAG_turbo_profiling_verbose) {
+  if (v8_flags.turbo_profiling_verbose) {
     std::ostringstream os;
     os << *schedule;
     data->SetSchedule(os);
@@ -84,7 +84,7 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
     // PatchBasicBlockCountersReference). An important and subtle point: we
     // cannot use the root handle basic_block_counters_marker_handle() and must
     // create a new separate handle. Otherwise
-    // TurboAssemblerBase::IndirectLoadConstant would helpfully emit a
+    // MacroAssemblerBase::IndirectLoadConstant would helpfully emit a
     // root-relative load rather than putting this value in the constants table
     // where we expect it to be for patching.
     counters_array = graph->NewNode(common.HeapConstant(Handle<HeapObject>::New(
@@ -99,6 +99,7 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
   for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
        ++it, ++block_number) {
     BasicBlock* block = (*it);
+    if (block == schedule->end()) continue;
     // Iteration is already in reverse post-order.
     DCHECK_EQ(block->rpo_number(), block_number);
     data->SetBlockId(block_number, block->id().ToInt());
@@ -143,8 +144,72 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
     for (int i = insertion_start; i < kArraySize; ++i) {
       schedule->SetBlockForNode(block, to_insert[i]);
     }
+    // The exit block is not instrumented and so we must ignore that block
+    // count.
+    if (block->control() == BasicBlock::kBranch &&
+        block->successors()[0] != schedule->end() &&
+        block->successors()[1] != schedule->end()) {
+      data->AddBranch(block->successors()[0]->id().ToInt(),
+                      block->successors()[1]->id().ToInt());
+    }
   }
   return data;
+}
+
+namespace {
+
+void StoreBuiltinCallForNode(Node* n, Builtin builtin, int block_id,
+                             BuiltinsCallGraph* bcc_profiler) {
+  if (n == nullptr) return;
+  IrOpcode::Value op = n->opcode();
+  if (op == IrOpcode::kCall || op == IrOpcode::kTailCall) {
+    const CallDescriptor* des = CallDescriptorOf(n->op());
+    if (des->kind() == CallDescriptor::kCallCodeObject) {
+      Node* callee = n->InputAt(0);
+      Operator* op = const_cast<Operator*>(callee->op());
+      if (op->opcode() == IrOpcode::kHeapConstant) {
+        Handle<HeapObject> para = OpParameter<Handle<HeapObject>>(op);
+        if (IsCode(*para)) {
+          Handle<Code> code = Handle<Code>::cast(para);
+          if (code->is_builtin()) {
+            bcc_profiler->AddBuiltinCall(builtin, code->builtin_id(), block_id);
+            return;
+          }
+        }
+      }
+    }
+  }
+  return;
+}
+
+}  // namespace
+
+void BasicBlockCallGraphProfiler::StoreCallGraph(OptimizedCompilationInfo* info,
+                                                 Schedule* schedule) {
+  CHECK(Builtins::IsBuiltinId(info->builtin()));
+  BasicBlockVector* blocks = schedule->rpo_order();
+  size_t block_number = 0;
+  size_t n_blocks = schedule->RpoBlockCount();
+  for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
+       ++it, ++block_number) {
+    BasicBlock* block = (*it);
+    if (block == schedule->end()) continue;
+    // Iteration is already in reverse post-order.
+    DCHECK_EQ(block->rpo_number(), block_number);
+    int block_id = block->id().ToInt();
+
+    BuiltinsCallGraph* profiler = BuiltinsCallGraph::Get();
+
+    for (Node* node : *block) {
+      StoreBuiltinCallForNode(node, info->builtin(), block_id, profiler);
+    }
+
+    BasicBlock::Control control = block->control();
+    if (control != BasicBlock::kNone) {
+      Node* cnt_node = block->control_input();
+      StoreBuiltinCallForNode(cnt_node, info->builtin(), block_id, profiler);
+    }
+  }
 }
 
 }  // namespace compiler

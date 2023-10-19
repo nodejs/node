@@ -26,22 +26,22 @@ This test checks that deletion of properties works properly with getters and set
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-PASS b1.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS a2.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS b3.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS a4.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS b5.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS a6.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS b7.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS a8.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS o1.b.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS o1.a.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS o3.b.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS o4.a.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS o5.b.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS o6.a.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS o7.b.property threw exception TypeError: Cannot read property 'property' of undefined.
-PASS o8.a.property threw exception TypeError: Cannot read property 'property' of undefined.
+PASS b1.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS a2.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS b3.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS a4.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS b5.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS a6.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS b7.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS a8.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS o1.b.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS o1.a.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS o3.b.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS o4.a.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS o5.b.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS o6.a.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS o7.b.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
+PASS o8.a.property threw exception TypeError: Cannot read properties of undefined (reading 'property').
 PASS successfullyParsed is true
 
 TEST COMPLETE

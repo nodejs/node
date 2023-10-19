@@ -39,3 +39,18 @@ try {
 } catch (e) {
   validate2(e);
 }
+
+assert.throws(
+  () => new Proxy({ prop: Symbol() }, { get: common.mustNotCall() }).prop,
+  { code: 'ERR_ASSERTION' }
+);
+
+{
+  const { inspect } = util;
+  delete util.inspect;
+  assert.throws(
+    () => common.mustNotCall()(null),
+    { code: 'ERR_ASSERTION' }
+  );
+  util.inspect = inspect;
+}

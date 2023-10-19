@@ -1,4 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 const { internalBinding } = require('internal/test/binding');
 const { JSUDPWrap } = internalBinding('js_udp_wrap');
@@ -68,7 +67,7 @@ class FakeUDPWrap extends EventEmitter {
         address = '127.0.0.1',
         port = 1337,
       },
-      flags = 0
+      flags = 0,
     } = info;
 
     let familyInt;
@@ -98,5 +97,5 @@ function makeUDPPair() {
 
 module.exports = {
   FakeUDPWrap,
-  makeUDPPair
+  makeUDPPair,
 };

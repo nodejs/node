@@ -50,6 +50,6 @@ TEST_IMPL(ip4_addr) {
   ASSERT(UV_EAFNOSUPPORT == uv_inet_pton(42, "127.0.0.1",
     &addr.sin_addr.s_addr));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

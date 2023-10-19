@@ -1,25 +1,32 @@
-// Flags: --report-uncaught-exception
 'use strict';
 // Test producing a report on uncaught exception.
 const common = require('../common');
 const assert = require('assert');
+const childProcess = require('child_process');
 const helper = require('../common/report');
 const tmpdir = require('../common/tmpdir');
 
-const exception = 1;
+if (process.argv[2] === 'child') {
+  // eslint-disable-next-line no-throw-literal
+  throw 1;
+}
 
 tmpdir.refresh();
-process.report.directory = tmpdir.path;
-
-process.on('uncaughtException', common.mustCall((err) => {
-  assert.strictEqual(err, exception);
-  const reports = helper.findReports(process.pid, tmpdir.path);
+const child = childProcess.spawn(process.execPath, [
+  '--report-uncaught-exception',
+  __filename,
+  'child',
+], {
+  cwd: tmpdir.path,
+});
+child.on('exit', common.mustCall((code) => {
+  assert.strictEqual(code, 1);
+  const reports = helper.findReports(child.pid, tmpdir.path);
   assert.strictEqual(reports.length, 1);
 
   helper.validate(reports[0], [
     ['header.event', 'Exception'],
-    ['javascriptStack.message', `${exception}`],
+    ['header.trigger', 'Exception'],
+    ['javascriptStack.message', '1'],
   ]);
 }));
-
-throw exception;

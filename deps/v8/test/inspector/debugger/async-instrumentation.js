@@ -4,7 +4,8 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks async instrumentation enabled in the middle.');
 
-contextGroup.addScript(`
+contextGroup.addInlineScript(
+    `
 function foo() {
   // asyncTaskStarted
   debugger;
@@ -20,9 +21,8 @@ function test() {
   resolve1(); // asyncTaskScheduled
   debugger;
   return p2;
-}
-
-//# sourceURL=test.js`, 7, 26);
+}`,
+    'test.js');
 
 session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {

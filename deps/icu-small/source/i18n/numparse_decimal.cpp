@@ -88,7 +88,7 @@ DecimalMatcher::DecimalMatcher(const DecimalFormatSymbols& symbols, const Groupe
     grouping2 = grouper.getSecondary();
 
     // Fraction grouping parsing is disabled for now but could be enabled later.
-    // See http://bugs.icu-project.org/trac/ticket/10794
+    // See https://unicode-org.atlassian.net/browse/ICU-10794
     // fractionGrouping = 0 != (parseFlags & PARSE_FLAG_FRACTION_GROUPING_ENABLED);
 }
 

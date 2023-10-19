@@ -2,18 +2,33 @@
 const common = require('../common');
 const assert = require('assert');
 
+// Import of pure js (non-shared) deps for comparison
+const acorn = require('../../deps/acorn/acorn/package.json');
+const cjs_module_lexer = require('../../deps/cjs-module-lexer/package.json');
+
 const expected_keys = [
   'ares',
   'brotli',
   'modules',
-  'node',
   'uv',
   'v8',
   'zlib',
   'nghttp2',
   'napi',
   'llhttp',
+  'uvwasi',
+  'acorn',
+  'simdutf',
+  'ada',
+  'cjs_module_lexer',
+  'base64',
 ];
+
+const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
+
+if (hasUndici) {
+  expected_keys.push('undici');
+}
 
 if (common.hasCrypto) {
   expected_keys.push('openssl');
@@ -32,22 +47,32 @@ if (common.hasIntl) {
 }
 
 expected_keys.sort();
-const actual_keys = Object.keys(process.versions).sort();
+expected_keys.unshift('node');
+
+const actual_keys = Object.keys(process.versions);
 
 assert.deepStrictEqual(actual_keys, expected_keys);
 
 const commonTemplate = /^\d+\.\d+\.\d+(?:-.*)?$/;
 
-assert(commonTemplate.test(process.versions.ares));
-assert(commonTemplate.test(process.versions.brotli));
-assert(commonTemplate.test(process.versions.llhttp));
-assert(commonTemplate.test(process.versions.node));
-assert(commonTemplate.test(process.versions.uv));
-assert(commonTemplate.test(process.versions.zlib));
+assert.match(process.versions.acorn, commonTemplate);
+assert.match(process.versions.ares, commonTemplate);
+assert.match(process.versions.brotli, commonTemplate);
+assert.match(process.versions.llhttp, commonTemplate);
+assert.match(process.versions.node, commonTemplate);
+assert.match(process.versions.uv, commonTemplate);
+assert.match(process.versions.zlib, /^\d+(?:\.\d+){2,3}(?:-.*)?$/);
 
-assert(/^\d+\.\d+\.\d+(?:\.\d+)?-node\.\d+(?: \(candidate\))?$/
-  .test(process.versions.v8));
-assert(/^\d+$/.test(process.versions.modules));
+if (hasUndici) {
+  assert.match(process.versions.undici, commonTemplate);
+}
+
+assert.match(
+  process.versions.v8,
+  /^\d+\.\d+\.\d+(?:\.\d+)?-node\.\d+(?: \(candidate\))?$/
+);
+assert.match(process.versions.modules, /^\d+$/);
+assert.match(process.versions.cjs_module_lexer, commonTemplate);
 
 if (common.hasCrypto) {
   const versionRegex = common.hasOpenSSL3 ?
@@ -56,7 +81,7 @@ if (common.hasCrypto) {
     // and linking against the main development branch of OpenSSL.
     /^\d+\.\d+\.\d+(?:[-+][a-z0-9]+)*$/ :
     /^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/;
-  assert(versionRegex.test(process.versions.openssl));
+  assert.match(process.versions.openssl, versionRegex);
 }
 
 for (let i = 0; i < expected_keys.length; i++) {
@@ -67,3 +92,14 @@ for (let i = 0; i < expected_keys.length; i++) {
 
 assert.strictEqual(process.config.variables.napi_build_version,
                    process.versions.napi);
+
+if (hasUndici) {
+  const undici = require('../../deps/undici/src/package.json');
+  const expectedUndiciVersion = undici.version;
+  assert.strictEqual(process.versions.undici, expectedUndiciVersion);
+}
+
+const expectedAcornVersion = acorn.version;
+assert.strictEqual(process.versions.acorn, expectedAcornVersion);
+const expectedCjsModuleLexerVersion = cjs_module_lexer.version;
+assert.strictEqual(process.versions.cjs_module_lexer, expectedCjsModuleLexerVersion);

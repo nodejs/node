@@ -1,0 +1,75 @@
+#
+# Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line. Lines starting with a pound sign are ignored.
+
+Title = RFC5297 AES-SIV
+
+Cipher = aes-128-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+AAD = 101112131415161718191a1b1c1d1e1f2021222324252627
+Tag = 85632d07c6e8f37f950acd320a2ecc93
+Plaintext =  112233445566778899aabbccddee
+Ciphertext = 40c02b9690c4dc04daef7f6afe5c
+
+Cipher = aes-128-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+Tag = f1c5fdeac1f15a26779c1501f9fb7588
+Plaintext =  112233445566778899aabbccddee
+Ciphertext = 27e946c669088ab06da58c5c831c
+
+Cipher = aes-128-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+AAD =
+Tag = d1022f5b3664e5a4dfaf90f85be6f28a
+Plaintext =  112233445566778899aabbccddee
+Ciphertext = b66cff6b8eca0b79f083b39a0901
+
+Cipher = aes-128-siv
+Key = 7f7e7d7c7b7a79787776757473727170404142434445464748494a4b4c4d4e4f
+AAD = 00112233445566778899aabbccddeeffdeaddadadeaddadaffeeddccbbaa99887766554433221100
+AAD = 102030405060708090a0
+AAD = 09f911029d74e35bd84156c5635688c0
+Tag = 7bdb6e3b432667eb06f4d14bff2fbd0f
+Plaintext =  7468697320697320736f6d6520706c61696e7465787420746f20656e6372797074207573696e67205349562d414553
+Ciphertext = cb900f2fddbe404326601965c889bf17dba77ceb094fa663b7a3f748ba8af829ea64ad544a272e9c485b62a3fd5c0d
+
+Cipher = aes-128-siv
+Key = 7f7e7d7c7b7a79787776757473727170404142434445464748494a4b4c4d4e4f
+AAD = 00112233445566778899aabbccddeeffdeaddadadeaddadaffeeddccbbaa99887766554433221100
+AAD =
+AAD = 09f911029d74e35bd84156c5635688c0
+Tag = 83ce6593a8fa67eb6fcd2819cedfc011
+Plaintext =  7468697320697320736f6d6520706c61696e7465787420746f20656e6372797074207573696e67205349562d414553
+Ciphertext = 30d937b42f71f71f93fc2d8d702d3eac8dc7651eefcd81120081ff29d626f97f3de17f2969b691c91b69b652bf3a6d
+
+Cipher = aes-128-siv
+Key = 7f7e7d7c7b7a79787776757473727170404142434445464748494a4b4c4d4e4f
+AAD =
+AAD = 00112233445566778899aabbccddeeffdeaddadadeaddadaffeeddccbbaa99887766554433221100
+AAD = 09f911029d74e35bd84156c5635688c0
+Tag = 77dd4a44f5a6b41302121ee7f378de25
+Plaintext =  7468697320697320736f6d6520706c61696e7465787420746f20656e6372797074207573696e67205349562d414553
+Ciphertext = 0fcd664c922464c88939d71fad7aefb864e501b0848a07d39201c1067a7288f3dadf0131a823a0bc3d588e8564a5fe
+
+Cipher = aes-192-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfefffffefdfcfbfaf9f8f7f6f5f4f3f2f1f0
+AAD = 101112131415161718191a1b1c1d1e1f2021222324252627
+Tag = 89e869b93256785154f0963962fe0740
+Plaintext =  112233445566778899aabbccddee
+Ciphertext = eff356e42dec1f4febded36642f2
+
+Cipher = aes-256-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfefff0f1f2f3f4f5f6f7f8f9fafbfcfdfefffffefdfcfbfaf9f8f7f6f5f4f3f2f1f0
+AAD = 101112131415161718191a1b1c1d1e1f2021222324252627
+Tag = 724dfb2eaf94dbb19b0ba3a299a0801e
+Plaintext =  112233445566778899aabbccddee
+Ciphertext = f3b05a55498ec2552690b89810e4

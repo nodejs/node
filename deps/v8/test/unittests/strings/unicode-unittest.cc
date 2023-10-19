@@ -6,9 +6,11 @@
 #include <string>
 #include <vector>
 
+#include "include/v8-isolate.h"
+#include "src/base/vector.h"
 #include "src/strings/unicode-decoder.h"
 #include "src/strings/unicode-inl.h"
-#include "src/utils/vector.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -16,7 +18,7 @@ namespace internal {
 
 namespace {
 
-void DecodeNormally(const std::vector<byte>& bytes,
+void DecodeNormally(const std::vector<uint8_t>& bytes,
                     std::vector<unibrow::uchar>* output) {
   size_t cursor = 0;
   while (cursor < bytes.size()) {
@@ -27,7 +29,7 @@ void DecodeNormally(const std::vector<byte>& bytes,
 
 void DecodeUtf16(const std::vector<uint8_t>& bytes,
                  std::vector<unibrow::uchar>* output) {
-  auto utf8_data = Vector<const uint8_t>::cast(VectorOf(bytes));
+  auto utf8_data = base::Vector<const uint8_t>::cast(base::VectorOf(bytes));
   Utf8Decoder decoder(utf8_data);
 
   std::vector<uint16_t> utf16(decoder.utf16_length());
@@ -44,12 +46,12 @@ void DecodeUtf16(const std::vector<uint8_t>& bytes,
   }
 }
 
-void DecodeIncrementally(const std::vector<byte>& bytes,
+void DecodeIncrementally(const std::vector<uint8_t>& bytes,
                          std::vector<unibrow::uchar>* output) {
   unibrow::Utf8::Utf8IncrementalBuffer buffer = 0;
   unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
-  const byte* cursor = bytes.data();
-  const byte* end = bytes.data() + bytes.size();
+  const uint8_t* cursor = bytes.data();
+  const uint8_t* end = bytes.data() + bytes.size();
   while (cursor < end) {
     unibrow::uchar result =
         unibrow::Utf8::ValueOfIncremental(&cursor, &state, &buffer);
@@ -68,7 +70,7 @@ void DecodeIncrementally(const std::vector<byte>& bytes,
 TEST(UnicodeTest, Utf16BufferReuse) {
   // Not enough continuation bytes before string ends.
   struct TestCase {
-    std::vector<byte> bytes;
+    std::vector<uint8_t> bytes;
     std::vector<unibrow::uchar> unicode_expected;
   };
 
@@ -113,7 +115,7 @@ TEST(UnicodeTest, IncrementalUTF8DecodingVsNonIncrementalUtf8Decoding) {
   // produce the same result. This test was inspired by
   // https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt .
   struct TestCase {
-    std::vector<byte> bytes;
+    std::vector<uint8_t> bytes;
     std::vector<unibrow::uchar> unicode_expected;
   };
 
@@ -492,6 +494,70 @@ TEST(UnicodeTest, IncrementalUTF8DecodingVsNonIncrementalUtf8Decoding) {
     }
   }
 }
+
+class UnicodeWithGCTest : public TestWithHeapInternals {};
+
+#define GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(NAME, STRING)                \
+  TEST_F(UnicodeWithGCTest, GCInsideNewStringFromUtf8SubStringWith##NAME) {    \
+    v8_flags.stress_concurrent_allocation =                                    \
+        false; /* For SimulateFullSpace. */                                    \
+    v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));          \
+    Factory* factory = isolate()->factory();                                   \
+    /* Length must be bigger than the buffer size of the Utf8Decoder. */       \
+    const char* buf = STRING;                                                  \
+    size_t len = strlen(buf);                                                  \
+    Handle<String> main_string =                                               \
+        factory                                                                \
+            ->NewStringFromOneByte(v8::base::Vector<const uint8_t>(            \
+                reinterpret_cast<const uint8_t*>(buf), len))                   \
+            .ToHandleChecked();                                                \
+    if (v8_flags.single_generation) {                                          \
+      CHECK(!Heap::InYoungGeneration(*main_string));                           \
+      SimulateFullSpace(heap()->old_space());                                  \
+    } else {                                                                   \
+      CHECK(Heap::InYoungGeneration(*main_string));                            \
+      SimulateFullSpace(heap()->new_space());                                  \
+    }                                                                          \
+    /* Offset by two to check substring-ing. */                                \
+    Handle<String> s = factory                                                 \
+                           ->NewStringFromUtf8SubString(                       \
+                               Handle<SeqOneByteString>::cast(main_string), 2, \
+                               static_cast<int>(len - 2))                      \
+                           .ToHandleChecked();                                 \
+    Handle<String> expected_string =                                           \
+        factory                                                                \
+            ->NewStringFromUtf8(                                               \
+                v8::base::Vector<const char>(buf + 2, len - 2))                \
+            .ToHandleChecked();                                                \
+    CHECK(s->Equals(*expected_string));                                        \
+  }
+
+GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
+    OneByte,
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ")
+GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
+    TwoByte,
+    "QQ\xF0\x9F\x98\x8D\xF0\x9F\x98\x8D"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQ\xF0\x9F\x98\x8D\xF0\x9F\x98\x8D")
+
+#undef GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING
 
 }  // namespace internal
 }  // namespace v8

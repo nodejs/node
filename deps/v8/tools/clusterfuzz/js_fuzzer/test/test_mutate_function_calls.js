@@ -36,16 +36,15 @@ describe('Mutate functions', () => {
   });
 
   it('is robust without available functions', () => {
-    // This chooses replacing fuctions.
-    sandbox.stub(random, 'random').callsFake(() => { return 0.4; });
+    sandbox.stub(random, 'random').callsFake(() => { return 0.2; });
 
     // We just ensure here that mutating this file doesn't throw.
     loadAndMutate('mutate_function_call.js');
   });
 
-  it('optimizes functions in V8', () => {
-    // This omits function replacement and chooses V8 optimizations.
-    sandbox.stub(random, 'random').callsFake(() => { return 0.6; });
+  it('optimizes functions with turbofan in V8', () => {
+    sandbox.stub(random, 'random').callsFake(() => { return 0.5; });
+    sandbox.stub(random, 'choose').callsFake(p => true);
 
     const source = loadAndMutate('mutate_function_call.js');
     const mutated = sourceHelpers.generateCode(source);
@@ -53,8 +52,28 @@ describe('Mutate functions', () => {
         'mutate_function_call_expected.js', mutated);
   });
 
+  it('optimizes functions with maglev in V8', () => {
+    sandbox.stub(random, 'random').callsFake(() => { return 0.5; });
+    // False-path takes 'Maglev'. Other calls to choose should return
+    // true. It's also used to determine if a mutator should be chosen.
+    sandbox.stub(random, 'choose').callsFake(p => p == 0.7 ? false : true);
+
+    const source = loadAndMutate('mutate_function_call.js');
+    const mutated = sourceHelpers.generateCode(source);
+    helpers.assertExpectedResult(
+        'mutate_function_call_maglev_expected.js', mutated);
+  });
+
+  it('compiles functions in V8 to baseline', () => {
+    sandbox.stub(random, 'random').callsFake(() => { return 0.7; });
+
+    const source = loadAndMutate('mutate_function_call.js');
+    const mutated = sourceHelpers.generateCode(source);
+    helpers.assertExpectedResult(
+        'mutate_function_call_baseline_expected.js', mutated);
+  });
+
   it('deoptimizes functions in V8', () => {
-    // This chooses V8 deoptimization.
     sandbox.stub(random, 'random').callsFake(() => { return 0.8; });
 
     const source = loadAndMutate('mutate_function_call.js');

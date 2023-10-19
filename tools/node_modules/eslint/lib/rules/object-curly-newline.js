@@ -144,15 +144,15 @@ function areLineBreaksRequired(node, options, first, last) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent line breaks after opening and before closing braces",
-            category: "Stylistic Issues",
+            description: "Enforce consistent line breaks after opening and before closing braces",
             recommended: false,
-            url: "https://eslint.org/docs/rules/object-curly-newline"
+            url: "https://eslint.org/docs/latest/rules/object-curly-newline"
         },
 
         fixable: "whitespace",
@@ -185,7 +185,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const normalizedOptions = normalizeOptions(context.options[0]);
 
         /**

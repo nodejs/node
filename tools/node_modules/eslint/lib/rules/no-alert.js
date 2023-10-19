@@ -82,15 +82,15 @@ function isGlobalThisReferenceOrGlobalWindow(scope, node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of `alert`, `confirm`, and `prompt`",
-            category: "Best Practices",
+            description: "Disallow the use of `alert`, `confirm`, and `prompt`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-alert"
+            url: "https://eslint.org/docs/latest/rules/no-alert"
         },
 
         schema: [],
@@ -101,10 +101,12 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.sourceCode;
+
         return {
             CallExpression(node) {
                 const callee = skipChainExpression(node.callee),
-                    currentScope = context.getScope();
+                    currentScope = sourceCode.getScope(node);
 
                 // without window.
                 if (callee.type === "Identifier") {

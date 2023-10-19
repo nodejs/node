@@ -1,0 +1,45 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-string-gen.h'
+
+namespace runtime {
+extern runtime StringIsWellFormed(Context, String): Boolean;
+}
+
+namespace string {
+
+extern macro StringBuiltinsAssembler::HasUnpairedSurrogate(String):
+    bool labels Indirect;
+
+transitioning javascript builtin StringPrototypeIsWellFormed(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): Boolean {
+  const methodName: constexpr string = 'String.prototype.isWellFormed';
+
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  // 2. Let S be ? ToString(O).
+  const s = ToThisString(receiver, methodName);
+
+  // 3. Return IsStringWellFormedUnicode(S).
+
+  // Fast path: one-byte strings cannot have unpaired surrogates and are
+  // definitionally well-formed.
+  if (s.StringInstanceType().is_one_byte) return True;
+
+  // Slow path: flatten the string and look for unpaired surrogates.
+  //
+  // TODO(v8:13557): The two-byte case can be optimized by extending the
+  // InstanceType. See
+  // https://docs.google.com/document/d/15f-1c_Ysw3lvjy_Gx0SmmD9qeO8UuXuAbWIpWCnTDO8/
+  const flat = Flatten(s);
+  if (flat.IsOneByteRepresentationUnderneath()) return True;
+  try {
+    const illFormed = HasUnpairedSurrogate(flat) otherwise Indirect;
+    return illFormed ? False : True;
+  } label Indirect deferred {
+    return runtime::StringIsWellFormed(context, flat);
+  }
+}
+}

@@ -17,7 +17,7 @@ function listener(event, execState, eventData, data) {
     var x_value = execState.frame().evaluate("String(x)").value();
     if (steps < 2) {
       assertEquals("undefined", x_value);
-      execState.prepareStep(Debug.StepAction.StepIn);
+      execState.prepareStep(Debug.StepAction.StepInto);
     } else {
       assertEquals("l => l", x_value);
     }

@@ -9,7 +9,7 @@ const vm = require('vm');
 const sandbox = { timeout: 5 };
 const context = vm.createContext(sandbox);
 const script = new vm.Script(
-  'var d = Date.now() + timeout;while (d > Date.now());'
+  'var d = Date.now() + timeout;while (d > Date.now());',
 );
 const immediate = setImmediate(function() {
   throw new Error('Detected vm race condition!');

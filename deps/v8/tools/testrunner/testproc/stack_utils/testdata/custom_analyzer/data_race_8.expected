@@ -1,0 +1,3 @@
+pthread_mutex_lock
+LockNativeHandle
+v8::base::Mutex::Lock()

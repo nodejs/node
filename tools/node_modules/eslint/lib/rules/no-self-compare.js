@@ -10,15 +10,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow comparisons where both sides are exactly the same",
-            category: "Best Practices",
+            description: "Disallow comparisons where both sides are exactly the same",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-self-compare"
+            url: "https://eslint.org/docs/latest/rules/no-self-compare"
         },
 
         schema: [],
@@ -29,7 +29,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Determines whether two nodes are composed of the same tokens.

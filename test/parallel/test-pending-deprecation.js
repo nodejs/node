@@ -29,7 +29,7 @@ switch (process.argv[2]) {
       true
     );
     break;
-  default:
+  default: {
     // Verify that the flag is off by default.
     const envvar = process.env.NODE_PENDING_DEPRECATION;
     assert.strictEqual(
@@ -61,4 +61,5 @@ switch (process.argv[2]) {
     }).on('exit', common.mustCall((code) => {
       assert.strictEqual(code, 0, message('NODE_PENDING_DEPRECATION'));
     }));
+  }
 }

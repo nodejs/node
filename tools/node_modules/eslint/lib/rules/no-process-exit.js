@@ -1,6 +1,7 @@
 /**
  * @fileoverview Disallow the use of process.exit()
  * @author Nicholas C. Zakas
+ * @deprecated in ESLint v7.0.0
  */
 "use strict";
 
@@ -8,6 +9,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         deprecated: true,
@@ -17,10 +19,9 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of `process.exit()`",
-            category: "Node.js and CommonJS",
+            description: "Disallow the use of `process.exit()`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-process-exit"
+            url: "https://eslint.org/docs/latest/rules/no-process-exit"
         },
 
         schema: [],

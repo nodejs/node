@@ -34,26 +34,30 @@ TEST_IMPL(dlerror) {
   lib.errmsg = NULL;
   lib.handle = NULL;
   msg = uv_dlerror(&lib);
-  ASSERT(msg != NULL);
-  ASSERT(strstr(msg, dlerror_no_error) != NULL);
+  ASSERT_NOT_NULL(msg);
+  ASSERT_NOT_NULL(strstr(msg, dlerror_no_error));
 
   r = uv_dlopen(path, &lib);
   ASSERT(r == -1);
 
   msg = uv_dlerror(&lib);
-  ASSERT(msg != NULL);
+  ASSERT_NOT_NULL(msg);
 #if !defined(__OpenBSD__) && !defined(__QNX__)
-  ASSERT(strstr(msg, path) != NULL);
+  /* musl's libc.a does not support dlopen(), only libc.so does. */
+  if (NULL == strstr(msg, "Dynamic loading not supported"))
+    ASSERT_NOT_NULL(strstr(msg, path));
 #endif
-  ASSERT(strstr(msg, dlerror_no_error) == NULL);
+  ASSERT_NULL(strstr(msg, dlerror_no_error));
 
   /* Should return the same error twice in a row. */
   msg = uv_dlerror(&lib);
-  ASSERT(msg != NULL);
+  ASSERT_NOT_NULL(msg);
 #if !defined(__OpenBSD__) && !defined(__QNX__)
-  ASSERT(strstr(msg, path) != NULL);
+  /* musl's libc.a does not support dlopen(), only libc.so does. */
+  if (NULL == strstr(msg, "Dynamic loading not supported"))
+    ASSERT_NOT_NULL(strstr(msg, path));
 #endif
-  ASSERT(strstr(msg, dlerror_no_error) == NULL);
+  ASSERT_NULL(strstr(msg, dlerror_no_error));
 
   uv_dlclose(&lib);
 

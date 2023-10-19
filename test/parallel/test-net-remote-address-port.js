@@ -27,15 +27,17 @@ const net = require('net');
 
 let conns_closed = 0;
 
-const remoteAddrCandidates = [ common.localhostIPv4 ];
-if (common.hasIPv6) remoteAddrCandidates.push('::ffff:127.0.0.1');
+const remoteAddrCandidates = [ common.localhostIPv4,
+                               '::1',
+                               '::ffff:127.0.0.1' ];
 
-const remoteFamilyCandidates = ['IPv4'];
-if (common.hasIPv6) remoteFamilyCandidates.push('IPv6');
+const remoteFamilyCandidates = ['IPv4', 'IPv6'];
 
 const server = net.createServer(common.mustCall(function(socket) {
-  assert.ok(remoteAddrCandidates.includes(socket.remoteAddress));
-  assert.ok(remoteFamilyCandidates.includes(socket.remoteFamily));
+  assert.ok(remoteAddrCandidates.includes(socket.remoteAddress),
+            `Invalid remoteAddress: ${socket.remoteAddress}`);
+  assert.ok(remoteFamilyCandidates.includes(socket.remoteFamily),
+            `Invalid remoteFamily: ${socket.remoteFamily}`);
   assert.ok(socket.remotePort);
   assert.notStrictEqual(socket.remotePort, this.address().port);
   socket.on('end', function() {
@@ -48,9 +50,17 @@ const server = net.createServer(common.mustCall(function(socket) {
   socket.resume();
 }, 2));
 
-server.listen(0, 'localhost', function() {
-  const client = net.createConnection(this.address().port, 'localhost');
+server.listen(0, function() {
+  const client = net.createConnection(this.address().port, '127.0.0.1');
   const client2 = net.createConnection(this.address().port);
+
+  assert.strictEqual(client.remoteAddress, undefined);
+  assert.strictEqual(client.remoteFamily, undefined);
+  assert.strictEqual(client.remotePort, undefined);
+  assert.strictEqual(client2.remoteAddress, undefined);
+  assert.strictEqual(client2.remoteFamily, undefined);
+  assert.strictEqual(client2.remotePort, undefined);
+
   client.on('connect', function() {
     assert.ok(remoteAddrCandidates.includes(client.remoteAddress));
     assert.ok(remoteFamilyCandidates.includes(client.remoteFamily));

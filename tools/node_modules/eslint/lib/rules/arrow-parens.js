@@ -27,15 +27,15 @@ function hasBlockBody(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "require parentheses around arrow function arguments",
-            category: "ECMAScript 6",
+            description: "Require parentheses around arrow function arguments",
             recommended: false,
-            url: "https://eslint.org/docs/rules/arrow-parens"
+            url: "https://eslint.org/docs/latest/rules/arrow-parens"
         },
 
         fixable: "code",
@@ -69,7 +69,7 @@ module.exports = {
         const asNeeded = context.options[0] === "as-needed";
         const requireForBlockBody = asNeeded && context.options[1] && context.options[1].requireForBlockBody === true;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Finds opening paren of parameters for the given arrow function, if it exists.

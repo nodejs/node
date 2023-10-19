@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-version</title>
 <style>
 body {
@@ -141,19 +142,15 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#preid"><code>preid</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#preid"><code>preid</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#workspaces-update"><code>workspaces-update</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=&lt;prerelease-id&gt;] | from-git]
+<pre><code class="language-bash">npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]
 
-'npm [-v | --version]' to print npm version
-'npm view &lt;pkg&gt; version' to view a package's published version
-'npm ls' to inspect current package/dependency versions
+alias: verison
 </code></pre>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="allow-same-version"><code>allow-same-version</code></h4>
 <ul>
 <li>Default: false</li>
@@ -172,20 +169,25 @@ to the same value as the current version.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Tag the commit when using the <code>npm version</code> command.</p>
+<p>Tag the commit when using the <code>npm version</code> command. Setting this to false
+results in no commit being made at all.</p>
 <h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
 <p>Not supported by all npm commands.</p>
 <h4 id="preid"><code>preid</code></h4>
 <ul>
-<li>Default: “”</li>
+<li>Default: ""</li>
 <li>Type: String</li>
 </ul>
-<p>The “prerelease identifier” to use as a prefix for the “prerelease” part of
+<p>The "prerelease identifier" to use as a prefix for the "prerelease" part of
 a semver. Like the <code>rc</code> in <code>1.2.0-rc.8</code>.</p>
 <h4 id="sign-git-tag"><code>sign-git-tag</code></h4>
 <ul>
@@ -208,8 +210,8 @@ this configuration option.</p>
 <ul>
 <li>Workspace names</li>
 <li>Path to a workspace directory</li>
-<li>Path to a parent workspace directory (will result to selecting all of the
-nested workspaces)</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
 </ul>
 <p>When set for the <code>npm init</code> command, this may be set to the folder of a
 workspace which does not yet exist, to create the folder and set it up as a
@@ -217,13 +219,37 @@ brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces-update"><code>workspaces-update</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, the npm cli will run an update after operations that may
+possibly change the workspaces installed to the <code>node_modules</code> folder.</p>
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Enable running a command in the context of <strong>all</strong> the configured
-workspaces.</p>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
+all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>Run this in a package directory to bump the version and write the new data
 back to <code>package.json</code>, <code>package-lock.json</code>, and, if present,
@@ -239,16 +265,16 @@ behavior is controlled by <code>git-tag-version</code> (see below), and can be
 disabled on the command line by running <code>npm --no-git-tag-version version</code>.
 It will fail if the working directory is not clean, unless the <code>-f</code> or
 <code>--force</code> flag is set.</p>
-<p>If supplied with <code>-m</code> or <code>--message</code> config option, npm will use it as a
-commit message when creating a version commit.  If the <code>message</code> config
-contains <code>%s</code> then that will be replaced with the resulting version number.
-For example:</p>
-<pre lang="bash"><code>npm version patch -m "Upgrade to %s for reasons"
+<p>If supplied with <code>-m</code> or <a href="../using-npm/config#message.html"><code>--message</code> config</a> option,
+npm will use it as a commit message when creating a version commit.  If the
+<code>message</code> config contains <code>%s</code> then that will be replaced with the resulting
+version number. For example:</p>
+<pre><code class="language-bash">npm version patch -m "Upgrade to %s for reasons"
 </code></pre>
-<p>If the <code>sign-git-tag</code> config is set, then the tag will be signed using the
-<code>-s</code> flag to git.  Note that you must have a default GPG key set up in your
-git config for this to work properly.  For example:</p>
-<pre lang="bash"><code>$ npm config set sign-git-tag true
+<p>If the <a href="../using-npm/config#sign-git-tag.html"><code>sign-git-tag</code> config</a> is set, then the
+tag will be signed using the <code>-s</code> flag to git. Note that you must have a default
+GPG key set up in your git config for this to work properly. For example:</p>
+<pre><code class="language-bash">$ npm config set sign-git-tag true
 $ npm version patch
 
 You need a passphrase to unlock the secret key for
@@ -279,7 +305,7 @@ generated files to the commit using <code>git add</code>.</li>
 automatically push the commit and/or tag.</li>
 </ol>
 <p>Take the following example:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "scripts": {
     "preversion": "npm test",
     "version": "npm run build &amp;&amp; git add -A dist",
@@ -298,8 +324,7 @@ deletes the <code>build/temp</code> directory.</p>
 <li><a href="../using-npm/scripts.html">npm scripts</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../using-npm/config.html">config</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-version.md">

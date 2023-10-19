@@ -237,7 +237,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
   return e;
 }
-#endif
+#endif  // _WIN32
 
 // Implement the legacy name exposed in node.h. This has not been in fact
 // fatal any more, as the user can handle the exception in the

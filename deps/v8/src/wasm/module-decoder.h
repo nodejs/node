@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_MODULE_DECODER_H_
 #define V8_WASM_MODULE_DECODER_H_
 
@@ -25,10 +29,12 @@ namespace wasm {
 struct CompilationEnv;
 
 inline bool IsValidSectionCode(uint8_t byte) {
-  return kTypeSectionCode <= byte && byte <= kLastKnownModuleSection;
+  // Allow everything within [kUnknownSectionCode, kLastKnownModuleSection].
+  static_assert(kUnknownSectionCode == 0);
+  return byte <= kLastKnownModuleSection;
 }
 
-const char* SectionName(SectionCode code);
+V8_EXPORT_PRIVATE const char* SectionName(SectionCode code);
 
 using ModuleResult = Result<std::shared_ptr<WasmModule>>;
 using FunctionResult = Result<std::unique_ptr<WasmFunction>>;
@@ -50,80 +56,24 @@ struct AsmJsOffsets {
 };
 using AsmJsOffsetsResult = Result<AsmJsOffsets>;
 
-class LocalName {
+class DecodedNameSection {
  public:
-  LocalName(int index, WireBytesRef name) : index_(index), name_(name) {}
-
-  int index() const { return index_; }
-  WireBytesRef name() const { return name_; }
-
-  struct IndexLess {
-    bool operator()(const LocalName& a, const LocalName& b) const {
-      return a.index() < b.index();
-    }
-  };
+  explicit DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
+                              WireBytesRef name_section);
 
  private:
-  int index_;
-  WireBytesRef name_;
-};
+  friend class NamesProvider;
 
-class LocalNamesPerFunction {
- public:
-  // For performance reasons, {LocalNamesPerFunction} should not be copied.
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LocalNamesPerFunction);
-
-  LocalNamesPerFunction(int function_index, std::vector<LocalName> names)
-      : function_index_(function_index), names_(std::move(names)) {
-    DCHECK(
-        std::is_sorted(names_.begin(), names_.end(), LocalName::IndexLess{}));
-  }
-
-  int function_index() const { return function_index_; }
-
-  WireBytesRef GetName(int local_index) {
-    auto it =
-        std::lower_bound(names_.begin(), names_.end(),
-                         LocalName{local_index, {}}, LocalName::IndexLess{});
-    if (it == names_.end()) return {};
-    if (it->index() != local_index) return {};
-    return it->name();
-  }
-
-  struct FunctionIndexLess {
-    bool operator()(const LocalNamesPerFunction& a,
-                    const LocalNamesPerFunction& b) const {
-      return a.function_index() < b.function_index();
-    }
-  };
-
- private:
-  int function_index_;
-  std::vector<LocalName> names_;
-};
-
-class LocalNames {
- public:
-  // For performance reasons, {LocalNames} should not be copied.
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LocalNames);
-
-  explicit LocalNames(std::vector<LocalNamesPerFunction> functions)
-      : functions_(std::move(functions)) {
-    DCHECK(std::is_sorted(functions_.begin(), functions_.end(),
-                          LocalNamesPerFunction::FunctionIndexLess{}));
-  }
-
-  WireBytesRef GetName(int function_index, int local_index) {
-    auto it = std::lower_bound(functions_.begin(), functions_.end(),
-                               LocalNamesPerFunction{function_index, {}},
-                               LocalNamesPerFunction::FunctionIndexLess{});
-    if (it == functions_.end()) return {};
-    if (it->function_index() != function_index) return {};
-    return it->GetName(local_index);
-  }
-
- private:
-  std::vector<LocalNamesPerFunction> functions_;
+  IndirectNameMap local_names_;
+  IndirectNameMap label_names_;
+  NameMap type_names_;
+  NameMap table_names_;
+  NameMap memory_names_;
+  NameMap global_names_;
+  NameMap element_segment_names_;
+  NameMap data_segment_names_;
+  IndirectNameMap field_names_;
+  NameMap tag_names_;
 };
 
 enum class DecodingMethod {
@@ -134,29 +84,45 @@ enum class DecodingMethod {
   kDeserialize
 };
 
-// Decodes the bytes of a wasm module between {module_start} and {module_end}.
+enum PopulateExplicitRecGroups {
+  kDoNotPopulateExplicitRecGroups,
+  kPopulateExplicitRecGroups
+};
+
+// Decodes the bytes of a wasm module in {wire_bytes} while recording events and
+// updating counters.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
-    const WasmFeatures& enabled, const byte* module_start,
-    const byte* module_end, bool verify_functions, ModuleOrigin origin,
-    Counters* counters, std::shared_ptr<metrics::Recorder> metrics_recorder,
-    v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
-    AccountingAllocator* allocator);
+    WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin, Counters* counters,
+    std::shared_ptr<metrics::Recorder> metrics_recorder,
+    v8::metrics::Recorder::ContextId context_id,
+    DecodingMethod decoding_method);
+// Decodes the bytes of a wasm module in {wire_bytes} without recording events
+// or updating counters.
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
+    WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin,
+    PopulateExplicitRecGroups populate_explicit_rec_groups =
+        kDoNotPopulateExplicitRecGroups);
+// Stripped down version for disassembler needs.
+V8_EXPORT_PRIVATE ModuleResult
+DecodeWasmModuleForDisassembler(base::Vector<const uint8_t> wire_bytes);
 
 // Exposed for testing. Decodes a single function signature, allocating it
-// in the given zone. Returns {nullptr} upon failure.
-V8_EXPORT_PRIVATE const FunctionSig* DecodeWasmSignatureForTesting(
-    const WasmFeatures& enabled, Zone* zone, const byte* start,
-    const byte* end);
+// in the given zone.
+V8_EXPORT_PRIVATE Result<const FunctionSig*> DecodeWasmSignatureForTesting(
+    WasmFeatures enabled_features, Zone* zone,
+    base::Vector<const uint8_t> bytes);
 
-// Decodes the bytes of a wasm function between
-// {function_start} and {function_end}.
+// Decodes the bytes of a wasm function in {function_bytes} (part of
+// {wire_bytes}).
 V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunctionForTesting(
-    const WasmFeatures& enabled, Zone* zone, const ModuleWireBytes& wire_bytes,
-    const WasmModule* module, const byte* function_start,
-    const byte* function_end, Counters* counters);
+    WasmFeatures enabled, Zone* zone, ModuleWireBytes wire_bytes,
+    const WasmModule* module, base::Vector<const uint8_t> function_bytes);
 
-V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(
-    const WasmFeatures& enabled, const byte* start, const byte* end);
+V8_EXPORT_PRIVATE ConstantExpression DecodeWasmInitExprForTesting(
+    WasmFeatures enabled_features, base::Vector<const uint8_t> bytes,
+    ValueType expected);
 
 struct CustomSectionOffset {
   WireBytesRef section;
@@ -165,54 +131,50 @@ struct CustomSectionOffset {
 };
 
 V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
-    const byte* start, const byte* end);
+    base::Vector<const uint8_t> wire_bytes);
 
 // Extracts the mapping from wasm byte offset to asm.js source position per
 // function.
-AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets);
+AsmJsOffsetsResult DecodeAsmJsOffsets(
+    base::Vector<const uint8_t> encoded_offsets);
 
-// Decode the function names from the name section and also look at export
-// table. Returns the result as an unordered map. Only names with valid utf8
-// encoding are stored and conflicts are resolved by choosing the last name
-// read.
-void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>* names,
-                         const Vector<const WasmExport> export_table);
+// Decode the function names from the name section. Returns the result as an
+// unordered map. Only names with valid utf8 encoding are stored and conflicts
+// are resolved by choosing the last name read.
+void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
+                         NameMap& names);
 
-// Decode the local names assignment from the name section.
-// The result will be empty if no name section is present. On encountering an
-// error in the name section, returns all information decoded up to the first
-// error.
-LocalNames DecodeLocalNames(Vector<const uint8_t> module_bytes);
+// Validate specific functions in the module. Return the first validation error
+// (deterministically), or an empty {WasmError} if all validated functions are
+// valid. {filter} determines which functions are validated. Pass an empty
+// function for "all functions". The {filter} callback needs to be thread-safe.
+V8_EXPORT_PRIVATE WasmError ValidateFunctions(
+    const WasmModule*, WasmFeatures enabled_features,
+    base::Vector<const uint8_t> wire_bytes, std::function<bool(int)> filter);
+
+WasmError GetWasmErrorWithName(base::Vector<const uint8_t> wire_bytes,
+                               int func_index, const WasmModule* module,
+                               WasmError error);
 
 class ModuleDecoderImpl;
 
 class ModuleDecoder {
  public:
-  explicit ModuleDecoder(const WasmFeatures& enabled);
+  explicit ModuleDecoder(WasmFeatures enabled_feature);
   ~ModuleDecoder();
 
-  void StartDecoding(Counters* counters,
-                     std::shared_ptr<metrics::Recorder> metrics_recorder,
-                     v8::metrics::Recorder::ContextId context_id,
-                     AccountingAllocator* allocator,
-                     ModuleOrigin origin = ModuleOrigin::kWasmOrigin);
+  void DecodeModuleHeader(base::Vector<const uint8_t> bytes);
 
-  void DecodeModuleHeader(Vector<const uint8_t> bytes, uint32_t offset);
+  void DecodeSection(SectionCode section_code,
+                     base::Vector<const uint8_t> bytes, uint32_t offset);
 
-  void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
-                     uint32_t offset, bool verify_functions = true);
-
-  void StartCodeSection();
+  void StartCodeSection(WireBytesRef section_bytes);
 
   bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset);
 
-  void DecodeFunctionBody(uint32_t index, uint32_t size, uint32_t offset,
-                          bool verify_functions = true);
+  void DecodeFunctionBody(uint32_t index, uint32_t size, uint32_t offset);
 
-  ModuleResult FinishDecoding(bool verify_functions = true);
-
-  void set_code_section(uint32_t offset, uint32_t size);
+  ModuleResult FinishDecoding();
 
   const std::shared_ptr<WasmModule>& shared_module() const;
 
@@ -226,11 +188,10 @@ class ModuleDecoder {
   // the identifier string of the unknown section.
   // The return value is the number of bytes that were consumed.
   static size_t IdentifyUnknownSection(ModuleDecoder* decoder,
-                                       Vector<const uint8_t> bytes,
+                                       base::Vector<const uint8_t> bytes,
                                        uint32_t offset, SectionCode* result);
 
  private:
-  const WasmFeatures enabled_features_;
   std::unique_ptr<ModuleDecoderImpl> impl_;
 };
 

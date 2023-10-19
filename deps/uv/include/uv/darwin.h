@@ -40,7 +40,7 @@
   void* cf_state;                                                             \
   uv_mutex_t cf_mutex;                                                        \
   uv_sem_t cf_sem;                                                            \
-  void* cf_signals[2];                                                        \
+  struct uv__queue cf_signals;                                                \
 
 #define UV_PLATFORM_FS_EVENT_FIELDS                                           \
   uv__io_t event_watcher;                                                     \
@@ -48,8 +48,8 @@
   int realpath_len;                                                           \
   int cf_flags;                                                               \
   uv_async_t* cf_cb;                                                          \
-  void* cf_events[2];                                                         \
-  void* cf_member[2];                                                         \
+  struct uv__queue cf_events;                                                 \
+  struct uv__queue cf_member;                                                 \
   int cf_error;                                                               \
   uv_mutex_t cf_mutex;                                                        \
 

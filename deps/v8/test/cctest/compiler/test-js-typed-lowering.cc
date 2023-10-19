@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
@@ -17,18 +17,19 @@
 #include "src/heap/factory-inl.h"
 #include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/compiler/js-heap-broker-base.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class JSTypedLoweringTester : public HandleAndZoneScope {
+class JSTypedLoweringTester : public HandleAndZoneScope,
+                              public JSHeapBrokerTestBase {
  public:
   explicit JSTypedLoweringTester(int num_parameters = 0)
       : HandleAndZoneScope(kCompressGraphZone),
+        JSHeapBrokerTestBase(main_isolate(), main_zone()),
         isolate(main_isolate()),
-        canonical(isolate),
-        js_heap_broker(isolate, main_zone()),
         binop(nullptr),
         unop(nullptr),
         javascript(main_zone()),
@@ -36,8 +37,9 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         simplified(main_zone()),
         common(main_zone()),
         graph(main_zone()),
-        typer(&js_heap_broker, Typer::kNoFlags, &graph, &tick_counter),
-        context_node(nullptr) {
+        typer(broker(), Typer::kNoFlags, &graph, &tick_counter),
+        context_node(nullptr),
+        deps(broker(), main_zone()) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
     graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
     typer.Run();
@@ -45,8 +47,6 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Isolate* isolate;
   TickCounter tick_counter;
-  CanonicalHandleScope canonical;
-  JSHeapBroker js_heap_broker;
   const Operator* binop;
   const Operator* unop;
   JSOperatorBuilder javascript;
@@ -56,6 +56,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   Graph graph;
   Typer typer;
   Node* context_node;
+  CompilationDependencies deps;
 
   Node* Parameter(Type t, int32_t index = 0) {
     Node* n = graph.NewNode(common.Parameter(index), graph.start());
@@ -89,14 +90,10 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 
   Node* reduce(Node* node) {
-    JSHeapCopyReducer heap_copy_reducer(&js_heap_broker);
-    CHECK(!heap_copy_reducer.Reduce(node).Changed());
     JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &simplified,
                     &machine);
-    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter,
-                               &js_heap_broker);
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, &js_heap_broker,
-                            main_zone());
+    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter, broker());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, broker(), main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;
@@ -762,8 +759,8 @@ TEST(RemoveToNumberEffects) {
     if (effect_use != nullptr) {
       R.CheckEffectInput(R.start(), effect_use);
       // Check that value uses of ToNumber() do not go to start().
-      for (int i = 0; i < effect_use->op()->ValueInputCount(); i++) {
-        CHECK_NE(R.start(), effect_use->InputAt(i));
+      for (int j = 0; j < effect_use->op()->ValueInputCount(); j++) {
+        CHECK_NE(R.start(), effect_use->InputAt(j));
       }
     }
   }
@@ -840,8 +837,8 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
       const Operator* op = strict ? R->javascript.StrictEqual(feedback_source)
                                   : R->javascript.Equal(feedback_source);
       Node* eq = R->Binop(op, p0, p1);
-      Node* r = R->reduce(eq);
-      R->CheckBinop(expected, r);
+      Node* reduced = R->reduce(eq);
+      R->CheckBinop(expected, reduced);
     }
   }
 }

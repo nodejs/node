@@ -64,6 +64,23 @@ does not support this), then B<*peer> will be cleared and the family set to
 AF_UNSPEC. Typically user code is expected to "connect" the underlying socket to
 the peer and continue the handshake in a connected state.
 
+Warning: It is essential that the calling code connects the underlying socket to
+the peer after making use of DTLSv1_listen(). In the typical case where
+L<BIO_s_datagram(3)> is used, the peer address is updated when receiving a
+datagram on an unconnected socket. If the socket is not connected, it can
+receive datagrams from any host on the network, which will cause subsequent
+outgoing datagrams transmitted by DTLS to be transmitted to that host. In other
+words, failing to call BIO_connect() or a similar OS-specific function on a
+socket means that any host on the network can cause outgoing DTLS traffic to be
+redirected to it by sending a datagram to the socket in question. This does not
+break the cryptographic protections of DTLS but may facilitate a
+denial-of-service attack or allow unencrypted information in the DTLS handshake
+to be learned by an attacker. This is due to the historical design of
+L<BIO_s_datagram(3)>; see L<BIO_s_datagram(3)> for details on this issue.
+
+Once a socket has been connected, L<BIO_ctrl_set_connected(3)> should be used to
+inform the BIO that the socket is to be used in connected mode.
+
 Prior to calling DTLSv1_listen() user code must ensure that cookie generation
 and verification callbacks have been set up using
 L<SSL_CTX_set_cookie_generate_cb(3)> and L<SSL_CTX_set_cookie_verify_cb(3)>
@@ -126,9 +143,9 @@ The type of "peer" also changed in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

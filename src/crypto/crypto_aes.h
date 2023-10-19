@@ -6,7 +6,6 @@
 #include "crypto/crypto_cipher.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer.h"
 #include "env.h"
 #include "v8.h"
 
@@ -81,6 +80,7 @@ using AESCryptoJob = CipherJob<AESCipherTraits>;
 
 namespace AES {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace AES
 }  // namespace crypto
 }  // namespace node

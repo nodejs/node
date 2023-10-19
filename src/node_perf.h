@@ -3,10 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
-#include "node_perf_common.h"
 #include "base_object-inl.h"
 #include "histogram.h"
+#include "node.h"
+#include "node_internals.h"
+#include "node_perf_common.h"
 
 #include "v8.h"
 #include "uv.h"
@@ -16,10 +17,9 @@
 namespace node {
 
 class Environment;
+class ExternalReferenceRegistry;
 
 namespace performance {
-
-extern const uint64_t timeOrigin;
 
 inline const char* GetPerformanceMilestoneName(
     PerformanceMilestone milestone) {
@@ -157,22 +157,6 @@ struct GCPerformanceEntryTraits {
 };
 
 using GCPerformanceEntry = PerformanceEntry<GCPerformanceEntryTraits>;
-
-class ELDHistogram : public IntervalHistogram {
- public:
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  ELDHistogram(
-      Environment* env,
-      v8::Local<v8::Object> wrap,
-      int64_t interval);
-
-  void OnInterval() override;
-
-  SET_MEMORY_INFO_NAME(ELDHistogram)
-  SET_SELF_SIZE(ELDHistogram)
-};
 
 }  // namespace performance
 }  // namespace node

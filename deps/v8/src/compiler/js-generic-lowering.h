@@ -4,7 +4,6 @@
 #ifndef V8_COMPILER_JS_GENERIC_LOWERING_H_
 #define V8_COMPILER_JS_GENERIC_LOWERING_H_
 
-#include "src/codegen/code-factory.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/opcodes.h"
@@ -37,7 +36,7 @@ class JSGenericLowering final : public AdvancedReducer {
 #undef DECLARE_LOWER
 
   // Helpers to replace existing nodes with a generic call.
-  void ReplaceWithBuiltinCall(Node* node, Builtins::Name builtin);
+  void ReplaceWithBuiltinCall(Node* node, Builtin builtin);
   void ReplaceWithBuiltinCall(Node* node, Callable c,
                               CallDescriptor::Flags flags);
   void ReplaceWithBuiltinCall(Node* node, Callable c,
@@ -46,11 +45,11 @@ class JSGenericLowering final : public AdvancedReducer {
   void ReplaceWithRuntimeCall(Node* node, Runtime::FunctionId f, int args = -1);
 
   void ReplaceUnaryOpWithBuiltinCall(Node* node,
-                                     Builtins::Name builtin_without_feedback,
-                                     Builtins::Name builtin_with_feedback);
+                                     Builtin builtin_without_feedback,
+                                     Builtin builtin_with_feedback);
   void ReplaceBinaryOpWithBuiltinCall(Node* node,
-                                      Builtins::Name builtin_without_feedback,
-                                      Builtins::Name builtin_with_feedback);
+                                      Builtin builtin_without_feedback,
+                                      Builtin builtin_with_feedback);
 
   Zone* zone() const;
   Isolate* isolate() const;

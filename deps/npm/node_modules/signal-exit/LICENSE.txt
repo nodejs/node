@@ -1,6 +1,6 @@
 The ISC License
 
-Copyright (c) 2015, Contributors
+Copyright (c) 2015-2023 Benjamin Coe, Isaac Z. Schlueter, and Contributors
 
 Permission to use, copy, modify, and/or distribute this software
 for any purpose with or without fee is hereby granted, provided

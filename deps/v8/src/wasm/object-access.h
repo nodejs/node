@@ -2,13 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_OBJECT_ACCESS_H_
 #define V8_WASM_OBJECT_ACCESS_H_
 
 #include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-function.h"
-#include "src/objects/js-objects.h"
 #include "src/objects/shared-function-info.h"
 
 namespace v8 {
@@ -23,6 +26,26 @@ class ObjectAccess : public AllStatic {
   // Get the offset into a fixed array for a given {index}.
   static constexpr int ElementOffsetInTaggedFixedArray(int index) {
     return ToTagged(FixedArray::OffsetOfElementAt(index));
+  }
+
+  // Get the offset into a fixed uint8 array for a given {index}.
+  static constexpr int ElementOffsetInTaggedFixedUInt8Array(int index) {
+    return ToTagged(FixedUInt8Array::OffsetOfElementAt(index));
+  }
+
+  // Get the offset into a fixed uint32 array for a given {index}.
+  static constexpr int ElementOffsetInTaggedFixedUInt32Array(int index) {
+    return ToTagged(FixedUInt32Array::OffsetOfElementAt(index));
+  }
+
+  // Get the offset into a fixed address array for a given {index}.
+  static constexpr int ElementOffsetInTaggedFixedAddressArray(int index) {
+    return ToTagged(FixedAddressArray::OffsetOfElementAt(index));
+  }
+
+  // Get the offset into a external pointer array for a given {index}.
+  static constexpr int ElementOffsetInTaggedExternalPointerArray(int index) {
+    return ToTagged(ExternalPointerArray::OffsetOfElementAt(index));
   }
 
   // Get the offset of the context stored in a {JSFunction} object.

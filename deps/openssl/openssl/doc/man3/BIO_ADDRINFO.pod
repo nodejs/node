@@ -23,7 +23,7 @@ BIO_lookup
 
  int BIO_lookup_ex(const char *host, const char *service, int lookup_type,
                    int family, int socktype, int protocol, BIO_ADDRINFO **res);
- int BIO_lookup(const char *node, const char *service,
+ int BIO_lookup(const char *host, const char *service,
                 enum BIO_lookup_type lookup_type,
                 int family, int socktype, BIO_ADDRINFO **res);
 
@@ -54,8 +54,7 @@ used. B<res> points at a pointer to hold the start of a B<BIO_ADDRINFO>
 chain.
 
 For the family B<AF_UNIX>, BIO_lookup_ex() will ignore the B<service>
-parameter and expects the B<node> parameter to hold the path to the
-socket file.
+parameter and expects the B<host> parameter to hold the path to the socket file.
 
 BIO_lookup() does the same as BIO_lookup_ex() but does not provide the ability
 to select based on the protocol (any protocol may be returned).
@@ -104,9 +103,9 @@ The BIO_lookup_ex() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

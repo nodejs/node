@@ -9,9 +9,9 @@
 
 #include "include/cppgc/platform.h"
 #include "src/base/macros.h"
+#include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap.h"
-#include "src/heap/cppgc/incremental-marking-schedule.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/task-handle.h"
 
@@ -93,14 +93,12 @@ void HeapGrowing::HeapGrowingImpl::AllocatedObjectSizeIncreased(size_t) {
   size_t allocated_object_size = stats_collector_->allocated_object_size();
   if (allocated_object_size > limit_for_atomic_gc_) {
     collector_->CollectGarbage(
-        {GarbageCollector::Config::CollectionType::kMajor,
-         GarbageCollector::Config::StackState::kMayContainHeapPointers,
-         GarbageCollector::Config::MarkingType::kAtomic, sweeping_support_});
+        {CollectionType::kMajor, StackState::kMayContainHeapPointers,
+         GCConfig::MarkingType::kAtomic, sweeping_support_});
   } else if (allocated_object_size > limit_for_incremental_gc_) {
     if (marking_support_ == cppgc::Heap::MarkingType::kAtomic) return;
     collector_->StartIncrementalGarbageCollection(
-        {GarbageCollector::Config::CollectionType::kMajor,
-         GarbageCollector::Config::StackState::kMayContainHeapPointers,
+        {CollectionType::kMajor, StackState::kMayContainHeapPointers,
          marking_support_, sweeping_support_});
   }
 }
@@ -126,7 +124,8 @@ void HeapGrowing::HeapGrowingImpl::ConfigureLimit(
   //    essentially always running and write barriers are always active (in
   //    case allocation rate is very high).
   size_t estimated_bytes_allocated_during_incremental_gc =
-      std::ceil(IncrementalMarkingSchedule::kEstimatedMarkingTimeMs *
+      std::ceil(heap::base::IncrementalMarkingSchedule::kEstimatedMarkingTime
+                    .InMillisecondsF() *
                 stats_collector_->GetRecentAllocationSpeedInBytesPerMs());
   size_t limit_incremental_gc_based_on_allocation_rate =
       limit_for_atomic_gc_ - estimated_bytes_allocated_during_incremental_gc;

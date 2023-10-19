@@ -41,7 +41,7 @@ const Readable = require('stream').Readable;
     assert.strictEqual(state.ended, !state.reading);
 
     // Consume all the data
-    while (readable.read() !== null) {}
+    while (readable.read() !== null);
 
     if (expectedReadingMore.length === 0) // Reached end of stream
       process.nextTick(common.mustCall(onStreamEnd, 1));
@@ -124,7 +124,7 @@ const Readable = require('stream').Readable;
   assert.strictEqual(state.reading, false);
   assert.strictEqual(state.readingMore, false);
 
-  const onReadable = common.mustNotCall;
+  const onReadable = common.mustNotCall();
 
   readable.on('readable', onReadable);
 

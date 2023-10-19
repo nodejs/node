@@ -5,35 +5,64 @@
 [
 
 [ALWAYS, {
+  # This test can only be executed in the browser
+  'wpt/idlharness': [SKIP],
+  # Failing WPT tests
+  'wpt/exception/type.tentative': [FAIL],
+  'wpt/function/constructor.tentative': [FAIL],
+  'wpt/function/table.tentative': [FAIL],
+  'wpt/function/type.tentative': [FAIL],
+  # TODO(v8): Should work after
+  # https://github.com/WebAssembly/exception-handling/pull/257 landed and the
+  # tests have been updated.
+  'wpt/exception/getArg.tentative': [FAIL],
+
+  # Outdated proposal tests.
+  'proposals/js-types/table/get-set': [FAIL],
+  'proposals/memory64/table/get-set': [FAIL],
+  'proposals/tail-call/table/get-set': [FAIL],
+  'proposals/js-types/memory/constructor': [FAIL],
+  'proposals/tail-call/memory/constructor': [FAIL],
+  'proposals/js-types/interface': [FAIL],
+  'proposals/memory64/interface': [FAIL],
+  'proposals/simd/interface': [FAIL],
+  'proposals/tail-call/interface': [FAIL],
+
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
-  'constructor/instantiate': [FAIL],
-  'instance/constructor': [FAIL],
   'proposals/js-types/constructor/instantiate': [FAIL],
-  'proposals/js-types/global/constructor': [FAIL],
   'proposals/js-types/global/value-get-set': [FAIL],
   'proposals/js-types/instance/constructor': [FAIL],
 
-  'prototypes': [FAIL],
-
-  # Outdated proposals, will work after rebasing.
-  'proposals/reference-types/global/value-get-set': [FAIL],
-  'proposals/reference-types/global/constructor': [FAIL],
-  'proposals/bulk-memory-operations/global/value-get-set': [FAIL],
-  'proposals/bulk-memory-operations/global/constructor': [FAIL],
-
-  # These are slow, and not useful to run for the proposals:
-  'proposals/reference-types/limits': [SKIP],
-  'proposals/bulk-memory-operations/limits': [SKIP],
+  # Limits tests are slow, and not useful to run for the proposals:
+  'proposals/extended-const/limits': [SKIP],
   'proposals/js-types/limits': [SKIP],
-  # TODO(wasm): Update memory limit.
+  'proposals/memory64/limits': [SKIP],
+  'proposals/multi-memory/limits': [SKIP],
+  'proposals/tail-call/limits': [SKIP],
+
+  # Slow tests:
+  # TODO(14258): Switch back to [PASS, SLOW] once wasm-js tests allow more
+  # than one memory. Github issue:
+  # https://github.com/WebAssembly/multi-memory/issues/49
   'limits': [FAIL],
 }], # ALWAYS
+
+['system == android', {
+  # Slow, and we always have the same limits anyway.
+  # Android bots don't have enough memory to run the test.
+  'limits': [SKIP],
+}],  # 'system == android'
 
 ['arch == s390 or arch == s390x or system == aix', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=8402
   'instance/constructor': [SKIP],
   'constructor/instantiate': [SKIP],
 }],  # 'arch == s390 or arch == s390x or system == aix'
+
+['arch == ppc64', {
+  # Test needs larger than supported single code space.
+  'limits': [SKIP],
+}],  # 'arch == ppc64'
 
 ['mode == debug or simulator_run or variant != default or arch == arm or tsan or msan or asan', {
   # Slow, and we always have the same limits anyway.

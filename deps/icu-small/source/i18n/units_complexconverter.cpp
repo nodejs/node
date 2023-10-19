@@ -143,7 +143,7 @@ MaybeStackVector<Measure> ComplexUnitsConverter::convert(double quantity,
     // TODO: return an error for "foot-and-foot"?
     MaybeStackVector<Measure> result;
     int sign = 1;
-    if (quantity < 0) {
+    if (quantity < 0 && unitsConverters_.length() > 1) {
         quantity *= -1;
         sign = -1;
     }
@@ -164,12 +164,14 @@ MaybeStackVector<Measure> ComplexUnitsConverter::convert(double quantity,
         if (i < n - 1) {
             // If quantity is at the limits of double's precision from an
             // integer value, we take that integer value.
-            int64_t flooredQuantity = floor(quantity * (1 + DBL_EPSILON));
+            int64_t flooredQuantity;
             if (uprv_isNaN(quantity)) {
                 // With clang on Linux: floor does not support NaN, resulting in
                 // a giant negative number. For now, we produce "0 feet, NaN
                 // inches". TODO(icu-units#131): revisit desired output.
                 flooredQuantity = 0;
+            } else {
+                flooredQuantity = static_cast<int64_t>(floor(quantity * (1 + DBL_EPSILON)));
             }
             intValues[i] = flooredQuantity;
 
@@ -210,7 +212,6 @@ MaybeStackVector<Measure> ComplexUnitsConverter::convert(double quantity,
         }
     }
 
-
     // Transfer values into result and return:
     for(int32_t i = 0, n = unitsConverters_.length(); i < n; ++i) {
         U_ASSERT(tmpResult[i] != nullptr);
@@ -224,6 +225,12 @@ MaybeStackVector<Measure> ComplexUnitsConverter::convert(double quantity,
 void ComplexUnitsConverter::applyRounder(MaybeStackArray<int64_t, 5> &intValues, double &quantity,
                                          icu::number::impl::RoundingImpl *rounder,
                                          UErrorCode &status) const {
+    if (uprv_isInfinite(quantity) || uprv_isNaN(quantity)) {
+        // Inf and NaN can't be rounded, and calculating `carry` below is known
+        // to fail on Gentoo on HPPA and OpenSUSE on riscv64. Nothing to do.
+        return;
+    }
+
     if (rounder == nullptr) {
         // Nothing to do for the quantity.
         return;
@@ -244,20 +251,20 @@ void ComplexUnitsConverter::applyRounder(MaybeStackArray<int64_t, 5> &intValues,
     }
 
     // Check if there's a carry, and bubble it back up the resulting intValues.
-    int64_t carry = floor(unitsConverters_[lastIndex]->convertInverse(quantity) * (1 + DBL_EPSILON));
+    int64_t carry = static_cast<int64_t>(floor(unitsConverters_[lastIndex]->convertInverse(quantity) * (1 + DBL_EPSILON)));
     if (carry <= 0) {
         return;
     }
-    quantity -= unitsConverters_[lastIndex]->convert(carry);
+    quantity -= unitsConverters_[lastIndex]->convert(static_cast<double>(carry));
     intValues[lastIndex - 1] += carry;
 
     // We don't use the first converter: that one is for the input unit
     for (int32_t j = lastIndex - 1; j > 0; j--) {
-        carry = floor(unitsConverters_[j]->convertInverse(intValues[j]) * (1 + DBL_EPSILON));
+        carry = static_cast<int64_t>(floor(unitsConverters_[j]->convertInverse(static_cast<double>(intValues[j])) * (1 + DBL_EPSILON)));
         if (carry <= 0) {
             return;
         }
-        intValues[j] -= round(unitsConverters_[j]->convert(carry));
+        intValues[j] -= static_cast<int64_t>(round(unitsConverters_[j]->convert(static_cast<double>(carry))));
         intValues[j - 1] += carry;
     }
 }

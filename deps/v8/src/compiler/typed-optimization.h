@@ -6,7 +6,6 @@
 #define V8_COMPILER_TYPED_OPTIMIZATION_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {
@@ -64,6 +63,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceToBoolean(Node* node);
   Reduction ReduceSpeculativeNumberAdd(Node* node);
   Reduction ReduceSpeculativeNumberMultiply(Node* node);
+  Reduction ReduceSpeculativeNumberPow(Node* node);
   Reduction ReduceSpeculativeNumberBinop(Node* node);
   Reduction ReduceSpeculativeNumberComparison(Node* node);
 
@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
       Node* comparison, Node* from_char_code, Type constant_type,
       bool inverted);
   Reduction TryReduceStringComparisonOfStringFromSingleCharCodeToConstant(
-      Node* comparison, const StringRef& string, bool inverted);
+      Node* comparison, StringRef string, bool inverted);
   const Operator* NumberComparisonFor(const Operator* op);
 
   Node* ConvertPlainPrimitiveToNumber(Node* node);

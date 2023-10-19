@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_H_
 
+#include "include/v8-typed-array.h"
+#include "src/handles/maybe-handles.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-objects.h"
 #include "torque-generated/bit-fields.h"
@@ -20,38 +22,34 @@ class ArrayBufferExtension;
 #include "torque-generated/src/objects/js-array-buffer-tq.inc"
 
 class JSArrayBuffer
-    : public TorqueGeneratedJSArrayBuffer<JSArrayBuffer, JSObject> {
+    : public TorqueGeneratedJSArrayBuffer<JSArrayBuffer,
+                                          JSObjectWithEmbedderSlots> {
  public:
 // The maximum length for JSArrayBuffer's supported by V8.
 // On 32-bit architectures we limit this to 2GiB, so that
 // we can continue to use CheckBounds with the Unsigned31
 // restriction for the length.
-#if V8_HOST_ARCH_32_BIT
+#if V8_ENABLE_SANDBOX
+  static constexpr size_t kMaxByteLength = kMaxSafeBufferSizeForSandbox;
+#elif V8_HOST_ARCH_32_BIT
   static constexpr size_t kMaxByteLength = kMaxInt;
 #else
   static constexpr size_t kMaxByteLength = kMaxSafeInteger;
 #endif
 
-  // When soft sandbox is enabled, creates entries in external pointer table for
-  // all JSArrayBuffer's fields that require soft sandbox protection (backing
-  // store pointer, backing store length, etc.).
-  // When sandbox is not enabled, it's a no-op.
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
-
   // [byte_length]: length in bytes
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
+  // [max_byte_length]: maximum length in bytes
+  DECL_PRIMITIVE_ACCESSORS(max_byte_length, size_t)
+
   // [backing_store]: backing memory for this array
+  // It should not be assumed that this will be nullptr for empty ArrayBuffers.
   DECL_GETTER(backing_store, void*)
   inline void set_backing_store(Isolate* isolate, void* value);
 
   // [extension]: extension object used for GC
   DECL_PRIMITIVE_ACCESSORS(extension, ArrayBufferExtension*)
-
-  // For non-wasm, allocation_length and allocation_base are byte_length and
-  // backing_store, respectively.
-  inline size_t allocation_length() const;
-  inline void* allocation_base() const;
 
   // [bit_field]: boolean flags
   DECL_PRIMITIVE_ACCESSORS(bit_field, uint32_t)
@@ -74,17 +72,29 @@ class JSArrayBuffer
   // [was_detached]: true => the buffer was previously detached.
   DECL_BOOLEAN_ACCESSORS(was_detached)
 
-  // [is_asmjs_memory]: true => this buffer was once used as asm.js memory.
-  DECL_BOOLEAN_ACCESSORS(is_asmjs_memory)
-
-  // [is_shared]: tells whether this is an ArrayBuffer or a SharedArrayBuffer.
+  // [is_shared]: true if this is a SharedArrayBuffer or a
+  // GrowableSharedArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_shared)
+
+  // [is_resizable_by_js]: true if this is a ResizableArrayBuffer or a
+  // GrowableSharedArrayBuffer.
+  DECL_BOOLEAN_ACCESSORS(is_resizable_by_js)
+
+  // An ArrayBuffer is empty if its BackingStore is empty or if there is none.
+  // An empty ArrayBuffer will have a byte_length of zero but not necessarily a
+  // nullptr backing_store. An ArrayBuffer with a byte_length of zero may not
+  // necessarily be empty though, as it may be a GrowableSharedArrayBuffer.
+  // An ArrayBuffer with a size greater than zero is never empty.
+  DECL_GETTER(IsEmpty, bool)
+
+  DECL_ACCESSORS(detach_key, Tagged<Object>)
 
   // Initializes the fields of the ArrayBuffer. The provided backing_store can
   // be nullptr. If it is not nullptr, then the function registers it with
   // src/heap/array-buffer-tracker.h.
-  V8_EXPORT_PRIVATE void Setup(SharedFlag shared,
-                               std::shared_ptr<BackingStore> backing_store);
+  V8_EXPORT_PRIVATE void Setup(SharedFlag shared, ResizableFlag resizable,
+                               std::shared_ptr<BackingStore> backing_store,
+                               Isolate* isolate);
 
   // Attaches the backing store to an already constructed empty ArrayBuffer.
   // This is intended to be used only in ArrayBufferConstructor builtin.
@@ -99,12 +109,23 @@ class JSArrayBuffer
   // of growing the underlying memory object. The {force_for_wasm_memory} flag
   // is used by the implementation of Wasm memory growth in order to bypass the
   // non-detachable check.
-  V8_EXPORT_PRIVATE void Detach(bool force_for_wasm_memory = false);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> Detach(
+      Handle<JSArrayBuffer> buffer, bool force_for_wasm_memory = false,
+      Handle<Object> key = Handle<Object>());
 
   // Get a reference to backing store of this array buffer, if there is a
   // backing store. Returns nullptr if there is no backing store (e.g. detached
   // or a zero-length array buffer).
-  std::shared_ptr<BackingStore> GetBackingStore();
+  inline std::shared_ptr<BackingStore> GetBackingStore() const;
+
+  inline size_t GetByteLength() const;
+
+  static size_t GsabByteLength(Isolate* isolate, Address raw_array_buffer);
+
+  static Maybe<bool> GetResizableBackingStorePageConfiguration(
+      Isolate* isolate, size_t byte_length, size_t max_byte_length,
+      ShouldThrow should_throw, size_t* page_size, size_t* initial_pages,
+      size_t* max_pages);
 
   // Allocates an ArrayBufferExtension for this array buffer, unless it is
   // already associated with an extension.
@@ -133,7 +154,7 @@ class JSArrayBuffer
   DECL_PRINTER(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)
 
-  static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
+  static constexpr int kEndOfTaggedFieldsOffset = kRawByteLengthOffset;
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
@@ -142,14 +163,17 @@ class JSArrayBuffer
   class BodyDescriptor;
 
  private:
-  inline ArrayBufferExtension** extension_location() const;
+  void DetachInternal(bool force_for_wasm_memory, Isolate* isolate);
 
 #if V8_COMPRESS_POINTERS
-  static const int kUninitializedTagMask = 1;
-
-  inline uint32_t* extension_lo() const;
-  inline uint32_t* extension_hi() const;
-#endif
+  // When pointer compression is enabled, the pointer to the extension is
+  // stored in the external pointer table and the object itself only contains a
+  // 32-bit external pointer handles. This simplifies alignment requirements
+  // and is also necessary for the sandbox.
+  inline ExternalPointerHandle* extension_handle_location() const;
+#else
+  inline ArrayBufferExtension** extension_location() const;
+#endif  // V8_COMPRESS_POINTERS
 
   TQ_OBJECT_CONSTRUCTORS(JSArrayBuffer)
 };
@@ -160,55 +184,36 @@ class JSArrayBuffer
 // extension-object. The GC periodically iterates all extensions concurrently
 // and frees unmarked ones.
 // https://docs.google.com/document/d/1-ZrLdlFX1nXT3z-FAgLbKal1gI8Auiaya_My-a0UJ28/edit
-class ArrayBufferExtension : public Malloced {
-  enum class GcState : uint8_t { Dead = 0, Copied, Promoted };
-
-  std::atomic<bool> marked_;
-  std::atomic<GcState> young_gc_state_;
-  std::shared_ptr<BackingStore> backing_store_;
-  ArrayBufferExtension* next_;
-  std::size_t accounting_length_;
-
-  GcState young_gc_state() {
-    return young_gc_state_.load(std::memory_order_relaxed);
-  }
-
-  void set_young_gc_state(GcState value) {
-    young_gc_state_.store(value, std::memory_order_relaxed);
-  }
-
+class ArrayBufferExtension final : public Malloced {
  public:
-  ArrayBufferExtension()
-      : marked_(false),
-        young_gc_state_(GcState::Dead),
-        backing_store_(std::shared_ptr<BackingStore>()),
-        next_(nullptr),
-        accounting_length_(0) {}
+  ArrayBufferExtension() : backing_store_(std::shared_ptr<BackingStore>()) {}
   explicit ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store)
-      : marked_(false),
-        young_gc_state_(GcState::Dead),
-        backing_store_(backing_store),
-        next_(nullptr),
-        accounting_length_(0) {}
+      : backing_store_(backing_store) {}
 
   void Mark() { marked_.store(true, std::memory_order_relaxed); }
   void Unmark() { marked_.store(false, std::memory_order_relaxed); }
-  bool IsMarked() { return marked_.load(std::memory_order_relaxed); }
+  bool IsMarked() const { return marked_.load(std::memory_order_relaxed); }
 
   void YoungMark() { set_young_gc_state(GcState::Copied); }
   void YoungMarkPromoted() { set_young_gc_state(GcState::Promoted); }
   void YoungUnmark() { set_young_gc_state(GcState::Dead); }
-  bool IsYoungMarked() { return young_gc_state() != GcState::Dead; }
+  bool IsYoungMarked() const { return young_gc_state() != GcState::Dead; }
 
-  bool IsYoungPromoted() { return young_gc_state() == GcState::Promoted; }
+  bool IsYoungPromoted() const { return young_gc_state() == GcState::Promoted; }
 
   std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
   BackingStore* backing_store_raw() { return backing_store_.get(); }
 
-  size_t accounting_length() { return accounting_length_; }
+  size_t accounting_length() const {
+    return accounting_length_.load(std::memory_order_relaxed);
+  }
 
   void set_accounting_length(size_t accounting_length) {
-    accounting_length_ = accounting_length;
+    accounting_length_.store(accounting_length, std::memory_order_relaxed);
+  }
+
+  size_t ClearAccountingLength() {
+    return accounting_length_.exchange(0, std::memory_order_relaxed);
   }
 
   std::shared_ptr<BackingStore> RemoveBackingStore() {
@@ -221,12 +226,30 @@ class ArrayBufferExtension : public Malloced {
 
   void reset_backing_store() { backing_store_.reset(); }
 
-  ArrayBufferExtension* next() { return next_; }
+  ArrayBufferExtension* next() const { return next_; }
   void set_next(ArrayBufferExtension* extension) { next_ = extension; }
+
+ private:
+  enum class GcState : uint8_t { Dead = 0, Copied, Promoted };
+
+  std::atomic<bool> marked_{false};
+  std::atomic<GcState> young_gc_state_{GcState::Dead};
+  std::shared_ptr<BackingStore> backing_store_;
+  ArrayBufferExtension* next_ = nullptr;
+  std::atomic<size_t> accounting_length_{0};
+
+  GcState young_gc_state() const {
+    return young_gc_state_.load(std::memory_order_relaxed);
+  }
+
+  void set_young_gc_state(GcState value) {
+    young_gc_state_.store(value, std::memory_order_relaxed);
+  }
 };
 
 class JSArrayBufferView
-    : public TorqueGeneratedJSArrayBufferView<JSArrayBufferView, JSObject> {
+    : public TorqueGeneratedJSArrayBufferView<JSArrayBufferView,
+                                              JSObjectWithEmbedderSlots> {
  public:
   // [byte_offset]: offset of typed array in bytes.
   DECL_PRIMITIVE_ACCESSORS(byte_offset, size_t)
@@ -236,12 +259,19 @@ class JSArrayBufferView
 
   DECL_VERIFIER(JSArrayBufferView)
 
+  // Bit positions for [bit_field].
+  DEFINE_TORQUE_GENERATED_JS_ARRAY_BUFFER_VIEW_FLAGS()
+
   inline bool WasDetached() const;
 
-  static constexpr int kEndOfTaggedFieldsOffset = kByteOffsetOffset;
+  DECL_BOOLEAN_ACCESSORS(is_length_tracking)
+  DECL_BOOLEAN_ACCESSORS(is_backed_by_rab)
+  inline bool IsVariableLength() const;
 
-  STATIC_ASSERT(IsAligned(kByteOffsetOffset, kUIntptrSize));
-  STATIC_ASSERT(IsAligned(kByteLengthOffset, kUIntptrSize));
+  static constexpr int kEndOfTaggedFieldsOffset = kRawByteOffsetOffset;
+
+  static_assert(IsAligned(kRawByteOffsetOffset, kUIntptrSize));
+  static_assert(IsAligned(kRawByteLengthOffset, kUIntptrSize));
 
   TQ_OBJECT_CONSTRUCTORS(JSArrayBufferView)
 };
@@ -252,12 +282,13 @@ class JSTypedArray
   // TODO(v8:4153): This should be equal to JSArrayBuffer::kMaxByteLength
   // eventually.
   static constexpr size_t kMaxLength = v8::TypedArray::kMaxLength;
+  static_assert(kMaxLength <= JSArrayBuffer::kMaxByteLength);
 
   // [length]: length of typed array in elements.
   DECL_PRIMITIVE_GETTER(length, size_t)
 
-  DECL_GETTER(base_pointer, Object)
-  DECL_ACQUIRE_GETTER(base_pointer, Object)
+  DECL_GETTER(base_pointer, Tagged<Object>)
+  DECL_ACQUIRE_GETTER(base_pointer, Tagged<Object>)
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
@@ -265,15 +296,9 @@ class JSTypedArray
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   ExternalArrayType type();
-  V8_EXPORT_PRIVATE size_t element_size();
+  V8_EXPORT_PRIVATE size_t element_size() const;
 
   V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer();
-
-  // When soft sandbox is enabled, creates entries in external pointer table for
-  // all JSTypedArray's fields that require soft sandbox protection (external
-  // pointer, offset, length, etc.).
-  // When sandbox is not enabled, it's a no-op.
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
 
   // The `DataPtr` is `base_ptr + external_pointer`, and `base_ptr` is nullptr
   // for off-heap typed arrays.
@@ -283,12 +308,26 @@ class JSTypedArray
   inline void* DataPtr();
 
   inline void SetOffHeapDataPtr(Isolate* isolate, void* base, Address offset);
-  inline void SetOnHeapDataPtr(Isolate* isolate, HeapObject base,
-                               Address offset);
 
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;
   inline bool is_on_heap(AcquireLoadTag tag) const;
+
+  // Only valid to call when IsVariableLength() is true.
+  size_t GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const;
+
+  inline size_t GetLengthOrOutOfBounds(bool& out_of_bounds) const;
+  inline size_t GetLength() const;
+  inline size_t GetByteLength() const;
+  inline bool IsOutOfBounds() const;
+  inline bool IsDetachedOrOutOfBounds() const;
+
+  static inline void ForFixedTypedArray(ExternalArrayType array_type,
+                                        size_t* element_size,
+                                        ElementsKind* element_kind);
+
+  static size_t LengthTrackingGsabBackedTypedArrayLength(Isolate* isolate,
+                                                         Address raw_array);
 
   // Note: this is a pointer compression specific optimization.
   // Normally, on-heap typed arrays contain HeapObject value in |base_pointer|
@@ -300,7 +339,7 @@ class JSTypedArray
   // as Tagged_t value and an |external_pointer| value.
   // For full-pointer mode the compensation value is zero.
   static inline Address ExternalPointerCompensationForOnHeapArray(
-      IsolateRoot isolate);
+      PtrComprCageBase cage_base);
 
   //
   // Serializer/deserializer support.
@@ -317,6 +356,9 @@ class JSTypedArray
   // Subtracts external pointer compensation from the external pointer value.
   inline void RemoveExternalPointerCompensationForSerialization(
       Isolate* isolate);
+  // Adds external pointer compensation to the external pointer value.
+  inline void AddExternalPointerCompensationForDeserialization(
+      Isolate* isolate);
 
   static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
                                                    Handle<Object> receiver,
@@ -326,8 +368,9 @@ class JSTypedArray
   DECL_PRINTER(JSTypedArray)
   DECL_VERIFIER(JSTypedArray)
 
-  STATIC_ASSERT(IsAligned(kLengthOffset, kUIntptrSize));
-  STATIC_ASSERT(IsAligned(kExternalPointerOffset, kSystemPointerSize));
+  // TODO(v8:9287): Re-enable when GCMole stops mixing 32/64 bit configs.
+  // static_assert(IsAligned(kLengthOffset, kTaggedSize));
+  // static_assert(IsAligned(kExternalPointerOffset, kTaggedSize));
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
@@ -342,40 +385,35 @@ class JSTypedArray
 #endif
 
  private:
+  template <typename IsolateT>
   friend class Deserializer;
   friend class Factory;
 
   DECL_PRIMITIVE_SETTER(length, size_t)
+  // Reads the "length" field, doesn't assert the TypedArray is not RAB / GSAB
+  // backed.
+  inline size_t LengthUnchecked() const;
 
   DECL_GETTER(external_pointer, Address)
-  DECL_GETTER(external_pointer_raw, ExternalPointer_t)
 
-  DECL_SETTER(base_pointer, Object)
-  DECL_RELEASE_SETTER(base_pointer, Object)
+  DECL_SETTER(base_pointer, Tagged<Object>)
+  DECL_RELEASE_SETTER(base_pointer, Tagged<Object>)
 
   inline void set_external_pointer(Isolate* isolate, Address value);
 
   TQ_OBJECT_CONSTRUCTORS(JSTypedArray)
 };
 
-class JSDataView
-    : public TorqueGeneratedJSDataView<JSDataView, JSArrayBufferView> {
+class JSDataViewOrRabGsabDataView
+    : public TorqueGeneratedJSDataViewOrRabGsabDataView<
+          JSDataViewOrRabGsabDataView, JSArrayBufferView> {
  public:
   // [data_pointer]: pointer to the actual data.
   DECL_GETTER(data_pointer, void*)
   inline void set_data_pointer(Isolate* isolate, void* value);
 
-  // When soft sandbox is enabled, creates entries in external pointer table for
-  // all JSDataView's fields that require soft sandbox protection (data pointer,
-  // offset, length, etc.).
-  // When sandbox is not enabled, it's a no-op.
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSDataView)
-  DECL_VERIFIER(JSDataView)
-
-  STATIC_ASSERT(IsAligned(kDataPointerOffset, kUIntptrSize));
+  // TODO(v8:9287): Re-enable when GCMole stops mixing 32/64 bit configs.
+  // static_assert(IsAligned(kDataPointerOffset, kTaggedSize));
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
@@ -383,7 +421,32 @@ class JSDataView
 
   class BodyDescriptor;
 
+  TQ_OBJECT_CONSTRUCTORS(JSDataViewOrRabGsabDataView)
+};
+
+class JSDataView
+    : public TorqueGeneratedJSDataView<JSDataView,
+                                       JSDataViewOrRabGsabDataView> {
+ public:
+  // Dispatched behavior.
+  DECL_PRINTER(JSDataView)
+  DECL_VERIFIER(JSDataView)
+
   TQ_OBJECT_CONSTRUCTORS(JSDataView)
+};
+
+class JSRabGsabDataView
+    : public TorqueGeneratedJSRabGsabDataView<JSRabGsabDataView,
+                                              JSDataViewOrRabGsabDataView> {
+ public:
+  // Dispatched behavior.
+  DECL_PRINTER(JSRabGsabDataView)
+  DECL_VERIFIER(JSRabGsabDataView)
+
+  inline size_t GetByteLength() const;
+  inline bool IsOutOfBounds() const;
+
+  TQ_OBJECT_CONSTRUCTORS(JSRabGsabDataView)
 };
 
 }  // namespace internal

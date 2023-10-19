@@ -20,7 +20,7 @@ throwUncaughtError (framework.js:21:2)
 
 Running test: testUncaughtExceptionWithInlinedFrame
 > mixed top frame in framework:
-throwUserException (user.js:66:2)
+throwUserException (user.js:76:2)
 inlinedWrapper (framework.js:56:4)
 throwInlinedUncaughtError (framework.js:60:2)
 (anonymous) (framework.js:0:0)
@@ -50,7 +50,7 @@ syncDOMBreakpoint (framework.js:33:12)
 Running test: testSyncDOMBreakpointWithInlinedUserFrame
 > mixed, top frame in framework:
 syncDOMBreakpoint (framework.js:33:12)
-userFunction (user.js:70:2)
+userFunction (user.js:80:2)
 inlinedWrapper (framework.js:65:4)
 syncDOMBreakpointWithInlinedUserFrame (framework.js:69:2)
 (anonymous) (framework.js:0:0)

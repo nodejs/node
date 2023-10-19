@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<body>
+</body>
+<script src="./dispatcher.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const uuid = params.get('uuid');
+  const executor = new Executor(uuid);  // `execute()` is called in constructor.
+</script>
+</html>

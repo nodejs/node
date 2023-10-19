@@ -5,15 +5,17 @@ const dgram = require('dgram');
 
 const buf = Buffer.from('test');
 
+const defaultCases = ['', null, undefined];
+
 const onMessage = common.mustSucceed((bytes) => {
   assert.strictEqual(bytes, buf.length);
-}, 6);
+}, defaultCases.length + 1);
 
 const client = dgram.createSocket('udp4').bind(0, () => {
   const port = client.address().port;
 
   // Check valid addresses
-  [false, '', null, 0, undefined].forEach((address) => {
+  defaultCases.forEach((address) => {
     client.send(buf, port, address, onMessage);
   });
 
@@ -21,11 +23,21 @@ const client = dgram.createSocket('udp4').bind(0, () => {
   client.send(buf, port, onMessage);
 
   // Check invalid addresses
-  [[], 1, true].forEach((invalidInput) => {
+  [
+    [],
+    0,
+    1,
+    true,
+    false,
+    0n,
+    1n,
+    {},
+    Symbol(),
+  ].forEach((invalidInput) => {
     const expectedError = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "address" argument must be of type string or falsy.' +
+      message: 'The "address" argument must be of type string.' +
                `${common.invalidArgTypeHelper(invalidInput)}`
     };
     assert.throws(() => client.send(buf, port, invalidInput), expectedError);

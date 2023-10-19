@@ -23,7 +23,7 @@ createHook({
     if (activeId === id) {
       activeId = -1;
     }
-  }
+  },
 }).enable();
 
 function testNextTick() {
@@ -33,7 +33,7 @@ function testNextTick() {
   res.emitDestroy();
   // nextTick has higher prio than emit destroy
   process.nextTick(common.mustCall(() =>
-    assert.strictEqual(activeId, res.asyncId()))
+    assert.strictEqual(activeId, res.asyncId())),
   );
 }
 
@@ -44,7 +44,7 @@ function testQueueMicrotask() {
   res.emitDestroy();
   // queueMicrotask has higher prio than emit destroy
   queueMicrotask(common.mustCall(() =>
-    assert.strictEqual(activeId, res.asyncId()))
+    assert.strictEqual(activeId, res.asyncId())),
   );
 }
 
@@ -54,7 +54,7 @@ function testImmediate() {
   assert.strictEqual(activeId, res.asyncId());
   res.emitDestroy();
   setImmediate(common.mustCall(() =>
-    assert.strictEqual(activeId, -1))
+    assert.strictEqual(activeId, -1)),
   );
 }
 
@@ -65,7 +65,7 @@ function testPromise() {
   res.emitDestroy();
   // Promise has higher prio than emit destroy
   Promise.resolve().then(common.mustCall(() =>
-    assert.strictEqual(activeId, res.asyncId()))
+    assert.strictEqual(activeId, res.asyncId())),
   );
 }
 

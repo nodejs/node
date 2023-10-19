@@ -489,6 +489,9 @@ assertTrue(Object.prototype.isPrototypeOf(o2));
 var json = '{"stuff before slash\\\\stuff after slash":"whatever"}';
 TestStringify(json, JSON.parse(json));
 
+// TODO(v8:12955): JSON parse with source access will assert failed when the
+// reviver modifies the json value like this. See
+// https://github.com/tc39/proposal-json-parse-with-source/issues/35.
 
 // https://bugs.chromium.org/p/v8/issues/detail?id=3139
 
@@ -523,3 +526,8 @@ assertEquals('{"":"inf"}', JSON.stringify({"":Infinity}, reviver));
 
 assertEquals([10.4, "\u1234"], JSON.parse("[10.4, \"\u1234\"]"));
 assertEquals(10, JSON.parse('{"10":10}')["10"]);
+
+assertEquals(`[
+          1,
+          2
+]`, JSON.stringify([1,2], undefined, 1000000000000000));

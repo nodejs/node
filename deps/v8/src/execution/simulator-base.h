@@ -7,6 +7,10 @@
 
 #include <type_traits>
 
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64
+#include "include/v8-fast-api-calls.h"
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS64 || \
+        // V8_TARGET_ARCH_LOONG64
 #include "src/base/hashmap.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -32,9 +36,13 @@ class SimulatorBase {
   static base::Mutex* i_cache_mutex() { return i_cache_mutex_; }
   static base::CustomMatcherHashMap* i_cache() { return i_cache_; }
 
-  // Runtime call support.
+  // Runtime/C function call support.
+  // Creates a trampoline to a given C function callable from generated code.
   static Address RedirectExternalReference(Address external_function,
                                            ExternalReference::Type type);
+
+  // Extracts the target C function address from a given redirection trampoline.
+  static Address UnwrapRedirection(Address redirection_trampoline);
 
  protected:
   template <typename Return, typename SimT, typename CallImpl, typename... Args>
@@ -68,17 +76,21 @@ class SimulatorBase {
     return Object(ret);
   }
 
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64
+  template <typename T>
+  static typename std::enable_if<std::is_same<T, v8::AnyCType>::value, T>::type
+  ConvertReturn(intptr_t ret) {
+    v8::AnyCType result;
+    result.int64_value = static_cast<int64_t>(ret);
+    return result;
+  }
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS64 || \
+        // V8_TARGET_ARCH_LOONG64
+
   // Convert back void return type (i.e. no return).
   template <typename T>
   static typename std::enable_if<std::is_void<T>::value, T>::type ConvertReturn(
       intptr_t ret) {}
-
- private:
-  static base::Mutex* redirection_mutex_;
-  static Redirection* redirection_;
-
-  static base::Mutex* i_cache_mutex_;
-  static base::CustomMatcherHashMap* i_cache_;
 
   // Helper methods to convert arbitrary integer or pointer arguments to the
   // needed generic argument type intptr_t.
@@ -88,9 +100,10 @@ class SimulatorBase {
   static typename std::enable_if<std::is_integral<T>::value, intptr_t>::type
   ConvertArg(T arg) {
     static_assert(sizeof(T) <= sizeof(intptr_t), "type bigger than ptrsize");
-#if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV64
-    // The MIPS64 and RISCV64 calling convention is to sign extend all values,
-    // even unsigned ones.
+#if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64 || \
+    V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+    // The MIPS64, LOONG64 and RISCV64 calling convention is to sign extend all
+    // values, even unsigned ones.
     using signed_t = typename std::make_signed<T>::type;
     return static_cast<intptr_t>(static_cast<signed_t>(arg));
 #else
@@ -106,6 +119,20 @@ class SimulatorBase {
   ConvertArg(T arg) {
     return reinterpret_cast<intptr_t>(arg);
   }
+
+  template <typename T>
+  static
+      typename std::enable_if<std::is_floating_point<T>::value, intptr_t>::type
+      ConvertArg(T arg) {
+    UNREACHABLE();
+  }
+
+ private:
+  static base::Mutex* redirection_mutex_;
+  static Redirection* redirection_;
+
+  static base::Mutex* i_cache_mutex_;
+  static base::CustomMatcherHashMap* i_cache_;
 };
 
 // When the generated code calls an external reference we need to catch that in
@@ -119,7 +146,6 @@ class SimulatorBase {
 // The following are trapping instructions used for various architectures:
 //  - V8_TARGET_ARCH_ARM: svc (Supervisor Call)
 //  - V8_TARGET_ARCH_ARM64: svc (Supervisor Call)
-//  - V8_TARGET_ARCH_MIPS: swi (software-interrupt)
 //  - V8_TARGET_ARCH_MIPS64: swi (software-interrupt)
 //  - V8_TARGET_ARCH_PPC: svc (Supervisor Call)
 //  - V8_TARGET_ARCH_PPC64: svc (Supervisor Call)
@@ -152,7 +178,7 @@ class Redirection {
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
-  static void* ReverseRedirection(intptr_t reg) {
+  static void* UnwrapRedirection(intptr_t reg) {
     Redirection* redirection = FromInstruction(
         reinterpret_cast<Instruction*>(reinterpret_cast<void*>(reg)));
     return redirection->external_function();
@@ -174,6 +200,41 @@ class Redirection {
 #if ABI_USES_FUNCTION_DESCRIPTORS
   intptr_t function_descriptor_[3];
 #endif
+};
+
+class SimulatorData {
+ public:
+  // Calls AddSignatureForTarget for each function and signature, registering
+  // an encoded version of the signature within a mapping maintained by the
+  // simulator (from function address -> encoded signature). The function
+  // is supposed to be called whenever one compiles a fast API function with
+  // possibly multiple overloads.
+  // Note that this function is called from one or more compiler threads,
+  // while the main thread might be reading at the same time from the map, so
+  // both Register* and Get* are guarded with a single mutex.
+  void RegisterFunctionsAndSignatures(Address* c_functions,
+                                      const CFunctionInfo* const* c_signatures,
+                                      unsigned num_functions);
+  // The following method is used by the simulator itself to query
+  // whether a signature is registered for the call target and use this
+  // information to address arguments correctly (load them from either GP or
+  // FP registers, or from the stack).
+  const EncodedCSignature& GetSignatureForTarget(Address target);
+  // This method is exposed only for tests, which don't need synchronisation.
+  void AddSignatureForTargetForTesting(Address target,
+                                       const EncodedCSignature& signature) {
+    AddSignatureForTarget(target, signature);
+  }
+
+ private:
+  void AddSignatureForTarget(Address target,
+                             const EncodedCSignature& signature) {
+    target_to_signature_table_[target] = signature;
+  }
+
+  v8::base::Mutex signature_map_mutex_;
+  typedef std::unordered_map<Address, EncodedCSignature> TargetToSignatureTable;
+  TargetToSignatureTable target_to_signature_table_;
 };
 
 }  // namespace internal

@@ -18,7 +18,7 @@ tmpdir.refresh();
 
 let count = 0;
 const nextDirPath = (name = 'rmdir-recursive') =>
-  path.join(tmpdir.path, `${name}-${count++}`);
+  tmpdir.resolve(`${name}-${count++}`);
 
 function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
   fs.mkdirSync(dirname, { recursive: true });
@@ -141,8 +141,8 @@ function removeAsync(dir) {
   makeNonEmptyDirectory(4, 10, 2, dir, true);
 
   // Removal should fail without the recursive option set to true.
-  assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
-  assert.rejects(fs.promises.rmdir(dir, { recursive: false }), {
+  await assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
+  await assert.rejects(fs.promises.rmdir(dir, { recursive: false }), {
     syscall: 'rmdir'
   });
 
@@ -154,7 +154,7 @@ function removeAsync(dir) {
                        { code: 'ENOENT' });
 
   // Attempted removal should fail now because the directory is gone.
-  assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
+  await assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
 })().then(common.mustCall());
 
 // Test input validation.

@@ -99,15 +99,15 @@ function createRegExpForIgnorePatterns(normalizedOptions) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce or disallow capitalization of the first letter of a comment",
-            category: "Stylistic Issues",
+            description: "Enforce or disallow capitalization of the first letter of a comment",
             recommended: false,
-            url: "https://eslint.org/docs/rules/capitalized-comments"
+            url: "https://eslint.org/docs/latest/rules/capitalized-comments"
         },
 
         fixable: "code",
@@ -139,7 +139,7 @@ module.exports = {
 
         const capitalize = context.options[0] || "always",
             normalizedOptions = getAllNormalizedOptions(context.options[1]),
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         createRegExpForIgnorePatterns(normalizedOptions);
 
@@ -185,7 +185,7 @@ module.exports = {
 
             return Boolean(
                 previousTokenOrComment &&
-                ["Block", "Line"].indexOf(previousTokenOrComment.type) !== -1
+                ["Block", "Line"].includes(previousTokenOrComment.type)
             );
         }
 

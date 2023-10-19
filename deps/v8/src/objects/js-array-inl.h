@@ -15,39 +15,34 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSArray, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator, JSObject)
+#include "torque-generated/src/objects/js-array-tq-inl.inc"
 
-CAST_ACCESSOR(JSArray)
-CAST_ACCESSOR(JSArrayIterator)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSArray)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator)
+TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateLiteralObject)
 
-DEF_GETTER(JSArray, length, Object) {
-  return TaggedField<Object, kLengthOffset>::load(isolate, *this);
+DEF_GETTER(JSArray, length, Tagged<Object>) {
+  return TaggedField<Object, kLengthOffset>::load(cage_base, *this);
 }
 
-void JSArray::set_length(Object value, WriteBarrierMode mode) {
+void JSArray::set_length(Tagged<Object> value, WriteBarrierMode mode) {
   // Note the relaxed atomic store.
   TaggedField<Object, kLengthOffset>::Relaxed_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kLengthOffset, value, mode);
 }
 
-Object JSArray::length(IsolateRoot isolate, RelaxedLoadTag tag) const {
-  return TaggedField<Object, kLengthOffset>::Relaxed_Load(isolate, *this);
+Tagged<Object> JSArray::length(PtrComprCageBase cage_base,
+                               RelaxedLoadTag tag) const {
+  return TaggedField<Object, kLengthOffset>::Relaxed_Load(cage_base, *this);
 }
 
-void JSArray::set_length(Smi length) {
+void JSArray::set_length(Tagged<Smi> length) {
   // Don't need a write barrier for a Smi.
-  set_length(Object(length.ptr()), SKIP_WRITE_BARRIER);
+  set_length(Tagged<Object>(length.ptr()), SKIP_WRITE_BARRIER);
 }
 
 bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
   return new_length > kMaxFastArrayLength;
-}
-
-bool JSArray::AllowsSetLength() {
-  bool result = elements().IsFixedArray() || elements().IsFixedDoubleArray();
-  DCHECK(result == !HasTypedArrayElements());
-  return result;
 }
 
 void JSArray::SetContent(Handle<JSArray> array,
@@ -67,11 +62,8 @@ void JSArray::SetContent(Handle<JSArray> array,
 }
 
 bool JSArray::HasArrayPrototype(Isolate* isolate) {
-  return map().prototype() == *isolate->initial_array_prototype();
+  return map()->prototype() == *isolate->initial_array_prototype();
 }
-
-ACCESSORS(JSArrayIterator, iterated_object, Object, kIteratedObjectOffset)
-ACCESSORS(JSArrayIterator, next_index, Object, kNextIndexOffset)
 
 SMI_ACCESSORS(JSArrayIterator, raw_kind, kKindOffset)
 
@@ -82,6 +74,8 @@ IterationKind JSArrayIterator::kind() const {
 void JSArrayIterator::set_kind(IterationKind kind) {
   set_raw_kind(static_cast<int>(kind));
 }
+
+CAST_ACCESSOR(TemplateLiteralObject)
 
 }  // namespace internal
 }  // namespace v8

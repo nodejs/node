@@ -4,14 +4,14 @@
 
 EVP_PKEY_CTX_set_hkdf_md, EVP_PKEY_CTX_set1_hkdf_salt,
 EVP_PKEY_CTX_set1_hkdf_key, EVP_PKEY_CTX_add1_hkdf_info,
-EVP_PKEY_CTX_hkdf_mode -
+EVP_PKEY_CTX_set_hkdf_mode -
 HMAC-based Extract-and-Expand key derivation algorithm
 
 =head1 SYNOPSIS
 
  #include <openssl/kdf.h>
 
- int EVP_PKEY_CTX_hkdf_mode(EVP_PKEY_CTX *pctx, int mode);
+ int EVP_PKEY_CTX_set_hkdf_mode(EVP_PKEY_CTX *pctx, int mode);
 
  int EVP_PKEY_CTX_set_hkdf_md(EVP_PKEY_CTX *pctx, const EVP_MD *md);
 
@@ -33,8 +33,8 @@ and "extracts" from it a fixed-length pseudorandom key K. The second stage
 "expands" the key K into several additional pseudorandom keys (the output
 of the KDF).
 
-EVP_PKEY_CTX_hkdf_mode() sets the mode for the HKDF operation. There are three
-modes that are currently defined:
+EVP_PKEY_CTX_set_hkdf_mode() sets the mode for the HKDF operation. There
+are three modes that are currently defined:
 
 =over 4
 
@@ -95,13 +95,11 @@ string which is converted to binary.
 
 =head1 NOTES
 
-All these functions are implemented as macros.
-
 A context for HKDF can be obtained by calling:
 
  EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
 
-The total length of the info buffer cannot exceed 1024 bytes in length: this
+The total length of the info buffer cannot exceed 2048 bytes in length: this
 should be more than enough for any normal use of HKDF.
 
 The output length of an HKDF expand operation is specified via the length
@@ -154,11 +152,16 @@ L<EVP_PKEY_CTX_new(3)>,
 L<EVP_PKEY_CTX_ctrl_str(3)>,
 L<EVP_PKEY_derive(3)>
 
+=head1 HISTORY
+
+All of the functions described here were converted from macros to functions in
+OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 
 const requirementsURL =
-  'https://github.com/nodejs/node/blob/HEAD/benchmark/writing-and-running-benchmarks.md#http-benchmark-requirements';
+  'https://github.com/nodejs/node/blob/HEAD/doc/contributing/writing-and-running-benchmarks.md#http-benchmark-requirements';
 
 // The port used by servers and wrk
 exports.PORT = Number(process.env.PORT) || 12346;
@@ -65,7 +65,7 @@ class WrkBenchmarker {
     const args = [
       '-d', duration,
       '-c', options.connections,
-      '-t', Math.min(options.connections, require('os').cpus().length || 8),
+      '-t', Math.min(options.connections, require('os').availableParallelism() || 8),
       `${scheme}://127.0.0.1:${options.port}${options.path}`,
     ];
     for (const field in options.headers) {
@@ -106,7 +106,7 @@ class TestDoubleBenchmarker {
     const scheme = options.scheme || 'http';
     const env = {
       test_url: `${scheme}://127.0.0.1:${options.port}${options.path}`,
-      ...process.env
+      ...process.env,
     };
 
     const child = child_process.fork(this.executable,
@@ -173,7 +173,7 @@ class H2LoadBenchmarker {
   }
 
   processResults(output) {
-    const rex = /(\d+(?:\.\d+)) req\/s/;
+    const rex = /(\d+\.\d+) req\/s/;
     return rex.exec(output)[1];
   }
 }
@@ -203,7 +203,7 @@ exports.run = function(options, callback) {
     connections: 100,
     duration: 5,
     benchmarker: exports.default_http_benchmarker,
-    ...options
+    ...options,
   };
   if (!options.benchmarker) {
     callback(new Error('Could not locate required http benchmarker. See ' +

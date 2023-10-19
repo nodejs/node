@@ -166,6 +166,16 @@
 }
 
 {
+  let x = 'c';
+  class C {
+    [x] = function() { return 1 };
+  }
+
+  let c = new C;
+  assertEquals('c', c.c.name);
+}
+
+{
   let d = function() { return new.target; }
   class C {
     c = d;

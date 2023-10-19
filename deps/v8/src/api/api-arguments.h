@@ -5,8 +5,8 @@
 #ifndef V8_API_API_ARGUMENTS_H_
 #define V8_API_API_ARGUMENTS_H_
 
-#include "src/api/api.h"
-#include "src/debug/debug.h"
+#include "include/v8-template.h"
+#include "src/builtins/builtins-utils.h"
 #include "src/execution/isolate.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
@@ -25,7 +25,8 @@ class CustomArgumentsBase : public Relocatable {
 template <typename T>
 class CustomArguments : public CustomArgumentsBase {
  public:
-  static const int kReturnValueOffset = T::kReturnValueIndex;
+  static constexpr int kReturnValueIndex = T::kReturnValueIndex;
+  static_assert(T::kSize == sizeof(T));
 
   ~CustomArguments() override;
 
@@ -39,40 +40,50 @@ class CustomArguments : public CustomArgumentsBase {
       : CustomArgumentsBase(isolate) {}
 
   template <typename V>
-  Handle<V> GetReturnValue(Isolate* isolate);
+  Handle<V> GetReturnValue(Isolate* isolate) const;
 
-  inline Isolate* isolate() {
+  inline Isolate* isolate() const {
     return reinterpret_cast<Isolate*>((*slot_at(T::kIsolateIndex)).ptr());
   }
 
-  inline FullObjectSlot slot_at(int index) {
+  inline FullObjectSlot slot_at(int index) const {
     // This allows index == T::kArgsLength so "one past the end" slots
     // can be retrieved for iterating purposes.
     DCHECK_LE(static_cast<unsigned>(index),
               static_cast<unsigned>(T::kArgsLength));
     return FullObjectSlot(values_ + index);
   }
+
   Address values_[T::kArgsLength];
 };
 
 // Note: Calling args.Call() sets the return value on args. For multiple
 // Call()'s, a new args should be used every time.
-class PropertyCallbackArguments
+// This class also serves as a side effects detection scope (JavaScript code
+// execution). It is used for ensuring correctness of the interceptor callback
+// implementations. The idea is that the interceptor callback that does not
+// intercept an operation must not produce side effects. If the callback
+// signals that it has handled the operation (by either returning a respective
+// result or by throwing an exception) then the AcceptSideEffects() method
+// must be called to "accept" the side effects that have happened during the
+// lifetime of the PropertyCallbackArguments object.
+class PropertyCallbackArguments final
     : public CustomArguments<PropertyCallbackInfo<Value> > {
  public:
   using T = PropertyCallbackInfo<Value>;
   using Super = CustomArguments<T>;
-  static const int kArgsLength = T::kArgsLength;
-  static const int kThisIndex = T::kThisIndex;
-  static const int kHolderIndex = T::kHolderIndex;
-  static const int kDataIndex = T::kDataIndex;
-  static const int kReturnValueDefaultValueIndex =
-      T::kReturnValueDefaultValueIndex;
-  static const int kIsolateIndex = T::kIsolateIndex;
-  static const int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
+  static constexpr int kArgsLength = T::kArgsLength;
+  static constexpr int kThisIndex = T::kThisIndex;
+  static constexpr int kDataIndex = T::kDataIndex;
+  static constexpr int kUnusedIndex = T::kUnusedIndex;
+  static constexpr int kHolderIndex = T::kHolderIndex;
+  static constexpr int kIsolateIndex = T::kIsolateIndex;
+  static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
-  PropertyCallbackArguments(Isolate* isolate, Object data, Object self,
-                            JSObject holder, Maybe<ShouldThrow> should_throw);
+  PropertyCallbackArguments(Isolate* isolate, Tagged<Object> data,
+                            Tagged<Object> self, Tagged<JSObject> holder,
+                            Maybe<ShouldThrow> should_throw);
+  inline ~PropertyCallbackArguments();
 
   // Don't copy PropertyCallbackArguments, because they would both have the
   // same prev_ pointer.
@@ -127,6 +138,14 @@ class PropertyCallbackArguments
   inline Handle<JSObject> CallIndexedEnumerator(
       Handle<InterceptorInfo> interceptor);
 
+  // Accept potential JavaScript side effects that might occurr during life
+  // time of this object.
+  inline void AcceptSideEffects() {
+#ifdef DEBUG
+    javascript_execution_counter_ = 0;
+#endif  // DEBUG
+  }
+
  private:
   /*
    * The following Call functions wrap the calling of all callbacks to handle
@@ -139,14 +158,15 @@ class PropertyCallbackArguments
   inline Handle<JSObject> CallPropertyEnumerator(
       Handle<InterceptorInfo> interceptor);
 
-  inline Handle<Object> BasicCallIndexedGetterCallback(
-      IndexedPropertyGetterCallback f, uint32_t index, Handle<Object> info);
-  inline Handle<Object> BasicCallNamedGetterCallback(
-      GenericNamedPropertyGetterCallback f, Handle<Name> name,
-      Handle<Object> info, Handle<Object> receiver = Handle<Object>());
+  inline Tagged<JSObject> holder() const;
+  inline Tagged<Object> receiver() const;
 
-  inline JSObject holder();
-  inline Object receiver();
+#ifdef DEBUG
+  // This stores current value of Isolate::javascript_execution_counter().
+  // It's used for detecting whether JavaScript code was executed between
+  // PropertyCallbackArguments's constructor and destructor.
+  uint32_t javascript_execution_counter_;
+#endif  // DEBUG
 };
 
 class FunctionCallbackArguments
@@ -154,16 +174,31 @@ class FunctionCallbackArguments
  public:
   using T = FunctionCallbackInfo<Value>;
   using Super = CustomArguments<T>;
-  static const int kArgsLength = T::kArgsLength;
-  static const int kHolderIndex = T::kHolderIndex;
-  static const int kDataIndex = T::kDataIndex;
-  static const int kReturnValueDefaultValueIndex =
-      T::kReturnValueDefaultValueIndex;
-  static const int kIsolateIndex = T::kIsolateIndex;
-  static const int kNewTargetIndex = T::kNewTargetIndex;
+  static constexpr int kArgsLength = T::kArgsLength;
+  static constexpr int kArgsLengthWithReceiver = T::kArgsLengthWithReceiver;
 
-  FunctionCallbackArguments(Isolate* isolate, Object data, HeapObject callee,
-                            Object holder, HeapObject new_target, Address* argv,
+  static constexpr int kHolderIndex = T::kHolderIndex;
+  static constexpr int kIsolateIndex = T::kIsolateIndex;
+  static constexpr int kUnusedIndex = T::kUnusedIndex;
+  static constexpr int kDataIndex = T::kDataIndex;
+  static constexpr int kNewTargetIndex = T::kNewTargetIndex;
+
+  static_assert(T::kThisValuesIndex == BuiltinArguments::kReceiverArgsOffset);
+
+  static constexpr int kSize = T::kSize;
+  static constexpr int kImplicitArgsOffset = T::kImplicitArgsOffset;
+  static constexpr int kValuesOffset = T::kValuesOffset;
+  static constexpr int kLengthOffset = T::kLengthOffset;
+
+  // Make sure all FunctionCallbackInfo constants are in sync.
+  static_assert(T::kSize == sizeof(T));
+  static_assert(T::kImplicitArgsOffset == offsetof(T, implicit_args_));
+  static_assert(T::kValuesOffset == offsetof(T, values_));
+  static_assert(T::kLengthOffset == offsetof(T, length_));
+
+  FunctionCallbackArguments(Isolate* isolate, Tagged<Object> data,
+                            Tagged<Object> holder,
+                            Tagged<HeapObject> new_target, Address* argv,
                             int argc);
 
   /*
@@ -174,14 +209,19 @@ class FunctionCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  inline Handle<Object> Call(CallHandlerInfo handler);
+  inline Handle<Object> Call(Tagged<CallHandlerInfo> handler);
 
  private:
-  inline JSReceiver holder();
+  inline Tagged<JSReceiver> holder() const;
 
   internal::Address* argv_;
-  int argc_;
+  int const argc_;
 };
+
+static_assert(BuiltinArguments::kNumExtraArgs ==
+              BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver);
+static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
+              BuiltinExitFrameConstants::kNumExtraArgsWithReceiver);
 
 }  // namespace internal
 }  // namespace v8

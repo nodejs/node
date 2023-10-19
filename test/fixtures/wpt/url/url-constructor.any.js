@@ -1,23 +1,37 @@
+// META: script=/common/subset-tests-by-key.js
 // META: timeout=long
+// META: variant=?include=file
+// META: variant=?include=javascript
+// META: variant=?include=mailto
+// META: variant=?exclude=(file|javascript|mailto)
 
-function bURL(url, base) {
-  return new URL(url, base || "about:blank")
-}
+function runURLTests(urlTests) {
+  for (const expected of urlTests) {
+    // Skip comments
+    if (typeof expected === "string")
+      continue;
 
-function runURLTests(urltests) {
-  for(var i = 0, l = urltests.length; i < l; i++) {
-    var expected = urltests[i]
-    if (typeof expected === "string") continue // skip comments
+    const base = expected.base !== null ? expected.base : undefined;
 
-    test(function() {
+    function getKey(expected) {
+      if (expected.protocol) {
+        return expected.protocol.replace(":", "");
+      }
+      if (expected.failure) {
+        return expected.input.split(":")[0];
+      }
+      return "other";
+    }
+
+    subsetTestByKey(getKey(expected), test, function() {
       if (expected.failure) {
         assert_throws_js(TypeError, function() {
-          bURL(expected.input, expected.base)
-        })
-        return
+          new URL(expected.input, base);
+        });
+        return;
       }
 
-      var url = bURL(expected.input, expected.base)
+      const url = new URL(expected.input, base);
       assert_equals(url.href, expected.href, "href")
       assert_equals(url.protocol, expected.protocol, "protocol")
       assert_equals(url.username, expected.username, "username")
@@ -32,7 +46,7 @@ function runURLTests(urltests) {
         assert_equals(url.searchParams.toString(), expected.searchParams, "searchParams")
       }
       assert_equals(url.hash, expected.hash, "hash")
-    }, "Parsing: <" + expected.input + "> against <" + expected.base + ">")
+    }, `Parsing: <${expected.input}> ${base ? "against <" + base + ">" : "without base"}`)
   }
 }
 

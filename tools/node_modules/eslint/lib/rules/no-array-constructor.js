@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow `Array` constructors",
-            category: "Stylistic Issues",
+            description: "Disallow `Array` constructors",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-array-constructor"
+            url: "https://eslint.org/docs/latest/rules/no-array-constructor"
         },
 
         schema: [],

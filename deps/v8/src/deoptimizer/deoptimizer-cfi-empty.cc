@@ -8,7 +8,9 @@ namespace v8 {
 namespace internal {
 
 // Dummy implementation when building mksnapshot.
-bool Deoptimizer::IsValidReturnAddress(Address address) { return false; }
+bool Deoptimizer::IsValidReturnAddress(Address address, Isolate* isolate) {
+  return false;
+}
 
 }  // namespace internal
 }  // namespace v8

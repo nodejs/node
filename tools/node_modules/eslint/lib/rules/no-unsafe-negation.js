@@ -46,17 +46,18 @@ function isNegation(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow negating the left operand of relational operators",
-            category: "Possible Errors",
+            description: "Disallow negating the left operand of relational operators",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unsafe-negation",
-            suggestion: true
+            url: "https://eslint.org/docs/latest/rules/no-unsafe-negation"
         },
+
+        hasSuggestions: true,
 
         schema: [
             {
@@ -81,7 +82,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const options = context.options[0] || {};
         const enforceForOrderingRelations = options.enforceForOrderingRelations === true;
 

@@ -17,7 +17,7 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 const PATTERN_TYPE = /^(?:.+?Pattern|RestElement|SpreadProperty|ExperimentalRestProperty|Property)$/u;
-const DECLARATION_HOST_TYPE = /^(?:Program|BlockStatement|SwitchCase)$/u;
+const DECLARATION_HOST_TYPE = /^(?:Program|BlockStatement|StaticBlock|SwitchCase)$/u;
 const DESTRUCTURING_HOST_TYPE = /^(?:VariableDeclarator|AssignmentExpression)$/u;
 
 /**
@@ -60,7 +60,7 @@ function canBecomeVariableDeclaration(identifier) {
  */
 function isOuterVariableInDestructing(name, initScope) {
 
-    if (initScope.through.find(ref => ref.resolved && ref.resolved.name === name)) {
+    if (initScope.through.some(ref => ref.resolved && ref.resolved.name === name)) {
         return true;
     }
 
@@ -326,15 +326,15 @@ function findUp(node, type, shouldStop) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require `const` declarations for variables that are never reassigned after declared",
-            category: "ECMAScript 6",
+            description: "Require `const` declarations for variables that are never reassigned after declared",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-const"
+            url: "https://eslint.org/docs/latest/rules/prefer-const"
         },
 
         fixable: "code",
@@ -356,7 +356,7 @@ module.exports = {
 
     create(context) {
         const options = context.options[0] || {};
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const shouldMatchAnyDestructuredVariable = options.destructuring !== "all";
         const ignoreReadBeforeAssign = options.ignoreReadBeforeAssign === true;
         const variables = [];
@@ -446,7 +446,19 @@ module.exports = {
 
                         reportCount += nodesToReport.length;
 
-                        shouldFix = shouldFix && (reportCount === varDeclParent.declarations.length);
+                        let totalDeclarationsCount = 0;
+
+                        varDeclParent.declarations.forEach(declaration => {
+                            if (declaration.id.type === "ObjectPattern") {
+                                totalDeclarationsCount += declaration.id.properties.length;
+                            } else if (declaration.id.type === "ArrayPattern") {
+                                totalDeclarationsCount += declaration.id.elements.length;
+                            } else {
+                                totalDeclarationsCount += 1;
+                            }
+                        });
+
+                        shouldFix = shouldFix && (reportCount === totalDeclarationsCount);
                     }
                 }
 
@@ -481,7 +493,7 @@ module.exports = {
 
             VariableDeclaration(node) {
                 if (node.kind === "let" && !isInitOfForStatement(node)) {
-                    variables.push(...context.getDeclaredVariables(node));
+                    variables.push(...sourceCode.getDeclaredVariables(node));
                 }
             }
         };

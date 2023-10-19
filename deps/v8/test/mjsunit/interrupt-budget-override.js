@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --opt --interrupt-budget=100 --budget-for-feedback-vector-allocation=10 --allow-natives-syntax
+// Flags: --turbofan --invocation-count-for-turbofan=2 --interrupt-budget-for-feedback-allocation=10 --allow-natives-syntax --nomaglev --minimum-invocations-before-optimization=0
 
 function f() {
   let s = 0;
@@ -12,8 +12,9 @@ function f() {
   return s;
 }
 
-%PrepareFunctionForOptimization(f, "allow heuristic optimization");
+%EnsureFeedbackVectorForFunction(f);
 f();
 f();
 f();
+%FinalizeOptimization();
 assertOptimized(f);

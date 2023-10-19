@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2013 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be

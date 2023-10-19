@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow division operators explicitly at the beginning of regular expressions",
-            category: "Best Practices",
+            description: "Disallow equal signs explicitly at the beginning of regular expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-div-regex"
+            url: "https://eslint.org/docs/latest/rules/no-div-regex"
         },
 
         fixable: "code",
@@ -30,7 +30,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
 

@@ -66,13 +66,13 @@ RelativeDistinguishedName (RDN).
 B<loc> actually determines the index where the new entry is inserted:
 if it is -1 it is appended.
 
-B<set> determines how the new type is added. If it is zero a
-new RDN is created.
+B<set> determines how the new type is added.
+If it is zero a new RDN is created.
 
-If B<set> is -1 or 1 it is added to the previous or next RDN
-structure respectively. This will then be a multivalued RDN:
-since multivalues RDNs are very seldom used B<set> is almost
-always set to zero.
+If B<set> is -1 or 1 it is added as a new set member
+to the previous or next RDN structure, respectively.
+This will then become part of a multi-valued RDN (containing a set of AVAs).
+Since multi-valued RDNs are very rarely used B<set> typically will be zero.
 
 =head1 RETURN VALUES
 
@@ -81,7 +81,7 @@ X509_NAME_add_entry_by_NID() and X509_NAME_add_entry() return 1 for
 success of 0 if an error occurred.
 
 X509_NAME_delete_entry() returns either the deleted B<X509_NAME_ENTRY>
-structure of B<NULL> if an error occurred.
+structure or B<NULL> if an error occurred.
 
 =head1 EXAMPLES
 
@@ -117,9 +117,9 @@ L<ERR_get_error(3)>, L<d2i_X509_NAME(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

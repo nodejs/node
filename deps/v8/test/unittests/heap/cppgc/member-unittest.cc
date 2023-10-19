@@ -9,7 +9,9 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/internal/member-storage.h"
 #include "include/cppgc/persistent.h"
+#include "include/cppgc/sentinel-pointer.h"
 #include "include/cppgc/type-traits.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -20,9 +22,15 @@ namespace internal {
 namespace {
 
 struct GCed : GarbageCollected<GCed> {
+  double d;
   virtual void Trace(cppgc::Visitor*) const {}
 };
-struct DerivedGCed : GCed {
+
+struct DerivedMixin : GarbageCollectedMixin {
+  void Trace(cppgc::Visitor* v) const override {}
+};
+
+struct DerivedGCed : GCed, DerivedMixin {
   void Trace(cppgc::Visitor* v) const override { GCed::Trace(v); }
 };
 
@@ -57,7 +65,12 @@ struct CustomWriteBarrierPolicy {
   static void InitializingBarrier(const void* slot, const void* value) {
     ++InitializingWriteBarriersTriggered;
   }
+  template <WriteBarrierSlotType>
   static void AssigningBarrier(const void* slot, const void* value) {
+    ++AssigningWriteBarriersTriggered;
+  }
+  template <WriteBarrierSlotType>
+  static void AssigningBarrier(const void* slot, DefaultMemberStorage) {
     ++AssigningWriteBarriersTriggered;
   }
 };
@@ -110,6 +123,40 @@ TEST_F(MemberTest, Empty) {
   EmptyTest<Member>();
   EmptyTest<WeakMember>();
   EmptyTest<UntracedMember>();
+}
+
+template <template <typename> class MemberType>
+void AtomicCtorTest(cppgc::Heap* heap) {
+  {
+    GCed* gced = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
+    MemberType<GCed> member(gced,
+                            typename MemberType<GCed>::AtomicInitializerTag());
+    EXPECT_EQ(gced, member.Get());
+  }
+  {
+    GCed* gced = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
+    MemberType<GCed> member(*gced,
+                            typename MemberType<GCed>::AtomicInitializerTag());
+    EXPECT_EQ(gced, member.Get());
+  }
+  {
+    MemberType<GCed> member(nullptr,
+                            typename MemberType<GCed>::AtomicInitializerTag());
+    EXPECT_FALSE(member.Get());
+  }
+  {
+    SentinelPointer s;
+    MemberType<GCed> member(s,
+                            typename MemberType<GCed>::AtomicInitializerTag());
+    EXPECT_EQ(s, member.Get());
+  }
+}
+
+TEST_F(MemberTest, AtomicCtor) {
+  cppgc::Heap* heap = GetHeap();
+  AtomicCtorTest<Member>(heap);
+  AtomicCtorTest<WeakMember>(heap);
+  AtomicCtorTest<UntracedMember>(heap);
 }
 
 template <template <typename> class MemberType>
@@ -300,10 +347,19 @@ void EqualityTest(cppgc::Heap* heap) {
     MemberType1<GCed> member1 = gced;
     MemberType2<GCed> member2 = gced;
     EXPECT_TRUE(member1 == member2);
+    EXPECT_TRUE(member1 == gced);
+    EXPECT_TRUE(member2 == gced);
     EXPECT_FALSE(member1 != member2);
+    EXPECT_FALSE(member1 != gced);
+    EXPECT_FALSE(member2 != gced);
+
     member2 = member1;
     EXPECT_TRUE(member1 == member2);
+    EXPECT_TRUE(member1 == gced);
+    EXPECT_TRUE(member2 == gced);
     EXPECT_FALSE(member1 != member2);
+    EXPECT_FALSE(member1 != gced);
+    EXPECT_FALSE(member2 != gced);
   }
   {
     MemberType1<GCed> member1 =
@@ -311,7 +367,9 @@ void EqualityTest(cppgc::Heap* heap) {
     MemberType2<GCed> member2 =
         MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     EXPECT_TRUE(member1 != member2);
+    EXPECT_TRUE(member1 != member2.Get());
     EXPECT_FALSE(member1 == member2);
+    EXPECT_FALSE(member1 == member2.Get());
   }
 }
 
@@ -326,6 +384,56 @@ TEST_F(MemberTest, EqualityTest) {
   EqualityTest<UntracedMember, Member>(heap);
   EqualityTest<UntracedMember, WeakMember>(heap);
   EqualityTest<UntracedMember, UntracedMember>(heap);
+}
+
+TEST_F(MemberTest, HeterogeneousEqualityTest) {
+  cppgc::Heap* heap = GetHeap();
+  {
+    auto* gced = MakeGarbageCollected<DerivedGCed>(heap->GetAllocationHandle());
+    auto* derived = static_cast<DerivedMixin*>(gced);
+    ASSERT_NE(reinterpret_cast<void*>(gced), reinterpret_cast<void*>(derived));
+  }
+  {
+    auto* gced = MakeGarbageCollected<DerivedGCed>(heap->GetAllocationHandle());
+    Member<DerivedGCed> member = gced;
+#define EXPECT_MIXIN_EQUAL(Mixin) \
+  EXPECT_TRUE(member == mixin);   \
+  EXPECT_TRUE(member == gced);    \
+  EXPECT_TRUE(mixin == gced);     \
+  EXPECT_FALSE(member != mixin);  \
+  EXPECT_FALSE(member != gced);   \
+  EXPECT_FALSE(mixin != gced);
+    {
+      // Construct from raw.
+      Member<DerivedMixin> mixin = gced;
+      EXPECT_MIXIN_EQUAL(mixin);
+    }
+    {
+      // Copy construct from member.
+      Member<DerivedMixin> mixin = member;
+      EXPECT_MIXIN_EQUAL(mixin);
+    }
+    {
+      // Move construct from member.
+      Member<DerivedMixin> mixin = std::move(member);
+      member = gced;
+      EXPECT_MIXIN_EQUAL(mixin);
+    }
+    {
+      // Copy assign from member.
+      Member<DerivedMixin> mixin;
+      mixin = member;
+      EXPECT_MIXIN_EQUAL(mixin);
+    }
+    {
+      // Move assign from member.
+      Member<DerivedMixin> mixin;
+      mixin = std::move(member);
+      member = gced;
+      EXPECT_MIXIN_EQUAL(mixin);
+    }
+#undef EXPECT_MIXIN_EQUAL
+  }
 }
 
 TEST_F(MemberTest, WriteBarrierTriggered) {
@@ -371,5 +479,189 @@ TEST_F(MemberTest, CheckingPolicy) {
   EXPECT_EQ(CustomCheckingPolicy::Cached.size(),
             CustomCheckingPolicy::ChecksTriggered);
 }
+
+namespace {
+
+class MemberHeapTest : public testing::TestWithHeap {};
+
+class GCedWithMembers final : public GarbageCollected<GCedWithMembers> {
+ public:
+  static size_t live_count_;
+
+  GCedWithMembers() : GCedWithMembers(nullptr, nullptr) {}
+  explicit GCedWithMembers(GCedWithMembers* strong, GCedWithMembers* weak)
+      : strong_nested_(strong), weak_nested_(weak) {
+    ++live_count_;
+  }
+
+  ~GCedWithMembers() { --live_count_; }
+
+  void Trace(cppgc::Visitor* visitor) const {
+    visitor->Trace(strong_nested_);
+    visitor->Trace(weak_nested_);
+  }
+
+  bool WasNestedCleared() const { return !weak_nested_; }
+
+ private:
+  Member<GCedWithMembers> strong_nested_;
+  WeakMember<GCedWithMembers> weak_nested_;
+};
+size_t GCedWithMembers::live_count_ = 0;
+
+}  // namespace
+
+TEST_F(MemberHeapTest, MemberRetainsObject) {
+  EXPECT_EQ(0u, GCedWithMembers::live_count_);
+  {
+    GCedWithMembers* nested_object =
+        MakeGarbageCollected<GCedWithMembers>(GetAllocationHandle());
+    Persistent<GCedWithMembers> gced_with_members =
+        MakeGarbageCollected<GCedWithMembers>(GetAllocationHandle(),
+                                              nested_object, nested_object);
+    EXPECT_EQ(2u, GCedWithMembers::live_count_);
+    PreciseGC();
+    EXPECT_EQ(2u, GCedWithMembers::live_count_);
+    EXPECT_FALSE(gced_with_members->WasNestedCleared());
+  }
+  PreciseGC();
+  EXPECT_EQ(0u, GCedWithMembers::live_count_);
+  {
+    GCedWithMembers* nested_object =
+        MakeGarbageCollected<GCedWithMembers>(GetAllocationHandle());
+    GCedWithMembers* gced_with_members = MakeGarbageCollected<GCedWithMembers>(
+        GetAllocationHandle(), nested_object, nested_object);
+    EXPECT_EQ(2u, GCedWithMembers::live_count_);
+    ConservativeGC();
+    EXPECT_EQ(2u, GCedWithMembers::live_count_);
+    EXPECT_FALSE(gced_with_members->WasNestedCleared());
+  }
+  PreciseGC();
+  EXPECT_EQ(0u, GCedWithMembers::live_count_);
+}
+
+TEST_F(MemberHeapTest, WeakMemberDoesNotRetainObject) {
+  EXPECT_EQ(0u, GCedWithMembers::live_count_);
+  auto* weak_nested =
+      MakeGarbageCollected<GCedWithMembers>(GetAllocationHandle());
+  Persistent<GCedWithMembers> gced_with_members(
+      MakeGarbageCollected<GCedWithMembers>(GetAllocationHandle(), nullptr,
+                                            weak_nested));
+  PreciseGC();
+  EXPECT_EQ(1u, GCedWithMembers::live_count_);
+  EXPECT_TRUE(gced_with_members->WasNestedCleared());
+}
+
+namespace {
+class GCedWithConstWeakMember
+    : public GarbageCollected<GCedWithConstWeakMember> {
+ public:
+  explicit GCedWithConstWeakMember(const GCedWithMembers* weak)
+      : weak_member_(weak) {}
+
+  void Trace(Visitor* visitor) const { visitor->Trace(weak_member_); }
+
+  const GCedWithMembers* weak_member() const { return weak_member_; }
+
+ private:
+  const WeakMember<const GCedWithMembers> weak_member_;
+};
+}  // namespace
+
+TEST_F(MemberHeapTest, ConstWeakRefIsClearedOnGC) {
+  const WeakPersistent<const GCedWithMembers> weak_persistent =
+      MakeGarbageCollected<GCedWithMembers>(GetAllocationHandle());
+  Persistent<GCedWithConstWeakMember> persistent =
+      MakeGarbageCollected<GCedWithConstWeakMember>(GetAllocationHandle(),
+                                                    weak_persistent);
+  PreciseGC();
+  EXPECT_FALSE(weak_persistent);
+  EXPECT_FALSE(persistent->weak_member());
+}
+
+#if V8_ENABLE_CHECKS
+
+namespace {
+class MemberHeapDeathTest : public testing::TestWithHeap {};
+
+class LinkedNode final : public GarbageCollected<LinkedNode> {
+ public:
+  explicit LinkedNode(LinkedNode* next) : next_(next) {}
+  void Trace(Visitor* v) const { v->Trace(next_); }
+
+  void SetNext(LinkedNode* next) { next_ = next; }
+
+ private:
+  Member<LinkedNode> next_;
+};
+
+}  // namespace
+
+// The following tests create multiple heaps per thread, which is not supported
+// with pointer compression enabled.
+#if !defined(CPPGC_POINTER_COMPRESSION)
+TEST_F(MemberHeapDeathTest, CheckForOffHeapMemberCrashesOnReassignment) {
+  std::vector<Member<LinkedNode>> off_heap_member;
+  // Verification state is constructed on first assignment.
+  off_heap_member.emplace_back(
+      MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr));
+  {
+    auto tmp_heap = cppgc::Heap::Create(platform_);
+    auto* tmp_obj = MakeGarbageCollected<LinkedNode>(
+        tmp_heap->GetAllocationHandle(), nullptr);
+    EXPECT_DEATH_IF_SUPPORTED(off_heap_member[0] = tmp_obj, "");
+  }
+}
+
+TEST_F(MemberHeapDeathTest, CheckForOnStackMemberCrashesOnReassignment) {
+  Member<LinkedNode> stack_member;
+  // Verification state is constructed on first assignment.
+  stack_member =
+      MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr);
+  {
+    auto tmp_heap = cppgc::Heap::Create(platform_);
+    auto* tmp_obj = MakeGarbageCollected<LinkedNode>(
+        tmp_heap->GetAllocationHandle(), nullptr);
+    EXPECT_DEATH_IF_SUPPORTED(stack_member = tmp_obj, "");
+  }
+}
+
+TEST_F(MemberHeapDeathTest, CheckForOnHeapMemberCrashesOnInitialAssignment) {
+  auto* obj = MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr);
+  {
+    auto tmp_heap = cppgc::Heap::Create(platform_);
+    EXPECT_DEATH_IF_SUPPORTED(
+        // For regular on-heap Member references the verification state is
+        // constructed eagerly on creating the reference.
+        MakeGarbageCollected<LinkedNode>(tmp_heap->GetAllocationHandle(), obj),
+        "");
+  }
+}
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
+
+#if defined(CPPGC_POINTER_COMPRESSION)
+TEST_F(MemberTest, CompressDecompress) {
+  CompressedPointer cp;
+  EXPECT_EQ(nullptr, cp.Load());
+
+  Member<GCed> member;
+  cp.Store(member.Get());
+  EXPECT_EQ(nullptr, cp.Load());
+
+  cp.Store(kSentinelPointer);
+  EXPECT_EQ(kSentinelPointer, cp.Load());
+
+  member = kSentinelPointer;
+  cp.Store(member.Get());
+  EXPECT_EQ(kSentinelPointer, cp.Load());
+
+  member = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  cp.Store(member.Get());
+  EXPECT_EQ(member.Get(), cp.Load());
+}
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
+
+#endif  // V8_ENABLE_CHECKS
+
 }  // namespace internal
 }  // namespace cppgc

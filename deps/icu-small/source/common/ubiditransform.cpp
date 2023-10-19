@@ -78,8 +78,8 @@ typedef struct {
 struct UBiDiTransform {
     UBiDi                   *pBidi;             /* pointer to a UBiDi object */
     const ReorderingScheme  *pActiveScheme;     /* effective reordering scheme */
-    UChar                   *src;               /* input text */
-    UChar                   *dest;              /* output text */
+    char16_t                *src;               /* input text */
+    char16_t                *dest;              /* output text */
     uint32_t                srcLength;          /* input text length - not really needed as we are zero-terminated and can u_strlen */
     uint32_t                srcSize;            /* input text capacity excluding the trailing zero */
     uint32_t                destSize;           /* output text capacity */
@@ -92,10 +92,10 @@ struct UBiDiTransform {
 U_CAPI UBiDiTransform* U_EXPORT2
 ubiditransform_open(UErrorCode *pErrorCode)
 {
-    UBiDiTransform *pBiDiTransform = NULL;
+    UBiDiTransform *pBiDiTransform = nullptr;
     if (U_SUCCESS(*pErrorCode)) {
         pBiDiTransform = (UBiDiTransform*) uprv_calloc(1, sizeof(UBiDiTransform));
-        if (pBiDiTransform == NULL) {
+        if (pBiDiTransform == nullptr) {
             *pErrorCode = U_MEMORY_ALLOCATION_ERROR;
         }
     }
@@ -105,11 +105,11 @@ ubiditransform_open(UErrorCode *pErrorCode)
 U_CAPI void U_EXPORT2
 ubiditransform_close(UBiDiTransform *pBiDiTransform)
 {
-    if (pBiDiTransform != NULL) {
-        if (pBiDiTransform->pBidi != NULL) {
+    if (pBiDiTransform != nullptr) {
+        if (pBiDiTransform->pBidi != nullptr) {
             ubidi_close(pBiDiTransform->pBidi);
         }
-        if (pBiDiTransform->src != NULL) {
+        if (pBiDiTransform->src != nullptr) {
             uprv_free(pBiDiTransform->src);
         }
         uprv_free(pBiDiTransform);
@@ -118,7 +118,7 @@ ubiditransform_close(UBiDiTransform *pBiDiTransform)
 
 /**
  * Performs Bidi resolution of text.
- *
+ * 
  * @param pTransform Pointer to the <code>UBiDiTransform</code> structure.
  * @param pErrorCode Pointer to the error code value.
  *
@@ -129,13 +129,13 @@ static UBool
 action_resolve(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 {
     ubidi_setPara(pTransform->pBidi, pTransform->src, pTransform->srcLength,
-            pTransform->pActiveScheme->baseLevel, NULL, pErrorCode);
-    return FALSE;
+            pTransform->pActiveScheme->baseLevel, nullptr, pErrorCode);
+    return false;
 }
 
 /**
  * Performs basic reordering of text (Logical -> Visual LTR).
- *
+ * 
  * @param pTransform Pointer to the <code>UBiDiTransform</code> structure.
  * @param pErrorCode Pointer to the error code value.
  *
@@ -150,12 +150,12 @@ action_reorder(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 
     *pTransform->pDestLength = pTransform->srcLength;
     pTransform->reorderingOptions = UBIDI_REORDER_DEFAULT;
-    return TRUE;
+    return true;
 }
 
 /**
  * Sets "inverse" mode on the <code>UBiDi</code> object.
- *
+ * 
  * @param pTransform Pointer to the <code>UBiDiTransform</code> structure.
  * @param pErrorCode Pointer to the error code value.
  *
@@ -166,15 +166,15 @@ static UBool
 action_setInverse(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 {
     (void)pErrorCode;
-    ubidi_setInverse(pTransform->pBidi, TRUE);
+    ubidi_setInverse(pTransform->pBidi, true);
     ubidi_setReorderingMode(pTransform->pBidi, UBIDI_REORDER_INVERSE_LIKE_DIRECT);
-    return FALSE;
+    return false;
 }
 
 /**
  * Sets "runs only" reordering mode indicating a Logical LTR <-> Logical RTL
  * transformation.
- *
+ * 
  * @param pTransform Pointer to the <code>UBiDiTransform</code> structure.
  * @param pErrorCode Pointer to the error code value.
  *
@@ -186,12 +186,12 @@ action_setRunsOnly(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 {
     (void)pErrorCode;
     ubidi_setReorderingMode(pTransform->pBidi, UBIDI_REORDER_RUNS_ONLY);
-    return FALSE;
+    return false;
 }
 
 /**
  * Performs string reverse.
- *
+ * 
  * @param pTransform Pointer to the <code>UBiDiTransform</code> structure.
  * @param pErrorCode Pointer to the error code value.
  *
@@ -205,22 +205,22 @@ action_reverse(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
             pTransform->dest, pTransform->destSize,
             UBIDI_REORDER_DEFAULT, pErrorCode);
     *pTransform->pDestLength = pTransform->srcLength;
-    return TRUE;
+    return true;
 }
 
 /**
  * Applies a new value to the text that serves as input at the current
  * processing step. This value is identical to the original one when we begin
  * the processing, but usually changes as the transformation progresses.
- *
+ * 
  * @param pTransform A pointer to the <code>UBiDiTransform</code> structure.
  * @param newSrc A pointer whose value is to be used as input text.
- * @param newLength A length of the new text in <code>UChar</code>s.
- * @param newSize A new source capacity in <code>UChar</code>s.
+ * @param newLength A length of the new text in <code>char16_t</code>s.
+ * @param newSize A new source capacity in <code>char16_t</code>s.
  * @param pErrorCode Pointer to the error code value.
  */
 static void
-updateSrc(UBiDiTransform *pTransform, const UChar *newSrc, uint32_t newLength,
+updateSrc(UBiDiTransform *pTransform, const char16_t *newSrc, uint32_t newLength,
         uint32_t newSize, UErrorCode *pErrorCode)
 {
     if (newSize < newLength) {
@@ -229,12 +229,12 @@ updateSrc(UBiDiTransform *pTransform, const UChar *newSrc, uint32_t newLength,
     }
     if (newSize > pTransform->srcSize) {
         newSize += 50; // allocate slightly more than needed right now
-        if (pTransform->src != NULL) {
+        if (pTransform->src != nullptr) {
             uprv_free(pTransform->src);
-            pTransform->src = NULL;
+            pTransform->src = nullptr;
         }
-        pTransform->src = (UChar *)uprv_malloc(newSize * sizeof(UChar));
-        if (pTransform->src == NULL) {
+        pTransform->src = (char16_t *)uprv_malloc(newSize * sizeof(char16_t));
+        if (pTransform->src == nullptr) {
             *pErrorCode = U_MEMORY_ALLOCATION_ERROR;
             //pTransform->srcLength = pTransform->srcSize = 0;
             return;
@@ -243,12 +243,12 @@ updateSrc(UBiDiTransform *pTransform, const UChar *newSrc, uint32_t newLength,
     }
     u_strncpy(pTransform->src, newSrc, newLength);
     pTransform->srcLength = u_terminateUChars(pTransform->src,
-		pTransform->srcSize, newLength, pErrorCode);
+    		pTransform->srcSize, newLength, pErrorCode);
 }
 
 /**
  * Calls a lower level shaping function.
- *
+ * 
  * @param pTransform Pointer to the <code>UBiDiTransform</code> structure.
  * @param options Shaping options.
  * @param pErrorCode Pointer to the error code value.
@@ -263,7 +263,7 @@ doShape(UBiDiTransform *pTransform, uint32_t options, UErrorCode *pErrorCode)
 
 /**
  * Performs digit and letter shaping.
- *
+ * 
  * @param pTransform Pointer to the <code>UBiDiTransform</code> structure.
  * @param pErrorCode Pointer to the error code value.
  *
@@ -274,7 +274,7 @@ static UBool
 action_shapeArabic(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 {
     if ((pTransform->letters | pTransform->digits) == 0) {
-        return FALSE;
+        return false;
     }
     if (pTransform->pActiveScheme->lettersDir == pTransform->pActiveScheme->digitsDir) {
         doShape(pTransform, pTransform->letters | pTransform->digits | pTransform->pActiveScheme->lettersDir,
@@ -288,12 +288,12 @@ action_shapeArabic(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
                     pErrorCode);
         }
     }
-    return TRUE;
+    return true;
 }
 
 /**
  * Performs character mirroring.
- *
+ * 
  * @param pTransform Pointer to the <code>UBiDiTransform</code> structure.
  * @param pErrorCode Pointer to the error code value.
  *
@@ -306,21 +306,21 @@ action_mirror(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
     UChar32 c;
     uint32_t i = 0, j = 0;
     if (0 == (pTransform->reorderingOptions & UBIDI_DO_MIRRORING)) {
-        return FALSE;
+        return false;
     }
     if (pTransform->destSize < pTransform->srcLength) {
         *pErrorCode = U_BUFFER_OVERFLOW_ERROR;
-        return FALSE;
+        return false;
     }
     do {
         UBool isOdd = ubidi_getLevelAt(pTransform->pBidi, i) & 1;
-        U16_NEXT(pTransform->src, i, pTransform->srcLength, c);
+        U16_NEXT(pTransform->src, i, pTransform->srcLength, c); 
         U16_APPEND_UNSAFE(pTransform->dest, j, isOdd ? u_charMirror(c) : c);
     } while (i < pTransform->srcLength);
-
+    
     *pTransform->pDestLength = pTransform->srcLength;
     pTransform->reorderingOptions = UBIDI_REORDER_DEFAULT;
-    return TRUE;
+    return true;
 }
 
 /**
@@ -331,52 +331,52 @@ static const ReorderingScheme Schemes[] =
 {
     /* 0: Logical LTR => Visual LTR */
     {LTR, LOGICAL, LTR, VISUAL, SHAPE_LOGICAL, SHAPE_LOGICAL, LTR,
-            {action_shapeArabic, action_resolve, action_reorder, NULL}},
+            {action_shapeArabic, action_resolve, action_reorder, nullptr}},
     /* 1: Logical RTL => Visual LTR */
     {RTL, LOGICAL, LTR, VISUAL, SHAPE_LOGICAL, SHAPE_VISUAL, RTL,
-            {action_resolve, action_reorder, action_shapeArabic, NULL}},
+            {action_resolve, action_reorder, action_shapeArabic, nullptr}},
     /* 2: Logical LTR => Visual RTL */
     {LTR, LOGICAL, RTL, VISUAL, SHAPE_LOGICAL, SHAPE_LOGICAL, LTR,
-            {action_shapeArabic, action_resolve, action_reorder, action_reverse, NULL}},
+            {action_shapeArabic, action_resolve, action_reorder, action_reverse, nullptr}},
     /* 3: Logical RTL => Visual RTL */
     {RTL, LOGICAL, RTL, VISUAL, SHAPE_LOGICAL, SHAPE_VISUAL, RTL,
-            {action_resolve, action_reorder, action_shapeArabic, action_reverse, NULL}},
+            {action_resolve, action_reorder, action_shapeArabic, action_reverse, nullptr}},
     /* 4: Visual LTR => Logical RTL */
     {LTR, VISUAL, RTL, LOGICAL, SHAPE_LOGICAL, SHAPE_VISUAL, RTL,
-            {action_shapeArabic, action_setInverse, action_resolve, action_reorder, NULL}},
+            {action_shapeArabic, action_setInverse, action_resolve, action_reorder, nullptr}},
     /* 5: Visual RTL => Logical RTL */
     {RTL, VISUAL, RTL, LOGICAL, SHAPE_LOGICAL, SHAPE_VISUAL, RTL,
-            {action_reverse, action_shapeArabic, action_setInverse, action_resolve, action_reorder, NULL}},
+            {action_reverse, action_shapeArabic, action_setInverse, action_resolve, action_reorder, nullptr}},
     /* 6: Visual LTR => Logical LTR */
     {LTR, VISUAL, LTR, LOGICAL, SHAPE_LOGICAL, SHAPE_LOGICAL, LTR,
-            {action_setInverse, action_resolve, action_reorder, action_shapeArabic, NULL}},
+            {action_setInverse, action_resolve, action_reorder, action_shapeArabic, nullptr}},
     /* 7: Visual RTL => Logical LTR */
     {RTL, VISUAL, LTR, LOGICAL, SHAPE_LOGICAL, SHAPE_LOGICAL, LTR,
-            {action_reverse, action_setInverse, action_resolve, action_reorder, action_shapeArabic, NULL}},
+            {action_reverse, action_setInverse, action_resolve, action_reorder, action_shapeArabic, nullptr}},
     /* 8: Logical LTR => Logical RTL */
     {LTR, LOGICAL, RTL, LOGICAL, SHAPE_LOGICAL, SHAPE_LOGICAL, LTR,
-            {action_shapeArabic, action_resolve, action_mirror, action_setRunsOnly, action_resolve, action_reorder, NULL}},
+            {action_shapeArabic, action_resolve, action_mirror, action_setRunsOnly, action_resolve, action_reorder, nullptr}},
     /* 9: Logical RTL => Logical LTR */
     {RTL, LOGICAL, LTR, LOGICAL, SHAPE_LOGICAL, SHAPE_LOGICAL, RTL,
-            {action_resolve, action_mirror, action_setRunsOnly, action_resolve, action_reorder, action_shapeArabic, NULL}},
+            {action_resolve, action_mirror, action_setRunsOnly, action_resolve, action_reorder, action_shapeArabic, nullptr}},
     /* 10: Visual LTR => Visual RTL */
     {LTR, VISUAL, RTL, VISUAL, SHAPE_LOGICAL, SHAPE_VISUAL, LTR,
-            {action_shapeArabic, action_setInverse, action_resolve, action_mirror, action_reverse, NULL}},
+            {action_shapeArabic, action_setInverse, action_resolve, action_mirror, action_reverse, nullptr}},
     /* 11: Visual RTL => Visual LTR */
     {RTL, VISUAL, LTR, VISUAL, SHAPE_LOGICAL, SHAPE_VISUAL, LTR,
-            {action_reverse, action_shapeArabic, action_setInverse, action_resolve, action_mirror, NULL}},
+            {action_reverse, action_shapeArabic, action_setInverse, action_resolve, action_mirror, nullptr}},
     /* 12: Logical LTR => Logical LTR */
     {LTR, LOGICAL, LTR, LOGICAL, SHAPE_LOGICAL, SHAPE_LOGICAL, LTR,
-            {action_resolve, action_mirror, action_shapeArabic, NULL}},
+            {action_resolve, action_mirror, action_shapeArabic, nullptr}},
     /* 13: Logical RTL => Logical RTL */
     {RTL, LOGICAL, RTL, LOGICAL, SHAPE_VISUAL, SHAPE_LOGICAL, RTL,
-            {action_resolve, action_mirror, action_shapeArabic, NULL}},
+            {action_resolve, action_mirror, action_shapeArabic, nullptr}},
     /* 14: Visual LTR => Visual LTR */
     {LTR, VISUAL, LTR, VISUAL, SHAPE_LOGICAL, SHAPE_VISUAL, LTR,
-            {action_resolve, action_mirror, action_shapeArabic, NULL}},
+            {action_resolve, action_mirror, action_shapeArabic, nullptr}},
     /* 15: Visual RTL => Visual RTL */
     {RTL, VISUAL, RTL, VISUAL, SHAPE_LOGICAL, SHAPE_VISUAL, LTR,
-            {action_reverse, action_resolve, action_mirror, action_shapeArabic, action_reverse, NULL}}
+            {action_reverse, action_resolve, action_mirror, action_shapeArabic, action_reverse, nullptr}}
 };
 
 static const uint32_t nSchemes = sizeof(Schemes) / sizeof(*Schemes);
@@ -387,7 +387,7 @@ static const uint32_t nSchemes = sizeof(Schemes) / sizeof(*Schemes);
  * of the first strong bidi character.
  */
 static void
-resolveBaseDirection(const UChar *text, uint32_t length,
+resolveBaseDirection(const char16_t *text, uint32_t length,
         UBiDiLevel *pInLevel, UBiDiLevel *pOutLevel)
 {
     switch (*pInLevel) {
@@ -416,8 +416,8 @@ resolveBaseDirection(const UChar *text, uint32_t length,
 /**
  * Finds a valid <code>ReorderingScheme</code> matching the
  * caller-defined scheme.
- *
- * @return A valid <code>ReorderingScheme</code> object or NULL
+ * 
+ * @return A valid <code>ReorderingScheme</code> object or nullptr
  */
 static const ReorderingScheme*
 findMatchingScheme(UBiDiLevel inLevel, UBiDiLevel outLevel,
@@ -431,34 +431,34 @@ findMatchingScheme(UBiDiLevel inLevel, UBiDiLevel outLevel,
             return pScheme;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 U_CAPI uint32_t U_EXPORT2
 ubiditransform_transform(UBiDiTransform *pBiDiTransform,
-            const UChar *src, int32_t srcLength,
-            UChar *dest, int32_t destSize,
+            const char16_t *src, int32_t srcLength,
+            char16_t *dest, int32_t destSize,
             UBiDiLevel inParaLevel, UBiDiOrder inOrder,
             UBiDiLevel outParaLevel, UBiDiOrder outOrder,
             UBiDiMirroring doMirroring, uint32_t shapingOptions,
             UErrorCode *pErrorCode)
 {
     uint32_t destLength = 0;
-    UBool textChanged = FALSE;
+    UBool textChanged = false;
     const UBiDiTransform *pOrigTransform = pBiDiTransform;
-    const UBiDiAction *action = NULL;
+    const UBiDiAction *action = nullptr;
 
     if (U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if (src == NULL || dest == NULL) {
+    if (src == nullptr || dest == nullptr) {
         *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
     CHECK_LEN(src, srcLength, pErrorCode);
     CHECK_LEN(dest, destSize, pErrorCode);
 
-    if (pBiDiTransform == NULL) {
+    if (pBiDiTransform == nullptr) {
         pBiDiTransform = ubiditransform_open(pErrorCode);
         if (U_FAILURE(*pErrorCode)) {
             return 0;
@@ -470,7 +470,7 @@ ubiditransform_transform(UBiDiTransform *pBiDiTransform,
 
     pBiDiTransform->pActiveScheme = findMatchingScheme(inParaLevel, outParaLevel,
             inOrder, outOrder);
-    if (pBiDiTransform->pActiveScheme == NULL) {
+    if (pBiDiTransform->pActiveScheme == nullptr) {
         goto cleanup;
     }
     pBiDiTransform->reorderingOptions = doMirroring ? UBIDI_DO_MIRRORING
@@ -486,7 +486,7 @@ ubiditransform_transform(UBiDiTransform *pBiDiTransform,
     if (U_FAILURE(*pErrorCode)) {
         goto cleanup;
     }
-    if (pBiDiTransform->pBidi == NULL) {
+    if (pBiDiTransform->pBidi == nullptr) {
         pBiDiTransform->pBidi = ubidi_openSized(0, 0, pErrorCode);
         if (U_FAILURE(*pErrorCode)) {
             goto cleanup;
@@ -503,10 +503,10 @@ ubiditransform_transform(UBiDiTransform *pBiDiTransform,
                 updateSrc(pBiDiTransform, pBiDiTransform->dest, *pBiDiTransform->pDestLength,
                         *pBiDiTransform->pDestLength, pErrorCode);
             }
-            textChanged = TRUE;
+            textChanged = true;
         }
     }
-    ubidi_setInverse(pBiDiTransform->pBidi, FALSE);
+    ubidi_setInverse(pBiDiTransform->pBidi, false);
 
     if (!textChanged && U_SUCCESS(*pErrorCode)) {
         /* Text was not changed - just copy src to dest */
@@ -521,8 +521,8 @@ cleanup:
     if (pOrigTransform != pBiDiTransform) {
         ubiditransform_close(pBiDiTransform);
     } else {
-        pBiDiTransform->dest = NULL;
-        pBiDiTransform->pDestLength = NULL;
+        pBiDiTransform->dest = nullptr;
+        pBiDiTransform->pDestLength = nullptr;
         pBiDiTransform->srcLength = 0;
         pBiDiTransform->destSize = 0;
     }

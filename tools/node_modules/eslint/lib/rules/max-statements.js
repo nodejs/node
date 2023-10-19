@@ -16,15 +16,15 @@ const { upperCaseFirst } = require("../shared/string-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce a maximum number of statements allowed in function blocks",
-            category: "Stylistic Issues",
+            description: "Enforce a maximum number of statements allowed in function blocks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/max-statements"
+            url: "https://eslint.org/docs/latest/rules/max-statements"
         },
 
         schema: [
@@ -124,6 +124,14 @@ module.exports = {
         function endFunction(node) {
             const count = functionStack.pop();
 
+            /*
+             * This rule does not apply to class static blocks, but we have to track them so
+             * that statements in them do not count as statements in the enclosing function.
+             */
+            if (node.type === "StaticBlock") {
+                return;
+            }
+
             if (ignoreTopLevelFunctions && functionStack.length === 0) {
                 topLevelFunctions.push({ node, count });
             } else {
@@ -149,12 +157,14 @@ module.exports = {
             FunctionDeclaration: startFunction,
             FunctionExpression: startFunction,
             ArrowFunctionExpression: startFunction,
+            StaticBlock: startFunction,
 
             BlockStatement: countStatements,
 
             "FunctionDeclaration:exit": endFunction,
             "FunctionExpression:exit": endFunction,
             "ArrowFunctionExpression:exit": endFunction,
+            "StaticBlock:exit": endFunction,
 
             "Program:exit"() {
                 if (topLevelFunctions.length === 1) {

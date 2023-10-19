@@ -3,12 +3,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (common.hasOpenSSL3)
-  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
-
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const exec = require('child_process').exec;
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
@@ -620,9 +616,9 @@ assert.throws(
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
 
-  const sigfile = path.join(tmpdir.path, 's5.sig');
+  const sigfile = tmpdir.resolve('s5.sig');
   fs.writeFileSync(sigfile, s5);
-  const msgfile = path.join(tmpdir.path, 's5.msg');
+  const msgfile = tmpdir.resolve('s5.msg');
   fs.writeFileSync(msgfile, msg);
 
   const cmd =
@@ -633,4 +629,147 @@ assert.throws(
   exec(cmd, common.mustCall((err, stdout, stderr) => {
     assert(stdout.includes('Verified OK'));
   }));
+}
+
+{
+  // Test RSA-PSS.
+  {
+    // This key pair does not restrict the message digest algorithm or salt
+    // length.
+    const publicPem = fixtures.readKey('rsa_pss_public_2048.pem');
+    const privatePem = fixtures.readKey('rsa_pss_private_2048.pem');
+
+    const publicKey = crypto.createPublicKey(publicPem);
+    const privateKey = crypto.createPrivateKey(privatePem);
+
+    for (const key of [privatePem, privateKey]) {
+      // Any algorithm should work.
+      for (const algo of ['sha1', 'sha256']) {
+        // Any salt length should work.
+        for (const saltLength of [undefined, 8, 10, 12, 16, 18, 20]) {
+          const signature = crypto.sign(algo, 'foo', { key, saltLength });
+
+          for (const pkey of [key, publicKey, publicPem]) {
+            const okay = crypto.verify(
+              algo,
+              'foo',
+              { key: pkey, saltLength },
+              signature
+            );
+
+            assert.ok(okay);
+          }
+        }
+      }
+    }
+  }
+
+  {
+    // This key pair enforces sha256 as the message digest and the MGF1
+    // message digest and a salt length of at least 16 bytes.
+    const publicPem =
+      fixtures.readKey('rsa_pss_public_2048_sha256_sha256_16.pem');
+    const privatePem =
+      fixtures.readKey('rsa_pss_private_2048_sha256_sha256_16.pem');
+
+    const publicKey = crypto.createPublicKey(publicPem);
+    const privateKey = crypto.createPrivateKey(privatePem);
+
+    for (const key of [privatePem, privateKey]) {
+      // Signing with anything other than sha256 should fail.
+      assert.throws(() => {
+        crypto.sign('sha1', 'foo', key);
+      }, /digest not allowed/);
+
+      // Signing with salt lengths less than 16 bytes should fail.
+      for (const saltLength of [8, 10, 12]) {
+        assert.throws(() => {
+          crypto.sign('sha256', 'foo', { key, saltLength });
+        }, /pss saltlen too small/);
+      }
+
+      // Signing with sha256 and appropriate salt lengths should work.
+      for (const saltLength of [undefined, 16, 18, 20]) {
+        const signature = crypto.sign('sha256', 'foo', { key, saltLength });
+
+        for (const pkey of [key, publicKey, publicPem]) {
+          const okay = crypto.verify(
+            'sha256',
+            'foo',
+            { key: pkey, saltLength },
+            signature
+          );
+
+          assert.ok(okay);
+        }
+      }
+    }
+  }
+
+  {
+    // This key enforces sha512 as the message digest and sha256 as the MGF1
+    // message digest.
+    const publicPem =
+      fixtures.readKey('rsa_pss_public_2048_sha512_sha256_20.pem');
+    const privatePem =
+      fixtures.readKey('rsa_pss_private_2048_sha512_sha256_20.pem');
+
+    const publicKey = crypto.createPublicKey(publicPem);
+    const privateKey = crypto.createPrivateKey(privatePem);
+
+    // Node.js usually uses the same hash function for the message and for MGF1.
+    // However, when a different MGF1 message digest algorithm has been
+    // specified as part of the key, it should automatically switch to that.
+    // This behavior is required by sections 3.1 and 3.3 of RFC4055.
+    for (const key of [privatePem, privateKey]) {
+      // sha256 matches the MGF1 hash function and should be used internally,
+      // but it should not be permitted as the main message digest algorithm.
+      for (const algo of ['sha1', 'sha256']) {
+        assert.throws(() => {
+          crypto.sign(algo, 'foo', key);
+        }, /digest not allowed/);
+      }
+
+      // sha512 should produce a valid signature.
+      const signature = crypto.sign('sha512', 'foo', key);
+
+      for (const pkey of [key, publicKey, publicPem]) {
+        const okay = crypto.verify('sha512', 'foo', pkey, signature);
+
+        assert.ok(okay);
+      }
+    }
+  }
+}
+
+// The sign function should not swallow OpenSSL errors.
+// Regression test for https://github.com/nodejs/node/issues/40794.
+{
+  assert.throws(() => {
+    const { privateKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 512
+    });
+    crypto.sign('sha512', 'message', privateKey);
+  }, {
+    code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY',
+    message: /digest too big for rsa key/
+  });
+}
+
+{
+  // This should not cause a crash: https://github.com/nodejs/node/issues/44471
+  for (const key of ['', 'foo', null, undefined, true, Boolean]) {
+    assert.throws(() => {
+      crypto.verify('sha256', 'foo', { key, format: 'jwk' }, Buffer.alloc(0));
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+    assert.throws(() => {
+      crypto.createVerify('sha256').verify({ key, format: 'jwk' }, Buffer.alloc(0));
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+    assert.throws(() => {
+      crypto.sign('sha256', 'foo', { key, format: 'jwk' });
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+    assert.throws(() => {
+      crypto.createSign('sha256').sign({ key, format: 'jwk' });
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+  }
 }

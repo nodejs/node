@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_TYPER_H_
 #define V8_COMPILER_TYPER_H_
 
-#include "src/common/globals.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/operation-typer.h"
 

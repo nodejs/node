@@ -1,0 +1,5 @@
+Regression test for crbug.com/1253277
+
+Running test: test
+function foo(){}|_|foo()
+

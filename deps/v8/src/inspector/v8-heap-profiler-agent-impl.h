@@ -11,7 +11,9 @@
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/HeapProfiler.h"
 
-#include "include/v8.h"
+namespace v8 {
+class Isolate;
+}
 
 namespace v8_inspector {
 
@@ -34,14 +36,17 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
 
   Response enable() override;
   Response startTrackingHeapObjects(Maybe<bool> trackAllocations) override;
-  Response stopTrackingHeapObjects(
-      Maybe<bool> reportProgress,
-      Maybe<bool> treatGlobalObjectsAsRoots) override;
+  Response stopTrackingHeapObjects(Maybe<bool> reportProgress,
+                                   Maybe<bool> treatGlobalObjectsAsRoots,
+                                   Maybe<bool> captureNumericValue,
+                                   Maybe<bool> exposeInternals) override;
 
   Response disable() override;
 
-  Response takeHeapSnapshot(Maybe<bool> reportProgress,
-                            Maybe<bool> treatGlobalObjectsAsRoots) override;
+  void takeHeapSnapshot(
+      Maybe<bool> reportProgress, Maybe<bool> treatGlobalObjectsAsRoots,
+      Maybe<bool> captureNumericValue, Maybe<bool> exposeInternals,
+      std::unique_ptr<TakeHeapSnapshotCallback> callback) override;
 
   Response getObjectByHeapObjectId(
       const String16& heapSnapshotObjectId, Maybe<String16> objectGroup,
@@ -51,27 +56,40 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
   Response getHeapObjectId(const String16& objectId,
                            String16* heapSnapshotObjectId) override;
 
-  Response startSampling(Maybe<double> samplingInterval) override;
+  Response startSampling(Maybe<double> samplingInterval,
+                         Maybe<bool> includeObjectsCollectedByMajorGC,
+                         Maybe<bool> includeObjectsCollectedByMinorGC) override;
   Response stopSampling(
       std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfile>*) override;
   Response getSamplingProfile(
       std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfile>*) override;
 
- private:
-  struct AsyncGC;
-  class GCTask;
+  // If any heap snapshot requests have been deferred, run them now. This is
+  // called by the debugger when pausing execution on this thread.
+  void takePendingHeapSnapshots();
 
+ private:
+  struct AsyncCallbacks;
+  class GCTask;
+  class HeapSnapshotTask;
+  struct HeapSnapshotProtocolOptions;
+
+  Response takeHeapSnapshotNow(
+      const HeapSnapshotProtocolOptions& protocolOptions,
+      cppgc::EmbedderStackState stackState);
   void startTrackingHeapObjectsInternal(bool trackAllocations);
   void stopTrackingHeapObjectsInternal();
   void requestHeapStatsUpdate();
   static void onTimer(void*);
+  void onTimerImpl();
 
   V8InspectorSessionImpl* m_session;
   v8::Isolate* m_isolate;
   protocol::HeapProfiler::Frontend m_frontend;
   protocol::DictionaryValue* m_state;
   bool m_hasTimer;
-  std::shared_ptr<AsyncGC> m_async_gc;
+  double m_timerDelayInSeconds;
+  std::shared_ptr<AsyncCallbacks> m_asyncCallbacks;
 };
 
 }  // namespace v8_inspector

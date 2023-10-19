@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow the use of `debugger`",
-            category: "Possible Errors",
+            description: "Disallow the use of `debugger`",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-debugger"
+            url: "https://eslint.org/docs/latest/rules/no-debugger"
         },
 
         fixable: null,

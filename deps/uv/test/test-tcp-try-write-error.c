@@ -104,6 +104,6 @@ TEST_IMPL(tcp_try_write_error) {
   ASSERT(close_cb_called == 3);
   ASSERT(connection_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

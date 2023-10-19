@@ -10,15 +10,15 @@
 
 const POSITION_SCHEMA = { enum: ["beside", "below", "any"] };
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce the location of single-line statements",
-            category: "Stylistic Issues",
+            description: "Enforce the location of single-line statements",
             recommended: false,
-            url: "https://eslint.org/docs/rules/nonblock-statement-body-position"
+            url: "https://eslint.org/docs/latest/rules/nonblock-statement-body-position"
         },
 
         fixable: "whitespace",
@@ -49,7 +49,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //----------------------------------------------------------------------
         // Helpers

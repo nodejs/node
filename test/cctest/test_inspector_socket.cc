@@ -764,8 +764,8 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   std::string expected(EXPECTED_FRAME_HEADER, sizeof(EXPECTED_FRAME_HEADER));
   expected.append(message);
 
-  delegate->Write(&message[0], message.size());
-  expect_on_client(&expected[0], expected.size());
+  delegate->Write(message.data(), message.size());
+  expect_on_client(expected.data(), expected.size());
 
   char MASK[4] = {'W', 'h', 'O', 'a'};
 
@@ -778,8 +778,8 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   outgoing.resize(outgoing.size() + message.size());
   mask_message(message, &outgoing[sizeof(FRAME_TO_SERVER_HEADER)], MASK);
 
-  do_write(&outgoing[0], outgoing.size());
-  delegate->ExpectData(&message[0], message.size());
+  do_write(outgoing.data(), outgoing.size());
+  delegate->ExpectData(message.data(), message.size());
 
   // 3. Close
   const char CLIENT_CLOSE_FRAME[] = {'\x88', '\x80', '\x2D',
@@ -849,6 +849,168 @@ TEST_F(InspectorSocketTest, HostCheckedForUPGRADE) {
                                  "Sec-WebSocket-Key: aaa==\r\n"
                                  "Sec-WebSocket-Version: 13\r\n\r\n";
   expect_failure_no_delegate(UPGRADE_REQUEST);
+}
+
+TEST_F(InspectorSocketTest, HostIPChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 10.0.2.555:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostNegativeIPChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 10.0.-23.255:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpOctetOutOfIntRangeChecked) {
+  const std::string INVALID_HOST_IP_REQUEST =
+      "GET /json HTTP/1.1\r\n"
+      "Host: 127.0.0.4294967296:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpOctetFarOutOfIntRangeChecked) {
+  const std::string INVALID_HOST_IP_REQUEST =
+      "GET /json HTTP/1.1\r\n"
+      "Host: 127.0.0.18446744073709552000:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpEmptyOctetStartChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: .0.0.1:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpEmptyOctetMidChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 127..0.1:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpEmptyOctetEndChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 127.0.0.:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpTooFewOctetsChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 127.0.1:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpTooManyOctetsChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 127.0.0.0.1:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpInvalidOctalOctetStartChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 08.1.1.1:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpInvalidOctalOctetMidChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 1.09.1.1:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpInvalidOctalOctetEndChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 1.1.1.009:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpLeadingZeroStartChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 01.1.1.1:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpLeadingZeroMidChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 1.1.001.1:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIpLeadingZeroEndChecked) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 1.1.1.01:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIPNonRoutable) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: 0.0.0.0:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIPv6NonRoutable) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: [::]:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIPv6NonRoutableDual) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: [::0.0.0.0]:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIPv4InSquareBrackets) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: [127.0.0.1]:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
+}
+
+TEST_F(InspectorSocketTest, HostIPv6InvalidAbbreviation) {
+  const std::string INVALID_HOST_IP_REQUEST = "GET /json HTTP/1.1\r\n"
+                                              "Host: [:::1]:9229\r\n\r\n";
+  send_in_chunks(INVALID_HOST_IP_REQUEST.c_str(),
+                 INVALID_HOST_IP_REQUEST.length());
+  expect_handshake_failure();
 }
 
 }  // anonymous namespace

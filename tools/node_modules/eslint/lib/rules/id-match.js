@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require identifiers to match a specified regular expression",
-            category: "Stylistic Issues",
+            description: "Require identifiers to match a specified regular expression",
             recommended: false,
-            url: "https://eslint.org/docs/rules/id-match"
+            url: "https://eslint.org/docs/latest/rules/id-match"
         },
 
         schema: [
@@ -28,6 +28,10 @@ module.exports = {
                 type: "object",
                 properties: {
                     properties: {
+                        type: "boolean",
+                        default: false
+                    },
+                    classFields: {
                         type: "boolean",
                         default: false
                     },
@@ -44,7 +48,8 @@ module.exports = {
             }
         ],
         messages: {
-            notMatch: "Identifier '{{name}}' does not match the pattern '{{pattern}}'."
+            notMatch: "Identifier '{{name}}' does not match the pattern '{{pattern}}'.",
+            notMatchPrivate: "Identifier '#{{name}}' does not match the pattern '{{pattern}}'."
         }
     },
 
@@ -57,19 +62,36 @@ module.exports = {
             regexp = new RegExp(pattern, "u");
 
         const options = context.options[1] || {},
-            properties = !!options.properties,
+            checkProperties = !!options.properties,
+            checkClassFields = !!options.classFields,
             onlyDeclarations = !!options.onlyDeclarations,
             ignoreDestructuring = !!options.ignoreDestructuring;
+
+        const sourceCode = context.sourceCode;
+        let globalScope;
 
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
 
         // contains reported nodes to avoid reporting twice on destructuring with shorthand notation
-        const reported = new Map();
+        const reportedNodes = new Set();
         const ALLOWED_PARENT_TYPES = new Set(["CallExpression", "NewExpression"]);
         const DECLARATION_TYPES = new Set(["FunctionDeclaration", "VariableDeclarator"]);
         const IMPORT_TYPES = new Set(["ImportSpecifier", "ImportNamespaceSpecifier", "ImportDefaultSpecifier"]);
+
+        /**
+         * Checks whether the given node represents a reference to a global variable that is not declared in the source code.
+         * These identifiers will be allowed, as it is assumed that user has no control over the names of external global variables.
+         * @param {ASTNode} node `Identifier` node to check.
+         * @returns {boolean} `true` if the node is a reference to a global variable.
+         */
+        function isReferenceToGlobalVariable(node) {
+            const variable = globalScope.set.get(node.name);
+
+            return variable && variable.defs.length === 0 &&
+                variable.references.some(ref => ref.identifier === node);
+        }
 
         /**
          * Checks if a string matches the provided pattern
@@ -120,29 +142,51 @@ module.exports = {
          * @private
          */
         function report(node) {
-            if (!reported.has(node)) {
+
+            /*
+             * We used the range instead of the node because it's possible
+             * for the same identifier to be represented by two different
+             * nodes, with the most clear example being shorthand properties:
+             * { foo }
+             * In this case, "foo" is represented by one node for the name
+             * and one for the value. The only way to know they are the same
+             * is to look at the range.
+             */
+            if (!reportedNodes.has(node.range.toString())) {
+
+                const messageId = (node.type === "PrivateIdentifier")
+                    ? "notMatchPrivate" : "notMatch";
+
                 context.report({
                     node,
-                    messageId: "notMatch",
+                    messageId,
                     data: {
                         name: node.name,
                         pattern
                     }
                 });
-                reported.set(node, true);
+                reportedNodes.add(node.range.toString());
             }
         }
 
         return {
+
+            Program(node) {
+                globalScope = sourceCode.getScope(node);
+            },
 
             Identifier(node) {
                 const name = node.name,
                     parent = node.parent,
                     effectiveParent = (parent.type === "MemberExpression") ? parent.parent : parent;
 
+                if (isReferenceToGlobalVariable(node)) {
+                    return;
+                }
+
                 if (parent.type === "MemberExpression") {
 
-                    if (!properties) {
+                    if (!checkProperties) {
                         return;
                     }
 
@@ -168,6 +212,17 @@ module.exports = {
                         }
                     }
 
+                // For https://github.com/eslint/eslint/issues/15123
+                } else if (
+                    parent.type === "Property" &&
+                    parent.parent.type === "ObjectExpression" &&
+                    parent.key === node &&
+                    !parent.computed
+                ) {
+                    if (checkProperties && isInvalid(name)) {
+                        report(node);
+                    }
+
                 /*
                  * Properties have their own rules, and
                  * AssignmentPattern nodes can be treated like Properties:
@@ -176,8 +231,7 @@ module.exports = {
                 } else if (parent.type === "Property" || parent.type === "AssignmentPattern") {
 
                     if (parent.parent && parent.parent.type === "ObjectPattern") {
-                        if (parent.shorthand && parent.value.left && isInvalid(name)) {
-
+                        if (!ignoreDestructuring && parent.shorthand && parent.value.left && isInvalid(name)) {
                             report(node);
                         }
 
@@ -197,7 +251,7 @@ module.exports = {
                     }
 
                     // never check properties or always ignore destructuring
-                    if (!properties || (ignoreDestructuring && isInsideObjectPattern(node))) {
+                    if ((!checkProperties && !parent.computed) || (ignoreDestructuring && isInsideObjectPattern(node))) {
                         return;
                     }
 
@@ -214,8 +268,27 @@ module.exports = {
                         report(node);
                     }
 
+                } else if (parent.type === "PropertyDefinition") {
+
+                    if (checkClassFields && isInvalid(name)) {
+                        report(node);
+                    }
+
                 // Report anything that is invalid that isn't a CallExpression
                 } else if (shouldReport(effectiveParent, name)) {
+                    report(node);
+                }
+            },
+
+            "PrivateIdentifier"(node) {
+
+                const isClassField = node.parent.type === "PropertyDefinition";
+
+                if (isClassField && !checkClassFields) {
+                    return;
+                }
+
+                if (isInvalid(node.name)) {
                     report(node);
                 }
             }

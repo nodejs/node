@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
+#include "include/v8-function.h"
 #include "test/cctest/cctest.h"
 
 namespace {

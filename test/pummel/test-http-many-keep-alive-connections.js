@@ -45,8 +45,8 @@ server.listen(0, function connect() {
     port: server.address().port,
     path: '/',
     headers: {
-      'Connection': 'Keep-alive'
-    }
+      'Connection': 'Keep-alive',
+    },
   }, function(res) {
     res.on('end', function() {
       if (++responses < expected) {

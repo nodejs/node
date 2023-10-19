@@ -3,7 +3,7 @@
 import re
 import os
 
-PLAIN_SOURCE_RE = re.compile('\s*"([^/$].+)"\s*')
+PLAIN_SOURCE_RE = re.compile(r'\s*"([^/$].+)"\s*')
 def DoMain(args):
   gn_filename, pattern = args
   src_root = os.path.dirname(gn_filename)

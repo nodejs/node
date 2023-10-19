@@ -6,8 +6,8 @@
 
 #include <memory>
 
+#include "include/cppgc/common.h"
 #include "include/cppgc/platform.h"
-#include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/task-handle.h"
 
 namespace cppgc {
@@ -21,9 +21,12 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
   GCInvokerImpl(const GCInvokerImpl&) = delete;
   GCInvokerImpl& operator=(const GCInvokerImpl&) = delete;
 
-  void CollectGarbage(GarbageCollector::Config) final;
-  void StartIncrementalGarbageCollection(GarbageCollector::Config) final;
+  void CollectGarbage(GCConfig) final;
+  void StartIncrementalGarbageCollection(GCConfig) final;
   size_t epoch() const final { return collector_->epoch(); }
+  const EmbedderStackState* override_stack_state() const final {
+    return collector_->override_stack_state();
+  }
 
  private:
   class GCTask final : public cppgc::Task {
@@ -31,7 +34,7 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
     using Handle = SingleThreadedHandle;
 
     static Handle Post(GarbageCollector* collector, cppgc::TaskRunner* runner,
-                       GarbageCollector::Config config) {
+                       GCConfig config) {
       auto task =
           std::make_unique<GCInvoker::GCInvokerImpl::GCTask>(collector, config);
       auto handle = task->GetHandle();
@@ -39,8 +42,7 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
       return handle;
     }
 
-    explicit GCTask(GarbageCollector* collector,
-                    GarbageCollector::Config config)
+    explicit GCTask(GarbageCollector* collector, GCConfig config)
         : collector_(collector),
           config_(config),
           handle_(Handle::NonEmptyTag{}),
@@ -48,6 +50,8 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
 
    private:
     void Run() final {
+      CHECK_NULL(collector_->override_stack_state());
+
       if (handle_.IsCanceled() || (collector_->epoch() != saved_epoch_)) return;
 
       collector_->CollectGarbage(config_);
@@ -57,7 +61,7 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
     Handle GetHandle() { return handle_; }
 
     GarbageCollector* collector_;
-    GarbageCollector::Config config_;
+    GCConfig config_;
     Handle handle_;
     size_t saved_epoch_;
   };
@@ -81,10 +85,9 @@ GCInvoker::GCInvokerImpl::~GCInvokerImpl() {
   }
 }
 
-void GCInvoker::GCInvokerImpl::CollectGarbage(GarbageCollector::Config config) {
+void GCInvoker::GCInvokerImpl::CollectGarbage(GCConfig config) {
   DCHECK_EQ(config.marking_type, cppgc::Heap::MarkingType::kAtomic);
-  if ((config.stack_state ==
-       GarbageCollector::Config::StackState::kNoHeapPointers) ||
+  if ((config.stack_state == StackState::kNoHeapPointers) ||
       (stack_support_ ==
        cppgc::Heap::StackSupport::kSupportsConservativeStackScan)) {
     collector_->CollectGarbage(config);
@@ -92,8 +95,9 @@ void GCInvoker::GCInvokerImpl::CollectGarbage(GarbageCollector::Config config) {
              platform_->GetForegroundTaskRunner()->NonNestableTasksEnabled()) {
     if (!gc_task_handle_) {
       // Force a precise GC since it will run in a non-nestable task.
-      config.stack_state =
-          GarbageCollector::Config::StackState::kNoHeapPointers;
+      config.stack_state = StackState::kNoHeapPointers;
+      DCHECK_NE(cppgc::Heap::StackSupport::kSupportsConservativeStackScan,
+                stack_support_);
       gc_task_handle_ = GCTask::Post(
           collector_, platform_->GetForegroundTaskRunner().get(), config);
     }
@@ -101,7 +105,7 @@ void GCInvoker::GCInvokerImpl::CollectGarbage(GarbageCollector::Config config) {
 }
 
 void GCInvoker::GCInvokerImpl::StartIncrementalGarbageCollection(
-    GarbageCollector::Config config) {
+    GCConfig config) {
   DCHECK_NE(config.marking_type, cppgc::Heap::MarkingType::kAtomic);
   if ((stack_support_ !=
        cppgc::Heap::StackSupport::kSupportsConservativeStackScan) &&
@@ -126,16 +130,19 @@ GCInvoker::GCInvoker(GarbageCollector* collector, cppgc::Platform* platform,
 
 GCInvoker::~GCInvoker() = default;
 
-void GCInvoker::CollectGarbage(GarbageCollector::Config config) {
+void GCInvoker::CollectGarbage(GCConfig config) {
   impl_->CollectGarbage(config);
 }
 
-void GCInvoker::StartIncrementalGarbageCollection(
-    GarbageCollector::Config config) {
+void GCInvoker::StartIncrementalGarbageCollection(GCConfig config) {
   impl_->StartIncrementalGarbageCollection(config);
 }
 
 size_t GCInvoker::epoch() const { return impl_->epoch(); }
+
+const EmbedderStackState* GCInvoker::override_stack_state() const {
+  return impl_->override_stack_state();
+}
 
 }  // namespace internal
 }  // namespace cppgc

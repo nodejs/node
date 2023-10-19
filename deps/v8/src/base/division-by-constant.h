@@ -7,6 +7,9 @@
 
 #include <stdint.h>
 
+#include <tuple>
+#include <type_traits>
+
 #include "src/base/base-export.h"
 #include "src/base/export-template.h"
 
@@ -16,10 +19,10 @@ namespace base {
 // ----------------------------------------------------------------------------
 
 // The magic numbers for division via multiplication, see Warren's "Hacker's
-// Delight", chapter 10. The template parameter must be one of the unsigned
-// integral types.
+// Delight", chapter 10.
 template <class T>
 struct EXPORT_TEMPLATE_DECLARE(V8_BASE_EXPORT) MagicNumbersForDivision {
+  static_assert(std::is_integral_v<T>);
   MagicNumbersForDivision(T m, unsigned s, bool a)
       : multiplier(m), shift(s), add(a) {}
   bool operator==(const MagicNumbersForDivision& rhs) const {
@@ -31,12 +34,19 @@ struct EXPORT_TEMPLATE_DECLARE(V8_BASE_EXPORT) MagicNumbersForDivision {
   bool add;
 };
 
-
 // Calculate the multiplier and shift for signed division via multiplication.
 // The divisor must not be -1, 0 or 1 when interpreted as a signed value.
-template <class T>
+template <class T, std::enable_if_t<std::is_unsigned_v<T>, bool> = true>
 EXPORT_TEMPLATE_DECLARE(V8_BASE_EXPORT)
 MagicNumbersForDivision<T> SignedDivisionByConstant(T d);
+
+template <class T, std::enable_if_t<std::is_signed_v<T>, bool> = true>
+MagicNumbersForDivision<T> SignedDivisionByConstant(T d) {
+  using Unsigned = std::make_unsigned_t<T>;
+  MagicNumbersForDivision<Unsigned> magic =
+      SignedDivisionByConstant(static_cast<Unsigned>(d));
+  return {static_cast<T>(magic.multiplier), magic.shift, magic.add};
+}
 
 // Calculate the multiplier and shift for unsigned division via multiplication,
 // see Warren's "Hacker's Delight", chapter 10. The divisor must not be 0 and

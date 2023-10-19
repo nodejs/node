@@ -145,7 +145,7 @@ static void test_stdio_over_pipes(int overlapped) {
   r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
   ASSERT(r == 0);
 
-  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(on_read_cb_called > 1);
@@ -155,7 +155,7 @@ static void test_stdio_over_pipes(int overlapped) {
   ASSERT(memcmp("hello world\nhello world\n", output, 24) == 0);
   ASSERT(output_used == 24);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
 }
 
 TEST_IMPL(stdio_over_pipes) {
@@ -294,6 +294,6 @@ int stdio_over_pipes_helper(void) {
   ASSERT(on_pipe_read_called == 2);
   ASSERT(close_cb_called == 4);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

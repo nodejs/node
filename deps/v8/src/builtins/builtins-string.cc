@@ -11,6 +11,7 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif
+#include "src/base/strings.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-case.h"
@@ -23,26 +24,25 @@ namespace internal {
 namespace {  // for String.fromCodePoint
 
 bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
-  if (!value->IsNumber() &&
-      !Object::ToNumber(isolate, value).ToHandle(&value)) {
+  if (!IsNumber(*value) && !Object::ToNumber(isolate, value).ToHandle(&value)) {
     return false;
   }
 
-  if (Object::ToInteger(isolate, value).ToHandleChecked()->Number() !=
-      value->Number()) {
+  if (Object::Number(*Object::ToInteger(isolate, value).ToHandleChecked()) !=
+      Object::Number(*value)) {
     return false;
   }
 
-  if (value->Number() < 0 || value->Number() > 0x10FFFF) {
+  if (Object::Number(*value) < 0 || Object::Number(*value) > 0x10FFFF) {
     return false;
   }
 
   return true;
 }
 
-static constexpr uc32 kInvalidCodePoint = static_cast<uc32>(-1);
+static constexpr base::uc32 kInvalidCodePoint = static_cast<base::uc32>(-1);
 
-uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
+base::uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
   Handle<Object> value = args.at(1 + index);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, Object::ToNumber(isolate, value), kInvalidCodePoint);
@@ -51,7 +51,7 @@ uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
         MessageTemplate::kInvalidCodePoint, value));
     return kInvalidCodePoint;
   }
-  return DoubleToUint32(value->Number());
+  return DoubleToUint32(Object::Number(*value));
 }
 
 }  // namespace
@@ -67,7 +67,7 @@ BUILTIN(StringFromCodePoint) {
   // characters.
   std::vector<uint8_t> one_byte_buffer;
   one_byte_buffer.reserve(length);
-  uc32 code = 0;
+  base::uc32 code = 0;
   int index;
   for (index = 0; index < length; index++) {
     code = NextCodePoint(isolate, args, index);
@@ -82,15 +82,16 @@ BUILTIN(StringFromCodePoint) {
 
   if (index == length) {
     RETURN_RESULT_OR_FAILURE(
-        isolate, isolate->factory()->NewStringFromOneByte(Vector<uint8_t>(
+        isolate, isolate->factory()->NewStringFromOneByte(base::Vector<uint8_t>(
                      one_byte_buffer.data(), one_byte_buffer.size())));
   }
 
-  std::vector<uc16> two_byte_buffer;
+  std::vector<base::uc16> two_byte_buffer;
   two_byte_buffer.reserve(length - index);
 
   while (true) {
-    if (code <= static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+    if (code <=
+        static_cast<base::uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
       two_byte_buffer.push_back(code);
     } else {
       two_byte_buffer.push_back(unibrow::Utf16::LeadSurrogate(code));
@@ -138,21 +139,25 @@ BUILTIN(StringPrototypeLocaleCompare) {
   HandleScope handle_scope(isolate);
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringLocaleCompare);
-  const char* method = "String.prototype.localeCompare";
+  static const char* const kMethod = "String.prototype.localeCompare";
 
 #ifdef V8_INTL_SUPPORT
-  TO_THIS_STRING(str1, method);
+  TO_THIS_STRING(str1, kMethod);
   Handle<String> str2;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, str2, Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::StringLocaleCompare(
-                   isolate, str1, str2, args.atOrUndefined(isolate, 2),
-                   args.atOrUndefined(isolate, 3), method));
+  base::Optional<int> result = Intl::StringLocaleCompare(
+      isolate, str1, str2, args.atOrUndefined(isolate, 2),
+      args.atOrUndefined(isolate, 3), kMethod);
+  if (!result.has_value()) {
+    DCHECK(isolate->has_pending_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return Smi::FromInt(result.value());
 #else
   DCHECK_LE(2, args.length());
 
-  TO_THIS_STRING(str1, method);
+  TO_THIS_STRING(str1, kMethod);
   Handle<String> str2;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str2,
                                      Object::ToString(isolate, args.at(1)));
@@ -205,7 +210,7 @@ BUILTIN(StringPrototypeNormalize) {
   TO_THIS_STRING(string, "String.prototype.normalize");
 
   Handle<Object> form_input = args.atOrUndefined(isolate, 1);
-  if (form_input->IsUndefined(isolate)) return *string;
+  if (IsUndefined(*form_input, isolate)) return *string;
 
   Handle<String> form;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
@@ -230,11 +235,11 @@ BUILTIN(StringPrototypeNormalize) {
 #ifndef V8_INTL_SUPPORT
 namespace {
 
-inline bool ToUpperOverflows(uc32 character) {
+inline bool ToUpperOverflows(base::uc32 character) {
   // y with umlauts and the micro sign are the only characters that stop
   // fitting into one-byte when converting to uppercase.
-  static const uc32 yuml_code = 0xFF;
-  static const uc32 micro_code = 0xB5;
+  static const base::uc32 yuml_code = 0xFF;
+  static const base::uc32 micro_code = 0xB5;
   return (character == yuml_code || character == micro_code);
 }
 
@@ -259,11 +264,11 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
   StringCharacterStream stream(string);
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
-  uc32 current = stream.GetNext();
-  bool ignore_overflow = Converter::kIsToLower || result.IsSeqTwoByteString();
+  base::uc32 current = stream.GetNext();
+  bool ignore_overflow = Converter::kIsToLower || IsSeqTwoByteString(result);
   for (int i = 0; i < result_length;) {
     bool has_next = stream.HasMore();
-    uc32 next = has_next ? stream.GetNext() : 0;
+    base::uc32 next = has_next ? stream.GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
@@ -272,7 +277,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
     } else if (char_length == 1 &&
                (ignore_overflow || !ToUpperOverflows(current))) {
       // Common case: converting the letter resulted in one character.
-      DCHECK(static_cast<uc32>(chars[0]) != current);
+      DCHECK(static_cast<base::uc32>(chars[0]) != current);
       result.Set(i, chars[0]);
       has_changed_character = true;
       i++;
@@ -375,9 +380,9 @@ V8_WARN_UNUSED_RESULT static Object ConvertCase(
   }
 
   Object answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (answer.IsException(isolate) || answer.IsString()) return answer;
+  if (IsException(answer, isolate) || IsString(answer)) return answer;
 
-  DCHECK(answer.IsSmi());
+  DCHECK(IsSmi(answer));
   length = Smi::ToInt(answer);
   if (s->IsOneByteRepresentation() && length > 0) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -449,7 +454,7 @@ BUILTIN(StringRaw) {
   IncrementalStringBuilder result_builder(isolate);
   // Intentional spec violation: we ignore {length} values >= 2^32, because
   // assuming non-empty chunks they would generate too-long strings anyway.
-  const double raw_len_number = raw_len->Number();
+  const double raw_len_number = Object::Number(*raw_len);
   const uint32_t length = raw_len_number > std::numeric_limits<uint32_t>::max()
                               ? std::numeric_limits<uint32_t>::max()
                               : static_cast<uint32_t>(raw_len_number);

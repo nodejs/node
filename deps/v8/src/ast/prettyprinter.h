@@ -9,8 +9,8 @@
 
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
+#include "src/execution/isolate.h"
 #include "src/objects/function-kind.h"
-#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -29,7 +29,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
   // The following routine prints the node with position |position| into a
   // string.
   Handle<String> Print(FunctionLiteral* program, int position);
-  enum ErrorHint {
+  enum class ErrorHint {
     kNone,
     kNormalIterator,
     kAsyncIterator,
@@ -52,6 +52,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 #undef DECLARE_VISIT
 
  private:
+  void Print(char c);
   void Print(const char* str);
   void Print(Handle<String> str);
 

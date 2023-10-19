@@ -39,15 +39,15 @@ function isParseInt(calleeNode) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow `parseInt()` and `Number.parseInt()` in favor of binary, octal, and hexadecimal literals",
-            category: "ECMAScript 6",
+            description: "Disallow `parseInt()` and `Number.parseInt()` in favor of binary, octal, and hexadecimal literals",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-numeric-literals"
+            url: "https://eslint.org/docs/latest/rules/prefer-numeric-literals"
         },
 
         schema: [],
@@ -60,7 +60,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //----------------------------------------------------------------------
         // Public

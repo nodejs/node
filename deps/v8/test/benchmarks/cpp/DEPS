@@ -1,3 +1,4 @@
 include_rules = [
+  "+src/base",
   "+third_party/google_benchmark/src/include/benchmark/benchmark.h",
 ]

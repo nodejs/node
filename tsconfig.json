@@ -1,20 +1,15 @@
 {
-  "include": ["lib","doc"],
-  "exclude": ["src","tools","out"],
+  "include": ["lib", "doc"],
+  "exclude": ["src", "tools", "out"],
   "files": [
-    "./typings/internalBinding/fs.d.ts",
-    "./typings/internalBinding/http_parser.d.ts",
-    "./typings/internalBinding/options.d.ts",
-    "./typings/internalBinding/serdes.d.ts",
-    "./typings/internalBinding/util.d.ts",
-    "./typings/internalBinding.d.ts",
+    "./typings/globals.d.ts",
     "./typings/primordials.d.ts"
   ],
   "compilerOptions": {
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
-    "lib": ["ESNext"],
+    "lib": ["ESNext", "DOM"],
     "target": "ESNext",
     "module": "CommonJS",
     "baseUrl": ".",
@@ -83,7 +78,7 @@
       "vm": ["./lib/vm.js"],
       "wasi": ["./lib/wasi.js"],
       "worker_threads": ["./lib/worker_threads.js"],
-      "zlib": ["./lib/zlib.js"],
+      "zlib": ["./lib/zlib.js"]
     }
   }
 }

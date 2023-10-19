@@ -1,8 +1,12 @@
 {
   "idlharness.any.js": {
-    "skip": "TODO: update IDL parser"
+    "fail": {
+      "expected": [
+        "Window interface: attribute performance"
+      ]
+    }
   },
   "window-worker-timeOrigin.window.js": {
-    "fail": "depends on URL.createObjectURL(blob)"
+    "skip": "depends on URL.createObjectURL(blob)"
   }
 }

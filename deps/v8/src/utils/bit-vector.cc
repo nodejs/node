@@ -4,6 +4,8 @@
 
 #include "src/utils/bit-vector.h"
 
+#include <numeric>
+
 #include "src/base/bits.h"
 #include "src/utils/utils.h"
 
@@ -26,13 +28,10 @@ void BitVector::Print() const {
 #endif
 
 int BitVector::Count() const {
-  if (is_inline()) return base::bits::CountPopulation(data_.inline_);
-
-  int count = 0;
-  for (int i = 0; i < data_length_; i++) {
-    count += base::bits::CountPopulation(data_.ptr_[i]);
-  }
-  return count;
+  auto accumulate_popcnt = [](int cnt, uintptr_t word) -> int {
+    return cnt + base::bits::CountPopulation(word);
+  };
+  return std::accumulate(data_begin_, data_end_, 0, accumulate_popcnt);
 }
 
 }  // namespace internal

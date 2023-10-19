@@ -5,6 +5,7 @@
 #include "src/regexp/experimental/experimental-interpreter.h"
 
 #include "src/base/optional.h"
+#include "src/base/strings.h"
 #include "src/common/assert-scope.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/string-inl.h"
@@ -21,23 +22,23 @@ namespace {
 constexpr int kUndefinedRegisterValue = -1;
 
 template <class Character>
-bool SatisfiesAssertion(RegExpAssertion::AssertionType type,
-                        Vector<const Character> context, int position) {
+bool SatisfiesAssertion(RegExpAssertion::Type type,
+                        base::Vector<const Character> context, int position) {
   DCHECK_LE(position, context.length());
   DCHECK_GE(position, 0);
 
   switch (type) {
-    case RegExpAssertion::START_OF_INPUT:
+    case RegExpAssertion::Type::START_OF_INPUT:
       return position == 0;
-    case RegExpAssertion::END_OF_INPUT:
+    case RegExpAssertion::Type::END_OF_INPUT:
       return position == context.length();
-    case RegExpAssertion::START_OF_LINE:
+    case RegExpAssertion::Type::START_OF_LINE:
       if (position == 0) return true;
       return unibrow::IsLineTerminator(context[position - 1]);
-    case RegExpAssertion::END_OF_LINE:
+    case RegExpAssertion::Type::END_OF_LINE:
       if (position == context.length()) return true;
       return unibrow::IsLineTerminator(context[position]);
-    case RegExpAssertion::BOUNDARY:
+    case RegExpAssertion::Type::BOUNDARY:
       if (context.length() == 0) {
         return false;
       } else if (position == 0) {
@@ -48,38 +49,39 @@ bool SatisfiesAssertion(RegExpAssertion::AssertionType type,
         return IsRegExpWord(context[position - 1]) !=
                IsRegExpWord(context[position]);
       }
-    case RegExpAssertion::NON_BOUNDARY:
-      return !SatisfiesAssertion(RegExpAssertion::BOUNDARY, context, position);
+    case RegExpAssertion::Type::NON_BOUNDARY:
+      return !SatisfiesAssertion(RegExpAssertion::Type::BOUNDARY, context,
+                                 position);
   }
 }
 
-Vector<RegExpInstruction> ToInstructionVector(
-    ByteArray raw_bytes, const DisallowGarbageCollection& no_gc) {
+base::Vector<RegExpInstruction> ToInstructionVector(
+    Tagged<ByteArray> raw_bytes, const DisallowGarbageCollection& no_gc) {
   RegExpInstruction* inst_begin =
-      reinterpret_cast<RegExpInstruction*>(raw_bytes.GetDataStartAddress());
-  int inst_num = raw_bytes.length() / sizeof(RegExpInstruction);
-  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes.length());
-  return Vector<RegExpInstruction>(inst_begin, inst_num);
+      reinterpret_cast<RegExpInstruction*>(raw_bytes->GetDataStartAddress());
+  int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
+  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes->length());
+  return base::Vector<RegExpInstruction>(inst_begin, inst_num);
 }
 
 template <class Character>
-Vector<const Character> ToCharacterVector(
-    String str, const DisallowGarbageCollection& no_gc);
+base::Vector<const Character> ToCharacterVector(
+    Tagged<String> str, const DisallowGarbageCollection& no_gc);
 
 template <>
-Vector<const uint8_t> ToCharacterVector<uint8_t>(
-    String str, const DisallowGarbageCollection& no_gc) {
-  DCHECK(str.IsFlat());
-  String::FlatContent content = str.GetFlatContent(no_gc);
+base::Vector<const uint8_t> ToCharacterVector<uint8_t>(
+    Tagged<String> str, const DisallowGarbageCollection& no_gc) {
+  DCHECK(str->IsFlat());
+  String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsOneByte());
   return content.ToOneByteVector();
 }
 
 template <>
-Vector<const uc16> ToCharacterVector<uc16>(
-    String str, const DisallowGarbageCollection& no_gc) {
-  DCHECK(str.IsFlat());
-  String::FlatContent content = str.GetFlatContent(no_gc);
+base::Vector<const base::uc16> ToCharacterVector<base::uc16>(
+    Tagged<String> str, const DisallowGarbageCollection& no_gc) {
+  DCHECK(str->IsFlat());
+  String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsTwoByte());
   return content.ToUC16Vector();
 }
@@ -87,8 +89,8 @@ Vector<const uc16> ToCharacterVector<uc16>(
 template <class Character>
 class NfaInterpreter {
   // Executes a bytecode program in breadth-first mode, without backtracking.
-  // `Character` can be instantiated with `uint8_t` or `uc16` for one byte or
-  // two byte input strings.
+  // `Character` can be instantiated with `uint8_t` or `base::uc16` for one byte
+  // or two byte input strings.
   //
   // In contrast to the backtracking implementation, this has linear time
   // complexity in the length of the input string. Breadth-first mode means
@@ -135,8 +137,8 @@ class NfaInterpreter {
   // ACCEPTing thread with highest priority.
  public:
   NfaInterpreter(Isolate* isolate, RegExp::CallOrigin call_origin,
-                 ByteArray bytecode, int register_count_per_match, String input,
-                 int32_t input_index, Zone* zone)
+                 Tagged<ByteArray> bytecode, int register_count_per_match,
+                 Tagged<String> input, int32_t input_index, Zone* zone)
       : isolate_(isolate),
         call_origin_(call_origin),
         bytecode_object_(bytecode),
@@ -145,8 +147,8 @@ class NfaInterpreter {
         input_object_(input),
         input_(ToCharacterVector<Character>(input, no_gc_)),
         input_index_(input_index),
-        pc_last_input_index_(zone->NewArray<int>(bytecode.length()),
-                             bytecode.length()),
+        pc_last_input_index_(zone->AllocateArray<int>(bytecode->length()),
+                             bytecode->length()),
         active_threads_(0, zone),
         blocked_threads_(0, zone),
         register_array_allocator_(zone),
@@ -174,7 +176,7 @@ class NfaInterpreter {
 
       if (!FoundMatch()) break;
 
-      Vector<int> registers = *best_match_registers_;
+      base::Vector<int> registers = *best_match_registers_;
       output_registers =
           std::copy(registers.begin(), registers.end(), output_registers);
 
@@ -198,7 +200,7 @@ class NfaInterpreter {
         // TODO(mbid,v8:10765): If we're in unicode mode, we have to advance to
         // the next codepoint, not to the next code unit. See also
         // `RegExpUtils::AdvanceStringIndex`.
-        STATIC_ASSERT(!ExperimentalRegExp::kSupportsUnicode);
+        static_assert(!ExperimentalRegExp::kSupportsUnicode);
       }
     }
 
@@ -254,12 +256,12 @@ class NfaInterpreter {
         const bool was_one_byte =
             String::IsOneByteRepresentationUnderneath(input_object_);
 
-        Object result;
+        Tagged<Object> result;
         {
           AllowGarbageCollection yes_gc;
           result = isolate_->stack_guard()->HandleInterrupts();
         }
-        if (result.IsException(isolate_)) {
+        if (IsException(result, isolate_)) {
           return RegExp::kInternalRegExpException;
         }
 
@@ -343,7 +345,7 @@ class NfaInterpreter {
     while (input_index_ != input_.length() &&
            !(FoundMatch() && blocked_threads_.is_empty())) {
       DCHECK(active_threads_.is_empty());
-      uc16 input_char = input_[input_index_];
+      base::uc16 input_char = input_[input_index_];
       ++input_index_;
 
       static constexpr int kTicksBetweenInterruptHandling = 64;
@@ -390,8 +392,8 @@ class NfaInterpreter {
         case RegExpInstruction::FORK: {
           InterpreterThread fork{inst.payload.pc,
                                  NewRegisterArrayUninitialized()};
-          Vector<int> fork_registers = GetRegisterArray(fork);
-          Vector<int> t_registers = GetRegisterArray(t);
+          base::Vector<int> fork_registers = GetRegisterArray(fork);
+          base::Vector<int> t_registers = GetRegisterArray(t);
           DCHECK_EQ(fork_registers.length(), t_registers.length());
           std::copy(t_registers.begin(), t_registers.end(),
                     fork_registers.begin());
@@ -439,7 +441,7 @@ class NfaInterpreter {
   // Unblock all blocked_threads_ by feeding them an `input_char`.  Should only
   // be called with `input_index_` pointing to the character *after*
   // `input_char` so that `pc_last_input_index_` is updated correctly.
-  void FlushBlockedThreads(uc16 input_char) {
+  void FlushBlockedThreads(base::uc16 input_char) {
     // The threads in blocked_threads_ are sorted from high to low priority,
     // but active_threads_ needs to be sorted from low to high priority, so we
     // need to activate blocked threads in reverse order.
@@ -460,8 +462,8 @@ class NfaInterpreter {
 
   bool FoundMatch() const { return best_match_registers_.has_value(); }
 
-  Vector<int> GetRegisterArray(InterpreterThread t) {
-    return Vector<int>(t.register_array_begin, register_count_per_match_);
+  base::Vector<int> GetRegisterArray(InterpreterThread t) {
+    return base::Vector<int>(t.register_array_begin, register_count_per_match_);
   }
 
   int* NewRegisterArrayUninitialized() {
@@ -515,20 +517,20 @@ class NfaInterpreter {
   DisallowGarbageCollection no_gc_;
 
   ByteArray bytecode_object_;
-  Vector<const RegExpInstruction> bytecode_;
+  base::Vector<const RegExpInstruction> bytecode_;
 
   // Number of registers used per thread.
   const int register_count_per_match_;
 
   String input_object_;
-  Vector<const Character> input_;
+  base::Vector<const Character> input_;
   int input_index_;
 
   // pc_last_input_index_[k] records the value of input_index_ the last
   // time a thread t such that t.pc == k was activated, i.e. put on
   // active_threads_.  Thus pc_last_input_index.size() == bytecode.size().  See
   // also `RunActiveThread`.
-  Vector<int> pc_last_input_index_;
+  base::Vector<int> pc_last_input_index_;
 
   // Active threads can potentially (but not necessarily) continue without
   // input.  Sorted from low to high priority.
@@ -547,7 +549,7 @@ class NfaInterpreter {
   // search.  If several threads ACCEPTed, then this will be the register array
   // of the accepting thread with highest priority.  Should be deallocated with
   // `register_array_allocator_`.
-  base::Optional<Vector<int>> best_match_registers_;
+  base::Optional<base::Vector<int>> best_match_registers_;
 
   Zone* zone_;
 };
@@ -555,22 +557,23 @@ class NfaInterpreter {
 }  // namespace
 
 int ExperimentalRegExpInterpreter::FindMatches(
-    Isolate* isolate, RegExp::CallOrigin call_origin, ByteArray bytecode,
-    int register_count_per_match, String input, int start_index,
-    int32_t* output_registers, int output_register_count, Zone* zone) {
-  DCHECK(input.IsFlat());
+    Isolate* isolate, RegExp::CallOrigin call_origin,
+    Tagged<ByteArray> bytecode, int register_count_per_match,
+    Tagged<String> input, int start_index, int32_t* output_registers,
+    int output_register_count, Zone* zone) {
+  DCHECK(input->IsFlat());
   DisallowGarbageCollection no_gc;
 
-  if (input.GetFlatContent(no_gc).IsOneByte()) {
+  if (input->GetFlatContent(no_gc).IsOneByte()) {
     NfaInterpreter<uint8_t> interpreter(isolate, call_origin, bytecode,
                                         register_count_per_match, input,
                                         start_index, zone);
     return interpreter.FindMatches(output_registers, output_register_count);
   } else {
-    DCHECK(input.GetFlatContent(no_gc).IsTwoByte());
-    NfaInterpreter<uc16> interpreter(isolate, call_origin, bytecode,
-                                     register_count_per_match, input,
-                                     start_index, zone);
+    DCHECK(input->GetFlatContent(no_gc).IsTwoByte());
+    NfaInterpreter<base::uc16> interpreter(isolate, call_origin, bytecode,
+                                           register_count_per_match, input,
+                                           start_index, zone);
     return interpreter.FindMatches(output_registers, output_register_count);
   }
 }

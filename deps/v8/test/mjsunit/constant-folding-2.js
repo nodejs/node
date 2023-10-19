@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// Flags: --allow-natives-syntax --nostress-opt --opt
-// Flags: --no-stress-flush-bytecode
+// Flags: --allow-natives-syntax --turbofan
+// Flags: --no-stress-flush-code --no-lazy-feedback-allocation
 
 function test(f, iterations) {
   %PrepareFunctionForOptimization(f);

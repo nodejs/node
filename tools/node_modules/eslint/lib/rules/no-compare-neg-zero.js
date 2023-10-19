@@ -8,15 +8,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow comparing against -0",
-            category: "Possible Errors",
+            description: "Disallow comparing against -0",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-compare-neg-zero"
+            url: "https://eslint.org/docs/latest/rules/no-compare-neg-zero"
         },
 
         fixable: null,

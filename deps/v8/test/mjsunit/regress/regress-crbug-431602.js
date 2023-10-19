@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --always-opt
+// Flags: --always-turbofan
 
 var heap_number_producer = {y:1.5};
 heap_number_producer.y = 0;

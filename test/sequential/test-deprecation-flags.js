@@ -44,7 +44,7 @@ execFile(node, normal, function(er, stdout, stderr) {
   console.error('normal: show deprecation warning');
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
-  assert(/this function is deprecated/.test(stderr));
+  assert.match(stderr, /this function is deprecated/);
   console.log('normal ok');
 });
 
@@ -62,8 +62,8 @@ execFile(node, traceDep, function(er, stdout, stderr) {
   assert.strictEqual(stdout, '');
   const stack = stderr.trim().split('\n');
   // Just check the top and bottom.
-  assert(/this function is deprecated/.test(stack[1]));
-  assert(/This is deprecated/.test(stack[0]));
+  assert.match(stack[1], /this function is deprecated/);
+  assert.match(stack[0], /This is deprecated/);
   console.log('trace ok');
 });
 
@@ -71,18 +71,18 @@ execFile(node, [depUserlandFunction], function(er, stdout, stderr) {
   console.error('normal: testing deprecated userland function');
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
-  assert(/deprecatedFunction is deprecated/.test(stderr));
+  assert.match(stderr, /deprecatedFunction is deprecated/);
   console.error('normal: ok');
 });
 
 execFile(node, [depUserlandClass], function(er, stdout, stderr) {
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
-  assert(/deprecatedClass is deprecated/.test(stderr));
+  assert.match(stderr, /deprecatedClass is deprecated/);
 });
 
 execFile(node, [depUserlandSubClass], function(er, stdout, stderr) {
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
-  assert(/deprecatedClass is deprecated/.test(stderr));
+  assert.match(stderr, /deprecatedClass is deprecated/);
 });

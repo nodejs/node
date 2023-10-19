@@ -16,7 +16,9 @@ class TimerWrap final : public MemoryRetainer {
  public:
   using TimerCb = std::function<void()>;
 
-  TimerWrap(Environment* env, const TimerCb& fn);
+  template <typename... Args>
+  explicit inline TimerWrap(Environment* env, Args&&... args);
+
   TimerWrap(const TimerWrap&) = delete;
 
   inline Environment* env() const { return env_; }
@@ -50,9 +52,8 @@ class TimerWrap final : public MemoryRetainer {
 
 class TimerWrapHandle : public MemoryRetainer  {
  public:
-  TimerWrapHandle(
-      Environment* env,
-      const TimerWrap::TimerCb& fn);
+  template <typename... Args>
+  explicit inline TimerWrapHandle(Environment* env, Args&&... args);
 
   TimerWrapHandle(const TimerWrapHandle&) = delete;
 

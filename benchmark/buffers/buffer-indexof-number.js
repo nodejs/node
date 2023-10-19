@@ -5,12 +5,12 @@ const path = require('path');
 
 const bench = common.createBenchmark(main, {
   value: ['@'.charCodeAt(0)],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, value }) {
   const aliceBuffer = fs.readFileSync(
-    path.resolve(__dirname, '../fixtures/alice.html')
+    path.resolve(__dirname, '../fixtures/alice.html'),
   );
 
   let count = 0;

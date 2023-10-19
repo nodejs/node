@@ -44,10 +44,18 @@ const {
 });
 
 assert.throws(() => generateKey('aes', { length: 256 }), {
-  code: 'ERR_INVALID_CALLBACK'
+  code: 'ERR_INVALID_ARG_TYPE'
 });
 
 assert.throws(() => generateKey('hmac', { length: -1 }, common.mustNotCall()), {
+  code: 'ERR_OUT_OF_RANGE'
+});
+
+assert.throws(() => generateKey('hmac', { length: 4 }, common.mustNotCall()), {
+  code: 'ERR_OUT_OF_RANGE'
+});
+
+assert.throws(() => generateKey('hmac', { length: 7 }, common.mustNotCall()), {
   code: 'ERR_OUT_OF_RANGE'
 });
 
@@ -57,6 +65,14 @@ assert.throws(
   });
 
 assert.throws(() => generateKeySync('hmac', { length: -1 }), {
+  code: 'ERR_OUT_OF_RANGE'
+});
+
+assert.throws(() => generateKeySync('hmac', { length: 4 }), {
+  code: 'ERR_OUT_OF_RANGE'
+});
+
+assert.throws(() => generateKeySync('hmac', { length: 7 }), {
   code: 'ERR_OUT_OF_RANGE'
 });
 

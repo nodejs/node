@@ -32,6 +32,41 @@ assert.strictEqual(
   }
 }
 
+{
+  // When the inputs are floating-point numbers, timingSafeEqual neither has
+  // equality nor SameValue semantics. It just compares the underlying bytes,
+  // ignoring the TypedArray type completely.
+
+  const cmp = (fn) => (a, b) => a.every((x, i) => fn(x, b[i]));
+  const eq = cmp((a, b) => a === b);
+  const is = cmp(Object.is);
+
+  function test(a, b, { equal, sameValue, timingSafeEqual }) {
+    assert.strictEqual(eq(a, b), equal);
+    assert.strictEqual(is(a, b), sameValue);
+    assert.strictEqual(crypto.timingSafeEqual(a, b), timingSafeEqual);
+  }
+
+  test(new Float32Array([NaN]), new Float32Array([NaN]), {
+    equal: false,
+    sameValue: true,
+    timingSafeEqual: true
+  });
+
+  test(new Float64Array([0]), new Float64Array([-0]), {
+    equal: true,
+    sameValue: false,
+    timingSafeEqual: false
+  });
+
+  const x = new BigInt64Array([0x7ff0000000000001n, 0xfff0000000000001n]);
+  test(new Float64Array(x.buffer), new Float64Array([NaN, NaN]), {
+    equal: false,
+    sameValue: true,
+    timingSafeEqual: false
+  });
+}
+
 assert.throws(
   () => crypto.timingSafeEqual(Buffer.from([1, 2, 3]), Buffer.from([1, 2])),
   {

@@ -9,6 +9,7 @@
 #include <cstring>
 #include <string>
 
+#include "include/v8-isolate.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace testing {
@@ -72,6 +73,30 @@ MATCHER_P(BitEq, x, std::string(negation ? "isn't" : "is") +
   return std::memcmp(&arg, &x, sizeof(x)) == 0;
 }
 
+// Creates a polymorphic matcher that matches JSValue to Int32.
+MATCHER_P(IsInt32, expected,
+          std::string(negation ? "isn't" : "is") + " Int32 " +
+              PrintToString(expected)) {
+  return arg->IsInt32() &&
+         arg->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext())
+                 .FromJust() == expected;
+}
+
+// Creates a polymorphic matcher that matches JSValue to String.
+MATCHER_P(IsString, expected,
+          std::string(negation ? "isn't" : "is") + " String " +
+              PrintToString(expected)) {
+  if (!arg->IsString()) {
+    return false;
+  }
+  v8::String::Utf8Value utf8(v8::Isolate::GetCurrent(), arg);
+  return strcmp(expected, *utf8) == 0;
+}
+
+// Creates a polymorphic matcher that matches JSValue to Undefined.
+MATCHER(IsUndefined, std::string(negation ? "isn't" : "is") + " Undefined") {
+  return arg->IsUndefined();
+}
 
 // CaptureEq(capture) captures the value passed in during matching as long as it
 // is unset, and once set, compares the value for equality with the argument.

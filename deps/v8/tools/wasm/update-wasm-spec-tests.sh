@@ -44,6 +44,7 @@ log_and_run mkdir ${TMP_DIR}
 
 log_and_run rm -rf ${JS_API_TEST_DIR}/tests
 log_and_run mkdir ${JS_API_TEST_DIR}/tests
+log_and_run mkdir ${JS_API_TEST_DIR}/tests/wpt
 log_and_run mkdir ${JS_API_TEST_DIR}/tests/proposals
 
 ###############################################################################
@@ -57,10 +58,13 @@ log_and_run cd spec/interpreter
 
 # The next step requires that ocaml is installed. See the README.md in
 # https://github.com/WebAssembly/spec/tree/master/interpreter/.
-log_and_run make clean opt
+log_and_run make distclean wasm
 
 log_and_run cd ${TMP_DIR}/spec/test/core
 log_and_run cp *.wast ${SPEC_TEST_DIR}/tests/
+# SIMD tests are in a subdirectory. The "run.py" script below takes care of
+# that, but we have to copy the .wast files explicitly.
+log_and_run cp simd/*.wast ${SPEC_TEST_DIR}/tests/
 
 log_and_run ./run.py --wasm ${TMP_DIR}/spec/interpreter/wasm --out ${TMP_DIR}
 log_and_run cp ${TMP_DIR}/*.js ${SPEC_TEST_DIR}/tests/
@@ -68,10 +72,29 @@ log_and_run cp ${TMP_DIR}/*.js ${SPEC_TEST_DIR}/tests/
 log_and_run cp -r ${TMP_DIR}/spec/test/js-api/* ${JS_API_TEST_DIR}/tests
 
 ###############################################################################
+# Generate the wpt tests.
+###############################################################################
+
+echo Process wpt
+log_and_run cd ${TMP_DIR}
+log_and_run git clone https://github.com/web-platform-tests/wpt
+log_and_run cp -r wpt/wasm/jsapi/* ${JS_API_TEST_DIR}/tests/wpt
+
+log_and_run cd ${JS_API_TEST_DIR}/tests
+for spec_test_name in $(find ./ -name '*.any.js' -not -wholename '*/wpt/*'); do
+  wpt_test_name="wpt/${spec_test_name}"
+  if [ -f "$wpt_test_name" ] && cmp -s $spec_test_name $wpt_test_name ; then
+    log_and_run rm $wpt_test_name
+  elif [ -f "$wpt_test_name" ]; then
+    echo "keep" $wpt_test_name
+  fi
+done
+
+###############################################################################
 # Generate the proposal tests.
 ###############################################################################
 
-repos='bulk-memory-operations reference-types js-types tail-call simd memory64'
+repos='js-types tail-call memory64 extended-const multi-memory function-references gc'
 
 for repo in ${repos}; do
   echo "Process ${repo}"

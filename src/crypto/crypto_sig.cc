@@ -1,10 +1,9 @@
 #include "crypto/crypto_sig.h"
+#include "async_wrap-inl.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_ec.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
@@ -12,10 +11,14 @@
 
 namespace node {
 
+using v8::ArrayBuffer;
+using v8::BackingStore;
+using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -69,34 +72,41 @@ bool ApplyRSAOptions(const ManagedEVPPKey& pkey,
   return true;
 }
 
-AllocatedBuffer Node_SignFinal(Environment* env,
-                               EVPMDPointer&& mdctx,
-                               const ManagedEVPPKey& pkey,
-                               int padding,
-                               Maybe<int> pss_salt_len) {
+std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
+                                             EVPMDPointer&& mdctx,
+                                             const ManagedEVPPKey& pkey,
+                                             int padding,
+                                             Maybe<int> pss_salt_len) {
   unsigned char m[EVP_MAX_MD_SIZE];
   unsigned int m_len;
 
   if (!EVP_DigestFinal_ex(mdctx.get(), m, &m_len))
-    return AllocatedBuffer();
+    return nullptr;
 
   int signed_sig_len = EVP_PKEY_size(pkey.get());
   CHECK_GE(signed_sig_len, 0);
   size_t sig_len = static_cast<size_t>(signed_sig_len);
-  AllocatedBuffer sig = AllocatedBuffer::AllocateManaged(env, sig_len);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(sig.data());
-
+  std::unique_ptr<BackingStore> sig;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_len);
+  }
   EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
   if (pkctx &&
       EVP_PKEY_sign_init(pkctx.get()) &&
       ApplyRSAOptions(pkey, pkctx.get(), padding, pss_salt_len) &&
       EVP_PKEY_CTX_set_signature_md(pkctx.get(), EVP_MD_CTX_md(mdctx.get())) &&
-      EVP_PKEY_sign(pkctx.get(), ptr, &sig_len, m, m_len)) {
-    sig.Resize(sig_len);
+      EVP_PKEY_sign(pkctx.get(), static_cast<unsigned char*>(sig->Data()),
+                    &sig_len, m, m_len)) {
+    CHECK_LE(sig_len, sig->ByteLength());
+    if (sig_len == 0)
+      sig = ArrayBuffer::NewBackingStore(env->isolate(), 0);
+    else
+      sig = BackingStore::Reallocate(env->isolate(), std::move(sig), sig_len);
     return sig;
   }
 
-  return AllocatedBuffer();
+  return nullptr;
 }
 
 int GetDefaultSignPadding(const ManagedEVPPKey& m_pkey) {
@@ -138,20 +148,20 @@ bool ExtractP1363(
 }
 
 // Returns the maximum size of each of the integers (r, s) of the DSA signature.
-AllocatedBuffer ConvertSignatureToP1363(Environment* env,
-                                        const ManagedEVPPKey& pkey,
-                                        AllocatedBuffer&& signature) {
+std::unique_ptr<BackingStore> ConvertSignatureToP1363(Environment* env,
+    const ManagedEVPPKey& pkey, std::unique_ptr<BackingStore>&& signature) {
   unsigned int n = GetBytesOfRS(pkey);
   if (n == kNoDsaSignature)
     return std::move(signature);
 
-  const unsigned char* sig_data =
-      reinterpret_cast<unsigned char*>(signature.data());
-
-  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, 2 * n);
-  unsigned char* data = reinterpret_cast<unsigned char*>(buf.data());
-
-  if (!ExtractP1363(sig_data, data, signature.size(), n))
+  std::unique_ptr<BackingStore> buf;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    buf = ArrayBuffer::NewBackingStore(env->isolate(), 2 * n);
+  }
+  if (!ExtractP1363(static_cast<unsigned char*>(signature->Data()),
+                    static_cast<unsigned char*>(buf->Data()),
+                    signature->ByteLength(), n))
     return std::move(signature);
 
   return buf;
@@ -166,18 +176,15 @@ ByteSource ConvertSignatureToP1363(
   if (n == kNoDsaSignature)
     return ByteSource();
 
-  const unsigned char* sig_data =
-      reinterpret_cast<const unsigned char*>(signature.get());
+  const unsigned char* sig_data = signature.data<unsigned char>();
 
-  char* outdata = MallocOpenSSL<char>(n * 2);
-  memset(outdata, 0, n * 2);
-  ByteSource out = ByteSource::Allocated(outdata, n * 2);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(outdata);
+  ByteSource::Builder out(n * 2);
+  memset(out.data<void>(), 0, n * 2);
 
-  if (!ExtractP1363(sig_data, ptr, signature.size(), n))
+  if (!ExtractP1363(sig_data, out.data<unsigned char>(), signature.size(), n))
     return ByteSource();
 
-  return out;
+  return std::move(out).release();
 }
 
 ByteSource ConvertSignatureToDER(
@@ -187,8 +194,7 @@ ByteSource ConvertSignatureToDER(
   if (n == kNoDsaSignature)
     return std::move(out);
 
-  const unsigned char* sig_data =
-      reinterpret_cast<const unsigned char*>(out.get());
+  const unsigned char* sig_data = out.data<unsigned char>();
 
   if (out.size() != 2 * n)
     return ByteSource();
@@ -211,7 +217,7 @@ ByteSource ConvertSignatureToDER(
 
   CHECK_NOT_NULL(data);
 
-  return ByteSource::Allocated(reinterpret_cast<char*>(data), len);
+  return ByteSource::Allocated(data, len);
 }
 
 void CheckThrow(Environment* env, SignBase::Error error) {
@@ -321,17 +327,16 @@ Sign::Sign(Environment* env, Local<Object> wrap) : SignBase(env, wrap) {
 }
 
 void Sign::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(
-      SignBase::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
+  t->InstanceTemplate()->SetInternalFieldCount(SignBase::kInternalFieldCount);
 
-  env->SetProtoMethod(t, "init", SignInit);
-  env->SetProtoMethod(t, "update", SignUpdate);
-  env->SetProtoMethod(t, "sign", SignFinal);
+  SetProtoMethod(isolate, t, "init", SignInit);
+  SetProtoMethod(isolate, t, "update", SignUpdate);
+  SetProtoMethod(isolate, t, "sign", SignFinal);
 
-  env->SetConstructorFunction(target, "Sign", t);
+  SetConstructorFunction(env->context(), target, "Sign", t);
 
   SignJob::Initialize(env, target);
 
@@ -343,6 +348,14 @@ void Sign::Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kSigEncDER);
   NODE_DEFINE_CONSTANT(target, kSigEncP1363);
   NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
+}
+
+void Sign::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(SignInit);
+  registry->Register(SignUpdate);
+  registry->Register(SignFinal);
+  SignJob::RegisterExternalReferences(registry);
 }
 
 void Sign::New(const FunctionCallbackInfo<Value>& args) {
@@ -383,12 +396,12 @@ Sign::SignResult Sign::SignFinal(
   if (!ValidateDSAParameters(pkey.get()))
     return SignResult(kSignPrivateKey);
 
-  AllocatedBuffer buffer =
+  std::unique_ptr<BackingStore> buffer =
       Node_SignFinal(env(), std::move(mdctx), pkey, padding, salt_len);
-  Error error = buffer.data() == nullptr ? kSignPrivateKey : kSignOk;
+  Error error = buffer ? kSignOk : kSignPrivateKey;
   if (error == kSignOk && dsa_sig_enc == kSigEncP1363) {
     buffer = ConvertSignatureToP1363(env(), pkey, std::move(buffer));
-    CHECK_NOT_NULL(buffer.data());
+    CHECK_NOT_NULL(buffer->Data());
   }
   return SignResult(error, std::move(buffer));
 }
@@ -430,7 +443,10 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   if (ret.error != kSignOk)
     return crypto::CheckThrow(env, ret.error);
 
-  args.GetReturnValue().Set(ret.signature.ToBuffer().FromMaybe(Local<Value>()));
+  Local<ArrayBuffer> ab =
+      ArrayBuffer::New(env->isolate(), std::move(ret.signature));
+  args.GetReturnValue().Set(
+      Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>()));
 }
 
 Verify::Verify(Environment* env, Local<Object> wrap)
@@ -439,17 +455,23 @@ Verify::Verify(Environment* env, Local<Object> wrap)
 }
 
 void Verify::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(
-      SignBase::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
+  t->InstanceTemplate()->SetInternalFieldCount(SignBase::kInternalFieldCount);
 
-  env->SetProtoMethod(t, "init", VerifyInit);
-  env->SetProtoMethod(t, "update", VerifyUpdate);
-  env->SetProtoMethod(t, "verify", VerifyFinal);
+  SetProtoMethod(isolate, t, "init", VerifyInit);
+  SetProtoMethod(isolate, t, "update", VerifyUpdate);
+  SetProtoMethod(isolate, t, "verify", VerifyFinal);
 
-  env->SetConstructorFunction(target, "Verify", t);
+  SetConstructorFunction(env->context(), target, "Verify", t);
+}
+
+void Verify::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(VerifyInit);
+  registry->Register(VerifyUpdate);
+  registry->Register(VerifyFinal);
 }
 
 void Verify::New(const FunctionCallbackInfo<Value>& args) {
@@ -500,7 +522,7 @@ SignBase::Error Verify::VerifyFinal(const ManagedEVPPKey& pkey,
       ApplyRSAOptions(pkey, pkctx.get(), padding, saltlen) &&
       EVP_PKEY_CTX_set_signature_md(pkctx.get(),
                                     EVP_MD_CTX_md(mdctx.get())) > 0) {
-    const unsigned char* s = reinterpret_cast<const unsigned char*>(sig.get());
+    const unsigned char* s = sig.data<unsigned char>();
     const int r = EVP_PKEY_verify(pkctx.get(), s, sig.size(), m, m_len);
     *verify_result = r == 1;
   }
@@ -544,7 +566,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   ByteSource signature = hbuf.ToByteSource();
   if (dsa_sig_enc == kSigEncP1363) {
     signature = ConvertSignatureToDER(pkey, hbuf.ToByteSource());
-    if (signature.get() == nullptr)
+    if (signature.data() == nullptr)
       return crypto::CheckThrow(env, Error::kSignMalformedSignature);
   }
 
@@ -622,7 +644,7 @@ Maybe<bool> SignTraits::AdditionalConfig(
     Utf8Value digest(env->isolate(), args[offset + 6]);
     params->digest = EVP_get_digestbyname(*digest);
     if (params->digest == nullptr) {
-      THROW_ERR_CRYPTO_INVALID_DIGEST(env);
+      THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
       return Nothing<bool>();
     }
   }
@@ -686,6 +708,7 @@ bool SignTraits::DeriveBits(
               nullptr,
               params.key.get())) {
         crypto::CheckThrow(env, SignBase::Error::kSignInit);
+        return false;
       }
       break;
     case SignConfiguration::kVerify:
@@ -696,6 +719,7 @@ bool SignTraits::DeriveBits(
               nullptr,
               params.key.get())) {
         crypto::CheckThrow(env, SignBase::Error::kSignInit);
+        return false;
       }
       break;
   }
@@ -713,64 +737,70 @@ bool SignTraits::DeriveBits(
           padding,
           salt_length)) {
     crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+    return false;
   }
 
   switch (params.mode) {
     case SignConfiguration::kSign: {
-      size_t len;
-      unsigned char* data = nullptr;
       if (IsOneShot(params.key)) {
-        EVP_DigestSign(
+        size_t len;
+        if (!EVP_DigestSign(
             context.get(),
             nullptr,
             &len,
             params.data.data<unsigned char>(),
-            params.data.size());
-        data = MallocOpenSSL<unsigned char>(len);
-        EVP_DigestSign(
-            context.get(),
-            data,
-            &len,
-            params.data.data<unsigned char>(),
-            params.data.size());
-        ByteSource buf =
-            ByteSource::Allocated(reinterpret_cast<char*>(data), len);
-        *out = std::move(buf);
+            params.data.size())) {
+          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+          return false;
+        }
+        ByteSource::Builder buf(len);
+        if (!EVP_DigestSign(context.get(),
+                            buf.data<unsigned char>(),
+                            &len,
+                            params.data.data<unsigned char>(),
+                            params.data.size())) {
+          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+          return false;
+        }
+        *out = std::move(buf).release(len);
       } else {
+        size_t len;
         if (!EVP_DigestSignUpdate(
                 context.get(),
                 params.data.data<unsigned char>(),
                 params.data.size()) ||
             !EVP_DigestSignFinal(context.get(), nullptr, &len)) {
+          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
           return false;
         }
-        data = MallocOpenSSL<unsigned char>(len);
-        ByteSource buf =
-            ByteSource::Allocated(reinterpret_cast<char*>(data), len);
-        if (!EVP_DigestSignFinal(context.get(), data, &len))
+        ByteSource::Builder buf(len);
+        if (!EVP_DigestSignFinal(
+                context.get(), buf.data<unsigned char>(), &len)) {
+          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
           return false;
+        }
 
         if (UseP1363Encoding(params.key, params.dsa_encoding)) {
-          *out = ConvertSignatureToP1363(env, params.key, buf);
+          *out = ConvertSignatureToP1363(
+              env, params.key, std::move(buf).release());
         } else {
-          buf.Resize(len);
-          *out = std::move(buf);
+          *out = std::move(buf).release(len);
         }
       }
       break;
     }
     case SignConfiguration::kVerify: {
-      char* data = MallocOpenSSL<char>(1);
-      data[0] = 0;
-      *out = ByteSource::Allocated(data, 1);
+      ByteSource::Builder buf(1);
+      buf.data<char>()[0] = 0;
       if (EVP_DigestVerify(
               context.get(),
               params.signature.data<unsigned char>(),
               params.signature.size(),
               params.data.data<unsigned char>(),
               params.data.size()) == 1) {
-        data[0] = 1;
+        buf.data<char>()[0] = 1;
       }
+      *out = std::move(buf).release();
     }
   }
 
@@ -787,9 +817,7 @@ Maybe<bool> SignTraits::EncodeOutput(
       *result = out->ToArrayBuffer(env);
       break;
     case SignConfiguration::kVerify:
-      *result = out->get()[0] == 1
-          ? v8::True(env->isolate())
-          : v8::False(env->isolate());
+      *result = Boolean::New(env->isolate(), out->data<char>()[0] == 1);
       break;
     default:
       UNREACHABLE();

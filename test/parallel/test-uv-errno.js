@@ -12,6 +12,8 @@ const { internalBinding } = require('internal/test/binding');
 const uv = internalBinding('uv');
 const keys = Object.keys(uv);
 
+assert.strictEqual(uv.errname(-111111), 'Unknown system error -111111');
+
 keys.forEach((key) => {
   if (!key.startsWith('UV_'))
     return;

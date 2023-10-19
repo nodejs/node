@@ -37,7 +37,7 @@ falseyValues.forEach((testVal) => socket.setNoDelay(testVal));
 
 socket = new net.Socket({
   handle: {
-    setNoDelay: common.mustCall(() => {}, 3),
+    setNoDelay: common.mustCall(3),
     readStart() {}
   }
 });

@@ -14,10 +14,10 @@ const debug = require("debug")("eslint:rules");
  * const rules = new LazyLoadingRuleMap([
  *     ["eqeqeq", () => require("eqeqeq")],
  *     ["semi", () => require("semi")],
- *     ["no-unused-vars", () => require("no-unused-vars")],
- * ])
+ *     ["no-unused-vars", () => require("no-unused-vars")]
+ * ]);
  *
- * rules.get("semi") // call `() => require("semi")` here.
+ * rules.get("semi"); // call `() => require("semi")` here.
  *
  * @extends {Map<string, () => Rule>}
  */

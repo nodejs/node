@@ -7,12 +7,14 @@ description: javascript package manager
 ### Synopsis
 
 ```bash
-npm <command> [args]
+npm
 ```
+
+Note: This command is unaware of workspaces.
 
 ### Version
 
-@VERSION@
+10.2.0
 
 ### Description
 
@@ -31,7 +33,7 @@ Run `npm help` to get a list of available commands.
 npm comes preconfigured to use npm's public registry at
 https://registry.npmjs.org by default. Use of the npm public registry is
 subject to terms of use available at
-https://www.npmjs.com/policies/terms.
+https://docs.npmjs.com/policies/terms.
 
 You can configure npm to use any compatible registry you like, and even
 run your own registry. Use of someone else's registry is governed by
@@ -103,7 +105,7 @@ following help topics:
   done via [`npm install`](/commands/npm-install)
 * adduser:
   Create an account or log in.  When you do this, npm will store
-  credentials in the user config file config file.
+  credentials in the user config file.
 * publish:
   Use the [`npm publish`](/commands/npm-publish) command to upload your
   code to the registry.
@@ -132,7 +134,7 @@ npm is extremely configurable.  It reads its configuration options from
   in the cli, env, or user config, then that file is parsed instead.
 * Defaults:
   npm's default configuration options are defined in
-  lib/utils/config-defs.js.  These must not be changed.
+  `lib/utils/config/definitions.js`.  These must not be changed.
 
 See [`config`](/using-npm/config) for much much more information.
 

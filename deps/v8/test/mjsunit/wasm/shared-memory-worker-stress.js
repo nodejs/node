@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-threads
-
-load("test/mjsunit/worker-ping-test.js");
+d8.file.execute("test/mjsunit/worker-ping-test.js");
 
 // TODO(v8:9380): increase {numThings} and {numWorkers} when stress-opt mode
 // no longer leaks wasm memories.

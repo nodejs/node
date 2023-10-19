@@ -17,9 +17,11 @@
 namespace v8 {
 namespace internal {
 
+struct ScriptDetails;
+
 class CompilationCacheShape : public BaseShape<HashTableKey*> {
  public:
-  static inline bool IsMatch(HashTableKey* key, Object value) {
+  static inline bool IsMatch(HashTableKey* key, Tagged<Object> value) {
     return key->IsMatch(value);
   }
 
@@ -27,14 +29,14 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->Hash();
   }
 
-  static inline uint32_t RegExpHash(String string, Smi flags);
+  static inline uint32_t RegExpHash(Tagged<String> string, Tagged<Smi> flags);
 
-  static inline uint32_t StringSharedHash(String source,
-                                          SharedFunctionInfo shared,
-                                          LanguageMode language_mode,
-                                          int position);
+  static inline uint32_t EvalHash(Tagged<String> source,
+                                  Tagged<SharedFunctionInfo> shared,
+                                  LanguageMode language_mode, int position);
 
-  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots,
+                                       Tagged<Object> object);
 
   static const int kPrefixSize = 0;
   // An 'entry' is essentially a grouped collection of slots. Entries are used
@@ -48,14 +50,14 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 class InfoCellPair {
  public:
   InfoCellPair() = default;
-  inline InfoCellPair(Isolate* isolate, SharedFunctionInfo shared,
-                      FeedbackCell feedback_cell);
+  inline InfoCellPair(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
+                      Tagged<FeedbackCell> feedback_cell);
 
-  FeedbackCell feedback_cell() const {
+  Tagged<FeedbackCell> feedback_cell() const {
     DCHECK(is_compiled_scope_.is_compiled());
     return feedback_cell_;
   }
-  SharedFunctionInfo shared() const {
+  Tagged<SharedFunctionInfo> shared() const {
     DCHECK(is_compiled_scope_.is_compiled());
     return shared_;
   }
@@ -76,6 +78,34 @@ class InfoCellPair {
   FeedbackCell feedback_cell_;
 };
 
+// A lookup result from the compilation cache for scripts. There are three
+// possible states:
+//
+// 1. Cache miss: script and toplevel_sfi are both null.
+// 2. Cache hit: script and toplevel_sfi are both non-null. toplevel_sfi is
+//    guaranteed to be compiled, and to stay compiled while this lookup result
+//    instance is alive.
+// 3. Partial cache hit: script is non-null, but toplevel_sfi is null. The
+//    script may contain an uncompiled toplevel SharedFunctionInfo.
+class CompilationCacheScriptLookupResult {
+ public:
+  MaybeHandle<Script> script() const { return script_; }
+  MaybeHandle<SharedFunctionInfo> toplevel_sfi() const { return toplevel_sfi_; }
+  IsCompiledScope is_compiled_scope() const { return is_compiled_scope_; }
+
+  using RawObjects = std::pair<Script, SharedFunctionInfo>;
+
+  RawObjects GetRawObjects() const;
+
+  static CompilationCacheScriptLookupResult FromRawObjects(RawObjects raw,
+                                                           Isolate* isolate);
+
+ private:
+  MaybeHandle<Script> script_;
+  MaybeHandle<SharedFunctionInfo> toplevel_sfi_;
+  IsCompiledScope is_compiled_scope_;
+};
+
 EXTERN_DECLARE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
 
 class CompilationCacheTable
@@ -83,14 +113,15 @@ class CompilationCacheTable
  public:
   NEVER_READ_ONLY_SPACE
 
-  // The 'script' cache contains SharedFunctionInfos.
-  static MaybeHandle<SharedFunctionInfo> LookupScript(
+  // The 'script' cache contains SharedFunctionInfos. Once a root
+  // SharedFunctionInfo has become old enough that its bytecode is flushed, the
+  // entry is still present and can be used to get the Script.
+  static CompilationCacheScriptLookupResult LookupScript(
       Handle<CompilationCacheTable> table, Handle<String> src,
-      Handle<Context> native_context, LanguageMode language_mode);
+      const ScriptDetails& script_details, Isolate* isolate);
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<Context> native_context, LanguageMode language_mode,
-      Handle<SharedFunctionInfo> value);
+      Handle<SharedFunctionInfo> value, Isolate* isolate);
 
   // Eval code only gets cached after a second probe for the
   // code object. To do so, on first "put" only a hash identifying the
@@ -120,20 +151,25 @@ class CompilationCacheTable
       Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
 
-  // The Code cache shares native-context-independent (NCI) code between
-  // contexts.
-  MaybeHandle<Code> LookupCode(Handle<SharedFunctionInfo> key);
-  static Handle<CompilationCacheTable> PutCode(
-      Isolate* isolate, Handle<CompilationCacheTable> cache,
-      Handle<SharedFunctionInfo> key, Handle<Code> value);
+  void Remove(Tagged<Object> value);
+  void RemoveEntry(InternalIndex entry);
 
-  void Remove(Object value);
-  void Age(Isolate* isolate);
+  inline Tagged<Object> PrimaryValueAt(InternalIndex entry);
+  inline void SetPrimaryValueAt(InternalIndex entry, Tagged<Object> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> EvalFeedbackValueAt(InternalIndex entry);
+  inline void SetEvalFeedbackValueAt(
+      InternalIndex entry, Tagged<Object> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // The initial placeholder insertion of the eval cache survives this many GCs.
+  static constexpr int kHashGenerations = 10;
 
   DECL_CAST(CompilationCacheTable)
 
  private:
-  void RemoveEntry(int entry_index);
+  static Handle<CompilationCacheTable> EnsureScriptTableCapacity(
+      Isolate* isolate, Handle<CompilationCacheTable> cache);
 
   OBJECT_CONSTRUCTORS(CompilationCacheTable,
                       HashTable<CompilationCacheTable, CompilationCacheShape>);

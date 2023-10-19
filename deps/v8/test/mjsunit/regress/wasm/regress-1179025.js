@@ -4,10 +4,10 @@
 
 // Flags: --wasm-staging
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(1, 1, false, true);
+builder.addMemory(1, 1, true);
 builder.addType(makeSig([], []));
 builder.addType(makeSig([kWasmI64], [kWasmF32]));
 // Generate function 1 (out of 2).

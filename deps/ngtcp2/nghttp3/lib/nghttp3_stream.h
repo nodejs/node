@@ -37,6 +37,7 @@
 #include "nghttp3_buf.h"
 #include "nghttp3_frame.h"
 #include "nghttp3_qpack.h"
+#include "nghttp3_objalloc.h"
 
 #define NGHTTP3_STREAM_MIN_CHUNK_SIZE 256
 
@@ -60,13 +61,14 @@ typedef enum nghttp3_stream_type {
 typedef enum nghttp3_ctrl_stream_state {
   NGHTTP3_CTRL_STREAM_STATE_FRAME_TYPE,
   NGHTTP3_CTRL_STREAM_STATE_FRAME_LENGTH,
-  NGHTTP3_CTRL_STREAM_STATE_CANCEL_PUSH,
   NGHTTP3_CTRL_STREAM_STATE_SETTINGS,
   NGHTTP3_CTRL_STREAM_STATE_GOAWAY,
   NGHTTP3_CTRL_STREAM_STATE_MAX_PUSH_ID,
   NGHTTP3_CTRL_STREAM_STATE_IGN_FRAME,
   NGHTTP3_CTRL_STREAM_STATE_SETTINGS_ID,
   NGHTTP3_CTRL_STREAM_STATE_SETTINGS_VALUE,
+  NGHTTP3_CTRL_STREAM_STATE_PRIORITY_UPDATE_PRI_ELEM_ID,
+  NGHTTP3_CTRL_STREAM_STATE_PRIORITY_UPDATE,
 } nghttp3_ctrl_stream_state;
 
 typedef enum nghttp3_req_stream_state {
@@ -74,22 +76,9 @@ typedef enum nghttp3_req_stream_state {
   NGHTTP3_REQ_STREAM_STATE_FRAME_LENGTH,
   NGHTTP3_REQ_STREAM_STATE_DATA,
   NGHTTP3_REQ_STREAM_STATE_HEADERS,
-  NGHTTP3_REQ_STREAM_STATE_PUSH_PROMISE_PUSH_ID,
-  NGHTTP3_REQ_STREAM_STATE_PUSH_PROMISE,
-  NGHTTP3_REQ_STREAM_STATE_IGN_PUSH_PROMISE,
   NGHTTP3_REQ_STREAM_STATE_IGN_FRAME,
   NGHTTP3_REQ_STREAM_STATE_IGN_REST,
 } nghttp3_req_stream_state;
-
-typedef enum nghttp3_push_stream_state {
-  NGHTTP3_PUSH_STREAM_STATE_FRAME_TYPE,
-  NGHTTP3_PUSH_STREAM_STATE_FRAME_LENGTH,
-  NGHTTP3_PUSH_STREAM_STATE_DATA,
-  NGHTTP3_PUSH_STREAM_STATE_HEADERS,
-  NGHTTP3_PUSH_STREAM_STATE_IGN_FRAME,
-  NGHTTP3_PUSH_STREAM_STATE_PUSH_ID,
-  NGHTTP3_PUSH_STREAM_STATE_IGN_REST,
-} nghttp3_push_stream_state;
 
 typedef struct nghttp3_varint_read_state {
   int64_t acc;
@@ -104,38 +93,46 @@ typedef struct nghttp3_stream_read_state {
 } nghttp3_stream_read_state;
 
 /* NGHTTP3_STREAM_FLAG_NONE indicates that no flag is set. */
-#define NGHTTP3_STREAM_FLAG_NONE 0x0000
+#define NGHTTP3_STREAM_FLAG_NONE 0x0000u
 /* NGHTTP3_STREAM_FLAG_TYPE_IDENTIFIED is set when a unidirectional
    stream type is identified. */
-#define NGHTTP3_STREAM_FLAG_TYPE_IDENTIFIED 0x0001
+#define NGHTTP3_STREAM_FLAG_TYPE_IDENTIFIED 0x0001u
 /* NGHTTP3_STREAM_FLAG_FC_BLOCKED indicates that stream is blocked by
    QUIC flow control. */
-#define NGHTTP3_STREAM_FLAG_FC_BLOCKED 0x0002
+#define NGHTTP3_STREAM_FLAG_FC_BLOCKED 0x0002u
 /* NGHTTP3_STREAM_FLAG_READ_DATA_BLOCKED indicates that application is
    temporarily unable to provide data. */
-#define NGHTTP3_STREAM_FLAG_READ_DATA_BLOCKED 0x0004
+#define NGHTTP3_STREAM_FLAG_READ_DATA_BLOCKED 0x0004u
 /* NGHTTP3_STREAM_FLAG_WRITE_END_STREAM indicates that application
    finished to feed outgoing data. */
-#define NGHTTP3_STREAM_FLAG_WRITE_END_STREAM 0x0008
+#define NGHTTP3_STREAM_FLAG_WRITE_END_STREAM 0x0008u
 /* NGHTTP3_STREAM_FLAG_QPACK_DECODE_BLOCKED indicates that stream is
    blocked due to QPACK decoding. */
-#define NGHTTP3_STREAM_FLAG_QPACK_DECODE_BLOCKED 0x0010
+#define NGHTTP3_STREAM_FLAG_QPACK_DECODE_BLOCKED 0x0010u
 /* NGHTTP3_STREAM_FLAG_READ_EOF indicates that remote endpoint sent
    fin. */
-#define NGHTTP3_STREAM_FLAG_READ_EOF 0x0020
+#define NGHTTP3_STREAM_FLAG_READ_EOF 0x0020u
 /* NGHTTP3_STREAM_FLAG_CLOSED indicates that QUIC stream was closed.
    nghttp3_stream object can still alive because it might be blocked
    by QPACK decoder. */
-#define NGHTTP3_STREAM_FLAG_CLOSED 0x0040
-/* NGHTTP3_STREAM_FLAG_PUSH_PROMISE_BLOCKED indicates that stream is
-   blocked because the corresponding PUSH_PROMISE has not been
-   received yet. */
-#define NGHTTP3_STREAM_FLAG_PUSH_PROMISE_BLOCKED 0x0080
+#define NGHTTP3_STREAM_FLAG_CLOSED 0x0040u
 /* NGHTTP3_STREAM_FLAG_SHUT_WR indicates that any further write
    operation to a stream is prohibited. */
-#define NGHTTP3_STREAM_FLAG_SHUT_WR 0x0100
-/* NGHTTP3_STREAM_FLAG_RESET indicates that stream is reset. */
-#define NGHTTP3_STREAM_FLAG_RESET 0x0200
+#define NGHTTP3_STREAM_FLAG_SHUT_WR 0x0100u
+/* NGHTTP3_STREAM_FLAG_SHUT_RD indicates that a read-side stream is
+   closed abruptly and any incoming and pending stream data is just
+   discarded for a stream. */
+#define NGHTTP3_STREAM_FLAG_SHUT_RD 0x0200u
+/* NGHTTP3_STREAM_FLAG_SERVER_PRIORITY_SET indicates that server
+   overrides stream priority. */
+#define NGHTTP3_STREAM_FLAG_SERVER_PRIORITY_SET 0x0400u
+/* NGHTTP3_STREAM_FLAG_PRIORITY_UPDATE_RECVED indicates that server
+   received PRIORITY_UPDATE frame for this stream. */
+#define NGHTTP3_STREAM_FLAG_PRIORITY_UPDATE_RECVED 0x0800u
+/* NGHTTP3_STREAM_FLAG_HTTP_ERROR indicates that
+   NGHTTP3_ERR_MALFORMED_HTTP_HEADER error is encountered while
+   processing incoming HTTP fields. */
+#define NGHTTP3_STREAM_FLAG_HTTP_ERROR 0x1000u
 
 typedef enum nghttp3_stream_http_state {
   NGHTTP3_HTTP_STATE_NONE,
@@ -164,14 +161,10 @@ typedef enum nghttp3_stream_http_event {
   NGHTTP3_HTTP_EVENT_DATA_END,
   NGHTTP3_HTTP_EVENT_HEADERS_BEGIN,
   NGHTTP3_HTTP_EVENT_HEADERS_END,
-  NGHTTP3_HTTP_EVENT_PUSH_PROMISE_BEGIN,
-  NGHTTP3_HTTP_EVENT_PUSH_PROMISE_END,
   NGHTTP3_HTTP_EVENT_MSG_END,
 } nghttp3_stream_http_event;
 
 typedef struct nghttp3_stream nghttp3_stream;
-
-typedef struct nghttp3_push_promise nghttp3_push_promise;
 
 /*
  * nghttp3_stream_acked_data is a callback function which is invoked
@@ -185,7 +178,7 @@ typedef struct nghttp3_push_promise nghttp3_push_promise;
  * NGHTTP3_ERR_CALLBACK_FAILURE.
  */
 typedef int (*nghttp3_stream_acked_data)(nghttp3_stream *stream,
-                                         int64_t stream_id, size_t datalen,
+                                         int64_t stream_id, uint64_t datalen,
                                          void *user_data);
 
 typedef struct nghttp3_stream_callbacks {
@@ -202,64 +195,69 @@ typedef struct nghttp3_http_state {
   /* recv_content_length is the number of body bytes received so
      far. */
   int64_t recv_content_length;
-  uint16_t flags;
+  uint32_t flags;
   /* pri is a stream priority produced by nghttp3_pri_to_uint8. */
   uint8_t pri;
 } nghttp3_http_state;
 
 struct nghttp3_stream {
-  const nghttp3_mem *mem;
-  nghttp3_map_entry me;
-  /* node is a node in dependency tree.  For server initiated
-     unidirectional stream (push), scheduling is done via
-     corresponding nghttp3_push_promise object pointed by pp. */
-  nghttp3_tnode node;
-  nghttp3_pq_entry qpack_blocked_pe;
-  nghttp3_stream_callbacks callbacks;
-  nghttp3_ringbuf frq;
-  nghttp3_ringbuf chunks;
-  nghttp3_ringbuf outq;
-  /* inq stores the stream raw data which cannot be read because
-     stream is blocked by QPACK decoder. */
-  nghttp3_ringbuf inq;
-  nghttp3_qpack_stream_context qpack_sctx;
-  /* conn is a reference to underlying connection.  It could be NULL
-     if stream is not a request/push stream. */
-  nghttp3_conn *conn;
-  void *user_data;
-  /* unsent_bytes is the number of bytes in outq not written yet */
-  size_t unsent_bytes;
-  /* outq_idx is an index into outq where next write is made. */
-  size_t outq_idx;
-  /* outq_offset is write offset relative to the element at outq_idx
-     in outq. */
-  size_t outq_offset;
-  /* ack_offset is offset acknowledged by peer relative to the first
-     element in outq. */
-  uint64_t ack_offset;
-  /* ack_done is the number of bytes notified to an application that
-     they are acknowledged inside the first outq element if it is of
-     type NGHTTP3_BUF_TYPE_ALIEN. */
-  size_t ack_done;
-  size_t unscheduled_nwrite;
-  nghttp3_stream_type type;
-  nghttp3_stream_read_state rstate;
-  /* pp is nghttp3_push_promise that this stream fulfills. */
-  nghttp3_push_promise *pp;
-  /* error_code indicates the reason of closure of this stream. */
-  uint64_t error_code;
+  union {
+    struct {
+      const nghttp3_mem *mem;
+      nghttp3_objalloc *out_chunk_objalloc;
+      nghttp3_objalloc *stream_objalloc;
+      nghttp3_tnode node;
+      nghttp3_pq_entry qpack_blocked_pe;
+      nghttp3_stream_callbacks callbacks;
+      nghttp3_ringbuf frq;
+      nghttp3_ringbuf chunks;
+      nghttp3_ringbuf outq;
+      /* inq stores the stream raw data which cannot be read because
+         stream is blocked by QPACK decoder. */
+      nghttp3_ringbuf inq;
+      nghttp3_qpack_stream_context qpack_sctx;
+      /* conn is a reference to underlying connection.  It could be NULL
+         if stream is not a request stream. */
+      nghttp3_conn *conn;
+      void *user_data;
+      /* unsent_bytes is the number of bytes in outq not written yet */
+      uint64_t unsent_bytes;
+      /* outq_idx is an index into outq where next write is made. */
+      size_t outq_idx;
+      /* outq_offset is write offset relative to the element at outq_idx
+         in outq. */
+      uint64_t outq_offset;
+      /* ack_offset is offset acknowledged by peer relative to the first
+         element in outq. */
+      uint64_t ack_offset;
+      /* ack_done is the number of bytes notified to an application that
+         they are acknowledged inside the first outq element if it is of
+         type NGHTTP3_BUF_TYPE_ALIEN. */
+      uint64_t ack_done;
+      uint64_t unscheduled_nwrite;
+      nghttp3_stream_type type;
+      nghttp3_stream_read_state rstate;
+      /* error_code indicates the reason of closure of this stream. */
+      uint64_t error_code;
 
-  struct {
-    nghttp3_stream_http_state hstate;
-  } tx;
+      struct {
+        uint64_t offset;
+        nghttp3_stream_http_state hstate;
+      } tx;
 
-  struct {
-    nghttp3_stream_http_state hstate;
-    nghttp3_http_state http;
-  } rx;
+      struct {
+        nghttp3_stream_http_state hstate;
+        nghttp3_http_state http;
+      } rx;
 
-  uint16_t flags;
+      uint16_t flags;
+    };
+
+    nghttp3_opl_entry oplent;
+  };
 };
+
+nghttp3_objalloc_def(stream, nghttp3_stream, oplent);
 
 typedef struct nghttp3_frame_entry {
   nghttp3_frame fr;
@@ -275,6 +273,8 @@ typedef struct nghttp3_frame_entry {
 
 int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
                        uint64_t seq, const nghttp3_stream_callbacks *callbacks,
+                       nghttp3_objalloc *out_chunk_objalloc,
+                       nghttp3_objalloc *stream_objalloc,
                        const nghttp3_mem *mem);
 
 void nghttp3_stream_del(nghttp3_stream *stream);
@@ -293,8 +293,6 @@ int nghttp3_stream_fill_outq(nghttp3_stream *stream);
 
 int nghttp3_stream_write_stream_type(nghttp3_stream *stream);
 
-int nghttp3_stream_write_stream_type_push_id(nghttp3_stream *stream);
-
 nghttp3_ssize nghttp3_stream_writev(nghttp3_stream *stream, int *pfin,
                                     nghttp3_vec *vec, size_t veccnt);
 
@@ -308,15 +306,12 @@ int nghttp3_stream_outq_add(nghttp3_stream *stream,
 int nghttp3_stream_write_headers(nghttp3_stream *stream,
                                  nghttp3_frame_entry *frent);
 
-int nghttp3_stream_write_push_promise(nghttp3_stream *stream,
-                                      nghttp3_frame_entry *frent);
-
 int nghttp3_stream_write_header_block(nghttp3_stream *stream,
                                       nghttp3_qpack_encoder *qenc,
                                       nghttp3_stream *qenc_stream,
                                       nghttp3_buf *rbuf, nghttp3_buf *ebuf,
-                                      int64_t frame_type, int64_t push_id,
-                                      const nghttp3_nv *nva, size_t nvlen);
+                                      int64_t frame_type, const nghttp3_nv *nva,
+                                      size_t nvlen);
 
 int nghttp3_stream_write_data(nghttp3_stream *stream, int *peof,
                               nghttp3_frame_entry *frent);
@@ -324,11 +319,11 @@ int nghttp3_stream_write_data(nghttp3_stream *stream, int *peof,
 int nghttp3_stream_write_settings(nghttp3_stream *stream,
                                   nghttp3_frame_entry *frent);
 
-int nghttp3_stream_write_cancel_push(nghttp3_stream *stream,
-                                     nghttp3_frame_entry *frent);
+int nghttp3_stream_write_goaway(nghttp3_stream *stream,
+                                nghttp3_frame_entry *frent);
 
-int nghttp3_stream_write_max_push_id(nghttp3_stream *stream,
-                                     nghttp3_frame_entry *frent);
+int nghttp3_stream_write_priority_update(nghttp3_stream *stream,
+                                         nghttp3_frame_entry *frent);
 
 int nghttp3_stream_ensure_chunk(nghttp3_stream *stream, size_t need);
 
@@ -373,12 +368,6 @@ int nghttp3_stream_transit_rx_http_state(nghttp3_stream *stream,
                                          nghttp3_stream_http_event event);
 
 int nghttp3_stream_empty_headers_allowed(nghttp3_stream *stream);
-
-/*
- * nghttp3_stream_bidi_or_push returns nonzero if |stream| is
- * bidirectional or push stream.
- */
-int nghttp3_stream_bidi_or_push(nghttp3_stream *stream);
 
 /*
  * nghttp3_stream_uni returns nonzero if stream identified by

@@ -1,0 +1,31 @@
+{
+  "name": "@sigstore/protobuf-specs",
+  "version": "0.2.1",
+  "description": "code-signing for npm packages",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sigstore/protobuf-specs.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "author": "bdehamer@github.com",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/sigstore/protobuf-specs/issues"
+  },
+  "homepage": "https://github.com/sigstore/protobuf-specs#readme",
+  "devDependencies": {
+    "@tsconfig/node14": "^1.0.3",
+    "@types/node": "^18.14.0",
+    "typescript": "^4.9.5"
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  }
+}

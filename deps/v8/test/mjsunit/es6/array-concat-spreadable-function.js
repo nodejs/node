@@ -14,7 +14,7 @@ assertEquals([1, 2, 3], [].concat(fn));
 
 Function.prototype[Symbol.isConcatSpreadable] = true;
 // Functions may be concat-spreadable
-assertEquals([void 0, void 0, void 0], [].concat(function(a,b,c) {}));
+assertEquals(new Array(3), [].concat(function(a,b,c) {}));
 Function.prototype[0] = 1;
 Function.prototype[1] = 2;
 Function.prototype[2] = 3;

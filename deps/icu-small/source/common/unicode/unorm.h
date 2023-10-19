@@ -115,7 +115,7 @@
  * unorm_normalize(UNORM_FCD) may be implemented with UNORM_NFD.
  *
  * For more details on FCD see the collation design document:
- * http://source.icu-project.org/repos/icu/icuhtml/trunk/design/collation/ICU_collation_design.htm
+ * https://htmlpreview.github.io/?https://github.com/unicode-org/icu-docs/blob/main/design/collation/ICU_collation_design.htm
  *
  * ICU collation performs either NFD or FCD normalization automatically if normalization
  * is turned on for the collator object.

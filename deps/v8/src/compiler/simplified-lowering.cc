@@ -7,15 +7,16 @@
 #include <limits>
 
 #include "include/v8-fast-api-calls.h"
-#include "src/base/bits.h"
 #include "src/base/small-vector.h"
-#include "src/codegen/code-factory.h"
+#include "src/codegen/callable.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/diamond.h"
+#include "src/compiler/graph-visualizer.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-observer.h"
@@ -23,21 +24,24 @@
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/representation-change.h"
+#include "src/compiler/simplified-lowering-verifier.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/objects.h"
-#include "src/utils/address-map.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
 // Macro for outputting trace information from representation inference.
-#define TRACE(...)                                      \
-  do {                                                  \
-    if (FLAG_trace_representation) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                          \
+  do {                                                      \
+    if (v8_flags.trace_representation) PrintF(__VA_ARGS__); \
   } while (false)
 
 const char* kSimplifiedLoweringReducerName = "SimplifiedLowering";
@@ -92,24 +96,26 @@ MachineRepresentation MachineRepresentationFromArrayType(
       return MachineRepresentation::kFloat64;
     case kExternalBigInt64Array:
     case kExternalBigUint64Array:
-      UNIMPLEMENTED();
+      return MachineRepresentation::kWord64;
   }
   UNREACHABLE();
 }
 
 UseInfo CheckedUseInfoAsWord32FromHint(
-    NumberOperationHint hint, const FeedbackSource& feedback = FeedbackSource(),
-    IdentifyZeros identify_zeros = kDistinguishZeros) {
+    NumberOperationHint hint, IdentifyZeros identify_zeros = kDistinguishZeros,
+    const FeedbackSource& feedback = FeedbackSource()) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
       return UseInfo::CheckedSignedSmallAsWord32(identify_zeros, feedback);
     case NumberOperationHint::kNumber:
+      DCHECK_EQ(identify_zeros, kIdentifyZeros);
       return UseInfo::CheckedNumberAsWord32(feedback);
     case NumberOperationHint::kNumberOrBoolean:
       // Not used currently.
       UNREACHABLE();
     case NumberOperationHint::kNumberOrOddball:
+      DCHECK_EQ(identify_zeros, kIdentifyZeros);
       return UseInfo::CheckedNumberOrOddballAsWord32(feedback);
   }
   UNREACHABLE();
@@ -139,6 +145,8 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
       return UseInfo::TaggedSigned();
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
+    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kMapWord:
       return UseInfo::AnyTagged();
     case MachineRepresentation::kFloat64:
       return UseInfo::TruncatingFloat64();
@@ -149,12 +157,14 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kWord32:
       return UseInfo::TruncatingWord32();
     case MachineRepresentation::kWord64:
-      return UseInfo::Word64();
+      return UseInfo::TruncatingWord64();
     case MachineRepresentation::kBit:
       return UseInfo::Bool();
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
     case MachineRepresentation::kNone:
       break;
   }
@@ -208,12 +218,33 @@ bool CanOverflowSigned32(const Operator* op, Type left, Type right,
     default:
       UNREACHABLE();
   }
-  return true;
 }
 
 bool IsSomePositiveOrderedNumber(Type type) {
-  return type.Is(Type::OrderedNumber()) && !type.IsNone() && type.Min() > 0;
+  return type.Is(Type::OrderedNumber()) && (type.IsNone() || type.Min() > 0);
 }
+
+inline bool IsLargeBigInt(Type type) {
+  return type.Is(Type::BigInt()) && !type.Is(Type::SignedBigInt64()) &&
+         !type.Is(Type::UnsignedBigInt64());
+}
+
+class JSONGraphWriterWithVerifierTypes : public JSONGraphWriter {
+ public:
+  JSONGraphWriterWithVerifierTypes(std::ostream& os, const Graph* graph,
+                                   const SourcePositionTable* positions,
+                                   const NodeOriginTable* origins,
+                                   SimplifiedLoweringVerifier* verifier)
+      : JSONGraphWriter(os, graph, positions, origins), verifier_(verifier) {}
+
+ protected:
+  base::Optional<Type> GetType(Node* node) override {
+    return verifier_->GetType(node);
+  }
+
+ private:
+  SimplifiedLoweringVerifier* verifier_;
+};
 
 }  // namespace
 
@@ -288,15 +319,17 @@ class RepresentationSelector {
     Type restriction_type() const { return restriction_type_; }
 
    private:
+    // Fields are ordered to avoid mixing byte and word size fields to minimize
+    // padding.
     enum State : uint8_t { kUnvisited, kPushed, kVisited, kQueued };
     State state_ = kUnvisited;
     MachineRepresentation representation_ =
         MachineRepresentation::kNone;             // Output representation.
     Truncation truncation_ = Truncation::None();  // Information about uses.
+    bool weakened_ = false;
 
     Type restriction_type_ = Type::Any();
     Type feedback_type_;
-    bool weakened_ = false;
   };
 
   RepresentationSelector(JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
@@ -304,8 +337,10 @@ class RepresentationSelector {
                          SourcePositionTable* source_positions,
                          NodeOriginTable* node_origins,
                          TickCounter* tick_counter, Linkage* linkage,
-                         ObserveNodeManager* observe_node_manager)
+                         ObserveNodeManager* observe_node_manager,
+                         SimplifiedLoweringVerifier* verifier)
       : jsgraph_(jsgraph),
+        broker_(broker),
         zone_(zone),
         might_need_revisit_(zone),
         count_(jsgraph->graph()->NodeCount()),
@@ -323,8 +358,15 @@ class RepresentationSelector {
         op_typer_(broker, graph_zone()),
         tick_counter_(tick_counter),
         linkage_(linkage),
-        observe_node_manager_(observe_node_manager) {
+        observe_node_manager_(observe_node_manager),
+        verifier_(verifier) {
+    singleton_true_ =
+        Type::Constant(broker, broker->true_value(), graph_zone());
+    singleton_false_ =
+        Type::Constant(broker, broker->false_value(), graph_zone());
   }
+
+  bool verification_enabled() const { return verifier_ != nullptr; }
 
   void ResetNodeInfoState() {
     // Clean up for the next phase.
@@ -359,6 +401,11 @@ class RepresentationSelector {
 
   bool UpdateFeedbackType(Node* node) {
     if (node->op()->ValueOutputCount() == 0) return false;
+    if ((IrOpcode::IsMachineOpcode(node->opcode()) ||
+         IrOpcode::IsMachineConstantOpcode(node->opcode())) &&
+        node->opcode() != IrOpcode::kLoadFramePointer) {
+      DCHECK(NodeProperties::GetType(node).Is(Type::Machine()));
+    }
 
     // For any non-phi node just wait until we get all inputs typed. We only
     // allow untyped inputs for phi nodes because phis are the only places
@@ -483,7 +530,7 @@ class RepresentationSelector {
 
     if (!type.IsInvalid() && new_type.Is(type)) return false;
     GetInfo(node)->set_feedback_type(new_type);
-    if (FLAG_trace_representation) {
+    if (v8_flags.trace_representation) {
       PrintNodeFeedbackType(node);
     }
     return true;
@@ -545,6 +592,12 @@ class RepresentationSelector {
 
   // Generates a pre-order traversal of the nodes, starting with End.
   void GenerateTraversal() {
+    // Reset previous state.
+    ResetNodeInfoState();
+    traversal_nodes_.clear();
+    count_ = graph()->NodeCount();
+    info_.resize(count_);
+
     ZoneStack<NodeState> stack(zone_);
 
     stack.push({graph()->end(), 0});
@@ -552,7 +605,6 @@ class RepresentationSelector {
     while (!stack.empty()) {
       NodeState& current = stack.top();
       Node* node = current.node;
-
       // If there is an unvisited input, push it and continue with that node.
       bool pushed_unvisited = false;
       while (current.input_index < node->InputCount()) {
@@ -702,11 +754,79 @@ class RepresentationSelector {
     }
   }
 
+  void RunVerifyPhase(OptimizedCompilationInfo* info) {
+    DCHECK_NOT_NULL(verifier_);
+
+    TRACE("--{Verify Phase}--\n");
+
+    // Patch pending type overrides.
+    for (auto [constant, uses] : verifier_->machine_uses_of_constants()) {
+      Node* typed_constant =
+          InsertTypeOverrideForVerifier(Type::Machine(), constant);
+      for (auto use : uses) {
+        for (int i = 0; i < use->InputCount(); ++i) {
+          if (use->InputAt(i) == constant) {
+            use->ReplaceInput(i, typed_constant);
+          }
+        }
+      }
+    }
+
+    // Generate a new traversal containing all the new nodes created during
+    // lowering.
+    GenerateTraversal();
+
+    // Set node types to the refined types computed during retyping.
+    for (Node* node : traversal_nodes_) {
+      NodeInfo* info = GetInfo(node);
+      if (!info->feedback_type().IsInvalid()) {
+        NodeProperties::SetType(node, info->feedback_type());
+      }
+    }
+
+    // Print graph.
+    if (info != nullptr && info->trace_turbo_json()) {
+      UnparkedScopeIfNeeded scope(broker_);
+      AllowHandleDereference allow_deref;
+
+      TurboJsonFile json_of(info, std::ios_base::app);
+      JSONGraphWriter writer(json_of, graph(), source_positions_,
+                             node_origins_);
+      writer.PrintPhase("V8.TFSimplifiedLowering [after lower]");
+    }
+
+    // Verify all nodes.
+    for (Node* node : traversal_nodes_) {
+      verifier_->VisitNode(node, op_typer_);
+    }
+
+    // Print graph.
+    if (info != nullptr && info->trace_turbo_json()) {
+      UnparkedScopeIfNeeded scope(broker_);
+      AllowHandleDereference allow_deref;
+
+      TurboJsonFile json_of(info, std::ios_base::app);
+      JSONGraphWriterWithVerifierTypes writer(
+          json_of, graph(), source_positions_, node_origins_, verifier_);
+      writer.PrintPhase("V8.TFSimplifiedLowering [after verify]");
+    }
+
+    // Eliminate all introduced hints.
+    for (Node* node : verifier_->inserted_hints()) {
+      Node* input = node->InputAt(0);
+      node->ReplaceUses(input);
+      node->Kill();
+    }
+  }
+
   void Run(SimplifiedLowering* lowering) {
     GenerateTraversal();
     RunPropagatePhase();
     RunRetypePhase();
     RunLowerPhase(lowering);
+    if (verification_enabled()) {
+      RunVerifyPhase(lowering->info_);
+    }
   }
 
   // Just assert for Retype and Lower. Propagate specialized below.
@@ -714,7 +834,7 @@ class RepresentationSelector {
   void EnqueueInput(Node* use_node, int index,
                     UseInfo use_info = UseInfo::None()) {
     static_assert(retype<T>() || lower<T>(),
-                  "This version of ProcessRemainingInputs has to be called in "
+                  "This version of EnqueueInput has to be called in "
                   "the Retype or Lower phase.");
   }
 
@@ -781,13 +901,33 @@ class RepresentationSelector {
     // TODO(jarin,turbofan) Find a way to unify/merge this insertion with
     // InsertUnreachableIfNecessary.
     Node* unreachable = effect =
-        graph()->NewNode(jsgraph_->common()->Unreachable(), effect, control);
+        graph()->NewNode(common()->Unreachable(), effect, control);
     const Operator* dead_value =
-        jsgraph_->common()->DeadValue(GetInfo(node)->representation());
+        common()->DeadValue(GetInfo(node)->representation());
     node->ReplaceInput(0, unreachable);
     node->TrimInputCount(dead_value->ValueInputCount());
     ReplaceEffectControlUses(node, effect, control);
     ChangeOp(node, dead_value);
+  }
+
+  // This function is a generalization of ChangeToPureOp. It can be used to
+  // replace a node that is part of the effect and control chain by a pure node.
+  void ReplaceWithPureNode(Node* node, Node* pure_node) {
+    DCHECK(pure_node->op()->HasProperty(Operator::kPure));
+    if (node->op()->EffectInputCount() > 0) {
+      DCHECK_LT(0, node->op()->ControlInputCount());
+      Node* control = NodeProperties::GetControlInput(node);
+      Node* effect = NodeProperties::GetEffectInput(node);
+      if (TypeOf(node).IsNone()) {
+        ChangeToDeadValue(node, effect, control);
+        return;
+      }
+      // Rewire the effect and control chains.
+      ReplaceEffectControlUses(node, effect, control);
+    } else {
+      DCHECK_EQ(0, node->op()->ControlInputCount());
+    }
+    DeferReplacement(node, pure_node);
   }
 
   void ChangeToPureOp(Node* node, const Operator* new_op) {
@@ -830,7 +970,13 @@ class RepresentationSelector {
     } else {
       DCHECK_EQ(0, node->op()->ControlInputCount());
     }
-    node->InsertInput(jsgraph_->zone(), new_input_index, new_input);
+    if (new_input_index == 0) {
+      node->InsertInput(jsgraph_->zone(), 0, new_input);
+    } else {
+      DCHECK_EQ(new_input_index, 1);
+      DCHECK_EQ(node->InputCount(), 1);
+      node->AppendInput(jsgraph_->zone(), new_input);
+    }
     ChangeOp(node, new_op);
   }
 
@@ -857,6 +1003,13 @@ class RepresentationSelector {
             use.truncation().description());
       if (input_type.IsInvalid()) {
         input_type = TypeOf(input);
+      } else {
+        // This case is reached when ConvertInput is called for TypeGuard nodes
+        // which explicitly set the {input_type} for their input. In order to
+        // correctly verify the resulting graph, we have to preserve this
+        // forced type for the verifier.
+        DCHECK_EQ(node->opcode(), IrOpcode::kTypeGuard);
+        input = InsertTypeOverrideForVerifier(input_type, input);
       }
       Node* n = changer_->GetRepresentationFor(input, input_rep, input_type,
                                                node, use);
@@ -921,7 +1074,14 @@ class RepresentationSelector {
       ProcessInput<T>(node, i, UseInfo::None());
     }
     ProcessRemainingInputs<T>(node, first_effect_index);
-    if (lower<T>()) Kill(node);
+
+    if (lower<T>()) {
+      TRACE("disconnecting unused #%d:%s\n", node->id(),
+            node->op()->mnemonic());
+      DisconnectFromEffectAndControl(node);
+      node->NullAllInputs();  // Node is now dead.
+      DeferReplacement(node, graph()->NewNode(common()->Plug()));
+    }
   }
 
   // Helper for no-op node.
@@ -929,7 +1089,7 @@ class RepresentationSelector {
   void VisitNoop(Node* node, Truncation truncation) {
     if (truncation.IsUnused()) return VisitUnused<T>(node);
     MachineRepresentation representation =
-        GetOutputInfoForPhi(node, TypeOf(node), truncation);
+        GetOutputInfoForPhi(TypeOf(node), truncation);
     VisitUnop<T>(node, UseInfo(representation, truncation), representation);
     if (lower<T>()) DeferReplacement(node, node->InputAt(0));
   }
@@ -963,7 +1123,8 @@ class RepresentationSelector {
                            MachineRepresentation::kWord32);
     }
     NumberOperationHint hint = NumberOperationHintOf(node->op());
-    return VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
+    return VisitBinop<T>(node,
+                         CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
                          MachineRepresentation::kWord32);
   }
 
@@ -1004,11 +1165,7 @@ class RepresentationSelector {
   }
 
   // Infer representation for phi-like nodes.
-  // The {node} parameter is only used to decide on the int64 representation.
-  // Once the type system supports an external pointer type, the {node}
-  // parameter can be removed.
-  MachineRepresentation GetOutputInfoForPhi(Node* node, Type type,
-                                            Truncation use) {
+  MachineRepresentation GetOutputInfoForPhi(Type type, Truncation use) {
     // Compute the representation.
     if (type.Is(Type::None())) {
       return MachineRepresentation::kNone;
@@ -1032,7 +1189,7 @@ class RepresentationSelector {
     } else if (type.Is(Type::BigInt()) && use.IsUsedAsWord64()) {
       return MachineRepresentation::kWord64;
     } else if (type.Is(Type::ExternalPointer()) ||
-               type.Is(Type::SandboxedExternalPointer())) {
+               type.Is(Type::SandboxedPointer())) {
       return MachineType::PointerRepresentation();
     }
     return MachineRepresentation::kTagged;
@@ -1046,7 +1203,7 @@ class RepresentationSelector {
     ProcessInput<T>(node, 0, UseInfo::Bool());
 
     MachineRepresentation output =
-        GetOutputInfoForPhi(node, TypeOf(node), truncation);
+        GetOutputInfoForPhi(TypeOf(node), truncation);
     SetOutput<T>(node, output);
 
     if (lower<T>()) {
@@ -1067,8 +1224,13 @@ class RepresentationSelector {
   template <Phase T>
   void VisitPhi(Node* node, Truncation truncation,
                 SimplifiedLowering* lowering) {
-    MachineRepresentation output =
-        GetOutputInfoForPhi(node, TypeOf(node), truncation);
+    // If we already have a non-tagged representation set in the Phi node, it
+    // does come from subgraphs using machine operators we introduced early in
+    // the pipeline. In this case, we just keep the representation.
+    MachineRepresentation output = PhiRepresentationOf(node->op());
+    if (output == MachineRepresentation::kTagged) {
+      output = GetOutputInfoForPhi(TypeOf(node), truncation);
+    }
     // Only set the output representation if not running with type
     // feedback. (Feedback typing will set the representation.)
     SetOutput<T>(node, output);
@@ -1095,12 +1257,16 @@ class RepresentationSelector {
     if (input_type.Is(type)) {
       VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
       if (lower<T>()) {
-        DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
+        DeferReplacement(
+            node, InsertTypeOverrideForVerifier(
+                      true_type(), lowering->jsgraph()->Int32Constant(1)));
       }
     } else {
       VisitUnop<T>(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
       if (lower<T>() && !input_type.Maybe(type)) {
-        DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
+        DeferReplacement(
+            node, InsertTypeOverrideForVerifier(
+                      false_type(), lowering->jsgraph()->Int32Constant(0)));
       }
     }
   }
@@ -1182,6 +1348,14 @@ class RepresentationSelector {
       return MachineType::AnyTagged();
     }
     if (rep == MachineRepresentation::kWord64) {
+      if (type.Is(Type::SignedBigInt64())) {
+        return MachineType::SignedBigInt64();
+      }
+
+      if (type.Is(Type::UnsignedBigInt64())) {
+        return MachineType::UnsignedBigInt64();
+      }
+
       if (type.Is(Type::BigInt())) {
         return MachineType::AnyTagged();
       }
@@ -1190,11 +1364,12 @@ class RepresentationSelector {
       return MachineType(rep, MachineSemantic::kInt64);
     }
     MachineType machine_type(rep, DeoptValueSemanticOf(type));
-    DCHECK(machine_type.representation() != MachineRepresentation::kWord32 ||
-           machine_type.semantic() == MachineSemantic::kInt32 ||
-           machine_type.semantic() == MachineSemantic::kUint32);
-    DCHECK(machine_type.representation() != MachineRepresentation::kBit ||
-           type.Is(Type::Boolean()));
+    DCHECK_IMPLIES(
+        machine_type.representation() == MachineRepresentation::kWord32,
+        machine_type.semantic() == MachineSemantic::kInt32 ||
+            machine_type.semantic() == MachineSemantic::kUint32);
+    DCHECK_IMPLIES(machine_type.representation() == MachineRepresentation::kBit,
+                   type.Is(Type::Boolean()));
     return machine_type;
   }
 
@@ -1202,13 +1377,11 @@ class RepresentationSelector {
   void VisitStateValues(Node* node) {
     if (propagate<T>()) {
       for (int i = 0; i < node->InputCount(); i++) {
-        // When lowering 64 bit BigInts to Word64 representation, we have to
-        // make sure they are rematerialized before deoptimization. By
-        // propagating a AnyTagged use, the RepresentationChanger is going to
-        // insert the necessary conversions.
-        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
-        // truncated BigInts.
-        if (TypeOf(node->InputAt(i)).Is(Type::BigInt())) {
+        // BigInt64s are rematerialized in deoptimization. The other BigInts
+        // must be rematerialized before deoptimization. By propagating an
+        // AnyTagged use, the RepresentationChanger is going to insert the
+        // necessary conversions.
+        if (IsLargeBigInt(TypeOf(node->InputAt(i)))) {
           EnqueueInput<T>(node, i, UseInfo::AnyTagged());
         } else {
           EnqueueInput<T>(node, i, UseInfo::Any());
@@ -1220,9 +1393,7 @@ class RepresentationSelector {
           zone->New<ZoneVector<MachineType>>(node->InputCount(), zone);
       for (int i = 0; i < node->InputCount(); i++) {
         Node* input = node->InputAt(i);
-        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
-        // truncated BigInts.
-        if (TypeOf(input).Is(Type::BigInt())) {
+        if (IsLargeBigInt(TypeOf(input))) {
           ConvertInput(node, i, UseInfo::AnyTagged());
         }
 
@@ -1230,7 +1401,7 @@ class RepresentationSelector {
             DeoptMachineTypeOf(GetInfo(input)->representation(), TypeOf(input));
       }
       SparseInputMask mask = SparseInputMaskOf(node->op());
-      ChangeOp(node, jsgraph_->common()->TypedStateValues(types, mask));
+      ChangeOp(node, common()->TypedStateValues(types, mask));
     }
     SetOutput<T>(node, MachineRepresentation::kTagged);
   }
@@ -1251,9 +1422,7 @@ class RepresentationSelector {
     // state-values node).
     Node* accumulator = node.stack();
     if (propagate<T>()) {
-      // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
-      // truncated BigInts.
-      if (TypeOf(accumulator).Is(Type::BigInt())) {
+      if (IsLargeBigInt(TypeOf(accumulator))) {
         EnqueueInput<T>(node, FrameState::kFrameStateStackInput,
                         UseInfo::AnyTagged());
       } else {
@@ -1261,9 +1430,7 @@ class RepresentationSelector {
                         UseInfo::Any());
       }
     } else if (lower<T>()) {
-      // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
-      // truncated BigInts.
-      if (TypeOf(accumulator).Is(Type::BigInt())) {
+      if (IsLargeBigInt(TypeOf(accumulator))) {
         ConvertInput(node, FrameState::kFrameStateStackInput,
                      UseInfo::AnyTagged());
       }
@@ -1279,9 +1446,9 @@ class RepresentationSelector {
 
         node->ReplaceInput(
             FrameState::kFrameStateStackInput,
-            jsgraph_->graph()->NewNode(jsgraph_->common()->TypedStateValues(
-                                           types, SparseInputMask::Dense()),
-                                       node.stack()));
+            jsgraph_->graph()->NewNode(
+                common()->TypedStateValues(types, SparseInputMask::Dense()),
+                node.stack()));
       }
     }
 
@@ -1298,9 +1465,7 @@ class RepresentationSelector {
   void VisitObjectState(Node* node) {
     if (propagate<T>()) {
       for (int i = 0; i < node->InputCount(); i++) {
-        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
-        // truncated BigInts.
-        if (TypeOf(node->InputAt(i)).Is(Type::BigInt())) {
+        if (IsLargeBigInt(TypeOf(node->InputAt(i)))) {
           EnqueueInput<T>(node, i, UseInfo::AnyTagged());
         } else {
           EnqueueInput<T>(node, i, UseInfo::Any());
@@ -1314,14 +1479,11 @@ class RepresentationSelector {
         Node* input = node->InputAt(i);
         (*types)[i] =
             DeoptMachineTypeOf(GetInfo(input)->representation(), TypeOf(input));
-        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
-        // truncated BigInts.
-        if (TypeOf(node->InputAt(i)).Is(Type::BigInt())) {
+        if (IsLargeBigInt(TypeOf(input))) {
           ConvertInput(node, i, UseInfo::AnyTagged());
         }
       }
-      ChangeOp(node, jsgraph_->common()->TypedObjectState(
-                         ObjectIdOf(node->op()), types));
+      ChangeOp(node, common()->TypedObjectState(ObjectIdOf(node->op()), types));
     }
     SetOutput<T>(node, MachineRepresentation::kTagged);
   }
@@ -1336,6 +1498,14 @@ class RepresentationSelector {
 
   const Operator* Int64Op(Node* node) {
     return changer_->Int64OperatorFor(node->opcode());
+  }
+
+  const Operator* Int64OverflowOp(Node* node) {
+    return changer_->Int64OverflowOperatorFor(node->opcode());
+  }
+
+  const Operator* BigIntOp(Node* node) {
+    return changer_->BigIntOperatorFor(node->opcode());
   }
 
   const Operator* Uint32Op(Node* node) {
@@ -1481,8 +1651,8 @@ class RepresentationSelector {
     }
 
     // Try to use type feedback.
-    NumberOperationHint hint = NumberOperationHintOf(node->op());
-    DCHECK_EQ(hint, NumberOperationHint::kSignedSmall);
+    NumberOperationHint const hint = NumberOperationHint::kSignedSmall;
+    DCHECK_EQ(hint, NumberOperationHintOf(node->op()));
 
     Type left_feedback_type = TypeOf(node->InputAt(0));
     Type right_feedback_type = TypeOf(node->InputAt(1));
@@ -1522,14 +1692,13 @@ class RepresentationSelector {
           !right_feedback_type.Maybe(Type::MinusZero())) {
         left_identify_zeros = kIdentifyZeros;
       }
-      UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint, FeedbackSource(),
-                                                        left_identify_zeros);
+      UseInfo left_use =
+          CheckedUseInfoAsWord32FromHint(hint, left_identify_zeros);
       // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
       // a minus zero check for the right hand side, since we already
       // know that the left hand side is a proper Signed32 value,
       // potentially guarded by a check.
-      UseInfo right_use = CheckedUseInfoAsWord32FromHint(hint, FeedbackSource(),
-                                                         kIdentifyZeros);
+      UseInfo right_use = CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros);
       VisitBinop<T>(node, left_use, right_use, MachineRepresentation::kWord32,
                     restriction);
     }
@@ -1540,7 +1709,6 @@ class RepresentationSelector {
                                right_feedback_type, type_cache_,
                                graph_zone())) {
         ChangeToPureOp(node, Int32Op(node));
-
       } else {
         ChangeToInt32OverflowOp(node);
       }
@@ -1624,10 +1792,10 @@ class RepresentationSelector {
       // mode of the {truncation}; and for modulus the sign of the
       // right hand side doesn't matter anyways, so in particular there's
       // no observable difference between a 0 and a -0 then.
-      UseInfo const lhs_use = CheckedUseInfoAsWord32FromHint(
-          hint, FeedbackSource(), truncation.identify_zeros());
-      UseInfo const rhs_use = CheckedUseInfoAsWord32FromHint(
-          hint, FeedbackSource(), kIdentifyZeros);
+      UseInfo const lhs_use =
+          CheckedUseInfoAsWord32FromHint(hint, truncation.identify_zeros());
+      UseInfo const rhs_use =
+          CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros);
       if (truncation.IsUsedAsWord32()) {
         VisitBinop<T>(node, lhs_use, rhs_use, MachineRepresentation::kWord32);
         if (lower<T>()) DeferReplacement(node, lowering->Int32Mod(node));
@@ -1717,15 +1885,18 @@ class RepresentationSelector {
         VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32);
         if (lower<T>()) {
-          if (lowering->poisoning_level_ ==
-                  PoisoningMitigationLevel::kDontPoison &&
-              (index_type.IsNone() || length_type.IsNone() ||
-               (index_type.Min() >= 0.0 &&
-                index_type.Max() < length_type.Min()))) {
+          if (index_type.IsNone() || length_type.IsNone() ||
+              (index_type.Min() >= 0.0 &&
+               index_type.Max() < length_type.Min())) {
             // The bounds check is redundant if we already know that
             // the index is within the bounds of [0.0, length[.
             // TODO(neis): Move this into TypedOptimization?
-            new_flags |= CheckBoundsFlag::kAbortOnOutOfBounds;
+            if (v8_flags.turbo_typer_hardening) {
+              new_flags |= CheckBoundsFlag::kAbortOnOutOfBounds;
+            } else {
+              DeferReplacement(node, NodeProperties::GetValueInput(node, 0));
+              return;
+            }
           }
           ChangeOp(node,
                    simplified()->CheckedUint32Bounds(feedback, new_flags));
@@ -1766,26 +1937,60 @@ class RepresentationSelector {
     }
   }
 
-  UseInfo UseInfoForFastApiCallArgument(CTypeInfo::Type type,
+  UseInfo UseInfoForFastApiCallArgument(CTypeInfo type,
+                                        CFunctionInfo::Int64Representation repr,
                                         FeedbackSource const& feedback) {
-    switch (type) {
-      case CTypeInfo::Type::kVoid:
-        UNREACHABLE();
-      case CTypeInfo::Type::kBool:
-        return UseInfo::Bool();
-      case CTypeInfo::Type::kInt32:
-      case CTypeInfo::Type::kUint32:
-        return UseInfo::CheckedNumberAsWord32(feedback);
-      // TODO(mslekova): We deopt for unsafe integers, but ultimately we want
-      // to make this less restrictive in order to stay on the fast path.
-      case CTypeInfo::Type::kInt64:
-      case CTypeInfo::Type::kUint64:
-        return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
-      case CTypeInfo::Type::kFloat32:
-      case CTypeInfo::Type::kFloat64:
-        return UseInfo::CheckedNumberAsFloat64(kDistinguishZeros, feedback);
-      case CTypeInfo::Type::kV8Value:
+    switch (type.GetSequenceType()) {
+      case CTypeInfo::SequenceType::kScalar: {
+        uint8_t flags = uint8_t(type.GetFlags());
+        if (flags & uint8_t(CTypeInfo::Flags::kEnforceRangeBit) ||
+            flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
+          DCHECK(repr != CFunctionInfo::Int64Representation::kBigInt);
+          return UseInfo::CheckedNumberAsFloat64(kIdentifyZeros, feedback);
+        }
+        switch (type.GetType()) {
+          case CTypeInfo::Type::kVoid:
+          case CTypeInfo::Type::kUint8:
+            UNREACHABLE();
+          case CTypeInfo::Type::kBool:
+            return UseInfo::Bool();
+          case CTypeInfo::Type::kInt32:
+          case CTypeInfo::Type::kUint32:
+            return UseInfo::CheckedNumberAsWord32(feedback);
+          // TODO(mslekova): We deopt for unsafe integers, but ultimately we
+          // want to make this less restrictive in order to stay on the fast
+          // path.
+          case CTypeInfo::Type::kInt64:
+          case CTypeInfo::Type::kUint64:
+            if (repr == CFunctionInfo::Int64Representation::kBigInt) {
+              return UseInfo::CheckedBigIntTruncatingWord64(feedback);
+            } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+              return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
+            } else {
+              UNREACHABLE();
+            }
+          case CTypeInfo::Type::kAny:
+            return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
+          case CTypeInfo::Type::kFloat32:
+          case CTypeInfo::Type::kFloat64:
+            return UseInfo::CheckedNumberAsFloat64(kDistinguishZeros, feedback);
+          case CTypeInfo::Type::kPointer:
+          case CTypeInfo::Type::kV8Value:
+          case CTypeInfo::Type::kSeqOneByteString:
+          case CTypeInfo::Type::kApiObject:
+            return UseInfo::AnyTagged();
+        }
+      }
+      case CTypeInfo::SequenceType::kIsSequence: {
+        CHECK_EQ(type.GetType(), CTypeInfo::Type::kVoid);
         return UseInfo::AnyTagged();
+      }
+      case CTypeInfo::SequenceType::kIsTypedArray: {
+        return UseInfo::AnyTagged();
+      }
+      default: {
+        UNREACHABLE();  // TODO(mslekova): Implement array buffers.
+      }
     }
   }
 
@@ -1795,7 +2000,12 @@ class RepresentationSelector {
   void VisitFastApiCall(Node* node, SimplifiedLowering* lowering) {
     FastApiCallParameters const& op_params =
         FastApiCallParametersOf(node->op());
-    const CFunctionInfo* c_signature = op_params.signature();
+    // We only consider the first function signature here. In case of function
+    // overloads, we only support the case of two functions that differ for one
+    // argument, which must be a JSArray in one function and a TypedArray in the
+    // other function, and both JSArrays and TypedArrays have the same UseInfo
+    // UseInfo::AnyTagged(). All the other argument types must match.
+    const CFunctionInfo* c_signature = op_params.c_functions()[0].signature;
     const int c_arg_count = c_signature->ArgumentCount();
     CallDescriptor* call_descriptor = op_params.descriptor();
     int js_arg_count = static_cast<int>(call_descriptor->ParameterCount());
@@ -1805,44 +2015,42 @@ class RepresentationSelector {
 
     base::SmallVector<UseInfo, kInitialArgumentsCount> arg_use_info(
         c_arg_count);
-    // The target of the fast call.
-    ProcessInput<T>(node, 0, UseInfo::Word());
     // Propagate representation information from TypeInfo.
     for (int i = 0; i < c_arg_count; i++) {
       arg_use_info[i] = UseInfoForFastApiCallArgument(
-          c_signature->ArgumentInfo(i).GetType(), op_params.feedback());
-      ProcessInput<T>(node, i + FastApiCallNode::kFastTargetInputCount,
-                      arg_use_info[i]);
+          c_signature->ArgumentInfo(i), c_signature->GetInt64Representation(),
+          op_params.feedback());
+      ProcessInput<T>(node, i, arg_use_info[i]);
     }
 
     // The call code for the slow call.
-    ProcessInput<T>(node, c_arg_count + FastApiCallNode::kFastTargetInputCount,
-                    UseInfo::AnyTagged());
+    ProcessInput<T>(node, c_arg_count, UseInfo::AnyTagged());
     for (int i = 1; i <= js_arg_count; i++) {
-      ProcessInput<T>(node,
-                      c_arg_count + FastApiCallNode::kFastTargetInputCount + i,
+      ProcessInput<T>(node, c_arg_count + i,
                       TruncatingUseInfoFromRepresentation(
                           call_descriptor->GetInputType(i).representation()));
     }
-    for (int i = c_arg_count + FastApiCallNode::kFastTargetInputCount +
-                 js_arg_count;
-         i < value_input_count; ++i) {
+    for (int i = c_arg_count + js_arg_count; i < value_input_count; ++i) {
       ProcessInput<T>(node, i, UseInfo::AnyTagged());
     }
     ProcessRemainingInputs<T>(node, value_input_count);
     SetOutput<T>(node, MachineRepresentation::kTagged);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   static MachineType MachineTypeForWasmReturnType(wasm::ValueType type) {
     switch (type.kind()) {
       case wasm::kI32:
         return MachineType::Int32();
+      case wasm::kI64:
+        return MachineType::Int64();
       case wasm::kF32:
         return MachineType::Float32();
       case wasm::kF64:
         return MachineType::Float64();
-      case wasm::kI64:
-        // Not used for i64, see VisitJSWasmCall().
+      case wasm::kRef:
+      case wasm::kRefNull:
+        return MachineType::AnyTagged();
       default:
         UNREACHABLE();
     }
@@ -1858,13 +2066,16 @@ class RepresentationSelector {
       case wasm::kI32:
         return UseInfo::CheckedNumberOrOddballAsWord32(feedback);
       case wasm::kI64:
-        return UseInfo::AnyTagged();
+        return UseInfo::CheckedBigIntTruncatingWord64(feedback);
       case wasm::kF32:
       case wasm::kF64:
         // For Float32, TruncateFloat64ToFloat32 will be inserted later in
         // WasmWrapperGraphBuilder::BuildJSToWasmWrapper.
         return UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
                                                         feedback);
+      case wasm::kRef:
+      case wasm::kRefNull:
+        return UseInfo::AnyTagged();
       default:
         UNREACHABLE();
     }
@@ -1912,17 +2123,11 @@ class RepresentationSelector {
     ProcessRemainingInputs<T>(node, NodeProperties::FirstEffectIndex(node));
 
     if (wasm_signature->return_count() == 1) {
-      if (wasm_signature->GetReturn().kind() == wasm::kI64) {
-        // Conversion between negative int64 and BigInt not supported yet.
-        // Do not bypass the type conversion when the result type is i64.
-        SetOutput<T>(node, MachineRepresentation::kTagged);
-      } else {
-        MachineType return_type =
-            MachineTypeForWasmReturnType(wasm_signature->GetReturn());
-        SetOutput<T>(
-            node, return_type.representation(),
-            JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn()));
-      }
+      MachineType return_type =
+          MachineTypeForWasmReturnType(wasm_signature->GetReturn());
+      SetOutput<T>(
+          node, return_type.representation(),
+          JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn()));
     } else {
       DCHECK_EQ(wasm_signature->return_count(), 0);
       SetOutput<T>(node, MachineRepresentation::kTagged);
@@ -1931,6 +2136,7 @@ class RepresentationSelector {
     // The actual lowering of JSWasmCall nodes happens later, in the subsequent
     // "wasm-inlining" phase.
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
@@ -1938,6 +2144,33 @@ class RepresentationSelector {
   void VisitNode(Node* node, Truncation truncation,
                  SimplifiedLowering* lowering) {
     tick_counter_->TickAndMaybeEnterSafepoint();
+
+    if (lower<T>()) {
+      // Kill non-effectful operations that have a None-type input and are thus
+      // dead code. Otherwise we might end up lowering the operation in a way,
+      // e.g. by replacing it with a constant, that cuts the dependency on a
+      // deopting operation (the producer of the None type), possibly resulting
+      // in a nonsense schedule.
+      if (node->op()->EffectOutputCount() == 0 &&
+          node->op()->ControlOutputCount() == 0 &&
+          node->opcode() != IrOpcode::kDeadValue &&
+          node->opcode() != IrOpcode::kStateValues &&
+          node->opcode() != IrOpcode::kFrameState &&
+          node->opcode() != IrOpcode::kPhi) {
+        for (int i = 0; i < node->op()->ValueInputCount(); i++) {
+          Node* input = node->InputAt(i);
+          if (TypeOf(input).IsNone()) {
+            node->ReplaceInput(0, input);
+            node->TrimInputCount(1);
+            ChangeOp(node,
+                     common()->DeadValue(GetInfo(node)->representation()));
+            return;
+          }
+        }
+      } else {
+        InsertUnreachableIfNecessary<T>(node);
+      }
+    }
 
     // Unconditionally eliminate unused pure nodes (only relevant if there's
     // a pure operation in between two effectful ones, where the last one
@@ -1951,8 +2184,6 @@ class RepresentationSelector {
         node->op()->HasProperty(Operator::kPure) && truncation.IsUnused()) {
       return VisitUnused<T>(node);
     }
-
-    if (lower<T>()) InsertUnreachableIfNecessary<T>(node);
 
     switch (node->opcode()) {
       //------------------------------------------------------------------
@@ -1969,7 +2200,20 @@ class RepresentationSelector {
                                 ->GetParameterType(ParameterIndexOf(node->op()))
                                 .representation());
       case IrOpcode::kInt32Constant:
-        return VisitLeaf<T>(node, MachineRepresentation::kWord32);
+        DCHECK_EQ(0, node->InputCount());
+        SetOutput<T>(node, MachineRepresentation::kWord32);
+        DCHECK(NodeProperties::GetType(node).Is(Type::Machine()));
+        if (V8_UNLIKELY(verification_enabled())) {
+          // During lowering, SimplifiedLowering generates Int32Constants which
+          // need to be treated differently by the verifier than the
+          // Int32Constants introduced explicitly in machine graphs. To be able
+          // to distinguish them, we record those that are being visited here
+          // because they were generated before SimplifiedLowering.
+          if (propagate<T>()) {
+            verifier_->RecordMachineUsesOfConstant(node, node->uses());
+          }
+        }
+        return;
       case IrOpcode::kInt64Constant:
         return VisitLeaf<T>(node, MachineRepresentation::kWord64);
       case IrOpcode::kExternalConstant:
@@ -1980,8 +2224,11 @@ class RepresentationSelector {
         if (DoubleToSmiInteger(value, &value_as_int)) {
           VisitLeaf<T>(node, MachineRepresentation::kTaggedSigned);
           if (lower<T>()) {
-            intptr_t smi = bit_cast<intptr_t>(Smi::FromInt(value_as_int));
-            DeferReplacement(node, lowering->jsgraph()->IntPtrConstant(smi));
+            intptr_t smi = base::bit_cast<intptr_t>(Smi::FromInt(value_as_int));
+            Node* constant = InsertTypeOverrideForVerifier(
+                NodeProperties::GetType(node),
+                lowering->jsgraph()->IntPtrConstant(smi));
+            DeferReplacement(node, constant);
           }
           return;
         }
@@ -1989,7 +2236,6 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kHeapConstant:
-      case IrOpcode::kDelayedStringConstant:
         return VisitLeaf<T>(node, MachineRepresentation::kTaggedPointer);
       case IrOpcode::kPointerConstant: {
         VisitLeaf<T>(node, MachineType::PointerRepresentation());
@@ -2001,8 +2247,19 @@ class RepresentationSelector {
       }
 
       case IrOpcode::kBranch: {
-        DCHECK(TypeOf(node->InputAt(0)).Is(Type::Boolean()));
-        ProcessInput<T>(node, 0, UseInfo::Bool());
+        const auto& p = BranchParametersOf(node->op());
+        if (p.semantics() == BranchSemantics::kMachine) {
+          // If this is a machine branch, the condition is a machine operator,
+          // so we enter machine branch here.
+          ProcessInput<T>(node, 0, UseInfo::Any());
+        } else {
+          DCHECK(TypeOf(node->InputAt(0)).Is(Type::Boolean()));
+          ProcessInput<T>(node, 0, UseInfo::Bool());
+          if (lower<T>()) {
+            ChangeOp(node,
+                     common()->Branch(p.hint(), BranchSemantics::kMachine));
+          }
+        }
         EnqueueInput<T>(node, NodeProperties::FirstControlIndex(node));
         return;
       }
@@ -2020,17 +2277,6 @@ class RepresentationSelector {
       //------------------------------------------------------------------
       // JavaScript operators.
       //------------------------------------------------------------------
-      case IrOpcode::kToBoolean: {
-        if (truncation.IsUsedAsBool()) {
-          ProcessInput<T>(node, 0, UseInfo::Bool());
-          SetOutput<T>(node, MachineRepresentation::kBit);
-          if (lower<T>()) DeferReplacement(node, node->InputAt(0));
-        } else {
-          VisitInputs<T>(node);
-          SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
-        }
-        return;
-      }
       case IrOpcode::kJSToNumber:
       case IrOpcode::kJSToNumberConvertBigInt:
       case IrOpcode::kJSToNumeric: {
@@ -2051,10 +2297,27 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kJSToBigInt:
+      case IrOpcode::kJSToBigIntConvertNumber: {
+        VisitInputs<T>(node);
+        SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
+        return;
+      }
 
       //------------------------------------------------------------------
       // Simplified operators.
       //------------------------------------------------------------------
+      case IrOpcode::kToBoolean: {
+        if (truncation.IsUsedAsBool()) {
+          ProcessInput<T>(node, 0, UseInfo::Bool());
+          SetOutput<T>(node, MachineRepresentation::kBit);
+          if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitInputs<T>(node);
+          SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
+        }
+        return;
+      }
       case IrOpcode::kBooleanNot: {
         if (lower<T>()) {
           NodeInfo* input_info = GetInfo(node->InputAt(0));
@@ -2063,9 +2326,9 @@ class RepresentationSelector {
             node->AppendInput(jsgraph_->zone(), jsgraph_->Int32Constant(0));
             ChangeOp(node, lowering->machine()->Word32Equal());
           } else if (CanBeTaggedPointer(input_info->representation())) {
-            // BooleanNot(x: kRepTagged) => WordEqual(x, #false)
+            // BooleanNot(x: kRepTagged) => TaggedEqual(x, #false)
             node->AppendInput(jsgraph_->zone(), jsgraph_->FalseConstant());
-            ChangeOp(node, lowering->machine()->WordEqual());
+            ChangeOp(node, lowering->machine()->TaggedEqual());
           } else {
             DCHECK(TypeOf(node->InputAt(0)).IsNone());
             DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
@@ -2177,10 +2440,9 @@ class RepresentationSelector {
         switch (hint) {
           case NumberOperationHint::kSignedSmall:
             if (propagate<T>()) {
-              VisitBinop<T>(node,
-                            CheckedUseInfoAsWord32FromHint(
-                                hint, FeedbackSource(), kIdentifyZeros),
-                            MachineRepresentation::kBit);
+              VisitBinop<T>(
+                  node, CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
+                  MachineRepresentation::kBit);
             } else if (retype<T>()) {
               SetOutput<T>(node, MachineRepresentation::kBit, Type::Any());
             } else {
@@ -2197,10 +2459,9 @@ class RepresentationSelector {
                     node, changer_->TaggedSignedOperatorFor(node->opcode()));
 
               } else {
-                VisitBinop<T>(node,
-                              CheckedUseInfoAsWord32FromHint(
-                                  hint, FeedbackSource(), kIdentifyZeros),
-                              MachineRepresentation::kBit);
+                VisitBinop<T>(
+                    node, CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
+                    MachineRepresentation::kBit);
                 ChangeToPureOp(node, Int32Op(node));
               }
             }
@@ -2416,6 +2677,14 @@ class RepresentationSelector {
         if (lower<T>()) ChangeToPureOp(node, Float64Op(node));
         return;
       }
+      case IrOpcode::kUnsigned32Divide: {
+        CHECK(TypeOf(node->InputAt(0)).Is(Type::Unsigned32()));
+        CHECK(TypeOf(node->InputAt(1)).Is(Type::Unsigned32()));
+        // => unsigned Uint32Div
+        VisitWord32TruncatingBinop<T>(node);
+        if (lower<T>()) DeferReplacement(node, lowering->Uint32Div(node));
+        return;
+      }
       case IrOpcode::kSpeculativeNumberModulus:
         return VisitSpeculativeNumberModulus<T>(node, truncation, lowering);
       case IrOpcode::kNumberModulus: {
@@ -2492,7 +2761,8 @@ class RepresentationSelector {
         }
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         Type rhs_type = GetUpperBound(node->InputAt(1));
-        VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
+        VisitBinop<T>(node,
+                      CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
                       MachineRepresentation::kWord32, Type::Signed32());
         if (lower<T>()) {
           MaskShiftOperand(node, rhs_type);
@@ -2525,7 +2795,8 @@ class RepresentationSelector {
         }
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         Type rhs_type = GetUpperBound(node->InputAt(1));
-        VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
+        VisitBinop<T>(node,
+                      CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
                       MachineRepresentation::kWord32, Type::Signed32());
         if (lower<T>()) {
           MaskShiftOperand(node, rhs_type);
@@ -2554,7 +2825,8 @@ class RepresentationSelector {
           // have seen so far were of type Unsigned31.  We speculate that this
           // will continue to hold.  Moreover, since the RHS is 0, the result
           // will just be the (converted) LHS.
-          VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
+          VisitBinop<T>(node,
+                        CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
                         MachineRepresentation::kWord32, Type::Unsigned31());
           if (lower<T>()) {
             node->RemoveInput(1);
@@ -2573,7 +2845,8 @@ class RepresentationSelector {
           }
           return;
         }
-        VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
+        VisitBinop<T>(node,
+                      CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
                       MachineRepresentation::kWord32, Type::Unsigned32());
         if (lower<T>()) {
           MaskShiftOperand(node, rhs_type);
@@ -2589,11 +2862,23 @@ class RepresentationSelector {
         if (input_type.Is(Type::Unsigned32OrMinusZero())) {
           VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                        MachineRepresentation::kWord32);
-          if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+          if (lower<T>()) {
+            DeferReplacement(
+                node,
+                InsertTypeOverrideForVerifier(
+                    Type::Intersect(input_type, Type::Unsigned32(), zone()),
+                    node->InputAt(0)));
+          }
         } else if (input_type.Is(Type::Signed32OrMinusZero())) {
           VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                        MachineRepresentation::kWord32);
-          if (lower<T>()) DeferReplacement(node, lowering->Int32Abs(node));
+          if (lower<T>()) {
+            DeferReplacement(
+                node,
+                InsertTypeOverrideForVerifier(
+                    Type::Intersect(input_type, Type::Unsigned32(), zone()),
+                    lowering->Int32Abs(node)));
+          }
         } else if (input_type.Is(type_cache_->kPositiveIntegerOrNaN)) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(kIdentifyZeros),
                        MachineRepresentation::kFloat64);
@@ -2741,6 +3026,15 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kSpeculativeNumberPow: {
+        // Checked float64 ** float64 => float64
+        VisitBinop<T>(node,
+                      UseInfo::CheckedNumberOrOddballAsFloat64(
+                          kDistinguishZeros, FeedbackSource()),
+                      MachineRepresentation::kFloat64, Type::Number());
+        if (lower<T>()) ChangeToPureOp(node, Float64Op(node));
+        return;
+      }
       case IrOpcode::kNumberAtan2:
       case IrOpcode::kNumberPow: {
         VisitBinop<T>(node, UseInfo::TruncatingFloat64(),
@@ -2771,18 +3065,57 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kCheckBigInt: {
-        if (InputIs(node, Type::BigInt())) {
-          VisitNoop<T>(node, truncation);
-        } else {
-          VisitUnop<T>(node, UseInfo::AnyTagged(),
-                       MachineRepresentation::kTaggedPointer);
+      case IrOpcode::kSpeculativeBigIntAsIntN:
+      case IrOpcode::kSpeculativeBigIntAsUintN: {
+        const bool is_asuintn =
+            node->opcode() == IrOpcode::kSpeculativeBigIntAsUintN;
+        const auto p = SpeculativeBigIntAsNParametersOf(node->op());
+        DCHECK_LE(0, p.bits());
+        DCHECK_LE(p.bits(), 64);
+
+        ProcessInput<T>(node, 0,
+                        UseInfo::CheckedBigIntTruncatingWord64(p.feedback()));
+        SetOutput<T>(
+            node, MachineRepresentation::kWord64,
+            is_asuintn ? Type::UnsignedBigInt64() : Type::SignedBigInt64());
+        if (lower<T>()) {
+          if (p.bits() == 0) {
+            DeferReplacement(node, InsertTypeOverrideForVerifier(
+                                       Type::UnsignedBigInt63(),
+                                       jsgraph_->Int64Constant(0)));
+          } else if (p.bits() == 64) {
+            DeferReplacement(node, InsertTypeOverrideForVerifier(
+                                       is_asuintn ? Type::UnsignedBigInt64()
+                                                  : Type::SignedBigInt64(),
+                                       node->InputAt(0)));
+          } else {
+            if (is_asuintn) {
+              const uint64_t mask = (1ULL << p.bits()) - 1ULL;
+              ChangeUnaryToPureBinaryOp(node, lowering->machine()->Word64And(),
+                                        1, jsgraph_->Int64Constant(mask));
+            } else {
+              // We truncate the value to N bits, but to correctly interpret
+              // negative values, we have to fill the top (64-N) bits with the
+              // sign. This is done by shifting the value left and then back
+              // with an arithmetic right shift. E.g. for {value} =
+              // 0..0'0001'1101 (29n) and N = 3: {shifted} is 1010'0000'0..0
+              // after left shift by 61 bits, {unshifted} is 1..1'1111'1101
+              // after arithmetic right shift by 61. This is the 64 bit
+              // representation of -3 we expect for the signed 3 bit integer
+              // 101.
+              const uint64_t shift = 64 - p.bits();
+              Node* value = node->InputAt(0);
+              Node* shifted =
+                  graph()->NewNode(lowering->machine()->Word64Shl(), value,
+                                   jsgraph_->Uint64Constant(shift));
+              Node* unshifted =
+                  graph()->NewNode(lowering->machine()->Word64Sar(), shifted,
+                                   jsgraph_->Uint64Constant(shift));
+
+              ReplaceWithPureNode(node, unshifted);
+            }
+          }
         }
-        return;
-      }
-      case IrOpcode::kBigIntAsUintN: {
-        ProcessInput<T>(node, 0, UseInfo::TruncatingWord64());
-        SetOutput<T>(node, MachineRepresentation::kWord64, Type::BigInt());
         return;
       }
       case IrOpcode::kNumberAcos:
@@ -2907,6 +3240,16 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kIntegral32OrMinusZeroToBigInt: {
+        VisitUnop<T>(node, UseInfo::Word64(kIdentifyZeros),
+                     MachineRepresentation::kWord64);
+        if (lower<T>()) {
+          DeferReplacement(
+              node, InsertTypeOverrideForVerifier(NodeProperties::GetType(node),
+                                                  node->InputAt(0)));
+        }
+        return;
+      }
       case IrOpcode::kReferenceEqual: {
         VisitBinop<T>(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         if (lower<T>()) {
@@ -2941,22 +3284,6 @@ class RepresentationSelector {
         return VisitUnop<T>(node, UseInfo::AnyTagged(),
                             MachineRepresentation::kTaggedPointer);
       }
-      case IrOpcode::kTierUpCheck: {
-        ProcessInput<T>(node, 0, UseInfo::AnyTagged());
-        ProcessInput<T>(node, 1, UseInfo::AnyTagged());
-        ProcessInput<T>(node, 2, UseInfo::AnyTagged());
-        ProcessInput<T>(node, 3, UseInfo::TruncatingWord32());
-        ProcessInput<T>(node, 4, UseInfo::AnyTagged());
-        ProcessRemainingInputs<T>(node, 5);
-        SetOutput<T>(node, MachineRepresentation::kNone);
-        return;
-      }
-      case IrOpcode::kUpdateInterruptBudget: {
-        ProcessInput<T>(node, 0, UseInfo::AnyTagged());
-        ProcessRemainingInputs<T>(node, 1);
-        SetOutput<T>(node, MachineRepresentation::kNone);
-        return;
-      }
       case IrOpcode::kNewConsString: {
         ProcessInput<T>(node, 0, UseInfo::TruncatingWord32());  // length
         ProcessInput<T>(node, 1, UseInfo::AnyTagged());         // first
@@ -2964,48 +3291,263 @@ class RepresentationSelector {
         SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
         return;
       }
-      case IrOpcode::kSpeculativeBigIntAdd: {
-        // TODO(nicohartmann@, chromium:1073440): There should be special
-        // handling for trunction.IsUnused() that correctly propagates deadness,
-        // but preserves type checking which may throw exceptions. Until this
-        // is fully supported, we lower to int64 operations but keep pushing
-        // type constraints.
+      case IrOpcode::kSpeculativeBigIntAdd:
+      case IrOpcode::kSpeculativeBigIntSubtract:
+      case IrOpcode::kSpeculativeBigIntMultiply: {
+        if (truncation.IsUnused() && BothInputsAre(node, Type::BigInt())) {
+          VisitUnused<T>(node);
+          return;
+        }
         if (truncation.IsUsedAsWord64()) {
           VisitBinop<T>(
               node, UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
               MachineRepresentation::kWord64);
           if (lower<T>()) {
-            ChangeToPureOp(node, lowering->machine()->Int64Add());
+            ChangeToPureOp(node, Int64Op(node));
           }
-        } else {
-          VisitBinop<T>(node,
-                        UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
-                        MachineRepresentation::kTaggedPointer);
-          if (lower<T>()) {
-            ChangeOp(node, lowering->simplified()->BigIntAdd());
+          return;
+        }
+        BigIntOperationHint hint = BigIntOperationHintOf(node->op());
+        switch (hint) {
+          case BigIntOperationHint::kBigInt64: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigInt64AsWord64(FeedbackSource{}),
+                MachineRepresentation::kWord64, Type::SignedBigInt64());
+            if (lower<T>()) {
+              ChangeOp(node, Int64OverflowOp(node));
+            }
+            return;
+          }
+          case BigIntOperationHint::kBigInt: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                MachineRepresentation::kTaggedPointer);
+            if (lower<T>()) {
+              ChangeOp(node, BigIntOp(node));
+            }
+            return;
           }
         }
-        return;
       }
-      case IrOpcode::kSpeculativeBigIntSubtract: {
+      case IrOpcode::kSpeculativeBigIntDivide:
+      case IrOpcode::kSpeculativeBigIntModulus: {
+        if (truncation.IsUnused() && BothInputsAre(node, Type::BigInt())) {
+          VisitUnused<T>(node);
+          return;
+        }
+        BigIntOperationHint hint = BigIntOperationHintOf(node->op());
+        switch (hint) {
+          case BigIntOperationHint::kBigInt64: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigInt64AsWord64(FeedbackSource{}),
+                MachineRepresentation::kWord64, Type::SignedBigInt64());
+            if (lower<T>()) {
+              ChangeOp(node, Int64OverflowOp(node));
+            }
+            return;
+          }
+          case BigIntOperationHint::kBigInt: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                MachineRepresentation::kTaggedPointer);
+            if (lower<T>()) {
+              ChangeOp(node, BigIntOp(node));
+            }
+            return;
+          }
+        }
+      }
+      case IrOpcode::kSpeculativeBigIntBitwiseAnd:
+      case IrOpcode::kSpeculativeBigIntBitwiseOr:
+      case IrOpcode::kSpeculativeBigIntBitwiseXor: {
+        if (truncation.IsUnused() && BothInputsAre(node, Type::BigInt())) {
+          VisitUnused<T>(node);
+          return;
+        }
         if (truncation.IsUsedAsWord64()) {
           VisitBinop<T>(
               node, UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
               MachineRepresentation::kWord64);
           if (lower<T>()) {
-            ChangeToPureOp(node, lowering->machine()->Int64Sub());
+            ChangeToPureOp(node, Int64Op(node));
           }
-        } else {
-          VisitBinop<T>(node,
-                        UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
-                        MachineRepresentation::kTaggedPointer);
-          if (lower<T>()) {
-            ChangeOp(node, lowering->simplified()->BigIntSubtract());
+          return;
+        }
+        BigIntOperationHint hint = BigIntOperationHintOf(node->op());
+        switch (hint) {
+          case BigIntOperationHint::kBigInt64: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigInt64AsWord64(FeedbackSource{}),
+                MachineRepresentation::kWord64, Type::SignedBigInt64());
+            if (lower<T>()) {
+              ChangeToPureOp(node, Int64Op(node));
+            }
+            return;
+          }
+          case BigIntOperationHint::kBigInt: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                MachineRepresentation::kTaggedPointer);
+            if (lower<T>()) {
+              ChangeOp(node, BigIntOp(node));
+            }
+            return;
           }
         }
-        return;
+      }
+      case IrOpcode::kSpeculativeBigIntShiftLeft:
+      case IrOpcode::kSpeculativeBigIntShiftRight: {
+        if (truncation.IsUnused() && BothInputsAre(node, Type::BigInt())) {
+          VisitUnused<T>(node);
+          return;
+        }
+        if (truncation.IsUsedAsWord64()) {
+          Type input_type = GetUpperBound(node->InputAt(0));
+          Type shift_amount_type = GetUpperBound(node->InputAt(1));
+
+          if (shift_amount_type.IsHeapConstant()) {
+            HeapObjectRef ref = shift_amount_type.AsHeapConstant()->Ref();
+            if (ref.IsBigInt()) {
+              BigIntRef bigint = ref.AsBigInt();
+              bool lossless = false;
+              int64_t shift_amount = bigint.AsInt64(&lossless);
+
+              // Canonicalize {shift_amount}.
+              bool is_shift_left =
+                  node->opcode() == IrOpcode::kSpeculativeBigIntShiftLeft;
+              if (shift_amount < 0) {
+                is_shift_left = !is_shift_left;
+                shift_amount = -shift_amount;
+              }
+              DCHECK_GE(shift_amount, 0);
+
+              // If the operation is a *real* left shift, propagate truncation.
+              // If it is a *real* right shift, the output representation is
+              // word64 only if we know the input type is BigInt64.
+              // Otherwise, fall through to using BigIntOperationHint.
+              if (is_shift_left) {
+                VisitBinop<T>(
+                    node,
+                    UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
+                    UseInfo::Any(), MachineRepresentation::kWord64);
+                if (lower<T>()) {
+                  if (!lossless || shift_amount > 63) {
+                    DeferReplacement(node, jsgraph_->Int64Constant(0));
+                  } else if (shift_amount == 0) {
+                    DeferReplacement(node, node->InputAt(0));
+                  } else {
+                    DCHECK_GE(shift_amount, 1);
+                    DCHECK_LE(shift_amount, 63);
+                    ReplaceWithPureNode(
+                        node,
+                        graph()->NewNode(
+                            lowering->machine()->Word64Shl(), node->InputAt(0),
+                            jsgraph_->Int64Constant(shift_amount)));
+                  }
+                }
+                return;
+              } else if (input_type.Is(Type::SignedBigInt64())) {
+                VisitBinop<T>(
+                    node,
+                    UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
+                    UseInfo::Any(), MachineRepresentation::kWord64);
+                if (lower<T>()) {
+                  if (!lossless || shift_amount > 63) {
+                    ReplaceWithPureNode(
+                        node, graph()->NewNode(lowering->machine()->Word64Sar(),
+                                               node->InputAt(0),
+                                               jsgraph_->Int64Constant(63)));
+                  } else if (shift_amount == 0) {
+                    DeferReplacement(node, node->InputAt(0));
+                  } else {
+                    DCHECK_GE(shift_amount, 1);
+                    DCHECK_LE(shift_amount, 63);
+                    ReplaceWithPureNode(
+                        node,
+                        graph()->NewNode(
+                            lowering->machine()->Word64Sar(), node->InputAt(0),
+                            jsgraph_->Int64Constant(shift_amount)));
+                  }
+                }
+                return;
+              } else if (input_type.Is(Type::UnsignedBigInt64())) {
+                VisitBinop<T>(
+                    node,
+                    UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
+                    UseInfo::Any(), MachineRepresentation::kWord64);
+                if (lower<T>()) {
+                  if (!lossless || shift_amount > 63) {
+                    DeferReplacement(node, jsgraph_->Int64Constant(0));
+                  } else if (shift_amount == 0) {
+                    DeferReplacement(node, node->InputAt(0));
+                  } else {
+                    DCHECK_GE(shift_amount, 1);
+                    DCHECK_LE(shift_amount, 63);
+                    ReplaceWithPureNode(
+                        node,
+                        graph()->NewNode(
+                            lowering->machine()->Word64Shr(), node->InputAt(0),
+                            jsgraph_->Int64Constant(shift_amount)));
+                  }
+                }
+                return;
+              }
+            }
+          }
+        }
+        BigIntOperationHint hint = BigIntOperationHintOf(node->op());
+        switch (hint) {
+          case BigIntOperationHint::kBigInt64:
+            // Do not collect or use BigInt64 feedback for shift operations.
+            UNREACHABLE();
+          case BigIntOperationHint::kBigInt: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                MachineRepresentation::kTaggedPointer);
+            if (lower<T>()) {
+              ChangeOp(node, BigIntOp(node));
+            }
+            return;
+          }
+        }
+      }
+      case IrOpcode::kSpeculativeBigIntEqual:
+      case IrOpcode::kSpeculativeBigIntLessThan:
+      case IrOpcode::kSpeculativeBigIntLessThanOrEqual: {
+        // Loose equality can throw a TypeError when failing to cast an object
+        // operand to primitive.
+        if (truncation.IsUnused() && BothInputsAre(node, Type::BigInt())) {
+          VisitUnused<T>(node);
+          return;
+        }
+        BigIntOperationHint hint = BigIntOperationHintOf(node->op());
+        switch (hint) {
+          case BigIntOperationHint::kBigInt64: {
+            VisitBinop<T>(node,
+                          UseInfo::CheckedBigInt64AsWord64(FeedbackSource{}),
+                          MachineRepresentation::kBit);
+            if (lower<T>()) {
+              ChangeToPureOp(node, Int64Op(node));
+            }
+            return;
+          }
+          case BigIntOperationHint::kBigInt: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                MachineRepresentation::kTaggedPointer);
+            if (lower<T>()) {
+              ChangeToPureOp(node, BigIntOp(node));
+            }
+            return;
+          }
+        }
       }
       case IrOpcode::kSpeculativeBigIntNegate: {
+        // NOTE: If truncation is Unused, we still need to preserve at least the
+        // BigInt type check (see http://crbug.com/1431713 for some details).
+        // We can use the standard lowering to word64 operations and have
+        // following phases remove the unused truncation and subtraction
+        // operations.
         if (truncation.IsUsedAsWord64()) {
           VisitUnop<T>(node,
                        UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
@@ -3048,7 +3590,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringCodePointAt: {
         return VisitBinop<T>(node, UseInfo::AnyTagged(), UseInfo::Word(),
-                             MachineRepresentation::kTaggedSigned);
+                             MachineRepresentation::kWord32);
       }
       case IrOpcode::kStringFromSingleCharCode: {
         VisitUnop<T>(node, UseInfo::TruncatingWord32(),
@@ -3095,11 +3637,6 @@ class RepresentationSelector {
       }
       case IrOpcode::kCheckBounds:
         return VisitCheckBounds<T>(node, lowering);
-      case IrOpcode::kPoisonIndex: {
-        VisitUnop<T>(node, UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kWord32);
-        return;
-      }
       case IrOpcode::kCheckHeapObject: {
         if (InputCannotBe(node, Type::SignedSmall())) {
           VisitUnop<T>(node, UseInfo::AnyTagged(),
@@ -3301,14 +3838,14 @@ class RepresentationSelector {
         } else if (value_type.Is(Type::Number())) {
           ProcessInput<T>(node, 2, UseInfo::TruncatingFloat64());  // value
           if (lower<T>()) {
-            Handle<Map> double_map = DoubleMapParameterOf(node->op());
+            MapRef double_map = DoubleMapParameterOf(node->op());
             ChangeOp(node,
                      simplified()->TransitionAndStoreNumberElement(double_map));
           }
         } else if (value_type.Is(Type::NonNumber())) {
           ProcessInput<T>(node, 2, UseInfo::AnyTagged());  // value
           if (lower<T>()) {
-            Handle<Map> fast_map = FastMapParameterOf(node->op());
+            MapRef fast_map = FastMapParameterOf(node->op());
             ChangeOp(node, simplified()->TransitionAndStoreNonNumberElement(
                                fast_map, value_type));
           }
@@ -3388,7 +3925,10 @@ class RepresentationSelector {
       case IrOpcode::kPlainPrimitiveToNumber: {
         if (InputIs(node, Type::Boolean())) {
           VisitUnop<T>(node, UseInfo::Bool(), MachineRepresentation::kWord32);
-          if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+          if (lower<T>()) {
+            DeferReplacement(node, InsertSemanticsHintForVerifier(
+                                       node->op(), node->InputAt(0)));
+          }
         } else if (InputIs(node, Type::String())) {
           VisitUnop<T>(node, UseInfo::AnyTagged(),
                        MachineRepresentation::kTagged);
@@ -3399,7 +3939,10 @@ class RepresentationSelector {
           if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                          MachineRepresentation::kWord32);
-            if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+            if (lower<T>()) {
+              DeferReplacement(node, InsertSemanticsHintForVerifier(
+                                         node->op(), node->InputAt(0)));
+            }
           } else {
             VisitUnop<T>(node, UseInfo::AnyTagged(),
                          MachineRepresentation::kWord32);
@@ -3411,7 +3954,10 @@ class RepresentationSelector {
           if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kFloat64);
-            if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+            if (lower<T>()) {
+              DeferReplacement(node, InsertSemanticsHintForVerifier(
+                                         node->op(), node->InputAt(0)));
+            }
           } else {
             VisitUnop<T>(node, UseInfo::AnyTagged(),
                          MachineRepresentation::kFloat64);
@@ -3432,7 +3978,8 @@ class RepresentationSelector {
           case NumberOperationHint::kSignedSmall:
           case NumberOperationHint::kSignedSmallInputs:
             VisitUnop<T>(node,
-                         CheckedUseInfoAsWord32FromHint(p.hint(), p.feedback()),
+                         CheckedUseInfoAsWord32FromHint(
+                             p.hint(), kDistinguishZeros, p.feedback()),
                          MachineRepresentation::kWord32, Type::Signed32());
             break;
           case NumberOperationHint::kNumber:
@@ -3442,6 +3989,34 @@ class RepresentationSelector {
                 node, CheckedUseInfoAsFloat64FromHint(p.hint(), p.feedback()),
                 MachineRepresentation::kFloat64);
             break;
+        }
+        if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+        return;
+      }
+      case IrOpcode::kSpeculativeToBigInt: {
+        if (truncation.IsUnused() && InputIs(node, Type::BigInt())) {
+          VisitUnused<T>(node);
+          return;
+        }
+        if (truncation.IsUsedAsWord64()) {
+          VisitUnop<T>(node,
+                       UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
+                       MachineRepresentation::kWord64);
+        } else {
+          BigIntOperationParameters const& p =
+              BigIntOperationParametersOf(node->op());
+          switch (p.hint()) {
+            case BigIntOperationHint::kBigInt64: {
+              VisitUnop<T>(node, UseInfo::CheckedBigInt64AsWord64(p.feedback()),
+                           MachineRepresentation::kWord64);
+              break;
+            }
+            case BigIntOperationHint::kBigInt: {
+              VisitUnop<T>(node,
+                           UseInfo::CheckedBigIntAsTaggedPointer(p.feedback()),
+                           MachineRepresentation::kTaggedPointer);
+            }
+          }
         }
         if (lower<T>()) DeferReplacement(node, node->InputAt(0));
         return;
@@ -3473,12 +4048,16 @@ class RepresentationSelector {
         if (input_type.Is(type_cache_->kSafeInteger)) {
           VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          true_type(), lowering->jsgraph()->Int32Constant(1)));
           }
         } else if (!input_type.Maybe(Type::Number())) {
           VisitUnop<T>(node, UseInfo::Any(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          false_type(), lowering->jsgraph()->Int32Constant(0)));
           }
         } else if (input_type.Is(Type::Number())) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -3501,12 +4080,16 @@ class RepresentationSelector {
         if (input_type.Is(type_cache_->kSafeInteger)) {
           VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          true_type(), lowering->jsgraph()->Int32Constant(1)));
           }
         } else if (!input_type.Maybe(Type::Number())) {
           VisitUnop<T>(node, UseInfo::Any(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          false_type(), lowering->jsgraph()->Int32Constant(0)));
           }
         } else if (input_type.Is(Type::Number())) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -3527,12 +4110,16 @@ class RepresentationSelector {
         if (input_type.Is(type_cache_->kSafeInteger)) {
           VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          true_type(), lowering->jsgraph()->Int32Constant(1)));
           }
         } else if (!input_type.Maybe(Type::Number())) {
           VisitUnop<T>(node, UseInfo::Any(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          false_type(), lowering->jsgraph()->Int32Constant(0)));
           }
         } else if (input_type.Is(Type::Number())) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -3555,12 +4142,16 @@ class RepresentationSelector {
         if (input_type.Is(Type::MinusZero())) {
           VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          true_type(), lowering->jsgraph()->Int32Constant(1)));
           }
         } else if (!input_type.Maybe(Type::MinusZero())) {
           VisitUnop<T>(node, UseInfo::Any(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          false_type(), lowering->jsgraph()->Int32Constant(0)));
           }
         } else if (input_type.Is(Type::Number())) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -3578,12 +4169,16 @@ class RepresentationSelector {
         if (input_type.Is(Type::NaN())) {
           VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          true_type(), lowering->jsgraph()->Int32Constant(1)));
           }
         } else if (!input_type.Maybe(Type::NaN())) {
           VisitUnop<T>(node, UseInfo::Any(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          false_type(), lowering->jsgraph()->Int32Constant(0)));
           }
         } else if (input_type.Is(Type::Number())) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -3682,13 +4277,13 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kConvertTaggedHoleToUndefined: {
-        if (InputIs(node, Type::NumberOrOddball()) &&
+        if (InputIs(node, Type::NumberOrTheHole()) &&
             truncation.IsUsedAsWord32()) {
           // Propagate the Word32 truncation.
           VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                        MachineRepresentation::kWord32);
           if (lower<T>()) DeferReplacement(node, node->InputAt(0));
-        } else if (InputIs(node, Type::NumberOrOddball()) &&
+        } else if (InputIs(node, Type::NumberOrTheHole()) &&
                    truncation.TruncatesOddballAndBigIntToNumber()) {
           // Propagate the Float64 truncation.
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -3719,11 +4314,6 @@ class RepresentationSelector {
             node, UseInfo::CheckedHeapObjectAsTaggedPointer(p.feedback()),
             MachineRepresentation::kNone);
       }
-      case IrOpcode::kDynamicCheckMaps: {
-        return VisitUnop<T>(
-            node, UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()),
-            MachineRepresentation::kNone);
-      }
       case IrOpcode::kTransitionElementsKind: {
         return VisitUnop<T>(
             node, UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()),
@@ -3748,7 +4338,15 @@ class RepresentationSelector {
 
       case IrOpcode::kDateNow:
         VisitInputs<T>(node);
-        return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
+        return SetOutput<T>(node, MachineRepresentation::kTagged);
+      case IrOpcode::kDoubleArrayMax: {
+        return VisitUnop<T>(node, UseInfo::AnyTagged(),
+                            MachineRepresentation::kTagged);
+      }
+      case IrOpcode::kDoubleArrayMin: {
+        return VisitUnop<T>(node, UseInfo::AnyTagged(),
+                            MachineRepresentation::kTagged);
+      }
       case IrOpcode::kFrameState:
         return VisitFrameState<T>(FrameState{node});
       case IrOpcode::kStateValues:
@@ -3759,11 +4357,13 @@ class RepresentationSelector {
         return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
 
       case IrOpcode::kTypeGuard: {
+        if (truncation.IsUnused()) return VisitUnused<T>(node);
+
         // We just get rid of the sigma here, choosing the best representation
         // for the sigma's type.
         Type type = TypeOf(node);
         MachineRepresentation representation =
-            GetOutputInfoForPhi(node, type, truncation);
+            GetOutputInfoForPhi(type, truncation);
 
         // Here we pretend that the input has the sigma's type for the
         // conversion.
@@ -3777,10 +4377,6 @@ class RepresentationSelector {
         SetOutput<T>(node, representation);
         return;
       }
-
-      case IrOpcode::kFoldConstant:
-        VisitInputs<T>(node);
-        return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
 
       case IrOpcode::kFinishRegion:
         VisitInputs<T>(node);
@@ -3808,6 +4404,11 @@ class RepresentationSelector {
         }
         return;
       }
+
+      case IrOpcode::kFindOrderedHashSetEntry:
+        VisitBinop<T>(node, UseInfo::AnyTagged(),
+                      MachineRepresentation::kTaggedSigned);
+        return;
 
       case IrOpcode::kFastApiCall: {
         VisitFastApiCall<T>(node, lowering);
@@ -3854,9 +4455,11 @@ class RepresentationSelector {
       case IrOpcode::kJSToObject:
       case IrOpcode::kJSToString:
       case IrOpcode::kJSParseInt:
+#if V8_ENABLE_WEBASSEMBLY
         if (node->opcode() == IrOpcode::kJSWasmCall) {
           return VisitJSWasmCall<T>(node, lowering);
         }
+#endif  // V8_ENABLE_WEBASSEMBLY
         VisitInputs<T>(node);
         // Assume the output is tagged.
         return SetOutput<T>(node, MachineRepresentation::kTagged);
@@ -3864,11 +4467,102 @@ class RepresentationSelector {
         ProcessInput<T>(node, 0, UseInfo::Any());
         return SetOutput<T>(node, MachineRepresentation::kNone);
       case IrOpcode::kStaticAssert:
-        return VisitUnop<T>(node, UseInfo::Any(),
+        DCHECK(TypeOf(node->InputAt(0)).Is(Type::Boolean()));
+        return VisitUnop<T>(node, UseInfo::Bool(),
                             MachineRepresentation::kTagged);
       case IrOpcode::kAssertType:
         return VisitUnop<T>(node, UseInfo::AnyTagged(),
                             MachineRepresentation::kTagged);
+      case IrOpcode::kVerifyType: {
+        Type inputType = TypeOf(node->InputAt(0));
+        VisitUnop<T>(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged,
+                     inputType);
+        if (lower<T>()) {
+          if (inputType.CanBeAsserted()) {
+            ChangeOp(node, simplified()->AssertType(inputType));
+          } else {
+            if (!v8_flags.fuzzing) {
+#ifdef DEBUG
+              inputType.Print();
+#endif
+              FATAL("%%VerifyType: unsupported type");
+            }
+            DisconnectFromEffectAndControl(node);
+          }
+        }
+        return;
+      }
+      case IrOpcode::kCheckTurboshaftTypeOf: {
+        NodeInfo* info = GetInfo(node->InputAt(0));
+        MachineRepresentation input_rep = info->representation();
+        ProcessInput<T>(node, 0, UseInfo{input_rep, Truncation::None()});
+        ProcessInput<T>(node, 1, UseInfo::Any());
+        SetOutput<T>(node, input_rep);
+        return;
+      }
+      case IrOpcode::kDebugBreak:
+        return;
+
+      // Nodes from machine graphs.
+      case IrOpcode::kEnterMachineGraph: {
+        DCHECK_EQ(1, node->op()->ValueInputCount());
+        UseInfo use_info = OpParameter<UseInfo>(node->op());
+        ProcessInput<T>(node, 0, use_info);
+        SetOutput<T>(node, use_info.representation());
+        if (lower<T>()) {
+          DeferReplacement(node, InsertTypeOverrideForVerifier(
+                                     Type::Machine(), node->InputAt(0)));
+        }
+        return;
+      }
+      case IrOpcode::kExitMachineGraph: {
+        DCHECK_EQ(1, node->op()->ValueInputCount());
+        ProcessInput<T>(node, 0, UseInfo::Any());
+        const auto& p = ExitMachineGraphParametersOf(node->op());
+        SetOutput<T>(node, p.output_representation(), p.output_type());
+        if (lower<T>()) {
+          DeferReplacement(node, InsertTypeOverrideForVerifier(
+                                     p.output_type(), node->InputAt(0)));
+        }
+        return;
+      }
+      case IrOpcode::kInt32Add:
+      case IrOpcode::kInt32LessThanOrEqual:
+      case IrOpcode::kInt32Sub:
+      case IrOpcode::kUint32LessThan:
+      case IrOpcode::kUint32LessThanOrEqual:
+      case IrOpcode::kUint64LessThan:
+      case IrOpcode::kUint64LessThanOrEqual:
+      case IrOpcode::kUint32Div:
+      case IrOpcode::kWord32And:
+      case IrOpcode::kWord32Equal:
+      case IrOpcode::kWord32Or:
+      case IrOpcode::kWord32Shl:
+      case IrOpcode::kWord32Shr:
+        for (int i = 0; i < node->InputCount(); ++i) {
+          ProcessInput<T>(node, i, UseInfo::Any());
+        }
+        SetOutput<T>(node, MachineRepresentation::kWord32);
+        return;
+      case IrOpcode::kInt64Add:
+      case IrOpcode::kInt64Sub:
+      case IrOpcode::kUint64Div:
+      case IrOpcode::kWord64And:
+      case IrOpcode::kWord64Shl:
+      case IrOpcode::kWord64Shr:
+      case IrOpcode::kChangeUint32ToUint64:
+        for (int i = 0; i < node->InputCount(); ++i) {
+          ProcessInput<T>(node, i, UseInfo::Any());
+        }
+        SetOutput<T>(node, MachineRepresentation::kWord64);
+        return;
+      case IrOpcode::kLoad:
+        for (int i = 0; i < node->InputCount(); ++i) {
+          ProcessInput<T>(node, i, UseInfo::Any());
+        }
+        SetOutput<T>(node, LoadRepresentationOf(node->op()).representation());
+        return;
+
       default:
         FATAL(
             "Representation inference: unsupported opcode %i (%s), node #%i\n.",
@@ -3878,35 +4572,15 @@ class RepresentationSelector {
     UNREACHABLE();
   }
 
-  void DeferReplacement(Node* node, Node* replacement) {
-    TRACE("defer replacement #%d:%s with #%d:%s\n", node->id(),
-          node->op()->mnemonic(), replacement->id(),
-          replacement->op()->mnemonic());
-
-    // Disconnect the node from effect and control chains, if necessary.
-    if (node->op()->EffectInputCount() > 0) {
-      DCHECK_LT(0, node->op()->ControlInputCount());
-      // Disconnect the node from effect and control chains.
-      Node* control = NodeProperties::GetControlInput(node);
-      Node* effect = NodeProperties::GetEffectInput(node);
-      ReplaceEffectControlUses(node, effect, control);
-    }
-
-    replacements_.push_back(node);
-    replacements_.push_back(replacement);
-
-    node->NullAllInputs();  // Node is now dead.
-
-    NotifyNodeReplaced(node, replacement);
-  }
-
-  void Kill(Node* node) {
-    TRACE("killing #%d:%s\n", node->id(), node->op()->mnemonic());
-
+  void DisconnectFromEffectAndControl(Node* node) {
     if (node->op()->EffectInputCount() == 1) {
-      DCHECK_LT(0, node->op()->ControlInputCount());
-      // Disconnect the node from effect and control chains.
-      Node* control = NodeProperties::GetControlInput(node);
+      Node* control;
+      if (node->op()->ControlInputCount() == 1) {
+        control = NodeProperties::GetControlInput(node);
+      } else {
+        DCHECK_EQ(node->op()->ControlInputCount(), 0);
+        control = nullptr;
+      }
       Node* effect = NodeProperties::GetEffectInput(node);
       ReplaceEffectControlUses(node, effect, control);
     } else {
@@ -3914,10 +4588,37 @@ class RepresentationSelector {
       DCHECK_EQ(0, node->op()->ControlOutputCount());
       DCHECK_EQ(0, node->op()->EffectOutputCount());
     }
+  }
 
-    node->ReplaceUses(jsgraph_->Dead());
+  void DeferReplacement(Node* node, Node* replacement) {
+    TRACE("defer replacement #%d:%s with #%d:%s\n", node->id(),
+          node->op()->mnemonic(), replacement->id(),
+          replacement->op()->mnemonic());
 
-    node->NullAllInputs();  // The {node} is now dead.
+    DisconnectFromEffectAndControl(node);
+    node->NullAllInputs();  // Node is now dead.
+
+    replacements_.push_back(node);
+    replacements_.push_back(replacement);
+
+    NotifyNodeReplaced(node, replacement);
+  }
+
+  Node* InsertTypeOverrideForVerifier(const Type& type, Node* node) {
+    if (V8_UNLIKELY(verification_enabled())) {
+      DCHECK(!type.IsInvalid());
+      node = graph()->NewNode(common()->SLVerifierHint(nullptr, type), node);
+      verifier_->RecordHint(node);
+    }
+    return node;
+  }
+
+  Node* InsertSemanticsHintForVerifier(const Operator* semantics, Node* node) {
+    if (V8_UNLIKELY(verification_enabled())) {
+      node = graph()->NewNode(common()->SLVerifierHint(semantics, {}), node);
+      verifier_->RecordHint(node);
+    }
+    return node;
   }
 
  private:
@@ -3935,11 +4636,15 @@ class RepresentationSelector {
                                            replacement);
   }
 
+  Type true_type() const { return singleton_true_; }
+  Type false_type() const { return singleton_false_; }
+
   JSGraph* jsgraph_;
+  JSHeapBroker* broker_;
   Zone* zone_;                      // Temporary zone.
   // Map from node to its uses that might need to be revisited.
   ZoneMap<Node*, ZoneVector<Node*>> might_need_revisit_;
-  size_t const count_;              // number of nodes in the graph
+  size_t count_;                    // number of nodes in the graph
   ZoneVector<NodeInfo> info_;       // node id -> usage information
 #ifdef DEBUG
   ZoneVector<InputUseInfos> node_input_use_infos_;  // Debug information about
@@ -3963,9 +4668,12 @@ class RepresentationSelector {
   NodeOriginTable* node_origins_;
   TypeCache const* type_cache_;
   OperationTyper op_typer_;  // helper for the feedback typer
+  Type singleton_true_;
+  Type singleton_false_;
   TickCounter* const tick_counter_;
   Linkage* const linkage_;
   ObserveNodeManager* const observe_node_manager_;
+  SimplifiedLoweringVerifier* verifier_;  // Used to verify output graph.
 
   NodeInfo* GetInfo(Node* node) {
     DCHECK(node->id() < count_);
@@ -4133,24 +4841,28 @@ void RepresentationSelector::InsertUnreachableIfNecessary<LOWER>(Node* node) {
 SimplifiedLowering::SimplifiedLowering(
     JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    PoisoningMitigationLevel poisoning_level, TickCounter* tick_counter,
-    Linkage* linkage, ObserveNodeManager* observe_node_manager)
+    TickCounter* tick_counter, Linkage* linkage, OptimizedCompilationInfo* info,
+    ObserveNodeManager* observe_node_manager)
     : jsgraph_(jsgraph),
       broker_(broker),
       zone_(zone),
       type_cache_(TypeCache::Get()),
       source_positions_(source_positions),
       node_origins_(node_origins),
-      poisoning_level_(poisoning_level),
       tick_counter_(tick_counter),
       linkage_(linkage),
+      info_(info),
       observe_node_manager_(observe_node_manager) {}
 
 void SimplifiedLowering::LowerAllNodes() {
-  RepresentationChanger changer(jsgraph(), broker_);
+  SimplifiedLoweringVerifier* verifier = nullptr;
+  if (v8_flags.verify_simplified_lowering) {
+    verifier = zone_->New<SimplifiedLoweringVerifier>(zone_, graph());
+  }
+  RepresentationChanger changer(jsgraph(), broker_, verifier);
   RepresentationSelector selector(
       jsgraph(), broker_, zone_, &changer, source_positions_, node_origins_,
-      tick_counter_, linkage_, observe_node_manager_);
+      tick_counter_, linkage_, observe_node_manager_, verifier);
   selector.Run(this);
 }
 
@@ -4166,8 +4878,9 @@ void SimplifiedLowering::DoJSToNumberOrNumericTruncatesToFloat64(
   Node* control = node->InputAt(4);
 
   Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), value);
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+  Node* branch0 = graph()->NewNode(
+      common()->Branch(BranchHint::kTrue, BranchSemantics::kMachine), check0,
+      control);
 
   Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
   Node* etrue0 = effect;
@@ -4205,7 +4918,9 @@ void SimplifiedLowering::DoJSToNumberOrNumericTruncatesToFloat64(
     }
 
     Node* check1 = graph()->NewNode(simplified()->ObjectIsSmi(), vfalse0);
-    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
+    Node* branch1 = graph()->NewNode(
+        common()->Branch(BranchHint::kNone, BranchSemantics::kMachine), check1,
+        if_false0);
 
     Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
     Node* etrue1 = efalse0;
@@ -4268,8 +4983,9 @@ void SimplifiedLowering::DoJSToNumberOrNumericTruncatesToWord32(
   Node* control = node->InputAt(4);
 
   Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), value);
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+  Node* branch0 = graph()->NewNode(
+      common()->Branch(BranchHint::kTrue, BranchSemantics::kMachine), check0,
+      control);
 
   Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
   Node* etrue0 = effect;
@@ -4304,7 +5020,9 @@ void SimplifiedLowering::DoJSToNumberOrNumericTruncatesToWord32(
     }
 
     Node* check1 = graph()->NewNode(simplified()->ObjectIsSmi(), vfalse0);
-    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
+    Node* branch1 = graph()->NewNode(
+        common()->Branch(BranchHint::kNone, BranchSemantics::kMachine), check1,
+        if_false0);
 
     Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
     Node* etrue1 = efalse0;
@@ -4432,8 +5150,9 @@ Node* SimplifiedLowering::Int32Div(Node* const node) {
       common()->Phi(MachineRepresentation::kWord32, 2);
 
   Node* check0 = graph()->NewNode(machine()->Int32LessThan(), zero, rhs);
-  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kTrue), check0,
-                                   graph()->start());
+  Node* branch0 = graph()->NewNode(
+      common()->Branch(BranchHint::kTrue, BranchSemantics::kMachine), check0,
+      graph()->start());
 
   Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
   Node* true0 = graph()->NewNode(machine()->Int32Div(), lhs, rhs, if_true0);
@@ -4442,7 +5161,9 @@ Node* SimplifiedLowering::Int32Div(Node* const node) {
   Node* false0;
   {
     Node* check1 = graph()->NewNode(machine()->Int32LessThan(), rhs, minus_one);
-    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
+    Node* branch1 = graph()->NewNode(
+        common()->Branch(BranchHint::kNone, BranchSemantics::kMachine), check1,
+        if_false0);
 
     Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
     Node* true1 = graph()->NewNode(machine()->Int32Div(), lhs, rhs, if_true1);
@@ -4451,7 +5172,9 @@ Node* SimplifiedLowering::Int32Div(Node* const node) {
     Node* false1;
     {
       Node* check2 = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-      Node* branch2 = graph()->NewNode(common()->Branch(), check2, if_false1);
+      Node* branch2 = graph()->NewNode(
+          common()->Branch(BranchHint::kNone, BranchSemantics::kMachine),
+          check2, if_false1);
 
       Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
       Node* true2 = zero;
@@ -4509,8 +5232,9 @@ Node* SimplifiedLowering::Int32Mod(Node* const node) {
       common()->Phi(MachineRepresentation::kWord32, 2);
 
   Node* check0 = graph()->NewNode(machine()->Int32LessThan(), zero, rhs);
-  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kTrue), check0,
-                                   graph()->start());
+  Node* branch0 = graph()->NewNode(
+      common()->Branch(BranchHint::kTrue, BranchSemantics::kMachine), check0,
+      graph()->start());
 
   Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
   Node* true0;
@@ -4518,7 +5242,9 @@ Node* SimplifiedLowering::Int32Mod(Node* const node) {
     Node* msk = graph()->NewNode(machine()->Int32Add(), rhs, minus_one);
 
     Node* check1 = graph()->NewNode(machine()->Word32And(), rhs, msk);
-    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_true0);
+    Node* branch1 = graph()->NewNode(
+        common()->Branch(BranchHint::kNone, BranchSemantics::kMachine), check1,
+        if_true0);
 
     Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
     Node* true1 = graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_true1);
@@ -4527,8 +5253,9 @@ Node* SimplifiedLowering::Int32Mod(Node* const node) {
     Node* false1;
     {
       Node* check2 = graph()->NewNode(machine()->Int32LessThan(), lhs, zero);
-      Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                       check2, if_false1);
+      Node* branch2 = graph()->NewNode(
+          common()->Branch(BranchHint::kFalse, BranchSemantics::kMachine),
+          check2, if_false1);
 
       Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
       Node* true2 = graph()->NewNode(
@@ -4552,8 +5279,9 @@ Node* SimplifiedLowering::Int32Mod(Node* const node) {
   Node* false0;
   {
     Node* check1 = graph()->NewNode(machine()->Int32LessThan(), rhs, minus_one);
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                     check1, if_false0);
+    Node* branch1 = graph()->NewNode(
+        common()->Branch(BranchHint::kTrue, BranchSemantics::kMachine), check1,
+        if_false0);
 
     Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
     Node* true1 = graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_true1);
@@ -4598,7 +5326,8 @@ Node* SimplifiedLowering::Uint32Div(Node* const node) {
   }
 
   Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-  Diamond d(graph(), common(), check, BranchHint::kFalse);
+  Diamond d(graph(), common(), check, BranchHint::kFalse,
+            BranchSemantics::kMachine);
   Node* div = graph()->NewNode(machine()->Uint32Div(), lhs, rhs, d.if_false);
   return d.Phi(MachineRepresentation::kWord32, zero, div);
 }
@@ -4635,8 +5364,9 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
       common()->Phi(MachineRepresentation::kWord32, 2);
 
   Node* check0 = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kFalse), check0,
-                                   graph()->start());
+  Node* branch0 = graph()->NewNode(
+      common()->Branch(BranchHint::kFalse, BranchSemantics::kMachine), check0,
+      graph()->start());
 
   Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
   Node* true0 = zero;
@@ -4647,7 +5377,9 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
     Node* msk = graph()->NewNode(machine()->Int32Add(), rhs, minus_one);
 
     Node* check1 = graph()->NewNode(machine()->Word32And(), rhs, msk);
-    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
+    Node* branch1 = graph()->NewNode(
+        common()->Branch(BranchHint::kNone, BranchSemantics::kMachine), check1,
+        if_false0);
 
     Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
     Node* true1 = graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, if_true1);
@@ -4776,7 +5508,7 @@ void SimplifiedLowering::DoUnsigned32ToUint8Clamped(Node* node) {
 
 Node* SimplifiedLowering::ToNumberCode() {
   if (!to_number_code_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kToNumber);
     to_number_code_.set(jsgraph()->HeapConstant(callable.code()));
   }
   return to_number_code_.get();
@@ -4785,7 +5517,7 @@ Node* SimplifiedLowering::ToNumberCode() {
 Node* SimplifiedLowering::ToNumberConvertBigIntCode() {
   if (!to_number_convert_big_int_code_.is_set()) {
     Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kToNumberConvertBigInt);
+        Builtins::CallableFor(isolate(), Builtin::kToNumberConvertBigInt);
     to_number_convert_big_int_code_.set(
         jsgraph()->HeapConstant(callable.code()));
   }
@@ -4794,7 +5526,7 @@ Node* SimplifiedLowering::ToNumberConvertBigIntCode() {
 
 Node* SimplifiedLowering::ToNumericCode() {
   if (!to_numeric_code_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumeric);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kToNumeric);
     to_numeric_code_.set(jsgraph()->HeapConstant(callable.code()));
   }
   return to_numeric_code_.get();
@@ -4802,7 +5534,7 @@ Node* SimplifiedLowering::ToNumericCode() {
 
 Operator const* SimplifiedLowering::ToNumberOperator() {
   if (!to_number_operator_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
@@ -4816,7 +5548,7 @@ Operator const* SimplifiedLowering::ToNumberOperator() {
 Operator const* SimplifiedLowering::ToNumberConvertBigIntOperator() {
   if (!to_number_convert_big_int_operator_.is_set()) {
     Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kToNumberConvertBigInt);
+        Builtins::CallableFor(isolate(), Builtin::kToNumberConvertBigInt);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
@@ -4829,7 +5561,7 @@ Operator const* SimplifiedLowering::ToNumberConvertBigIntOperator() {
 
 Operator const* SimplifiedLowering::ToNumericOperator() {
   if (!to_numeric_operator_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumeric);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kToNumeric);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),

@@ -1,48 +1,89 @@
 // just pre-load all the stuff that index.js lazily exports
 const internalRe = require('./internal/re')
+const constants = require('./internal/constants')
+const SemVer = require('./classes/semver')
+const identifiers = require('./internal/identifiers')
+const parse = require('./functions/parse')
+const valid = require('./functions/valid')
+const clean = require('./functions/clean')
+const inc = require('./functions/inc')
+const diff = require('./functions/diff')
+const major = require('./functions/major')
+const minor = require('./functions/minor')
+const patch = require('./functions/patch')
+const prerelease = require('./functions/prerelease')
+const compare = require('./functions/compare')
+const rcompare = require('./functions/rcompare')
+const compareLoose = require('./functions/compare-loose')
+const compareBuild = require('./functions/compare-build')
+const sort = require('./functions/sort')
+const rsort = require('./functions/rsort')
+const gt = require('./functions/gt')
+const lt = require('./functions/lt')
+const eq = require('./functions/eq')
+const neq = require('./functions/neq')
+const gte = require('./functions/gte')
+const lte = require('./functions/lte')
+const cmp = require('./functions/cmp')
+const coerce = require('./functions/coerce')
+const Comparator = require('./classes/comparator')
+const Range = require('./classes/range')
+const satisfies = require('./functions/satisfies')
+const toComparators = require('./ranges/to-comparators')
+const maxSatisfying = require('./ranges/max-satisfying')
+const minSatisfying = require('./ranges/min-satisfying')
+const minVersion = require('./ranges/min-version')
+const validRange = require('./ranges/valid')
+const outside = require('./ranges/outside')
+const gtr = require('./ranges/gtr')
+const ltr = require('./ranges/ltr')
+const intersects = require('./ranges/intersects')
+const simplifyRange = require('./ranges/simplify')
+const subset = require('./ranges/subset')
 module.exports = {
+  parse,
+  valid,
+  clean,
+  inc,
+  diff,
+  major,
+  minor,
+  patch,
+  prerelease,
+  compare,
+  rcompare,
+  compareLoose,
+  compareBuild,
+  sort,
+  rsort,
+  gt,
+  lt,
+  eq,
+  neq,
+  gte,
+  lte,
+  cmp,
+  coerce,
+  Comparator,
+  Range,
+  satisfies,
+  toComparators,
+  maxSatisfying,
+  minSatisfying,
+  minVersion,
+  validRange,
+  outside,
+  gtr,
+  ltr,
+  intersects,
+  simplifyRange,
+  subset,
+  SemVer,
   re: internalRe.re,
   src: internalRe.src,
   tokens: internalRe.t,
-  SEMVER_SPEC_VERSION: require('./internal/constants').SEMVER_SPEC_VERSION,
-  SemVer: require('./classes/semver'),
-  compareIdentifiers: require('./internal/identifiers').compareIdentifiers,
-  rcompareIdentifiers: require('./internal/identifiers').rcompareIdentifiers,
-  parse: require('./functions/parse'),
-  valid: require('./functions/valid'),
-  clean: require('./functions/clean'),
-  inc: require('./functions/inc'),
-  diff: require('./functions/diff'),
-  major: require('./functions/major'),
-  minor: require('./functions/minor'),
-  patch: require('./functions/patch'),
-  prerelease: require('./functions/prerelease'),
-  compare: require('./functions/compare'),
-  rcompare: require('./functions/rcompare'),
-  compareLoose: require('./functions/compare-loose'),
-  compareBuild: require('./functions/compare-build'),
-  sort: require('./functions/sort'),
-  rsort: require('./functions/rsort'),
-  gt: require('./functions/gt'),
-  lt: require('./functions/lt'),
-  eq: require('./functions/eq'),
-  neq: require('./functions/neq'),
-  gte: require('./functions/gte'),
-  lte: require('./functions/lte'),
-  cmp: require('./functions/cmp'),
-  coerce: require('./functions/coerce'),
-  Comparator: require('./classes/comparator'),
-  Range: require('./classes/range'),
-  satisfies: require('./functions/satisfies'),
-  toComparators: require('./ranges/to-comparators'),
-  maxSatisfying: require('./ranges/max-satisfying'),
-  minSatisfying: require('./ranges/min-satisfying'),
-  minVersion: require('./ranges/min-version'),
-  validRange: require('./ranges/valid'),
-  outside: require('./ranges/outside'),
-  gtr: require('./ranges/gtr'),
-  ltr: require('./ranges/ltr'),
-  intersects: require('./ranges/intersects'),
-  simplifyRange: require('./ranges/simplify'),
-  subset: require('./ranges/subset'),
+  SEMVER_SPEC_VERSION: constants.SEMVER_SPEC_VERSION,
+  RELEASE_TYPES: constants.RELEASE_TYPES,
+  compareIdentifiers: identifiers.compareIdentifiers,
+  rcompareIdentifiers: identifiers.rcompareIdentifiers,
 }

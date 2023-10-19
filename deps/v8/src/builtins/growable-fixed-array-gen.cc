@@ -67,7 +67,7 @@ TNode<JSArray> GrowableFixedArray::ToJSArray(const TNode<Context> context) {
 
 TNode<IntPtrT> GrowableFixedArray::NewCapacity(
     TNode<IntPtrT> current_capacity) {
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              IntPtrGreaterThanOrEqual(current_capacity, IntPtrConstant(0)));
 
   // Growth rate is analog to JSObject::NewElementsCapacity:
@@ -82,9 +82,9 @@ TNode<IntPtrT> GrowableFixedArray::NewCapacity(
 
 TNode<FixedArray> GrowableFixedArray::ResizeFixedArray(
     const TNode<IntPtrT> element_count, const TNode<IntPtrT> new_capacity) {
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(element_count, IntPtrConstant(0)));
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(new_capacity, IntPtrConstant(0)));
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(new_capacity, element_count));
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(element_count, IntPtrConstant(0)));
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(new_capacity, IntPtrConstant(0)));
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(new_capacity, element_count));
 
   const TNode<FixedArray> from_array = var_array_.value();
 

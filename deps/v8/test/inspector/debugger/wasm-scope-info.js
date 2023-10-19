@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection --experimental-wasm-simd
-// SIMD in Liftoff only works with these cpu features, force them on.
-// Flags: --enable-sse3 --enable-ssse3 --enable-sse4-1
+// Flags: --experimental-wasm-type-reflection
 
 utils.load('test/inspector/wasm-inspector-test.js');
 
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test retrieving scope information from compiled Liftoff frames');
 session.setupScriptMap();
+Protocol.Runtime.enable();
 Protocol.Debugger.enable();
 Protocol.Debugger.onPaused(printPauseLocationsAndContinue);
 
@@ -67,7 +66,8 @@ async function instantiateWasm() {
   var builder = new WasmModuleBuilder();
   // Add a global, memory and exports to populate the module scope.
   builder.addGlobal(kWasmI32, true).exportAs('exported_global');
-  builder.addMemory(1,1).exportMemoryAs('exported_memory');
+  builder.addMemory(1, 1);
+  builder.exportMemoryAs('exported_memory');
   builder.addTable(kWasmAnyFunc, 3).exportAs('exported_table');
 
   // Add two functions without breakpoint, to check that locals and operand

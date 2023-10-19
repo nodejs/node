@@ -7,7 +7,8 @@ namespace string {
 // String.prototype.substr ( start, length )
 // ES6 #sec-string.prototype.substr
 transitioning javascript builtin StringPrototypeSubstr(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   const methodName: constexpr string = 'String.prototype.substr';
   // 1. Let O be ? RequireObjectCoercible(this value).
   // 2. Let S be ? ToString(O).
@@ -20,14 +21,14 @@ transitioning javascript builtin StringPrototypeSubstr(
   // 6. If intStart < 0, set intStart to max(size + intStart, 0).
   const start = arguments[0];
   const initStart: uintptr =
-      start != Undefined ? ConvertToRelativeIndex(start, size) : 0;
+      start != Undefined ? ConvertAndClampRelativeIndex(start, size) : 0;
 
   // 4. If length is undefined,
   //   let end be +∞; otherwise let end be ? ToInteger(length).
   // 7. Let resultLength be min(max(end, 0), size - intStart).
   const length = arguments[1];
   const lengthLimit = size - initStart;
-  assert(lengthLimit <= size);
+  dcheck(lengthLimit <= size);
   const resultLength: uintptr = length != Undefined ?
       ClampToIndexRange(length, lengthLimit) :
       lengthLimit;

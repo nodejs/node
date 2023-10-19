@@ -4,17 +4,17 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   n: [100000],
-  method: ['trace', 'isTraceCategoryEnabled']
+  method: ['trace', 'isTraceCategoryEnabled'],
 }, {
   flags: [
     '--expose-internals',
     '--no-warnings',
     '--trace-event-categories', 'foo',
-  ]
+  ],
 });
 
 const {
-  TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent
+  TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent,
 } = common.binding('constants').trace;
 
 function doTrace(n, trace) {
@@ -37,7 +37,7 @@ function doIsTraceCategoryEnabled(n, isTraceCategoryEnabled) {
 function main({ n, method }) {
   const {
     trace,
-    isTraceCategoryEnabled
+    isTraceCategoryEnabled,
   } = common.binding('trace_events');
 
   switch (method) {

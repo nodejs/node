@@ -1,8 +1,9 @@
-#include <limits.h>
 #include <inttypes.h>
-#include <stdio.h>
 #include <js_native_api.h>
+#include <limits.h>
+#include <stdio.h>
 #include "../common.h"
+#include "../entry_point.h"
 
 static napi_value IsLossless(napi_env env, napi_callback_info info) {
   size_t argc = 2;
@@ -113,7 +114,7 @@ static napi_value TestWords(napi_env env, napi_callback_info info) {
 static napi_value CreateTooBigBigInt(napi_env env, napi_callback_info info) {
   int sign_bit = 0;
   size_t word_count = SIZE_MAX;
-  uint64_t words[10];
+  uint64_t words[10] = {0};
 
   napi_value output;
 
@@ -125,7 +126,7 @@ static napi_value CreateTooBigBigInt(napi_env env, napi_callback_info info) {
 
 // Test that we correctly forward exceptions from the engine.
 static napi_value MakeBigIntWordsThrow(napi_env env, napi_callback_info info) {
-  uint64_t words[10];
+  uint64_t words[10] = {0};
   napi_value output;
 
   napi_status status = napi_create_bigint_words(env,

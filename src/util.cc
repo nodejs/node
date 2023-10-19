@@ -27,6 +27,8 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_snapshot_builder.h"
+#include "node_v8_platform-inl.h"
 #include "string_bytes.h"
 #include "uv.h"
 
@@ -54,10 +56,15 @@ static std::atomic_int seq = {0};  // Sequence number for diagnostic filenames.
 
 namespace node {
 
+using v8::ArrayBuffer;
 using v8::ArrayBufferView;
+using v8::Context;
+using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
+using v8::Object;
 using v8::String;
+using v8::Template;
 using v8::Value;
 
 template <typename T>
@@ -128,7 +135,7 @@ BufferValue::BufferValue(Isolate* isolate, Local<Value> value) {
 
 void LowMemoryNotification() {
   if (per_process::v8_initialized) {
-    auto isolate = Isolate::GetCurrent();
+    auto isolate = Isolate::TryGetCurrent();
     if (isolate != nullptr) {
       isolate->LowMemoryNotification();
     }
@@ -139,7 +146,7 @@ std::string GetProcessTitle(const char* default_title) {
   std::string buf(16, '\0');
 
   for (;;) {
-    const int rc = uv_get_process_title(&buf[0], buf.size());
+    const int rc = uv_get_process_title(buf.data(), buf.size());
 
     if (rc == 0)
       break;
@@ -155,7 +162,7 @@ std::string GetProcessTitle(const char* default_title) {
 
   // Strip excess trailing nul bytes. Using strlen() here is safe,
   // uv_get_process_title() always zero-terminates the result.
-  buf.resize(strlen(&buf[0]));
+  buf.resize(strlen(buf.data()));
 
   return buf;
 }
@@ -164,17 +171,21 @@ std::string GetHumanReadableProcessName() {
   return SPrintF("%s[%d]", GetProcessTitle("Node.js"), uv_os_getpid());
 }
 
-std::vector<std::string> SplitString(const std::string& in, char delim) {
-  std::vector<std::string> out;
-  if (in.empty())
-    return out;
-  std::istringstream in_stream(in);
-  while (in_stream.good()) {
-    std::string item;
-    std::getline(in_stream, item, delim);
-    if (item.empty()) continue;
-    out.emplace_back(std::move(item));
+std::vector<std::string_view> SplitString(const std::string_view in,
+                                          const std::string_view delim) {
+  std::vector<std::string_view> out;
+
+  for (auto first = in.data(), second = in.data(), last = first + in.size();
+       second != last && first != last;
+       first = second + 1) {
+    second =
+        std::find_first_of(first, last, std::cbegin(delim), std::cend(delim));
+
+    if (first != second) {
+      out.emplace_back(first, second - first);
+    }
   }
+
   return out;
 }
 
@@ -219,6 +230,60 @@ int WriteFileSync(v8::Isolate* isolate,
   node::Utf8Value utf8(isolate, string);
   uv_buf_t buf = uv_buf_init(utf8.out(), utf8.length());
   return WriteFileSync(path, buf);
+}
+
+int ReadFileSync(std::string* result, const char* path) {
+  uv_fs_t req;
+  auto defer_req_cleanup = OnScopeLeave([&req]() {
+    uv_fs_req_cleanup(&req);
+  });
+
+  uv_file file = uv_fs_open(nullptr, &req, path, O_RDONLY, 0, nullptr);
+  if (req.result < 0) {
+    // req will be cleaned up by scope leave.
+    return req.result;
+  }
+  uv_fs_req_cleanup(&req);
+
+  auto defer_close = OnScopeLeave([file]() {
+    uv_fs_t close_req;
+    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
+    uv_fs_req_cleanup(&close_req);
+  });
+
+  *result = std::string("");
+  char buffer[4096];
+  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
+
+  while (true) {
+    const int r =
+        uv_fs_read(nullptr, &req, file, &buf, 1, result->length(), nullptr);
+    if (req.result < 0) {
+      // req will be cleaned up by scope leave.
+      return req.result;
+    }
+    uv_fs_req_cleanup(&req);
+    if (r <= 0) {
+      break;
+    }
+    result->append(buf.base, r);
+  }
+  return 0;
+}
+
+std::vector<char> ReadFileSync(FILE* fp) {
+  CHECK_EQ(ftell(fp), 0);
+  int err = fseek(fp, 0, SEEK_END);
+  CHECK_EQ(err, 0);
+  size_t size = ftell(fp);
+  CHECK_NE(size, static_cast<size_t>(-1L));
+  err = fseek(fp, 0, SEEK_SET);
+  CHECK_EQ(err, 0);
+
+  std::vector<char> contents(size);
+  size_t num_read = fread(contents.data(), size, 1, fp);
+  CHECK_EQ(num_read, 1);
+  return contents;
 }
 
 void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
@@ -274,6 +339,362 @@ std::string DiagnosticFilename::MakeFilename(
   oss << "." << std::setfill('0') << std::setw(3) << ++seq;
   oss << "." << ext;
   return oss.str();
+}
+
+Local<v8::FunctionTemplate> NewFunctionTemplate(
+    v8::Isolate* isolate,
+    v8::FunctionCallback callback,
+    Local<v8::Signature> signature,
+    v8::ConstructorBehavior behavior,
+    v8::SideEffectType side_effect_type,
+    const v8::CFunction* c_function) {
+  return v8::FunctionTemplate::New(isolate,
+                                   callback,
+                                   Local<v8::Value>(),
+                                   signature,
+                                   0,
+                                   behavior,
+                                   side_effect_type,
+                                   c_function);
+}
+
+void SetMethod(Local<v8::Context> context,
+               Local<v8::Object> that,
+               const std::string_view name,
+               v8::FunctionCallback callback) {
+  Isolate* isolate = context->GetIsolate();
+  Local<v8::Function> function =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+void SetMethod(v8::Isolate* isolate,
+               v8::Local<v8::Template> that,
+               const std::string_view name,
+               v8::FunctionCallback callback) {
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(name_string, t);
+}
+
+void SetFastMethod(Isolate* isolate,
+                   Local<Template> that,
+                   const std::string_view name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::CFunction* c_function) {
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          slow_callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect,
+                          c_function);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(name_string, t);
+}
+
+void SetFastMethod(Local<v8::Context> context,
+                   Local<v8::Object> that,
+                   const std::string_view name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::CFunction* c_function) {
+  Isolate* isolate = context->GetIsolate();
+  Local<v8::Function> function =
+      NewFunctionTemplate(isolate,
+                          slow_callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect,
+                          c_function)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+}
+
+void SetFastMethodNoSideEffect(Local<v8::Context> context,
+                               Local<v8::Object> that,
+                               const std::string_view name,
+                               v8::FunctionCallback slow_callback,
+                               const v8::CFunction* c_function) {
+  Isolate* isolate = context->GetIsolate();
+  Local<v8::Function> function =
+      NewFunctionTemplate(isolate,
+                          slow_callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect,
+                          c_function)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+}
+
+void SetFastMethodNoSideEffect(Isolate* isolate,
+                               Local<Template> that,
+                               const std::string_view name,
+                               v8::FunctionCallback slow_callback,
+                               const v8::CFunction* c_function) {
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          slow_callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect,
+                          c_function);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(name_string, t);
+}
+
+void SetFastMethod(Isolate* isolate,
+                   Local<Template> that,
+                   const std::string_view name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::MemorySpan<const v8::CFunction>& methods) {
+  Local<v8::FunctionTemplate> t = FunctionTemplate::NewWithCFunctionOverloads(
+      isolate,
+      slow_callback,
+      Local<Value>(),
+      Local<v8::Signature>(),
+      0,
+      v8::ConstructorBehavior::kThrow,
+      v8::SideEffectType::kHasSideEffect,
+      methods);
+
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(name_string, t);
+}
+
+void SetFastMethodNoSideEffect(
+    Isolate* isolate,
+    Local<Template> that,
+    const std::string_view name,
+    v8::FunctionCallback slow_callback,
+    const v8::MemorySpan<const v8::CFunction>& methods) {
+  Local<v8::FunctionTemplate> t = FunctionTemplate::NewWithCFunctionOverloads(
+      isolate,
+      slow_callback,
+      Local<Value>(),
+      Local<v8::Signature>(),
+      0,
+      v8::ConstructorBehavior::kThrow,
+      v8::SideEffectType::kHasNoSideEffect,
+      methods);
+
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(name_string, t);
+}
+
+void SetMethodNoSideEffect(Local<v8::Context> context,
+                           Local<v8::Object> that,
+                           const std::string_view name,
+                           v8::FunctionCallback callback) {
+  Isolate* isolate = context->GetIsolate();
+  Local<v8::Function> function =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+void SetMethodNoSideEffect(Isolate* isolate,
+                           Local<v8::Template> that,
+                           const std::string_view name,
+                           v8::FunctionCallback callback) {
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(name_string, t);
+}
+
+void SetProtoMethod(v8::Isolate* isolate,
+                    Local<v8::FunctionTemplate> that,
+                    const std::string_view name,
+                    v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+void SetProtoMethodNoSideEffect(v8::Isolate* isolate,
+                                Local<v8::FunctionTemplate> that,
+                                const std::string_view name,
+                                v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+void SetInstanceMethod(v8::Isolate* isolate,
+                       Local<v8::FunctionTemplate> that,
+                       const std::string_view name,
+                       v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->InstanceTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);
+}
+
+void SetConstructorFunction(Local<v8::Context> context,
+                            Local<v8::Object> that,
+                            const char* name,
+                            Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag) {
+  Isolate* isolate = context->GetIsolate();
+  SetConstructorFunction(
+      context, that, OneByteString(isolate, name), tmpl, flag);
+}
+
+void SetConstructorFunction(Local<Context> context,
+                            Local<Object> that,
+                            Local<String> name,
+                            Local<FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag) {
+  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+    tmpl->SetClassName(name);
+  that->Set(context, name, tmpl->GetFunction(context).ToLocalChecked()).Check();
+}
+
+void SetConstructorFunction(Isolate* isolate,
+                            Local<Template> that,
+                            const char* name,
+                            Local<FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag) {
+  SetConstructorFunction(
+      isolate, that, OneByteString(isolate, name), tmpl, flag);
+}
+
+void SetConstructorFunction(Isolate* isolate,
+                            Local<Template> that,
+                            Local<String> name,
+                            Local<FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag) {
+  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+    tmpl->SetClassName(name);
+  that->Set(name, tmpl);
+}
+
+Local<String> UnionBytes::ToStringChecked(Isolate* isolate) const {
+  if (is_one_byte()) {
+    return String::NewExternalOneByte(isolate, one_byte_resource_)
+        .ToLocalChecked();
+  } else {
+    return String::NewExternalTwoByte(isolate, two_byte_resource_)
+        .ToLocalChecked();
+  }
+}
+
+RAIIIsolate::RAIIIsolate(const SnapshotData* data)
+    : allocator_{ArrayBuffer::Allocator::NewDefaultAllocator()} {
+  isolate_ = Isolate::Allocate();
+  CHECK_NOT_NULL(isolate_);
+  per_process::v8_platform.Platform()->RegisterIsolate(isolate_,
+                                                       uv_default_loop());
+  Isolate::CreateParams params;
+  if (data != nullptr) {
+    SnapshotBuilder::InitializeIsolateParams(data, &params);
+  }
+  params.array_buffer_allocator = allocator_.get();
+  Isolate::Initialize(isolate_, params);
+}
+
+RAIIIsolate::~RAIIIsolate() {
+  per_process::v8_platform.Platform()->UnregisterIsolate(isolate_);
+  isolate_->Dispose();
 }
 
 }  // namespace node

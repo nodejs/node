@@ -11,72 +11,73 @@ const cleanOutput = (str, path) => normalizePath(str)
 
 const clean = (res, path) => {
   const cleaned = new Map()
-  for (const [key, value] of res.entries())
+  for (const [key, value] of res.entries()) {
     cleaned.set(key, cleanOutput(value, path))
+  }
   return cleaned
 }
 
-t.test('get-workspaces', async t => {
-  const path = t.testdir({
-    packages: {
-      a: {
-        'package.json': JSON.stringify({
-          name: 'a',
-          version: '1.0.0',
-          scripts: { glorp: 'echo a doing the glerp glop' },
-        }),
-      },
-      b: {
-        'package.json': JSON.stringify({
-          name: 'b',
-          version: '2.0.0',
-          scripts: { glorp: 'echo b doing the glerp glop' },
-        }),
-      },
-      c: {
-        'package.json': JSON.stringify({
-          name: 'c',
-          version: '1.0.0',
-          scripts: {
-            test: 'exit 0',
-            posttest: 'echo posttest',
-            lorem: 'echo c lorem',
-          },
-        }),
-      },
-      d: {
-        'package.json': JSON.stringify({
-          name: 'd',
-          version: '1.0.0',
-          scripts: {
-            test: 'exit 0',
-            posttest: 'echo posttest',
-          },
-        }),
-      },
-      e: {
-        'package.json': JSON.stringify({
-          name: 'e',
-          scripts: { test: 'exit 0', start: 'echo start something' },
-        }),
-      },
-      noscripts: {
-        'package.json': JSON.stringify({
-          name: 'noscripts',
-          version: '1.0.0',
-        }),
-      },
+const path = t.testdir({
+  packages: {
+    a: {
+      'package.json': JSON.stringify({
+        name: 'a',
+        version: '1.0.0',
+        scripts: { glorp: 'echo a doing the glerp glop' },
+      }),
     },
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-      workspaces: ['packages/*'],
-    }),
-  })
+    b: {
+      'package.json': JSON.stringify({
+        name: 'b',
+        version: '2.0.0',
+        scripts: { glorp: 'echo b doing the glerp glop' },
+      }),
+    },
+    c: {
+      'package.json': JSON.stringify({
+        name: 'c',
+        version: '1.0.0',
+        scripts: {
+          test: 'exit 0',
+          posttest: 'echo posttest',
+          lorem: 'echo c lorem',
+        },
+      }),
+    },
+    d: {
+      'package.json': JSON.stringify({
+        name: 'd',
+        version: '1.0.0',
+        scripts: {
+          test: 'exit 0',
+          posttest: 'echo posttest',
+        },
+      }),
+    },
+    e: {
+      'package.json': JSON.stringify({
+        name: 'e',
+        scripts: { test: 'exit 0', start: 'echo start something' },
+      }),
+    },
+    noscripts: {
+      'package.json': JSON.stringify({
+        name: 'noscripts',
+        version: '1.0.0',
+      }),
+    },
+  },
+  'package.json': JSON.stringify({
+    name: 'x',
+    version: '1.2.3',
+    workspaces: ['packages/*'],
+  }),
+})
 
-  let workspaces
+let workspaces
 
-  workspaces = await getWorkspaces(['a', 'b'], { path })
+t.test('filter by package name', async t => {
+  workspaces = await getWorkspaces(['a', 'b'], { path, relativeFrom: path })
   t.same(
     clean(workspaces, path),
     new Map(Object.entries({
@@ -85,8 +86,24 @@ t.test('get-workspaces', async t => {
     })),
     'should filter by package name'
   )
+})
 
-  workspaces = await getWorkspaces(['./packages/c'], { path })
+t.test('include workspace root', async t => {
+  workspaces = await getWorkspaces(['a', 'b'],
+    { path, includeWorkspaceRoot: true, relativeFrom: path })
+  t.same(
+    clean(workspaces, path),
+    new Map(Object.entries({
+      x: '{PATH}',
+      a: '{PATH}/packages/a',
+      b: '{PATH}/packages/b',
+    })),
+    'include rootspace root'
+  )
+})
+
+t.test('filter by package directory', async t => {
+  workspaces = await getWorkspaces(['./packages/c'], { path, relativeFrom: path })
   t.same(
     clean(workspaces, path),
     new Map(Object.entries({
@@ -94,8 +111,10 @@ t.test('get-workspaces', async t => {
     })),
     'should filter by package directory'
   )
+})
 
-  workspaces = await getWorkspaces(['packages/c'], { path })
+t.test('filter by rel package directory', async t => {
+  workspaces = await getWorkspaces(['packages/c'], { path, relativeFrom: path })
   t.same(
     clean(workspaces, path),
     new Map(Object.entries({
@@ -103,8 +122,10 @@ t.test('get-workspaces', async t => {
     })),
     'should filter by rel package directory'
   )
+})
 
-  workspaces = await getWorkspaces([resolve(path, 'packages/c')], { path })
+t.test('filter by absolute package directory', async t => {
+  workspaces = await getWorkspaces([resolve(path, 'packages/c')], { path, relativeFrom: path })
   t.same(
     clean(workspaces, path),
     new Map(Object.entries({
@@ -112,8 +133,10 @@ t.test('get-workspaces', async t => {
     })),
     'should filter by absolute package directory'
   )
+})
 
-  workspaces = await getWorkspaces(['packages'], { path })
+t.test('filter by parent directory name', async t => {
+  workspaces = await getWorkspaces(['packages'], { path, relativeFrom: path })
   t.same(
     clean(workspaces, path),
     new Map(Object.entries({
@@ -126,8 +149,10 @@ t.test('get-workspaces', async t => {
     })),
     'should filter by parent directory name'
   )
+})
 
-  workspaces = await getWorkspaces(['./packages/'], { path })
+t.test('filter by parent directory path', async t => {
+  workspaces = await getWorkspaces(['./packages/'], { path, relativeFrom: path })
   t.same(
     clean(workspaces, path),
     new Map(Object.entries({
@@ -140,8 +165,10 @@ t.test('get-workspaces', async t => {
     })),
     'should filter by parent directory path'
   )
+})
 
-  workspaces = await getWorkspaces([resolve(path, './packages')], { path })
+t.test('filter by absolute parent directory path', async t => {
+  workspaces = await getWorkspaces([resolve(path, './packages')], { path, relativeFrom: path })
   t.same(
     clean(workspaces, path),
     new Map(Object.entries({
@@ -154,8 +181,10 @@ t.test('get-workspaces', async t => {
     })),
     'should filter by absolute parent directory path'
   )
+})
 
-  workspaces = await getWorkspaces([], { path })
+t.test('no filter set', async t => {
+  workspaces = await getWorkspaces([], { path, relativeFrom: path })
   t.same(
     clean(workspaces, path),
     new Map(Object.entries({
@@ -168,32 +197,26 @@ t.test('get-workspaces', async t => {
     })),
     'should return all workspaces if no filter set'
   )
+})
 
-  try {
-    await getWorkspaces(['missing'], { path })
-    throw new Error('missed throw')
-  } catch (err) {
-    t.match(
-      err,
-      /No workspaces found/,
-      'should throw no workspaces found error'
-    )
-  }
+t.test('missing workspace', async t => {
+  await t.rejects(
+    getWorkspaces(['missing'], { path, relativeFrom: path }),
+    /No workspaces found/,
+    'should throw no workspaces found error'
+  )
+})
 
+t.test('no workspaces configured', async t => {
   const unconfiguredWorkspaces = t.testdir({
     'package.json': JSON.stringify({
       name: 'no-configured-workspaces',
       version: '1.0.0',
     }),
   })
-  try {
-    await getWorkspaces([], { path: unconfiguredWorkspaces })
-    throw new Error('missed throw')
-  } catch (err) {
-    t.match(
-      err,
-      /No workspaces found/,
-      'should throw no workspaces found error'
-    )
-  }
+  await t.rejects(
+    getWorkspaces([], { path: unconfiguredWorkspaces, relativeFrom: path }),
+    /No workspaces found/,
+    'should throw no workspaces found error'
+  )
 })

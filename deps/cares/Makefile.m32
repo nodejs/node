@@ -1,0 +1,77 @@
+#############################################################
+#
+## Makefile for building libcares.a with MingW32 (GCC-3.2)
+## Use: make -f Makefile.m32 [demos]
+##
+## Quick hack by Guenter; comments to: /dev/nul
+#
+########################################################
+## Nothing more to do below this line!
+
+LIB	= src/lib/libcares.a
+
+AR	= $(CROSSPREFIX)ar
+CC	= $(CROSSPREFIX)gcc
+LD	= $(CROSSPREFIX)gcc
+RANLIB	= $(CROSSPREFIX)ranlib
+#RM	= rm -f
+CP	= cp -afv
+
+CFLAGS	= $(CARES_CFLAG_EXTRAS) -O2 -Wall -I./include -I./src/lib -D_WIN32_WINNT=0x0600
+CFLAGS	+= -DCARES_STATICLIB
+LDFLAGS	= $(CARES_LDFLAG_EXTRAS) -s
+LIBS	= -lws2_32 -liphlpapi
+
+# Makefile.inc provides the CSOURCES and HHEADERS defines
+include src/lib/Makefile.inc
+
+OBJLIB	:= $(patsubst %.c,src/lib/%.o,$(strip $(CSOURCES)))
+
+
+$(LIB): $(OBJLIB)
+	$(AR) cru $@ $^
+	$(RANLIB) $@
+
+all: $(LIB) demos
+
+demos: src/tools/adig.exe src/tools/ahost.exe src/tools/acountry.exe
+
+tags:
+	etags *.[ch]
+
+%.exe: %.o src/tools/ares_getopt.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+$(OBJLIB): include/ares.h include/ares_dns.h include/ares_build.h
+
+.c.o:
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+include/ares_build.h:
+	$(CP) include/ares_build.h.dist include/ares_build.h
+
+check:
+
+install:
+	${top_srcdir}/mkinstalldirs ${DESTDIR}${libdir}
+	${top_srcdir}/mkinstalldirs ${DESTDIR}${includedir}
+	${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man3
+	${INSTALL} -m 644 $(LIB) ${DESTDIR}${libdir}
+	${RANLIB} ${DESTDIR}${libdir}/$(LIB)
+	chmod u-w ${DESTDIR}${libdir}/$(LIB)
+	${INSTALL} -m 444 ${srcdir}/include/ares.h ${DESTDIR}${includedir}
+	${INSTALL} -m 444 ${srcdir}/include/ares_build.h ${DESTDIR}${includedir}
+	${INSTALL} -m 444 ${srcdir}/include/ares_rules.h ${DESTDIR}${includedir}
+	${INSTALL} -m 444 ${srcdir}/include/ares_version.h ${DESTDIR}${includedir}
+	(for man in $(MANPAGES); do \
+	   ${INSTALL} -m 444 ${srcdir}/$${man} ${DESTDIR}${mandir}/man3; \
+	done)
+
+clean:
+	$(RM) src/tools/ares_getopt.o $(OBJLIB) $(LIB) src/tools/adig.exe src/tools/ahost.exe src/tools/acountry.exe
+
+distclean: clean
+	$(RM) config.cache config.log config.status Makefile
+ifeq "$(wildcard include/ares_build.h.dist)" "include/ares_build.h.dist"
+	$(RM) include/ares_build.h
+endif

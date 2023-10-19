@@ -9,14 +9,6 @@
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class ExternalReference;
-class HeapObject;
-template <typename>
-class Handle;
-
-
 namespace compiler {
 
 // Bundles various caches for common nodes.
@@ -53,12 +45,12 @@ class CommonNodeCache final {
 
   Node** FindFloat32Constant(float value) {
     // We canonicalize float constants at the bit representation level.
-    return float32_constants_.Find(bit_cast<int32_t>(value));
+    return float32_constants_.Find(base::bit_cast<int32_t>(value));
   }
 
   Node** FindFloat64Constant(double value) {
     // We canonicalize double constants at the bit representation level.
-    return float64_constants_.Find(bit_cast<int64_t>(value));
+    return float64_constants_.Find(base::bit_cast<int64_t>(value));
   }
 
   Node** FindExternalConstant(ExternalReference value);
@@ -69,7 +61,7 @@ class CommonNodeCache final {
 
   Node** FindNumberConstant(double value) {
     // We canonicalize double constants at the bit representation level.
-    return number_constants_.Find(bit_cast<int64_t>(value));
+    return number_constants_.Find(base::bit_cast<int64_t>(value));
   }
 
   Node** FindHeapConstant(Handle<HeapObject> value);

@@ -626,8 +626,8 @@ public:
    * longitude will have the desired value.
    * <p>
    * @param desired   The desired longitude.
-   * @param next      <tt>true</tt> if the next occurrance of the phase
-   *                  is desired, <tt>false</tt> for the previous occurrance.
+   * @param next      <tt>true</tt> if the next occurrence of the phase
+   *                  is desired, <tt>false</tt> for the previous occurrence.
    * @internal
    */
   UDate getMoonTime(double desired, UBool next);

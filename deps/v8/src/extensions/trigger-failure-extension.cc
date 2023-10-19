@@ -4,6 +4,7 @@
 
 #include "src/extensions/trigger-failure-extension.h"
 
+#include "include/v8-template.h"
 #include "src/base/logging.h"
 #include "src/common/checks.h"
 
@@ -38,21 +39,18 @@ TriggerFailureExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
   }
 }
 
-
 void TriggerFailureExtension::TriggerCheckFalse(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(false);
 }
 
-
 void TriggerFailureExtension::TriggerAssertFalse(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(false);
 }
 
-
 void TriggerFailureExtension::TriggerSlowAssertFalse(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   SLOW_DCHECK(false);
 }
 

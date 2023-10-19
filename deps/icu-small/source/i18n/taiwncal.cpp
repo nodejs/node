@@ -30,7 +30,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(TaiwanCalendar)
 
 static const int32_t kTaiwanEraStart = 1911;  // 1911 (Gregorian)
 
-static const int32_t kGregorianEpoch = 1970;
+static const int32_t kGregorianEpoch = 1970; 
 
 TaiwanCalendar::TaiwanCalendar(const Locale& aLocale, UErrorCode& success)
 :   GregorianCalendar(aLocale, success)
@@ -135,16 +135,16 @@ void TaiwanCalendar::timeToFields(UDate theTime, UBool quick, UErrorCode& status
 
 /**
  * The system maintains a static default century start date and Year.  They are
- * initialized the first time they are used.  Once the system default century date
+ * initialized the first time they are used.  Once the system default century date 
  * and year are set, they do not change.
  */
 static UDate           gSystemDefaultCenturyStart       = DBL_MIN;
 static int32_t         gSystemDefaultCenturyStartYear   = -1;
-static icu::UInitOnce  gSystemDefaultCenturyInit        = U_INITONCE_INITIALIZER;
+static icu::UInitOnce  gSystemDefaultCenturyInit        {};
 
 UBool TaiwanCalendar::haveDefaultCentury() const
 {
-    return TRUE;
+    return true;
 }
 
 static void U_CALLCONV initializeSystemDefaultCentury()

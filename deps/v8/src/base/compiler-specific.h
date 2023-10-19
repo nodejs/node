@@ -7,13 +7,15 @@
 
 #include "include/v8config.h"
 
-// Annotate a  using ALLOW_UNUSED_TYPE = or function indicating it's ok if it's
-// not used. Use like:
-//    using Bar = Foo;
+// Annotation to silence compiler warnings about unused
+// types/functions/variables. Use like:
+//
+//   using V8_ALLOW_UNUSED Bar = Foo;
+//   V8_ALLOW_UNUSED void foo() {}
 #if V8_HAS_ATTRIBUTE_UNUSED
-#define ALLOW_UNUSED_TYPE __attribute__((unused))
+#define V8_ALLOW_UNUSED __attribute__((unused))
 #else
-#define ALLOW_UNUSED_TYPE
+#define V8_ALLOW_UNUSED
 #endif
 
 // Tell the compiler a function is using a printf-style format string.
@@ -96,10 +98,10 @@
 // do not support adding noexcept to default members.
 // Disabled on MSVC because constructors of standard containers are not noexcept
 // there.
-#if ((!defined(V8_CC_GNU) && !defined(V8_CC_MSVC) &&                      \
-      !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64) && \
-      !defined(V8_TARGET_ARCH_PPC) && !defined(V8_TARGET_ARCH_PPC64) &&   \
-      !defined(V8_TARGET_ARCH_RISCV64)) ||                                \
+#if ((!defined(V8_CC_GNU) && !defined(V8_CC_MSVC) &&                        \
+      !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_PPC) &&    \
+      !defined(V8_TARGET_ARCH_PPC64) && !defined(V8_TARGET_ARCH_RISCV64) && \
+      !defined(V8_TARGET_ARCH_RISCV32)) ||                                  \
      (defined(__clang__) && __cplusplus > 201300L))
 #define V8_NOEXCEPT noexcept
 #else
@@ -132,5 +134,16 @@
 #else
 #define ALIGNAS(byte_alignment) __attribute__((aligned(byte_alignment)))
 #endif
+
+// Forces the linker to not GC the section corresponding to the symbol.
+#if defined(__has_attribute)
+#if __has_attribute(used) && __has_attribute(retain)
+#define V8_DONT_STRIP_SYMBOL __attribute__((used, retain))
+#endif  // __has_attribute(used) && __has_attribute(retain)
+#endif  // defined(__has_attribute)
+
+#if !defined(V8_DONT_STRIP_SYMBOL)
+#define V8_DONT_STRIP_SYMBOL
+#endif  // !defined(V8_DONT_STRIP_SYMBOL)
 
 #endif  // V8_BASE_COMPILER_SPECIFIC_H_

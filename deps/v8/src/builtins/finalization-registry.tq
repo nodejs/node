@@ -1,19 +1,21 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#include "src/builtins/builtins-collections-gen.h"
 
 namespace runtime {
-extern runtime
-ShrinkFinalizationRegistryUnregisterTokenMap(
+extern runtime ShrinkFinalizationRegistryUnregisterTokenMap(
     Context, JSFinalizationRegistry): void;
 extern runtime JSFinalizationRegistryRegisterWeakCellWithUnregisterToken(
     implicit context: Context)(JSFinalizationRegistry, WeakCell): void;
 }
 
 namespace weakref {
-extern transitioning macro
-RemoveFinalizationRegistryCellFromUnregisterTokenMap(
+extern transitioning macro RemoveFinalizationRegistryCellFromUnregisterTokenMap(
     JSFinalizationRegistry, WeakCell): void;
+
+extern macro WeakCollectionsBuiltinsAssembler::GotoIfCannotBeHeldWeakly(JSAny):
+    void labels NotWeakKey;
 
 macro SplitOffTail(weakCell: WeakCell): WeakCell|Undefined {
   const weakCellTail = weakCell.next;
@@ -22,22 +24,22 @@ macro SplitOffTail(weakCell: WeakCell): WeakCell|Undefined {
     case (Undefined): {
     }
     case (tailIsNowAHead: WeakCell): {
-      assert(tailIsNowAHead.prev == weakCell);
+      dcheck(tailIsNowAHead.prev == weakCell);
       tailIsNowAHead.prev = Undefined;
     }
   }
   return weakCellTail;
 }
 
-transitioning macro
-PopClearedCell(finalizationRegistry: JSFinalizationRegistry): WeakCell|
-    Undefined {
+transitioning macro PopClearedCell(finalizationRegistry:
+                                       JSFinalizationRegistry): WeakCell
+    |Undefined {
   typeswitch (finalizationRegistry.cleared_cells) {
     case (Undefined): {
       return Undefined;
     }
     case (weakCell: WeakCell): {
-      assert(weakCell.prev == Undefined);
+      dcheck(weakCell.prev == Undefined);
       finalizationRegistry.cleared_cells = SplitOffTail(weakCell);
 
       // If the WeakCell has an unregister token, remove the cell from the
@@ -55,7 +57,7 @@ PopClearedCell(finalizationRegistry: JSFinalizationRegistry): WeakCell|
 }
 
 transitioning macro PushCell(
-    finalizationRegistry: JSFinalizationRegistry, cell: WeakCell) {
+    finalizationRegistry: JSFinalizationRegistry, cell: WeakCell): void {
   cell.next = finalizationRegistry.active_cells;
   typeswitch (finalizationRegistry.active_cells) {
     case (Undefined): {
@@ -67,9 +69,9 @@ transitioning macro PushCell(
   finalizationRegistry.active_cells = cell;
 }
 
-transitioning macro
-FinalizationRegistryCleanupLoop(implicit context: Context)(
-    finalizationRegistry: JSFinalizationRegistry, callback: Callable) {
+transitioning macro FinalizationRegistryCleanupLoop(
+    implicit context: Context)(finalizationRegistry: JSFinalizationRegistry,
+    callback: Callable): void {
   while (true) {
     const weakCellHead = PopClearedCell(finalizationRegistry);
     typeswitch (weakCellHead) {
@@ -79,10 +81,10 @@ FinalizationRegistryCleanupLoop(implicit context: Context)(
       case (weakCell: WeakCell): {
         try {
           Call(context, callback, Undefined, weakCell.holdings);
-        } catch (e) {
+        } catch (e, message) {
           runtime::ShrinkFinalizationRegistryUnregisterTokenMap(
               context, finalizationRegistry);
-          ReThrow(context, e);
+          ReThrowWithMessage(context, e, message);
         }
       }
     }
@@ -92,8 +94,7 @@ FinalizationRegistryCleanupLoop(implicit context: Context)(
       context, finalizationRegistry);
 }
 
-transitioning javascript builtin
-FinalizationRegistryConstructor(
+transitioning javascript builtin FinalizationRegistryConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(cleanupCallback: JSAny): JSFinalizationRegistry {
   // 1. If NewTarget is undefined, throw a TypeError exception.
@@ -118,15 +119,15 @@ FinalizationRegistryConstructor(
   finalizationRegistry.flags =
       SmiTag(FinalizationRegistryFlags{scheduled_for_cleanup: false});
   // 7. Set finalizationRegistry.[[Cells]] to be an empty List.
-  assert(finalizationRegistry.active_cells == Undefined);
-  assert(finalizationRegistry.cleared_cells == Undefined);
-  assert(finalizationRegistry.key_map == Undefined);
+  dcheck(finalizationRegistry.active_cells == Undefined);
+  dcheck(finalizationRegistry.cleared_cells == Undefined);
+  dcheck(finalizationRegistry.key_map == Undefined);
   // 8. Return finalizationRegistry.
   return finalizationRegistry;
 }
 
-transitioning javascript builtin
-FinalizationRegistryRegister(
+// https://tc39.es/ecma262/#sec-finalization-registry.prototype.register
+transitioning javascript builtin FinalizationRegistryRegister(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let finalizationRegistry be the this value.
   // 2. Perform ? RequireInternalSlot(finalizationRegistry, [[Cells]]).
@@ -134,32 +135,32 @@ FinalizationRegistryRegister(
   ThrowTypeError(
       MessageTemplate::kIncompatibleMethodReceiver,
       'FinalizationRegistry.prototype.register', receiver);
-  // 3. If Type(target) is not Object, throw a TypeError exception.
-  const target = Cast<JSReceiver>(arguments[0]) otherwise ThrowTypeError(
-      MessageTemplate::kWeakRefsRegisterTargetMustBeObject);
+  // 3. If CanBeHeldWeakly(target) is false, throw a TypeError exception.
+  GotoIfCannotBeHeldWeakly(arguments[0])
+      otherwise ThrowTypeError(MessageTemplate::kInvalidWeakRefsRegisterTarget);
+
+  const target = UnsafeCast<(JSReceiver | Symbol)>(arguments[0]);
   const heldValue = arguments[1];
   // 4. If SameValue(target, heldValue), throw a TypeError exception.
   if (target == heldValue) {
     ThrowTypeError(
         MessageTemplate::kWeakRefsRegisterTargetAndHoldingsMustNotBeSame);
   }
-  const unregisterToken = arguments[2];
-  // 5. If Type(unregisterToken) is not Object,
+  // 5. If CanBeHeldWeakly(unregisterToken) is false,
   //   a. If unregisterToken is not undefined, throw a TypeError exception.
   //   b. Set unregisterToken to empty.
-  let hasUnregisterToken: bool = false;
-  typeswitch (unregisterToken) {
-    case (Undefined): {
-    }
-    case (JSReceiver): {
-      hasUnregisterToken = true;
-    }
-    case (JSAny): deferred {
-      ThrowTypeError(
-          MessageTemplate::kWeakRefsUnregisterTokenMustBeObject,
-          unregisterToken);
-    }
+  const unregisterTokenRaw = arguments[2];
+  let unregisterToken: JSReceiver|Undefined|Symbol;
+
+  if (IsUndefined(unregisterTokenRaw)) {
+    unregisterToken = Undefined;
+  } else {
+    GotoIfCannotBeHeldWeakly(unregisterTokenRaw)
+        otherwise ThrowTypeError(
+        MessageTemplate::kInvalidWeakRefsUnregisterToken, unregisterTokenRaw);
+    unregisterToken = UnsafeCast<(JSReceiver | Symbol)>(unregisterTokenRaw);
   }
+
   // 6. Let cell be the Record { [[WeakRefTarget]] : target, [[HeldValue]]:
   //    heldValue, [[UnregisterToken]]: unregisterToken }.
   // Allocate the WeakCell object in the old space, because 1) WeakCell weakness
@@ -178,7 +179,7 @@ FinalizationRegistryRegister(
   };
   // 7. Append cell to finalizationRegistry.[[Cells]].
   PushCell(finalizationRegistry, cell);
-  if (hasUnregisterToken) {
+  if (unregisterToken != Undefined) {
     // If an unregister token is provided, a runtime call is needed to
     // do some OrderedHashTable operations and register the mapping.
     // See v8:10705.
@@ -189,8 +190,7 @@ FinalizationRegistryRegister(
   return Undefined;
 }
 
-transitioning javascript builtin
-FinalizationRegistryPrototypeCleanupSome(
+transitioning javascript builtin FinalizationRegistryPrototypeCleanupSome(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let finalizationRegistry be the this value.
   //

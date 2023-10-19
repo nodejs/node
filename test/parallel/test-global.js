@@ -36,7 +36,9 @@ builtinModules.forEach((moduleName) => {
       // This could throw for e.g., crypto if the binary is not compiled
       // accordingly.
       require(moduleName);
-    } catch {}
+    } catch {
+      // Continue regardless of error.
+    }
   }
 });
 
@@ -47,10 +49,16 @@ builtinModules.forEach((moduleName) => {
     'clearImmediate',
     'clearInterval',
     'clearTimeout',
+    'atob',
+    'btoa',
     'performance',
     'setImmediate',
     'setInterval',
     'setTimeout',
+    'structuredClone',
+    'fetch',
+    'crypto',
+    'navigator',
   ];
   assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
 }

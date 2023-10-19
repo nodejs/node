@@ -28,12 +28,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <cmath>
 #include <limits>
+#include <optional>
 
-#include "src/init/v8.h"
-
-#include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
@@ -42,7 +41,6 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
 #include "src/execution/arm64/simulator-arm64.h"
-#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
@@ -112,29 +110,41 @@ static void InitializeVM() {
 #define BUF_SIZE 8192
 #define SETUP() SETUP_SIZE(BUF_SIZE)
 
-#define INIT_V8()                                                              \
-  CcTest::InitializeVM();                                                      \
+#define INIT_V8() CcTest::InitializeVM();
+
+// Declare that a test will use an optional feature, which means execution needs
+// to be behind CAN_RUN().
+#define SETUP_FEATURE(feature)                            \
+  const bool can_run = CpuFeatures::IsSupported(feature); \
+  USE(can_run);                                           \
+  CpuFeatureScope feature_scope(&masm, feature,           \
+                                CpuFeatureScope::kDontCheckSupported)
 
 #ifdef USE_SIMULATOR
 
+// The simulator can always run the code even when IsSupported(f) is false.
+#define CAN_RUN() true
+
 // Run tests with the simulator.
-#define SETUP_SIZE(buf_size)                                               \
-  Isolate* isolate = CcTest::i_isolate();                                  \
-  HandleScope scope(isolate);                                              \
-  CHECK_NOT_NULL(isolate);                                                 \
-  std::unique_ptr<byte[]> owned_buf{new byte[buf_size]};                   \
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,     \
-                      ExternalAssemblerBuffer(owned_buf.get(), buf_size)); \
-  Decoder<DispatchingDecoderVisitor>* decoder =                            \
-      new Decoder<DispatchingDecoderVisitor>();                            \
-  Simulator simulator(decoder);                                            \
-  std::unique_ptr<PrintDisassembler> pdis;                                 \
-  RegisterDump core;                                                       \
-  HandleScope handle_scope(isolate);                                       \
-  Handle<Code> code;                                                       \
-  if (i::FLAG_trace_sim) {                                                 \
-    pdis.reset(new PrintDisassembler(stdout));                             \
-    decoder->PrependVisitor(pdis.get());                                   \
+#define SETUP_SIZE(buf_size)                                                  \
+  Isolate* isolate = CcTest::i_isolate();                                     \
+  HandleScope scope(isolate);                                                 \
+  CHECK_NOT_NULL(isolate);                                                    \
+  auto owned_buf =                                                            \
+      AllocateAssemblerBuffer(buf_size, nullptr, JitPermission::kNoJit);      \
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,        \
+                      ExternalAssemblerBuffer(owned_buf->start(), buf_size)); \
+  std::optional<AssemblerBufferWriteScope> rw_buffer_scope;                   \
+  Decoder<DispatchingDecoderVisitor>* decoder =                               \
+      new Decoder<DispatchingDecoderVisitor>();                               \
+  Simulator simulator(decoder);                                               \
+  std::unique_ptr<PrintDisassembler> pdis;                                    \
+  RegisterDump core;                                                          \
+  HandleScope handle_scope(isolate);                                          \
+  Handle<Code> code;                                                          \
+  if (i::v8_flags.trace_sim) {                                                \
+    pdis.reset(new PrintDisassembler(stdout));                                \
+    decoder->PrependVisitor(pdis.get());                                      \
   }
 
 // Reset the assembler and simulator, so that instructions can be generated,
@@ -156,7 +166,8 @@ static void InitializeVM() {
   RESET();                                                                     \
   START_AFTER_RESET();
 
-#define RUN() simulator.RunFrom(reinterpret_cast<Instruction*>(code->entry()))
+#define RUN() \
+  simulator.RunFrom(reinterpret_cast<Instruction*>(code->instruction_start()))
 
 #define END()                                                                  \
   __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL);                    \
@@ -167,16 +178,20 @@ static void InitializeVM() {
     CodeDesc desc;                                                             \
     __ GetCode(masm.isolate(), &desc);                                         \
     code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
-    if (FLAG_print_code) code->Print();                                        \
+    if (v8_flags.print_code) Print(*code);                                     \
   }
 
 #else  // ifdef USE_SIMULATOR.
+
+#define CAN_RUN() can_run
+
 // Run the test on real hardware or models.
 #define SETUP_SIZE(buf_size)                                           \
   Isolate* isolate = CcTest::i_isolate();                              \
   HandleScope scope(isolate);                                          \
   CHECK_NOT_NULL(isolate);                                             \
   auto owned_buf = AllocateAssemblerBuffer(buf_size);                  \
+  std::optional<AssemblerBufferWriteScope> rw_buffer_scope;            \
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes, \
                       owned_buf->CreateView());                        \
   HandleScope handle_scope(isolate);                                   \
@@ -184,7 +199,7 @@ static void InitializeVM() {
   RegisterDump core;
 
 #define RESET()                                                \
-  owned_buf->MakeWritable();                                   \
+  rw_buffer_scope.emplace(*owned_buf);                         \
   __ Reset();                                                  \
   __ CodeEntry();                                              \
   /* Reset the machine state (like simulator.ResetState()). */ \
@@ -198,10 +213,12 @@ static void InitializeVM() {
   RESET();      \
   START_AFTER_RESET();
 
-#define RUN()                                      \
-  {                                                \
-    auto f = GeneratedCode<void>::FromCode(*code); \
-    f.Call();                                      \
+#define RUN()                                                  \
+  {                                                            \
+    /* Reset the scope and thus make the buffer executable. */ \
+    rw_buffer_scope.reset();                                   \
+    auto f = GeneratedCode<void>::FromCode(isolate, *code);    \
+    f.Call();                                                  \
   }
 
 #define END()                                                                  \
@@ -212,7 +229,7 @@ static void InitializeVM() {
     CodeDesc desc;                                                             \
     __ GetCode(masm.isolate(), &desc);                                         \
     code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
-    if (FLAG_print_code) code->Print();                                        \
+    if (v8_flags.print_code) Print(*code);                                     \
   }
 
 #endif  // ifdef USE_SIMULATOR.
@@ -2168,7 +2185,6 @@ TEST(far_branch_backward) {
         break;
       default:
         UNREACHABLE();
-        break;
     }
 
     // Now go past the limit so that branches are now out of range.
@@ -2204,7 +2220,6 @@ TEST(far_branch_backward) {
         break;
       default:
         UNREACHABLE();
-        break;
     }
 
     __ Bind(&fail);
@@ -6774,7 +6789,7 @@ static void LdrLiteralRangeHelper(
   END();
 
   if (outcome == EmitExpected) {
-    Address pool_start = code->InstructionStart() + pc_offset_before_emission;
+    Address pool_start = code->instruction_start() + pc_offset_before_emission;
     Instruction* branch = reinterpret_cast<Instruction*>(pool_start);
     CHECK(branch->IsImmBranch());
     CHECK_EQ(expected_pool_size, branch->ImmPCOffset());
@@ -6831,63 +6846,6 @@ TEST(ldr_literal_range_max_dist_no_emission_2) {
 }
 
 #endif
-
-static const PrefetchOperation kPrfmOperations[] = {
-    PLDL1KEEP, PLDL1STRM, PLDL2KEEP, PLDL2STRM, PLDL3KEEP, PLDL3STRM,
-
-    PLIL1KEEP, PLIL1STRM, PLIL2KEEP, PLIL2STRM, PLIL3KEEP, PLIL3STRM,
-
-    PSTL1KEEP, PSTL1STRM, PSTL2KEEP, PSTL2STRM, PSTL3KEEP, PSTL3STRM};
-
-TEST(prfm_regoffset_assem) {
-  INIT_V8();
-  SETUP();
-
-  START();
-  // The address used in prfm doesn't have to be valid.
-  __ Mov(x0, 0x0123456789abcdef);
-
-  CPURegList inputs(CPURegister::kRegister, kXRegSizeInBits, 10, 18);
-  __ Mov(x10, 0);
-  __ Mov(x11, 1);
-  __ Mov(x12, 8);
-  __ Mov(x13, 255);
-  __ Mov(x14, -0);
-  __ Mov(x15, -1);
-  __ Mov(x16, -8);
-  __ Mov(x17, -255);
-  __ Mov(x18, 0xfedcba9876543210);
-
-  for (int op = 0; op < (1 << ImmPrefetchOperation_width); op++) {
-    // Unallocated prefetch operations are ignored, so test all of them.
-    // We have to use the Assembler directly for this.
-    CPURegList loop = inputs;
-    while (!loop.IsEmpty()) {
-      __ prfm(op, MemOperand(x0, Register::Create(loop.PopLowestIndex().code(),
-                                                  kXRegSizeInBits)));
-    }
-  }
-
-  for (PrefetchOperation op : kPrfmOperations) {
-    // Also test named operations.
-    CPURegList loop = inputs;
-    while (!loop.IsEmpty()) {
-      Register input =
-          Register::Create(loop.PopLowestIndex().code(), kXRegSizeInBits);
-      __ prfm(op, MemOperand(x0, input, UXTW));
-      __ prfm(op, MemOperand(x0, input, UXTW, 3));
-      __ prfm(op, MemOperand(x0, input, LSL));
-      __ prfm(op, MemOperand(x0, input, LSL, 3));
-      __ prfm(op, MemOperand(x0, input, SXTW));
-      __ prfm(op, MemOperand(x0, input, SXTW, 3));
-      __ prfm(op, MemOperand(x0, input, SXTX));
-      __ prfm(op, MemOperand(x0, input, SXTX, 3));
-    }
-  }
-
-  END();
-  RUN();
-}
 
 TEST(add_sub_imm) {
   INIT_V8();
@@ -8782,19 +8740,19 @@ TEST(fmov_reg) {
   __ Fmov(x1, d1);
   __ Fmov(d2, x1);
   __ Fmov(d4, d1);
-  __ Fmov(d6, bit_cast<double>(0x0123456789ABCDEFL));
+  __ Fmov(d6, base::bit_cast<double>(0x0123456789ABCDEFL));
   __ Fmov(s6, s6);
   END();
 
   RUN();
 
-  CHECK_EQUAL_32(bit_cast<uint32_t>(1.0f), w10);
+  CHECK_EQUAL_32(base::bit_cast<uint32_t>(1.0f), w10);
   CHECK_EQUAL_FP32(1.0, s30);
   CHECK_EQUAL_FP32(1.0, s5);
-  CHECK_EQUAL_64(bit_cast<uint64_t>(-13.0), x1);
+  CHECK_EQUAL_64(base::bit_cast<uint64_t>(-13.0), x1);
   CHECK_EQUAL_FP64(-13.0, d2);
   CHECK_EQUAL_FP64(-13.0, d4);
-  CHECK_EQUAL_FP32(bit_cast<float>(0x89ABCDEF), s6);
+  CHECK_EQUAL_FP32(base::bit_cast<float>(0x89ABCDEF), s6);
 }
 
 TEST(fadd) {
@@ -9091,12 +9049,12 @@ TEST(fmadd_fmsub_float) {
 TEST(fmadd_fmsub_double_nans) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double s1 = bit_cast<double>(0x7FF5555511111111);
-  double s2 = bit_cast<double>(0x7FF5555522222222);
-  double sa = bit_cast<double>(0x7FF55555AAAAAAAA);
-  double q1 = bit_cast<double>(0x7FFAAAAA11111111);
-  double q2 = bit_cast<double>(0x7FFAAAAA22222222);
-  double qa = bit_cast<double>(0x7FFAAAAAAAAAAAAA);
+  double s1 = base::bit_cast<double>(0x7FF5555511111111);
+  double s2 = base::bit_cast<double>(0x7FF5555522222222);
+  double sa = base::bit_cast<double>(0x7FF55555AAAAAAAA);
+  double q1 = base::bit_cast<double>(0x7FFAAAAA11111111);
+  double q2 = base::bit_cast<double>(0x7FFAAAAA22222222);
+  double qa = base::bit_cast<double>(0x7FFAAAAAAAAAAAAA);
   CHECK(IsSignallingNaN(s1));
   CHECK(IsSignallingNaN(s2));
   CHECK(IsSignallingNaN(sa));
@@ -9105,9 +9063,9 @@ TEST(fmadd_fmsub_double_nans) {
   CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
-  double s1_proc = bit_cast<double>(0x7FFD555511111111);
-  double s2_proc = bit_cast<double>(0x7FFD555522222222);
-  double sa_proc = bit_cast<double>(0x7FFD5555AAAAAAAA);
+  double s1_proc = base::bit_cast<double>(0x7FFD555511111111);
+  double s2_proc = base::bit_cast<double>(0x7FFD555522222222);
+  double sa_proc = base::bit_cast<double>(0x7FFD5555AAAAAAAA);
   double q1_proc = q1;
   double q2_proc = q2;
   double qa_proc = qa;
@@ -9119,10 +9077,10 @@ TEST(fmadd_fmsub_double_nans) {
   CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
-  double s1_proc_neg = bit_cast<double>(0xFFFD555511111111);
-  double sa_proc_neg = bit_cast<double>(0xFFFD5555AAAAAAAA);
-  double q1_proc_neg = bit_cast<double>(0xFFFAAAAA11111111);
-  double qa_proc_neg = bit_cast<double>(0xFFFAAAAAAAAAAAAA);
+  double s1_proc_neg = base::bit_cast<double>(0xFFFD555511111111);
+  double sa_proc_neg = base::bit_cast<double>(0xFFFD5555AAAAAAAA);
+  double q1_proc_neg = base::bit_cast<double>(0xFFFAAAAA11111111);
+  double qa_proc_neg = base::bit_cast<double>(0xFFFAAAAAAAAAAAAA);
   CHECK(IsQuietNaN(s1_proc_neg));
   CHECK(IsQuietNaN(sa_proc_neg));
   CHECK(IsQuietNaN(q1_proc_neg));
@@ -9173,12 +9131,12 @@ TEST(fmadd_fmsub_double_nans) {
 TEST(fmadd_fmsub_float_nans) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float s1 = bit_cast<float>(0x7F951111);
-  float s2 = bit_cast<float>(0x7F952222);
-  float sa = bit_cast<float>(0x7F95AAAA);
-  float q1 = bit_cast<float>(0x7FEA1111);
-  float q2 = bit_cast<float>(0x7FEA2222);
-  float qa = bit_cast<float>(0x7FEAAAAA);
+  float s1 = base::bit_cast<float>(0x7F951111);
+  float s2 = base::bit_cast<float>(0x7F952222);
+  float sa = base::bit_cast<float>(0x7F95AAAA);
+  float q1 = base::bit_cast<float>(0x7FEA1111);
+  float q2 = base::bit_cast<float>(0x7FEA2222);
+  float qa = base::bit_cast<float>(0x7FEAAAAA);
   CHECK(IsSignallingNaN(s1));
   CHECK(IsSignallingNaN(s2));
   CHECK(IsSignallingNaN(sa));
@@ -9187,9 +9145,9 @@ TEST(fmadd_fmsub_float_nans) {
   CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
-  float s1_proc = bit_cast<float>(0x7FD51111);
-  float s2_proc = bit_cast<float>(0x7FD52222);
-  float sa_proc = bit_cast<float>(0x7FD5AAAA);
+  float s1_proc = base::bit_cast<float>(0x7FD51111);
+  float s2_proc = base::bit_cast<float>(0x7FD52222);
+  float sa_proc = base::bit_cast<float>(0x7FD5AAAA);
   float q1_proc = q1;
   float q2_proc = q2;
   float qa_proc = qa;
@@ -9201,10 +9159,10 @@ TEST(fmadd_fmsub_float_nans) {
   CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
-  float s1_proc_neg = bit_cast<float>(0xFFD51111);
-  float sa_proc_neg = bit_cast<float>(0xFFD5AAAA);
-  float q1_proc_neg = bit_cast<float>(0xFFEA1111);
-  float qa_proc_neg = bit_cast<float>(0xFFEAAAAA);
+  float s1_proc_neg = base::bit_cast<float>(0xFFD51111);
+  float sa_proc_neg = base::bit_cast<float>(0xFFD5AAAA);
+  float q1_proc_neg = base::bit_cast<float>(0xFFEA1111);
+  float qa_proc_neg = base::bit_cast<float>(0xFFEAAAAA);
   CHECK(IsQuietNaN(s1_proc_neg));
   CHECK(IsQuietNaN(sa_proc_neg));
   CHECK(IsQuietNaN(q1_proc_neg));
@@ -9312,15 +9270,15 @@ static float MinMaxHelper(float n,
                           float m,
                           bool min,
                           float quiet_nan_substitute = 0.0) {
-  uint32_t raw_n = bit_cast<uint32_t>(n);
-  uint32_t raw_m = bit_cast<uint32_t>(m);
+  uint32_t raw_n = base::bit_cast<uint32_t>(n);
+  uint32_t raw_m = base::bit_cast<uint32_t>(m);
 
   if (std::isnan(n) && ((raw_n & kSQuietNanMask) == 0)) {
     // n is signalling NaN.
-    return bit_cast<float>(raw_n | static_cast<uint32_t>(kSQuietNanMask));
+    return base::bit_cast<float>(raw_n | static_cast<uint32_t>(kSQuietNanMask));
   } else if (std::isnan(m) && ((raw_m & kSQuietNanMask) == 0)) {
     // m is signalling NaN.
-    return bit_cast<float>(raw_m | static_cast<uint32_t>(kSQuietNanMask));
+    return base::bit_cast<float>(raw_m | static_cast<uint32_t>(kSQuietNanMask));
   } else if (quiet_nan_substitute == 0.0) {
     if (std::isnan(n)) {
       // n is quiet NaN.
@@ -9353,15 +9311,15 @@ static double MinMaxHelper(double n,
                            double m,
                            bool min,
                            double quiet_nan_substitute = 0.0) {
-  uint64_t raw_n = bit_cast<uint64_t>(n);
-  uint64_t raw_m = bit_cast<uint64_t>(m);
+  uint64_t raw_n = base::bit_cast<uint64_t>(n);
+  uint64_t raw_m = base::bit_cast<uint64_t>(m);
 
   if (std::isnan(n) && ((raw_n & kDQuietNanMask) == 0)) {
     // n is signalling NaN.
-    return bit_cast<double>(raw_n | kDQuietNanMask);
+    return base::bit_cast<double>(raw_n | kDQuietNanMask);
   } else if (std::isnan(m) && ((raw_m & kDQuietNanMask) == 0)) {
     // m is signalling NaN.
-    return bit_cast<double>(raw_m | kDQuietNanMask);
+    return base::bit_cast<double>(raw_m | kDQuietNanMask);
   } else if (quiet_nan_substitute == 0.0) {
     if (std::isnan(n)) {
       // n is quiet NaN.
@@ -9414,10 +9372,10 @@ static void FminFmaxDoubleHelper(double n, double m, double min, double max,
 TEST(fmax_fmin_d) {
   INIT_V8();
   // Use non-standard NaNs to check that the payload bits are preserved.
-  double snan = bit_cast<double>(0x7FF5555512345678);
-  double qnan = bit_cast<double>(0x7FFAAAAA87654321);
+  double snan = base::bit_cast<double>(0x7FF5555512345678);
+  double qnan = base::bit_cast<double>(0x7FFAAAAA87654321);
 
-  double snan_processed = bit_cast<double>(0x7FFD555512345678);
+  double snan_processed = base::bit_cast<double>(0x7FFD555512345678);
   double qnan_processed = qnan;
 
   CHECK(IsSignallingNaN(snan));
@@ -9495,10 +9453,10 @@ static void FminFmaxFloatHelper(float n, float m, float min, float max,
 TEST(fmax_fmin_s) {
   INIT_V8();
   // Use non-standard NaNs to check that the payload bits are preserved.
-  float snan = bit_cast<float>(0x7F951234);
-  float qnan = bit_cast<float>(0x7FEA8765);
+  float snan = base::bit_cast<float>(0x7F951234);
+  float qnan = base::bit_cast<float>(0x7FEA8765);
 
-  float snan_processed = bit_cast<float>(0x7FD51234);
+  float snan_processed = base::bit_cast<float>(0x7FD51234);
   float qnan_processed = qnan;
 
   CHECK(IsSignallingNaN(snan));
@@ -9630,7 +9588,7 @@ TEST(fcmp) {
     // test. A UseScratchRegisterScope will make sure that they are restored to
     // the default values once we're finished.
     UseScratchRegisterScope temps(&masm);
-    masm.FPTmpList()->set_list(0);
+    masm.FPTmpList()->set_bits(0);
 
     __ Fmov(s8, 0.0);
     __ Fmov(s9, 0.5);
@@ -9649,9 +9607,9 @@ TEST(fcmp) {
     __ Mrs(x4, NZCV);
     __ Fcmp(s8, 0.0);
     __ Mrs(x5, NZCV);
-    masm.FPTmpList()->set_list(d0.bit());
+    masm.FPTmpList()->set_bits(DoubleRegList{d0}.bits());
     __ Fcmp(s8, 255.0);
-    masm.FPTmpList()->set_list(0);
+    masm.FPTmpList()->set_bits(0);
     __ Mrs(x6, NZCV);
 
     __ Fmov(d19, 0.0);
@@ -9671,9 +9629,9 @@ TEST(fcmp) {
     __ Mrs(x14, NZCV);
     __ Fcmp(d19, 0.0);
     __ Mrs(x15, NZCV);
-    masm.FPTmpList()->set_list(d0.bit());
+    masm.FPTmpList()->set_bits(DoubleRegList{d0}.bits());
     __ Fcmp(d19, 12.3456);
-    masm.FPTmpList()->set_list(0);
+    masm.FPTmpList()->set_bits(0);
     __ Mrs(x16, NZCV);
   }
 
@@ -10299,8 +10257,8 @@ TEST(fcvt_ds) {
   __ Fmov(s26, -0.0);
   __ Fmov(s27, FLT_MAX);
   __ Fmov(s28, FLT_MIN);
-  __ Fmov(s29, bit_cast<float>(0x7FC12345));  // Quiet NaN.
-  __ Fmov(s30, bit_cast<float>(0x7F812345));  // Signalling NaN.
+  __ Fmov(s29, base::bit_cast<float>(0x7FC12345));  // Quiet NaN.
+  __ Fmov(s30, base::bit_cast<float>(0x7F812345));  // Signalling NaN.
 
   __ Fcvt(d0, s16);
   __ Fcvt(d1, s17);
@@ -10341,8 +10299,8 @@ TEST(fcvt_ds) {
   //  - The top bit of the mantissa is forced to 1 (making it a quiet NaN).
   //  - The remaining mantissa bits are copied until they run out.
   //  - The low-order bits that haven't already been assigned are set to 0.
-  CHECK_EQUAL_FP64(bit_cast<double>(0x7FF82468A0000000), d13);
-  CHECK_EQUAL_FP64(bit_cast<double>(0x7FF82468A0000000), d14);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(0x7FF82468A0000000), d13);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(0x7FF82468A0000000), d14);
 }
 
 TEST(fcvt_sd) {
@@ -10370,23 +10328,38 @@ TEST(fcvt_sd) {
       //    For normalized numbers:
       //         bit 29 (0x0000000020000000) is the lowest-order bit which will
       //                                     fit in the float's mantissa.
-      {bit_cast<double>(0x3FF0000000000000), bit_cast<float>(0x3F800000)},
-      {bit_cast<double>(0x3FF0000000000001), bit_cast<float>(0x3F800000)},
-      {bit_cast<double>(0x3FF0000010000000), bit_cast<float>(0x3F800000)},
-      {bit_cast<double>(0x3FF0000010000001), bit_cast<float>(0x3F800001)},
-      {bit_cast<double>(0x3FF0000020000000), bit_cast<float>(0x3F800001)},
-      {bit_cast<double>(0x3FF0000020000001), bit_cast<float>(0x3F800001)},
-      {bit_cast<double>(0x3FF0000030000000), bit_cast<float>(0x3F800002)},
-      {bit_cast<double>(0x3FF0000030000001), bit_cast<float>(0x3F800002)},
-      {bit_cast<double>(0x3FF0000040000000), bit_cast<float>(0x3F800002)},
-      {bit_cast<double>(0x3FF0000040000001), bit_cast<float>(0x3F800002)},
-      {bit_cast<double>(0x3FF0000050000000), bit_cast<float>(0x3F800002)},
-      {bit_cast<double>(0x3FF0000050000001), bit_cast<float>(0x3F800003)},
-      {bit_cast<double>(0x3FF0000060000000), bit_cast<float>(0x3F800003)},
+      {base::bit_cast<double>(0x3FF0000000000000),
+       base::bit_cast<float>(0x3F800000)},
+      {base::bit_cast<double>(0x3FF0000000000001),
+       base::bit_cast<float>(0x3F800000)},
+      {base::bit_cast<double>(0x3FF0000010000000),
+       base::bit_cast<float>(0x3F800000)},
+      {base::bit_cast<double>(0x3FF0000010000001),
+       base::bit_cast<float>(0x3F800001)},
+      {base::bit_cast<double>(0x3FF0000020000000),
+       base::bit_cast<float>(0x3F800001)},
+      {base::bit_cast<double>(0x3FF0000020000001),
+       base::bit_cast<float>(0x3F800001)},
+      {base::bit_cast<double>(0x3FF0000030000000),
+       base::bit_cast<float>(0x3F800002)},
+      {base::bit_cast<double>(0x3FF0000030000001),
+       base::bit_cast<float>(0x3F800002)},
+      {base::bit_cast<double>(0x3FF0000040000000),
+       base::bit_cast<float>(0x3F800002)},
+      {base::bit_cast<double>(0x3FF0000040000001),
+       base::bit_cast<float>(0x3F800002)},
+      {base::bit_cast<double>(0x3FF0000050000000),
+       base::bit_cast<float>(0x3F800002)},
+      {base::bit_cast<double>(0x3FF0000050000001),
+       base::bit_cast<float>(0x3F800003)},
+      {base::bit_cast<double>(0x3FF0000060000000),
+       base::bit_cast<float>(0x3F800003)},
       //  - A mantissa that overflows into the exponent during rounding.
-      {bit_cast<double>(0x3FEFFFFFF0000000), bit_cast<float>(0x3F800000)},
+      {base::bit_cast<double>(0x3FEFFFFFF0000000),
+       base::bit_cast<float>(0x3F800000)},
       //  - The largest double that rounds to a normal float.
-      {bit_cast<double>(0x47EFFFFFEFFFFFFF), bit_cast<float>(0x7F7FFFFF)},
+      {base::bit_cast<double>(0x47EFFFFFEFFFFFFF),
+       base::bit_cast<float>(0x7F7FFFFF)},
 
       // Doubles that are too big for a float.
       {kFP64PositiveInfinity, kFP32PositiveInfinity},
@@ -10394,46 +10367,68 @@ TEST(fcvt_sd) {
       //  - The smallest exponent that's too big for a float.
       {pow(2.0, 128), kFP32PositiveInfinity},
       //  - This exponent is in range, but the value rounds to infinity.
-      {bit_cast<double>(0x47EFFFFFF0000000), kFP32PositiveInfinity},
+      {base::bit_cast<double>(0x47EFFFFFF0000000), kFP32PositiveInfinity},
 
       // Doubles that are too small for a float.
       //  - The smallest (subnormal) double.
       {DBL_MIN, 0.0},
       //  - The largest double which is too small for a subnormal float.
-      {bit_cast<double>(0x3690000000000000), bit_cast<float>(0x00000000)},
+      {base::bit_cast<double>(0x3690000000000000),
+       base::bit_cast<float>(0x00000000)},
 
       // Normal doubles that become subnormal floats.
       //  - The largest subnormal float.
-      {bit_cast<double>(0x380FFFFFC0000000), bit_cast<float>(0x007FFFFF)},
+      {base::bit_cast<double>(0x380FFFFFC0000000),
+       base::bit_cast<float>(0x007FFFFF)},
       //  - The smallest subnormal float.
-      {bit_cast<double>(0x36A0000000000000), bit_cast<float>(0x00000001)},
+      {base::bit_cast<double>(0x36A0000000000000),
+       base::bit_cast<float>(0x00000001)},
       //  - Subnormal floats that need (ties-to-even) rounding.
       //    For these subnormals:
       //         bit 34 (0x0000000400000000) is the lowest-order bit which will
       //                                     fit in the float's mantissa.
-      {bit_cast<double>(0x37C159E000000000), bit_cast<float>(0x00045678)},
-      {bit_cast<double>(0x37C159E000000001), bit_cast<float>(0x00045678)},
-      {bit_cast<double>(0x37C159E200000000), bit_cast<float>(0x00045678)},
-      {bit_cast<double>(0x37C159E200000001), bit_cast<float>(0x00045679)},
-      {bit_cast<double>(0x37C159E400000000), bit_cast<float>(0x00045679)},
-      {bit_cast<double>(0x37C159E400000001), bit_cast<float>(0x00045679)},
-      {bit_cast<double>(0x37C159E600000000), bit_cast<float>(0x0004567A)},
-      {bit_cast<double>(0x37C159E600000001), bit_cast<float>(0x0004567A)},
-      {bit_cast<double>(0x37C159E800000000), bit_cast<float>(0x0004567A)},
-      {bit_cast<double>(0x37C159E800000001), bit_cast<float>(0x0004567A)},
-      {bit_cast<double>(0x37C159EA00000000), bit_cast<float>(0x0004567A)},
-      {bit_cast<double>(0x37C159EA00000001), bit_cast<float>(0x0004567B)},
-      {bit_cast<double>(0x37C159EC00000000), bit_cast<float>(0x0004567B)},
+      {base::bit_cast<double>(0x37C159E000000000),
+       base::bit_cast<float>(0x00045678)},
+      {base::bit_cast<double>(0x37C159E000000001),
+       base::bit_cast<float>(0x00045678)},
+      {base::bit_cast<double>(0x37C159E200000000),
+       base::bit_cast<float>(0x00045678)},
+      {base::bit_cast<double>(0x37C159E200000001),
+       base::bit_cast<float>(0x00045679)},
+      {base::bit_cast<double>(0x37C159E400000000),
+       base::bit_cast<float>(0x00045679)},
+      {base::bit_cast<double>(0x37C159E400000001),
+       base::bit_cast<float>(0x00045679)},
+      {base::bit_cast<double>(0x37C159E600000000),
+       base::bit_cast<float>(0x0004567A)},
+      {base::bit_cast<double>(0x37C159E600000001),
+       base::bit_cast<float>(0x0004567A)},
+      {base::bit_cast<double>(0x37C159E800000000),
+       base::bit_cast<float>(0x0004567A)},
+      {base::bit_cast<double>(0x37C159E800000001),
+       base::bit_cast<float>(0x0004567A)},
+      {base::bit_cast<double>(0x37C159EA00000000),
+       base::bit_cast<float>(0x0004567A)},
+      {base::bit_cast<double>(0x37C159EA00000001),
+       base::bit_cast<float>(0x0004567B)},
+      {base::bit_cast<double>(0x37C159EC00000000),
+       base::bit_cast<float>(0x0004567B)},
       //  - The smallest double which rounds up to become a subnormal float.
-      {bit_cast<double>(0x3690000000000001), bit_cast<float>(0x00000001)},
+      {base::bit_cast<double>(0x3690000000000001),
+       base::bit_cast<float>(0x00000001)},
 
       // Check NaN payload preservation.
-      {bit_cast<double>(0x7FF82468A0000000), bit_cast<float>(0x7FC12345)},
-      {bit_cast<double>(0x7FF82468BFFFFFFF), bit_cast<float>(0x7FC12345)},
+      {base::bit_cast<double>(0x7FF82468A0000000),
+       base::bit_cast<float>(0x7FC12345)},
+      {base::bit_cast<double>(0x7FF82468BFFFFFFF),
+       base::bit_cast<float>(0x7FC12345)},
       //  - Signalling NaNs become quiet NaNs.
-      {bit_cast<double>(0x7FF02468A0000000), bit_cast<float>(0x7FC12345)},
-      {bit_cast<double>(0x7FF02468BFFFFFFF), bit_cast<float>(0x7FC12345)},
-      {bit_cast<double>(0x7FF000001FFFFFFF), bit_cast<float>(0x7FC00000)},
+      {base::bit_cast<double>(0x7FF02468A0000000),
+       base::bit_cast<float>(0x7FC12345)},
+      {base::bit_cast<double>(0x7FF02468BFFFFFFF),
+       base::bit_cast<float>(0x7FC12345)},
+      {base::bit_cast<double>(0x7FF000001FFFFFFF),
+       base::bit_cast<float>(0x7FC00000)},
   };
   int count = sizeof(test) / sizeof(test[0]);
 
@@ -11229,7 +11224,7 @@ static void FjcvtzsHelper(uint64_t value, uint64_t expected,
                           uint32_t expected_z) {
   SETUP();
   START();
-  __ Fmov(d0, bit_cast<double>(value));
+  __ Fmov(d0, base::bit_cast<double>(value));
   __ Fjcvtzs(w0, d0);
   __ Mrs(x1, NZCV);
   END();
@@ -11516,8 +11511,8 @@ static void TestUScvtfHelper(uint64_t in,
   RUN();
 
   // Check the results.
-  double expected_scvtf_base = bit_cast<double>(expected_scvtf_bits);
-  double expected_ucvtf_base = bit_cast<double>(expected_ucvtf_bits);
+  double expected_scvtf_base = base::bit_cast<double>(expected_scvtf_bits);
+  double expected_ucvtf_base = base::bit_cast<double>(expected_ucvtf_bits);
 
   for (int fbits = 0; fbits <= 32; fbits++) {
     double expected_scvtf = expected_scvtf_base / pow(2.0, fbits);
@@ -11667,8 +11662,8 @@ static void TestUScvtf32Helper(uint64_t in,
   RUN();
 
   // Check the results.
-  float expected_scvtf_base = bit_cast<float>(expected_scvtf_bits);
-  float expected_ucvtf_base = bit_cast<float>(expected_ucvtf_bits);
+  float expected_scvtf_base = base::bit_cast<float>(expected_scvtf_bits);
+  float expected_ucvtf_base = base::bit_cast<float>(expected_ucvtf_bits);
 
   for (int fbits = 0; fbits <= 32; fbits++) {
     float expected_scvtf = expected_scvtf_base / powf(2, fbits);
@@ -11861,7 +11856,7 @@ TEST(system_msr) {
 }
 
 TEST(system_pauth_b) {
-  i::FLAG_sim_abort_on_bad_auth = false;
+  i::v8_flags.sim_abort_on_bad_auth = false;
   SETUP();
   START();
 
@@ -12085,27 +12080,27 @@ TEST(register_bit) {
   // teardown.
 
   // Simple tests.
-  CHECK_EQ(x0.bit(), 1ULL << 0);
-  CHECK_EQ(x1.bit(), 1ULL << 1);
-  CHECK_EQ(x10.bit(), 1ULL << 10);
+  CHECK_EQ(RegList{x0}.bits(), 1ULL << 0);
+  CHECK_EQ(RegList{x1}.bits(), 1ULL << 1);
+  CHECK_EQ(RegList{x10}.bits(), 1ULL << 10);
 
   // AAPCS64 definitions.
-  CHECK_EQ(fp.bit(), 1ULL << kFramePointerRegCode);
-  CHECK_EQ(lr.bit(), 1ULL << kLinkRegCode);
+  CHECK_EQ(RegList{fp}.bits(), 1ULL << kFramePointerRegCode);
+  CHECK_EQ(RegList{lr}.bits(), 1ULL << kLinkRegCode);
 
   // Fixed (hardware) definitions.
-  CHECK_EQ(xzr.bit(), 1ULL << kZeroRegCode);
+  CHECK_EQ(RegList{xzr}.bits(), 1ULL << kZeroRegCode);
 
   // Internal ABI definitions.
-  CHECK_EQ(sp.bit(), 1ULL << kSPRegInternalCode);
-  CHECK_NE(sp.bit(), xzr.bit());
+  CHECK_EQ(RegList{sp}.bits(), 1ULL << kSPRegInternalCode);
+  CHECK_NE(RegList{sp}.bits(), RegList{xzr}.bits());
 
-  // xn.bit() == wn.bit() at all times, for the same n.
-  CHECK_EQ(x0.bit(), w0.bit());
-  CHECK_EQ(x1.bit(), w1.bit());
-  CHECK_EQ(x10.bit(), w10.bit());
-  CHECK_EQ(xzr.bit(), wzr.bit());
-  CHECK_EQ(sp.bit(), wsp.bit());
+  // RegList{xn}.bits() == RegList{wn}.bits() at all times, for the same n.
+  CHECK_EQ(RegList{x0}.bits(), RegList{w0}.bits());
+  CHECK_EQ(RegList{x1}.bits(), RegList{w1}.bits());
+  CHECK_EQ(RegList{x10}.bits(), RegList{w10}.bits());
+  CHECK_EQ(RegList{xzr}.bits(), RegList{wzr}.bits());
+  CHECK_EQ(RegList{sp}.bits(), RegList{wsp}.bits());
 }
 
 TEST(peek_poke_simple) {
@@ -12113,9 +12108,8 @@ TEST(peek_poke_simple) {
   SETUP();
   START();
 
-  static const RegList x0_to_x3 = x0.bit() | x1.bit() | x2.bit() | x3.bit();
-  static const RegList x10_to_x13 =
-      x10.bit() | x11.bit() | x12.bit() | x13.bit();
+  static const RegList x0_to_x3 = {x0, x1, x2, x3};
+  static const RegList x10_to_x13 = {x10, x11, x12, x13};
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied by small values (such as a register index), this value
@@ -12200,35 +12194,35 @@ TEST(peek_poke_unaligned) {
   //    x0-x6 should be unchanged.
   //    w10-w12 should contain the lower words of x0-x2.
   __ Poke(x0, 1);
-  Clobber(&masm, x0.bit());
+  Clobber(&masm, RegList{x0});
   __ Peek(x0, 1);
   __ Poke(x1, 2);
-  Clobber(&masm, x1.bit());
+  Clobber(&masm, RegList{x1});
   __ Peek(x1, 2);
   __ Poke(x2, 3);
-  Clobber(&masm, x2.bit());
+  Clobber(&masm, RegList{x2});
   __ Peek(x2, 3);
   __ Poke(x3, 4);
-  Clobber(&masm, x3.bit());
+  Clobber(&masm, RegList{x3});
   __ Peek(x3, 4);
   __ Poke(x4, 5);
-  Clobber(&masm, x4.bit());
+  Clobber(&masm, RegList{x4});
   __ Peek(x4, 5);
   __ Poke(x5, 6);
-  Clobber(&masm, x5.bit());
+  Clobber(&masm, RegList{x5});
   __ Peek(x5, 6);
   __ Poke(x6, 7);
-  Clobber(&masm, x6.bit());
+  Clobber(&masm, RegList{x6});
   __ Peek(x6, 7);
 
   __ Poke(w0, 1);
-  Clobber(&masm, w10.bit());
+  Clobber(&masm, RegList{w10});
   __ Peek(w10, 1);
   __ Poke(w1, 2);
-  Clobber(&masm, w11.bit());
+  Clobber(&masm, RegList{w11});
   __ Peek(w11, 2);
   __ Poke(w2, 3);
-  Clobber(&masm, w12.bit());
+  Clobber(&masm, RegList{w12});
   __ Peek(w12, 3);
 
   __ Drop(4);
@@ -12391,9 +12385,11 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
   // For simplicity, exclude LR as well, as we would need to sign it when
   // pushing it. This also ensures that the list has an even number of elements,
   // which is needed for alignment.
-  RegList allowed = ~(masm.TmpList()->list() | x18.bit() | lr.bit());
+  static RegList const allowed =
+      RegList::FromBits(static_cast<uint32_t>(~masm.TmpList()->bits())) -
+      RegList{x18, lr};
   if (reg_count == kPushPopMaxRegCount) {
-    reg_count = CountSetBits(allowed, kNumberOfRegisters);
+    reg_count = CountSetBits(allowed.bits(), kNumberOfRegisters);
   }
   DCHECK_EQ(reg_count % 2, 0);
   // Work out which registers to use, based on reg_size.
@@ -12425,7 +12421,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Push high-numbered registers first (to the highest addresses).
         for (i = reg_count; i >= 4; i -= 4) {
-          __ Push<TurboAssembler::kDontStoreLR>(r[i - 1], r[i - 2], r[i - 3],
+          __ Push<MacroAssembler::kDontStoreLR>(r[i - 1], r[i - 2], r[i - 3],
                                                 r[i - 4]);
         }
         // Finish off the leftovers.
@@ -12439,7 +12435,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PushSizeRegList<TurboAssembler::kDontStoreLR>(list, reg_size);
+        __ PushSizeRegList(list, reg_size);
         break;
     }
 
@@ -12450,7 +12446,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Pop low-numbered registers first (from the lowest addresses).
         for (i = 0; i <= (reg_count-4); i += 4) {
-          __ Pop<TurboAssembler::kDontLoadLR>(r[i], r[i + 1], r[i + 2],
+          __ Pop<MacroAssembler::kDontLoadLR>(r[i], r[i + 1], r[i + 2],
                                               r[i + 3]);
         }
         // Finish off the leftovers.
@@ -12464,7 +12460,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PopSizeRegList<TurboAssembler::kDontLoadLR>(list, reg_size);
+        __ PopSizeRegList(list, reg_size);
         break;
     }
   }
@@ -12539,15 +12535,15 @@ static void PushPopFPSimpleHelper(int reg_count, int reg_size,
 
   // We can use any floating-point register. None of them are reserved for
   // debug code, for example.
-  static RegList const allowed = ~0;
+  static DoubleRegList const allowed = DoubleRegList::FromBits(~0);
   if (reg_count == kPushPopFPMaxRegCount) {
-    reg_count = CountSetBits(allowed, kNumberOfVRegisters);
+    reg_count = CountSetBits(allowed.bits(), kNumberOfVRegisters);
   }
   // Work out which registers to use, based on reg_size.
   auto v = CreateRegisterArray<VRegister, kNumberOfRegisters>();
   auto d = CreateRegisterArray<VRegister, kNumberOfRegisters>();
-  RegList list = PopulateVRegisterArray(nullptr, d.data(), v.data(), reg_size,
-                                        reg_count, allowed);
+  DoubleRegList list = PopulateVRegisterArray(nullptr, d.data(), v.data(),
+                                              reg_size, reg_count, allowed);
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied (using an integer) by small values (such as a register
@@ -12589,7 +12585,7 @@ static void PushPopFPSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PushSizeRegList(list, reg_size, CPURegister::kVRegister);
+        __ PushSizeRegList(list, reg_size);
         break;
     }
 
@@ -12613,7 +12609,7 @@ static void PushPopFPSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PopSizeRegList(list, reg_size, CPURegister::kVRegister);
+        __ PopSizeRegList(list, reg_size);
         break;
     }
   }
@@ -12686,24 +12682,25 @@ static void PushPopMixedMethodsHelper(int reg_size) {
 
   // Registers in the TmpList can be used by the macro assembler for debug code
   // (for example in 'Pop'), so we can't use them here.
-  static RegList const allowed = ~(masm.TmpList()->list());
+  static RegList const allowed =
+      RegList::FromBits(static_cast<uint32_t>(~masm.TmpList()->bits()));
   // Work out which registers to use, based on reg_size.
   auto r = CreateRegisterArray<Register, 10>();
   auto x = CreateRegisterArray<Register, 10>();
   PopulateRegisterArray(nullptr, x.data(), r.data(), reg_size, 10, allowed);
 
   // Calculate some handy register lists.
-  RegList r0_to_r3 = 0;
+  RegList r0_to_r3;
   for (int i = 0; i <= 3; i++) {
-    r0_to_r3 |= x[i].bit();
+    r0_to_r3.set(x[i]);
   }
-  RegList r4_to_r5 = 0;
+  RegList r4_to_r5;
   for (int i = 4; i <= 5; i++) {
-    r4_to_r5 |= x[i].bit();
+    r4_to_r5.set(x[i]);
   }
-  RegList r6_to_r9 = 0;
+  RegList r6_to_r9;
   for (int i = 6; i <= 9; i++) {
-    r6_to_r9 |= x[i].bit();
+    r6_to_r9.set(x[i]);
   }
 
   // The literal base is chosen to have two useful properties:
@@ -12765,17 +12762,17 @@ TEST(push_pop) {
   __ Mov(x1, 0x1111111111111111UL);
   __ Mov(x0, 0x0000000000000000UL);
   __ Claim(2);
-  __ PushXRegList(x0.bit() | x1.bit() | x2.bit() | x3.bit());
+  __ PushXRegList({x0, x1, x2, x3});
   __ Push(x3, x2);
-  __ PopXRegList(x0.bit() | x1.bit() | x2.bit() | x3.bit());
+  __ PopXRegList({x0, x1, x2, x3});
   __ Push(x2, x1, x3, x0);
   __ Pop(x4, x5);
   __ Pop(x6, x7, x8, x9);
 
   __ Claim(2);
-  __ PushWRegList(w0.bit() | w1.bit() | w2.bit() | w3.bit());
+  __ PushWRegList({w0, w1, w2, w3});
   __ Push(w3, w1, w2, w0);
-  __ PopWRegList(w10.bit() | w11.bit() | w12.bit() | w13.bit());
+  __ PopWRegList({w10, w11, w12, w13});
   __ Pop(w14, w15, w16, w17);
 
   __ Claim(2);
@@ -12785,20 +12782,20 @@ TEST(push_pop) {
   __ Pop(x22, x23);
 
   __ Claim(2);
-  __ PushXRegList(x1.bit() | x22.bit());
-  __ PopXRegList(x24.bit() | x26.bit());
+  __ PushXRegList({x1, x22});
+  __ PopXRegList({x24, x26});
 
   __ Claim(2);
-  __ PushWRegList(w1.bit() | w2.bit() | w4.bit() | w22.bit());
-  __ PopWRegList(w25.bit() | w27.bit() | w28.bit() | w29.bit());
+  __ PushWRegList({w1, w2, w4, w22});
+  __ PopWRegList({w25, w27, w28, w29});
 
   __ Claim(2);
-  __ PushXRegList(0);
-  __ PopXRegList(0);
+  __ PushXRegList({});
+  __ PopXRegList({});
   // Don't push/pop x18 (platform register) or lr
-  RegList all_regs = 0xFFFFFFFF & ~(x18.bit() | lr.bit());
-  __ PushXRegList<TurboAssembler::kDontStoreLR>(all_regs);
-  __ PopXRegList<TurboAssembler::kDontLoadLR>(all_regs);
+  RegList all_regs = RegList::FromBits(0xFFFFFFFF) - RegList{x18, lr};
+  __ PushXRegList(all_regs);
+  __ PopXRegList(all_regs);
   __ Drop(12);
 
   END();
@@ -12991,7 +12988,7 @@ TEST(copy_double_words_downwards_even) {
   __ SlotAddress(x5, 12);
   __ SlotAddress(x6, 11);
   __ Mov(x7, 12);
-  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+  __ CopyDoubleWords(x5, x6, x7, MacroAssembler::kSrcLessThanDst);
 
   __ Pop(xzr, x4, x5, x6);
   __ Pop(x7, x8, x9, x10);
@@ -13045,7 +13042,7 @@ TEST(copy_double_words_downwards_odd) {
   __ SlotAddress(x5, 13);
   __ SlotAddress(x6, 12);
   __ Mov(x7, 13);
-  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+  __ CopyDoubleWords(x5, x6, x7, MacroAssembler::kSrcLessThanDst);
 
   __ Pop(xzr, x4);
   __ Pop(x5, x6, x7, x8);
@@ -13101,13 +13098,13 @@ TEST(copy_noop) {
   __ SlotAddress(x5, 3);
   __ SlotAddress(x6, 2);
   __ Mov(x7, 0);
-  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+  __ CopyDoubleWords(x5, x6, x7, MacroAssembler::kSrcLessThanDst);
 
   // dst < src, count == 0
   __ SlotAddress(x5, 2);
   __ SlotAddress(x6, 3);
   __ Mov(x7, 0);
-  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kDstLessThanSrc);
+  __ CopyDoubleWords(x5, x6, x7, MacroAssembler::kDstLessThanSrc);
 
   __ Pop(x1, x2, x3, x4);
   __ Pop(x5, x6, x7, x8);
@@ -13950,10 +13947,10 @@ TEST(cpureglist_utils_empty) {
   // Test an empty list.
   // Empty lists can have type and size properties. Check that we can create
   // them, and that they are empty.
-  CPURegList reg32(CPURegister::kRegister, kWRegSizeInBits, 0);
-  CPURegList reg64(CPURegister::kRegister, kXRegSizeInBits, 0);
-  CPURegList fpreg32(CPURegister::kVRegister, kSRegSizeInBits, 0);
-  CPURegList fpreg64(CPURegister::kVRegister, kDRegSizeInBits, 0);
+  CPURegList reg32(kWRegSizeInBits, RegList{});
+  CPURegList reg64(kXRegSizeInBits, RegList{});
+  CPURegList fpreg32(kSRegSizeInBits, DoubleRegList{});
+  CPURegList fpreg64(kDRegSizeInBits, DoubleRegList{});
 
   CHECK(reg32.IsEmpty());
   CHECK(reg64.IsEmpty());
@@ -14247,16 +14244,881 @@ TEST(barriers) {
   RUN();
 }
 
+TEST(cas_casa_casl_casal_w) {
+  uint64_t data1 = 0x0123456789abcdef;
+  uint64_t data2 = 0x0123456789abcdef;
+  uint64_t data3 = 0x0123456789abcdef;
+  uint64_t data4 = 0x0123456789abcdef;
+  uint64_t data5 = 0x0123456789abcdef;
+  uint64_t data6 = 0x0123456789abcdef;
+  uint64_t data7 = 0x0123456789abcdef;
+  uint64_t data8 = 0x0123456789abcdef;
+
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(LSE);
+
+  START();
+
+  __ Mov(x21, reinterpret_cast<uintptr_t>(&data1) + 0);
+  __ Mov(x22, reinterpret_cast<uintptr_t>(&data2) + 0);
+  __ Mov(x23, reinterpret_cast<uintptr_t>(&data3) + 4);
+  __ Mov(x24, reinterpret_cast<uintptr_t>(&data4) + 4);
+  __ Mov(x25, reinterpret_cast<uintptr_t>(&data5) + 0);
+  __ Mov(x26, reinterpret_cast<uintptr_t>(&data6) + 0);
+  __ Mov(x27, reinterpret_cast<uintptr_t>(&data7) + 4);
+  __ Mov(x28, reinterpret_cast<uintptr_t>(&data8) + 4);
+
+  __ Mov(x0, 0xffffffff);
+
+  __ Mov(x1, 0xfedcba9876543210);
+  __ Mov(x2, 0x0123456789abcdef);
+  __ Mov(x3, 0xfedcba9876543210);
+  __ Mov(x4, 0x89abcdef01234567);
+  __ Mov(x5, 0xfedcba9876543210);
+  __ Mov(x6, 0x0123456789abcdef);
+  __ Mov(x7, 0xfedcba9876543210);
+  __ Mov(x8, 0x89abcdef01234567);
+
+  __ Cas(w1, w0, MemOperand(x21));
+  __ Cas(w2, w0, MemOperand(x22));
+  __ Casa(w3, w0, MemOperand(x23));
+  __ Casa(w4, w0, MemOperand(x24));
+  __ Casl(w5, w0, MemOperand(x25));
+  __ Casl(w6, w0, MemOperand(x26));
+  __ Casal(w7, w0, MemOperand(x27));
+  __ Casal(w8, w0, MemOperand(x28));
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0x89abcdef, x1);
+    CHECK_EQUAL_64(0x89abcdef, x2);
+    CHECK_EQUAL_64(0x01234567, x3);
+    CHECK_EQUAL_64(0x01234567, x4);
+    CHECK_EQUAL_64(0x89abcdef, x5);
+    CHECK_EQUAL_64(0x89abcdef, x6);
+    CHECK_EQUAL_64(0x01234567, x7);
+    CHECK_EQUAL_64(0x01234567, x8);
+
+    CHECK_EQUAL_64(0x0123456789abcdef, data1);
+    CHECK_EQUAL_64(0x01234567ffffffff, data2);
+    CHECK_EQUAL_64(0x0123456789abcdef, data3);
+    CHECK_EQUAL_64(0xffffffff89abcdef, data4);
+    CHECK_EQUAL_64(0x0123456789abcdef, data5);
+    CHECK_EQUAL_64(0x01234567ffffffff, data6);
+    CHECK_EQUAL_64(0x0123456789abcdef, data7);
+    CHECK_EQUAL_64(0xffffffff89abcdef, data8);
+  }
+}
+
+TEST(cas_casa_casl_casal_x) {
+  uint64_t data1 = 0x0123456789abcdef;
+  uint64_t data2 = 0x0123456789abcdef;
+  uint64_t data3 = 0x0123456789abcdef;
+  uint64_t data4 = 0x0123456789abcdef;
+  uint64_t data5 = 0x0123456789abcdef;
+  uint64_t data6 = 0x0123456789abcdef;
+  uint64_t data7 = 0x0123456789abcdef;
+  uint64_t data8 = 0x0123456789abcdef;
+
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(LSE);
+
+  START();
+
+  __ Mov(x21, reinterpret_cast<uintptr_t>(&data1));
+  __ Mov(x22, reinterpret_cast<uintptr_t>(&data2));
+  __ Mov(x23, reinterpret_cast<uintptr_t>(&data3));
+  __ Mov(x24, reinterpret_cast<uintptr_t>(&data4));
+  __ Mov(x25, reinterpret_cast<uintptr_t>(&data5));
+  __ Mov(x26, reinterpret_cast<uintptr_t>(&data6));
+  __ Mov(x27, reinterpret_cast<uintptr_t>(&data7));
+  __ Mov(x28, reinterpret_cast<uintptr_t>(&data8));
+
+  __ Mov(x0, 0xffffffffffffffff);
+
+  __ Mov(x1, 0xfedcba9876543210);
+  __ Mov(x2, 0x0123456789abcdef);
+  __ Mov(x3, 0xfedcba9876543210);
+  __ Mov(x4, 0x0123456789abcdef);
+  __ Mov(x5, 0xfedcba9876543210);
+  __ Mov(x6, 0x0123456789abcdef);
+  __ Mov(x7, 0xfedcba9876543210);
+  __ Mov(x8, 0x0123456789abcdef);
+
+  __ Cas(x1, x0, MemOperand(x21));
+  __ Cas(x2, x0, MemOperand(x22));
+  __ Casa(x3, x0, MemOperand(x23));
+  __ Casa(x4, x0, MemOperand(x24));
+  __ Casl(x5, x0, MemOperand(x25));
+  __ Casl(x6, x0, MemOperand(x26));
+  __ Casal(x7, x0, MemOperand(x27));
+  __ Casal(x8, x0, MemOperand(x28));
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0x0123456789abcdef, x1);
+    CHECK_EQUAL_64(0x0123456789abcdef, x2);
+    CHECK_EQUAL_64(0x0123456789abcdef, x3);
+    CHECK_EQUAL_64(0x0123456789abcdef, x4);
+    CHECK_EQUAL_64(0x0123456789abcdef, x5);
+    CHECK_EQUAL_64(0x0123456789abcdef, x6);
+    CHECK_EQUAL_64(0x0123456789abcdef, x7);
+    CHECK_EQUAL_64(0x0123456789abcdef, x8);
+
+    CHECK_EQUAL_64(0x0123456789abcdef, data1);
+    CHECK_EQUAL_64(0xffffffffffffffff, data2);
+    CHECK_EQUAL_64(0x0123456789abcdef, data3);
+    CHECK_EQUAL_64(0xffffffffffffffff, data4);
+    CHECK_EQUAL_64(0x0123456789abcdef, data5);
+    CHECK_EQUAL_64(0xffffffffffffffff, data6);
+    CHECK_EQUAL_64(0x0123456789abcdef, data7);
+    CHECK_EQUAL_64(0xffffffffffffffff, data8);
+  }
+}
+
+TEST(casb_casab_caslb_casalb) {
+  uint32_t data1 = 0x01234567;
+  uint32_t data2 = 0x01234567;
+  uint32_t data3 = 0x01234567;
+  uint32_t data4 = 0x01234567;
+  uint32_t data5 = 0x01234567;
+  uint32_t data6 = 0x01234567;
+  uint32_t data7 = 0x01234567;
+  uint32_t data8 = 0x01234567;
+
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(LSE);
+
+  START();
+
+  __ Mov(x21, reinterpret_cast<uintptr_t>(&data1) + 0);
+  __ Mov(x22, reinterpret_cast<uintptr_t>(&data2) + 0);
+  __ Mov(x23, reinterpret_cast<uintptr_t>(&data3) + 1);
+  __ Mov(x24, reinterpret_cast<uintptr_t>(&data4) + 1);
+  __ Mov(x25, reinterpret_cast<uintptr_t>(&data5) + 2);
+  __ Mov(x26, reinterpret_cast<uintptr_t>(&data6) + 2);
+  __ Mov(x27, reinterpret_cast<uintptr_t>(&data7) + 3);
+  __ Mov(x28, reinterpret_cast<uintptr_t>(&data8) + 3);
+
+  __ Mov(x0, 0xff);
+
+  __ Mov(x1, 0x76543210);
+  __ Mov(x2, 0x01234567);
+  __ Mov(x3, 0x76543210);
+  __ Mov(x4, 0x67012345);
+  __ Mov(x5, 0x76543210);
+  __ Mov(x6, 0x45670123);
+  __ Mov(x7, 0x76543210);
+  __ Mov(x8, 0x23456701);
+
+  __ Casb(w1, w0, MemOperand(x21));
+  __ Casb(w2, w0, MemOperand(x22));
+  __ Casab(w3, w0, MemOperand(x23));
+  __ Casab(w4, w0, MemOperand(x24));
+  __ Caslb(w5, w0, MemOperand(x25));
+  __ Caslb(w6, w0, MemOperand(x26));
+  __ Casalb(w7, w0, MemOperand(x27));
+  __ Casalb(w8, w0, MemOperand(x28));
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0x00000067, x1);
+    CHECK_EQUAL_64(0x00000067, x2);
+    CHECK_EQUAL_64(0x00000045, x3);
+    CHECK_EQUAL_64(0x00000045, x4);
+    CHECK_EQUAL_64(0x00000023, x5);
+    CHECK_EQUAL_64(0x00000023, x6);
+    CHECK_EQUAL_64(0x00000001, x7);
+    CHECK_EQUAL_64(0x00000001, x8);
+
+    CHECK_EQUAL_64(0x01234567, data1);
+    CHECK_EQUAL_64(0x012345ff, data2);
+    CHECK_EQUAL_64(0x01234567, data3);
+    CHECK_EQUAL_64(0x0123ff67, data4);
+    CHECK_EQUAL_64(0x01234567, data5);
+    CHECK_EQUAL_64(0x01ff4567, data6);
+    CHECK_EQUAL_64(0x01234567, data7);
+    CHECK_EQUAL_64(0xff234567, data8);
+  }
+}
+
+TEST(cash_casah_caslh_casalh) {
+  uint64_t data1 = 0x0123456789abcdef;
+  uint64_t data2 = 0x0123456789abcdef;
+  uint64_t data3 = 0x0123456789abcdef;
+  uint64_t data4 = 0x0123456789abcdef;
+  uint64_t data5 = 0x0123456789abcdef;
+  uint64_t data6 = 0x0123456789abcdef;
+  uint64_t data7 = 0x0123456789abcdef;
+  uint64_t data8 = 0x0123456789abcdef;
+
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(LSE);
+
+  START();
+
+  __ Mov(x21, reinterpret_cast<uintptr_t>(&data1) + 0);
+  __ Mov(x22, reinterpret_cast<uintptr_t>(&data2) + 0);
+  __ Mov(x23, reinterpret_cast<uintptr_t>(&data3) + 2);
+  __ Mov(x24, reinterpret_cast<uintptr_t>(&data4) + 2);
+  __ Mov(x25, reinterpret_cast<uintptr_t>(&data5) + 4);
+  __ Mov(x26, reinterpret_cast<uintptr_t>(&data6) + 4);
+  __ Mov(x27, reinterpret_cast<uintptr_t>(&data7) + 6);
+  __ Mov(x28, reinterpret_cast<uintptr_t>(&data8) + 6);
+
+  __ Mov(x0, 0xffff);
+
+  __ Mov(x1, 0xfedcba9876543210);
+  __ Mov(x2, 0x0123456789abcdef);
+  __ Mov(x3, 0xfedcba9876543210);
+  __ Mov(x4, 0xcdef0123456789ab);
+  __ Mov(x5, 0xfedcba9876543210);
+  __ Mov(x6, 0x89abcdef01234567);
+  __ Mov(x7, 0xfedcba9876543210);
+  __ Mov(x8, 0x456789abcdef0123);
+
+  __ Cash(w1, w0, MemOperand(x21));
+  __ Cash(w2, w0, MemOperand(x22));
+  __ Casah(w3, w0, MemOperand(x23));
+  __ Casah(w4, w0, MemOperand(x24));
+  __ Caslh(w5, w0, MemOperand(x25));
+  __ Caslh(w6, w0, MemOperand(x26));
+  __ Casalh(w7, w0, MemOperand(x27));
+  __ Casalh(w8, w0, MemOperand(x28));
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0x0000cdef, x1);
+    CHECK_EQUAL_64(0x0000cdef, x2);
+    CHECK_EQUAL_64(0x000089ab, x3);
+    CHECK_EQUAL_64(0x000089ab, x4);
+    CHECK_EQUAL_64(0x00004567, x5);
+    CHECK_EQUAL_64(0x00004567, x6);
+    CHECK_EQUAL_64(0x00000123, x7);
+    CHECK_EQUAL_64(0x00000123, x8);
+
+    CHECK_EQUAL_64(0x0123456789abcdef, data1);
+    CHECK_EQUAL_64(0x0123456789abffff, data2);
+    CHECK_EQUAL_64(0x0123456789abcdef, data3);
+    CHECK_EQUAL_64(0x01234567ffffcdef, data4);
+    CHECK_EQUAL_64(0x0123456789abcdef, data5);
+    CHECK_EQUAL_64(0x0123ffff89abcdef, data6);
+    CHECK_EQUAL_64(0x0123456789abcdef, data7);
+    CHECK_EQUAL_64(0xffff456789abcdef, data8);
+  }
+}
+
+TEST(casp_caspa_caspl_caspal_w) {
+  uint64_t data1[] = {0x7766554433221100, 0xffeeddccbbaa9988};
+  uint64_t data2[] = {0x7766554433221100, 0xffeeddccbbaa9988};
+  uint64_t data3[] = {0x7766554433221100, 0xffeeddccbbaa9988};
+  uint64_t data4[] = {0x7766554433221100, 0xffeeddccbbaa9988};
+  uint64_t data5[] = {0x7766554433221100, 0xffeeddccbbaa9988};
+  uint64_t data6[] = {0x7766554433221100, 0xffeeddccbbaa9988};
+  uint64_t data7[] = {0x7766554433221100, 0xffeeddccbbaa9988};
+  uint64_t data8[] = {0x7766554433221100, 0xffeeddccbbaa9988};
+
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(LSE);
+
+  START();
+
+  __ Mov(x21, reinterpret_cast<uintptr_t>(data1) + 0);
+  __ Mov(x22, reinterpret_cast<uintptr_t>(data2) + 0);
+  __ Mov(x23, reinterpret_cast<uintptr_t>(data3) + 8);
+  __ Mov(x24, reinterpret_cast<uintptr_t>(data4) + 8);
+  __ Mov(x25, reinterpret_cast<uintptr_t>(data5) + 8);
+  __ Mov(x26, reinterpret_cast<uintptr_t>(data6) + 8);
+  __ Mov(x27, reinterpret_cast<uintptr_t>(data7) + 0);
+  __ Mov(x28, reinterpret_cast<uintptr_t>(data8) + 0);
+
+  __ Mov(x0, 0xfff00fff);
+  __ Mov(x1, 0xfff11fff);
+
+  __ Mov(x2, 0x77665544);
+  __ Mov(x3, 0x33221100);
+  __ Mov(x4, 0x33221100);
+  __ Mov(x5, 0x77665544);
+
+  __ Mov(x6, 0xffeeddcc);
+  __ Mov(x7, 0xbbaa9988);
+  __ Mov(x8, 0xbbaa9988);
+  __ Mov(x9, 0xffeeddcc);
+
+  __ Mov(x10, 0xffeeddcc);
+  __ Mov(x11, 0xbbaa9988);
+  __ Mov(x12, 0xbbaa9988);
+  __ Mov(x13, 0xffeeddcc);
+
+  __ Mov(x14, 0x77665544);
+  __ Mov(x15, 0x33221100);
+  __ Mov(x16, 0x33221100);
+  __ Mov(x17, 0x77665544);
+
+  __ Casp(w2, w3, w0, w1, MemOperand(x21));
+  __ Casp(w4, w5, w0, w1, MemOperand(x22));
+  __ Caspa(w6, w7, w0, w1, MemOperand(x23));
+  __ Caspa(w8, w9, w0, w1, MemOperand(x24));
+  __ Caspl(w10, w11, w0, w1, MemOperand(x25));
+  __ Caspl(w12, w13, w0, w1, MemOperand(x26));
+  __ Caspal(w14, w15, w0, w1, MemOperand(x27));
+  __ Caspal(w16, w17, w0, w1, MemOperand(x28));
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0x33221100, x2);
+    CHECK_EQUAL_64(0x77665544, x3);
+    CHECK_EQUAL_64(0x33221100, x4);
+    CHECK_EQUAL_64(0x77665544, x5);
+    CHECK_EQUAL_64(0xbbaa9988, x6);
+    CHECK_EQUAL_64(0xffeeddcc, x7);
+    CHECK_EQUAL_64(0xbbaa9988, x8);
+    CHECK_EQUAL_64(0xffeeddcc, x9);
+    CHECK_EQUAL_64(0xbbaa9988, x10);
+    CHECK_EQUAL_64(0xffeeddcc, x11);
+    CHECK_EQUAL_64(0xbbaa9988, x12);
+    CHECK_EQUAL_64(0xffeeddcc, x13);
+    CHECK_EQUAL_64(0x33221100, x14);
+    CHECK_EQUAL_64(0x77665544, x15);
+    CHECK_EQUAL_64(0x33221100, x16);
+    CHECK_EQUAL_64(0x77665544, x17);
+
+    CHECK_EQUAL_64(0x7766554433221100, data1[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data1[1]);
+    CHECK_EQUAL_64(0xfff11ffffff00fff, data2[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data2[1]);
+    CHECK_EQUAL_64(0x7766554433221100, data3[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data3[1]);
+    CHECK_EQUAL_64(0x7766554433221100, data4[0]);
+    CHECK_EQUAL_64(0xfff11ffffff00fff, data4[1]);
+    CHECK_EQUAL_64(0x7766554433221100, data5[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data5[1]);
+    CHECK_EQUAL_64(0x7766554433221100, data6[0]);
+    CHECK_EQUAL_64(0xfff11ffffff00fff, data6[1]);
+    CHECK_EQUAL_64(0x7766554433221100, data7[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data7[1]);
+    CHECK_EQUAL_64(0xfff11ffffff00fff, data8[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data8[1]);
+  }
+}
+
+TEST(casp_caspa_caspl_caspal_x) {
+  alignas(kXRegSize * 2)
+      uint64_t data1[] = {0x7766554433221100, 0xffeeddccbbaa9988,
+                          0xfedcba9876543210, 0x0123456789abcdef};
+  alignas(kXRegSize * 2)
+      uint64_t data2[] = {0x7766554433221100, 0xffeeddccbbaa9988,
+                          0xfedcba9876543210, 0x0123456789abcdef};
+  alignas(kXRegSize * 2)
+      uint64_t data3[] = {0x7766554433221100, 0xffeeddccbbaa9988,
+                          0xfedcba9876543210, 0x0123456789abcdef};
+  alignas(kXRegSize * 2)
+      uint64_t data4[] = {0x7766554433221100, 0xffeeddccbbaa9988,
+                          0xfedcba9876543210, 0x0123456789abcdef};
+  alignas(kXRegSize * 2)
+      uint64_t data5[] = {0x7766554433221100, 0xffeeddccbbaa9988,
+                          0xfedcba9876543210, 0x0123456789abcdef};
+  alignas(kXRegSize * 2)
+      uint64_t data6[] = {0x7766554433221100, 0xffeeddccbbaa9988,
+                          0xfedcba9876543210, 0x0123456789abcdef};
+  alignas(kXRegSize * 2)
+      uint64_t data7[] = {0x7766554433221100, 0xffeeddccbbaa9988,
+                          0xfedcba9876543210, 0x0123456789abcdef};
+  alignas(kXRegSize * 2)
+      uint64_t data8[] = {0x7766554433221100, 0xffeeddccbbaa9988,
+                          0xfedcba9876543210, 0x0123456789abcdef};
+
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(LSE);
+
+  START();
+
+  __ Mov(x21, reinterpret_cast<uintptr_t>(data1) + 0);
+  __ Mov(x22, reinterpret_cast<uintptr_t>(data2) + 0);
+  __ Mov(x23, reinterpret_cast<uintptr_t>(data3) + 16);
+  __ Mov(x24, reinterpret_cast<uintptr_t>(data4) + 16);
+  __ Mov(x25, reinterpret_cast<uintptr_t>(data5) + 16);
+  __ Mov(x26, reinterpret_cast<uintptr_t>(data6) + 16);
+  __ Mov(x27, reinterpret_cast<uintptr_t>(data7) + 0);
+  __ Mov(x28, reinterpret_cast<uintptr_t>(data8) + 0);
+
+  __ Mov(x0, 0xfffffff00fffffff);
+  __ Mov(x1, 0xfffffff11fffffff);
+
+  __ Mov(x2, 0xffeeddccbbaa9988);
+  __ Mov(x3, 0x7766554433221100);
+  __ Mov(x4, 0x7766554433221100);
+  __ Mov(x5, 0xffeeddccbbaa9988);
+
+  __ Mov(x6, 0x0123456789abcdef);
+  __ Mov(x7, 0xfedcba9876543210);
+  __ Mov(x8, 0xfedcba9876543210);
+  __ Mov(x9, 0x0123456789abcdef);
+
+  __ Mov(x10, 0x0123456789abcdef);
+  __ Mov(x11, 0xfedcba9876543210);
+  __ Mov(x12, 0xfedcba9876543210);
+  __ Mov(x13, 0x0123456789abcdef);
+
+  __ Mov(x14, 0xffeeddccbbaa9988);
+  __ Mov(x15, 0x7766554433221100);
+  __ Mov(x16, 0x7766554433221100);
+  __ Mov(x17, 0xffeeddccbbaa9988);
+
+  __ Casp(x2, x3, x0, x1, MemOperand(x21));
+  __ Casp(x4, x5, x0, x1, MemOperand(x22));
+  __ Caspa(x6, x7, x0, x1, MemOperand(x23));
+  __ Caspa(x8, x9, x0, x1, MemOperand(x24));
+  __ Caspl(x10, x11, x0, x1, MemOperand(x25));
+  __ Caspl(x12, x13, x0, x1, MemOperand(x26));
+  __ Caspal(x14, x15, x0, x1, MemOperand(x27));
+  __ Caspal(x16, x17, x0, x1, MemOperand(x28));
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0x7766554433221100, x2);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, x3);
+    CHECK_EQUAL_64(0x7766554433221100, x4);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, x5);
+
+    CHECK_EQUAL_64(0xfedcba9876543210, x6);
+    CHECK_EQUAL_64(0x0123456789abcdef, x7);
+    CHECK_EQUAL_64(0xfedcba9876543210, x8);
+    CHECK_EQUAL_64(0x0123456789abcdef, x9);
+
+    CHECK_EQUAL_64(0xfedcba9876543210, x10);
+    CHECK_EQUAL_64(0x0123456789abcdef, x11);
+    CHECK_EQUAL_64(0xfedcba9876543210, x12);
+    CHECK_EQUAL_64(0x0123456789abcdef, x13);
+
+    CHECK_EQUAL_64(0x7766554433221100, x14);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, x15);
+    CHECK_EQUAL_64(0x7766554433221100, x16);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, x17);
+
+    CHECK_EQUAL_64(0x7766554433221100, data1[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data1[1]);
+    CHECK_EQUAL_64(0xfedcba9876543210, data1[2]);
+    CHECK_EQUAL_64(0x0123456789abcdef, data1[3]);
+
+    CHECK_EQUAL_64(0xfffffff00fffffff, data2[0]);
+    CHECK_EQUAL_64(0xfffffff11fffffff, data2[1]);
+    CHECK_EQUAL_64(0xfedcba9876543210, data2[2]);
+    CHECK_EQUAL_64(0x0123456789abcdef, data2[3]);
+
+    CHECK_EQUAL_64(0x7766554433221100, data3[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data3[1]);
+    CHECK_EQUAL_64(0xfedcba9876543210, data3[2]);
+    CHECK_EQUAL_64(0x0123456789abcdef, data3[3]);
+
+    CHECK_EQUAL_64(0x7766554433221100, data4[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data4[1]);
+    CHECK_EQUAL_64(0xfffffff00fffffff, data4[2]);
+    CHECK_EQUAL_64(0xfffffff11fffffff, data4[3]);
+
+    CHECK_EQUAL_64(0x7766554433221100, data5[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data5[1]);
+    CHECK_EQUAL_64(0xfedcba9876543210, data5[2]);
+    CHECK_EQUAL_64(0x0123456789abcdef, data5[3]);
+
+    CHECK_EQUAL_64(0x7766554433221100, data6[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data6[1]);
+    CHECK_EQUAL_64(0xfffffff00fffffff, data6[2]);
+    CHECK_EQUAL_64(0xfffffff11fffffff, data6[3]);
+
+    CHECK_EQUAL_64(0x7766554433221100, data7[0]);
+    CHECK_EQUAL_64(0xffeeddccbbaa9988, data7[1]);
+    CHECK_EQUAL_64(0xfedcba9876543210, data7[2]);
+    CHECK_EQUAL_64(0x0123456789abcdef, data7[3]);
+
+    CHECK_EQUAL_64(0xfffffff00fffffff, data8[0]);
+    CHECK_EQUAL_64(0xfffffff11fffffff, data8[1]);
+    CHECK_EQUAL_64(0xfedcba9876543210, data8[2]);
+    CHECK_EQUAL_64(0x0123456789abcdef, data8[3]);
+  }
+}
+
+typedef void (MacroAssembler::*AtomicMemoryLoadSignature)(
+    const Register& rs, const Register& rt, const MemOperand& src);
+typedef void (MacroAssembler::*AtomicMemoryStoreSignature)(
+    const Register& rs, const MemOperand& src);
+
+static void AtomicMemoryWHelper(AtomicMemoryLoadSignature* load_funcs,
+                                AtomicMemoryStoreSignature* store_funcs,
+                                uint64_t arg1, uint64_t arg2, uint64_t expected,
+                                uint64_t result_mask) {
+  alignas(kXRegSize * 2) uint64_t data0[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data1[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data2[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data3[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data4[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data5[] = {arg2, 0};
+
+  SETUP();
+  SETUP_FEATURE(LSE);
+
+  START();
+
+  __ Mov(x20, reinterpret_cast<uintptr_t>(data0));
+  __ Mov(x21, reinterpret_cast<uintptr_t>(data1));
+  __ Mov(x22, reinterpret_cast<uintptr_t>(data2));
+  __ Mov(x23, reinterpret_cast<uintptr_t>(data3));
+
+  __ Mov(x0, arg1);
+  __ Mov(x1, arg1);
+  __ Mov(x2, arg1);
+  __ Mov(x3, arg1);
+
+  (masm.*(load_funcs[0]))(w0, w10, MemOperand(x20));
+  (masm.*(load_funcs[1]))(w1, w11, MemOperand(x21));
+  (masm.*(load_funcs[2]))(w2, w12, MemOperand(x22));
+  (masm.*(load_funcs[3]))(w3, w13, MemOperand(x23));
+
+  if (store_funcs != NULL) {
+    __ Mov(x24, reinterpret_cast<uintptr_t>(data4));
+    __ Mov(x25, reinterpret_cast<uintptr_t>(data5));
+    __ Mov(x4, arg1);
+    __ Mov(x5, arg1);
+
+    (masm.*(store_funcs[0]))(w4, MemOperand(x24));
+    (masm.*(store_funcs[1]))(w5, MemOperand(x25));
+  }
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    uint64_t stored_value = arg2 & result_mask;
+    CHECK_EQUAL_64(stored_value, x10);
+    CHECK_EQUAL_64(stored_value, x11);
+    CHECK_EQUAL_64(stored_value, x12);
+    CHECK_EQUAL_64(stored_value, x13);
+
+    // The data fields contain arg2 already then only the bits masked by
+    // result_mask are overwritten.
+    uint64_t final_expected = (arg2 & ~result_mask) | (expected & result_mask);
+    CHECK_EQUAL_64(final_expected, data0[0]);
+    CHECK_EQUAL_64(final_expected, data1[0]);
+    CHECK_EQUAL_64(final_expected, data2[0]);
+    CHECK_EQUAL_64(final_expected, data3[0]);
+
+    if (store_funcs != NULL) {
+      CHECK_EQUAL_64(final_expected, data4[0]);
+      CHECK_EQUAL_64(final_expected, data5[0]);
+    }
+  }
+}
+
+static void AtomicMemoryXHelper(AtomicMemoryLoadSignature* load_funcs,
+                                AtomicMemoryStoreSignature* store_funcs,
+                                uint64_t arg1, uint64_t arg2,
+                                uint64_t expected) {
+  alignas(kXRegSize * 2) uint64_t data0[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data1[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data2[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data3[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data4[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data5[] = {arg2, 0};
+
+  SETUP();
+  SETUP_FEATURE(LSE);
+
+  START();
+
+  __ Mov(x20, reinterpret_cast<uintptr_t>(data0));
+  __ Mov(x21, reinterpret_cast<uintptr_t>(data1));
+  __ Mov(x22, reinterpret_cast<uintptr_t>(data2));
+  __ Mov(x23, reinterpret_cast<uintptr_t>(data3));
+
+  __ Mov(x0, arg1);
+  __ Mov(x1, arg1);
+  __ Mov(x2, arg1);
+  __ Mov(x3, arg1);
+
+  (masm.*(load_funcs[0]))(x0, x10, MemOperand(x20));
+  (masm.*(load_funcs[1]))(x1, x11, MemOperand(x21));
+  (masm.*(load_funcs[2]))(x2, x12, MemOperand(x22));
+  (masm.*(load_funcs[3]))(x3, x13, MemOperand(x23));
+
+  if (store_funcs != NULL) {
+    __ Mov(x24, reinterpret_cast<uintptr_t>(data4));
+    __ Mov(x25, reinterpret_cast<uintptr_t>(data5));
+    __ Mov(x4, arg1);
+    __ Mov(x5, arg1);
+
+    (masm.*(store_funcs[0]))(x4, MemOperand(x24));
+    (masm.*(store_funcs[1]))(x5, MemOperand(x25));
+  }
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(arg2, x10);
+    CHECK_EQUAL_64(arg2, x11);
+    CHECK_EQUAL_64(arg2, x12);
+    CHECK_EQUAL_64(arg2, x13);
+
+    CHECK_EQUAL_64(expected, data0[0]);
+    CHECK_EQUAL_64(expected, data1[0]);
+    CHECK_EQUAL_64(expected, data2[0]);
+    CHECK_EQUAL_64(expected, data3[0]);
+
+    if (store_funcs != NULL) {
+      CHECK_EQUAL_64(expected, data4[0]);
+      CHECK_EQUAL_64(expected, data5[0]);
+    }
+  }
+}
+
+// clang-format off
+#define MAKE_LOADS(NAME)           \
+    {&MacroAssembler::Ld##NAME,    \
+     &MacroAssembler::Ld##NAME##a, \
+     &MacroAssembler::Ld##NAME##l, \
+     &MacroAssembler::Ld##NAME##al}
+#define MAKE_STORES(NAME) \
+    {&MacroAssembler::St##NAME, &MacroAssembler::St##NAME##l}
+
+#define MAKE_B_LOADS(NAME)          \
+    {&MacroAssembler::Ld##NAME##b,  \
+     &MacroAssembler::Ld##NAME##ab, \
+     &MacroAssembler::Ld##NAME##lb, \
+     &MacroAssembler::Ld##NAME##alb}
+#define MAKE_B_STORES(NAME) \
+    {&MacroAssembler::St##NAME##b, &MacroAssembler::St##NAME##lb}
+
+#define MAKE_H_LOADS(NAME)          \
+    {&MacroAssembler::Ld##NAME##h,  \
+     &MacroAssembler::Ld##NAME##ah, \
+     &MacroAssembler::Ld##NAME##lh, \
+     &MacroAssembler::Ld##NAME##alh}
+#define MAKE_H_STORES(NAME) \
+    {&MacroAssembler::St##NAME##h, &MacroAssembler::St##NAME##lh}
+// clang-format on
+
+TEST(atomic_memory_add) {
+  AtomicMemoryLoadSignature loads[] = MAKE_LOADS(add);
+  AtomicMemoryStoreSignature stores[] = MAKE_STORES(add);
+  AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(add);
+  AtomicMemoryStoreSignature b_stores[] = MAKE_B_STORES(add);
+  AtomicMemoryLoadSignature h_loads[] = MAKE_H_LOADS(add);
+  AtomicMemoryStoreSignature h_stores[] = MAKE_H_STORES(add);
+
+  // The arguments are chosen to have two useful properties:
+  //  * When multiplied by small values (such as a register index), this value
+  //    is clearly readable in the result.
+  //  * The value is not formed from repeating fixed-size smaller values, so it
+  //    can be used to detect endianness-related errors.
+  uint64_t arg1 = 0x0100001000100101;
+  uint64_t arg2 = 0x0200002000200202;
+  uint64_t expected = arg1 + arg2;
+
+  INIT_V8();
+
+  AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
+  AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
+  AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
+  AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
+}
+
+TEST(atomic_memory_clr) {
+  AtomicMemoryLoadSignature loads[] = MAKE_LOADS(clr);
+  AtomicMemoryStoreSignature stores[] = MAKE_STORES(clr);
+  AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(clr);
+  AtomicMemoryStoreSignature b_stores[] = MAKE_B_STORES(clr);
+  AtomicMemoryLoadSignature h_loads[] = MAKE_H_LOADS(clr);
+  AtomicMemoryStoreSignature h_stores[] = MAKE_H_STORES(clr);
+
+  uint64_t arg1 = 0x0300003000300303;
+  uint64_t arg2 = 0x0500005000500505;
+  uint64_t expected = arg2 & ~arg1;
+
+  INIT_V8();
+
+  AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
+  AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
+  AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
+  AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
+}
+
+TEST(atomic_memory_eor) {
+  AtomicMemoryLoadSignature loads[] = MAKE_LOADS(eor);
+  AtomicMemoryStoreSignature stores[] = MAKE_STORES(eor);
+  AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(eor);
+  AtomicMemoryStoreSignature b_stores[] = MAKE_B_STORES(eor);
+  AtomicMemoryLoadSignature h_loads[] = MAKE_H_LOADS(eor);
+  AtomicMemoryStoreSignature h_stores[] = MAKE_H_STORES(eor);
+
+  uint64_t arg1 = 0x0300003000300303;
+  uint64_t arg2 = 0x0500005000500505;
+  uint64_t expected = arg1 ^ arg2;
+
+  INIT_V8();
+
+  AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
+  AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
+  AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
+  AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
+}
+
+TEST(atomic_memory_set) {
+  AtomicMemoryLoadSignature loads[] = MAKE_LOADS(set);
+  AtomicMemoryStoreSignature stores[] = MAKE_STORES(set);
+  AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(set);
+  AtomicMemoryStoreSignature b_stores[] = MAKE_B_STORES(set);
+  AtomicMemoryLoadSignature h_loads[] = MAKE_H_LOADS(set);
+  AtomicMemoryStoreSignature h_stores[] = MAKE_H_STORES(set);
+
+  uint64_t arg1 = 0x0300003000300303;
+  uint64_t arg2 = 0x0500005000500505;
+  uint64_t expected = arg1 | arg2;
+
+  AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
+  AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
+  AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
+  AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
+}
+
+TEST(atomic_memory_smax) {
+  AtomicMemoryLoadSignature loads[] = MAKE_LOADS(smax);
+  AtomicMemoryStoreSignature stores[] = MAKE_STORES(smax);
+  AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(smax);
+  AtomicMemoryStoreSignature b_stores[] = MAKE_B_STORES(smax);
+  AtomicMemoryLoadSignature h_loads[] = MAKE_H_LOADS(smax);
+  AtomicMemoryStoreSignature h_stores[] = MAKE_H_STORES(smax);
+
+  uint64_t arg1 = 0x8100000080108181;
+  uint64_t arg2 = 0x0100001000100101;
+  uint64_t expected = 0x0100001000100101;
+
+  INIT_V8();
+
+  AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
+  AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
+  AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
+  AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
+}
+
+TEST(atomic_memory_smin) {
+  AtomicMemoryLoadSignature loads[] = MAKE_LOADS(smin);
+  AtomicMemoryStoreSignature stores[] = MAKE_STORES(smin);
+  AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(smin);
+  AtomicMemoryStoreSignature b_stores[] = MAKE_B_STORES(smin);
+  AtomicMemoryLoadSignature h_loads[] = MAKE_H_LOADS(smin);
+  AtomicMemoryStoreSignature h_stores[] = MAKE_H_STORES(smin);
+
+  uint64_t arg1 = 0x8100000080108181;
+  uint64_t arg2 = 0x0100001000100101;
+  uint64_t expected = 0x8100000080108181;
+
+  INIT_V8();
+
+  AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
+  AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
+  AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
+  AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
+}
+
+TEST(atomic_memory_umax) {
+  AtomicMemoryLoadSignature loads[] = MAKE_LOADS(umax);
+  AtomicMemoryStoreSignature stores[] = MAKE_STORES(umax);
+  AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(umax);
+  AtomicMemoryStoreSignature b_stores[] = MAKE_B_STORES(umax);
+  AtomicMemoryLoadSignature h_loads[] = MAKE_H_LOADS(umax);
+  AtomicMemoryStoreSignature h_stores[] = MAKE_H_STORES(umax);
+
+  uint64_t arg1 = 0x8100000080108181;
+  uint64_t arg2 = 0x0100001000100101;
+  uint64_t expected = 0x8100000080108181;
+
+  AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
+  AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
+  AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
+  AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
+}
+
+TEST(atomic_memory_umin) {
+  AtomicMemoryLoadSignature loads[] = MAKE_LOADS(umin);
+  AtomicMemoryStoreSignature stores[] = MAKE_STORES(umin);
+  AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(umin);
+  AtomicMemoryStoreSignature b_stores[] = MAKE_B_STORES(umin);
+  AtomicMemoryLoadSignature h_loads[] = MAKE_H_LOADS(umin);
+  AtomicMemoryStoreSignature h_stores[] = MAKE_H_STORES(umin);
+
+  uint64_t arg1 = 0x8100000080108181;
+  uint64_t arg2 = 0x0100001000100101;
+  uint64_t expected = 0x0100001000100101;
+
+  INIT_V8();
+
+  AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
+  AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
+  AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
+  AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
+}
+
+TEST(atomic_memory_swp) {
+  AtomicMemoryLoadSignature loads[] = {
+      &MacroAssembler::Swp, &MacroAssembler::Swpa, &MacroAssembler::Swpl,
+      &MacroAssembler::Swpal};
+  AtomicMemoryLoadSignature b_loads[] = {
+      &MacroAssembler::Swpb, &MacroAssembler::Swpab, &MacroAssembler::Swplb,
+      &MacroAssembler::Swpalb};
+  AtomicMemoryLoadSignature h_loads[] = {
+      &MacroAssembler::Swph, &MacroAssembler::Swpah, &MacroAssembler::Swplh,
+      &MacroAssembler::Swpalh};
+
+  uint64_t arg1 = 0x0100001000100101;
+  uint64_t arg2 = 0x0200002000200202;
+  uint64_t expected = 0x0100001000100101;
+
+  INIT_V8();
+
+  // SWP functions have equivalent signatures to the Atomic Memory LD functions
+  // so we can use the same helper but without the ST aliases.
+  AtomicMemoryWHelper(b_loads, NULL, arg1, arg2, expected, kByteMask);
+  AtomicMemoryWHelper(h_loads, NULL, arg1, arg2, expected, kHalfWordMask);
+  AtomicMemoryWHelper(loads, NULL, arg1, arg2, expected, kWordMask);
+  AtomicMemoryXHelper(loads, NULL, arg1, arg2, expected);
+}
+
 TEST(process_nan_double) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double sn = bit_cast<double>(0x7FF5555511111111);
-  double qn = bit_cast<double>(0x7FFAAAAA11111111);
+  double sn = base::bit_cast<double>(0x7FF5555511111111);
+  double qn = base::bit_cast<double>(0x7FFAAAAA11111111);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
-  double sn_proc = bit_cast<double>(0x7FFD555511111111);
+  double sn_proc = base::bit_cast<double>(0x7FFD555511111111);
   double qn_proc = qn;
   CHECK(IsQuietNaN(sn_proc));
   CHECK(IsQuietNaN(qn_proc));
@@ -14296,17 +15158,17 @@ TEST(process_nan_double) {
   END();
   RUN();
 
-  uint64_t qn_raw = bit_cast<uint64_t>(qn);
-  uint64_t sn_raw = bit_cast<uint64_t>(sn);
+  uint64_t qn_raw = base::bit_cast<uint64_t>(qn);
+  uint64_t sn_raw = base::bit_cast<uint64_t>(sn);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP64(sn, d1);
-  CHECK_EQUAL_FP64(bit_cast<double>(sn_raw & ~kDSignMask), d2);
-  CHECK_EQUAL_FP64(bit_cast<double>(sn_raw ^ kDSignMask), d3);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(sn_raw & ~kDSignMask), d2);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(sn_raw ^ kDSignMask), d3);
   //   - Quiet NaN
   CHECK_EQUAL_FP64(qn, d11);
-  CHECK_EQUAL_FP64(bit_cast<double>(qn_raw & ~kDSignMask), d12);
-  CHECK_EQUAL_FP64(bit_cast<double>(qn_raw ^ kDSignMask), d13);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(qn_raw & ~kDSignMask), d12);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(qn_raw ^ kDSignMask), d13);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP64(sn_proc, d4);
@@ -14323,13 +15185,13 @@ TEST(process_nan_double) {
 TEST(process_nan_float) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float sn = bit_cast<float>(0x7F951111);
-  float qn = bit_cast<float>(0x7FEA1111);
+  float sn = base::bit_cast<float>(0x7F951111);
+  float qn = base::bit_cast<float>(0x7FEA1111);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
-  float sn_proc = bit_cast<float>(0x7FD51111);
+  float sn_proc = base::bit_cast<float>(0x7FD51111);
   float qn_proc = qn;
   CHECK(IsQuietNaN(sn_proc));
   CHECK(IsQuietNaN(qn_proc));
@@ -14369,18 +15231,18 @@ TEST(process_nan_float) {
   END();
   RUN();
 
-  uint32_t qn_raw = bit_cast<uint32_t>(qn);
-  uint32_t sn_raw = bit_cast<uint32_t>(sn);
+  uint32_t qn_raw = base::bit_cast<uint32_t>(qn);
+  uint32_t sn_raw = base::bit_cast<uint32_t>(sn);
   uint32_t sign_mask = static_cast<uint32_t>(kSSignMask);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP32(sn, s1);
-  CHECK_EQUAL_FP32(bit_cast<float>(sn_raw & ~sign_mask), s2);
-  CHECK_EQUAL_FP32(bit_cast<float>(sn_raw ^ sign_mask), s3);
+  CHECK_EQUAL_FP32(base::bit_cast<float>(sn_raw & ~sign_mask), s2);
+  CHECK_EQUAL_FP32(base::bit_cast<float>(sn_raw ^ sign_mask), s3);
   //   - Quiet NaN
   CHECK_EQUAL_FP32(qn, s11);
-  CHECK_EQUAL_FP32(bit_cast<float>(qn_raw & ~sign_mask), s12);
-  CHECK_EQUAL_FP32(bit_cast<float>(qn_raw ^ sign_mask), s13);
+  CHECK_EQUAL_FP32(base::bit_cast<float>(qn_raw & ~sign_mask), s12);
+  CHECK_EQUAL_FP32(base::bit_cast<float>(qn_raw ^ sign_mask), s13);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP32(sn_proc, s4);
@@ -14428,18 +15290,18 @@ static void ProcessNaNsHelper(double n, double m, double expected) {
 TEST(process_nans_double) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double sn = bit_cast<double>(0x7FF5555511111111);
-  double sm = bit_cast<double>(0x7FF5555522222222);
-  double qn = bit_cast<double>(0x7FFAAAAA11111111);
-  double qm = bit_cast<double>(0x7FFAAAAA22222222);
+  double sn = base::bit_cast<double>(0x7FF5555511111111);
+  double sm = base::bit_cast<double>(0x7FF5555522222222);
+  double qn = base::bit_cast<double>(0x7FFAAAAA11111111);
+  double qm = base::bit_cast<double>(0x7FFAAAAA22222222);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsQuietNaN(qn));
   CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
-  double sn_proc = bit_cast<double>(0x7FFD555511111111);
-  double sm_proc = bit_cast<double>(0x7FFD555522222222);
+  double sn_proc = base::bit_cast<double>(0x7FFD555511111111);
+  double sm_proc = base::bit_cast<double>(0x7FFD555522222222);
   double qn_proc = qn;
   double qm_proc = qm;
   CHECK(IsQuietNaN(sn_proc));
@@ -14496,18 +15358,18 @@ static void ProcessNaNsHelper(float n, float m, float expected) {
 TEST(process_nans_float) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float sn = bit_cast<float>(0x7F951111);
-  float sm = bit_cast<float>(0x7F952222);
-  float qn = bit_cast<float>(0x7FEA1111);
-  float qm = bit_cast<float>(0x7FEA2222);
+  float sn = base::bit_cast<float>(0x7F951111);
+  float sm = base::bit_cast<float>(0x7F952222);
+  float qn = base::bit_cast<float>(0x7FEA1111);
+  float qm = base::bit_cast<float>(0x7FEA2222);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsQuietNaN(qn));
   CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
-  float sn_proc = bit_cast<float>(0x7FD51111);
-  float sm_proc = bit_cast<float>(0x7FD52222);
+  float sn_proc = base::bit_cast<float>(0x7FD51111);
+  float sm_proc = base::bit_cast<float>(0x7FD52222);
   float qn_proc = qn;
   float qm_proc = qm;
   CHECK(IsQuietNaN(sn_proc));
@@ -14588,11 +15450,11 @@ static void DefaultNaNHelper(float n, float m, float a) {
   RUN();
 
   if (test_1op) {
-    uint32_t n_raw = bit_cast<uint32_t>(n);
+    uint32_t n_raw = base::bit_cast<uint32_t>(n);
     uint32_t sign_mask = static_cast<uint32_t>(kSSignMask);
     CHECK_EQUAL_FP32(n, s10);
-    CHECK_EQUAL_FP32(bit_cast<float>(n_raw & ~sign_mask), s11);
-    CHECK_EQUAL_FP32(bit_cast<float>(n_raw ^ sign_mask), s12);
+    CHECK_EQUAL_FP32(base::bit_cast<float>(n_raw & ~sign_mask), s11);
+    CHECK_EQUAL_FP32(base::bit_cast<float>(n_raw ^ sign_mask), s12);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s13);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s14);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s15);
@@ -14617,12 +15479,12 @@ static void DefaultNaNHelper(float n, float m, float a) {
 
 TEST(default_nan_float) {
   INIT_V8();
-  float sn = bit_cast<float>(0x7F951111);
-  float sm = bit_cast<float>(0x7F952222);
-  float sa = bit_cast<float>(0x7F95AAAA);
-  float qn = bit_cast<float>(0x7FEA1111);
-  float qm = bit_cast<float>(0x7FEA2222);
-  float qa = bit_cast<float>(0x7FEAAAAA);
+  float sn = base::bit_cast<float>(0x7F951111);
+  float sm = base::bit_cast<float>(0x7F952222);
+  float sa = base::bit_cast<float>(0x7F95AAAA);
+  float qn = base::bit_cast<float>(0x7FEA1111);
+  float qm = base::bit_cast<float>(0x7FEA2222);
+  float qa = base::bit_cast<float>(0x7FEAAAAA);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsSignallingNaN(sa));
@@ -14713,10 +15575,10 @@ static void DefaultNaNHelper(double n, double m, double a) {
   RUN();
 
   if (test_1op) {
-    uint64_t n_raw = bit_cast<uint64_t>(n);
+    uint64_t n_raw = base::bit_cast<uint64_t>(n);
     CHECK_EQUAL_FP64(n, d10);
-    CHECK_EQUAL_FP64(bit_cast<double>(n_raw & ~kDSignMask), d11);
-    CHECK_EQUAL_FP64(bit_cast<double>(n_raw ^ kDSignMask), d12);
+    CHECK_EQUAL_FP64(base::bit_cast<double>(n_raw & ~kDSignMask), d11);
+    CHECK_EQUAL_FP64(base::bit_cast<double>(n_raw ^ kDSignMask), d12);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d14);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d15);
@@ -14741,12 +15603,12 @@ static void DefaultNaNHelper(double n, double m, double a) {
 
 TEST(default_nan_double) {
   INIT_V8();
-  double sn = bit_cast<double>(0x7FF5555511111111);
-  double sm = bit_cast<double>(0x7FF5555522222222);
-  double sa = bit_cast<double>(0x7FF55555AAAAAAAA);
-  double qn = bit_cast<double>(0x7FFAAAAA11111111);
-  double qm = bit_cast<double>(0x7FFAAAAA22222222);
-  double qa = bit_cast<double>(0x7FFAAAAAAAAAAAAA);
+  double sn = base::bit_cast<double>(0x7FF5555511111111);
+  double sm = base::bit_cast<double>(0x7FF5555522222222);
+  double sa = base::bit_cast<double>(0x7FF55555AAAAAAAA);
+  double qn = base::bit_cast<double>(0x7FFAAAAA11111111);
+  double qm = base::bit_cast<double>(0x7FFAAAAA22222222);
+  double qa = base::bit_cast<double>(0x7FFAAAAAAAAAAAAA);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsSignallingNaN(sa));
@@ -14800,7 +15662,7 @@ TEST(near_call_no_relocation) {
   {
     Assembler::BlockConstPoolScope scope(&masm);
     int offset = (function.pos() - __ pc_offset()) / kInstrSize;
-    __ near_call(offset, RelocInfo::NONE);
+    __ near_call(offset, RelocInfo::NO_INFO);
   }
   END();
 
@@ -14937,6 +15799,7 @@ TEST(pool_size) {
 
   // This test does not execute any code. It only tests that the size of the
   // pools is read correctly from the RelocInfo.
+  rw_buffer_scope.emplace(*owned_buf);
 
   Label exit;
   __ b(&exit);
@@ -14999,7 +15862,7 @@ TEST(jump_tables_forward) {
   Label done;
 
   const Register& index = x0;
-  STATIC_ASSERT(sizeof(results[0]) == 4);
+  static_assert(sizeof(results[0]) == 4);
   const Register& value = w1;
   const Register& target = x2;
 
@@ -15060,7 +15923,7 @@ TEST(jump_tables_backward) {
   Label done;
 
   const Register& index = x0;
-  STATIC_ASSERT(sizeof(results[0]) == 4);
+  static_assert(sizeof(results[0]) == 4);
   const Register& value = w1;
   const Register& target = x2;
 
@@ -15139,6 +16002,25 @@ TEST(internal_reference_linked) {
   RUN();
 
   CHECK_EQUAL_64(0x1, x0);
+}
+
+TEST(scalar_movi) {
+  INIT_V8();
+  SETUP();
+  START();
+
+  // Make sure that V0 is initialized to a non-zero value.
+  __ Movi(v0.V16B(), 0xFF);
+  // This constant value can't be encoded in a MOVI instruction,
+  // so the program would use a fallback path that must set the
+  // upper 64 bits of the destination vector to 0.
+  __ Movi(v0.V1D(), 0xDECAFC0FFEE);
+  __ Mov(x0, v0.V2D(), 1);
+
+  END();
+  RUN();
+
+  CHECK_EQUAL_64(0, x0);
 }
 
 }  // namespace internal

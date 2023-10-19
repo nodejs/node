@@ -11,15 +11,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce linebreaks after opening and before closing array brackets",
-            category: "Stylistic Issues",
+            description: "Enforce linebreaks after opening and before closing array brackets",
             recommended: false,
-            url: "https://eslint.org/docs/rules/array-bracket-newline"
+            url: "https://eslint.org/docs/latest/rules/array-bracket-newline"
         },
 
         fixable: "whitespace",
@@ -56,7 +56,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
 
         //----------------------------------------------------------------------

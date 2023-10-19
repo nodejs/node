@@ -1,8 +1,8 @@
-"use strict";
+/* eslint no-param-reassign: 0 -- stylistic choice */
 
-/* eslint-disable no-param-reassign*/
-const TokenTranslator = require("./token-translator");
-const { normalizeOptions } = require("./options");
+import TokenTranslator from "./token-translator.js";
+import { normalizeOptions } from "./options.js";
+
 
 const STATE = Symbol("espree's internal state");
 const ESPRIMA_FINISH_NODE = Symbol("espree's esprimaFinishNode");
@@ -16,12 +16,23 @@ const ESPRIMA_FINISH_NODE = Symbol("espree's esprimaFinishNode");
  * @param {int} end The index at which the comment ends.
  * @param {Location} startLoc The location at which the comment starts.
  * @param {Location} endLoc The location at which the comment ends.
+ * @param {string} code The source code being parsed.
  * @returns {Object} The comment object.
  * @private
  */
-function convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, endLoc) {
+function convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, endLoc, code) {
+    let type;
+
+    if (block) {
+        type = "Block";
+    } else if (code.slice(start, start + 2) === "#!") {
+        type = "Hashbang";
+    } else {
+        type = "Line";
+    }
+
     const comment = {
-        type: block ? "Block" : "Line",
+        type,
         value: text
     };
 
@@ -41,7 +52,7 @@ function convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, 
     return comment;
 }
 
-module.exports = () => Parser => {
+export default () => Parser => {
     const tokTypes = Object.assign({}, Parser.acorn.tokTypes);
 
     if (Parser.acornJsx) {
@@ -57,6 +68,8 @@ module.exports = () => Parser => {
                 code = String(code);
             }
 
+            // save original source type in case of commonjs
+            const originalSourceType = opts.sourceType;
             const options = normalizeOptions(opts);
             const ecmaFeatures = options.ecmaFeatures || {};
             const tokenTranslator =
@@ -64,49 +77,65 @@ module.exports = () => Parser => {
                     ? new TokenTranslator(tokTypes, code)
                     : null;
 
+            /*
+             * Data that is unique to Espree and is not represented internally
+             * in Acorn.
+             *
+             * For ES2023 hashbangs, Espree will call `onComment()` during the
+             * constructor, so we must define state before having access to
+             * `this`.
+             */
+            const state = {
+                originalSourceType: originalSourceType || options.sourceType,
+                tokens: tokenTranslator ? [] : null,
+                comments: options.comment === true ? [] : null,
+                impliedStrict: ecmaFeatures.impliedStrict === true && options.ecmaVersion >= 5,
+                ecmaVersion: options.ecmaVersion,
+                jsxAttrValueToken: false,
+                lastToken: null,
+                templateElements: []
+            };
+
             // Initialize acorn parser.
             super({
 
-                // TODO: use {...options} when spread is supported(Node.js >= 8.3.0).
+                // do not use spread, because we don't want to pass any unknown options to acorn
                 ecmaVersion: options.ecmaVersion,
                 sourceType: options.sourceType,
                 ranges: options.ranges,
                 locations: options.locations,
+                allowReserved: options.allowReserved,
 
                 // Truthy value is true for backward compatibility.
-                allowReturnOutsideFunction: Boolean(ecmaFeatures.globalReturn),
+                allowReturnOutsideFunction: options.allowReturnOutsideFunction,
 
                 // Collect tokens
-                onToken: token => {
+                onToken(token) {
                     if (tokenTranslator) {
 
                         // Use `tokens`, `ecmaVersion`, and `jsxAttrValueToken` in the state.
-                        tokenTranslator.onToken(token, this[STATE]);
+                        tokenTranslator.onToken(token, state);
                     }
                     if (token.type !== tokTypes.eof) {
-                        this[STATE].lastToken = token;
+                        state.lastToken = token;
                     }
                 },
 
                 // Collect comments
-                onComment: (block, text, start, end, startLoc, endLoc) => {
-                    if (this[STATE].comments) {
-                        const comment = convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, endLoc);
+                onComment(block, text, start, end, startLoc, endLoc) {
+                    if (state.comments) {
+                        const comment = convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, endLoc, code);
 
-                        this[STATE].comments.push(comment);
+                        state.comments.push(comment);
                     }
                 }
             }, code);
 
-            // Initialize internal state.
-            this[STATE] = {
-                tokens: tokenTranslator ? [] : null,
-                comments: options.comment === true ? [] : null,
-                impliedStrict: ecmaFeatures.impliedStrict === true && this.options.ecmaVersion >= 5,
-                ecmaVersion: this.options.ecmaVersion,
-                jsxAttrValueToken: false,
-                lastToken: null
-            };
+            /*
+             * We put all of this data into a symbol property as a way to avoid
+             * potential naming conflicts with future versions of Acorn.
+             */
+            this[STATE] = state;
         }
 
         tokenize() {
@@ -143,7 +172,7 @@ module.exports = () => Parser => {
             const extra = this[STATE];
             const program = super.parse();
 
-            program.sourceType = this.options.sourceType;
+            program.sourceType = extra.originalSourceType;
 
             if (extra.comments) {
                 program.comments = extra.comments;
@@ -159,14 +188,58 @@ module.exports = () => Parser => {
              * whitespace or leading comments). Acorn also counts trailing whitespace
              * as part of the program whereas Esprima only counts up to the last token.
              */
-            if (program.range) {
-                program.range[0] = program.body.length ? program.body[0].range[0] : program.range[0];
-                program.range[1] = extra.lastToken ? extra.lastToken.range[1] : program.range[1];
+            if (program.body.length) {
+                const [firstNode] = program.body;
+
+                if (program.range) {
+                    program.range[0] = firstNode.range[0];
+                }
+                if (program.loc) {
+                    program.loc.start = firstNode.loc.start;
+                }
+                program.start = firstNode.start;
             }
-            if (program.loc) {
-                program.loc.start = program.body.length ? program.body[0].loc.start : program.loc.start;
-                program.loc.end = extra.lastToken ? extra.lastToken.loc.end : program.loc.end;
+            if (extra.lastToken) {
+                if (program.range) {
+                    program.range[1] = extra.lastToken.range[1];
+                }
+                if (program.loc) {
+                    program.loc.end = extra.lastToken.loc.end;
+                }
+                program.end = extra.lastToken.end;
             }
+
+
+            /*
+             * https://github.com/eslint/espree/issues/349
+             * Ensure that template elements have correct range information.
+             * This is one location where Acorn produces a different value
+             * for its start and end properties vs. the values present in the
+             * range property. In order to avoid confusion, we set the start
+             * and end properties to the values that are present in range.
+             * This is done here, instead of in finishNode(), because Acorn
+             * uses the values of start and end internally while parsing, making
+             * it dangerous to change those values while parsing is ongoing.
+             * By waiting until the end of parsing, we can safely change these
+             * values without affect any other part of the process.
+             */
+            this[STATE].templateElements.forEach(templateElement => {
+                const startOffset = -1;
+                const endOffset = templateElement.tail ? 1 : 2;
+
+                templateElement.start += startOffset;
+                templateElement.end += endOffset;
+
+                if (templateElement.range) {
+                    templateElement.range[0] += startOffset;
+                    templateElement.range[1] += endOffset;
+                }
+
+                if (templateElement.loc) {
+                    templateElement.loc.start.column += startOffset;
+                    templateElement.loc.end.column += endOffset;
+                }
+            });
 
             return program;
         }
@@ -242,7 +315,7 @@ module.exports = () => Parser => {
         * on extra so that when tokens are converted, the next token will be switched
         * to JSXText via onToken.
         */
-        jsx_readString(quote) { // eslint-disable-line camelcase
+        jsx_readString(quote) { // eslint-disable-line camelcase -- required by API
             const result = super.jsx_readString(quote);
 
             if (this.type === tokTypes.string) {
@@ -262,21 +335,11 @@ module.exports = () => Parser => {
             // so we have to adjust ranges/locations appropriately.
             if (result.type === "TemplateElement") {
 
-                // additional adjustment needed if ${ is the last token
-                const terminalDollarBraceL = this.input.slice(result.end, result.end + 2) === "${";
-
-                if (result.range) {
-                    result.range[0]--;
-                    result.range[1] += (terminalDollarBraceL ? 2 : 1);
-                }
-
-                if (result.loc) {
-                    result.loc.start.column--;
-                    result.loc.end.column += (terminalDollarBraceL ? 2 : 1);
-                }
+                // save template element references to fix start/end later
+                this[STATE].templateElements.push(result);
             }
 
-            if (result.type.indexOf("Function") > -1 && !result.generator) {
+            if (result.type.includes("Function") && !result.generator) {
                 result.generator = false;
             }
 

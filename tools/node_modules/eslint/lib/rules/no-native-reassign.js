@@ -10,15 +10,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow assignments to native objects or read-only global variables",
-            category: "Best Practices",
+            description: "Disallow assignments to native objects or read-only global variables",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-native-reassign"
+            url: "https://eslint.org/docs/latest/rules/no-native-reassign"
         },
 
         deprecated: true,
@@ -47,6 +47,7 @@ module.exports = {
     create(context) {
         const config = context.options[0];
         const exceptions = (config && config.exceptions) || [];
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports write references.
@@ -81,14 +82,14 @@ module.exports = {
          * @returns {void}
          */
         function checkVariable(variable) {
-            if (variable.writeable === false && exceptions.indexOf(variable.name) === -1) {
+            if (variable.writeable === false && !exceptions.includes(variable.name)) {
                 variable.references.forEach(checkReference);
             }
         }
 
         return {
-            Program() {
-                const globalScope = context.getScope();
+            Program(node) {
+                const globalScope = sourceCode.getScope(node);
 
                 globalScope.variables.forEach(checkVariable);
             }

@@ -6,10 +6,14 @@
 #define V8_COMPILER_GRAPH_VISUALIZER_H_
 
 #include <stdio.h>
-#include <fstream>  // NOLINT(readability/streams)
+
+#include <fstream>
 #include <iosfwd>
 #include <memory>
+#include <vector>
 
+#include "src/objects/code.h"
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 
@@ -19,6 +23,13 @@ namespace internal {
 class OptimizedCompilationInfo;
 class SharedFunctionInfo;
 class SourcePosition;
+struct WasmInliningPosition;
+
+namespace wasm {
+struct WasmModule;
+class WireBytesStorage;
+}  // namespace wasm
+
 namespace compiler {
 
 class Graph;
@@ -28,11 +39,44 @@ class Instruction;
 class InstructionBlock;
 class InstructionOperand;
 class InstructionSequence;
+class Node;
 class NodeOrigin;
 class NodeOriginTable;
 class RegisterAllocationData;
 class Schedule;
 class SourcePositionTable;
+class Type;
+
+class JSONEscaped {
+ public:
+  template <typename T>
+  explicit JSONEscaped(const T& value) {
+    std::ostringstream s;
+    s << value;
+    str_ = s.str();
+  }
+  explicit JSONEscaped(std::string str) : str_(std::move(str)) {}
+  explicit JSONEscaped(const std::ostringstream& os) : str_(os.str()) {}
+
+  friend std::ostream& operator<<(std::ostream& os, const JSONEscaped& e) {
+    for (char c : e.str_) PipeCharacter(os, c);
+    return os;
+  }
+
+ private:
+  static std::ostream& PipeCharacter(std::ostream& os, char c) {
+    if (c == '"') return os << "\\\"";
+    if (c == '\\') return os << "\\\\";
+    if (c == '\b') return os << "\\b";
+    if (c == '\f') return os << "\\f";
+    if (c == '\n') return os << "\\n";
+    if (c == '\r') return os << "\\r";
+    if (c == '\t') return os << "\\t";
+    return os << c;
+  }
+
+  std::string str_;
+};
 
 struct TurboJsonFile : public std::ofstream {
   TurboJsonFile(OptimizedCompilationInfo* info, std::ios_base::openmode mode);
@@ -64,6 +108,7 @@ V8_INLINE V8_EXPORT_PRIVATE NodeOriginAsJSON AsJSON(const NodeOrigin& no) {
 }
 
 std::ostream& operator<<(std::ostream& out, const SourcePositionAsJSON& pos);
+std::ostream& operator<<(std::ostream& out, const NodeOriginAsJSON& asJSON);
 
 // Small helper that deduplicates SharedFunctionInfos.
 class V8_EXPORT_PRIVATE SourceIdAssigner {
@@ -80,9 +125,23 @@ class V8_EXPORT_PRIVATE SourceIdAssigner {
   std::vector<int> source_ids_;
 };
 
+void JsonPrintAllBytecodeSources(std::ostream& os,
+                                 OptimizedCompilationInfo* info);
+
+void JsonPrintBytecodeSource(std::ostream& os, int source_id,
+                             std::unique_ptr<char[]> function_name,
+                             Handle<BytecodeArray> bytecode_array);
+
 void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,
                                      Isolate* isolate);
+
+#if V8_ENABLE_WEBASSEMBLY
+void JsonPrintAllSourceWithPositionsWasm(
+    std::ostream& os, const wasm::WasmModule* module,
+    const wasm::WireBytesStorage* wire_bytes,
+    base::Vector<WasmInliningPosition> positions);
+#endif
 
 void JsonPrintFunctionSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
@@ -93,6 +152,34 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix);
+
+class JSONGraphWriter {
+ public:
+  JSONGraphWriter(std::ostream& os, const Graph* graph,
+                  const SourcePositionTable* positions,
+                  const NodeOriginTable* origins);
+
+  JSONGraphWriter(const JSONGraphWriter&) = delete;
+  JSONGraphWriter& operator=(const JSONGraphWriter&) = delete;
+
+  void PrintPhase(const char* phase_name);
+  void Print();
+
+ protected:
+  void PrintNode(Node* node, bool is_live);
+  void PrintEdges(Node* node);
+  void PrintEdge(Node* from, int index, Node* to);
+  virtual base::Optional<Type> GetType(Node* node);
+
+ protected:
+  std::ostream& os_;
+  Zone* zone_;
+  const Graph* graph_;
+  const SourcePositionTable* positions_;
+  const NodeOriginTable* origins_;
+  bool first_node_;
+  bool first_edge_;
+};
 
 struct GraphAsJSON {
   GraphAsJSON(const Graph& g, SourcePositionTable* p, NodeOriginTable* o)

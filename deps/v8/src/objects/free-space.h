@@ -20,26 +20,37 @@ namespace internal {
 // the heap remains iterable.  They have a size and a next pointer.
 // The next pointer is the raw address of the next FreeSpace object (or NULL)
 // in the free list.
+//
+// When external code space is enabled next pointer is stored as Smi values
+// representing a diff from current FreeSpace object address in kObjectAlignment
+// chunks. Terminating FreeSpace value is represented as Smi zero.
+// Such a representation has the following properties:
+// a) it can hold both positive an negative diffs for full pointer compression
+//    cage size (HeapObject address has only valuable 30 bits while Smis have
+//    31 bits),
+// b) it's independent of the pointer compression base and pointer compression
+//    scheme.
 class FreeSpace : public TorqueGeneratedFreeSpace<FreeSpace, HeapObject> {
  public:
   // [size]: size of the free space including the header.
-  inline int relaxed_read_size() const;
-  inline void relaxed_write_size(int value);
+  DECL_RELAXED_SMI_ACCESSORS(size)
 
   inline int Size();
 
   // Accessors for the next field.
-  inline FreeSpace next();
-  inline void set_next(FreeSpace next);
+  inline Tagged<FreeSpace> next() const;
+  inline void set_next(Tagged<FreeSpace> next);
 
-  inline static FreeSpace cast(HeapObject obj);
-  inline static FreeSpace unchecked_cast(const Object obj);
+  inline static Tagged<FreeSpace> cast(Tagged<HeapObject> obj);
+  inline static Tagged<FreeSpace> unchecked_cast(const Tagged<Object> obj);
 
   // Dispatched behavior.
   DECL_PRINTER(FreeSpace)
 
+  class BodyDescriptor;
+
  private:
-  inline bool IsValid();
+  inline bool IsValid() const;
 
   TQ_OBJECT_CONSTRUCTORS(FreeSpace)
 };

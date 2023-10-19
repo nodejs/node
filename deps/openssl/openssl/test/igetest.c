@@ -1,11 +1,14 @@
 /*
  * Copyright 2006-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/* The AES_ige_* functions are deprecated, so we suppress warnings about them */
+#define OPENSSL_SUPPRESS_DEPRECATED
 
 #include <openssl/crypto.h>
 #include <openssl/aes.h>
@@ -15,19 +18,21 @@
 #include "internal/nelem.h"
 #include "testutil.h"
 
-#define TEST_SIZE       128
-#define BIG_TEST_SIZE 10240
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 
-#if BIG_TEST_SIZE < TEST_SIZE
-#error BIG_TEST_SIZE is smaller than TEST_SIZE
-#endif
+# define TEST_SIZE       128
+# define BIG_TEST_SIZE 10240
+
+# if BIG_TEST_SIZE < TEST_SIZE
+#  error BIG_TEST_SIZE is smaller than TEST_SIZE
+# endif
 
 static unsigned char rkey[16];
 static unsigned char rkey2[16];
 static unsigned char plaintext[BIG_TEST_SIZE];
 static unsigned char saved_iv[AES_BLOCK_SIZE * 4];
 
-#define MAX_VECTOR_SIZE 64
+# define MAX_VECTOR_SIZE 64
 
 struct ige_test {
     const unsigned char key[16];
@@ -432,9 +437,11 @@ static int test_bi_ige_garble3(void)
     /* Fail if there is more than 1% matching bytes */
     return TEST_size_t_le(matches, sizeof(checktext) / 100);
 }
+#endif
 
 int setup_tests(void)
 {
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     RAND_bytes(rkey, sizeof(rkey));
     RAND_bytes(rkey2, sizeof(rkey2));
     RAND_bytes(plaintext, sizeof(plaintext));
@@ -450,5 +457,6 @@ int setup_tests(void)
     ADD_TEST(test_bi_ige_garble3);
     ADD_ALL_TESTS(test_ige_vectors, OSSL_NELEM(ige_test_vectors));
     ADD_ALL_TESTS(test_bi_ige_vectors, OSSL_NELEM(bi_ige_test_vectors));
+#endif
     return 1;
 }

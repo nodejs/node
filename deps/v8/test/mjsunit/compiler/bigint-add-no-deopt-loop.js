@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 
 
 const big = 2n ** BigInt((2 ** 30)-1);
@@ -24,7 +24,9 @@ assertEquals(testAdd(6n, 2n), 8n);
 assertOptimized(testAdd);
 
 assertThrows(() => testAdd(big, big), RangeError);
-assertUnoptimized(testAdd);
+if (%Is64Bit()) {
+  assertUnoptimized(testAdd);
+}
 
 testAdd(30n, -50n);
 testAdd(23n, 5n);

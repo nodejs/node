@@ -46,19 +46,38 @@ extern int wasm_on_url(llhttp_t* p, const char* at, size_t length);
 extern int wasm_on_status(llhttp_t* p, const char* at, size_t length);
 extern int wasm_on_header_field(llhttp_t* p, const char* at, size_t length);
 extern int wasm_on_header_value(llhttp_t* p, const char* at, size_t length);
-extern int wasm_on_headers_complete(llhttp_t * p);
+extern int wasm_on_headers_complete(llhttp_t * p, int status_code,
+                                    uint8_t upgrade, int should_keep_alive);
 extern int wasm_on_body(llhttp_t* p, const char* at, size_t length);
 extern int wasm_on_message_complete(llhttp_t * p);
+
+static int wasm_on_headers_complete_wrap(llhttp_t* p) {
+  return wasm_on_headers_complete(p, p->status_code, p->upgrade,
+                                  llhttp_should_keep_alive(p));
+}
 
 const llhttp_settings_t wasm_settings = {
   wasm_on_message_begin,
   wasm_on_url,
   wasm_on_status,
+  NULL,
+  NULL,
   wasm_on_header_field,
   wasm_on_header_value,
-  wasm_on_headers_complete,
+  NULL,
+  NULL,
+  wasm_on_headers_complete_wrap,
   wasm_on_body,
   wasm_on_message_complete,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
   NULL,
   NULL,
 };
@@ -73,6 +92,8 @@ llhttp_t* llhttp_alloc(llhttp_type_t type) {
 void llhttp_free(llhttp_t* parser) {
   free(parser);
 }
+
+#endif  // defined(__wasm__)
 
 /* Some getters required to get stuff from the parser */
 
@@ -99,8 +120,6 @@ int llhttp_get_status_code(llhttp_t* parser) {
 uint8_t llhttp_get_upgrade(llhttp_t* parser) {
   return parser->upgrade;
 }
-
-#endif  // defined(__wasm__)
 
 
 void llhttp_reset(llhttp_t* parser) {
@@ -220,6 +239,15 @@ const char* llhttp_method_name(llhttp_method_t method) {
 #undef HTTP_METHOD_GEN
 }
 
+const char* llhttp_status_name(llhttp_status_t status) {
+#define HTTP_STATUS_GEN(NUM, NAME, STRING) case HTTP_STATUS_##NAME: return #STRING;
+  switch (status) {
+    HTTP_STATUS_MAP(HTTP_STATUS_GEN)
+    default: abort();
+  }
+#undef HTTP_STATUS_GEN
+}
+
 
 void llhttp_set_lenient_headers(llhttp_t* parser, int enabled) {
   if (enabled) {
@@ -244,6 +272,62 @@ void llhttp_set_lenient_keep_alive(llhttp_t* parser, int enabled) {
     parser->lenient_flags |= LENIENT_KEEP_ALIVE;
   } else {
     parser->lenient_flags &= ~LENIENT_KEEP_ALIVE;
+  }
+}
+
+void llhttp_set_lenient_transfer_encoding(llhttp_t* parser, int enabled) {
+  if (enabled) {
+    parser->lenient_flags |= LENIENT_TRANSFER_ENCODING;
+  } else {
+    parser->lenient_flags &= ~LENIENT_TRANSFER_ENCODING;
+  }
+}
+
+void llhttp_set_lenient_version(llhttp_t* parser, int enabled) {
+  if (enabled) {
+    parser->lenient_flags |= LENIENT_VERSION;
+  } else {
+    parser->lenient_flags &= ~LENIENT_VERSION;
+  }
+}
+
+void llhttp_set_lenient_data_after_close(llhttp_t* parser, int enabled) {
+  if (enabled) {
+    parser->lenient_flags |= LENIENT_DATA_AFTER_CLOSE;
+  } else {
+    parser->lenient_flags &= ~LENIENT_DATA_AFTER_CLOSE;
+  }
+}
+
+void llhttp_set_lenient_optional_lf_after_cr(llhttp_t* parser, int enabled) {
+  if (enabled) {
+    parser->lenient_flags |= LENIENT_OPTIONAL_LF_AFTER_CR;
+  } else {
+    parser->lenient_flags &= ~LENIENT_OPTIONAL_LF_AFTER_CR;
+  }
+}
+
+void llhttp_set_lenient_optional_crlf_after_chunk(llhttp_t* parser, int enabled) {
+  if (enabled) {
+    parser->lenient_flags |= LENIENT_OPTIONAL_CRLF_AFTER_CHUNK;
+  } else {
+    parser->lenient_flags &= ~LENIENT_OPTIONAL_CRLF_AFTER_CHUNK;
+  }
+}
+
+void llhttp_set_lenient_optional_cr_before_lf(llhttp_t* parser, int enabled) {
+  if (enabled) {
+    parser->lenient_flags |= LENIENT_OPTIONAL_CR_BEFORE_LF;
+  } else {
+    parser->lenient_flags &= ~LENIENT_OPTIONAL_CR_BEFORE_LF;
+  }
+}
+
+void llhttp_set_lenient_spaces_after_chunk_size(llhttp_t* parser, int enabled) {
+  if (enabled) {
+    parser->lenient_flags |= LENIENT_SPACES_AFTER_CHUNK_SIZE;
+  } else {
+    parser->lenient_flags &= ~LENIENT_SPACES_AFTER_CHUNK_SIZE;
   }
 }
 
@@ -281,6 +365,34 @@ int llhttp__on_status(llhttp_t* s, const char* p, const char* endp) {
 int llhttp__on_status_complete(llhttp_t* s, const char* p, const char* endp) {
   int err;
   CALLBACK_MAYBE(s, on_status_complete);
+  return err;
+}
+
+
+int llhttp__on_method(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  SPAN_CALLBACK_MAYBE(s, on_method, p, endp - p);
+  return err;
+}
+
+
+int llhttp__on_method_complete(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  CALLBACK_MAYBE(s, on_method_complete);
+  return err;
+}
+
+
+int llhttp__on_version(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  SPAN_CALLBACK_MAYBE(s, on_version, p, endp - p);
+  return err;
+}
+
+
+int llhttp__on_version_complete(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  CALLBACK_MAYBE(s, on_version_complete);
   return err;
 }
 
@@ -341,9 +453,44 @@ int llhttp__on_chunk_header(llhttp_t* s, const char* p, const char* endp) {
 }
 
 
+int llhttp__on_chunk_extension_name(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  SPAN_CALLBACK_MAYBE(s, on_chunk_extension_name, p, endp - p);
+  return err;
+}
+
+
+int llhttp__on_chunk_extension_name_complete(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  CALLBACK_MAYBE(s, on_chunk_extension_name_complete);
+  return err;
+}
+
+
+int llhttp__on_chunk_extension_value(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  SPAN_CALLBACK_MAYBE(s, on_chunk_extension_value, p, endp - p);
+  return err;
+}
+
+
+int llhttp__on_chunk_extension_value_complete(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  CALLBACK_MAYBE(s, on_chunk_extension_value_complete);
+  return err;
+}
+
+
 int llhttp__on_chunk_complete(llhttp_t* s, const char* p, const char* endp) {
   int err;
   CALLBACK_MAYBE(s, on_chunk_complete);
+  return err;
+}
+
+
+int llhttp__on_reset(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  CALLBACK_MAYBE(s, on_reset);
   return err;
 }
 

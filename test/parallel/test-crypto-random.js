@@ -28,9 +28,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const cryptop = require('crypto').webcrypto;
 const { kMaxLength } = require('buffer');
-const { inspect } = require('util');
 
 const kMaxInt32 = 2 ** 31 - 1;
 const kMaxPossibleLength = Math.min(kMaxLength, kMaxInt32);
@@ -108,7 +106,7 @@ common.expectWarning('DeprecationWarning',
     new Uint32Array(10),
   ].forEach((buf) => {
     const before = Buffer.from(buf.buffer).toString('hex');
-    cryptop.getRandomValues(buf);
+    globalThis.crypto.getRandomValues(buf);
     const after = Buffer.from(buf.buffer).toString('hex');
     assert.notStrictEqual(before, after);
   });
@@ -320,9 +318,8 @@ assert.throws(
   assert.throws(
     () => crypto.randomFill(buf, 0, 10, i),
     {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
     });
 });
 
@@ -330,9 +327,8 @@ assert.throws(
   assert.throws(
     () => crypto.randomBytes(1, i),
     {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
     }
   );
 });
@@ -341,7 +337,6 @@ assert.throws(
   const desc = Object.getOwnPropertyDescriptor(crypto, f);
   assert.ok(desc);
   assert.strictEqual(desc.configurable, true);
-  assert.strictEqual(desc.writable, true);
   assert.strictEqual(desc.enumerable, false);
 });
 
@@ -518,9 +513,8 @@ assert.throws(
 
   [true, NaN, null, {}, [], 10].forEach((i) => {
     const cbError = {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
     };
     assert.throws(() => crypto.randomInt(0, 1, i), cbError);
   });

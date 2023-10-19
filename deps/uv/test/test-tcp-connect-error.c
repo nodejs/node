@@ -31,14 +31,14 @@ static int close_cb_called = 0;
 
 
 static void connect_cb(uv_connect_t* handle, int status) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   connect_cb_called++;
 }
 
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -68,6 +68,6 @@ TEST_IMPL(tcp_connect_error_fault) {
   ASSERT(connect_cb_called == 0);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

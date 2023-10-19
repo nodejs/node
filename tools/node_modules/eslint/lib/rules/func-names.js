@@ -24,15 +24,15 @@ function isFunctionName(variable) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow named `function` expressions",
-            category: "Stylistic Issues",
+            description: "Require or disallow named `function` expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/func-names"
+            url: "https://eslint.org/docs/latest/rules/func-names"
         },
 
         schema: {
@@ -69,7 +69,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Returns the config option for the given node.
@@ -118,6 +118,7 @@ module.exports = {
             return isObjectOrClassMethod(node) ||
                 (parent.type === "VariableDeclarator" && parent.id.type === "Identifier" && parent.init === node) ||
                 (parent.type === "Property" && parent.value === node) ||
+                (parent.type === "PropertyDefinition" && parent.value === node) ||
                 (parent.type === "AssignmentExpression" && parent.left.type === "Identifier" && parent.right === node) ||
                 (parent.type === "AssignmentPattern" && parent.left.type === "Identifier" && parent.right === node);
         }
@@ -158,7 +159,7 @@ module.exports = {
         function handleFunction(node) {
 
             // Skip recursive functions.
-            const nameVar = context.getDeclaredVariables(node)[0];
+            const nameVar = sourceCode.getDeclaredVariables(node)[0];
 
             if (isFunctionName(nameVar) && nameVar.references.length > 0) {
                 return;

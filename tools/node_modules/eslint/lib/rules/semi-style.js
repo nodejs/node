@@ -15,19 +15,18 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const SELECTOR = `:matches(${
-    [
-        "BreakStatement", "ContinueStatement", "DebuggerStatement",
-        "DoWhileStatement", "ExportAllDeclaration",
-        "ExportDefaultDeclaration", "ExportNamedDeclaration",
-        "ExpressionStatement", "ImportDeclaration", "ReturnStatement",
-        "ThrowStatement", "VariableDeclaration"
-    ].join(",")
-})`;
+const SELECTOR = [
+    "BreakStatement", "ContinueStatement", "DebuggerStatement",
+    "DoWhileStatement", "ExportAllDeclaration",
+    "ExportDefaultDeclaration", "ExportNamedDeclaration",
+    "ExpressionStatement", "ImportDeclaration", "ReturnStatement",
+    "ThrowStatement", "VariableDeclaration", "PropertyDefinition"
+].join(",");
 
 /**
  * Get the child node list of a given node.
- * This returns `Program#body`, `BlockStatement#body`, or `SwitchCase#consequent`.
+ * This returns `BlockStatement#body`, `StaticBlock#body`, `Program#body`,
+ * `ClassBody#body`, or `SwitchCase#consequent`.
  * This is used to check whether a node is the first/last child.
  * @param {Node} node A node to get child node list.
  * @returns {Node[]|null} The child node list.
@@ -35,7 +34,12 @@ const SELECTOR = `:matches(${
 function getChildren(node) {
     const t = node.type;
 
-    if (t === "BlockStatement" || t === "Program") {
+    if (
+        t === "BlockStatement" ||
+        t === "StaticBlock" ||
+        t === "Program" ||
+        t === "ClassBody"
+    ) {
         return node.body;
     }
     if (t === "SwitchCase") {
@@ -63,15 +67,15 @@ function isLastChild(node) {
     return nodeList !== null && nodeList[nodeList.length - 1] === node; // before `}` or etc.
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce location of semicolons",
-            category: "Stylistic Issues",
+            description: "Enforce location of semicolons",
             recommended: false,
-            url: "https://eslint.org/docs/rules/semi-style"
+            url: "https://eslint.org/docs/latest/rules/semi-style"
         },
 
         schema: [{ enum: ["last", "first"] }],
@@ -83,7 +87,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const option = context.options[0] || "last";
 
         /**

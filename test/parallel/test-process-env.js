@@ -29,8 +29,7 @@ if (process.argv[2] === 'you-are-the-child') {
   assert.strictEqual('NODE_PROCESS_ENV_DELETED' in process.env, false);
   assert.strictEqual(process.env.NODE_PROCESS_ENV, '42');
   assert.strictEqual(process.env.hasOwnProperty, 'asdf');
-  const hasOwnProperty = Object.prototype.hasOwnProperty;
-  const has = hasOwnProperty.call(process.env, 'hasOwnProperty');
+  const has = Object.hasOwn(process.env, 'hasOwnProperty');
   assert.strictEqual(has, true);
   process.exit(0);
 }
@@ -40,7 +39,7 @@ if (process.argv[2] === 'you-are-the-child') {
 
   assert.strictEqual(Object.prototype.hasOwnProperty,
                      process.env.hasOwnProperty);
-  const has = process.env.hasOwnProperty('hasOwnProperty');
+  const has = Object.hasOwn(process.env, 'hasOwnProperty');
   assert.strictEqual(has, false);
 
   process.env.hasOwnProperty = 'asdf';
@@ -104,6 +103,14 @@ if (common.isWindows) {
 {
   const keys = Object.keys(process.env);
   assert.ok(keys.length > 0);
+}
+
+// https://github.com/nodejs/node/issues/45380
+{
+  const env = structuredClone(process.env);
+  // deepEqual(), not deepStrictEqual(), because of different prototypes.
+  // eslint-disable-next-line no-restricted-properties
+  assert.deepEqual(env, process.env);
 }
 
 // Setting environment variables on Windows with empty names should not cause

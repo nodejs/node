@@ -1,6 +1,7 @@
 /**
  * @fileoverview Validates JSDoc comments are syntactically correct
  * @author Nicholas C. Zakas
+ * @deprecated in ESLint v5.10.0
  */
 "use strict";
 
@@ -14,15 +15,15 @@ const doctrine = require("doctrine");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce valid JSDoc comments",
-            category: "Possible Errors",
+            description: "Enforce valid JSDoc comments",
             recommended: false,
-            url: "https://eslint.org/docs/rules/valid-jsdoc"
+            url: "https://eslint.org/docs/latest/rules/valid-jsdoc"
         },
 
         schema: [
@@ -95,7 +96,7 @@ module.exports = {
 
         const options = context.options[0] || {},
             prefer = options.prefer || {},
-            sourceCode = context.getSourceCode(),
+            sourceCode = context.sourceCode,
 
             // these both default to true, so you have to explicitly make them false
             requireReturn = options.requireReturn !== false,
@@ -404,7 +405,7 @@ module.exports = {
                             loc: getAbsoluteRange(jsdocNode, param),
                             data: { name: param.name }
                         });
-                    } else if (param.name.indexOf(".") === -1) {
+                    } else if (!param.name.includes(".")) {
                         paramTagsByName[param.name] = param;
                     }
                 });

@@ -1,6 +1,7 @@
 /**
  * @fileoverview Enforce return after a callback.
  * @author Jamund Ferguson
+ * @deprecated in ESLint v7.0.0
  */
 "use strict";
 
@@ -8,6 +9,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         deprecated: true,
@@ -17,10 +19,9 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require `return` statements after callbacks",
-            category: "Node.js and CommonJS",
+            description: "Require `return` statements after callbacks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/callback-return"
+            url: "https://eslint.org/docs/latest/rules/callback-return"
         },
 
         schema: [{
@@ -36,7 +37,7 @@ module.exports = {
     create(context) {
 
         const callbacks = context.options[0] || ["callback", "cb", "next"],
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -52,7 +53,7 @@ module.exports = {
             if (!node.parent) {
                 return null;
             }
-            if (types.indexOf(node.parent.type) === -1) {
+            if (!types.includes(node.parent.type)) {
                 return findClosestParentOfType(node.parent, types);
             }
             return node.parent;
@@ -86,7 +87,7 @@ module.exports = {
          * @returns {boolean} Whether or not this function matches our callback name.
          */
         function isCallback(node) {
-            return containsOnlyIdentifiers(node.callee) && callbacks.indexOf(sourceCode.getText(node.callee)) > -1;
+            return containsOnlyIdentifiers(node.callee) && callbacks.includes(sourceCode.getText(node.callee));
         }
 
         /**

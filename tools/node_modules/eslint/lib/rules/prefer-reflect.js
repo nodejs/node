@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require `Reflect` methods where applicable",
-            category: "ECMAScript 6",
+            description: "Require `Reflect` methods where applicable",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-reflect"
+            url: "https://eslint.org/docs/latest/rules/prefer-reflect"
         },
 
         deprecated: true,
@@ -106,7 +106,7 @@ module.exports = {
                 const methodName = (node.callee.property || {}).name;
                 const isReflectCall = (node.callee.object || {}).name === "Reflect";
                 const hasReflectSubstitute = Object.prototype.hasOwnProperty.call(reflectSubstitutes, methodName);
-                const userConfiguredException = exceptions.indexOf(methodName) !== -1;
+                const userConfiguredException = exceptions.includes(methodName);
 
                 if (hasReflectSubstitute && !isReflectCall && !userConfiguredException) {
                     report(node, existingNames[methodName], reflectSubstitutes[methodName]);
@@ -115,7 +115,7 @@ module.exports = {
             UnaryExpression(node) {
                 const isDeleteOperator = node.operator === "delete";
                 const targetsIdentifier = node.argument.type === "Identifier";
-                const userConfiguredException = exceptions.indexOf("delete") !== -1;
+                const userConfiguredException = exceptions.includes("delete");
 
                 if (isDeleteOperator && !targetsIdentifier && !userConfiguredException) {
                     report(node, "the delete keyword", "Reflect.deleteProperty");

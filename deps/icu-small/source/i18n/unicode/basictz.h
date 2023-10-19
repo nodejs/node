@@ -10,7 +10,7 @@
 #define BASICTZ_H
 
 /**
- * \file
+ * \file 
  * \brief C++ API: ICU TimeZone base class
  */
 
@@ -49,7 +49,7 @@ public:
      * @return clone, or nullptr if an error occurred
      * @stable ICU 3.8
      */
-    virtual BasicTimeZone* clone() const = 0;
+    virtual BasicTimeZone* clone() const override = 0;
 
     /**
      * Gets the first time zone transition after the base time.
@@ -84,7 +84,7 @@ public:
      *              changes will be ignored, except either of them is zero.
      *              For example, a transition from rawoffset 3:00/dstsavings 1:00
      *              to rawoffset 2:00/dstsavings 2:00 is excluded from the comparison,
-     *              but a transtion from rawoffset 2:00/dstsavings 1:00 to
+     *              but a transition from rawoffset 2:00/dstsavings 1:00 to
      *              rawoffset 3:00/dstsavings 0:00 is included.
      * @param ec    Output param to filled in with a success or an error.
      * @return      true if the other time zone has the equivalent transitions in the
@@ -107,7 +107,7 @@ public:
     /**
      * Gets the <code>InitialTimeZoneRule</code> and the set of <code>TimeZoneRule</code>
      * which represent time transitions for this time zone.  On successful return,
-     * the argument initial points to non-NULL <code>InitialTimeZoneRule</code> and
+     * the argument initial points to non-nullptr <code>InitialTimeZoneRule</code> and
      * the array trsrules is filled with 0 or multiple <code>TimeZoneRule</code>
      * instances up to the size specified by trscount.  The results are referencing the
      * rule instance held by this time zone instance.  Therefore, after this time zone
@@ -139,30 +139,28 @@ public:
      * The time zone rule objects returned by this method is owned by the caller, so the caller is
      * responsible for deleting them after use.
      * @param date      The date used for extracting time zone rules.
-     * @param initial   Receives the <code>InitialTimeZone</code>, always not NULL.
+     * @param initial   Receives the <code>InitialTimeZone</code>, always not nullptr.
      * @param std       Receives the <code>AnnualTimeZoneRule</code> for standard time transitions.
      *                  When this time time zone does not observe daylight saving times around the
-     *                  specified date, NULL is set.
+     *                  specified date, nullptr is set.
      * @param dst       Receives the <code>AnnualTimeZoneRule</code> for daylight saving time
      *                  transitions.  When this time zone does not observer daylight saving times
-     *                  around the specified date, NULL is set.
+     *                  around the specified date, nullptr is set.
      * @param status    Receives error status code.
      * @stable ICU 3.8
      */
     virtual void getSimpleRulesNear(UDate date, InitialTimeZoneRule*& initial,
         AnnualTimeZoneRule*& std, AnnualTimeZoneRule*& dst, UErrorCode& status) const;
 
-#ifndef U_FORCE_HIDE_DRAFT_API
     /**
      * Get time zone offsets from local wall time.
-     * @draft ICU 69
+     * @stable ICU 69
      */
     virtual void getOffsetFromLocal(
         UDate date, UTimeZoneLocalOption nonExistingTimeOpt,
         UTimeZoneLocalOption duplicatedTimeOpt, int32_t& rawOffset,
         int32_t& dstOffset, UErrorCode& status) const;
 
-#endif /* U_FORCE_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -188,13 +186,15 @@ protected:
 
 #ifndef U_HIDE_INTERNAL_API
     /**
-     * The time type option bit masks used by getOffsetFromLocal
+     * A time type option bit mask used by getOffsetFromLocal.
      * @internal
      */
-    enum {
-        kStdDstMask = kDaylight,
-        kFormerLatterMask = kLatter
-    };
+    static constexpr int32_t kStdDstMask = kDaylight;
+    /**
+     * A time type option bit mask used by getOffsetFromLocal.
+     * @internal
+     */
+    static constexpr int32_t kFormerLatterMask = kLatter;
 #endif  /* U_HIDE_INTERNAL_API */
 
     /**
@@ -226,8 +226,11 @@ protected:
     /**
      * Gets the set of TimeZoneRule instances applicable to the specified time and after.
      * @param start     The start date used for extracting time zone rules
-     * @param initial   Receives the InitialTimeZone, always not NULL
-     * @param transitionRules   Receives the transition rules, could be NULL
+     * @param initial   Output parameter, receives the InitialTimeZone.
+     *                  Always not nullptr (except in case of error)
+     * @param transitionRules   Output parameter, a UVector of transition rules.
+     *                  May be nullptr, if there are no transition rules.
+     *                  The caller owns the returned vector; the UVector owns the rules.
      * @param status    Receives error status code
      */
     void getTimeZoneRulesAfter(UDate start, InitialTimeZoneRule*& initial, UVector*& transitionRules,

@@ -7,7 +7,8 @@ const {
   Transform,
   finished,
   Duplex,
-  PassThrough
+  PassThrough,
+  Stream,
 } = require('stream');
 const assert = require('assert');
 const EE = require('events');
@@ -259,7 +260,12 @@ const http = require('http');
   const streamLike = new EE();
   streamLike.readableEnded = true;
   streamLike.readable = true;
-  finished(streamLike, common.mustCall());
+  assert.throws(
+    () => {
+      finished(streamLike, () => {});
+    },
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
   streamLike.emit('close');
 }
 
@@ -415,7 +421,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   d._writableState = {};
   d._writableState.finished = true;
   finished(d, { readable: false, writable: true }, common.mustCall((err) => {
-    assert.strictEqual(err, undefined);
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
   }));
   d._writableState.errored = true;
   d.emit('close');
@@ -586,7 +592,6 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   });
 }
 
-
 {
   const w = new Writable({
     write(chunk, encoding, callback) {
@@ -606,5 +611,73 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 
   finished(w, common.mustCall(() => {
     assert.strictEqual(closed, true);
+  }));
+}
+
+{
+  const w = new Writable();
+  const _err = new Error();
+  w.destroy(_err);
+  assert.strictEqual(w.errored, _err);
+  finished(w, common.mustCall((err) => {
+    assert.strictEqual(_err, err);
+    assert.strictEqual(w.closed, true);
+    finished(w, common.mustCall((err) => {
+      assert.strictEqual(_err, err);
+    }));
+  }));
+}
+
+{
+  const w = new Writable();
+  w.destroy();
+  assert.strictEqual(w.errored, null);
+  finished(w, common.mustCall((err) => {
+    assert.strictEqual(w.closed, true);
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+    finished(w, common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+    }));
+  }));
+}
+
+{
+  // Legacy Streams do not inherit from Readable or Writable.
+  // We cannot really assume anything about them, so we cannot close them
+  // automatically.
+  const s = new Stream();
+  finished(s, common.mustNotCall());
+}
+
+{
+  const server = http.createServer(common.mustCall(function(req, res) {
+    fs.createReadStream(__filename).pipe(res);
+    finished(res, common.mustCall(function(err) {
+      assert.strictEqual(err, undefined);
+    }));
+  })).listen(0, function() {
+    http.request(
+      { method: 'GET', port: this.address().port },
+      common.mustCall(function(res) {
+        res.resume();
+        finished(res, common.mustCall(() => {
+          server.close();
+        }));
+      })
+    ).end();
+  });
+}
+
+{
+  const stream = new Duplex({
+    write(chunk, enc, cb) {
+      setImmediate(cb);
+    }
+  });
+
+  stream.end('foo');
+
+  finished(stream, { readable: false }, common.mustCall((err) => {
+    assert(!err);
   }));
 }

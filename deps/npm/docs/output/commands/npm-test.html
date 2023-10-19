@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-test</title>
 <style>
 body {
@@ -145,29 +146,27 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm test [-- &lt;args&gt;]
+<pre><code class="language-bash">npm test [-- &lt;args&gt;]
 
-aliases: t, tst
+aliases: tst, t
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This runs a predefined command specified in the <code>"test"</code> property of
-a package’s <code>"scripts"</code> object.</p>
+a package's <code>"scripts"</code> object.</p>
 <h3 id="example">Example</h3>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "scripts": {
     "test": "node test.js"
   }
 }
 </code></pre>
-<pre lang="bash"><code>npm test
+<pre><code class="language-bash">npm test
 &gt; npm@x.x.x test
 &gt; node test.js
 
 (test.js output would be here)
 </code></pre>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -180,11 +179,10 @@ will still run their intended script if <code>ignore-scripts</code> is set, but 
 will <em>not</em> run any pre- or post-scripts.</p>
 <h4 id="script-shell"><code>script-shell</code></h4>
 <ul>
-<li>Default: ‘/bin/sh’ on POSIX systems, ‘cmd.exe’ on Windows</li>
+<li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>
 <li>Type: null or String</li>
 </ul>
-<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;pkg&gt;</code> commands.</p>
-<!-- raw HTML omitted -->
+<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;package-spec&gt;</code> commands.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-run-script.html">npm run-script</a></li>
@@ -192,8 +190,7 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <li><a href="../commands/npm-start.html">npm start</a></li>
 <li><a href="../commands/npm-restart.html">npm restart</a></li>
 <li><a href="../commands/npm-stop.html">npm stop</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-test.md">

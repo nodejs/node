@@ -79,7 +79,7 @@ public:
     /**
      * Appends a string.
      * The default implementation calls appendCodeUnit(char16_t) for each code unit.
-     * @param s string, must not be NULL if length!=0
+     * @param s string, must not be nullptr if length!=0
      * @param length string length, or -1 if NUL-terminated
      * @return true if the operation succeeded
      * @stable ICU 4.8
@@ -174,7 +174,7 @@ public:
      * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool appendCodeUnit(char16_t c);
+    virtual UBool appendCodeUnit(char16_t c) override;
 
     /**
      * Appends a code point to the string.
@@ -182,16 +182,16 @@ public:
      * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool appendCodePoint(UChar32 c);
+    virtual UBool appendCodePoint(UChar32 c) override;
 
     /**
      * Appends a string to the UnicodeString.
-     * @param s string, must not be NULL if length!=0
+     * @param s string, must not be nullptr if length!=0
      * @param length string length, or -1 if NUL-terminated
      * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool appendString(const char16_t *s, int32_t length);
+    virtual UBool appendString(const char16_t *s, int32_t length) override;
 
     /**
      * Tells the UnicodeString that the caller is going to append roughly
@@ -200,7 +200,7 @@ public:
      * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool reserveAppendCapacity(int32_t appendCapacity);
+    virtual UBool reserveAppendCapacity(int32_t appendCapacity) override;
 
     /**
      * Returns a writable buffer for appending and writes the buffer's capacity to
@@ -226,7 +226,7 @@ public:
     virtual char16_t *getAppendBuffer(int32_t minCapacity,
                                    int32_t desiredCapacityHint,
                                    char16_t *scratch, int32_t scratchCapacity,
-                                   int32_t *resultCapacity);
+                                   int32_t *resultCapacity) override;
 
 private:
     UnicodeString &str;

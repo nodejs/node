@@ -35,7 +35,7 @@ static uint64_t start_time;
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
 
   close_cb_called++;
 }
@@ -136,6 +136,6 @@ TEST_IMPL(timer_again) {
           (long int)(uv_now(uv_default_loop()) - start_time));
   fflush(stderr);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

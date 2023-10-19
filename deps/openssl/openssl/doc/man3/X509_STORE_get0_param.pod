@@ -3,15 +3,17 @@
 =head1 NAME
 
 X509_STORE_get0_param, X509_STORE_set1_param,
-X509_STORE_get0_objects - X509_STORE setter and getter functions
+X509_STORE_get0_objects, X509_STORE_get1_all_certs
+- X509_STORE setter and getter functions
 
 =head1 SYNOPSIS
 
  #include <openssl/x509_vfy.h>
 
- X509_VERIFY_PARAM *X509_STORE_get0_param(X509_STORE *ctx);
- int X509_STORE_set1_param(X509_STORE *ctx, X509_VERIFY_PARAM *pm);
- STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(X509_STORE *ctx);
+ X509_VERIFY_PARAM *X509_STORE_get0_param(const X509_STORE *ctx);
+ int X509_STORE_set1_param(X509_STORE *ctx, const X509_VERIFY_PARAM *pm);
+ STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(const X509_STORE *ctx);
+ STACK_OF(X509) *X509_STORE_get1_all_certs(X509_STORE *st);
 
 =head1 DESCRIPTION
 
@@ -22,10 +24,12 @@ X509_STORE_get0_param() retrieves an internal pointer to the verification
 parameters for B<ctx>. The returned pointer must not be freed by the
 calling application
 
-X509_STORE_get0_objects() retrieve an internal pointer to the store's
+X509_STORE_get0_objects() retrieves an internal pointer to the store's
 X509 object cache. The cache contains B<X509> and B<X509_CRL> objects. The
 returned pointer must not be freed by the calling application.
 
+X509_STORE_get1_all_certs() returns a list of all certificates in the store.
+The caller is responsible for freeing the returned list.
 
 =head1 RETURN VALUES
 
@@ -36,6 +40,9 @@ X509_STORE_set1_param() returns 1 for success and 0 for failure.
 
 X509_STORE_get0_objects() returns a pointer to a stack of B<X509_OBJECT>.
 
+X509_STORE_get1_all_certs() returns a pointer to a stack of the retrieved
+certificates on success, else NULL.
+
 =head1 SEE ALSO
 
 L<X509_STORE_new(3)>
@@ -44,12 +51,13 @@ L<X509_STORE_new(3)>
 
 B<X509_STORE_get0_param> and B<X509_STORE_get0_objects> were added in
 OpenSSL 1.1.0.
+B<X509_STORE_get1_certs> was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

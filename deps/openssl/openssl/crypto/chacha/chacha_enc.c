@@ -1,7 +1,7 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -11,6 +11,7 @@
 
 #include <string.h>
 
+#include "internal/endian.h"
 #include "crypto/chacha.h"
 #include "crypto/ctype.h"
 
@@ -43,10 +44,7 @@ static void chacha20_core(chacha_buf *output, const u32 input[16])
 {
     u32 x[16];
     int i;
-    const union {
-        long one;
-        char little;
-    } is_endian = { 1 };
+    DECLARE_IS_ENDIAN;
 
     memcpy(x, input, sizeof(x));
 
@@ -61,7 +59,7 @@ static void chacha20_core(chacha_buf *output, const u32 input[16])
         QUARTERROUND(3, 4, 9, 14);
     }
 
-    if (is_endian.little) {
+    if (IS_LITTLE_ENDIAN) {
         for (i = 0; i < 16; ++i)
             output->u[i] = x[i] + input[i];
     } else {

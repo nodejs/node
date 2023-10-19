@@ -11,13 +11,15 @@ from testrunner.outproc import base as outproc
 
 PROTOCOL_TEST_JS = "protocol-test.js"
 WASM_INSPECTOR_JS = "wasm-inspector-test.js"
+PRIVATE_MEMBER_TEST_JS = "private-class-member-inspector-test.js"
 EXPECTED_SUFFIX = "-expected.txt"
 RESOURCES_FOLDER = "resources"
+
 
 class TestLoader(testsuite.JSTestLoader):
   @property
   def excluded_files(self):
-    return {PROTOCOL_TEST_JS, WASM_INSPECTOR_JS}
+    return {PROTOCOL_TEST_JS, WASM_INSPECTOR_JS, PRIVATE_MEMBER_TEST_JS}
 
   @property
   def excluded_dirs(self):
@@ -40,34 +42,29 @@ class TestCase(testcase.TestCase):
 
   def _get_files_params(self):
     return [
-      os.path.join(self.suite.root, PROTOCOL_TEST_JS),
-      os.path.join(self.suite.root, self.path + self._get_suffix()),
+      self.suite.root / PROTOCOL_TEST_JS,
+      self.suite.root / self.path_js,
     ]
 
   def _get_source_flags(self):
     return self._source_flags
 
   def _get_source_path(self):
-    return os.path.join(self.suite.root, self.path + self._get_suffix())
+    return self.suite.root / self.path_js
 
   def get_shell(self):
     return 'inspector-test'
 
-  def _get_resources(self):
-    return [
-      os.path.join(
-        'test', 'inspector', 'debugger', 'resources', 'break-locations.js'),
-      os.path.join(
-        'test', 'inspector', 'wasm-inspector-test.js'),
+  def get_android_resources(self):
+    super_resources = super().get_android_resources()
+    return super_resources + [
+        self.suite.root /'debugger' /'resources' /'break-locations.js',
+        self.suite.root / WASM_INSPECTOR_JS,
     ]
 
   @property
   def output_proc(self):
     return outproc.ExpectedOutProc(
         self.expected_outcomes,
-        os.path.join(self.suite.root, self.path) + EXPECTED_SUFFIX,
-        self.suite.test_config.regenerate_expected_files)
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+        self.suite.root / self.path_and_suffix(EXPECTED_SUFFIX),
+        self.test_config.regenerate_expected_files)

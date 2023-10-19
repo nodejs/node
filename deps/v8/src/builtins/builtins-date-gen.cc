@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/objects/dictionary.h"
 
 namespace v8 {
 namespace internal {
@@ -190,7 +191,7 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   // Check if the {receiver} is actually a JSReceiver.
   Label receiver_is_invalid(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(receiver), &receiver_is_invalid);
-  GotoIfNot(IsJSReceiver(CAST(receiver)), &receiver_is_invalid);
+  GotoIfNot(JSAnyIsNotPrimitive(CAST(receiver)), &receiver_is_invalid);
 
   // Dispatch to the appropriate OrdinaryToPrimitive builtin.
   Label hint_is_number(this), hint_is_string(this),
@@ -207,18 +208,11 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   // Slow-case with actual string comparisons.
   GotoIf(TaggedIsSmi(hint), &hint_is_invalid);
   GotoIfNot(IsString(CAST(hint)), &hint_is_invalid);
-  GotoIf(TaggedEqual(
-             CallBuiltin(Builtins::kStringEqual, context, hint, number_string),
-             TrueConstant()),
-         &hint_is_number);
-  GotoIf(TaggedEqual(
-             CallBuiltin(Builtins::kStringEqual, context, hint, default_string),
-             TrueConstant()),
-         &hint_is_string);
-  GotoIf(TaggedEqual(
-             CallBuiltin(Builtins::kStringEqual, context, hint, string_string),
-             TrueConstant()),
-         &hint_is_string);
+
+  TNode<IntPtrT> hint_length = LoadStringLengthAsWord(CAST(hint));
+  GotoIfStringEqual(CAST(hint), hint_length, number_string, &hint_is_number);
+  GotoIfStringEqual(CAST(hint), hint_length, default_string, &hint_is_string);
+  GotoIfStringEqual(CAST(hint), hint_length, string_string, &hint_is_string);
   Goto(&hint_is_invalid);
 
   // Use the OrdinaryToPrimitive builtin to convert to a Number.

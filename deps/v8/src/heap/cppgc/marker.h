@@ -8,13 +8,15 @@
 #include <memory>
 
 #include "include/cppgc/heap.h"
+#include "include/cppgc/platform.h"
 #include "include/cppgc/visitor.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
+#include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/cppgc/concurrent-marker.h"
 #include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/incremental-marking-schedule.h"
+#include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/marking-worklists.h"
@@ -24,12 +26,10 @@ namespace cppgc {
 namespace internal {
 
 class HeapBase;
-class MarkerFactory;
 
 // Marking algorithm. Example for a valid call sequence creating the marking
 // phase:
-// 1. StartMarking() [Called implicitly when creating a Marker using
-//                    MarkerFactory]
+// 1. StartMarking()
 // 2. AdvanceMarkingWithLimits() [Optional, depending on environment.]
 // 3. EnterAtomicPause()
 // 4. AdvanceMarkingWithLimits()
@@ -38,24 +38,22 @@ class MarkerFactory;
 // Alternatively, FinishMarking combines steps 3.-5.
 class V8_EXPORT_PRIVATE MarkerBase {
  public:
-  struct MarkingConfig {
-    enum class CollectionType : uint8_t {
-      kMinor,
-      kMajor,
-    };
-    using StackState = cppgc::Heap::StackState;
-    using MarkingType = cppgc::Heap::MarkingType;
-    enum class IsForcedGC : uint8_t {
-      kNotForced,
-      kForced,
-    };
+  class IncrementalMarkingTask;
 
-    static constexpr MarkingConfig Default() { return {}; }
+  enum class WriteBarrierType {
+    kDijkstra,
+    kSteele,
+  };
 
-    const CollectionType collection_type = CollectionType::kMajor;
-    StackState stack_state = StackState::kMayContainHeapPointers;
-    MarkingType marking_type = MarkingType::kIncremental;
-    IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
+  // Pauses concurrent marking if running while this scope is active.
+  class PauseConcurrentMarkingScope final {
+   public:
+    explicit PauseConcurrentMarkingScope(MarkerBase&);
+    ~PauseConcurrentMarkingScope();
+
+   private:
+    MarkerBase& marker_;
+    const bool resume_on_exit_;
   };
 
   virtual ~MarkerBase();
@@ -63,11 +61,16 @@ class V8_EXPORT_PRIVATE MarkerBase {
   MarkerBase(const MarkerBase&) = delete;
   MarkerBase& operator=(const MarkerBase&) = delete;
 
+  template <typename Class>
+  Class& To() {
+    return *static_cast<Class*>(this);
+  }
+
   // Signals entering the atomic marking pause. The method
   // - stops incremental/concurrent marking;
   // - flushes back any in-construction worklists if needed;
   // - Updates the MarkingConfig if the stack state has changed;
-  void EnterAtomicPause(MarkingConfig::StackState);
+  void EnterAtomicPause(StackState);
 
   // Makes marking progress.  A `marked_bytes_limit` of 0 means that the limit
   // is determined by the internal marking scheduler.
@@ -78,128 +81,109 @@ class V8_EXPORT_PRIVATE MarkerBase {
       v8::base::TimeDelta = kMaximumIncrementalStepDuration,
       size_t marked_bytes_limit = 0);
 
-  // Makes marking progress when allocation a new lab.
-  void AdvanceMarkingOnAllocation();
-
   // Signals leaving the atomic marking pause. This method expects no more
   // objects to be marked and merely updates marking states if needed.
   void LeaveAtomicPause();
+
+  // Initialize marking according to the given config. This method will
+  // trigger incremental/concurrent marking if needed.
+  void StartMarking();
 
   // Combines:
   // - EnterAtomicPause()
   // - AdvanceMarkingWithLimits()
   // - ProcessWeakness()
   // - LeaveAtomicPause()
-  void FinishMarking(MarkingConfig::StackState);
+  void FinishMarking(StackState);
 
   void ProcessWeakness();
 
+  bool JoinConcurrentMarkingIfNeeded();
+  void NotifyConcurrentMarkingOfWorkIfNeeded(cppgc::TaskPriority);
+
   inline void WriteBarrierForInConstructionObject(HeapObjectHeader&);
+
+  template <WriteBarrierType type>
   inline void WriteBarrierForObject(HeapObjectHeader&);
 
   HeapBase& heap() { return heap_; }
+
+  cppgc::Visitor& Visitor() { return visitor(); }
+
+  bool IsMarking() const { return is_marking_; }
+
+  // Returns whether marking is considered ahead of schedule.
+  bool IsAheadOfSchedule() const;
+
+  void SetMainThreadMarkingDisabledForTesting(bool);
+  void WaitForConcurrentMarkingForTesting();
+  void ClearAllWorklistsForTesting();
+  bool IncrementalMarkingStepForTesting(StackState);
 
   MarkingWorklists& MarkingWorklistsForTesting() { return marking_worklists_; }
   MutatorMarkingState& MutatorMarkingStateForTesting() {
     return mutator_marking_state_;
   }
-  cppgc::Visitor& Visitor() { return visitor(); }
-  void ClearAllWorklistsForTesting();
-
-  bool IncrementalMarkingStepForTesting(MarkingConfig::StackState);
-
-  class IncrementalMarkingTask final : public cppgc::Task {
-   public:
-    using Handle = SingleThreadedHandle;
-
-    IncrementalMarkingTask(MarkerBase*, MarkingConfig::StackState);
-
-    static Handle Post(cppgc::TaskRunner*, MarkerBase*);
-
-   private:
-    void Run() final;
-
-    MarkerBase* const marker_;
-    MarkingConfig::StackState stack_state_;
-    // TODO(chromium:1056170): Change to CancelableTask.
-    Handle handle_;
-  };
-
-  void SetMainThreadMarkingDisabledForTesting(bool);
-
-  void WaitForConcurrentMarkingForTesting();
-
-  void NotifyCompactionCancelled();
-
-  bool IsMarking() const { return is_marking_; }
 
  protected:
+  class IncrementalMarkingAllocationObserver;
+
+  using IncrementalMarkingTaskHandle = SingleThreadedHandle;
+
   static constexpr v8::base::TimeDelta kMaximumIncrementalStepDuration =
       v8::base::TimeDelta::FromMilliseconds(2);
 
-  class Key {
-   private:
-    Key() = default;
-    friend class MarkerFactory;
-  };
-
-  MarkerBase(Key, HeapBase&, cppgc::Platform*, MarkingConfig);
-
-  // Initialize marking according to the given config. This method will
-  // trigger incremental/concurrent marking if needed.
-  void StartMarking();
+  MarkerBase(HeapBase&, cppgc::Platform*, MarkingConfig);
 
   virtual cppgc::Visitor& visitor() = 0;
   virtual ConservativeTracingVisitor& conservative_visitor() = 0;
   virtual heap::base::StackVisitor& stack_visitor() = 0;
 
-  bool ProcessWorklistsWithDeadline(size_t, v8::base::TimeTicks);
+  // Processes the worklists with given deadlines. The deadlines are only
+  // checked every few objects.
+  // - `marked_bytes_deadline`: Only process this many bytes. Ignored for
+  //   processing concurrent bailout objects.
+  // - `time_deadline`: Time deadline that is always respected.
+  bool ProcessWorklistsWithDeadline(size_t marked_bytes_deadline,
+                                    v8::base::TimeTicks time_deadline);
 
-  void VisitRoots(MarkingConfig::StackState);
+  void VisitRoots(StackState);
+
+  bool VisitCrossThreadPersistentsIfNeeded();
 
   void MarkNotFullyConstructedObjects();
 
   void ScheduleIncrementalMarkingTask();
 
-  bool IncrementalMarkingStep(MarkingConfig::StackState);
+  bool IncrementalMarkingStep(StackState);
+
+  void AdvanceMarkingOnAllocation();
+
+  void HandleNotFullyConstructedObjects();
 
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
 
   cppgc::Platform* platform_;
   std::shared_ptr<cppgc::TaskRunner> foreground_task_runner_;
-  IncrementalMarkingTask::Handle incremental_marking_handle_;
+  IncrementalMarkingTaskHandle incremental_marking_handle_;
+  std::unique_ptr<IncrementalMarkingAllocationObserver>
+      incremental_marking_allocation_observer_;
 
   MarkingWorklists marking_worklists_;
   MutatorMarkingState mutator_marking_state_;
   bool is_marking_{false};
 
-  IncrementalMarkingSchedule schedule_;
-
+  std::unique_ptr<heap::base::IncrementalMarkingSchedule> schedule_;
   std::unique_ptr<ConcurrentMarkerBase> concurrent_marker_{nullptr};
 
   bool main_marking_disabled_for_testing_{false};
-
-  friend class MarkerFactory;
-};
-
-class V8_EXPORT_PRIVATE MarkerFactory {
- public:
-  template <typename T, typename... Args>
-  static std::unique_ptr<T> CreateAndStartMarking(Args&&... args) {
-    static_assert(std::is_base_of<MarkerBase, T>::value,
-                  "MarkerFactory can only create subclasses of MarkerBase");
-    std::unique_ptr<T> marker =
-        std::make_unique<T>(MarkerBase::Key(), std::forward<Args>(args)...);
-    marker->StartMarking();
-    return marker;
-  }
+  bool visited_cross_thread_persistents_in_atomic_pause_{false};
 };
 
 class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
  public:
-  Marker(Key, HeapBase&, cppgc::Platform*,
-         MarkingConfig = MarkingConfig::Default());
+  Marker(HeapBase&, cppgc::Platform*, MarkingConfig = MarkingConfig::Default());
 
  protected:
   cppgc::Visitor& visitor() final { return marking_visitor_; }
@@ -220,8 +204,16 @@ void MarkerBase::WriteBarrierForInConstructionObject(HeapObjectHeader& header) {
       .Push<AccessMode::kAtomic>(&header);
 }
 
+template <MarkerBase::WriteBarrierType type>
 void MarkerBase::WriteBarrierForObject(HeapObjectHeader& header) {
-  mutator_marking_state_.write_barrier_worklist().Push(&header);
+  switch (type) {
+    case MarkerBase::WriteBarrierType::kDijkstra:
+      mutator_marking_state_.write_barrier_worklist().Push(&header);
+      break;
+    case MarkerBase::WriteBarrierType::kSteele:
+      mutator_marking_state_.retrace_marked_objects_worklist().Push(&header);
+      break;
+  }
 }
 
 }  // namespace internal

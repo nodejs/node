@@ -11,9 +11,11 @@
 #include <cstddef>
 #include <cstring>
 #include <functional>
+#include <type_traits>
 #include <utility>
 
 #include "src/base/base-export.h"
+#include "src/base/bits.h"
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -65,10 +67,80 @@ namespace base {
 template <typename>
 struct hash;
 
+// Thomas Wang, Integer Hash Functions.
+// https://gist.github.com/badboy/6267743
+template <typename T>
+V8_INLINE size_t hash_value_unsigned_impl(T v) {
+  switch (sizeof(T)) {
+    case 4: {
+      // "32 bit Mix Functions"
+      v = ~v + (v << 15);  // v = (v << 15) - v - 1;
+      v = v ^ (v >> 12);
+      v = v + (v << 2);
+      v = v ^ (v >> 4);
+      v = v * 2057;  // v = (v + (v << 3)) + (v << 11);
+      v = v ^ (v >> 16);
+      return static_cast<size_t>(v);
+    }
+    case 8: {
+      switch (sizeof(size_t)) {
+        case 4: {
+          // "64 bit to 32 bit Hash Functions"
+          v = ~v + (v << 18);  // v = (v << 18) - v - 1;
+          v = v ^ (v >> 31);
+          v = v * 21;  // v = (v + (v << 2)) + (v << 4);
+          v = v ^ (v >> 11);
+          v = v + (v << 6);
+          v = v ^ (v >> 22);
+          return static_cast<size_t>(v);
+        }
+        case 8: {
+          // "64 bit Mix Functions"
+          v = ~v + (v << 21);  // v = (v << 21) - v - 1;
+          v = v ^ (v >> 24);
+          v = (v + (v << 3)) + (v << 8);  // v * 265
+          v = v ^ (v >> 14);
+          v = (v + (v << 2)) + (v << 4);  // v * 21
+          v = v ^ (v >> 28);
+          v = v + (v << 31);
+          return static_cast<size_t>(v);
+        }
+      }
+    }
+  }
+  UNREACHABLE();
+}
 
 V8_INLINE size_t hash_combine() { return 0u; }
 V8_INLINE size_t hash_combine(size_t seed) { return seed; }
-V8_BASE_EXPORT size_t hash_combine(size_t seed, size_t value);
+
+// This code was taken from MurmurHash.
+V8_INLINE size_t hash_combine(size_t seed, size_t value) {
+#if V8_HOST_ARCH_32_BIT
+  const uint32_t c1 = 0xCC9E2D51;
+  const uint32_t c2 = 0x1B873593;
+
+  value *= c1;
+  value = bits::RotateRight32(value, 15);
+  value *= c2;
+
+  seed ^= value;
+  seed = bits::RotateRight32(seed, 13);
+  seed = seed * 5 + 0xE6546B64;
+#else
+  const uint64_t m = uint64_t{0xC6A4A7935BD1E995};
+  const uint32_t r = 47;
+
+  value *= m;
+  value ^= value >> r;
+  value *= m;
+
+  seed ^= value;
+  seed *= m;
+#endif  // V8_HOST_ARCH_32_BIT
+  return seed;
+}
+
 template <typename T, typename... Ts>
 V8_INLINE size_t hash_combine(T const& v, Ts const&... vs) {
   return hash_combine(hash_combine(vs...), hash<T>()(v));
@@ -92,13 +164,21 @@ V8_BASE_HASH_VALUE_TRIVIAL(unsigned char)
 V8_BASE_HASH_VALUE_TRIVIAL(unsigned short)  // NOLINT(runtime/int)
 #undef V8_BASE_HASH_VALUE_TRIVIAL
 
-V8_BASE_EXPORT size_t hash_value(unsigned int);
-V8_BASE_EXPORT size_t hash_value(unsigned long);       // NOLINT(runtime/int)
-V8_BASE_EXPORT size_t hash_value(unsigned long long);  // NOLINT(runtime/int)
+V8_INLINE size_t hash_value(unsigned int v) {
+  return hash_value_unsigned_impl(v);
+}
 
-#define V8_BASE_HASH_VALUE_SIGNED(type)            \
-  V8_INLINE size_t hash_value(signed type v) {     \
-    return hash_value(bit_cast<unsigned type>(v)); \
+V8_INLINE size_t hash_value(unsigned long v) {  // NOLINT(runtime/int)
+  return hash_value_unsigned_impl(v);
+}
+
+V8_INLINE size_t hash_value(unsigned long long v) {  // NOLINT(runtime/int)
+  return hash_value_unsigned_impl(v);
+}
+
+#define V8_BASE_HASH_VALUE_SIGNED(type)                  \
+  V8_INLINE size_t hash_value(signed type v) {           \
+    return hash_value(base::bit_cast<unsigned type>(v)); \
   }
 V8_BASE_HASH_VALUE_SIGNED(char)
 V8_BASE_HASH_VALUE_SIGNED(short)      // NOLINT(runtime/int)
@@ -109,12 +189,12 @@ V8_BASE_HASH_VALUE_SIGNED(long long)  // NOLINT(runtime/int)
 
 V8_INLINE size_t hash_value(float v) {
   // 0 and -0 both hash to zero.
-  return v != 0.0f ? hash_value(bit_cast<uint32_t>(v)) : 0;
+  return v != 0.0f ? hash_value(base::bit_cast<uint32_t>(v)) : 0;
 }
 
 V8_INLINE size_t hash_value(double v) {
   // 0 and -0 both hash to zero.
-  return v != 0.0 ? hash_value(bit_cast<uint64_t>(v)) : 0;
+  return v != 0.0 ? hash_value(base::bit_cast<uint64_t>(v)) : 0;
 }
 
 template <typename T, size_t N>
@@ -129,12 +209,28 @@ V8_INLINE size_t hash_value(T (&v)[N]) {
 
 template <typename T>
 V8_INLINE size_t hash_value(T* const& v) {
-  return hash_value(bit_cast<uintptr_t>(v));
+  return hash_value(base::bit_cast<uintptr_t>(v));
 }
 
 template <typename T1, typename T2>
 V8_INLINE size_t hash_value(std::pair<T1, T2> const& v) {
   return hash_combine(v.first, v.second);
+}
+
+template <typename... T, size_t... I>
+V8_INLINE size_t hash_value_impl(std::tuple<T...> const& v,
+                                 std::index_sequence<I...>) {
+  return hash_combine(std::get<I>(v)...);
+}
+
+template <typename... T>
+V8_INLINE size_t hash_value(std::tuple<T...> const& v) {
+  return hash_value_impl(v, std::make_index_sequence<sizeof...(T)>());
+}
+
+template <typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
+V8_INLINE size_t hash_value(T v) {
+  return hash_value(static_cast<std::underlying_type_t<T>>(v));
 }
 
 template <typename T>
@@ -202,19 +298,19 @@ V8_BASE_BIT_SPECIALIZE_TRIVIAL(long long)           // NOLINT(runtime/int)
 V8_BASE_BIT_SPECIALIZE_TRIVIAL(unsigned long long)  // NOLINT(runtime/int)
 #undef V8_BASE_BIT_SPECIALIZE_TRIVIAL
 
-#define V8_BASE_BIT_SPECIALIZE_BIT_CAST(type, btype)       \
-  template <>                                              \
-  struct bit_equal_to<type> {                              \
-    V8_INLINE bool operator()(type lhs, type rhs) const {  \
-      return bit_cast<btype>(lhs) == bit_cast<btype>(rhs); \
-    }                                                      \
-  };                                                       \
-  template <>                                              \
-  struct bit_hash<type> {                                  \
-    V8_INLINE size_t operator()(type v) const {            \
-      hash<btype> h;                                       \
-      return h(bit_cast<btype>(v));                        \
-    }                                                      \
+#define V8_BASE_BIT_SPECIALIZE_BIT_CAST(type, btype)                   \
+  template <>                                                          \
+  struct bit_equal_to<type> {                                          \
+    V8_INLINE bool operator()(type lhs, type rhs) const {              \
+      return base::bit_cast<btype>(lhs) == base::bit_cast<btype>(rhs); \
+    }                                                                  \
+  };                                                                   \
+  template <>                                                          \
+  struct bit_hash<type> {                                              \
+    V8_INLINE size_t operator()(type v) const {                        \
+      hash<btype> h;                                                   \
+      return h(base::bit_cast<btype>(v));                              \
+    }                                                                  \
   };
 V8_BASE_BIT_SPECIALIZE_BIT_CAST(float, uint32_t)
 V8_BASE_BIT_SPECIALIZE_BIT_CAST(double, uint64_t)

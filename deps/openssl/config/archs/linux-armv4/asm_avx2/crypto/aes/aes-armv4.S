@@ -1,6 +1,6 @@
 @ Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
 @
-@ Licensed under the OpenSSL license (the "License").  You may not use
+@ Licensed under the Apache License 2.0 (the "License").  You may not use
 @ this file except in compliance with the License.  You can obtain a copy
 @ in the file LICENSE in the source distribution or at
 @ https://www.openssl.org/source/license.html
@@ -38,13 +38,14 @@
 @ Profiler-assisted and platform-specific optimization resulted in 16%
 @ improvement on Cortex A8 core and ~21.5 cycles per byte.
 
+@ $output is the last argument if it looks like a file (it has an extension)
+@ $flavour is the first argument if it doesn't look like a file
 #ifndef __KERNEL__
 # include "arm_arch.h"
 #else
 # define __ARM_ARCH__ __LINUX_ARM_ARCH__
 #endif
 
-.text
 #if defined(__thumb2__) && !defined(__APPLE__)
 .syntax	unified
 .thumb
@@ -52,6 +53,8 @@
 .code	32
 #undef __thumb2__
 #endif
+
+.text
 
 .type	AES_Te,%object
 .align	5

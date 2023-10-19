@@ -70,19 +70,21 @@ const formDataPostFileUploadTest = ({
       }`,
     );
 
-    const asName = fileBaseName.replace(/[\r\n"]/g, encodeURIComponent);
+    const asValue = fileBaseName.replace(/\r\n?|\n/g, "\r\n");
+    const asName = asValue.replace(/[\r\n"]/g, encodeURIComponent);
+    const asFilename = fileBaseName.replace(/[\r\n"]/g, encodeURIComponent);
     const expectedText = [
       boundary,
       'Content-Disposition: form-data; name="filename"',
       "",
-      fileBaseName,
+      asValue,
       boundary,
       `Content-Disposition: form-data; name="${asName}"`,
       "",
       "filename",
       boundary,
       `Content-Disposition: form-data; name="file"; ` +
-      `filename="${asName}"`,
+      `filename="${asFilename}"`,
       "Content-Type: text/plain",
       "",
       kTestChars,

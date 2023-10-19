@@ -6,33 +6,45 @@
 #define V8_V8_INSPECTOR_H_
 
 #include <stdint.h>
+
 #include <cctype>
-
 #include <memory>
-#include <unordered_map>
 
-#include "v8.h"  // NOLINT(build/include_directory)
+#include "v8-isolate.h"       // NOLINT(build/include_directory)
+#include "v8-local-handle.h"  // NOLINT(build/include_directory)
+
+namespace v8 {
+class Context;
+class Name;
+class Object;
+class StackTrace;
+class Value;
+}  // namespace v8
 
 namespace v8_inspector {
+
+namespace internal {
+class V8DebuggerId;
+}  // namespace internal
 
 namespace protocol {
 namespace Debugger {
 namespace API {
 class SearchMatch;
 }
-}
+}  // namespace Debugger
 namespace Runtime {
 namespace API {
 class RemoteObject;
 class StackTrace;
 class StackTraceId;
-}
-}
+}  // namespace API
+}  // namespace Runtime
 namespace Schema {
 namespace API {
 class Domain;
 }
-}
+}  // namespace Schema
 }  // namespace protocol
 
 class V8_EXPORT StringView {
@@ -98,6 +110,37 @@ class V8_EXPORT V8ContextInfo {
   V8ContextInfo& operator=(const V8ContextInfo&) = delete;
 };
 
+// This debugger id tries to be unique by generating two random
+// numbers, which should most likely avoid collisions.
+// Debugger id has a 1:1 mapping to context group. It is used to
+// attribute stack traces to a particular debugging, when doing any
+// cross-debugger operations (e.g. async step in).
+// See also Runtime.UniqueDebuggerId in the protocol.
+class V8_EXPORT V8DebuggerId {
+ public:
+  V8DebuggerId() = default;
+  V8DebuggerId(const V8DebuggerId&) = default;
+  V8DebuggerId& operator=(const V8DebuggerId&) = default;
+
+  std::unique_ptr<StringBuffer> toString() const;
+  bool isValid() const;
+  std::pair<int64_t, int64_t> pair() const;
+
+ private:
+  friend class internal::V8DebuggerId;
+  explicit V8DebuggerId(std::pair<int64_t, int64_t>);
+
+  int64_t m_first = 0;
+  int64_t m_second = 0;
+};
+
+struct V8_EXPORT V8StackFrame {
+  StringView sourceURL;
+  StringView functionName;
+  int lineNumber;
+  int columnNumber;
+};
+
 class V8_EXPORT V8StackTrace {
  public:
   virtual StringView firstNonEmptySourceURL() const = 0;
@@ -105,19 +148,18 @@ class V8_EXPORT V8StackTrace {
   virtual StringView topSourceURL() const = 0;
   virtual int topLineNumber() const = 0;
   virtual int topColumnNumber() const = 0;
-  virtual StringView topScriptId() const = 0;
-  virtual int topScriptIdAsInteger() const = 0;
+  virtual int topScriptId() const = 0;
   virtual StringView topFunctionName() const = 0;
 
   virtual ~V8StackTrace() = default;
-  virtual std::unique_ptr<protocol::Runtime::API::StackTrace>
-  buildInspectorObject() const = 0;
   virtual std::unique_ptr<protocol::Runtime::API::StackTrace>
   buildInspectorObject(int maxAsyncDepth) const = 0;
   virtual std::unique_ptr<StringBuffer> toString() const = 0;
 
   // Safe to pass between threads, drops async chain.
   virtual std::unique_ptr<V8StackTrace> clone() = 0;
+
+  virtual std::vector<V8StackFrame> frames() const = 0;
 };
 
 class V8_EXPORT V8InspectorSession {
@@ -130,6 +172,10 @@ class V8_EXPORT V8InspectorSession {
     virtual v8::Local<v8::Value> get(v8::Local<v8::Context>) = 0;
     virtual ~Inspectable() = default;
   };
+  class V8_EXPORT CommandLineAPIScope {
+   public:
+    virtual ~CommandLineAPIScope() = default;
+  };
   virtual void addInspectedObject(std::unique_ptr<Inspectable>) = 0;
 
   // Dispatching protocol messages.
@@ -138,6 +184,9 @@ class V8_EXPORT V8InspectorSession {
   virtual std::vector<uint8_t> state() = 0;
   virtual std::vector<std::unique_ptr<protocol::Schema::API::Domain>>
   supportedDomains() = 0;
+
+  virtual std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
+  initializeCommandLineAPIScope(int executionContextId) = 0;
 
   // Debugger actions.
   virtual void schedulePauseOnNextStatement(StringView breakReason,
@@ -162,7 +211,42 @@ class V8_EXPORT V8InspectorSession {
                             v8::Local<v8::Context>*,
                             std::unique_ptr<StringBuffer>* objectGroup) = 0;
   virtual void releaseObjectGroup(StringView) = 0;
-  virtual void triggerPreciseCoverageDeltaUpdate(StringView occassion) = 0;
+  virtual void triggerPreciseCoverageDeltaUpdate(StringView occasion) = 0;
+
+  // Prepare for shutdown (disables debugger pausing, etc.).
+  virtual void stop() = 0;
+};
+
+// Deprecated.
+// TODO(crbug.com/1420968): remove.
+class V8_EXPORT WebDriverValue {
+ public:
+  explicit WebDriverValue(std::unique_ptr<StringBuffer> type,
+                          v8::MaybeLocal<v8::Value> value = {})
+      : type(std::move(type)), value(value) {}
+  std::unique_ptr<StringBuffer> type;
+  v8::MaybeLocal<v8::Value> value;
+};
+
+struct V8_EXPORT DeepSerializedValue {
+  explicit DeepSerializedValue(std::unique_ptr<StringBuffer> type,
+                               v8::MaybeLocal<v8::Value> value = {})
+      : type(std::move(type)), value(value) {}
+  std::unique_ptr<StringBuffer> type;
+  v8::MaybeLocal<v8::Value> value;
+};
+
+struct V8_EXPORT DeepSerializationResult {
+  explicit DeepSerializationResult(
+      std::unique_ptr<DeepSerializedValue> serializedValue)
+      : serializedValue(std::move(serializedValue)), isSuccess(true) {}
+  explicit DeepSerializationResult(std::unique_ptr<StringBuffer> errorMessage)
+      : errorMessage(std::move(errorMessage)), isSuccess(false) {}
+
+  // Use std::variant when available.
+  std::unique_ptr<DeepSerializedValue> serializedValue;
+  std::unique_ptr<StringBuffer> errorMessage;
+  bool isSuccess;
 };
 
 class V8_EXPORT V8InspectorClient {
@@ -170,6 +254,9 @@ class V8_EXPORT V8InspectorClient {
   virtual ~V8InspectorClient() = default;
 
   virtual void runMessageLoopOnPause(int contextGroupId) {}
+  virtual void runMessageLoopOnInstrumentationPause(int contextGroupId) {
+    runMessageLoopOnPause(contextGroupId);
+  }
   virtual void quitMessageLoopOnPause() {}
   virtual void runIfWaitingForDebugger(int contextGroupId) {}
 
@@ -179,15 +266,23 @@ class V8_EXPORT V8InspectorClient {
   virtual void beginUserGesture() {}
   virtual void endUserGesture() {}
 
+  // Deprecated. Use `deepSerialize` instead.
+  // TODO(crbug.com/1420968): remove.
+  virtual std::unique_ptr<WebDriverValue> serializeToWebDriverValue(
+      v8::Local<v8::Value> v8Value, int maxDepth) {
+    return nullptr;
+  }
+  virtual std::unique_ptr<DeepSerializationResult> deepSerialize(
+      v8::Local<v8::Value> v8Value, int maxDepth,
+      v8::Local<v8::Object> additionalParameters) {
+    return nullptr;
+  }
   virtual std::unique_ptr<StringBuffer> valueSubtype(v8::Local<v8::Value>) {
     return nullptr;
   }
   virtual std::unique_ptr<StringBuffer> descriptionForValueSubtype(
       v8::Local<v8::Context>, v8::Local<v8::Value>) {
     return nullptr;
-  }
-  virtual bool formatAccessorsAsProperties(v8::Local<v8::Value>) {
-    return false;
   }
   virtual bool isInspectableHeapObject(v8::Local<v8::Object>) { return true; }
 
@@ -233,6 +328,9 @@ class V8_EXPORT V8InspectorClient {
   // The caller would defer to generating a random 64 bit integer if
   // this method returns 0.
   virtual int64_t generateUniqueId() { return 0; }
+
+  virtual void dispatchError(v8::Local<v8::Context>, v8::Local<v8::Message>,
+                             v8::Local<v8::Value>) {}
 };
 
 // These stack trace ids are intended to be passed between debuggers and be
@@ -267,6 +365,7 @@ class V8_EXPORT V8Inspector {
   virtual void contextDestroyed(v8::Local<v8::Context>) = 0;
   virtual void resetContextGroup(int contextGroupId) = 0;
   virtual v8::MaybeLocal<v8::Context> contextById(int contextId) = 0;
+  virtual V8DebuggerId uniqueDebuggerId(int contextId) = 0;
 
   // Various instrumentation.
   virtual void idleStarted() = 0;
@@ -293,6 +392,10 @@ class V8_EXPORT V8Inspector {
                                    int scriptId) = 0;
   virtual void exceptionRevoked(v8::Local<v8::Context>, unsigned exceptionId,
                                 StringView message) = 0;
+  virtual bool associateExceptionData(v8::Local<v8::Context>,
+                                      v8::Local<v8::Value> exception,
+                                      v8::Local<v8::Name> key,
+                                      v8::Local<v8::Value> value) = 0;
 
   // Connection.
   class V8_EXPORT Channel {
@@ -303,32 +406,20 @@ class V8_EXPORT V8Inspector {
     virtual void sendNotification(std::unique_ptr<StringBuffer> message) = 0;
     virtual void flushProtocolNotifications() = 0;
   };
-  virtual std::unique_ptr<V8InspectorSession> connect(int contextGroupId,
-                                                      Channel*,
-                                                      StringView state) = 0;
+  enum ClientTrustLevel { kUntrusted, kFullyTrusted };
+  enum SessionPauseState { kWaitingForDebugger, kNotWaitingForDebugger };
+  // TODO(chromium:1352175): remove default value once downstream change lands.
+  virtual std::unique_ptr<V8InspectorSession> connect(
+      int contextGroupId, Channel*, StringView state,
+      ClientTrustLevel client_trust_level,
+      SessionPauseState = kNotWaitingForDebugger) {
+    return nullptr;
+  }
 
   // API methods.
   virtual std::unique_ptr<V8StackTrace> createStackTrace(
       v8::Local<v8::StackTrace>) = 0;
   virtual std::unique_ptr<V8StackTrace> captureStackTrace(bool fullStack) = 0;
-
-  // Performance counters.
-  class V8_EXPORT Counters : public std::enable_shared_from_this<Counters> {
-   public:
-    explicit Counters(v8::Isolate* isolate);
-    ~Counters();
-    const std::unordered_map<std::string, int>& getCountersMap() const {
-      return m_countersMap;
-    }
-
-   private:
-    static int* getCounterPtr(const char* name);
-
-    v8::Isolate* m_isolate;
-    std::unordered_map<std::string, int> m_countersMap;
-  };
-
-  virtual std::shared_ptr<Counters> enableCounters() = 0;
 };
 
 }  // namespace v8_inspector

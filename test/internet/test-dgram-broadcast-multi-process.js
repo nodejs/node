@@ -166,7 +166,7 @@ if (process.argv[2] !== 'child') {
 
   const sendSocket = dgram.createSocket({
     type: 'udp4',
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   // Bind the address explicitly for sending
@@ -184,7 +184,9 @@ if (process.argv[2] !== 'child') {
     const buf = messages[i++];
 
     if (!buf) {
-      try { sendSocket.close(); } catch {}
+      try { sendSocket.close(); } catch {
+        // Continue regardless of error.
+      }
       return;
     }
 
@@ -201,7 +203,7 @@ if (process.argv[2] !== 'child') {
                       LOCAL_BROADCAST_HOST, common.PORT);
 
         process.nextTick(sendSocket.sendNext);
-      }
+      },
     );
   };
 
@@ -217,7 +219,7 @@ if (process.argv[2] === 'child') {
   const receivedMessages = [];
   const listenSocket = dgram.createSocket({
     type: 'udp4',
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   listenSocket.on('message', (buf, rinfo) => {

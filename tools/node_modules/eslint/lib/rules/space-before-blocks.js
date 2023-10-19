@@ -34,15 +34,15 @@ function isFunctionBody(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing before blocks",
-            category: "Stylistic Issues",
+            description: "Enforce consistent spacing before blocks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/space-before-blocks"
+            url: "https://eslint.org/docs/latest/rules/space-before-blocks"
         },
 
         fixable: "whitespace",
@@ -80,7 +80,7 @@ module.exports = {
 
     create(context) {
         const config = context.options[0],
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
         let alwaysFunctions = true,
             alwaysKeywords = true,
             alwaysClasses = true,
@@ -108,13 +108,25 @@ module.exports = {
          * Checks whether the spacing before the given block is already controlled by another rule:
          * - `arrow-spacing` checks spaces after `=>`.
          * - `keyword-spacing` checks spaces after keywords in certain contexts.
+         * - `switch-colon-spacing` checks spaces after `:` of switch cases.
          * @param {Token} precedingToken first token before the block.
          * @param {ASTNode|Token} node `BlockStatement` node or `{` token of a `SwitchStatement` node.
          * @returns {boolean} `true` if requiring or disallowing spaces before the given block could produce conflicts with other rules.
          */
         function isConflicted(precedingToken, node) {
-            return astUtils.isArrowToken(precedingToken) ||
-                astUtils.isKeywordToken(precedingToken) && !isFunctionBody(node);
+            return (
+                astUtils.isArrowToken(precedingToken) ||
+                (
+                    astUtils.isKeywordToken(precedingToken) &&
+                    !isFunctionBody(node)
+                ) ||
+                (
+                    astUtils.isColonToken(precedingToken) &&
+                    node.parent &&
+                    node.parent.type === "SwitchCase" &&
+                    precedingToken === astUtils.getSwitchCaseColonToken(node.parent, sourceCode)
+                )
+            );
         }
 
         /**

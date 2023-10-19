@@ -4,7 +4,9 @@
 
 #include "src/extensions/externalize-string-extension.h"
 
+#include "include/v8-template.h"
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
@@ -34,19 +36,41 @@ class SimpleStringResource : public Base {
 using SimpleOneByteStringResource =
     SimpleStringResource<char, v8::String::ExternalOneByteStringResource>;
 using SimpleTwoByteStringResource =
-    SimpleStringResource<uc16, v8::String::ExternalStringResource>;
+    SimpleStringResource<base::uc16, v8::String::ExternalStringResource>;
 
-const char* const ExternalizeStringExtension::kSource =
-    "native function externalizeString();"
-    "native function isOneByteString();"
-    "function x() { return 1; }";
+static constexpr int kMinOneByteLength =
+    kExternalPointerSlotSize - kTaggedSize + 1;
+static constexpr int kMinTwoByteLength =
+    (kExternalPointerSlotSize - kTaggedSize) / sizeof(base::uc16) + 1;
+static constexpr int kMinOneByteCachedLength =
+    2 * kExternalPointerSlotSize - kTaggedSize + 1;
+static constexpr int kMinTwoByteCachedLength =
+    (2 * kExternalPointerSlotSize - kTaggedSize) / sizeof(base::uc16) + 1;
 
+// static
+const char* ExternalizeStringExtension::BuildSource(char* buf, size_t size) {
+  base::SNPrintF(base::Vector<char>(buf, static_cast<int>(size)),
+                 "native function externalizeString();"
+                 "native function createExternalizableString();"
+                 "native function isOneByteString();"
+                 "let kExternalStringMinOneByteLength = %d;"
+                 "let kExternalStringMinTwoByteLength = %d;"
+                 "let kExternalStringMinOneByteCachedLength = %d;"
+                 "let kExternalStringMinTwoByteCachedLength = %d;",
+                 kMinOneByteLength, kMinTwoByteLength, kMinOneByteCachedLength,
+                 kMinTwoByteCachedLength);
+  return buf;
+}
 v8::Local<v8::FunctionTemplate>
 ExternalizeStringExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> str) {
   if (strcmp(*v8::String::Utf8Value(isolate, str), "externalizeString") == 0) {
     return v8::FunctionTemplate::New(isolate,
                                      ExternalizeStringExtension::Externalize);
+  } else if (strcmp(*v8::String::Utf8Value(isolate, str),
+                    "createExternalizableString") == 0) {
+    return v8::FunctionTemplate::New(
+        isolate, ExternalizeStringExtension::CreateExternalizableString);
   } else {
     DCHECK_EQ(strcmp(*v8::String::Utf8Value(isolate, str), "isOneByteString"),
               0);
@@ -55,34 +79,34 @@ ExternalizeStringExtension::GetNativeFunctionTemplate(
   }
 }
 
+namespace {
+
+bool HasExternalForwardingIndex(Isolate* isolate, Handle<String> string) {
+  if (!string->IsShared(isolate)) return false;
+  uint32_t raw_hash = string->raw_hash_field(kAcquireLoad);
+  return Name::IsExternalForwardingIndex(raw_hash);
+}
+
+}  // namespace
 
 void ExternalizeStringExtension::Externalize(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(),
-        "First parameter to externalizeString() must be a string."));
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  if (info.Length() < 1 || !info[0]->IsString()) {
+    info.GetIsolate()->ThrowError(
+        "First parameter to externalizeString() must be a string.");
     return;
-  }
-  bool force_two_byte = false;
-  if (args.Length() >= 2) {
-    if (args[1]->IsBoolean()) {
-      force_two_byte = args[1]->BooleanValue(args.GetIsolate());
-    } else {
-      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-          args.GetIsolate(),
-          "Second parameter to externalizeString() must be a boolean."));
-      return;
-    }
   }
   bool result = false;
-  Handle<String> string = Utils::OpenHandle(*args[0].As<v8::String>());
-  if (!string->SupportsExternalization()) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(), "string does not support externalization."));
+  Handle<String> string = Utils::OpenHandle(*info[0].As<v8::String>());
+  const bool externalize_as_one_byte = string->IsOneByteRepresentation();
+  if (!string->SupportsExternalization(
+          externalize_as_one_byte ? v8::String::Encoding::ONE_BYTE_ENCODING
+                                  : v8::String::Encoding::TWO_BYTE_ENCODING)) {
+    info.GetIsolate()->ThrowError("string does not support externalization.");
     return;
   }
-  if (string->IsOneByteRepresentation() && !force_two_byte) {
+  if (externalize_as_one_byte) {
     uint8_t* data = new uint8_t[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleOneByteStringResource* resource = new SimpleOneByteStringResource(
@@ -90,32 +114,129 @@ void ExternalizeStringExtension::Externalize(
     result = Utils::ToLocal(string)->MakeExternal(resource);
     if (!result) delete resource;
   } else {
-    uc16* data = new uc16[string->length()];
+    base::uc16* data = new base::uc16[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
         data, string->length());
     result = Utils::ToLocal(string)->MakeExternal(resource);
     if (!result) delete resource;
   }
-  if (!result) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(), "externalizeString() failed."));
+  // If the string is shared, testing with the combination of
+  // --shared-string-table and --isolate in d8 may result in races to
+  // externalize the same string. Those races manifest as externalization
+  // sometimes failing if another thread won and already forwarded the string to
+  // the external resource. Don't consider those races as failures.
+  if (!result && !HasExternalForwardingIndex(
+                     reinterpret_cast<Isolate*>(info.GetIsolate()), string)) {
+    info.GetIsolate()->ThrowError("externalizeString() failed.");
     return;
   }
 }
 
+namespace {
+
+MaybeHandle<String> CopyConsStringToOld(Isolate* isolate,
+                                        Handle<ConsString> string) {
+  return isolate->factory()->NewConsString(handle(string->first(), isolate),
+                                           handle(string->second(), isolate),
+                                           AllocationType::kOld);
+}
+
+}  // namespace
+
+void ExternalizeStringExtension::CreateExternalizableString(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  if (info.Length() < 1 || !info[0]->IsString()) {
+    info.GetIsolate()->ThrowError(
+        "First parameter to createExternalizableString() must be a string.");
+    return;
+  }
+  Handle<String> string = Utils::OpenHandle(*info[0].As<v8::String>());
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  v8::String::Encoding encoding = string->IsOneByteRepresentation(isolate)
+                                      ? v8::String::Encoding::ONE_BYTE_ENCODING
+                                      : v8::String::Encoding::TWO_BYTE_ENCODING;
+  if (string->SupportsExternalization(encoding)) {
+    info.GetReturnValue().Set(Utils::ToLocal(string));
+    return;
+  }
+  // Return the string if it is already externalized.
+  if (StringShape(*string).IsExternal()) {
+    info.GetReturnValue().Set(Utils::ToLocal(string));
+    return;
+  }
+
+  // Read-only strings are never externalizable. Don't try to copy them as
+  // some parts of the code might rely on some strings being in RO space (i.e.
+  // empty string).
+  if (IsReadOnlyHeapObject(*string)) {
+    info.GetIsolate()->ThrowError("Read-only strings cannot be externalized.");
+    return;
+  }
+#ifdef V8_COMPRESS_POINTERS
+  // Small strings may not be in-place externalizable.
+  if (string->Size() < ExternalString::kUncachedSize) {
+    info.GetIsolate()->ThrowError("String is too short to be externalized.");
+    return;
+  }
+#endif
+
+  // Special handling for ConsStrings, as the ConsString -> ExternalString
+  // migration is special for GC (Tagged pointers to Untagged pointers).
+  // Skip if the ConsString is flat (second is empty), as we won't be guaranteed
+  // a string in old space in that case.
+  if (IsConsString(*string, isolate) && !string->IsFlat(isolate)) {
+    Handle<String> result;
+    if (CopyConsStringToOld(isolate, Handle<ConsString>::cast(string))
+            .ToHandle(&result)) {
+      DCHECK(result->SupportsExternalization(encoding));
+      info.GetReturnValue().Set(Utils::ToLocal(result));
+      return;
+    }
+  }
+  // All other strings can be implicitly flattened.
+  if (encoding == v8::String::ONE_BYTE_ENCODING) {
+    MaybeHandle<SeqOneByteString> maybe_result =
+        isolate->factory()->NewRawOneByteString(string->length(),
+                                                AllocationType::kOld);
+    Handle<SeqOneByteString> result;
+    if (maybe_result.ToHandle(&result)) {
+      DisallowGarbageCollection no_gc;
+      String::WriteToFlat(*string, result->GetChars(no_gc), 0,
+                          string->length());
+      DCHECK(result->SupportsExternalization(encoding));
+      info.GetReturnValue().Set(Utils::ToLocal(Handle<String>::cast(result)));
+      return;
+    }
+  } else {
+    MaybeHandle<SeqTwoByteString> maybe_result =
+        isolate->factory()->NewRawTwoByteString(string->length(),
+                                                AllocationType::kOld);
+    Handle<SeqTwoByteString> result;
+    if (maybe_result.ToHandle(&result)) {
+      DisallowGarbageCollection no_gc;
+      String::WriteToFlat(*string, result->GetChars(no_gc), 0,
+                          string->length());
+      DCHECK(result->SupportsExternalization(encoding));
+      info.GetReturnValue().Set(Utils::ToLocal(Handle<String>::cast(result)));
+      return;
+    }
+  }
+  info.GetIsolate()->ThrowError("Unable to create string");
+}
 
 void ExternalizeStringExtension::IsOneByte(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (args.Length() != 1 || !args[0]->IsString()) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(),
-        "isOneByteString() requires a single string argument."));
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  if (info.Length() != 1 || !info[0]->IsString()) {
+    info.GetIsolate()->ThrowError(
+        "isOneByteString() requires a single string argument.");
     return;
   }
   bool is_one_byte =
-      Utils::OpenHandle(*args[0].As<v8::String>())->IsOneByteRepresentation();
-  args.GetReturnValue().Set(is_one_byte);
+      Utils::OpenHandle(*info[0].As<v8::String>())->IsOneByteRepresentation();
+  info.GetReturnValue().Set(is_one_byte);
 }
 
 }  // namespace internal

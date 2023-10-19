@@ -55,18 +55,18 @@ all: \
   rsa_cert_foafssl_b.exponent \
   rsa_spkac.spkac \
   rsa_spkac_invalid.spkac \
-  rsa_private_1024.pem \
   rsa_private_2048.pem \
   rsa_private_4096.pem \
-  rsa_public_1024.pem \
   rsa_public_2048.pem \
   rsa_public_4096.pem \
   rsa_pss_private_2048.pem \
   rsa_pss_private_2048_sha256_sha256_16.pem \
   rsa_pss_private_2048_sha512_sha256_20.pem \
+  rsa_pss_private_2048_sha1_sha1_20.pem \
   rsa_pss_public_2048.pem \
   rsa_pss_public_2048_sha256_sha256_16.pem \
   rsa_pss_public_2048_sha512_sha256_20.pem \
+  rsa_pss_public_2048_sha1_sha1_20.pem \
   ed25519_private.pem \
   ed25519_public.pem \
   x25519_private.pem \
@@ -83,6 +83,10 @@ all: \
   ec_p521_public.pem \
   ec_secp256k1_private.pem \
   ec_secp256k1_public.pem \
+  incorrect_san_correct_subject-cert.pem \
+  incorrect_san_correct_subject-key.pem \
+  irrelevant_san_correct_subject-cert.pem \
+  irrelevant_san_correct_subject-key.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -105,7 +109,7 @@ ca2-cert.pem: ca2.cnf
 # ('password' is used for the CA password.)
 #
 ca3-key.pem:
-	openssl genrsa -out ca3-key.pem 1024
+	openssl genrsa -out ca3-key.pem 2048
 
 ca3-csr.pem: ca3.cnf ca3-key.pem
 	openssl req -new \
@@ -131,7 +135,7 @@ ca3-cert.pem: ca3-csr.pem ca3-key.pem ca3.cnf ca1-cert.pem ca1-key.pem
 # ('password' is used for the CA password.)
 #
 ca4-key.pem:
-	openssl genrsa -out ca4-key.pem 1024
+	openssl genrsa -out ca4-key.pem 2048
 
 ca4-csr.pem: ca4.cnf ca4-key.pem
 	openssl req -new \
@@ -234,7 +238,7 @@ fake-startcom-root-cert.pem: fake-startcom-root.cnf \
 #
 
 agent1-key.pem:
-	openssl genrsa -out agent1-key.pem 1024
+	openssl genrsa -out agent1-key.pem 2048
 
 agent1-csr.pem: agent1.cnf agent1-key.pem
 	openssl req -new -config agent1.cnf -key agent1-key.pem -out agent1-csr.pem
@@ -269,7 +273,7 @@ agent1-verify: agent1-cert.pem ca1-cert.pem
 #
 # Generate new private key
 agent2-key.pem:
-	openssl genrsa -out agent2-key.pem 1024
+	openssl genrsa -out agent2-key.pem 2048
 
 # Create a Certificate Signing Request for the key
 agent2-csr.pem: agent2-key.pem agent2.cnf
@@ -291,7 +295,7 @@ agent2-verify: agent2-cert.pem
 #
 
 agent3-key.pem:
-	openssl genrsa -out agent3-key.pem 1024
+	openssl genrsa -out agent3-key.pem 2048
 
 agent3-csr.pem: agent3.cnf agent3-key.pem
 	openssl req -new -config agent3.cnf -key agent3-key.pem -out agent3-csr.pem
@@ -315,7 +319,7 @@ agent3-verify: agent3-cert.pem ca2-cert.pem
 #
 
 agent4-key.pem:
-	openssl genrsa -out agent4-key.pem 1024
+	openssl genrsa -out agent4-key.pem 2048
 
 agent4-csr.pem: agent4.cnf agent4-key.pem
 	openssl req -new -config agent4.cnf -key agent4-key.pem -out agent4-csr.pem
@@ -357,7 +361,7 @@ ca2-crl.pem: ca2-key.pem ca2-cert.pem ca2.cnf agent4-cert.pem
 #
 
 agent5-key.pem:
-	openssl genrsa -out agent5-key.pem 1024
+	openssl genrsa -out agent5-key.pem 2048
 
 agent5-csr.pem: agent5.cnf agent5-key.pem
 	openssl req -new -config agent5.cnf -key agent5-key.pem -out agent5-csr.pem
@@ -382,7 +386,7 @@ agent5-verify: agent5-cert.pem ca2-cert.pem
 #
 
 agent6-key.pem:
-	openssl genrsa -out agent6-key.pem 1024
+	openssl genrsa -out agent6-key.pem 2048
 
 agent6-csr.pem: agent6.cnf agent6-key.pem
 	openssl req -new -config agent6.cnf -key agent6-key.pem -out agent6-csr.pem
@@ -493,7 +497,7 @@ agent9-cert.pem: agent9-csr.pem
 #
 
 agent10-key.pem:
-	openssl genrsa -out agent10-key.pem 1024
+	openssl genrsa -out agent10-key.pem 2048
 
 agent10-csr.pem: agent10.cnf agent10-key.pem
 	openssl req -new -config agent10.cnf -key agent10-key.pem -out agent10-csr.pem
@@ -590,8 +594,8 @@ dh1024.pem:
 dh2048.pem:
 	openssl dhparam -out dh2048.pem 2048
 
-dherror.pem: dh512.pem
-	sed 's/^[^-].*/AAAAAAAAAA/g' dh512.pem > dherror.pem
+dherror.pem: dh1024.pem
+	sed 's/^[^-].*/AAAAAAAAAA/g' dh1024.pem > dherror.pem
 
 dsa_params.pem:
 	openssl dsaparam -out dsa_params.pem 2048
@@ -681,17 +685,11 @@ rsa_spkac.spkac: rsa_private.pem
 rsa_spkac_invalid.spkac: rsa_spkac.spkac
 	cat rsa_spkac.spkac | cut -c 5- > rsa_spkac_invalid.spkac
 
-rsa_private_1024.pem:
-	openssl genrsa -out rsa_private_1024.pem 1024
-
 rsa_private_2048.pem:
 	openssl genrsa -out rsa_private_2048.pem 2048
 
 rsa_private_4096.pem:
 	openssl genrsa -out rsa_private_4096.pem 4096
-
-rsa_public_1024.pem: rsa_private_1024.pem
-	openssl rsa -in rsa_private_1024.pem -pubout -out rsa_public_1024.pem
 
 rsa_public_2048.pem: rsa_private_2048.pem
 	openssl rsa -in rsa_private_2048.pem -pubout -out rsa_public_2048.pem
@@ -708,6 +706,9 @@ rsa_pss_private_2048_sha256_sha256_16.pem:
 rsa_pss_private_2048_sha512_sha256_20.pem:
 	openssl genpkey -algorithm RSA-PSS -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -pkeyopt rsa_pss_keygen_md:sha512 -pkeyopt rsa_pss_keygen_mgf1_md:sha256 -pkeyopt rsa_pss_keygen_saltlen:20 -out rsa_pss_private_2048_sha512_sha256_20.pem
 
+rsa_pss_private_2048_sha1_sha1_20.pem:
+	openssl genpkey -algorithm RSA-PSS -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -pkeyopt rsa_pss_keygen_md:sha1 -pkeyopt rsa_pss_keygen_mgf1_md:sha1 -pkeyopt rsa_pss_keygen_saltlen:20 -out rsa_pss_private_2048_sha1_sha1_20.pem
+
 rsa_pss_public_2048.pem: rsa_pss_private_2048.pem
 	openssl pkey -in rsa_pss_private_2048.pem -pubout -out rsa_pss_public_2048.pem
 
@@ -716,6 +717,9 @@ rsa_pss_public_2048_sha256_sha256_16.pem: rsa_pss_private_2048_sha256_sha256_16.
 
 rsa_pss_public_2048_sha512_sha256_20.pem: rsa_pss_private_2048_sha512_sha256_20.pem
 	openssl pkey -in rsa_pss_private_2048_sha512_sha256_20.pem -pubout -out rsa_pss_public_2048_sha512_sha256_20.pem
+
+rsa_pss_public_2048_sha1_sha1_20.pem: rsa_pss_private_2048_sha1_sha1_20.pem
+	openssl pkey -in rsa_pss_private_2048_sha1_sha1_20.pem -pubout -out rsa_pss_public_2048_sha1_sha1_20.pem
 
 ed25519_private.pem:
 	openssl genpkey -algorithm ED25519 -out ed25519_private.pem
@@ -772,6 +776,30 @@ ec_secp256k1_private.pem:
 
 ec_secp256k1_public.pem: ec_secp256k1_private.pem
 	openssl ec -in ec_secp256k1_private.pem -pubout -out ec_secp256k1_public.pem
+
+incorrect_san_correct_subject-cert.pem: incorrect_san_correct_subject-key.pem
+	openssl req -x509 \
+	            -key incorrect_san_correct_subject-key.pem \
+	            -out incorrect_san_correct_subject-cert.pem \
+	            -sha256 \
+	            -days 3650 \
+	            -subj "/CN=good.example.com" \
+	            -addext "subjectAltName = DNS:evil.example.com"
+
+incorrect_san_correct_subject-key.pem:
+	openssl ecparam -name prime256v1 -genkey -noout -out incorrect_san_correct_subject-key.pem
+
+irrelevant_san_correct_subject-cert.pem: irrelevant_san_correct_subject-key.pem
+	openssl req -x509 \
+	            -key irrelevant_san_correct_subject-key.pem \
+	            -out irrelevant_san_correct_subject-cert.pem \
+	            -sha256 \
+	            -days 3650 \
+	            -subj "/CN=good.example.com" \
+	            -addext "subjectAltName = IP:1.2.3.4"
+
+irrelevant_san_correct_subject-key.pem:
+	openssl ecparam -name prime256v1 -genkey -noout -out irrelevant_san_correct_subject-key.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem

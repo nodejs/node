@@ -4,10 +4,10 @@
 
 // Flags: --wasm-staging
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(1, 1, false, true);
+builder.addMemory(1, 1, true);
 builder.addDataSegment(2, [0x12, 0x00, 0x1c]);
 builder.addDataSegment(17,
     [0x00, 0x00, 0x96, 0x00, 0x00, 0x00, 0xc2, 0x00, 0xb33, 0x03, 0xf6, 0x0e]);
@@ -29,7 +29,7 @@ kExprLocalTee, 0x00,  // local.tee
 kExprI32Const, 0xff, 0x00,  // i32.const
 kAtomicPrefix, kExprAtomicNotify, 0x02, 0x03,  // atomic.notify
 kExprI32LoadMem16S, 0x00, 0x02,  // i32.load16_s
-kExprIf, kWasmStmt,  // if @28
+kExprIf, kWasmVoid,  // if @28
   kExprLocalGet, 0x00,  // local.get
   kExprReturn,  // return
 kExprElse,  // else @33

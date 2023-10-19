@@ -11,6 +11,7 @@ namespace compiler {
 
 // S390-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
+
 #define TARGET_ARCH_OPCODE_LIST(V)          \
   V(S390_Peek)                              \
   V(S390_Abs32)                             \
@@ -46,6 +47,9 @@ namespace compiler {
   V(S390_Mul32)                             \
   V(S390_Mul32WithOverflow)                 \
   V(S390_Mul64)                             \
+  V(S390_Mul64WithOverflow)                 \
+  V(S390_MulHighS64)                        \
+  V(S390_MulHighU64)                        \
   V(S390_MulHigh32)                         \
   V(S390_MulHighU32)                        \
   V(S390_MulFloat)                          \
@@ -69,12 +73,14 @@ namespace compiler {
   V(S390_FloorFloat)                        \
   V(S390_CeilFloat)                         \
   V(S390_TruncateFloat)                     \
+  V(S390_FloatNearestInt)                   \
   V(S390_AbsFloat)                          \
   V(S390_SqrtDouble)                        \
   V(S390_FloorDouble)                       \
   V(S390_CeilDouble)                        \
   V(S390_TruncateDouble)                    \
   V(S390_RoundDouble)                       \
+  V(S390_DoubleNearestInt)                  \
   V(S390_MaxFloat)                          \
   V(S390_MaxDouble)                         \
   V(S390_MinFloat)                          \
@@ -159,36 +165,12 @@ namespace compiler {
   V(S390_StoreReverseSimd128)               \
   V(S390_StoreFloat32)                      \
   V(S390_StoreDouble)                       \
-  V(S390_CompressSigned)                    \
-  V(S390_CompressPointer)                   \
-  V(S390_CompressAny)                       \
-  V(S390_Word64AtomicExchangeUint8)         \
-  V(S390_Word64AtomicExchangeUint16)        \
-  V(S390_Word64AtomicExchangeUint32)        \
   V(S390_Word64AtomicExchangeUint64)        \
-  V(S390_Word64AtomicCompareExchangeUint8)  \
-  V(S390_Word64AtomicCompareExchangeUint16) \
-  V(S390_Word64AtomicCompareExchangeUint32) \
   V(S390_Word64AtomicCompareExchangeUint64) \
-  V(S390_Word64AtomicAddUint8)              \
-  V(S390_Word64AtomicAddUint16)             \
-  V(S390_Word64AtomicAddUint32)             \
   V(S390_Word64AtomicAddUint64)             \
-  V(S390_Word64AtomicSubUint8)              \
-  V(S390_Word64AtomicSubUint16)             \
-  V(S390_Word64AtomicSubUint32)             \
   V(S390_Word64AtomicSubUint64)             \
-  V(S390_Word64AtomicAndUint8)              \
-  V(S390_Word64AtomicAndUint16)             \
-  V(S390_Word64AtomicAndUint32)             \
   V(S390_Word64AtomicAndUint64)             \
-  V(S390_Word64AtomicOrUint8)               \
-  V(S390_Word64AtomicOrUint16)              \
-  V(S390_Word64AtomicOrUint32)              \
   V(S390_Word64AtomicOrUint64)              \
-  V(S390_Word64AtomicXorUint8)              \
-  V(S390_Word64AtomicXorUint16)             \
-  V(S390_Word64AtomicXorUint32)             \
   V(S390_Word64AtomicXorUint64)             \
   V(S390_F64x2Splat)                        \
   V(S390_F64x2ReplaceLane)                  \
@@ -221,7 +203,6 @@ namespace compiler {
   V(S390_F32x4ExtractLane)                  \
   V(S390_F32x4ReplaceLane)                  \
   V(S390_F32x4Add)                          \
-  V(S390_F32x4AddHoriz)                     \
   V(S390_F32x4Sub)                          \
   V(S390_F32x4Mul)                          \
   V(S390_F32x4Eq)                           \
@@ -230,8 +211,6 @@ namespace compiler {
   V(S390_F32x4Le)                           \
   V(S390_F32x4Abs)                          \
   V(S390_F32x4Neg)                          \
-  V(S390_F32x4RecipApprox)                  \
-  V(S390_F32x4RecipSqrtApprox)              \
   V(S390_F32x4SConvertI32x4)                \
   V(S390_F32x4UConvertI32x4)                \
   V(S390_F32x4Sqrt)                         \
@@ -267,7 +246,6 @@ namespace compiler {
   V(S390_I64x2SConvertI32x4High)            \
   V(S390_I64x2UConvertI32x4Low)             \
   V(S390_I64x2UConvertI32x4High)            \
-  V(S390_I64x2SignSelect)                   \
   V(S390_I64x2Ne)                           \
   V(S390_I64x2GtS)                          \
   V(S390_I64x2GeS)                          \
@@ -276,7 +254,6 @@ namespace compiler {
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
   V(S390_I32x4Add)                          \
-  V(S390_I32x4AddHoriz)                     \
   V(S390_I32x4Sub)                          \
   V(S390_I32x4Mul)                          \
   V(S390_I32x4MinS)                         \
@@ -308,15 +285,14 @@ namespace compiler {
   V(S390_I32x4ExtMulHighI16x8U)             \
   V(S390_I32x4ExtAddPairwiseI16x8S)         \
   V(S390_I32x4ExtAddPairwiseI16x8U)         \
-  V(S390_I32x4SignSelect)                   \
   V(S390_I32x4TruncSatF64x2SZero)           \
   V(S390_I32x4TruncSatF64x2UZero)           \
+  V(S390_I32x4DotI8x16AddS)                 \
   V(S390_I16x8Splat)                        \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \
   V(S390_I16x8ReplaceLane)                  \
   V(S390_I16x8Add)                          \
-  V(S390_I16x8AddHoriz)                     \
   V(S390_I16x8Sub)                          \
   V(S390_I16x8Mul)                          \
   V(S390_I16x8MinS)                         \
@@ -353,14 +329,13 @@ namespace compiler {
   V(S390_I16x8ExtAddPairwiseI8x16S)         \
   V(S390_I16x8ExtAddPairwiseI8x16U)         \
   V(S390_I16x8Q15MulRSatS)                  \
-  V(S390_I16x8SignSelect)                   \
+  V(S390_I16x8DotI8x16S)                    \
   V(S390_I8x16Splat)                        \
   V(S390_I8x16ExtractLaneU)                 \
   V(S390_I8x16ExtractLaneS)                 \
   V(S390_I8x16ReplaceLane)                  \
   V(S390_I8x16Add)                          \
   V(S390_I8x16Sub)                          \
-  V(S390_I8x16Mul)                          \
   V(S390_I8x16MinS)                         \
   V(S390_I8x16MinU)                         \
   V(S390_I8x16MaxS)                         \
@@ -386,12 +361,11 @@ namespace compiler {
   V(S390_I8x16BitMask)                      \
   V(S390_I8x16Shuffle)                      \
   V(S390_I8x16Swizzle)                      \
-  V(S390_I8x16SignSelect)                   \
   V(S390_I8x16Popcnt)                       \
-  V(S390_V64x2AllTrue)                      \
-  V(S390_V32x4AllTrue)                      \
-  V(S390_V16x8AllTrue)                      \
-  V(S390_V8x16AllTrue)                      \
+  V(S390_I64x2AllTrue)                      \
+  V(S390_I32x4AllTrue)                      \
+  V(S390_I16x8AllTrue)                      \
+  V(S390_I8x16AllTrue)                      \
   V(S390_V128AnyTrue)                       \
   V(S390_S128And)                           \
   V(S390_S128Or)                            \
@@ -402,12 +376,31 @@ namespace compiler {
   V(S390_S128Not)                           \
   V(S390_S128Select)                        \
   V(S390_S128AndNot)                        \
+  V(S390_S128Load8Splat)                    \
+  V(S390_S128Load16Splat)                   \
+  V(S390_S128Load32Splat)                   \
+  V(S390_S128Load64Splat)                   \
+  V(S390_S128Load8x8S)                      \
+  V(S390_S128Load8x8U)                      \
+  V(S390_S128Load16x4S)                     \
+  V(S390_S128Load16x4U)                     \
+  V(S390_S128Load32x2S)                     \
+  V(S390_S128Load32x2U)                     \
+  V(S390_S128Load32Zero)                    \
+  V(S390_S128Load64Zero)                    \
+  V(S390_S128Load8Lane)                     \
+  V(S390_S128Load16Lane)                    \
+  V(S390_S128Load32Lane)                    \
+  V(S390_S128Load64Lane)                    \
+  V(S390_S128Store8Lane)                    \
+  V(S390_S128Store16Lane)                   \
+  V(S390_S128Store32Lane)                   \
+  V(S390_S128Store64Lane)                   \
   V(S390_StoreSimd128)                      \
   V(S390_LoadSimd128)                       \
   V(S390_StoreCompressTagged)               \
   V(S390_LoadDecompressTaggedSigned)        \
-  V(S390_LoadDecompressTaggedPointer)       \
-  V(S390_LoadDecompressAnyTagged)
+  V(S390_LoadDecompressTagged)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
@@ -426,7 +419,8 @@ namespace compiler {
   V(MR)   /* [%r0          ] */        \
   V(MRI)  /* [%r0       + K] */        \
   V(MRR)  /* [%r0 + %r1    ] */        \
-  V(MRRI) /* [%r0 + %r1 + K] */
+  V(MRRI) /* [%r0 + %r1 + K] */        \
+  V(Root) /* [%r0 + K] */
 
 }  // namespace compiler
 }  // namespace internal

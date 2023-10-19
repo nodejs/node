@@ -16,8 +16,9 @@
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-segmenter-inl.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/brkiter.h"
 
 namespace v8 {
@@ -33,24 +34,19 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
-  // 5. If options is undefined, then
   Handle<JSReceiver> options;
-  if (input_options->IsUndefined(isolate)) {
-    //  a. Let options be ObjectCreate(null).
-    options = isolate->factory()->NewJSObjectWithNullProto();
-  } else {  // 6. Else
-    // a. Let options be ? ToObject(options).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                               Object::ToObject(isolate, input_options),
-                               JSSegmenter);
-  }
+  const char* service = "Intl.Segmenter";
+  // 5. Let options be GetOptionsObject(_options_).
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
+                             GetOptionsObject(isolate, input_options, service),
+                             JSSegmenter);
 
   // 7. Let opt be a new Record.
   // 8. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
   // 9. Set opt.[[localeMatcher]] to matcher.
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options, "Intl.Segmenter");
+      Intl::GetLocaleMatcher(isolate, options, service);
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSSegmenter>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
@@ -73,8 +69,8 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
 
   // 13. Let granularity be ? GetOption(options, "granularity", "string", «
   // "grapheme", "word", "sentence" », "grapheme").
-  Maybe<Granularity> maybe_granularity = Intl::GetStringOption<Granularity>(
-      isolate, options, "granularity", "Intl.Segmenter",
+  Maybe<Granularity> maybe_granularity = GetStringOption<Granularity>(
+      isolate, options, "granularity", service,
       {"grapheme", "word", "sentence"},
       {Granularity::GRAPHEME, Granularity::WORD, Granularity::SENTENCE},
       Granularity::GRAPHEME);

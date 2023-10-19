@@ -288,6 +288,34 @@ Derived NumberFormatterSettings<Derived>::usage(const StringPiece usage)&& {
     return move;
 }
 
+template <typename Derived>
+Derived NumberFormatterSettings<Derived>::displayOptions(const DisplayOptions &displayOptions) const & {
+    Derived copy(*this);
+    // `displayCase` does not recognise the `undefined`
+    if (displayOptions.getGrammaticalCase() == UDISPOPT_GRAMMATICAL_CASE_UNDEFINED) {
+        copy.fMacros.unitDisplayCase.set(nullptr);
+        return copy;
+    }
+
+    copy.fMacros.unitDisplayCase.set(
+        udispopt_getGrammaticalCaseIdentifier(displayOptions.getGrammaticalCase()));
+    return copy;
+}
+
+template <typename Derived>
+Derived NumberFormatterSettings<Derived>::displayOptions(const DisplayOptions &displayOptions) && {
+    Derived move(std::move(*this));
+    // `displayCase` does not recognise the `undefined`
+    if (displayOptions.getGrammaticalCase() == UDISPOPT_GRAMMATICAL_CASE_UNDEFINED) {
+        move.fMacros.unitDisplayCase.set(nullptr);
+        return move;
+    }
+
+    move.fMacros.unitDisplayCase.set(
+        udispopt_getGrammaticalCaseIdentifier(displayOptions.getGrammaticalCase()));
+    return move;
+}
+
 template<typename Derived>
 Derived NumberFormatterSettings<Derived>::unitDisplayCase(const StringPiece unitDisplayCase) const& {
     Derived copy(*this);
@@ -403,10 +431,10 @@ UnlocalizedNumberFormatter::UnlocalizedNumberFormatter(const NFS<UNF>& other)
 }
 
 // Make default copy constructor call the NumberFormatterSettings copy constructor.
-UnlocalizedNumberFormatter::UnlocalizedNumberFormatter(UNF&& src) U_NOEXCEPT
+UnlocalizedNumberFormatter::UnlocalizedNumberFormatter(UNF&& src) noexcept
         : UNF(static_cast<NFS<UNF>&&>(src)) {}
 
-UnlocalizedNumberFormatter::UnlocalizedNumberFormatter(NFS<UNF>&& src) U_NOEXCEPT
+UnlocalizedNumberFormatter::UnlocalizedNumberFormatter(NFS<UNF>&& src) noexcept
         : NFS<UNF>(std::move(src)) {
     // No additional fields to assign
 }
@@ -417,7 +445,7 @@ UnlocalizedNumberFormatter& UnlocalizedNumberFormatter::operator=(const UNF& oth
     return *this;
 }
 
-UnlocalizedNumberFormatter& UnlocalizedNumberFormatter::operator=(UNF&& src) U_NOEXCEPT {
+UnlocalizedNumberFormatter& UnlocalizedNumberFormatter::operator=(UNF&& src) noexcept {
     NFS<UNF>::operator=(static_cast<NFS<UNF>&&>(src));
     // No additional fields to assign
     return *this;
@@ -433,10 +461,10 @@ LocalizedNumberFormatter::LocalizedNumberFormatter(const NFS<LNF>& other)
     lnfCopyHelper(static_cast<const LNF&>(other), localStatus);
 }
 
-LocalizedNumberFormatter::LocalizedNumberFormatter(LocalizedNumberFormatter&& src) U_NOEXCEPT
+LocalizedNumberFormatter::LocalizedNumberFormatter(LocalizedNumberFormatter&& src) noexcept
         : LNF(static_cast<NFS<LNF>&&>(src)) {}
 
-LocalizedNumberFormatter::LocalizedNumberFormatter(NFS<LNF>&& src) U_NOEXCEPT
+LocalizedNumberFormatter::LocalizedNumberFormatter(NFS<LNF>&& src) noexcept
         : NFS<LNF>(std::move(src)) {
     lnfMoveHelper(std::move(static_cast<LNF&&>(src)));
 }
@@ -449,7 +477,7 @@ LocalizedNumberFormatter& LocalizedNumberFormatter::operator=(const LNF& other) 
     return *this;
 }
 
-LocalizedNumberFormatter& LocalizedNumberFormatter::operator=(LNF&& src) U_NOEXCEPT {
+LocalizedNumberFormatter& LocalizedNumberFormatter::operator=(LNF&& src) noexcept {
     NFS<LNF>::operator=(static_cast<NFS<LNF>&&>(src));
     lnfMoveHelper(std::move(src));
     return *this;
@@ -697,6 +725,10 @@ int32_t LocalizedNumberFormatter::getCallCount() const {
 }
 
 // Note: toFormat defined in number_asformat.cpp
+
+const DecimalFormatSymbols* LocalizedNumberFormatter::getDecimalFormatSymbols() const {
+    return fMacros.symbols.getDecimalFormatSymbols();
+}
 
 #if (U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN) && defined(_MSC_VER)
 // Warning 4661.

@@ -1,3 +1,5 @@
+/* eslint-disable jsdoc/no-multi-asterisks -- needed to preserve original formatting of licences */
+
 /**
  * @fileoverview Main Espree file that converts Acorn into Esprima output.
  *
@@ -54,15 +56,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* eslint no-undefined:0, no-use-before-define: 0 */
 
-"use strict";
+/* eslint-enable jsdoc/no-multi-asterisks -- needed to preserve original formatting of licences */
 
-const acorn = require("acorn");
-const jsx = require("acorn-jsx");
-const astNodeTypes = require("./lib/ast-node-types");
-const espree = require("./lib/espree");
-const { getLatestEcmaVersion, getSupportedEcmaVersions } = require("./lib/options");
+import * as acorn from "acorn";
+import jsx from "acorn-jsx";
+import espree from "./lib/espree.js";
+import espreeVersion from "./lib/version.js";
+import * as visitorKeys from "eslint-visitor-keys";
+import { getLatestEcmaVersion, getSupportedEcmaVersions } from "./lib/options.js";
+
 
 // To initialize lazily.
 const parsers = {
@@ -106,12 +109,12 @@ const parsers = {
  * @throws {SyntaxError} If the input code is invalid.
  * @private
  */
-function tokenize(code, options) {
+export function tokenize(code, options) {
     const Parser = parsers.get(options);
 
     // Ensure to collect tokens.
     if (!options || options.tokens !== true) {
-        options = Object.assign({}, options, { tokens: true }); // eslint-disable-line no-param-reassign
+        options = Object.assign({}, options, { tokens: true }); // eslint-disable-line no-param-reassign -- stylistic choice
     }
 
     return new Parser(options, code).tokenize();
@@ -128,7 +131,7 @@ function tokenize(code, options) {
  * @returns {ASTNode} The "Program" AST node.
  * @throws {SyntaxError} If the input code is invalid.
  */
-function parse(code, options) {
+export function parse(code, options) {
     const Parser = parsers.get(options);
 
     return new Parser(options, code).parse();
@@ -138,25 +141,27 @@ function parse(code, options) {
 // Public
 //------------------------------------------------------------------------------
 
-exports.version = require("./package.json").version;
+export const version = espreeVersion;
+export const name = "espree";
 
-exports.tokenize = tokenize;
-
-exports.parse = parse;
-
-// Deep copy.
 /* istanbul ignore next */
-exports.Syntax = (function() {
-    let name,
+export const VisitorKeys = (function() {
+    return visitorKeys.KEYS;
+}());
+
+// Derive node types from VisitorKeys
+/* istanbul ignore next */
+export const Syntax = (function() {
+    let key,
         types = {};
 
     if (typeof Object.create === "function") {
         types = Object.create(null);
     }
 
-    for (name in astNodeTypes) {
-        if (Object.hasOwnProperty.call(astNodeTypes, name)) {
-            types[name] = astNodeTypes[name];
+    for (key in VisitorKeys) {
+        if (Object.hasOwnProperty.call(VisitorKeys, key)) {
+            types[key] = key;
         }
     }
 
@@ -167,11 +172,6 @@ exports.Syntax = (function() {
     return types;
 }());
 
-/* istanbul ignore next */
-exports.VisitorKeys = (function() {
-    return require("eslint-visitor-keys").KEYS;
-}());
+export const latestEcmaVersion = getLatestEcmaVersion();
 
-exports.latestEcmaVersion = getLatestEcmaVersion();
-
-exports.supportedEcmaVersions = getSupportedEcmaVersions();
+export const supportedEcmaVersions = getSupportedEcmaVersions();

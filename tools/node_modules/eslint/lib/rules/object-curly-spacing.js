@@ -10,15 +10,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing inside braces",
-            category: "Stylistic Issues",
+            description: "Enforce consistent spacing inside braces",
             recommended: false,
-            url: "https://eslint.org/docs/rules/object-curly-spacing"
+            url: "https://eslint.org/docs/latest/rules/object-curly-spacing"
         },
 
         fixable: "whitespace",
@@ -51,7 +51,7 @@ module.exports = {
 
     create(context) {
         const spaced = context.options[0] === "always",
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         /**
          * Determines whether an option is set, relative to the spacing option.
@@ -81,7 +81,7 @@ module.exports = {
          * @returns {void}
          */
         function reportNoBeginningSpace(node, token) {
-            const nextToken = context.getSourceCode().getTokenAfter(token, { includeComments: true });
+            const nextToken = context.sourceCode.getTokenAfter(token, { includeComments: true });
 
             context.report({
                 node,
@@ -103,7 +103,7 @@ module.exports = {
          * @returns {void}
          */
         function reportNoEndingSpace(node, token) {
-            const previousToken = context.getSourceCode().getTokenBefore(token, { includeComments: true });
+            const previousToken = context.sourceCode.getTokenBefore(token, { includeComments: true });
 
             context.report({
                 node,

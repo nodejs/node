@@ -96,9 +96,6 @@ static void touch_file(const char* name, unsigned int size) {
 
 
 TEST_IMPL(fs_copyfile) {
-#if defined(__ASAN__)
-  RETURN_SKIP("Test does not currently work in ASAN");
-#endif
   const char src[] = "test_file_src";
   uv_loop_t* loop;
   uv_fs_t req;
@@ -154,14 +151,18 @@ TEST_IMPL(fs_copyfile) {
   handle_result(&req);
 
   /* Fails to overwrites existing file. */
+  ASSERT_EQ(uv_fs_chmod(NULL, &req, dst, 0644, NULL), 0);
+  uv_fs_req_cleanup(&req);
   r = uv_fs_copyfile(NULL, &req, fixture, dst, UV_FS_COPYFILE_EXCL, NULL);
   ASSERT(r == UV_EEXIST);
   uv_fs_req_cleanup(&req);
 
   /* Truncates when an existing destination is larger than the source file. */
+  ASSERT_EQ(uv_fs_chmod(NULL, &req, dst, 0644, NULL), 0);
+  uv_fs_req_cleanup(&req);
   touch_file(src, 1);
   r = uv_fs_copyfile(NULL, &req, src, dst, 0, NULL);
-  ASSERT(r == 0);
+  ASSERT_EQ(r, 0);
   handle_result(&req);
 
   /* Copies a larger file. */
@@ -179,6 +180,9 @@ TEST_IMPL(fs_copyfile) {
   ASSERT(result_check_count == 5);
   uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(result_check_count == 6);
+  /* Ensure file is user-writable (not copied from src). */
+  ASSERT_EQ(uv_fs_chmod(NULL, &req, dst, 0644, NULL), 0);
+  uv_fs_req_cleanup(&req);
 
   /* If the flags are invalid, the loop should not be kept open */
   unlink(dst);
@@ -216,5 +220,6 @@ TEST_IMPL(fs_copyfile) {
 #endif
 
   unlink(dst); /* Cleanup */
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

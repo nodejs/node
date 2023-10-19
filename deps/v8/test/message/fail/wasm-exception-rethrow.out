@@ -1,4 +1,1 @@
-wasm-function[0]:0x32: RuntimeError: wasm exception
-RuntimeError: wasm exception
-    at rethrow0 (<anonymous>:wasm-function[0]:0x32)
-    at *%(basename)s:21:18
+undefined:0: [object WebAssembly.Exception]

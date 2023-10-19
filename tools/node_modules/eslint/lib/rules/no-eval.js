@@ -37,15 +37,15 @@ function isMember(node, name) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of `eval()`",
-            category: "Best Practices",
+            description: "Disallow the use of `eval()`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-eval"
+            url: "https://eslint.org/docs/latest/rules/no-eval"
         },
 
         schema: [
@@ -68,25 +68,29 @@ module.exports = {
             context.options[0] &&
             context.options[0].allowIndirect
         );
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         let funcInfo = null;
 
         /**
-         * Pushs a variable scope (Program or Function) information to the stack.
+         * Pushes a `this` scope (non-arrow function, class static block, or class field initializer) information to the stack.
+         * Top-level scopes are handled separately.
          *
          * This is used in order to check whether or not `this` binding is a
          * reference to the global object.
-         * @param {ASTNode} node A node of the scope. This is one of Program,
-         *      FunctionDeclaration, FunctionExpression, and ArrowFunctionExpression.
+         * @param {ASTNode} node A node of the scope.
+         *      For functions, this is one of FunctionDeclaration, FunctionExpression.
+         *      For class static blocks, this is StaticBlock.
+         *      For class field initializers, this can be any node that is PropertyDefinition#value.
          * @returns {void}
          */
-        function enterVarScope(node) {
-            const strict = context.getScope().isStrict;
+        function enterThisScope(node) {
+            const strict = sourceCode.getScope(node).isStrict;
 
             funcInfo = {
                 upper: funcInfo,
                 node,
                 strict,
+                isTopLevelOfScript: false,
                 defaultThis: false,
                 initialized: strict
             };
@@ -96,7 +100,7 @@ module.exports = {
          * Pops a variable scope from the stack.
          * @returns {void}
          */
-        function exitVarScope() {
+        function exitThisScope() {
             funcInfo = funcInfo.upper;
         }
 
@@ -217,36 +221,40 @@ module.exports = {
             },
 
             Program(node) {
-                const scope = context.getScope(),
+                const scope = sourceCode.getScope(node),
                     features = context.parserOptions.ecmaFeatures || {},
                     strict =
                         scope.isStrict ||
                         node.sourceType === "module" ||
-                        (features.globalReturn && scope.childScopes[0].isStrict);
+                        (features.globalReturn && scope.childScopes[0].isStrict),
+                    isTopLevelOfScript = node.sourceType !== "module" && !features.globalReturn;
 
                 funcInfo = {
                     upper: null,
                     node,
                     strict,
+                    isTopLevelOfScript,
                     defaultThis: true,
                     initialized: true
                 };
             },
 
-            "Program:exit"() {
-                const globalScope = context.getScope();
+            "Program:exit"(node) {
+                const globalScope = sourceCode.getScope(node);
 
-                exitVarScope();
+                exitThisScope();
                 reportAccessingEval(globalScope);
                 reportAccessingEvalViaGlobalObject(globalScope);
             },
 
-            FunctionDeclaration: enterVarScope,
-            "FunctionDeclaration:exit": exitVarScope,
-            FunctionExpression: enterVarScope,
-            "FunctionExpression:exit": exitVarScope,
-            ArrowFunctionExpression: enterVarScope,
-            "ArrowFunctionExpression:exit": exitVarScope,
+            FunctionDeclaration: enterThisScope,
+            "FunctionDeclaration:exit": exitThisScope,
+            FunctionExpression: enterThisScope,
+            "FunctionExpression:exit": exitThisScope,
+            "PropertyDefinition > *.value": enterThisScope,
+            "PropertyDefinition > *.value:exit": exitThisScope,
+            StaticBlock: enterThisScope,
+            "StaticBlock:exit": exitThisScope,
 
             ThisExpression(node) {
                 if (!isMember(node.parent, "eval")) {
@@ -265,7 +273,8 @@ module.exports = {
                     );
                 }
 
-                if (!funcInfo.strict && funcInfo.defaultThis) {
+                // `this` at the top level of scripts always refers to the global object
+                if (funcInfo.isTopLevelOfScript || (!funcInfo.strict && funcInfo.defaultThis)) {
 
                     // `this.eval` is possible built-in `eval`.
                     report(node.parent);

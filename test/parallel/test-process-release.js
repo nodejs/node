@@ -21,6 +21,10 @@ if (versionParts[0] === '4' && versionParts[1] >= 2) {
   assert.strictEqual(process.release.lts, 'Erbium');
 } else if (versionParts[0] === '14' && versionParts[1] >= 15) {
   assert.strictEqual(process.release.lts, 'Fermium');
+} else if (versionParts[0] === '16' && versionParts[1] >= 13) {
+  assert.strictEqual(process.release.lts, 'Gallium');
+} else if (versionParts[0] === '18' && versionParts[1] >= 12) {
+  assert.strictEqual(process.release.lts, 'Hydrogen');
 } else {
   assert.strictEqual(process.release.lts, undefined);
 }

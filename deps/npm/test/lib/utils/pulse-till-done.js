@@ -1,17 +1,18 @@
 const t = require('tap')
+const tmock = require('../../fixtures/tmock')
 
 let pulseStarted = null
-const npmlog = {
-  gauge: {
-    pulse: () => {
-      if (pulseStarted)
-        pulseStarted()
+
+const pulseTillDone = tmock(t, '{LIB}/utils/pulse-till-done.js', {
+  npmlog: {
+    gauge: {
+      pulse: () => {
+        if (pulseStarted) {
+          pulseStarted()
+        }
+      },
     },
   },
-}
-
-const pulseTillDone = t.mock('../../../lib/utils/pulse-till-done.js', {
-  npmlog,
 })
 
 t.test('pulses (with promise)', async (t) => {

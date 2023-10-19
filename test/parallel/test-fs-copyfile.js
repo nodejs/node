@@ -10,9 +10,8 @@ const {
   UV_ENOENT,
   UV_EEXIST
 } = internalBinding('uv');
-const path = require('path');
 const src = fixtures.path('a.js');
-const dest = path.join(tmpdir.path, 'copyfile.out');
+const dest = tmpdir.resolve('copyfile.out');
 const {
   COPYFILE_EXCL,
   COPYFILE_FICLONE,
@@ -103,7 +102,7 @@ fs.copyFile(src, dest, common.mustSucceed(() => {
 assert.throws(() => {
   fs.copyFile(src, dest, 0, 0);
 }, {
-  code: 'ERR_INVALID_CALLBACK',
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError'
 });
 
@@ -156,8 +155,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "mode" is out of range. It must be an integer ' +
-           '>= 0 && <= 7. Received 8'
 });
 
 assert.throws(() => {

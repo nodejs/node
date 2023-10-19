@@ -8,15 +8,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow `void` operators",
-            category: "Best Practices",
+            description: "Disallow `void` operators",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-void"
+            url: "https://eslint.org/docs/latest/rules/no-void"
         },
 
         messages: {

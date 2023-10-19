@@ -1,44 +1,41 @@
-import module from 'module';
+import module from 'node:module';
+import { readFileSync } from 'node:fs';
 
-const GET_BUILTIN = `$__get_builtin_hole_${Date.now()}`;
-
-export function getGlobalPreloadCode() {
-  return `Object.defineProperty(globalThis, ${JSON.stringify(GET_BUILTIN)}, {
-  value: (builtinName) => {
-    return getBuiltin(builtinName);
-  },
-  enumerable: false,
-  configurable: false,
-});
-`;
+/** @type {string} */
+let GET_BUILTIN;
+export function initialize(data) {
+  GET_BUILTIN = data.GET_BUILTIN;
 }
 
-export function resolve(specifier, context, defaultResolve) {
-  const def = defaultResolve(specifier, context);
+export async function resolve(specifier, context, next) {
+  const def = await next(specifier, context);
+
   if (def.url.startsWith('node:')) {
     return {
+      shortCircuit: true,
       url: `custom-${def.url}`,
+      importAttributes: context.importAttributes,
     };
   }
   return def;
 }
 
-export function getSource(url, context, defaultGetSource) {
+export function load(url, context, next) {
   if (url.startsWith('custom-node:')) {
     const urlObj = new URL(url);
     return {
+      shortCircuit: true,
       source: generateBuiltinModule(urlObj.pathname),
-      format: 'module',
+      format: 'commonjs',
+    };
+  } else if (context.format === 'commonjs') {
+    return {
+      shortCircuit: true,
+      source: readFileSync(new URL(url)),
+      format: 'commonjs',
     };
   }
-  return defaultGetSource(url, context);
-}
-
-export function getFormat(url, context, defaultGetFormat) {
-  if (url.startsWith('custom-node:')) {
-    return { format: 'module' };
-  }
-  return defaultGetFormat(url, context, defaultGetFormat);
+  return next(url);
 }
 
 function generateBuiltinModule(builtinName) {
@@ -49,13 +46,13 @@ function generateBuiltinModule(builtinName) {
   return `\
 const $builtinInstance = ${GET_BUILTIN}(${JSON.stringify(builtinName)});
 
-export const __fromLoader = true;
+module.exports = $builtinInstance;
+module.exports.__fromLoader = true;
 
-export default $builtinInstance;
-
+// We need this for CJS-module-lexer can parse the exported names.
 ${
   builtinExports
-    .map(name => `export const ${name} = $builtinInstance.${name};`)
+    .map(name => `exports.${name} = $builtinInstance.${name};`)
     .join('\n')
 }
 `;

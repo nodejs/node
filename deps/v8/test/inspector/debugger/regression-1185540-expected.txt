@@ -1,0 +1,2 @@
+Check that setting a breakpoint in an invalid function is not crashing.
+[]

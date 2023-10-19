@@ -9,15 +9,6 @@
 namespace v8 {
 namespace internal {
 
-InterruptsScope::InterruptsScope(Isolate* isolate, intptr_t intercept_mask,
-                                 Mode mode)
-    : stack_guard_(isolate->stack_guard()),
-      intercept_mask_(intercept_mask),
-      intercepted_flags_(0),
-      mode_(mode) {
-  if (mode_ != kNoop) stack_guard_->PushInterruptsScope(this);
-}
-
 bool InterruptsScope::Intercept(StackGuard::InterruptFlag flag) {
   InterruptsScope* last_postpone_scope = nullptr;
   for (InterruptsScope* current = this; current; current = current->prev_) {

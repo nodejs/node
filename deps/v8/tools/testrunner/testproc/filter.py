@@ -4,6 +4,7 @@
 
 from collections import defaultdict
 import fnmatch
+import os
 
 from . import base
 
@@ -69,7 +70,7 @@ class NameFilterProc(base.TestProcFilter):
       else:
         self._exact_matches[suitename][path] = True
 
-    for s, globs in self._globs.iteritems():
+    for s, globs in list(self._globs.items()):
       if not globs or '*' in globs:
         self._globs[s] = ['*']
 
@@ -77,7 +78,8 @@ class NameFilterProc(base.TestProcFilter):
     globs = self._globs.get(test.suite.name, [])
     for g in globs:
       if g == '*': return False
-      if fnmatch.fnmatch(test.path, g):
+      if fnmatch.fnmatch(test.name, g):
         return False
+
     exact_matches = self._exact_matches.get(test.suite.name, {})
-    return test.path not in exact_matches
+    return test.name not in exact_matches

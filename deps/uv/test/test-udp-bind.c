@@ -55,7 +55,7 @@ TEST_IMPL(udp_bind) {
   r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -88,6 +88,6 @@ TEST_IMPL(udp_bind_reuseaddr) {
   r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

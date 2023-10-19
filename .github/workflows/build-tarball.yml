@@ -2,26 +2,48 @@ name: Build from tarball
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - .mailmap
+      - '**.md'
+      - AUTHORS
+      - doc/**
+      - .github/**
+      - '!.github/workflows/build-tarball.yml'
   push:
     branches:
-      - master
       - main
       - v[0-9]+.x-staging
       - v[0-9]+.x
+    paths-ignore:
+      - .mailmap
+      - '**.md'
+      - AUTHORS
+      - doc/**
+      - .github/**
+      - '!.github/workflows/build-tarball.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 env:
-  FLAKY_TESTS: dontcare
+  PYTHON_VERSION: '3.11'
+  FLAKY_TESTS: keep_retrying
+
+permissions:
+  contents: read
 
 jobs:
   build-tarball:
     if: github.event.pull_request.draft == false
-    env:
-      PYTHON_VERSION: 3.9
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -35,31 +57,32 @@ jobs:
           mkdir tarballs
           mv *.tar.gz tarballs
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32  # v3.1.3
         with:
           name: tarballs
           path: tarballs
   test-tarball-linux:
-    env:
-      PYTHON_VERSION: 3.9
     needs: build-tarball
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
         run: npx envinfo
       - name: Download tarball
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a  # v3.0.2
         with:
           name: tarballs
+          path: tarballs
       - name: Extract tarball
         run: |
-          tar xzf tarballs/*.tar.gz
-          echo "TAR_DIR=`basename tarballs/*.tar.gz .tar.gz`" >> $GITHUB_ENV
+          tar xzf tarballs/*.tar.gz -C $RUNNER_TEMP
+          echo "TAR_DIR=$RUNNER_TEMP/`basename tarballs/*.tar.gz .tar.gz`" >> $GITHUB_ENV
       - name: Copy directories needed for testing
         run: |
           cp -r tools/node_modules $TAR_DIR/tools
@@ -71,4 +94,4 @@ jobs:
       - name: Test
         run: |
           cd $TAR_DIR
-          make run-ci -j2 V=1 TEST_CI_ARGS="-p dots"
+          make run-ci -j2 V=1 TEST_CI_ARGS="-p dots --node-args='--test-reporter=spec' --measure-flakiness 9"

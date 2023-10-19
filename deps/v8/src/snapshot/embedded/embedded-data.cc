@@ -6,57 +6,107 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
-#include "src/objects/objects-inl.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/snapshot-utils.h"
-#include "src/snapshot/snapshot.h"
+#include "src/snapshot/sort-builtins.h"
 
 namespace v8 {
 namespace internal {
 
-// static
-bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
-  const Address start =
-      reinterpret_cast<Address>(isolate->embedded_blob_code());
-  return start <= pc && pc < start + isolate->embedded_blob_code_size();
-}
-
-// static
-Code InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
-  if (!PcIsOffHeap(isolate, address)) return Code();
-
-  EmbeddedData d = EmbeddedData::FromBlob();
-  if (address < d.InstructionStartOfBuiltin(0)) return Code();
+Builtin EmbeddedData::TryLookupCode(Address address) const {
+  if (!IsInCodeRange(address)) return Builtin::kNoBuiltinId;
 
   // Note: Addresses within the padding section between builtins (i.e. within
   // start + size <= address < start + padded_size) are interpreted as belonging
   // to the preceding builtin.
+  uint32_t offset =
+      static_cast<uint32_t>(address - reinterpret_cast<Address>(RawCode()));
 
-  int l = 0, r = Builtins::builtin_count;
-  while (l < r) {
-    const int mid = (l + r) / 2;
-    Address start = d.InstructionStartOfBuiltin(mid);
-    Address end = start + d.PaddedInstructionSizeOfBuiltin(mid);
-
-    if (address < start) {
-      r = mid;
-    } else if (address >= end) {
-      l = mid + 1;
-    } else {
-      return isolate->builtins()->builtin(mid);
-    }
-  }
-
-  UNREACHABLE();
+  const struct BuiltinLookupEntry* start =
+      BuiltinLookupEntry(static_cast<ReorderedBuiltinIndex>(0));
+  const struct BuiltinLookupEntry* end = start + kTableSize;
+  const struct BuiltinLookupEntry* desc =
+      std::upper_bound(start, end, offset,
+                       [](uint32_t o, const struct BuiltinLookupEntry& desc) {
+                         return o < desc.end_offset;
+                       });
+  Builtin builtin = static_cast<Builtin>(desc->builtin_id);
+  DCHECK_LT(address,
+            InstructionStartOf(builtin) + PaddedInstructionSizeOf(builtin));
+  DCHECK_GE(address, InstructionStartOf(builtin));
+  return builtin;
 }
 
 // static
-void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
-                                                       uint8_t** code,
-                                                       uint32_t* code_size,
-                                                       uint8_t** data,
-                                                       uint32_t* data_size) {
+bool OffHeapInstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
+  // Mksnapshot calls this while the embedded blob is not available yet.
+  if (isolate->embedded_blob_code() == nullptr) return false;
+  DCHECK_NOT_NULL(Isolate::CurrentEmbeddedBlobCode());
+
+  if (EmbeddedData::FromBlob(isolate).IsInCodeRange(pc)) return true;
+  return isolate->is_short_builtin_calls_enabled() &&
+         EmbeddedData::FromBlob().IsInCodeRange(pc);
+}
+
+// static
+bool OffHeapInstructionStream::TryGetAddressForHashing(
+    Isolate* isolate, Address address, uint32_t* hashable_address) {
+  // Mksnapshot calls this while the embedded blob is not available yet.
+  if (isolate->embedded_blob_code() == nullptr) return false;
+  DCHECK_NOT_NULL(Isolate::CurrentEmbeddedBlobCode());
+
+  EmbeddedData d = EmbeddedData::FromBlob(isolate);
+  if (d.IsInCodeRange(address)) {
+    *hashable_address = d.AddressForHashing(address);
+    return true;
+  }
+
+  if (isolate->is_short_builtin_calls_enabled()) {
+    d = EmbeddedData::FromBlob();
+    if (d.IsInCodeRange(address)) {
+      *hashable_address = d.AddressForHashing(address);
+      return true;
+    }
+  }
+  return false;
+}
+
+// static
+Builtin OffHeapInstructionStream::TryLookupCode(Isolate* isolate,
+                                                Address address) {
+  // Mksnapshot calls this while the embedded blob is not available yet.
+  if (isolate->embedded_blob_code() == nullptr) return Builtin::kNoBuiltinId;
+  DCHECK_NOT_NULL(Isolate::CurrentEmbeddedBlobCode());
+
+  Builtin builtin = EmbeddedData::FromBlob(isolate).TryLookupCode(address);
+
+  if (isolate->is_short_builtin_calls_enabled() &&
+      !Builtins::IsBuiltinId(builtin)) {
+    builtin = EmbeddedData::FromBlob().TryLookupCode(address);
+  }
+
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  if (V8_SHORT_BUILTIN_CALLS_BOOL && !Builtins::IsBuiltinId(builtin)) {
+    // When shared pointer compression cage is enabled and it has the embedded
+    // code blob copy then it could have been used regardless of whether the
+    // isolate uses it or knows about it or not (see
+    // InstructionStream::OffHeapInstructionStart()).
+    // So, this blob has to be checked too.
+    CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
+    if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
+      builtin = EmbeddedData::FromBlob(code_range).TryLookupCode(address);
+    }
+  }
+#endif
+  return builtin;
+}
+
+// static
+void OffHeapInstructionStream::CreateOffHeapOffHeapInstructionStream(
+    Isolate* isolate, uint8_t** code, uint32_t* code_size, uint8_t** data,
+    uint32_t* data_size) {
   // Create the embedded blob from scratch using the current Isolate's heap.
-  EmbeddedData d = EmbeddedData::FromIsolate(isolate);
+  EmbeddedData d = EmbeddedData::NewFromIsolate(isolate);
 
   // Allocate the backing store that will contain the embedded blob in this
   // Isolate. The backing store is on the native heap, *not* on V8's garbage-
@@ -90,6 +140,9 @@ void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
   // in the binary) and what we are currently setting up here (where the blob is
   // on the native heap).
   std::memcpy(allocated_code_bytes, d.code(), d.code_size());
+  if (v8_flags.experimental_flush_embedded_blob_icache) {
+    FlushInstructionCache(allocated_code_bytes, d.code_size());
+  }
   CHECK(SetPermissions(page_allocator, allocated_code_bytes,
                        allocation_code_size, PageAllocator::kReadExecute));
 
@@ -106,83 +159,49 @@ void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
 }
 
 // static
-void InstructionStream::FreeOffHeapInstructionStream(uint8_t* code,
-                                                     uint32_t code_size,
-                                                     uint8_t* data,
-                                                     uint32_t data_size) {
+void OffHeapInstructionStream::FreeOffHeapOffHeapInstructionStream(
+    uint8_t* code, uint32_t code_size, uint8_t* data, uint32_t data_size) {
   v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
   const uint32_t page_size =
       static_cast<uint32_t>(page_allocator->AllocatePageSize());
-  CHECK(FreePages(page_allocator, code, RoundUp(code_size, page_size)));
-  CHECK(FreePages(page_allocator, data, RoundUp(data_size, page_size)));
+  FreePages(page_allocator, code, RoundUp(code_size, page_size));
+  FreePages(page_allocator, data, RoundUp(data_size, page_size));
 }
 
 namespace {
-
-bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code code) {
-  DCHECK(Builtins::IsIsolateIndependent(code.builtin_index()));
-  switch (Builtins::KindOf(code.builtin_index())) {
-    case Builtins::CPP:
-    case Builtins::TFC:
-    case Builtins::TFH:
-    case Builtins::TFJ:
-    case Builtins::TFS:
-      break;
-
-    // Bytecode handlers will only ever be used by the interpreter and so there
-    // will never be a need to use trampolines with them.
-    case Builtins::BCH:
-    case Builtins::ASM:
-      // TODO(jgruber): Extend checks to remaining kinds.
-      return false;
-  }
-
-  Callable callable = Builtins::CallableFor(
-      isolate, static_cast<Builtins::Name>(code.builtin_index()));
-  CallInterfaceDescriptor descriptor = callable.descriptor();
-
-  if (descriptor.ContextRegister() == kOffHeapTrampolineRegister) {
-    return true;
-  }
-
-  for (int i = 0; i < descriptor.GetRegisterParameterCount(); i++) {
-    Register reg = descriptor.GetRegisterParameter(i);
-    if (reg == kOffHeapTrampolineRegister) return true;
-  }
-
-  return false;
-}
 
 void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   static const int kRelocMask =
       RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
       RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    Code code = isolate->builtins()->builtin(i);
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
+    Tagged<Code> code = isolate->builtins()->code(builtin);
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||  \
-    defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_S390)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||    \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||     \
+    defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_RISCV64) || \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_RISCV32)
     // On these platforms we emit relative builtin-to-builtin
     // jumps for isolate independent builtins in the snapshot. This fixes up the
     // relative jumps to the right offsets in the snapshot.
-    // See also: Code::IsIsolateIndependent.
+    // See also: InstructionStream::IsIsolateIndependent.
     while (!on_heap_it.done()) {
       DCHECK(!off_heap_it.done());
 
       RelocInfo* rinfo = on_heap_it.rinfo();
       DCHECK_EQ(rinfo->rmode(), off_heap_it.rinfo()->rmode());
-      Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-      CHECK(Builtins::IsIsolateIndependentBuiltin(target));
+      Tagged<Code> target_code =
+          Code::FromTargetAddress(rinfo->target_address());
+      CHECK(Builtins::IsIsolateIndependentBuiltin(target_code));
 
       // Do not emit write-barrier for off-heap writes.
-      off_heap_it.rinfo()->set_target_address(
-          blob->InstructionStartOfBuiltin(target.builtin_index()),
-          SKIP_WRITE_BARRIER);
+      off_heap_it.rinfo()->set_off_heap_target_address(
+          blob->InstructionStartOf(target_code->builtin_id()));
 
       on_heap_it.next();
       off_heap_it.next();
@@ -194,51 +213,96 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
     // indirection through the root register.
     CHECK(on_heap_it.done());
     CHECK(off_heap_it.done());
-#endif  // defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
+#endif
+  }
+}
+
+void EnsureRelocatable(Tagged<Code> code) {
+  if (code->relocation_size() == 0) return;
+
+  // On some architectures (arm) the builtin might have a non-empty reloc
+  // info containing a CONST_POOL entry. These entries don't have to be
+  // updated when InstructionStream object is relocated, so it's safe to drop
+  // the reloc info alltogether. If it wasn't the case then we'd have to store
+  // it in the metadata.
+  for (RelocIterator it(code); !it.done(); it.next()) {
+    CHECK_EQ(it.rinfo()->rmode(), RelocInfo::CONST_POOL);
   }
 }
 
 }  // namespace
 
 // static
-EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
+EmbeddedData EmbeddedData::NewFromIsolate(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
 
   // Store instruction stream lengths and offsets.
   std::vector<struct LayoutDescription> layout_descriptions(kTableSize);
+  std::vector<struct BuiltinLookupEntry> offset_descriptions(kTableSize);
 
   bool saw_unsafe_builtin = false;
   uint32_t raw_code_size = 0;
   uint32_t raw_data_size = 0;
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    Code code = builtins->builtin(i);
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
 
-    // Sanity-check that the given builtin is isolate-independent and does not
-    // use the trampoline register in its calling convention.
-    if (!code.IsIsolateIndependent(isolate)) {
-      saw_unsafe_builtin = true;
-      fprintf(stderr, "%s is not isolate-independent.\n", Builtins::name(i));
+  std::vector<Builtin> reordered_builtins;
+  if (v8_flags.reorder_builtins &&
+      BuiltinsCallGraph::Get()->all_hash_matched()) {
+    DCHECK(v8_flags.turbo_profiling_input.value());
+    // TODO(ishell, v8:13938): avoid the binary size overhead for non-mksnapshot
+    // binaries.
+    BuiltinsSorter sorter;
+    std::vector<uint32_t> builtin_sizes;
+    for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
+      Tagged<Code> code = builtins->code(i);
+      uint32_t instruction_size =
+          static_cast<uint32_t>(code->instruction_size());
+      uint32_t padding_size = PadAndAlignCode(instruction_size);
+      builtin_sizes.push_back(padding_size);
     }
-    if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
+    reordered_builtins = sorter.SortBuiltins(
+        v8_flags.turbo_profiling_input.value(), builtin_sizes);
+    CHECK_EQ(reordered_builtins.size(), Builtins::kBuiltinCount);
+  }
+
+  for (ReorderedBuiltinIndex embedded_index = 0;
+       embedded_index < Builtins::kBuiltinCount; embedded_index++) {
+    Builtin builtin;
+    if (reordered_builtins.empty()) {
+      builtin = static_cast<Builtin>(embedded_index);
+    } else {
+      builtin = reordered_builtins[embedded_index];
+    }
+    Tagged<Code> code = builtins->code(builtin);
+
+    // Sanity-check that the given builtin is isolate-independent.
+    if (!code->IsIsolateIndependent(isolate)) {
       saw_unsafe_builtin = true;
-      fprintf(stderr, "%s aliases the off-heap trampoline register.\n",
-              Builtins::name(i));
+      fprintf(stderr, "%s is not isolate-independent.\n",
+              Builtins::name(builtin));
     }
 
-    uint32_t instruction_size =
-        static_cast<uint32_t>(code.raw_instruction_size());
-    uint32_t metadata_size = static_cast<uint32_t>(code.raw_metadata_size());
-
+    uint32_t instruction_size = static_cast<uint32_t>(code->instruction_size());
     DCHECK_EQ(0, raw_code_size % kCodeAlignment);
-    layout_descriptions[i].instruction_offset = raw_code_size;
-    layout_descriptions[i].instruction_length = instruction_size;
-    layout_descriptions[i].metadata_offset = raw_data_size;
-    layout_descriptions[i].metadata_length = metadata_size;
-
+    {
+      // We use builtin id as index in layout_descriptions.
+      const int builtin_id = static_cast<int>(builtin);
+      struct LayoutDescription& layout_desc = layout_descriptions[builtin_id];
+      layout_desc.instruction_offset = raw_code_size;
+      layout_desc.instruction_length = instruction_size;
+      layout_desc.metadata_offset = raw_data_size;
+    }
     // Align the start of each section.
     raw_code_size += PadAndAlignCode(instruction_size);
-    raw_data_size += PadAndAlignData(metadata_size);
+    raw_data_size += PadAndAlignData(code->metadata_size());
+
+    {
+      // We use embedded index as index in offset_descriptions.
+      struct BuiltinLookupEntry& offset_desc =
+          offset_descriptions[embedded_index];
+      offset_desc.end_offset = raw_code_size;
+      offset_desc.builtin_id = static_cast<uint32_t>(builtin);
+    }
   }
   CHECK_WITH_MSG(
       !saw_unsafe_builtin,
@@ -247,12 +311,13 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       "If in doubt, ask jgruber@");
 
   // Allocate space for the code section, value-initialized to 0.
-  STATIC_ASSERT(RawCodeOffset() == 0);
+  static_assert(RawCodeOffset() == 0);
   const uint32_t blob_code_size = RawCodeOffset() + raw_code_size;
   uint8_t* const blob_code = new uint8_t[blob_code_size]();
 
   // Allocate space for the data section, value-initialized to 0.
-  STATIC_ASSERT(IsAligned(FixedDataSize(), Code::kMetadataAlignment));
+  static_assert(
+      IsAligned(FixedDataSize(), InstructionStream::kMetadataAlignment));
   const uint32_t blob_data_size = FixedDataSize() + raw_data_size;
   uint8_t* const blob_data = new uint8_t[blob_data_size]();
 
@@ -262,7 +327,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
   // Hash relevant parts of the Isolate's heap and store the result.
   {
-    STATIC_ASSERT(IsolateHashSize() == kSizetSize);
+    static_assert(IsolateHashSize() == kSizetSize);
     const size_t hash = isolate->HashIsolateForEmbeddedBlob();
     std::memcpy(blob_data + IsolateHashOffset(), &hash, IsolateHashSize());
   }
@@ -273,30 +338,43 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   std::memcpy(blob_data + LayoutDescriptionTableOffset(),
               layout_descriptions.data(), LayoutDescriptionTableSize());
 
+  // Write the builtin_offset_descriptions tables.
+  DCHECK_EQ(BuiltinLookupEntryTableSize(),
+            sizeof(offset_descriptions[0]) * offset_descriptions.size());
+  std::memcpy(blob_data + BuiltinLookupEntryTableOffset(),
+              offset_descriptions.data(), BuiltinLookupEntryTableSize());
+
   // .. and the variable-size data section.
   uint8_t* const raw_metadata_start = blob_data + RawMetadataOffset();
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    Code code = builtins->builtin(i);
-    uint32_t offset = layout_descriptions[i].metadata_offset;
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
+    Tagged<Code> code = builtins->code(builtin);
+    uint32_t offset =
+        layout_descriptions[static_cast<int>(builtin)].metadata_offset;
     uint8_t* dst = raw_metadata_start + offset;
-    DCHECK_LE(RawMetadataOffset() + offset + code.raw_metadata_size(),
+    DCHECK_LE(RawMetadataOffset() + offset + code->metadata_size(),
               blob_data_size);
-    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.raw_metadata_start()),
-                code.raw_metadata_size());
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code->metadata_start()),
+                code->metadata_size());
   }
+  CHECK_IMPLIES(
+      kMaxPCRelativeCodeRangeInMB,
+      static_cast<size_t>(raw_code_size) <= kMaxPCRelativeCodeRangeInMB * MB);
 
   // .. and the variable-size code section.
   uint8_t* const raw_code_start = blob_code + RawCodeOffset();
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    Code code = builtins->builtin(i);
-    uint32_t offset = layout_descriptions[i].instruction_offset;
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
+    Tagged<Code> code = builtins->code(builtin);
+    uint32_t offset =
+        layout_descriptions[static_cast<int>(builtin)].instruction_offset;
     uint8_t* dst = raw_code_start + offset;
-    DCHECK_LE(RawCodeOffset() + offset + code.raw_instruction_size(),
+    DCHECK_LE(RawCodeOffset() + offset + code->instruction_size(),
               blob_code_size);
-    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.raw_instruction_start()),
-                code.raw_instruction_size());
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code->instruction_start()),
+                code->instruction_size());
   }
 
   EmbeddedData d(blob_code, blob_code_size, blob_data, blob_data_size);
@@ -306,12 +384,12 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
   // Hash the blob and store the result.
   {
-    STATIC_ASSERT(EmbeddedBlobDataHashSize() == kSizetSize);
+    static_assert(EmbeddedBlobDataHashSize() == kSizetSize);
     const size_t data_hash = d.CreateEmbeddedBlobDataHash();
     std::memcpy(blob_data + EmbeddedBlobDataHashOffset(), &data_hash,
                 EmbeddedBlobDataHashSize());
 
-    STATIC_ASSERT(EmbeddedBlobCodeHashSize() == kSizetSize);
+    static_assert(EmbeddedBlobCodeHashSize() == kSizetSize);
     const size_t code_hash = d.CreateEmbeddedBlobCodeHash();
     std::memcpy(blob_data + EmbeddedBlobCodeHashOffset(), &code_hash,
                 EmbeddedBlobCodeHashSize());
@@ -322,79 +400,57 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     DCHECK_EQ(code_hash, d.EmbeddedBlobCodeHash());
   }
 
-  if (FLAG_serialization_statistics) d.PrintStatistics();
+  if (DEBUG_BOOL) {
+    for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+         ++builtin) {
+      Tagged<Code> code = builtins->code(builtin);
+      CHECK_EQ(d.InstructionSizeOf(builtin), code->instruction_size());
+    }
+  }
+
+  // Ensure that InterpreterEntryTrampolineForProfiling is relocatable.
+  // See v8_flags.interpreted_frames_native_stack for details.
+  EnsureRelocatable(
+      builtins->code(Builtin::kInterpreterEntryTrampolineForProfiling));
+
+  if (v8_flags.serialization_statistics) d.PrintStatistics();
 
   return d;
 }
 
-Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
-  DCHECK(Builtins::IsBuiltinId(i));
-  const struct LayoutDescription* descs = LayoutDescription();
-  const uint8_t* result = RawCode() + descs[i].instruction_offset;
-  DCHECK_LT(result, code_ + code_size_);
-  return reinterpret_cast<Address>(result);
-}
-
-uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
-  DCHECK(Builtins::IsBuiltinId(i));
-  const struct LayoutDescription* descs = LayoutDescription();
-  return descs[i].instruction_length;
-}
-
-Address EmbeddedData::MetadataStartOfBuiltin(int i) const {
-  DCHECK(Builtins::IsBuiltinId(i));
-  const struct LayoutDescription* descs = LayoutDescription();
-  const uint8_t* result = RawMetadata() + descs[i].metadata_offset;
-  DCHECK_LE(descs[i].metadata_offset, data_size_);
-  return reinterpret_cast<Address>(result);
-}
-
-uint32_t EmbeddedData::MetadataSizeOfBuiltin(int i) const {
-  DCHECK(Builtins::IsBuiltinId(i));
-  const struct LayoutDescription* descs = LayoutDescription();
-  return descs[i].metadata_length;
-}
-
-Address EmbeddedData::InstructionStartOfBytecodeHandlers() const {
-  return InstructionStartOfBuiltin(Builtins::kFirstBytecodeHandler);
-}
-
-Address EmbeddedData::InstructionEndOfBytecodeHandlers() const {
-  STATIC_ASSERT(Builtins::kFirstBytecodeHandler + kNumberOfBytecodeHandlers +
-                    2 * kNumberOfWideBytecodeHandlers ==
-                Builtins::builtin_count);
-  int lastBytecodeHandler = Builtins::builtin_count - 1;
-  return InstructionStartOfBuiltin(lastBytecodeHandler) +
-         InstructionSizeOfBuiltin(lastBytecodeHandler);
-}
-
 size_t EmbeddedData::CreateEmbeddedBlobDataHash() const {
-  STATIC_ASSERT(EmbeddedBlobDataHashOffset() == 0);
-  STATIC_ASSERT(EmbeddedBlobCodeHashOffset() == EmbeddedBlobDataHashSize());
-  STATIC_ASSERT(IsolateHashOffset() ==
+  static_assert(EmbeddedBlobDataHashOffset() == 0);
+  static_assert(EmbeddedBlobCodeHashOffset() == EmbeddedBlobDataHashSize());
+  static_assert(IsolateHashOffset() ==
                 EmbeddedBlobCodeHashOffset() + EmbeddedBlobCodeHashSize());
   static constexpr uint32_t kFirstHashedDataOffset = IsolateHashOffset();
   // Hash the entire data section except the embedded blob hash fields
   // themselves.
-  Vector<const byte> payload(data_ + kFirstHashedDataOffset,
-                             data_size_ - kFirstHashedDataOffset);
+  base::Vector<const uint8_t> payload(data_ + kFirstHashedDataOffset,
+                                      data_size_ - kFirstHashedDataOffset);
   return Checksum(payload);
 }
 
 size_t EmbeddedData::CreateEmbeddedBlobCodeHash() const {
-  CHECK(FLAG_text_is_readable);
-  Vector<const byte> payload(code_, code_size_);
+  CHECK(v8_flags.text_is_readable);
+  base::Vector<const uint8_t> payload(code_, code_size_);
   return Checksum(payload);
 }
 
-void EmbeddedData::PrintStatistics() const {
-  DCHECK(FLAG_serialization_statistics);
+Builtin EmbeddedData::GetBuiltinId(ReorderedBuiltinIndex embedded_index) const {
+  Builtin builtin =
+      Builtins::FromInt(BuiltinLookupEntry(embedded_index)->builtin_id);
+  return builtin;
+}
 
-  constexpr int kCount = Builtins::builtin_count;
+void EmbeddedData::PrintStatistics() const {
+  DCHECK(v8_flags.serialization_statistics);
+
+  constexpr int kCount = Builtins::kBuiltinCount;
   int sizes[kCount];
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < kCount; i++) {
-    sizes[i] = InstructionSizeOfBuiltin(i);
+    sizes[i] = InstructionSizeOf(Builtins::FromInt(i));
   }
 
   // Sort for percentiles.
@@ -406,10 +462,9 @@ void EmbeddedData::PrintStatistics() const {
   const int k99th = kCount * 0.99;
 
   PrintF("EmbeddedData:\n");
-  PrintF("  Total size:                         %d\n",
+  PrintF("  Total size:                  %d\n",
          static_cast<int>(code_size() + data_size()));
-  PrintF("  Data size:                      %d\n",
-         static_cast<int>(data_size()));
+  PrintF("  Data size:                   %d\n", static_cast<int>(data_size()));
   PrintF("  Code size:                   %d\n", static_cast<int>(code_size()));
   PrintF("  Instruction size (50th percentile): %d\n", sizes[k50th]);
   PrintF("  Instruction size (75th percentile): %d\n", sizes[k75th]);

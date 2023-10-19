@@ -5,7 +5,7 @@ module.exports = async (version, opts) => {
     signGitTag,
     allowSameVersion,
     tagVersionPrefix,
-    message
+    message,
   } = opts
 
   const tag = `${tagVersionPrefix}${version}`
@@ -25,6 +25,6 @@ module.exports = async (version, opts) => {
     'tag',
     flags.join(''),
     message.replace(/%s/g, version),
-    tag
+    tag,
   ], opts)
 }

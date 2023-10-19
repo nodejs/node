@@ -43,7 +43,7 @@ TEST_IMPL(gethostname) {
   enobufs_size = 1;
   buf[0] = '\0';
   r = uv_os_gethostname(buf, &enobufs_size);
-  ASSERT(r == UV_ENOBUFS);
+  ASSERT_EQ(r, UV_ENOBUFS);
   ASSERT(buf[0] == '\0');
   ASSERT(enobufs_size > 1);
 

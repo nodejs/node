@@ -4,10 +4,16 @@ const spawn = require('child_process').spawn;
 
 const BREAK_MESSAGE = new RegExp('(?:' + [
   'assert', 'break', 'break on start', 'debugCommand',
-  'exception', 'other', 'promiseRejection',
+  'exception', 'other', 'promiseRejection', 'step',
 ].join('|') + ') in', 'i');
 
-const TIMEOUT = common.platformTimeout(5000);
+let TIMEOUT = common.platformTimeout(5000);
+if (common.isWindows) {
+  // Some of the windows machines in the CI need more time to receive
+  // the outputs from the client.
+  // https://github.com/nodejs/build/issues/3014
+  TIMEOUT = common.platformTimeout(15000);
+}
 
 function isPreBreak(output) {
   return /Break on start/.test(output) && /1 \(function \(exports/.test(output);
@@ -23,10 +29,7 @@ function startCLI(args, flags = [], spawnOpts = {}) {
     if (this === child.stderr) {
       stderrOutput += chunk;
     }
-    // TODO(trott): Figure out why the "breakpoints restored." message appears
-    // in unpredictable places especially on AIX in CI. We shouldn't be
-    // excluding it, but it gets in the way of the output checking for tests.
-    outputBuffer.push(chunk.replace(/\n*\d+ breakpoints restored\.\n*/mg, ''));
+    outputBuffer.push(chunk);
   }
 
   function getOutput() {
@@ -106,26 +109,25 @@ function startCLI(args, flags = [], spawnOpts = {}) {
       return this.waitFor(/>\s+$/);
     },
 
-    waitForInitialBreak() {
-      return this.waitFor(/break (?:on start )?in/i)
-        .then(() => {
-          if (isPreBreak(this.output)) {
-            return this.command('next', false)
-              .then(() => this.waitFor(/break in/));
-          }
-        });
+    async waitForInitialBreak() {
+      await this.waitFor(/break (?:on start )?in/i);
+
+      if (isPreBreak(this.output)) {
+        await this.command('next', false);
+        return this.waitFor(/break in/);
+      }
     },
 
     get breakInfo() {
       const output = this.output;
       const breakMatch =
-        output.match(/break (?:on start )?in ([^\n]+):(\d+)\n/i);
+        output.match(/(step |break (?:on start )?)in ([^\n]+):(\d+)\n/i);
 
       if (breakMatch === null) {
         throw new Error(
           `Could not find breakpoint info in ${JSON.stringify(output)}`);
       }
-      return { filename: breakMatch[1], line: +breakMatch[2] };
+      return { filename: breakMatch[2], line: +breakMatch[3] };
     },
 
     ctrlC() {

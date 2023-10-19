@@ -20,44 +20,45 @@ functions
 
 =head1 DESCRIPTION
 
-These functions allow an ASN1_TYPE structure to be manipulated. The
-ASN1_TYPE structure can contain any ASN.1 type or constructed type
+These functions allow an B<ASN1_TYPE> structure to be manipulated. The
+B<ASN1_TYPE> structure can contain any ASN.1 type or constructed type
 such as a SEQUENCE: it is effectively equivalent to the ASN.1 ANY type.
 
-ASN1_TYPE_get() returns the type of B<a>.
+ASN1_TYPE_get() returns the type of I<a> or 0 if it fails.
 
-ASN1_TYPE_set() sets the value of B<a> to B<type> and B<value>. This
-function uses the pointer B<value> internally so it must B<not> be freed
+ASN1_TYPE_set() sets the value of I<a> to I<type> and I<value>. This
+function uses the pointer I<value> internally so it must B<not> be freed
 up after the call.
 
-ASN1_TYPE_set1() sets the value of B<a> to B<type> a copy of B<value>.
+ASN1_TYPE_set1() sets the value of I<a> to I<type> a copy of I<value>.
 
-ASN1_TYPE_cmp() compares ASN.1 types B<a> and B<b> and returns 0 if
+ASN1_TYPE_cmp() compares ASN.1 types I<a> and I<b> and returns 0 if
 they are identical and nonzero otherwise.
 
 ASN1_TYPE_unpack_sequence() attempts to parse the SEQUENCE present in
-B<t> using the ASN.1 structure B<it>. If successful it returns a pointer
-to the ASN.1 structure corresponding to B<it> which must be freed by the
+I<t> using the ASN.1 structure I<it>. If successful it returns a pointer
+to the ASN.1 structure corresponding to I<it> which must be freed by the
 caller. If it fails it return NULL.
 
-ASN1_TYPE_pack_sequence() attempts to encode the ASN.1 structure B<s>
-corresponding to B<it> into an ASN1_TYPE. If successful the encoded
-ASN1_TYPE is returned. If B<t> and B<*t> are not NULL the encoded type
-is written to B<t> overwriting any existing data. If B<t> is not NULL
-but B<*t> is NULL the returned ASN1_TYPE is written to B<*t>.
+ASN1_TYPE_pack_sequence() attempts to encode the ASN.1 structure I<s>
+corresponding to I<it> into an B<ASN1_TYPE>. If successful the encoded
+B<ASN1_TYPE> is returned. If I<t> and I<*t> are not NULL the encoded type
+is written to I<t> overwriting any existing data. If I<t> is not NULL
+but I<*t> is NULL the returned B<ASN1_TYPE> is written to I<*t>.
 
 =head1 NOTES
 
-The type and meaning of the B<value> parameter for ASN1_TYPE_set() and
-ASN1_TYPE_set1() is determined by the B<type> parameter.
-If B<type> is V_ASN1_NULL B<value> is ignored. If B<type> is V_ASN1_BOOLEAN
-then the boolean is set to TRUE if B<value> is not NULL. If B<type> is
-V_ASN1_OBJECT then value is an ASN1_OBJECT structure. Otherwise B<type>
-is and ASN1_STRING structure. If B<type> corresponds to a primitive type
-(or a string type) then the contents of the ASN1_STRING contain the content
-octets of the type. If B<type> corresponds to a constructed type or
-a tagged type (V_ASN1_SEQUENCE, V_ASN1_SET or V_ASN1_OTHER) then the
-ASN1_STRING contains the entire ASN.1 encoding verbatim (including tag and
+The type and meaning of the I<value> parameter for ASN1_TYPE_set() and
+ASN1_TYPE_set1() is determined by the I<type> parameter.
+If I<type> is B<V_ASN1_NULL> I<value> is ignored. If I<type> is
+B<V_ASN1_BOOLEAN>
+then the boolean is set to TRUE if I<value> is not NULL. If I<type> is
+B<V_ASN1_OBJECT> then value is an B<ASN1_OBJECT> structure. Otherwise I<type>
+is and B<ASN1_STRING> structure. If I<type> corresponds to a primitive type
+(or a string type) then the contents of the B<ASN1_STRING> contain the content
+octets of the type. If I<type> corresponds to a constructed type or
+a tagged type (B<V_ASN1_SEQUENCE>, B<V_ASN1_SET> or B<V_ASN1_OTHER>) then the
+B<ASN1_STRING> contains the entire ASN.1 encoding verbatim (including tag and
 length octets).
 
 ASN1_TYPE_cmp() may not return zero if two types are equivalent but have
@@ -74,7 +75,7 @@ applications should handle the case of two absent values separately.
 
 =head1 RETURN VALUES
 
-ASN1_TYPE_get() returns the type of the ASN1_TYPE argument.
+ASN1_TYPE_get() returns the type of the B<ASN1_TYPE> argument.
 
 ASN1_TYPE_set() does not return a value.
 
@@ -85,14 +86,14 @@ ASN1_TYPE_cmp() returns 0 if the types are identical and nonzero otherwise.
 ASN1_TYPE_unpack_sequence() returns a pointer to an ASN.1 structure or
 NULL on failure.
 
-ASN1_TYPE_pack_sequence() return an ASN1_TYPE structure if it succeeds or
+ASN1_TYPE_pack_sequence() return an B<ASN1_TYPE> structure if it succeeds or
 NULL on failure.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

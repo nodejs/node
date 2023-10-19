@@ -60,7 +60,7 @@ int uv__kqueue_init(uv_loop_t* loop) {
 
 
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
-static int uv__has_forked_with_cfrunloop;
+static _Atomic int uv__has_forked_with_cfrunloop;
 #endif
 
 int uv__io_fork(uv_loop_t* loop) {
@@ -82,7 +82,9 @@ int uv__io_fork(uv_loop_t* loop) {
        process. So we sidestep the issue by pretending like we never
        started it in the first place.
     */
-    uv__store_relaxed(&uv__has_forked_with_cfrunloop, 1);
+    atomic_store_explicit(&uv__has_forked_with_cfrunloop,
+                          1,
+                          memory_order_relaxed);
     uv__free(loop->cf_state);
     loop->cf_state = NULL;
   }
@@ -109,14 +111,31 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
 }
 
 
+static void uv__kqueue_delete(int kqfd, const struct kevent *ev) {
+  struct kevent change;
+
+  EV_SET(&change, ev->ident, ev->filter, EV_DELETE, 0, 0, 0);
+
+  if (0 == kevent(kqfd, &change, 1, NULL, 0, NULL))
+    return;
+
+  if (errno == EBADF || errno == ENOENT)
+    return;
+
+  abort();
+}
+
+
 void uv__io_poll(uv_loop_t* loop, int timeout) {
+  uv__loop_internal_fields_t* lfields;
   struct kevent events[1024];
   struct kevent* ev;
   struct timespec spec;
   unsigned int nevents;
   unsigned int revents;
-  QUEUE* q;
+  struct uv__queue* q;
   uv__io_t* w;
+  uv_process_t* process;
   sigset_t* pset;
   sigset_t set;
   uint64_t base;
@@ -133,18 +152,19 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int reset_timeout;
 
   if (loop->nfds == 0) {
-    assert(QUEUE_EMPTY(&loop->watcher_queue));
+    assert(uv__queue_empty(&loop->watcher_queue));
     return;
   }
 
+  lfields = uv__get_internal_fields(loop);
   nevents = 0;
 
-  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
-    q = QUEUE_HEAD(&loop->watcher_queue);
-    QUEUE_REMOVE(q);
-    QUEUE_INIT(q);
+  while (!uv__queue_empty(&loop->watcher_queue)) {
+    q = uv__queue_head(&loop->watcher_queue);
+    uv__queue_remove(q);
+    uv__queue_init(q);
 
-    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
+    w = uv__queue_data(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
@@ -204,7 +224,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
 
-  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME) {
+  if (lfields->flags & UV_METRICS_IDLE_TIME) {
     reset_timeout = 1;
     user_timeout = timeout;
     timeout = 0;
@@ -227,12 +247,21 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (pset != NULL)
       pthread_sigmask(SIG_BLOCK, pset, NULL);
 
+    /* Store the current timeout in a location that's globally accessible so
+     * other locations like uv__work_done() can determine whether the queue
+     * of events in the callback were waiting when poll was called.
+     */
+    lfields->current_timeout = timeout;
+
     nfds = kevent(loop->backend_fd,
                   events,
                   nevents,
                   events,
                   ARRAY_SIZE(events),
                   timeout == -1 ? NULL : &spec);
+
+    if (nfds == -1)
+      assert(errno == EINTR);
 
     if (pset != NULL)
       pthread_sigmask(SIG_UNBLOCK, pset, NULL);
@@ -241,36 +270,26 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
      * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
      * operating system didn't reschedule our process while in the syscall.
      */
-    SAVE_ERRNO(uv__update_time(loop));
+    uv__update_time(loop);
 
-    if (nfds == 0) {
-      if (reset_timeout != 0) {
-        timeout = user_timeout;
-        reset_timeout = 0;
-        if (timeout == -1)
-          continue;
-        if (timeout > 0)
-          goto update_timeout;
+    if (nfds == 0 || nfds == -1) {
+      /* If kqueue is empty or interrupted, we might still have children ready
+       * to reap immediately. */
+      if (loop->flags & UV_LOOP_REAP_CHILDREN) {
+        loop->flags &= ~UV_LOOP_REAP_CHILDREN;
+        uv__wait_children(loop);
+        assert((reset_timeout == 0 ? timeout : user_timeout) == 0);
+        return; /* Equivalent to fall-through behavior. */
       }
-
-      assert(timeout != -1);
-      return;
-    }
-
-    if (nfds == -1) {
-      if (errno != EINTR)
-        abort();
 
       if (reset_timeout != 0) {
         timeout = user_timeout;
         reset_timeout = 0;
-      }
-
-      if (timeout == 0)
+      } else if (nfds == 0) {
+        /* Reached the user timeout value. */
+        assert(timeout != -1);
         return;
-
-      if (timeout == -1)
-        continue;
+      }
 
       /* Interrupted by a signal. Update timeout and poll again. */
       goto update_timeout;
@@ -285,21 +304,29 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     for (i = 0; i < nfds; i++) {
       ev = events + i;
       fd = ev->ident;
+
+      /* Handle kevent NOTE_EXIT results */
+      if (ev->filter == EVFILT_PROC) {
+        uv__queue_foreach(q, &loop->process_handles) {
+          process = uv__queue_data(q, uv_process_t, queue);
+          if (process->pid == fd) {
+            process->flags |= UV_HANDLE_REAP;
+            loop->flags |= UV_LOOP_REAP_CHILDREN;
+            break;
+          }
+        }
+        nevents++;
+        continue;
+      }
+
       /* Skip invalidated events, see uv__platform_invalidate_fd */
       if (fd == -1)
         continue;
       w = loop->watchers[fd];
 
       if (w == NULL) {
-        /* File descriptor that we've stopped watching, disarm it.
-         * TODO: batch up. */
-        struct kevent events[1];
-
-        EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
-        if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL))
-          if (errno != EBADF && errno != ENOENT)
-            abort();
-
+        /* File descriptor that we've stopped watching, disarm it. */
+        uv__kqueue_delete(loop->backend_fd, ev);
         continue;
       }
 
@@ -315,52 +342,31 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       revents = 0;
 
       if (ev->filter == EVFILT_READ) {
-        if (w->pevents & POLLIN) {
+        if (w->pevents & POLLIN)
           revents |= POLLIN;
-          w->rcount = ev->data;
-        } else {
-          /* TODO batch up */
-          struct kevent events[1];
-          EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
-          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL))
-            if (errno != ENOENT)
-              abort();
-        }
+        else
+          uv__kqueue_delete(loop->backend_fd, ev);
+
+        if ((ev->flags & EV_EOF) && (w->pevents & UV__POLLRDHUP))
+          revents |= UV__POLLRDHUP;
       }
 
       if (ev->filter == EV_OOBAND) {
-        if (w->pevents & UV__POLLPRI) {
+        if (w->pevents & UV__POLLPRI)
           revents |= UV__POLLPRI;
-          w->rcount = ev->data;
-        } else {
-          /* TODO batch up */
-          struct kevent events[1];
-          EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
-          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL))
-            if (errno != ENOENT)
-              abort();
-        }
+        else
+          uv__kqueue_delete(loop->backend_fd, ev);
       }
 
       if (ev->filter == EVFILT_WRITE) {
-        if (w->pevents & POLLOUT) {
+        if (w->pevents & POLLOUT)
           revents |= POLLOUT;
-          w->wcount = ev->data;
-        } else {
-          /* TODO batch up */
-          struct kevent events[1];
-          EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
-          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL))
-            if (errno != ENOENT)
-              abort();
-        }
+        else
+          uv__kqueue_delete(loop->backend_fd, ev);
       }
 
       if (ev->flags & EV_ERROR)
         revents |= POLLERR;
-
-      if ((ev->flags & EV_EOF) && (w->pevents & UV__POLLRDHUP))
-        revents |= UV__POLLRDHUP;
 
       if (revents == 0)
         continue;
@@ -378,9 +384,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       nevents++;
     }
 
+    if (loop->flags & UV_LOOP_REAP_CHILDREN) {
+      loop->flags &= ~UV_LOOP_REAP_CHILDREN;
+      uv__wait_children(loop);
+    }
+
+    uv__metrics_inc_events(loop, nevents);
     if (reset_timeout != 0) {
       timeout = user_timeout;
       reset_timeout = 0;
+      uv__metrics_inc_events_waiting(loop, nevents);
     }
 
     if (have_signals != 0) {
@@ -403,13 +416,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       return;
     }
 
+update_timeout:
     if (timeout == 0)
       return;
 
     if (timeout == -1)
       continue;
 
-update_timeout:
     assert(timeout > 0);
 
     diff = loop->time - base;
@@ -436,7 +449,7 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
 
   /* Invalidate events with same file descriptor */
   for (i = 0; i < nfds; i++)
-    if ((int) events[i].ident == fd)
+    if ((int) events[i].ident == fd && events[i].filter != EVFILT_PROC)
       events[i].ident = -1;
 }
 
@@ -521,13 +534,14 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   handle->realpath_len = 0;
   handle->cf_flags = flags;
 
-  if (fstat(fd, &statbuf))
+  if (uv__fstat(fd, &statbuf))
     goto fallback;
   /* FSEvents works only with directories */
   if (!(statbuf.st_mode & S_IFDIR))
     goto fallback;
 
-  if (0 == uv__load_relaxed(&uv__has_forked_with_cfrunloop)) {
+  if (0 == atomic_load_explicit(&uv__has_forked_with_cfrunloop,
+                                memory_order_relaxed)) {
     int r;
     /* The fallback fd is no longer needed */
     uv__close_nocheckstdio(fd);
@@ -562,7 +576,8 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   uv__handle_stop(handle);
 
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
-  if (0 == uv__load_relaxed(&uv__has_forked_with_cfrunloop))
+  if (0 == atomic_load_explicit(&uv__has_forked_with_cfrunloop,
+                                memory_order_relaxed))
     if (handle->cf_cb != NULL)
       r = uv__fsevents_close(handle);
 #endif

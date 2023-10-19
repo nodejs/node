@@ -28,15 +28,15 @@ function isInStatementList(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce variables to be declared either together or separately in functions",
-            category: "Stylistic Issues",
+            description: "Enforce variables to be declared either together or separately in functions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/one-var"
+            url: "https://eslint.org/docs/latest/rules/one-var"
         },
 
         fixable: "code",
@@ -121,7 +121,7 @@ module.exports = {
             }
         }
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -209,7 +209,7 @@ module.exports = {
 
         /**
          * Determines the current scope (function or block)
-         * @param  {string} statementType node.kind, one of: "var", "let", or "const"
+         * @param {string} statementType node.kind, one of: "var", "let", or "const"
          * @returns {Object} The scope associated with statementType
          */
         function getCurrentScope(statementType) {
@@ -542,6 +542,8 @@ module.exports = {
             FunctionDeclaration: startFunction,
             FunctionExpression: startFunction,
             ArrowFunctionExpression: startFunction,
+            StaticBlock: startFunction, // StaticBlock creates a new scope for `var` variables
+
             BlockStatement: startBlock,
             ForStatement: startBlock,
             ForInStatement: startBlock,
@@ -553,10 +555,12 @@ module.exports = {
             "ForInStatement:exit": endBlock,
             "SwitchStatement:exit": endBlock,
             "BlockStatement:exit": endBlock,
+
             "Program:exit": endFunction,
             "FunctionDeclaration:exit": endFunction,
             "FunctionExpression:exit": endFunction,
-            "ArrowFunctionExpression:exit": endFunction
+            "ArrowFunctionExpression:exit": endFunction,
+            "StaticBlock:exit": endFunction
         };
 
     }

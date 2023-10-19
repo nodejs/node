@@ -1,9 +1,10 @@
-const opener = require('opener')
+const promiseSpawn = require('@npmcli/promise-spawn')
 
 const { URL } = require('url')
 
 // attempt to open URL in web-browser, print address otherwise:
-const open = async (npm, url, errMsg) => {
+const open = async (npm, url, errMsg, isFile) => {
+  url = encodeURI(url)
   const browser = npm.config.get('browser')
 
   function printAlternateMsg () {
@@ -23,25 +24,27 @@ const open = async (npm, url, errMsg) => {
     return
   }
 
-  try {
-    if (!/^(https?|file):$/.test(new URL(url).protocol))
-      throw new Error()
-  } catch (_) {
-    throw new Error('Invalid URL: ' + url)
+  // We pass this in as true from the help command so we know we don't have to
+  // check the protocol
+  if (!isFile) {
+    try {
+      if (!/^https?:$/.test(new URL(url).protocol)) {
+        throw new Error()
+      }
+    } catch {
+      throw new Error('Invalid URL: ' + url)
+    }
   }
 
   const command = browser === true ? null : browser
-  await new Promise((resolve, reject) => {
-    opener(url, { command }, (err) => {
-      if (err) {
-        if (err.code === 'ENOENT')
-          printAlternateMsg()
-        else
-          return reject(err)
+  await promiseSpawn.open(url, { command })
+    .catch((err) => {
+      if (err.code !== 'ENOENT') {
+        throw err
       }
-      return resolve()
+
+      printAlternateMsg()
     })
-  })
 }
 
 module.exports = open

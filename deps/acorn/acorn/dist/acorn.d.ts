@@ -11,8 +11,10 @@ declare namespace acorn {
     [Symbol.iterator](): Iterator<Token>
   }
 
+  type ecmaVersion = 3 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 | 'latest'
+
   interface Options {
-    ecmaVersion: 3 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 'latest'
+    ecmaVersion: ecmaVersion
     sourceType?: 'script' | 'module'
     onInsertedSemicolon?: (lastTokEnd: number, lastTokEndLoc?: Position) => void
     onTrailingComma?: (lastTokEnd: number, lastTokEndLoc?: Position) => void
@@ -20,6 +22,7 @@ declare namespace acorn {
     allowReturnOutsideFunction?: boolean
     allowImportExportEverywhere?: boolean
     allowAwaitOutsideFunction?: boolean
+    allowSuperOutsideMethod?: boolean
     allowHashBang?: boolean
     locations?: boolean
     onToken?: ((token: Token) => any) | Token[]
@@ -35,8 +38,41 @@ declare namespace acorn {
   }
 
   class Parser {
+    // state.js
+    lineStart: number;
+    options: Options;
+    curLine: number;
+    start: number;
+    end: number;
+    input: string;
+    type: TokenType;
+
+    // state.js
     constructor(options: Options, input: string, startPos?: number)
     parse(this: Parser): Node
+
+    // tokenize.js
+    next(): void;
+    nextToken(): void;
+
+    // statement.js
+    parseTopLevel(node: Node): Node;
+
+    // node.js
+    finishNode(node: Node, type: string): Node;
+    finishNodeAt(node: Node, type: string, pos: number, loc: Position): Node;
+
+    // location.js
+    raise(pos: number, message: string) : void;
+    raiseRecoverable?(pos: number, message: string) : void;
+
+    // parseutils.js
+    unexpected(pos: number) : void;
+
+    // index.js
+    static acorn: typeof acorn;
+
+    // state.js
     static parse(this: typeof Parser, input: string, options: Options): Node
     static parseExpressionAt(this: typeof Parser, input: string, pos: number, options: Options): Node
     static tokenizer(this: typeof Parser, input: string, options: Options): {
@@ -88,6 +124,7 @@ declare namespace acorn {
     regexp: TokenType
     string: TokenType
     name: TokenType
+    privateId: TokenType
     eof: TokenType
     bracketL: TokenType
     bracketR: TokenType
@@ -100,8 +137,10 @@ declare namespace acorn {
     colon: TokenType
     dot: TokenType
     question: TokenType
+    questionDot: TokenType
     arrow: TokenType
     template: TokenType
+    invalidTemplate: TokenType
     ellipsis: TokenType
     backQuote: TokenType
     dollarBraceL: TokenType
@@ -122,6 +161,7 @@ declare namespace acorn {
     star: TokenType
     slash: TokenType
     starstar: TokenType
+    coalesce: TokenType
     _break: TokenType
     _case: TokenType
     _catch: TokenType
@@ -171,6 +211,9 @@ declare namespace acorn {
     p_expr: TokContext
     q_tmpl: TokContext
     f_expr: TokContext
+    f_stat: TokContext
+    f_expr_gen: TokContext
+    f_gen: TokContext
   }
 
   function isIdentifierStart(code: number, astral?: boolean): boolean
@@ -181,7 +224,7 @@ declare namespace acorn {
   }
 
   interface Comment extends AbstractToken {
-    type: string
+    type: 'Line' | 'Block'
     value: string
     start: number
     end: number
@@ -206,4 +249,44 @@ declare namespace acorn {
   const lineBreakG: RegExp
 
   const version: string
+
+  const nonASCIIwhitespace: RegExp
+
+  const keywordTypes: {
+    _break: TokenType
+    _case: TokenType
+    _catch: TokenType
+    _continue: TokenType
+    _debugger: TokenType
+    _default: TokenType
+    _do: TokenType
+    _else: TokenType
+    _finally: TokenType
+    _for: TokenType
+    _function: TokenType
+    _if: TokenType
+    _return: TokenType
+    _switch: TokenType
+    _throw: TokenType
+    _try: TokenType
+    _var: TokenType
+    _const: TokenType
+    _while: TokenType
+    _with: TokenType
+    _new: TokenType
+    _this: TokenType
+    _super: TokenType
+    _class: TokenType
+    _extends: TokenType
+    _export: TokenType
+    _import: TokenType
+    _null: TokenType
+    _true: TokenType
+    _false: TokenType
+    _in: TokenType
+    _instanceof: TokenType
+    _typeof: TokenType
+    _void: TokenType
+    _delete: TokenType
+  }
 }

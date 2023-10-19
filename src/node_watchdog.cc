@@ -34,6 +34,7 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -44,8 +45,7 @@ Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out)
   int rc;
   rc = uv_loop_init(&loop_);
   if (rc != 0) {
-    FatalError("node::Watchdog::Watchdog()",
-               "Failed to initialize uv loop.");
+    OnFatalError("node::Watchdog::Watchdog()", "Failed to initialize uv loop.");
   }
 
   rc = uv_async_init(&loop_, &async_, [](uv_async_t* signal) {
@@ -102,6 +102,7 @@ void Watchdog::Timer(uv_timer_t* timer) {
 SigintWatchdog::SigintWatchdog(
   v8::Isolate* isolate, bool* received_signal)
     : isolate_(isolate), received_signal_(received_signal) {
+  Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   // Register this watchdog with the global SIGINT/Ctrl+C listener.
   SigintWatchdogHelper::GetInstance()->Register(this);
   // Start the helper thread, if that has not already happened.
@@ -110,6 +111,7 @@ SigintWatchdog::SigintWatchdog(
 
 
 SigintWatchdog::~SigintWatchdog() {
+  Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   SigintWatchdogHelper::GetInstance()->Unregister(this);
   SigintWatchdogHelper::GetInstance()->Stop();
 }
@@ -121,15 +123,17 @@ SignalPropagation SigintWatchdog::HandleSigint() {
 }
 
 void TraceSigintWatchdog::Init(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> constructor = NewFunctionTemplate(isolate, New);
   constructor->InstanceTemplate()->SetInternalFieldCount(
       TraceSigintWatchdog::kInternalFieldCount);
   constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(constructor, "start", Start);
-  env->SetProtoMethod(constructor, "stop", Stop);
+  SetProtoMethod(isolate, constructor, "start", Start);
+  SetProtoMethod(isolate, constructor, "stop", Stop);
 
-  env->SetConstructorFunction(target, "TraceSigintWatchdog", constructor);
+  SetConstructorFunction(
+      env->context(), target, "TraceSigintWatchdog", constructor);
 }
 
 void TraceSigintWatchdog::New(const FunctionCallbackInfo<Value>& args) {
@@ -144,6 +148,7 @@ void TraceSigintWatchdog::New(const FunctionCallbackInfo<Value>& args) {
 void TraceSigintWatchdog::Start(const FunctionCallbackInfo<Value>& args) {
   TraceSigintWatchdog* watchdog;
   ASSIGN_OR_RETURN_UNWRAP(&watchdog, args.Holder());
+  Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   // Register this watchdog with the global SIGINT/Ctrl+C listener.
   SigintWatchdogHelper::GetInstance()->Register(watchdog);
   // Start the helper thread, if that has not already happened.
@@ -154,6 +159,7 @@ void TraceSigintWatchdog::Start(const FunctionCallbackInfo<Value>& args) {
 void TraceSigintWatchdog::Stop(const FunctionCallbackInfo<Value>& args) {
   TraceSigintWatchdog* watchdog;
   ASSIGN_OR_RETURN_UNWRAP(&watchdog, args.Holder());
+  Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   SigintWatchdogHelper::GetInstance()->Unregister(watchdog);
   SigintWatchdogHelper::GetInstance()->Stop();
 }
@@ -215,6 +221,7 @@ void TraceSigintWatchdog::HandleInterrupt() {
   signal_flag_ = SignalFlags::None;
   interrupting = false;
 
+  Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   SigintWatchdogHelper::GetInstance()->Unregister(this);
   SigintWatchdogHelper::GetInstance()->Stop();
   raise(SIGINT);
@@ -413,6 +420,7 @@ SigintWatchdogHelper::~SigintWatchdogHelper() {
 }
 
 SigintWatchdogHelper SigintWatchdogHelper::instance;
+Mutex SigintWatchdogHelper::instance_action_mutex_;
 
 namespace watchdog {
 static void Initialize(Local<Object> target,
@@ -426,4 +434,4 @@ static void Initialize(Local<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(watchdog, node::watchdog::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(watchdog, node::watchdog::Initialize)

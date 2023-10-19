@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --wasm-num-compilation-tasks=10
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function assertModule(module, memsize) {
   // Check the module exists.
@@ -46,7 +46,8 @@ function assertFunction(module, func) {
 
   var builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
+  builder.exportMemoryAs("memory");
   for (i = 0; i < 1000; i++) {
     builder.addFunction("sub" + i, kSig_i_i)
       .addBody([                // --
@@ -80,7 +81,8 @@ function assertFunction(module, func) {
           ])
           .exportFunc()
 
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
+  builder.exportMemoryAs("memory");
   for (i = 1; i < 256; i++) {
     f[i] = builder.addFunction("add" + i, kSig_i_ii)
       .addBody([                                            // --

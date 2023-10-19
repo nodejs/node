@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to enforce grouped require statements for Node.JS
  * @author Raphael Pigulla
+ * @deprecated in ESLint v7.0.0
  */
 
 "use strict";
@@ -9,6 +10,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         deprecated: true,
@@ -18,10 +20,9 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `require` calls to be mixed with regular variable declarations",
-            category: "Node.js and CommonJS",
+            description: "Disallow `require` calls to be mixed with regular variable declarations",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-mixed-requires"
+            url: "https://eslint.org/docs/latest/rules/no-mixed-requires"
         },
 
         schema: [
@@ -159,7 +160,7 @@ module.exports = {
                 return REQ_COMPUTED;
             }
 
-            if (BUILTIN_MODULES.indexOf(arg.value) !== -1) {
+            if (BUILTIN_MODULES.includes(arg.value)) {
 
                 // "var fs = require('fs');"
                 return REQ_CORE;

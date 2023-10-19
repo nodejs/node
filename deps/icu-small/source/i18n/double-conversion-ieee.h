@@ -164,11 +164,19 @@ class Double {
   }
 
   bool IsQuietNan() const {
+#if (defined(__mips__) && !defined(__mips_nan2008)) || defined(__hppa__)
+    return IsNan() && ((AsUint64() & kQuietNanBit) == 0);
+#else
     return IsNan() && ((AsUint64() & kQuietNanBit) != 0);
+#endif
   }
 
   bool IsSignalingNan() const {
+#if (defined(__mips__) && !defined(__mips_nan2008)) || defined(__hppa__)
+    return IsNan() && ((AsUint64() & kQuietNanBit) != 0);
+#else
     return IsNan() && ((AsUint64() & kQuietNanBit) == 0);
+#endif
   }
 
 
@@ -250,7 +258,12 @@ class Double {
  private:
   static const int kDenormalExponent = -kExponentBias + 1;
   static const uint64_t kInfinity = DOUBLE_CONVERSION_UINT64_2PART_C(0x7FF00000, 00000000);
+#if (defined(__mips__) && !defined(__mips_nan2008)) || defined(__hppa__)
+  static const uint64_t kNaN = DOUBLE_CONVERSION_UINT64_2PART_C(0x7FF7FFFF, FFFFFFFF);
+#else
   static const uint64_t kNaN = DOUBLE_CONVERSION_UINT64_2PART_C(0x7FF80000, 00000000);
+#endif
+
 
   const uint64_t d64_;
 
@@ -350,11 +363,19 @@ class Single {
   }
 
   bool IsQuietNan() const {
+#if (defined(__mips__) && !defined(__mips_nan2008)) || defined(__hppa__)
+    return IsNan() && ((AsUint32() & kQuietNanBit) == 0);
+#else
     return IsNan() && ((AsUint32() & kQuietNanBit) != 0);
+#endif
   }
 
   bool IsSignalingNan() const {
+#if (defined(__mips__) && !defined(__mips_nan2008)) || defined(__hppa__)
+    return IsNan() && ((AsUint32() & kQuietNanBit) != 0);
+#else
     return IsNan() && ((AsUint32() & kQuietNanBit) == 0);
+#endif
   }
 
 
@@ -424,7 +445,11 @@ class Single {
   static const int kDenormalExponent = -kExponentBias + 1;
   static const int kMaxExponent = 0xFF - kExponentBias;
   static const uint32_t kInfinity = 0x7F800000;
+#if (defined(__mips__) && !defined(__mips_nan2008)) || defined(__hppa__)
+  static const uint32_t kNaN = 0x7FBFFFFF;
+#else
   static const uint32_t kNaN = 0x7FC00000;
+#endif
 
   const uint32_t d32_;
 

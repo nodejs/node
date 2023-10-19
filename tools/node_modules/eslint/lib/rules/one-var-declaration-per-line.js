@@ -8,15 +8,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow newlines around variable declarations",
-            category: "Stylistic Issues",
+            description: "Require or disallow newlines around variable declarations",
             recommended: false,
-            url: "https://eslint.org/docs/rules/one-var-declaration-per-line"
+            url: "https://eslint.org/docs/latest/rules/one-var-declaration-per-line"
         },
 
         schema: [

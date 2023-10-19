@@ -160,7 +160,7 @@ PASS argumentsVarUndefined() is '[object Arguments]'
 PASS argumentCalleeInException() is argumentCalleeInException
 PASS shadowedArgumentsApply([true]) is true
 PASS shadowedArgumentsLength([]) is 0
-PASS shadowedArgumentsLength() threw exception TypeError: Cannot read property 'length' of undefined.
+PASS shadowedArgumentsLength() threw exception TypeError: Cannot read properties of undefined (reading 'length').
 PASS shadowedArgumentsCallee([]) is undefined.
 PASS shadowedArgumentsIndex([true]) is true
 PASS descriptor.value is "one"

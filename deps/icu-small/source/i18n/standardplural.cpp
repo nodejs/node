@@ -84,14 +84,14 @@ int32_t StandardPlural::indexOrNegativeFromString(const char *keyword) {
     return -1;
 }
 
-static const UChar gZero[] = u"zero";
-static const UChar gOne[] = u"one";
-static const UChar gTwo[] = u"two";
-static const UChar gFew[] = u"few";
-static const UChar gMany[] = u"many";
-static const UChar gOther[] = u"other";
-static const UChar gEq0[] = u"=0";
-static const UChar gEq1[] = u"=1";
+static const char16_t gZero[] = u"zero";
+static const char16_t gOne[] = u"one";
+static const char16_t gTwo[] = u"two";
+static const char16_t gFew[] = u"few";
+static const char16_t gMany[] = u"many";
+static const char16_t gOther[] = u"other";
+static const char16_t gEq0[] = u"=0";
+static const char16_t gEq1[] = u"=1";
 
 int32_t StandardPlural::indexOrNegativeFromString(const UnicodeString &keyword) {
     switch (keyword.length()) {

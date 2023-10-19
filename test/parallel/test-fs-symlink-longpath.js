@@ -12,10 +12,10 @@ const longPath = path.join(...[tmpDir].concat(Array(30).fill('1234567890')));
 fs.mkdirSync(longPath, { recursive: true });
 
 // Test if we can have symlinks to files and folders with long filenames
-const targetDirtectory = path.join(longPath, 'target-directory');
-fs.mkdirSync(targetDirtectory);
+const targetDirectory = path.join(longPath, 'target-directory');
+fs.mkdirSync(targetDirectory);
 const pathDirectory = path.join(tmpDir, 'new-directory');
-fs.symlink(targetDirtectory, pathDirectory, 'dir', common.mustSucceed(() => {
+fs.symlink(targetDirectory, pathDirectory, 'dir', common.mustSucceed(() => {
   assert(fs.existsSync(pathDirectory));
 }));
 

@@ -45,7 +45,7 @@ TEST_PAIR(TestWrongTypeInNormalField) {
   Handle<JSObject> o = Handle<JSObject>::cast(v8::Utils::OpenHandle(*v));
   Handle<Object> original_elements(
       TaggedField<Object>::load(*o, JSObject::kElementsOffset), i_isolate);
-  CHECK(original_elements->IsFixedArrayBase());
+  CHECK(IsFixedArrayBase(*original_elements));
 
   // There must be no GC (and therefore no verifiers running) until we can
   // restore the modified data.
@@ -70,13 +70,13 @@ TEST_PAIR(TestWrongStrongTypeInIndexedStructField) {
   v8::Local<v8::Value> v = CompileRun("({a: 3, b: 4})");
   Handle<Object> o = v8::Utils::OpenHandle(*v);
   Handle<Map> map(Handle<HeapObject>::cast(o)->map(), i_isolate);
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(i_isolate),
                                       i_isolate);
   int offset = DescriptorArray::OffsetOfDescriptorAt(1) +
                DescriptorArray::kEntryKeyOffset;
   Handle<Object> original_key(TaggedField<Object>::load(*descriptors, offset),
                               i_isolate);
-  CHECK(original_key->IsString());
+  CHECK(IsString(*original_key));
 
   // There must be no GC (and therefore no verifiers running) until we can
   // restore the modified data.
@@ -102,7 +102,7 @@ TEST_PAIR(TestWrongWeakTypeInIndexedStructField) {
   v8::Local<v8::Value> v = CompileRun("({a: 3, b: 4})");
   Handle<Object> o = v8::Utils::OpenHandle(*v);
   Handle<Map> map(Handle<HeapObject>::cast(o)->map(), i_isolate);
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(i_isolate),
                                       i_isolate);
   int offset = DescriptorArray::OffsetOfDescriptorAt(0) +
                DescriptorArray::kEntryValueOffset;

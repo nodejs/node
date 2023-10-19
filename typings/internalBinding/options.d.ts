@@ -1,4 +1,4 @@
-declare function InternalBinding(binding: 'options'): {
+export interface OptionsBinding {
   getOptions(): {
     options: Map<
       string,
@@ -20,6 +20,7 @@ declare function InternalBinding(binding: 'options'): {
     kAllowedInEnvironment: 0;
     kDisallowedInEnvironment: 1;
   };
+  noGlobalSearchPaths: boolean;
   shouldNotRegisterESMLoader: boolean;
   types: {
     kNoOp: 0;
@@ -31,4 +32,4 @@ declare function InternalBinding(binding: 'options'): {
     kHostPort: 6;
     kStringList: 7;
   };
-};
+}

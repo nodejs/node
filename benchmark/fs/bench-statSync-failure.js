@@ -6,7 +6,7 @@ const path = require('path');
 
 const bench = common.createBenchmark(main, {
   n: [1e6],
-  statSyncType: ['throw', 'noThrow']
+  statSyncType: ['throw', 'noThrow'],
 });
 
 
@@ -21,6 +21,7 @@ function main({ n, statSyncType }) {
       try {
         fs.statSync(arg);
       } catch {
+        // Continue regardless of error.
       }
     }
   }

@@ -24,12 +24,43 @@ process.chdir(tmpdir.path);
   fs.accessSync(heapdump);
 }
 
+{
+  const directory = 'directory';
+  fs.mkdirSync(directory);
+  assert.throws(() => {
+    writeHeapSnapshot(directory);
+  }, (e) => {
+    assert.ok(e, 'writeHeapSnapshot should error');
+    assert.strictEqual(e.code, 'EISDIR');
+    assert.strictEqual(e.syscall, 'open');
+    return true;
+  });
+}
+
 [1, true, {}, [], null, Infinity, NaN].forEach((i) => {
   assert.throws(() => writeHeapSnapshot(i), {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "path" argument must be of type string or an instance of ' +
              'Buffer or URL.' +
+             common.invalidArgTypeHelper(i)
+  });
+});
+
+[1, true, [], null, Infinity, NaN].forEach((i) => {
+  assert.throws(() => writeHeapSnapshot('test.heapsnapshot', i), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "options" argument must be of type object.' +
+             common.invalidArgTypeHelper(i)
+  });
+});
+
+[1, true, [], null, Infinity, NaN].forEach((i) => {
+  assert.throws(() => getHeapSnapshot(i), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "options" argument must be of type object.' +
              common.invalidArgTypeHelper(i)
   });
 });

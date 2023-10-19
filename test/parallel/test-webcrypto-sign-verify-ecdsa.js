@@ -5,11 +5,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (common.hasOpenSSL3)
-  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
-
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const vectors = require('../fixtures/crypto/ecdsa')();
 
@@ -26,6 +23,7 @@ async function testVerify({ name,
     privateKey,
     hmacKey,
     rsaKeys,
+    okpKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -55,6 +53,12 @@ async function testVerify({ name,
         modulusLength: 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256',
+      },
+      false,
+      ['sign']),
+    subtle.generateKey(
+      {
+        name: 'Ed25519',
       },
       false,
       ['sign']),
@@ -92,6 +96,11 @@ async function testVerify({ name,
       message: /Unable to use this key to verify/
     });
 
+  await assert.rejects(
+    subtle.verify({ name, hash }, okpKeys.publicKey, signature, plaintext), {
+      message: /Unable to use this key to verify/
+    });
+
   // Test failure when signature is altered
   {
     const copy = Buffer.from(signature);
@@ -126,7 +135,8 @@ async function testVerify({ name,
 
   await assert.rejects(
     subtle.verify({ name, hash: 'sha256' }, publicKey, signature, copy), {
-      message: /Unrecognized name/
+      message: /Unrecognized algorithm name/,
+      name: 'NotSupportedError',
     });
 }
 
@@ -139,10 +149,10 @@ async function testSign({ name,
                           plaintext }) {
   const [
     publicKey,
-    noSignPrivateKey,
     privateKey,
     hmacKey,
     rsaKeys,
+    okpKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -150,12 +160,6 @@ async function testSign({ name,
       { name, namedCurve },
       false,
       ['verify']),
-    subtle.importKey(
-      'pkcs8',
-      privateKeyBuffer,
-      { name, namedCurve },
-      false,
-      [ /* No usages */ ]),
     subtle.importKey(
       'pkcs8',
       privateKeyBuffer,
@@ -172,6 +176,12 @@ async function testSign({ name,
         modulusLength: 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256',
+      },
+      false,
+      ['sign']),
+    subtle.generateKey(
+      {
+        name: 'Ed25519',
       },
       false,
       ['sign']),
@@ -197,12 +207,6 @@ async function testSign({ name,
       message: /Unable to use this key to sign/
     });
 
-  // Test failure when no sign usage
-  await assert.rejects(
-    subtle.sign({ name, hash }, noSignPrivateKey, plaintext), {
-      message: /Unable to use this key to sign/
-    });
-
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.sign({ name, hash }, hmacKey, plaintext), {
@@ -211,6 +215,11 @@ async function testSign({ name,
 
   await assert.rejects(
     subtle.sign({ name, hash }, rsaKeys.privateKey, plaintext), {
+      message: /Unable to use this key to sign/
+    });
+
+  await assert.rejects(
+    subtle.sign({ name, hash }, okpKeys.privateKey, plaintext), {
       message: /Unable to use this key to sign/
     });
 }

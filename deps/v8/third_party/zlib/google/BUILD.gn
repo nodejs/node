@@ -1,12 +1,17 @@
-# Copyright 2017 The Chromium Authors. All rights reserved.
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import("//build_overrides/build.gni")
 
+if (build_with_chromium && is_ios) {
+  import("//build/config/ios/bundle_data_from_filelist.gni")
+}
+
 if (build_with_chromium) {
   static_library("zip") {
     sources = [
+      "redact.h",
       "zip.cc",
       "zip.h",
       "zip_internal.cc",
@@ -17,8 +22,9 @@ if (build_with_chromium) {
       "zip_writer.h",
     ]
     deps = [
+      "..:minizip",
       "//base",
-      "//third_party/zlib:minizip",
+      "//base:i18n",
     ]
   }
 
@@ -28,10 +34,17 @@ if (build_with_chromium) {
       "compression_utils.h",
     ]
     deps = [
+      "..",
       "//base",
-      "//third_party/zlib",
     ]
     public_deps = [ ":compression_utils_portable" ]
+  }
+
+  if (is_ios) {
+    bundle_data_from_filelist("zlib_pak_bundle_data") {
+      testonly = true
+      filelist_name = "test_data.filelist"
+    }
   }
 }
 
@@ -42,5 +55,5 @@ static_library("compression_utils_portable") {
     "compression_utils_portable.cc",
     "compression_utils_portable.h",
   ]
-  public_deps = [ "//third_party/zlib" ]
+  public_deps = [ ".." ]
 }

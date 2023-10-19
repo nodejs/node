@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_STRING_GEN_H_
 
 #include "src/codegen/code-stub-assembler.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -33,6 +34,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   TNode<Int32T> LoadSurrogatePairAt(TNode<String> string, TNode<IntPtrT> length,
                                     TNode<IntPtrT> index,
                                     UnicodeEncoding encoding);
+  TNode<BoolT> HasUnpairedSurrogate(TNode<String> string, Label* if_indirect);
+
+  void ReplaceUnpairedSurrogates(TNode<String> source, TNode<String> dest,
+                                 Label* if_indirect);
 
   TNode<String> StringFromSingleUTF16EncodedCodePoint(TNode<Int32T> codepoint);
 
@@ -85,6 +90,18 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> start_position);
 
  protected:
+  enum class StringComparison {
+    kLessThan,
+    kLessThanOrEqual,
+    kGreaterThan,
+    kGreaterThanOrEqual,
+    kCompare
+  };
+
+  void StringEqual_FastLoop(TNode<String> lhs, TNode<Word32T> lhs_instance_type,
+                            TNode<String> rhs, TNode<Word32T> rhs_instance_type,
+                            TNode<IntPtrT> byte_length, Label* if_equal,
+                            Label* if_not_equal);
   void StringEqual_Loop(TNode<String> lhs, TNode<Word32T> lhs_instance_type,
                         MachineType lhs_type, TNode<String> rhs,
                         TNode<Word32T> rhs_instance_type, MachineType rhs_type,
@@ -100,12 +117,11 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                      const TNode<IntPtrT> search_length,
                                      const TNode<IntPtrT> start_position);
 
-  void GenerateStringEqual(TNode<String> left, TNode<String> right);
+  void GenerateStringEqual(TNode<String> left, TNode<String> right,
+                           TNode<IntPtrT> length);
   void GenerateStringRelationalComparison(TNode<String> left,
-                                          TNode<String> right, Operation op);
-
-  using StringAtAccessor = std::function<TNode<Object>(
-      TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>;
+                                          TNode<String> right,
+                                          StringComparison op);
 
   const TNode<Smi> IndexOfDollarChar(const TNode<Context> context,
                                      const TNode<String> string);

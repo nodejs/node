@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --super-ic --opt
-// Flags: --no-always-opt --no-stress-opt --deopt-every-n-times=0
+// Flags: --allow-natives-syntax --super-ic --turbofan
+// Flags: --no-always-turbofan --deopt-every-n-times=0
 
 // This file contains tests which are disabled for TurboProp. TurboProp deopts
 // differently than TurboFan, so the assertions about when a function is
@@ -48,7 +48,12 @@
 
   // Assert that the function was deoptimized (dependency to the constant
   // value).
-  assertUnoptimized(C.prototype.foo);
+  // TODO(v8:11457) We don't support inlining JSLoadNamedFromSuper for
+  // dictionary mode prototypes, yet. Therefore, if
+  // v8_dict_property_const_tracking is enabled, the optimized code only
+  // contains a call to the IC handler and doesn't get deopted.
+  assertEquals(%IsDictPropertyConstTrackingEnabled(),
+               isOptimized(C.prototype.foo));
 })();
 
 (function TestSuperpropertyAccessInlined() {

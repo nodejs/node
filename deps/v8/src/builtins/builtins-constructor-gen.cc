@@ -76,11 +76,10 @@ void CallOrConstructBuiltinsAssembler::BuildConstruct(
                            &if_construct_array, &allocation_site);
 
   BIND(&if_construct_generic);
-  TailCallBuiltin(Builtins::kConstruct, eager_context, target, new_target,
-                  argc);
+  TailCallBuiltin(Builtin::kConstruct, eager_context, target, new_target, argc);
 
   BIND(&if_construct_array);
-  TailCallBuiltin(Builtins::kArrayConstructorImpl, eager_context, target,
+  TailCallBuiltin(Builtin::kArrayConstructorImpl, eager_context, target,
                   new_target, argc, allocation_site.value());
 }
 
@@ -175,15 +174,11 @@ void CallOrConstructBuiltinsAssembler::BuildConstructWithSpread(
   CallOrConstructWithSpread(target, new_target, spread, argc, eager_context);
 }
 
-using Node = compiler::Node;
-
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   auto shared_function_info =
       Parameter<SharedFunctionInfo>(Descriptor::kSharedFunctionInfo);
   auto feedback_cell = Parameter<FeedbackCell>(Descriptor::kFeedbackCell);
   auto context = Parameter<Context>(Descriptor::kContext);
-
-  IncrementCounter(isolate()->counters()->fast_new_closure_total(), 1);
 
   // Bump the closure counter encoded the {feedback_cell}s map.
   {
@@ -192,7 +187,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
     GotoIf(IsNoClosuresCellMap(feedback_cell_map), &no_closures);
     GotoIf(IsOneClosureCellMap(feedback_cell_map), &one_closure);
-    CSA_ASSERT(this, IsManyClosuresCellMap(feedback_cell_map),
+    CSA_DCHECK(this, IsManyClosuresCellMap(feedback_cell_map),
                feedback_cell_map, feedback_cell);
     Goto(&cell_done);
 
@@ -214,7 +209,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   const TNode<IntPtrT> function_map_index = Signed(IntPtrAdd(
       DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(flags),
       IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX)));
-  CSA_ASSERT(this, UintPtrLessThanOrEqual(
+  CSA_DCHECK(this, UintPtrLessThanOrEqual(
                        function_map_index,
                        IntPtrConstant(Context::LAST_FUNCTION_MAP_INDEX)));
 
@@ -251,16 +246,14 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     BIND(&done);
   }
 
-  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
+  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackCellOffset,
                                  feedback_cell);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
-  Handle<Code> lazy_builtin_handle =
-      isolate()->builtins()->builtin_handle(Builtins::kCompileLazy);
-  TNode<Code> lazy_builtin = HeapConstant(lazy_builtin_handle);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
+  TNode<Code> lazy_builtin = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
+  StoreMaybeIndirectPointerField(result, JSFunction::kCodeOffset, lazy_builtin);
   Return(result);
 }
 
@@ -329,9 +322,9 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   }
   BIND(&allocate_properties);
   {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      properties = AllocateOrderedNameDictionary(
-          OrderedNameDictionary::kInitialCapacity);
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      properties =
+          AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
     } else {
       properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
     }
@@ -340,7 +333,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
 
   BIND(&instantiate_map);
   return AllocateJSObjectFromMap(initial_map, properties.value(), base::nullopt,
-                                 kNone, kWithSlackTracking);
+                                 AllocationFlag::kNone, kWithSlackTracking);
 }
 
 TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
@@ -388,7 +381,7 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
       [=](TNode<IntPtrT> offset) {
         StoreObjectFieldNoWriteBarrier(function_context, offset, undefined);
       },
-      kTaggedSize, IndexAdvanceMode::kPost);
+      kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
   return function_context;
 }
 
@@ -405,14 +398,14 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   GotoIfNot(HasBoilerplate(literal_site), &call_runtime);
   {
-    STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);
-    STATIC_ASSERT(JSRegExp::kSourceOffset ==
+    static_assert(JSRegExp::kDataOffset == JSObject::kHeaderSize);
+    static_assert(JSRegExp::kSourceOffset ==
                   JSRegExp::kDataOffset + kTaggedSize);
-    STATIC_ASSERT(JSRegExp::kFlagsOffset ==
+    static_assert(JSRegExp::kFlagsOffset ==
                   JSRegExp::kSourceOffset + kTaggedSize);
-    STATIC_ASSERT(JSRegExp::kHeaderSize ==
+    static_assert(JSRegExp::kHeaderSize ==
                   JSRegExp::kFlagsOffset + kTaggedSize);
-    STATIC_ASSERT(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
+    static_assert(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
     DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
 
     TNode<RegExpBoilerplateDescription> boilerplate = CAST(literal_site);
@@ -476,7 +469,8 @@ TNode<JSArray> ConstructorBuiltinsAssembler::CreateShallowArrayLiteral(
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
   TNode<JSArray> boilerplate = CAST(LoadBoilerplate(allocation_site));
 
-  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
+  if (allocation_site_mode == TRACK_ALLOCATION_SITE &&
+      V8_ALLOCATION_SITE_TRACKING_BOOL) {
     return CloneFastJSArray(context, boilerplate, allocation_site);
   } else {
     return CloneFastJSArray(context, boilerplate);
@@ -517,9 +511,12 @@ TNode<JSArray> ConstructorBuiltinsAssembler::CreateEmptyArrayLiteral(
   TNode<IntPtrT> zero_intptr = IntPtrConstant(0);
   TNode<Smi> zero = SmiConstant(0);
   Comment("Allocate JSArray");
-  TNode<JSArray> result =
-      AllocateJSArray(GetInitialFastElementsKind(), array_map, zero_intptr,
-                      zero, allocation_site.value());
+  base::Optional<TNode<AllocationSite>> site =
+      V8_ALLOCATION_SITE_TRACKING_BOOL
+          ? base::make_optional(allocation_site.value())
+          : base::nullopt;
+  TNode<JSArray> result = AllocateJSArray(GetInitialFastElementsKind(),
+                                          array_map, zero_intptr, zero, site);
 
   Goto(&done);
   BIND(&done);
@@ -537,9 +534,9 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
   TNode<JSObject> boilerplate = LoadBoilerplate(allocation_site);
   TNode<Map> boilerplate_map = LoadMap(boilerplate);
-  CSA_ASSERT(this, IsJSObjectMap(boilerplate_map));
+  CSA_DCHECK(this, IsJSObjectMap(boilerplate_map));
 
-  TVARIABLE(FixedArray, var_properties);
+  TVARIABLE(HeapObject, var_properties);
   {
     TNode<Uint32T> bit_field_3 = LoadMapBitField3(boilerplate_map);
     GotoIf(IsSetWord32<Map::Bits3::IsDeprecatedBit>(bit_field_3), call_runtime);
@@ -549,14 +546,14 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
            &if_dictionary, &if_fast);
     BIND(&if_dictionary);
     {
-      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-        // TODO(v8:11167) remove once OrderedNameDictionary supported.
-        GotoIf(Int32TrueConstant(), call_runtime);
-      }
-
       Comment("Copy dictionary properties");
-      var_properties = CopyNameDictionary(CAST(LoadSlowProperties(boilerplate)),
-                                          call_runtime);
+      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+        var_properties =
+            CopySwissNameDictionary(CAST(LoadSlowProperties(boilerplate)));
+      } else {
+        var_properties = CopyNameDictionary(
+            CAST(LoadSlowProperties(boilerplate)), call_runtime);
+      }
       // Slow objects have no in-object properties.
       Goto(&done);
     }
@@ -585,12 +582,9 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     Goto(&done);
 
     BIND(&if_copy_elements);
-    CSA_ASSERT(this, Word32BinaryNot(
+    CSA_DCHECK(this, Word32BinaryNot(
                          IsFixedCOWArrayMap(LoadMap(boilerplate_elements))));
-    ExtractFixedArrayFlags flags;
-    flags |= ExtractFixedArrayFlag::kAllFixedArrays;
-    flags |= ExtractFixedArrayFlag::kNewSpaceAllocationOnly;
-    flags |= ExtractFixedArrayFlag::kDontCopyCOW;
+    auto flags = ExtractFixedArrayFlag::kAllFixedArrays;
     var_elements = CloneFixedArray(boilerplate_elements, flags);
     Goto(&done);
     BIND(&done);
@@ -598,15 +592,19 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
 
   // Ensure new-space allocation for a fresh JSObject so we can skip write
   // barriers when copying all object fields.
-  STATIC_ASSERT(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
+  static_assert(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
   TNode<IntPtrT> instance_size =
       TimesTaggedSize(LoadMapInstanceSizeInWords(boilerplate_map));
+  TNode<IntPtrT> aligned_instance_size =
+      AlignToAllocationAlignment(instance_size);
   TNode<IntPtrT> allocation_size = instance_size;
-  bool needs_allocation_memento = FLAG_allocation_site_pretenuring;
+  bool needs_allocation_memento = v8_flags.allocation_site_pretenuring;
   if (needs_allocation_memento) {
+    DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
     // Prepare for inner-allocating the AllocationMemento.
-    allocation_size =
-        IntPtrAdd(instance_size, IntPtrConstant(AllocationMemento::kSize));
+    allocation_size = IntPtrAdd(aligned_instance_size,
+                                IntPtrConstant(ALIGN_TO_ALLOCATION_ALIGNMENT(
+                                    AllocationMemento::kSize)));
   }
 
   TNode<HeapObject> copy =
@@ -624,7 +622,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   // Initialize the AllocationMemento before potential GCs due to heap number
   // allocation when copying the in-object properties.
   if (needs_allocation_memento) {
-    InitializeAllocationMemento(copy, instance_size, allocation_site);
+    InitializeAllocationMemento(copy, aligned_instance_size, allocation_site);
   }
 
   {
@@ -665,7 +663,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
             TNode<Object> field = LoadObjectField(boilerplate, offset);
             StoreObjectFieldNoWriteBarrier(copy, offset, field);
           },
-          kTaggedSize, IndexAdvanceMode::kPost);
+          kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
       CopyMutableHeapNumbersInObject(copy, offset.value(), instance_size);
       Goto(&done_init);
     }
@@ -680,8 +678,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::CreateEmptyObjectLiteral(
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map = LoadObjectFunctionInitialMap(native_context);
   // Ensure that slack tracking is disabled for the map.
-  STATIC_ASSERT(Map::kNoSlackTracking == 0);
-  CSA_ASSERT(this, IsClearWord32<Map::Bits3::ConstructionCounterBits>(
+  static_assert(Map::kNoSlackTracking == 0);
+  CSA_DCHECK(this, IsClearWord32<Map::Bits3::ConstructionCounterBits>(
                        LoadMapBitField3(map)));
   TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
   TNode<JSObject> result =
@@ -715,7 +713,7 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
         }
         BIND(&continue_loop);
       },
-      kTaggedSize, IndexAdvanceMode::kPost);
+      kTaggedSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 }
 
 }  // namespace internal

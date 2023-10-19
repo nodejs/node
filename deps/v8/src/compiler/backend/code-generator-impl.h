@@ -51,7 +51,7 @@ class InstructionOperandConverter {
   }
 
   uint32_t InputUint32(size_t index) {
-    return bit_cast<uint32_t>(InputInt32(index));
+    return base::bit_cast<uint32_t>(InputInt32(index));
   }
 
   int64_t InputInt64(size_t index) {
@@ -63,7 +63,7 @@ class InstructionOperandConverter {
   }
 
   uint8_t InputUint8(size_t index) {
-    return bit_cast<uint8_t>(InputInt8(index));
+    return base::bit_cast<uint8_t>(InputInt8(index));
   }
 
   int16_t InputInt16(size_t index) {
@@ -108,12 +108,16 @@ class InstructionOperandConverter {
     return ToRegister(instr_->TempAt(index));
   }
 
-  FloatRegister OutputFloatRegister() {
-    return ToFloatRegister(instr_->Output());
+  FloatRegister OutputFloatRegister(size_t index = 0) {
+    return ToFloatRegister(instr_->OutputAt(index));
   }
 
-  DoubleRegister OutputDoubleRegister() {
-    return ToDoubleRegister(instr_->Output());
+  DoubleRegister OutputDoubleRegister(size_t index = 0) {
+    return ToDoubleRegister(instr_->OutputAt(index));
+  }
+
+  DoubleRegister TempDoubleRegister(size_t index) {
+    return ToDoubleRegister(instr_->TempAt(index));
   }
 
   Simd128Register OutputSimd128Register() {
@@ -123,6 +127,20 @@ class InstructionOperandConverter {
   Simd128Register TempSimd128Register(size_t index) {
     return ToSimd128Register(instr_->TempAt(index));
   }
+
+#if defined(V8_TARGET_ARCH_X64)
+  Simd256Register InputSimd256Register(size_t index) {
+    return ToSimd256Register(instr_->InputAt(index));
+  }
+
+  Simd256Register OutputSimd256Register() {
+    return ToSimd256Register(instr_->Output());
+  }
+
+  Simd256Register TempSimd256Register(size_t index) {
+    return ToSimd256Register(instr_->TempAt(index));
+  }
+#endif
 
   // -- Conversions for operands -----------------------------------------------
 
@@ -149,6 +167,12 @@ class InstructionOperandConverter {
   Simd128Register ToSimd128Register(InstructionOperand* op) {
     return LocationOperand::cast(op)->GetSimd128Register();
   }
+
+#if defined(V8_TARGET_ARCH_X64)
+  Simd256Register ToSimd256Register(InstructionOperand* op) {
+    return LocationOperand::cast(op)->GetSimd256Register();
+  }
+#endif
 
   Constant ToConstant(InstructionOperand* op) const {
     if (op->IsImmediate()) {
@@ -189,7 +213,8 @@ class DeoptimizationExit : public ZoneObject {
  public:
   explicit DeoptimizationExit(SourcePosition pos, BytecodeOffset bailout_id,
                               int translation_id, int pc_offset,
-                              DeoptimizeKind kind, DeoptimizeReason reason)
+                              DeoptimizeKind kind, DeoptimizeReason reason,
+                              NodeId node_id)
       : deoptimization_id_(kNoDeoptIndex),
         pos_(pos),
         bailout_id_(bailout_id),
@@ -197,6 +222,7 @@ class DeoptimizationExit : public ZoneObject {
         pc_offset_(pc_offset),
         kind_(kind),
         reason_(reason),
+        node_id_(node_id),
         immediate_args_(nullptr),
         emitted_(false) {}
 
@@ -220,6 +246,7 @@ class DeoptimizationExit : public ZoneObject {
   int pc_offset() const { return pc_offset_; }
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
+  NodeId node_id() const { return node_id_; }
   const ZoneVector<ImmediateOperand*>* immediate_args() const {
     return immediate_args_;
   }
@@ -243,6 +270,7 @@ class DeoptimizationExit : public ZoneObject {
   const int pc_offset_;
   const DeoptimizeKind kind_;
   const DeoptimizeReason reason_;
+  const NodeId node_id_;
   ZoneVector<ImmediateOperand*>* immediate_args_;
   bool emitted_;
 };
@@ -258,14 +286,14 @@ class OutOfLineCode : public ZoneObject {
   Label* entry() { return &entry_; }
   Label* exit() { return &exit_; }
   const Frame* frame() const { return frame_; }
-  TurboAssembler* tasm() { return tasm_; }
+  MacroAssembler* masm() { return masm_; }
   OutOfLineCode* next() const { return next_; }
 
  private:
   Label entry_;
   Label exit_;
   const Frame* const frame_;
-  TurboAssembler* const tasm_;
+  MacroAssembler* const masm_;
   OutOfLineCode* const next_;
 };
 

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
+// Flags: --expose-gc
 
 let TestCoverage;
 let TestCoverageNoGC;
@@ -18,11 +19,14 @@ let gen;
     return undefined;
   };
 
-  function TestCoverageInternal(
+  async function TestCoverageInternal(
       name, source, expectation, collect_garbage, prettyPrintResults) {
     source = source.trim();
     eval(source);
-    if (collect_garbage) %CollectGarbage("collect dead objects");
+    // We need to invoke GC asynchronously, so that it doesn't need to scan
+    // the stack. Otherwise, some objects may not be reclaimed because of
+    // conservative stack scanning and the tests may fail.
+    if (collect_garbage) await gc({ type: 'major', execution: 'async' });
     var covfefe = GetCoverage(source);
     var stringified_result = JSON.stringify(covfefe);
     var stringified_expectation = JSON.stringify(expectation);
@@ -46,12 +50,14 @@ let gen;
     assertEquals(stringified_expectation, stringified_result, name + " failed");
   };
 
-  TestCoverage = function(name, source, expectation, prettyPrintResults) {
-    TestCoverageInternal(name, source, expectation, true, prettyPrintResults);
+  TestCoverage = async function(name, source, expectation, prettyPrintResults) {
+    return TestCoverageInternal(name, source, expectation, true,
+                                prettyPrintResults);
   };
 
   TestCoverageNoGC = function(name, source, expectation, prettyPrintResults) {
-    TestCoverageInternal(name, source, expectation, false, prettyPrintResults);
+    return TestCoverageInternal(name, source, expectation, false,
+                                prettyPrintResults);
   };
 
   nop = function() {};

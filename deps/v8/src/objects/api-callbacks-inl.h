@@ -28,25 +28,57 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(CallHandlerInfo)
 
-ACCESSORS_CHECKED2(AccessorInfo, getter, Object, kGetterOffset, true,
-                   Foreign::IsNormalized(value))
-ACCESSORS_CHECKED2(AccessorInfo, setter, Object, kSetterOffset, true,
-                   Foreign::IsNormalized(value))
+EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(AccessorInfo,
+                                                maybe_redirected_getter,
+                                                Address,
+                                                kMaybeRedirectedGetterOffset,
+                                                kAccessorInfoGetterTag)
+EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(AccessorInfo, setter, Address,
+                                                kSetterOffset,
+                                                kAccessorInfoSetterTag)
 
-bool AccessorInfo::has_getter() {
-  bool result = getter() != Smi::zero();
-  DCHECK_EQ(result,
-            getter() != Smi::zero() &&
-                Foreign::cast(getter()).foreign_address() != kNullAddress);
-  return result;
+Address AccessorInfo::getter(i::Isolate* isolate_for_sandbox) const {
+  Address result = maybe_redirected_getter(isolate_for_sandbox);
+  if (!USE_SIMULATOR_BOOL) return result;
+  if (result == kNullAddress) return kNullAddress;
+  return ExternalReference::UnwrapRedirection(result);
 }
 
-bool AccessorInfo::has_setter() {
-  bool result = setter() != Smi::zero();
-  DCHECK_EQ(result,
-            setter() != Smi::zero() &&
-                Foreign::cast(setter()).foreign_address() != kNullAddress);
-  return result;
+void AccessorInfo::init_getter(i::Isolate* isolate, Address initial_value) {
+  init_maybe_redirected_getter(isolate, initial_value);
+  if (USE_SIMULATOR_BOOL) {
+    init_getter_redirection(isolate);
+  }
+}
+
+void AccessorInfo::set_getter(i::Isolate* isolate, Address value) {
+  set_maybe_redirected_getter(isolate, value);
+  if (USE_SIMULATOR_BOOL) {
+    init_getter_redirection(isolate);
+  }
+}
+
+void AccessorInfo::init_getter_redirection(i::Isolate* isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  Address value = maybe_redirected_getter(isolate);
+  if (value == kNullAddress) return;
+  value =
+      ExternalReference::Redirect(value, ExternalReference::DIRECT_GETTER_CALL);
+  set_maybe_redirected_getter(isolate, value);
+}
+
+void AccessorInfo::remove_getter_redirection(i::Isolate* isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  Address value = getter(isolate);
+  set_maybe_redirected_getter(isolate, value);
+}
+
+bool AccessorInfo::has_getter(Isolate* isolate) {
+  return maybe_redirected_getter(isolate) != kNullAddress;
+}
+
+bool AccessorInfo::has_setter(Isolate* isolate) {
+  return setter(isolate) != kNullAddress;
 }
 
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_read,
@@ -77,15 +109,10 @@ void AccessorInfo::set_setter_side_effect_type(SideEffectType value) {
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
                     AccessorInfo::InitialAttributesBits)
 
-bool AccessorInfo::IsCompatibleReceiver(Object receiver) {
-  if (!HasExpectedReceiverType()) return true;
-  if (!receiver.IsJSObject()) return false;
-  return FunctionTemplateInfo::cast(expected_receiver_type())
-      .IsTemplateFor(JSObject::cast(receiver).map());
-}
-
-bool AccessorInfo::HasExpectedReceiverType() {
-  return expected_receiver_type().IsFunctionTemplateInfo();
+void AccessorInfo::clear_padding() {
+  if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
+  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+         FIELD_SIZE(kOptionalPaddingOffset));
 }
 
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
@@ -99,31 +126,58 @@ BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
 bool CallHandlerInfo::IsSideEffectFreeCallHandlerInfo() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(map() == roots.side_effect_call_handler_info_map() ||
-         map() == roots.side_effect_free_call_handler_info_map() ||
-         map() == roots.next_call_side_effect_free_call_handler_info_map());
+         map() == roots.side_effect_free_call_handler_info_map());
   return map() == roots.side_effect_free_call_handler_info_map();
 }
 
 bool CallHandlerInfo::IsSideEffectCallHandlerInfo() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(map() == roots.side_effect_call_handler_info_map() ||
-         map() == roots.side_effect_free_call_handler_info_map() ||
-         map() == roots.next_call_side_effect_free_call_handler_info_map());
+         map() == roots.side_effect_free_call_handler_info_map());
   return map() == roots.side_effect_call_handler_info_map();
 }
 
-void CallHandlerInfo::SetNextCallHasNoSideEffect() {
-  set_map(
-      GetReadOnlyRoots().next_call_side_effect_free_call_handler_info_map());
+EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(CallHandlerInfo,
+                                                maybe_redirected_callback,
+                                                Address,
+                                                kMaybeRedirectedCallbackOffset,
+                                                kCallHandlerInfoCallbackTag)
+
+Address CallHandlerInfo::callback(i::Isolate* isolate_for_sandbox) const {
+  Address result = maybe_redirected_callback(isolate_for_sandbox);
+  if (!USE_SIMULATOR_BOOL) return result;
+  if (result == kNullAddress) return kNullAddress;
+  return ExternalReference::UnwrapRedirection(result);
 }
 
-bool CallHandlerInfo::NextCallHasNoSideEffect() {
-  ReadOnlyRoots roots = GetReadOnlyRoots();
-  if (map() == roots.next_call_side_effect_free_call_handler_info_map()) {
-    set_map(roots.side_effect_call_handler_info_map());
-    return true;
+void CallHandlerInfo::init_callback(i::Isolate* isolate,
+                                    Address initial_value) {
+  init_maybe_redirected_callback(isolate, initial_value);
+  if (USE_SIMULATOR_BOOL) {
+    init_callback_redirection(isolate);
   }
-  return false;
+}
+
+void CallHandlerInfo::set_callback(i::Isolate* isolate, Address value) {
+  set_maybe_redirected_callback(isolate, value);
+  if (USE_SIMULATOR_BOOL) {
+    init_callback_redirection(isolate);
+  }
+}
+
+void CallHandlerInfo::init_callback_redirection(i::Isolate* isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  Address value = maybe_redirected_callback(isolate);
+  if (value == kNullAddress) return;
+  value =
+      ExternalReference::Redirect(value, ExternalReference::DIRECT_API_CALL);
+  set_maybe_redirected_callback(isolate, value);
+}
+
+void CallHandlerInfo::remove_callback_redirection(i::Isolate* isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  Address value = callback(isolate);
+  set_maybe_redirected_callback(isolate, value);
 }
 
 }  // namespace internal

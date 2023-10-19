@@ -25,18 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function MjsUnitAssertionError(message) {
-  this.message = message;
-  // Temporarily install a custom stack trace formatter and restore the
-  // previous value.
-  let prevPrepareStackTrace = Error.prepareStackTrace;
-  try {
-    Error.prepareStackTrace = MjsUnitAssertionError.prepareStackTrace;
-    // This allows fetching the stack trace using TryCatch::StackTrace.
-    this.stack = new Error("MjsUnitAssertionError").stack;
-  } finally {
-    Error.prepareStackTrace = prevPrepareStackTrace;
+var MjsUnitAssertionError = class MjsUnitAssertionError {
+  #cached_message = undefined;
+  #message_func = undefined;
+
+  constructor(message_func) {
+    this.#message_func = message_func;
+    // Temporarily install a custom stack trace formatter and restore the
+    // previous value.
+    let prevPrepareStackTrace = Error.prepareStackTrace;
+    try {
+      Error.prepareStackTrace = MjsUnitAssertionError.prepareStackTrace;
+      // This allows fetching the stack trace using TryCatch::StackTrace.
+      this.stack = new Error("MjsUnitAssertionError").stack;
+    } finally {
+      Error.prepareStackTrace = prevPrepareStackTrace;
+    }
   }
+
+  get message() {
+    if (this.#cached_message === undefined) {
+      this.#cached_message = this.#message_func();
+    }
+    return this.#cached_message
+  }
+
+  toString() {
+    return this.message + "\n\nStack: " + this.stack;
+  };
 }
 
 /*
@@ -44,11 +60,6 @@ function MjsUnitAssertionError(message) {
  * framework expects lines that signal failed tests to start with
  * the f-word and ignore all other lines.
  */
-
-MjsUnitAssertionError.prototype.toString = function () {
-  return this.message + "\n\nStack: " + this.stack;
-};
-
 
 // Expected and found values the same objects, or the same primitive
 // values.
@@ -125,6 +136,14 @@ var assertThrowsAsync;
 // Assert that the passed function or eval code does not throw an exception.
 var assertDoesNotThrow;
 
+// Assert that the passed code throws an early error (i.e. throws a SyntaxError
+// at parse time).
+var assertEarlyError;
+
+// Assert that the passed code throws an exception when executed.
+// Fails if the passed code throws an exception at parse time.
+var assertThrowsAtRuntime;
+
 // Asserts that the found value is an instance of the constructor passed
 // as the second argument.
 var assertInstanceof;
@@ -132,9 +151,7 @@ var assertInstanceof;
 // Assert that this code is never executed (i.e., always fails if executed).
 var assertUnreachable;
 
-// Assert that the function code is (not) optimized.  If "no sync" is passed
-// as second argument, we do not wait for the concurrent optimization thread to
-// finish when polling for optimization status.
+// Assert that the function code is (not) optimized.
 // Only works with --allow-natives-syntax.
 var assertOptimized;
 var assertUnoptimized;
@@ -157,7 +174,6 @@ var assertMatches;
 var assertPromiseResult;
 
 var promiseTestChain;
-var promiseTestCount = 0;
 
 // These bits must be in sync with bits defined in Runtime_GetOptimizationStatus
 var V8OptimizationStatus = {
@@ -166,26 +182,35 @@ var V8OptimizationStatus = {
   kAlwaysOptimize: 1 << 2,
   kMaybeDeopted: 1 << 3,
   kOptimized: 1 << 4,
-  kTurboFanned: 1 << 5,
-  kInterpreted: 1 << 6,
-  kMarkedForOptimization: 1 << 7,
-  kMarkedForConcurrentOptimization: 1 << 8,
-  kOptimizingConcurrently: 1 << 9,
-  kIsExecuting: 1 << 10,
-  kTopmostFrameIsTurboFanned: 1 << 11,
-  kLiteMode: 1 << 12,
-  kMarkedForDeoptimization: 1 << 13,
-  kBaseline: 1 << 14,
+  kMaglevved: 1 << 5,
+  kTurboFanned: 1 << 6,
+  kInterpreted: 1 << 7,
+  kMarkedForOptimization: 1 << 8,
+  kMarkedForConcurrentOptimization: 1 << 9,
+  kOptimizingConcurrently: 1 << 10,
+  kIsExecuting: 1 << 11,
+  kTopmostFrameIsTurboFanned: 1 << 12,
+  kLiteMode: 1 << 13,
+  kMarkedForDeoptimization: 1 << 14,
+  kBaseline: 1 << 15,
+  kTopmostFrameIsInterpreted: 1 << 16,
+  kTopmostFrameIsBaseline: 1 << 17,
+  kIsLazy: 1 << 18,
+  kTopmostFrameIsMaglev: 1 << 19,
+  kOptimizeOnNextCallOptimizesToMaglev: 1 << 20,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
 var isNeverOptimizeLiteMode;
 
-// Returns true if --no-opt mode is on.
+// Returns true if --no-turbofan mode is on.
 var isNeverOptimize;
 
-// Returns true if --always-opt mode is on.
+// Returns true if --always-turbofan mode is on.
 var isAlwaysOptimize;
+
+// Returns true if given function in lazily compiled.
+var isLazy;
 
 // Returns true if given function in interpreted.
 var isInterpreted;
@@ -193,8 +218,20 @@ var isInterpreted;
 // Returns true if given function in baseline.
 var isBaseline;
 
+// Returns true if given function in unoptimized (interpreted or baseline).
+var isUnoptimized;
+
 // Returns true if given function is optimized.
 var isOptimized;
+
+// Returns true if given function will be compiled by Maglev.
+var willBeMaglevved;
+
+// Returns true if given function will be compiled by TurboFan.
+var willBeTurbofanned;
+
+// Returns true if given function is compiled by Maglev.
+var isMaglevved;
 
 // Returns true if given function is compiled by TurboFan.
 var isTurboFanned;
@@ -255,69 +292,85 @@ var prettyPrinted;
 
 
   prettyPrinted = function prettyPrinted(value) {
-    switch (typeof value) {
-      case "string":
-        return JSONStringify(value);
-      case "bigint":
-        return String(value) + "n";
-      case "number":
-        if (value === 0 && (1 / value) < 0) return "-0";
-        // FALLTHROUGH.
-      case "boolean":
-      case "undefined":
-      case "function":
-      case "symbol":
-        return String(value);
-      case "object":
-        if (value === null) return "null";
-        var objectClass = classOf(value);
-        switch (objectClass) {
-          case "Number":
-          case "BigInt":
-          case "String":
-          case "Boolean":
-          case "Date":
-            return objectClass + "(" + prettyPrinted(ValueOf(value)) + ")";
-          case "RegExp":
-            return RegExpPrototypeToString.call(value);
-          case "Array":
-            var mapped = ArrayPrototypeMap.call(
-                value, prettyPrintedArrayElement);
-            var joined = ArrayPrototypeJoin.call(mapped, ",");
-            return "[" + joined + "]";
-          case "Uint8Array":
-          case "Int8Array":
-          case "Int16Array":
-          case "Uint16Array":
-          case "Uint32Array":
-          case "Int32Array":
-          case "Float32Array":
-          case "Float64Array":
-            var joined = ArrayPrototypeJoin.call(value, ",");
-            return objectClass + "([" + joined + "])";
-          case "Object":
-            break;
+    let visited = new Set();
+    function prettyPrint(value) {
+      try {
+        switch (typeof value) {
+          case "string":
+            return JSONStringify(value);
+          case "bigint":
+            return String(value) + "n";
+          case "number":
+            if (value === 0 && (1 / value) < 0) return "-0";
+            // FALLTHROUGH.
+          case "boolean":
+          case "undefined":
+          case "function":
+          case "symbol":
+            return String(value);
+          case "object":
+            if (value === null) return "null";
+            // Guard against re-visiting.
+            if (visited.has(value)) return "<...>";
+            visited.add(value);
+            var objectClass = classOf(value);
+            switch (objectClass) {
+              case "Number":
+              case "BigInt":
+              case "String":
+              case "Boolean":
+              case "Date":
+                return objectClass + "(" + prettyPrint(ValueOf(value)) + ")";
+              case "RegExp":
+                return RegExpPrototypeToString.call(value);
+              case "Array":
+                var mapped = ArrayPrototypeMap.call(
+                    value, (v,i,array)=>{
+                      if (v === undefined && !(i in array)) return "";
+                      return prettyPrint(v, visited);
+                    });
+                var joined = ArrayPrototypeJoin.call(mapped, ",");
+                return "[" + joined + "]";
+              case "Int8Array":
+              case "Uint8Array":
+              case "Uint8ClampedArray":
+              case "Int16Array":
+              case "Uint16Array":
+              case "Int32Array":
+              case "Uint32Array":
+              case "Float32Array":
+              case "Float64Array":
+              case "BigInt64Array":
+              case "BigUint64Array":
+                var joined = ArrayPrototypeJoin.call(value, ",");
+                return objectClass + "([" + joined + "])";
+              case "Object":
+                break;
+              default:
+                return objectClass + "(" + String(value) + ")";
+            }
+            // classOf() returned "Object".
+            var name = value.constructor?.name ?? "Object";
+            var pretty_properties = [];
+            for (let [k,v] of Object.entries(value)) {
+              ArrayPrototypePush.call(
+                  pretty_properties, `${k}:${prettyPrint(v, visited)}`);
+            }
+            var joined = ArrayPrototypeJoin.call(pretty_properties, ",");
+            return `${name}({${joined}})`;
           default:
-            return objectClass + "(" + String(value) + ")";
+            return "-- unknown value --";
         }
-        // classOf() returned "Object".
-        var name = value.constructor.name;
-        if (name) return name + "()";
-        return "Object()";
-      default:
-        return "-- unknown value --";
+      } catch (e) {
+        // Guard against general exceptions (especially stack overflows).
+        return "<error>"
+      }
     }
+    return prettyPrint(value);
   }
-
-
-  function prettyPrintedArrayElement(value, index, array) {
-    if (value === undefined && !(index in array)) return "";
-    return prettyPrinted(value);
-  }
-
 
   failWithMessage = function failWithMessage(message) {
-    throw new MjsUnitAssertionError(message);
+    throw new MjsUnitAssertionError(()=>message);
   }
 
   formatFailureText = function(expectedText, found, name_opt) {
@@ -337,14 +390,19 @@ var prettyPrinted;
   }
 
   function fail(expectedText, found, name_opt) {
-    return failWithMessage(formatFailureText(expectedText, found, name_opt));
+    throw new MjsUnitAssertionError(
+        ()=>formatFailureText(expectedText, found, name_opt));
   }
 
 
   function deepObjectEquals(a, b) {
-    var aProps = Object.keys(a);
+    // Note: This function does not check prototype equality.
+
+    // For now, treat two objects the same even if some property is configured
+    // differently (configurable, enumerable, writable).
+    var aProps = Object.getOwnPropertyNames(a);
     aProps.sort();
-    var bProps = Object.keys(b);
+    var bProps = Object.getOwnPropertyNames(b);
     bProps.sort();
     if (!deepEquals(aProps, bProps)) {
       return false;
@@ -357,7 +415,6 @@ var prettyPrinted;
     return true;
   }
 
-
   deepEquals = function deepEquals(a, b) {
     if (a === b) {
       // Check for -0.
@@ -365,32 +422,53 @@ var prettyPrinted;
       return true;
     }
     if (typeof a !== typeof b) return false;
-    if (typeof a === "number") return isNaN(a) && isNaN(b);
-    if (typeof a !== "object" && typeof a !== "function") return false;
+    if (typeof a === 'number') return isNaN(a) && isNaN(b);
+    if (typeof a !== 'object' && typeof a !== 'function') return false;
     // Neither a nor b is primitive.
     var objectClass = classOf(a);
     if (objectClass !== classOf(b)) return false;
-    if (objectClass === "RegExp") {
-      // For RegExp, just compare pattern and flags using its toString.
-      return RegExpPrototypeToString.call(a) ===
-             RegExpPrototypeToString.call(b);
-    }
-    // Functions are only identical to themselves.
-    if (objectClass === "Function") return false;
-    if (objectClass === "Array") {
-      var elementCount = 0;
-      if (a.length !== b.length) {
+    switch (objectClass) {
+      case 'RegExp':
+        // For RegExp, just compare pattern and flags using its toString.
+        return RegExpPrototypeToString.call(a) ===
+            RegExpPrototypeToString.call(b);
+      case 'Function':
+        // Functions are only identical to themselves.
         return false;
-      }
-      for (var i = 0; i < a.length; i++) {
-        if (!deepEquals(a[i], b[i])) return false;
-      }
-      return true;
-    }
-    if (objectClass === "String" || objectClass === "Number" ||
-      objectClass === "BigInt" || objectClass === "Boolean" ||
-      objectClass === "Date") {
-      if (ValueOf(a) !== ValueOf(b)) return false;
+      case 'Array':
+        if (a.length !== b.length) return false;
+        for (var i = 0; i < a.length; i++) {
+          if ((i in a) !== (i in b)) return false;
+          if (!deepEquals(a[i], b[i])) return false;
+        }
+        return true;
+      case 'Int8Array':
+      case 'Uint8Array':
+      case 'Uint8ClampedArray':
+      case 'Int16Array':
+      case 'Uint16Array':
+      case 'Int32Array':
+      case 'Uint32Array':
+      case 'BigInt64Array':
+      case 'BigUint64Array':
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          if (a[i] !== b[i]) return false;
+        }
+        return true;
+      case 'Float32Array':
+      case 'Float64Array':
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          if (!deepEquals(a[i], b[i])) return false;
+        }
+        return true;
+      case 'String':
+      case 'Number':
+      case 'BigInt':
+      case 'Boolean':
+      case 'Date':
+        return ValueOf(a) === ValueOf(b);
     }
     return deepObjectEquals(a, b);
   }
@@ -482,7 +560,7 @@ var prettyPrinted;
   };
 
   function executeCode(code) {
-    if (typeof code === 'function')  return code();
+    if (typeof code === 'function') return code();
     if (typeof code === 'string') return eval(code);
     failWithMessage(
         'Given code is neither function nor string, but ' + (typeof code) +
@@ -549,6 +627,25 @@ var prettyPrinted;
         res => setTimeout(_ => fail('<throw>', res, msg), 0),
         e => checkException(e, type_opt, cause_opt));
   };
+
+  assertEarlyError = function assertEarlyError(code) {
+    try {
+      new Function(code);
+    } catch (e) {
+      checkException(e, SyntaxError);
+      return;
+    }
+    failWithMessage('Did not throw exception while parsing');
+  }
+
+  assertThrowsAtRuntime = function assertThrowsAtRuntime(code, type_opt) {
+    const f = new Function(code);
+    if (arguments.length > 1 && type_opt !== undefined) {
+      assertThrows(f, type_opt);
+    } else {
+      assertThrows(f);
+    }
+  }
 
   assertInstanceof = function assertInstanceof(obj, type) {
     if (!(obj instanceof type)) {
@@ -619,7 +716,6 @@ var prettyPrinted;
     var test_promise = promise.then(
         result => {
           try {
-            if (--promiseTestCount == 0) testRunner.notifyDone();
             if (success !== undefined) success(result);
           } catch (e) {
             // Use setTimeout to throw the error again to get out of the promise
@@ -631,7 +727,6 @@ var prettyPrinted;
         },
         result => {
           try {
-            if (--promiseTestCount == 0) testRunner.notifyDone();
             if (fail === undefined) throw result;
             fail(result);
           } catch (e) {
@@ -644,34 +739,31 @@ var prettyPrinted;
         });
 
     if (!promiseTestChain) promiseTestChain = Promise.resolve();
-    // waitUntilDone is idempotent.
-    testRunner.waitUntilDone();
-    ++promiseTestCount;
     return promiseTestChain.then(test_promise);
   };
 
   var OptimizationStatusImpl = undefined;
 
-  var OptimizationStatus = function(fun, sync_opt) {
+  var OptimizationStatus = function(fun) {
     if (OptimizationStatusImpl === undefined) {
       try {
         OptimizationStatusImpl = new Function(
-            "fun", "sync", "return %GetOptimizationStatus(fun, sync);");
+            "fun", "return %GetOptimizationStatus(fun);");
       } catch (e) {
         throw new Error("natives syntax not allowed");
       }
     }
-    return OptimizationStatusImpl(fun, sync_opt);
+    return OptimizationStatusImpl(fun);
   }
 
   assertUnoptimized = function assertUnoptimized(
-      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
-    if (sync_opt === undefined) sync_opt = "";
-    var opt_status = OptimizationStatus(fun, sync_opt);
-    // Tests that use assertUnoptimized() do not make sense if --always-opt
-    // option is provided. Such tests must add --no-always-opt to flags comment.
+      fun, name_opt, skip_if_maybe_deopted = true) {
+    var opt_status = OptimizationStatus(fun);
+    name_opt = name_opt ?? fun.name;
+    // Tests that use assertUnoptimized() do not make sense if --always-turbofan
+    // option is provided. Such tests must add --no-always-turbofan to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0,
-                "test does not make sense with --always-opt");
+                "test does not make sense with --always-turbofan");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
     if (skip_if_maybe_deopted &&
         (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
@@ -681,24 +773,32 @@ var prettyPrinted;
       return;
     }
     var is_optimized = (opt_status & V8OptimizationStatus.kOptimized) !== 0;
-    var is_baseline = (opt_status & V8OptimizationStatus.kBaseline) !== 0;
-    assertFalse(is_optimized && !is_baseline, name_opt);
+    if (is_optimized && (opt_status & V8OptimizationStatus.kMaglevved) &&
+        (opt_status &
+         V8OptimizationStatus.kOptimizeOnNextCallOptimizesToMaglev)) {
+      // When --optimize-on-next-call-optimizes-to-maglev is used, we might emit
+      // more generic code than optimization tests expect. In such cases,
+      // assertUnoptimized may see optimized code, but we still want it to
+      // succeed and continue the test.
+      return;
+    }
+    assertFalse(is_optimized, 'should not be optimized: ' + name_opt);
   }
 
   assertOptimized = function assertOptimized(
-      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
-    if (sync_opt === undefined) sync_opt = "";
-    var opt_status = OptimizationStatus(fun, sync_opt);
+      fun, name_opt, skip_if_maybe_deopted = true) {
+    var opt_status = OptimizationStatus(fun);
+    name_opt = name_opt ?? fun.name;
     // Tests that use assertOptimized() do not make sense for Lite mode where
     // optimization is always disabled, explicitly exit the test with a warning.
     if (opt_status & V8OptimizationStatus.kLiteMode) {
       print("Warning: Test uses assertOptimized in Lite mode, skipping test.");
       testRunner.quit(0);
     }
-    // Tests that use assertOptimized() do not make sense if --no-opt
-    // option is provided. Such tests must add --opt to flags comment.
+    // Tests that use assertOptimized() do not make sense if --no-turbofan
+    // option is provided. Such tests must add --turbofan to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kNeverOptimize) !== 0,
-                "test does not make sense with --no-opt");
+                "test does not make sense with --no-turbofan");
     assertTrue(
         (opt_status & V8OptimizationStatus.kIsFunction) !== 0,
         'should be a function: ' + name_opt);
@@ -729,6 +829,13 @@ var prettyPrinted;
     return (opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0;
   }
 
+  isLazy = function isLazy(fun) {
+    var opt_status = OptimizationStatus(fun, '');
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kIsLazy) !== 0;
+  }
+
   isInterpreted = function isInterpreted(fun) {
     var opt_status = OptimizationStatus(fun, "");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
@@ -745,11 +852,37 @@ var prettyPrinted;
            (opt_status & V8OptimizationStatus.kBaseline) !== 0;
   }
 
+  isUnoptimized = function isUnoptimized(fun) {
+    return isInterpreted(fun) || isBaseline(fun);
+  }
+
   isOptimized = function isOptimized(fun) {
     var opt_status = OptimizationStatus(fun, "");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) !== 0;
+  }
+
+  isMaglevved = function isMaglevved(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
+           (opt_status & V8OptimizationStatus.kMaglevved) !== 0;
+  }
+
+  willBeMaglevved = function willBeMaglevved(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimizeOnNextCallOptimizesToMaglev) !== 0;
+  }
+
+  willBeTurbofanned = function willBeTurbofanned(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimizeOnNextCallOptimizesToMaglev) === 0;
   }
 
   isTurboFanned = function isTurboFanned(fun) {

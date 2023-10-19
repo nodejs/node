@@ -31,7 +31,7 @@ class TracingAgent : public NodeTracing::Backend {
   Environment* env_;
   std::shared_ptr<MainThreadHandle> main_thread_;
   tracing::AgentWriterHandle trace_writer_;
-  int frontend_object_id_;
+  int frontend_object_id_ = 0;
   std::shared_ptr<NodeTracing::Frontend> frontend_;
 };
 

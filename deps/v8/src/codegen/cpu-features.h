@@ -26,7 +26,8 @@ enum CpuFeature {
   BMI2,
   LZCNT,
   POPCNT,
-  ATOM,
+  INTEL_ATOM,
+  CETSS,
 
 #elif V8_TARGET_ARCH_ARM
   // - Standard configurations. The baseline is ARMv6+VFPv2.
@@ -42,8 +43,12 @@ enum CpuFeature {
 
 #elif V8_TARGET_ARCH_ARM64
   JSCVT,
+  DOTPROD,
+  // Large System Extension, include atomic operations on memory: CAS, LDADD,
+  // STADD, SWP, etc.
+  LSE,
 
-#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#elif V8_TARGET_ARCH_MIPS64
   FPU,
   FP64FPU,
   MIPSr1,
@@ -51,13 +56,15 @@ enum CpuFeature {
   MIPSr6,
   MIPS_SIMD,  // MSA instructions
 
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_LOONG64
   FPU,
-  FPR_GPR_MOV,
-  LWSYNC,
-  ISELECT,
-  VSX,
-  MODULO,
+
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+  PPC_6_PLUS,
+  PPC_7_PLUS,
+  PPC_8_PLUS,
+  PPC_9_PLUS,
+  PPC_10_PLUS,
 
 #elif V8_TARGET_ARCH_S390X
   FPU,
@@ -70,6 +77,10 @@ enum CpuFeature {
   MISC_INSTR_EXT2,
 
 #elif V8_TARGET_ARCH_RISCV64
+  FPU,
+  FP64FPU,
+  RISCV_SIMD,
+#elif V8_TARGET_ARCH_RISCV32
   FPU,
   FP64FPU,
   RISCV_SIMD,
@@ -93,7 +104,7 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   CpuFeatures& operator=(const CpuFeatures&) = delete;
 
   static void Probe(bool cross_compile) {
-    STATIC_ASSERT(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
+    static_assert(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
     if (initialized_) return;
     initialized_ = true;
     ProbeImpl(cross_compile);
@@ -108,9 +119,12 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
     return (supported_ & (1u << f)) != 0;
   }
 
-  static inline bool SupportsOptimizer();
+  static void SetSupported(CpuFeature f) { supported_ |= 1u << f; }
+  static void SetUnsupported(CpuFeature f) { supported_ &= ~(1u << f); }
 
-  static inline bool SupportsWasmSimd128();
+  static bool SupportsWasmSimd128();
+
+  static inline bool SupportsOptimizer();
 
   static inline unsigned icache_line_size() {
     DCHECK_NE(icache_line_size_, 0);
@@ -142,6 +156,7 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
   static bool supports_wasm_simd_128_;
+  static bool supports_cetss_;
 };
 
 }  // namespace internal

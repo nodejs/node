@@ -1,0 +1,12 @@
+# Ref: https://github.com/gitpod-io/gitpod/issues/6283#issuecomment-1001043454
+tasks:
+  - init: ./configure && timeout 50m make -j16 || true
+  - init: pnpm i -g @node-core/utils
+
+# Ref: https://www.gitpod.io/docs/prebuilds#github-specific-configuration
+github:
+  prebuilds:
+    # enable for pull requests coming from this repo (defaults to true)
+    pullRequests: false
+    # add a check to pull requests (defaults to true)
+    addCheck: false

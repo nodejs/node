@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 // Flags: --no-lazy-feedback-allocation
 
 // TODO(v8:10195): Fix these tests s.t. we assert deoptimization occurs when
@@ -718,10 +718,11 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   g(); g();
   let total = g();
   %OptimizeFunctionOnNextCall(g);
+  var turbofan = willBeTurbofanned(g);
   g();
   g();
   assertEquals(total, g());
-  assertOptimized(g);
+  if (turbofan) assertOptimized(g);
 })();
 
 (function ReduceThrow() {
@@ -1089,10 +1090,11 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   g(); g();
   let total = g();
   %OptimizeFunctionOnNextCall(g);
+  var turbofan = willBeTurbofanned(g);
   g();
   g();
   assertEquals(total, g());
-  assertOptimized(g);
+  if (turbofan) assertOptimized(g);
 })();
 
 (function ReduceThrow() {

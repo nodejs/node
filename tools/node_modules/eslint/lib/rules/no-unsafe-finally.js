@@ -18,15 +18,15 @@ const SENTINEL_NODE_TYPE_CONTINUE = /^(?:Program|(?:Function|Class)(?:Declaratio
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow control flow statements in `finally` blocks",
-            category: "Possible Errors",
+            description: "Disallow control flow statements in `finally` blocks",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unsafe-finally"
+            url: "https://eslint.org/docs/latest/rules/no-unsafe-finally"
         },
 
         schema: [],

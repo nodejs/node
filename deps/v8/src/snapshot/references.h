@@ -7,21 +7,20 @@
 
 #include "src/base/bit-field.h"
 #include "src/base/hashmap.h"
-#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/utils/identity-map.h"
 
 namespace v8 {
 namespace internal {
 
-enum class SnapshotSpace : byte {
-  kReadOnlyHeap,
-  kOld,
-  kCode,
-  kMap,
+// Values must be contiguous and start at 0 since they're directly used as
+// array indices.
+enum class SnapshotSpace : uint8_t {
+  kReadOnlyHeap = 0,
+  kOld = 1,
+  kCode = 2,
 };
-static constexpr int kNumberOfSnapshotSpaces =
-    static_cast<int>(SnapshotSpace::kMap) + 1;
+static constexpr int kNumberOfSnapshotSpaces = 3;
 
 class SerializerReference {
  private:
@@ -98,14 +97,14 @@ class SerializerReference {
 };
 
 // SerializerReference has to fit in an IdentityMap value field.
-STATIC_ASSERT(sizeof(SerializerReference) <= sizeof(void*));
+static_assert(sizeof(SerializerReference) <= sizeof(void*));
 
 class SerializerReferenceMap {
  public:
   explicit SerializerReferenceMap(Isolate* isolate)
       : map_(isolate->heap()), attached_reference_index_(0) {}
 
-  const SerializerReference* LookupReference(HeapObject object) const {
+  const SerializerReference* LookupReference(Tagged<HeapObject> object) const {
     return map_.Find(object);
   }
 
@@ -119,7 +118,7 @@ class SerializerReferenceMap {
     return &it->second;
   }
 
-  void Add(HeapObject object, SerializerReference reference) {
+  void Add(Tagged<HeapObject> object, SerializerReference reference) {
     DCHECK_NULL(LookupReference(object));
     map_.Insert(object, reference);
   }
@@ -129,7 +128,7 @@ class SerializerReferenceMap {
     backing_store_map_.emplace(backing_store, reference);
   }
 
-  SerializerReference AddAttachedReference(HeapObject object) {
+  SerializerReference AddAttachedReference(Tagged<HeapObject> object) {
     SerializerReference reference =
         SerializerReference::AttachedReference(attached_reference_index_++);
     map_.Insert(object, reference);

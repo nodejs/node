@@ -11,95 +11,103 @@ namespace base {
 
 class SomeObject {};
 
-using TestWorklist = Worklist<SomeObject*, 64>;
+constexpr size_t kMinSegmentSize = 64;
+using TestWorklist = Worklist<SomeObject*, kMinSegmentSize>;
+using Segment = TestWorklist::Segment;
 
-TEST(CppgcWorkListTest, SegmentCreate) {
-  TestWorklist::Segment segment;
-  EXPECT_TRUE(segment.IsEmpty());
-  EXPECT_EQ(0u, segment.Size());
-  EXPECT_FALSE(segment.IsFull());
+auto CreateTemporarySegment(size_t min_segment_size) {
+  return std::unique_ptr<Segment, void (*)(Segment*)>(
+      Segment::Create(min_segment_size),
+      [](Segment* s) { Segment::Delete(s); });
 }
 
-TEST(CppgcWorkListTest, SegmentPush) {
-  TestWorklist::Segment segment;
-  EXPECT_EQ(0u, segment.Size());
-  segment.Push(nullptr);
-  EXPECT_EQ(1u, segment.Size());
+TEST(WorkListTest, SegmentCreate) {
+  auto segment = CreateTemporarySegment(kMinSegmentSize);
+  EXPECT_TRUE(segment->IsEmpty());
+  EXPECT_EQ(0u, segment->Size());
+  EXPECT_FALSE(segment->IsFull());
 }
 
-TEST(CppgcWorkListTest, SegmentPushPop) {
-  TestWorklist::Segment segment;
-  segment.Push(nullptr);
-  EXPECT_EQ(1u, segment.Size());
+TEST(WorkListTest, SegmentPush) {
+  auto segment = CreateTemporarySegment(kMinSegmentSize);
+  EXPECT_EQ(0u, segment->Size());
+  segment->Push(nullptr);
+  EXPECT_EQ(1u, segment->Size());
+}
+
+TEST(WorkListTest, SegmentPushPop) {
+  auto segment = CreateTemporarySegment(kMinSegmentSize);
+  segment->Push(nullptr);
+  EXPECT_EQ(1u, segment->Size());
   SomeObject dummy;
   SomeObject* object = &dummy;
-  segment.Pop(&object);
-  EXPECT_EQ(0u, segment.Size());
+  segment->Pop(&object);
+  EXPECT_EQ(0u, segment->Size());
   EXPECT_EQ(nullptr, object);
 }
 
-TEST(CppgcWorkListTest, SegmentIsEmpty) {
-  TestWorklist::Segment segment;
-  EXPECT_TRUE(segment.IsEmpty());
-  segment.Push(nullptr);
-  EXPECT_FALSE(segment.IsEmpty());
+TEST(WorkListTest, SegmentIsEmpty) {
+  auto segment = CreateTemporarySegment(kMinSegmentSize);
+  EXPECT_TRUE(segment->IsEmpty());
+  segment->Push(nullptr);
+  EXPECT_FALSE(segment->IsEmpty());
 }
 
-TEST(CppgcWorkListTest, SegmentIsFull) {
-  TestWorklist::Segment segment;
-  EXPECT_FALSE(segment.IsFull());
-  for (size_t i = 0; i < TestWorklist::Segment::kSize; i++) {
-    segment.Push(nullptr);
+TEST(WorkListTest, SegmentIsFull) {
+  auto segment = CreateTemporarySegment(kMinSegmentSize);
+  EXPECT_FALSE(segment->IsFull());
+  for (size_t i = 0; i < segment->Capacity(); i++) {
+    segment->Push(nullptr);
   }
-  EXPECT_TRUE(segment.IsFull());
+  EXPECT_TRUE(segment->IsFull());
 }
 
-TEST(CppgcWorkListTest, SegmentClear) {
-  TestWorklist::Segment segment;
-  segment.Push(nullptr);
-  EXPECT_FALSE(segment.IsEmpty());
-  segment.Clear();
-  EXPECT_TRUE(segment.IsEmpty());
-  for (size_t i = 0; i < TestWorklist::Segment::kSize; i++) {
-    segment.Push(nullptr);
+TEST(WorkListTest, SegmentClear) {
+  auto segment = CreateTemporarySegment(kMinSegmentSize);
+  segment->Push(nullptr);
+  EXPECT_FALSE(segment->IsEmpty());
+  segment->Clear();
+  EXPECT_TRUE(segment->IsEmpty());
+  for (size_t i = 0; i < segment->Capacity(); i++) {
+    segment->Push(nullptr);
   }
 }
 
-TEST(CppgcWorkListTest, SegmentUpdateFalse) {
-  TestWorklist::Segment segment;
+TEST(WorkListTest, SegmentUpdateFalse) {
+  auto segment = CreateTemporarySegment(kMinSegmentSize);
   SomeObject* object;
   object = reinterpret_cast<SomeObject*>(&object);
-  segment.Push(object);
-  segment.Update([](SomeObject* object, SomeObject** out) { return false; });
-  EXPECT_TRUE(segment.IsEmpty());
+  segment->Push(object);
+  segment->Update([](SomeObject* object, SomeObject** out) { return false; });
+  EXPECT_TRUE(segment->IsEmpty());
 }
 
-TEST(CppgcWorkListTest, SegmentUpdate) {
-  TestWorklist::Segment segment;
+TEST(WorkListTest, SegmentUpdate) {
+  auto segment = CreateTemporarySegment(kMinSegmentSize);
   SomeObject* objectA;
   objectA = reinterpret_cast<SomeObject*>(&objectA);
   SomeObject* objectB;
   objectB = reinterpret_cast<SomeObject*>(&objectB);
-  segment.Push(objectA);
-  segment.Update([objectB](SomeObject* object, SomeObject** out) {
+  segment->Push(objectA);
+  segment->Update([objectB](SomeObject* object, SomeObject** out) {
     *out = objectB;
     return true;
   });
   SomeObject* object;
-  segment.Pop(&object);
+  segment->Pop(&object);
   EXPECT_EQ(object, objectB);
 }
 
-TEST(CppgcWorkListTest, CreateEmpty) {
+TEST(WorkListTest, CreateEmpty) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   EXPECT_TRUE(worklist_local.IsLocalEmpty());
   EXPECT_TRUE(worklist.IsEmpty());
 }
 
-TEST(CppgcWorkListTest, LocalPushPop) {
+TEST(WorkListTest, LocalPushPop) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   SomeObject dummy;
   SomeObject* retrieved = nullptr;
   worklist_local.Push(&dummy);
@@ -108,10 +116,10 @@ TEST(CppgcWorkListTest, LocalPushPop) {
   EXPECT_EQ(&dummy, retrieved);
 }
 
-TEST(CppgcWorkListTest, LocalPushStaysPrivate) {
+TEST(WorkListTest, LocalPushStaysPrivate) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local1(&worklist);
-  TestWorklist::Local worklist_local2(&worklist);
+  TestWorklist::Local worklist_local1(worklist);
+  TestWorklist::Local worklist_local2(worklist);
   SomeObject dummy;
   SomeObject* retrieved = nullptr;
   EXPECT_TRUE(worklist.IsEmpty());
@@ -125,36 +133,36 @@ TEST(CppgcWorkListTest, LocalPushStaysPrivate) {
   EXPECT_EQ(0U, worklist.Size());
 }
 
-TEST(CppgcWorkListTest, LocalClear) {
+TEST(WorkListTest, LocalClear) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   SomeObject* object;
   object = reinterpret_cast<SomeObject*>(&object);
   // Check push segment:
-  EXPECT_TRUE(worklist_local.IsEmpty());
+  EXPECT_TRUE(worklist_local.IsLocalEmpty());
   worklist_local.Push(object);
-  EXPECT_FALSE(worklist_local.IsEmpty());
+  EXPECT_FALSE(worklist_local.IsLocalEmpty());
   worklist_local.Clear();
-  EXPECT_TRUE(worklist_local.IsEmpty());
+  EXPECT_TRUE(worklist_local.IsLocalEmpty());
   // Check pop segment:
   worklist_local.Push(object);
   worklist_local.Push(object);
-  EXPECT_FALSE(worklist_local.IsEmpty());
+  EXPECT_FALSE(worklist_local.IsLocalEmpty());
   worklist_local.Publish();
-  EXPECT_TRUE(worklist_local.IsEmpty());
+  EXPECT_TRUE(worklist_local.IsLocalEmpty());
   SomeObject* retrieved;
   worklist_local.Pop(&retrieved);
-  EXPECT_FALSE(worklist_local.IsEmpty());
+  EXPECT_FALSE(worklist_local.IsLocalEmpty());
   worklist_local.Clear();
-  EXPECT_TRUE(worklist_local.IsEmpty());
+  EXPECT_TRUE(worklist_local.IsLocalEmpty());
 }
 
-TEST(CppgcWorkListTest, GlobalUpdateNull) {
+TEST(WorkListTest, GlobalUpdateNull) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   SomeObject* object;
   object = reinterpret_cast<SomeObject*>(&object);
-  for (size_t i = 0; i < TestWorklist::kSegmentSize; i++) {
+  for (size_t i = 0; i < TestWorklist::kMinSegmentSize; i++) {
     worklist_local.Push(object);
   }
   worklist_local.Push(object);
@@ -164,19 +172,19 @@ TEST(CppgcWorkListTest, GlobalUpdateNull) {
   EXPECT_EQ(0U, worklist.Size());
 }
 
-TEST(CppgcWorkListTest, GlobalUpdate) {
+TEST(WorkListTest, GlobalUpdate) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   SomeObject* objectA = nullptr;
   objectA = reinterpret_cast<SomeObject*>(&objectA);
   SomeObject* objectB = nullptr;
   objectB = reinterpret_cast<SomeObject*>(&objectB);
   SomeObject* objectC = nullptr;
   objectC = reinterpret_cast<SomeObject*>(&objectC);
-  for (size_t i = 0; i < TestWorklist::kSegmentSize; i++) {
+  for (size_t i = 0; i < TestWorklist::kMinSegmentSize; i++) {
     worklist_local.Push(objectA);
   }
-  for (size_t i = 0; i < TestWorklist::kSegmentSize; i++) {
+  for (size_t i = 0; i < TestWorklist::kMinSegmentSize; i++) {
     worklist_local.Push(objectB);
   }
   worklist_local.Push(objectA);
@@ -188,17 +196,17 @@ TEST(CppgcWorkListTest, GlobalUpdate) {
     }
     return false;
   });
-  for (size_t i = 0; i < TestWorklist::kSegmentSize; i++) {
+  for (size_t i = 0; i < TestWorklist::kMinSegmentSize; i++) {
     SomeObject* object;
     EXPECT_TRUE(worklist_local.Pop(&object));
     EXPECT_EQ(object, objectC);
   }
 }
 
-TEST(CppgcWorkListTest, FlushToGlobalPushSegment) {
+TEST(WorkListTest, FlushToGlobalPushSegment) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local0(&worklist);
-  TestWorklist::Local worklist_local1(&worklist);
+  TestWorklist::Local worklist_local0(worklist);
+  TestWorklist::Local worklist_local1(worklist);
   SomeObject* object = nullptr;
   SomeObject* objectA = nullptr;
   objectA = reinterpret_cast<SomeObject*>(&objectA);
@@ -208,10 +216,10 @@ TEST(CppgcWorkListTest, FlushToGlobalPushSegment) {
   EXPECT_TRUE(worklist_local1.Pop(&object));
 }
 
-TEST(CppgcWorkListTest, FlushToGlobalPopSegment) {
+TEST(WorkListTest, FlushToGlobalPopSegment) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local0(&worklist);
-  TestWorklist::Local worklist_local1(&worklist);
+  TestWorklist::Local worklist_local0(worklist);
+  TestWorklist::Local worklist_local1(worklist);
   SomeObject* object = nullptr;
   SomeObject* objectA = nullptr;
   objectA = reinterpret_cast<SomeObject*>(&objectA);
@@ -223,9 +231,9 @@ TEST(CppgcWorkListTest, FlushToGlobalPopSegment) {
   EXPECT_TRUE(worklist_local1.Pop(&object));
 }
 
-TEST(CppgcWorkListTest, Clear) {
+TEST(WorkListTest, Clear) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   SomeObject* object;
   object = reinterpret_cast<SomeObject*>(&object);
   worklist_local.Push(object);
@@ -236,22 +244,19 @@ TEST(CppgcWorkListTest, Clear) {
   EXPECT_EQ(0U, worklist.Size());
 }
 
-TEST(CppgcWorkListTest, SingleSegmentSteal) {
+TEST(WorkListTest, SingleSegmentSteal) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local1(&worklist);
-  TestWorklist::Local worklist_local2(&worklist);
+  TestWorklist::Local worklist_local1(worklist);
+  TestWorklist::Local worklist_local2(worklist);
   SomeObject dummy;
-  for (size_t i = 0; i < TestWorklist::kSegmentSize; i++) {
+  for (size_t i = 0; i < TestWorklist::kMinSegmentSize; i++) {
     worklist_local1.Push(&dummy);
   }
-  SomeObject* retrieved = nullptr;
-  // One more push/pop to publish the full segment.
-  worklist_local1.Push(nullptr);
-  EXPECT_TRUE(worklist_local1.Pop(&retrieved));
-  EXPECT_EQ(nullptr, retrieved);
+  worklist_local1.Publish();
   EXPECT_EQ(1U, worklist.Size());
   // Stealing.
-  for (size_t i = 0; i < TestWorklist::kSegmentSize; i++) {
+  SomeObject* retrieved = nullptr;
+  for (size_t i = 0; i < TestWorklist::kMinSegmentSize; i++) {
     EXPECT_TRUE(worklist_local2.Pop(&retrieved));
     EXPECT_EQ(&dummy, retrieved);
     EXPECT_FALSE(worklist_local1.Pop(&retrieved));
@@ -260,27 +265,24 @@ TEST(CppgcWorkListTest, SingleSegmentSteal) {
   EXPECT_EQ(0U, worklist.Size());
 }
 
-TEST(CppgcWorkListTest, MultipleSegmentsStolen) {
+TEST(WorkListTest, MultipleSegmentsStolen) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local1(&worklist);
-  TestWorklist::Local worklist_local2(&worklist);
-  TestWorklist::Local worklist_local3(&worklist);
+  TestWorklist::Local worklist_local1(worklist);
+  TestWorklist::Local worklist_local2(worklist);
+  TestWorklist::Local worklist_local3(worklist);
   SomeObject dummy1;
   SomeObject dummy2;
-  for (size_t i = 0; i < TestWorklist::kSegmentSize; i++) {
+  for (size_t i = 0; i < TestWorklist::kMinSegmentSize; i++) {
     worklist_local1.Push(&dummy1);
   }
-  for (size_t i = 0; i < TestWorklist::kSegmentSize; i++) {
+  worklist_local1.Publish();
+  for (size_t i = 0; i < TestWorklist::kMinSegmentSize; i++) {
     worklist_local1.Push(&dummy2);
   }
-  SomeObject* retrieved = nullptr;
-  SomeObject dummy3;
-  // One more push/pop to publish the full segment.
-  worklist_local1.Push(&dummy3);
-  EXPECT_TRUE(worklist_local1.Pop(&retrieved));
-  EXPECT_EQ(&dummy3, retrieved);
+  worklist_local1.Publish();
   EXPECT_EQ(2U, worklist.Size());
   // Stealing.
+  SomeObject* retrieved = nullptr;
   EXPECT_TRUE(worklist_local2.Pop(&retrieved));
   SomeObject* const expect_bag2 = retrieved;
   EXPECT_TRUE(worklist_local3.Pop(&retrieved));
@@ -289,12 +291,12 @@ TEST(CppgcWorkListTest, MultipleSegmentsStolen) {
   EXPECT_NE(expect_bag2, expect_bag3);
   EXPECT_TRUE(expect_bag2 == &dummy1 || expect_bag2 == &dummy2);
   EXPECT_TRUE(expect_bag3 == &dummy1 || expect_bag3 == &dummy2);
-  for (size_t i = 1; i < TestWorklist::kSegmentSize; i++) {
+  for (size_t i = 1; i < TestWorklist::kMinSegmentSize; i++) {
     EXPECT_TRUE(worklist_local2.Pop(&retrieved));
     EXPECT_EQ(expect_bag2, retrieved);
     EXPECT_FALSE(worklist_local1.Pop(&retrieved));
   }
-  for (size_t i = 1; i < TestWorklist::kSegmentSize; i++) {
+  for (size_t i = 1; i < TestWorklist::kMinSegmentSize; i++) {
     EXPECT_TRUE(worklist_local3.Pop(&retrieved));
     EXPECT_EQ(expect_bag3, retrieved);
     EXPECT_FALSE(worklist_local1.Pop(&retrieved));
@@ -302,27 +304,24 @@ TEST(CppgcWorkListTest, MultipleSegmentsStolen) {
   EXPECT_TRUE(worklist.IsEmpty());
 }
 
-TEST(CppgcWorkListTest, MergeGlobalPool) {
+TEST(WorkListTest, MergeGlobalPool) {
   TestWorklist worklist1;
-  TestWorklist::Local worklist_local1(&worklist1);
+  TestWorklist::Local worklist_local1(worklist1);
   SomeObject dummy;
-  for (size_t i = 0; i < TestWorklist::kSegmentSize; i++) {
+  for (size_t i = 0; i < TestWorklist::kMinSegmentSize; i++) {
     worklist_local1.Push(&dummy);
   }
-  SomeObject* retrieved = nullptr;
   // One more push/pop to publish the full segment.
-  worklist_local1.Push(nullptr);
-  EXPECT_TRUE(worklist_local1.Pop(&retrieved));
-  EXPECT_EQ(nullptr, retrieved);
-  EXPECT_EQ(1U, worklist1.Size());
+  worklist_local1.Publish();
   // Merging global pool into a new Worklist.
   TestWorklist worklist2;
-  TestWorklist::Local worklist_local2(&worklist2);
+  TestWorklist::Local worklist_local2(worklist2);
   EXPECT_EQ(0U, worklist2.Size());
-  worklist2.Merge(&worklist1);
+  worklist2.Merge(worklist1);
   EXPECT_EQ(1U, worklist2.Size());
   EXPECT_FALSE(worklist2.IsEmpty());
-  for (size_t i = 0; i < TestWorklist::kSegmentSize; i++) {
+  SomeObject* retrieved = nullptr;
+  for (size_t i = 0; i < TestWorklist::kMinSegmentSize; i++) {
     EXPECT_TRUE(worklist_local2.Pop(&retrieved));
     EXPECT_EQ(&dummy, retrieved);
     EXPECT_FALSE(worklist_local1.Pop(&retrieved));

@@ -9,7 +9,7 @@ import gyp.easy_xml as easy_xml
 # ------------------------------------------------------------------------------
 
 
-class Tool(object):
+class Tool:
     """Visual Studio tool."""
 
     def __init__(self, name, attrs=None):
@@ -31,7 +31,7 @@ class Tool(object):
         return ["Tool", self._attrs]
 
 
-class Filter(object):
+class Filter:
     """Visual Studio filter - that is, a virtual folder."""
 
     def __init__(self, name, contents=None):
@@ -48,7 +48,7 @@ class Filter(object):
 # ------------------------------------------------------------------------------
 
 
-class Writer(object):
+class Writer:
     """Visual Studio XML project writer."""
 
     def __init__(self, project_path, version, name, guid=None, platforms=None):

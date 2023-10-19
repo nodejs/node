@@ -28,7 +28,7 @@ const errorMessagesByPlatform = {
   win32: ['is not a valid Win32 application'],
   linux: ['file too short', 'Exec format error'],
   sunos: ['unknown file type', 'not an ELF file'],
-  darwin: ['file too short'],
+  darwin: ['file too short', 'not a mach-o file'],
   aix: ['Cannot load module',
         'Cannot run a file that does not have a valid format.',
         'Exec format error'],
@@ -84,9 +84,12 @@ assert.throws(
     message: 'The argument \'id\' must be a non-empty string. Received \'\''
   });
 
+// Folder read operation succeeds in AIX.
+// For libuv change, see https://github.com/libuv/libuv/pull/2025.
+// https://github.com/nodejs/node/pull/48477#issuecomment-1604586650
 assert.throws(
   () => { require('../fixtures/packages/is-dir'); },
-  {
+  common.isAIX ? { code: 'ERR_INVALID_PACKAGE_CONFIG' } : {
     code: 'MODULE_NOT_FOUND',
     message: /Cannot find module '\.\.\/fixtures\/packages\/is-dir'/
   }

@@ -1,6 +1,5 @@
 {
   "defaultSeverity": "error",
-  "extends": "tslint:recommended",
   "jsRules": {},
   "rules": {
     "curly": [true, "ignore-same-line"],

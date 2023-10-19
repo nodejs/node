@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -78,10 +78,14 @@ static OCSP_BASICRESP *make_dummy_resp(void)
     ASN1_BIT_STRING *key = ASN1_BIT_STRING_new();
     ASN1_INTEGER *serial = ASN1_INTEGER_new();
 
-    if (!X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_ASC,
-                                   namestr, -1, -1, 1)
-        || !ASN1_BIT_STRING_set(key, keybytes, sizeof(keybytes))
-        || !ASN1_INTEGER_set_uint64(serial, (uint64_t)1))
+    if (!TEST_ptr(name)
+        || !TEST_ptr(key)
+        || !TEST_ptr(serial)
+        || !TEST_true(X509_NAME_add_entry_by_NID(name, NID_commonName,
+                                                 MBSTRING_ASC,
+                                                 namestr, -1, -1, 1))
+        || !TEST_true(ASN1_BIT_STRING_set(key, keybytes, sizeof(keybytes)))
+        || !TEST_true(ASN1_INTEGER_set_uint64(serial, (uint64_t)1)))
         goto err;
     cid = OCSP_cert_id_new(EVP_sha256(), name, key, serial);
     if (!TEST_ptr(bs)
@@ -182,7 +186,7 @@ err:
 
 static int test_ocsp_url_svcloc_new(void)
 {
-    static const char *  urls[] = {
+    static const char *urls[] = {
         "www.openssl.org",
         "www.openssl.net",
         NULL
@@ -211,8 +215,15 @@ err:
 
 #endif /* OPENSSL_NO_OCSP */
 
+OPT_TEST_DECLARE_USAGE("certfile privkeyfile\n")
+
 int setup_tests(void)
 {
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
+        return 0;
+    }
+
     if (!TEST_ptr(certstr = test_get_argument(0))
         || !TEST_ptr(privkeystr = test_get_argument(1)))
         return 0;

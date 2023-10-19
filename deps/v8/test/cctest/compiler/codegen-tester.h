@@ -5,13 +5,14 @@
 #ifndef V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 
+#include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
-#include "src/execution/simulator.h"
+#include "src/objects/code-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/call-tester.h"
+#include "test/common/call-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -59,14 +60,14 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
   ~RawMachineAssemblerTester() override = default;
 
-  void CheckNumber(double expected, Object number) {
-    CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
+  void CheckNumber(double expected, Tagged<Object> number) {
+    CHECK(Object::SameValue(*this->isolate()->factory()->NewNumber(expected),
+                            number));
   }
 
-  void CheckString(const char* expected, Object string) {
-    CHECK(
-        this->isolate()->factory()->InternalizeUtf8String(expected)->SameValue(
-            string));
+  void CheckString(const char* expected, Tagged<Object> string) {
+    CHECK(Object::SameValue(
+        *this->isolate()->factory()->InternalizeUtf8String(expected), string));
   }
 
   void GenerateCode() { Generate(); }
@@ -79,15 +80,14 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
  protected:
   Address Generate() override {
     if (code_.is_null()) {
-      Schedule* schedule = this->ExportForTest();
-      auto call_descriptor = this->call_descriptor();
-      Graph* graph = this->graph();
-      OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(), kind_);
+      Schedule* schedule = ExportForTest();
+      OptimizedCompilationInfo info(base::ArrayVector("testing"), main_zone(),
+                                    kind_);
       code_ = Pipeline::GenerateCodeForTesting(
-          &info, main_isolate(), call_descriptor, graph,
+          &info, main_isolate(), call_descriptor(), graph(),
           AssemblerOptions::Default(main_isolate()), schedule);
     }
-    return this->code_.ToHandleChecked()->entry();
+    return code_.ToHandleChecked()->instruction_start();
   }
 
  private:
@@ -150,7 +150,7 @@ class BufferedRawMachineAssemblerTester
   ReturnType Call(Params... p) {
     uintptr_t zap_data[] = {kZapValue, kZapValue};
     ReturnType return_value;
-    STATIC_ASSERT(sizeof(return_value) <= sizeof(zap_data));
+    static_assert(sizeof(return_value) <= sizeof(zap_data));
     MemCopy(&return_value, &zap_data, sizeof(return_value));
     CSignature::VerifyParams<Params...>(test_graph_signature_);
     CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p)...,
@@ -208,7 +208,6 @@ class BufferedRawMachineAssemblerTester<void>
 static const bool USE_RESULT_BUFFER = true;
 static const bool USE_RETURN_REGISTER = false;
 static const int32_t CHECK_VALUE = 0x99BEEDCE;
-
 
 // TODO(titzer): use the C-style calling convention, or any register-based
 // calling convention for binop tests.
@@ -268,7 +267,6 @@ class BinopTester {
   CType result;
 };
 
-
 // A helper class for testing code sequences that take two int parameters and
 // return an int value.
 class Int32BinopTester : public BinopTester<int32_t, USE_RETURN_REGISTER> {
@@ -278,7 +276,6 @@ class Int32BinopTester : public BinopTester<int32_t, USE_RETURN_REGISTER> {
                                                   MachineType::Int32()) {}
 };
 
-
 // A helper class for testing code sequences that take two int parameters and
 // return an int value.
 class Int64BinopTester : public BinopTester<int64_t, USE_RETURN_REGISTER> {
@@ -287,7 +284,6 @@ class Int64BinopTester : public BinopTester<int64_t, USE_RETURN_REGISTER> {
       : BinopTester<int64_t, USE_RETURN_REGISTER>(tester,
                                                   MachineType::Int64()) {}
 };
-
 
 // A helper class for testing code sequences that take two uint parameters and
 // return an uint value.
@@ -304,7 +300,6 @@ class Uint32BinopTester : public BinopTester<uint32_t, USE_RETURN_REGISTER> {
   }
 };
 
-
 // A helper class for testing code sequences that take two float parameters and
 // return a float value.
 class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
@@ -312,7 +307,6 @@ class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
   explicit Float32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
       : BinopTester<float, USE_RESULT_BUFFER>(tester, MachineType::Float32()) {}
 };
-
 
 // A helper class for testing code sequences that take two double parameters and
 // return a double value.
@@ -322,7 +316,6 @@ class Float64BinopTester : public BinopTester<double, USE_RESULT_BUFFER> {
       : BinopTester<double, USE_RESULT_BUFFER>(tester, MachineType::Float64()) {
   }
 };
-
 
 // A helper class for testing code sequences that take two pointer parameters
 // and return a pointer value.
@@ -335,7 +328,6 @@ class PointerBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
   }
 };
 
-
 // A helper class for testing code sequences that take two tagged parameters and
 // return a tagged value.
 template <typename Type>
@@ -346,17 +338,83 @@ class TaggedBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
                                                MachineType::AnyTagged()) {}
 };
 
+// A helper class for integer binary operations. Wraps a machine opcode and
+// provides evaluation routines and the operators.
+template <typename T>
+class IntBinopWrapper {
+ public:
+  explicit IntBinopWrapper(IrOpcode::Value op) : opcode(op) {}
+
+  const Operator* op(MachineOperatorBuilder* machine) const {
+    switch (opcode) {
+      case IrOpcode::kInt32Add:
+        return machine->Int32Add();
+      case IrOpcode::kInt32Sub:
+        return machine->Int32Sub();
+      case IrOpcode::kInt32Mul:
+        return machine->Int32Mul();
+      case IrOpcode::kWord32And:
+        return machine->Word32And();
+      case IrOpcode::kWord32Or:
+        return machine->Word32Or();
+      case IrOpcode::kWord32Xor:
+        return machine->Word32Xor();
+      case IrOpcode::kInt64Add:
+        return machine->Int64Add();
+      case IrOpcode::kInt64Sub:
+        return machine->Int64Sub();
+      case IrOpcode::kInt64Mul:
+        return machine->Int64Mul();
+      case IrOpcode::kWord64And:
+        return machine->Word64And();
+      case IrOpcode::kWord64Or:
+        return machine->Word64Or();
+      case IrOpcode::kWord64Xor:
+        return machine->Word64Xor();
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  T eval(T a, T b) const {
+    switch (opcode) {
+      case IrOpcode::kInt32Add:
+      case IrOpcode::kInt64Add:
+        return a + b;
+      case IrOpcode::kInt32Sub:
+      case IrOpcode::kInt64Sub:
+        return a - b;
+      case IrOpcode::kInt32Mul:
+      case IrOpcode::kInt64Mul:
+        return a * b;
+      case IrOpcode::kWord32And:
+      case IrOpcode::kWord64And:
+        return a & b;
+      case IrOpcode::kWord32Or:
+      case IrOpcode::kWord64Or:
+        return a | b;
+      case IrOpcode::kWord32Xor:
+      case IrOpcode::kWord64Xor:
+        return a ^ b;
+      default:
+        UNREACHABLE();
+    }
+  }
+  IrOpcode::Value opcode;
+};
+
 // A helper class for testing compares. Wraps a machine opcode and provides
 // evaluation routines and the operators.
 class CompareWrapper {
  public:
   explicit CompareWrapper(IrOpcode::Value op) : opcode(op) {}
 
-  Node* MakeNode(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) {
+  Node* MakeNode(RawMachineAssemblerTester<int32_t>* m, Node* a,
+                 Node* b) const {
     return m->AddNode(op(m->machine()), a, b);
   }
 
-  const Operator* op(MachineOperatorBuilder* machine) {
+  const Operator* op(MachineOperatorBuilder* machine) const {
     switch (opcode) {
       case IrOpcode::kWord32Equal:
         return machine->Word32Equal();
@@ -368,6 +426,16 @@ class CompareWrapper {
         return machine->Uint32LessThan();
       case IrOpcode::kUint32LessThanOrEqual:
         return machine->Uint32LessThanOrEqual();
+      case IrOpcode::kWord64Equal:
+        return machine->Word64Equal();
+      case IrOpcode::kInt64LessThan:
+        return machine->Int64LessThan();
+      case IrOpcode::kInt64LessThanOrEqual:
+        return machine->Int64LessThanOrEqual();
+      case IrOpcode::kUint64LessThan:
+        return machine->Uint64LessThan();
+      case IrOpcode::kUint64LessThanOrEqual:
+        return machine->Uint64LessThanOrEqual();
       case IrOpcode::kFloat64Equal:
         return machine->Float64Equal();
       case IrOpcode::kFloat64LessThan:
@@ -377,10 +445,9 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return nullptr;
   }
 
-  bool Int32Compare(int32_t a, int32_t b) {
+  bool Int32Compare(int32_t a, int32_t b) const {
     switch (opcode) {
       case IrOpcode::kWord32Equal:
         return a == b;
@@ -395,10 +462,26 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return false;
   }
 
-  bool Float64Compare(double a, double b) {
+  bool Int64Compare(int64_t a, int64_t b) const {
+    switch (opcode) {
+      case IrOpcode::kWord64Equal:
+        return a == b;
+      case IrOpcode::kInt64LessThan:
+        return a < b;
+      case IrOpcode::kInt64LessThanOrEqual:
+        return a <= b;
+      case IrOpcode::kUint64LessThan:
+        return static_cast<uint64_t>(a) < static_cast<uint64_t>(b);
+      case IrOpcode::kUint64LessThanOrEqual:
+        return static_cast<uint64_t>(a) <= static_cast<uint64_t>(b);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  bool Float64Compare(double a, double b) const {
     switch (opcode) {
       case IrOpcode::kFloat64Equal:
         return a == b;
@@ -409,12 +492,10 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return false;
   }
 
   IrOpcode::Value opcode;
 };
-
 
 // A small closure class to generate code for a function of two inputs that
 // produces a single output so that it can be used in many different contexts.

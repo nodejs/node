@@ -4,7 +4,7 @@
 
 "use strict";
 
-load('bigint-util.js');
+d8.file.execute('bigint-util.js');
 
 let initial_sum = 0n;
 let a = 0n;
@@ -16,12 +16,6 @@ let random_bigints = [];
 // results.
 new BenchmarkSuite('Prevent-Inline-Dummy', [10000], [
   new Benchmark('Prevent-Inline-Dummy', true, false, 0, () => {})
-]);
-
-
-new BenchmarkSuite('Add-TypeError', [10000], [
-  new Benchmark('Add-TypeError', true, false, 0, TestAddTypeError,
-    SetUpTestAddTypeError)
 ]);
 
 
@@ -50,24 +44,6 @@ new BenchmarkSuite('Add-Random', [1000], [
   new Benchmark('Add-Random', true, false, 0, TestAddRandom,
     SetUpTestAddRandom)
 ]);
-
-
-function SetUpTestAddTypeError() {
-  initial_sum = 42n;
-}
-
-
-function TestAddTypeError() {
-  let sum = initial_sum;
-  for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
-    try {
-      sum = 0 + sum;
-    }
-    catch(e) {
-    }
-  }
-  return sum;
-}
 
 
 function SetUpTestAddZero() {

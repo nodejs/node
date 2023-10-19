@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -14,36 +14,34 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <openssl/crypto.h>
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE
-# include <execinfo.h>
-#endif
 
 /*
  * the following pointers may be changed as long as 'allow_customize' is set
  */
 static int allow_customize = 1;
+static CRYPTO_malloc_fn malloc_impl = CRYPTO_malloc;
+static CRYPTO_realloc_fn realloc_impl = CRYPTO_realloc;
+static CRYPTO_free_fn free_impl = CRYPTO_free;
 
-static void *(*malloc_impl)(size_t, const char *, int)
-    = CRYPTO_malloc;
-static void *(*realloc_impl)(void *, size_t, const char *, int)
-    = CRYPTO_realloc;
-static void (*free_impl)(void *, const char *, int)
-    = CRYPTO_free;
-
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG
+#if !defined(OPENSSL_NO_CRYPTO_MDEBUG) && !defined(FIPS_MODULE)
 # include "internal/tsan_assist.h"
 
+# ifdef TSAN_REQUIRES_LOCKING
+#  define INCREMENT(x) /* empty */
+#  define LOAD(x) 0
+# else  /* TSAN_REQUIRES_LOCKING */
 static TSAN_QUALIFIER int malloc_count;
 static TSAN_QUALIFIER int realloc_count;
 static TSAN_QUALIFIER int free_count;
 
-# define INCREMENT(x) tsan_counter(&(x))
+#  define INCREMENT(x) tsan_counter(&(x))
+#  define LOAD(x)      tsan_load(&x)
+# endif /* TSAN_REQUIRES_LOCKING */
 
 static char *md_failstring;
 static long md_count;
 static int md_fail_percent = 0;
 static int md_tracefd = -1;
-static int call_malloc_debug = 1;
 
 static void parseit(void);
 static int shouldfail(void);
@@ -51,58 +49,47 @@ static int shouldfail(void);
 # define FAILTEST() if (shouldfail()) return NULL
 
 #else
-static int call_malloc_debug = 0;
 
 # define INCREMENT(x) /* empty */
 # define FAILTEST() /* empty */
 #endif
 
-int CRYPTO_set_mem_functions(
-        void *(*m)(size_t, const char *, int),
-        void *(*r)(void *, size_t, const char *, int),
-        void (*f)(void *, const char *, int))
+int CRYPTO_set_mem_functions(CRYPTO_malloc_fn malloc_fn,
+                             CRYPTO_realloc_fn realloc_fn,
+                             CRYPTO_free_fn free_fn)
 {
     if (!allow_customize)
         return 0;
-    if (m)
-        malloc_impl = m;
-    if (r)
-        realloc_impl = r;
-    if (f)
-        free_impl = f;
+    if (malloc_fn != NULL)
+        malloc_impl = malloc_fn;
+    if (realloc_fn != NULL)
+        realloc_impl = realloc_fn;
+    if (free_fn != NULL)
+        free_impl = free_fn;
     return 1;
 }
 
-int CRYPTO_set_mem_debug(int flag)
+void CRYPTO_get_mem_functions(CRYPTO_malloc_fn *malloc_fn,
+                              CRYPTO_realloc_fn *realloc_fn,
+                              CRYPTO_free_fn *free_fn)
 {
-    if (!allow_customize)
-        return 0;
-    call_malloc_debug = flag;
-    return 1;
+    if (malloc_fn != NULL)
+        *malloc_fn = malloc_impl;
+    if (realloc_fn != NULL)
+        *realloc_fn = realloc_impl;
+    if (free_fn != NULL)
+        *free_fn = free_impl;
 }
 
-void CRYPTO_get_mem_functions(
-        void *(**m)(size_t, const char *, int),
-        void *(**r)(void *, size_t, const char *, int),
-        void (**f)(void *, const char *, int))
-{
-    if (m != NULL)
-        *m = malloc_impl;
-    if (r != NULL)
-        *r = realloc_impl;
-    if (f != NULL)
-        *f = free_impl;
-}
-
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG
+#if !defined(OPENSSL_NO_CRYPTO_MDEBUG) && !defined(FIPS_MODULE)
 void CRYPTO_get_alloc_counts(int *mcount, int *rcount, int *fcount)
 {
     if (mcount != NULL)
-        *mcount = tsan_load(&malloc_count);
+        *mcount = LOAD(malloc_count);
     if (rcount != NULL)
-        *rcount = tsan_load(&realloc_count);
+        *rcount = LOAD(realloc_count);
     if (fcount != NULL)
-        *fcount = tsan_load(&free_count);
+        *fcount = LOAD(free_count);
 }
 
 /*
@@ -158,14 +145,6 @@ static int shouldfail(void)
         len = strlen(buff);
         if (write(md_tracefd, buff, len) != len)
             perror("shouldfail write failed");
-#  ifndef OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE
-        if (shoulditfail) {
-            void *addrs[30];
-            int num = backtrace(addrs, OSSL_NELEM(addrs));
-
-            backtrace_symbols_fd(addrs, num, md_tracefd);
-        }
-#  endif
     }
 # endif
 
@@ -191,10 +170,8 @@ void ossl_malloc_setup_failures(void)
 
 void *CRYPTO_malloc(size_t num, const char *file, int line)
 {
-    void *ret = NULL;
-
     INCREMENT(malloc_count);
-    if (malloc_impl != NULL && malloc_impl != CRYPTO_malloc)
+    if (malloc_impl != CRYPTO_malloc)
         return malloc_impl(num, file, line);
 
     if (num == 0)
@@ -209,36 +186,26 @@ void *CRYPTO_malloc(size_t num, const char *file, int line)
          */
         allow_customize = 0;
     }
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG
-    if (call_malloc_debug) {
-        CRYPTO_mem_debug_malloc(NULL, num, 0, file, line);
-        ret = malloc(num);
-        CRYPTO_mem_debug_malloc(ret, num, 1, file, line);
-    } else {
-        ret = malloc(num);
-    }
-#else
-    (void)(file); (void)(line);
-    ret = malloc(num);
-#endif
 
-    return ret;
+    return malloc(num);
 }
 
 void *CRYPTO_zalloc(size_t num, const char *file, int line)
 {
-    void *ret = CRYPTO_malloc(num, file, line);
+    void *ret;
 
+    ret = CRYPTO_malloc(num, file, line);
     FAILTEST();
     if (ret != NULL)
         memset(ret, 0, num);
+
     return ret;
 }
 
 void *CRYPTO_realloc(void *str, size_t num, const char *file, int line)
 {
     INCREMENT(realloc_count);
-    if (realloc_impl != NULL && realloc_impl != &CRYPTO_realloc)
+    if (realloc_impl != CRYPTO_realloc)
         return realloc_impl(str, num, file, line);
 
     FAILTEST();
@@ -250,19 +217,7 @@ void *CRYPTO_realloc(void *str, size_t num, const char *file, int line)
         return NULL;
     }
 
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG
-    if (call_malloc_debug) {
-        void *ret;
-        CRYPTO_mem_debug_realloc(str, NULL, num, 0, file, line);
-        ret = realloc(str, num);
-        CRYPTO_mem_debug_realloc(str, ret, num, 1, file, line);
-        return ret;
-    }
-#else
-    (void)(file); (void)(line);
-#endif
     return realloc(str, num);
-
 }
 
 void *CRYPTO_clear_realloc(void *str, size_t old_len, size_t num,
@@ -295,22 +250,12 @@ void *CRYPTO_clear_realloc(void *str, size_t old_len, size_t num,
 void CRYPTO_free(void *str, const char *file, int line)
 {
     INCREMENT(free_count);
-    if (free_impl != NULL && free_impl != &CRYPTO_free) {
+    if (free_impl != CRYPTO_free) {
         free_impl(str, file, line);
         return;
     }
 
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG
-    if (call_malloc_debug) {
-        CRYPTO_mem_debug_free(str, 0, file, line);
-        free(str);
-        CRYPTO_mem_debug_free(str, 1, file, line);
-    } else {
-        free(str);
-    }
-#else
     free(str);
-#endif
 }
 
 void CRYPTO_clear_free(void *str, size_t num, const char *file, int line)
@@ -321,3 +266,72 @@ void CRYPTO_clear_free(void *str, size_t num, const char *file, int line)
         OPENSSL_cleanse(str, num);
     CRYPTO_free(str, file, line);
 }
+
+#if !defined(OPENSSL_NO_CRYPTO_MDEBUG)
+
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+int CRYPTO_mem_ctrl(int mode)
+{
+    (void)mode;
+    return -1;
+}
+
+int CRYPTO_set_mem_debug(int flag)
+{
+    (void)flag;
+    return -1;
+}
+
+int CRYPTO_mem_debug_push(const char *info, const char *file, int line)
+{
+    (void)info; (void)file; (void)line;
+    return 0;
+}
+
+int CRYPTO_mem_debug_pop(void)
+{
+    return 0;
+}
+
+void CRYPTO_mem_debug_malloc(void *addr, size_t num, int flag,
+                             const char *file, int line)
+{
+    (void)addr; (void)num; (void)flag; (void)file; (void)line;
+}
+
+void CRYPTO_mem_debug_realloc(void *addr1, void *addr2, size_t num, int flag,
+                              const char *file, int line)
+{
+    (void)addr1; (void)addr2; (void)num; (void)flag; (void)file; (void)line;
+}
+
+void CRYPTO_mem_debug_free(void *addr, int flag,
+                           const char *file, int line)
+{
+    (void)addr; (void)flag; (void)file; (void)line;
+}
+
+int CRYPTO_mem_leaks(BIO *b)
+{
+    (void)b;
+    return -1;
+}
+
+#  ifndef OPENSSL_NO_STDIO
+int CRYPTO_mem_leaks_fp(FILE *fp)
+{
+    (void)fp;
+    return -1;
+}
+#  endif
+
+int CRYPTO_mem_leaks_cb(int (*cb)(const char *str, size_t len, void *u),
+                        void *u)
+{
+    (void)cb; (void)u;
+    return -1;
+}
+
+# endif
+
+#endif

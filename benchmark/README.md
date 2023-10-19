@@ -5,43 +5,26 @@ of different Node.js implementations and different ways of
 writing JavaScript run by the built-in JavaScript engine.
 
 For a detailed guide on how to write and run benchmarks in this
-directory, see [the guide on benchmarks](../doc/guides/writing-and-running-benchmarks.md).
+directory, see [the guide on benchmarks](../doc/contributing/writing-and-running-benchmarks.md).
 
 ## Table of Contents
 
-* [Benchmark directories](#benchmark-directories)
+* [File tree structure](#file-tree-structure)
 * [Common API](#common-api)
 
-## Benchmark Directories
+## File tree structure
 
-| Directory       | Purpose                                                                                                          |
-| --------------- | ---------------------------------------------------------------------------------------------------------------- |
-| assert          | Benchmarks for the `assert` subsystem.                                                                           |
-| buffers         | Benchmarks for the `buffer` subsystem.                                                                           |
-| child\_process  | Benchmarks for the `child_process` subsystem.                                                                    |
-| crypto          | Benchmarks for the `crypto` subsystem.                                                                           |
-| dgram           | Benchmarks for the `dgram` subsystem.                                                                            |
-| domain          | Benchmarks for the `domain` subsystem.                                                                           |
-| es              | Benchmarks for various new ECMAScript features and their pre-ES2015 counterparts.                                |
-| events          | Benchmarks for the `events` subsystem.                                                                           |
-| fixtures        | Benchmarks fixtures used in various benchmarks throughout the benchmark suite.                                   |
-| fs              | Benchmarks for the `fs` subsystem.                                                                               |
-| http            | Benchmarks for the `http` subsystem.                                                                             |
-| http2           | Benchmarks for the `http2` subsystem.                                                                            |
-| misc            | Miscellaneous benchmarks and benchmarks for shared internal modules.                                             |
-| module          | Benchmarks for the `module` subsystem.                                                                           |
-| net             | Benchmarks for the `net` subsystem.                                                                              |
-| path            | Benchmarks for the `path` subsystem.                                                                             |
-| perf_hooks      | Benchmarks for the `perf_hooks` subsystem.                                                                       |
-| process         | Benchmarks for the `process` subsystem.                                                                          |
-| querystring     | Benchmarks for the `querystring` subsystem.                                                                      |
-| streams         | Benchmarks for the `streams` subsystem.                                                                          |
-| string\_decoder | Benchmarks for the `string_decoder` subsystem.                                                                   |
-| timers          | Benchmarks for the `timers` subsystem, including `setTimeout`, `setInterval`, .etc.                              |
-| tls             | Benchmarks for the `tls` subsystem.                                                                              |
-| url             | Benchmarks for the `url` subsystem, including the legacy `url` implementation and the WHATWG URL implementation. |
-| util            | Benchmarks for the `util` subsystem.                                                                             |
-| vm              | Benchmarks for the `vm` subsystem.                                                                               |
+### Directories
+
+Benchmarks testing the performance of a single node submodule are placed into a
+directory with the corresponding name, so that they can be executed by submodule
+or individually.
+Benchmarks that span multiple submodules may either be placed into the `misc`
+directory or into a directory named after the feature they benchmark.
+E.g. benchmarks for various new ECMAScript features and their pre-ES2015
+counterparts are placed in a directory named `es`.
+Fixtures that are not specific to a certain benchmark but can be reused
+throughout the benchmark suite should be placed in the `fixtures` directory.
 
 ### Other Top-level files
 
@@ -77,17 +60,17 @@ writing benchmarks.
 
 ### `createBenchmark(fn, configs[, options])`
 
-See [the guide on writing benchmarks](../doc/guides/writing-and-running-benchmarks.md#basics-of-a-benchmark).
+See [the guide on writing benchmarks](../doc/contributing/writing-and-running-benchmarks.md#basics-of-a-benchmark).
 
 ### `default_http_benchmarker`
 
 The default benchmarker used to run HTTP benchmarks.
-See [the guide on writing HTTP benchmarks](../doc/guides/writing-and-running-benchmarks.md#creating-an-http-benchmark).
+See [the guide on writing HTTP benchmarks](../doc/contributing/writing-and-running-benchmarks.md#creating-an-http-benchmark).
 
 ### `PORT`
 
 The default port used to run HTTP benchmarks.
-See [the guide on writing HTTP benchmarks](../doc/guides/writing-and-running-benchmarks.md#creating-an-http-benchmark).
+See [the guide on writing HTTP benchmarks](../doc/contributing/writing-and-running-benchmarks.md#creating-an-http-benchmark).
 
 ### `sendResult(data)`
 

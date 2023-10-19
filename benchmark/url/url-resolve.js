@@ -9,13 +9,13 @@ const paths = {
   'sibling': '../foo/bar?baz=boom',
   'foo/bar': 'foo/bar',
   'withscheme': 'http://nodejs.org',
-  'down': './foo/bar?baz'
+  'down': './foo/bar?baz',
 };
 
 const bench = common.createBenchmark(main, {
   href: Object.keys(hrefs),
   path: Object.keys(paths),
-  n: [1e5]
+  n: [1e5],
 });
 
 function main({ n, href, path }) {

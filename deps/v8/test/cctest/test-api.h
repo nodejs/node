@@ -5,34 +5,34 @@
 #ifndef V8_TEST_CCTEST_TEST_API_H_
 #define V8_TEST_CCTEST_TEST_API_H_
 
-#include "src/init/v8.h"
-
 #include "src/api/api.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state.h"
 #include "test/cctest/cctest.h"
 
 template <typename T>
-static void CheckReturnValue(const T& t, i::Address callback) {
-  v8::ReturnValue<v8::Value> rv = t.GetReturnValue();
-  i::FullObjectSlot o(*reinterpret_cast<i::Address*>(&rv));
-  CHECK_EQ(CcTest::isolate(), t.GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(t.GetIsolate());
-  CHECK_EQ(t.GetIsolate(), rv.GetIsolate());
-  CHECK((*o).IsTheHole(isolate) || (*o).IsUndefined(isolate));
+static void CheckReturnValue(const T& info, i::Address callback) {
+  v8::ReturnValue<v8::Value> returnValue = info.GetReturnValue();
+  i::FullObjectSlot returnObjectSlot(
+      *reinterpret_cast<i::Address*>(&returnValue));
+  CHECK_EQ(CcTest::isolate(), info.GetIsolate());
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  CHECK_EQ(info.GetIsolate(), returnValue.GetIsolate());
+  CHECK(IsTheHole(*returnObjectSlot, isolate) ||
+        IsUndefined(*returnObjectSlot, isolate));
   // Verify reset
-  bool is_runtime = (*o).IsTheHole(isolate);
+  bool is_runtime = IsTheHole(*returnObjectSlot, isolate);
   if (is_runtime) {
-    CHECK(rv.Get()->IsUndefined());
+    CHECK(returnValue.Get()->IsUndefined());
   } else {
-    i::Handle<i::Object> v = v8::Utils::OpenHandle(*rv.Get());
-    CHECK_EQ(*v, *o);
+    i::Handle<i::Object> v = v8::Utils::OpenHandle(*returnValue.Get());
+    CHECK_EQ(*v, *returnObjectSlot);
   }
-  rv.Set(true);
-  CHECK(!(*o).IsTheHole(isolate) && !(*o).IsUndefined(isolate));
-  rv.Set(v8::Local<v8::Object>());
-  CHECK((*o).IsTheHole(isolate) || (*o).IsUndefined(isolate));
-  CHECK_EQ(is_runtime, (*o).IsTheHole(isolate));
+  returnValue.Set(true);
+  CHECK_EQ(*returnObjectSlot, i::ReadOnlyRoots(isolate).true_value());
+  returnValue.Set(v8::Local<v8::Object>());
+  CHECK(IsTheHole(*returnObjectSlot, isolate) ||
+        IsUndefined(*returnObjectSlot, isolate));
   // If CPU profiler is active check that when API callback is invoked
   // VMState is set to EXTERNAL.
   if (isolate->is_profiling()) {
@@ -46,9 +46,11 @@ template <typename T>
 static void CheckInternalFieldsAreZero(v8::Local<T> value) {
   CHECK_EQ(T::kInternalFieldCount, value->InternalFieldCount());
   for (int i = 0; i < value->InternalFieldCount(); i++) {
-    CHECK_EQ(0, value->GetInternalField(i)
-                    ->Int32Value(CcTest::isolate()->GetCurrentContext())
-                    .FromJust());
+    v8::Local<v8::Value> field =
+        value->GetInternalField(i).template As<v8::Value>();
+    CHECK_EQ(
+        0,
+        field->Int32Value(CcTest::isolate()->GetCurrentContext()).FromJust());
   }
 }
 
@@ -74,6 +76,14 @@ struct ConvertJSValue<uint32_t> {
   }
 };
 
+template <>
+struct ConvertJSValue<std::nullptr_t> {
+  static v8::Maybe<std::nullptr_t> Get(v8::Local<v8::Value> value,
+                                       v8::Local<v8::Context> context) {
+    return value->IsNull() ? v8::Just(nullptr) : v8::Nothing<std::nullptr_t>();
+  }
+};
+
 // NaNs and +/-Infinity should be 0, otherwise (modulo 2^64) - 2^63.
 // Step 8 - 12 of https://heycam.github.io/webidl/#abstract-opdef-converttoint
 // The int64_t and uint64_t implementations below are copied from Blink:
@@ -95,7 +105,7 @@ struct ConvertJSValue<int64_t> {
     constexpr uint64_t kMaxULL = std::numeric_limits<uint64_t>::max();
 
     // -2^{64} < fmod_value < 2^{64}.
-    double fmod_value = fmod(result, kMaxULL + 1.0);
+    double fmod_value = fmod(result, static_cast<double>(kMaxULL));
     if (fmod_value >= 0) {
       if (fmod_value < pow(2, 63)) {
         // 0 <= fmod_value < 2^{63}.
@@ -133,7 +143,7 @@ struct ConvertJSValue<uint64_t> {
     constexpr uint64_t kMaxULL = std::numeric_limits<uint64_t>::max();
 
     // -2^{64} < fmod_value < 2^{64}.
-    double fmod_value = fmod(result, kMaxULL + 1.0);
+    double fmod_value = fmod(result, static_cast<double>(kMaxULL));
     if (fmod_value >= 0) {
       return v8::Just(static_cast<uint64_t>(fmod_value));
     }

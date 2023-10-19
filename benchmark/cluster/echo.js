@@ -1,14 +1,14 @@
 'use strict';
 
 const cluster = require('cluster');
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const common = require('../common.js');
   const bench = common.createBenchmark(main, {
     workers: [1],
     payload: ['string', 'object'],
     sendsPerBroadcast: [1, 10],
     serialization: ['json', 'advanced'],
-    n: [1e5]
+    n: [1e5],
   });
 
   function main({
@@ -16,7 +16,7 @@ if (cluster.isMaster) {
     workers,
     sendsPerBroadcast,
     payload,
-    serialization
+    serialization,
   }) {
     const expectedPerBroadcast = sendsPerBroadcast * workers;
     let readies = 0;

@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -10,7 +10,7 @@
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. Rights for redistribution and usage in source and binary
-# forms are granted according to the OpenSSL license.
+# forms are granted according to the License.
 # ====================================================================
 #
 # whirlpool_block for x86_64.
@@ -37,9 +37,10 @@
 # 3 on Opteron] and which is *unacceptably* slow with 64-bit
 # operand.
 
-$flavour = shift;
-$output  = shift;
-if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 $win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
 
@@ -48,7 +49,8 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; my $dir=$1; my $xlate;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\""
+    or die "can't call $xlate: $!";
 *STDOUT=*OUT;
 
 sub L() { $code.=".byte	".join(',',@_)."\n"; }

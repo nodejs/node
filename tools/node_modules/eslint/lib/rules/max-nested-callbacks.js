@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "enforce a maximum depth that callbacks can be nested",
-            category: "Stylistic Issues",
+            description: "Enforce a maximum depth that callbacks can be nested",
             recommended: false,
-            url: "https://eslint.org/docs/rules/max-nested-callbacks"
+            url: "https://eslint.org/docs/latest/rules/max-nested-callbacks"
         },
 
         schema: [

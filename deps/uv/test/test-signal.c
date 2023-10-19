@@ -38,7 +38,7 @@ TEST_IMPL(kill_invalid_signum) {
 #endif
   ASSERT(uv_kill(pid, 4096) == UV_EINVAL);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -69,7 +69,7 @@ TEST_IMPL(win32_signum_number) {
   ASSERT(uv_signal_start(&signal, signum_test_cb, -1) == UV_EINVAL);
   ASSERT(uv_signal_start(&signal, signum_test_cb, NSIG) == UV_EINVAL);
   ASSERT(uv_signal_start(&signal, signum_test_cb, 1024) == UV_EINVAL);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 #else
@@ -180,7 +180,7 @@ TEST_IMPL(we_get_signal) {
   ASSERT(tc.ncalls == NSIGNALS);
   ASSERT(sc.ncalls == NSIGNALS);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -206,7 +206,7 @@ TEST_IMPL(we_get_signals) {
   for (i = 0; i < ARRAY_SIZE(tc); i++)
     ASSERT(tc[i].ncalls == NSIGNALS);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -235,7 +235,7 @@ TEST_IMPL(we_get_signal_one_shot) {
   ASSERT(tc.ncalls == NSIGNALS);
   ASSERT(sc.ncalls == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -318,7 +318,7 @@ TEST_IMPL(we_get_signals_mixed) {
   ASSERT(sc[2].ncalls == 0);
   ASSERT(sc[3].ncalls == NSIGNALS);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 

@@ -13,5 +13,6 @@ specific_include_rules = {
   ],
   "wasm-compiler.h": [
     "-src/compiler",
+    "+src/compiler/wasm-compiler-definitions.h",
   ],
 }

@@ -10,7 +10,9 @@ const { once } = require('events');
 async function main() {
   const blobWithEmptyFrame = readSync('emptyframe.http2');
   const server = net.createServer((socket) => {
-    socket.end(blobWithEmptyFrame);
+    socket.once('data', () => {
+      socket.end(blobWithEmptyFrame);
+    });
   }).listen(0);
   await once(server, 'listening');
 
@@ -34,7 +36,9 @@ async function main() {
       client.on('error', common.expectsError(expected));
     }
     stream.resume();
-    await once(stream, 'end');
+    await new Promise((resolve) => {
+      stream.once('close', resolve);
+    });
     client.close();
   }
   server.close();

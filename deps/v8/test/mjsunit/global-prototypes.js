@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax
 
 
-assertEquals(this.__proto__, Object.prototype);
+assertSame(this.__proto__.__proto__, Object.prototype);
 
 function TestAddingPropertyToGlobalPrototype() {
   let foo_func_called = 0;

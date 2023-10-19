@@ -35,7 +35,7 @@ const resourceWrap = createAsyncResource(
   /**
    * set resource to NULL to generate a managed resource object
    */
-  undefined
+  undefined,
 );
 
 assert.strictEqual(hook_result.destroy_called, false);
@@ -44,7 +44,7 @@ makeCallback(resourceWrap, recv, function callback() {
   assert.strictEqual(hook_result.destroy_called, false);
   assert.strictEqual(
     hook_result.resource,
-    async_hooks.executionAsyncResource()
+    async_hooks.executionAsyncResource(),
   );
   assert.strictEqual(this, recv);
 
@@ -52,7 +52,7 @@ makeCallback(resourceWrap, recv, function callback() {
     assert.strictEqual(hook_result.destroy_called, false);
     assert.notStrictEqual(
       hook_result.resource,
-      async_hooks.executionAsyncResource()
+      async_hooks.executionAsyncResource(),
     );
 
     destroyAsyncResource(resourceWrap);

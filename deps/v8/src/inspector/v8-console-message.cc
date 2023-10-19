@@ -4,6 +4,11 @@
 
 #include "src/inspector/v8-console-message.h"
 
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-inspector.h"
+#include "include/v8-microtask-queue.h"
+#include "include/v8-primitive-object.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -13,9 +18,8 @@
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
+#include "src/inspector/value-mirror.h"
 #include "src/tracing/trace-event.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -90,25 +94,22 @@ class V8ValueStringBuilder {
     if (value.IsEmpty()) return true;
     if ((ignoreOptions & IgnoreNull) && value->IsNull()) return true;
     if ((ignoreOptions & IgnoreUndefined) && value->IsUndefined()) return true;
+    if (value->IsBigIntObject()) {
+      value = value.As<v8::BigIntObject>()->ValueOf();
+    } else if (value->IsBooleanObject()) {
+      value =
+          v8::Boolean::New(m_isolate, value.As<v8::BooleanObject>()->ValueOf());
+    } else if (value->IsNumberObject()) {
+      value =
+          v8::Number::New(m_isolate, value.As<v8::NumberObject>()->ValueOf());
+    } else if (value->IsStringObject()) {
+      value = value.As<v8::StringObject>()->ValueOf();
+    } else if (value->IsSymbolObject()) {
+      value = value.As<v8::SymbolObject>()->ValueOf();
+    }
     if (value->IsString()) return append(value.As<v8::String>());
-    if (value->IsStringObject())
-      return append(value.As<v8::StringObject>()->ValueOf());
     if (value->IsBigInt()) return append(value.As<v8::BigInt>());
-    if (value->IsBigIntObject())
-      return append(value.As<v8::BigIntObject>()->ValueOf());
     if (value->IsSymbol()) return append(value.As<v8::Symbol>());
-    if (value->IsSymbolObject())
-      return append(value.As<v8::SymbolObject>()->ValueOf());
-    if (value->IsNumberObject()) {
-      m_builder.append(
-          String16::fromDouble(value.As<v8::NumberObject>()->ValueOf(), 6));
-      return true;
-    }
-    if (value->IsBooleanObject()) {
-      m_builder.append(value.As<v8::BooleanObject>()->ValueOf() ? "true"
-                                                                : "false");
-      return true;
-    }
     if (value->IsArray()) return append(value.As<v8::Array>());
     if (value->IsProxy()) {
       m_builder.append("[object Proxy]");
@@ -152,7 +153,7 @@ class V8ValueStringBuilder {
 
   bool append(v8::Local<v8::Symbol> symbol) {
     m_builder.append("Symbol(");
-    bool result = append(symbol->Description(), IgnoreUndefined);
+    bool result = append(symbol->Description(m_isolate), IgnoreUndefined);
     m_builder.append(')');
     return result;
   }
@@ -240,9 +241,9 @@ void V8ConsoleMessage::reportToFrontend(
           .setLevel(level)
           .setText(m_message)
           .build();
-  result->setLine(static_cast<int>(m_lineNumber));
-  result->setColumn(static_cast<int>(m_columnNumber));
-  result->setUrl(m_url);
+  if (m_lineNumber) result->setLine(m_lineNumber);
+  if (m_columnNumber) result->setColumn(m_columnNumber);
+  if (!m_url.isEmpty()) result->setUrl(m_url);
   frontend->messageAdded(std::move(result));
 }
 
@@ -332,6 +333,9 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
     }
     if (m_contextId) exceptionDetails->setExecutionContextId(m_contextId);
     if (exception) exceptionDetails->setException(std::move(exception));
+    std::unique_ptr<protocol::DictionaryValue> data =
+        getAssociatedExceptionData(inspector, session);
+    if (data) exceptionDetails->setExceptionMetaData(std::move(data));
     frontend->exceptionThrown(m_timestamp, std::move(exceptionDetails));
     return;
   }
@@ -379,6 +383,21 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
     return;
   }
   UNREACHABLE();
+}
+
+std::unique_ptr<protocol::DictionaryValue>
+V8ConsoleMessage::getAssociatedExceptionData(
+    V8InspectorImpl* inspector, V8InspectorSessionImpl* session) const {
+  if (!m_arguments.size() || !m_contextId) return nullptr;
+  DCHECK_EQ(1u, m_arguments.size());
+
+  v8::Isolate* isolate = inspector->isolate();
+  v8::HandleScope handles(isolate);
+  v8::MaybeLocal<v8::Value> maybe_exception = m_arguments[0]->Get(isolate);
+  v8::Local<v8::Value> exception;
+  if (!maybe_exception.ToLocal(&exception)) return nullptr;
+
+  return inspector->getAssociatedExceptionDataForProtocol(exception);
 }
 
 std::unique_ptr<protocol::Runtime::RemoteObject>
@@ -445,8 +464,10 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     clientLevel = v8::Isolate::kMessageError;
   } else if (type == ConsoleAPIType::kWarning) {
     clientLevel = v8::Isolate::kMessageWarning;
-  } else if (type == ConsoleAPIType::kInfo || type == ConsoleAPIType::kLog) {
+  } else if (type == ConsoleAPIType::kInfo) {
     clientLevel = v8::Isolate::kMessageInfo;
+  } else if (type == ConsoleAPIType::kLog) {
+    clientLevel = v8::Isolate::kMessageLog;
   }
 
   if (type != ConsoleAPIType::kClear) {
@@ -502,7 +523,8 @@ void V8ConsoleMessage::contextDestroyed(int contextId) {
   m_v8Size = 0;
 }
 
-// ------------------------ V8ConsoleMessageStorage ----------------------------
+// ------------------------ V8ConsoleMessageStorage
+// ----------------------------
 
 V8ConsoleMessageStorage::V8ConsoleMessageStorage(V8InspectorImpl* inspector,
                                                  int contextGroupId)

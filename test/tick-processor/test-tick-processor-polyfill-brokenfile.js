@@ -4,9 +4,6 @@ const { isCPPSymbolsNotMapped } = require('./util');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-if (!common.enoughTestCpu)
-  common.skip('test is CPU-intensive');
-
 if (isCPPSymbolsNotMapped) {
   common.skip('C++ symbols are not mapped for this OS.');
 }
@@ -18,10 +15,9 @@ if (isCPPSymbolsNotMapped) {
 
 const assert = require('assert');
 const { spawn, spawnSync } = require('child_process');
-const path = require('path');
 const { writeFileSync } = require('fs');
 
-const LOG_FILE = path.join(tmpdir.path, 'tick-processor.log');
+const LOG_FILE = tmpdir.resolve('tick-processor.log');
 const RETRY_TIMEOUT = 150;
 const BROKEN_PART = 'tick,';
 const WARN_REG_EXP = /\(node:\d+\) \[BROKEN_PROFILE_FILE] Warning: Profile file .* is broken/;
@@ -39,7 +35,7 @@ const proc = spawn(process.execPath, [
   '--prof',
   '-pe', code,
 ], {
-  stdio: ['ignore', 'pipe', 'inherit']
+  stdio: ['ignore', 'pipe', 'inherit'],
 });
 
 let ticks = '';
@@ -55,8 +51,8 @@ function runPolyfill(content) {
     [
       '--prof-process', LOG_FILE,
     ]);
-  assert(WARN_REG_EXP.test(child.stderr.toString()));
-  assert(WARN_DETAIL_REG_EXP.test(child.stderr.toString()));
+  assert.match(child.stderr.toString(), WARN_REG_EXP);
+  assert.match(child.stderr.toString(), WARN_DETAIL_REG_EXP);
   assert.strictEqual(child.status, 0);
 }
 

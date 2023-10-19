@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const { findVariable } = require("eslint-utils");
+const { findVariable } = require("@eslint-community/eslint-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -93,6 +93,7 @@ function isSetter(node, scope) {
     const parent = node.parent;
 
     if (
+        (parent.type === "Property" || parent.type === "MethodDefinition") &&
         parent.kind === "set" &&
         parent.value === node
     ) {
@@ -135,15 +136,15 @@ function getOuterScope(scope) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow returning values from setters",
-            category: "Possible Errors",
+            description: "Disallow returning values from setters",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-setter-return"
+            url: "https://eslint.org/docs/latest/rules/no-setter-return"
         },
 
         schema: [],
@@ -155,6 +156,7 @@ module.exports = {
 
     create(context) {
         let funcInfo = null;
+        const sourceCode = context.sourceCode;
 
         /**
          * Creates and pushes to the stack a function info object for the given function node.
@@ -162,7 +164,7 @@ module.exports = {
          * @returns {void}
          */
         function enterFunction(node) {
-            const outerScope = getOuterScope(context.getScope());
+            const outerScope = getOuterScope(sourceCode.getScope(node));
 
             funcInfo = {
                 upper: funcInfo,

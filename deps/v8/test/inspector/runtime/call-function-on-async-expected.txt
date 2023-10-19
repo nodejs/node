@@ -208,11 +208,50 @@ Running test: testEvaluateOnExecutionContext
     }
 }
 
+Running test: testEvaluateOnUniqueExecutionContext
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 70
+            type : number
+            value : 70
+        }
+    }
+}
+
 Running test: testPassingBothObjectIdAndExecutionContextId
 {
     error : {
-        code : -32000
-        message : ObjectId must not be specified together with executionContextId
+        code : -32602
+        message : ObjectId, executionContextId and uniqueContextId must mutually exclude each other
+    }
+    id : <messageId>
+}
+
+Running test: testPassingBothObjectIdAndExecutionContextUniqueId
+{
+    error : {
+        code : -32602
+        message : ObjectId, executionContextId and uniqueContextId must mutually exclude each other
+    }
+    id : <messageId>
+}
+
+Running test: testPassingTwoExecutionContextIds
+{
+    error : {
+        code : -32602
+        message : ObjectId, executionContextId and uniqueContextId must mutually exclude each other
+    }
+    id : <messageId>
+}
+
+Running test: testPassingNeitherContextIdNorObjectId
+{
+    error : {
+        code : -32602
+        message : Either objectId or executionContextId or uniqueContextId must be specified
     }
     id : <messageId>
 }

@@ -170,18 +170,12 @@ static bool EnsureDirectory(const std::string& directory, const char* type) {
 }
 
 std::string V8CoverageConnection::GetFilename() const {
-  std::string thread_id = std::to_string(env()->thread_id());
-  std::string pid = std::to_string(uv_os_getpid());
-  std::string timestamp = std::to_string(
-      static_cast<uint64_t>(GetCurrentTimeInMicroseconds() / 1000));
-  char filename[1024];
-  snprintf(filename,
-           sizeof(filename),
-           "coverage-%s-%s-%s.json",
-           pid.c_str(),
-           timestamp.c_str(),
-           thread_id.c_str());
-  return filename;
+  uint64_t timestamp =
+      static_cast<uint64_t>(GetCurrentTimeInMicroseconds() / 1000);
+  return SPrintF("coverage-%s-%s-%s.json",
+      uv_os_getpid(),
+      timestamp,
+      env()->thread_id());
 }
 
 void V8ProfilerConnection::WriteProfile(Local<Object> result) {
@@ -337,11 +331,11 @@ MaybeLocal<Object> V8CpuProfilerConnection::GetProfile(Local<Object> result) {
 
 void V8CpuProfilerConnection::Start() {
   DispatchMessage("Profiler.enable");
-  DispatchMessage("Profiler.start");
   std::string params = R"({ "interval": )";
   params += std::to_string(env()->cpu_prof_interval());
   params += " }";
   DispatchMessage("Profiler.setSamplingInterval", params.c_str());
+  DispatchMessage("Profiler.start");
 }
 
 void V8CpuProfilerConnection::End() {
@@ -428,7 +422,8 @@ void StartProfilers(Environment* env) {
   Local<String> coverage_str = env->env_vars()->Get(
       isolate, FIXED_ONE_BYTE_STRING(isolate, "NODE_V8_COVERAGE"))
       .FromMaybe(Local<String>());
-  if (!coverage_str.IsEmpty() && coverage_str->Length() > 0) {
+  if ((!coverage_str.IsEmpty() && coverage_str->Length() > 0) ||
+      env->options()->test_runner_coverage) {
     CHECK_NULL(env->coverage_connection());
     env->set_coverage_connection(std::make_unique<V8CoverageConnection>(env));
     env->coverage_connection()->Start();
@@ -436,7 +431,8 @@ void StartProfilers(Environment* env) {
   if (env->options()->cpu_prof) {
     const std::string& dir = env->options()->cpu_prof_dir;
     env->set_cpu_prof_interval(env->options()->cpu_prof_interval);
-    env->set_cpu_prof_dir(dir.empty() ? env->GetCwd() : dir);
+    env->set_cpu_prof_dir(dir.empty() ? Environment::GetCwd(env->exec_path())
+                                      : dir);
     if (env->options()->cpu_prof_name.empty()) {
       DiagnosticFilename filename(env, "CPU", "cpuprofile");
       env->set_cpu_prof_name(*filename);
@@ -451,7 +447,8 @@ void StartProfilers(Environment* env) {
   if (env->options()->heap_prof) {
     const std::string& dir = env->options()->heap_prof_dir;
     env->set_heap_prof_interval(env->options()->heap_prof_interval);
-    env->set_heap_prof_dir(dir.empty() ? env->GetCwd() : dir);
+    env->set_heap_prof_dir(dir.empty() ? Environment::GetCwd(env->exec_path())
+                                       : dir);
     if (env->options()->heap_prof_name.empty()) {
       DiagnosticFilename filename(env, "Heap", "heapprofile");
       env->set_heap_prof_name(*filename);
@@ -513,11 +510,11 @@ static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
                        void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "setCoverageDirectory", SetCoverageDirectory);
-  env->SetMethod(target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
-  env->SetMethod(target, "takeCoverage", TakeCoverage);
-  env->SetMethod(target, "stopCoverage", StopCoverage);
+  SetMethod(context, target, "setCoverageDirectory", SetCoverageDirectory);
+  SetMethod(
+      context, target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
+  SetMethod(context, target, "takeCoverage", TakeCoverage);
+  SetMethod(context, target, "stopCoverage", StopCoverage);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -530,6 +527,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace profiler
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(profiler, node::profiler::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(profiler,
-                               node::profiler::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(profiler, node::profiler::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(profiler,
+                                node::profiler::RegisterExternalReferences)

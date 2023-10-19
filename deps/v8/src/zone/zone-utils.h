@@ -8,24 +8,24 @@
 #include <algorithm>
 #include <type_traits>
 
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
 template <typename T>
-Vector<T> CloneVector(Zone* zone, const Vector<const T>& other) {
+base::Vector<T> CloneVector(Zone* zone, base::Vector<const T> other) {
   int length = other.length();
-  if (length == 0) return Vector<T>();
+  if (length == 0) return base::Vector<T>();
 
-  T* data = zone->NewArray<T>(length);
+  T* data = zone->AllocateArray<T>(length);
   if (std::is_trivially_copyable<T>::value) {
     MemCopy(data, other.data(), length * sizeof(T));
   } else {
     std::copy(other.begin(), other.end(), data);
   }
-  return Vector<T>(data, length);
+  return base::Vector<T>(data, length);
 }
 
 }  // namespace internal

@@ -3,7 +3,7 @@
     "../parent.js": {
       "integrity": true,
       "dependencies": {
-        "./dep.js": "node:404"
+        "../dep.js": "node:404"
       }
     }
   }

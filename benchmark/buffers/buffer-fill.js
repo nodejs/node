@@ -15,7 +15,7 @@ const bench = common.createBenchmark(main, {
     'fill(Buffer.alloc(1), 0)',
   ],
   size: [2 ** 13, 2 ** 16],
-  n: [2e4]
+  n: [2e4],
 });
 
 function main({ n, type, size }) {

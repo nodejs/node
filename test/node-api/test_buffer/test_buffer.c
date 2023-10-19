@@ -116,13 +116,13 @@ static napi_value Init(napi_env env, napi_value exports) {
       napi_set_named_property(env, exports, "theText", theValue));
 
   napi_property_descriptor methods[] = {
-    DECLARE_NODE_API_PROPERTY("newBuffer", newBuffer),
-    DECLARE_NODE_API_PROPERTY("newExternalBuffer", newExternalBuffer),
-    DECLARE_NODE_API_PROPERTY("getDeleterCallCount", getDeleterCallCount),
-    DECLARE_NODE_API_PROPERTY("copyBuffer", copyBuffer),
-    DECLARE_NODE_API_PROPERTY("bufferHasInstance", bufferHasInstance),
-    DECLARE_NODE_API_PROPERTY("bufferInfo", bufferInfo),
-    DECLARE_NODE_API_PROPERTY("staticBuffer", staticBuffer),
+      DECLARE_NODE_API_PROPERTY("newBuffer", newBuffer),
+      DECLARE_NODE_API_PROPERTY("newExternalBuffer", newExternalBuffer),
+      DECLARE_NODE_API_PROPERTY("getDeleterCallCount", getDeleterCallCount),
+      DECLARE_NODE_API_PROPERTY("copyBuffer", copyBuffer),
+      DECLARE_NODE_API_PROPERTY("bufferHasInstance", bufferHasInstance),
+      DECLARE_NODE_API_PROPERTY("bufferInfo", bufferInfo),
+      DECLARE_NODE_API_PROPERTY("staticBuffer", staticBuffer),
   };
 
   NODE_API_CALL(env, napi_define_properties(

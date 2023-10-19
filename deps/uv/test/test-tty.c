@@ -28,7 +28,7 @@
 #else /*  Unix */
 # include <fcntl.h>
 # include <unistd.h>
-# if (defined(__linux__) || defined(__GLIBC__)) && !defined(__ANDROID__)
+# if defined(__linux__) && !defined(__ANDROID__)
 #  include <pty.h>
 # elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #  include <util.h>
@@ -94,12 +94,12 @@ TEST_IMPL(tty) {
   ASSERT(UV_TTY == uv_guess_handle(ttyin_fd));
   ASSERT(UV_TTY == uv_guess_handle(ttyout_fd));
 
-  r = uv_tty_init(uv_default_loop(), &tty_in, ttyin_fd, 1);  /* Readable. */
+  r = uv_tty_init(loop, &tty_in, ttyin_fd, 1);  /* Readable. */
   ASSERT(r == 0);
   ASSERT(uv_is_readable((uv_stream_t*) &tty_in));
   ASSERT(!uv_is_writable((uv_stream_t*) &tty_in));
 
-  r = uv_tty_init(uv_default_loop(), &tty_out, ttyout_fd, 0);  /* Writable. */
+  r = uv_tty_init(loop, &tty_out, ttyout_fd, 0);  /* Writable. */
   ASSERT(r == 0);
   ASSERT(!uv_is_readable((uv_stream_t*) &tty_out));
   ASSERT(uv_is_writable((uv_stream_t*) &tty_out));
@@ -112,16 +112,12 @@ TEST_IMPL(tty) {
   if (width == 0 && height == 0) {
    /* Some environments such as containers or Jenkins behave like this
     * sometimes */
-    MAKE_VALGRIND_HAPPY();
+    MAKE_VALGRIND_HAPPY(loop);
     return TEST_SKIP;
   }
 
-  /*
-   * Is it a safe assumption that most people have terminals larger than
-   * 10x10?
-   */
-  ASSERT(width > 10);
-  ASSERT(height > 10);
+  ASSERT_GT(width, 0);
+  ASSERT_GT(height, 0);
 
   /* Turn on raw mode. */
   r = uv_tty_set_mode(&tty_in, UV_TTY_MODE_RAW);
@@ -145,7 +141,7 @@ TEST_IMPL(tty) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -188,7 +184,7 @@ TEST_IMPL(tty_raw) {
   ASSERT(ttyin_fd >= 0);
   ASSERT(UV_TTY == uv_guess_handle(ttyin_fd));
 
-  r = uv_tty_init(uv_default_loop(), &tty_in, ttyin_fd, 1);  /* Readable. */
+  r = uv_tty_init(loop, &tty_in, ttyin_fd, 1);  /* Readable. */
   ASSERT(r == 0);
   ASSERT(uv_is_readable((uv_stream_t*) &tty_in));
   ASSERT(!uv_is_writable((uv_stream_t*) &tty_in));
@@ -215,7 +211,7 @@ TEST_IMPL(tty_raw) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -246,7 +242,7 @@ TEST_IMPL(tty_empty_write) {
 
   ASSERT(UV_TTY == uv_guess_handle(ttyout_fd));
 
-  r = uv_tty_init(uv_default_loop(), &tty_out, ttyout_fd, 0);  /* Writable. */
+  r = uv_tty_init(loop, &tty_out, ttyout_fd, 0);  /* Writable. */
   ASSERT(r == 0);
   ASSERT(!uv_is_readable((uv_stream_t*) &tty_out));
   ASSERT(uv_is_writable((uv_stream_t*) &tty_out));
@@ -261,7 +257,7 @@ TEST_IMPL(tty_empty_write) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -292,7 +288,7 @@ TEST_IMPL(tty_large_write) {
 
   ASSERT(UV_TTY == uv_guess_handle(ttyout_fd));
 
-  r = uv_tty_init(uv_default_loop(), &tty_out, ttyout_fd, 0);  /* Writable. */
+  r = uv_tty_init(loop, &tty_out, ttyout_fd, 0);  /* Writable. */
   ASSERT(r == 0);
 
   memset(dummy, '.', sizeof(dummy) - 1);
@@ -307,7 +303,7 @@ TEST_IMPL(tty_large_write) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -340,7 +336,7 @@ TEST_IMPL(tty_raw_cancel) {
   r = uv_read_stop((uv_stream_t*) &tty_in);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 #endif
@@ -414,9 +410,8 @@ TEST_IMPL(tty_file) {
 
 
   ASSERT(0 == uv_run(&loop, UV_RUN_DEFAULT));
-  ASSERT(0 == uv_loop_close(&loop));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
 #endif
   return 0;
 }
@@ -433,7 +428,6 @@ TEST_IMPL(tty_pty) {
 #if defined(__APPLE__)                            || \
     defined(__DragonFly__)                        || \
     defined(__FreeBSD__)                          || \
-    defined(__FreeBSD_kernel__)                   || \
     (defined(__linux__) && !defined(__ANDROID__)) || \
     defined(__NetBSD__)                           || \
     defined(__OpenBSD__)
@@ -468,7 +462,7 @@ TEST_IMPL(tty_pty) {
 
   ASSERT(0 == uv_run(&loop, UV_RUN_DEFAULT));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
 #endif
   return 0;
 }

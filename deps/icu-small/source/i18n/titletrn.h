@@ -52,12 +52,12 @@ class TitlecaseTransliterator : public CaseMapTransliterator {
      * Transliterator API.
      * @return a copy of the object.
      */
-    virtual TitlecaseTransliterator* clone() const;
+    virtual TitlecaseTransliterator* clone() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -76,7 +76,7 @@ protected:
      *                    pos.contextLimit.  Otherwise, assume the text is complete.
      */
     virtual void handleTransliterate(Replaceable& text, UTransPosition& offset,
-                             UBool isIncremental) const;
+                             UBool isIncremental) const override;
 
 private:
     /**

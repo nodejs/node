@@ -3,7 +3,8 @@
 # This config is used by the Time Stamp Authority tests.
 #
 
-RANDFILE		= ./.rnd
+# Comment out the next line to ignore configuration errors
+config_diagnostics = 1
 
 # Extra OBJECT IDENTIFIER info:
 oid_section		= new_oids
@@ -32,7 +33,6 @@ new_certs_dir	= $dir/newcerts		# default place for new certs.
 certificate	= $dir/cacert.pem 	# The CA certificate
 serial		= $dir/serial 		# The current serial number
 private_key	= $dir/private/cakey.pem# The private key
-RANDFILE	= $dir/private/.rand	# private random number file
 
 default_days	= 365			# how long to certify for
 default_md	= sha256			# which md to use.
@@ -51,7 +51,6 @@ emailAddress		= optional
 
 #----------------------------------------------------------------------
 [ req ]
-default_bits		= 2048
 default_md		= sha1
 distinguished_name	= $ENV::TSDNSECT
 encrypt_rsa_key		= no

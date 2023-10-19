@@ -1,7 +1,7 @@
 /*
- * Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -36,6 +36,13 @@
 /* Note: rewritten a little bit to provide error control and an OpenSSL-
    compatible API */
 
+/*
+ * AES low level APIs are deprecated for public use, but still ok for internal
+ * use where we're using them to implement the higher level EVP interface, as is
+ * the case here.
+ */
+#include "internal/deprecated.h"
+
 #include <assert.h>
 
 #include <stdlib.h>
@@ -44,6 +51,15 @@
 #include "aes_local.h"
 
 #if defined(OPENSSL_AES_CONST_TIME) && !defined(AES_ASM)
+
+# if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
+#  define U64(C) C##UI64
+# elif defined(__arch64__)
+#  define U64(C) C##UL
+# else
+#  define U64(C) C##ULL
+# endif
+
 typedef union {
     unsigned char b[8];
     u32 w[2];
@@ -72,10 +88,10 @@ static void XtimeLong(u64 *w)
     u64 a, b;
 
     a = *w;
-    b = a & 0x8080808080808080uLL;
+    b = a & U64(0x8080808080808080);
     a ^= b;
     b -= b >> 7;
-    b &= 0x1B1B1B1B1B1B1B1BuLL;
+    b &= U64(0x1B1B1B1B1B1B1B1B);
     b ^= a << 1;
     *w = b;
 }
@@ -222,89 +238,89 @@ static void SubLong(u64 *w)
     u64 x, y, a1, a2, a3, a4, a5, a6;
 
     x = *w;
-    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
-    x &= 0xDDDDDDDDDDDDDDDDuLL;
-    x ^= y & 0x5757575757575757uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x1C1C1C1C1C1C1C1CuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x4A4A4A4A4A4A4A4AuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x4242424242424242uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x6464646464646464uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xE0E0E0E0E0E0E0E0uLL;
+    y = ((x & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((x & U64(0x0101010101010101)) << 7);
+    x &= U64(0xDDDDDDDDDDDDDDDD);
+    x ^= y & U64(0x5757575757575757);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x1C1C1C1C1C1C1C1C);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x4A4A4A4A4A4A4A4A);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x4242424242424242);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x6464646464646464);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0xE0E0E0E0E0E0E0E0);
     a1 = x;
-    a1 ^= (x & 0xF0F0F0F0F0F0F0F0uLL) >> 4;
-    a2 = ((x & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((x & 0x3333333333333333uLL) << 2);
+    a1 ^= (x & U64(0xF0F0F0F0F0F0F0F0)) >> 4;
+    a2 = ((x & U64(0xCCCCCCCCCCCCCCCC)) >> 2) | ((x & U64(0x3333333333333333)) << 2);
     a3 = x & a1;
-    a3 ^= (a3 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & 0xAAAAAAAAAAAAAAAAuLL;
+    a3 ^= (a3 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & U64(0xAAAAAAAAAAAAAAAA);
     a4 = a2 & a1;
-    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
-    a5 = (a3 & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
-    a3 ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
-    a4 = a5 & 0x2222222222222222uLL;
+    a4 ^= (a4 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & U64(0xAAAAAAAAAAAAAAAA);
+    a5 = (a3 & U64(0xCCCCCCCCCCCCCCCC)) >> 2;
+    a3 ^= ((a4 << 2) ^ a4) & U64(0xCCCCCCCCCCCCCCCC);
+    a4 = a5 & U64(0x2222222222222222);
     a4 |= a4 >> 1;
-    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+    a4 ^= (a5 << 1) & U64(0x2222222222222222);
     a3 ^= a4;
-    a5 = a3 & 0xA0A0A0A0A0A0A0A0uLL;
+    a5 = a3 & U64(0xA0A0A0A0A0A0A0A0);
     a5 |= a5 >> 1;
-    a5 ^= (a3 << 1) & 0xA0A0A0A0A0A0A0A0uLL;
-    a4 = a5 & 0xC0C0C0C0C0C0C0C0uLL;
+    a5 ^= (a3 << 1) & U64(0xA0A0A0A0A0A0A0A0);
+    a4 = a5 & U64(0xC0C0C0C0C0C0C0C0);
     a6 = a4 >> 2;
-    a4 ^= (a5 << 2) & 0xC0C0C0C0C0C0C0C0uLL;
-    a5 = a6 & 0x2020202020202020uLL;
+    a4 ^= (a5 << 2) & U64(0xC0C0C0C0C0C0C0C0);
+    a5 = a6 & U64(0x2020202020202020);
     a5 |= a5 >> 1;
-    a5 ^= (a6 << 1) & 0x2020202020202020uLL;
+    a5 ^= (a6 << 1) & U64(0x2020202020202020);
     a4 |= a5;
     a3 ^= a4 >> 4;
-    a3 &= 0x0F0F0F0F0F0F0F0FuLL;
+    a3 &= U64(0x0F0F0F0F0F0F0F0F);
     a2 = a3;
-    a2 ^= (a3 & 0x0C0C0C0C0C0C0C0CuLL) >> 2;
+    a2 ^= (a3 & U64(0x0C0C0C0C0C0C0C0C)) >> 2;
     a4 = a3 & a2;
-    a4 ^= (a4 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
-    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & 0x0A0A0A0A0A0A0A0AuLL;
-    a5 = a4 & 0x0808080808080808uLL;
+    a4 ^= (a4 & U64(0x0A0A0A0A0A0A0A0A)) >> 1;
+    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & U64(0x0A0A0A0A0A0A0A0A);
+    a5 = a4 & U64(0x0808080808080808);
     a5 |= a5 >> 1;
-    a5 ^= (a4 << 1) & 0x0808080808080808uLL;
+    a5 ^= (a4 << 1) & U64(0x0808080808080808);
     a4 ^= a5 >> 2;
-    a4 &= 0x0303030303030303uLL;
-    a4 ^= (a4 & 0x0202020202020202uLL) >> 1;
+    a4 &= U64(0x0303030303030303);
+    a4 ^= (a4 & U64(0x0202020202020202)) >> 1;
     a4 |= a4 << 2;
     a3 = a2 & a4;
-    a3 ^= (a3 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
-    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & 0x0A0A0A0A0A0A0A0AuLL;
+    a3 ^= (a3 & U64(0x0A0A0A0A0A0A0A0A)) >> 1;
+    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & U64(0x0A0A0A0A0A0A0A0A);
     a3 |= a3 << 4;
-    a2 = ((a1 & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((a1 & 0x3333333333333333uLL) << 2);
+    a2 = ((a1 & U64(0xCCCCCCCCCCCCCCCC)) >> 2) | ((a1 & U64(0x3333333333333333)) << 2);
     x = a1 & a3;
-    x ^= (x & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & 0xAAAAAAAAAAAAAAAAuLL;
+    x ^= (x & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & U64(0xAAAAAAAAAAAAAAAA);
     a4 = a2 & a3;
-    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
-    a5 = (x & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
-    x ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
-    a4 = a5 & 0x2222222222222222uLL;
+    a4 ^= (a4 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & U64(0xAAAAAAAAAAAAAAAA);
+    a5 = (x & U64(0xCCCCCCCCCCCCCCCC)) >> 2;
+    x ^= ((a4 << 2) ^ a4) & U64(0xCCCCCCCCCCCCCCCC);
+    a4 = a5 & U64(0x2222222222222222);
     a4 |= a4 >> 1;
-    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+    a4 ^= (a5 << 1) & U64(0x2222222222222222);
     x ^= a4;
-    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
-    x &= 0x3939393939393939uLL;
-    x ^= y & 0x3F3F3F3F3F3F3F3FuLL;
-    y = ((y & 0xFCFCFCFCFCFCFCFCuLL) >> 2) | ((y & 0x0303030303030303uLL) << 6);
-    x ^= y & 0x9797979797979797uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x9B9B9B9B9B9B9B9BuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x3C3C3C3C3C3C3C3CuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xDDDDDDDDDDDDDDDDuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x7272727272727272uLL;
-    x ^= 0x6363636363636363uLL;
+    y = ((x & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((x & U64(0x0101010101010101)) << 7);
+    x &= U64(0x3939393939393939);
+    x ^= y & U64(0x3F3F3F3F3F3F3F3F);
+    y = ((y & U64(0xFCFCFCFCFCFCFCFC)) >> 2) | ((y & U64(0x0303030303030303)) << 6);
+    x ^= y & U64(0x9797979797979797);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x9B9B9B9B9B9B9B9B);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x3C3C3C3C3C3C3C3C);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0xDDDDDDDDDDDDDDDD);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x7272727272727272);
+    x ^= U64(0x6363636363636363);
     *w = x;
 }
 
@@ -316,93 +332,93 @@ static void InvSubLong(u64 *w)
     u64 x, y, a1, a2, a3, a4, a5, a6;
 
     x = *w;
-    x ^= 0x6363636363636363uLL;
-    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
-    x &= 0xFDFDFDFDFDFDFDFDuLL;
-    x ^= y & 0x5E5E5E5E5E5E5E5EuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xF3F3F3F3F3F3F3F3uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xF5F5F5F5F5F5F5F5uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x7878787878787878uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x7777777777777777uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x1515151515151515uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xA5A5A5A5A5A5A5A5uLL;
+    x ^= U64(0x6363636363636363);
+    y = ((x & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((x & U64(0x0101010101010101)) << 7);
+    x &= U64(0xFDFDFDFDFDFDFDFD);
+    x ^= y & U64(0x5E5E5E5E5E5E5E5E);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0xF3F3F3F3F3F3F3F3);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0xF5F5F5F5F5F5F5F5);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x7878787878787878);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x7777777777777777);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x1515151515151515);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0xA5A5A5A5A5A5A5A5);
     a1 = x;
-    a1 ^= (x & 0xF0F0F0F0F0F0F0F0uLL) >> 4;
-    a2 = ((x & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((x & 0x3333333333333333uLL) << 2);
+    a1 ^= (x & U64(0xF0F0F0F0F0F0F0F0)) >> 4;
+    a2 = ((x & U64(0xCCCCCCCCCCCCCCCC)) >> 2) | ((x & U64(0x3333333333333333)) << 2);
     a3 = x & a1;
-    a3 ^= (a3 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & 0xAAAAAAAAAAAAAAAAuLL;
+    a3 ^= (a3 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & U64(0xAAAAAAAAAAAAAAAA);
     a4 = a2 & a1;
-    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
-    a5 = (a3 & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
-    a3 ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
-    a4 = a5 & 0x2222222222222222uLL;
+    a4 ^= (a4 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & U64(0xAAAAAAAAAAAAAAAA);
+    a5 = (a3 & U64(0xCCCCCCCCCCCCCCCC)) >> 2;
+    a3 ^= ((a4 << 2) ^ a4) & U64(0xCCCCCCCCCCCCCCCC);
+    a4 = a5 & U64(0x2222222222222222);
     a4 |= a4 >> 1;
-    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+    a4 ^= (a5 << 1) & U64(0x2222222222222222);
     a3 ^= a4;
-    a5 = a3 & 0xA0A0A0A0A0A0A0A0uLL;
+    a5 = a3 & U64(0xA0A0A0A0A0A0A0A0);
     a5 |= a5 >> 1;
-    a5 ^= (a3 << 1) & 0xA0A0A0A0A0A0A0A0uLL;
-    a4 = a5 & 0xC0C0C0C0C0C0C0C0uLL;
+    a5 ^= (a3 << 1) & U64(0xA0A0A0A0A0A0A0A0);
+    a4 = a5 & U64(0xC0C0C0C0C0C0C0C0);
     a6 = a4 >> 2;
-    a4 ^= (a5 << 2) & 0xC0C0C0C0C0C0C0C0uLL;
-    a5 = a6 & 0x2020202020202020uLL;
+    a4 ^= (a5 << 2) & U64(0xC0C0C0C0C0C0C0C0);
+    a5 = a6 & U64(0x2020202020202020);
     a5 |= a5 >> 1;
-    a5 ^= (a6 << 1) & 0x2020202020202020uLL;
+    a5 ^= (a6 << 1) & U64(0x2020202020202020);
     a4 |= a5;
     a3 ^= a4 >> 4;
-    a3 &= 0x0F0F0F0F0F0F0F0FuLL;
+    a3 &= U64(0x0F0F0F0F0F0F0F0F);
     a2 = a3;
-    a2 ^= (a3 & 0x0C0C0C0C0C0C0C0CuLL) >> 2;
+    a2 ^= (a3 & U64(0x0C0C0C0C0C0C0C0C)) >> 2;
     a4 = a3 & a2;
-    a4 ^= (a4 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
-    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & 0x0A0A0A0A0A0A0A0AuLL;
-    a5 = a4 & 0x0808080808080808uLL;
+    a4 ^= (a4 & U64(0x0A0A0A0A0A0A0A0A)) >> 1;
+    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & U64(0x0A0A0A0A0A0A0A0A);
+    a5 = a4 & U64(0x0808080808080808);
     a5 |= a5 >> 1;
-    a5 ^= (a4 << 1) & 0x0808080808080808uLL;
+    a5 ^= (a4 << 1) & U64(0x0808080808080808);
     a4 ^= a5 >> 2;
-    a4 &= 0x0303030303030303uLL;
-    a4 ^= (a4 & 0x0202020202020202uLL) >> 1;
+    a4 &= U64(0x0303030303030303);
+    a4 ^= (a4 & U64(0x0202020202020202)) >> 1;
     a4 |= a4 << 2;
     a3 = a2 & a4;
-    a3 ^= (a3 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
-    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & 0x0A0A0A0A0A0A0A0AuLL;
+    a3 ^= (a3 & U64(0x0A0A0A0A0A0A0A0A)) >> 1;
+    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & U64(0x0A0A0A0A0A0A0A0A);
     a3 |= a3 << 4;
-    a2 = ((a1 & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((a1 & 0x3333333333333333uLL) << 2);
+    a2 = ((a1 & U64(0xCCCCCCCCCCCCCCCC)) >> 2) | ((a1 & U64(0x3333333333333333)) << 2);
     x = a1 & a3;
-    x ^= (x & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & 0xAAAAAAAAAAAAAAAAuLL;
+    x ^= (x & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & U64(0xAAAAAAAAAAAAAAAA);
     a4 = a2 & a3;
-    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
-    a5 = (x & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
-    x ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
-    a4 = a5 & 0x2222222222222222uLL;
+    a4 ^= (a4 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & U64(0xAAAAAAAAAAAAAAAA);
+    a5 = (x & U64(0xCCCCCCCCCCCCCCCC)) >> 2;
+    x ^= ((a4 << 2) ^ a4) & U64(0xCCCCCCCCCCCCCCCC);
+    a4 = a5 & U64(0x2222222222222222);
     a4 |= a4 >> 1;
-    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+    a4 ^= (a5 << 1) & U64(0x2222222222222222);
     x ^= a4;
-    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
-    x &= 0xB5B5B5B5B5B5B5B5uLL;
-    x ^= y & 0x4040404040404040uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x8080808080808080uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x1616161616161616uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xEBEBEBEBEBEBEBEBuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x9797979797979797uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xFBFBFBFBFBFBFBFBuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x7D7D7D7D7D7D7D7DuLL;
+    y = ((x & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((x & U64(0x0101010101010101)) << 7);
+    x &= U64(0xB5B5B5B5B5B5B5B5);
+    x ^= y & U64(0x4040404040404040);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x8080808080808080);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x1616161616161616);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0xEBEBEBEBEBEBEBEB);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x9797979797979797);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0xFBFBFBFBFBFBFBFB);
+    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+    x ^= y & U64(0x7D7D7D7D7D7D7D7D);
     *w = x;
 }
 
@@ -453,10 +469,10 @@ static void MixColumns(u64 *state)
     for (c = 0; c < 2; c++) {
         s1.d = state[c];
         s.d = s1.d;
-        s.d ^= ((s.d & 0xFFFF0000FFFF0000uLL) >> 16)
-               | ((s.d & 0x0000FFFF0000FFFFuLL) << 16);
-        s.d ^= ((s.d & 0xFF00FF00FF00FF00uLL) >> 8)
-               | ((s.d & 0x00FF00FF00FF00FFuLL) << 8);
+        s.d ^= ((s.d & U64(0xFFFF0000FFFF0000)) >> 16)
+               | ((s.d & U64(0x0000FFFF0000FFFF)) << 16);
+        s.d ^= ((s.d & U64(0xFF00FF00FF00FF00)) >> 8)
+               | ((s.d & U64(0x00FF00FF00FF00FF)) << 8);
         s.d ^= s1.d;
         XtimeLong(&s1.d);
         s.d ^= s1.d;
@@ -481,10 +497,10 @@ static void InvMixColumns(u64 *state)
     for (c = 0; c < 2; c++) {
         s1.d = state[c];
         s.d = s1.d;
-        s.d ^= ((s.d & 0xFFFF0000FFFF0000uLL) >> 16)
-               | ((s.d & 0x0000FFFF0000FFFFuLL) << 16);
-        s.d ^= ((s.d & 0xFF00FF00FF00FF00uLL) >> 8)
-               | ((s.d & 0x00FF00FF00FF00FFuLL) << 8);
+        s.d ^= ((s.d & U64(0xFFFF0000FFFF0000)) >> 16)
+               | ((s.d & U64(0x0000FFFF0000FFFF)) << 16);
+        s.d ^= ((s.d & U64(0xFF00FF00FF00FF00)) >> 8)
+               | ((s.d & U64(0x00FF00FF00FF00FF)) << 8);
         s.d ^= s1.d;
         XtimeLong(&s1.d);
         s.d ^= s1.d;
@@ -497,12 +513,12 @@ static void InvMixColumns(u64 *state)
         s.b[6] ^= s1.b[7];
         s.b[7] ^= s1.b[4];
         XtimeLong(&s1.d);
-        s1.d ^= ((s1.d & 0xFFFF0000FFFF0000uLL) >> 16)
-                | ((s1.d & 0x0000FFFF0000FFFFuLL) << 16);
+        s1.d ^= ((s1.d & U64(0xFFFF0000FFFF0000)) >> 16)
+                | ((s1.d & U64(0x0000FFFF0000FFFF)) << 16);
         s.d ^= s1.d;
         XtimeLong(&s1.d);
-        s1.d ^= ((s1.d & 0xFF00FF00FF00FF00uLL) >> 8)
-                | ((s1.d & 0x00FF00FF00FF00FFuLL) << 8);
+        s1.d ^= ((s1.d & U64(0xFF00FF00FF00FF00)) >> 8)
+                | ((s1.d & U64(0x00FF00FF00FF00FF)) << 8);
         s.d ^= s1.d;
         state[c] = s.d;
     }

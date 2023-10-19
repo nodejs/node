@@ -9,6 +9,10 @@ DSA_set_method, DSA_new_method, DSA_OpenSSL - select DSA method
 
  #include <openssl/dsa.h>
 
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  void DSA_set_default_method(const DSA_METHOD *meth);
 
  const DSA_METHOD *DSA_get_default_method(void);
@@ -17,9 +21,12 @@ DSA_set_method, DSA_new_method, DSA_OpenSSL - select DSA method
 
  DSA *DSA_new_method(ENGINE *engine);
 
- DSA_METHOD *DSA_OpenSSL(void);
+ const DSA_METHOD *DSA_OpenSSL(void);
 
 =head1 DESCRIPTION
+
+All of the functions described on this page are deprecated.
+Applications should providers instead of method overrides.
 
 A B<DSA_METHOD> specifies the functions that OpenSSL uses for DSA
 operations. By modifying the method, alternative implementations
@@ -49,7 +56,7 @@ be released during the change. It is possible to have DSA keys that only
 work with certain DSA_METHOD implementations (e.g. from an ENGINE module
 that supports embedded hardware-protected keys), and in such cases
 attempting to change the DSA_METHOD for the key can have unexpected
-results. See L<DSA_meth_new> for information on constructing custom DSA_METHOD
+results. See L<DSA_meth_new(3)> for information on constructing custom DSA_METHOD
 objects;
 
 DSA_new_method() allocates and initializes a DSA structure so that B<engine>
@@ -76,11 +83,15 @@ fails. Otherwise it returns a pointer to the newly allocated structure.
 
 L<DSA_new(3)>, L<DSA_new(3)>, L<DSA_meth_new(3)>
 
+=head1 HISTORY
+
+All of these functions were deprecated in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

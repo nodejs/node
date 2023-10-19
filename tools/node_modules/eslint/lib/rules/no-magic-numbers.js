@@ -26,15 +26,15 @@ function normalizeIgnoreValue(x) {
     return x;
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "disallow magic numbers",
-            category: "Best Practices",
+            description: "Disallow magic numbers",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-magic-numbers"
+            url: "https://eslint.org/docs/latest/rules/no-magic-numbers"
         },
 
         schema: [{
@@ -65,6 +65,10 @@ module.exports = {
                 ignoreDefaultValues: {
                     type: "boolean",
                     default: false
+                },
+                ignoreClassFieldInitialValues: {
+                    type: "boolean",
+                    default: false
                 }
             },
             additionalProperties: false
@@ -80,9 +84,10 @@ module.exports = {
         const config = context.options[0] || {},
             detectObjects = !!config.detectObjects,
             enforceConst = !!config.enforceConst,
-            ignore = (config.ignore || []).map(normalizeIgnoreValue),
+            ignore = new Set((config.ignore || []).map(normalizeIgnoreValue)),
             ignoreArrayIndexes = !!config.ignoreArrayIndexes,
-            ignoreDefaultValues = !!config.ignoreDefaultValues;
+            ignoreDefaultValues = !!config.ignoreDefaultValues,
+            ignoreClassFieldInitialValues = !!config.ignoreClassFieldInitialValues;
 
         const okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
 
@@ -92,7 +97,7 @@ module.exports = {
          * @returns {boolean} true if the value is ignored
          */
         function isIgnoredValue(value) {
-            return ignore.indexOf(value) !== -1;
+            return ignore.has(value);
         }
 
         /**
@@ -104,6 +109,17 @@ module.exports = {
             const parent = fullNumberNode.parent;
 
             return parent.type === "AssignmentPattern" && parent.right === fullNumberNode;
+        }
+
+        /**
+         * Returns whether the number is the initial value of a class field.
+         * @param {ASTNode} fullNumberNode `Literal` or `UnaryExpression` full number node
+         * @returns {boolean} true if the number is the initial value of a class field.
+         */
+        function isClassFieldInitialValue(fullNumberNode) {
+            const parent = fullNumberNode.parent;
+
+            return parent.type === "PropertyDefinition" && parent.value === fullNumberNode;
         }
 
         /**
@@ -194,6 +210,7 @@ module.exports = {
                 if (
                     isIgnoredValue(value) ||
                     (ignoreDefaultValues && isDefaultValue(fullNumberNode)) ||
+                    (ignoreClassFieldInitialValues && isClassFieldInitialValue(fullNumberNode)) ||
                     isParseIntRadix(fullNumberNode) ||
                     isJSXNumber(fullNumberNode) ||
                     (ignoreArrayIndexes && isArrayIndex(fullNumberNode, value))
@@ -209,7 +226,7 @@ module.exports = {
                         });
                     }
                 } else if (
-                    okTypes.indexOf(parent.type) === -1 ||
+                    !okTypes.includes(parent.type) ||
                     (parent.type === "AssignmentExpression" && parent.left.type === "Identifier")
                 ) {
                     context.report({

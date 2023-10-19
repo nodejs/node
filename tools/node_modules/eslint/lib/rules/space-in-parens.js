@@ -10,15 +10,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing inside parentheses",
-            category: "Stylistic Issues",
+            description: "Enforce consistent spacing inside parentheses",
             recommended: false,
-            url: "https://eslint.org/docs/rules/space-in-parens"
+            url: "https://eslint.org/docs/latest/rules/space-in-parens"
         },
 
         fixable: "whitespace",
@@ -102,7 +102,7 @@ module.exports = {
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Determines if a token is one of the exceptions for the opener paren

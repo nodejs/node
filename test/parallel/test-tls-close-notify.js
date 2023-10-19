@@ -45,7 +45,7 @@ const server = tls.createServer({
   }, common.mustCall(function() {
     // Send close-notify without shutting down TCP socket.
     const req = new ShutdownWrap();
-    req.oncomplete = common.mustCall(() => {});
+    req.oncomplete = common.mustCall();
     req.handle = c._handle;
     c._handle.shutdown(req);
   }));

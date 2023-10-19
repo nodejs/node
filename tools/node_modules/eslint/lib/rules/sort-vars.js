@@ -9,15 +9,15 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
-            description: "require variables within the same declaration block to be sorted",
-            category: "Stylistic Issues",
+            description: "Require variables within the same declaration block to be sorted",
             recommended: false,
-            url: "https://eslint.org/docs/rules/sort-vars"
+            url: "https://eslint.org/docs/latest/rules/sort-vars"
         },
 
         schema: [
@@ -44,7 +44,7 @@ module.exports = {
 
         const configuration = context.options[0] || {},
             ignoreCase = configuration.ignoreCase || false,
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         return {
             VariableDeclaration(node) {

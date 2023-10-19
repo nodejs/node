@@ -1,0 +1,117 @@
+<!-- Copyright 2021 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<head>
+  <link href="./index.css" rel="stylesheet" />
+</head>
+<style>
+  #fileReader {
+    height: 100px;
+    line-height: 100px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.5s ease-in-out;
+    background-color: var(--surface-color);
+    border: solid 1px var(--file-reader-border-color);
+    border-radius: 5px;
+  }
+
+  #fileReader:hover {
+    background-color: var(--primary-color);
+    color: var(--on-primary-color);
+  }
+
+  .done #fileReader {
+    display: none;
+  }
+
+  .fail #fileReader {
+    background-color: var(--error-color);
+  }
+
+  .loading #fileReader {
+    cursor: wait;
+  }
+
+  #fileReader > input {
+    display: none;
+  }
+
+  #loader {
+    display: none;
+    will-change: rotate;
+  }
+
+  .loading #loader {
+    display: block;
+    position: fixed;
+    z-index: 9999;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    background-color: var(--file-reader-background-color);
+  }
+
+  #spinner, #progress, #progressText {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    top: 40%;
+    left: 50%;
+    margin-left: calc(-60px - 10px);
+    border-radius: 50%;
+  }
+  #spinner {
+    border: 20px solid var(--surface-color);
+    border-top: 20px solid var(--primary-color);
+    animation: spin 1s linear infinite;
+    will-change: transform;
+    transform: scale(1.1);
+  }
+
+  #progress, #progressText {
+    padding: 20px;
+  }
+
+  #progress {
+    transition: all 0.5s ease-in-out;
+  }
+
+  #progressText {
+    line-height: 120px;
+    font-size: 28px;
+    transform: scale(0.55);
+    text-align: center;
+    vertical-align: middle;
+    background-color:  var(--surface-color);
+  }
+
+  #label {
+    user-select: none;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+</style>
+<div id="root">
+  <div id="fileReader" class="panel" tabindex="1">
+    <span id="label">
+      Drag and drop a v8.log file into this area, or click to choose from disk.
+    </span>
+    <input id="file" type="file" name="file" />
+  </div>
+  <div id="loader">
+    <div id="progress"></div>
+    <div id="spinner"></div>
+    <div id="progressText"></div>
+  </div>
+</div>

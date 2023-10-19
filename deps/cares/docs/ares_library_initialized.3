@@ -1,0 +1,34 @@
+.\"
+.\" Copyright (C) 2016 by Daniel Stenberg
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_LIBRARY_INITIALIZED 3 "29 Sep 2016"
+.SH NAME
+ares_library_initialized \- get the initialization state
+.SH SYNOPSIS
+.nf
+#include <ares.h>
+
+int ares_library_initialized(void)
+.fi
+.SH DESCRIPTION
+Returns information if c-ares needs to get initialized.
+.SH RETURN VALUE
+\fIARES_ENOTINITIALIZED\fP if not initialized and \fIARES_SUCCESS\fP if no
+initialization is needed.
+.SH AVAILABILITY
+This function was first introduced in c-ares version 1.11.0
+.SH SEE ALSO
+.BR ares_library_init(3),
+.BR ares_library_cleanup(3)

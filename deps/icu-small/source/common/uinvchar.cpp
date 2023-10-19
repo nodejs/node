@@ -182,8 +182,8 @@ static const uint32_t invariantChars[4]={
 
 
 U_CAPI void U_EXPORT2
-u_charsToUChars(const char *cs, UChar *us, int32_t length) {
-    UChar u;
+u_charsToUChars(const char *cs, char16_t *us, int32_t length) {
+    char16_t u;
     uint8_t c;
 
     /*
@@ -193,7 +193,7 @@ u_charsToUChars(const char *cs, UChar *us, int32_t length) {
      */
     while(length>0) {
         c=(uint8_t)(*cs++);
-        u=(UChar)CHAR_TO_UCHAR(c);
+        u=(char16_t)CHAR_TO_UCHAR(c);
         U_ASSERT((u!=0 || c==0)); /* only invariant chars converted? */
         *us++=u;
         --length;
@@ -201,13 +201,13 @@ u_charsToUChars(const char *cs, UChar *us, int32_t length) {
 }
 
 U_CAPI void U_EXPORT2
-u_UCharsToChars(const UChar *us, char *cs, int32_t length) {
-    UChar u;
+u_UCharsToChars(const char16_t *us, char *cs, int32_t length) {
+    char16_t u;
 
     while(length>0) {
         u=*us++;
         if(!UCHAR_IS_INVARIANT(u)) {
-            U_ASSERT(FALSE); /* Variant characters were used. These are not portable in ICU. */
+            U_ASSERT(false); /* Variant characters were used. These are not portable in ICU. */
             u=0;
         }
         *cs++=(char)UCHAR_TO_CHAR(u);
@@ -245,23 +245,23 @@ uprv_isInvariantString(const char *s, int32_t length) {
          */
 #if U_CHARSET_FAMILY==U_ASCII_FAMILY
         if(!UCHAR_IS_INVARIANT(c)) {
-            return FALSE; /* found a variant char */
+            return false; /* found a variant char */
         }
 #elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
         c=CHAR_TO_UCHAR(c);
         if(c==0 || !UCHAR_IS_INVARIANT(c)) {
-            return FALSE; /* found a variant char */
+            return false; /* found a variant char */
         }
 #else
 #   error U_CHARSET_FAMILY is not valid
 #endif
     }
-    return TRUE;
+    return true;
 }
 
 U_CAPI UBool U_EXPORT2
-uprv_isInvariantUString(const UChar *s, int32_t length) {
-    UChar c;
+uprv_isInvariantUString(const char16_t *s, int32_t length) {
+    char16_t c;
 
     for(;;) {
         if(length<0) {
@@ -284,10 +284,10 @@ uprv_isInvariantUString(const UChar *s, int32_t length) {
          * for strings with variant characters
          */
         if(!UCHAR_IS_INVARIANT(c)) {
-            return FALSE; /* found a variant char */
+            return false; /* found a variant char */
         }
     }
-    return TRUE;
+    return true;
 }
 
 /* UDataSwapFn implementations used in udataswp.c ------- */
@@ -303,10 +303,10 @@ uprv_ebcdicFromAscii(const UDataSwapper *ds,
 
     int32_t count;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -340,10 +340,10 @@ uprv_copyAscii(const UDataSwapper *ds,
 
     int32_t count;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -380,10 +380,10 @@ uprv_asciiFromEbcdic(const UDataSwapper *ds,
 
     int32_t count;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 ||  (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<0 ||  (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -417,10 +417,10 @@ uprv_copyEbcdic(const UDataSwapper *ds,
 
     int32_t count;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -457,13 +457,13 @@ uprv_isEbcdicAtSign(char c) {
 U_CFUNC int32_t
 uprv_compareInvAscii(const UDataSwapper *ds,
                      const char *outString, int32_t outLength,
-                     const UChar *localString, int32_t localLength) {
+                     const char16_t *localString, int32_t localLength) {
     (void)ds;
     int32_t minLength;
     UChar32 c1, c2;
     uint8_t c;
 
-    if(outString==NULL || outLength<-1 || localString==NULL || localLength<-1) {
+    if(outString==nullptr || outLength<-1 || localString==nullptr || localLength<-1) {
         return 0;
     }
 
@@ -503,13 +503,13 @@ uprv_compareInvAscii(const UDataSwapper *ds,
 U_CFUNC int32_t
 uprv_compareInvEbcdic(const UDataSwapper *ds,
                       const char *outString, int32_t outLength,
-                      const UChar *localString, int32_t localLength) {
+                      const char16_t *localString, int32_t localLength) {
     (void)ds;
     int32_t minLength;
     UChar32 c1, c2;
     uint8_t c;
 
-    if(outString==NULL || outLength<-1 || localString==NULL || localLength<-1) {
+    if(outString==nullptr || outLength<-1 || localString==nullptr || localLength<-1) {
         return 0;
     }
 
@@ -584,7 +584,7 @@ uprv_aestrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
 {
   uint8_t *orig_dst = dst;
 
-  if(n==-1) {
+  if(n==-1) { 
     n = static_cast<int32_t>(uprv_strlen((const char*)src)+1); /* copy NUL */
   }
   /* copy non-null */
@@ -605,7 +605,7 @@ uprv_eastrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
 {
   uint8_t *orig_dst = dst;
 
-  if(n==-1) {
+  if(n==-1) { 
     n = static_cast<int32_t>(uprv_strlen((const char*)src)+1); /* copy NUL */
   }
   /* copy non-null */
@@ -624,3 +624,4 @@ uprv_eastrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
   }
   return orig_dst;
 }
+

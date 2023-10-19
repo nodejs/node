@@ -74,14 +74,14 @@ class Hashtable;
  * DateFormatSymbols are not expected to be subclassed. Data for a calendar is
  * loaded out of resource bundles.  The 'type' parameter indicates the type of
  * calendar, for example, "gregorian" or "japanese".  If the type is not gregorian
- * (or NULL, or an empty string) then the type is appended to the resource name,
+ * (or nullptr, or an empty string) then the type is appended to the resource name,
  * for example,  'Eras_japanese' instead of 'Eras'.   If the resource 'Eras_japanese' did
  * not exist (even in root), then this class will fall back to just 'Eras', that is,
  * Gregorian data.  Therefore, the calendar implementor MUST ensure that the root
  * locale at least contains any resources that are to be particularized for the
  * calendar type.
  */
-class U_I18N_API DateFormatSymbols U_FINAL : public UObject  {
+class U_I18N_API DateFormatSymbols final : public UObject  {
 public:
     /**
      * Construct a DateFormatSymbols object by loading format data from
@@ -122,7 +122,7 @@ public:
      *
      * @param type      Type of calendar (as returned by Calendar::getType).
      *                  Will be used to access the correct set of strings.
-     *                  (NULL or empty string defaults to "gregorian".)
+     *                  (nullptr or empty string defaults to "gregorian".)
      * @param status    Status code.  Failure
      *                  results if the resources for the default cannot be
      *                  found or cannot be loaded
@@ -137,7 +137,7 @@ public:
      * @param locale    Locale to load format data from.
      * @param type      Type of calendar (as returned by Calendar::getType).
      *                  Will be used to access the correct set of strings.
-     *                  (NULL or empty string defaults to "gregorian".)
+     *                  (nullptr or empty string defaults to "gregorian".)
      * @param status    Status code.  Failure
      *                  results if the resources for the locale cannot be
      *                  found or cannot be loaded
@@ -174,7 +174,7 @@ public:
      * @return         true if other is semantically equal to this.
      * @stable ICU 2.0
      */
-    UBool operator==(const DateFormatSymbols& other) const;
+    bool operator==(const DateFormatSymbols& other) const;
 
     /**
      * Return true if another object is semantically unequal to this one.
@@ -183,7 +183,7 @@ public:
      * @return         true if other is semantically unequal to this.
      * @stable ICU 2.0
      */
-    UBool operator!=(const DateFormatSymbols& other) const { return !operator==(other); }
+    bool operator!=(const DateFormatSymbols& other) const { return !operator==(other); }
 
     /**
      * Gets abbreviated era strings. For example: "AD" and "BC".
@@ -388,8 +388,7 @@ public:
      * Gets quarter strings by width and context. For example: "1st Quarter", "2nd Quarter", etc.
      * @param count Filled in with length of the array.
      * @param context The formatting context, either FORMAT or STANDALONE
-     * @param width   The width of returned strings, either WIDE or ABBREVIATED. There
-     *                are no NARROW quarters.
+     * @param width   The width of returned strings, either WIDE, ABBREVIATED, or NARROW.
      * @return the quarter strings. (DateFormatSymbols retains ownership.)
      * @stable ICU 3.6
      */
@@ -401,8 +400,7 @@ public:
      * @param quarters  The new quarter strings. (not adopted; caller retains ownership)
      * @param count   Filled in with length of the array.
      * @param context The formatting context, either FORMAT or STANDALONE
-     * @param width   The width of returned strings, either WIDE or ABBREVIATED. There
-     *                are no NARROW quarters.
+     * @param width   The width of returned strings, either WIDE, ABBREVIATED, or NARROW.
      * @stable ICU 3.6
      */
     void setQuarters(const UnicodeString* quarters, int32_t count, DtContextType context, DtWidthType width);
@@ -526,14 +524,14 @@ public:
 
     /**
      * Somewhat temporary function for getting complete set of leap month patterns for all
-     * contexts & widths, indexed by EMonthPatternType values. Returns NULL if calendar
+     * contexts & widths, indexed by EMonthPatternType values. Returns nullptr if calendar
      * does not have leap month patterns. Note, there is currently no setter for this.
      * Eventually we will add full support for different month pattern types (needed for
      * other calendars such as Hindu) at which point this approach will be replaced by a
      * more complete approach.
      * @param count        Filled in with length of the array (may be 0).
      * @return             The leap month patterns (DateFormatSymbols retains ownership).
-     *                     May be NULL if there are no leap month patterns for this calendar.
+     *                     May be nullptr if there are no leap month patterns for this calendar.
      * @internal
      */
     const UnicodeString* getLeapMonthPatterns(int32_t& count) const;
@@ -554,7 +552,7 @@ public:
     /**
      * Sets timezone strings. These strings are stored in a 2-dimensional array.
      * <p><b>Note:</b> SimpleDateFormat no longer use the zone strings stored in
-     * a DateFormatSymbols. Therefore, the time zone strings set by this mthod
+     * a DateFormatSymbols. Therefore, the time zone strings set by this method
      * have no effects in an instance of SimpleDateFormat for formatting time
      * zones.
      * @param strings       The timezone strings as a 2-d array to be copied. (not adopted; caller retains ownership)
@@ -599,7 +597,7 @@ public:
     Locale getLocale(ULocDataLocaleType type, UErrorCode& status) const;
 
     /* The following type and kCapContextUsageTypeCount cannot be #ifndef U_HIDE_INTERNAL_API,
-       they are needed for .h file declarations. */
+       they are needed for .h file declarations. */ 
     /**
      * Constants for capitalization context usage types.
      * @internal
@@ -630,7 +628,7 @@ public:
      *
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -776,6 +774,13 @@ private:
     int32_t         fShortQuartersCount;
 
     /**
+     * Narrow quarters. For example: "1", "2", etc.
+     * (In many, but not all, locales, this is the same as "Q", but there are locales for which this isn't true.)
+     */
+    UnicodeString  *fNarrowQuarters;
+    int32_t         fNarrowQuartersCount;
+    
+    /**
      * Standalone quarter strings. For example: "1st quarter", "2nd quarter", etc.
      */
     UnicodeString  *fStandaloneQuarters;
@@ -787,6 +792,13 @@ private:
     UnicodeString  *fStandaloneShortQuarters;
     int32_t         fStandaloneShortQuartersCount;
 
+    /**
+     * Standalone narrow quarter strings. For example: "1", "2", etc.
+     * (In many, but not all, locales, this is the same as "q", but there are locales for which this isn't true.)
+     */
+    UnicodeString  *fStandaloneNarrowQuarters;
+    int32_t         fStandaloneNarrowQuartersCount;
+    
     /**
      * All leap month patterns, for example "{0}bis".
      */
@@ -816,7 +828,7 @@ private:
      * entry containing the localized names for a single TimeZone.
      *
      * Each such row contains (with i ranging from 0..n-1):
-     *
+     * 
      * zoneStrings[i][0] - time zone ID
      *  example: America/Los_Angeles
      * zoneStrings[i][1] - long name of zone in standard time
@@ -902,13 +914,13 @@ private:
     int32_t         fStandaloneNarrowDayPeriodsCount;
 
 private:
-    /** valid/actual locale information
+    /** valid/actual locale information 
      *  these are always ICU locales, so the length should not be a problem
      */
     char validLocale[ULOC_FULLNAME_CAPACITY];
     char actualLocale[ULOC_FULLNAME_CAPACITY];
 
-    DateFormatSymbols(); // default constructor not implemented
+    DateFormatSymbols() = delete; // default constructor not implemented
 
     /**
      * Called by the constructors to actually load data from the resources
@@ -926,7 +938,7 @@ private:
      * Copy or alias an array in another object, as appropriate.
      *
      * @param dstArray    the copy destination array.
-     * @param dstCount    fill in with the lenth of 'dstArray'.
+     * @param dstCount    fill in with the length of 'dstArray'.
      * @param srcArray    the source array to be copied.
      * @param srcCount    the length of items to be copied from the 'srcArray'.
      */

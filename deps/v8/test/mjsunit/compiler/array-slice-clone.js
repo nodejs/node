@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-stress-flush-bytecode
+// Flags: --allow-natives-syntax --turbofan --no-stress-flush-code
+// Flags: --no-lazy-feedback-allocation
 
 
 // Test CloneFastJSArray inserted by JSCallReducer for Array.prototype.slice.

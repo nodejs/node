@@ -27,9 +27,9 @@
 
   'conditions': [
     [ 'clang==1', {
-      'cflags': [ '-Werror=undefined-inline', ]
+      'cflags': [ '-Werror=undefined-inline', '-Werror=extra-semi']
     }],
-    [ 'node_shared=="false" and "<(_type)"=="executable"', {
+    [ '"<(_type)"=="executable"', {
       'msvs_settings': {
         'VCManifestTool': {
           'EmbedManifest': 'true',
@@ -40,6 +40,19 @@
     [ 'node_shared=="true"', {
       'defines': [
         'NODE_SHARED_MODE',
+      ],
+      'conditions': [
+        ['"<(_type)"=="executable"', {
+          'defines': [
+            'USING_UV_SHARED',
+            'USING_V8_SHARED',
+            'BUILDING_NODE_EXTENSION'
+          ],
+          'defines!': [
+            'BUILDING_V8_SHARED=1',
+            'BUILDING_UV_SHARED=1'
+          ]
+        }],
       ],
     }],
     [ 'OS=="win"', {
@@ -83,6 +96,9 @@
         'NODE_USE_V8_PLATFORM=0',
       ],
     }],
+    [ 'v8_enable_shared_ro_heap==1', {
+      'defines': ['NODE_V8_SHARED_RO_HEAP',],
+    }],
     [ 'node_tag!=""', {
       'defines': [ 'NODE_TAG="<(node_tag)"' ],
     }],
@@ -112,6 +128,14 @@
           ],
       }]],
     }],
+    [ 'node_use_bundled_v8=="true" and \
+       node_enable_v8_vtunejit=="true" and (target_arch=="x64" or \
+       target_arch=="ia32" or target_arch=="x32")', {
+      'defines': [ 'NODE_ENABLE_VTUNE_PROFILING' ],
+      'dependencies': [
+        'tools/v8_gypfiles/v8vtune.gyp:v8_vtune'
+      ],
+    }],
     [ 'node_no_browser_globals=="true"', {
       'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
     } ],
@@ -132,7 +156,7 @@
             },
           },
           'conditions': [
-            ['OS!="aix" and node_shared=="false"', {
+            ['OS!="aix" and OS!="os400" and OS!="ios" and node_shared=="false"', {
               'ldflags': [
                 '-Wl,--whole-archive',
                 '<(obj_dir)/deps/zlib/<(STATIC_LIB_PREFIX)zlib<(STATIC_LIB_SUFFIX)',
@@ -171,7 +195,7 @@
             },
           },
           'conditions': [
-            ['OS!="aix" and node_shared=="false"', {
+            ['OS!="aix" and OS!="os400" and OS!="ios" and node_shared=="false"', {
               'ldflags': [
                 '-Wl,--whole-archive',
                 '<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)uv<(STATIC_LIB_SUFFIX)',
@@ -209,7 +233,7 @@
         '-lkvm',
       ],
     }],
-    [ 'OS=="aix"', {
+    [ 'OS in "aix os400"', {
       'defines': [
         '_LINUX_SOURCE_COMPAT',
         '__STDC_FORMAT_MACROS',
@@ -304,6 +328,12 @@
         }],
       ],
     }],
+    [ 'coverage=="true"', {
+      'defines': [
+        'ALLOW_ATTACHING_DEBUGGER_IN_WATCH_MODE',
+        'ALLOW_ATTACHING_DEBUGGER_IN_TEST_RUNNER',
+      ],
+    }],
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
     }],
@@ -320,6 +350,7 @@
       'defines': [ 'HAVE_OPENSSL=1' ],
       'conditions': [
         [ 'node_shared_openssl=="false"', {
+          'defines': [ 'OPENSSL_API_COMPAT=0x10100000L', ],
           'dependencies': [
             './deps/openssl/openssl.gyp:openssl',
 
@@ -361,10 +392,6 @@
               ],
             }],
           ]
-        }, {
-          # Set 1.0.0 as the API compability level to avoid the
-          # deprecation warnings when using OpenSSL 3.0.
-          'defines': [ 'OPENSSL_API_COMPAT=0x10000000L', ]
         }],
         [ 'openssl_quic=="true" and node_shared_ngtcp2=="false"', {
           'dependencies': [ './deps/ngtcp2/ngtcp2.gyp:ngtcp2' ]

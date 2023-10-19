@@ -11,15 +11,15 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent newlines before and after dots",
-            category: "Best Practices",
+            description: "Enforce consistent newlines before and after dots",
             recommended: false,
-            url: "https://eslint.org/docs/rules/dot-location"
+            url: "https://eslint.org/docs/latest/rules/dot-location"
         },
 
         schema: [
@@ -43,7 +43,7 @@ module.exports = {
         // default to onObject if no preference is passed
         const onObject = config === "object" || !config;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports if the dot between object and property is on the correct location.

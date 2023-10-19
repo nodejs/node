@@ -26,6 +26,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <locale>
 #include "util.h"
 
 // These are defined by <sys/byteorder.h> or <netinet/in.h> on some systems.
@@ -62,6 +63,14 @@
   (((x) & 0x000000000000FF00ull) << 40) |                                     \
   (((x) & 0x00000000000000FFull) << 56)
 #endif
+
+#define CHAR_TEST(bits, name, expr)                                           \
+  template <typename T>                                                       \
+  bool name(const T ch) {                                                     \
+    static_assert(sizeof(ch) >= (bits) / 8,                                   \
+                  "Character must be wider than " #bits " bits");             \
+    return (expr);                                                            \
+  }
 
 namespace node {
 
@@ -274,7 +283,7 @@ void SwapBytes64(char* data, size_t nbytes) {
 }
 
 char ToLower(char c) {
-  return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+  return std::tolower(c, std::locale::classic());
 }
 
 std::string ToLower(const std::string& in) {
@@ -285,7 +294,7 @@ std::string ToLower(const std::string& in) {
 }
 
 char ToUpper(char c) {
-  return c >= 'a' && c <= 'z' ? (c - 'a') + 'A' : c;
+  return std::toupper(c, std::locale::classic());
 }
 
 std::string ToUpper(const std::string& in) {
@@ -352,14 +361,12 @@ T* UncheckedRealloc(T* pointer, size_t n) {
 // As per spec realloc behaves like malloc if passed nullptr.
 template <typename T>
 inline T* UncheckedMalloc(size_t n) {
-  if (n == 0) n = 1;
   return UncheckedRealloc<T>(nullptr, n);
 }
 
 template <typename T>
 inline T* UncheckedCalloc(size_t n) {
-  if (n == 0) n = 1;
-  MultiplyWithOverflowCheck(sizeof(T), n);
+  if (MultiplyWithOverflowCheck(sizeof(T), n) == 0) return nullptr;
   return static_cast<T*>(calloc(n, sizeof(T)));
 }
 
@@ -395,7 +402,7 @@ inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 void ThrowErrStringTooLong(v8::Isolate* isolate);
 
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                    const std::string& str,
+                                    std::string_view str,
                                     v8::Isolate* isolate) {
   if (isolate == nullptr) isolate = context->GetIsolate();
   if (UNLIKELY(str.size() >= static_cast<size_t>(v8::String::kMaxLength))) {
@@ -425,6 +432,25 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   }
 
   return handle_scope.Escape(v8::Array::New(isolate, arr.out(), arr.length()));
+}
+
+template <typename T>
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const std::set<T>& set,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  v8::Local<v8::Set> set_js = v8::Set::New(isolate);
+  v8::HandleScope handle_scope(isolate);
+
+  for (const T& entry : set) {
+    v8::Local<v8::Value> value;
+    if (!ToV8Value(context, entry, isolate).ToLocal(&value))
+      return {};
+    if (set_js->Add(context, value).IsEmpty())
+      return {};
+  }
+
+  return set_js;
 }
 
 template <typename T, typename U>
@@ -484,11 +510,28 @@ SlicedArguments::SlicedArguments(
     (*this)[i] = args[i + start];
 }
 
+template <typename T, size_t kStackStorageSize>
+void MaybeStackBuffer<T, kStackStorageSize>::AllocateSufficientStorage(
+    size_t storage) {
+  CHECK(!IsInvalidated());
+  if (storage > capacity()) {
+    bool was_allocated = IsAllocated();
+    T* allocated_ptr = was_allocated ? buf_ : nullptr;
+    buf_ = Realloc(allocated_ptr, storage);
+    capacity_ = storage;
+    if (!was_allocated && length_ > 0)
+      memcpy(buf_, buf_st_, length_ * sizeof(buf_[0]));
+  }
+
+  length_ = storage;
+}
+
 template <typename T, size_t S>
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::Value> value) {
-  CHECK(value->IsArrayBufferView());
-  Read(value.As<v8::ArrayBufferView>());
+  DCHECK(value->IsArrayBufferView() || value->IsSharedArrayBuffer() ||
+         value->IsArrayBuffer());
+  ReadValue(value);
 }
 
 template <typename T, size_t S>
@@ -509,11 +552,31 @@ void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
   static_assert(sizeof(T) == 1, "Only supports one-byte data at the moment");
   length_ = abv->ByteLength();
   if (length_ > sizeof(stack_storage_) || abv->HasBuffer()) {
-    data_ = static_cast<T*>(abv->Buffer()->GetBackingStore()->Data()) +
-        abv->ByteOffset();
+    data_ = static_cast<T*>(abv->Buffer()->Data()) + abv->ByteOffset();
   } else {
     abv->CopyContents(stack_storage_, sizeof(stack_storage_));
     data_ = stack_storage_;
+  }
+}
+
+template <typename T, size_t S>
+void ArrayBufferViewContents<T, S>::ReadValue(v8::Local<v8::Value> buf) {
+  static_assert(sizeof(T) == 1, "Only supports one-byte data at the moment");
+  DCHECK(buf->IsArrayBufferView() || buf->IsSharedArrayBuffer() ||
+         buf->IsArrayBuffer());
+
+  if (buf->IsArrayBufferView()) {
+    Read(buf.As<v8::ArrayBufferView>());
+  } else if (buf->IsArrayBuffer()) {
+    auto ab = buf.As<v8::ArrayBuffer>();
+    length_ = ab->ByteLength();
+    data_ = static_cast<T*>(ab->Data());
+    was_detached_ = ab->WasDetached();
+  } else {
+    CHECK(buf->IsSharedArrayBuffer());
+    auto sab = buf.As<v8::SharedArrayBuffer>();
+    length_ = sab->ByteLength();
+    data_ = static_cast<T*>(sab->Data());
   }
 }
 
@@ -528,11 +591,11 @@ inline bool IsSafeJsInt(v8::Local<v8::Value> v) {
   return false;
 }
 
-constexpr size_t FastStringKey::HashImpl(const char* str) {
+constexpr size_t FastStringKey::HashImpl(std::string_view str) {
   // Low-quality hash (djb2), but just fine for current use cases.
   size_t h = 5381;
-  while (*str != '\0') {
-    h = h * 33 + *(str++);  // NOLINT(readability/pointer_notation)
+  for (const char c : str) {
+    h = h * 33 + c;
   }
   return h;
 }
@@ -543,19 +606,13 @@ constexpr size_t FastStringKey::Hash::operator()(
 }
 
 constexpr bool FastStringKey::operator==(const FastStringKey& other) const {
-  const char* p1 = name_;
-  const char* p2 = other.name_;
-  if (p1 == p2) return true;
-  do {
-    if (*(p1++) != *(p2++)) return false;
-  } while (*p1 != '\0');
-  return *p2 == '\0';
+  return name_ == other.name_;
 }
 
-constexpr FastStringKey::FastStringKey(const char* name)
-  : name_(name), cached_hash_(HashImpl(name)) {}
+constexpr FastStringKey::FastStringKey(std::string_view name)
+    : name_(name), cached_hash_(HashImpl(name)) {}
 
-constexpr const char* FastStringKey::c_str() const {
+constexpr std::string_view FastStringKey::as_string_view() const {
   return name_;
 }
 

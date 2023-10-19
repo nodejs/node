@@ -4,7 +4,7 @@
 
 // Flags: --wasm-lazy-compilation
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
 builder.addFunction('f', kSig_i_v).addBody([kExprReturn]);

@@ -210,6 +210,27 @@ const util = require('util');
 }
 
 {
+  // Regression test for https://github.com/nodejs/node/issues/39074
+  const blockList = new BlockList();
+
+  blockList.addRange('10.0.0.2', '10.0.0.10');
+
+  // IPv4 checks against IPv4 range.
+  assert(blockList.check('10.0.0.2'));
+  assert(blockList.check('10.0.0.10'));
+  assert(!blockList.check('192.168.0.3'));
+  assert(!blockList.check('2.2.2.2'));
+  assert(!blockList.check('255.255.255.255'));
+
+  // IPv6 checks against IPv4 range.
+  assert(blockList.check('::ffff:0a00:0002', 'ipv6'));
+  assert(blockList.check('::ffff:0a00:000a', 'ipv6'));
+  assert(!blockList.check('::ffff:c0a8:0003', 'ipv6'));
+  assert(!blockList.check('::ffff:0202:0202', 'ipv6'));
+  assert(!blockList.check('::ffff:ffff:ffff', 'ipv6'));
+}
+
+{
   const blockList = new BlockList();
   assert.throws(() => blockList.addRange('1.1.1.2', '1.1.1.1'), /ERR_INVALID_ARG_VALUE/);
 }
@@ -250,4 +271,14 @@ const util = require('util');
   const blockList = new BlockList();
   const ret = util.inspect(blockList, { depth: null });
   assert(ret.includes('rules: []'));
+}
+
+{
+  // Test for https://github.com/nodejs/node/issues/43360
+  const blocklist = new BlockList();
+  blocklist.addSubnet('1.1.1.1', 32, 'ipv4');
+
+  assert(blocklist.check('1.1.1.1'));
+  assert(!blocklist.check('1.1.1.2'));
+  assert(!blocklist.check('2.3.4.5'));
 }

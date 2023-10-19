@@ -124,15 +124,15 @@ function eachSelfAssignment(left, right, props, report) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow assignments where both sides are exactly the same",
-            category: "Best Practices",
+            description: "Disallow assignments where both sides are exactly the same",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-self-assign"
+            url: "https://eslint.org/docs/latest/rules/no-self-assign"
         },
 
         schema: [
@@ -154,7 +154,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const [{ props = true } = {}] = context.options;
 
         /**
@@ -174,7 +174,7 @@ module.exports = {
 
         return {
             AssignmentExpression(node) {
-                if (node.operator === "=") {
+                if (["=", "&&=", "||=", "??="].includes(node.operator)) {
                     eachSelfAssignment(node.left, node.right, props, report);
                 }
             }

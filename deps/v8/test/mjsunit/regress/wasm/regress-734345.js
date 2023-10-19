@@ -4,7 +4,7 @@
 
 // Flags: --expose-gc
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 builder1 = new WasmModuleBuilder();
 builder1.addFunction('exp1', kSig_v_v).addBody([kExprUnreachable]).exportFunc();

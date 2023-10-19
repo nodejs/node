@@ -15,12 +15,12 @@ namespace internal {
 
 class HeapObject;
 class SnapshotByteSink;
-class ReadOnlySerializer;
+class SharedHeapSerializer;
 
 class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
  public:
   StartupSerializer(Isolate* isolate, Snapshot::SerializerFlags flags,
-                    ReadOnlySerializer* read_only_serializer);
+                    SharedHeapSerializer* shared_heap_serializer);
   ~StartupSerializer() override;
   StartupSerializer(const StartupSerializer&) = delete;
   StartupSerializer& operator=(const StartupSerializer&) = delete;
@@ -33,12 +33,12 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
   void SerializeStrongReferences(const DisallowGarbageCollection& no_gc);
   void SerializeWeakReferencesAndDeferred();
 
-  // If |obj| can be serialized in the read-only snapshot then add it to the
-  // read-only object cache if not already present and emits a
-  // ReadOnlyObjectCache bytecode into |sink|. Returns whether this was
+  // If |obj| can be serialized in the shared heap snapshot then add it to the
+  // shareable object cache if not already present and emits a
+  // SharedHeapObjectCache bytecode into |sink|. Returns whether this was
   // successful.
-  bool SerializeUsingReadOnlyObjectCache(SnapshotByteSink* sink,
-                                         Handle<HeapObject> obj);
+  bool SerializeUsingSharedHeapObjectCache(SnapshotByteSink* sink,
+                                           Handle<HeapObject> obj);
 
   // Adds |obj| to the startup object object cache if not already present and
   // emits a StartupObjectCache bytecode into |sink|.
@@ -50,10 +50,9 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
   void CheckNoDirtyFinalizationRegistries();
 
  private:
-  void SerializeObjectImpl(Handle<HeapObject> o) override;
-  void SerializeStringTable(StringTable* string_table);
+  void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
 
-  ReadOnlySerializer* read_only_serializer_;
+  SharedHeapSerializer* const shared_heap_serializer_;
   GlobalHandleVector<AccessorInfo> accessor_infos_;
   GlobalHandleVector<CallHandlerInfo> call_handler_infos_;
 };
@@ -66,7 +65,7 @@ class SerializedHandleChecker : public RootVisitor {
   bool CheckGlobalAndEternalHandles();
 
  private:
-  void AddToSet(FixedArray serialized);
+  void AddToSet(Tagged<FixedArray> serialized);
 
   Isolate* isolate_;
   std::unordered_set<Object, Object::Hasher> serialized_;

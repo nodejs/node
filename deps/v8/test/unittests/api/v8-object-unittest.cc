@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8.h"
-#include "src/api/api.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-template.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -97,7 +101,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
   Context::Scope scope(caller_context);
-  internal::FLAG_allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax = true;
   Script::Compile(caller_context, String::NewFromUtf8Literal(isolate(), script))
       .ToLocalChecked()
       ->Run(caller_context)
@@ -149,7 +153,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPlatformObject) {
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
   Context::Scope scope(caller_context);
-  internal::FLAG_allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax = true;
   Script::Compile(caller_context, String::NewFromUtf8Literal(isolate(), script))
       .ToLocalChecked()
       ->Run(caller_context)
@@ -200,7 +204,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnInterface) {
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
   Context::Scope scope(caller_context);
-  internal::FLAG_allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax = true;
   Script::Compile(caller_context, String::NewFromUtf8Literal(isolate(), script))
       .ToLocalChecked()
       ->Run(caller_context)

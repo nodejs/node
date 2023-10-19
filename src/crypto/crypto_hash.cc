@@ -1,5 +1,4 @@
 #include "crypto/crypto_hash.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
@@ -12,8 +11,10 @@
 
 namespace node {
 
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -35,26 +36,51 @@ void Hash::MemoryInfo(MemoryTracker* tracker) const {
 
 void Hash::GetHashes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   CipherPushContext ctx(env);
-  EVP_MD_do_all_sorted(array_push_back<EVP_MD>, &ctx);
+  EVP_MD_do_all_sorted(
+#if OPENSSL_VERSION_MAJOR >= 3
+    array_push_back<EVP_MD,
+                    EVP_MD_fetch,
+                    EVP_MD_free,
+                    EVP_get_digestbyname,
+                    EVP_MD_get0_name>,
+#else
+    array_push_back<EVP_MD>,
+#endif
+    &ctx);
   args.GetReturnValue().Set(ctx.ToJSArray());
 }
 
 void Hash::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(
-      Hash::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
+  t->InstanceTemplate()->SetInternalFieldCount(Hash::kInternalFieldCount);
 
-  env->SetProtoMethod(t, "update", HashUpdate);
-  env->SetProtoMethod(t, "digest", HashDigest);
+  SetProtoMethod(isolate, t, "update", HashUpdate);
+  SetProtoMethod(isolate, t, "digest", HashDigest);
 
-  env->SetConstructorFunction(target, "Hash", t);
+  SetConstructorFunction(context, target, "Hash", t);
 
-  env->SetMethodNoSideEffect(target, "getHashes", GetHashes);
+  SetMethodNoSideEffect(context, target, "getHashes", GetHashes);
 
   HashJob::Initialize(env, target);
+
+  SetMethodNoSideEffect(
+      context, target, "internalVerifyIntegrity", InternalVerifyIntegrity);
+}
+
+void Hash::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(HashUpdate);
+  registry->Register(HashDigest);
+  registry->Register(GetHashes);
+
+  HashJob::RegisterExternalReferences(registry);
+
+  registry->Register(InternalVerifyIntegrity);
 }
 
 void Hash::New(const FunctionCallbackInfo<Value>& args) {
@@ -113,8 +139,7 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
 bool Hash::HashUpdate(const char* data, size_t len) {
   if (!mdctx_)
     return false;
-  EVP_DigestUpdate(mdctx_.get(), data, len);
-  return true;
+  return EVP_DigestUpdate(mdctx_.get(), data, len) == 1;
 }
 
 void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
@@ -153,38 +178,29 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     // so we need to cache it.
     // See https://github.com/nodejs/node/issues/28245.
 
-    char* md_value = MallocOpenSSL<char>(len);
-    ByteSource digest = ByteSource::Allocated(md_value, len);
+    ByteSource::Builder digest(len);
 
     size_t default_len = EVP_MD_CTX_size(hash->mdctx_.get());
     int ret;
     if (len == default_len) {
       ret = EVP_DigestFinal_ex(
-          hash->mdctx_.get(),
-          reinterpret_cast<unsigned char*>(md_value),
-          &len);
+          hash->mdctx_.get(), digest.data<unsigned char>(), &len);
       // The output length should always equal hash->md_len_
       CHECK_EQ(len, hash->md_len_);
     } else {
       ret = EVP_DigestFinalXOF(
-          hash->mdctx_.get(),
-          reinterpret_cast<unsigned char*>(md_value),
-          len);
+          hash->mdctx_.get(), digest.data<unsigned char>(), len);
     }
 
     if (ret != 1)
       return ThrowCryptoError(env, ERR_get_error());
 
-    hash->digest_ = std::move(digest);
+    hash->digest_ = std::move(digest).release();
   }
 
   Local<Value> error;
-  MaybeLocal<Value> rc =
-      StringBytes::Encode(env->isolate(),
-                          hash->digest_.get(),
-                          len,
-                          encoding,
-                          &error);
+  MaybeLocal<Value> rc = StringBytes::Encode(
+      env->isolate(), hash->digest_.data<char>(), len, encoding, &error);
   if (rc.IsEmpty()) {
     CHECK(!error.IsEmpty());
     env->isolate()->ThrowException(error);
@@ -273,31 +289,73 @@ bool HashTraits::DeriveBits(
   if (UNLIKELY(!ctx ||
                EVP_DigestInit_ex(ctx.get(), params.digest, nullptr) <= 0 ||
                EVP_DigestUpdate(
-                   ctx.get(),
-                   params.in.get(),
-                   params.in.size()) <= 0)) {
+                   ctx.get(), params.in.data<char>(), params.in.size()) <= 0)) {
     return false;
   }
 
   if (LIKELY(params.length > 0)) {
     unsigned int length = params.length;
-    char* data = MallocOpenSSL<char>(length);
-    ByteSource buf = ByteSource::Allocated(data, length);
-    unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+    ByteSource::Builder buf(length);
 
     size_t expected = EVP_MD_CTX_size(ctx.get());
 
-    int ret = (length == expected)
-        ? EVP_DigestFinal_ex(ctx.get(), ptr, &length)
-        : EVP_DigestFinalXOF(ctx.get(), ptr, length);
+    int ret =
+        (length == expected)
+            ? EVP_DigestFinal_ex(ctx.get(), buf.data<unsigned char>(), &length)
+            : EVP_DigestFinalXOF(ctx.get(), buf.data<unsigned char>(), length);
 
     if (UNLIKELY(ret != 1))
       return false;
 
-    *out = std::move(buf);
+    *out = std::move(buf).release();
   }
 
   return true;
+}
+
+void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 3);
+
+  CHECK(args[0]->IsString());
+  Utf8Value algorithm(env->isolate(), args[0]);
+
+  CHECK(args[1]->IsString() || IsAnyBufferSource(args[1]));
+  ByteSource content = ByteSource::FromStringOrBuffer(env, args[1]);
+
+  CHECK(args[2]->IsArrayBufferView());
+  ArrayBufferOrViewContents<unsigned char> expected(args[2]);
+
+  const EVP_MD* md_type = EVP_get_digestbyname(*algorithm);
+  unsigned char digest[EVP_MAX_MD_SIZE];
+  unsigned int digest_size;
+  if (md_type == nullptr || EVP_Digest(content.data(),
+                                       content.size(),
+                                       digest,
+                                       &digest_size,
+                                       md_type,
+                                       nullptr) != 1) {
+    return ThrowCryptoError(
+        env, ERR_get_error(), "Digest method not supported");
+  }
+
+  if (digest_size != expected.size() ||
+      CRYPTO_memcmp(digest, expected.data(), digest_size) != 0) {
+    Local<Value> error;
+    MaybeLocal<Value> rc =
+        StringBytes::Encode(env->isolate(),
+                            reinterpret_cast<const char*>(digest),
+                            digest_size,
+                            BASE64,
+                            &error);
+    if (rc.IsEmpty()) {
+      CHECK(!error.IsEmpty());
+      env->isolate()->ThrowException(error);
+      return;
+    }
+    args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
+  }
 }
 
 }  // namespace crypto

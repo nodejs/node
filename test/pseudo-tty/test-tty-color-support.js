@@ -21,14 +21,14 @@ const writeStream = new WriteStream(fd);
 [true, null, () => {}, Symbol(), 5n].forEach((input) => {
   assert.throws(
     () => writeStream.hasColors(input),
-    { code: 'ERR_INVALID_ARG_TYPE' }
+    { code: 'ERR_INVALID_ARG_TYPE' },
   );
 });
 
 [-1, 1].forEach((input) => {
   assert.throws(
     () => writeStream.hasColors(input),
-    { code: 'ERR_OUT_OF_RANGE' }
+    { code: 'ERR_OUT_OF_RANGE' },
   );
 });
 
@@ -78,7 +78,7 @@ const writeStream = new WriteStream(fd);
     actual,
     depth,
     `i: ${i}, expected: ${depth}, ` +
-      `actual: ${actual}, env: ${inspect(env)}`
+      `actual: ${actual}, env: ${inspect(env)}`,
   );
   const colors = 2 ** actual;
   assert(writeStream.hasColors(colors, env));

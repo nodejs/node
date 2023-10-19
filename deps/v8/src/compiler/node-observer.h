@@ -80,7 +80,7 @@ class NodeObserver : public ZoneObject {
   bool has_observed_changes() const { return has_observed_changes_; }
 
  private:
-  bool has_observed_changes_ = false;
+  std::atomic<bool> has_observed_changes_{false};
 };
 inline NodeObserver::~NodeObserver() = default;
 

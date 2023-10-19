@@ -4,16 +4,16 @@
 
 // Flags: --wasm-staging
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(28, 32, false);
+builder.addMemory(28, 32);
 builder.addFunction(undefined, kSig_i_v)
   .addLocals(kWasmI32, 61)
   .addBody([
 kExprI64Const, 0x0,  // i64.const
 kExprI32Const, 0x0,  // i32.const
-kExprIf, kWasmStmt,  // if
+kExprIf, kWasmVoid,  // if
   kExprI32Const, 0x0,  // i32.const
   kExprI32LoadMem, 0x01, 0x23,  // i32.load
   kExprBrTable, 0x01, 0x00, 0x00, // br_table

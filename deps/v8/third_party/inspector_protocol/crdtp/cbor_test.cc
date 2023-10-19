@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,6 +21,7 @@
 #include "test_platform.h"
 
 using testing::ElementsAreArray;
+using testing::Eq;
 
 namespace v8_crdtp {
 namespace cbor {
@@ -72,7 +73,7 @@ TEST(CheckCBORMessage, ValidCBORButNotValidMessage) {
 TEST(CheckCBORMessage, EmptyMessage) {
   std::vector<uint8_t> empty;
   Status status = CheckCBORMessage(SpanFrom(empty));
-  EXPECT_THAT(status, StatusIs(Error::CBOR_NO_INPUT, 0));
+  EXPECT_THAT(status, StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 0));
 }
 
 TEST(CheckCBORMessage, InvalidStartByte) {
@@ -86,25 +87,25 @@ TEST(CheckCBORMessage, InvalidStartByte) {
 TEST(CheckCBORMessage, InvalidEnvelopes) {
   std::vector<uint8_t> bytes = {0xd8, 0x5a};
   EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
-              StatusIs(Error::CBOR_INVALID_ENVELOPE, 1));
+              StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 2));
   bytes = {0xd8, 0x5a, 0};
   EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
-              StatusIs(Error::CBOR_INVALID_ENVELOPE, 1));
+              StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 3));
   bytes = {0xd8, 0x5a, 0, 0};
   EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
-              StatusIs(Error::CBOR_INVALID_ENVELOPE, 1));
+              StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 4));
   bytes = {0xd8, 0x5a, 0, 0, 0};
   EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
-              StatusIs(Error::CBOR_INVALID_ENVELOPE, 1));
+              StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 5));
   bytes = {0xd8, 0x5a, 0, 0, 0, 0};
   EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
-              StatusIs(Error::CBOR_INVALID_ENVELOPE, 1));
+              StatusIs(Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE, 6));
 }
 
 TEST(CheckCBORMessage, MapStartExpected) {
   std::vector<uint8_t> bytes = {0xd8, 0x5a, 0, 0, 0, 1};
   EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
-              StatusIs(Error::CBOR_MAP_START_EXPECTED, 6));
+              StatusIs(Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH, 6));
 }
 
 // =============================================================================
@@ -726,9 +727,9 @@ TEST(JsonCborRoundtrip, EncodingDecoding) {
   span<uint8_t> ascii_in = SpanFrom(json);
   json::ParseJSON(ascii_in, encoder.get());
   std::vector<uint8_t> expected = {
-      0xd8,            // envelope
-      0x5a,            // byte string with 32 bit length
-      0,    0, 0, 94,  // length is 94 bytes
+      0xd8, 0x18,         // envelope
+      0x5a,               // byte string with 32 bit length
+      0,    0,    0, 95,  // length is 95 bytes
   };
   expected.push_back(0xbf);  // indef length map start
   EncodeString8(SpanFrom("string"), &expected);
@@ -751,7 +752,8 @@ TEST(JsonCborRoundtrip, EncodingDecoding) {
   EncodeString8(SpanFrom("null"), &expected);
   expected.push_back(7 << 5 | 22);  // RFC 7049 Section 2.3, Table 2: null
   EncodeString8(SpanFrom("array"), &expected);
-  expected.push_back(0xd8);  // envelope
+  expected.push_back(0xd8);  // envelope (tag first byte)
+  expected.push_back(0x18);  // envelope (tag second byte)
   expected.push_back(0x5a);  // byte string with 32 bit length
   // the length is 5 bytes (that's up to end indef length array below).
   for (uint8_t ch : std::array<uint8_t, 4>{{0, 0, 0, 5}})
@@ -871,12 +873,8 @@ TEST(ParseCBORTest, ParseCBORHelloWorld) {
 
 TEST(ParseCBORTest, UTF8IsSupportedInKeys) {
   const uint8_t kPayloadLen = 11;
-  std::vector<uint8_t> bytes = {cbor::InitialByteForEnvelope(),
-                                cbor::InitialByteFor32BitLengthByteString(),
-                                0,
-                                0,
-                                0,
-                                kPayloadLen};
+  std::vector<uint8_t> bytes = {0xd8, 0x5a,  // envelope
+                                0,    0,    0, kPayloadLen};
   bytes.push_back(cbor::EncodeIndefiniteLengthMapStart());
   // Two UTF16 chars.
   EncodeString8(SpanFrom("🌎"), &bytes);
@@ -901,7 +899,7 @@ TEST(ParseCBORTest, NoInputError) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(in.data(), in.size()), json_writer.get());
-  EXPECT_THAT(status, StatusIs(Error::CBOR_NO_INPUT, 0u));
+  EXPECT_THAT(status, StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 0u));
   EXPECT_EQ("", out);
 }
 
@@ -954,6 +952,39 @@ TEST(ParseCBORTest, UnexpectedEofInMapError) {
   EXPECT_EQ("", out);
 }
 
+TEST(ParseCBORTest, EnvelopeEncodingLegacy) {
+  constexpr uint8_t kPayloadLen = 8;
+  std::vector<uint8_t> bytes = {0xd8, 0x5a, 0, 0, 0, kPayloadLen};  // envelope
+  bytes.push_back(cbor::EncodeIndefiniteLengthMapStart());
+  EncodeString8(SpanFrom("foo"), &bytes);
+  EncodeInt32(42, &bytes);
+  bytes.emplace_back(EncodeStop());
+  std::string out;
+  Status status;
+  std::unique_ptr<ParserHandler> json_writer =
+      json::NewJSONEncoder(&out, &status);
+  ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
+  EXPECT_THAT(status, StatusIsOk());
+  EXPECT_EQ(out, "{\"foo\":42}");
+}
+
+TEST(ParseCBORTest, EnvelopeEncodingBySpec) {
+  constexpr uint8_t kPayloadLen = 8;
+  std::vector<uint8_t> bytes = {0xd8, 0x18, 0x5a,       0,
+                                0,    0,    kPayloadLen};  // envelope
+  bytes.push_back(cbor::EncodeIndefiniteLengthMapStart());
+  EncodeString8(SpanFrom("foo"), &bytes);
+  EncodeInt32(42, &bytes);
+  bytes.emplace_back(EncodeStop());
+  std::string out;
+  Status status;
+  std::unique_ptr<ParserHandler> json_writer =
+      json::NewJSONEncoder(&out, &status);
+  ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
+  EXPECT_THAT(status, StatusIsOk());
+  EXPECT_EQ(out, "{\"foo\":42}");
+}
+
 TEST(ParseCBORTest, NoEmptyEnvelopesAllowed) {
   std::vector<uint8_t> bytes = {0xd8, 0x5a, 0, 0, 0, 0};  // envelope
   std::string out;
@@ -971,7 +1002,7 @@ TEST(ParseCBORTest, OnlyMapsAndArraysSupportedInsideEnvelopes) {
   // is an envelope that contains just a number (1). We don't
   // allow numbers to be contained in an envelope though, only
   // maps and arrays.
-  constexpr uint8_t kPayloadLen = 1;
+  constexpr uint8_t kPayloadLen = 8;
   std::vector<uint8_t> bytes = {0xd8,
                                 0x5a,
                                 0,
@@ -1248,6 +1279,69 @@ TEST(ParseCBORTest, EnvelopeContentsLengthMismatch) {
 }
 
 // =============================================================================
+// cbor::EnvelopeHeader - for parsing envelope headers
+// =============================================================================
+// Note most of converage for this is historically on a higher level of
+// ParseCBOR(). This provides just a few essnetial scenarios for now.
+
+template <typename T>
+class EnvelopeHeaderTest : public ::testing::Test {};
+
+TEST(EnvelopeHeaderTest, EnvelopeStartLegacy) {
+  std::vector<uint8_t> bytes = {0xd8,             // Tag start
+                                0x5a,             // Byte string, 4 bytes length
+                                0,    0,   0, 2,  // Length
+                                0xbf, 0xff};      // map start / map end
+  auto result = EnvelopeHeader::Parse(SpanFrom(bytes));
+  ASSERT_THAT(result.status(), StatusIsOk());
+  EXPECT_THAT((*result).header_size(), Eq(6u));
+  EXPECT_THAT((*result).content_size(), Eq(2u));
+  EXPECT_THAT((*result).outer_size(), Eq(8u));
+}
+
+TEST(EnvelopeHeaderTest, EnvelopeStartSpecCompliant) {
+  std::vector<uint8_t> bytes = {0xd8,             // Tag start
+                                0x18,             // Tag type (CBOR)
+                                0x5a,             // Byte string, 4 bytes length
+                                0,    0,   0, 2,  // Length
+                                0xbf, 0xff};      // map start / map end
+  auto result = EnvelopeHeader::Parse(SpanFrom(bytes));
+  ASSERT_THAT(result.status(), StatusIsOk());
+  EXPECT_THAT((*result).header_size(), Eq(7u));
+  EXPECT_THAT((*result).content_size(), Eq(2u));
+  EXPECT_THAT((*result).outer_size(), Eq(9u));
+}
+
+TEST(EnvelopeHeaderTest, EnvelopeStartShortLen) {
+  std::vector<uint8_t> bytes = {0xd8,         // Tag start
+                                0x18,         // Tag type (CBOR)
+                                0x58,         // Byte string, 1 byte length
+                                2,            // Length
+                                0xbf, 0xff};  // map start / map end
+  auto result = EnvelopeHeader::Parse(SpanFrom(bytes));
+  ASSERT_THAT(result.status(), StatusIsOk());
+  EXPECT_THAT((*result).header_size(), Eq(4u));
+  EXPECT_THAT((*result).content_size(), Eq(2u));
+  EXPECT_THAT((*result).outer_size(), Eq(6u));
+}
+
+TEST(EnvelopeHeaderTest, ParseFragment) {
+  std::vector<uint8_t> bytes = {0xd8,  // Tag start
+                                0x18,  // Tag type (CBOR)
+                                0x5a,  // Byte string, 4 bytes length
+                                0,    0, 0, 20, 0xbf};  // map start
+  auto result = EnvelopeHeader::ParseFromFragment(SpanFrom(bytes));
+  ASSERT_THAT(result.status(), StatusIsOk());
+  EXPECT_THAT((*result).header_size(), Eq(7u));
+  EXPECT_THAT((*result).content_size(), Eq(20u));
+  EXPECT_THAT((*result).outer_size(), Eq(27u));
+
+  result = EnvelopeHeader::Parse(SpanFrom(bytes));
+  ASSERT_THAT(result.status(),
+              StatusIs(Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH, 8));
+}
+
+// =============================================================================
 // cbor::AppendString8EntryToMap - for limited in-place editing of messages
 // =============================================================================
 
@@ -1331,7 +1425,7 @@ TEST(AppendString8EntryToMapTest, InvalidEnvelope_Error) {
         0xd8, 0x7a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop()};
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
-    EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_ENVELOPE, 0u));
+    EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_ENVELOPE, 1u));
   }
   {  // Invalid envelope size example.
     std::vector<uint8_t> msg = {
@@ -1339,7 +1433,8 @@ TEST(AppendString8EntryToMapTest, InvalidEnvelope_Error) {
     };
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
-    EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_ENVELOPE, 0u));
+    EXPECT_THAT(status,
+                StatusIs(Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH, 8u));
   }
   {  // Invalid envelope size example.
     std::vector<uint8_t> msg = {
@@ -1347,7 +1442,7 @@ TEST(AppendString8EntryToMapTest, InvalidEnvelope_Error) {
     };
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
-    EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_ENVELOPE, 0u));
+    EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_ENVELOPE, 0));
   }
 }
 }  // namespace cbor

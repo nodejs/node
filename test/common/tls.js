@@ -1,4 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 /* eslint-disable node-core/crypto-check */
 
 'use strict';
@@ -53,7 +52,7 @@ class TestTLSSocket extends net.Socket {
   createClientKeyExchange() {
     const encrypted_pre_primary_secret = crypto.publicEncrypt({
       key: this.server_cert,
-      padding: crypto.constants.RSA_PKCS1_PADDING
+      padding: crypto.constants.RSA_PKCS1_PADDING,
     }, this.pre_primary_secret);
     const length = Buffer.alloc(2);
     length.writeUIntBE(encrypted_pre_primary_secret.length, 0, 2);

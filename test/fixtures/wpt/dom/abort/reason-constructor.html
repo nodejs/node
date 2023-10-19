@@ -1,0 +1,12 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>AbortSignal.reason constructor</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<iframe id="iframe"></iframe>
+<script>
+  test(() => {
+    const aborted = iframe.contentWindow.AbortSignal.abort();
+    assert_equals(aborted.reason.constructor, iframe.contentWindow.DOMException, "DOMException is using the correct global");
+  }, "AbortSignal.reason.constructor should be from iframe");
+</script>

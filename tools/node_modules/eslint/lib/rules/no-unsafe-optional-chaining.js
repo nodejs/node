@@ -18,15 +18,15 @@ function isDestructuringPattern(node) {
     return node.type === "ObjectPattern" || node.type === "ArrayPattern";
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
-            description: "disallow use of optional chaining in contexts where the `undefined` value is not allowed",
-            category: "Possible Errors",
-            recommended: false,
-            url: "https://eslint.org/docs/rules/no-unsafe-optional-chaining"
+            description: "Disallow use of optional chaining in contexts where the `undefined` value is not allowed",
+            recommended: true,
+            url: "https://eslint.org/docs/latest/rules/no-unsafe-optional-chaining"
         },
         schema: [{
             type: "object",

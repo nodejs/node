@@ -8,6 +8,7 @@
 #include <atomic>
 #include <unordered_map>
 
+#include "src/base/functional.h"
 #include "src/base/macros.h"
 #include "src/heap/basic-memory-chunk.h"
 
@@ -59,6 +60,8 @@ class AllocationStats {
 #endif
 
   void IncreaseAllocatedBytes(size_t bytes, const BasicMemoryChunk* page) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(bytes, kObjectAlignment8GbHeap));
 #ifdef DEBUG
     size_t size = size_;
     DCHECK_GE(size + bytes, size);
@@ -106,7 +109,8 @@ class AllocationStats {
   std::atomic<size_t> size_;
 
 #ifdef DEBUG
-  std::unordered_map<const BasicMemoryChunk*, size_t, BasicMemoryChunk::Hasher>
+  std::unordered_map<const BasicMemoryChunk*, size_t,
+                     base::hash<const BasicMemoryChunk*>>
       allocated_on_page_;
 #endif
 };

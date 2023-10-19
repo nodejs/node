@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* API: https://github.com/WebAssembly/WASI/blob/master/phases/snapshot/docs.md */
+/* API: https://github.com/WebAssembly/WASI/blob/main/phases/snapshot/docs.md */
 
 typedef uint32_t uvwasi_size_t;
 
@@ -214,6 +214,7 @@ typedef uint64_t uvwasi_rights_t;                /* Bitfield */
 #define UVWASI_RIGHT_PATH_UNLINK_FILE        (1 << 26)
 #define UVWASI_RIGHT_POLL_FD_READWRITE       (1 << 27)
 #define UVWASI_RIGHT_SOCK_SHUTDOWN           (1 << 28)
+#define UVWASI_RIGHT_SOCK_ACCEPT             (1 << 29)
 
 typedef uint16_t uvwasi_roflags_t;               /* Bitfield */
 #define UVWASI_SOCK_RECV_DATA_TRUNCATED (1 << 0)

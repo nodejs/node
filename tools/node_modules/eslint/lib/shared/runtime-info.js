@@ -40,6 +40,7 @@ function environment() {
      * Synchronously executes a shell command and formats the result.
      * @param {string} cmd The command to execute.
      * @param {Array} args The arguments to be executed with the command.
+     * @throws {Error} As may be collected by `cross-spawn.sync`.
      * @returns {string} The version returned by the command.
      */
     function execCommand(cmd, args) {
@@ -73,6 +74,7 @@ function environment() {
     /**
      * Gets bin version.
      * @param {string} bin The bin to check.
+     * @throws {Error} As may be collected by `cross-spawn.sync`.
      * @returns {string} The normalized version returned by the command.
      */
     function getBinVersion(bin) {
@@ -90,11 +92,12 @@ function environment() {
      * Gets installed npm package version.
      * @param {string} pkg The package to check.
      * @param {boolean} global Whether to check globally or not.
+     * @throws {Error} As may be collected by `cross-spawn.sync`.
      * @returns {string} The normalized version returned by the command.
      */
     function getNpmPackageVersion(pkg, { global = false } = {}) {
         const npmBinArgs = ["bin", "-g"];
-        const npmLsArgs = ["ls", "--depth=0", "--json", "eslint"];
+        const npmLsArgs = ["ls", "--depth=0", "--json", pkg];
 
         if (global) {
             npmLsArgs.push("-g");

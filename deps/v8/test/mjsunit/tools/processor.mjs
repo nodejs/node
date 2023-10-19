@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --logfile='+' --log --trace-maps --trace-ic --log-code
-// Flags: --log-function-events --no-stress-opt
+// Flags: --logfile='+' --log --log-maps --log-ic --log-code
+// Flags: --log-function-events --no-predictable
 
 import { Processor } from "../../../tools/system-analyzer/processor.mjs";
 
@@ -33,8 +33,10 @@ const result = doWork();
  // log code end
 
 const logString = d8.log.getAndStop();
+assertTrue(logString.length > 0);
 const processor = new Processor();
-processor.processString(logString);
+await processor.processChunk(logString);
+await processor.finalize();
 
 const maps = processor.mapTimeline;
 const ics = processor.icTimeline;

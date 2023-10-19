@@ -2,18 +2,16 @@
 
 =head1 NAME
 
-openssl - OpenSSL command line tool
+openssl - OpenSSL command line program
 
 =head1 SYNOPSIS
 
 B<openssl>
 I<command>
-[ I<command_opts> ]
-[ I<command_args> ]
+[ I<options> ... ]
+[ I<parameters> ... ]
 
-B<openssl> B<list> [ B<standard-commands> | B<digest-commands> | B<cipher-commands> | B<cipher-algorithms> | B<digest-algorithms> | B<public-key-algorithms>]
-
-B<openssl> B<no->I<XXX> [ I<arbitrary options> ]
+B<openssl> B<no->I<XXX> [ I<options> ]
 
 =head1 DESCRIPTION
 
@@ -21,49 +19,29 @@ OpenSSL is a cryptography toolkit implementing the Secure Sockets Layer (SSL
 v2/v3) and Transport Layer Security (TLS v1) network protocols and related
 cryptography standards required by them.
 
-The B<openssl> program is a command line tool for using the various
+The B<openssl> program is a command line program for using the various
 cryptography functions of OpenSSL's B<crypto> library from the shell.
 It can be used for
 
  o  Creation and management of private keys, public keys and parameters
  o  Public key cryptographic operations
  o  Creation of X.509 certificates, CSRs and CRLs
- o  Calculation of Message Digests
+ o  Calculation of Message Digests and Message Authentication Codes
  o  Encryption and Decryption with Ciphers
  o  SSL/TLS Client and Server Tests
  o  Handling of S/MIME signed or encrypted mail
- o  Time Stamp requests, generation and verification
+ o  Timestamp requests, generation and verification
 
 =head1 COMMAND SUMMARY
 
-The B<openssl> program provides a rich variety of commands (I<command> in the
-SYNOPSIS above), each of which often has a wealth of options and arguments
-(I<command_opts> and I<command_args> in the SYNOPSIS).
+The B<openssl> program provides a rich variety of commands (I<command> in
+the L</SYNOPSIS> above).
+Each command can have many options and argument parameters, shown above as
+I<options> and I<parameters>.
 
 Detailed documentation and use cases for most standard subcommands are available
-(e.g., L<x509(1)> or L<openssl-x509(1)>).
-
-Many commands use an external configuration file for some or all of their
-arguments and have a B<-config> option to specify that file.
-The environment variable B<OPENSSL_CONF> can be used to specify
-the location of the file.
-If the environment variable is not specified, then the file is named
-B<openssl.cnf> in the default certificate storage area, whose value
-depends on the configuration flags specified when the OpenSSL
-was built.
-
-The list parameters B<standard-commands>, B<digest-commands>,
-and B<cipher-commands> output a list (one entry per line) of the names
-of all standard commands, message digest commands, or cipher commands,
-respectively, that are available in the present B<openssl> utility.
-
-The list parameters B<cipher-algorithms> and
-B<digest-algorithms> list all cipher and message digest names, one entry per line. Aliases are listed as:
-
- from => to
-
-The list parameter B<public-key-algorithms> lists all supported public
-key algorithms.
+(e.g., L<openssl-x509(1)>). The subcommand L<openssl-list(1)> may be used to list
+subcommands.
 
 The command B<no->I<XXX> tests whether a command of the
 specified name is available.  If no command named I<XXX> exists, it
@@ -75,6 +53,20 @@ same name, this provides an easy way for shell scripts to test for the
 availability of ciphers in the B<openssl> program.  (B<no->I<XXX> is
 not able to detect pseudo-commands such as B<quit>,
 B<list>, or B<no->I<XXX> itself.)
+
+=head2 Configuration Option
+
+Many commands use an external configuration file for some or all of their
+arguments and have a B<-config> option to specify that file.
+The default name of the file is F<openssl.cnf> in the default certificate
+storage area, which can be determined from the L<openssl-version(1)>
+command using the B<-d> or B<-a> option.
+The environment variable B<OPENSSL_CONF> can be used to specify a different
+file location or to disable loading a configuration (using the empty string).
+
+Among others, the configuration file can be used to load modules
+and to specify parameters for generating certificates and random numbers.
+See L<config(5)> for details.
 
 =head2 Standard Commands
 
@@ -94,7 +86,7 @@ Cipher Suite Description Determination.
 
 =item B<cms>
 
-CMS (Cryptographic Message Syntax) utility.
+CMS (Cryptographic Message Syntax) command.
 
 =item B<crl>
 
@@ -106,17 +98,13 @@ CRL to PKCS#7 Conversion.
 
 =item B<dgst>
 
-Message Digest Calculation.
-
-=item B<dh>
-
-Diffie-Hellman Parameter Management.
-Obsoleted by L<dhparam(1)>.
+Message Digest calculation. MAC calculations are superseded by
+L<openssl-mac(1)>.
 
 =item B<dhparam>
 
 Generation and Management of Diffie-Hellman Parameters. Superseded by
-L<genpkey(1)> and L<pkeyparam(1)>.
+L<openssl-genpkey(1)> and L<openssl-pkeyparam(1)>.
 
 =item B<dsa>
 
@@ -125,7 +113,7 @@ DSA Data Management.
 =item B<dsaparam>
 
 DSA Parameter Generation and Management. Superseded by
-L<genpkey(1)> and L<pkeyparam(1)>.
+L<openssl-genpkey(1)> and L<openssl-pkeyparam(1)>.
 
 =item B<ec>
 
@@ -137,7 +125,7 @@ EC parameter manipulation and generation.
 
 =item B<enc>
 
-Encoding with Ciphers.
+Encryption, decryption, and encoding.
 
 =item B<engine>
 
@@ -147,15 +135,14 @@ Engine (loadable module) information and manipulation.
 
 Error Number to Error String Conversion.
 
-=item B<gendh>
+=item B<fipsinstall>
 
-Generation of Diffie-Hellman Parameters.
-Obsoleted by L<dhparam(1)>.
+FIPS configuration installation.
 
 =item B<gendsa>
 
 Generation of DSA Private Key from Parameters. Superseded by
-L<genpkey(1)> and L<pkey(1)>.
+L<openssl-genpkey(1)> and L<openssl-pkey(1)>.
 
 =item B<genpkey>
 
@@ -163,7 +150,27 @@ Generation of Private Key or Parameters.
 
 =item B<genrsa>
 
-Generation of RSA Private Key. Superseded by L<genpkey(1)>.
+Generation of RSA Private Key. Superseded by L<openssl-genpkey(1)>.
+
+=item B<help>
+
+Display information about a command's options.
+
+=item B<info>
+
+Display diverse information built into the OpenSSL libraries.
+
+=item B<kdf>
+
+Key Derivation Functions.
+
+=item B<list>
+
+List algorithms and features.
+
+=item B<mac>
+
+Message Authentication Code Calculation.
 
 =item B<nseq>
 
@@ -171,7 +178,7 @@ Create or examine a Netscape certificate sequence.
 
 =item B<ocsp>
 
-Online Certificate Status Protocol utility.
+Online Certificate Status Protocol command.
 
 =item B<passwd>
 
@@ -187,7 +194,7 @@ PKCS#7 Data Management.
 
 =item B<pkcs8>
 
-PKCS#8 format private key conversion tool.
+PKCS#8 format private key conversion command.
 
 =item B<pkey>
 
@@ -199,7 +206,7 @@ Public key algorithm parameter management.
 
 =item B<pkeyutl>
 
-Public key algorithm cryptographic operation utility.
+Public key algorithm cryptographic operation command.
 
 =item B<prime>
 
@@ -223,8 +230,8 @@ RSA key management.
 
 =item B<rsautl>
 
-RSA utility for signing, verification, encryption, and decryption. Superseded
-by  L<pkeyutl(1)>.
+RSA command for signing, verification, encryption, and decryption. Superseded
+by  L<openssl-pkeyutl(1)>.
 
 =item B<s_client>
 
@@ -260,23 +267,24 @@ Algorithm Speed Measurement.
 
 =item B<spkac>
 
-SPKAC printing and generating utility.
+SPKAC printing and generating command.
 
 =item B<srp>
 
-Maintain SRP password file.
+Maintain SRP password file. This command is deprecated.
 
 =item B<storeutl>
 
-Utility to list and display certificates, keys, CRLs, etc.
+Command to list and display certificates, keys, CRLs, etc.
 
 =item B<ts>
 
-Time Stamping Authority tool (client/server).
+Time Stamping Authority command.
 
 =item B<verify>
 
 X.509 Certificate Verification.
+See also the L<openssl-verification-options(1)> manual page.
 
 =item B<version>
 
@@ -370,13 +378,13 @@ SM3 Digest
 
 =back
 
-=head2 Encoding and Cipher Commands
+=head2 Encryption, Decryption, and Encoding Commands
 
 The following aliases provide convenient access to the most used encodings
 and ciphers.
 
 Depending on how OpenSSL was configured and built, not all ciphers listed
-here may be present. See L<enc(1)> for more information and command usage.
+here may be present. See L<openssl-enc(1)> for more information.
 
 =over 4
 
@@ -482,85 +490,352 @@ This section describes some common options with common behavior.
 =item B<-help>
 
 Provides a terse summary of all options.
+If an option takes an argument, the "type" of argument is also given.
+
+=item B<-->
+
+This terminates the list of options. It is mostly useful if any filename
+parameters start with a minus sign:
+
+ openssl verify [flags...] -- -cert1.pem...
 
 =back
 
+=head2 Format Options
+
+See L<openssl-format-options(1)> for manual page.
+
 =head2 Pass Phrase Options
 
-Several commands accept password arguments, typically using B<-passin>
-and B<-passout> for input and output passwords respectively. These allow
-the password to be obtained from a variety of sources. Both of these
-options take a single argument whose format is described below. If no
-password argument is given and a password is required then the user is
-prompted to enter one: this will typically be read from the current
-terminal with echoing turned off.
+See the L<openssl-passphrase-options(1)> manual page.
 
-Note that character encoding may be relevant, please see
-L<passphrase-encoding(7)>.
+=head2 Random State Options
+
+Prior to OpenSSL 1.1.1, it was common for applications to store information
+about the state of the random-number generator in a file that was loaded
+at startup and rewritten upon exit. On modern operating systems, this is
+generally no longer necessary as OpenSSL will seed itself from a trusted
+entropy source provided by the operating system. These flags are still
+supported for special platforms or circumstances that might require them.
+
+It is generally an error to use the same seed file more than once and
+every use of B<-rand> should be paired with B<-writerand>.
 
 =over 4
 
-=item B<pass:password>
+=item B<-rand> I<files>
 
-The actual password is B<password>. Since the password is visible
-to utilities (like 'ps' under Unix) this form should only be used
-where security is not important.
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is C<;> for MS-Windows, C<,> for OpenVMS, and C<:> for
+all others. Another way to specify multiple files is to repeat this flag
+with different filenames.
 
-=item B<env:var>
+=item B<-writerand> I<file>
 
-Obtain the password from the environment variable B<var>. Since
-the environment of other processes is visible on certain platforms
-(e.g. ps under certain Unix OSes) this option should be used with caution.
+Writes the seed data to the specified I<file> upon exit.
+This file can be used in a subsequent command invocation.
 
-=item B<file:pathname>
+=back
 
-The first line of B<pathname> is the password. If the same B<pathname>
-argument is supplied to B<-passin> and B<-passout> arguments then the first
-line will be used for the input password and the next line for the output
-password. B<pathname> need not refer to a regular file: it could for example
-refer to a device or named pipe.
+=head2 Certificate Verification Options
 
-=item B<fd:number>
+See the L<openssl-verification-options(1)> manual page.
 
-Read the password from the file descriptor B<number>. This can be used to
-send the data via a pipe for example.
+=head2 Name Format Options
 
-=item B<stdin>
+See the L<openssl-namedisplay-options(1)> manual page.
 
-Read the password from standard input.
+=head2 TLS Version Options
+
+Several commands use SSL, TLS, or DTLS. By default, the commands use TLS and
+clients will offer the lowest and highest protocol version they support,
+and servers will pick the highest version that the client offers that is also
+supported by the server.
+
+The options below can be used to limit which protocol versions are used,
+and whether TCP (SSL and TLS) or UDP (DTLS) is used.
+Note that not all protocols and flags may be available, depending on how
+OpenSSL was built.
+
+=over 4
+
+=item B<-ssl3>, B<-tls1>, B<-tls1_1>, B<-tls1_2>, B<-tls1_3>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>, B<-no_tls1_3>
+
+These options require or disable the use of the specified SSL or TLS protocols.
+When a specific TLS version is required, only that version will be offered or
+accepted.
+Only one specific protocol can be given and it cannot be combined with any of
+the B<no_> options.
+The B<no_*> options do not work with B<s_time> and B<ciphers> commands but work with
+B<s_client> and B<s_server> commands.
+
+=item B<-dtls>, B<-dtls1>, B<-dtls1_2>
+
+These options specify to use DTLS instead of TLS.
+With B<-dtls>, clients will negotiate any supported DTLS protocol version.
+Use the B<-dtls1> or B<-dtls1_2> options to support only DTLS1.0 or DTLS1.2,
+respectively.
+
+=back
+
+=head2 Engine Options
+
+=over 4
+
+=item B<-engine> I<id>
+
+Load the engine identified by I<id> and use all the methods it implements
+(algorithms, key storage, etc.), unless specified otherwise in the
+command-specific documentation or it is configured to do so, as described in
+L<config(5)/Engine Configuration>.
+
+The engine will be used for key ids specified with B<-key> and similar
+options when an option like B<-keyform engine> is given.
+
+A special case is the C<loader_attic> engine, which
+is meant just for internal OpenSSL testing purposes and
+supports loading keys, parameters, certificates, and CRLs from files.
+When this engine is used, files with such credentials are read via this engine.
+Using the C<file:> schema is optional; a plain file (path) name will do.
+
+=back
+
+Options specifying keys, like B<-key> and similar, can use the generic
+OpenSSL engine key loading URI scheme C<org.openssl.engine:> to retrieve
+private keys and public keys.  The URI syntax is as follows, in simplified
+form:
+
+    org.openssl.engine:{engineid}:{keyid}
+
+Where C<{engineid}> is the identity/name of the engine, and C<{keyid}> is a
+key identifier that's acceptable by that engine.  For example, when using an
+engine that interfaces against a PKCS#11 implementation, the generic key URI
+would be something like this (this happens to be an example for the PKCS#11
+engine that's part of OpenSC):
+
+    -key org.openssl.engine:pkcs11:label_some-private-key
+
+As a third possibility, for engines and providers that have implemented
+their own L<OSSL_STORE_LOADER(3)>, C<org.openssl.engine:> should not be
+necessary.  For a PKCS#11 implementation that has implemented such a loader,
+the PKCS#11 URI as defined in RFC 7512 should be possible to use directly:
+
+    -key pkcs11:object=some-private-key;pin-value=1234
+
+=head2 Provider Options
+
+=over 4
+
+=item B<-provider> I<name>
+
+Load and initialize the provider identified by I<name>. The I<name>
+can be also a path to the provider module. In that case the provider name
+will be the specified path and not just the provider module name.
+Interpretation of relative paths is platform specific. The configured
+"MODULESDIR" path, B<OPENSSL_MODULES> environment variable, or the path
+specified by B<-provider-path> is prepended to relative paths.
+See L<provider(7)> for a more detailed description.
+
+=item B<-provider-path> I<path>
+
+Specifies the search path that is to be used for looking for providers.
+Equivalently, the B<OPENSSL_MODULES> environment variable may be set.
+
+=item B<-propquery> I<propq>
+
+Specifies the I<property query clause> to be used when fetching algorithms
+from the loaded providers.
+See L<property(7)> for a more detailed description.
+
+=back
+
+=head1 ENVIRONMENT
+
+The OpenSSL library can be take some configuration parameters from the
+environment.  Some of these variables are listed below.  For information
+about specific commands, see L<openssl-engine(1)>,
+L<openssl-rehash(1)>, and L<tsget(1)>.
+
+For information about the use of environment variables in configuration,
+see L<config(5)/ENVIRONMENT>.
+
+For information about querying or specifying CPU architecture flags, see
+L<OPENSSL_ia32cap(3)>, and L<OPENSSL_s390xcap(3)>.
+
+For information about all environment variables used by the OpenSSL libraries,
+see L<openssl-env(7)>.
+
+=over 4
+
+=item B<OPENSSL_TRACE=>I<name>[,...]
+
+Enable tracing output of OpenSSL library, by name.
+This output will only make sense if you know OpenSSL internals well.
+Also, it might not give you any output at all, depending on how
+OpenSSL was built.
+
+The value is a comma separated list of names, with the following
+available:
+
+=over 4
+
+=item B<TRACE>
+
+Traces the OpenSSL trace API itself.
+
+=item B<INIT>
+
+Traces OpenSSL library initialization and cleanup.
+
+=item B<TLS>
+
+Traces the TLS/SSL protocol.
+
+=item B<TLS_CIPHER>
+
+Traces the ciphers used by the TLS/SSL protocol.
+
+=item B<CONF>
+
+Show details about provider and engine configuration.
+
+=item B<ENGINE_TABLE>
+
+The function that is used by RSA, DSA (etc) code to select registered
+ENGINEs, cache defaults and functional references (etc), will generate
+debugging summaries.
+
+=item B<ENGINE_REF_COUNT>
+
+Reference counts in the ENGINE structure will be monitored with a line
+of generated for each change.
+
+=item B<PKCS5V2>
+
+Traces PKCS#5 v2 key generation.
+
+=item B<PKCS12_KEYGEN>
+
+Traces PKCS#12 key generation.
+
+=item B<PKCS12_DECRYPT>
+
+Traces PKCS#12 decryption.
+
+=item B<X509V3_POLICY>
+
+Generates the complete policy tree at various points during X.509 v3
+policy evaluation.
+
+=item B<BN_CTX>
+
+Traces BIGNUM context operations.
+
+=item B<CMP>
+
+Traces CMP client and server activity.
+
+=item B<STORE>
+
+Traces STORE operations.
+
+=item B<DECODER>
+
+Traces decoder operations.
+
+=item B<ENCODER>
+
+Traces encoder operations.
+
+=item B<REF_COUNT>
+
+Traces decrementing certain ASN.1 structure references.
+
+=back
 
 =back
 
 =head1 SEE ALSO
 
-L<asn1parse(1)>, L<ca(1)>, L<ciphers(1)>, L<cms(1)>, L<config(5)>,
-L<crl(1)>, L<crl2pkcs7(1)>, L<dgst(1)>,
-L<dhparam(1)>, L<dsa(1)>, L<dsaparam(1)>,
-L<ec(1)>, L<ecparam(1)>,
-L<enc(1)>, L<engine(1)>, L<errstr(1)>, L<gendsa(1)>, L<genpkey(1)>,
-L<genrsa(1)>, L<nseq(1)>, L<ocsp(1)>,
-L<passwd(1)>,
-L<pkcs12(1)>, L<pkcs7(1)>, L<pkcs8(1)>,
-L<pkey(1)>, L<pkeyparam(1)>, L<pkeyutl(1)>, L<prime(1)>,
-L<rand(1)>, L<rehash(1)>, L<req(1)>, L<rsa(1)>,
-L<rsautl(1)>, L<s_client(1)>,
-L<s_server(1)>, L<s_time(1)>, L<sess_id(1)>,
-L<smime(1)>, L<speed(1)>, L<spkac(1)>, L<srp(1)>, L<storeutl(1)>,
-L<ts(1)>,
-L<verify(1)>, L<version(1)>, L<x509(1)>,
-L<crypto(7)>, L<ssl(7)>, L<x509v3_config(5)>
+L<openssl-asn1parse(1)>,
+L<openssl-ca(1)>,
+L<openssl-ciphers(1)>,
+L<openssl-cms(1)>,
+L<openssl-crl(1)>,
+L<openssl-crl2pkcs7(1)>,
+L<openssl-dgst(1)>,
+L<openssl-dhparam(1)>,
+L<openssl-dsa(1)>,
+L<openssl-dsaparam(1)>,
+L<openssl-ec(1)>,
+L<openssl-ecparam(1)>,
+L<openssl-enc(1)>,
+L<openssl-engine(1)>,
+L<openssl-errstr(1)>,
+L<openssl-gendsa(1)>,
+L<openssl-genpkey(1)>,
+L<openssl-genrsa(1)>,
+L<openssl-kdf(1)>,
+L<openssl-list(1)>,
+L<openssl-mac(1)>,
+L<openssl-nseq(1)>,
+L<openssl-ocsp(1)>,
+L<openssl-passwd(1)>,
+L<openssl-pkcs12(1)>,
+L<openssl-pkcs7(1)>,
+L<openssl-pkcs8(1)>,
+L<openssl-pkey(1)>,
+L<openssl-pkeyparam(1)>,
+L<openssl-pkeyutl(1)>,
+L<openssl-prime(1)>,
+L<openssl-rand(1)>,
+L<openssl-rehash(1)>,
+L<openssl-req(1)>,
+L<openssl-rsa(1)>,
+L<openssl-rsautl(1)>,
+L<openssl-s_client(1)>,
+L<openssl-s_server(1)>,
+L<openssl-s_time(1)>,
+L<openssl-sess_id(1)>,
+L<openssl-smime(1)>,
+L<openssl-speed(1)>,
+L<openssl-spkac(1)>,
+L<openssl-srp(1)>,
+L<openssl-storeutl(1)>,
+L<openssl-ts(1)>,
+L<openssl-verify(1)>,
+L<openssl-version(1)>,
+L<openssl-x509(1)>,
+L<config(5)>,
+L<crypto(7)>,
+L<openssl-env(7)>.
+L<ssl(7)>,
+L<x509v3_config(5)>
+
 
 =head1 HISTORY
 
-The B<list->I<XXX>B<-algorithms> pseudo-commands were added in OpenSSL 1.0.0;
+The B<list> -I<XXX>B<-algorithms> options were added in OpenSSL 1.0.0;
 For notes on the availability of other commands, see their individual
 manual pages.
 
+The B<-issuer_checks> option is deprecated as of OpenSSL 1.1.0 and
+is silently ignored.
+
+The B<-xcertform> and B<-xkeyform> options
+are obsolete since OpenSSL 3.0 and have no effect.
+
+The interactive mode, which could be invoked by running C<openssl>
+with no further arguments, was removed in OpenSSL 3.0, and running
+that program with no arguments is now equivalent to C<openssl help>.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

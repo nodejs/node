@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --no-liftoff --experimental-wasm-return-call --experimental-wasm-threads
+// Flags: --no-liftoff --experimental-wasm-return-call
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function Regress1137608() {
   print(arguments.callee.name);
@@ -40,7 +40,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
         kExprReturnCallIndirect, sig1, kTableZero]).exportFunc();
   builder.addFunction("f", sig1).addBody([kExprI32Const, 0]);
   builder.addTable(kWasmAnyFunc, 4, 4);
-  builder.addMemory(16, 32, false, true);
+  builder.addMemory(16, 32, true);
   let module = new WebAssembly.Module(builder.toBuffer());
   let instance = new WebAssembly.Instance(module);
 })();
