@@ -1109,6 +1109,31 @@ napi_status NAPI_CDECL napi_set_property(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+napi_status NAPI_CDECL napi_set_property_utf16(napi_env env,
+                                                napi_value object,
+                                                const uint16_t* utf16name,
+                                                napi_value value) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, utf16name);
+  CHECK_ARG(env, value);
+
+  v8::Local<v8::Context> context = env->context();
+  v8::Local<v8::Object> obj;
+
+  CHECK_TO_OBJECT(env, context, obj, object);
+
+  v8::Local<v8::Value> k = v8::String::NewFromTwoByte(context->GetIsolate(),
+                                                     utf16name,
+                                                     v8::NewStringType::kNormal)
+                               .ToLocalChecked();
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+
+  v8::Maybe<bool> set_maybe = obj->Set(context, k, val);
+
+  RETURN_STATUS_IF_FALSE(env, set_maybe.FromMaybe(false), napi_generic_failure);
+  return GET_RETURN_STATUS(env);
+}
+
 napi_status NAPI_CDECL napi_has_property(napi_env env,
                                          napi_value object,
                                          napi_value key,
