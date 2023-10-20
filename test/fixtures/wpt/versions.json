@@ -68,7 +68,7 @@
     "path": "streams"
   },
   "url": {
-    "commit": "84782d931516aa13cfe32dc7eaa1377b4d947d66",
+    "commit": "c2d7e70b52cbd9a5b938aa32f37078d7a71e0b21",
     "path": "url"
   },
   "user-timing": {

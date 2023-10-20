@@ -2021,6 +2021,24 @@
                 "href": "sc:/space%20",
                 "pathname": "/space%20"
             }
+        },
+        {
+            "comment": "Trailing space should be encoded",
+            "href": "http://example.net",
+            "new_value": " ",
+            "expected": {
+                "href": "http://example.net/%20",
+                "pathname": "/%20"
+            }
+        },
+        {
+            "comment": "Trailing C0 control should be encoded",
+            "href": "http://example.net",
+            "new_value": "\u0000",
+            "expected": {
+                "href": "http://example.net/%00",
+                "pathname": "/%00"
+            }
         }
     ],
     "search": [
@@ -2140,6 +2158,24 @@
             "expected": {
                 "href": "sc:space  #fragment",
                 "search": ""
+            }
+        },
+        {
+            "comment": "Trailing space should be encoded",
+            "href": "http://example.net",
+            "new_value": " ",
+            "expected": {
+                "href": "http://example.net/?%20",
+                "search": "?%20"
+            }
+        },
+        {
+            "comment": "Trailing C0 control should be encoded",
+            "href": "http://example.net",
+            "new_value": "\u0000",
+            "expected": {
+                "href": "http://example.net/?%00",
+                "search": "?%00"
             }
         }
     ],
@@ -2310,6 +2346,24 @@
             "expected": {
                 "href": "sc:space  ?query",
                 "hash": ""
+            }
+        },
+        {
+            "comment": "Trailing space should be encoded",
+            "href": "http://example.net",
+            "new_value": " ",
+            "expected": {
+                "href": "http://example.net/#%20",
+                "hash": "#%20"
+            }
+        },
+        {
+            "comment": "Trailing C0 control should be encoded",
+            "href": "http://example.net",
+            "new_value": "\u0000",
+            "expected": {
+                "href": "http://example.net/#%00",
+                "hash": "#%00"
             }
         }
     ],

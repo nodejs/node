@@ -10,6 +10,8 @@ promise_test(() => fetch("resources/urltestdata.json").then(res => res.json()).t
 
 function runTests(testData) {
   for (const test of testData) {
+
+    // skip comments, inputs we expect to pass and relative URLs
     if (typeof test === "string" || !test.failure || test.base !== null) {
       continue;
     }

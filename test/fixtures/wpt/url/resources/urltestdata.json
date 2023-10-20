@@ -7851,7 +7851,6 @@
     "input": "blob:file://host/path",
     "base": null,
     "href": "blob:file://host/path",
-    "origin": "null",
     "protocol": "blob:",
     "username": "",
     "password": "",
