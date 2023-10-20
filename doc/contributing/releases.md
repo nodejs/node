@@ -32,9 +32,8 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [16. Check the release](#16-check-the-release)
   * [17. Create a blog post](#17-create-a-blog-post)
   * [18. Create the release on GitHub](#18-create-the-release-on-github)
-  * [19. Cleanup](#19-cleanup)
-  * [20. Announce](#20-announce)
-  * [21. Celebrate](#21-celebrate)
+  * [19. Announce](#19-announce)
+  * [20. Celebrate](#20-celebrate)
 * [LTS releases](#lts-releases)
 * [Major releases](#major-releases)
 
