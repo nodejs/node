@@ -1551,21 +1551,21 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 2);
+  CHECK_GE(argc, 1);
 
   CHECK(args[0]->IsInt32());
   const int fd = args[0].As<Int32>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 1);
-  if (req_wrap_async != nullptr) {
+  if (argc > 1) {
+    FSReqBase* req_wrap_async = GetReqWrap(args, 1);
+    CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FSYNC, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "fsync", UTF8, AfterNoArgs,
               uv_fs_fsync, fd);
   } else {
-    CHECK_EQ(argc, 3);
-    FSReqWrapSync req_wrap_sync;
+    FSReqWrapSync req_wrap_sync("fsync");
     FS_SYNC_TRACE_BEGIN(fsync);
-    SyncCall(env, args[2], &req_wrap_sync, "fsync", uv_fs_fsync, fd);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_fsync, fd);
     FS_SYNC_TRACE_END(fsync);
   }
 }
