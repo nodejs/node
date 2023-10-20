@@ -1,2 +1,2 @@
-export default 'module';
+module.exports = 'cjs';
 console.log('executed');

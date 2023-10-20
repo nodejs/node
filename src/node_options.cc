@@ -347,6 +347,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::conditions,
             kAllowedInEnvvar);
   AddAlias("-C", "--conditions");
+  AddOption("--experimental-detect-module",
+            "when ambiguous modules fail to evaluate because they contain "
+            "ES module syntax, try again to evaluate them as ES modules",
+            &EnvironmentOptions::detect_module,
+            kAllowedInEnvvar);
   AddOption("--diagnostic-dir",
             "set dir for all output files"
             " (default: current working directory)",

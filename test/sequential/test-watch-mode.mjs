@@ -277,11 +277,11 @@ console.log(values.random);
 
   it('should not load --import modules in main process', async () => {
     const file = createTmpFile();
-    const imported = pathToFileURL(createTmpFile('setImmediate(() => process.exit(0));'));
+    const imported = pathToFileURL(createTmpFile('process._rawDebug("imported");'));
     const args = ['--import', imported, file];
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, args });
 
-    assert.strictEqual(stderr, '');
+    assert.strictEqual(stderr, 'imported\nimported\n');
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}`,
