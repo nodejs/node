@@ -31,3 +31,7 @@ test-heapsnapshot-near-heap-limit: PASS,FLAKY
 [$system==ibmi]
 # https://github.com/nodejs/node/issues/39683
 test-regress-GH-892: PASS, FLAKY
+
+[$arch==s390x]
+# https://github.com/nodejs/node/issues/38226
+test-crypto-timing-safe-equal-benchmarks: PASS,FLAKY
