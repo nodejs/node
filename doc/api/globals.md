@@ -600,7 +600,7 @@ This variable may appear to be global but is not. See [`module`][].
 added: v21.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 A partial implementation of the [Navigator API][].
 
@@ -610,9 +610,17 @@ A partial implementation of the [Navigator API][].
 added: v21.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 A partial implementation of [`window.navigator`][].
+
+If your app or a dependency uses a check for `navigator` to determine whether it
+is running in a browser, the following can be used to delete the `navigator`
+global before app code runs:
+
+```bash
+node --import 'data:text/javascript,delete globalThis.navigator' app.js
+```
 
 ### `navigator.hardwareConcurrency`
 
