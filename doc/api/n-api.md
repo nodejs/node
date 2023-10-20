@@ -239,7 +239,7 @@ available to the module code.
 
 ## Node-API version matrix
 
-Up until version 9, Node-API versions are additive and versioned
+Up until version 9, Node-API versions were additive and versioned
 independently from Node.js. For example, version 4 is an extension to version
 3 in that it has all of the APIs from version 3 with some additions. Each
 Node.js version only supported a single Node-API version.
