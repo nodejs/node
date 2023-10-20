@@ -8,6 +8,8 @@ const httpCommon = require('_http_common');
 const { HTTPParser } = require('_http_common');
 const net = require('net');
 
+httpCommon.parsers.max = 50;
+
 const COUNT = httpCommon.parsers.max + 1;
 
 const parsers = new Array(COUNT);
