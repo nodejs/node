@@ -261,7 +261,7 @@ code and recompilation will be needed to use those new functions anyway.
 
 In versions of Node.js that support Node-API version 9 and later, defining
 `NAPI_VERSION=X` and using the existing add-on initialization macros will bake
-in the requested Node-API version that will be used at runtime into the addon.
+in the requested Node-API version that will be used at runtime into the add-on.
 If `NAPI_VERSION` is not set it will default to 8.
 
 This table may not be up to date in older streams, the most up to date
