@@ -251,7 +251,7 @@ an add-on that ran with Node-API version 9 may need updates to run with
 Node-API version 10. ABI stability is maintained, however, because Node.js
 versions that support Node-API versions higher than 8 will support all
 versions between 8 and the highest version they support and will default
-to providing the version 8 APIs unless an addon opts into a
+to providing the version 8 APIs unless an add-on opts into a
 higher Node-API version. This approach provides the flexibility
 of better optimizing existing Node-API functions while
 maintaining ABI stability. Existing addons can continue to run without
