@@ -629,6 +629,21 @@ logical processors available to the current Node.js instance.
 console.log(`This process is running on ${navigator.hardwareConcurrency}`);
 ```
 
+### `navigator.userAgent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.userAgent` read-only property returns user agent
+consisting of the runtime name and major version number.
+
+```js
+console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
+```
+
 ## `PerformanceEntry`
 
 <!-- YAML

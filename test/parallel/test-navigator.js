@@ -13,3 +13,5 @@ const is = {
 is.number(+navigator.hardwareConcurrency, 'hardwareConcurrency');
 is.number(navigator.hardwareConcurrency, 'hardwareConcurrency');
 assert.ok(navigator.hardwareConcurrency > 0);
+assert.strictEqual(typeof navigator.userAgent, 'string');
+assert.match(navigator.userAgent, /^Node\.js\/\d+$/);
