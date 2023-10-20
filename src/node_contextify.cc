@@ -1385,20 +1385,43 @@ constexpr std::array<std::string_view, 3> esm_syntax_error_messages = {
 
 void ContextifyContext::ContainsModuleSyntax(
     const FunctionCallbackInfo<Value>& args) {
-  // Argument 1: source code
-  CHECK(args[0]->IsString());
-  Local<String> code = args[0].As<String>();
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
 
-  // Argument 2: filename
-  Local<String> filename = String::Empty(args.GetIsolate());
+  if (args.Length() == 0) {
+    return THROW_ERR_MISSING_ARGS(
+        env, "containsModuleSyntax needs at least 1 argument");
+  }
+
+  // Argument 2: filename; if undefined, use empty string
+  Local<String> filename = String::Empty(isolate);
   if (!args[1]->IsUndefined()) {
     CHECK(args[1]->IsString());
     filename = args[1].As<String>();
   }
 
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
+  // Argument 1: source code; if undefined, read from filename in argument 2
+  Local<String> code;
+  if (args[0]->IsUndefined()) {
+    CHECK(!filename.IsEmpty());
+    const char* filename_str = Utf8Value(isolate, filename).out();
+    std::string contents;
+    int result = ReadFileSync(&contents, filename_str);
+    if (result != 0) {
+      isolate->ThrowException(
+          ERR_MODULE_NOT_FOUND(isolate, "Cannot read file %s", filename_str));
+      return;
+    }
+    code = String::NewFromUtf8(isolate,
+                               contents.c_str(),
+                               v8::NewStringType::kNormal,
+                               contents.length())
+               .ToLocalChecked();
+  } else {
+    CHECK(args[0]->IsString());
+    code = args[0].As<String>();
+  }
 
   // TODO(geoffreybooth): Centralize this rather than matching the logic in
   // cjs/loader.js and translators.js

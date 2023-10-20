@@ -611,6 +611,32 @@ files with no extension will be treated as WebAssembly if they begin with the
 WebAssembly magic number (`\0asm`); otherwise they will be treated as ES module
 JavaScript.
 
+### `--experimental-detect-module`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Node.js will inspect the source code of ambiguous input to determine whether it
+contains ES module syntax; if such syntax is detected, the input will be treated
+as an ES module.
+
+Ambiguous input is defined as:
+
+* Files with a `.js` extension or no extension; and either no controlling
+  `package.json` file or one that lacks a `type` field; and
+  `--experimental-default-type` is not specified.
+* String input (`--eval` or STDIN) when neither `--input-type` nor
+  `--experimental-default-type` are specified.
+
+ES module syntax is defined as syntax that would throw when evaluated as
+CommonJS. This includes `import` and `export` statements and `import.meta`
+references. It does _not_ include `import()` expressions, which are valid in
+CommonJS.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -2258,6 +2284,7 @@ Node.js options that are allowed are:
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
 * `--experimental-default-type`
+* `--experimental-detect-module`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`

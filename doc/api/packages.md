@@ -69,6 +69,14 @@ expressions:
 * Strings passed in as an argument to `--eval`, or piped to `node` via `STDIN`,
   with the flag `--input-type=module`.
 
+* Code that contains syntax that only parses successfully as [ES modules][],
+  such as `import` or `export` statements or `import.meta`, when the code has no
+  explicit marker of how it should be interpreted. Explicit markers are `.mjs`
+  or `.cjs` extensions, `package.json` `"type"` fields with either `"module"` or
+  `"commonjs"` values, or `--input-type` or `--experimental-default-type` flags.
+  Dynamic `import()` expressions are supported in either CommonJS or ES modules
+  and would not cause a file to be treated as an ES module.
+
 Node.js will treat the following as [CommonJS][] when passed to `node` as the
 initial input, or when referenced by `import` statements or `import()`
 expressions:
