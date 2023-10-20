@@ -240,8 +240,8 @@ available to the module code.
 ## Node-API version matrix
 
 Up until version 9, Node-API versions were additive and versioned
-independently from Node.js. For example, version 4 is an extension to version
-3 in that it has all of the APIs from version 3 with some additions. Each
+independently from Node.js. This meant that any version was an extension to the previous version
+in that it had all of the APIs from the previous version with some additions. Each
 Node.js version only supported a single Node-API version.
 For example v18.15.0 supports only Node-API version 8. ABI stability was
 achieved because 8 was a strict superset of all previous versions.
