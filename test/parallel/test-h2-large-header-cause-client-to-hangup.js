@@ -7,7 +7,7 @@ const http2 = require('http2');
 const assert = require('assert');
 const {
   DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE,
-  NGHTTP2_CANCEL,
+  NGHTTP2_FRAME_SIZE_ERROR,
 } = http2.constants;
 
 const headerSize = DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE;
@@ -28,9 +28,15 @@ server.listen(0, common.mustCall(() => {
   function send() {
     const stream = clientSession.request({ ':path': '/' });
     stream.on('close', common.mustCall(() => {
-      assert.strictEqual(stream.rstCode, NGHTTP2_CANCEL);
+      assert.strictEqual(stream.rstCode, NGHTTP2_FRAME_SIZE_ERROR);
       clearTimeout(timer);
       server.close();
+    }));
+
+    stream.on('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_FRAME_SIZE_ERROR'
     }));
 
     stream.end();
