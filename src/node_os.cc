@@ -247,6 +247,32 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
 }
 
+static void GetOnLineStatus(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  uv_interface_address_t* interfaces;
+  int count, i;
+
+  int err = uv_interface_addresses(&interfaces, &count);
+
+  if (err == UV_ENOSYS) return args.GetReturnValue().Set(false);
+
+  if (err) {
+    CHECK_GE(args.Length(), 1);
+    env->CollectUVExceptionInfo(
+        args[args.Length() - 1], errno, "uv_interface_addresses");
+    return args.GetReturnValue().Set(false);
+  }
+
+  for (i = 0; i < count; i++) {
+    if (interfaces[i].is_internal == false) {
+      uv_free_interface_addresses(interfaces, count);
+      return args.GetReturnValue().Set(true);
+    }
+  }
+
+  uv_free_interface_addresses(interfaces, count);
+  return args.GetReturnValue().Set(false);
+}
 
 static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -403,6 +429,7 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "getPriority", GetPriority);
   SetMethod(
       context, target, "getAvailableParallelism", GetAvailableParallelism);
+  SetMethod(context, target, "getOnLineStatus", GetOnLineStatus);
   SetMethod(context, target, "getOSInformation", GetOSInformation);
   target
       ->Set(context,
@@ -419,6 +446,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetFreeMemory);
   registry->Register(GetCPUInfo);
   registry->Register(GetInterfaceAddresses);
+  registry->Register(GetOnLineStatus);
   registry->Register(GetHomeDirectory);
   registry->Register(GetUserInfo);
   registry->Register(SetPriority);
