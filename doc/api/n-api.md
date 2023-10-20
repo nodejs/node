@@ -254,7 +254,7 @@ versions between 8 and the highest version they support and will default
 to providing the version 8 APIs unless an add-on opts into a
 higher Node-API version. This approach provides the flexibility
 of better optimizing existing Node-API functions while
-maintaining ABI stability. Existing addons can continue to run without
+maintaining ABI stability. Existing add-ons can continue to run without
 recompilation using an earlier version of Node-API. If an addon
 needs functionality from a newer Node-API version, changes to existing
 code and recompilation will be needed to use those new functions anyway.
