@@ -908,6 +908,8 @@ v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
         isolate, templ, "getSymmetricKeySize", GetSymmetricKeySize);
     SetProtoMethodNoSideEffect(
         isolate, templ, "getAsymmetricKeyType", GetAsymmetricKeyType);
+    SetProtoMethodNoSideEffect(
+        isolate, templ, "checkEcKeyData", CheckEcKeyData);
     SetProtoMethod(isolate, templ, "export", Export);
     SetProtoMethod(isolate, templ, "exportJwk", ExportJWK);
     SetProtoMethod(isolate, templ, "initECRaw", InitECRaw);
@@ -927,6 +929,7 @@ void KeyObjectHandle::RegisterExternalReferences(
   registry->Register(Init);
   registry->Register(GetSymmetricKeySize);
   registry->Register(GetAsymmetricKeyType);
+  registry->Register(CheckEcKeyData);
   registry->Register(Export);
   registry->Register(ExportJWK);
   registry->Register(InitECRaw);
@@ -1236,6 +1239,34 @@ void KeyObjectHandle::GetAsymmetricKeyType(
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
   args.GetReturnValue().Set(key->GetAsymmetricKeyType());
+}
+
+bool KeyObjectHandle::CheckEcKeyData() const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  const ManagedEVPPKey& key = data_->GetAsymmetricKey();
+  KeyType type = data_->GetKeyType();
+  CHECK_NE(type, kKeyTypeSecret);
+  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(key.get(), nullptr));
+  CHECK(ctx);
+  CHECK_EQ(EVP_PKEY_id(key.get()), EVP_PKEY_EC);
+
+  if (type == kKeyTypePrivate) {
+    return EVP_PKEY_check(ctx.get()) == 1;
+  }
+
+#if OPENSSL_VERSION_MAJOR >= 3
+  return EVP_PKEY_public_check_quick(ctx.get()) == 1;
+#else
+  return EVP_PKEY_public_check(ctx.get()) == 1;
+#endif
+}
+
+void KeyObjectHandle::CheckEcKeyData(const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+
+  args.GetReturnValue().Set(key->CheckEcKeyData());
 }
 
 void KeyObjectHandle::GetSymmetricKeySize(
