@@ -1751,30 +1751,11 @@ int MKDirpAsync(uv_loop_t* loop,
   return err;
 }
 
-int CallMKDirpSync(Environment* env, const FunctionCallbackInfo<Value>& args,
-                   FSReqWrapSync* req_wrap, const char* path, int mode) {
-  env->PrintSyncTrace();
-  int err = MKDirpSync(env->event_loop(), &req_wrap->req, path, mode,
-                       nullptr);
-  if (err < 0) {
-    v8::Local<v8::Context> context = env->context();
-    v8::Local<v8::Object> ctx_obj = args[4].As<v8::Object>();
-    v8::Isolate* isolate = env->isolate();
-    ctx_obj->Set(context,
-                 env->errno_string(),
-                 v8::Integer::New(isolate, err)).Check();
-    ctx_obj->Set(context,
-                 env->syscall_string(),
-                 OneByteString(isolate, "mkdir")).Check();
-  }
-  return err;
-}
-
 static void MKDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 4);
+  CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
@@ -1787,21 +1768,25 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsBoolean());
   bool mkdirp = args[2]->IsTrue();
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // mkdir(path, mode, req)
+  if (argc > 3) {  // mkdir(path, mode, recursive, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_UNLINK, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "mkdir", UTF8,
               mkdirp ? AfterMkdirp : AfterNoArgs,
               mkdirp ? MKDirpAsync : uv_fs_mkdir, *path, mode);
-  } else {  // mkdir(path, mode, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // mkdir(path, mode, recursive)
+    FSReqWrapSync req_wrap_sync("mkdir", *path);
     FS_SYNC_TRACE_BEGIN(mkdir);
     if (mkdirp) {
-      int err = CallMKDirpSync(env, args, &req_wrap_sync, *path, mode);
-      if (err == 0 &&
-          !req_wrap_sync.continuation_data()->first_path().empty()) {
+      env->PrintSyncTrace();
+      int err = MKDirpSync(
+          env->event_loop(), &req_wrap_sync.req, *path, mode, nullptr);
+      if (is_uv_error(err)) {
+        env->ThrowUVException(err, "mkdir", nullptr, *path);
+        return;
+      }
+      if (!req_wrap_sync.continuation_data()->first_path().empty()) {
         Local<Value> error;
         std::string first_path(req_wrap_sync.continuation_data()->first_path());
         FromNamespacedPath(&first_path);
@@ -1809,15 +1794,13 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
                                                      first_path.c_str(),
                                                      UTF8, &error);
         if (path.IsEmpty()) {
-          Local<Object> ctx = args[4].As<Object>();
-          ctx->Set(env->context(), env->error_string(), error).Check();
+          env->isolate()->ThrowException(error);
           return;
         }
         args.GetReturnValue().Set(path.ToLocalChecked());
       }
     } else {
-      SyncCall(env, args[4], &req_wrap_sync, "mkdir",
-               uv_fs_mkdir, *path, mode);
+      SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_mkdir, *path, mode);
     }
     FS_SYNC_TRACE_END(mkdir);
   }

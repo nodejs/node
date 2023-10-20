@@ -146,9 +146,9 @@ declare namespace InternalFSBinding {
   function mkdir(path: string, mode: number, recursive: boolean, req: FSReqCallback<void | string>): void;
   function mkdir(path: string, mode: number, recursive: true, req: FSReqCallback<string>): void;
   function mkdir(path: string, mode: number, recursive: false, req: FSReqCallback<void>): void;
-  function mkdir(path: string, mode: number, recursive: boolean, req: undefined, ctx: FSSyncContext): void | string;
-  function mkdir(path: string, mode: number, recursive: true, req: undefined, ctx: FSSyncContext): string;
-  function mkdir(path: string, mode: number, recursive: false, req: undefined, ctx: FSSyncContext): void;
+  function mkdir(path: string, mode: number, recursive: boolean): void | string;
+  function mkdir(path: string, mode: number, recursive: true): string;
+  function mkdir(path: string, mode: number, recursive: false): void;
   function mkdir(path: string, mode: number, recursive: boolean, usePromises: typeof kUsePromises): Promise<void | string>;
   function mkdir(path: string, mode: number, recursive: true, usePromises: typeof kUsePromises): Promise<string>;
   function mkdir(path: string, mode: number, recursive: false, usePromises: typeof kUsePromises): Promise<void>;
