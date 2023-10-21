@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "foo": "./foo/index.mjs"
+  },
+  "scopes": {
+    "foo": {
+      "bar": "./baz.mjs"
+    }
+  }
+}

@@ -546,6 +546,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::prof_process);
   // Options after --prof-process are passed through to the prof processor.
   AddAlias("--prof-process", { "--prof-process", "--" });
+  AddOption("--experimental-import-map",
+            "load an import map for module resolution",
+            &EnvironmentOptions::import_map_specifier,
+            kAllowedInEnvvar);
 #if HAVE_INSPECTOR
   AddOption("--cpu-prof",
             "Start the V8 CPU profiler on start up, and write the CPU profile "

@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "foo": "data:text/javascript,export default () => 'data foo'",
+    "foo/bar": "data:text/javascript,export default () => 'data bar'",
+    "data:text/javascript,export default () => 'bad'": "data:text/javascript,export default () => 'data qux'"
+  },
+  "scopes": {
+    "./index.mjs": {
+      "baz": "data:text/javascript,export default () => 'data baz'"
+    }
+  }
+}

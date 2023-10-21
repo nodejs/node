@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "foo": "bar"
+  },
+  "scopes": {
+    "node_modules/bar": {
+      "baz": "zed"
+    }
+  }
+}
