@@ -719,6 +719,8 @@ assert.throws(() => {
 
   assert.rejects(closed1, error).then(common.mustCall());
   assert.rejects(closed2, error).then(common.mustCall());
+
+  reader1.read();
 }
 
 {
