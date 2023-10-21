@@ -79,6 +79,8 @@ licenseText="$(sed -e '/You should have received a copy of the CC0/,$d' -e 's/^\
 addlicense "SipHash" "deps/v8/src/third_party/siphash" "$licenseText"
 licenseText="$(sed -e '/The data format used by the zlib library/,$d' -e 's/^\/\* *//' -e 's/^ *//' "${rootdir}/deps/zlib/zlib.h")"
 addlicense "zlib" "deps/zlib" "$licenseText"
+licenseText="$(cat "${rootdir}/deps/simdjson/LICENSE")"
+addlicense "simdjson" "deps/simdjson" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/simdutf/LICENSE-MIT")"
 addlicense "simdutf" "deps/simdutf" "$licenseText"
 licenseText="$(curl -sL https://raw.githubusercontent.com/ada-url/ada/HEAD/LICENSE-MIT)"
