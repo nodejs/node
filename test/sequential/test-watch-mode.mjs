@@ -62,7 +62,7 @@ async function runWriteSucceed({
     child.kill();
     cancelRestarts();
   }
-  return { stdout, stderr };
+  return { stdout, stderr, pid: child.pid };
 }
 
 async function failWriteSucceed({ file, watchedFile }) {
@@ -277,11 +277,12 @@ console.log(values.random);
 
   it('should not load --import modules in main process', async () => {
     const file = createTmpFile();
-    const imported = pathToFileURL(createTmpFile('process._rawDebug("imported");'));
+    const imported = "data:text/javascript,process._rawDebug('pid', process.pid);";
     const args = ['--import', imported, file];
-    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, args });
+    const { stdout, pid } = await runWriteSucceed({ file, watchedFile: file, args });
 
-    assert.strictEqual(stderr, 'imported\nimported\n');
+    const importPid = parseInt(stdout[0].split(' ')[1], 10);
+    assert.notStrictEqual(pid, importPid);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}`,
