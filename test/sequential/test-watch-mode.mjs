@@ -259,7 +259,7 @@ console.log(values.random);
     ]);
   });
 
-  it('should not load --require modules in main process', async () => {
+  it('should load --require modules in the watched process, and not in the orchestrator process', async () => {
     const file = createTmpFile();
     const required = createTmpFile('setImmediate(() => process.exit(0));');
     const args = ['--require', required, file];
@@ -275,7 +275,7 @@ console.log(values.random);
     ]);
   });
 
-  it('should not load --import modules in main process', async () => {
+  it('should load --import modules in the watched process, and not in the orchestrator process', async () => {
     const file = createTmpFile();
     const imported = "data:text/javascript,process._rawDebug('pid', process.pid);";
     const args = ['--import', imported, file];
