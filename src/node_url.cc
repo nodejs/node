@@ -429,8 +429,8 @@ std::string FromFilePath(std::string_view file_path) {
     escaped_file_path += file_path.substr(0, pos + 1);
     escaped_file_path += "25";
     file_path = file_path.substr(pos + 1);
-    pos = 0;
-  } while ((pos = file_path.find('%', pos)) != std::string_view::npos);
+    pos = file_path.empty() ? std::string_view::npos : file_path.find('%');
+  } while (pos != std::string_view::npos);
   escaped_file_path += file_path;
   return ada::href_from_file(escaped_file_path);
 }
