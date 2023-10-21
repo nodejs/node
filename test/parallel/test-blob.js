@@ -409,10 +409,10 @@ assert.throws(() => new Blob({}), {
 }
 
 (async () => {
-  assert.rejects(async () => Blob.prototype.arrayBuffer.call(), {
+  await assert.rejects(async () => Blob.prototype.arrayBuffer.call(), {
     code: 'ERR_INVALID_THIS',
   });
-  assert.rejects(async () => Blob.prototype.text.call(), {
+  await assert.rejects(async () => Blob.prototype.text.call(), {
     code: 'ERR_INVALID_THIS',
   });
 })().then(common.mustCall());
