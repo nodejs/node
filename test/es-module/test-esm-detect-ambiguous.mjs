@@ -152,6 +152,29 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
         strictEqual(signal, null);
       });
     }
+
+    it('should not hint wrong format in resolve hook', async () => {
+      let writeSync;
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--no-warnings',
+        '--loader',
+        `data:text/javascript,import{writeSync}from"node:fs";export ${encodeURIComponent(
+          async function resolve(s, c, next) {
+            const result = await next(s, c);
+            writeSync(1, result.format + '\n');
+            return result;
+          }
+        )}`,
+        fixtures.path('es-modules/package-without-type/noext-esm'),
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, 'null\nexecuted\n');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+
+    });
   });
 
   describe('file input in a "type": "commonjs" package', { concurrency: true }, () => {
