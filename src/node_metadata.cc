@@ -8,6 +8,7 @@
 #include "llhttp.h"
 #include "nghttp2/nghttp2ver.h"
 #include "node.h"
+#include "simdjson.h"
 #include "simdutf.h"
 #include "undici_version.h"
 #include "util.h"
@@ -138,6 +139,7 @@ Metadata::Versions::Versions() {
   nghttp3 = NGHTTP3_VERSION;
 #endif
 
+  simdjson = SIMDJSON_VERSION;
   simdutf = SIMDUTF_VERSION;
   ada = ADA_VERSION;
 }
