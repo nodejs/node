@@ -35,7 +35,7 @@ if (process.argv[2] === 'child') {
       for (const trace of traces) {
         assert.strictEqual(trace.pid, proc.pid);
         assert(names.includes(trace.name));
-      };
+      }
     }));
   }));
 }
