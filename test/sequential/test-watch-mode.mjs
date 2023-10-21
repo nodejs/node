@@ -261,11 +261,12 @@ console.log(values.random);
 
   it('should load --require modules in the watched process, and not in the orchestrator process', async () => {
     const file = createTmpFile();
-    const required = createTmpFile('setImmediate(() => process.exit(0));');
+    const required = createTmpFile('process._rawDebug(\'pid\', process.pid);');
     const args = ['--require', required, file];
-    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, args });
+    const { stdout, pid } = await runWriteSucceed({ file, watchedFile: file, args });
 
-    assert.strictEqual(stderr, '');
+    const importPid = parseInt(stdout[0].split(' ')[1], 10);
+    assert.notStrictEqual(pid, importPid);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}`,
