@@ -1,30 +1,18 @@
 import * as fixtures from '../../common/fixtures.mjs';
 import { register } from 'node:module';
-import { MessageChannel } from 'node:worker_threads';
 
-let importedESM = 0;
-let importedCJS = 0;
+const sab = new SharedArrayBuffer(2);
+const data = new Uint8Array(sab);
+
+const ESM_MODULE_INDEX = 0
+const CJS_MODULE_INDEX = 1
+
 export function getModuleTypeStats() {
+  const importedESM = Atomics.load(data, ESM_MODULE_INDEX);
+  const importedCJS = Atomics.load(data, CJS_MODULE_INDEX);
   return { importedESM, importedCJS };
-};
-
-const { port1, port2 } = new MessageChannel();
+}
 
 register(fixtures.fileURL('es-module-loaders/hook-resolve-type-loader.mjs'), {
-  data: { port: port2 },
-  transferList: [port2],
+  data: { sab, ESM_MODULE_INDEX, CJS_MODULE_INDEX },
 });
-
-port1.on('message', ({ type }) => {
-  switch (type) {
-    case 'module':
-      importedESM++;
-      break;
-    case 'commonjs':
-      importedCJS++;
-      break;
-  }
-});
-
-port1.unref();
-port2.unref();
