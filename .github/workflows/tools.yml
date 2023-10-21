@@ -37,6 +37,7 @@ on:
           - ngtcp2
           - postject
           - root-certificates
+          - simdjson
           - simdutf
           - undici
           - uvwasi
@@ -264,6 +265,14 @@ jobs:
             label: crypto, notable-change
             run: |
               node ./tools/dep_updaters/update-root-certs.mjs -v -f "$GITHUB_ENV"
+          - id: simdjson
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-simdjson.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: simdutf
             subsystem: deps
             label: dependencies
