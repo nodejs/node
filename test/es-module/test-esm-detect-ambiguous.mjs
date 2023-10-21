@@ -159,7 +159,7 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
         '--experimental-detect-module',
         '--no-warnings',
         '--loader',
-        `data:text/javascript,import{writeSync}from"node:fs";export ${encodeURIComponent(
+        `data:text/javascript,import { writeSync } from "node:fs"; export ${encodeURIComponent(
           async function resolve(s, c, next) {
             const result = await next(s, c);
             writeSync(1, result.format + '\n');
