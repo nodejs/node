@@ -1129,7 +1129,7 @@ In order to make sure a download URL
 (e.g: <https://nodejs.org/download/release/latest-codename/>) will be available
 for the new LTS release line you need to submit a PR to
 <https://github.com/nodejs/nodejs-latest-linker> and add a new entry for the
-new LTS codename in its `ltsNames` map located in the `./latest-linker.js`
+new LTS codename in its `ltsNames` map located in the `./common.js`
 file.
 
 Make sure to reach out to the Build WG in order to validate that the new URL is
