@@ -30,7 +30,7 @@ describe('--experimental-default-type=module', { concurrency: true }, () => {
     });
   });
 
-  it('should affect CJS .js files', async () => {
+  it('should affect CJS .js files (imported, required, entry points)', async () => {
     const result = await spawnPromisified(process.execPath, [
       '--experimental-default-type=module',
       fixtures.path('es-modules/package-type-commonjs/echo-require-cache.js'),
