@@ -462,6 +462,7 @@
   V(_, week_string, "week")                                          \
   V(_, weeks_string, "weeks")                                        \
   V(_, weekOfYear_string, "weekOfYear")                              \
+  V(_, with_string, "with")                                          \
   V(_, word_string, "word")                                          \
   V(_, yearMonthFromFields_string, "yearMonthFromFields")            \
   V(_, year_string, "year")                                          \

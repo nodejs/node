@@ -4876,6 +4876,11 @@ TEST_F(ParsingTest, BasicImportAssertionParsing) {
     "import { a as b } from 'm.js' assert { \nc: 'd'};",
     "import { a as b } from 'm.js' assert { c:\n 'd'};",
     "import { a as b } from 'm.js' assert { c:'d'\n};",
+
+    "import { a as b } from 'm.js' assert { 0: 'b', };",
+    "import { a as b } from 'm.js' assert { 0n: 'b', };",
+    "import { a as b } from 'm.js' assert { '0': 'b', };",
+    "import { a as b } from 'm.js' assert { 0.0: 'b', };",
   };
   // clang-format on
 
@@ -4943,10 +4948,234 @@ TEST_F(ParsingTest, ImportAssertionParsingErrors) {
     "import { a } from 'm.js' assert { , b: c };",
     "import { a } from 'm.js' assert { a: 'b', a: 'c' };",
     "import { a } from 'm.js' assert { a: 'b', 'a': 'c' };",
+
+    "import { a } from 'm.js' assert { 0: 'b', '0': 'c' };",
+    "import { a } from 'm.js' assert { 0n: 'b', '0': 'c' };",
+    "import { a } from 'm.js' assert { 0: 'b', 0n: 'c' };",
+    "import { a } from 'm.js' assert { 0: 'b', 0.0: 'c' };",
+    "import { a } from 'm.js' assert { '0': 'b', 0n: 'c' };",
+
+    "import 'm.js' with { a: 'b' };"
   };
   // clang-format on
 
   i::v8_flags.harmony_import_assertions = true;
+  i::Isolate* isolate = i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
+    i::Handle<i::String> source =
+        factory->NewStringFromAsciiChecked(kErrorSources[i]);
+
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::UnoptimizedCompileState compile_state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
+    i::UnoptimizedCompileFlags flags =
+        i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+    flags.set_is_module(true);
+    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+    CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                    parsing::ReportStatisticsMode::kYes));
+    CHECK(info.pending_error_handler()->has_pending_error());
+  }
+}
+
+TEST_F(ParsingTest, BasicImportAttributesParsing) {
+  // clang-format off
+  const char* kSources[] = {
+    "import { a as b } from 'm.js' with { };",
+    "import n from 'n.js' with { };",
+    "export { a as b } from 'm.js' with { };",
+    "export * from 'm.js' with { };",
+    "import 'm.js' with { };",
+    "import * as foo from 'bar.js' with { };",
+
+    "import { a as b } from 'm.js' with { a: 'b' };",
+    "import { a as b } from 'm.js' with { c: 'd' };",
+    "import { a as b } from 'm.js' with { 'c': 'd' };",
+    "import { a as b } from 'm.js' with { a: 'b', 'c': 'd', e: 'f' };",
+    "import { a as b } from 'm.js' with { 'c': 'd', };",
+    "import n from 'n.js' with { 'c': 'd' };",
+    "export { a as b } from 'm.js' with { 'c': 'd' };",
+    "export * from 'm.js' with { 'c': 'd' };",
+    "import 'm.js' with { 'c': 'd' };",
+    "import * as foo from 'bar.js' with { 'c': 'd' };",
+
+    "import { a as b } from 'm.js' with { \nc: 'd'};",
+    "import { a as b } from 'm.js' with { c:\n 'd'};",
+    "import { a as b } from 'm.js' with { c:'d'\n};",
+
+    "import { a as b } from 'm.js' with { 0: 'b', };",
+    "import { a as b } from 'm.js' with { 0n: 'b', };",
+    "import { a as b } from 'm.js' with { '0': 'b', };",
+    "import { a as b } from 'm.js' with { 0.0: 'b', };",
+
+    "import 'm.js'\n with { };",
+    "import 'm.js' \nwith { };",
+    "import { a } from 'm.js'\n with { };",
+    "export * from 'm.js'\n with { };"
+  };
+  // clang-format on
+
+  i::v8_flags.harmony_import_attributes = true;
+  i::Isolate* isolate = i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kSources); ++i) {
+    i::Handle<i::String> source =
+        factory->NewStringFromAsciiChecked(kSources[i]);
+
+    // Show that parsing as a module works
+    {
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::UnoptimizedCompileState compile_state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
+      i::UnoptimizedCompileFlags flags =
+          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+      flags.set_is_module(true);
+      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+      CHECK_PARSE_PROGRAM(&info, script, isolate);
+    }
+
+    // And that parsing a script does not.
+    {
+      i::UnoptimizedCompileState compile_state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::UnoptimizedCompileFlags flags =
+          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+      CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                      parsing::ReportStatisticsMode::kYes));
+      CHECK(info.pending_error_handler()->has_pending_error());
+    }
+  }
+}
+
+TEST_F(ParsingTest, ImportAttributesParsingErrors) {
+  // clang-format off
+  const char* kErrorSources[] = {
+    "import { a } from 'm.js' with {;",
+    "import { a } from 'm.js' with };",
+    "import { a } from 'm.js' , with { };",
+    "import { a } from 'm.js' with , { };",
+    "import { a } from 'm.js' with { , };",
+    "import { a } from 'm.js' with { b };",
+    "import { a } from 'm.js' with { 'b' };",
+    "import { a } from 'm.js' with { for };",
+    "import { a } from 'm.js' with { with };",
+    "export { a } with { };",
+    "export * with { };",
+
+    "import { a } from 'm.js' with { 1: 2 };",
+    "import { a } from 'm.js' with { b: c };",
+    "import { a } from 'm.js' with { 'b': c };",
+    "import { a } from 'm.js' with { , b: c };",
+    "import { a } from 'm.js' with { a: 'b', a: 'c' };",
+    "import { a } from 'm.js' with { a: 'b', 'a': 'c' };",
+
+    "import { a } from 'm.js' with { 0: 'b', '0': 'c' };",
+    "import { a } from 'm.js' with { 0n: 'b', '0': 'c' };",
+    "import { a } from 'm.js' with { 0: 'b', 0n: 'c' };",
+    "import { a } from 'm.js' with { 0: 'b', 0.0: 'c' };",
+    "import { a } from 'm.js' with { '0': 'b', 0n: 'c' };",
+
+    "import 'm.js' assert { a: 'b' };"
+  };
+  // clang-format on
+
+  i::v8_flags.harmony_import_assertions = false;
+  i::v8_flags.harmony_import_attributes = true;
+  i::Isolate* isolate = i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
+    i::Handle<i::String> source =
+        factory->NewStringFromAsciiChecked(kErrorSources[i]);
+
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::UnoptimizedCompileState compile_state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
+    i::UnoptimizedCompileFlags flags =
+        i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+    flags.set_is_module(true);
+    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+    CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                    parsing::ReportStatisticsMode::kYes));
+    CHECK(info.pending_error_handler()->has_pending_error());
+  }
+}
+
+TEST_F(ParsingTest, BasicImportAttributesAndAssertionsParsing) {
+  // clang-format off
+  const char* kSources[] = {
+    "import { a } from 'm.js' assert { };",
+    "import { a } from 'm.js' with { };",
+    "import { a } from 'm.js'\n with { };",
+  };
+  // clang-format on
+
+  i::v8_flags.harmony_import_assertions = true;
+  i::v8_flags.harmony_import_attributes = true;
+  i::Isolate* isolate = i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kSources); ++i) {
+    i::Handle<i::String> source =
+        factory->NewStringFromAsciiChecked(kSources[i]);
+
+    // Show that parsing as a module works
+    {
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::UnoptimizedCompileState compile_state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
+      i::UnoptimizedCompileFlags flags =
+          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+      flags.set_is_module(true);
+      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+      CHECK_PARSE_PROGRAM(&info, script, isolate);
+    }
+
+    // And that parsing a script does not.
+    {
+      i::UnoptimizedCompileState compile_state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::UnoptimizedCompileFlags flags =
+          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+      CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                      parsing::ReportStatisticsMode::kYes));
+      CHECK(info.pending_error_handler()->has_pending_error());
+    }
+  }
+}
+
+TEST_F(ParsingTest, ImportAttributesAndAssertionsParsingErrors) {
+  // clang-format off
+  const char* kErrorSources[] = {
+    "import { a } from 'm.js'\n assert { };",
+    "import { a } from 'm.js' with { } assert { };",
+    "import { a } from 'm.js' with assert { };",
+    "import { a } from 'm.js' assert { } with { };",
+    "import { a } from 'm.js' assert with { };",
+  };
+  // clang-format on
+
+  i::v8_flags.harmony_import_assertions = true;
+  i::v8_flags.harmony_import_attributes = true;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
 

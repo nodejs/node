@@ -1344,27 +1344,28 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
 }
 
 ImportAssertions* Parser::ParseImportAssertClause() {
+  // WithClause :
+  //    with '{' '}'
+  //    with '{' WithEntries ','? '}'
+
+  // WithEntries :
+  //    LiteralPropertyName
+  //    LiteralPropertyName ':' StringLiteral , WithEntries
+
+  // (DEPRECATED)
   // AssertClause :
   //    assert '{' '}'
-  //    assert '{' AssertEntries '}'
-
-  // AssertEntries :
-  //    IdentifierName: AssertionKey
-  //    IdentifierName: AssertionKey , AssertEntries
-
-  // AssertionKey :
-  //     IdentifierName
-  //     StringLiteral
+  //    assert '{' WithEntries ','? '}'
 
   auto import_assertions = zone()->New<ImportAssertions>(zone());
 
-  if (!v8_flags.harmony_import_assertions) {
-    return import_assertions;
-  }
-
-  // Assert clause is optional, and cannot be preceded by a LineTerminator.
-  if (scanner()->HasLineTerminatorBeforeNext() ||
-      !CheckContextualKeyword(ast_value_factory()->assert_string())) {
+  if (v8_flags.harmony_import_attributes && Check(Token::WITH)) {
+    // 'with' keyword consumed
+  } else if (v8_flags.harmony_import_assertions &&
+             !scanner()->HasLineTerminatorBeforeNext() &&
+             CheckContextualKeyword(ast_value_factory()->assert_string())) {
+    // 'assert' keyword consumed
+  } else {
     return import_assertions;
   }
 
@@ -1372,8 +1373,12 @@ ImportAssertions* Parser::ParseImportAssertClause() {
 
   while (peek() != Token::RBRACE) {
     const AstRawString* attribute_key = nullptr;
-    if (Check(Token::STRING)) {
+    if (Check(Token::STRING) || Check(Token::SMI)) {
       attribute_key = GetSymbol();
+    } else if (Check(Token::NUMBER)) {
+      attribute_key = GetNumberAsSymbol();
+    } else if (Check(Token::BIGINT)) {
+      attribute_key = GetBigIntAsSymbol();
     } else {
       attribute_key = ParsePropertyName();
     }
