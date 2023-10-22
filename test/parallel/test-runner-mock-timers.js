@@ -407,6 +407,16 @@ describe('Mock Timers Test Suite', () => {
           assert.strictEqual(result, expectedResult);
         });
 
+        it('should always return the same result as the original timers/promises/setTimeout', async (t) => {
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          for (const expectedResult of [undefined, null, false, true, 0, 0n, 1, 1n, '', 'result', {}]) {
+            const p = nodeTimersPromises.setTimeout(2000, expectedResult);
+            t.mock.timers.tick(2000);
+            const result = await p;
+            assert.strictEqual(result, expectedResult);
+          }
+        });
+
         it('should abort operation if timers/promises/setTimeout received an aborted signal', async (t) => {
           t.mock.timers.enable({ apis: ['setTimeout'] });
           const expectedResult = 'result';
@@ -526,6 +536,19 @@ describe('Mock Timers Test Suite', () => {
           assert.strictEqual(timeResults.length, expectedIterations);
           for (let it = 1; it < expectedIterations; it++) {
             assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
+          }
+        });
+
+        it('should always return the same result as the original timers/promises/setInterval', async (t) => {
+          t.mock.timers.enable({ apis: ['setInterval'] });
+          for (const expectedResult of [undefined, null, false, true, 0, 0n, 1, 1n, '', 'result', {}]) {
+            const intervalIterator = nodeTimersPromises.setInterval(2000, expectedResult);
+            const p = intervalIterator.next();
+            t.mock.timers.tick(2000);
+            const result = await p;
+            await intervalIterator.return();
+            assert.strictEqual(result.done, false);
+            assert.strictEqual(result.value, expectedResult);
           }
         });
 
