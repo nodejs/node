@@ -897,7 +897,7 @@ values are `'rr'` and `'none'`.
 <!-- YAML
 added: v0.7.1
 changes:
-  - version: v21.0.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/xxx
     description: The `schedulingPolicy` option is supported now.
   - version:
