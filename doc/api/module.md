@@ -881,6 +881,67 @@ console.log('some module!');
 Running `node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register(pathToFileURL("./import-map-hooks.js"));' main.js`
 should print `some module!`.
 
+### Extending support
+
+> Stability: 1.0 - Early development
+
+A `"register"` [entry point][`"exports"`] for a package loaded via [`--import`][] is automatically
+run at startup. A package extending Node.js support for typescript would look something like this:
+
+```json
+{
+  "name": "example-nodejs-extension",
+  "keywords": [
+    "nodejs-extension",
+    "typescript"
+  ],
+  "exports": {
+    "register": "./registration.mjs",
+    "typescript": "./hooks/typescript.mjs"
+  }
+}
+```
+
+Setting the keyword `nodejs-extension` is important for users to find the package (which may be
+automated). It should also contain the official name(s) for the support it provides, such as
+`typescript`; it should avoid red-herrings such as including `typescript` when the library does not
+extend support for typescript but is merely itself written in typescript.
+
+```mjs
+import { register } from 'node:module';
+
+register('example-nodejs-extension/typescript');
+```
+
+`typescript.mjs` would contain [customization hooks][hooks]:
+
+* A [`resolve` hook][resolve hook] that sets `format` for applicable modules to the format it
+  handles, such as `'typescript'`.
+* A [`load` hook][load hook] that transpiles the external format (as signalled by its resolve hook)
+  to something Node.js understands.
+* Optionally, an [`initialize` hook][`initialize`].
+
+#### External formats
+
+> Stability: 1.0 - Early development
+
+Node.js natively understands a handful of formats (see the table in [load hook][]).
+Non-native or external formats require transpilation to something Node.js understands. When
+attempting to run a module with an external format, such as `node main.ts`, Node.js will look at the
+file extension to attempt to identify the type. If the type is recognized, Node.js will print a
+message with instructions (that lead here).
+
+##### Setting up an extension
+
+These steps configure Node.js to support a format it doesn't understand:
+
+1. Find and install an extension via your preferred package manager. Some package managers provide a
+   CLI utility, such as `npm search nodejs-extension typescript`, as well as a website.
+1. Once installed, in order to get Node.js to automatically use it, create a [`.env`][`--env-file`]
+   file containing an [`--import`][] for your chosen extension, like
+   `NODE_OPTIONS="--import=example-nodejs-extension"`.
+1. Include the env file flag on subsequent runs, like `node --env-file=.env main.ts`.
+
 ## Source map v3 support
 
 <!-- YAML
@@ -1033,6 +1094,8 @@ returned object contains the following keys:
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
 [`"exports"`]: packages.md#exports
 [`--enable-source-maps`]: cli.md#--enable-source-maps
+[`--env-file`]: cli.md#--env-file
+[`--import`]: cli.md#--import
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
@@ -1048,5 +1111,6 @@ returned object contains the following keys:
 [load hook]: #loadurl-context-nextload
 [module wrapper]: modules.md#the-module-wrapper
 [realm]: https://tc39.es/ecma262/#realm
+[resolve hook]: #resolvespecifier-context-nextresolve
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
 [transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist
