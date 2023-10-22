@@ -1,4 +1,4 @@
-#Interface: DispatchInterceptor
+# Interface: DispatchInterceptor
 
 Extends: `Function`
 

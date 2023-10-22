@@ -1070,7 +1070,9 @@ function onParserTimeout (parser) {
 
 function onSocketReadable () {
   const { [kParser]: parser } = this
-  parser.readMore()
+  if (parser) {
+    parser.readMore()
+  }
 }
 
 function onSocketError (err) {
