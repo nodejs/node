@@ -2931,7 +2931,7 @@ An attempt was made to load a module with an unknown format.
 added: REPLACEME
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.0 - Early development
 
 An attempt was made to load a module with an unsupported format.
 
