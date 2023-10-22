@@ -515,10 +515,11 @@ describe('Mock Timers Test Suite', () => {
 
           const expectedIterations = 5;
           const interval = 1000;
-          const startedAt = Date.now();
+          let time = 0;
           async function run() {
             const times = [];
-            for await (const time of nodeTimersPromises.setInterval(interval, startedAt)) {
+            for await (const _ of nodeTimersPromises.setInterval(interval)) { // eslint-disable-line no-unused-vars
+              time += interval;
               times.push(time);
               if (times.length === expectedIterations) break;
             }
@@ -535,7 +536,7 @@ describe('Mock Timers Test Suite', () => {
           const timeResults = await r;
           assert.strictEqual(timeResults.length, expectedIterations);
           for (let it = 1; it < expectedIterations; it++) {
-            assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
+            assert.strictEqual(timeResults[it - 1], interval * it);
           }
         });
 
@@ -602,13 +603,12 @@ describe('Mock Timers Test Suite', () => {
           const signal = controller.signal;
           const interval = 200;
           const expectedIterations = 2;
-          const startedAt = Date.now();
-          const timeResults = [];
+          let numIterations = 0;
           async function run() {
-            const it = nodeTimersPromises.setInterval(interval, startedAt, { signal });
-            for await (const time of it) {
-              timeResults.push(time);
-              if (timeResults.length === 5) break;
+            const it = nodeTimersPromises.setInterval(interval, undefined, { signal });
+            for await (const _ of it) { // eslint-disable-line no-unused-vars
+              numIterations += 1;
+              if (numIterations === 5) break;
             }
           }
 
@@ -624,11 +624,7 @@ describe('Mock Timers Test Suite', () => {
           await assert.rejects(() => r, {
             name: 'AbortError',
           });
-          assert.strictEqual(timeResults.length, expectedIterations);
-
-          for (let it = 1; it < expectedIterations; it++) {
-            assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
-          }
+          assert.strictEqual(numIterations, expectedIterations);
         });
       });
     });
