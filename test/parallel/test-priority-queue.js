@@ -85,8 +85,10 @@ const PriorityQueue = require('internal/priority_queue');
   queue.insert({ value: 3, position: null });
   queue.insert({ value: 4, position: null });
   queue.insert({ value: 5, position: null });
+  assert.strictEqual(queue.secondary().value, 2);
 
   queue.insert({ value: 2, position: null });
+  assert.strictEqual(queue.secondary().value, 2);
   const secondLargest = { value: 10, position: null };
   queue.insert(secondLargest);
   const largest = { value: 15, position: null };
@@ -103,10 +105,15 @@ const PriorityQueue = require('internal/priority_queue');
   queue.removeAt(6);
 
   assert.strictEqual(queue.shift().value, 1);
+  assert.strictEqual(queue.secondary().value, 2);
   assert.strictEqual(queue.shift().value, 2);
+  assert.strictEqual(queue.secondary().value, 4);
   assert.strictEqual(queue.shift().value, 2);
+  assert.strictEqual(queue.secondary().value, 15);
   assert.strictEqual(queue.shift().value, 4);
+  assert.strictEqual(queue.secondary(), undefined);
   assert.strictEqual(queue.shift().value, 15);
+  assert.strictEqual(queue.secondary(), undefined);
 
   assert.strictEqual(queue.shift(), undefined);
 }
@@ -123,11 +130,17 @@ const PriorityQueue = require('internal/priority_queue');
   const i8 = { value: 8, position: null };
 
   queue.insert({ value: 1, position: null });
+  assert.strictEqual(queue.secondary(), undefined);
   queue.insert({ value: 6, position: null });
+  assert.strictEqual(queue.secondary().value, 6);
   queue.insert({ value: 2, position: null });
+  assert.strictEqual(queue.secondary().value, 2);
   queue.insert(i7);
+  assert.strictEqual(queue.secondary().value, 2);
   queue.insert(i8);
+  assert.strictEqual(queue.secondary().value, 2);
   queue.insert(i3);
+  assert.strictEqual(queue.secondary().value, 2);
 
   assert.strictEqual(i7.position, 4);
   queue.removeAt(4);
