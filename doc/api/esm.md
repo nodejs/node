@@ -528,6 +528,13 @@ In most cases, the ES module `import` can be used to load CommonJS modules.
 If needed, a `require` function can be constructed within an ES module using
 [`module.createRequire()`][].
 
+#### No `__filename` or `__dirname`
+
+These CommonJS variables are not available in ES modules.
+
+`__filename` and `__dirname` use cases can be replicated via
+[`import.meta.filename`][] and [`import.meta.dirname`][].
+
 #### No Addon Loading
 
 [Addons][] are not currently supported with ES module imports.
@@ -1088,6 +1095,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #import-expressions
+[`import.meta.dirname`]: #importmetadirname
 [`import.meta.filename`]: #importmetafilename
 [`import.meta.resolve`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta/resolve
 [`import.meta.url`]: #importmetaurl
