@@ -60,6 +60,12 @@ namespace crypto {
   V(Verify)                                                                    \
   V(X509Certificate)
 
+#if !defined(OPENSSL_NO_ARGON2) && OPENSSL_VERSION_PREREQ(3, 2)
+#define ARGON2_NAMESPACE_LIST(V) V(Argon2)
+#else
+#define ARGON2_NAMESPACE_LIST(V)
+#endif  // !OPENSSL_NO_ARGON2 && OpenSSL >= 3.2
+
 #ifdef OPENSSL_NO_SCRYPT
 #define SCRYPT_NAMESPACE_LIST(V)
 #else
@@ -68,6 +74,7 @@ namespace crypto {
 
 #define CRYPTO_NAMESPACE_LIST(V)                                               \
   CRYPTO_NAMESPACE_LIST_BASE(V)                                                \
+  ARGON2_NAMESPACE_LIST(V)                                                     \
   SCRYPT_NAMESPACE_LIST(V)
 
 void Initialize(Local<Object> target,
