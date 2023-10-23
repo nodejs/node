@@ -49,6 +49,8 @@ rules:
       message: Use 'test' as debuglog value in tests.
     - selector: CallExpression:matches([callee.object.name="common"][callee.property.name=/^must(Not)?Call/],[callee.name="mustCall"],[callee.name="mustCallAtLeast"],[callee.name="mustNotCall"])>:first-child[type=/FunctionExpression$/][body.body.length=0]
       message: Do not use an empty function, omit the parameter altogether.
+    - selector: ExpressionStatement>CallExpression:matches([callee.name='rejects'], [callee.object.name='assert'][callee.property.name='rejects'])
+      message: Calling `assert.rejects` without `await` or `.then(common.mustCall())` will not detect never-settling promises.
     - selector: Identifier[name='webcrypto']
       message: Use `globalThis.crypto`.
 

@@ -30,7 +30,7 @@ const { once } = require('events');
   assert.deepStrictEqual(await fh2.readFile(), await fs.readFile(__filename));
   await fh2.close();
 
-  assert.rejects(() => fh.readFile(), { code: 'EBADF' });
+  await assert.rejects(() => fh.readFile(), { code: 'EBADF' });
 })().then(common.mustCall());
 
 (async function() {

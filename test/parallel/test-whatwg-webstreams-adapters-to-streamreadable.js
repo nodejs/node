@@ -56,10 +56,10 @@ class MySource {
 
   assert.rejects(readableStream.cancel(), {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
   assert.rejects(readableStream.pipeTo(new WritableStream()), {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
   assert.throws(() => readableStream.tee(), {
     code: 'ERR_INVALID_STATE',
   });

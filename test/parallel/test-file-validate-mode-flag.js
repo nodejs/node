@@ -33,8 +33,8 @@ assert.throws(() => openSync(__filename, 0, invalid), {
 
 assert.rejects(openPromise(__filename, invalid), {
   code: 'ERR_OUT_OF_RANGE'
-});
+}).then(common.mustCall());
 
 assert.rejects(openPromise(__filename, 0, invalid), {
   code: 'ERR_OUT_OF_RANGE'
-});
+}).then(common.mustCall());

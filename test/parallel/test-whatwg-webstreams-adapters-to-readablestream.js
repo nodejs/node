@@ -60,7 +60,7 @@ const {
 
   assert.rejects(reader.closed, {
     code: 'ABORT_ERR',
-  });
+  }).then(common.mustCall());
 
   readable.on('end', common.mustNotCall());
   readable.on('error', common.mustNotCall());
@@ -116,7 +116,7 @@ const {
 
   const reader = readableStream.getReader();
 
-  assert.rejects(reader.closed, error);
+  assert.rejects(reader.closed, error).then(common.mustCall());
 
   readable.on('end', common.mustNotCall());
   readable.on('error', common.mustCall((reason) => {

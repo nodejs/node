@@ -46,7 +46,7 @@ function validateReadFileAbortLogicBefore() {
   const signal = AbortSignal.abort();
   assert.rejects(readFile(fn, { signal }), {
     name: 'AbortError'
-  });
+  }).then(common.mustCall());
 }
 
 function validateReadFileAbortLogicDuring() {
@@ -55,7 +55,7 @@ function validateReadFileAbortLogicDuring() {
   process.nextTick(() => controller.abort());
   assert.rejects(readFile(fn, { signal }), {
     name: 'AbortError'
-  });
+  }).then(common.mustCall());
 }
 
 async function validateWrongSignalParam() {

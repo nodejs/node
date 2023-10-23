@@ -366,11 +366,11 @@ async function testImportRaw({ name, publicUsages }) {
       'spki',
       rsaPublic.export({ format: 'der', type: 'spki' }),
       { name },
-      true, publicUsages), { message: /Invalid key type/ });
+      true, publicUsages), { message: /Invalid key type/ }).then(common.mustCall());
     assert.rejects(subtle.importKey(
       'pkcs8',
       rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
       { name },
-      true, privateUsages), { message: /Invalid key type/ });
+      true, privateUsages), { message: /Invalid key type/ }).then(common.mustCall());
   }
 }

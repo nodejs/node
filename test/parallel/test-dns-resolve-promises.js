@@ -1,6 +1,6 @@
 // Flags: --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
 const cares = internalBinding('cares_wrap');
@@ -17,4 +17,4 @@ assert.rejects(
     syscall: 'queryA',
     hostname: 'example.org'
   }
-);
+).then(common.mustCall());

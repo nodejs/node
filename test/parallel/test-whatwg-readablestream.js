@@ -355,11 +355,11 @@ assert.throws(() => {
 
   assert.rejects(reader.read(), {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
 
   assert.rejects(closedBefore, {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
 }
 
 {
@@ -391,7 +391,7 @@ assert.throws(() => {
 
   assert.rejects(stream.cancel(), {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
 
   reader.cancel();
 
@@ -483,7 +483,7 @@ assert.throws(() => {
   closedBefore.then(common.mustCall());
   assert.rejects(closedAfter, {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
 }
 
 {
@@ -505,7 +505,7 @@ assert.throws(() => {
   closedBefore.then(common.mustCall());
   assert.rejects(closedAfter, {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
 }
 
 {
@@ -579,9 +579,9 @@ assert.throws(() => {
   });
   stream.getReader().releaseLock();
   const reader = stream.getReader();
-  assert.rejects(reader.closed, error);
-  assert.rejects(reader.read(), error);
-  assert.rejects(reader.read(), error);
+  assert.rejects(reader.closed, error).then(common.mustCall());
+  assert.rejects(reader.read(), error).then(common.mustCall());
+  assert.rejects(reader.read(), error).then(common.mustCall());
 }
 
 {
@@ -595,8 +595,8 @@ assert.throws(() => {
   const cancel1 = reader.cancel();
   const cancel2 = reader.cancel();
   assert.notStrictEqual(cancel1, cancel2);
-  assert.rejects(cancel1, error);
-  assert.rejects(cancel2, error);
+  assert.rejects(cancel1, error).then(common.mustCall());
+  assert.rejects(cancel2, error).then(common.mustCall());
 }
 
 {
@@ -608,9 +608,9 @@ assert.throws(() => {
   });
   stream.getReader().releaseLock();
   const reader = stream.getReader();
-  assert.rejects(reader.closed, error);
-  assert.rejects(reader.read(), error);
-  assert.rejects(reader.read(), error);
+  assert.rejects(reader.closed, error).then(common.mustCall());
+  assert.rejects(reader.read(), error).then(common.mustCall());
+  assert.rejects(reader.read(), error).then(common.mustCall());
 }
 
 {
@@ -717,8 +717,10 @@ assert.throws(() => {
 
   assert.notStrictEqual(closed1, closed2);
 
-  assert.rejects(closed1, error);
-  assert.rejects(closed2, error);
+  assert.rejects(closed1, error).then(common.mustCall());
+  assert.rejects(closed2, error).then(common.mustCall());
+
+  reader1.read();
 }
 
 {
@@ -796,8 +798,8 @@ assert.throws(() => {
 
   const { 0: s1, 1: s2 } = stream.tee();
 
-  assert.rejects(s1.cancel(), error);
-  assert.rejects(s2.cancel(), error);
+  assert.rejects(s1.cancel(), error).then(common.mustCall());
+  assert.rejects(s2.cancel(), error).then(common.mustCall());
 }
 
 {
@@ -812,8 +814,8 @@ assert.throws(() => {
   const { 0: s1, 1: s2 } = stream.tee();
   c.error(error);
 
-  assert.rejects(s1.cancel(), error);
-  assert.rejects(s2.cancel(), error);
+  assert.rejects(s1.cancel(), error).then(common.mustCall());
+  assert.rejects(s2.cancel(), error).then(common.mustCall());
 }
 
 {
@@ -830,11 +832,11 @@ assert.throws(() => {
   const reader1 = s1.getReader();
   const reader2 = s2.getReader();
 
-  assert.rejects(reader1.closed, error);
-  assert.rejects(reader2.closed, error);
+  assert.rejects(reader1.closed, error).then(common.mustCall());
+  assert.rejects(reader2.closed, error).then(common.mustCall());
 
-  assert.rejects(reader1.read(), error);
-  assert.rejects(reader2.read(), error);
+  assert.rejects(reader1.read(), error).then(common.mustCall());
+  assert.rejects(reader2.read(), error).then(common.mustCall());
 
   setImmediate(() => c.error(error));
 }
@@ -1038,7 +1040,7 @@ assert.throws(() => {
 
   const reader = stream.getReader();
 
-  assert.rejects(reader.closed, error);
+  assert.rejects(reader.closed, error).then(common.mustCall());
 }
 
 {
@@ -1053,7 +1055,7 @@ assert.throws(() => {
 
   const reader = stream.getReader();
 
-  assert.rejects(reader.closed, error);
+  assert.rejects(reader.closed, error).then(common.mustCall());
 }
 
 {
@@ -1357,7 +1359,7 @@ class Source {
   });
   assert.rejects(() => ReadableStream.prototype.cancel.call({}), {
     code: 'ERR_INVALID_THIS',
-  });
+  }).then(common.mustCall());
   assert.throws(() => ReadableStream.prototype.getReader.call({}), {
     code: 'ERR_INVALID_THIS',
   });
@@ -1372,15 +1374,15 @@ class Source {
   });
   assert.rejects(() => ReadableStreamDefaultReader.prototype.read.call({}), {
     code: 'ERR_INVALID_THIS',
-  });
+  }).then(common.mustCall());
   assert.rejects(() => ReadableStreamDefaultReader.prototype.cancel.call({}), {
     code: 'ERR_INVALID_THIS',
-  });
+  }).then(common.mustCall());
   assert.rejects(() => {
     return Reflect.get(ReadableStreamDefaultReader.prototype, 'closed');
   }, {
     code: 'ERR_INVALID_THIS',
-  });
+  }).then(common.mustCall());
   assert.throws(() => {
     ReadableStreamDefaultReader.prototype.releaseLock.call({});
   }, {
@@ -1388,7 +1390,7 @@ class Source {
   });
   assert.rejects(() => ReadableStreamBYOBReader.prototype.read.call({}), {
     code: 'ERR_INVALID_THIS',
-  });
+  }).then(common.mustCall());
   assert.throws(() => {
     ReadableStreamBYOBReader.prototype.releaseLock.call({});
   }, {
@@ -1398,10 +1400,10 @@ class Source {
     return Reflect.get(ReadableStreamBYOBReader.prototype, 'closed');
   }, {
     code: 'ERR_INVALID_THIS',
-  });
+  }).then(common.mustCall());
   assert.rejects(() => ReadableStreamBYOBReader.prototype.cancel.call({}), {
     code: 'ERR_INVALID_THIS',
-  });
+  }).then(common.mustCall());
 
   assert.throws(() => {
     Reflect.get(ReadableByteStreamController.prototype, 'byobRequest', {});
@@ -1484,11 +1486,11 @@ class Source {
 
   assert.rejects(readableStreamPipeTo(1), {
     code: 'ERR_INVALID_ARG_TYPE',
-  });
+  }).then(common.mustCall());
 
   assert.rejects(readableStreamPipeTo(new ReadableStream(), 1), {
     code: 'ERR_INVALID_ARG_TYPE',
-  });
+  }).then(common.mustCall());
 
   assert.rejects(
     readableStreamPipeTo(
@@ -1500,7 +1502,7 @@ class Source {
       {}),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-    });
+    }).then(common.mustCall());
 }
 
 {
@@ -1510,10 +1512,10 @@ class Source {
   reader.releaseLock();
   assert.rejects(reader.read(), {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
   assert.rejects(reader.cancel(), {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
 }
 
 {

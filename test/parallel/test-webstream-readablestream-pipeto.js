@@ -1,7 +1,7 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('node:assert');
 const { AbortError } = require('internal/errors');
 
@@ -20,5 +20,5 @@ for (const message of [undefined, 'abc']) {
     assert.strictEqual(e.name, 'AbortError');
     assert.strictEqual(e.message, reason.message);
     return true;
-  });
+  }).then(common.mustCall());
 }
