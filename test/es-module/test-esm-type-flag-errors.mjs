@@ -59,14 +59,14 @@ describe('--experimental-default-type=module', { concurrency: true }, () => {
     });
   });
 
-  it('should not affect entry point .cjs files (with no hooks)', async () => {
+  it('should affect entry point .cjs files (with no hooks)', async () => {
     const { stderr, stdout, code } = await spawnPromisified(process.execPath, [
       '--experimental-default-type=module',
       fixtures.path('es-module-require-cache/echo.cjs'),
     ]);
 
     strictEqual(stderr, '');
-    match(stdout, /^\[Object: null prototype\] \{(\n .+)+\n\}\n$/);
+    match(stdout, /^undefined\n$/);
     strictEqual(code, 0);
   });
 
