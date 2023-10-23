@@ -624,7 +624,7 @@ JavaScript.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v21.1.0
 -->
 
 > Stability: 1.0 - Early development

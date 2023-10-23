@@ -180,7 +180,7 @@ longer be used.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v21.1.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
   - version:
@@ -902,7 +902,7 @@ the error raised if the file is not accessible.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v21.1.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
 -->
@@ -2063,7 +2063,7 @@ the user from reading or writing to it.
 <!-- YAML
 added: v0.6.7
 changes:
-  - version: REPLACEME
+  - version: v21.1.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
   - version: v18.0.0
@@ -5158,7 +5158,7 @@ try {
 <!-- YAML
 added: v0.6.7
 changes:
-  - version: REPLACEME
+  - version: v21.1.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
   - version: v7.0.0

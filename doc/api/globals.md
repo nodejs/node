@@ -640,7 +640,7 @@ console.log(`This process is running on ${navigator.hardwareConcurrency} logical
 ### `navigator.userAgent`
 
 <!-- YAML
-added: REPLACEME
+added: v21.1.0
 -->
 
 * {string}
