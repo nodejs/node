@@ -85,7 +85,7 @@ function runTest(test) {
   };
 
   const args = test.nodeFlags.concat(fixtures.path('linux-perf-logger.js'));
-  const run = spawnSync(process.execPath, args, {cwd: tmpdir.path, encoding: 'utf8'});
+  const run = spawnSync(process.execPath, args, { cwd: tmpdir.path, encoding: 'utf8' });
   if (run.error) {
     report.errors.push(run.error.stack);
     return report;
@@ -121,13 +121,13 @@ function runTest(test) {
 }
 
 function serializeError(report, index) {
-  return `[ERROR ${index+1}] ${report.title}
+  return `[ERROR ${index + 1}] ${report.title}
 Errors:
-${report.errors.map((err, i) => `${i+1}. ${err}`).join('\n')}
+${report.errors.map((err, i) => `${i + 1}. ${err}`).join('\n')}
 Perf map content:
 ${report.perfMap}
 </end perf map content>
-`
+`;
 }
 
 function runSuite() {
