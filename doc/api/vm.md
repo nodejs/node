@@ -62,7 +62,7 @@ changes:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
   - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/20300
@@ -101,7 +101,7 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
-    * `importAssertions` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"assert"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
@@ -613,6 +613,14 @@ The identifier of the current module, as set in the constructor.
 
 ### `module.link(linker)`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50141
+    description: The option `extra.assert` is renamed to `extra.attributes`. The
+                 former name is still provided for backward compatibility.
+-->
+
 * `linker` {Function}
   * `specifier` {string} The specifier of the requested module:
     ```mjs
@@ -623,15 +631,14 @@ The identifier of the current module, as set in the constructor.
   * `referencingModule` {vm.Module} The `Module` object `link()` is called on.
 
   * `extra` {Object}
-    * `assert` {Object} The data from the assertion:
-      <!-- eslint-skip -->
-      ```js
+    * `attributes` {Object} The data from the attribute:
+      ```mjs
       import foo from 'foo' assert { name: 'value' };
-      //                           ^^^^^^^^^^^^^^^^^ the assertion
+      //                           ^^^^^^^^^^^^^^^^^ the attribute
       ```
-      Per ECMA-262, hosts are expected to ignore assertions that they do not
-      support, as opposed to, for example, triggering an error if an
-      unsupported assertion is present.
+      Per ECMA-262, hosts are expected to trigger an error if an
+      unsupported attribute is present.
+    * `assert` {Object} Alias for `extra.attributes`.
 
   * Returns: {vm.Module|Promise}
 * Returns: {Promise}
@@ -730,7 +737,7 @@ changes:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
 -->
 
@@ -760,7 +767,7 @@ changes:
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     * `specifier` {string} specifier passed to `import()`
     * `module` {vm.Module}
-    * `importAssertions` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"assert"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
@@ -974,7 +981,7 @@ changes:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
   - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/35431
@@ -1018,7 +1025,7 @@ changes:
     considered stable.
     * `specifier` {string} specifier passed to `import()`
     * `function` {Function}
-    * `importAssertions` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"assert"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
@@ -1204,7 +1211,7 @@ changes:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
   - version: v6.3.0
     pr-url: https://github.com/nodejs/node/pull/6635
@@ -1242,7 +1249,7 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
-    * `importAssertions` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"assert"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
@@ -1282,7 +1289,7 @@ changes:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
   - version: v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34023
@@ -1341,7 +1348,7 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
-    * `importAssertions` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"assert"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
@@ -1385,7 +1392,7 @@ changes:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
   - version: v6.3.0
     pr-url: https://github.com/nodejs/node/pull/6635
@@ -1421,7 +1428,7 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
-    * `importAssertions` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"assert"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
