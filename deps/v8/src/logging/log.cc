@@ -446,7 +446,7 @@ void LinuxPerfBasicLogger::LogRecordedBuffer(Tagged<AbstractCode> code,
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base(isolate_);
   if (v8_flags.perf_basic_prof_only_functions &&
-      CodeKindIsBuiltinOrJSFunction(code->kind(cage_base))) {
+      !CodeKindIsBuiltinOrJSFunction(code->kind(cage_base))) {
     return;
   }
 
