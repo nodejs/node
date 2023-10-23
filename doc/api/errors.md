@@ -1755,7 +1755,7 @@ An attempt was made to construct an object using a non-public constructor.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v21.1.0
 -->
 
 An import `type` attribute was provided, but the specified module is of a
@@ -1767,7 +1767,7 @@ different type.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v21.1.0
 -->
 
 An import attribute is missing, preventing the specified module to be imported.
@@ -3302,7 +3302,7 @@ An invalid transfer object was passed to `postMessage()`.
 added:
   - v17.1.0
   - v16.14.0
-removed: REPLACEME
+removed: v21.1.0
 -->
 
 An import assertion has failed, preventing the specified module to be imported.
@@ -3315,7 +3315,7 @@ An import assertion has failed, preventing the specified module to be imported.
 added:
   - v17.1.0
   - v16.14.0
-removed: REPLACEME
+removed: v21.1.0
 -->
 
 An import assertion is missing, preventing the specified module to be imported.
@@ -3328,7 +3328,7 @@ An import assertion is missing, preventing the specified module to be imported.
 added:
   - v17.1.0
   - v16.14.0
-removed: REPLACEME
+removed: v21.1.0
 -->
 
 An import attribute is not supported by this version of Node.js.
