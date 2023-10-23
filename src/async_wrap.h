@@ -92,6 +92,7 @@ namespace node {
   V(KEYPAIRGENREQUEST)                                                        \
   V(KEYGENREQUEST)                                                            \
   V(KEYEXPORTREQUEST)                                                         \
+  V(ARGON2REQUEST)                                                            \
   V(CIPHERREQUEST)                                                            \
   V(DERIVEBITSREQUEST)                                                        \
   V(HASHREQUEST)                                                              \

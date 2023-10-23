@@ -1,11 +1,14 @@
 #include "ncrypto.h"
 #include <openssl/asn1.h>
 #include <openssl/bn.h>
+#include <openssl/core_names.h>
 #include <openssl/dh.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/params.h>
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
+#include <openssl/thread.h>
 #include <openssl/x509v3.h>
 #include <algorithm>
 #include <cstring>
@@ -253,7 +256,7 @@ bool testFipsEnabled() {
 #else
 #ifdef OPENSSL_FIPS
   return FIPS_selftest();
-#else  // OPENSSL_FIPS
+#else   // OPENSSL_FIPS
   return false;
 #endif  // OPENSSL_FIPS
 #endif
@@ -1852,6 +1855,106 @@ DataPointer pbkdf2(const Digest& md,
   return {};
 }
 
+#ifndef OPENSSL_NO_ARGON2
+namespace {
+
+class MaxThreadsScope final {
+ public:
+  MaxThreadsScope(uint64_t threads) : ctx_{OSSL_LIB_CTX_new()} {
+    OSSL_set_max_threads(ctx_.get(), threads) == 1;
+  }
+  ~MaxThreadsScope() { OSSL_set_max_threads(ctx_.get(), 0); }
+
+  auto ctx() const { return ctx_.get(); }
+
+ private:
+  DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> ctx_;
+};
+
+}  // namespace
+
+DataPointer argon2(const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   const Buffer<const unsigned char>& secret,
+                   const Buffer<const unsigned char>& ad,
+                   Argon2Type type,
+                   uint32_t iter,
+                   uint32_t lanes,
+                   uint32_t memcost,
+                   uint32_t version,
+                   size_t length) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
+  std::string_view algorithm;
+  switch (type) {
+    case Argon2Type::ARGON2I:
+      algorithm = "ARGON2I";
+      break;
+    case Argon2Type::ARGON2D:
+      algorithm = "ARGON2D";
+      break;
+    case Argon2Type::ARGON2ID:
+      algorithm = "ARGON2ID";
+      break;
+    default:
+      // Invalid Argon2 type
+      return {};
+  }
+
+  MaxThreadsScope mts{lanes};
+
+  auto kdf = DeleteFnPtr<EVP_KDF, EVP_KDF_free>{
+      EVP_KDF_fetch(mts.ctx(), algorithm.data(), nullptr)};
+  if (!kdf) {
+    return {};
+  }
+
+  auto kctx =
+      DeleteFnPtr<EVP_KDF_CTX, EVP_KDF_CTX_free>{EVP_KDF_CTX_new(kdf.get())};
+  if (!kctx) {
+    return {};
+  }
+
+  std::vector<OSSL_PARAM> params;
+  params.reserve(9);
+
+  params.push_back(OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass.data), pass.len));
+  params.push_back(OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt.data), salt.len));
+  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &iter));
+  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &memcost));
+
+  if (ad.len != 0) {
+    params.push_back(OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_ARGON2_AD, const_cast<unsigned char*>(ad.data), ad.len));
+  }
+
+  if (secret.len != 0) {
+    params.push_back(OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_SECRET,
+        const_cast<unsigned char*>(secret.data),
+        secret.len));
+  }
+
+  params.push_back(OSSL_PARAM_construct_end());
+
+  auto dp = DataPointer::Alloc(length);
+  if (dp && EVP_KDF_derive(kctx.get(),
+                           reinterpret_cast<unsigned char*>(dp.get()),
+                           length,
+                           params.data()) == 1) {
+    return dp;
+  }
+
+  return {};
+}
+#endif  // !OPENSSL_NO_ARGON2
+
 // ============================================================================
 
 EVPKeyPointer::PrivateKeyEncodingConfig::PrivateKeyEncodingConfig(
@@ -2510,7 +2613,7 @@ EVPKeyPointer::operator Dsa() const {
 
 bool EVPKeyPointer::validateDsaParameters() const {
   if (!pkey_) return false;
-    /* Validate DSA2 parameters from FIPS 186-4 */
+  /* Validate DSA2 parameters from FIPS 186-4 */
 #if OPENSSL_VERSION_MAJOR >= 3
   if (EVP_default_properties_is_fips_enabled(nullptr) && EVP_PKEY_DSA == id()) {
 #else
