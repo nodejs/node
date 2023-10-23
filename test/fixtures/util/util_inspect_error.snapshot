@@ -1,0 +1,53 @@
+{ err:
+   Error: foo
+   bar
+       at *
+       at *
+       at *
+       at *
+       at *
+       at *
+       at node:internal*main*run_main_module**,
+  nested:
+   { err:
+      Error: foo
+      bar
+          at *
+          at *
+          at *
+          at *
+          at *
+          at *
+          at node:internal*main*run_main_module** } }
+{
+  err: Error: foo
+  bar
+      at *
+      at *
+      at *
+      at *
+      at *
+      at *
+      at node:internal*main*run_main_module**,
+  nested: {
+    err: Error: foo
+    bar
+        at *
+        at *
+        at *
+        at *
+        at *
+        at *
+        at *
+  }
+}
+{ Error: foo
+bar
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+  foo: 'bar' }
