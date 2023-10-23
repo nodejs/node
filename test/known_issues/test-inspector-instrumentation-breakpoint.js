@@ -20,7 +20,7 @@ async function testBreakpointBeforeScriptExecution(session) {
     { 'method': 'Debugger.enable' },
     { 'method': 'Debugger.setInstrumentationBreakpoint',
       'params': { 'instrumentation': 'beforeScriptExecution' } },
-    { 'method': 'Runtime.runIfWaitingForDebugger' }
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
   ];
 
   await session.send(commands);
