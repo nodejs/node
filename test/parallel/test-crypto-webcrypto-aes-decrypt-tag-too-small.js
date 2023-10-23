@@ -16,7 +16,7 @@ subtle.importKey(
   },
   false,
   [ 'encrypt', 'decrypt' ])
-  .then((k) => {
+  .then((k) =>
     assert.rejects(() => {
       return subtle.decrypt({
         name: 'AES-GCM',
@@ -25,5 +25,5 @@ subtle.importKey(
     }, {
       name: 'OperationError',
       message: /The provided data is too small/,
-    });
-  });
+    })
+  ).then(common.mustCall());
