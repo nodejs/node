@@ -42,6 +42,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/source-position-table.h"
 #include "src/diagnostics/eh-frame.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -214,11 +215,7 @@ void PerfJitLogger::LogRecordedBuffer(
     Handle<AbstractCode> abstract_code,
     MaybeHandle<SharedFunctionInfo> maybe_shared, const char* name,
     int length) {
-  if (FLAG_perf_basic_prof_only_functions &&
-      (abstract_code->kind() != CodeKind::INTERPRETED_FUNCTION &&
-       abstract_code->kind() != CodeKind::TURBOFAN &&
-       abstract_code->kind() != CodeKind::MAGLEV &&
-       abstract_code->kind() != CodeKind::BASELINE)) {
+  if (FLAG_perf_basic_prof_only_functions && !CodeKindIsJSFunction(abstract_code->kind())) {
     return;
   }
 
