@@ -81,7 +81,7 @@ class TestWritable extends Writable {
   const writable = new TestWritable();
 
   const writableStream = newWritableStreamFromStreamWritable(writable);
-  assert.rejects(writableStream.close(), error);
+  assert.rejects(writableStream.close(), error).then(common.mustCall());
   writable.destroy(error);
 }
 
@@ -93,7 +93,7 @@ class TestWritable extends Writable {
 
   assert.rejects(writableStream.close(), {
     code: 'ABORT_ERR'
-  });
+  }).then(common.mustCall());
 
   writable.end();
 }
