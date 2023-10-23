@@ -318,7 +318,7 @@ const theData = 'hello';
     assert.rejects(reader.read(), {
       code: 25,
       name: 'DataCloneError',
-    });
+    }).then(common.mustCall());
     port1.close();
   };
 
@@ -367,7 +367,7 @@ const theData = 'hello';
     assert.rejects(writer.closed, {
       code: 25,
       name: 'DataCloneError',
-    });
+    }).then(common.mustCall());
 
     writer.write(notActuallyTransferable).then(common.mustCall());
 
@@ -397,7 +397,7 @@ const theData = 'hello';
   port1.onmessage = common.mustCall(({ data }) => {
     const writer = data.getWriter();
 
-    assert.rejects(writer.closed, error);
+    assert.rejects(writer.closed, error).then(common.mustCall());
 
     writer.abort(error).then(common.mustCall());
     port1.close();
@@ -428,7 +428,7 @@ const theData = 'hello';
     assert.rejects(writer.abort(m), {
       code: 25,
       name: 'DataCloneError',
-    });
+    }).then(common.mustCall());
     port1.close();
   });
 
@@ -521,7 +521,7 @@ const theData = 'hello';
     assert.rejects(cancel, {
       code: 25,
       name: 'DataCloneError',
-    });
+    }).then(common.mustCall());
 
     port1.close();
   });
@@ -547,7 +547,7 @@ const theData = 'hello';
     const m = new WebAssembly.Memory({ initial: 1 });
     const writer = data.getWriter();
     const write = writer.write(m);
-    assert.rejects(write, { code: 25, name: 'DataCloneError' });
+    assert.rejects(write, { code: 25, name: 'DataCloneError' }).then(common.mustCall());
     port1.close();
   });
 
