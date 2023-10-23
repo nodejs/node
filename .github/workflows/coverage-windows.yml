@@ -5,18 +5,24 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - lib/**/*.js
+      - Makefile
       - src/**/*.cc
       - src/**/*.h
-      - test/**/*
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
       - .github/workflows/coverage-windows.yml
   push:
     branches:
       - main
     paths:
       - lib/**/*.js
+      - Makefile
       - src/**/*.cc
       - src/**/*.h
-      - test/**/*
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
       - .github/workflows/coverage-windows.yml
 
 concurrency:
