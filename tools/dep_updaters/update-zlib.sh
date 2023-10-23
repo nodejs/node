@@ -81,7 +81,17 @@ VERSION_NUMBER=$(grep "#define ZLIB_VERSION" "$DEPS_DIR/zlib/zlib.h" | sed -n "s
 
 NEW_VERSION="$VERSION_NUMBER-$LATEST_COMMIT"
 
+# update version information in src/zlib_version.h
+cat > "$ROOT/src/zlib_version.h" <<EOF
+// This is an auto generated file, please do not edit.
+// Refer to tools/dep_updaters/update-zlib.sh
+#ifndef SRC_ZLIB_VERSION_H_
+#define SRC_ZLIB_VERSION_H_
+#define ZLIB_VERSION "$NEW_VERSION"
+#endif  // SRC_ZLIB_VERSION_H_
+EOF
+
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need
 # to add it to $GITHUB_ENV variable
-finalize_version_update "zlib" "$NEW_VERSION"
+finalize_version_update "zlib" "$NEW_VERSION" "src/zlib_version.h"

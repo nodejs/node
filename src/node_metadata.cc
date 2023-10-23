@@ -14,7 +14,7 @@
 #include "uv.h"
 #include "uvwasi.h"
 #include "v8.h"
-#include "zlib.h"
+#include "zlib_version.h"
 
 #if HAVE_OPENSSL
 #include <openssl/opensslv.h>
