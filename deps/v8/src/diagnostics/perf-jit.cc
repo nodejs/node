@@ -43,6 +43,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/source-position-table.h"
 #include "src/diagnostics/eh-frame.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -225,9 +226,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   DisallowGarbageCollection no_gc;
   if (v8_flags.perf_basic_prof_only_functions) {
     CodeKind code_kind = abstract_code->kind(isolate_);
-    if (code_kind != CodeKind::INTERPRETED_FUNCTION &&
-        code_kind != CodeKind::TURBOFAN && code_kind != CodeKind::MAGLEV &&
-        code_kind != CodeKind::BASELINE) {
+    if (!CodeKindIsJSFunction(code_kind)) {
       return;
     }
   }
