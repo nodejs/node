@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 function replaceStackTrace(str) {
   return snapshot.replaceStackTrace(str, '$1at *$7\n');
 }
+
 function normalize(str) {
   return str
     .replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
