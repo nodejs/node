@@ -131,7 +131,9 @@ async function asserts() {
   await m.link((s, r, p) => {
     assert.strictEqual(s, 'foo');
     assert.strictEqual(r.identifier, 'm');
+    assert.strictEqual(p.attributes.n1, 'v1');
     assert.strictEqual(p.assert.n1, 'v1');
+    assert.strictEqual(p.attributes.n2, 'v2');
     assert.strictEqual(p.assert.n2, 'v2');
     return new SourceTextModule('');
   });
