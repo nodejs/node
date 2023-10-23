@@ -23,7 +23,7 @@ const password = Buffer.alloc(32, 0x01);
 const salt = Buffer.alloc(16, 0x02);
 const secret = Buffer.alloc(8, 0x03);
 const ad = Buffer.alloc(12, 0x04);
-const defaults = { password, salt, keylen: 32, iter: 3, lanes: 4, memcost: 64 << 10 };
+const defaults = { password, salt, keylen: 32, iter: 3, threads: 4, lanes: 4, memcost: 64 << 10 };
 
 const good = [
   [
@@ -54,8 +54,13 @@ const good = [
     { iter: 2 },
     '2139b90863e8bbffff1459c9f08f6460db08def592991e78f11b6c5765bd1fac',
   ],
+  // the number of threads does not affect the output
   [
-    { lanes: 3 },
+    { threads: 1, lanes: 3 },
+    '8ba6f33b93c8219cd31385966898fd39c8e570671c6a3c180ee0109a27d62a4b',
+  ],
+  [
+    { threads: 3, lanes: 3 },
     '8ba6f33b93c8219cd31385966898fd39c8e570671c6a3c180ee0109a27d62a4b',
   ],
   [
@@ -68,7 +73,9 @@ const good = [
 const bad = [
   [{ iter: 0 }, "iter"], // iter < 2
   [{ iter: 2 ** 32 }, "iter"], // iter > 2^(32)-1
+  [{ threads: 0 }, "threads"], // threads < 1
   [{ lanes: 0 }, "lanes"], // lanes < 1
+  [{ lanes: 2, threads: 3 }, "lanes"], // lanes < threads
   [{ lanes: 2 ** 24 }, "lanes"], // lanes > 2^(24)-1
   [{ lanes: 4, memcost: 16 }, "memcost"], // memcost < 8 * lanes
   [{ memcost: 2 ** 32 }, "memcost"], // memcost > 2^(32)-1

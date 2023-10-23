@@ -22,15 +22,16 @@ namespace node::crypto {
 
 struct Argon2Config final : public MemoryRetainer {
   CryptoJobMode mode;
-  OsslLibCtxPointer ctx;
-  EVPKdfPointer kdf;
   ByteSource pass;
   ByteSource salt;
+  std::string algorithm;
   ByteSource secret;
   ByteSource ad;
+  ncrypto::Argon2Type type;
   uint32_t iter;
   uint32_t lanes;
   uint32_t memcost;
+  uint32_t version = 0x13;
   uint32_t keylen;
 
   Argon2Config() = default;
@@ -50,31 +51,32 @@ struct Argon2Traits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_ARGON2REQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
-      Argon2Config* config);
+      Argon2Config* params);
 
-  static bool DeriveBits(Environment* env,
-                         const Argon2Config& config,
-                         ByteSource* out);
+  static bool DeriveBits(
+    Environment* env,
+    const Argon2Config& params,
+    ByteSource* out);
 
-  static v8::Maybe<bool> EncodeOutput(Environment* env,
-                                      const Argon2Config& config,
-                                      ByteSource* out,
-                                      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const Argon2Config& config,
+                                                ByteSource* out);
 };
 
 using Argon2Job = DeriveBitsJob<Argon2Traits>;
 
 #else
+
 // If there is no Argon2 support, Argon2Job becomes a non-op
 struct Argon2Job {
   static void Initialize(Environment* env, v8::Local<v8::Object> target) {}
 };
-#endif  // !OPENSSL_NO_ARGON2
 
+#endif  // !OPENSSL_NO_ARGON2
 }  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

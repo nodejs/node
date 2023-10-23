@@ -1,9 +1,11 @@
 #include "ncrypto.h"
 #include <openssl/asn1.h>
 #include <openssl/bn.h>
+#include <openssl/core_names.h>
 #include <openssl/dh.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/params.h>
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/x509v3.h>
@@ -253,7 +255,7 @@ bool testFipsEnabled() {
 #else
 #ifdef OPENSSL_FIPS
   return FIPS_selftest();
-#else  // OPENSSL_FIPS
+#else   // OPENSSL_FIPS
   return false;
 #endif  // OPENSSL_FIPS
 #endif
@@ -1715,6 +1717,71 @@ const EVP_CIPHER* getCipherByName(const char* name) {
   return EVP_get_cipherbyname(name);
 }
 
+namespace {
+struct MaxThreadsScope final {
+  MaxThreadsScope(OSSL_LIB_CTX* ctx, uint64_t threads)
+      : ctx{ctx}, success{OSSL_set_max_threads(ctx, threads) == 1} {}
+  ~MaxThreadsScope() { OSSL_set_max_threads(ctx, 0); }
+
+  OSSL_LIB_CTX* ctx;
+  bool success;
+};
+}  // namespace
+
+DataPointer argon2(const Buffer<const char>& pass,
+                   const Buffer<const char>& salt,
+                   std::string_view algorithm,
+                   const Buffer<const char>& secret,
+                   const Buffer<const char>& ad,
+                   uint32_t iter,
+                   uint32_t lanes,
+                   uint32_t memcost,
+                   size_t length) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
+  if (pass.len > INT_MAX || salt.len > INT_MAX || length > INT_MAX) {
+    return {};
+  }
+
+  auto libctx =
+      DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free>{OSSL_LIB_CTX_new()};
+  auto kdf = EVPKdfPointer::NewByAlgorithmName(libctx.get(), algorithm);
+  auto ctx = EVPKdfCtxPointer::New(kdf);
+
+  auto params = std::vector<OSSL_PARAM>{
+      OSSL_PARAM_octet_string(
+          OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass.data), pass.len),
+      OSSL_PARAM_octet_string(
+          OSSL_KDF_PARAM_SALT, const_cast<char*>(salt.data), salt.len),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER, const_cast<uint32_t*>(&iter)),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_THREADS, const_cast<uint32_t*>(&lanes)),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES,
+                        const_cast<uint32_t*>(&lanes)),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST,
+                        const_cast<uint32_t*>(&memcost)),
+  };
+
+  if (secret.len > 0) {
+    params.push_back(OSSL_PARAM_octet_string(
+        OSSL_KDF_PARAM_SECRET, const_cast<char*>(secret.data), secret.len));
+  }
+
+  if (ad.len > 0) {
+    params.push_back(OSSL_PARAM_octet_string(
+        OSSL_KDF_PARAM_ARGON2_AD, const_cast<char*>(ad.data), ad.len));
+  }
+
+  params.push_back(OSSL_PARAM_END);
+
+  // TODO: Create a new OSSL_LIB_CTX if another function uses thread limit
+  MaxThreadsScope mts{libctx.get(), lanes};
+  if (!mts.success) {
+    return {};
+  }
+
+  return ctx.derive(length, params.data());
+}
+
 bool checkHkdfLength(const Digest& md, size_t length) {
   // HKDF-Expand computes up to 255 HMAC blocks, each having as many bits as
   // the output of the hash function. 255 is a hard limit because HKDF appends
@@ -1851,6 +1918,86 @@ DataPointer pbkdf2(const Digest& md,
 
   return {};
 }
+
+#ifndef OPENSSL_NO_ARGON2
+DataPointer argon2(const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   const Buffer<const unsigned char>& secret,
+                   const Buffer<const unsigned char>& ad,
+                   Argon2Type type,
+                   uint32_t iter,
+                   uint32_t lanes,
+                   uint32_t memcost,
+                   uint32_t version,
+                   size_t length) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
+  std::string_view algorithm;
+  switch (type) {
+    case Argon2Type::ARGON2I:
+      algorithm = "ARGON2I";
+      break;
+    case Argon2Type::ARGON2D:
+      algorithm = "ARGON2D";
+      break;
+    case Argon2Type::ARGON2ID:
+      algorithm = "ARGON2ID"; 
+      break;
+    default:
+      // Invalid Argon2 type
+      return {};
+  }
+
+  auto kdf = DeleteFnPtr<EVP_KDF, EVP_KDF_free>{
+      EVP_KDF_fetch(nullptr, algorithm.data(), nullptr)};
+  if (!kdf) {
+    return {};
+  }
+
+  auto kctx =
+      DeleteFnPtr<EVP_KDF_CTX, EVP_KDF_CTX_free>{EVP_KDF_CTX_new(kdf.get())};
+  if (!kctx) {
+    return {};
+  }
+
+  std::vector<OSSL_PARAM> params;
+  params.reserve(8);
+
+  params.push_back(OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass.data), pass.len));
+  params.push_back(OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt.data), salt.len));
+  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &iter));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &memcost));
+
+  if (ad.len != 0) {
+    params.push_back(OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_ARGON2_AD, const_cast<unsigned char*>(ad.data), ad.len));
+  }
+
+  if (secret.len != 0) {
+    params.push_back(OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_SECRET,
+        const_cast<unsigned char*>(secret.data),
+        secret.len));
+  }
+
+  params.push_back(OSSL_PARAM_construct_end());
+
+  auto dp = DataPointer::Alloc(length);
+  if (dp && EVP_KDF_derive(kctx.get(),
+                           reinterpret_cast<unsigned char*>(dp.get()),
+                           length,
+                           params.data()) == 1) {
+    return dp;
+  }
+
+  return {};
+}
+#endif  // !OPENSSL_NO_ARGON2
 
 // ============================================================================
 
@@ -2510,7 +2657,7 @@ EVPKeyPointer::operator Dsa() const {
 
 bool EVPKeyPointer::validateDsaParameters() const {
   if (!pkey_) return false;
-    /* Validate DSA2 parameters from FIPS 186-4 */
+  /* Validate DSA2 parameters from FIPS 186-4 */
 #if OPENSSL_VERSION_MAJOR >= 3
   if (EVP_default_properties_is_fips_enabled(nullptr) && EVP_PKEY_DSA == id()) {
 #else
@@ -3935,6 +4082,82 @@ bool Ec::GetCurves(Ec::GetCurveCallback callback) {
     if (!callback(OBJ_nid2sn(curve.nid))) return false;
   }
   return true;
+}
+
+// ============================================================================
+
+EVPKdfPointer::EVPKdfPointer() : kdf_(nullptr) {}
+
+EVPKdfPointer::EVPKdfPointer(EVP_KDF* ctx) : kdf_(ctx) {}
+
+EVPKdfPointer::EVPKdfPointer(EVPKdfPointer&& other) noexcept
+    : kdf_(other.release()) {}
+
+EVPKdfPointer& EVPKdfPointer::operator=(EVPKdfPointer&& other) noexcept {
+  kdf_.reset(other.release());
+  return *this;
+}
+
+EVPKdfPointer::~EVPKdfPointer() {
+  reset();
+}
+
+void EVPKdfPointer::reset(EVP_KDF* ctx) {
+  kdf_.reset(ctx);
+}
+
+EVP_KDF* EVPKdfPointer::release() {
+  return kdf_.release();
+}
+
+EVPKdfPointer EVPKdfPointer::NewByAlgorithmName(
+    OSSL_LIB_CTX* libctx, const std::string_view algorithm) {
+  return EVPKdfPointer(EVP_KDF_fetch(libctx, algorithm.data(), nullptr));
+}
+
+// ============================================================================
+
+EVPKdfCtxPointer::EVPKdfCtxPointer() : ctx_(nullptr) {}
+
+EVPKdfCtxPointer::EVPKdfCtxPointer(EVP_KDF_CTX* ctx) : ctx_(ctx) {}
+
+EVPKdfCtxPointer::EVPKdfCtxPointer(EVPKdfCtxPointer&& other) noexcept
+    : ctx_(other.release()) {}
+
+EVPKdfCtxPointer& EVPKdfCtxPointer::operator=(
+    EVPKdfCtxPointer&& other) noexcept {
+  ctx_.reset(other.release());
+  return *this;
+}
+
+EVPKdfCtxPointer::~EVPKdfCtxPointer() {
+  reset();
+}
+
+void EVPKdfCtxPointer::reset(EVP_KDF_CTX* ctx) {
+  ctx_.reset(ctx);
+}
+
+EVP_KDF_CTX* EVPKdfCtxPointer::release() {
+  return ctx_.release();
+}
+
+DataPointer EVPKdfCtxPointer::derive(size_t out_size,
+                                     const OSSL_PARAM* params) {
+  auto out = DataPointer::Alloc(out_size);
+  if (EVP_KDF_derive(ctx_.get(),
+                     reinterpret_cast<uint8_t*>(out.get()),
+                     out_size,
+                     params) != 1) {
+    std::printf("%s", ERR_error_string(ERR_get_error(), nullptr));
+    return {};
+  }
+
+  return out;
+}
+
+EVPKdfCtxPointer EVPKdfCtxPointer::New(const EVPKdfPointer& kdf) {
+  return EVPKdfCtxPointer(EVP_KDF_CTX_new(kdf.get()));
 }
 
 // ============================================================================

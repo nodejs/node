@@ -591,7 +591,7 @@ struct MaxThreadsScope final {
   MaxThreadsScope(OSSL_LIB_CTX* ctx, uint64_t threads);
   ~MaxThreadsScope();
 
-  OSSL_LIB_CTX* ctx;
+  DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> ctx_;
   bool success;
 };
 

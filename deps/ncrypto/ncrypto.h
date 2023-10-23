@@ -11,6 +11,7 @@
 #include <openssl/kdf.h>
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
+#include <openssl/thread.h>
 #include <openssl/x509.h>
 #include <cstddef>
 #include <functional>
@@ -220,6 +221,8 @@ class DataPointer;
 class DHPointer;
 class ECKeyPointer;
 class EVPKeyPointer;
+class EVPKdfPointer;
+class EVPKdfCtxPointer;
 class EVPMDCtxPointer;
 class SSLCtxPointer;
 class SSLPointer;
@@ -1358,6 +1361,53 @@ class ECKeyPointer final {
   DeleteFnPtr<EC_KEY, EC_KEY_free> key_;
 };
 
+class EVPKdfPointer final {
+ public:
+  EVPKdfPointer();
+  explicit EVPKdfPointer(EVP_KDF* kdf);
+  EVPKdfPointer(EVPKdfPointer&& other) noexcept;
+  EVPKdfPointer& operator=(EVPKdfPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPKdfPointer)
+  ~EVPKdfPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return kdf_ == nullptr; }
+  inline operator bool() const { return kdf_ != nullptr; }
+  inline EVP_KDF* get() const { return kdf_.get(); }
+  inline operator EVP_KDF*() const { return kdf_.get(); }
+  void reset(EVP_KDF* = nullptr);
+  EVP_KDF* release();
+
+  static EVPKdfPointer NewByAlgorithmName(OSSL_LIB_CTX* libctx,
+                                          const std::string_view algorithm);
+
+ private:
+  DeleteFnPtr<EVP_KDF, EVP_KDF_free> kdf_;
+};
+
+class EVPKdfCtxPointer final {
+ public:
+  EVPKdfCtxPointer();
+  explicit EVPKdfCtxPointer(EVP_KDF_CTX* ctx);
+  EVPKdfCtxPointer(EVPKdfCtxPointer&& other) noexcept;
+  EVPKdfCtxPointer& operator=(EVPKdfCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPKdfCtxPointer)
+  ~EVPKdfCtxPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return ctx_ == nullptr; }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline EVP_KDF_CTX* get() const { return ctx_.get(); }
+  inline operator EVP_KDF_CTX*() const { return ctx_.get(); }
+  void reset(EVP_KDF_CTX* ctx = nullptr);
+  EVP_KDF_CTX* release();
+
+  DataPointer derive(size_t out_size, const OSSL_PARAM* params);
+
+  static EVPKdfCtxPointer New(const EVPKdfPointer& kdf);
+
+ private:
+  DeleteFnPtr<EVP_KDF_CTX, EVP_KDF_CTX_free> ctx_;
+};
+
 class EVPMDCtxPointer final {
  public:
   EVPMDCtxPointer();
@@ -1508,6 +1558,16 @@ Buffer<char> ExportChallenge(const char* input, size_t length);
 const EVP_MD* getDigestByName(const char* name);
 const EVP_CIPHER* getCipherByName(const char* name);
 
+DataPointer argon2(const Buffer<const char>& pass,
+                   const Buffer<const char>& salt,
+                   std::string_view algorithm,
+                   const Buffer<const char>& secret,
+                   const Buffer<const char>& ad,
+                   uint32_t iterations,
+                   uint32_t lanes,
+                   uint32_t memcost,
+                   size_t length);
+
 // Verify that the specified HKDF output length is valid for the given digest.
 // The maximum length for HKDF output for a given digest is 255 times the
 // hash size for the given digest algorithm.
@@ -1538,6 +1598,21 @@ DataPointer pbkdf2(const Digest& md,
                    const Buffer<const unsigned char>& salt,
                    uint32_t iterations,
                    size_t length);
+
+#ifndef OPENSSL_NO_ARGON2
+enum class Argon2Type { ARGON2I, ARGON2D, ARGON2ID };
+
+DataPointer argon2(const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   const Buffer<const unsigned char>& secret,
+                   const Buffer<const unsigned char>& ad,
+                   Argon2Type type,
+                   uint32_t iter,
+                   uint32_t lanes,
+                   uint32_t memcost,
+                   uint32_t version,
+                   size_t length);
+#endif  // !OPENSSL_NO_ARGON2
 
 // ============================================================================
 // Version metadata

@@ -15,6 +15,8 @@ const bench = common.createBenchmark(main, {
   lanes: [2, 4, 8],
   memcost: [2 ** 11, 2 ** 16, 2 ** 21],
   n: [50],
+}, {
+  combinationFilter: ({ threads, lanes }) => threads <= lanes,
 });
 
 function measureSync(n, pass, salt, options) {
