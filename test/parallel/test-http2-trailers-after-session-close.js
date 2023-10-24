@@ -3,9 +3,6 @@
 // Fixes: https://github.com/nodejs/node/issues/42713
 const common = require('../common');
 if (!common.hasCrypto) {
-  // Remove require('assert').fail when issue is fixed and test
-  // is moved out of the known_issues directory.
-  require('assert').fail('missing crypto');
   common.skip('missing crypto');
 }
 const assert = require('assert');

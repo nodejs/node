@@ -42,7 +42,7 @@ assert.throws(() => fs.lchmod(f, {}), { code: 'ERR_INVALID_ARG_TYPE' });
     code: 'ERR_INVALID_ARG_TYPE',
   };
 
-  assert.rejects(promises.lchmod(f, input, () => {}), errObj);
+  assert.rejects(promises.lchmod(f, input, () => {}), errObj).then(common.mustCall());
   assert.throws(() => fs.lchmodSync(f, input), errObj);
 });
 
@@ -61,6 +61,6 @@ assert.throws(() => fs.lchmodSync(f, '123x'), {
              `4294967295. Received ${input}`
   };
 
-  assert.rejects(promises.lchmod(f, input, () => {}), errObj);
+  assert.rejects(promises.lchmod(f, input, () => {}), errObj).then(common.mustCall());
   assert.throws(() => fs.lchmodSync(f, input), errObj);
 });

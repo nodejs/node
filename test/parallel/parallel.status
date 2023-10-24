@@ -13,9 +13,11 @@ test-crypto-keygen: PASS,FLAKY
 test-fs-rmdir-recursive: PASS, FLAKY
 # https://github.com/nodejs/node/issues/49985
 test-runner-watch-mode: PASS, FLAKY
+# https://github.com/nodejs/node/issues/50295
+test-cli-node-options: PASS, FLAKY
 
 # Windows on x86
-[$system==win32 && $arch==x86]
+[$system==win32 && $arch==ia32]
 test-worker-nearheaplimit-deadlock: PASS, FLAKY
 
 # Windows on ARM
@@ -39,6 +41,8 @@ test-http-server-headers-timeout-keepalive: PASS,FLAKY
 test-http-server-request-timeout-keepalive: PASS,FLAKY
 # https://github.com/nodejs/node/issues/43465
 test-http-server-request-timeouts-mixed: PASS,FLAKY
+# https://github.com/nodejs/node/issues/50243
+test-inspector-async-stack-traces-set-interval: PASS, FLAKY
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178

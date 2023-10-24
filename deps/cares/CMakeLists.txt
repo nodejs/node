@@ -1,3 +1,5 @@
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 CMAKE_MINIMUM_REQUIRED (VERSION 3.1.0)
 
 INCLUDE (CheckIncludeFiles)
@@ -8,10 +10,10 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.19.1" )
+PROJECT (c-ares LANGUAGES C VERSION "1.20.1" )
 
 # Set this version before release
-SET (CARES_VERSION "1.19.1")
+SET (CARES_VERSION "1.20.1")
 
 INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are wrong.
 
@@ -26,7 +28,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "8:1:6")
+SET (CARES_LIB_VERSIONINFO "9:1:7")
 
 
 OPTION (CARES_STATIC     "Build as a static library"                                             OFF)
@@ -164,6 +166,7 @@ CARES_FUNCTION_IN_LIBRARY (clock_gettime rt HAVE_LIBRT)
 
 # Look for necessary includes
 CHECK_INCLUDE_FILES (sys/types.h           HAVE_SYS_TYPES_H)
+CHECK_INCLUDE_FILES (sys/random.h          HAVE_SYS_RANDOM_H)
 CHECK_INCLUDE_FILES (sys/socket.h          HAVE_SYS_SOCKET_H)
 CHECK_INCLUDE_FILES (sys/sockio.h          HAVE_SYS_SOCKIO_H)
 CHECK_INCLUDE_FILES (arpa/inet.h           HAVE_ARPA_INET_H)
@@ -281,6 +284,7 @@ CARES_EXTRAINCLUDE_IFSET (HAVE_STDLIB_H       stdlib.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_STRING_H       string.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_STRINGS_H      strings.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_IOCTL_H    sys/ioctl.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_RANDOM_H   sys/random.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_SELECT_H   sys/select.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_SOCKET_H   sys/socket.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_SOCKIO_H	sys/sockio.h)
@@ -365,6 +369,7 @@ CHECK_SYMBOL_EXISTS (gethostbyaddr   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETHOST
 CHECK_SYMBOL_EXISTS (gethostbyname   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETHOSTBYNAME)
 CHECK_SYMBOL_EXISTS (gethostname     "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETHOSTNAME)
 CHECK_SYMBOL_EXISTS (getnameinfo     "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETNAMEINFO)
+CHECK_SYMBOL_EXISTS (getrandom       "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETRANDOM)
 CHECK_SYMBOL_EXISTS (getservbyport_r "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETSERVBYPORT_R)
 CHECK_SYMBOL_EXISTS (getservbyname_r "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETSERVBYNAME_R)
 CHECK_SYMBOL_EXISTS (gettimeofday    "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETTIMEOFDAY)
@@ -562,6 +567,9 @@ ENDIF ()
 IF (HAVE_SYS_TYPES_H)
 	SET (CARES_HAVE_SYS_TYPES_H 1)
 ENDIF ()
+IF (HAVE_SYS_RANDOM_H)
+	SET (CARES_HAVE_SYS_RANDOM_H 1)
+ENDIF()
 IF (HAVE_SYS_SOCKET_H)
 	SET (CARES_HAVE_SYS_SOCKET_H 1)
 ENDIF()

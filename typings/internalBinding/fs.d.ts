@@ -100,8 +100,8 @@ declare namespace InternalFSBinding {
   function fstat(fd: number, useBigint: false, usePromises: typeof kUsePromises): Promise<Float64Array>;
 
   function fsync(fd: number, req: FSReqCallback): void;
-  function fsync(fd: number, req: undefined, ctx: FSSyncContext): void;
   function fsync(fd: number, usePromises: typeof kUsePromises): Promise<void>;
+  function fsync(fd: number): void;
 
   function ftruncate(fd: number, len: number, req: FSReqCallback): void;
   function ftruncate(fd: number, len: number, req: undefined, ctx: FSSyncContext): void;
@@ -146,9 +146,9 @@ declare namespace InternalFSBinding {
   function mkdir(path: string, mode: number, recursive: boolean, req: FSReqCallback<void | string>): void;
   function mkdir(path: string, mode: number, recursive: true, req: FSReqCallback<string>): void;
   function mkdir(path: string, mode: number, recursive: false, req: FSReqCallback<void>): void;
-  function mkdir(path: string, mode: number, recursive: boolean, req: undefined, ctx: FSSyncContext): void | string;
-  function mkdir(path: string, mode: number, recursive: true, req: undefined, ctx: FSSyncContext): string;
-  function mkdir(path: string, mode: number, recursive: false, req: undefined, ctx: FSSyncContext): void;
+  function mkdir(path: string, mode: number, recursive: boolean): void | string;
+  function mkdir(path: string, mode: number, recursive: true): string;
+  function mkdir(path: string, mode: number, recursive: false): void;
   function mkdir(path: string, mode: number, recursive: boolean, usePromises: typeof kUsePromises): Promise<void | string>;
   function mkdir(path: string, mode: number, recursive: true, usePromises: typeof kUsePromises): Promise<string>;
   function mkdir(path: string, mode: number, recursive: false, usePromises: typeof kUsePromises): Promise<void>;
@@ -159,8 +159,8 @@ declare namespace InternalFSBinding {
   function openFileHandle(path: StringOrBuffer, flags: number, mode: number, usePromises: typeof kUsePromises): Promise<FileHandle>;
 
   function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number, req: FSReqCallback<number>): void;
-  function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number, req: undefined, ctx: FSSyncContext): number;
   function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number, usePromises: typeof kUsePromises): Promise<number>;
+  function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number): number;
 
   function readBuffers(fd: number, buffers: ArrayBufferView[], position: number, req: FSReqCallback<number>): void;
   function readBuffers(fd: number, buffers: ArrayBufferView[], position: number, req: undefined, ctx: FSSyncContext): number;

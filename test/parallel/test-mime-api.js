@@ -4,8 +4,6 @@
 require('../common');
 const assert = require('assert');
 const { MIMEType, MIMEParams } = require('util');
-const { toASCIILower } = require('internal/mime');
-
 
 const WHITESPACES = '\t\n\f\r ';
 const NOT_HTTP_TOKEN_CODE_POINT = ',';
@@ -160,8 +158,3 @@ assert.throws(() => params.set(`x${NOT_HTTP_TOKEN_CODE_POINT}`, 'x'), /parameter
 assert.throws(() => params.set('x', `${NOT_HTTP_QUOTED_STRING_CODE_POINT};`), /parameter value/i);
 assert.throws(() => params.set('x', `${NOT_HTTP_QUOTED_STRING_CODE_POINT}x`), /parameter value/i);
 assert.throws(() => params.set('x', `x${NOT_HTTP_QUOTED_STRING_CODE_POINT}`), /parameter value/i);
-
-assert.strictEqual(toASCIILower('someThing'), 'something');
-assert.strictEqual(toASCIILower('SomeThing'), 'something');
-assert.strictEqual(toASCIILower('SomeThing3'), 'something3');
-assert.strictEqual(toASCIILower('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'abcdefghijklmnopqrstuvwxyz');

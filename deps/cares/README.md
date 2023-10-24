@@ -6,7 +6,6 @@ c-ares
 [![Coverage Status](https://coveralls.io/repos/github/c-ares/c-ares/badge.svg)](https://coveralls.io/github/c-ares/c-ares)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/291/badge)](https://bestpractices.coreinfrastructure.org/projects/291)
 [![Fuzzing Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/c-ares.svg)](https://bugs.chromium.org/p/oss-fuzz/issues/list?sort=-opened&can=1&q=proj:c-ares)
-[![Releases](https://coderelease.io/badge/c-ares/c-ares)](https://coderelease.io/github/repository/c-ares/c-ares)
 
 This is c-ares, an asynchronous resolver library.  It is intended for
 applications which need to perform DNS queries without blocking, or need to
@@ -22,8 +21,7 @@ If you find bugs, correct flaws, have questions or have comments in general in
 regard to c-ares (or by all means the original ares too), get in touch with us
 on the c-ares mailing list: https://lists.haxx.se/listinfo/c-ares
 
-c-ares is of course distributed under the same MIT-style license as the
-original ares.
+c-ares is distributed the MIT license.
 
 You'll find all c-ares details and news here:
         https://c-ares.org/

@@ -1,6 +1,6 @@
 #***************************************************************************
 #
-# Copyright (C) 2008 - 2013 by Daniel Stenberg et al
+# Copyright (C) Daniel Stenberg et al
 #
 # Permission to use, copy, modify, and distribute this software and its
 # documentation for any purpose and without fee is hereby granted, provided
@@ -12,6 +12,7 @@
 # suitability of this software for any purpose.  It is provided "as is"
 # without express or implied warranty.
 #
+# SPDX-License-Identifier: MIT
 #***************************************************************************
 
 # File version for 'aclocal' use. Keep it a single number.

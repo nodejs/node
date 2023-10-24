@@ -6,18 +6,33 @@ const assert = require('assert');
 const bench = common.createBenchmark(main, {
   n: [1e7],
   value: [
-    'application/ecmascript; ',
-    'text/html;charset=gbk',
-    // eslint-disable-next-line max-len
-    'text/html;0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789=x;charset=gbk',
+    '[]',
+    '[1,2,3]',
   ],
 }, {
   flags: ['--expose-internals'],
 });
 
-function main({ n, value }) {
+function getValidateFactory() {
+  const {
+    validateArray,
+  } = require('internal/validators');
 
-  const parseTypeAndSubtype = require('internal/mime').parseTypeAndSubtype;
+  return (n) => validateArray(n, 'n');
+}
+
+function main({ n, value }) {
+  const validate = getValidateFactory();
+
+  switch (value) {
+    case '[]':
+      value = [];
+      break;
+    case '[1,2,3]':
+      value = [1, 2, 3];
+      break;
+  }
+
   // Warm up.
   const length = 1024;
   const array = [];
@@ -25,19 +40,19 @@ function main({ n, value }) {
 
   for (let i = 0; i < length; ++i) {
     try {
-      array.push(parseTypeAndSubtype(value));
+      array.push(validate(value));
     } catch (e) {
       errCase = true;
       array.push(e);
     }
   }
 
-  // console.log(`errCase: ${errCase}`);
   bench.start();
+
   for (let i = 0; i < n; ++i) {
     const index = i % length;
     try {
-      array[index] = parseTypeAndSubtype(value);
+      array[index] = validate(value);
     } catch (e) {
       array[index] = e;
     }
@@ -48,6 +63,6 @@ function main({ n, value }) {
   // Verify the entries to prevent dead code elimination from making
   // the benchmark invalid.
   for (let i = 0; i < length; ++i) {
-    assert.strictEqual(typeof array[i], errCase ? 'object' : 'object');
+    assert.strictEqual(typeof array[i], errCase ? 'object' : 'undefined');
   }
 }

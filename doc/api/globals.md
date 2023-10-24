@@ -600,7 +600,7 @@ This variable may appear to be global but is not. See [`module`][].
 added: v21.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 A partial implementation of the [Navigator API][].
 
@@ -610,9 +610,17 @@ A partial implementation of the [Navigator API][].
 added: v21.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 A partial implementation of [`window.navigator`][].
+
+If your app or a dependency uses a check for `navigator` to determine whether it
+is running in a browser, the following can be used to delete the `navigator`
+global before app code runs:
+
+```bash
+node --import 'data:text/javascript,delete globalThis.navigator' app.js
+```
 
 ### `navigator.hardwareConcurrency`
 
@@ -626,7 +634,22 @@ The `navigator.hardwareConcurrency` read-only property returns the number of
 logical processors available to the current Node.js instance.
 
 ```js
-console.log(`This process is running on ${navigator.hardwareConcurrency}`);
+console.log(`This process is running on ${navigator.hardwareConcurrency} logical processors`);
+```
+
+### `navigator.userAgent`
+
+<!-- YAML
+added: v21.1.0
+-->
+
+* {string}
+
+The `navigator.userAgent` read-only property returns user agent
+consisting of the runtime name and major version number.
+
+```js
+console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 ```
 
 ## `PerformanceEntry`

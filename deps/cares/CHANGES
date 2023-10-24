@@ -1,5 +1,262 @@
    Changelog for the c-ares project. Generated with git2changes.pl
 
+Version 1.20.1 (8 Oct 2023)
+
+GitHub (8 Oct 2023)
+- [Daniel Stenberg brought this change]
+
+  ares-test:  silence warning (#564)
+  
+  warning: comparison of integer expressions of different signedness
+  
+  Fix By: Daniel Stenberg (@bagder)
+
+Brad House (8 Oct 2023)
+- fix README.md
+
+GitHub (8 Oct 2023)
+- [Brad House brought this change]
+
+  1.20.1 release (#563)
+
+- [Brad House brought this change]
+
+  fix reference to freed memory (#562)
+  
+  Issue #561 shows free'd memory could be accessed in some error conditions.
+  
+  Fixes Issue #561
+  Fix By: Brad House (@bradh352)
+
+Brad House (8 Oct 2023)
+- reported build/test systems may timeout on intensive tests. reduce test case to still be relevant but to reduce false positive errors
+
+GitHub (8 Oct 2023)
+- [Gregor Jasny brought this change]
+
+  Regression: Fix typo in fuzzcheck target name (#559)
+  
+  This seems to be a vim'esque typo introduced with c1b00c41.
+  
+  Fix By: Gregor Jasny (@gjasny)
+
+Version 1.20.0 (6 Oct 2023)
+
+Brad House (6 Oct 2023)
+- fix slist search off by 1
+
+GitHub (6 Oct 2023)
+- [Brad House brought this change]
+
+  1.20.0 release prep (#557)
+
+- [Brad House brought this change]
+
+  ares__buf should return standard error codes.  more helpers implemented. (#558)
+  
+  The purpose of this PR is to hopefully make the private API of this set of routines less likely to need to be changed in a future release.  While this is not a public API, it could become harder in the future to change usage as it becomes more widely used within c-ares.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  Update from 1989 MIT license text to modern MIT license text (#556)
+  
+  ares (and thus c-ares) was originally licensed under the 1989 MIT license text:
+  https://fedoraproject.org/wiki/Licensing:MIT#Old_Style_(no_advertising_without_permission)
+  
+  This change updates the license to the modern MIT license as recognized here:
+  https://opensource.org/license/mit/
+  
+  care has been taken to ensure correct attributions remain for the authors contained within the copyright headers, and all authors with attributions in the headers have been contacted for approval regarding the change.  Any authors which were not able to be contacted, the original copyright maintains, luckily that exists in only a single file `ares_parse_caa_reply.c` at this time.
+  
+  Please see PR #556 for the documented approvals by each contributor.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  Test Harness: use ares_timeout() to calculate the value to pass to select() these days. (#555)
+  
+  The test framework was using 100ms timeout passed to select(), and not using ares_timeout() to calculate the actual recommended value based on the queries in queue. Using ares_timeout() tests the functionality of ares_timeout() itself and will provide more responsive results.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  Fix for TCP back to back queries (#552)
+  
+  As per #266, TCP queries are basically broken. If we get a partial reply, things just don't work, but unlike UDP, TCP may get fragmented and we need to properly handle that.
+  
+  I've started creating a basic parser/buffer framework for c-ares for memory safety reasons, but it also helps for things like this where we shouldn't be manually tracking positions and fetching only a couple of bytes at a time from a socket. This parser/buffer will be expanded and used more in the future.
+  
+  This also resolves #206 by allowing NULL to be specified for some socket callbacks so they will auto-route to the built-in c-ares functions.
+  
+  Fixes: #206, #266
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  remove acountry from built tools as nerd.dk is gone (#554)
+  
+  The acountry utility required a third party DNSBL service from nerd.dk in order to operate. That service has been offline for about a year and there is no other comparable service offering. We are keeping the code in the repository as an example, but no longer building it.
+  
+  Fixes: #537
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  Don't requeue any queries for getaddrinfo() during destruction. (#553)
+  
+  During ares_destroy(), any outstanding queries are terminated, however ares_getaddrinfo() had an ordering issue with status codes which in some circumstances could lead to a new query being enqueued rather than honoring the termination.
+  
+  Fixes #532
+  Fix By: @Chilledheart and Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  ares_getaddrinfo(): Fail faster on AF_UNSPEC if we've already received one address class  (#551)
+  
+  As per #541, when using AF_UNSPEC with ares_getaddrinfo() (and in turn with ares_gethostbynam()) if we receive a successful response for one address class, we should not allow the other address class to continue on with retries, just return the address class we have.
+  
+  This will limit the overall query time to whatever timeout remains for the pending query for the other address class, it will not, however, terminate the other query as it may still prove to be successful (possibly coming in less than a millisecond later) and we'd want that result still. It just turns off additional error processing to get the result back quicker.
+  
+  Fixes Bug: #541
+  Fix By: Brad House (@bradh352)
+
+- [Sam Morris brought this change]
+
+  Avoid producing an ill-formed result when qualifying a name with the root domain (#546)
+  
+  This prevents the result of qualifying "name" with "." being "name.." which is ill-formed.
+  
+  Fixes Bug: #545
+  Fix By: Sam Morris (@yrro)
+
+- [Brad House brought this change]
+
+  Configuration option to limit number of UDP queries per ephemeral port (#549)
+  
+  Add a new ARES_OPT_UDP_MAX_QUERIES option with udp_max_queries parameter that can be passed to ares_init_options(). This value defaults to 0 (unlimited) to maintain existing compatibility, any positive number will cause new UDP ephemeral ports to be created once the threshold is reached, we'll call these 'connections' even though its technically wrong for UDP.
+  
+  Implementation Details:
+  * Each server entry in a channel now has a linked-list of connections/ports for udp and tcp. The first connection in the list is the one most likely to be eligible to accept new queries.
+  * Queries are now tracked by connection rather than by server.
+  * Every time a query is detached from a connection, the connection that it was attached to will be checked to see if it needs to be cleaned up.
+  * Insertion, lookup, and searching for connections has been implemented as O(1) complexity so the number of connections will not impact performance.
+  * Remove is_broken from the server, it appears it would be set and immediately unset, so must have been invalidated via a prior patch. A future patch should probably track consecutive server errors and de-prioritize such servers. The code right now will always try servers in the order of configuration, so a bad server in the list will always be tried and may rely on timeout logic to try the next.
+  * Various other cleanups to remove code duplication and for clarification.
+  
+  Fixes Bug: #444
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  its not 1991 anymore, lower default timeout and retry count (#542)
+  
+  A lot of time has passed since the original timeouts and retry counts were chosen. We have on and off issues reported due to this. Even on geostationary satellite links, latency is worst case around 1.5s. This PR changes the per-server timeout to 2s and the retry count lowered from 4 to 3.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  Modernization: Implement base data-structures and replace usage (#540)
+  
+  c-ares currently lacks modern data structures that can make coding easier and more efficient. This PR implements a new linked list, skip list (sorted linked list), and hashtable implementation that are easy to use and hard to misuse. Though these implementations use more memory allocations than the prior implementation, the ability to more rapidly iterate on the codebase is a bigger win than any marginal performance difference (which is unlikely to be visible, modern systems are much more powerful than when c-ares was initially created).
+  
+  The data structure implementation favors readability and audit-ability over performance, however using the algorithmically correct data type for the purpose should offset any perceived losses.
+  
+  The primary motivation for this PR is to facilitate future implementation for Issues #444, #135, #458, and possibly #301
+  
+  A couple additional notes:
+  
+  The ares_timeout() function is now O(1) complexity instead of O(n) due to the use of a skiplist.
+  Some obscure bugs were uncovered which were actually being incorrectly validated in the test cases. These have been addressed in this PR but are not explicitly discussed.
+  Fixed some dead code warnings in ares_rand for systems that don't need rc4
+  
+  Fix By: Brad House (@bradh352)
+
+- [Jérôme Duval brought this change]
+
+  fix missing prefix for CMake generated libcares.pc (#530)
+  
+  'pkg-config grpc --cflags' complains with:
+  Variable 'prefix' not defined in libcares.pc
+  
+  Fix By: Jérôme Duval (@korli)
+
+bradh352 (11 Jul 2023)
+- windows get_DNS_Windows port fix for ipv6
+
+- windows get_DNS_Windows port is in network byte order
+
+- backoff to debian 11 due to coverage check failure
+
+- extend on PR #534, windows should also honor a port
+
+GitHub (11 Jul 2023)
+- [Brad House brought this change]
+
+  Support configuration of DNS server ports (#534)
+  
+  As per https://man.openbsd.org/OpenBSD-5.1/resolv.conf.5 we should
+  support bracketed syntax for resolv.conf entries to contain an optional
+  port number.
+  
+  We also need to utilize this format for configuration of MacOS
+  DNS servers as seen when using the Viscosity OpenVPN client, where
+  it starts a private DNS server listening on localhost on a non-standard
+  port.
+  
+  Fix By: Brad House (@bradh352)
+
+Daniel Stenberg (9 Jun 2023)
+- provide SPDX identifiers and a REUSE CI job to verify
+  
+  All files have their licence and copyright information clearly
+  identifiable. If not in the file header, they are set separately in
+  .reuse/dep5.
+  
+  All used license texts are provided in LICENSES/
+
+GitHub (30 May 2023)
+- [Alexey A Tikhonov brought this change]
+
+  Remove unreachable code as reported by Coverity (#527)
+  
+  Coverity reported some code as unreachable.  A manual inspection confirmed the reports.
+  
+  Fix By: Alexey A Tikhonov (@alexey-tikhonov)
+
+- [Ben Noordhuis brought this change]
+
+  rand: add support for getrandom() (#526)
+  
+  glibc provides arc4random_buf() but musl does not and /dev/urandom is
+  not always available.
+
+- [Tim Wojtulewicz brought this change]
+
+  Replace uses of sprintf with snprintf (#525)
+  
+  sprintf isn't safe even if you think you are using it right.  Switch to snprintf().
+  
+  Fix By: Tim Wojtulewicz (@timwoj)
+
+bradh352 (23 May 2023)
+- update version and release procedure
+
+GitHub (22 May 2023)
+- [Douglas R. Reno brought this change]
+
+  INSTALL.md: Add Watcom instructions and update Windows documentation URLs (#524)
+  
+  This commit adds instructions on how to use the WATCOM compiler to build c-ares. This was just tested on c-ares-1.19.1 and works well.
+  
+  While going through the links for the C Runtime documentation for Windows systems, I discovered that all three of the KB articles that were linked are now nonexistent. This commit replaces KB94248 with the current replacement available on Microsoft's website, which also makes the other two KB articles obsolete.
+  
+  Fix By: Douglas R. Reno (@renodr)
+
 Version 1.19.1 (22 May 2023)
 
 bradh352 (22 May 2023)
@@ -5448,107 +5705,3 @@ Ben Greear (30 Jul 2010)
 - ipv6: Fix some build issues related to the local-bind feature.
   
   Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-Guenter Knauf (29 Jul 2010)
-- Replaced uint32_t with unsigned int to fix broken builds on a couple of platforms.
-
-Daniel Stenberg (18 Jul 2010)
-- [Ben Greear brought this change]
-
-  local-bind:  Support binding to local interface/IPs
-  
-  Add 3 new functions to set the local binding for the out-going
-  socket connection, and add ares_set_servers_csv() to set a
-  list of servers at once as a comma-separated string.
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-- version: now start on 1.7.4
-
-- [Andrew C. Morrow brought this change]
-
-  fix memory leak in ares_getnameinfo
-
-Version 1.7.3 (11 Jun 2010)
-
-Daniel Stenberg (11 Jun 2010)
-- changelogs: updated for 1.7.3
-
-- [BogDan Vatra brought this change]
-
-  init: allow c-ares to work on Android OS
-
-- changelog: fill in the 1.7.2 changes
-
-- added another pdf to ignore
-
-Yang Tse (11 Jun 2010)
-- add ares_parse_mx_reply.c to VS dsp file
-
-Daniel Stenberg (10 Jun 2010)
-- tarball: add $(CSOURCES) $(HHEADERS) to EXTRA_DIST
-  
-  It's not clear to me why we need this, but we apparently may
-  otherwise not get all files bundled in the dist tarball.
-
-- version: start working on 1.7.3
-
-Version 1.7.2 (10 Jun 2010)
-
-Daniel Stenberg (10 Jun 2010)
-- RELEASE-NOTES: 1.7.2 details added
-
-- [Jakub Hrozek brought this change]
-
-  ares_init: Last, not first instance of domain or search should win
-
-- style: make code less than 80 columns wide
-
-Yang Tse (31 May 2010)
-- [Tor Arntsen brought this change]
-
-  improve alternative definition of bool to use enum instead of unsigned char
-
-- fix VS2010 compiler warnings
-
-Daniel Stenberg (18 Apr 2010)
-- [Jérémy Lal brought this change]
-
-  added ares_parse_mx_reply
-
-- repair the file mode
-
-- remove all $Id$ lines
-
-- remove all .cvsignore files
-
-- spell fix
-  
-  reported by Gregor Jasny on the mailing list
-
-- [Peter Pentchev brought this change]
-
-  Fix a couple of typos and grammar nits.
-
-- ignore the GPG signature files too
-
-- start the journey towards 1.7.2
-
-- no longer CVS tagging
-
-- ignore generated PDFs
-
-Version 1.7.1 (23 Mar 2010)
-
-Daniel Stenberg (23 Mar 2010)
-- 1.7.1
-
-- made README the primary readme file
-  
-  ... and did README.cares to contain a historic reason etc.
-
-- s/CVS/git
-
-- git now, not CVS
-
-- ignore lots of generated files

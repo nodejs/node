@@ -109,11 +109,21 @@ provides interoperability between them and its original module format,
 
 Node.js has two module systems: [CommonJS][] modules and ECMAScript modules.
 
-Authors can tell Node.js to use the ECMAScript modules loader via the `.mjs`
-file extension, the `package.json` [`"type"`][] field, the [`--input-type`][]
-flag, or the [`--experimental-default-type`][] flag. Outside of those cases,
-Node.js will use the CommonJS module loader. See [Determining module system][]
-for more details.
+Authors can tell Node.js to interpret JavaScript as an ES module via the `.mjs`
+file extension, the `package.json` [`"type"`][] field with a value `"module"`,
+the [`--input-type`][] flag with a value of `"module"`, or the
+[`--experimental-default-type`][] flag with a value of `"module"`. These are
+explicit markers of code being intended to run as an ES module.
+
+Inversely, authors can tell Node.js to interpret JavaScript as CommonJS via the
+`.cjs` file extension, the `package.json` [`"type"`][] field with a value
+`"commonjs"`, the [`--input-type`][] flag with a value of `"commonjs"`, or the
+[`--experimental-default-type`][] flag with a value of `"commonjs"`.
+
+When code lacks explicit markers for either module system, Node.js will inspect
+the source code of a module to look for ES module syntax. If such syntax is
+found, Node.js will run the code as an ES module; otherwise it will run the
+module as CommonJS. See [Determining module system][] for more details.
 
 <!-- Anchors to make sure old links find a target -->
 
@@ -1019,18 +1029,33 @@ _isImports_, _conditions_)
 >    1. Return _"commonjs"_.
 > 4. If _url_ ends in _".json"_, then
 >    1. Return _"json"_.
-> 5. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_url_).
-> 6. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
-> 7. If _pjson?.type_ exists and is _"module"_, then
->    1. If _url_ ends in _".js"_ or has no file extension, then
->       1. If `--experimental-wasm-modules` is enabled and the file at _url_
->          contains the header for a WebAssembly module, then
->          1. Return _"wasm"_.
->       2. Otherwise,
->          1. Return _"module"_.
->    2. Return **undefined**.
-> 8. Otherwise,
->    1. Return **undefined**.
+> 5. If `--experimental-wasm-modules` is enabled and _url_ ends in
+>    _".wasm"_, then
+>    1. Return _"wasm"_.
+> 6. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_url_).
+> 7. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
+> 8. Let _packageType_ be **null**.
+> 9. If _pjson?.type_ is _"module"_ or _"commonjs"_, then
+>    1. Set _packageType_ to _pjson.type_.
+> 10. If _url_ ends in _".js"_, then
+>     1. If _packageType_ is not **null**, then
+>        1. Return _packageType_.
+>     2. If `--experimental-detect-module` is enabled and the source of
+>        module contains static import or export syntax, then
+>        1. Return _"module"_.
+>     3. Return _"commonjs"_.
+> 11. If _url_ does not have any extension, then
+>     1. If _packageType_ is _"module"_ and `--experimental-wasm-modules` is
+>        enabled and the file at _url_ contains the header for a WebAssembly
+>        module, then
+>        1. Return _"wasm"_.
+>     2. If _packageType_ is not **null**, then
+>        1. Return _packageType_.
+>     3. If `--experimental-detect-module` is enabled and the source of
+>        module contains static import or export syntax, then
+>        1. Return _"module"_.
+>     4. Return _"commonjs"_.
+> 12. Return **undefined** (will throw during load phase).
 
 **LOOKUP\_PACKAGE\_SCOPE**(_url_)
 
