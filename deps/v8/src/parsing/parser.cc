@@ -1372,16 +1372,8 @@ ImportAssertions* Parser::ParseImportAssertClause() {
   Expect(Token::LBRACE);
 
   while (peek() != Token::RBRACE) {
-    const AstRawString* attribute_key = nullptr;
-    if (Check(Token::STRING) || Check(Token::SMI)) {
-      attribute_key = GetSymbol();
-    } else if (Check(Token::NUMBER)) {
-      attribute_key = GetNumberAsSymbol();
-    } else if (Check(Token::BIGINT)) {
-      attribute_key = GetBigIntAsSymbol();
-    } else {
-      attribute_key = ParsePropertyName();
-    }
+    const AstRawString* attribute_key =
+        Check(Token::STRING) ? GetSymbol() : ParsePropertyName();
 
     Scanner::Location location = scanner()->location();
 
