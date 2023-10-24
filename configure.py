@@ -2121,9 +2121,16 @@ write('config.mk', do_not_edit + config_str)
 gyp_args = ['--no-parallel', '-Dconfiguring_node=1']
 gyp_args += ['-Dbuild_type=' + config['BUILDTYPE']]
 
-# always set 'python' variable, otherwise environments that only have python3
-# will fail to run python scripts
-gyp_args += ['-Dpython=' + sys.executable]
+# Remove the trailing .exe from the executable name, otherwise the python.exe
+# would be rewrote as python_host.exe due to hack in GYP for supporting cross
+# compilation on Windows.
+# See https://github.com/nodejs/node/pull/32867 for related change.
+python = sys.executable
+if flavor == 'win' and python.lower().endswith('.exe'):
+  python = python[:-4]
+# Always set 'python' variable, otherwise environments that only have python3
+# will fail to run python scripts.
+gyp_args += ['-Dpython=' + python]
 
 if options.use_ninja:
   gyp_args += ['-f', 'ninja-' + flavor]
