@@ -564,21 +564,19 @@ static MaybeLocal<Promise> ImportModuleDynamically(
 
   Local<Function> import_callback =
     env->host_import_module_dynamically_callback();
+  Local<Value> id;
 
   Local<FixedArray> options = host_defined_options.As<FixedArray>();
-  if (options->Length() != HostDefinedOptions::kLength) {
-    Local<Promise::Resolver> resolver;
-    if (!Promise::Resolver::New(context).ToLocal(&resolver)) return {};
-    resolver
-        ->Reject(context,
-                 v8::Exception::TypeError(FIXED_ONE_BYTE_STRING(
-                     context->GetIsolate(), "Invalid host defined options")))
-        .ToChecked();
-    return handle_scope.Escape(resolver->GetPromise());
+  // Get referrer id symbol from the host-defined options.
+  // If the host-defined options are empty, get the referrer id symbol
+  // from the realm global object.
+  if (options->Length() == HostDefinedOptions::kLength) {
+    id = options->Get(context, HostDefinedOptions::kID).As<Symbol>();
+  } else {
+    id = context->Global()
+             ->GetPrivate(context, env->host_defined_option_symbol())
+             .ToLocalChecked();
   }
-
-  Local<Symbol> id =
-      options->Get(context, HostDefinedOptions::kID).As<Symbol>();
 
   Local<Object> attributes =
       createImportAttributesContainer(env, isolate, import_attributes);
