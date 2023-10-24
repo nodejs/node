@@ -318,7 +318,14 @@ const cli = {
             options = CLIOptions.parse(args);
         } catch (error) {
             debug("Error parsing CLI options:", error.message);
-            log.error(error.message);
+
+            let errorMessage = error.message;
+
+            if (usingFlatConfig) {
+                errorMessage += "\nYou're using eslint.config.js, some command line flags are no longer available. Please see https://eslint.org/docs/latest/use/command-line-interface for details.";
+            }
+
+            log.error(errorMessage);
             return 2;
         }
 

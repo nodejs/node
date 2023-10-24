@@ -30,7 +30,7 @@ function compareLocations(itemA, itemB) {
 
 /**
  * Groups a set of directives into sub-arrays by their parent comment.
- * @param {Directive[]} directives Unused directives to be removed.
+ * @param {Iterable<Directive>} directives Unused directives to be removed.
  * @returns {Directive[][]} Directives grouped by their parent comment.
  */
 function groupByParentComment(directives) {
@@ -177,10 +177,10 @@ function createCommentRemoval(directives, commentToken) {
 
 /**
  * Parses details from directives to create output Problems.
- * @param {Directive[]} allDirectives Unused directives to be removed.
+ * @param {Iterable<Directive>} allDirectives Unused directives to be removed.
  * @returns {{ description, fix, unprocessedDirective }[]} Details for later creation of output Problems.
  */
-function processUnusedDisableDirectives(allDirectives) {
+function processUnusedDirectives(allDirectives) {
     const directiveGroups = groupByParentComment(allDirectives);
 
     return directiveGroups.flatMap(
@@ -200,13 +200,102 @@ function processUnusedDisableDirectives(allDirectives) {
 }
 
 /**
+ * Collect eslint-enable comments that are removing suppressions by eslint-disable comments.
+ * @param {Directive[]} directives The directives to check.
+ * @returns {Set<Directive>} The used eslint-enable comments
+ */
+function collectUsedEnableDirectives(directives) {
+
+    /**
+     * A Map of `eslint-enable` keyed by ruleIds that may be marked as used.
+     * If `eslint-enable` does not have a ruleId, the key will be `null`.
+     * @type {Map<string|null, Directive>}
+     */
+    const enabledRules = new Map();
+
+    /**
+     * A Set of `eslint-enable` marked as used.
+     * It is also the return value of `collectUsedEnableDirectives` function.
+     * @type {Set<Directive>}
+     */
+    const usedEnableDirectives = new Set();
+
+    /*
+     * Checks the directives backwards to see if the encountered `eslint-enable` is used by the previous `eslint-disable`,
+     * and if so, stores the `eslint-enable` in `usedEnableDirectives`.
+     */
+    for (let index = directives.length - 1; index >= 0; index--) {
+        const directive = directives[index];
+
+        if (directive.type === "disable") {
+            if (enabledRules.size === 0) {
+                continue;
+            }
+            if (directive.ruleId === null) {
+
+                // If encounter `eslint-disable` without ruleId,
+                // mark all `eslint-enable` currently held in enabledRules as used.
+                // e.g.
+                //    /* eslint-disable */ <- current directive
+                //    /* eslint-enable rule-id1 */ <- used
+                //    /* eslint-enable rule-id2 */ <- used
+                //    /* eslint-enable */ <- used
+                for (const enableDirective of enabledRules.values()) {
+                    usedEnableDirectives.add(enableDirective);
+                }
+                enabledRules.clear();
+            } else {
+                const enableDirective = enabledRules.get(directive.ruleId);
+
+                if (enableDirective) {
+
+                    // If encounter `eslint-disable` with ruleId, and there is an `eslint-enable` with the same ruleId in enabledRules,
+                    // mark `eslint-enable` with ruleId as used.
+                    // e.g.
+                    //    /* eslint-disable rule-id */ <- current directive
+                    //    /* eslint-enable rule-id */ <- used
+                    usedEnableDirectives.add(enableDirective);
+                } else {
+                    const enabledDirectiveWithoutRuleId = enabledRules.get(null);
+
+                    if (enabledDirectiveWithoutRuleId) {
+
+                        // If encounter `eslint-disable` with ruleId, and there is no `eslint-enable` with the same ruleId in enabledRules,
+                        // mark `eslint-enable` without ruleId as used.
+                        // e.g.
+                        //    /* eslint-disable rule-id */ <- current directive
+                        //    /* eslint-enable */ <- used
+                        usedEnableDirectives.add(enabledDirectiveWithoutRuleId);
+                    }
+                }
+            }
+        } else if (directive.type === "enable") {
+            if (directive.ruleId === null) {
+
+                // If encounter `eslint-enable` without ruleId, the `eslint-enable` that follows it are unused.
+                // So clear enabledRules.
+                // e.g.
+                //    /* eslint-enable */ <- current directive
+                //    /* eslint-enable rule-id *// <- unused
+                //    /* eslint-enable */ <- unused
+                enabledRules.clear();
+                enabledRules.set(null, directive);
+            } else {
+                enabledRules.set(directive.ruleId, directive);
+            }
+        }
+    }
+    return usedEnableDirectives;
+}
+
+/**
  * This is the same as the exported function, except that it
  * doesn't handle disable-line and disable-next-line directives, and it always reports unused
  * disable directives.
  * @param {Object} options options for applying directives. This is the same as the options
  * for the exported function, except that `reportUnusedDisableDirectives` is not supported
  * (this function always reports unused disable directives).
- * @returns {{problems: LintMessage[], unusedDisableDirectives: LintMessage[]}} An object with a list
+ * @returns {{problems: LintMessage[], unusedDirectives: LintMessage[]}} An object with a list
  * of problems (including suppressed ones) and unused eslint-disable directives
  */
 function applyDirectives(options) {
@@ -258,17 +347,42 @@ function applyDirectives(options) {
     const unusedDisableDirectivesToReport = options.directives
         .filter(directive => directive.type === "disable" && !usedDisableDirectives.has(directive));
 
-    const processed = processUnusedDisableDirectives(unusedDisableDirectivesToReport);
 
-    const unusedDisableDirectives = processed
+    const unusedEnableDirectivesToReport = new Set(
+        options.directives.filter(directive => directive.unprocessedDirective.type === "enable")
+    );
+
+    /*
+     * If directives has the eslint-enable directive,
+     * check whether the eslint-enable comment is used.
+     */
+    if (unusedEnableDirectivesToReport.size > 0) {
+        for (const directive of collectUsedEnableDirectives(options.directives)) {
+            unusedEnableDirectivesToReport.delete(directive);
+        }
+    }
+
+    const processed = processUnusedDirectives(unusedDisableDirectivesToReport)
+        .concat(processUnusedDirectives(unusedEnableDirectivesToReport));
+
+    const unusedDirectives = processed
         .map(({ description, fix, unprocessedDirective }) => {
             const { parentComment, type, line, column } = unprocessedDirective;
 
+            let message;
+
+            if (type === "enable") {
+                message = description
+                    ? `Unused eslint-enable directive (no matching eslint-disable directives were found for ${description}).`
+                    : "Unused eslint-enable directive (no matching eslint-disable directives were found).";
+            } else {
+                message = description
+                    ? `Unused eslint-disable directive (no problems were reported from ${description}).`
+                    : "Unused eslint-disable directive (no problems were reported).";
+            }
             return {
                 ruleId: null,
-                message: description
-                    ? `Unused eslint-disable directive (no problems were reported from ${description}).`
-                    : "Unused eslint-disable directive (no problems were reported).",
+                message,
                 line: type === "disable-next-line" ? parentComment.commentToken.loc.start.line : line,
                 column: type === "disable-next-line" ? parentComment.commentToken.loc.start.column + 1 : column,
                 severity: options.reportUnusedDisableDirectives === "warn" ? 1 : 2,
@@ -277,7 +391,7 @@ function applyDirectives(options) {
             };
         });
 
-    return { problems, unusedDisableDirectives };
+    return { problems, unusedDirectives };
 }
 
 /**
@@ -344,8 +458,8 @@ module.exports = ({ directives, disableFixes, problems, reportUnusedDisableDirec
 
     return reportUnusedDisableDirectives !== "off"
         ? lineDirectivesResult.problems
-            .concat(blockDirectivesResult.unusedDisableDirectives)
-            .concat(lineDirectivesResult.unusedDisableDirectives)
+            .concat(blockDirectivesResult.unusedDirectives)
+            .concat(lineDirectivesResult.unusedDirectives)
             .sort(compareLocations)
         : lineDirectivesResult.problems;
 };
