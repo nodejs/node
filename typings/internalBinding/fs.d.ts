@@ -218,7 +218,7 @@ declare namespace InternalFSBinding {
   function utimes(path: string, atime: number, mtime: number, usePromises: typeof kUsePromises): Promise<void>;
 
   function writeBuffer(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number | null, req: FSReqCallback<number>): void;
-  function writeBuffer(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number | null, req: undefined, ctx: FSSyncContext): number;
+  function writeBuffer(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number | null): number;
   function writeBuffer(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number | null, usePromises: typeof kUsePromises): Promise<number>;
 
   function writeBuffers(fd: number, buffers: ArrayBufferView[], position: number, req: FSReqCallback<number>): void;
@@ -226,7 +226,7 @@ declare namespace InternalFSBinding {
   function writeBuffers(fd: number, buffers: ArrayBufferView[], position: number, usePromises: typeof kUsePromises): Promise<number>;
 
   function writeString(fd: number, value: string, pos: unknown, encoding: unknown, req: FSReqCallback<number>): void;
-  function writeString(fd: number, value: string, pos: unknown, encoding: unknown, req: undefined, ctx: FSSyncContext): number;
+  function writeString(fd: number, value: string, pos: unknown, encoding: unknown): number;
   function writeString(fd: number, value: string, pos: unknown, encoding: unknown, usePromises: typeof kUsePromises): Promise<number>;
 
   function getFormatOfExtensionlessFile(url: string): ConstantsBinding['fs'];
