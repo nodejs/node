@@ -47,7 +47,7 @@ const optionator = require("optionator");
  * @property {Object} [parserOptions] Specify parser options
  * @property {string[]} [plugin] Specify plugins
  * @property {string} [printConfig] Print the configuration for the given file
- * @property {boolean | undefined} reportUnusedDisableDirectives Adds reported errors for unused eslint-disable directives
+ * @property {boolean | undefined} reportUnusedDisableDirectives Adds reported errors for unused eslint-disable and eslint-enable directives
  * @property {string} [resolvePluginsRelativeTo] A folder where plugins should be resolved from, CWD by default
  * @property {Object} [rule] Specify rules
  * @property {string[]} [rulesdir] Load additional rules from this directory. Deprecated: Use rules from plugins
@@ -304,7 +304,7 @@ module.exports = function(usingFlatConfig) {
                 option: "report-unused-disable-directives",
                 type: "Boolean",
                 default: void 0,
-                description: "Adds reported errors for unused eslint-disable directives"
+                description: "Adds reported errors for unused eslint-disable and eslint-enable directives"
             },
             {
                 heading: "Caching"
