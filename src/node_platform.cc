@@ -504,9 +504,9 @@ void NodePlatform::PostTaskOnWorkerThreadImpl(
 }
 
 void NodePlatform::PostDelayedTaskOnWorkerThreadImpl(
-    v8::TaskPriority priority, 
+    v8::TaskPriority priority,
     std::unique_ptr<v8::Task> task,
-    double delay_in_seconds, 
+    double delay_in_seconds,
     const v8::SourceLocation& location) {
   worker_thread_task_runner_->PostDelayedTask(std::move(task),
                                               delay_in_seconds);
@@ -534,7 +534,7 @@ bool NodePlatform::FlushForegroundTasks(Isolate* isolate) {
 }
 
 std::unique_ptr<v8::JobHandle> NodePlatform::CreateJobImpl(
-    v8::TaskPriority priority, 
+    v8::TaskPriority priority,
     std::unique_ptr<v8::JobTask> job_task,
     const v8::SourceLocation& location) {
   return v8::platform::NewDefaultJobHandle(
