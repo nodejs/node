@@ -4877,10 +4877,7 @@ TEST_F(ParsingTest, BasicImportAssertionParsing) {
     "import { a as b } from 'm.js' assert { c:\n 'd'};",
     "import { a as b } from 'm.js' assert { c:'d'\n};",
 
-    "import { a as b } from 'm.js' assert { 0: 'b', };",
-    "import { a as b } from 'm.js' assert { 0n: 'b', };",
     "import { a as b } from 'm.js' assert { '0': 'b', };",
-    "import { a as b } from 'm.js' assert { 0.0: 'b', };",
   };
   // clang-format on
 
@@ -4942,18 +4939,12 @@ TEST_F(ParsingTest, ImportAssertionParsingErrors) {
     "import { a } from 'm.js'\n assert { };",
     "export * from 'm.js'\n assert { };",
 
-    "import { a } from 'm.js' assert { 1: 2 };",
+    "import { a } from 'm.js' assert { x: 2 };",
     "import { a } from 'm.js' assert { b: c };",
     "import { a } from 'm.js' assert { 'b': c };",
     "import { a } from 'm.js' assert { , b: c };",
     "import { a } from 'm.js' assert { a: 'b', a: 'c' };",
     "import { a } from 'm.js' assert { a: 'b', 'a': 'c' };",
-
-    "import { a } from 'm.js' assert { 0: 'b', '0': 'c' };",
-    "import { a } from 'm.js' assert { 0n: 'b', '0': 'c' };",
-    "import { a } from 'm.js' assert { 0: 'b', 0n: 'c' };",
-    "import { a } from 'm.js' assert { 0: 'b', 0.0: 'c' };",
-    "import { a } from 'm.js' assert { '0': 'b', 0n: 'c' };",
 
     "import 'm.js' with { a: 'b' };"
   };
@@ -5008,10 +4999,7 @@ TEST_F(ParsingTest, BasicImportAttributesParsing) {
     "import { a as b } from 'm.js' with { c:\n 'd'};",
     "import { a as b } from 'm.js' with { c:'d'\n};",
 
-    "import { a as b } from 'm.js' with { 0: 'b', };",
-    "import { a as b } from 'm.js' with { 0n: 'b', };",
     "import { a as b } from 'm.js' with { '0': 'b', };",
-    "import { a as b } from 'm.js' with { 0.0: 'b', };",
 
     "import 'm.js'\n with { };",
     "import 'm.js' \nwith { };",
@@ -5073,18 +5061,12 @@ TEST_F(ParsingTest, ImportAttributesParsingErrors) {
     "export { a } with { };",
     "export * with { };",
 
-    "import { a } from 'm.js' with { 1: 2 };",
+    "import { a } from 'm.js' with { x: 2 };",
     "import { a } from 'm.js' with { b: c };",
     "import { a } from 'm.js' with { 'b': c };",
     "import { a } from 'm.js' with { , b: c };",
     "import { a } from 'm.js' with { a: 'b', a: 'c' };",
     "import { a } from 'm.js' with { a: 'b', 'a': 'c' };",
-
-    "import { a } from 'm.js' with { 0: 'b', '0': 'c' };",
-    "import { a } from 'm.js' with { 0n: 'b', '0': 'c' };",
-    "import { a } from 'm.js' with { 0: 'b', 0n: 'c' };",
-    "import { a } from 'm.js' with { 0: 'b', 0.0: 'c' };",
-    "import { a } from 'm.js' with { '0': 'b', 0n: 'c' };",
 
     "import 'm.js' assert { a: 'b' };"
   };
