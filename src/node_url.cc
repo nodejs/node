@@ -417,12 +417,21 @@ void BindingData::RegisterExternalReferences(
   }
 }
 
-std::string FromFilePath(const std::string_view file_path) {
-  std::string escaped_file_path;
-  for (size_t i = 0; i < file_path.length(); ++i) {
-    escaped_file_path += file_path[i];
-    if (file_path[i] == '%') escaped_file_path += "25";
+std::string FromFilePath(std::string_view file_path) {
+  // Avoid unnecessary allocations.
+  size_t pos = file_path.empty() ? std::string_view::npos : file_path.find('%');
+  if (pos == std::string_view::npos) {
+    return ada::href_from_file(file_path);
   }
+  // Escape '%' characters to a temporary string.
+  std::string escaped_file_path;
+  do {
+    escaped_file_path += file_path.substr(0, pos + 1);
+    escaped_file_path += "25";
+    file_path = file_path.substr(pos + 1);
+    pos = file_path.empty() ? std::string_view::npos : file_path.find('%');
+  } while (pos != std::string_view::npos);
+  escaped_file_path += file_path;
   return ada::href_from_file(escaped_file_path);
 }
 

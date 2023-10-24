@@ -81,7 +81,7 @@ class BindingData : public SnapshotableObject {
                               std::optional<std::string> base);
 };
 
-std::string FromFilePath(const std::string_view file_path);
+std::string FromFilePath(std::string_view file_path);
 
 }  // namespace url
 
