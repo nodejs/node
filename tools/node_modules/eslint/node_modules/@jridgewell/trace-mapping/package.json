@@ -1,6 +1,6 @@
 {
   "name": "@jridgewell/trace-mapping",
-  "version": "0.3.19",
+  "version": "0.3.20",
   "description": "Trace the original position through a source map",
   "keywords": [
     "source",
