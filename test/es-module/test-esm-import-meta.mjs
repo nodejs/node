@@ -26,5 +26,5 @@ const fileReg = /^\/.*\/test\/es-module\/test-esm-import-meta\.mjs$/;
 assert.match(import.meta.filename, fileReg);
 
 // Verify that `data:` imports do not behave like `file:` imports.
-import dataDirname from 'data:text/javascript,export default import.meta.dirname';
-assert.strictEqual(dataDirname, undefined);
+import dataDirname from 'data:text/javascript,export default "dirname" in import.meta';
+assert.strictEqual(dataDirname, false);
