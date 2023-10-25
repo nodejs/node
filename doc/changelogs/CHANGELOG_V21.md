@@ -74,7 +74,7 @@ presence of the `importModuleDynamically` option, so that users affected by the
 performance regression can now upgrade. Ongoing work is also being done to
 enable compilation cache support for `vm.CompileFunction`.
 
-Contributed by Joyee Cheung in https://github.com/nodejs/node/pull/50137
+Contributed by Joyee Cheung in [#50137](https://github.com/nodejs/node/pull/50137).
 
 #### Other Notable Changes
 
