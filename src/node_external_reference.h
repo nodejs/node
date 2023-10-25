@@ -120,6 +120,7 @@ class ExternalReferenceRegistry {
   V(messaging)                                                                 \
   V(mksnapshot)                                                                \
   V(module_wrap)                                                               \
+  V(modules)                                                                   \
   V(options)                                                                   \
   V(os)                                                                        \
   V(performance)                                                               \
