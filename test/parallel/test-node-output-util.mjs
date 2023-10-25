@@ -3,6 +3,8 @@ import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
 
+Error.stackTraceLimit = 0;
+
 function replaceStackTrace(str) {
   return snapshot.replaceStackTrace(str, '$1at *$7\n');
 }
