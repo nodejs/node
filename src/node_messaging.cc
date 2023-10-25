@@ -999,6 +999,47 @@ static Maybe<bool> ReadIterable(Environment* env,
   return Just(true);
 }
 
+bool GetTransferList(Environment* env,
+                     Local<Context> context,
+                     Local<Value> transfer_list_v,
+                     TransferList* transfer_list_out) {
+  if (transfer_list_v->IsNullOrUndefined()) {
+    // Browsers ignore null or undefined, and otherwise accept an array or an
+    // options object.
+    return true;
+  }
+
+  if (!transfer_list_v->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env, "Optional transferList argument must be an iterable");
+    return false;
+  }
+
+  bool was_iterable;
+  if (!ReadIterable(env, context, *transfer_list_out, transfer_list_v)
+           .To(&was_iterable))
+    return false;
+  if (!was_iterable) {
+    Local<Value> transfer_option;
+    if (!transfer_list_v.As<Object>()
+             ->Get(context, env->transfer_string())
+             .ToLocal(&transfer_option))
+      return false;
+    if (!transfer_option->IsUndefined()) {
+      if (!ReadIterable(env, context, *transfer_list_out, transfer_option)
+               .To(&was_iterable))
+        return false;
+      if (!was_iterable) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env, "Optional options.transfer argument must be an iterable");
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Object> obj = args.This();
@@ -1009,33 +1050,10 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
                                        "MessagePort.postMessage");
   }
 
-  if (!args[1]->IsNullOrUndefined() && !args[1]->IsObject()) {
-    // Browsers ignore null or undefined, and otherwise accept an array or an
-    // options object.
-    return THROW_ERR_INVALID_ARG_TYPE(env,
-        "Optional transferList argument must be an iterable");
-  }
-
   TransferList transfer_list;
-  if (args[1]->IsObject()) {
-    bool was_iterable;
-    if (!ReadIterable(env, context, transfer_list, args[1]).To(&was_iterable))
-      return;
-    if (!was_iterable) {
-      Local<Value> transfer_option;
-      if (!args[1].As<Object>()->Get(context, env->transfer_string())
-          .ToLocal(&transfer_option)) return;
-      if (!transfer_option->IsUndefined()) {
-        if (!ReadIterable(env, context, transfer_list, transfer_option)
-            .To(&was_iterable)) return;
-        if (!was_iterable) {
-          return THROW_ERR_INVALID_ARG_TYPE(env,
-              "Optional options.transfer argument must be an iterable");
-        }
-      }
-    }
+  if (!GetTransferList(env, context, args[1], &transfer_list)) {
+    return;
   }
-
   MessagePort* port = Unwrap<MessagePort>(args.This());
   // Even if the backing MessagePort object has already been deleted, we still
   // want to serialize the message to ensure spec-compliant behavior w.r.t.
@@ -1472,6 +1490,48 @@ static void SetDeserializerCreateObjectFunction(
   env->set_messaging_deserialize_create_object(args[0].As<Function>());
 }
 
+static void StructuredClone(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
+
+  if (args.Length() == 0) {
+    return THROW_ERR_MISSING_ARGS(env, "The value argument must be specified");
+  }
+
+  Local<Value> value = args[0];
+
+  TransferList transfer_list;
+  if (!args[1]->IsNullOrUndefined()) {
+    if (!args[1]->IsObject()) {
+      return THROW_ERR_INVALID_ARG_TYPE(
+          env, "The options argument must be either an object or undefined");
+    }
+    Local<Object> options = args[1].As<Object>();
+    Local<Value> transfer_list_v;
+    if (!options->Get(context, env->transfer_string())
+             .ToLocal(&transfer_list_v)) {
+      return;
+    }
+
+    // TODO(joyeecheung): implement this in JS land to avoid the C++ -> JS
+    // cost to convert a sequence into an array.
+    if (!GetTransferList(env, context, transfer_list_v, &transfer_list)) {
+      return;
+    }
+  }
+
+  std::shared_ptr<Message> msg = std::make_shared<Message>();
+  Local<Value> result;
+  if (msg->Serialize(env, context, value, transfer_list, Local<Object>())
+          .IsNothing() ||
+      !msg->Deserialize(env, context, nullptr).ToLocal(&result)) {
+    return;
+  }
+  args.GetReturnValue().Set(result);
+}
+
 static void MessageChannel(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!args.IsConstructCall()) {
@@ -1554,6 +1614,7 @@ static void InitMessaging(Local<Object> target,
             "setDeserializerCreateObjectFunction",
             SetDeserializerCreateObjectFunction);
   SetMethod(context, target, "broadcastChannel", BroadcastChannel);
+  SetMethod(context, target, "structuredClone", StructuredClone);
 
   {
     Local<Function> domexception = GetDOMException(context).ToLocalChecked();
@@ -1578,6 +1639,7 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(MessagePort::ReceiveMessage);
   registry->Register(MessagePort::MoveToContext);
   registry->Register(SetDeserializerCreateObjectFunction);
+  registry->Register(StructuredClone);
 }
 
 }  // anonymous namespace
