@@ -1122,10 +1122,10 @@ napi_status NAPI_CDECL napi_set_property_utf16(napi_env env,
 
   CHECK_TO_OBJECT(env, context, obj, object);
 
-  v8::Local<v8::Value> k = v8::String::NewFromTwoByte(context->GetIsolate(),
-                                                     utf16name,
-                                                     v8::NewStringType::kNormal)
-                               .ToLocalChecked();
+  v8::Local<v8::Value> k =
+      v8::String::NewFromTwoByte(
+          context->GetIsolate(), utf16name, v8::NewStringType::kNormal)
+          .ToLocalChecked();
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
 
   v8::Maybe<bool> set_maybe = obj->Set(context, k, val);
