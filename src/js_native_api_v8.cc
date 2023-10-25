@@ -1110,9 +1110,9 @@ napi_status NAPI_CDECL napi_set_property(napi_env env,
 }
 
 napi_status NAPI_CDECL napi_set_property_utf16(napi_env env,
-                                                napi_value object,
-                                                const uint16_t* utf16name,
-                                                napi_value value) {
+                                               napi_value object,
+                                               const uint16_t* utf16name,
+                                               napi_value value) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, utf16name);
   CHECK_ARG(env, value);
