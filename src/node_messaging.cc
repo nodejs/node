@@ -1573,7 +1573,7 @@ static void StructuredClone(const FunctionCallbackInfo<Value>& args) {
     }
     Local<Object> options = args[1].As<Object>();
     Local<Value> transfer_list_v;
-    if (!options->Get(context, FIXED_ONE_BYTE_STRING(isolate, "transfer"))
+    if (!options->Get(context, env->transfer_string())
              .ToLocal(&transfer_list_v)) {
       return;
     }
