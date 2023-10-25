@@ -289,6 +289,10 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
       return BaseObjectPtr<ContextifyContext>();
     }
 
+    // Assign host_defined_options_id to the global object so that in the
+    // callback of ImportModuleDynamically, we can get the
+    // host_defined_options_id from the v8::Context without accessing the
+    // wrapper object.
     if (new_context_global
             ->SetPrivate(v8_context,
                          env->host_defined_option_symbol(),
@@ -317,6 +321,9 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
           .IsNothing()) {
     return BaseObjectPtr<ContextifyContext>();
   }
+  // Assign host_defined_options_id to the sandbox object so that module
+  // callbacks like importModuleDynamically can be registered once back to the
+  // JS land.
   if (sandbox_obj
           ->SetPrivate(v8_context,
                        env->host_defined_option_symbol(),
