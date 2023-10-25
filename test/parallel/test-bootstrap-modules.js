@@ -24,6 +24,7 @@ const expected = {};
 expected.beforePreExec = new Set([
   'Internal Binding builtins',
   'Internal Binding encoding_binding',
+  'Internal Binding modules',
   'Internal Binding errors',
   'Internal Binding util',
   'NativeModule internal/errors',
