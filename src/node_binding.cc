@@ -52,6 +52,7 @@
   V(js_stream)                                                                 \
   V(js_udp_wrap)                                                               \
   V(messaging)                                                                 \
+  V(modules)                                                                   \
   V(module_wrap)                                                               \
   V(mksnapshot)                                                                \
   V(options)                                                                   \

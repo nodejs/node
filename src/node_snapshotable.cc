@@ -21,6 +21,7 @@
 #include "node_internals.h"
 #include "node_main_instance.h"
 #include "node_metadata.h"
+#include "node_modules.h"
 #include "node_process.h"
 #include "node_snapshot_builder.h"
 #include "node_url.h"
