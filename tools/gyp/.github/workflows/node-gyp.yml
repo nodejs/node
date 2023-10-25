@@ -1,33 +1,43 @@
 name: node-gyp integration
-
-on: [push, pull_request]
-
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 jobs:
-  test:
+  integration:
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        python: ["3.7", "3.10"]
+        python: ["3.8", "3.10", "3.12"]
 
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone gyp-next
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: gyp-next
       - name: Clone nodejs/node-gyp
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: nodejs/node-gyp
           path: node-gyp
       - uses: actions/setup-node@v3
         with:
-          node-version: 14.x
-      - uses: actions/setup-python@v3
+          node-version: 18.x
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
-      - name: Install dependencies
+          allow-prereleases: true
+      - name: Install Python dependencies
+        run: |
+          cd gyp-next
+          python -m pip install --upgrade pip setuptools
+          pip install --editable .
+          pip uninstall -y gyp-next
+      - name: Install Node.js dependencies
         run: |
           cd node-gyp
           npm install --no-progress
@@ -36,7 +46,15 @@ jobs:
         run: |
           rm -rf node-gyp/gyp
           cp -r gyp-next node-gyp/gyp
-      - name: Run tests
+      - name: Run tests (macOS or Linux)
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           cd node-gyp
-          npm test
+          npm test --python="${pythonLocation}/python"
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cd node-gyp
+          npm run test --python="${env:pythonLocation}\\python.exe"
