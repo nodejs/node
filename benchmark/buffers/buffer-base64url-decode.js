@@ -14,7 +14,7 @@ function main({ n, size }) {
   s.match(/./);  // Flatten string.
   assert.strictEqual(s.length % 4, 0);
   const b = Buffer.allocUnsafe(encodedSize);
-  b.write(s, 0, encodedSize, 'base64');
+  b.write(s, 0, encodedSize, 'base64url');
 
   let tmp;
 
