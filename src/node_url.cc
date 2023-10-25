@@ -229,35 +229,6 @@ void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
                                 .ToLocalChecked());
 }
 
-void BindingData::ThrowInvalidURL(node::Environment* env,
-                                  std::string_view input,
-                                  std::optional<std::string> base) {
-  Local<Value> err = ERR_INVALID_URL(env->isolate(), "Invalid URL");
-  DCHECK(err->IsObject());
-
-  auto err_object = err.As<Object>();
-
-  USE(err_object->Set(env->context(),
-                      env->input_string(),
-                      v8::String::NewFromUtf8(env->isolate(),
-                                              input.data(),
-                                              v8::NewStringType::kNormal,
-                                              input.size())
-                          .ToLocalChecked()));
-
-  if (base.has_value()) {
-    USE(err_object->Set(env->context(),
-                        env->base_string(),
-                        v8::String::NewFromUtf8(env->isolate(),
-                                                base.value().c_str(),
-                                                v8::NewStringType::kNormal,
-                                                base.value().size())
-                            .ToLocalChecked()));
-  }
-
-  env->isolate()->ThrowException(err);
-}
-
 void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());  // input
@@ -424,6 +395,35 @@ void BindingData::RegisterExternalReferences(
   for (const CFunction& method : fast_can_parse_methods_) {
     registry->Register(method.GetTypeInfo());
   }
+}
+
+void ThrowInvalidURL(node::Environment* env,
+                     std::string_view input,
+                     std::optional<std::string> base) {
+  Local<Value> err = ERR_INVALID_URL(env->isolate(), "Invalid URL");
+  DCHECK(err->IsObject());
+
+  auto err_object = err.As<Object>();
+
+  USE(err_object->Set(env->context(),
+                      env->input_string(),
+                      v8::String::NewFromUtf8(env->isolate(),
+                                              input.data(),
+                                              v8::NewStringType::kNormal,
+                                              input.size())
+                          .ToLocalChecked()));
+
+  if (base.has_value()) {
+    USE(err_object->Set(env->context(),
+                        env->base_string(),
+                        v8::String::NewFromUtf8(env->isolate(),
+                                                base.value().c_str(),
+                                                v8::NewStringType::kNormal,
+                                                base.value().size())
+                            .ToLocalChecked()));
+  }
+
+  env->isolate()->ThrowException(err);
 }
 
 std::string FromFilePath(std::string_view file_path) {

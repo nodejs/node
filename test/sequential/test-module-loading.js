@@ -126,9 +126,13 @@ assert.throws(
   }
 );
 
+// This is different from v21.x and above, where the test is
+// changed to check error code instead: https://github.com/nodejs/node/pull/48606
+// We are checking the error message produced by
+// https://github.com/nodejs/node/pull/50322
 assert.throws(
   function() { require('../fixtures/packages/unparseable'); },
-  /^SyntaxError: Error parsing/
+  /^Error: Invalid package config/
 );
 
 {
