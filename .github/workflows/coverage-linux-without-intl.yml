@@ -3,23 +3,27 @@ name: Coverage Linux (without intl)
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - '**.md'
-      - benchmark/**
-      - deps/**
-      - doc/**
-      - .github/**
-      - '!.github/workflows/coverage-linux-without-intl.yml'
+    paths:
+      - lib/**/*.js
+      - Makefile
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-linux-without-intl.yml
   push:
     branches:
       - main
-    paths-ignore:
-      - '**.md'
-      - benchmark/**
-      - deps/**
-      - doc/**
-      - .github/**
-      - '!.github/workflows/coverage-linux-without-intl.yml'
+    paths:
+      - lib/**/*.js
+      - Makefile
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-linux-without-intl.yml
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
