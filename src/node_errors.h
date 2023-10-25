@@ -76,6 +76,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
   V(ERR_INVALID_FILE_URL_HOST, TypeError)                                      \
   V(ERR_INVALID_FILE_URL_PATH, TypeError)                                      \
+  V(ERR_INVALID_PACKAGE_CONFIG, Error)                                         \
   V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \
   V(ERR_INVALID_MODULE, Error)                                                 \
   V(ERR_INVALID_STATE, Error)                                                  \

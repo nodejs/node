@@ -1038,68 +1038,6 @@ static void ExistsSync(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err == 0);
 }
 
-// Used to speed up module loading. Returns an array [string, boolean]
-static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  uv_loop_t* loop = env->event_loop();
-
-  CHECK(args[0]->IsString());
-  node::Utf8Value path(isolate, args[0]);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
-
-  if (strlen(*path) != path.length()) {
-    return;  // Contains a nul byte.
-  }
-  uv_fs_t open_req;
-  const int fd = uv_fs_open(loop, &open_req, *path, O_RDONLY, 0, nullptr);
-  uv_fs_req_cleanup(&open_req);
-
-  if (fd < 0) {
-    return;
-  }
-
-  auto defer_close = OnScopeLeave([fd, loop]() {
-    uv_fs_t close_req;
-    CHECK_EQ(0, uv_fs_close(loop, &close_req, fd, nullptr));
-    uv_fs_req_cleanup(&close_req);
-  });
-
-  const size_t kBlockSize = 32 << 10;
-  std::vector<char> chars;
-  int64_t offset = 0;
-  ssize_t numchars;
-  do {
-    const size_t start = chars.size();
-    chars.resize(start + kBlockSize);
-
-    uv_buf_t buf;
-    buf.base = &chars[start];
-    buf.len = kBlockSize;
-
-    uv_fs_t read_req;
-    numchars = uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
-    uv_fs_req_cleanup(&read_req);
-
-    if (numchars < 0) {
-      return;
-    }
-    offset += numchars;
-  } while (static_cast<size_t>(numchars) == kBlockSize);
-
-  size_t start = 0;
-  if (offset >= 3 && 0 == memcmp(chars.data(), "\xEF\xBB\xBF", 3)) {
-    start = 3;  // Skip UTF-8 BOM.
-  }
-  const size_t size = offset - start;
-
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(
-          isolate, &chars[start], v8::NewStringType::kNormal, size)
-          .ToLocalChecked());
-}
-
 // Used to speed up module loading.  Returns 0 if the path refers to
 // a file, 1 when it's a directory or < 0 on error (usually -ENOENT.)
 // The speedup comes from not creating thousands of Stat and Error objects.
@@ -3199,7 +3137,6 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "rmdir", RMDir);
   SetMethod(isolate, target, "mkdir", MKDir);
   SetMethod(isolate, target, "readdir", ReadDir);
-  SetMethod(isolate, target, "internalModuleReadJSON", InternalModuleReadJSON);
   SetMethod(isolate, target, "internalModuleStat", InternalModuleStat);
   SetMethod(isolate, target, "stat", Stat);
   SetMethod(isolate, target, "lstat", LStat);
@@ -3320,7 +3257,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RMDir);
   registry->Register(MKDir);
   registry->Register(ReadDir);
-  registry->Register(InternalModuleReadJSON);
   registry->Register(InternalModuleStat);
   registry->Register(Stat);
   registry->Register(LStat);
