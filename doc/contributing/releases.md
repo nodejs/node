@@ -20,7 +20,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [5. Create release commit](#5-create-release-commit)
   * [6. Propose release on GitHub](#6-propose-release-on-github)
   * [7. Ensure that the release branch is stable](#7-ensure-that-the-release-branch-is-stable)
-    * [7.1 Updating the release _(optional)_](#7-1-updating-the-release-optional)
+    * [7.1 Updating the release _(optional)_](#71-updating-the-release-optional)
   * [8. Produce a nightly build _(optional)_](#8-produce-a-nightly-build-optional)
   * [9. Produce release builds](#9-produce-release-builds)
   * [10. Test the build](#10-test-the-build)
