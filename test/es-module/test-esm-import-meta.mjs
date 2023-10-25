@@ -19,10 +19,14 @@ for (const descriptor of Object.values(descriptors)) {
 const urlReg = /^file:\/\/\/.*\/test\/es-module\/test-esm-import-meta\.mjs$/;
 assert(import.meta.url.match(urlReg));
 
-const dirReg = /^\/.*\/test\/es-module$/;
+// Match *nix paths: `/some/path/test/es-module`
+// Match Windows paths: `d:\\some\\path\\test\\es-module`
+const dirReg = /^(\/|\w:\\).*(\/|\\)test(\/|\\{2})es-module$/;
 assert.match(import.meta.dirname, dirReg);
 
-const fileReg = /^\/.*\/test\/es-module\/test-esm-import-meta\.mjs$/;
+// Match *nix paths: `/some/path/test/es-module/test-esm-import-meta.mjs`
+// Match Windows paths: `d:\\some\\path\\test\\es-module\\test-esm-import-meta.js`
+const fileReg = /^(\/|\w:\\).*(\/|\\)test(\/|\\{2})es-module(\/|\\{2})test-esm-import-meta\.mjs$/;
 assert.match(import.meta.filename, fileReg);
 
 // Verify that `data:` imports do not behave like `file:` imports.
