@@ -15,6 +15,7 @@ import {TypesBinding} from "./internalBinding/types";
 import {URLBinding} from "./internalBinding/url";
 import {UtilBinding} from "./internalBinding/util";
 import {WorkerBinding} from "./internalBinding/worker";
+import {ModulesBinding} from "./internalBinding/modules";
 
 interface InternalBindingMap {
   async_wrap: AsyncWrapBinding;
@@ -25,6 +26,7 @@ interface InternalBindingMap {
   fs_dir: FsDirBinding;
   http_parser: HttpParserBinding;
   messaging: MessagingBinding;
+  modules: ModulesBinding;
   options: OptionsBinding;
   os: OSBinding;
   serdes: SerdesBinding;
