@@ -107,7 +107,6 @@ if (common.isMainThread) {
     'NativeModule internal/perf/event_loop_utilization',
     'NativeModule internal/process/worker_thread_only',
     'NativeModule internal/streams/add-abort-signal',
-    'NativeModule internal/streams/buffer_list',
     'NativeModule internal/streams/compose',
     'NativeModule internal/streams/destroy',
     'NativeModule internal/streams/duplex',
