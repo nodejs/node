@@ -54,6 +54,6 @@ if [ $? -eq 0 ]; then
   echo "Notarization node-$pkgid.pkg submitted successfully."
   exit 0
 else
-  echo "Notarization node-$pkgid.pkg failed. Error: $notarization_output"
+  echo "Notarization node-$pkgid.pkg failed."
   exit 1
 fi
