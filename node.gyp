@@ -754,7 +754,7 @@
                 '<(fipsmodule)',
               ],
               'action': [
-                'python', 'tools/copyfile.py',
+                '<(python)', 'tools/copyfile.py',
                 '<(fipsmodule_internal)',
                 '<(fipsmodule)',
               ],
@@ -764,7 +764,7 @@
               'inputs': [ '<(opensslconfig)', ],
               'outputs': [ '<(opensslconfig_internal)', ],
               'action': [
-                'python', 'tools/enable_fips_include.py',
+                '<(python)', 'tools/enable_fips_include.py',
                 '<(opensslconfig)',
                 '<(opensslconfig_internal)',
                 '<(fipsconfig)',

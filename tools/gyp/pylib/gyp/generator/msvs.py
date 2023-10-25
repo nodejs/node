@@ -438,6 +438,7 @@ def _BuildCommandLineForRuleRaw(
             # Support a mode for using cmd directly.
             # Convert any paths to native form (first element is used directly).
             # TODO(quote):  regularize quoting path names throughout the module
+            command[1] = '"%s"' % command[1]
             arguments = ['"%s"' % i for i in arguments]
         # Collapse into a single command.
         return input_dir_preamble + " ".join(command + arguments)
