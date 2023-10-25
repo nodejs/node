@@ -403,6 +403,18 @@ if (anAlwaysFalseCondition) {
 }
 ```
 
+### Coverage reporters
+
+The tap and spec reporters will print a summary of the coverage statistics.
+There is also an lcov reporter that will generate an lcov file which can be
+used as an in depth coverage report.
+
+```bash
+node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=lcov.info
+```
+
+### Limitations
+
 The test runner's code coverage functionality has the following limitations,
 which will be addressed in a future Node.js release:
 
@@ -850,6 +862,10 @@ The following built-reporters are supported:
 * `junit`
   The junit reporter outputs test results in a jUnit XML format
 
+* `lcov`
+  The `lcov` reporter outputs test coverage when used with the
+  [`--experimental-test-coverage`][] flag.
+
 When `stdout` is a [TTY][], the `spec` reporter is used by default.
 Otherwise, the `tap` reporter is used by default.
 
@@ -861,11 +877,11 @@ to the test runner's output is required, use the events emitted by the
 The reporters are available via the `node:test/reporters` module:
 
 ```mjs
-import { tap, spec, dot, junit } from 'node:test/reporters';
+import { tap, spec, dot, junit, lcov } from 'node:test/reporters';
 ```
 
 ```cjs
-const { tap, spec, dot, junit } = require('node:test/reporters');
+const { tap, spec, dot, junit, lcov } = require('node:test/reporters');
 ```
 
 ### Custom reporters
