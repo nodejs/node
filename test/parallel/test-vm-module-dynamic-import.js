@@ -40,7 +40,7 @@ async function test() {
     });
 
     const result = s.runInThisContext();
-    assert.strictEqual(foo.namespace, await result);
+    assert.strictEqual(await result, foo.namespace);
   }
 
   {
@@ -53,7 +53,7 @@ async function test() {
     });
     await m.link(common.mustNotCall());
     await m.evaluate();
-    assert.strictEqual(foo.namespace, await globalThis.fooResult);
+    assert.strictEqual(await globalThis.fooResult, foo.namespace);
     delete globalThis.fooResult;
   }
 
@@ -68,7 +68,7 @@ async function test() {
     });
 
     const result = s.runInThisContext();
-    assert.strictEqual(foo.namespace, await result);
+    assert.strictEqual(await result, foo.namespace);
   }
 }
 
