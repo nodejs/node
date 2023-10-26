@@ -8,14 +8,13 @@
 set -ex
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
-ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-[ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
+[ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
-NPM="$ROOT/deps/npm/bin/npm-cli.js"
+NPM="$BASE_DIR/deps/npm/bin/npm-cli.js"
 DEPS_DIR="$BASE_DIR/deps"
 
 # shellcheck disable=SC1091
-. "$ROOT/tools/dep_updaters/utils.sh"
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION=$("$NODE" "$NPM" view acorn-walk dist-tags.latest)
 CURRENT_VERSION=$("$NODE" -p "require('./deps/acorn/acorn-walk/package.json').version")
@@ -39,7 +38,7 @@ trap cleanup INT TERM EXIT
 
 cd "$WORKSPACE"
 
-echo "Fetching ada source archive..."
+echo "Fetching acorn-walk source archive..."
 
 DIST_URL=$(curl -sL "https://registry.npmjs.org/acorn-walk/$NEW_VERSION" | perl -n -e '/"dist".*?"tarball":"(.*?)"/ && print $1')
 
