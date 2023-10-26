@@ -72,7 +72,7 @@ async function validateWrongSignalParam() {
 async function validateZeroByteLiar() {
   const originalFStat = fsBinding.fstat;
   fsBinding.fstat = common.mustCall(
-    () => (/* stat fields */ [0, 1, 2, 3, 4, 5, 6, 7, 0 /* size */])
+    async () => (/* stat fields */ [0, 1, 2, 3, 4, 5, 6, 7, 0 /* size */])
   );
   const readBuffer = await readFile(fn);
   assert.strictEqual(readBuffer.toString(), largeBuffer.toString());
