@@ -1,3 +1,4 @@
+// Flags: --experimental-global-navigator
 'use strict';
 
 require('../common');

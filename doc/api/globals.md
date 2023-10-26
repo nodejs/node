@@ -598,9 +598,14 @@ This variable may appear to be global but is not. See [`module`][].
 
 <!-- YAML
 added: v21.0.0
+changes:
+  version: REPLACEME
+  pr-url: https://github.com/nodejs/node/pull/50412
+  description: The API is behind the CLI flag `--experimental-global-navigator`.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.1 - Active development. Use `--experimental-global-navigator` to
+> enable this feature.
 
 A partial implementation of the [Navigator API][].
 
@@ -608,19 +613,16 @@ A partial implementation of the [Navigator API][].
 
 <!-- YAML
 added: v21.0.0
+changes:
+  version: REPLACEME
+  pr-url: https://github.com/nodejs/node/pull/50412
+  description: The API is behind the CLI flag `--experimental-global-navigator`.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.1 - Active development. Use `--experimental-global-navigator` to
+> enable this feature.
 
 A partial implementation of [`window.navigator`][].
-
-If your app or a dependency uses a check for `navigator` to determine whether it
-is running in a browser, the following can be used to delete the `navigator`
-global before app code runs:
-
-```bash
-node --import 'data:text/javascript,delete globalThis.navigator' app.js
-```
 
 ### `navigator.hardwareConcurrency`
 
