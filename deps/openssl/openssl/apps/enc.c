@@ -624,7 +624,10 @@ int enc_main(int argc, char **argv)
         }
     }
     if (!BIO_flush(wbio)) {
-        BIO_printf(bio_err, "bad decrypt\n");
+        if (enc)
+            BIO_printf(bio_err, "bad encrypt\n");
+        else
+            BIO_printf(bio_err, "bad decrypt\n");
         goto end;
     }
 

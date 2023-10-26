@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,11 +21,6 @@
 #  elif defined(__GNUC__)
 #   if   defined(__aarch64__)
 #    define __ARM_ARCH__ 8
-#    if __BYTE_ORDER__==__ORDER_BIG_ENDIAN__
-#     define __ARMEB__
-#    else
-#     define __ARMEL__
-#    endif
   /*
    * Why doesn't gcc define __ARM_ARCH__? Instead it defines
    * bunch of below macros. See all_architectures[] table in

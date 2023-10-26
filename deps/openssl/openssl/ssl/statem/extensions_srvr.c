@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -883,7 +883,7 @@ int tls_parse_ctos_cookie(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     }
 
     /* Act as if this ClientHello came after a HelloRetryRequest */
-    s->hello_retry_request = 1;
+    s->hello_retry_request = SSL_HRR_PENDING;
 
     s->ext.cookieok = 1;
 #endif

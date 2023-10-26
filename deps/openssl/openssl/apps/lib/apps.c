@@ -944,7 +944,7 @@ int load_key_certs_crls_suppress(const char *uri, int format, int maybe_stdin,
         BIO *bio;
 
         if (!maybe_stdin) {
-            BIO_printf(bio_err, "No filename or uri specified for loading");
+            BIO_printf(bio_err, "No filename or uri specified for loading\n");
             goto end;
         }
         uri = "<stdin>";
@@ -964,8 +964,10 @@ int load_key_certs_crls_suppress(const char *uri, int format, int maybe_stdin,
         BIO_printf(bio_err, "Could not open file or uri for loading");
         goto end;
     }
-    if (expect > 0 && !OSSL_STORE_expect(ctx, expect))
+    if (expect > 0 && !OSSL_STORE_expect(ctx, expect)) {
+        BIO_printf(bio_err, "Internal error trying to load");
         goto end;
+    }
 
     failed = NULL;
     while (cnt_expectations > 0 && !OSSL_STORE_eof(ctx)) {
@@ -1948,16 +1950,17 @@ X509_NAME *parse_name(const char *cp, int chtype, int canmulti,
         nid = OBJ_txt2nid(typestr);
         if (nid == NID_undef) {
             BIO_printf(bio_err,
-                       "%s: Skipping unknown %s name attribute \"%s\"\n",
+                       "%s warning: Skipping unknown %s name attribute \"%s\"\n",
                        opt_getprog(), desc, typestr);
             if (ismulti)
                 BIO_printf(bio_err,
-                           "Hint: a '+' in a value string needs be escaped using '\\' else a new member of a multi-valued RDN is expected\n");
+                           "%s hint: a '+' in a value string needs be escaped using '\\' else a new member of a multi-valued RDN is expected\n",
+                           opt_getprog());
             continue;
         }
         if (*valstr == '\0') {
             BIO_printf(bio_err,
-                       "%s: No value provided for %s name attribute \"%s\", skipped\n",
+                       "%s warning: No value provided for %s name attribute \"%s\", skipped\n",
                        opt_getprog(), desc, typestr);
             continue;
         }
@@ -3360,8 +3363,8 @@ EVP_PKEY *app_keygen(EVP_PKEY_CTX *ctx, const char *alg, int bits, int verbose)
         BIO_printf(bio_err, "Warning: generating random key material may take a long time\n"
                    "if the system has a poor entropy source\n");
     if (EVP_PKEY_keygen(ctx, &res) <= 0)
-        app_bail_out("%s: Error generating %s key\n", opt_getprog(),
-                     alg != NULL ? alg : "asymmetric");
+        BIO_printf(bio_err, "%s: Error generating %s key\n", opt_getprog(),
+                   alg != NULL ? alg : "asymmetric");
     return res;
 }
 
@@ -3373,8 +3376,8 @@ EVP_PKEY *app_paramgen(EVP_PKEY_CTX *ctx, const char *alg)
         BIO_printf(bio_err, "Warning: generating random key parameters may take a long time\n"
                    "if the system has a poor entropy source\n");
     if (EVP_PKEY_paramgen(ctx, &res) <= 0)
-        app_bail_out("%s: Generating %s key parameters failed\n",
-                     opt_getprog(), alg != NULL ? alg : "asymmetric");
+        BIO_printf(bio_err, "%s: Generating %s key parameters failed\n",
+                   opt_getprog(), alg != NULL ? alg : "asymmetric");
     return res;
 }
 

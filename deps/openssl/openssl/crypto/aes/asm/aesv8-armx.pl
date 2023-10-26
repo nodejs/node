@@ -3661,6 +3661,9 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	s/\.[ui]?64//o and s/\.16b/\.2d/go;
 	s/\.[42]([sd])\[([0-3])\]/\.$1\[$2\]/o;
 
+	# Switch preprocessor checks to aarch64 versions.
+	s/__ARME([BL])__/__AARCH64E$1__/go;
+
 	print $_,"\n";
     }
 } else {				######## 32-bit code

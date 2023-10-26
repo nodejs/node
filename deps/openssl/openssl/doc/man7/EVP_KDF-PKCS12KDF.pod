@@ -46,6 +46,9 @@ RFC 7292 section B.3.
 
 =head1 NOTES
 
+This algorithm is not available in the FIPS provider as it is not FIPS
+approvable.
+
 A typical application of this algorithm is to derive keying material for an
 encryption algorithm from a password in the "pass", a salt in "salt",
 and an iteration count.
@@ -68,7 +71,8 @@ L<EVP_KDF_CTX_new(3)>,
 L<EVP_KDF_CTX_free(3)>,
 L<EVP_KDF_CTX_set_params(3)>,
 L<EVP_KDF_derive(3)>,
-L<EVP_KDF(3)/PARAMETERS>
+L<EVP_KDF(3)/PARAMETERS>,
+L<OSSL_PROVIDER-FIPS(7)>
 
 =head1 HISTORY
 
@@ -76,7 +80,7 @@ This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

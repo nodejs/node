@@ -54,7 +54,7 @@ B<EVP_shake256> provides that of 256 bits.
 
 Developers should be aware of the negative performance implications of
 calling these functions multiple times and should consider using
-L<EVP_MD_fetch(3)> instead.
+L<EVP_MD_fetch(3)> with L<EVP_MD-SHA3(7)> or L<EVP_MD-SHAKE(7)> instead.
 See L<crypto(7)/Performance> for further information.
 
 =head1 RETURN VALUES
