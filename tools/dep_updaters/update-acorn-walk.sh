@@ -23,27 +23,38 @@ compare_dependency_version "acorn-walk" "$NEW_VERSION" "$CURRENT_VERSION"
 
 cd "$( dirname "$0" )/../.." || exit
 
-rm -rf deps/acorn/acorn-walk
+echo "Making temporary workspace..."
 
-(
-    rm -rf acorn-walk-tmp
-    mkdir acorn-walk-tmp
-    cd acorn-walk-tmp || exit
+WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
 
-    "$NODE" "$NPM" init --yes
+cleanup () {
+  EXIT_CODE=$?
+  [ -d "$WORKSPACE" ] && rm -rf "$WORKSPACE"
+  exit $EXIT_CODE
+}
 
-    NPM_VERSION=$("$NODE" "$NPM" --version)
+trap cleanup INT TERM EXIT
 
-    "$NODE" "$NPM" pkg set 'engines.npm'="$NPM_VERSION"
+cd "$WORKSPACE"
 
-    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "acorn-walk@$NEW_VERSION"
-)
+echo "Fetching ada source archive..."
 
-mv acorn-walk-tmp/node_modules/acorn-walk deps/acorn
+DIST_URL=$(curl -sL "https://registry.npmjs.org/acorn-walk/$NEW_VERSION" | jq -r .dist.tarball)
 
-mv acorn-walk-tmp/package-lock.json deps/acorn/acorn-walk/
+ACORN_WALK_TGZ="acorn-walk.tgz"
 
-rm -rf acorn-walk-tmp/
+curl -sL -o "$ACORN_WALK_TGZ" "$DIST_URL"
+
+log_and_verify_sha256sum "acorn-walk" "$ACORN_WALK_TGZ"
+
+rm -rf "$DEPS_DIR/acorn/acorn-walk"
+mkdir -p "$DEPS_DIR/acorn/acorn-walk"
+
+tar -xf "$ACORN_WALK_TGZ"
+
+mv "$WORKSPACE/package" "$DEPS_DIR/acorn/acorn-walk"
+
+rm "$ACORN_WALK_TGZ"
 
 echo "All done!"
 echo ""
