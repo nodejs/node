@@ -251,10 +251,11 @@ static EVP_PKEY_CTX *int_ctx_new(OSSL_LIB_CTX *libctx,
      */
     if (e != NULL)
         pmeth = ENGINE_get_pkey_meth(e, id);
-    else if (pkey != NULL && pkey->foreign)
+    else
+# endif /* OPENSSL_NO_ENGINE */
+    if (pkey != NULL && pkey->foreign)
         pmeth = EVP_PKEY_meth_find(id);
     else
-# endif
         app_pmeth = pmeth = evp_pkey_meth_find_added_by_application(id);
 
     /* END legacy */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -141,18 +141,6 @@ int ossl_rsa_todata(RSA *rsa, OSSL_PARAM_BLD *bld, OSSL_PARAM params[],
 
     /* Check private key data integrity */
     if (include_private && rsa_d != NULL) {
-        int numprimes = sk_BIGNUM_const_num(factors);
-        int numexps = sk_BIGNUM_const_num(exps);
-        int numcoeffs = sk_BIGNUM_const_num(coeffs);
-
-        /*
-         * It's permissible to have zero primes, i.e. no CRT params.
-         * Otherwise, there must be at least two, as many exponents,
-         * and one coefficient less.
-         */
-        if (numprimes != 0
-            && (numprimes < 2 || numexps < 2 || numcoeffs < 1))
-            goto err;
 
         if (!ossl_param_build_set_bn(bld, params, OSSL_PKEY_PARAM_RSA_D,
                                      rsa_d)

@@ -60,13 +60,16 @@ static int rsa_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
     if (!rsa_param_encode(pkey, &str, &strtype))
         return 0;
     penclen = i2d_RSAPublicKey(pkey->pkey.rsa, &penc);
-    if (penclen <= 0)
+    if (penclen <= 0) {
+        ASN1_STRING_free(str);
         return 0;
+    }
     if (X509_PUBKEY_set0_param(pk, OBJ_nid2obj(pkey->ameth->pkey_id),
                                strtype, str, penc, penclen))
         return 1;
 
     OPENSSL_free(penc);
+    ASN1_STRING_free(str);
     return 0;
 }
 

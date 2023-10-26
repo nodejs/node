@@ -616,6 +616,9 @@ static struct {
     { "", "" },
     { "fips=3", "fips=3" },
     { "fips=-3", "fips=-3" },
+    { "provider='foo bar'", "provider='foo bar'" },
+    { "provider=\"foo bar'\"", "provider=\"foo bar'\"" },
+    { "provider=abc***", "provider='abc***'" },
     { NULL, "" }
 };
 
