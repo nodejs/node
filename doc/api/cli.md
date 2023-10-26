@@ -1196,6 +1196,16 @@ added: v19.0.0
 
 Disable exposition of [CustomEvent Web API][] on the global scope.
 
+### `--no-experimental-global-navigator`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Disable exposition of [Navigator API][] on the global scope.
+
 ### `--no-experimental-global-webcrypto`
 
 <!-- YAML
@@ -2315,6 +2325,7 @@ Node.js options that are allowed are:
 * `--experimental-abortcontroller`
 * `--experimental-default-type`
 * `--experimental-detect-module`
+* `--experimental-global-navigator`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -2765,6 +2776,7 @@ done
 [Module customization hooks]: module.md#customization-hooks
 [Module customization hooks: enabling]: module.md#enabling
 [Modules loaders]: packages.md#modules-loaders
+[Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [Permission Model]: permissions.md#permission-model
