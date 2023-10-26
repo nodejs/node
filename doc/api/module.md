@@ -683,6 +683,44 @@ export async function load(url, context, nextLoad) {
 In a more advanced scenario, this can also be used to transform an unsupported
 source to a supported one (see [Examples](#examples) below).
 
+### External formats
+
+Node.js natively understands a handful of formats (see the table in [`load`
+hook][load hook]). Non-native or external formats require transpilation to
+something Node.js understands, and many packages exist to handle this. A simple
+example of such a package would look something like this:
+
+```json
+{
+  "name": "example-nodejs-plugin",
+  "keywords": [
+    "nodejs-plugin",
+    "typescript"
+  ],
+  "exports": {
+    "nodejs-customization": "./registration.mjs",
+    "typescript": "./hooks/typescript.mjs"
+  }
+}
+```
+
+```mjs
+import { register } from 'node:module';
+
+register('example-nodejs-plugin/typescript');
+```
+
+`typescript.mjs` would contain [customization hooks][hooks]:
+
+* A [`resolve` hook][resolve hook] that sets `format` for applicable modules to
+  the format it handles, such as `'typescript'`.
+* A [`load` hook][load hook] that transpiles the external format (as signalled
+  by its `resolve` hook) to something Node.js understands.
+* Optionally, an [`initialize` hook][`initialize`].
+
+See [Node.js Customization][Customization] for information about registering and
+persisting these plugins.
+
 ### Examples
 
 The various module customization hooks can be used together to accomplish
@@ -1027,6 +1065,7 @@ returned object contains the following keys:
 
 [CommonJS]: modules.md
 [Conditional exports]: packages.md#conditional-exports
+[Customization]: customization.md
 [Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
 [HTTPS and HTTP imports]: esm.md#https-and-http-imports
@@ -1048,5 +1087,6 @@ returned object contains the following keys:
 [load hook]: #loadurl-context-nextload
 [module wrapper]: modules.md#the-module-wrapper
 [realm]: https://tc39.es/ecma262/#realm
+[resolve hook]: #resolvespecifier-context-nextresolve
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
 [transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist
