@@ -599,9 +599,9 @@ This variable may appear to be global but is not. See [`module`][].
 <!-- YAML
 added: v21.0.0
 changes:
-  version: REPLACEME
-  pr-url: https://github.com/nodejs/node/pull/50412
-  description: The API is behind the CLI flag `--experimental-global-navigator`.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50412
+    description: The API is behind the CLI flag `--experimental-global-navigator`.
 -->
 
 > Stability: 1.1 - Active development. Use `--experimental-global-navigator` to
@@ -614,9 +614,9 @@ A partial implementation of the [Navigator API][].
 <!-- YAML
 added: v21.0.0
 changes:
-  version: REPLACEME
-  pr-url: https://github.com/nodejs/node/pull/50412
-  description: The API is behind the CLI flag `--experimental-global-navigator`.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50412
+    description: The API is behind the CLI flag `--experimental-global-navigator`.
 -->
 
 > Stability: 1.1 - Active development. Use `--experimental-global-navigator` to
