@@ -53,6 +53,7 @@ d2i_DIST_POINT,
 d2i_DIST_POINT_NAME,
 d2i_DSA_SIG,
 d2i_ECDSA_SIG,
+d2i_ECPKParameters,
 d2i_EDIPARTYNAME,
 d2i_ESS_CERT_ID,
 d2i_ESS_CERT_ID_V2,
@@ -223,6 +224,7 @@ i2d_DIST_POINT,
 i2d_DIST_POINT_NAME,
 i2d_DSA_SIG,
 i2d_ECDSA_SIG,
+i2d_ECPKParameters,
 i2d_EDIPARTYNAME,
 i2d_ESS_CERT_ID,
 i2d_ESS_CERT_ID_V2,
@@ -388,10 +390,12 @@ to the returned structure is also written to I<*a>.  If an error occurred
 then NULL is returned.
 
 On a successful return, if I<*a> is not NULL then it is assumed that I<*a>
-contains a valid B<I<TYPE>> structure and an attempt is made to reuse it. This
-"reuse" capability is present for historical compatibility but its use is
-B<strongly discouraged> (see BUGS below, and the discussion in the RETURN
-VALUES section).
+contains a valid B<I<TYPE>> structure and an attempt is made to reuse it.
+For B<I<TYPE>> structures where it matters it is possible to set up a library
+context on the decoded structure this way (see the B<EXAMPLES> section).
+However using the "reuse" capability for other purposes is B<strongly
+discouraged> (see B<BUGS> below, and the discussion in the B<RETURN VALUES>
+section).
 
 B<d2i_I<TYPE>_bio>() is similar to B<d2i_I<TYPE>>() except it attempts
 to parse data from BIO I<bp>.
@@ -535,6 +539,22 @@ Alternative technique:
 
  if (d2i_X509(&x, &p, len) == NULL)
      /* error */
+
+Setting up a library context and property query:
+
+ X509 *x;
+ unsigned char *buf;
+ const unsigned char *p;
+ int len;
+ OSSL_LIB_CTX *libctx = ....;
+ const char *propq = ....;
+
+ /* Set up buf and len to point to the input buffer. */
+ p = buf;
+ x = X509_new_ex(libctx, propq);
+
+ if (d2i_X509(&x, &p, len) == NULL)
+     /* error, x was freed and NULL assigned to it (see RETURN VALUES) */
 
 =head1 WARNINGS
 
