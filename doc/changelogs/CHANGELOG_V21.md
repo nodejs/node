@@ -60,6 +60,22 @@ such as `.mjs` or `.cjs`, will opt out of detection.
 
 Contributed by Geoffrey Booth in [#50096](https://github.com/nodejs/node/pull/50096).
 
+### vm: fix V8 compilation cache support for vm.Script
+
+Previously repeated compilation of the same source code using `vm.Script`
+stopped hitting the V8 compilation cache after v16.x when support for
+`importModuleDynamically` was added to `vm.Script`, resulting in a performance
+regression that blocked users (in particular Jest users) from upgrading from
+v16.x.
+
+The recent fixes landed in v21.1.0 allow the compilation cache to be hit again
+for `vm.Script` when `--experimental-vm-modules` is not used even in the
+presence of the `importModuleDynamically` option, so that users affected by the
+performance regression can now upgrade. Ongoing work is also being done to
+enable compilation cache support for `vm.CompileFunction`.
+
+Contributed by Joyee Cheung in [#50137](https://github.com/nodejs/node/pull/50137).
+
 #### Other Notable Changes
 
 * \[[`3729e33358`](https://github.com/nodejs/node/commit/3729e33358)] - **doc**: add H4ad to collaborators (Vinícius Lourenço) [#50217](https://github.com/nodejs/node/pull/50217)
@@ -67,9 +83,6 @@ Contributed by Geoffrey Booth in [#50096](https://github.com/nodejs/node/pull/50
 * \[[`5a52c518ef`](https://github.com/nodejs/node/commit/5a52c518ef)] - **(SEMVER-MINOR)** **lib**: add `navigator.userAgent` (Yagiz Nizipli) [#50200](https://github.com/nodejs/node/pull/50200)
 * \[[`789372a072`](https://github.com/nodejs/node/commit/789372a072)] - **(SEMVER-MINOR)** **stream**: allow pass stream class to `stream.compose` (Alex Yang) [#50187](https://github.com/nodejs/node/pull/50187)
 * \[[`f3a9ea0bc4`](https://github.com/nodejs/node/commit/f3a9ea0bc4)] - **stream**: improve performance of readable stream reads (Raz Luvaton) [#50173](https://github.com/nodejs/node/pull/50173)
-* \[[`dda33c2bf1`](https://github.com/nodejs/node/commit/dda33c2bf1)] - **vm**: reject in importModuleDynamically without --experimental-vm-modules (Joyee Cheung) [#50137](https://github.com/nodejs/node/pull/50137)
-* \[[`3999362c59`](https://github.com/nodejs/node/commit/3999362c59)] - **vm**: use internal versions of compileFunction and Script (Joyee Cheung) [#50137](https://github.com/nodejs/node/pull/50137)
-* \[[`a54179f0e0`](https://github.com/nodejs/node/commit/a54179f0e0)] - **vm**: unify host-defined option generation in vm.compileFunction (Joyee Cheung) [#50137](https://github.com/nodejs/node/pull/50137)
 
 ### Commits
 
