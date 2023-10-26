@@ -128,6 +128,10 @@ The parameter B<j> is invalid.
 
 =back
 
+If 0 is returned or B<*codes> is set to a nonzero value the supplied
+parameters should not be used for Diffie-Hellman operations otherwise
+the security properties of the key exchange are not guaranteed.
+
 DH_check_ex(), DH_check_params() and DH_check_pub_key_ex() are similar to
 DH_check() and DH_check_params() respectively, but the error reasons are added
 to the thread's error queue instead of provided as return values from the
@@ -160,7 +164,7 @@ DH_generate_parameters_ex() instead.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

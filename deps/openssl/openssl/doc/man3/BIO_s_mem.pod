@@ -59,6 +59,8 @@ positive return value B<v> should be set to a negative value, typically -1.
 
 BIO_get_mem_data() sets *B<pp> to a pointer to the start of the memory BIOs data
 and returns the total amount of data available. It is implemented as a macro.
+Note the pointer returned by this call is informative, no transfer of ownership
+of this memory is implied.  See notes on BIO_set_close().
 
 BIO_set_mem_buf() sets the internal BUF_MEM structure to B<bm> and sets the
 close flag to B<c>, that is B<c> should be either BIO_CLOSE or BIO_NOCLOSE.
@@ -114,6 +116,10 @@ preceding that write operation cannot be undone.
 Calling BIO_get_mem_ptr() prior to a BIO_reset() call with
 BIO_FLAGS_NONCLEAR_RST set has the same effect as a write operation.
 
+Calling BIO_set_close() with BIO_NOCLOSE orphans the BUF_MEM internal to the
+BIO, _not_ its actual data buffer. See the examples section for the proper
+method for claiming ownership of the data pointer for a deferred free operation.
+
 =head1 BUGS
 
 There should be an option to set the maximum size of a memory BIO.
@@ -151,10 +157,24 @@ Extract the BUF_MEM structure from a memory BIO and then free up the BIO:
  BIO_set_close(mem, BIO_NOCLOSE); /* So BIO_free() leaves BUF_MEM alone */
  BIO_free(mem);
 
+Extract the BUF_MEM ptr, claim ownership of the internal data and free the BIO
+and BUF_MEM structure:
+
+ BUF_MEM *bptr;
+ char *data;
+
+ BIO_get_mem_data(bio, &data);
+ BIO_get_mem_ptr(bio, &bptr);
+ BIO_set_close(mem, BIO_NOCLOSE); /* So BIO_free orphans BUF_MEM */
+ BIO_free(bio);
+ bptr->data = NULL; /* Tell BUF_MEM to orphan data */
+ BUF_MEM_free(bptr);
+ ...
+ free(data);
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

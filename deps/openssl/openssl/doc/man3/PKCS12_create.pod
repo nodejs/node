@@ -42,7 +42,8 @@ can all be set to zero and sensible defaults will be used.
 These defaults are: AES password based encryption (PBES2 with PBKDF2 and
 AES-256-CBC) for private keys and certificates, the PBKDF2 and MAC key
 derivation iteration count of B<PKCS12_DEFAULT_ITER> (currently 2048), and
-MAC algorithm HMAC with SHA2-256.
+MAC algorithm HMAC with SHA2-256. The MAC key derivation algorithm used
+for the outer PKCS#12 structure is PKCS12KDF.
 
 The default MAC iteration count is 1 in order to retain compatibility with
 old software which did not interpret MAC iteration counts. If such compatibility
@@ -68,6 +69,8 @@ I<nid_key> or I<nid_cert> can be set to -1 indicating that no encryption
 should be used.
 
 I<mac_iter> can be set to -1 and the MAC will then be omitted entirely.
+This can be useful when running with the FIPS provider as the PKCS12KDF
+is not a FIPS approvable algorithm.
 
 PKCS12_create() makes assumptions regarding the encoding of the given pass
 phrase.
@@ -83,7 +86,9 @@ IETF RFC 7292 (L<https://tools.ietf.org/html/rfc7292>)
 
 =head1 SEE ALSO
 
+L<EVP_KDF-PKCS12KDF(7)>,
 L<d2i_PKCS12(3)>,
+L<OSSL_PROVIDER-FIPS(7)>,
 L<passphrase-encoding(7)>
 
 =head1 HISTORY
@@ -96,7 +101,7 @@ standards.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
