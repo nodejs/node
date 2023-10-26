@@ -595,6 +595,10 @@ test-wpt-report:
 	-WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(NODE) $(PARALLEL_ARGS) wpt
 	$(NODE) "$$PWD/tools/merge-wpt-reports.mjs"
 
+.PHONY: test-wpt-status-update
+test-wpt-status-update:
+	-WPT_UPDATE_STATUS=1 $(PYTHON) tools/test.py --shell $(NODE) $(PARALLEL_ARGS) wpt
+
 .PHONY: test-internet
 test-internet: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) internet

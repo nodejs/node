@@ -59,10 +59,16 @@ function codeUnitStr(char) {
 }
 
 class ReportResult {
-  constructor(name) {
+  /**
+   * Construct a ReportResult.
+   * @param {string} name test name shown in wpt.fyi, unique for every variants.
+   * @param {WPTTestSpec} spec
+   */
+  constructor(name, spec) {
     this.test = name;
     this.status = 'OK';
     this.subtests = [];
+    this.spec = spec;
   }
 
   addSubtest(name, status, message) {
@@ -82,14 +88,18 @@ class ReportResult {
   finish(status) {
     this.status = status ?? 'OK';
   }
+
+  toJSON() {
+    return {
+      test: this.test,
+      status: this.status,
+      subtests: this.subtests,
+    };
+  }
 }
 
-// Generates a report that can be uploaded to wpt.fyi.
-// Checkout https://github.com/web-platform-tests/wpt.fyi/tree/main/api#results-creation
-// for more details.
-class WPTReport {
-  constructor(path) {
-    this.filename = `report-${path.replaceAll('/', '-')}.json`;
+class Report {
+  constructor() {
     /** @type {Map<string, ReportResult>} */
     this.results = new Map();
     this.time_start = Date.now();
@@ -104,9 +114,20 @@ class WPTReport {
     if (this.results.has(name)) {
       return this.results.get(name);
     }
-    const result = new ReportResult(name);
+    const result = new ReportResult(name, spec);
     this.results.set(name, result);
     return result;
+  }
+}
+
+// Generates a report that can be uploaded to wpt.fyi.
+// Checkout https://github.com/web-platform-tests/wpt.fyi/tree/main/api#results-creation
+// for more details.
+class WPTReport extends Report {
+  constructor(path) {
+    super();
+    this.filename = `report-${path.replaceAll('/', '-')}.json`;
+    this.time_start = Date.now();
   }
 
   write() {
@@ -136,6 +157,47 @@ class WPTReport {
       run_info: this.run_info,
       results: results,
     }));
+  }
+}
+
+/**
+ * Update status files with the results of the tests.
+ */
+class WPTStatusUpdater extends Report {
+  constructor(testPath) {
+    super();
+    this.filepath = path.join('test/wpt/status', `${testPath}.json`);
+    this.statusFile = JSON.parse(fs.readFileSync(this.filepath, 'utf8'));
+  }
+
+  write() {
+    for (const result of this.results.values()) {
+      if (result.status !== 'OK') {
+        this.statusFile[result.spec.filename] ??= {
+          skip: 'WPT test auto rolling',
+        };
+        continue;
+      }
+      const failedSubtests = result.subtests.filter((it) => it.status !== 'PASS');
+      if (failedSubtests.length === 0) {
+        continue;
+      }
+      const testStatus = this.statusFile[result.spec.filename] ?? {};
+      const expectations = new Set(testStatus.fail?.expected);
+      failedSubtests.forEach((subtest) => {
+        expectations.add(subtest.name);
+      });
+      this.statusFile[result.spec.filename] = {
+        ...testStatus,
+        fail: {
+          ...(testStatus.fail ?? {}),
+          note: testStatus.fail?.note ?? 'WPT test auto rolling',
+          expected: [...expectations],
+        },
+      };
+    }
+
+    fs.writeFileSync(this.filepath, JSON.stringify(this.statusFile, null, 2) + '\n');
   }
 }
 
@@ -513,6 +575,8 @@ class WPTRunner {
 
     if (process.env.WPT_REPORT != null) {
       this.report = new WPTReport(path);
+    } else if (process.env.WPT_UPDATE_STATUS != null) {
+      this.report = new WPTStatusUpdater(path);
     }
   }
 
@@ -624,6 +688,7 @@ class WPTRunner {
     const run = limit(this.concurrency);
 
     for (const spec of queue) {
+      const reportResult = this.report?.getResult(spec);
       const content = spec.getContent();
       const meta = spec.getMeta(content);
 
@@ -632,14 +697,33 @@ class WPTRunner {
       const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
 
       // Scripts specified with the `// META: script=` header
-      const scriptsToRun = meta.script?.map((script) => {
-        const obj = {
-          filename: this.resource.toRealFilePath(relativePath, script),
-          code: this.resource.read(relativePath, script),
-        };
-        this.scriptsModifier?.(obj);
-        return obj;
-      }) ?? [];
+      let scriptsToRun;
+      try {
+        scriptsToRun = meta.script?.map((script) => {
+          const obj = {
+            filename: this.resource.toRealFilePath(relativePath, script),
+            code: this.resource.read(relativePath, script),
+          };
+          this.scriptsModifier?.(obj);
+          return obj;
+        }) ?? [];
+      } catch (err) {
+        // Generate a subtest failure for visibility if resources are missing.
+        // No need to record this synthetic failure with wpt.fyi.
+        this.fail(
+          spec,
+          {
+            status: NODE_UNCAUGHT,
+            name: 'Resource not found',
+            message: err.message,
+            stack: inspect(err),
+          },
+          kUncaught,
+        );
+        // Mark the whole test as failed in wpt.fyi report.
+        reportResult?.finish('ERROR');
+        continue;
+      }
       // The actual test
       const obj = {
         code: content,
@@ -667,7 +751,6 @@ class WPTRunner {
         this.inProgress.add(spec);
         this.workers.set(spec, worker);
 
-        const reportResult = this.report?.getResult(spec);
         worker.on('message', (message) => {
           switch (message.type) {
             case 'result':
@@ -776,6 +859,10 @@ class WPTRunner {
                   `${passed} passed, ${expectedFailures} expected failures,`,
                   `${failures.length} unexpected failures,`,
                   `${unexpectedPasses.length} unexpected passes`);
+      if (process.env.WPT_UPDATE_STATUS) {
+        // Exit the process normally if we are updating the status file.
+        return;
+      }
       if (failures.length > 0) {
         const file = path.join('test', 'wpt', 'status', `${this.path}.json`);
         throw new Error(

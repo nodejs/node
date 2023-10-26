@@ -1,0 +1,78 @@
+# This workflow runs every Monday and updates the `test/fixtures/wpt`
+# to the `epochs/weekly` branch of WPT.
+
+name: Weekly WPT roller
+
+on:
+  workflow_dispatch:
+  schedule:
+    # This is 20 minutes after `epochs/weekly` branch is triggered to be created
+    # in WPT repo, every Monday.
+    # https://github.com/web-platform-tests/wpt/blob/master/.github/workflows/epochs.yml
+    - cron: 30 0 * * 1
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  update-wpt:
+    if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Node.js
+        uses: actions/setup-node@8f152de45cc393bb48ce5d89d36b731f54556e65  # v4.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
+      - name: Configure @node-core/utils
+        run: |
+          ncu-config set branch ${GITHUB_REF_NAME}
+          ncu-config set upstream origin
+          ncu-config set username "${{ secrets.GH_USER_NAME }}"
+          ncu-config set token "${{ secrets.GH_USER_TOKEN }}"
+          ncu-config set repo "$(echo ${{ github.repository }} | cut -d/ -f2)"
+          ncu-config set owner "${{ github.repository_owner }}"
+
+      - name: Environment Information
+        run: npx envinfo
+
+      - name: Set env.WPT_REVISION
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WPT_REVISION=$(gh api /repos/web-platform-tests/wpt/branches/epochs/weekly --jq '.commit.sha')
+          echo "WPT_REVISION=$WPT_REVISION" >> $GITHUB_ENV
+          echo "WPT_SHORT_REVISION=$(echo $WPT_REVISION | cut -c 1-10)" >> $GITHUB_ENV
+      - name: Rolling update wpt fixtures
+        run: ./tools/dep_updaters/update-wpt.sh
+
+      - name: Build
+        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn"
+      - name: Update wpt status.json
+        run: make test-wpt-status-update
+
+      - uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+        # Creates a PR or update the Action's existing PR, or
+        # no-op if the base branch is already up-to-date.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+        with:
+          author: Node.js GitHub Bot <github-bot@iojs.org>
+          body: This is an automated patch update of wpt to https://github.com/web-platform-tests/wpt/commit/${{ env.WPT_REVISION }}.
+          branch: actions/update-wpt  # Custom branch *just* for this Action.
+          commit-message: 'deps: update wpt to ${{ env.WPT_SHORT_REVISION }}'
+          labels: test
+          title: 'deps: update wpt to ${{ env.WPT_SHORT_REVISION }}'
+          update-pull-request-title-and-body: true
