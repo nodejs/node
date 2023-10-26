@@ -685,6 +685,8 @@ int req_main(int argc, char **argv)
         EVP_PKEY_CTX_set_app_data(genctx, bio_err);
 
         pkey = app_keygen(genctx, keyalgstr, newkey_len, verbose);
+        if (pkey == NULL)
+            goto end;
 
         EVP_PKEY_CTX_free(genctx);
         genctx = NULL;
@@ -990,10 +992,10 @@ int req_main(int argc, char **argv)
         else
             tpubkey = X509_REQ_get0_pubkey(req);
         if (tpubkey == NULL) {
-            fprintf(stdout, "Modulus is unavailable\n");
+            BIO_puts(bio_err, "Modulus is unavailable\n");
             goto end;
         }
-        fprintf(stdout, "Modulus=");
+        BIO_puts(out, "Modulus=");
         if (EVP_PKEY_is_a(tpubkey, "RSA") || EVP_PKEY_is_a(tpubkey, "RSA-PSS")) {
             BIGNUM *n = NULL;
 
@@ -1002,9 +1004,9 @@ int req_main(int argc, char **argv)
             BN_print(out, n);
             BN_free(n);
         } else {
-            fprintf(stdout, "Wrong Algorithm type");
+            BIO_puts(out, "Wrong Algorithm type");
         }
-        fprintf(stdout, "\n");
+        BIO_puts(out, "\n");
     }
 
     if (!noout && !gen_x509) {

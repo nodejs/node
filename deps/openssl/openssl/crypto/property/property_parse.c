@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -588,15 +588,38 @@ static void put_char(char ch, char **buf, size_t *remain, size_t *needed)
 
 static void put_str(const char *str, char **buf, size_t *remain, size_t *needed)
 {
-    size_t olen, len;
+    size_t olen, len, i;
+    char quote = '\0';
+    int quotes;
 
     len = olen = strlen(str);
     *needed += len;
 
-    if (*remain == 0)
-        return;
+    /*
+     * Check to see if we need quotes or not.
+     * Characters that are legal in a PropertyName don't need quoting.
+     * We simply assume all others require quotes.
+     */
+    for (i = 0; i < len; i++)
+        if (!ossl_isalnum(str[i]) && str[i] != '.' && str[i] != '_') {
+            /* Default to single quotes ... */
+            if (quote == '\0')
+                quote = '\'';
+            /* ... but use double quotes if a single is present */
+            if (str[i] == '\'')
+                quote = '"';
+        }
 
-    if (*remain < len + 1)
+    quotes = quote != '\0';
+    if (*remain == 0) {
+        *needed += 2 * quotes;
+        return;
+    }
+
+    if (quotes)
+        put_char(quote, buf, remain, needed);
+
+    if (*remain < len + 1 + quotes)
         len = *remain - 1;
 
     if (len > 0) {
@@ -604,6 +627,9 @@ static void put_str(const char *str, char **buf, size_t *remain, size_t *needed)
         *buf += len;
         *remain -= len;
     }
+
+    if (quotes)
+        put_char(quote, buf, remain, needed);
 
     if (len < olen && *remain == 1) {
         **buf = '\0';

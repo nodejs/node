@@ -60,7 +60,7 @@ is an int.
 
 Developers should be aware of the negative performance implications of
 calling these functions multiple times and should consider using
-L<EVP_CIPHER_fetch(3)> instead.
+L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-RC5(7)> instead.
 See L<crypto(7)/Performance> for further information.
 
 =head1 RETURN VALUES

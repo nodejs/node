@@ -233,8 +233,14 @@ In each table entry, the following keys are significant:
                                                 is ILP32;
                            RC4_CHAR             RC4 key schedule is made
                                                 up of 'unsigned char's;
+                                                Note: should not be used
+                                                for new configuration
+                                                targets
                            RC4_INT              RC4 key schedule is made
                                                 up of 'unsigned int's;
+                                                Note: should not be used
+                                                for new configuration
+                                                targets
 
 [1] as part of the target configuration, one can have a key called
   `inherit_from` that indicates what other configurations to inherit

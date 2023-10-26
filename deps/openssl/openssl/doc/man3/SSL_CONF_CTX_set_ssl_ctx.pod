@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+SSL_CONF_CTX_finish,
 SSL_CONF_CTX_set_ssl_ctx, SSL_CONF_CTX_set_ssl - set context to configure
 
 =head1 SYNOPSIS
@@ -10,6 +11,7 @@ SSL_CONF_CTX_set_ssl_ctx, SSL_CONF_CTX_set_ssl - set context to configure
 
  void SSL_CONF_CTX_set_ssl_ctx(SSL_CONF_CTX *cctx, SSL_CTX *ctx);
  void SSL_CONF_CTX_set_ssl(SSL_CONF_CTX *cctx, SSL *ssl);
+ int SSL_CONF_CTX_finish(SSL_CONF_CTX *cctx);
 
 =head1 DESCRIPTION
 
@@ -23,6 +25,10 @@ B<SSL> structure B<ssl>. Any previous B<SSL> or B<SSL_CTX> associated with
 B<cctx> is cleared. Subsequent calls to SSL_CONF_cmd() will be sent to
 B<ssl>.
 
+The function SSL_CONF_CTX_finish() must be called after all configuration
+operations have been completed. It is used to finalise any operations
+or to process defaults.
+
 =head1 NOTES
 
 The context need not be set or it can be set to B<NULL> in which case only
@@ -31,6 +37,8 @@ syntax checking of commands is performed, where possible.
 =head1 RETURN VALUES
 
 SSL_CONF_CTX_set_ssl_ctx() and SSL_CTX_set_ssl() do not return a value.
+
+SSL_CONF_CTX_finish() returns 1 for success and 0 for failure.
 
 =head1 SEE ALSO
 
@@ -47,7 +55,7 @@ These functions were added in OpenSSL 1.0.2.
 
 =head1 COPYRIGHT
 
-Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

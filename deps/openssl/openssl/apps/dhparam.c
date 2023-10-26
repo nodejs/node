@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -222,6 +222,8 @@ int dhparam_main(int argc, char **argv)
         }
 
         tmppkey = app_paramgen(ctx, alg);
+        if (tmppkey == NULL)
+            goto end;
         EVP_PKEY_CTX_free(ctx);
         ctx = NULL;
         if (dsaparam) {

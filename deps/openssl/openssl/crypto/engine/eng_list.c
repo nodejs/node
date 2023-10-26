@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -78,12 +78,15 @@ static int engine_list_add(ENGINE *e)
             ERR_raise(ERR_LIB_ENGINE, ENGINE_R_INTERNAL_LIST_ERROR);
             return 0;
         }
-        engine_list_head = e;
-        e->prev = NULL;
         /*
          * The first time the list allocates, we should register the cleanup.
          */
-        engine_cleanup_add_last(engine_list_cleanup);
+        if (!engine_cleanup_add_last(engine_list_cleanup)) {
+            ERR_raise(ERR_LIB_ENGINE, ENGINE_R_INTERNAL_LIST_ERROR);
+            return 0;
+        }
+        engine_list_head = e;
+        e->prev = NULL;
     } else {
         /* We are adding to the tail of an existing list. */
         if ((engine_list_tail == NULL) || (engine_list_tail->next != NULL)) {

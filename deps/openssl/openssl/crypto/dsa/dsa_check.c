@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -39,7 +39,8 @@ int ossl_dsa_check_params(const DSA *dsa, int checktype, int *ret)
  */
 int ossl_dsa_check_pub_key(const DSA *dsa, const BIGNUM *pub_key, int *ret)
 {
-    return ossl_ffc_validate_public_key(&dsa->params, pub_key, ret);
+    return ossl_ffc_validate_public_key(&dsa->params, pub_key, ret)
+           && *ret == 0;
 }
 
 /*
@@ -49,7 +50,8 @@ int ossl_dsa_check_pub_key(const DSA *dsa, const BIGNUM *pub_key, int *ret)
  */
 int ossl_dsa_check_pub_key_partial(const DSA *dsa, const BIGNUM *pub_key, int *ret)
 {
-    return ossl_ffc_validate_public_key_partial(&dsa->params, pub_key, ret);
+    return ossl_ffc_validate_public_key_partial(&dsa->params, pub_key, ret)
+           && *ret == 0;
 }
 
 int ossl_dsa_check_priv_key(const DSA *dsa, const BIGNUM *priv_key, int *ret)

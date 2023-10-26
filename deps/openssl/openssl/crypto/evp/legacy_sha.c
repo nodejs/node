@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -71,7 +71,11 @@ static int sha1_int_ctrl(EVP_MD_CTX *ctx, int cmd, int p1, void *p2)
 
 static int shake_ctrl(EVP_MD_CTX *evp_ctx, int cmd, int p1, void *p2)
 {
-    KECCAK1600_CTX *ctx = evp_ctx->md_data;
+    KECCAK1600_CTX *ctx;
+
+    if (evp_ctx == NULL)
+        return 0;
+    ctx = evp_ctx->md_data;
 
     switch (cmd) {
     case EVP_MD_CTRL_XOF_LEN:

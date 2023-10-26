@@ -306,6 +306,15 @@ context and property query and will call an extended version of the key/IV
 derivation function which supports these parameters. This includes
 L<EVP_PBE_CipherInit_ex(3)>, L<EVP_PBE_find_ex(3)> and L<EVP_PBE_scrypt_ex(3)>.
 
+=head4 PKCS#12 KDF versus FIPS
+
+Unlike in 1.x.y, the PKCS12KDF algorithm used when a PKCS#12 structure
+is created with a MAC that does not work with the FIPS provider as the PKCS12KDF
+is not a FIPS approvable mechanism.
+
+See L<EVP_KDF-PKCS12KDF(7)>, L<PKCS12_create(3)>, L<openssl-pkcs12(1)>,
+L<OSSL_PROVIDER-FIPS(7)>.
+
 =head4 Windows thread synchronization changes
 
 Windows thread synchronization uses read/write primitives (SRWLock) when

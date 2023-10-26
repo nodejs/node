@@ -642,13 +642,14 @@ const void *OBJ_bsearch_ex_(const void *key, const void *base, int num,
     if (p == NULL) {
         const char *base_ = base;
         int l, h, i = 0, c = 0;
+        char *p1;
 
         for (i = 0; i < num; ++i) {
-            p = &(base_[i * size]);
-            c = (*cmp) (key, p);
+            p1 = &(base_[i * size]);
+            c = (*cmp) (key, p1);
             if (c == 0
                 || (c < 0 && (flags & OBJ_BSEARCH_VALUE_ON_NOMATCH)))
-                return p;
+                return p1;
         }
     }
 #endif

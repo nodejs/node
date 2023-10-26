@@ -789,7 +789,7 @@ const OPTIONS s_server_options[] = {
      "second server certificate chain file in PEM format"},
     {"dkey", OPT_DKEY, '<',
      "Second private key file to use (usually for DSA)"},
-    {"dkeyform", OPT_DKEYFORM, 'F',
+    {"dkeyform", OPT_DKEYFORM, 'f',
      "Second key file format (ENGINE, other values ignored)"},
     {"dpass", OPT_DPASS, 's',
      "Second private key and cert file pass phrase source"},

@@ -50,7 +50,7 @@ my ($no_des, $no_dh, $no_dsa, $no_ec, $no_ec2m, $no_rc2, $no_zlib)
 
 $no_rc2 = 1 if disabled("legacy");
 
-plan tests => 16;
+plan tests => 18;
 
 ok(run(test(["pkcs7_test"])), "test pkcs7");
 
@@ -994,3 +994,28 @@ with({ exit_checker => sub { return shift == 6; } },
                    ])),
             "Check failure during BIO setup with -stream is handled correctly");
     });
+
+# Test case for return value mis-check reported in #21986
+with({ exit_checker => sub { return shift == 3; } },
+    sub {
+        SKIP: {
+          skip "DSA is not supported in this build", 1 if $no_dsa;
+
+          ok(run(app(['openssl', 'cms', '-sign',
+                      '-in', srctop_file("test", "smcont.txt"),
+                      '-signer', srctop_file("test/smime-certs", "smdsa1.pem"),
+                      '-md', 'SHAKE256'])),
+            "issue#21986");
+        }
+    });
+
+# Test for problem reported in #22225
+with({ exit_checker => sub { return shift == 3; } },
+    sub {
+	ok(run(app(['openssl', 'cms', '-encrypt',
+		    '-in', srctop_file("test", "smcont.txt"),
+		    '-aes-256-ctr', '-recip',
+		    catfile($smdir, "smec1.pem"),
+		   ])),
+	   "Check for failure when cipher does not have an assigned OID (issue#22225)");
+     });

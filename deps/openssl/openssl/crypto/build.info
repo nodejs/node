@@ -97,8 +97,6 @@ $UTIL_COMMON=\
         context.c sparse_array.c asn1_dsa.c packet.c param_build.c \
         param_build_set.c der_writer.c threads_lib.c params_dup.c
 
-SHARED_SOURCE[../libssl]=sparse_array.c
-
 SOURCE[../libcrypto]=$UTIL_COMMON \
         mem.c mem_sec.c \
         cversion.c info.c cpt_err.c ebcdic.c uid.c o_time.c o_dir.c \

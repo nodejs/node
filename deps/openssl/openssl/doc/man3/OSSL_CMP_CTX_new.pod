@@ -182,7 +182,7 @@ clearing the internal CMP transaction (aka session) status, PKIStatusInfo,
 and any previous results (newCert, newChain, caPubs, and extraCertsIn)
 from the last executed transaction.
 It also clears any ITAVs that were added by OSSL_CMP_CTX_push0_genm_ITAV().
-All other field values (i.e., CMP options) are retained for potential re-use.
+All other field values (i.e., CMP options) are retained for potential reuse.
 
 OSSL_CMP_CTX_set_option() sets the given value for the given option
 (e.g., OSSL_CMP_OPT_IMPLICIT_CONFIRM) in the given OSSL_CMP_CTX structure.
@@ -260,12 +260,12 @@ The following options can be set:
 
 =item B<OSSL_CMP_OPT_OWF_ALGNID>
         The NID of the digest algorithm to be used as one-way function (OWF)
-        in RFC 4210's MSG_MAC_ALG for PBM-based message protection.
+        for MAC-based message protection with password-based MAC (PBM).
+        See RFC 4210 section 5.1.3.1 for details.
         Default is SHA256.
 
 =item B<OSSL_CMP_OPT_MAC_ALGNID>
-        The NID of the MAC algorithm to be used in RFC 4210's MSG_MAC_ALG
-        for PBM-based message protection.
+        The NID of the MAC algorithm to be used for message protection with PBM.
         Default is HMAC-SHA1 as per RFC 4210.
 
 =item B<OSSL_CMP_OPT_REVOCATION_REASON>
@@ -450,8 +450,8 @@ The reference counts of those certificates handled successfully are increased.
 OSSL_CMP_CTX_get0_untrusted(OSSL_CMP_CTX *ctx) returns a pointer to the
 list of untrusted certs, which may be empty if unset.
 
-OSSL_CMP_CTX_set1_cert() sets the CMP signer certificate
-related to the private key used for CMP message protection.
+OSSL_CMP_CTX_set1_cert() sets the CMP signer certificate, also called protection
+certificate, related to the private key for signature-based message protection.
 Therefore the public key of this I<cert> must correspond to
 the private key set before or thereafter via OSSL_CMP_CTX_set1_pkey().
 When using signature-based protection of CMP request messages
@@ -481,15 +481,15 @@ OSSL_CMP_CTX_set1_pkey() sets the client's private key corresponding to the
 CMP signer certificate set via OSSL_CMP_CTX_set1_cert().
 This key is used create signature-based protection (protectionAlg = MSG_SIG_ALG)
 of outgoing messages
-unless a PBM secret has been set via OSSL_CMP_CTX_set1_secretValue().
+unless a symmetric secret has been set via OSSL_CMP_CTX_set1_secretValue().
 The I<pkey> argument may be NULL to clear the entry.
 
-OSSL_CMP_CTX_set1_secretValue() sets the byte string I<sec> with length I<len>
-as PBM secret in the given I<ctx> or clears it if the I<sec> argument is NULL.
-If present, this secret is used to create PBM-based protection of outgoing
-messages and to verify any PBM-based protection of incoming messages
-(protectionAlg = MSG_MAC_ALG). PBM stands for Password-Based MAC.
-PBM-based protection takes precedence over signature-based protection.
+OSSL_CMP_CTX_set1_secretValue() sets in I<ctx> the byte string I<sec> of length
+I<len> to use as pre-shared secret, or clears it if the I<sec> argument is NULL.
+If present, this secret is used to create MAC-based authentication and integrity
+protection (rather than applying signature-based protection)
+of outgoing messages and to verify authenticity and integrity of incoming
+messages that have MAC-based protection (protectionAlg = C<MSG_MAC_ALG>).
 
 OSSL_CMP_CTX_set1_referenceValue() sets the given referenceValue I<ref> with
 length I<len> in the given I<ctx> or clears it if the I<ref> argument is NULL.
@@ -500,7 +500,7 @@ then the sender field will contain the NULL-DN
 and the senderKID field of the CMP message header must be set.
 When signature-based protection is used the senderKID will be set to
 the subjectKeyIdentifier of the CMP signer certificate as far as present.
-If not present or when PBM-based protection is used
+If not present or when MAC-based protection is used
 the I<ref> value is taken as the fallback value for the senderKID.
 
 OSSL_CMP_CTX_set1_recipient() sets the recipient name that will be used in the
@@ -731,7 +731,7 @@ Set up a CMP client context for sending requests and verifying responses:
     OSSL_CMP_CTX_set1_serverPath(cmp_ctx, path_or_alias);
     OSSL_CMP_CTX_set0_trustedStore(cmp_ctx, ts);
 
-Set up client credentials for password-based protection (PBM):
+Set up symmetric credentials for MAC-based message protection such as PBM:
 
     OSSL_CMP_CTX_set1_referenceValue(cmp_ctx, ref, ref_len);
     OSSL_CMP_CTX_set1_secretValue(cmp_ctx, sec, sec_len);
