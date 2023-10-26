@@ -103,7 +103,7 @@ aes_v8_set_encrypt_key:
 .Loop192:
 	tbl	v6.16b,{v4.16b},v2.16b
 	ext	v5.16b,v0.16b,v3.16b,#12
-#ifdef __ARMEB__
+#ifdef __AARCH64EB__
 	st1	{v4.4s},[x2],#16
 	sub	x2,x2,#8
 #else
@@ -1510,7 +1510,7 @@ aes_v8_ctr32_encrypt_blocks:
 	ldr	w5,[x3,#240]
 
 	ldr	w8, [x4, #12]
-#ifdef __ARMEB__
+#ifdef __AARCH64EB__
 	ld1	{v0.16b},[x4]
 #else
 	ld1	{v0.4s},[x4]
@@ -1527,7 +1527,7 @@ aes_v8_ctr32_encrypt_blocks:
 	add	x7,x3,#32
 	mov	w6,w5
 	csel	x12,xzr,x12,lo
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev	w8, w8
 #endif
 	orr	v1.16b,v0.16b,v0.16b
