@@ -738,3 +738,10 @@ let asyncTest = Promise.resolve();
   controller.abort();
   et.dispatchEvent(new Event('foo'));
 }
+
+{
+  const event = new Event('foo');
+  strictEqual(event.cancelBubble, false);
+  event.cancelBubble = true;
+  strictEqual(event.cancelBubble, true);
+}
