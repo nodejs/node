@@ -659,11 +659,12 @@ is typically used when authenticating with pre-shared key (password-based MAC).
 
 =item B<-secret> I<arg>
 
-Prefer PBM-based message protection with given source of a secret value.
-The secret is used for creating PBM-based protection of outgoing messages
-and (as far as needed) for validating PBM-based protection of incoming messages.
-PBM stands for Password-Based Message Authentication Code.
+Provides the source of a secret value to use with MAC-based message protection.
 This takes precedence over the B<-cert> and B<-key> options.
+The secret is used for creating MAC-based protection of outgoing messages
+and for validating incoming messages that have MAC-based protection.
+The algorithm used by default is Password-Based Message Authentication Code (PBM)
+as defined in RFC 4210 section 5.1.3.1.
 
 For more information about the format of I<arg> see
 L<openssl-passphrase-options(1)>.
@@ -682,7 +683,8 @@ while the subject of B<-oldcert> or B<-subjectName> may provide fallback values.
 The issuer of this certificate is used as one of the recipient fallback values
 and as fallback issuer entry in the certificate template of IR/CR/KUR messages.
 
-When using signature-based message protection, this "protection certificate"
+When performing signature-based message protection,
+this "protection certificate", also called "signer certificate",
 will be included first in the extraCerts field of outgoing messages
 and the signature is done with the corresponding key.
 In Initialization Request (IR) messages this can be used for authenticating
@@ -713,8 +715,8 @@ have no effect on the certificate verification enabled via this option.
 
 The corresponding private key file for the client's current certificate given in
 the B<-cert> option.
-This will be used for signature-based message protection unless
-the B<-secret> option indicating PBM or B<-unprotected_requests> is given.
+This will be used for signature-based message protection unless the B<-secret>
+option indicating MAC-based protection or B<-unprotected_requests> is given.
 
 It is also used as a fallback for the B<-newkey> option with IR/CR/KUR messages.
 
@@ -730,7 +732,7 @@ L<openssl-passphrase-options(1)>.
 =item B<-digest> I<name>
 
 Specifies name of supported digest to use in RFC 4210's MSG_SIG_ALG
-and as the one-way function (OWF) in MSG_MAC_ALG.
+and as the one-way function (OWF) in C<MSG_MAC_ALG>.
 If applicable, this is used for message protection and
 proof-of-possession (POPO) signatures.
 To see the list of supported digests, use C<openssl list -digest-commands>.
@@ -738,7 +740,7 @@ Defaults to C<sha256>.
 
 =item B<-mac> I<name>
 
-Specifies the name of the MAC algorithm in MSG_MAC_ALG.
+Specifies the name of the MAC algorithm in C<MSG_MAC_ALG>.
 To get the names of supported MAC algorithms use C<openssl list -mac-algorithms>
 and possibly combine such a name with the name of a supported digest algorithm,
 e.g., hmacWithSHA256.
@@ -1097,6 +1099,13 @@ only affect the certificate verification enabled via the B<-out_trusted> option.
 
 =head1 NOTES
 
+When a client obtains from a CMP server CA certificates that it is going to
+trust, for instance via the C<caPubs> field of a certificate response,
+authentication of the CMP server is particularly critical.
+So special care must be taken setting up server authentication
+using B<-trusted> and related options for certificate-based authentication
+or B<-secret> for MAC-based protection.
+
 When setting up CMP configurations and experimenting with enrollment options
 typically various errors occur until the configuration is correct and complete.
 When the CMP server reports an error the client will by default
@@ -1166,7 +1175,7 @@ In order to update the enrolled certificate one may call
 
   openssl cmp -section insta,kur
 
-using with PBM-based protection or
+using MAC-based protection with PBM or
 
   openssl cmp -section insta,kur,signature
 
@@ -1225,7 +1234,7 @@ Then it can start using the new cert and key.
     -newkey cl_key_new.pem -certout cl_cert.pem
   cp cl_key_new.pem cl_key.pem
 
-This command sequence can be repated as often as needed.
+This command sequence can be repeated as often as needed.
 
 =head2 Requesting information from CMP server
 

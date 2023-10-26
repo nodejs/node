@@ -46,6 +46,8 @@ ChaCha20_ctr32:
 	ADDP		@k[11]=4,$key
 	.save		ar.lc,r3
 	mov		r3=ar.lc		}
+{ .mmi;	ADDP		$out=0,$out
+	ADDP		$inp=0,$inp		}
 { .mmi;	ADDP		$key=0,$key
 	ADDP		$counter=0,$counter
 	.save		pr,r14

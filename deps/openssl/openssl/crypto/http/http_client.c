@@ -164,7 +164,8 @@ void OSSL_HTTP_REQ_CTX_set_max_response_length(OSSL_HTTP_REQ_CTX *rctx,
 
 /*
  * Create request line using |rctx| and |path| (or "/" in case |path| is NULL).
- * Server name (and port) must be given if and only if plain HTTP proxy is used.
+ * Server name (and optional port) must be given if and only if
+ * a plain HTTP proxy is used and |path| does not begin with 'http://'.
  */
 int OSSL_HTTP_REQ_CTX_set_request_line(OSSL_HTTP_REQ_CTX *rctx, int method_POST,
                                        const char *server, const char *port,
@@ -193,11 +194,17 @@ int OSSL_HTTP_REQ_CTX_set_request_line(OSSL_HTTP_REQ_CTX *rctx, int method_POST,
             return 0;
     }
 
-    /* Make sure path includes a forward slash */
-    if (path == NULL)
+    /* Make sure path includes a forward slash (abs_path) */
+    if (path == NULL)  {
         path = "/";
-    if (path[0] != '/' && BIO_printf(rctx->mem, "/") <= 0)
+    } else if (HAS_PREFIX(path, "http://")) { /* absoluteURI for proxy use */
+        if (server != NULL) {
+            ERR_raise(ERR_LIB_HTTP, ERR_R_PASSED_INVALID_ARGUMENT);
+            return 0;
+        }
+    } else if (path[0] != '/' && BIO_printf(rctx->mem, "/") <= 0) {
         return 0;
+    }
     /*
      * Add (the rest of) the path and the HTTP version,
      * which is fixed to 1.0 for straightforward implementation of keep-alive

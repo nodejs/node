@@ -18,6 +18,16 @@ OpenSSL Releases
 OpenSSL 3.0
 -----------
 
+### Major changes between OpenSSL 3.0.11 and OpenSSL 3.0.12 [24 Oct 2023]
+
+  * Mitigate incorrect resize handling for symmetric cipher keys and IVs.
+    ([CVE-2023-5363])
+
+### Major changes between OpenSSL 3.0.10 and OpenSSL 3.0.11 [19 Sep 2023]
+
+  * Fix POLY1305 MAC implementation corrupting XMM registers on Windows
+    ([CVE-2023-4807])
+
 ### Major changes between OpenSSL 3.0.9 and OpenSSL 3.0.10 [1 Aug 2023]
 
   * Fix excessive time spent checking DH q parameter value ([CVE-2023-3817])
@@ -1448,6 +1458,8 @@ OpenSSL 0.9.x
 
 <!-- Links -->
 
+[CVE-2023-5363]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-5363
+[CVE-2023-4807]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-4807
 [CVE-2023-3817]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-3817
 [CVE-2023-3446]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-3446
 [CVE-2023-2975]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-2975
