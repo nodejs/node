@@ -207,6 +207,8 @@ const customTypesMap = {
   'stream.Writable': 'stream.html#class-streamwritable',
   'Writable': 'stream.html#class-streamwritable',
 
+  'Suite': 'benchmark.html#class-suite',
+
   'Immediate': 'timers.html#class-immediate',
   'Timeout': 'timers.html#class-timeout',
   'Timer': 'timers.html#timers',
