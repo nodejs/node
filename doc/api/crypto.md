@@ -2952,7 +2952,7 @@ Does not perform any other validation checks on the certificate.
 ### `crypto.argon2(password, salt, keylen[, options], callback)`
 
 <!-- YAML
-added: v21.0.0
+added: REPLACEME
 -->
 
 * `password` {string|ArrayBuffer|Buffer|TypedArray|DataView}
@@ -3016,23 +3016,28 @@ const {
   randomBytes,
 } = require('node:crypto');
 
-const salt = randomBytes(16);
 // Using the factory defaults.
-argon2('password', salt, 64, (err, derivedKey) => {
+randomBytes(16, (err, salt) => {
   if (err) throw err;
-  console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
+  argon2('password', salt, 64, (err, derivedKey) => {
+    if (err) throw err;
+    console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
+  });
 });
 // Using a custom iter parameter.
-argon2('password', salt, 64, { iter: 3 }, (err, derivedKey) => {
+randomBytes(16, (err, salt) => {
   if (err) throw err;
-  console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
+  argon2('password', salt, 64, { iter: 3 }, (err, derivedKey) => {
+    if (err) throw err;
+    console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
+  });
 });
 ```
 
 ### `crypto.argon2Sync(password, salt, keylen[, options])`
 
 <!-- YAML
-added: v21.0.0
+added: REPLACEME
 -->
 
 * `password` {string|Buffer|TypedArray|DataView}
