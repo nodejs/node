@@ -646,6 +646,16 @@ CommonJS. This includes `import` and `export` statements and `import.meta`
 references. It does _not_ include `import()` expressions, which are valid in
 CommonJS.
 
+### `--experimental-global-navigator`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable exposition of [Navigator API][] on the global scope.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -2313,6 +2323,7 @@ Node.js options that are allowed are:
 * `--experimental-abortcontroller`
 * `--experimental-default-type`
 * `--experimental-detect-module`
+* `--experimental-global-navigator`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -2763,6 +2774,7 @@ done
 [Module customization hooks]: module.md#customization-hooks
 [Module customization hooks: enabling]: module.md#enabling
 [Modules loaders]: packages.md#modules-loaders
+[Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [Permission Model]: permissions.md#permission-model
