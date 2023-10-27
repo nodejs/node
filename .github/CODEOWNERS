@@ -175,3 +175,4 @@
 
 # Web Standards
 /lib/internal/bootstrap/web/* @nodejs/web-standards
+/lib/internal/navigator.js @nodejs/web-standards
