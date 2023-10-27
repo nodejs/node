@@ -1003,8 +1003,11 @@ static Maybe<bool> ReadIterable(Environment* env,
     entries.push_back(val);
   }
 
-  transfer_list.AllocateSufficientStorage(entries.size());
-  std::copy(entries.begin(), entries.end(), &transfer_list[0]);
+  if (!entries.empty()) {
+    transfer_list.AllocateSufficientStorage(entries.size());
+    std::copy(entries.begin(), entries.end(), &transfer_list[0]);
+  }
+
   return Just(true);
 }
 

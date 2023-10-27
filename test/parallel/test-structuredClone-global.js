@@ -15,3 +15,14 @@ assert.strictEqual(structuredClone(undefined, null), undefined);
 // Transfer can be null or undefined.
 assert.strictEqual(structuredClone(undefined, { transfer: null }), undefined);
 assert.strictEqual(structuredClone(undefined, { }), undefined);
+
+{
+  // See: https://github.com/nodejs/node/issues/49940
+  const cloned = structuredClone({}, {
+    transfer: {
+      *[Symbol.iterator]() {}
+    }
+  });
+
+  assert.deepStrictEqual(cloned, {});
+}
