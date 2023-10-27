@@ -204,8 +204,6 @@ For information about the governance of the Node.js project, see
   **Michaël Zasso** <<targos@protonmail.com>> (he/him)
 * [tniessen](https://github.com/tniessen) -
   **Tobias Nießen** <<tniessen@tnie.de>> (he/him)
-* [Trott](https://github.com/Trott) -
-  **Rich Trott** <<rtrott@gmail.com>> (he/him)
 
 #### TSC regular members
 
@@ -233,6 +231,8 @@ For information about the governance of the Node.js project, see
   **Rod Vagg** <<r@va.gg>>
 * [TimothyGu](https://github.com/TimothyGu) -
   **Tiancheng "Timothy" Gu** <<timothygu99@gmail.com>> (he/him)
+* [Trott](https://github.com/Trott) -
+  **Rich Trott** <<rtrott@gmail.com>> (he/him)
 
 <details>
 
@@ -341,6 +341,8 @@ For information about the governance of the Node.js project, see
   **Adrian Estrada** <<edsadr@gmail.com>> (he/him)
 * [erickwendel](https://github.com/erickwendel) -
   **Erick Wendel** <<erick.workspace@gmail.com>> (he/him)
+* [Ethan-Arrowood](https://github.com/Ethan-Arrowood) -
+  **Ethan Arrowood** <<ethan@arrowood.dev>> (he/him)
 * [fhinkel](https://github.com/fhinkel) -
   **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
 * [F3n67u](https://github.com/F3n67u) -
@@ -357,6 +359,8 @@ For information about the governance of the Node.js project, see
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
 * [guybedford](https://github.com/guybedford) -
   **Guy Bedford** <<guybedford@gmail.com>> (he/him)
+* [H4ad](https://github.com/H4ad) -
+  **Vinícius Lourenço Claro Cardoso** <<contact@viniciusl.com.br>> (he/him)
 * [HarshithaKP](https://github.com/HarshithaKP) -
   **Harshitha K P** <<harshitha014@gmail.com>> (she/her)
 * [himself65](https://github.com/himself65) -

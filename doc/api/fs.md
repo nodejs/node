@@ -180,6 +180,9 @@ longer be used.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: v21.1.0
+    pr-url: https://github.com/nodejs/node/pull/50095
+    description: The `flush` option is now supported.
   - version:
       - v15.14.0
       - v14.18.0
@@ -194,6 +197,8 @@ changes:
 * `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
+  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+    prior to closing it. **Default:** `false`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Alias of [`filehandle.writeFile()`][].
@@ -319,7 +324,7 @@ fd.createReadStream({ start: 90, end: 99 });
 <!-- YAML
 added: v16.11.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50093
     description: The `flush` option is now supported.
 -->
@@ -376,7 +381,7 @@ added: v10.0.0
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/42835
     description: Accepts bigint values as `position`.
 -->
@@ -406,7 +411,7 @@ added:
  - v13.11.0
  - v12.17.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/42835
     description: Accepts bigint values as `position`.
 -->
@@ -440,7 +445,7 @@ added:
   - v18.2.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/42835
     description: Accepts bigint values as `position`.
 -->
@@ -896,6 +901,10 @@ the error raised if the file is not accessible.
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: v21.1.0
+    pr-url: https://github.com/nodejs/node/pull/50095
+    description: The `flush` option is now supported.
 -->
 
 * `path` {string|Buffer|URL|FileHandle} filename or {FileHandle}
@@ -904,6 +913,8 @@ added: v10.0.0
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+    prior to closing it. **Default:** `false`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously append data to a file, creating the file if it does not yet
@@ -1750,7 +1761,7 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version:
@@ -2052,6 +2063,9 @@ the user from reading or writing to it.
 <!-- YAML
 added: v0.6.7
 changes:
+  - version: v21.1.0
+    pr-url: https://github.com/nodejs/node/pull/50095
+    description: The `flush` option is now supported.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -2079,6 +2093,8 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+    prior to closing it. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
 
@@ -2546,7 +2562,7 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50093
     description: The `flush` option is now supported.
   - version: v16.10.0
@@ -4900,7 +4916,7 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version: v19.0.0
@@ -5142,6 +5158,9 @@ try {
 <!-- YAML
 added: v0.6.7
 changes:
+  - version: v21.1.0
+    pr-url: https://github.com/nodejs/node/pull/50095
+    description: The `flush` option is now supported.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7831
     description: The passed `options` object will never be modified.
@@ -5156,6 +5175,8 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+    prior to closing it. **Default:** `false`.
 
 Synchronously append data to a file, creating the file if it does not yet
 exist. `data` can be a string or a {Buffer}.
@@ -6196,7 +6217,7 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version: v19.0.0

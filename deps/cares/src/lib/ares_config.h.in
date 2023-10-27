@@ -129,6 +129,9 @@
 /* Define to 1 if you have the getnameinfo function. */
 #undef HAVE_GETNAMEINFO
 
+/* Define to 1 if you have the getrandom function. */
+#undef HAVE_GETRANDOM
+
 /* Define to 1 if you have the getservbyport_r function. */
 #undef HAVE_GETSERVBYPORT_R
 
@@ -303,6 +306,9 @@
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #undef HAVE_SYS_PARAM_H
+
+/* Define to 1 if you have the <sys/random.h> header file. */
+#undef HAVE_SYS_RANDOM_H
 
 /* Define to 1 if you have the <sys/select.h> header file. */
 #undef HAVE_SYS_SELECT_H

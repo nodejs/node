@@ -479,7 +479,7 @@ added:
   - v16.15.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -509,7 +509,7 @@ added:
   - v16.15.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -548,7 +548,7 @@ added:
   - v16.15.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -597,27 +597,35 @@ This variable may appear to be global but is not. See [`module`][].
 ## `Navigator`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 A partial implementation of the [Navigator API][].
 
 ## `navigator`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 A partial implementation of [`window.navigator`][].
+
+If your app or a dependency uses a check for `navigator` to determine whether it
+is running in a browser, the following can be used to delete the `navigator`
+global before app code runs:
+
+```bash
+node --import 'data:text/javascript,delete globalThis.navigator' app.js
+```
 
 ### `navigator.hardwareConcurrency`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 * {number}
@@ -626,7 +634,22 @@ The `navigator.hardwareConcurrency` read-only property returns the number of
 logical processors available to the current Node.js instance.
 
 ```js
-console.log(`This process is running on ${navigator.hardwareConcurrency}`);
+console.log(`This process is running on ${navigator.hardwareConcurrency} logical processors`);
+```
+
+### `navigator.userAgent`
+
+<!-- YAML
+added: v21.1.0
+-->
+
+* {string}
+
+The `navigator.userAgent` read-only property returns user agent
+consisting of the runtime name and major version number.
+
+```js
+console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 ```
 
 ## `PerformanceEntry`
@@ -823,7 +846,7 @@ added:
   - v16.15.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -843,7 +866,7 @@ added:
   - v16.15.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -1021,7 +1044,7 @@ The object that acts as the namespace for all W3C
 ## `WebSocket`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 > Stability: 1 - Experimental.

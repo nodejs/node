@@ -95,9 +95,13 @@ fs.promises.access(readOnlyFile, fs.constants.R_OK)
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.path, doesNotExist);
   };
+  const expectedErrorPromise = (err) => {
+    expectedError(err);
+    assert.match(err.stack, /at async Object\.access/);
+  };
   fs.access(doesNotExist, common.mustCall(expectedError));
   fs.promises.access(doesNotExist)
-    .then(common.mustNotCall(), common.mustCall(expectedError))
+    .then(common.mustNotCall(), common.mustCall(expectedErrorPromise))
     .catch(throwNextTick);
 }
 

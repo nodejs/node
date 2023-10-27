@@ -409,10 +409,10 @@ assert.throws(() => new Blob({}), {
 }
 
 (async () => {
-  assert.rejects(async () => Blob.prototype.arrayBuffer.call(), {
+  await assert.rejects(async () => Blob.prototype.arrayBuffer.call(), {
     code: 'ERR_INVALID_THIS',
   });
-  assert.rejects(async () => Blob.prototype.text.call(), {
+  await assert.rejects(async () => Blob.prototype.text.call(), {
     code: 'ERR_INVALID_THIS',
   });
 })().then(common.mustCall());
@@ -480,3 +480,13 @@ assert.throws(() => new Blob({}), {
   assert.ok(blob.slice(0, 1).constructor === Blob);
   assert.ok(blob.slice(0, 1) instanceof Blob);
 }
+
+(async () => {
+  const blob = new Blob(['hello']);
+
+  assert.ok(structuredClone(blob).constructor === Blob);
+  assert.ok(structuredClone(blob) instanceof Blob);
+  assert.ok(structuredClone(blob).size === blob.size);
+  assert.ok(structuredClone(blob).size === blob.size);
+  assert.ok((await structuredClone(blob).text()) === (await blob.text()));
+})().then(common.mustCall());

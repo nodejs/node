@@ -4,6 +4,8 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_i18n.h"
+#include "node_metadata.h"
+#include "node_process-inl.h"
 #include "util-inl.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
@@ -417,13 +419,134 @@ void BindingData::RegisterExternalReferences(
   }
 }
 
-std::string FromFilePath(const std::string_view file_path) {
-  std::string escaped_file_path;
-  for (size_t i = 0; i < file_path.length(); ++i) {
-    escaped_file_path += file_path[i];
-    if (file_path[i] == '%') escaped_file_path += "25";
+std::string FromFilePath(std::string_view file_path) {
+  // Avoid unnecessary allocations.
+  size_t pos = file_path.empty() ? std::string_view::npos : file_path.find('%');
+  if (pos == std::string_view::npos) {
+    return ada::href_from_file(file_path);
   }
+  // Escape '%' characters to a temporary string.
+  std::string escaped_file_path;
+  do {
+    escaped_file_path += file_path.substr(0, pos + 1);
+    escaped_file_path += "25";
+    file_path = file_path.substr(pos + 1);
+    pos = file_path.empty() ? std::string_view::npos : file_path.find('%');
+  } while (pos != std::string_view::npos);
+  escaped_file_path += file_path;
   return ada::href_from_file(escaped_file_path);
+}
+
+std::optional<std::string> FileURLToPath(Environment* env,
+                                         const ada::url_aggregator& file_url) {
+  if (file_url.type != ada::scheme::FILE) {
+    THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+    return std::nullopt;
+  }
+
+  std::string_view pathname = file_url.get_pathname();
+#ifdef _WIN32
+  size_t first_percent = std::string::npos;
+  size_t pathname_size = pathname.size();
+  std::string pathname_escaped_slash;
+
+  for (size_t i = 0; i < pathname_size; i++) {
+    if (pathname[i] == '/') {
+      pathname_escaped_slash += '\\';
+    } else {
+      pathname_escaped_slash += pathname[i];
+    }
+
+    if (pathname[i] != '%') continue;
+
+    if (first_percent == std::string::npos) {
+      first_percent = i;
+    }
+
+    // just safe-guard against access the pathname
+    // outside the bounds
+    if ((i + 2) >= pathname_size) continue;
+
+    char third = pathname[i + 2] | 0x20;
+
+    bool is_slash = pathname[i + 1] == '2' && third == 102;
+    bool is_forward_slash = pathname[i + 1] == '5' && third == 99;
+
+    if (!is_slash && !is_forward_slash) continue;
+
+    THROW_ERR_INVALID_FILE_URL_PATH(
+        env->isolate(),
+        "File URL path must not include encoded \\ or / characters");
+    return std::nullopt;
+  }
+
+  std::string_view hostname = file_url.get_hostname();
+  std::string decoded_pathname = ada::unicode::percent_decode(
+      std::string_view(pathname_escaped_slash), first_percent);
+
+  if (hostname.size() > 0) {
+    // If hostname is set, then we have a UNC path
+    // Pass the hostname through domainToUnicode just in case
+    // it is an IDN using punycode encoding. We do not need to worry
+    // about percent encoding because the URL parser will have
+    // already taken care of that for us. Note that this only
+    // causes IDNs with an appropriate `xn--` prefix to be decoded.
+    return "\\\\" + ada::unicode::to_unicode(hostname) + decoded_pathname;
+  }
+
+  char letter = decoded_pathname[1] | 0x20;
+  char sep = decoded_pathname[2];
+
+  // a..z A..Z
+  if (letter < 'a' || letter > 'z' || sep != ':') {
+    THROW_ERR_INVALID_FILE_URL_PATH(env->isolate(),
+                                    "File URL path must be absolute");
+    return std::nullopt;
+  }
+
+  return decoded_pathname.substr(1);
+#else   // _WIN32
+  std::string_view hostname = file_url.get_hostname();
+
+  if (hostname.size() > 0) {
+    THROW_ERR_INVALID_FILE_URL_HOST(
+        env->isolate(),
+        "File URL host must be \"localhost\" or empty on ",
+        std::string(per_process::metadata.platform));
+    return std::nullopt;
+  }
+
+  size_t first_percent = std::string::npos;
+  for (size_t i = 0; (i + 2) < pathname.size(); i++) {
+    if (pathname[i] != '%') continue;
+
+    if (first_percent == std::string::npos) {
+      first_percent = i;
+    }
+
+    if (pathname[i + 1] == '2' && (pathname[i + 2] | 0x20) == 102) {
+      THROW_ERR_INVALID_FILE_URL_PATH(
+          env->isolate(),
+          "File URL path must not include encoded / characters");
+      return std::nullopt;
+    }
+  }
+
+  return ada::unicode::percent_decode(pathname, first_percent);
+#endif  // _WIN32
+}
+
+// Reverse the logic applied by path.toNamespacedPath() to create a
+// namespace-prefixed path.
+void FromNamespacedPath(std::string* path) {
+#ifdef _WIN32
+  if (path->compare(0, 8, "\\\\?\\UNC\\", 8) == 0) {
+    *path = path->substr(8);
+    path->insert(0, "\\\\");
+  } else if (path->compare(0, 4, "\\\\?\\", 4) == 0) {
+    *path = path->substr(4);
+  }
+#endif
 }
 
 }  // namespace url

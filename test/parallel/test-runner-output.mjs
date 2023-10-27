@@ -40,6 +40,23 @@ function replaceTestLocationLine(str) {
   return str.replaceAll(/(js:)(\d+)(:\d+)/g, '$1(LINE)$3');
 }
 
+// The Node test coverage returns results for all files called by the test. This
+// will make the output file change if files like test/common/index.js change.
+// This transform picks only the first line and then the lines from the test
+// file.
+function pickTestFileFromLcov(str) {
+  const lines = str.split(/\n/);
+  const firstLineOfTestFile = lines.findIndex(
+    (line) => line.startsWith('SF:') && line.trim().endsWith('output.js')
+  );
+  const lastLineOfTestFile = lines.findIndex(
+    (line, index) => index > firstLineOfTestFile && line.trim() === 'end_of_record'
+  );
+  return (
+    lines[0] + '\n' + lines.slice(firstLineOfTestFile, lastLineOfTestFile + 1).join('\n') + '\n'
+  );
+}
+
 const defaultTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
@@ -59,6 +76,14 @@ const junitTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
 );
+const lcovTransform = snapshot.transform(
+  snapshot.replaceWindowsLineEndings,
+  snapshot.replaceStackTrace,
+  snapshot.replaceFullPaths,
+  snapshot.replaceWindowsPaths,
+  pickTestFileFromLcov
+);
+
 
 const tests = [
   { name: 'test-runner/output/abort.js' },
@@ -67,6 +92,7 @@ const tests = [
   { name: 'test-runner/output/describe_it.js' },
   { name: 'test-runner/output/describe_nested.js' },
   { name: 'test-runner/output/hooks.js' },
+  { name: 'test-runner/output/hooks_spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js' },
   { name: 'test-runner/output/hooks-with-no-global-test.js' },
   { name: 'test-runner/output/before-and-after-each-too-many-listeners.js' },
@@ -80,6 +106,7 @@ const tests = [
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter_cli.js', transform: specTransform },
+  process.features.inspector ? { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform } : false,
   { name: 'test-runner/output/output.js' },
   { name: 'test-runner/output/output_cli.js' },
   { name: 'test-runner/output/name_pattern.js' },

@@ -1,14 +1,21 @@
 'use strict';
 
+const os = require('os');
 const common = require('../common.js');
-const uptime = require('os').uptime;
 const assert = require('assert');
+
+const uptime = os.uptime;
 
 const bench = common.createBenchmark(main, {
   n: [1e5],
 });
 
 function main({ n }) {
+  if (os.type() === 'OS400') {
+    console.log('Skipping: os.uptime is not implemented on IBMi');
+    process.exit(0);
+  }
+
   // Warm up.
   const length = 1024;
   const array = [];

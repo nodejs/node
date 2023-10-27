@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.26.3",
+  "version": "5.26.4",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -67,11 +67,10 @@
     "index-fetch.js",
     "lib",
     "types",
-    "docs",
-    "scripts/esbuild-build.mjs"
+    "docs"
   ],
   "scripts": {
-    "build:node": "node scripts/esbuild-build.mjs",
+    "build:node": "npx esbuild@0.19.4 index-fetch.js --bundle --platform=node --outfile=undici-fetch.js --define:esbuildDetection=1 --keep-names",
     "prebuild:wasm": "node build/wasm.js --prebuild",
     "build:wasm": "node build/wasm.js --docker",
     "lint": "standard | snazzy",
@@ -85,7 +84,7 @@
     "test:tdd": "tap test/*.js test/diagnostics-channel/*.js -w",
     "test:typescript": "node scripts/verifyVersion.js 14 || tsd && tsc --skipLibCheck test/imports/undici-import.ts",
     "test:websocket": "node scripts/verifyVersion.js 18 || tap test/websocket/*.js",
-    "test:wpt": "node scripts/verifyVersion 18 || (node test/wpt/start-fetch.mjs && node test/wpt/start-FileAPI.mjs && node test/wpt/start-mimesniff.mjs && node test/wpt/start-xhr.mjs && node --no-warnings test/wpt/start-websockets.mjs)",
+    "test:wpt": "node scripts/verifyVersion 18 || (node test/wpt/start-fetch.mjs && node test/wpt/start-FileAPI.mjs && node test/wpt/start-mimesniff.mjs && node test/wpt/start-xhr.mjs && node --no-warnings --expose-internals test/wpt/start-websockets.mjs)",
     "coverage": "nyc --reporter=text --reporter=html npm run test",
     "coverage:ci": "nyc --reporter=lcov npm run test",
     "bench": "PORT=3042 concurrently -k -s first npm:bench:server npm:bench:run",
@@ -110,7 +109,6 @@
     "delay": "^5.0.0",
     "dns-packet": "^5.4.0",
     "docsify-cli": "^4.4.3",
-    "esbuild": "^0.19.4",
     "form-data": "^4.0.0",
     "formdata-node": "^4.3.1",
     "https-pem": "^3.0.0",

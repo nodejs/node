@@ -318,6 +318,7 @@ void ContextifyContext::CreatePerIsolateProperties(
   SetMethod(isolate, target, "makeContext", MakeContext);
   SetMethod(isolate, target, "isContext", IsContext);
   SetMethod(isolate, target, "compileFunction", CompileFunction);
+  SetMethod(isolate, target, "containsModuleSyntax", ContainsModuleSyntax);
 }
 
 void ContextifyContext::RegisterExternalReferences(
@@ -325,6 +326,7 @@ void ContextifyContext::RegisterExternalReferences(
   registry->Register(MakeContext);
   registry->Register(IsContext);
   registry->Register(CompileFunction);
+  registry->Register(ContainsModuleSyntax);
   registry->Register(PropertyGetterCallback);
   registry->Register(PropertySetterCallback);
   registry->Register(PropertyDescriptorCallback);
@@ -771,11 +773,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   bool produce_cached_data = false;
   Local<Context> parsing_context = context;
 
-  bool needs_custom_host_defined_options = false;
+  Local<Symbol> id_symbol;
   if (argc > 2) {
     // new ContextifyScript(code, filename, lineOffset, columnOffset,
     //                      cachedData, produceCachedData, parsingContext,
-    //                      needsCustomHostDefinedOptions)
+    //                      hostDefinedOptionId)
     CHECK_EQ(argc, 8);
     CHECK(args[2]->IsNumber());
     line_offset = args[2].As<Int32>()->Value();
@@ -795,9 +797,8 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
       CHECK_NOT_NULL(sandbox);
       parsing_context = sandbox->context();
     }
-    if (args[7]->IsTrue()) {
-      needs_custom_host_defined_options = true;
-    }
+    CHECK(args[7]->IsSymbol());
+    id_symbol = args[7].As<Symbol>();
   }
 
   ContextifyScript* contextify_script =
@@ -821,12 +822,6 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
 
   Local<PrimitiveArray> host_defined_options =
       PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
-  // We need a default host defined options that's the same for all scripts
-  // not needing custom module callbacks for so that the isolate compilation
-  // cache can be hit.
-  Local<Symbol> id_symbol = needs_custom_host_defined_options
-                                ? Symbol::New(isolate, filename)
-                                : env->default_host_defined_options();
   host_defined_options->Set(
       isolate, loader::HostDefinedOptions::kID, id_symbol);
 
@@ -1199,6 +1194,10 @@ void ContextifyContext::CompileFunction(
     params_buf = args[8].As<Array>();
   }
 
+  // Argument 10: host-defined option symbol
+  CHECK(args[9]->IsSymbol());
+  Local<Symbol> id_symbol = args[9].As<Symbol>();
+
   // Read cache from cached data buffer
   ScriptCompiler::CachedData* cached_data = nullptr;
   if (!cached_data_buf.IsEmpty()) {
@@ -1207,34 +1206,18 @@ void ContextifyContext::CompileFunction(
       data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
 
-  // Set host_defined_options
   Local<PrimitiveArray> host_defined_options =
-      PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
-  Local<Symbol> id_symbol = Symbol::New(isolate, filename);
-  host_defined_options->Set(
-      isolate, loader::HostDefinedOptions::kID, id_symbol);
+      GetHostDefinedOptions(isolate, id_symbol);
+  ScriptCompiler::Source source =
+      GetCommonJSSourceInstance(isolate,
+                                code,
+                                filename,
+                                line_offset,
+                                column_offset,
+                                host_defined_options,
+                                cached_data);
+  ScriptCompiler::CompileOptions options = GetCompileOptions(source);
 
-  ScriptOrigin origin(isolate,
-                      filename,
-                      line_offset,       // line offset
-                      column_offset,     // column offset
-                      true,              // is cross origin
-                      -1,                // script id
-                      Local<Value>(),    // source map URL
-                      false,             // is opaque (?)
-                      false,             // is WASM
-                      false,             // is ES Module
-                      host_defined_options);
-
-  ScriptCompiler::Source source(code, origin, cached_data);
-  ScriptCompiler::CompileOptions options;
-  if (source.GetCachedData() == nullptr) {
-    options = ScriptCompiler::kNoCompileOptions;
-  } else {
-    options = ScriptCompiler::kConsumeCodeCache;
-  }
-
-  TryCatchScope try_catch(env);
   Context::Scope scope(parsing_context);
 
   // Read context extensions from buffer
@@ -1259,9 +1242,83 @@ void ContextifyContext::CompileFunction(
     }
   }
 
+  TryCatchScope try_catch(env);
+  Local<Object> result = CompileFunctionAndCacheResult(env,
+                                                       parsing_context,
+                                                       &source,
+                                                       params,
+                                                       context_extensions,
+                                                       options,
+                                                       produce_cached_data,
+                                                       id_symbol,
+                                                       try_catch);
+
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    try_catch.ReThrow();
+    return;
+  }
+
+  if (result.IsEmpty()) {
+    return;
+  }
+  args.GetReturnValue().Set(result);
+}
+
+Local<PrimitiveArray> ContextifyContext::GetHostDefinedOptions(
+    Isolate* isolate, Local<Symbol> id_symbol) {
+  Local<PrimitiveArray> host_defined_options =
+      PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
+  host_defined_options->Set(
+      isolate, loader::HostDefinedOptions::kID, id_symbol);
+  return host_defined_options;
+}
+
+ScriptCompiler::Source ContextifyContext::GetCommonJSSourceInstance(
+    Isolate* isolate,
+    Local<String> code,
+    Local<String> filename,
+    int line_offset,
+    int column_offset,
+    Local<PrimitiveArray> host_defined_options,
+    ScriptCompiler::CachedData* cached_data) {
+  ScriptOrigin origin(isolate,
+                      filename,
+                      line_offset,     // line offset
+                      column_offset,   // column offset
+                      true,            // is cross origin
+                      -1,              // script id
+                      Local<Value>(),  // source map URL
+                      false,           // is opaque (?)
+                      false,           // is WASM
+                      false,           // is ES Module
+                      host_defined_options);
+  return ScriptCompiler::Source(code, origin, cached_data);
+}
+
+ScriptCompiler::CompileOptions ContextifyContext::GetCompileOptions(
+    const ScriptCompiler::Source& source) {
+  ScriptCompiler::CompileOptions options;
+  if (source.GetCachedData() != nullptr) {
+    options = ScriptCompiler::kConsumeCodeCache;
+  } else {
+    options = ScriptCompiler::kNoCompileOptions;
+  }
+  return options;
+}
+
+Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
+    Environment* env,
+    Local<Context> parsing_context,
+    ScriptCompiler::Source* source,
+    std::vector<Local<String>> params,
+    std::vector<Local<Object>> context_extensions,
+    ScriptCompiler::CompileOptions options,
+    bool produce_cached_data,
+    Local<Symbol> id_symbol,
+    const TryCatchScope& try_catch) {
   MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunction(
       parsing_context,
-      &source,
+      source,
       params.size(),
       params.data(),
       context_extensions.size(),
@@ -1273,24 +1330,26 @@ void ContextifyContext::CompileFunction(
   if (!maybe_fn.ToLocal(&fn)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
       errors::DecorateErrorStack(env, try_catch);
-      try_catch.ReThrow();
+      return Object::New(env->isolate());
     }
-    return;
-  }
-  if (fn->SetPrivate(context, env->host_defined_option_symbol(), id_symbol)
-          .IsNothing()) {
-    return;
   }
 
+  Local<Context> context = env->context();
+  if (fn->SetPrivate(context, env->host_defined_option_symbol(), id_symbol)
+          .IsNothing()) {
+    return Object::New(env->isolate());
+  }
+
+  Isolate* isolate = env->isolate();
   Local<Object> result = Object::New(isolate);
   if (result->Set(parsing_context, env->function_string(), fn).IsNothing())
-    return;
+    return Object::New(env->isolate());
   if (result
           ->Set(parsing_context,
                 env->source_map_url_string(),
                 fn->GetScriptOrigin().SourceMapUrl())
           .IsNothing())
-    return;
+    return Object::New(env->isolate());
 
   std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
   if (produce_cached_data) {
@@ -1299,14 +1358,114 @@ void ContextifyContext::CompileFunction(
   if (StoreCodeCacheResult(env,
                            result,
                            options,
-                           source,
+                           *source,
                            produce_cached_data,
                            std::move(new_cached_data))
           .IsNothing()) {
-    return;
+    return Object::New(env->isolate());
   }
 
-  args.GetReturnValue().Set(result);
+  return result;
+}
+
+// When compiling as CommonJS source code that contains ESM syntax, the
+// following error messages are returned:
+// - `import` statements: "Cannot use import statement outside a module"
+// - `export` statements: "Unexpected token 'export'"
+// - `import.meta` references: "Cannot use 'import.meta' outside a module"
+// Dynamic `import()` is permitted in CommonJS, so it does not error.
+// While top-level `await` is not permitted in CommonJS, it returns the same
+// error message as when `await` is used in a sync function, so we don't use it
+// as a disambiguation.
+constexpr std::array<std::string_view, 3> esm_syntax_error_messages = {
+    "Cannot use import statement outside a module",  // `import` statements
+    "Unexpected token 'export'",                     // `export` statements
+    "Cannot use 'import.meta' outside a module"};    // `import.meta` references
+
+void ContextifyContext::ContainsModuleSyntax(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  if (args.Length() == 0) {
+    return THROW_ERR_MISSING_ARGS(
+        env, "containsModuleSyntax needs at least 1 argument");
+  }
+
+  // Argument 2: filename; if undefined, use empty string
+  Local<String> filename = String::Empty(isolate);
+  if (!args[1]->IsUndefined()) {
+    CHECK(args[1]->IsString());
+    filename = args[1].As<String>();
+  }
+
+  // Argument 1: source code; if undefined, read from filename in argument 2
+  Local<String> code;
+  if (args[0]->IsUndefined()) {
+    CHECK(!filename.IsEmpty());
+    const char* filename_str = Utf8Value(isolate, filename).out();
+    std::string contents;
+    int result = ReadFileSync(&contents, filename_str);
+    if (result != 0) {
+      isolate->ThrowException(
+          ERR_MODULE_NOT_FOUND(isolate, "Cannot read file %s", filename_str));
+      return;
+    }
+    code = String::NewFromUtf8(isolate,
+                               contents.c_str(),
+                               v8::NewStringType::kNormal,
+                               contents.length())
+               .ToLocalChecked();
+  } else {
+    CHECK(args[0]->IsString());
+    code = args[0].As<String>();
+  }
+
+  // TODO(geoffreybooth): Centralize this rather than matching the logic in
+  // cjs/loader.js and translators.js
+  Local<String> script_id = String::Concat(
+      isolate, String::NewFromUtf8(isolate, "cjs:").ToLocalChecked(), filename);
+  Local<Symbol> id_symbol = Symbol::New(isolate, script_id);
+
+  Local<PrimitiveArray> host_defined_options =
+      GetHostDefinedOptions(isolate, id_symbol);
+  ScriptCompiler::Source source = GetCommonJSSourceInstance(
+      isolate, code, filename, 0, 0, host_defined_options, nullptr);
+  ScriptCompiler::CompileOptions options = GetCompileOptions(source);
+
+  std::vector<Local<String>> params = {
+      String::NewFromUtf8(isolate, "exports").ToLocalChecked(),
+      String::NewFromUtf8(isolate, "require").ToLocalChecked(),
+      String::NewFromUtf8(isolate, "module").ToLocalChecked(),
+      String::NewFromUtf8(isolate, "__filename").ToLocalChecked(),
+      String::NewFromUtf8(isolate, "__dirname").ToLocalChecked()};
+
+  TryCatchScope try_catch(env);
+
+  ContextifyContext::CompileFunctionAndCacheResult(env,
+                                                   context,
+                                                   &source,
+                                                   params,
+                                                   std::vector<Local<Object>>(),
+                                                   options,
+                                                   true,
+                                                   id_symbol,
+                                                   try_catch);
+
+  bool found_error_message_caused_by_module_syntax = false;
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    Utf8Value message_value(env->isolate(), try_catch.Message()->Get());
+    auto message = message_value.ToStringView();
+
+    for (const auto& error_message : esm_syntax_error_messages) {
+      if (message.find(error_message) != std::string_view::npos) {
+        found_error_message_caused_by_module_syntax = true;
+        break;
+      }
+    }
+  }
+  args.GetReturnValue().Set(found_error_message_caused_by_module_syntax);
 }
 
 static void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {

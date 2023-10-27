@@ -872,7 +872,7 @@ The [`require.extensions`][] property is deprecated.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47202
     description: Runtime deprecation.
   - version: v16.6.0
@@ -3387,7 +3387,7 @@ Consider using alternatives such as the [`mock`][] helper function.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/49609
     description: Runtime deprecation.
   - version: v20.8.0

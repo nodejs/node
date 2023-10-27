@@ -6,7 +6,7 @@
 added: v16.5.0
 changes:
   - version:
-    - REPLACEME
+    - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
@@ -206,7 +206,7 @@ added: v16.5.0
 * `transform` {Object}
   * `readable` {ReadableStream} The `ReadableStream` to which
     `transform.writable` will push the potentially modified data
-    is receives from this `ReadableStream`.
+    it receives from this `ReadableStream`.
   * `writable` {WritableStream} The `WritableStream` to which this
     `ReadableStream`'s data will be written.
 * `options` {Object}

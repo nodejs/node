@@ -15,7 +15,7 @@ assert.ok(validateAttributes(url, 'module', {}));
 assert.ok(validateAttributes(url, 'wasm', {}));
 
 assert.throws(() => validateAttributes(url, 'json', {}), {
-  code: 'ERR_IMPORT_ASSERTION_TYPE_MISSING',
+  code: 'ERR_IMPORT_ATTRIBUTE_MISSING',
 });
 
 assert.throws(() => validateAttributes(url, 'json', { type: 'json', unsupportedAttribute: 'value' }), {
@@ -27,17 +27,17 @@ assert.throws(() => validateAttributes(url, 'module', { unsupportedAttribute: 'v
 });
 
 assert.throws(() => validateAttributes(url, 'module', { type: 'json' }), {
-  code: 'ERR_IMPORT_ASSERTION_TYPE_FAILED',
+  code: 'ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE',
 });
 
 // The HTML spec specifically disallows this for now, while Wasm module import
 // and whether it will require a type assertion is still an open question.
 assert.throws(() => validateAttributes(url, 'module', { type: 'javascript' }), {
-  code: 'ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED',
+  code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED',
 });
 
 assert.throws(() => validateAttributes(url, 'module', { type: 'css' }), {
-  code: 'ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED',
+  code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED',
 });
 
 assert.throws(() => validateAttributes(url, 'module', { type: false }), {

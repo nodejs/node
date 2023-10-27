@@ -1,5 +1,7 @@
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 AUTOMAKE_OPTIONS = foreign subdir-objects nostdinc 1.9.6
-PROGS = ahost adig acountry
+PROGS = ahost adig
 
 EXTRA_DIST = CMakeLists.txt Makefile.inc
 
@@ -32,7 +34,3 @@ ahost_CPPFLAGS = $(AM_CPPFLAGS)
 adig_SOURCES = adig.c $(SAMPLESOURCES) $(SAMPLEHEADERS)
 adig_CFLAGS = $(AM_CFLAGS)
 adig_CPPFLAGS = $(AM_CPPFLAGS)
-
-acountry_SOURCES = acountry.c $(SAMPLESOURCES) $(SAMPLEHEADERS)
-acountry_CFLAGS = $(AM_CFLAGS)
-acountry_CPPFLAGS = $(AM_CPPFLAGS)

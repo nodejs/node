@@ -90,14 +90,20 @@ const {
 }
 
 (async () => {
+  let _deadCode;
+
   const histogram = createHistogram();
-  const m = (a, b = 1) => {};
+  const m = (a, b = 1) => {
+    for (let i = 0; i < 1e3; i++)
+      _deadCode = i;
+  };
   const n = performance.timerify(m, { histogram });
   assert.strictEqual(histogram.max, 0);
   for (let i = 0; i < 10; i++) {
     n();
     await sleep(10);
   }
+  assert.ok(_deadCode >= 0);
   assert.notStrictEqual(histogram.max, 0);
   [1, '', {}, [], false].forEach((histogram) => {
     assert.throws(() => performance.timerify(m, { histogram }), {

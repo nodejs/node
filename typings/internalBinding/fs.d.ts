@@ -67,6 +67,7 @@ declare namespace InternalFSBinding {
   function chown(path: string, uid: number, gid: number, req: FSReqCallback): void;
   function chown(path: string, uid: number, gid: number, req: undefined, ctx: FSSyncContext): void;
   function chown(path: string, uid: number, gid: number, usePromises: typeof kUsePromises): Promise<void>;
+  function chown(path: string, uid: number, gid: number): void;
 
   function close(fd: number, req: FSReqCallback): void;
   function close(fd: number, req: undefined, ctx: FSSyncContext): void;
@@ -99,8 +100,8 @@ declare namespace InternalFSBinding {
   function fstat(fd: number, useBigint: false, usePromises: typeof kUsePromises): Promise<Float64Array>;
 
   function fsync(fd: number, req: FSReqCallback): void;
-  function fsync(fd: number, req: undefined, ctx: FSSyncContext): void;
   function fsync(fd: number, usePromises: typeof kUsePromises): Promise<void>;
+  function fsync(fd: number): void;
 
   function ftruncate(fd: number, len: number, req: FSReqCallback): void;
   function ftruncate(fd: number, len: number, req: undefined, ctx: FSSyncContext): void;
@@ -116,10 +117,12 @@ declare namespace InternalFSBinding {
   function lchown(path: string, uid: number, gid: number, req: FSReqCallback): void;
   function lchown(path: string, uid: number, gid: number, req: undefined, ctx: FSSyncContext): void;
   function lchown(path: string, uid: number, gid: number, usePromises: typeof kUsePromises): Promise<void>;
+  function lchown(path: string, uid: number, gid: number): void;
 
   function link(existingPath: string, newPath: string, req: FSReqCallback): void;
   function link(existingPath: string, newPath: string, req: undefined, ctx: FSSyncContext): void;
   function link(existingPath: string, newPath: string, usePromises: typeof kUsePromises): Promise<void>;
+  function link(existingPath: string, newPath: string): void;
 
   function lstat(path: StringOrBuffer, useBigint: boolean, req: FSReqCallback<Float64Array | BigUint64Array>): void;
   function lstat(path: StringOrBuffer, useBigint: true, req: FSReqCallback<BigUint64Array>): void;
@@ -138,13 +141,14 @@ declare namespace InternalFSBinding {
   function mkdtemp(prefix: string, encoding: unknown, req: FSReqCallback<string>): void;
   function mkdtemp(prefix: string, encoding: unknown, req: undefined, ctx: FSSyncContext): string;
   function mkdtemp(prefix: string, encoding: unknown, usePromises: typeof kUsePromises): Promise<string>;
+  function mkdtemp(prefix: string, encoding: unknown): string;
 
   function mkdir(path: string, mode: number, recursive: boolean, req: FSReqCallback<void | string>): void;
   function mkdir(path: string, mode: number, recursive: true, req: FSReqCallback<string>): void;
   function mkdir(path: string, mode: number, recursive: false, req: FSReqCallback<void>): void;
-  function mkdir(path: string, mode: number, recursive: boolean, req: undefined, ctx: FSSyncContext): void | string;
-  function mkdir(path: string, mode: number, recursive: true, req: undefined, ctx: FSSyncContext): string;
-  function mkdir(path: string, mode: number, recursive: false, req: undefined, ctx: FSSyncContext): void;
+  function mkdir(path: string, mode: number, recursive: boolean): void | string;
+  function mkdir(path: string, mode: number, recursive: true): string;
+  function mkdir(path: string, mode: number, recursive: false): void;
   function mkdir(path: string, mode: number, recursive: boolean, usePromises: typeof kUsePromises): Promise<void | string>;
   function mkdir(path: string, mode: number, recursive: true, usePromises: typeof kUsePromises): Promise<string>;
   function mkdir(path: string, mode: number, recursive: false, usePromises: typeof kUsePromises): Promise<void>;
@@ -155,8 +159,8 @@ declare namespace InternalFSBinding {
   function openFileHandle(path: StringOrBuffer, flags: number, mode: number, usePromises: typeof kUsePromises): Promise<FileHandle>;
 
   function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number, req: FSReqCallback<number>): void;
-  function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number, req: undefined, ctx: FSSyncContext): number;
   function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number, usePromises: typeof kUsePromises): Promise<number>;
+  function read(fd: number, buffer: ArrayBufferView, offset: number, length: number, position: number): number;
 
   function readBuffers(fd: number, buffers: ArrayBufferView[], position: number, req: FSReqCallback<number>): void;
   function readBuffers(fd: number, buffers: ArrayBufferView[], position: number, req: undefined, ctx: FSSyncContext): number;
@@ -175,14 +179,17 @@ declare namespace InternalFSBinding {
   function readlink(path: StringOrBuffer, encoding: unknown, req: FSReqCallback<string | Buffer>): void;
   function readlink(path: StringOrBuffer, encoding: unknown, req: undefined, ctx: FSSyncContext): string | Buffer;
   function readlink(path: StringOrBuffer, encoding: unknown, usePromises: typeof kUsePromises): Promise<string | Buffer>;
+  function readlink(path: StringOrBuffer, encoding: unknown): StringOrBuffer;
 
   function realpath(path: StringOrBuffer, encoding: unknown, req: FSReqCallback<string | Buffer>): void;
   function realpath(path: StringOrBuffer, encoding: unknown, req: undefined, ctx: FSSyncContext): string | Buffer;
   function realpath(path: StringOrBuffer, encoding: unknown, usePromises: typeof kUsePromises): Promise<string | Buffer>;
+  function realpath(path: StringOrBuffer, encoding: unknown): StringOrBuffer;
 
   function rename(oldPath: string, newPath: string, req: FSReqCallback): void;
   function rename(oldPath: string, newPath: string, req: undefined, ctx: FSSyncContext): void;
   function rename(oldPath: string, newPath: string, usePromises: typeof kUsePromises): Promise<void>;
+  function rename(oldPath: string, newPath: string): void;
 
   function rmdir(path: string, req: FSReqCallback): void;
   function rmdir(path: string, req: undefined, ctx: FSSyncContext): void;
@@ -201,6 +208,7 @@ declare namespace InternalFSBinding {
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, req: FSReqCallback): void;
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, req: undefined, ctx: FSSyncContext): void;
   function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number, usePromises: typeof kUsePromises): Promise<void>;
+  function symlink(target: StringOrBuffer, path: StringOrBuffer, type: number): void;
 
   function unlink(path: string, req: FSReqCallback): void;
   function unlink(path: string): void;

@@ -1,9 +1,29 @@
+#############################################################
+#
+# Copyright (C) the Massachusetts Institute of Technology.
+# Copyright (C) Daniel Stenberg
+#
+# Permission to use, copy, modify, and distribute this
+# software and its documentation for any purpose and without
+# fee is hereby granted, provided that the above copyright
+# notice appear in all copies and that both that copyright
+# notice and this permission notice appear in supporting
+# documentation, and that the name of M.I.T. not be used in
+# advertising or publicity pertaining to distribution of the
+# software without specific, written prior permission.
+# M.I.T. makes no representations about the suitability of
+# this software for any purpose.  It is provided "as is"
+# without express or implied warranty.
+#
+# SPDX-License-Identifier: MIT
+#
+#############################################################
 AC_PREREQ([2.60])
 
-AC_INIT([c-ares], [1.19.1],
+AC_INIT([c-ares], [1.20.1],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="8:1:6"
+CARES_VERSION_INFO="9:1:7"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -666,6 +686,7 @@ CARES_CHECK_FUNC_GETENV
 CARES_CHECK_FUNC_GETHOSTBYADDR
 CARES_CHECK_FUNC_GETHOSTBYNAME
 CARES_CHECK_FUNC_GETHOSTNAME
+CARES_CHECK_FUNC_GETRANDOM
 CARES_CHECK_FUNC_GETSERVBYPORT_R
 CARES_CHECK_FUNC_INET_NET_PTON
 CARES_CHECK_FUNC_INET_NTOP

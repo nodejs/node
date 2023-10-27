@@ -174,7 +174,7 @@ There is no equivalent to this API in browsers.
 ## `worker.isMarkedAsUntransferable(object)`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 * `object` {any} Any JavaScript value.
@@ -600,7 +600,7 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47604
     description: An error is thrown when an untransferable object is in the
                  transfer list.

@@ -1749,49 +1749,35 @@ is set for the `Http2Stream`.
 
 An attempt was made to construct an object using a non-public constructor.
 
-<a id="ERR_IMPORT_ASSERTION_TYPE_FAILED"></a>
+<a id="ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE"></a>
 
-### `ERR_IMPORT_ASSERTION_TYPE_FAILED`
+### `ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE`
 
 <!-- YAML
 added:
-  - v17.1.0
-  - v16.14.0
+  - v21.1.0
 -->
 
 An import `type` attribute was provided, but the specified module is of a
 different type.
 
-<a id="ERR_IMPORT_ASSERTION_TYPE_MISSING"></a>
+<a id="ERR_IMPORT_ATTRIBUTE_MISSING"></a>
 
-### `ERR_IMPORT_ASSERTION_TYPE_MISSING`
+### `ERR_IMPORT_ATTRIBUTE_MISSING`
 
 <!-- YAML
 added:
-  - v17.1.0
-  - v16.14.0
+  - v21.1.0
 -->
 
 An import attribute is missing, preventing the specified module to be imported.
-
-<a id="ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED"></a>
-
-### `ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED`
-
-<!-- YAML
-added:
-  - v17.1.0
-  - v16.14.0
--->
-
-An import attribute is not supported by this version of Node.js.
 
 <a id="ERR_IMPORT_ATTRIBUTE_UNSUPPORTED"></a>
 
 ### `ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 An import attribute is not supported by this version of Node.js.
@@ -2981,6 +2967,12 @@ An attempt was made to use something that was already closed.
 While using the Performance Timing API (`perf_hooks`), no valid performance
 entry types are found.
 
+<a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG"></a>
+
+### `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`
+
+A dynamic import callback was invoked without `--experimental-vm-modules`.
+
 <a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING"></a>
 
 ### `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`
@@ -3293,14 +3285,53 @@ An invalid or unknown file encoding was passed.
 ### `ERR_INVALID_TRANSFER_OBJECT`
 
 <!-- YAML
-removed: REPLACEME
+removed: v21.0.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47839
     description: A `DOMException` is thrown instead.
 -->
 
 An invalid transfer object was passed to `postMessage()`.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_FAILED"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_FAILED`
+
+<!-- YAML
+added:
+  - v17.1.0
+  - v16.14.0
+removed: v21.1.0
+-->
+
+An import assertion has failed, preventing the specified module to be imported.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_MISSING"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_MISSING`
+
+<!-- YAML
+added:
+  - v17.1.0
+  - v16.14.0
+removed: v21.1.0
+-->
+
+An import assertion is missing, preventing the specified module to be imported.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED`
+
+<!-- YAML
+added:
+  - v17.1.0
+  - v16.14.0
+removed: v21.1.0
+-->
+
+An import attribute is not supported by this version of Node.js.
 
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 
@@ -3320,9 +3351,9 @@ transferable objects also exist now.
 
 <!-- YAML
 added: v15.0.0
-removed: REPLACEME
+removed: v21.0.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47839
     description: A `DOMException` is thrown instead.
 -->

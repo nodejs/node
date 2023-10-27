@@ -291,16 +291,12 @@ As a general rule, building a DLL with static CRT linkage is highly
 discouraged, and intermixing CRTs in the same app is something to
 avoid at any cost.
 
-Reading and comprehension of Microsoft Knowledge Base articles
-KB94248 and KB140584 is a must for any Windows developer. Especially
+Reading and comprehension of the following Microsoft Learn article
+is a must for any Windows developer. Especially
 important is full understanding if you are not going to follow the
 advice given above.
 
- - [KB94248](http://support.microsoft.com/kb/94248/en-us) - How To Use the C Run-Time
-
- - [KB140584](http://support.microsoft.com/kb/140584/en-us) - How to link with the correct C Run-Time (CRT) library
-
- - [KB190799](http://msdn.microsoft.com/en-us/library/ms235460) - Potential Errors Passing CRT Objects Across DLL Boundaries
+ - [Use the C Run-Time](https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/cpp/libraries/use-c-run-time)
 
 If your app is misbehaving in some strange way, or it is suffering
 from memory corruption, before asking for further help, please try
@@ -396,6 +392,21 @@ You can build and install c-ares using [vcpkg](https://github.com/Microsoft/vcpk
 ```
 
 The c-ares port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
+
+WATCOM
+=====
+
+To build c-ares with OpenWatcom, you need to have at least version 1.9 of OpenWatcom. You can get the latest version from [http://openwatcom.org/ftp/install/](http://openwatcom.org/ftp/install/). Install the version that corresponds to your current host platform.
+
+After installing OpenWatcom, open a new command prompt and execute the following commands:
+
+```
+  cd \path\to\cmake\source
+  buildconf.bat
+  wmake -u -f Makefile.Watcom
+```
+
+After running wmake, you should get adig.exe, ahost.exe, and the static and dynamic versions of libcares.
 
 PORTS
 =====
