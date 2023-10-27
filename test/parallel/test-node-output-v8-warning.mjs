@@ -22,9 +22,9 @@ describe('v8 output', { concurrency: true }, () => {
   const tests = [
     { name: 'v8/v8_warning.js' },
   ];
-  for (const { name, transform } of tests) {
+  for (const { name } of tests) {
     it(name, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);
+      await snapshot.spawnAndAssert(fixtures.path(name), defaultTransform);
     });
   }
 });
