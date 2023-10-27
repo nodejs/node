@@ -58,46 +58,66 @@ function codeUnitStr(char) {
   return 'U+' + char.charCodeAt(0).toString(16);
 }
 
+class ReportResult {
+  constructor(name) {
+    this.test = name;
+    this.status = 'OK';
+    this.subtests = [];
+  }
+
+  addSubtest(name, status, message) {
+    const subtest = {
+      status,
+      // https://github.com/web-platform-tests/wpt/blob/b24eedd/resources/testharness.js#L3722
+      name: sanitizeUnpairedSurrogates(name),
+    };
+    if (message) {
+      // https://github.com/web-platform-tests/wpt/blob/b24eedd/resources/testharness.js#L4506
+      subtest.message = sanitizeUnpairedSurrogates(message);
+    }
+    this.subtests.push(subtest);
+    return subtest;
+  }
+
+  finish(status) {
+    this.status = status ?? 'OK';
+  }
+}
+
+// Generates a report that can be uploaded to wpt.fyi.
+// Checkout https://github.com/web-platform-tests/wpt.fyi/tree/main/api#results-creation
+// for more details.
 class WPTReport {
   constructor(path) {
     this.filename = `report-${path.replaceAll('/', '-')}.json`;
-    this.results = [];
+    /** @type {Map<string, ReportResult>} */
+    this.results = new Map();
     this.time_start = Date.now();
   }
 
-  addResult(name, status) {
-    const result = {
-      test: name,
-      status,
-      subtests: [],
-      addSubtest(name, status, message) {
-        const subtest = {
-          status,
-          // https://github.com/web-platform-tests/wpt/blob/b24eedd/resources/testharness.js#L3722
-          name: sanitizeUnpairedSurrogates(name),
-        };
-        if (message) {
-          // https://github.com/web-platform-tests/wpt/blob/b24eedd/resources/testharness.js#L4506
-          subtest.message = sanitizeUnpairedSurrogates(message);
-        }
-        this.subtests.push(subtest);
-        return subtest;
-      },
-    };
-    this.results.push(result);
+  /**
+   * Get or create a ReportResult for a test spec.
+   * @param {WPTTestSpec} spec
+   */
+  getResult(spec) {
+    const name = `/${spec.getRelativePath()}${spec.variant}`;
+    if (this.results.has(name)) {
+      return this.results.get(name);
+    }
+    const result = new ReportResult(name);
+    this.results.set(name, result);
     return result;
   }
 
   write() {
     this.time_end = Date.now();
-    this.results = this.results.filter((result) => {
-      return result.status === 'SKIP' || result.subtests.length !== 0;
-    }).map((result) => {
-      const url = new URL(result.test, 'http://wpt');
-      url.pathname = url.pathname.replace(/\.js$/, '.html');
-      result.test = url.href.slice(url.origin.length);
-      return result;
-    });
+    const results = Array.from(this.results.values())
+      .map((result) => {
+        const url = new URL(result.test, 'http://wpt');
+        url.pathname = url.pathname.replace(/\.js$/, '.html');
+        result.test = url.href.slice(url.origin.length);
+        return result;
+      });
 
     /**
      * Return required and some optional properties
@@ -110,7 +130,12 @@ class WPTReport {
       os: getOs(),
     };
 
-    fs.writeFileSync(`out/wpt/${this.filename}`, JSON.stringify(this));
+    fs.writeFileSync(`out/wpt/${this.filename}`, JSON.stringify({
+      time_start: this.time_start,
+      time_end: this.time_end,
+      run_info: this.run_info,
+      results: results,
+    }));
   }
 }
 
@@ -642,14 +667,13 @@ class WPTRunner {
         this.inProgress.add(spec);
         this.workers.set(spec, worker);
 
-        let reportResult;
+        const reportResult = this.report?.getResult(spec);
         worker.on('message', (message) => {
           switch (message.type) {
             case 'result':
-              reportResult ||= this.report?.addResult(`/${relativePath}${spec.variant}`, 'OK');
               return this.resultCallback(spec, message.result, reportResult);
             case 'completion':
-              return this.completionCallback(spec, message.status);
+              return this.completionCallback(spec, message.status, reportResult);
             default:
               throw new Error(`Unexpected message from worker: ${message.type}`);
           }
@@ -661,6 +685,8 @@ class WPTRunner {
             // This can happen normally, for example in timers tests.
             return;
           }
+          // Generate a subtest failure for visibility.
+          // No need to record this synthetic failure with wpt.fyi.
           this.fail(
             spec,
             {
@@ -671,6 +697,8 @@ class WPTRunner {
             },
             kUncaught,
           );
+          // Mark the whole test as failed in wpt.fyi report.
+          reportResult?.finish('ERROR');
           this.inProgress.delete(spec);
         });
 
@@ -680,7 +708,11 @@ class WPTRunner {
 
     process.on('exit', () => {
       for (const spec of this.inProgress) {
+        // No need to record this synthetic failure with wpt.fyi.
         this.fail(spec, { name: 'Incomplete' }, kIncomplete);
+        // Mark the whole test as failed in wpt.fyi report.
+        const reportResult = this.report?.getResult(spec);
+        reportResult?.finish('ERROR');
       }
       inspect.defaultOptions.depth = Infinity;
       // Sorts the rules to have consistent output
@@ -780,6 +812,7 @@ class WPTRunner {
    * in one test file).
    * @param {WPTTestSpec} spec
    * @param {Test} test  The Test object returned by WPT harness
+   * @param {ReportResult} reportResult The report result object
    */
   resultCallback(spec, test, reportResult) {
     const status = this.getTestStatus(test.status);
@@ -794,13 +827,19 @@ class WPTRunner {
    * Report the status of each WPT test (one per file)
    * @param {WPTTestSpec} spec
    * @param {object} harnessStatus - The status object returned by WPT harness.
+   * @param {ReportResult} reportResult The report result object
    */
-  completionCallback(spec, harnessStatus) {
+  completionCallback(spec, harnessStatus, reportResult) {
     const status = this.getTestStatus(harnessStatus.status);
 
     // Treat it like a test case failure
     if (status === kTimeout) {
+      // No need to record this synthetic failure with wpt.fyi.
       this.fail(spec, { name: 'WPT testharness timeout' }, kTimeout);
+      // Mark the whole test as TIMEOUT in wpt.fyi report.
+      reportResult?.finish('TIMEOUT');
+    } else {
+      reportResult?.finish();
     }
     this.inProgress.delete(spec);
     // Always force termination of the worker. Some tests allocate resources
