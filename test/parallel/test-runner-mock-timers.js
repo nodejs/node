@@ -681,7 +681,7 @@ describe('Mock Timers Test Suite', () => {
         });
 
         // Test for https://github.com/nodejs/node/issues/50381
-        it('should use the correct interval', (t) => {
+        it('should use the mocked interval', (t) => {
           t.mock.timers.enable({ apis: ['setInterval'] });
           const fn = t.mock.fn();
           setInterval(fn, 1000);
