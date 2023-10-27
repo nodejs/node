@@ -206,7 +206,7 @@ added: v16.5.0
 * `transform` {Object}
   * `readable` {ReadableStream} The `ReadableStream` to which
     `transform.writable` will push the potentially modified data
-    is receives from this `ReadableStream`.
+    it receives from this `ReadableStream`.
   * `writable` {WritableStream} The `WritableStream` to which this
     `ReadableStream`'s data will be written.
 * `options` {Object}
