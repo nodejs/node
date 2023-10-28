@@ -80,6 +80,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <ostream>
 
 // We cannot use __POSIX__ in this header because that's only defined when
@@ -659,6 +660,33 @@ enum Flags : uint64_t {
 };
 }  // namespace EnvironmentFlags
 
+enum class SnapshotFlags : uint32_t {
+  kDefault = 0,
+  // Whether code cache should be generated as part of the snapshot.
+  // Code cache reduces the time spent on compiling functions included
+  // in the snapshot at the expense of a bigger snapshot size and
+  // potentially breaking portability of the snapshot.
+  kWithoutCodeCache = 1 << 0,
+};
+
+struct SnapshotConfig {
+  SnapshotFlags flags = SnapshotFlags::kDefault;
+
+  // When builder_script_path is std::nullopt, the snapshot is generated as a
+  // built-in snapshot instead of a custom one, and it's expected that the
+  // built-in snapshot only contains states that reproduce in every run of the
+  // application. The event loop won't be run when generating a built-in
+  // snapshot, so asynchronous operations should be avoided.
+  //
+  // When builder_script_path is an std::string, it should match args[1]
+  // passed to CreateForSnapshotting(). The embedder is also expected to use
+  // LoadEnvironment() to run a script matching this path. In that case the
+  // snapshot is generated as a custom snapshot and the event loop is run, so
+  // the snapshot builder can execute asynchronous operations as long as they
+  // are run to completion when the snapshot is taken.
+  std::optional<std::string> builder_script_path;
+};
+
 struct InspectorParentHandle {
   virtual ~InspectorParentHandle() = default;
 };
@@ -870,7 +898,8 @@ class NODE_EXTERN CommonEnvironmentSetup {
       MultiIsolatePlatform* platform,
       std::vector<std::string>* errors,
       const std::vector<std::string>& args = {},
-      const std::vector<std::string>& exec_args = {});
+      const std::vector<std::string>& exec_args = {},
+      const SnapshotConfig& snapshot_config = {});
   EmbedderSnapshotData::Pointer CreateSnapshot();
 
   struct uv_loop_s* event_loop() const;
@@ -905,7 +934,8 @@ class NODE_EXTERN CommonEnvironmentSetup {
       std::vector<std::string>*,
       const EmbedderSnapshotData*,
       uint32_t flags,
-      std::function<Environment*(const CommonEnvironmentSetup*)>);
+      std::function<Environment*(const CommonEnvironmentSetup*)>,
+      const SnapshotConfig* config = nullptr);
 };
 
 // Implementation for CommonEnvironmentSetup::Create

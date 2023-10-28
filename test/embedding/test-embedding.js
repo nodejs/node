@@ -77,7 +77,9 @@ function getReadFileCodeForPath(path) {
 }
 
 // Basic snapshot support
-for (const extraSnapshotArgs of [[], ['--embedder-snapshot-as-file']]) {
+for (const extraSnapshotArgs of [
+  [], ['--embedder-snapshot-as-file'], ['--without-code-cache'],
+]) {
   // readSync + eval since snapshots don't support userland require() (yet)
   const snapshotFixture = fixtures.path('snapshot', 'echo-args.js');
   const blobPath = tmpdir.resolve('embedder-snapshot.blob');
