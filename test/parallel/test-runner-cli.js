@@ -116,6 +116,26 @@ const testFixtures = fixtures.path('test-runner');
 }
 
 {
+  const args = [
+    '--test',
+    '--test-timeout',
+    50,
+    'test/fixtures/test-runner/timeout.js'
+  ];
+  const child = spawnSync(process.execPath, args);
+
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+  assert.match(stdout, /not ok 1 - test/);
+  assert.match(stdout, / {2}---/);
+  assert.match(stdout, / {2}duration_ms: .*/);
+  assert.match(stdout, /failureType: 'testTimeoutFailure/);
+  assert.match(stdout, /error: 'test timed out after 50ms'/);
+}
+
+{
   // Test combined stream outputs
   const args = [
     '--test',
@@ -195,9 +215,9 @@ const testFixtures = fixtures.path('test-runner');
   // Use test with --loader and --require.
   // This case is common since vscode uses --require to load the debugger.
   const args = ['--no-warnings',
-                '--experimental-loader', 'data:text/javascript,',
-                '--require', fixtures.path('empty.js'),
-                '--test', join(testFixtures, 'default-behavior', 'index.test.js')];
+    '--experimental-loader', 'data:text/javascript,',
+    '--require', fixtures.path('empty.js'),
+    '--test', join(testFixtures, 'default-behavior', 'index.test.js')];
   const child = spawnSync(process.execPath, args);
 
   assert.strictEqual(child.stderr.toString(), '');
