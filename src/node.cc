@@ -1209,10 +1209,39 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
   // nullptr indicates there's no snapshot data.
   DCHECK_NULL(*snapshot_data_ptr);
 
+  SnapshotConfig snapshot_config;
+  const std::string& config_path =
+      per_process::cli_options->per_isolate->build_snapshot_config;
+  // For snapshot config read from JSON, we fix up process.argv[1] using the
+  // "builder" field.
+  std::vector<std::string> args_maybe_patched;
+  args_maybe_patched.reserve(result->args().size() + 1);
+  if (!config_path.empty()) {
+    std::optional<SnapshotConfig> optional_config =
+        ReadSnapshotConfig(config_path.c_str());
+    if (!optional_config.has_value()) {
+      return ExitCode::kGenericUserError;
+    }
+    snapshot_config = std::move(optional_config.value());
+    DCHECK(snapshot_config.builder_script_path.has_value());
+    args_maybe_patched.emplace_back(result->args()[0]);
+    args_maybe_patched.emplace_back(
+        snapshot_config.builder_script_path.value());
+    if (result->args().size() > 1) {
+      args_maybe_patched.insert(args_maybe_patched.end(),
+                                result->args().begin() + 1,
+                                result->args().end());
+    }
+  } else {
+    snapshot_config.builder_script_path = result->args()[1];
+    args_maybe_patched = result->args();
+  }
+  DCHECK(snapshot_config.builder_script_path.has_value());
+  const std::string& builder_script =
+      snapshot_config.builder_script_path.value();
   // node:embedded_snapshot_main indicates that we are using the
   // embedded snapshot and we are not supposed to clean it up.
-  const std::string& main_script = result->args()[1];
-  if (main_script == "node:embedded_snapshot_main") {
+  if (builder_script == "node:embedded_snapshot_main") {
     *snapshot_data_ptr = SnapshotBuilder::GetEmbeddedSnapshotData();
     if (*snapshot_data_ptr == nullptr) {
       // The Node.js binary is built without embedded snapshot
@@ -1224,24 +1253,25 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
       return exit_code;
     }
   } else {
-    // Otherwise, load and run the specified main script.
+    // Otherwise, load and run the specified builder script.
     std::unique_ptr<SnapshotData> generated_data =
         std::make_unique<SnapshotData>();
-    std::string main_script_content;
-    int r = ReadFileSync(&main_script_content, main_script.c_str());
+    std::string builder_script_content;
+    int r = ReadFileSync(&builder_script_content, builder_script.c_str());
     if (r != 0) {
       FPrintF(stderr,
-              "Cannot read main script %s for building snapshot. %s: %s",
-              main_script,
+              "Cannot read builder script %s for building snapshot. %s: %s",
+              builder_script,
               uv_err_name(r),
               uv_strerror(r));
       return ExitCode::kGenericUserError;
     }
 
     exit_code = node::SnapshotBuilder::Generate(generated_data.get(),
-                                                result->args(),
+                                                args_maybe_patched,
                                                 result->exec_args(),
-                                                main_script_content);
+                                                builder_script_content,
+                                                snapshot_config);
     if (exit_code == ExitCode::kNoFailure) {
       *snapshot_data_ptr = generated_data.release();
     } else {
@@ -1371,7 +1401,8 @@ static ExitCode StartInternal(int argc, char** argv) {
 
   // --build-snapshot indicates that we are in snapshot building mode.
   if (per_process::cli_options->per_isolate->build_snapshot) {
-    if (result->args().size() < 2) {
+    if (per_process::cli_options->per_isolate->build_snapshot_config.empty() &&
+        result->args().size() < 2) {
       fprintf(stderr,
               "--build-snapshot must be used with an entry point script.\n"
               "Usage: node --build-snapshot /path/to/entry.js\n");

@@ -147,8 +147,15 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   void MemoryInfo(MemoryTracker* tracker) const override;
   IsolateDataSerializeInfo Serialize(v8::SnapshotCreator* creator);
 
-  bool is_building_snapshot() const { return is_building_snapshot_; }
-  void set_is_building_snapshot(bool value) { is_building_snapshot_ = value; }
+  bool is_building_snapshot() const { return snapshot_config_.has_value(); }
+  const SnapshotConfig* snapshot_config() const {
+    return snapshot_config_.has_value() ? &(snapshot_config_.value()) : nullptr;
+  }
+  void set_snapshot_config(const SnapshotConfig* config) {
+    if (config != nullptr) {
+      snapshot_config_ = *config;  // Copy the config.
+    }
+  }
 
   uint16_t* embedder_id_for_cppgc() const;
   uint16_t* embedder_id_for_non_cppgc() const;
@@ -237,11 +244,13 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   uv_loop_t* const event_loop_;
   NodeArrayBufferAllocator* const node_allocator_;
   MultiIsolatePlatform* platform_;
+
   const SnapshotData* snapshot_data_;
+  std::optional<SnapshotConfig> snapshot_config_;
+
   std::unique_ptr<v8::CppHeap> cpp_heap_;
   std::shared_ptr<PerIsolateOptions> options_;
   worker::Worker* worker_context_ = nullptr;
-  bool is_building_snapshot_ = false;
   PerIsolateWrapperData* wrapper_data_;
 
   static Mutex isolate_data_mutex_;
@@ -526,6 +535,7 @@ struct SnapshotMetadata {
   std::string node_platform;
   // Result of v8::ScriptCompiler::CachedDataVersionTag().
   uint32_t v8_cache_version_tag;
+  SnapshotFlags flags;
 };
 
 struct SnapshotData {

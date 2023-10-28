@@ -377,14 +377,18 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
 ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
                                 const std::vector<std::string>& args,
                                 const std::vector<std::string>& exec_args,
-                                const std::string& main_script,
+                                const std::string& builder_script_content,
+                                const SnapshotConfig& snapshot_config,
                                 std::vector<char>* snapshot_blob) {
   SnapshotData snapshot;
   // TODO(joyeecheung): make the arguments configurable through the JSON
   // config or a programmatic API.
   std::vector<std::string> patched_args = {args[0], config.main_path};
-  ExitCode exit_code = SnapshotBuilder::Generate(
-      &snapshot, patched_args, exec_args, main_script);
+  ExitCode exit_code = SnapshotBuilder::Generate(&snapshot,
+                                                 patched_args,
+                                                 exec_args,
+                                                 builder_script_content,
+                                                 snapshot_config);
   if (exit_code != ExitCode::kNoFailure) {
     return exit_code;
   }
@@ -481,8 +485,11 @@ ExitCode GenerateSingleExecutableBlob(
   bool builds_snapshot_from_main =
       static_cast<bool>(config.flags & SeaFlags::kUseSnapshot);
   if (builds_snapshot_from_main) {
+    // TODO(joyeecheung): allow passing snapshot configuration in SEA configs.
+    SnapshotConfig snapshot_config;
+    snapshot_config.builder_script_path = main_script;
     ExitCode exit_code = GenerateSnapshotForSEA(
-        config, args, exec_args, main_script, &snapshot_blob);
+        config, args, exec_args, main_script, snapshot_config, &snapshot_blob);
     if (exit_code != ExitCode::kNoFailure) {
       return exit_code;
     }
