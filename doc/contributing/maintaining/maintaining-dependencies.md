@@ -21,7 +21,7 @@ This a list of all the dependencies:
 * [libuv 1.46.0][]
 * [llhttp 9.1.3][]
 * [minimatch 9.0.3][]
-* [nghttp2 1.57.0][]
+* [nghttp2 1.58.0][]
 * [nghttp3 0.7.0][]
 * [ngtcp2 0.8.1][]
 * [npm 9.6.7][]
@@ -223,7 +223,7 @@ See [maintaining-http][] for more informations.
 The [minimatch](https://github.com/isaacs/minimatch) dependency is a
 minimal matching utility.
 
-### nghttp2 1.57.0
+### nghttp2 1.58.0
 
 The [nghttp2](https://github.com/nghttp2/nghttp2) dependency is a C library
 implementing HTTP/2 protocol.
@@ -338,7 +338,7 @@ performance improvements not currently available in standard zlib.
 [maintaining-openssl]: ./maintaining-openssl.md
 [maintaining-web-assembly]: ./maintaining-web-assembly.md
 [minimatch 9.0.3]: #minimatch-903
-[nghttp2 1.57.0]: #nghttp2-1570
+[nghttp2 1.58.0]: #nghttp2-1580
 [nghttp3 0.7.0]: #nghttp3-070
 [ngtcp2 0.8.1]: #ngtcp2-081
 [npm 9.6.7]: #npm-967
