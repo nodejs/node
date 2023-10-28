@@ -6,6 +6,9 @@
       ]
     }
   },
+  "idlharness-shadowrealm.window.js": {
+    "skip": "ShadowRealm support is not enabled"
+  },
   "piping/general-addition.any.js": {
     "fail": {
       "expected": [

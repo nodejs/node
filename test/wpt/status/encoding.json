@@ -39,6 +39,9 @@
   "idlharness.any.js": {
     "skip": "No implementation of TextDecoderStream and TextEncoderStream"
   },
+  "idlharness-shadowrealm.window.js": {
+    "skip": "ShadowRealm support is not enabled"
+  },
   "replacement-encodings.any.js": {
     "skip": "decoding-helpers.js needs XMLHttpRequest"
   },
