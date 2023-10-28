@@ -120,7 +120,7 @@ const testFixtures = fixtures.path('test-runner');
     '--test',
     '--test-timeout',
     50,
-    'test/fixtures/test-runner/timeout.js'
+    'test/fixtures/test-runner/timeout.js',
   ];
   const child = spawnSync(process.execPath, args);
 
@@ -215,9 +215,9 @@ const testFixtures = fixtures.path('test-runner');
   // Use test with --loader and --require.
   // This case is common since vscode uses --require to load the debugger.
   const args = ['--no-warnings',
-    '--experimental-loader', 'data:text/javascript,',
-    '--require', fixtures.path('empty.js'),
-    '--test', join(testFixtures, 'default-behavior', 'index.test.js')];
+                '--experimental-loader', 'data:text/javascript,',
+                '--require', fixtures.path('empty.js'),
+                '--test', join(testFixtures, 'default-behavior', 'index.test.js')];
   const child = spawnSync(process.execPath, args);
 
   assert.strictEqual(child.stderr.toString(), '');
