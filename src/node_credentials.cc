@@ -49,7 +49,7 @@ namespace credentials {
 
 #if defined(__linux__)
 // Returns true if the current process only has the passed-in capability.
-bool HasOnly(int capability) {
+static bool HasOnly(int capability) {
   DCHECK(cap_valid(capability));
 
   struct __user_cap_data_struct cap_data[2];
