@@ -1,6 +1,7 @@
 /* MIT License
  *
- * Copyright (c) 2010 Daniel Stenberg
+ * Copyright (c) 1998 Massachusetts Institute of Technology
+ * Copyright (c) The c-ares project and its contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,48 +24,26 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#ifndef HEADER_CARES_NOWARN_H
-#define HEADER_CARES_NOWARN_H
+#ifndef HEADER_CARES_STRDUP_H
+#define HEADER_CARES_STRDUP_H
 
-long  aresx_uztosl(size_t uznum);
-int   aresx_uztosi(size_t uznum);
-short aresx_uztoss(size_t uznum);
+#include "ares_setup.h"
 
-short aresx_sitoss(int sinum);
+char  *ares_strdup(const char *s1);
 
-int aresx_sltosi(long slnum);
+size_t ares_strlen(const char *str);
 
-int aresx_sztosi(ares_ssize_t sznum);
+/*! Copy string from source to destination with destination buffer size
+ *  provided.  The destination is guaranteed to be null terminated, if the
+ *  provided buffer isn't large enough, only those bytes from the source that
+ *  will fit will be copied.
+ *
+ *  \param[out] dest       Destination buffer
+ *  \param[in]  src        Source to copy
+ *  \param[in]  dest_size  Size of destination buffer
+ *  \return String length.  Will be at most dest_size-1
+ */
+size_t ares_strcpy(char *dest, const char *src, size_t dest_size);
 
-unsigned int aresx_sztoui(ares_ssize_t sznum);
 
-unsigned short aresx_sitous(int sinum);
-
-#if defined(__INTEL_COMPILER) && defined(__unix__)
-
-int aresx_FD_ISSET(int fd, fd_set *fdset);
-
-void aresx_FD_SET(int fd, fd_set *fdset);
-
-void aresx_FD_ZERO(fd_set *fdset);
-
-unsigned short aresx_htons(unsigned short usnum);
-
-unsigned short aresx_ntohs(unsigned short usnum);
-
-#ifndef BUILDING_ARES_NOWARN_C
-#  undef  FD_ISSET
-#  define FD_ISSET(a,b) aresx_FD_ISSET((a),(b))
-#  undef  FD_SET
-#  define FD_SET(a,b)   aresx_FD_SET((a),(b))
-#  undef  FD_ZERO
-#  define FD_ZERO(a)    aresx_FD_ZERO((a))
-#  undef  htons
-#  define htons(a)      aresx_htons((a))
-#  undef  ntohs
-#  define ntohs(a)      aresx_ntohs((a))
-#endif
-
-#endif /* __INTEL_COMPILER && __unix__ */
-
-#endif /* HEADER_CARES_NOWARN_H */
+#endif /* HEADER_CARES_STRDUP_H */

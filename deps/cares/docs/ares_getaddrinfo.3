@@ -32,10 +32,8 @@ void ares_getaddrinfo(ares_channel \fIchannel\fP, const char *\fIname\fP,
                       ares_addrinfo_callback \fIcallback\fP, void *\fIarg\fP)
 .fi
 .SH DESCRIPTION
-The
-.B ares_getaddrinfo
-function initiates a host query by name on the name service channel
-identified by
+The \fBares_getaddrinfo(3)\fP function initiates a host query by name on the
+name service channel identified by
 .IR channel .
 The
 .I name
@@ -95,9 +93,7 @@ during a later call to \fIares_process(3)\fP, \fIares_destroy(3)\fP or
 .PP
 The callback argument
 .I arg
-is copied from the
-.B ares_getaddrinfo
-argument
+is copied from the \fBares_getaddrinfo(3)\fP argument
 .IR arg .
 The callback argument
 .I status
@@ -183,8 +179,7 @@ struct ares_addrinfo_cname {
 .EE
 .RE
 .PP
-The reserved memory has to be deleted by
-.B ares_freeaddrinfo.
+The reserved memory has to be deleted by \fBares_freeaddrinfo(3)\fP.
 
 The result is sorted according to RFC6724 except:
  - Rule 3 (Avoid deprecated addresses)

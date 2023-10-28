@@ -45,8 +45,7 @@
 char **ares__strsplit(const char *in, const char *delms, size_t *num_elm);
 
 /* Frees the result returned from ares__strsplit(). */
-void ares__strsplit_free(char **elms, size_t num_elm);
+void   ares__strsplit_free(char **elms, size_t num_elm);
 
 
 #endif /* HEADER_CARES_STRSPLIT_H */
-

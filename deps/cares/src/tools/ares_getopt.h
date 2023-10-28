@@ -35,11 +35,21 @@
 
 int ares_getopt(int nargc, char * const nargv[], const char *ostr);
 
-#undef optarg
-#undef optind
-#undef opterr
-#undef optopt
-#undef optreset
+#ifdef optarg
+#  undef optarg
+#endif
+#ifdef optind
+#  undef optind
+#endif
+#ifdef opterr
+#  undef opterr
+#endif
+#ifdef optopt
+#  undef optopt
+#endif
+#ifdef optreset
+#  undef optreset
+#endif
 
 #define optarg   ares_optarg
 #define optind   ares_optind
@@ -48,8 +58,8 @@ int ares_getopt(int nargc, char * const nargv[], const char *ostr);
 #define optreset ares_optreset
 
 extern char *optarg;
-extern int optind;
-extern int opterr;
-extern int optopt;
+extern int   optind;
+extern int   opterr;
+extern int   optopt;
 
 #endif /* ARES_GETOPT_H */

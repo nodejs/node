@@ -21,7 +21,7 @@ If you find bugs, correct flaws, have questions or have comments in general in
 regard to c-ares (or by all means the original ares too), get in touch with us
 on the c-ares mailing list: https://lists.haxx.se/listinfo/c-ares
 
-c-ares is distributed the MIT license.
+c-ares is distributed under the MIT license.
 
 You'll find all c-ares details and news here:
         https://c-ares.org/

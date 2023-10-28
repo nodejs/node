@@ -120,10 +120,9 @@ The default value is 53, the standard name service port.
 .B int \fInservers\fP;
 .br
 The list of IPv4 servers to contact, instead of the servers specified in
-resolv.conf or the local named. In order to allow specification of either
-IPv4 or IPv6 name servers, the
-.BR ares_set_servers(3)
-function must be used instead.
+resolv.conf or the local named. In order to allow specification of either IPv4
+or IPv6 name servers, the \Bares_set_servers(3)\fP function must be used
+instead.
 .TP 18
 .B ARES_OPT_DOMAINS
 .B char **\fIdomains\fP;
@@ -300,13 +299,13 @@ the last occurrence wins. For more information, please see the
 .BR resolv.conf (5)
 manual page.
 .SH SEE ALSO
-.BR ares_init(3),
-.BR ares_destroy(3),
-.BR ares_dup(3),
-.BR ares_library_init(3),
-.BR ares_save_options(3),
-.BR ares_set_servers(3),
-.BR ares_set_sortlist(3)
+.BR ares_init (3),
+.BR ares_destroy (3),
+.BR ares_dup (3),
+.BR ares_library_init (3),
+.BR ares_save_options (3),
+.BR ares_set_servers (3),
+.BR ares_set_sortlist (3)
 .SH AUTHOR
 Greg Hudson, MIT Information Systems
 .br

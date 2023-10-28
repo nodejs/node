@@ -29,37 +29,40 @@
 #include "ares.h"
 #include "ares_private.h"
 
-int ares_getsock(ares_channel channel,
-                 ares_socket_t *socks,
+int ares_getsock(ares_channel channel, ares_socket_t *socks,
                  int numsocks) /* size of the 'socks' array */
 {
   struct server_state *server;
-  int i;
-  int sockindex=0;
-  int bitmap = 0;
-  unsigned int setbits = 0xffffffff;
+  size_t               i;
+  size_t               sockindex = 0;
+  unsigned int         bitmap    = 0;
+  unsigned int         setbits   = 0xffffffff;
 
   /* Are there any active queries? */
-  size_t active_queries = ares__llist_len(channel->all_queries);
+  size_t               active_queries = ares__llist_len(channel->all_queries);
+
+  if (numsocks <= 0) {
+    return 0;
+  }
 
   for (i = 0; i < channel->nservers; i++) {
     ares__llist_node_t *node;
     server = &channel->servers[i];
 
-    for (node = ares__llist_node_first(server->connections);
-         node != NULL;
+    for (node = ares__llist_node_first(server->connections); node != NULL;
          node = ares__llist_node_next(node)) {
+      const struct server_connection *conn = ares__llist_node_val(node);
 
-      struct server_connection *conn = ares__llist_node_val(node);
-
-      if (sockindex >= numsocks || sockindex >= ARES_GETSOCK_MAXNUM)
+      if (sockindex >= (size_t)numsocks || sockindex >= ARES_GETSOCK_MAXNUM) {
         break;
+      }
 
       /* We only need to register interest in UDP sockets if we have
        * outstanding queries.
        */
-      if (!active_queries && !conn->is_tcp)
+      if (!active_queries && !conn->is_tcp) {
         continue;
+      }
 
       socks[sockindex] = conn->fd;
 
@@ -75,5 +78,5 @@ int ares_getsock(ares_channel channel,
       sockindex++;
     }
   }
-  return bitmap;
+  return (int)bitmap;
 }

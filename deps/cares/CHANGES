@@ -1,5 +1,252 @@
    Changelog for the c-ares project. Generated with git2changes.pl
 
+Version 1.21.0 (26 Oct 2023)
+
+Brad House (26 Oct 2023)
+- SonarCloud: reduce reported complexity that exists for no reason.
+
+- SonarCloud: fix some #undef codesmells
+
+- formatting
+
+- document ARES_RR_* records
+
+- no reason to limit on truncation
+
+- linguist fixes
+
+- don't use test cases to determine language of c-ares
+
+- fix grammar
+
+- fix count
+
+GitHub (25 Oct 2023)
+- [Brad House brought this change]
+
+  1.21.0 release prep (#585)
+
+Brad House (25 Oct 2023)
+- fix build warning
+
+GitHub (25 Oct 2023)
+- [Brad House brought this change]
+
+  SonarCloud: clean up more codesmells (#584)
+
+Brad House (25 Oct 2023)
+- resolve reported memory leaks
+
+- add test vector said to cause a memory leak
+
+GitHub (25 Oct 2023)
+- [Brad House brought this change]
+
+  sonarcloud: fix more codesmells (#583)
+
+- [Brad House brought this change]
+
+  sonarcloud easy codesmells (#582)
+  
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  Modernization: replace multiple hand-parsers with new memory-safe parser (#581)
+  
+  New DNS record parsing code. The old code was basically just some helper macros and functions for parsing an entire DNS message. The caller had to know the RFCs to use the parsers, except for some pre-made exceptions. The new parsing code parses the entire DNS message into an opaque data structure in a memory safe manner with various accessors for reading and manipulating the data.
+  
+  The existing parser helpers for the various record types were reimplemented as wrappers around the new parser.
+  
+  The accessors allow easy iteration across the DNS record datastructure, and can be used to easily create dig-like output without needing to know anything about the various record types and formats as dynamic helpers are provided for enumeration of values and data types of those values.
+  
+  At some point in the future, this new DNS record structure, accessors, and parser will be exposed publicly. This is not done at this point as we don't want to do that until the API is completely stable. Likely a write() function to output the DNS record back into an actual message buffer will be introduced with the stable API as well.
+  
+  Some subtle bugs in the existing code were uncovered, some which had test cases which turned out to be bogus. Validation with third-party implementations (e.g. BIND9) were performed to validate such cases were indeed bugs.
+  
+  Adding additional RR parsers such as for TLSA (#470) or SVCB/HTTPS (#566) are trivial now since focus can be put on only parsing the data within the RR, not the entire message. That said, as the new parser is not yet public, it isn't clear the best way to expose any new RRs (probably best to wait for the new parser to be public rather than hacking in another legacy function).
+  
+  Some additional RRs that are part of DNS RFC1035 or EDNS RFC6891 that didn't have previously implemented parsers are now also implemented (e.g. HINFO, OPT). Any unrecognized RRs are encapsulated into a "RAW_RR" as binary data which can be inserted or extracted, but are otherwise not interpreted in any way.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Gregor Jasny brought this change]
+
+  feat: use CMake to control symbol visibility (#574)
+  
+  In contrast to #572 this solution does not need any extra headers. But it is also limited to GCC-like compilers.
+  
+  Fix By: Gregor Jasny (@gjasny)
+
+- [Brad House brought this change]
+
+  remove ares_nowarn helpers #580
+  
+  Now that the code internally is using proper datatypes, there is no longer a need for ares_nowarn helpers. Remove them.
+  
+  Fix By: Brad House (@bradh352)
+
+Brad House (16 Oct 2023)
+- clang-format: fix structure alignment
+  
+  It appears the structure alignment chosen just doesn't work right.
+  Switch to 'left', it appears to be mostly correct.
+  
+  Fix By: Brad House (@bradh352)
+
+GitHub (15 Oct 2023)
+- [Brad House brought this change]
+
+  Reformat code using clang-format (#579)
+  
+  c-ares uses multiple code styles, standardize on one. Talking with @bagder he feels strongly about maintaining an 80 column limit, but feels less strongly about things I feel strongly about (like alignment).
+  
+  Can re-run the formatter on the codebase via:
+  ```
+  clang-format -i */*.c */*.h */*/*.c */*/*.h
+  ```
+  
+  Fix By: Brad House (@bradh352)
+
+Brad House (15 Oct 2023)
+- inet_ntop requires ares_private.h
+
+- SonarCloud: Fix additional code smells
+  
+  Fix By: Brad House (@bradh352)
+
+- SonarCloud: Ignore codesmells c89 doesn't support
+  
+  C89 doesn't support iterator declaration in for loop, kill warning.
+  
+  Fix By: Brad House (@bradh352)
+
+GitHub (15 Oct 2023)
+- [Brad House brought this change]
+
+  set compiler standard to ISO C90/ANSI C89 (#577)
+  
+  SonarCloud is outputting some code smells for things that aren't possible for C89. Hopefully setting the code standard to C89/C90 properly will fix those bogus warnings.
+  
+  Fix By: Brad House (@bradh352)
+
+Brad House (15 Oct 2023)
+- fix new ares_strcpy to ensure null termination
+
+- build fix
+
+GitHub (15 Oct 2023)
+- [Brad House brought this change]
+
+  SonarCloud: Fix up codesmells due to strlen(), strcpy(), and strncpy() (#576)
+  
+  Create ares_strlen() and ares_strcpy() in order to resolve SonarCloud codesmells related to their use.
+  
+  ares_strlen() just becomes null-safe.
+  
+  ares_strcpy() is equivalent to strlcpy(), so unlike strncpy() it guarantees NULL termination.
+  
+  Fix By: Brad House (@bradh352)
+
+Brad House (15 Oct 2023)
+- SonarCloud: try to appease it better
+
+- SonarCloud: Fix reported bugs
+  
+  SonarCloud reported a few bugs, this commit should fix those reports.
+  
+  Fix By: Brad House (@bradh352)
+
+GitHub (15 Oct 2023)
+- [Brad House brought this change]
+
+  Fix internal datatype usage and warnings (#573)
+  
+  PR #568 increased the warning levels and c-ares code emitted a bunch of warnings. This PR fixes those warnings and starts transitioning internal data types into more proper forms (e.g. data lengths should be size_t not int). It does, however, have to manually cast back to what the public API needs due to API and ABI compliance (we aren't looking to break integrations, just clean up internals).
+  
+  Fix By: Brad House (@bradh352)
+
+Brad House (15 Oct 2023)
+- SonarCloud: exclude tests
+
+- fix source directories
+
+GitHub (15 Oct 2023)
+- [Brad House brought this change]
+
+  Sonarcloud (#575)
+
+- [Brad House brought this change]
+
+  Increase compiler warnings by default (#568)
+  
+  c-ares was missing a couple of common compiler warnings during building that are widely recognized as a best practice. This PR makes no code changes, only build system changes to increase warning levels.
+  
+  This PR does cause some new warnings to be emitted, a follow-up PR will address those.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  introduce ares_bool_t datatype (#570)
+  
+  c-ares currently uses int for boolean, which can be confusing as there are some functions which return int but use '0' as the success condition. Some internal variable usage is similar. Lets try to identify the boolean use cases and split them out into their own data type of ares_bool_t. Since we're trying to keep C89 compatibility, we can't rely on stdbool.h or the _Bool C99 data type, so we'll define our own.
+  
+  Also, chose using an enum rather than say unsigned char or int because of the type safety benefits it provides. Compilers should warn if you try to pass, ARES_TRUE on to a ares_status_t enum (or similar) since they are different enums.
+  
+  Fix By: Brad House (@bradh352)
+
+Brad House (12 Oct 2023)
+- Socket callbacks were passed SOCK_STREAM instead of SOCK_DGRAM on udp
+  
+  A regression was introduced in 1.20.0 that would pass SOCK_STREAM on udp
+  connections due to code refactoring.  If a client application validated this
+  data, it could cause issues as seen in gRPC.
+  
+  Fixes Issue: #571
+  Fix By: Brad House (@bradh352)
+
+- Enhance test of ares_getsock()
+  
+  In an attempt to see if ares_getsock() was broken as per #571, do
+  further sanity checks of the results of ares_getsock().  It seems
+  as though ares_getsock() is fine.
+  
+  Fix By: Brad House (@bradh352)
+
+GitHub (10 Oct 2023)
+- [Brad House brought this change]
+
+  Tool: STAYOPEN flag could make tools not terminate (#569)
+  
+  If a flag is set to keep the connections to the DNS servers open even if there are no queries, the tools would not exit until the remote server closed the connection due to the user of ares_fds() to determine if there are any active queries. Instead, rely on ares_timeout() returning NULL if there are no active queries (technically this returns the value passed to max_tv in ares_timeout(), but in our use case, that is always NULL).
+  
+  Fixes Issue: #452
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  ares_status_t enum for status codes (#567)
+  
+  The list of possible error codes in c-ares was a #define list. This not only doesn't provide for any sort of type safety but it also lacks clarification on what a function may return or what it takes, as an int could be an ares status, a boolean, or possibly even a length in the current code.
+  
+  We are not changing any public APIs as though the C standard states the underlying size and type of an enum is int, there are compiler attributes to override this as well as compiler flags like -fshort-enums. GCC in particular is known to expand an enum's width based on the data values (e.g., it can emit a 64bit integer enum).
+  
+  All internal usages should be changed by this PR, but of course, there may be some I missed.
+  
+  Fix By: Brad House (@bradh352)
+
+Daniel Stenberg (9 Oct 2023)
+- docs: provide better man page references
+  
+  When referring to another c-ares function use \fI function(3) \fP to let
+  the webpage rendering find and cross-link them appropriately.
+  
+  SEE ALSO references should be ".BR name (3),", with a space before the
+  open parenthesis. This helps the manpage to HTML renderer.
+  
+  Closes #565
+
 Version 1.20.1 (8 Oct 2023)
 
 GitHub (8 Oct 2023)
@@ -5515,193 +5762,3 @@ Yang Tse (3 Dec 2010)
 - configure: undo using autobuilds to temporarily verify strict aliasing warnings.
 
 - fix compiler warning: rounding, sign extension, or loss of accuracy may result
-
-Daniel Stenberg (2 Dec 2010)
-- [Ben Noordhuis brought this change]
-
-  ares_parse_a_reply: fix CNAME response parsing
-  
-  Reply to a CNAME query doesn't contain addresses, causing
-  ares_parse_a_reply() to bail out with ARES_ENODATA
-  
-  Bug: http://groups.google.com/group/nodejs/browse_thread/thread/a1268c9ea5e9ad9b
-
-Yang Tse (1 Dec 2010)
-- fix compiler warning: conversion may lose significant bits
-
-- atoi: remove atoi usage
-
-- ares_init: fix compiler warning: conversion may lose significant bits
-
-- configure: fix autoconf warning
-
-- inet_pton: fix compiler warning
-
-- configure: use autobuilds to temporarily verify strict aliasing warnings.
-  
-  Temporarily, When cross-compiling with gcc 3.0 or later, enable strict aliasing
-  rules and warnings. Given that cross-compiled targets autobuilds do not run the
-  test-suite, there is no risk of running code that violates strict aliasing rules
-
-- ares_getnameinfo: Partially revert commit 85520d66e0ac7ac73411bc25e98769a88b2f
-  
-  Upon socket address family and length validation failure return ARES_ENOTIMP
-  in callback again, this is the error code documented in man page and used
-  mostly all over the library.
-
-- ares_getnameinfo: Validate socket address family and length.
-  
-  Validate socket address family and that the socket address length is appropriate
-  for the specified family. Failure is reported with ARES_EBADFAMILY in callback.
-
-- ares_getnameinfo: fix two compiler warnings
-
-- Added another VS10 version string
-
-- Fix GCC 4 compiler warning 'dereferencing type-punned pointer might break strict-aliasing rules'.
-
-- Revert commit 494274e653936335c255a47599970de3df21e7c4
-
-- configure: fix autoconf 2.68 warning: no AC_LANG_SOURCE call detected in body
-
-- Fix compiler warning: array subscript has type 'char'
-
-- Fix GCC 4 compiler warning 'dereferencing type-punned pointer might break strict-aliasing rules'.
-
-- Revert following commits:
-    07bc7ea79509bcc9ef6e09151e81766ed00d3392
-    3392a50ea3f8573ea4b7a9d82b9833dab60cb0e9
-    9912637d32c9987719a1ea12db591aee2941891c
-  
-  The purpose of the whole patch was to silence a compiler warning triggered
-  with GCC 4 on file ares_process.c  The specific compiler warning was
-  'dereferencing type-punned pointer might break strict-aliasing rules'.
-  
-  A simpler patch will follow to equally silence the warning.
-
-- ares_options: reorder header inclusions to make inclusion of
-  ares_private.h the last included one again.
-
-Daniel Stenberg (12 Nov 2010)
-- [Patrik Thunstrom brought this change]
-
-  adig: fix NAPTR parsing
-  
-  I ran across a small "issue" in your adig example.
-  
-  It is simply the last part of the NAPTR record, the replacement element,
-  which is not a string, as currently handled in adig, but a domain name.
-
-- ares_save_options: assignments instead of memcpy
-
-- init_by_options: don't copy an empty sortlist
-  
-  If there aren't any sort items to copy, don't bother. Without this
-  little precaution it would do a malloc(0) which causes undefined
-  behaviors and is frowned upon by curl's memdebug-system.
-
-Guenter Knauf (3 Oct 2010)
-- Minor Watcom makefile tweaks.
-
-Daniel Stenberg (30 Sep 2010)
-- [Mike Crowe brought this change]
-
-  Fix lookup with HOSTALIASES set.
-  
-  ares__read_line returns ARES_EOF when it reaches the end of the
-  file. This will happen every time when reading to the end of the
-  HOSTALIASES file. Unfortunately single_domain treats this error as
-  being fatal.
-  
-  Signed-off-by: Mike Crowe <mac@mcrowe.com>
-
-Ben Greear (24 Aug 2010)
-- Add missing break that caused get_ares_servers to fail.
-  
-  Reported-by: Ning Dong <flintning@163.com>
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-Yang Tse (11 Aug 2010)
-- configure: werror related adjustments
-
-Guenter Knauf (8 Aug 2010)
-- Added copyright string to ares_version.h and make use of it in other files.
-
-- Block created ares_build.h for NetWare to avoid usage from other platforms.
-
-- Fix to overwrite default libname.
-
-- Some more Watcom makefile massage ...
-
-- Some more Watcom makefile massage ...
-
-Ben Greear (4 Aug 2010)
-- sock-addr-storage:  Detect and deal with lack of .ss_family member.
-  
-  AIX, at least, does not have sockaddr_storage.ss_family member.
-  Detect this in the configure logic and use proper #ifdefs in the
-  ares_process logic.
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-  Tested-by: Tor Arntsen <tor@spacetec.no>
-
-Guenter Knauf (3 Aug 2010)
-- Added Watcom makefile based on libcurl's Makefile.Watcom.
-
-Ben Greear (31 Jul 2010)
-- typo:  Fix compile bug for platforms that don't have sockaddr_storage.
-  
-  Bug was introduced by me in previous commit.
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-- Fix aliasing warning in gcc 4.4.4 (at least).
-  
-  Should be no functional change, though the code gets a bit
-  ugglier.
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-Daniel Stenberg (31 Jul 2010)
-- ares_set_servers_csv: use ISDIGIT
-  
-  The IS*() set of macros are preferred to the regular is*() functions as
-  they help us avoid the most common pitfalls.
-
-Ben Greear (30 Jul 2010)
-- cast arg to isdigit to int
-  
-  Looks like it might silence a warning on Netware build.
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-- remove all uses of uint32_t
-  
-  Previous fix forgot a few.
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-- fix signed v/s unsigned casts warning in ares_gethostbyaddr.c
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-- local-bind-fixup:  Fix inet_pton warning.
-  
-  Conditionally include <arpa/inet.h> for inet_pton
-  headers.
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-- build:  Enable compiling with -Werror.
-  
-  This helps find compile warnings because they simply break
-  the build.
-  
-  To use:
-  ./configure --enable-warnings --enable-werror
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>
-
-- ipv6: Fix some build issues related to the local-bind feature.
-  
-  Signed-off-by: Ben Greear <greearb@candelatech.com>

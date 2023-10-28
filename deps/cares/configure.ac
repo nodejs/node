@@ -20,10 +20,10 @@
 #############################################################
 AC_PREREQ([2.60])
 
-AC_INIT([c-ares], [1.20.1],
+AC_INIT([c-ares], [1.21.0],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="9:1:7"
+CARES_VERSION_INFO="9:2:7"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -201,6 +201,45 @@ CARES_SET_COMPILER_BASIC_OPTS
 CARES_SET_COMPILER_DEBUG_OPTS
 CARES_SET_COMPILER_OPTIMIZE_OPTS
 CARES_SET_COMPILER_WARNING_OPTS
+
+if test "$want_warnings" = "yes"; then
+  AX_APPEND_COMPILE_FLAGS([-Wall \
+    -Wextra \
+    -Wcast-align \
+    -Wconversion \
+    -Wdeclaration-after-statement \
+    -Wdouble-promotion \
+    -Wfloat-equal \
+    -Wformat-security \
+    -Winit-self \
+    -Wjump-misses-init \
+    -Wlogical-op \
+    -Wmissing-braces \
+    -Wmissing-declarations \
+    -Wmissing-format-attribute \
+    -Wmissing-include-dirs \
+    -Wmissing-prototypes \
+    -Wnested-externs \
+    -Wno-coverage-mismatch \
+    -Wold-style-definition \
+    -Wpacked \
+    -Wpointer-arith \
+    -Wredundant-decls \
+    -Wshadow \
+    -Wsign-conversion \
+    -Wstrict-overflow \
+    -Wstrict-prototypes \
+    -Wtrampolines \
+    -Wundef \
+    -Wunused \
+    -Wvariadic-macros \
+    -Wvla \
+    -Wwrite-strings \
+    -Werror=implicit-int \
+    -Werror=implicit-function-declaration \
+    -Werror=partial-availability \
+  ], [CFLAGS], [-Werror])
+fi
 
 if test "$compiler_id" = "INTEL_UNIX_C"; then
   #

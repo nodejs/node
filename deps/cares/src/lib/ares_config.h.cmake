@@ -17,10 +17,10 @@
 #undef CARES_EXPOSE_STATICS
 
 /* Defined for build with symbol hiding. */
-#undef CARES_SYMBOL_HIDING
+#cmakedefine CARES_SYMBOL_HIDING
 
 /* Definition to make a library symbol externally visible. */
-#undef CARES_SYMBOL_SCOPE_EXTERN
+#define CARES_SYMBOL_SCOPE_EXTERN @CARES_SYMBOL_SCOPE_EXTERN@
 
 /* Use resolver library to configure cares */
 #cmakedefine CARES_USE_LIBRESOLV

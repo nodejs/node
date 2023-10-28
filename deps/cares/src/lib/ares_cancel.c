@@ -37,8 +37,7 @@
  */
 void ares_cancel(ares_channel channel)
 {
-  if (ares__llist_len(channel->all_queries) > 0)
-  {
+  if (ares__llist_len(channel->all_queries) > 0) {
     ares__llist_node_t *node = NULL;
     ares__llist_node_t *next = NULL;
 
@@ -46,8 +45,8 @@ void ares_cancel(ares_channel channel)
      * into this function are cancelled. New queries added by callbacks of
      * queries being cancelled will not be cancelled themselves.
      */
-    ares__llist_t *list_copy = channel->all_queries;
-    channel->all_queries = ares__llist_create(NULL);
+    ares__llist_t      *list_copy = channel->all_queries;
+    channel->all_queries          = ares__llist_create(NULL);
 
     /* Out of memory, this function doesn't return a result code though so we
      * can't report to caller */
@@ -64,20 +63,22 @@ void ares_cancel(ares_channel channel)
       /* Cache next since this node is being deleted */
       next = ares__llist_node_next(node);
 
-      query = ares__llist_node_claim(node);
+      query                   = ares__llist_node_claim(node);
       query->node_all_queries = NULL;
 
       /* Cache file descriptor for connection so we can clean it up possibly */
-      if (query->conn)
+      if (query->conn) {
         fd = query->conn->fd;
+      }
 
       /* NOTE: its possible this may enqueue new queries */
       query->callback(query->arg, ARES_ECANCELLED, 0, NULL, 0);
       ares__free_query(query);
 
       /* See if the connection should be cleaned up */
-      if (fd != ARES_SOCKET_BAD)
+      if (fd != ARES_SOCKET_BAD) {
         ares__check_cleanup_conn(channel, fd);
+      }
 
       node = next;
     }

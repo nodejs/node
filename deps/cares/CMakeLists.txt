@@ -1,6 +1,8 @@
 # Copyright (C) The c-ares project and its contributors
 # SPDX-License-Identifier: MIT
-CMAKE_MINIMUM_REQUIRED (VERSION 3.1.0)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.5.0)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
 INCLUDE (CheckIncludeFiles)
 INCLUDE (CheckTypeSize)
@@ -10,10 +12,12 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.20.1" )
+PROJECT (c-ares LANGUAGES C VERSION "1.21.0" )
+
+INCLUDE (EnableWarnings)
 
 # Set this version before release
-SET (CARES_VERSION "1.20.1")
+SET (CARES_VERSION "1.21.0")
 
 INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are wrong.
 
@@ -28,7 +32,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "9:1:7")
+SET (CARES_LIB_VERSIONINFO "9:2:7")
 
 
 OPTION (CARES_STATIC     "Build as a static library"                                             OFF)
@@ -38,6 +42,7 @@ OPTION (CARES_STATIC_PIC "Build the static library as PIC (position independent)
 OPTION (CARES_BUILD_TESTS "Build and run tests"                                                  OFF)
 OPTION (CARES_BUILD_CONTAINER_TESTS "Build and run container tests (implies CARES_BUILD_TESTS, Linux only)" OFF)
 OPTION (CARES_BUILD_TOOLS "Build tools"                                                          ON)
+OPTION (CARES_SYMBOL_HIDING "Hide private symbols in shared libraries"                           OFF)
 SET    (CARES_RANDOM_FILE "/dev/urandom" CACHE STRING "Suitable File / Device Path for entropy, such as /dev/urandom")
 
 
@@ -67,6 +72,21 @@ IF (MSVC)
 		SET (upper_config_type)
 		SET (config_type)
 		SET (flag_var)
+	ENDIF ()
+ENDIF ()
+
+IF (CARES_SYMBOL_HIDING)
+	IF (CMAKE_VERSION VERSION_LESS 3.12)
+		MESSAGE (FATAL_ERROR "Hiding symbols requires CMake 3.12")
+	ENDIF ()
+	CMAKE_POLICY (SET CMP0063 NEW)
+	SET (CARES_SYMBOL_SCOPE_EXTERN [=[__attribute__ ((visibility("default")))]=])
+	CHECK_C_SOURCE_COMPILES ("
+		${CARES_SYMBOL_SCOPE_EXTERN} int somefunc() { return 0; }
+		int main() { return somefunc(); }
+	" HAVE_VISIBILITY_ATTRIBUTE)
+	IF (NOT HAVE_VISIBILITY_ATTRIBUTE)
+		MESSAGE (FATAL_ERROR "C compiler does not accept visibility attribute")
 	ENDIF ()
 ENDIF ()
 

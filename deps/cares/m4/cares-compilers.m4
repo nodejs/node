@@ -852,27 +852,13 @@ AC_DEFUN([CARES_SET_COMPILER_WARNING_OPTS], [
         #
         if test "$want_warnings" = "yes"; then
           tmp_CFLAGS="$tmp_CFLAGS -pedantic"
-          tmp_CFLAGS="$tmp_CFLAGS -Wall -Wextra"
-          tmp_CFLAGS="$tmp_CFLAGS -Wpointer-arith -Wwrite-strings"
-          tmp_CFLAGS="$tmp_CFLAGS -Wshadow"
-          tmp_CFLAGS="$tmp_CFLAGS -Winline -Wnested-externs"
-          tmp_CFLAGS="$tmp_CFLAGS -Wmissing-declarations"
-          tmp_CFLAGS="$tmp_CFLAGS -Wmissing-prototypes"
+          tmp_CFLAGS="$tmp_CFLAGS -Winline"
           tmp_CFLAGS="$tmp_CFLAGS -Wno-long-long"
-          tmp_CFLAGS="$tmp_CFLAGS -Wfloat-equal"
           tmp_CFLAGS="$tmp_CFLAGS -Wno-multichar -Wsign-compare"
-          tmp_CFLAGS="$tmp_CFLAGS -Wundef"
           tmp_CFLAGS="$tmp_CFLAGS -Wno-format-nonliteral"
-          tmp_CFLAGS="$tmp_CFLAGS -Wendif-labels -Wstrict-prototypes"
-          tmp_CFLAGS="$tmp_CFLAGS -Wdeclaration-after-statement"
-          tmp_CFLAGS="$tmp_CFLAGS -Wcast-align"
+          tmp_CFLAGS="$tmp_CFLAGS -Wendif-labels"
           tmp_CFLAGS="$tmp_CFLAGS -Wno-system-headers"
           tmp_CFLAGS="$tmp_CFLAGS -Wshorten-64-to-32"
-          #
-          dnl Only clang 1.1 or later
-          if test "$compiler_num" -ge "101"; then
-            tmp_CFLAGS="$tmp_CFLAGS -Wunused"
-          fi
         fi
         ;;
         #
@@ -896,25 +882,14 @@ AC_DEFUN([CARES_SET_COMPILER_WARNING_OPTS], [
           fi
           #
           dnl Set of options we believe *ALL* gcc versions support:
-          tmp_CFLAGS="$tmp_CFLAGS -Wall -W"
-          #
-          dnl Only gcc 1.4 or later
-          if test "$compiler_num" -ge "104"; then
-            tmp_CFLAGS="$tmp_CFLAGS -Wpointer-arith -Wwrite-strings"
-            dnl If not cross-compiling with a gcc older than 3.0
-            if test "x$cross_compiling" != "xyes" ||
-              test "$compiler_num" -ge "300"; then
-              tmp_CFLAGS="$tmp_CFLAGS -Wunused -Wshadow"
-            fi
-          fi
+          tmp_CFLAGS="$tmp_CFLAGS -W"
           #
           dnl Only gcc 2.7 or later
           if test "$compiler_num" -ge "207"; then
-            tmp_CFLAGS="$tmp_CFLAGS -Winline -Wnested-externs"
+            tmp_CFLAGS="$tmp_CFLAGS -Winline"
             dnl If not cross-compiling with a gcc older than 3.0
             if test "x$cross_compiling" != "xyes" ||
               test "$compiler_num" -ge "300"; then
-              tmp_CFLAGS="$tmp_CFLAGS -Wmissing-declarations"
               tmp_CFLAGS="$tmp_CFLAGS -Wmissing-prototypes"
             fi
           fi
@@ -926,12 +901,7 @@ AC_DEFUN([CARES_SET_COMPILER_WARNING_OPTS], [
           #
           dnl Only gcc 2.96 or later
           if test "$compiler_num" -ge "296"; then
-            tmp_CFLAGS="$tmp_CFLAGS -Wfloat-equal"
             tmp_CFLAGS="$tmp_CFLAGS -Wno-multichar -Wsign-compare"
-            dnl -Wundef used only if gcc is 2.96 or later since we get
-            dnl lots of "`_POSIX_C_SOURCE' is not defined" in system
-            dnl headers with gcc 2.95.4 on FreeBSD 4.9
-            tmp_CFLAGS="$tmp_CFLAGS -Wundef"
           fi
           #
           dnl Only gcc 2.97 or later
@@ -950,12 +920,7 @@ AC_DEFUN([CARES_SET_COMPILER_WARNING_OPTS], [
           #
           dnl Only gcc 3.3 or later
           if test "$compiler_num" -ge "303"; then
-            tmp_CFLAGS="$tmp_CFLAGS -Wendif-labels -Wstrict-prototypes"
-          fi
-          #
-          dnl Only gcc 3.4 or later
-          if test "$compiler_num" -ge "304"; then
-            tmp_CFLAGS="$tmp_CFLAGS -Wdeclaration-after-statement"
+            tmp_CFLAGS="$tmp_CFLAGS -Wendif-labels"
           fi
           #
           dnl Only gcc 4.0 or later
@@ -963,17 +928,12 @@ AC_DEFUN([CARES_SET_COMPILER_WARNING_OPTS], [
             tmp_CFLAGS="$tmp_CFLAGS -Wstrict-aliasing=3"
           fi
           #
-          dnl Only gcc 4.2 or later
-          if test "$compiler_num" -ge "402"; then
-            tmp_CFLAGS="$tmp_CFLAGS -Wcast-align"
-          fi
-          #
           dnl Only gcc 4.3 or later
           if test "$compiler_num" -ge "403"; then
             tmp_CFLAGS="$tmp_CFLAGS -Wtype-limits -Wold-style-declaration"
             tmp_CFLAGS="$tmp_CFLAGS -Wmissing-parameter-type -Wempty-body"
             tmp_CFLAGS="$tmp_CFLAGS -Wclobbered -Wignored-qualifiers"
-            tmp_CFLAGS="$tmp_CFLAGS -Wconversion -Wno-sign-conversion -Wvla"
+            tmp_CFLAGS="$tmp_CFLAGS -Wno-sign-conversion"
           fi
           #
           dnl Only gcc 4.5 or later
@@ -1025,7 +985,7 @@ AC_DEFUN([CARES_SET_COMPILER_WARNING_OPTS], [
         if test "$want_warnings" = "yes"; then
           if test "$compiler_num" -gt "600"; then
             dnl Show errors, warnings, and remarks
-            tmp_CPPFLAGS="$tmp_CPPFLAGS -Wall -w2"
+            tmp_CPPFLAGS="$tmp_CPPFLAGS -w2"
             dnl Perform extra compile-time code checking
             tmp_CPPFLAGS="$tmp_CPPFLAGS -Wcheck"
             dnl Warn on nested comments
@@ -1036,12 +996,8 @@ AC_DEFUN([CARES_SET_COMPILER_WARNING_OPTS], [
             tmp_CPPFLAGS="$tmp_CPPFLAGS -Wmissing-prototypes"
             dnl Enable warnings for 64-bit portability issues
             tmp_CPPFLAGS="$tmp_CPPFLAGS -Wp64"
-            dnl Enable warnings for questionable pointer arithmetic
-            tmp_CPPFLAGS="$tmp_CPPFLAGS -Wpointer-arith"
             dnl Check for function return typw issues
             tmp_CPPFLAGS="$tmp_CPPFLAGS -Wreturn-type"
-            dnl Warn on variable declarations hiding a previous one
-            tmp_CPPFLAGS="$tmp_CPPFLAGS -Wshadow"
             dnl Warn when a variable is used before initialized
             tmp_CPPFLAGS="$tmp_CPPFLAGS -Wuninitialized"
             dnl Warn if a declared function is not used
@@ -1109,9 +1065,7 @@ AC_DEFUN([CARES_SET_COMPILER_WARNING_OPTS], [
         #
         if test "$want_warnings" = "yes"; then
           dnl Activate all warnings
-          tmp_CFLAGS="$tmp_CFLAGS -Wall"
-          dnl Make string constants be of type const char *
-          tmp_CFLAGS="$tmp_CFLAGS -Wwrite-strings"
+          tmp_CFLAGS="$tmp_CFLAGS"
           dnl Warn use of unsupported GCC features ignored by TCC
           tmp_CFLAGS="$tmp_CFLAGS -Wunsupported"
         fi
@@ -1121,7 +1075,7 @@ AC_DEFUN([CARES_SET_COMPILER_WARNING_OPTS], [
         #
         if test "$want_warnings" = "yes"; then
           dnl Issue all warnings
-          tmp_CFLAGS="$tmp_CFLAGS -Wall -Wextra"
+          tmp_CFLAGS="$tmp_CFLAGS"
         fi
         ;;
         #

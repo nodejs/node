@@ -26,10 +26,8 @@ int ares_parse_uri_reply(const unsigned char* \fIabuf\fP, int \fIalen\fP,
                          struct ares_uri_reply** \fIuri_out\fP);
 .fi
 .SH DESCRIPTION
-The
-.B ares_parse_uri_reply
-function parses the response to a query of type URI into a
-linked list of
+The \fIares_parse_uri_reply(3)\fP function parses the response to a query of
+type URI into a linked list of
 .I struct ares_uri_reply 
 The parameters
 .I abuf
@@ -41,13 +39,11 @@ memory and a pointer to it stored into the variable pointed to by
 It is the caller's responsibility to free the resulting
 .IR uri_out
 structure when it is no longer needed using the function
-.B ares_free_data
-.PP
+\fBares_free_data(3)\fP.
+
 The structure 
 .I ares_uri_reply
 contains the following fields:
-.sp
-.in +4n
 .nf
 struct ares_uri_reply {
     struct ares_uri_reply       *next;
@@ -57,8 +53,6 @@ struct ares_uri_reply {
     int                         ttl;
 };
 .fi
-.in
-.PP
 .SH RETURN VALUES
 .B ares_parse_uri_reply
 can return any of the following values:

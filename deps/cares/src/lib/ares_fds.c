@@ -28,35 +28,34 @@
 #include "ares_setup.h"
 
 #include "ares.h"
-#include "ares_nowarn.h"
 #include "ares_private.h"
 
 int ares_fds(ares_channel channel, fd_set *read_fds, fd_set *write_fds)
 {
   struct server_state *server;
-  ares_socket_t nfds;
-  int i;
+  ares_socket_t        nfds;
+  size_t               i;
 
   /* Are there any active queries? */
-  size_t active_queries = ares__llist_len(channel->all_queries);
+  size_t               active_queries = ares__llist_len(channel->all_queries);
 
   nfds = 0;
   for (i = 0; i < channel->nservers; i++) {
     ares__llist_node_t *node;
     server = &channel->servers[i];
 
-    for (node = ares__llist_node_first(server->connections);
-         node != NULL;
+    for (node = ares__llist_node_first(server->connections); node != NULL;
          node = ares__llist_node_next(node)) {
-      struct server_connection *conn = ares__llist_node_val(node);
+      const struct server_connection *conn = ares__llist_node_val(node);
 
       /* We only need to register interest in UDP sockets if we have
        * outstanding queries.
        */
       if (active_queries || conn->is_tcp) {
         FD_SET(conn->fd, read_fds);
-        if (conn->fd >= nfds)
+        if (conn->fd >= nfds) {
           nfds = conn->fd + 1;
+        }
       }
 
       if (conn->is_tcp && ares__buf_len(server->tcp_send)) {
@@ -65,5 +64,5 @@ int ares_fds(ares_channel channel, fd_set *read_fds, fd_set *write_fds)
     }
   }
 
-  return (int)nfds;
+  return nfds;
 }

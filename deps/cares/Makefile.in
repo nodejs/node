@@ -115,6 +115,9 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/ax_ac_append_to_file.m4 \
 	$(top_srcdir)/m4/ax_ac_print_to_file.m4 \
 	$(top_srcdir)/m4/ax_add_am_macro_static.m4 \
 	$(top_srcdir)/m4/ax_am_macros_static.m4 \
+	$(top_srcdir)/m4/ax_append_compile_flags.m4 \
+	$(top_srcdir)/m4/ax_append_flag.m4 \
+	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/ax_check_gnu_make.m4 \
 	$(top_srcdir)/m4/ax_code_coverage.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
@@ -430,7 +433,8 @@ EXTRA_DIST = AUTHORS CHANGES README.cares $(man_MANS) RELEASE-NOTES	\
  c-ares-config.cmake.in libcares.pc.cmake libcares.pc.in buildconf get_ver.awk \
  maketgz TODO README.msvc $(MSVCFILES) INSTALL.md README.md LICENSE.md \
  CMakeLists.txt Makefile.dj Makefile.m32 Makefile.netware Makefile.msvc \
- Makefile.Watcom AUTHORS CONTRIBUTING.md SECURITY.md TODO
+ Makefile.Watcom AUTHORS CONTRIBUTING.md SECURITY.md TODO \
+ cmake/EnableWarnings.cmake
 
 CLEANFILES = $(PDFPAGES) $(HTMLPAGES)
 DISTCLEANFILES = include/ares_build.h

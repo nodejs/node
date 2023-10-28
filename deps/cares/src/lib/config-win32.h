@@ -42,7 +42,7 @@
 
 /* Define if you have the <getopt.h> header file. */
 #if defined(__MINGW32__) || defined(__POCC__)
-#define HAVE_GETOPT_H 1
+#  define HAVE_GETOPT_H 1
 #endif
 
 /* Define if you have the <limits.h> header file. */
@@ -50,7 +50,7 @@
 
 /* Define if you have the <process.h> header file. */
 #ifndef __SALFORDC__
-#define HAVE_PROCESS_H 1
+#  define HAVE_PROCESS_H 1
 #endif
 
 /* Define if you have the <signal.h> header file. */
@@ -64,8 +64,8 @@
 
 /* Define if you have the <unistd.h> header file. */
 #if defined(__MINGW32__) || defined(__WATCOMC__) || defined(__LCC__) || \
-    defined(__POCC__)
-#define HAVE_UNISTD_H 1
+  defined(__POCC__)
+#  define HAVE_UNISTD_H 1
 #endif
 
 /* Define if you have the <windows.h> header file. */
@@ -76,12 +76,12 @@
 
 /* Define if you have the <winsock2.h> header file. */
 #ifndef __SALFORDC__
-#define HAVE_WINSOCK2_H 1
+#  define HAVE_WINSOCK2_H 1
 #endif
 
 /* Define if you have the <ws2tcpip.h> header file. */
 #ifndef __SALFORDC__
-#define HAVE_WS2TCPIP_H 1
+#  define HAVE_WS2TCPIP_H 1
 #endif
 
 /* ---------------------------------------------------------------- */
@@ -196,21 +196,21 @@
 
 /* Specifics for the Watt-32 tcp/ip stack. */
 #ifdef WATT32
-  #define SOCKET              int
-  #define NS_INADDRSZ         4
-  #define HAVE_ARPA_NAMESER_H 1
-  #define HAVE_ARPA_INET_H    1
-  #define HAVE_NETDB_H        1
-  #define HAVE_NETINET_IN_H   1
-  #define HAVE_SYS_SOCKET_H   1
-  #define HAVE_NETINET_TCP_H  1
-  #define HAVE_AF_INET6       1
-  #define HAVE_PF_INET6       1
-  #define HAVE_STRUCT_IN6_ADDR     1
-  #define HAVE_STRUCT_SOCKADDR_IN6 1
-  #undef HAVE_WINSOCK_H
-  #undef HAVE_WINSOCK2_H
-  #undef HAVE_WS2TCPIP_H
+#  define SOCKET                   int
+#  define NS_INADDRSZ              4
+#  define HAVE_ARPA_NAMESER_H      1
+#  define HAVE_ARPA_INET_H         1
+#  define HAVE_NETDB_H             1
+#  define HAVE_NETINET_IN_H        1
+#  define HAVE_SYS_SOCKET_H        1
+#  define HAVE_NETINET_TCP_H       1
+#  define HAVE_AF_INET6            1
+#  define HAVE_PF_INET6            1
+#  define HAVE_STRUCT_IN6_ADDR     1
+#  define HAVE_STRUCT_SOCKADDR_IN6 1
+#  undef HAVE_WINSOCK_H
+#  undef HAVE_WINSOCK2_H
+#  undef HAVE_WS2TCPIP_H
 #endif
 
 /* ---------------------------------------------------------------- */
@@ -225,7 +225,7 @@
 
 #ifdef __cplusplus
 /* Compiling headers in C++ mode means bool is available */
-#define HAVE_BOOL_T
+#  define HAVE_BOOL_T
 #endif
 
 /* ---------------------------------------------------------------- */
@@ -241,7 +241,7 @@
 
 /* Define if you have struct sockaddr_storage. */
 #if !defined(__SALFORDC__) && !defined(__BORLANDC__)
-#define HAVE_STRUCT_SOCKADDR_STORAGE 1
+#  define HAVE_STRUCT_SOCKADDR_STORAGE 1
 #endif
 
 /* Define if you have struct timeval. */
@@ -253,7 +253,7 @@
 
 /* Define to avoid VS2005 complaining about portable C functions. */
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
-#  define _CRT_SECURE_NO_DEPRECATE 1
+#  define _CRT_SECURE_NO_DEPRECATE  1
 #  define _CRT_NONSTDC_NO_DEPRECATE 1
 #endif
 
@@ -320,27 +320,27 @@
 
 /* Define if you have address family AF_INET6. */
 #ifdef HAVE_WINSOCK2_H
-#define HAVE_AF_INET6 1
+#  define HAVE_AF_INET6 1
 #endif
 
 /* Define if you have protocol family PF_INET6. */
 #ifdef HAVE_WINSOCK2_H
-#define HAVE_PF_INET6 1
+#  define HAVE_PF_INET6 1
 #endif
 
 /* Define if you have struct in6_addr. */
 #ifdef HAVE_WS2TCPIP_H
-#define HAVE_STRUCT_IN6_ADDR 1
+#  define HAVE_STRUCT_IN6_ADDR 1
 #endif
 
 /* Define if you have struct sockaddr_in6. */
 #ifdef HAVE_WS2TCPIP_H
-#define HAVE_STRUCT_SOCKADDR_IN6 1
+#  define HAVE_STRUCT_SOCKADDR_IN6 1
 #endif
 
 /* Define if you have sockaddr_in6 with scopeid. */
 #ifdef HAVE_WS2TCPIP_H
-#define HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID 1
+#  define HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID 1
 #endif
 
 /* ---------------------------------------------------------------- */
@@ -354,10 +354,10 @@
  */
 
 #if defined(_WIN32_WCE) && !defined(HAVE_ERRNO_H)
-#  define ENOENT    ERROR_FILE_NOT_FOUND
-#  define ESRCH     ERROR_PATH_NOT_FOUND
-#  define ENOMEM    ERROR_NOT_ENOUGH_MEMORY
-#  define ENOSPC    ERROR_INVALID_PARAMETER
+#  define ENOENT ERROR_FILE_NOT_FOUND
+#  define ESRCH  ERROR_PATH_NOT_FOUND
+#  define ENOMEM ERROR_NOT_ENOUGH_MEMORY
+#  define ENOSPC ERROR_INVALID_PARAMETER
 #endif
 
 #endif /* HEADER_CARES_CONFIG_WIN32_H */
