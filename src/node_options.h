@@ -236,6 +236,7 @@ class PerIsolateOptions : public Options {
   bool experimental_shadow_realm = false;
   std::string report_signal = "SIGUSR2";
   bool build_snapshot = false;
+  std::string build_snapshot_config;
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
