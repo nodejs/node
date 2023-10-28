@@ -125,7 +125,6 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/tls/parse-cert-string", "internal/tls/secure-context",
         "internal/http2/core", "internal/http2/compat",
         "internal/policy/manifest", "internal/process/policy",
-        "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
         "sys",   // Deprecated.
         "wasi",  // Experimental.
