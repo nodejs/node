@@ -838,6 +838,16 @@ class WPTRunner {
       this.fail(spec, { name: 'WPT testharness timeout' }, kTimeout);
       // Mark the whole test as TIMEOUT in wpt.fyi report.
       reportResult?.finish('TIMEOUT');
+    } else if (status !== kPass) {
+      // No need to record this synthetic failure with wpt.fyi.
+      this.fail(spec, {
+        status: status,
+        name: 'WPT test harness error',
+        message: harnessStatus.message,
+        stack: harnessStatus.stack,
+      }, status);
+      // Mark the whole test as ERROR in wpt.fyi report.
+      reportResult?.finish('ERROR');
     } else {
       reportResult?.finish();
     }
