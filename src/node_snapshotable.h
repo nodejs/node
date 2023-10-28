@@ -25,6 +25,9 @@ struct PropInfo {
 
 typedef size_t SnapshotIndex;
 
+bool WithoutCodeCache(const SnapshotFlags& flags);
+bool WithoutCodeCache(const SnapshotConfig& config);
+
 // When serializing an embedder object, we'll serialize the native states
 // into a chunk that can be mapped into a subclass of InternalFieldInfoBase,
 // and pass it into the V8 callback as the payload of StartupData.
@@ -154,7 +157,6 @@ class BindingData : public SnapshotableObject {
   AliasedUint8Array is_building_snapshot_buffer_;
   InternalFieldInfo* internal_field_info_ = nullptr;
 };
-
 }  // namespace mksnapshot
 
 }  // namespace node

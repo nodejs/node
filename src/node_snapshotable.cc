@@ -10,6 +10,7 @@
 #include "debug_utils-inl.h"
 #include "encoding_binding.h"
 #include "env-inl.h"
+#include "json_parser.h"
 #include "node_blob.h"
 #include "node_builtins.h"
 #include "node_contextify.h"
@@ -542,6 +543,7 @@ SnapshotMetadata SnapshotDeserializer::Read() {
   result.node_arch = ReadString();
   result.node_platform = ReadString();
   result.v8_cache_version_tag = ReadArithmetic<uint32_t>();
+  result.flags = static_cast<SnapshotFlags>(ReadArithmetic<uint32_t>());
 
   if (is_debug) {
     std::string str = ToStr(result);
@@ -571,6 +573,9 @@ size_t SnapshotSerializer::Write(const SnapshotMetadata& data) {
   Debug("Write V8 cached data version tag %" PRIx32 "\n",
         data.v8_cache_version_tag);
   written_total += WriteArithmetic<uint32_t>(data.v8_cache_version_tag);
+  Debug("Write snapshot flags %" PRIx32 "\n",
+        static_cast<uint32_t>(data.flags));
+  written_total += WriteArithmetic<uint32_t>(static_cast<uint32_t>(data.flags));
   return written_total;
 }
 
@@ -691,19 +696,21 @@ bool SnapshotData::Check() const {
     return false;
   }
 
-  uint32_t current_cache_version = v8::ScriptCompiler::CachedDataVersionTag();
-  if (metadata.v8_cache_version_tag != current_cache_version &&
-      metadata.type == SnapshotMetadata::Type::kFullyCustomized) {
-    // For now we only do this check for the customized snapshots - we know
-    // that the flags we use in the default snapshot are limited and safe
-    // enough so we can relax the constraints for it.
-    fprintf(stderr,
-            "Failed to load the startup snapshot because it was built with "
-            "a different version of V8 or with different V8 configurations.\n"
-            "Expected tag %" PRIx32 ", read %" PRIx32 "\n",
-            current_cache_version,
-            metadata.v8_cache_version_tag);
-    return false;
+  if (metadata.type == SnapshotMetadata::Type::kFullyCustomized &&
+      !WithoutCodeCache(metadata.flags)) {
+    uint32_t current_cache_version = v8::ScriptCompiler::CachedDataVersionTag();
+    if (metadata.v8_cache_version_tag != current_cache_version) {
+      // For now we only do this check for the customized snapshots - we know
+      // that the flags we use in the default snapshot are limited and safe
+      // enough so we can relax the constraints for it.
+      fprintf(stderr,
+              "Failed to load the startup snapshot because it was built with "
+              "a different version of V8 or with different V8 configurations.\n"
+              "Expected tag %" PRIx32 ", read %" PRIx32 "\n",
+              current_cache_version,
+              metadata.v8_cache_version_tag);
+      return false;
+    }
   }
 
   // TODO(joyeecheung): check incompatible Node.js flags.
@@ -913,23 +920,91 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
+SnapshotFlags operator|(SnapshotFlags x, SnapshotFlags y) {
+  return static_cast<SnapshotFlags>(static_cast<uint32_t>(x) |
+                                    static_cast<uint32_t>(y));
+}
+
+SnapshotFlags operator&(SnapshotFlags x, SnapshotFlags y) {
+  return static_cast<SnapshotFlags>(static_cast<uint32_t>(x) &
+                                    static_cast<uint32_t>(y));
+}
+
+SnapshotFlags operator|=(/* NOLINT (runtime/references) */ SnapshotFlags& x,
+                         SnapshotFlags y) {
+  return x = x | y;
+}
+
+bool WithoutCodeCache(const SnapshotFlags& flags) {
+  return static_cast<bool>(flags & SnapshotFlags::kWithoutCodeCache);
+}
+
+bool WithoutCodeCache(const SnapshotConfig& config) {
+  return WithoutCodeCache(config.flags);
+}
+
+std::optional<SnapshotConfig> ReadSnapshotConfig(const char* config_path) {
+  std::string config_content;
+  int r = ReadFileSync(&config_content, config_path);
+  if (r != 0) {
+    FPrintF(stderr,
+            "Cannot read snapshot configuration from %s: %s\n",
+            config_path,
+            uv_strerror(r));
+    return std::nullopt;
+  }
+
+  JSONParser parser;
+  if (!parser.Parse(config_content)) {
+    FPrintF(stderr, "Cannot parse JSON from %s\n", config_path);
+    return std::nullopt;
+  }
+
+  SnapshotConfig result;
+  result.builder_script_path = parser.GetTopLevelStringField("builder");
+  if (!result.builder_script_path.has_value()) {
+    FPrintF(stderr,
+            "\"builder\" field of %s is not a non-empty string\n",
+            config_path);
+    return std::nullopt;
+  }
+
+  std::optional<bool> WithoutCodeCache =
+      parser.GetTopLevelBoolField("withoutCodeCache");
+  if (!WithoutCodeCache.has_value()) {
+    FPrintF(stderr,
+            "\"withoutCodeCache\" field of %s is not a boolean\n",
+            config_path);
+    return std::nullopt;
+  }
+  if (WithoutCodeCache.value()) {
+    result.flags |= SnapshotFlags::kWithoutCodeCache;
+  }
+
+  return result;
+}
+
 ExitCode BuildSnapshotWithoutCodeCache(
     SnapshotData* out,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
-    std::optional<std::string_view> main_script) {
+    std::optional<std::string_view> builder_script_content,
+    const SnapshotConfig& config) {
+  DCHECK(builder_script_content.has_value() ==
+         config.builder_script_path.has_value());
   // The default snapshot is meant to be runtime-independent and has more
   // restrictions. We do not enable the inspector and do not run the event
   // loop when building the default snapshot to avoid inconsistencies, but
   // we do for the fully customized one, and they are expected to fixup the
   // inconsistencies using v8.startupSnapshot callbacks.
   SnapshotMetadata::Type snapshot_type =
-      main_script.has_value() ? SnapshotMetadata::Type::kFullyCustomized
-                              : SnapshotMetadata::Type::kDefault;
+      builder_script_content.has_value()
+          ? SnapshotMetadata::Type::kFullyCustomized
+          : SnapshotMetadata::Type::kDefault;
 
   std::vector<std::string> errors;
   auto setup = CommonEnvironmentSetup::CreateForSnapshotting(
-      per_process::v8_platform.Platform(), &errors, args, exec_args);
+      per_process::v8_platform.Platform(), &errors, args, exec_args, config);
   if (!setup) {
     for (const std::string& err : errors)
       fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
@@ -955,7 +1030,7 @@ ExitCode BuildSnapshotWithoutCodeCache(
 #if HAVE_INSPECTOR
         env->InitializeInspector({});
 #endif
-        if (LoadEnvironment(env, main_script.value()).IsEmpty()) {
+        if (LoadEnvironment(env, builder_script_content.value()).IsEmpty()) {
           return ExitCode::kGenericUserError;
         }
 
@@ -970,8 +1045,7 @@ ExitCode BuildSnapshotWithoutCodeCache(
     }
   }
 
-  return SnapshotBuilder::CreateSnapshot(
-      out, setup.get(), static_cast<uint8_t>(snapshot_type));
+  return SnapshotBuilder::CreateSnapshot(out, setup.get());
 }
 
 ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
@@ -1015,28 +1089,32 @@ ExitCode SnapshotBuilder::Generate(
     SnapshotData* out,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
-    std::optional<std::string_view> main_script) {
-  ExitCode code =
-      BuildSnapshotWithoutCodeCache(out, args, exec_args, main_script);
+    std::optional<std::string_view> builder_script_content,
+    const SnapshotConfig& snapshot_config) {
+  ExitCode code = BuildSnapshotWithoutCodeCache(
+      out, args, exec_args, builder_script_content, snapshot_config);
   if (code != ExitCode::kNoFailure) {
     return code;
   }
 
-#ifdef NODE_USE_NODE_CODE_CACHE
-  // Deserialize the snapshot to recompile code cache. We need to do this in the
-  // second pass because V8 requires the code cache to be compiled with a
-  // finalized read-only space.
-  return BuildCodeCacheFromSnapshot(out, args, exec_args);
-#else
+  if (!WithoutCodeCache(snapshot_config)) {
+    // Deserialize the snapshot to recompile code cache. We need to do this in
+    // the second pass because V8 requires the code cache to be compiled with a
+    // finalized read-only space.
+    return BuildCodeCacheFromSnapshot(out, args, exec_args);
+  }
+
   return ExitCode::kNoFailure;
-#endif
 }
 
 ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
-                                         CommonEnvironmentSetup* setup,
-                                         uint8_t snapshot_type_u8) {
+                                         CommonEnvironmentSetup* setup) {
+  const SnapshotConfig* config = setup->isolate_data()->snapshot_config();
+  DCHECK_NOT_NULL(config);
   SnapshotMetadata::Type snapshot_type =
-      static_cast<SnapshotMetadata::Type>(snapshot_type_u8);
+      config->builder_script_path.has_value()
+          ? SnapshotMetadata::Type::kFullyCustomized
+          : SnapshotMetadata::Type::kDefault;
   Isolate* isolate = setup->isolate();
   Environment* env = setup->env();
   SnapshotCreator* creator = setup->snapshot_creator();
@@ -1099,8 +1177,10 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
   }
 
   // Must be out of HandleScope
-  out->v8_snapshot_blob_data =
-      creator->CreateBlob(SnapshotCreator::FunctionCodeHandling::kKeep);
+  SnapshotCreator::FunctionCodeHandling handling =
+      WithoutCodeCache(*config) ? SnapshotCreator::FunctionCodeHandling::kClear
+                                : SnapshotCreator::FunctionCodeHandling::kKeep;
+  out->v8_snapshot_blob_data = creator->CreateBlob(handling);
 
   // We must be able to rehash the blob when we restore it or otherwise
   // the hash seed would be fixed by V8, introducing a vulnerability.
@@ -1112,7 +1192,8 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
                                    per_process::metadata.versions.node,
                                    per_process::metadata.arch,
                                    per_process::metadata.platform,
-                                   v8::ScriptCompiler::CachedDataVersionTag()};
+                                   v8::ScriptCompiler::CachedDataVersionTag(),
+                                   config->flags};
 
   // We cannot resurrect the handles from the snapshot, so make sure that
   // no handles are left open in the environment after the blob is created
@@ -1133,21 +1214,22 @@ ExitCode SnapshotBuilder::GenerateAsSource(
     const char* out_path,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
-    std::optional<std::string_view> main_script_path,
+    const SnapshotConfig& config,
     bool use_array_literals) {
-  std::string main_script_content;
-  std::optional<std::string_view> main_script_optional;
-  if (main_script_path.has_value()) {
-    int r = ReadFileSync(&main_script_content, main_script_path.value().data());
+  std::string builder_script_content;
+  std::optional<std::string_view> builder_script_optional;
+  if (config.builder_script_path.has_value()) {
+    std::string_view builder_script_path = config.builder_script_path.value();
+    int r = ReadFileSync(&builder_script_content, builder_script_path.data());
     if (r != 0) {
       FPrintF(stderr,
               "Cannot read main script %s for building snapshot. %s: %s",
-              main_script_path.value(),
+              builder_script_path,
               uv_err_name(r),
               uv_strerror(r));
       return ExitCode::kGenericUserError;
     }
-    main_script_optional = main_script_content;
+    builder_script_optional = builder_script_content;
   }
 
   std::ofstream out(out_path, std::ios::out | std::ios::binary);
@@ -1157,7 +1239,8 @@ ExitCode SnapshotBuilder::GenerateAsSource(
   }
 
   SnapshotData data;
-  ExitCode exit_code = Generate(&data, args, exec_args, main_script_optional);
+  ExitCode exit_code =
+      Generate(&data, args, exec_args, builder_script_optional, config);
   if (exit_code != ExitCode::kNoFailure) {
     return exit_code;
   }

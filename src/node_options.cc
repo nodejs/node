@@ -854,6 +854,12 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "Generate a snapshot blob when the process exits.",
             &PerIsolateOptions::build_snapshot,
             kDisallowedInEnvvar);
+  AddOption("--build-snapshot-config",
+            "Generate a snapshot blob when the process exits using a"
+            "JSON configuration in the specified path.",
+            &PerIsolateOptions::build_snapshot_config,
+            kDisallowedInEnvvar);
+  Implies("--build-snapshot-config", "--build-snapshot");
 
   Insert(eop, &PerIsolateOptions::get_per_env_options);
 }
