@@ -13,7 +13,7 @@ This a list of all the dependencies:
 * [base64 0.5.0][]
 * [brotli 1.0.9][]
 * [c-ares 1.20.1][]
-* [cjs-module-lexer 1.2.2][]
+* [cjs-module-lexer 1.2.3][]
 * [corepack][]
 * [googletest 116b7e5][]
 * [histogram 0.11.8][]
@@ -172,7 +172,7 @@ used for the homonym generic-purpose lossless compression algorithm.
 The [c-ares](https://github.com/c-ares/c-ares) is a C library
 for asynchronous DNS requests.
 
-### cjs-module-lexer 1.2.2
+### cjs-module-lexer 1.2.3
 
 The [cjs-module-lexer](https://github.com/nodejs/node/tree/HEAD/deps/cjs-module-lexer)
 dependency is used within the Node.js ESM implementation to detect the
@@ -323,7 +323,7 @@ performance improvements not currently available in standard zlib.
 [base64 0.5.0]: #base64-050
 [brotli 1.0.9]: #brotli-109
 [c-ares 1.20.1]: #c-ares-1201
-[cjs-module-lexer 1.2.2]: #cjs-module-lexer-122
+[cjs-module-lexer 1.2.3]: #cjs-module-lexer-123
 [corepack]: #corepack
 [dependency-update-action]: ../../../.github/workflows/tools.yml
 [googletest 116b7e5]: #googletest-116b7e5

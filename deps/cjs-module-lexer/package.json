@@ -1,10 +1,13 @@
 {
   "name": "cjs-module-lexer",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Lexes CommonJS modules, returning their named exports metadata",
   "main": "lexer.js",
   "exports": {
-    "import": "./dist/lexer.mjs",
+    "import": {
+      "types": "./lexer.d.mts",
+      "default": "./dist/lexer.mjs"
+    },
     "default": "./lexer.js"
   },
   "types": "lexer.d.ts",
@@ -15,7 +18,6 @@
     "bench": "node --expose-gc bench/index.mjs",
     "build": "node build.js && babel dist/lexer.mjs | terser -o dist/lexer.js",
     "build-wasm": "make lib/lexer.wasm && node build.js",
-    "prepublishOnly": "make && npm run build",
     "footprint": "npm run build && cat dist/lexer.js | gzip -9f | wc -c"
   },
   "author": "Guy Bedford",
@@ -25,7 +27,7 @@
     "@babel/core": "^7.5.5",
     "@babel/plugin-transform-modules-commonjs": "^7.5.0",
     "kleur": "^2.0.2",
-    "mocha": "^5.2.0",
+    "mocha": "^9.1.3",
     "terser": "^4.1.4"
   },
   "files": [
@@ -34,10 +36,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/guybedford/cjs-module-lexer.git"
+    "url": "git+https://github.com/nodejs/cjs-module-lexer.git"
   },
   "bugs": {
-    "url": "https://github.com/guybedford/cjs-module-lexer/issues"
+    "url": "https://github.com/nodejs/cjs-module-lexer/issues"
   },
-  "homepage": "https://github.com/guybedford/cjs-module-lexer#readme"
+  "homepage": "https://github.com/nodejs/cjs-module-lexer#readme"
 }
