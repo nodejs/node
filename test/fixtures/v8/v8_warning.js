@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+require('../../common');
 
 function AsmModule() {
   'use asm';
