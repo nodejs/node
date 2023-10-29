@@ -42,8 +42,7 @@ typedef enum nghttp3_frame_type {
   NGHTTP3_FRAME_PUSH_PROMISE = 0x05,
   NGHTTP3_FRAME_GOAWAY = 0x07,
   NGHTTP3_FRAME_MAX_PUSH_ID = 0x0d,
-  /* PRIORITY_UPDATE:
-     https://tools.ietf.org/html/draft-ietf-httpbis-priority-03 */
+  /* PRIORITY_UPDATE: https://datatracker.ietf.org/doc/html/rfc9218 */
   NGHTTP3_FRAME_PRIORITY_UPDATE = 0x0f0700,
   NGHTTP3_FRAME_PRIORITY_UPDATE_PUSH_ID = 0x0f0701,
 } nghttp3_frame_type;
@@ -74,6 +73,7 @@ typedef struct nghttp3_frame_headers {
 #define NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY 0x01
 #define NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS 0x07
 #define NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL 0x08
+#define NGHTTP3_SETTINGS_ID_H3_DATAGRAM 0x33
 
 #define NGHTTP3_H2_SETTINGS_ID_ENABLE_PUSH 0x2
 #define NGHTTP3_H2_SETTINGS_ID_MAX_CONCURRENT_STREAMS 0x3
@@ -103,7 +103,17 @@ typedef struct nghttp3_frame_priority_update {
      NGHTTP3_FRAME_PRIORITY_UPDATE_PUSH_ID.  It is undefined
      otherwise. */
   int64_t pri_elem_id;
-  nghttp3_pri pri;
+  /* When sending this frame, data should point to the buffer
+     containing a serialized priority field value and its length is
+     set to datalen.  On reception, pri contains the decoded priority
+     header value. */
+  union {
+    nghttp3_pri pri;
+    struct {
+      uint8_t *data;
+      size_t datalen;
+    };
+  };
 } nghttp3_frame_priority_update;
 
 typedef union nghttp3_frame {
@@ -211,5 +221,12 @@ void nghttp3_nva_del(nghttp3_nv *nva, const nghttp3_mem *mem);
  */
 void nghttp3_frame_headers_free(nghttp3_frame_headers *fr,
                                 const nghttp3_mem *mem);
+
+/*
+ * nghttp3_frame_priority_update_free frees memory allocated for |fr|.
+ * This function should only be called for an outgoing frame.
+ */
+void nghttp3_frame_priority_update_free(nghttp3_frame_priority_update *fr,
+                                        const nghttp3_mem *mem);
 
 #endif /* NGHTTP3_FRAME_H */

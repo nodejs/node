@@ -22,7 +22,7 @@ This a list of all the dependencies:
 * [llhttp 9.1.3][]
 * [minimatch 9.0.3][]
 * [nghttp2 1.57.0][]
-* [nghttp3 0.7.0][]
+* [nghttp3 1.0.0][]
 * [ngtcp2 0.8.1][]
 * [npm 9.6.7][]
 * [openssl 3.0.8][]
@@ -229,7 +229,7 @@ The [nghttp2](https://github.com/nghttp2/nghttp2) dependency is a C library
 implementing HTTP/2 protocol.
 See [maintaining-http][] for more informations.
 
-### nghttp3 0.7.0
+### nghttp3 1.0.0
 
 The [nghttp3](https://github.com/ngtcp2/nghttp3) dependency is HTTP/3 library
 written in C. See ngtcp2 for more informations.
@@ -339,7 +339,7 @@ performance improvements not currently available in standard zlib.
 [maintaining-web-assembly]: ./maintaining-web-assembly.md
 [minimatch 9.0.3]: #minimatch-903
 [nghttp2 1.57.0]: #nghttp2-1570
-[nghttp3 0.7.0]: #nghttp3-070
+[nghttp3 1.0.0]: #nghttp3-100
 [ngtcp2 0.8.1]: #ngtcp2-081
 [npm 9.6.7]: #npm-967
 [openssl 3.0.8]: #openssl-308

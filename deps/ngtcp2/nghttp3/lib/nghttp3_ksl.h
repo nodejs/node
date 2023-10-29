@@ -108,7 +108,7 @@ struct nghttp3_ksl_blk {
   };
 };
 
-nghttp3_objalloc_def(ksl_blk, nghttp3_ksl_blk, oplent);
+nghttp3_objalloc_decl(ksl_blk, nghttp3_ksl_blk, oplent);
 
 /*
  * nghttp3_ksl_compar is a function type which returns nonzero if key

@@ -1,7 +1,8 @@
 /*
  * nghttp3
  *
- * Copyright (c) 2019 nghttp3 contributors
+ * Copyright (c) 2022 nghttp3 contributors
+ * Copyright (c) 2022 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,8 +23,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGHTTP3_TNODE_H
-#define NGHTTP3_TNODE_H
+#ifndef NGHTTP3_UNREACHABLE_H
+#define NGHTTP3_UNREACHABLE_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -31,36 +32,16 @@
 
 #include <nghttp3/nghttp3.h>
 
-#include "nghttp3_pq.h"
+#define nghttp3_unreachable()                                                  \
+  nghttp3_unreachable_fail(__FILE__, __LINE__, __func__)
 
-#define NGHTTP3_TNODE_MAX_CYCLE_GAP (1llu << 24)
+#ifdef _MSC_VER
+__declspec(noreturn)
+#endif /* _MSC_VER */
+    void nghttp3_unreachable_fail(const char *file, int line, const char *func)
+#ifndef _MSC_VER
+        __attribute__((noreturn))
+#endif /* !_MSC_VER */
+        ;
 
-typedef struct nghttp3_tnode {
-  nghttp3_pq_entry pe;
-  size_t num_children;
-  int64_t id;
-  uint64_t cycle;
-  /* pri is a stream priority produced by nghttp3_pri_to_uint8. */
-  nghttp3_pri pri;
-} nghttp3_tnode;
-
-void nghttp3_tnode_init(nghttp3_tnode *tnode, int64_t id);
-
-void nghttp3_tnode_free(nghttp3_tnode *tnode);
-
-void nghttp3_tnode_unschedule(nghttp3_tnode *tnode, nghttp3_pq *pq);
-
-/*
- * nghttp3_tnode_schedule schedules |tnode| using |nwrite| as penalty.
- * If |tnode| has already been scheduled, it is rescheduled by the
- * amount of |nwrite|.
- */
-int nghttp3_tnode_schedule(nghttp3_tnode *tnode, nghttp3_pq *pq,
-                           uint64_t nwrite);
-
-/*
- * nghttp3_tnode_is_scheduled returns nonzero if |tnode| is scheduled.
- */
-int nghttp3_tnode_is_scheduled(nghttp3_tnode *tnode);
-
-#endif /* NGHTTP3_TNODE_H */
+#endif /* NGHTTP3_UNREACHABLE_H */
