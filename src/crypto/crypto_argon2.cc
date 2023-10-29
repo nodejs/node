@@ -7,7 +7,7 @@
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
-#include <openssl/core_names.h>     /* OSSL_KDF_*           */
+#include <openssl/core_names.h> /* OSSL_KDF_* */
 
 namespace node {
 
@@ -23,17 +23,17 @@ namespace crypto {
 #ifndef OPENSSL_NO_ARGON2
 
 Argon2Config::Argon2Config(Argon2Config&& other) noexcept
-  : mode(other.mode),
-    pass(std::move(other.pass)),
-    salt(std::move(other.salt)),
-    secret(std::move(other.secret)),
-    ad(std::move(other.ad)),
-    algorithm(other.algorithm),
-    iter(other.iter),
-    // threads(other.threads),
-    lanes(other.lanes),
-    memcost(other.memcost),
-    keylen(other.keylen) {}
+    : mode(other.mode),
+      kdf(std::move(other.kdf)),
+      pass(std::move(other.pass)),
+      salt(std::move(other.salt)),
+      secret(std::move(other.secret)),
+      ad(std::move(other.ad)),
+      iter(other.iter),
+      // threads(other.threads),
+      lanes(other.lanes),
+      memcost(other.memcost),
+      keylen(other.keylen) {}
 
 Argon2Config& Argon2Config::operator=(Argon2Config&& other) noexcept {
   if (&other == this) return *this;
@@ -50,51 +50,20 @@ void Argon2Config::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
-static Argon2Variant algorithmToVariant(std::string_view sv) {
-  if (sv == "ARGON2I") {
-    return kVariantArgon2_ARGON2I;
-  }
-
-  if (sv == "ARGON2D") {
-    return kVariantArgon2_ARGON2D;
-  }
-
-  if (sv == "ARGON2ID") {
-    return kVariantArgon2_ARGON2ID;
-  }
-
-  return kVariantArgon2_UNKNOWN;
-}
-
-static const char* variantToAlgorithm(Argon2Variant variant) {
-  switch (variant) {
-    case kVariantArgon2_ARGON2I:
-      return "ARGON2I";
-    case kVariantArgon2_ARGON2D:
-      return "ARGON2D";
-    case kVariantArgon2_ARGON2ID:
-      return "ARGON2ID";
-    default:
-      return nullptr;
-  }
-}
-
-static bool argon2_hash(
-  const char* pass, size_t passlen,
-  const char* salt, size_t saltlen,
-  Argon2Variant variant,
-  const char* secret, size_t secretlen,
-  const char* ad, size_t adlen,
-  uint32_t iter, uint32_t lanes, uint32_t memcost,
-  unsigned char* key, size_t keylen
-) {
-  const auto algorithm = variantToAlgorithm(variant);
-
-  auto kdf = EVPKdfPointer{EVP_KDF_fetch(nullptr, algorithm, nullptr)};
-  if (!kdf) {
-    return false;
-  }
-
+static bool argon2_hash(const EVPKdfPointer& kdf,
+                        const char* pass,
+                        size_t passlen,
+                        const char* salt,
+                        size_t saltlen,
+                        const char* secret,
+                        size_t secretlen,
+                        const char* ad,
+                        size_t adlen,
+                        uint32_t iter,
+                        uint32_t lanes,
+                        uint32_t memcost,
+                        unsigned char* key,
+                        size_t keylen) {
   auto kctx = EVPKdfCtxPointer{EVP_KDF_CTX_new(kdf.get())};
   if (!kctx) {
     return false;
@@ -102,46 +71,38 @@ static bool argon2_hash(
 
   std::vector<OSSL_PARAM> params;
 
-  params.push_back(OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_PASSWORD,
-                                                     const_cast<char*>(pass),
-                                                     passlen));
+  params.push_back(OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass), passlen));
 
-  params.push_back(OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,
-                                                     const_cast<char*>(salt),
-                                                     saltlen));
+  params.push_back(OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_SALT, const_cast<char*>(salt), saltlen));
 
   if (secretlen > 0) {
-    params.push_back(
-      OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SECRET,
-                                        const_cast<char*>(secret),
-                                        secretlen));
+    params.push_back(OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_SECRET, const_cast<char*>(secret), secretlen));
   }
 
   params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &iter));
-  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES,
-                                               &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
 
   if (adlen > 0) {
-    params.push_back(
-      OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_ARGON2_AD,
-                                        const_cast<char*>(ad),
-                                        adlen));
+    params.push_back(OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_ARGON2_AD, const_cast<char*>(ad), adlen));
   }
 
-  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST,
-                                               &memcost));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &memcost));
 
   params.push_back(OSSL_PARAM_construct_end());
 
-  int result = EVP_KDF_derive(kctx.get(), key, keylen, params.data());
-  return result == 1;
+  return EVP_KDF_derive(kctx.get(), key, keylen, params.data());
 }
 
-Maybe<bool> Argon2Traits::EncodeOutput(
-    Environment* env,
-    const Argon2Config& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
+Maybe<bool> Argon2Traits::EncodeOutput(Environment* env,
+                                       const Argon2Config& params,
+                                       ByteSource* out,
+                                       v8::Local<v8::Value>* result) {
   *result = out->ToArrayBuffer(env);
   return Just(!result->IsEmpty());
 }
@@ -181,8 +142,8 @@ Maybe<bool> Argon2Traits::AdditionalConfig(
     return Nothing<bool>();
   }
 
-  params->algorithm = algorithmToVariant(algorithm.ToStringView());
-  if (UNLIKELY(params->algorithm == kVariantArgon2_UNKNOWN)) {
+  params->kdf = EVPKdfPointer{EVP_KDF_fetch(nullptr, algorithm.out(), nullptr)};
+  if (!params->kdf) {
     THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
     return Nothing<bool>();
   }
@@ -203,11 +164,11 @@ Maybe<bool> Argon2Traits::AdditionalConfig(
   params->memcost = args[offset + 7].As<Uint32>()->Value();
   params->keylen = args[offset + 8].As<Uint32>()->Value();
 
-  if (!argon2_hash(params->pass.data<char>(),
+  if (!argon2_hash(params->kdf,
+                   params->pass.data<char>(),
                    params->pass.size(),
                    params->salt.data<char>(),
                    params->salt.size(),
-                   params->algorithm,
                    params->secret.data<char>(),
                    params->secret.size(),
                    params->ad.data<char>(),
@@ -224,18 +185,17 @@ Maybe<bool> Argon2Traits::AdditionalConfig(
   return Just(true);
 }
 
-bool Argon2Traits::DeriveBits(
-    Environment* env,
-    const Argon2Config& params,
-    ByteSource* out) {
+bool Argon2Traits::DeriveBits(Environment* env,
+                              const Argon2Config& params,
+                              ByteSource* out) {
   ByteSource::Builder buf(params.keylen);
 
   // Both the pass and salt may be zero-length at this point
-  if (!argon2_hash(params.pass.data<char>(),
+  if (!argon2_hash(params.kdf,
+                   params.pass.data<char>(),
                    params.pass.size(),
                    params.salt.data<char>(),
                    params.salt.size(),
-                   params.algorithm,
                    params.secret.data<char>(),
                    params.secret.size(),
                    params.ad.data<char>(),

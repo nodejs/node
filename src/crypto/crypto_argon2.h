@@ -33,11 +33,11 @@ enum Argon2Variant {
 
 struct Argon2Config final : public MemoryRetainer {
   CryptoJobMode mode;
+  EVPKdfPointer kdf;
   ByteSource pass;
   ByteSource salt;
   ByteSource secret;
   ByteSource ad;
-  Argon2Variant algorithm;
   uint32_t iter;
   // TODO(ranisalt): uint32_t threads;
   uint32_t lanes;
