@@ -1,3 +1,9 @@
+## 8.3.0 (2023-10-26)
+
+### New features
+
+Use a set of new, much more precise, TypeScript types.
+
 ## 8.2.0 (2021-09-06)
 
 ### New features
