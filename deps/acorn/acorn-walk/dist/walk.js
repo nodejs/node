@@ -1,8 +1,8 @@
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
-  (global = global || self, factory((global.acorn = global.acorn || {}, global.acorn.walk = {})));
-}(this, (function (exports) { 'use strict';
+  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory((global.acorn = global.acorn || {}, global.acorn.walk = {})));
+})(this, (function (exports) { 'use strict';
 
   // AST walker module for Mozilla Parser API compatible trees
 
@@ -458,6 +458,4 @@
   exports.recursive = recursive;
   exports.simple = simple;
 
-  Object.defineProperty(exports, '__esModule', { value: true });
-
-})));
+}));
