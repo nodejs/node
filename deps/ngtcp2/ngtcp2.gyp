@@ -76,7 +76,8 @@
       'nghttp3/lib/nghttp3_stream.c',
       'nghttp3/lib/nghttp3_tnode.c',
       'nghttp3/lib/nghttp3_vec.c',
-      'nghttp3/lib/nghttp3_version.c'
+      'nghttp3/lib/nghttp3_version.c',
+      'nghttp3/lib/sfparse.c',
     ]
   },
   'targets': [
