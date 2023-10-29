@@ -164,24 +164,6 @@ Maybe<bool> Argon2Traits::AdditionalConfig(
   params->memcost = args[offset + 7].As<Uint32>()->Value();
   params->keylen = args[offset + 8].As<Uint32>()->Value();
 
-  if (!argon2_hash(params->kdf,
-                   params->pass.data<char>(),
-                   params->pass.size(),
-                   params->salt.data<char>(),
-                   params->salt.size(),
-                   params->secret.data<char>(),
-                   params->secret.size(),
-                   params->ad.data<char>(),
-                   params->ad.size(),
-                   params->iter,
-                   params->lanes,
-                   params->memcost,
-                   nullptr,
-                   params->keylen)) {
-    THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
-    return Nothing<bool>();
-  }
-
   return Just(true);
 }
 
