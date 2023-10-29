@@ -698,11 +698,14 @@ example of such a package would look something like this:
     "typescript"
   ],
   "exports": {
-    "nodejs-customization": "./registration.mjs",
+    "register": "./registration.mjs",
     "typescript": "./hooks/typescript.mjs"
   }
 }
 ```
+
+> **Note**: The `"typescript"` entry point is not required but it makes the next
+> step (and possibly others) simpler.
 
 ```mjs
 import { register } from 'node:module';
@@ -714,8 +717,8 @@ register('example-nodejs-plugin/typescript');
 
 * A [`resolve` hook][resolve hook] that sets `format` for applicable modules to
   the format it handles, such as `'typescript'`.
-* A [`load` hook][load hook] that transpiles the external format (as signalled
-  by its `resolve` hook) to something Node.js understands.
+* A [`load` hook][load hook] that transpiles the external format (as signaled by
+  its `resolve` hook) to something Node.js understands.
 * Optionally, an [`initialize` hook][`initialize`].
 
 See [Node.js Customization][Customization] for information about registering and
