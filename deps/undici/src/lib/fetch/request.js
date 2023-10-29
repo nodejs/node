@@ -13,8 +13,8 @@ const {
   makePolicyContainer
 } = require('./util')
 const {
-  forbiddenMethods,
-  corsSafeListedMethods,
+  forbiddenMethodsSet,
+  corsSafeListedMethodsSet,
   referrerPolicy,
   requestRedirect,
   requestMode,
@@ -319,7 +319,7 @@ class Request {
         throw TypeError(`'${init.method}' is not a valid HTTP method.`)
       }
 
-      if (forbiddenMethods.indexOf(method.toUpperCase()) !== -1) {
+      if (forbiddenMethodsSet.has(method.toUpperCase())) {
         throw TypeError(`'${init.method}' HTTP method is unsupported.`)
       }
 
@@ -404,7 +404,7 @@ class Request {
     if (mode === 'no-cors') {
       // 1. If this’s request’s method is not a CORS-safelisted method,
       // then throw a TypeError.
-      if (!corsSafeListedMethods.includes(request.method)) {
+      if (!corsSafeListedMethodsSet.has(request.method)) {
         throw new TypeError(
           `'${request.method} is unsupported in no-cors mode.`
         )

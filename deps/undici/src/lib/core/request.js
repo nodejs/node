@@ -222,6 +222,14 @@ class Request {
     if (channels.bodySent.hasSubscribers) {
       channels.bodySent.publish({ request: this })
     }
+
+    if (this[kHandler].onRequestSent) {
+      try {
+        this[kHandler].onRequestSent()
+      } catch (err) {
+        this.onError(err)
+      }
+    }
   }
 
   onConnect (abort) {
