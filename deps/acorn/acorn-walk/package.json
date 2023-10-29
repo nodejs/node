@@ -16,8 +16,10 @@
     ],
     "./package.json": "./package.json"
   },
-  "version": "8.2.0",
-  "engines": {"node": ">=0.4.0"},
+  "version": "8.3.0",
+  "engines": {
+    "node": ">=0.4.0"
+  },
   "maintainers": [
     {
       "name": "Marijn Haverbeke",
