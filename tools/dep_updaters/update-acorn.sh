@@ -40,11 +40,9 @@ cd "$WORKSPACE"
 
 echo "Fetching acorn source archive..."
 
-DIST_URL=$("$NODE" "$NPM" view "acorn@$NEW_VERSION" dist.tarball)
+"$NODE" "$NPM" pack "acorn@$NEW_VERSION"
 
-ACORN_TGZ="acorn.tgz"
-
-curl -sL -o "$ACORN_TGZ" "$DIST_URL"
+ACORN_TGZ="acorn-$NEW_VERSION.tgz"
 
 log_and_verify_sha256sum "acorn" "$ACORN_TGZ"
 
