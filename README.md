@@ -341,8 +341,6 @@ For information about the governance of the Node.js project, see
   **Adrian Estrada** <<edsadr@gmail.com>> (he/him)
 * [erickwendel](https://github.com/erickwendel) -
   **Erick Wendel** <<erick.workspace@gmail.com>> (he/him)
-* [Ethan-Arrowood](https://github.com/Ethan-Arrowood) -
-  **Ethan Arrowood** <<ethan@arrowood.dev>> (he/him)
 * [fhinkel](https://github.com/fhinkel) -
   **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
 * [F3n67u](https://github.com/F3n67u) -
@@ -535,6 +533,8 @@ For information about the governance of the Node.js project, see
   **Robert Jefe Lindstaedt** <<robert.lindstaedt@gmail.com>>
 * [estliberitas](https://github.com/estliberitas) -
   **Alexander Makarenko** <<estliberitas@gmail.com>>
+* [Ethan-Arrowood](https://github.com/Ethan-Arrowood) -
+  **Ethan Arrowood** <<ethan@arrowood.dev>> (he/him)
 * [eugeneo](https://github.com/eugeneo) -
   **Eugene Ostroukhov** <<eostroukhov@google.com>>
 * [evanlucas](https://github.com/evanlucas) -
