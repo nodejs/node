@@ -4,9 +4,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "crypto/crypto_util.h"
-#include "env.h"
-#include "memory_tracker.h"
-#include "v8.h"
 
 namespace node::crypto {
 #ifndef OPENSSL_NO_ARGON2
