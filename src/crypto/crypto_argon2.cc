@@ -42,50 +42,6 @@ void Argon2Config::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
-static bool argon2_hash(const EVPKdfPointer& kdf,
-                        const char* pass,
-                        size_t passlen,
-                        const char* salt,
-                        size_t saltlen,
-                        const char* secret,
-                        size_t secretlen,
-                        const char* ad,
-                        size_t adlen,
-                        uint32_t iter,
-                        uint32_t lanes,
-                        uint32_t memcost,
-                        unsigned char* key,
-                        size_t keylen) {
-  auto kctx = EVPKdfCtxPointer{EVP_KDF_CTX_new(kdf.get())};
-  if (!kctx) {
-    return false;
-  }
-
-  auto params = std::vector<OSSL_PARAM>{
-      OSSL_PARAM_octet_string(
-          OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass), passlen),
-      OSSL_PARAM_octet_string(
-          OSSL_KDF_PARAM_SALT, const_cast<char*>(salt), saltlen),
-      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER, &iter),
-      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes),
-      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &memcost),
-  };
-
-  if (secretlen > 0) {
-    params.push_back(OSSL_PARAM_octet_string(
-        OSSL_KDF_PARAM_SECRET, const_cast<char*>(secret), secretlen));
-  }
-
-  if (adlen > 0) {
-    params.push_back(OSSL_PARAM_octet_string(
-        OSSL_KDF_PARAM_ARGON2_AD, const_cast<char*>(ad), adlen));
-  }
-
-  params.push_back(OSSL_PARAM_END);
-
-  return EVP_KDF_derive(kctx.get(), key, keylen, params.data());
-}
-
 Maybe<bool> Argon2Traits::EncodeOutput(Environment* env,
                                        const Argon2Config& params,
                                        ByteSource* out,
@@ -159,21 +115,47 @@ bool Argon2Traits::DeriveBits(Environment* env,
                               ByteSource* out) {
   ByteSource::Builder buf(params.keylen);
 
+  auto kctx = EVPKdfCtxPointer{EVP_KDF_CTX_new(params.kdf.get())};
+  if (!kctx) {
+    return false;
+  }
+
+  auto ossl_params = std::vector<OSSL_PARAM>{
+      OSSL_PARAM_octet_string(OSSL_KDF_PARAM_PASSWORD,
+                              const_cast<char*>(params.pass.data<char>()),
+                              params.pass.size()),
+      OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT,
+                              const_cast<char*>(params.salt.data<char>()),
+                              params.salt.size()),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER,
+                        const_cast<uint32_t*>(&params.iter)),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES,
+                        const_cast<uint32_t*>(&params.lanes)),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST,
+                        const_cast<uint32_t*>(&params.memcost)),
+  };
+
+  if (params.secret.size() > 0) {
+    ossl_params.push_back(
+        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SECRET,
+                                const_cast<char*>(params.secret.data<char>()),
+                                params.secret.size()));
+  }
+
+  if (params.ad.size() > 0) {
+    ossl_params.push_back(
+        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_ARGON2_AD,
+                                const_cast<char*>(params.ad.data<char>()),
+                                params.ad.size()));
+  }
+
+  ossl_params.push_back(OSSL_PARAM_END);
+
   // Both the pass and salt may be zero-length at this point
-  if (!argon2_hash(params.kdf,
-                   params.pass.data<char>(),
-                   params.pass.size(),
-                   params.salt.data<char>(),
-                   params.salt.size(),
-                   params.secret.data<char>(),
-                   params.secret.size(),
-                   params.ad.data<char>(),
-                   params.ad.size(),
-                   params.iter,
-                   params.lanes,
-                   params.memcost,
-                   buf.data<unsigned char>(),
-                   params.keylen)) {
+  if (EVP_KDF_derive(kctx.get(),
+                     buf.data<unsigned char>(),
+                     params.keylen,
+                     ossl_params.data()) != 1) {
     return false;
   }
   *out = std::move(buf).release();
