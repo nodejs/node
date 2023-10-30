@@ -54,10 +54,10 @@ Maybe<bool> Argon2Traits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
-    Argon2Config* params) {
+    Argon2Config* config) {
   Environment* env = Environment::GetCurrent(args);
 
-  params->mode = mode;
+  config->mode = mode;
 
   ArrayBufferOrViewContents<char> pass(args[offset]);
   ArrayBufferOrViewContents<char> salt(args[offset + 1]);
@@ -85,77 +85,77 @@ Maybe<bool> Argon2Traits::AdditionalConfig(
     return Nothing<bool>();
   }
 
-  params->kdf = EVPKdfPointer{EVP_KDF_fetch(nullptr, algorithm.out(), nullptr)};
-  if (UNLIKELY(!params->kdf)) {
+  config->kdf = EVPKdfPointer{EVP_KDF_fetch(nullptr, algorithm.out(), nullptr)};
+  if (UNLIKELY(!config->kdf)) {
     THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
     return Nothing<bool>();
   }
 
   const bool isAsync = mode == kCryptoJobAsync;
-  params->pass = isAsync ? pass.ToCopy() : pass.ToByteSource();
-  params->salt = isAsync ? salt.ToCopy() : salt.ToByteSource();
-  params->secret = isAsync ? secret.ToCopy() : secret.ToByteSource();
-  params->ad = isAsync ? ad.ToCopy() : ad.ToByteSource();
+  config->pass = isAsync ? pass.ToCopy() : pass.ToByteSource();
+  config->salt = isAsync ? salt.ToCopy() : salt.ToByteSource();
+  config->secret = isAsync ? secret.ToCopy() : secret.ToByteSource();
+  config->ad = isAsync ? ad.ToCopy() : ad.ToByteSource();
 
   CHECK(args[offset + 5]->IsUint32());  // iter
   CHECK(args[offset + 6]->IsUint32());  // lanes
   CHECK(args[offset + 7]->IsUint32());  // memcost
   CHECK(args[offset + 8]->IsUint32());  // keylen
 
-  params->iter = args[offset + 5].As<Uint32>()->Value();
-  params->lanes = args[offset + 6].As<Uint32>()->Value();
-  params->memcost = args[offset + 7].As<Uint32>()->Value();
-  params->keylen = args[offset + 8].As<Uint32>()->Value();
+  config->iter = args[offset + 5].As<Uint32>()->Value();
+  config->lanes = args[offset + 6].As<Uint32>()->Value();
+  config->memcost = args[offset + 7].As<Uint32>()->Value();
+  config->keylen = args[offset + 8].As<Uint32>()->Value();
 
   return Just(true);
 }
 
 bool Argon2Traits::DeriveBits(Environment* env,
-                              const Argon2Config& params,
+                              const Argon2Config& config,
                               ByteSource* out) {
-  ByteSource::Builder buf(params.keylen);
+  ByteSource::Builder buf(config.keylen);
 
-  auto kctx = EVPKdfCtxPointer{EVP_KDF_CTX_new(params.kdf.get())};
+  auto kctx = EVPKdfCtxPointer{EVP_KDF_CTX_new(config.kdf.get())};
   if (!kctx) {
     return false;
   }
 
-  auto ossl_params = std::vector<OSSL_PARAM>{
+  auto params = std::vector<OSSL_PARAM>{
       OSSL_PARAM_octet_string(OSSL_KDF_PARAM_PASSWORD,
-                              const_cast<char*>(params.pass.data<char>()),
-                              params.pass.size()),
+                              const_cast<char*>(config.pass.data<char>()),
+                              config.pass.size()),
       OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT,
-                              const_cast<char*>(params.salt.data<char>()),
-                              params.salt.size()),
+                              const_cast<char*>(config.salt.data<char>()),
+                              config.salt.size()),
       OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER,
-                        const_cast<uint32_t*>(&params.iter)),
+                        const_cast<uint32_t*>(&config.iter)),
       OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES,
-                        const_cast<uint32_t*>(&params.lanes)),
+                        const_cast<uint32_t*>(&config.lanes)),
       OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST,
-                        const_cast<uint32_t*>(&params.memcost)),
+                        const_cast<uint32_t*>(&config.memcost)),
   };
 
-  if (params.secret.size() > 0) {
-    ossl_params.push_back(
+  if (config.secret.size() > 0) {
+    params.push_back(
         OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SECRET,
-                                const_cast<char*>(params.secret.data<char>()),
-                                params.secret.size()));
+                                const_cast<char*>(config.secret.data<char>()),
+                                config.secret.size()));
   }
 
-  if (params.ad.size() > 0) {
-    ossl_params.push_back(
+  if (config.ad.size() > 0) {
+    params.push_back(
         OSSL_PARAM_octet_string(OSSL_KDF_PARAM_ARGON2_AD,
-                                const_cast<char*>(params.ad.data<char>()),
-                                params.ad.size()));
+                                const_cast<char*>(config.ad.data<char>()),
+                                config.ad.size()));
   }
 
-  ossl_params.push_back(OSSL_PARAM_END);
+  params.push_back(OSSL_PARAM_END);
 
   // Both the pass and salt may be zero-length at this point
   if (EVP_KDF_derive(kctx.get(),
                      buf.data<unsigned char>(),
-                     params.keylen,
-                     ossl_params.data()) != 1) {
+                     config.keylen,
+                     params.data()) != 1) {
     return false;
   }
   *out = std::move(buf).release();
