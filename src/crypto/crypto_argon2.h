@@ -8,8 +8,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 #ifndef OPENSSL_NO_ARGON2
 
 // Argon2 is a password-based key derivation algorithm
@@ -23,13 +22,6 @@ namespace crypto {
 
 // The salt must be as random as possible and should be
 // at least 16 bytes in length.
-
-enum Argon2Variant {
-  kVariantArgon2_ARGON2D,
-  kVariantArgon2_ARGON2I,
-  kVariantArgon2_ARGON2ID,
-  kVariantArgon2_UNKNOWN,
-};
 
 struct Argon2Config final : public MemoryRetainer {
   CryptoJobMode mode;
@@ -67,16 +59,14 @@ struct Argon2Traits final {
       unsigned int offset,
       Argon2Config* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const Argon2Config& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const Argon2Config& params,
+                         ByteSource* out);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const Argon2Config& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::Maybe<bool> EncodeOutput(Environment* env,
+                                      const Argon2Config& params,
+                                      ByteSource* out,
+                                      v8::Local<v8::Value>* result);
 };
 
 using Argon2Job = DeriveBitsJob<Argon2Traits>;
@@ -84,14 +74,11 @@ using Argon2Job = DeriveBitsJob<Argon2Traits>;
 #else
 // If there is no Argon2 support, Argon2Job becomes a non-op
 struct Argon2Job {
-  static void Initialize(
-      Environment* env,
-      v8::Local<v8::Object> target) {}
+  static void Initialize(Environment* env, v8::Local<v8::Object> target) {}
 };
 #endif  // !OPENSSL_NO_ARGON2
 
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_ARGON2_H_

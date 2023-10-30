@@ -9,17 +9,16 @@
 
 #include <openssl/core_names.h> /* OSSL_KDF_* */
 
-namespace node {
+namespace node::crypto {
 
 using v8::FunctionCallbackInfo;
-using v8::Int32;
 using v8::Just;
+using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
 using v8::Uint32;
 using v8::Value;
 
-namespace crypto {
 #ifndef OPENSSL_NO_ARGON2
 
 Argon2Config::Argon2Config(Argon2Config&& other) noexcept
@@ -102,7 +101,7 @@ static bool argon2_hash(const EVPKdfPointer& kdf,
 Maybe<bool> Argon2Traits::EncodeOutput(Environment* env,
                                        const Argon2Config& params,
                                        ByteSource* out,
-                                       v8::Local<v8::Value>* result) {
+                                       Local<Value>* result) {
   *result = out->ToArrayBuffer(env);
   return Just(!result->IsEmpty());
 }
@@ -195,5 +194,4 @@ bool Argon2Traits::DeriveBits(Environment* env,
 
 #endif  // !OPENSSL_NO_ARGON2
 
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
