@@ -7,13 +7,14 @@
 
 set -ex
 
-ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-[ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
+BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
+[ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
-NPM="$ROOT/deps/npm/bin/npm-cli.js"
+NPM="$BASE_DIR/deps/npm/bin/npm-cli.js"
+DEPS_DIR="$BASE_DIR/deps"
 
 # shellcheck disable=SC1091
-. "$ROOT/tools/dep_updaters/utils.sh"
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION=$("$NODE" "$NPM" view acorn-walk dist-tags.latest)
 CURRENT_VERSION=$("$NODE" -p "require('./deps/acorn/acorn-walk/package.json').version")
@@ -23,21 +24,37 @@ compare_dependency_version "acorn-walk" "$NEW_VERSION" "$CURRENT_VERSION"
 
 cd "$( dirname "$0" )/../.." || exit
 
-rm -rf deps/acorn/acorn-walk
+echo "Making temporary workspace..."
 
-(
-    rm -rf acorn-walk-tmp
-    mkdir acorn-walk-tmp
-    cd acorn-walk-tmp || exit
+WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
 
-    "$NODE" "$NPM" init --yes
+cleanup () {
+  EXIT_CODE=$?
+  [ -d "$WORKSPACE" ] && rm -rf "$WORKSPACE"
+  exit $EXIT_CODE
+}
 
-    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "acorn-walk@$NEW_VERSION"
-)
+trap cleanup INT TERM EXIT
 
-mv acorn-walk-tmp/node_modules/acorn-walk deps/acorn
+cd "$WORKSPACE"
 
-rm -rf acorn-walk-tmp/
+echo "Fetching acorn-walk source archive..."
+
+DIST_URL=$(curl -sL "https://registry.npmjs.org/acorn-walk/$NEW_VERSION" | perl -n -e '/"dist".*?"tarball":"(.*?)"/ && print $1')
+
+ACORN_WALK_TGZ="acorn-walk.tgz"
+
+curl -sL -o "$ACORN_WALK_TGZ" "$DIST_URL"
+
+log_and_verify_sha256sum "acorn-walk" "$ACORN_WALK_TGZ"
+
+rm -r "$DEPS_DIR/acorn/acorn-walk"/*
+
+tar -xf "$ACORN_WALK_TGZ"
+
+mv "$WORKSPACE/package"/* "$DEPS_DIR/acorn/acorn-walk"
+
+rm "$ACORN_WALK_TGZ"
 
 echo "All done!"
 echo ""
