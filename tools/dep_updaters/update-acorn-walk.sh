@@ -17,7 +17,7 @@ DEPS_DIR="$BASE_DIR/deps"
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION=$("$NODE" "$NPM" view acorn-walk dist-tags.latest)
-CURRENT_VERSION=$("$NODE" -p "require('./deps/acorn/acorn-walk/package.json').version")
+CURRENT_VERSION=$("$NODE" "$NPM" --prefix './deps/acorn/acorn-walk/' pkg get version)
 
 # This function exit with 0 if new version and current version are the same
 compare_dependency_version "acorn-walk" "$NEW_VERSION" "$CURRENT_VERSION"
@@ -40,7 +40,7 @@ cd "$WORKSPACE"
 
 echo "Fetching acorn-walk source archive..."
 
-DIST_URL=$(curl -sL "https://registry.npmjs.org/acorn-walk/$NEW_VERSION" | perl -n -e '/"dist".*?"tarball":"(.*?)"/ && print $1')
+DIST_URL=$("$NODE" "$NPM" view "acorn-walk@$NEW_VERSION" dist.tarball)
 
 ACORN_WALK_TGZ="acorn-walk.tgz"
 
@@ -52,9 +52,7 @@ rm -r "$DEPS_DIR/acorn/acorn-walk"/*
 
 tar -xf "$ACORN_WALK_TGZ"
 
-mv "$WORKSPACE/package"/* "$DEPS_DIR/acorn/acorn-walk"
-
-rm "$ACORN_WALK_TGZ"
+mv package/* "$DEPS_DIR/acorn/acorn-walk"
 
 echo "All done!"
 echo ""
