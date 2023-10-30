@@ -3,10 +3,6 @@
 # Notarize a generated node-<version>.pkg file as an Apple requirement for installation on macOS Catalina and later, as validated by Gatekeeper.
 # Uses notarytool and requires Xcode >= 13.0.
 
-version() {
-  echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }' || echo "0"
-}
-
 pkgid="$1"
 
 if [ -z "$pkgid" ]; then
