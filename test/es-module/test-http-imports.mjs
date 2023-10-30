@@ -70,7 +70,7 @@ for (const { protocol, createServer } of [
       const redirect = url.searchParams.get('redirect');
 
       if (url.pathname === 'json') {
-        common.mustCall(() => assert.strictEqual(_req.header.content, 'application/json,*/*;q=0.5'));
+        common.mustCall(() => assert.strictEqual(_req.header.content, 'application/json,*/*;charset=utf-8;q=0.5'));
       }
 
       if (url.pathname === '/not-found') {
