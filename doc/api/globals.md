@@ -652,6 +652,27 @@ consisting of the runtime name and major version number.
 console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 ```
 
+### `navigator.deviceMemory`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* {number}
+
+The `navigator.deviceMemory` read-only property indicates the approximate
+amount of available RAM on the device. It is part of the
+[Device Memory API](https://www.w3.org/TR/device-memory/).
+
+The amount of device RAM can be used as a fingerprinting variable, so values
+are intentionally coarse to reduce the potential for its misuse.
+
+```js
+console.log(`This device has at least ${memory}GiB of RAM.`);
+```
+
 ## `PerformanceEntry`
 
 <!-- YAML
