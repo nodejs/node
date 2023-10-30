@@ -1,5 +1,5 @@
-import { setImmediate } from 'node:timers/promises';
+import { setTimeout } from 'node:timers/promises';
 
-await setImmediate();
+await setTimeout(9);
 console.log(1);
 console.log(2);
