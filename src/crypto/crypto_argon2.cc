@@ -68,32 +68,27 @@ static bool argon2_hash(const EVPKdfPointer& kdf,
     return false;
   }
 
-  std::vector<OSSL_PARAM> params;
-
-  params.push_back(OSSL_PARAM_construct_octet_string(
-      OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass), passlen));
-
-  params.push_back(OSSL_PARAM_construct_octet_string(
-      OSSL_KDF_PARAM_SALT, const_cast<char*>(salt), saltlen));
+  auto params = std::vector<OSSL_PARAM>{
+      OSSL_PARAM_octet_string(
+          OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass), passlen),
+      OSSL_PARAM_octet_string(
+          OSSL_KDF_PARAM_SALT, const_cast<char*>(salt), saltlen),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER, &iter),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &memcost),
+  };
 
   if (secretlen > 0) {
-    params.push_back(OSSL_PARAM_construct_octet_string(
+    params.push_back(OSSL_PARAM_octet_string(
         OSSL_KDF_PARAM_SECRET, const_cast<char*>(secret), secretlen));
   }
 
-  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &iter));
-  params.push_back(
-      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
-
   if (adlen > 0) {
-    params.push_back(OSSL_PARAM_construct_octet_string(
+    params.push_back(OSSL_PARAM_octet_string(
         OSSL_KDF_PARAM_ARGON2_AD, const_cast<char*>(ad), adlen));
   }
 
-  params.push_back(
-      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &memcost));
-
-  params.push_back(OSSL_PARAM_construct_end());
+  params.push_back(OSSL_PARAM_END);
 
   return EVP_KDF_derive(kctx.get(), key, keylen, params.data());
 }
@@ -142,7 +137,7 @@ Maybe<bool> Argon2Traits::AdditionalConfig(
   }
 
   params->kdf = EVPKdfPointer{EVP_KDF_fetch(nullptr, algorithm.out(), nullptr)};
-  if (!params->kdf) {
+  if (UNLIKELY(!params->kdf)) {
     THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
     return Nothing<bool>();
   }
