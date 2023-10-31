@@ -2960,9 +2960,9 @@ added: REPLACEME
 * `keylen` {number}
 * `options` {Object}
   * `algorithm` {string} Variant of Argon2, one of "ARGON2D", "ARGON2I" or
-    "ARGON2ID". **Default:** `"ARGON2ID`.
+    "ARGON2ID". **Default:** `"ARGON2ID"`.
   * `iter` {number} Number of iterations (passes). **Default:** `3`.
-  * `lanes` {number} Parallelization parameter. **Default:** `4`.
+  * `lanes` {number} Parallelization parameter (number of threads). **Default:** `4`.
   * `memcost` {number} Memory cost in 1KiB blocks. **Default:** `65536`.
   * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView} Random additional
     input, similar to the salt, that should **NOT** be stored with the derived
@@ -3045,9 +3045,9 @@ added: REPLACEME
 * `keylen` {number}
 * `options` {Object}
   * `algorithm` {string} Variant of Argon2, one of "ARGON2D", "ARGON2I" or
-    "ARGON2ID". **Default:** `"ARGON2ID`.
+    "ARGON2ID". **Default:** `"ARGON2ID"`.
   * `iter` {number} Number of iterations (passes). **Default:** `3`.
-  * `lanes` {number} Parallelization parameter. **Default:** `4`.
+  * `lanes` {number} Parallelization parameter (number of threads). **Default:** `4`.
   * `memcost` {number} Memory cost in 1KiB blocks. **Default:** `65536`.
   * `secret` {string|Buffer|TypedArray|DataView} Random additional input,
     similar to the salt, that should **NOT** be stored with the derived key.

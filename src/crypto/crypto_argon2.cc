@@ -23,7 +23,6 @@ Argon2Config::Argon2Config(Argon2Config&& other) noexcept
       secret(std::move(other.secret)),
       ad(std::move(other.ad)),
       iter(other.iter),
-      threads(other.threads),
       lanes(other.lanes),
       memcost(other.memcost),
       keylen(other.keylen) {}
@@ -106,16 +105,14 @@ Maybe<bool> Argon2Traits::AdditionalConfig(
   config->ad = isAsync ? ad.ToCopy() : ad.ToByteSource();
 
   CHECK(args[offset + 5]->IsUint32());  // iter
-  CHECK(args[offset + 6]->IsUint32());  // threads
-  CHECK(args[offset + 7]->IsUint32());  // lanes
-  CHECK(args[offset + 8]->IsUint32());  // memcost
-  CHECK(args[offset + 9]->IsUint32());  // keylen
+  CHECK(args[offset + 6]->IsUint32());  // lanes
+  CHECK(args[offset + 7]->IsUint32());  // memcost
+  CHECK(args[offset + 8]->IsUint32());  // keylen
 
   config->iter = args[offset + 5].As<Uint32>()->Value();
-  config->threads = args[offset + 6].As<Uint32>()->Value();
-  config->lanes = args[offset + 7].As<Uint32>()->Value();
-  config->memcost = args[offset + 8].As<Uint32>()->Value();
-  config->keylen = args[offset + 9].As<Uint32>()->Value();
+  config->lanes = args[offset + 6].As<Uint32>()->Value();
+  config->memcost = args[offset + 7].As<Uint32>()->Value();
+  config->keylen = args[offset + 8].As<Uint32>()->Value();
 
   return Just(true);
 }
@@ -140,7 +137,7 @@ bool Argon2Traits::DeriveBits(Environment* env,
       OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER,
                         const_cast<uint32_t*>(&config.iter)),
       OSSL_PARAM_uint32(OSSL_KDF_PARAM_THREADS,
-                        const_cast<uint32_t*>(&config.threads)),
+                        const_cast<uint32_t*>(&config.lanes)),
       OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES,
                         const_cast<uint32_t*>(&config.lanes)),
       OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST,
@@ -163,7 +160,7 @@ bool Argon2Traits::DeriveBits(Environment* env,
 
   params.push_back(OSSL_PARAM_END);
 
-  MaxThreadsScope mts{config.ctx.get(), config.threads};
+  MaxThreadsScope mts{config.ctx.get(), config.lanes};
   if (!mts.success) {
     return false;
   }

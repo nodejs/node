@@ -29,7 +29,6 @@ struct Argon2Config final : public MemoryRetainer {
   ByteSource secret;
   ByteSource ad;
   uint32_t iter;
-  uint32_t threads;
   uint32_t lanes;
   uint32_t memcost;
   uint32_t keylen;

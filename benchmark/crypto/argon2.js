@@ -11,13 +11,10 @@ const {
 const bench = common.createBenchmark(main, {
   sync: [0, 1],
   algorithm: ['ARGON2D', 'ARGON2I', 'ARGON2ID'],
-  iter: [2, 3, 4],
-  threads: [2, 4, 8],
+  iter: [1, 3],
   lanes: [2, 4, 8],
-  memcost: [16 << 10, 64 << 10],
+  memcost: [2 ** 11, 2 ** 16, 2 ** 21],
   n: [50],
-}, {
-  combinationFilter: ({ threads, lanes }) => threads <= lanes,
 });
 
 function measureSync(n, pass, salt, options) {
