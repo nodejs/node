@@ -1,3 +1,29 @@
+## 8.11.2 (2023-10-27)
+
+### Bug fixes
+
+Fix a bug that caused regular expressions after colon tokens to not be properly tokenized in some circumstances.
+
+## 8.11.1 (2023-10-26)
+
+### Bug fixes
+
+Fix a regression where `onToken` would receive 'name' tokens for 'new' keyword tokens.
+
+## 8.11.0 (2023-10-26)
+
+### Bug fixes
+
+Fix an issue where tokenizing (without parsing) an object literal with a property named `class` or `function` could, in some circumstance, put the tokenizer into an invalid state.
+
+Fix an issue where a slash after a call to a propery named the same as some keywords would be tokenized as a regular expression.
+
+### New features
+
+Upgrade to Unicode 15.1.
+
+Use a set of new, much more precise, TypeScript types.
+
 ## 8.10.0 (2023-07-05)
 
 ### New features

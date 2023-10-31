@@ -8,7 +8,7 @@ directories to create the Node.js binaries.
 All dependencies are located within the `deps` directory.
 This a list of all the dependencies:
 
-* [acorn 8.10.0][]
+* [acorn 8.11.2][]
 * [ada 2.7.2][]
 * [base64 0.5.0][]
 * [brotli 1.0.9][]
@@ -144,7 +144,7 @@ takes care of npm update, it is maintained by the npm team.
 
 ## Dependency list
 
-### acorn 8.10.0
+### acorn 8.11.2
 
 The [acorn](https://github.com/acornjs/acorn) dependency is a JavaScript parser.
 [acorn-walk](https://github.com/acornjs/acorn/tree/master/acorn-walk) is
@@ -318,7 +318,7 @@ dependency lossless data-compression library,
 it comes from the Chromium team's zlib fork which incorporated
 performance improvements not currently available in standard zlib.
 
-[acorn 8.10.0]: #acorn-8100
+[acorn 8.11.2]: #acorn-8112
 [ada 2.7.2]: #ada-272
 [base64 0.5.0]: #base64-050
 [brotli 1.0.9]: #brotli-109
