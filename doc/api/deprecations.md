@@ -1011,6 +1011,9 @@ The [`util.isBoolean()`][] API is deprecated.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1023,7 +1026,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The [`util.isBuffer()`][] API is deprecated. Please use
 [`Buffer.isBuffer()`][] instead.
