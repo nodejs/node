@@ -1005,7 +1005,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isBoolean()`][] API is deprecated.
+The [`util.isBoolean()`][] API is deprecated. Please use
+`typeof arg === 'boolean'` instead.
 
 ### DEP0046: `util.isBuffer()`
 
@@ -1052,7 +1053,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isDate()`][] API is deprecated.
+The [`util.isDate()`][] API is deprecated. Please use
+`arg instanceof Date` instead.
 
 ### DEP0048: `util.isError()`
 
@@ -1100,7 +1102,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isFunction()`][] API is deprecated.
+The [`util.isFunction()`][] API is deprecated. Please use
+`typeof arg === 'function'` instead.
 
 ### DEP0050: `util.isNull()`
 
@@ -1123,7 +1126,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isNull()`][] API is deprecated.
+The [`util.isNull()`][] API is deprecated. Please use
+`arg === null` instead.
 
 ### DEP0051: `util.isNullOrUndefined()`
 
@@ -1146,7 +1150,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isNullOrUndefined()`][] API is deprecated.
+The [`util.isNullOrUndefined()`][] API is deprecated. Please use
+`arg === null || arg === undefined` instead.
 
 ### DEP0052: `util.isNumber()`
 
@@ -1169,7 +1174,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isNumber()`][] API is deprecated.
+The [`util.isNumber()`][] API is deprecated. Please use
+`typeof arg === 'number'` instead.
 
 ### DEP0053: `util.isObject()`
 
@@ -1192,7 +1198,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isObject()`][] API is deprecated.
+The [`util.isObject()`][] API is deprecated. Please use
+`arg && typeof arg === 'object'` instead.
 
 ### DEP0054: `util.isPrimitive()`
 
@@ -1215,7 +1222,9 @@ changes:
 
 Type: Runtime
 
-The [`util.isPrimitive()`][] API is deprecated.
+The [`util.isPrimitive()`][] API is deprecated. Please use
+`arg === null || (typeof arg !=='object' && typeof arg !== 'function')`
+instead.
 
 ### DEP0055: `util.isRegExp()`
 
@@ -1238,7 +1247,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isRegExp()`][] API is deprecated.
+The [`util.isRegExp()`][] API is deprecated. Please use
+`arg instanceof RegExp` instead.
 
 ### DEP0056: `util.isString()`
 
@@ -1261,7 +1271,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isString()`][] API is deprecated.
+The [`util.isString()`][] API is deprecated. Please use
+`typeof arg === 'string'` instead.
 
 ### DEP0057: `util.isSymbol()`
 
@@ -1284,7 +1295,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isSymbol()`][] API is deprecated.
+The [`util.isSymbol()`][] API is deprecated. Please use
+`typeof arg === 'symbol'` instead.
 
 ### DEP0058: `util.isUndefined()`
 
@@ -1307,7 +1319,8 @@ changes:
 
 Type: Runtime
 
-The [`util.isUndefined()`][] API is deprecated.
+The [`util.isUndefined()`][] API is deprecated. Please use
+`arg === undefined` instead.
 
 ### DEP0059: `util.log()`
 
@@ -1326,7 +1339,17 @@ changes:
 
 Type: Runtime
 
-The [`util.log()`][] API is deprecated.
+The [`util.log()`][] API has been deprecated because it's an unmaintained
+legacy API that was exposed to user land by accident. Instead,
+consider the following alternatives based on your specific needs:
+
+* **Third-Party Logging Libraries**
+
+* **Use `console.log(new Date().toLocaleString(), message)`**
+
+By adopting one of these alternatives, you can transition away from `util.log()`
+and choose a logging strategy that aligns with the specific
+requirements and complexity of your application.
 
 ### DEP0060: `util._extend()`
 
@@ -1345,7 +1368,9 @@ changes:
 
 Type: Runtime
 
-The [`util._extend()`][] API is deprecated.
+The [`util._extend()`][] API is deprecated because it's an unmaintained
+legacy API that was exposed to user land by accident.
+Please use `target = Object.assign(target, source)` instead.
 
 ### DEP0061: `fs.SyncWriteStream`
 
