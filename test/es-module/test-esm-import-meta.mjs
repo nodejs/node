@@ -21,12 +21,12 @@ assert(import.meta.url.match(urlReg));
 
 // Match *nix paths: `/some/path/test/es-module`
 // Match Windows paths: `d:\\some\\path\\test\\es-module`
-const dirReg = /^(\/|\w:\\).*(\/|\\)test(\/|\\{2})es-module$/;
+const dirReg = /^(\/|\w:\\).*(\/|\\)test(\/|\\)es-module$/;
 assert.match(import.meta.dirname, dirReg);
 
 // Match *nix paths: `/some/path/test/es-module/test-esm-import-meta.mjs`
 // Match Windows paths: `d:\\some\\path\\test\\es-module\\test-esm-import-meta.js`
-const fileReg = /^(\/|\w:\\).*(\/|\\)test(\/|\\{2})es-module(\/|\\{2})test-esm-import-meta\.mjs$/;
+const fileReg = /^(\/|\w:\\).*(\/|\\)test(\/|\\)es-module(\/|\\)test-esm-import-meta\.mjs$/;
 assert.match(import.meta.filename, fileReg);
 
 // Verify that `data:` imports do not behave like `file:` imports.
