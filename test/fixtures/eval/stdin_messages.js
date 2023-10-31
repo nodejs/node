@@ -21,7 +21,7 @@
 
 'use strict';
 
-require('../common');
+require('../../common');
 
 const spawn = require('child_process').spawn;
 
