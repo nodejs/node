@@ -1007,7 +1007,7 @@ added:
 
 > Stability: 1 - Experimental
 
-Preload the specified module at startup. If that flag is provided several times,
+Preload the specified module at startup. If the flag is provided several times,
 each module will be executed sequentially in the order they appear, starting
 with the ones provided in [`NODE_OPTIONS`][].
 
