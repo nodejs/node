@@ -2,13 +2,11 @@
 
 const fetchImpl = require('./lib/fetch').fetch
 
-module.exports.fetch = async function fetch (resource, init = undefined) {
-  try {
-    return await fetchImpl(resource, init)
-  } catch (err) {
+module.exports.fetch = function fetch (resource, init = undefined) {
+  return fetchImpl(resource, init).catch((err) => {
     Error.captureStackTrace(err, this)
     throw err
-  }
+  })
 }
 module.exports.FormData = require('./lib/fetch/formdata').FormData
 module.exports.Headers = require('./lib/fetch/headers').Headers
