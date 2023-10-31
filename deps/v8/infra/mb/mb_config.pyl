@@ -579,7 +579,7 @@
     'release_x64_gcmole': [
       'release_bot', 'x64', 'gcmole'],
     'release_x64_msvc': [
-      'release_bot_no_goma', 'x64', 'minimal_symbols', 'msvc'],
+      'release_bot_no_reclient', 'x64', 'minimal_symbols', 'msvc'],
     'release_x64_correctness_fuzzer' : [
       'release_bot', 'x64', 'v8_correctness_fuzzer'],
     'release_x64_disable_runtime_call_stats': [
@@ -589,7 +589,7 @@
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc': [
-      'release_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
+      'release_bot_no_reclient', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'release_x64_ios_simulator': [
       'release_bot', 'x64', 'ios_simulator'],
     'release_x64_internal': [
@@ -648,7 +648,7 @@
     'debug_x64_asan': [
       'debug_bot', 'x64', 'asan', 'lsan'],
     'debug_x64_asan_no_lsan_static': [
-      'debug', 'static', 'goma', 'v8_enable_slow_dchecks', 'v8_optimized_debug',
+      'debug', 'static', 'reclient', 'v8_enable_slow_dchecks', 'v8_optimized_debug',
       'x64', 'asan'],
     'debug_x64_conservative_stack_scanning': [
       'debug_bot', 'x64', 'conservative_stack_scanning'],
@@ -661,7 +661,7 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
+      'debug_bot_no_reclient', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_no_shared_cage': [
@@ -696,7 +696,7 @@
     'debug_x86_minimal_symbols': [
       'debug_bot', 'x86', 'minimal_symbols'],
     'debug_x86_msvc': [
-      'debug_bot_no_goma', 'x86', 'minimal_symbols', 'msvc'],
+      'debug_bot_no_reclient', 'x86', 'minimal_symbols', 'msvc'],
     'debug_x86_no_i18n': [
       'debug_bot', 'x86', 'v8_no_i18n'],
     'debug_x86_trybot': [
@@ -704,7 +704,7 @@
     'debug_x86_vtunejit': [
       'debug_bot', 'x86', 'v8_enable_vtunejit'],
     'full_debug_x86': [
-      'debug', 'x86', 'goma', 'v8_enable_slow_dchecks', 'v8_full_debug'],
+      'debug', 'x86', 'reclient', 'v8_enable_slow_dchecks', 'v8_full_debug'],
 
     # Release configs for x86.
     'release_x86': [
@@ -725,7 +725,7 @@
     'release_x64_predictable': [
       'release_bot', 'x64', 'v8_enable_verify_predictable'],
     'release_x86_shared_verify_heap': [
-      'release', 'x86', 'goma', 'shared', 'v8_verify_heap'],
+      'release', 'x86', 'reclient', 'shared', 'v8_verify_heap'],
     'release_x86_trybot': [
       'release_trybot', 'x86'],
     'release_x86_verify_csa': [
@@ -813,19 +813,19 @@
 
     'debug_bot_no_slow_dchecks': {
       'mixins': [
-        'debug', 'shared', 'goma', 'v8_disable_slow_dchecks',
+        'debug', 'shared', 'reclient', 'v8_disable_slow_dchecks',
         'v8_optimized_debug', 'v8_enable_google_benchmark'],
     },
 
     'debug_bot': {
       'mixins': [
-        'debug', 'shared', 'goma', 'v8_enable_slow_dchecks',
+        'debug', 'shared', 'reclient', 'v8_enable_slow_dchecks',
         'v8_optimized_debug', 'v8_enable_google_benchmark'],
     },
 
-    'debug_bot_no_goma': {
+    'debug_bot_no_reclient': {
       'mixins': [
-        'debug', 'shared', 'no_goma', 'v8_enable_slow_dchecks',
+        'debug', 'shared', 'no_reclient', 'v8_enable_slow_dchecks',
         'v8_optimized_debug'],
     },
 
@@ -867,10 +867,6 @@
       'gn_args': 'v8_gcmole=true',
     },
 
-    'goma': {
-      'gn_args': 'use_goma=true',
-    },
-
     'hard_float': {
       'gn_args': 'arm_float_abi="hard"',
     },
@@ -910,8 +906,8 @@
       'gn_args': 'use_custom_libcxx=false',
     },
 
-    'no_goma': {
-      'gn_args': 'use_goma=false',
+    'no_reclient': {
+      'gn_args': 'use_remoteexec=false',
     },
 
     'no_sandbox': {
@@ -935,15 +931,15 @@
     },
 
     'release_bot': {
-      'mixins': ['release', 'static', 'goma', 'v8_enable_google_benchmark'],
+      'mixins': ['release', 'static', 'reclient', 'v8_enable_google_benchmark'],
     },
 
-    'release_bot_no_goma': {
-      'mixins': ['release', 'static', 'no_goma'],
+    'release_bot_no_reclient': {
+      'mixins': ['release', 'static', 'no_reclient'],
     },
 
     'release_bot_reclient': {
-      'mixins': ['release', 'static', 'no_goma', 'reclient'],
+      'mixins': ['release', 'static', 'reclient'],
     },
 
     'release_trybot': {

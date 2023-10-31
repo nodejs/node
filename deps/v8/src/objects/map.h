@@ -863,9 +863,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   V8_EXPORT_PRIVATE static Handle<Map> TransitionToPrototype(
       Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
 
-  V8_EXPORT_PRIVATE static Handle<Map> TransitionToDerivedMap(
-      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
-
   static Handle<Map> TransitionToImmutableProto(Isolate* isolate,
                                                 Handle<Map> map);
 

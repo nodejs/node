@@ -124,20 +124,19 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   }
 
   // ===== PROTOTYPE TRANSITIONS =====
-  // When you set the prototype of an object using the __proto__ accessor, or if
-  // an unrelated new.target is passed to a constructor you need a new map for
-  // the object (the prototype is stored in the map).  In order not to multiply
-  // maps unnecessarily we store these as transitions in the original map.  That
-  // way we can transition to the same map if the same prototype is set, rather
-  // than creating a new map every time.  The transitions are in the form of a
-  // map where the keys are prototype objects and the values are the maps they
-  // transition to. PutPrototypeTransition can trigger GC.
+  // When you set the prototype of an object using the __proto__ accessor you
+  // need a new map for the object (the prototype is stored in the map).  In
+  // order not to multiply maps unnecessarily we store these as transitions in
+  // the original map.  That way we can transition to the same map if the same
+  // prototype is set, rather than creating a new map every time.  The
+  // transitions are in the form of a map where the keys are prototype objects
+  // and the values are the maps they transition to.
+  // PutPrototypeTransition can trigger GC.
   static void PutPrototypeTransition(Isolate* isolate, Handle<Map>,
                                      Handle<Object> prototype,
                                      Handle<Map> target_map);
   static Handle<Map> GetPrototypeTransition(Isolate* isolate, Handle<Map> map,
-                                            Handle<Object> prototype,
-                                            bool new_target_is_base);
+                                            Handle<Object> prototype);
 
   // During the first-time Map::Update and Map::TryUpdate, the migration target
   // map could be cached in the raw_transitions slot of the old map that is
