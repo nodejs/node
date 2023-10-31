@@ -22,13 +22,14 @@ namespace node::crypto {
 
 struct Argon2Config final : public MemoryRetainer {
   CryptoJobMode mode;
+  OsslLibCtxPointer ctx;
   EVPKdfPointer kdf;
   ByteSource pass;
   ByteSource salt;
   ByteSource secret;
   ByteSource ad;
   uint32_t iter;
-  // TODO(ranisalt): uint32_t threads;
+  uint32_t threads;
   uint32_t lanes;
   uint32_t memcost;
   uint32_t keylen;

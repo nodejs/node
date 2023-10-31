@@ -1,6 +1,6 @@
 #include "crypto/crypto_argon2.h"
 
-#include <openssl/core_names.h> /* OSSL_KDF_* */
+#include <openssl/core_names.h>
 
 namespace node::crypto {
 
@@ -16,13 +16,14 @@ using v8::Value;
 
 Argon2Config::Argon2Config(Argon2Config&& other) noexcept
     : mode(other.mode),
+      ctx{std::move(other.ctx)},
       kdf(std::move(other.kdf)),
       pass(std::move(other.pass)),
       salt(std::move(other.salt)),
       secret(std::move(other.secret)),
       ad(std::move(other.ad)),
       iter(other.iter),
-      // threads(other.threads),
+      threads(other.threads),
       lanes(other.lanes),
       memcost(other.memcost),
       keylen(other.keylen) {}
@@ -85,7 +86,14 @@ Maybe<bool> Argon2Traits::AdditionalConfig(
     return Nothing<bool>();
   }
 
-  config->kdf = EVPKdfPointer{EVP_KDF_fetch(nullptr, algorithm.out(), nullptr)};
+  config->ctx = OsslLibCtxPointer{OSSL_LIB_CTX_new()};
+  if (UNLIKELY(!config->ctx)) {
+    THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
+    return Nothing<bool>();
+  }
+
+  config->kdf =
+      EVPKdfPointer{EVP_KDF_fetch(config->ctx.get(), algorithm.out(), nullptr)};
   if (UNLIKELY(!config->kdf)) {
     THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
     return Nothing<bool>();
@@ -98,14 +106,16 @@ Maybe<bool> Argon2Traits::AdditionalConfig(
   config->ad = isAsync ? ad.ToCopy() : ad.ToByteSource();
 
   CHECK(args[offset + 5]->IsUint32());  // iter
-  CHECK(args[offset + 6]->IsUint32());  // lanes
-  CHECK(args[offset + 7]->IsUint32());  // memcost
-  CHECK(args[offset + 8]->IsUint32());  // keylen
+  CHECK(args[offset + 6]->IsUint32());  // threads
+  CHECK(args[offset + 7]->IsUint32());  // lanes
+  CHECK(args[offset + 8]->IsUint32());  // memcost
+  CHECK(args[offset + 9]->IsUint32());  // keylen
 
   config->iter = args[offset + 5].As<Uint32>()->Value();
-  config->lanes = args[offset + 6].As<Uint32>()->Value();
-  config->memcost = args[offset + 7].As<Uint32>()->Value();
-  config->keylen = args[offset + 8].As<Uint32>()->Value();
+  config->threads = args[offset + 6].As<Uint32>()->Value();
+  config->lanes = args[offset + 7].As<Uint32>()->Value();
+  config->memcost = args[offset + 8].As<Uint32>()->Value();
+  config->keylen = args[offset + 9].As<Uint32>()->Value();
 
   return Just(true);
 }
@@ -129,6 +139,8 @@ bool Argon2Traits::DeriveBits(Environment* env,
                               config.salt.size()),
       OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER,
                         const_cast<uint32_t*>(&config.iter)),
+      OSSL_PARAM_uint32(OSSL_KDF_PARAM_THREADS,
+                        const_cast<uint32_t*>(&config.threads)),
       OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES,
                         const_cast<uint32_t*>(&config.lanes)),
       OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST,
@@ -150,6 +162,11 @@ bool Argon2Traits::DeriveBits(Environment* env,
   }
 
   params.push_back(OSSL_PARAM_END);
+
+  MaxThreadsScope mts{config.ctx.get(), config.threads};
+  if (!mts.success) {
+    return false;
+  }
 
   // Both the pass and salt may be zero-length at this point
   if (EVP_KDF_derive(kctx.get(),

@@ -587,6 +587,14 @@ v8::Maybe<void> SetEncodedValue(Environment* env,
                                 const BIGNUM* bn,
                                 int size = 0);
 
+struct MaxThreadsScope final {
+  MaxThreadsScope(OSSL_LIB_CTX* ctx, uint64_t threads);
+  ~MaxThreadsScope();
+
+  OSSL_LIB_CTX* ctx;
+  bool success;
+};
+
 namespace Util {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);

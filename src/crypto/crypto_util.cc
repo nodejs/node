@@ -22,6 +22,9 @@
 #include "openssl/provider.h"
 #endif
 
+#include <openssl/rand.h>
+#include <openssl/thread.h>
+
 namespace node {
 
 using ncrypto::BignumPointer;
@@ -663,6 +666,11 @@ CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
   CHECK_LE(mode, kCryptoJobSync);
   return static_cast<CryptoJobMode>(mode);
 }
+
+MaxThreadsScope::MaxThreadsScope(OSSL_LIB_CTX* ctx, uint64_t threads)
+    : ctx{ctx}, success{OSSL_set_max_threads(ctx, threads) == 1} {}
+
+MaxThreadsScope::~MaxThreadsScope() { OSSL_set_max_threads(ctx, 0); }
 
 namespace {
 // SecureBuffer uses OpenSSL's secure heap feature to allocate a
