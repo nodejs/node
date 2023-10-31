@@ -7,6 +7,7 @@ const { isBlobLike } = require('./util')
 const { webidl } = require('./webidl')
 const { parseMIMEType, serializeAMimeType } = require('./dataURL')
 const { kEnumerableProperty } = require('../core/util')
+const encoder = new TextEncoder()
 
 class File extends Blob {
   constructor (fileBits, fileName, options = {}) {
@@ -280,7 +281,7 @@ function processBlobParts (parts, options) {
       }
 
       // 3. Append the result of UTF-8 encoding s to bytes.
-      bytes.push(new TextEncoder().encode(s))
+      bytes.push(encoder.encode(s))
     } else if (
       types.isAnyArrayBuffer(element) ||
       types.isTypedArray(element)

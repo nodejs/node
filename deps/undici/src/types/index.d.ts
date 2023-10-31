@@ -53,5 +53,11 @@ declare namespace Undici {
   var MockAgent: typeof import('./mock-agent').default;
   var mockErrors: typeof import('./mock-errors').default;
   var fetch: typeof import('./fetch').fetch;
+  var Headers: typeof import('./fetch').Headers;
+  var Response: typeof import('./fetch').Response;
+  var Request: typeof import('./fetch').Request;
+  var FormData: typeof import('./formdata').FormData;
+  var File: typeof import('./file').File;
+  var FileReader: typeof import('./filereader').FileReader;
   var caches: typeof import('./cache').caches;
 }
