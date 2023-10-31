@@ -1393,7 +1393,7 @@ t.test('audit signatures', async t => {
 
     await t.rejects(
       npm.exec('audit', ['signatures']),
-      /found no dependencies to audit that where installed from a supported registry/
+      /found no dependencies to audit that were installed from a supported registry/
     )
   })
 
@@ -1424,7 +1424,7 @@ t.test('audit signatures', async t => {
 
     await t.rejects(
       npm.exec('audit', ['signatures']),
-      /found no dependencies to audit that where installed from a supported registry/
+      /found no dependencies to audit that were installed from a supported registry/
     )
   })
 
@@ -1766,7 +1766,7 @@ t.test('audit signatures', async t => {
 
     await t.rejects(
       npm.exec('audit', ['signatures']),
-      /found no dependencies to audit that where installed from a supported registry/
+      /found no dependencies to audit that were installed from a supported registry/
     )
   })
 
@@ -1787,7 +1787,7 @@ t.test('audit signatures', async t => {
 
     await t.rejects(
       npm.exec('audit', ['signatures']),
-      /found no dependencies to audit that where installed from a supported registry/
+      /found no dependencies to audit that were installed from a supported registry/
     )
   })
 
@@ -1815,7 +1815,7 @@ t.test('audit signatures', async t => {
 
     await t.rejects(
       npm.exec('audit', ['signatures']),
-      /found no dependencies to audit that where installed from a supported registry/
+      /found no dependencies to audit that were installed from a supported registry/
     )
   })
 
@@ -1844,7 +1844,7 @@ t.test('audit signatures', async t => {
 
     await t.rejects(
       npm.exec('audit', ['signatures']),
-      /found no dependencies to audit that where installed from a supported registry/
+      /found no dependencies to audit that were installed from a supported registry/
     )
   })
 

@@ -182,7 +182,7 @@ const errorMessage = (er, npm) => {
           ])
           detail.push([
             '',
-            ['To correct this please trying logging in again with:', '    npm login'].join('\n'),
+            ['To correct this please try logging in again with:', '    npm login'].join('\n'),
           ])
         } else if (auth.includes('Basic')) {
           short.push(['', 'Incorrect or missing password.'])

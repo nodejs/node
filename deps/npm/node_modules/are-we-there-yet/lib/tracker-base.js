@@ -1,11 +1,13 @@
 'use strict'
-var EventEmitter = require('events').EventEmitter
-var util = require('util')
+const EventEmitter = require('events')
 
-var trackerId = 0
-var TrackerBase = module.exports = function (name) {
-  EventEmitter.call(this)
-  this.id = ++trackerId
-  this.name = name
+let trackerId = 0
+class TrackerBase extends EventEmitter {
+  constructor (name) {
+    super()
+    this.id = ++trackerId
+    this.name = name
+  }
 }
-util.inherits(TrackerBase, EventEmitter)
+
+module.exports = TrackerBase
