@@ -17,7 +17,6 @@ NPM="$DEPS_DIR/npm/bin/npm-cli.js"
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION=$("$NODE" "$NPM" view minimatch dist-tags.latest)
-NEW_VERSION="9.0.3"
 CURRENT_VERSION=$("$NODE" "$NPM" --prefix './deps/minimatch' pkg get version)
 
 # This function exit with 0 if new version and current version are the same
