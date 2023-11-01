@@ -563,7 +563,7 @@ private:
                    LocalMemory<int32_t>& replacementIndexes,
                    int32_t &length,
                    void (*checkType)(const char* type),
-                   void (*checkReplacement)(const UnicodeString& replacement),
+                   void (*checkReplacement)(const UChar* replacement),
                    UErrorCode &status);
 
     // Read the languageAlias data from alias to
@@ -700,7 +700,7 @@ AliasDataBuilder::readAlias(
         LocalMemory<int32_t>& replacementIndexes,
         int32_t &length,
         void (*checkType)(const char* type),
-        void (*checkReplacement)(const UnicodeString& replacement),
+        void (*checkReplacement)(const UChar* replacement),
         UErrorCode &status) {
     if (U_FAILURE(status)) {
         return;
@@ -720,8 +720,8 @@ AliasDataBuilder::readAlias(
         LocalUResourceBundlePointer res(
             ures_getNextResource(alias, nullptr, &status));
         const char* aliasFrom = ures_getKey(res.getAlias());
-        UnicodeString aliasTo =
-            ures_getUnicodeStringByKey(res.getAlias(), "replacement", &status);
+        const UChar* aliasTo =
+            ures_getStringByKey(res.getAlias(), "replacement", nullptr, &status);
         if (U_FAILURE(status)) return;
 
         checkType(aliasFrom);
@@ -766,7 +766,7 @@ AliasDataBuilder::readLanguageAlias(
 #else
         [](const char*) {},
 #endif
-        [](const UnicodeString&) {}, status);
+        [](const UChar*) {}, status);
 }
 
 /**
@@ -790,12 +790,12 @@ AliasDataBuilder::readScriptAlias(
         [](const char* type) {
             U_ASSERT(uprv_strlen(type) == 4);
         },
-        [](const UnicodeString& replacement) {
-            U_ASSERT(replacement.length() == 4);
+        [](const UChar* replacement) {
+            U_ASSERT(u_strlen(replacement) == 4);
         },
 #else
         [](const char*) {},
-        [](const UnicodeString&) { },
+        [](const UChar*) { },
 #endif
         status);
 }
@@ -824,7 +824,7 @@ AliasDataBuilder::readTerritoryAlias(
 #else
         [](const char*) {},
 #endif
-        [](const UnicodeString&) { },
+        [](const UChar*) { },
         status);
 }
 
@@ -851,15 +851,16 @@ AliasDataBuilder::readVariantAlias(
             U_ASSERT(uprv_strlen(type) != 4 ||
                      (type[0] >= '0' && type[0] <= '9'));
         },
-        [](const UnicodeString& replacement) {
-            U_ASSERT(replacement.length() >= 4 && replacement.length() <= 8);
-            U_ASSERT(replacement.length() != 4 ||
-                     (replacement.charAt(0) >= u'0' &&
-                      replacement.charAt(0) <= u'9'));
+        [](const UChar* replacement) {
+            int32_t len = u_strlen(replacement);
+            U_ASSERT(len >= 4 && len <= 8);
+            U_ASSERT(len != 4 ||
+                     (*replacement >= u'0' &&
+                      *replacement <= u'9'));
         },
 #else
         [](const char*) {},
-        [](const UnicodeString&) { },
+        [](const UChar*) { },
 #endif
         status);
 }
@@ -888,7 +889,7 @@ AliasDataBuilder::readSubdivisionAlias(
 #else
         [](const char*) {},
 #endif
-        [](const UnicodeString&) { },
+        [](const UChar*) { },
         status);
 }
 
@@ -1066,7 +1067,13 @@ class AliasReplacer {
 public:
     AliasReplacer(UErrorCode status) :
             language(nullptr), script(nullptr), region(nullptr),
-            extensions(nullptr), variants(status),
+            extensions(nullptr),
+            // store value in variants only once
+            variants(nullptr,
+                     ([](UElement e1, UElement e2) -> UBool {
+                       return 0==uprv_strcmp((const char*)e1.pointer,
+                                             (const char*)e2.pointer);}),
+                     status),
             data(nullptr) {
     }
     ~AliasReplacer() {
@@ -1652,10 +1659,16 @@ AliasReplacer::replace(const Locale& locale, CharString& out, UErrorCode& status
         while ((end = uprv_strchr(start, SEP_CHAR)) != nullptr &&
                U_SUCCESS(status)) {
             *end = NULL_CHAR;  // null terminate inside variantsBuff
-            variants.addElement(start, status);
+            // do not add "" or duplicate data to variants
+            if (*start && !variants.contains(start)) {
+                variants.addElement(start, status);
+            }
             start = end + 1;
         }
-        variants.addElement(start, status);
+        // do not add "" or duplicate data to variants
+        if (*start && !variants.contains(start)) {
+            variants.addElement(start, status);
+        }
     }
     if (U_FAILURE(status)) { return false; }
 
@@ -2079,6 +2092,10 @@ Locale::addLikelySubtags(UErrorCode& status) {
 
 void
 Locale::minimizeSubtags(UErrorCode& status) {
+    Locale::minimizeSubtags(false, status);
+}
+void
+Locale::minimizeSubtags(bool favorScript, UErrorCode& status) {
     if (U_FAILURE(status)) {
         return;
     }
@@ -2086,7 +2103,7 @@ Locale::minimizeSubtags(UErrorCode& status) {
     CharString minimizedLocaleID;
     {
         CharStringByteSink sink(&minimizedLocaleID);
-        ulocimp_minimizeSubtags(fullName, sink, &status);
+        ulocimp_minimizeSubtags(fullName, sink, favorScript, &status);
     }
 
     if (U_FAILURE(status)) {
@@ -2402,8 +2419,9 @@ Locale::getLocaleCache()
 }
 
 class KeywordEnumeration : public StringEnumeration {
-private:
+protected:
     char *keywords;
+private:
     char *current;
     int32_t length;
     UnicodeString currUSKey;
@@ -2509,6 +2527,17 @@ public:
         }
         if (resultLength != nullptr) *resultLength = 0;
         return nullptr;
+    }
+    virtual int32_t count(UErrorCode &/*status*/) const override {
+        char *kw = keywords;
+        int32_t result = 0;
+        while(*kw) {
+            if (uloc_toUnicodeLocaleKey(kw) != nullptr) {
+                result++;
+            }
+            kw += uprv_strlen(kw)+1;
+        }
+        return result;
     }
 };
 

@@ -174,10 +174,20 @@ CollationLoader::CollationLoader(const CollationCacheEntry *re, const Locale &re
     defaultType[0] = 0;
     if(U_FAILURE(errorCode)) { return; }
 
+    if (locale.isBogus()) {
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
     // Canonicalize the locale ID: Ignore all irrelevant keywords.
     const char *baseName = locale.getBaseName();
     if(uprv_strcmp(locale.getName(), baseName) != 0) {
         locale = Locale(baseName);
+        // Due to ICU-22416, we may have bogus locale constructed from
+        // a string of getBaseName().
+        if (locale.isBogus()) {
+            errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+            return;
+        }
 
         // Fetch the collation type from the locale ID.
         int32_t typeLength = requested.getKeywordValue("collation",

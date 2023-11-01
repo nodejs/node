@@ -103,7 +103,25 @@ public:
     }
 
     virtual double transformNumber(double number) const override {
-        if (getRuleSet()) {
+        bool doFloor = getRuleSet() != nullptr;
+        if (!doFloor) {
+            // This is a HACK that partially addresses ICU-22313.  The original code wanted us to do
+            // floor() on the result if we were passing it to another rule set, but not if we were passing
+            // it to a DecimalFormat.  But the DurationRules rule set has multiplier substitutions where
+            // we DO want to do the floor() operation.  What we REALLY want is to do floor() any time
+            // the owning rule also has a ModulusSubsitution, but we don't have access to that information
+            // here, so instead we're doing a floor() any time the DecimalFormat has maxFracDigits equal to
+            // 0.  This seems to work with our existing rule sets, but could be a problem in the future,
+            // but the "real" fix for DurationRules isn't worth doing, since we're deprecating DurationRules
+            // anyway.  This is enough to keep it from being egregiously wrong, without obvious side
+            // effects.     --rtg 8/16/23
+            const DecimalFormat* decimalFormat = getNumberFormat();
+            if (decimalFormat == nullptr || decimalFormat->getMaximumFractionDigits() == 0) {
+                doFloor = true;
+            }
+        }
+        
+        if (doFloor) {
             return uprv_floor(number / divisor);
         } else {
             return number / divisor;

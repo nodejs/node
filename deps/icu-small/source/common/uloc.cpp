@@ -103,12 +103,12 @@ static const char * const LANGUAGES[] = {
     "ba",  "bal", "ban", "bar", "bas", "bax", "bbc", "bbj",
     "be",  "bej", "bem", "bew", "bez", "bfd", "bfq", "bg",
     "bgc", "bgn", "bho", "bi",  "bik", "bin", "bjn", "bkm", "bla",
-    "bm",  "bn",  "bo",  "bpy", "bqi", "br",  "bra", "brh",
+    "blo", "bm",  "bn",  "bo",  "bpy", "bqi", "br",  "bra", "brh",
     "brx", "bs",  "bss", "bua", "bug", "bum", "byn", "byv",
     "ca",  "cad", "car", "cay", "cch", "ccp", "ce",  "ceb", "cgg",
     "ch",  "chb", "chg", "chk", "chm", "chn", "cho", "chp",
     "chr", "chy", "ckb", "co",  "cop", "cps", "cr",  "crh",
-    "cs",  "csb", "cu",  "cv",  "cy",
+    "cs",  "csb", "csw", "cu",  "cv",  "cy",
     "da",  "dak", "dar", "dav", "de",  "del", "den", "dgr",
     "din", "dje", "doi", "dsb", "dtp", "dua", "dum", "dv",
     "dyo", "dyu", "dz",  "dzg",
@@ -135,7 +135,7 @@ static const char * const LANGUAGES[] = {
     "kkj", "kl",  "kln", "km",  "kmb", "kn",  "ko",  "koi",
     "kok", "kos", "kpe", "kr",  "krc", "kri", "krj", "krl",
     "kru", "ks",  "ksb", "ksf", "ksh", "ku",  "kum", "kut",
-    "kv",  "kw",  "ky",
+    "kv",  "kw",  "kxv", "ky",
     "la",  "lad", "lag", "lah", "lam", "lb",  "lez", "lfn",
     "lg",  "li",  "lij", "liv", "lkt", "lmo", "ln",  "lo",
     "lol", "loz", "lrc", "lt",  "ltg", "lu",  "lua", "lui",
@@ -169,14 +169,14 @@ static const char * const LANGUAGES[] = {
     "sv",  "sw",  "swb", "syc", "syr", "szl",
     "ta",  "tcy", "te",  "tem", "teo", "ter", "tet", "tg",
     "th",  "ti",  "tig", "tiv", "tk",  "tkl", "tkr",
-    "tlh", "tli", "tly", "tmh", "tn",  "to",  "tog", "tpi",
+    "tlh", "tli", "tly", "tmh", "tn",  "to",  "tog", "tok", "tpi",
     "tr",  "tru", "trv", "ts",  "tsd", "tsi", "tt",  "ttt",
     "tum", "tvl", "tw",  "twq", "ty",  "tyv", "tzm",
     "udm", "ug",  "uga", "uk",  "umb", "und", "ur",  "uz",
-    "vai", "ve",  "vec", "vep", "vi",  "vls", "vmf", "vo",
-    "vot", "vro", "vun",
+    "vai", "ve",  "vec", "vep", "vi",  "vls", "vmf", "vmw",
+    "vo", "vot", "vro", "vun",
     "wa",  "wae", "wal", "war", "was", "wbp", "wo",  "wuu",
-    "xal", "xh",  "xmf", "xog",
+    "xal", "xh",  "xmf", "xnr", "xog",
     "yao", "yap", "yav", "ybb", "yi",  "yo",  "yrl", "yue",
     "za",  "zap", "zbl", "zea", "zen", "zgh", "zh",  "zu",
     "zun", "zxx", "zza",
@@ -220,12 +220,12 @@ static const char * const LANGUAGES_3[] = {
     "bak", "bal", "ban", "bar", "bas", "bax", "bbc", "bbj",
     "bel", "bej", "bem", "bew", "bez", "bfd", "bfq", "bul",
     "bgc", "bgn", "bho", "bis", "bik", "bin", "bjn", "bkm", "bla",
-    "bam", "ben", "bod", "bpy", "bqi", "bre", "bra", "brh",
+    "blo", "bam", "ben", "bod", "bpy", "bqi", "bre", "bra", "brh",
     "brx", "bos", "bss", "bua", "bug", "bum", "byn", "byv",
     "cat", "cad", "car", "cay", "cch", "ccp", "che", "ceb", "cgg",
     "cha", "chb", "chg", "chk", "chm", "chn", "cho", "chp",
     "chr", "chy", "ckb", "cos", "cop", "cps", "cre", "crh",
-    "ces", "csb", "chu", "chv", "cym",
+    "ces", "csb", "csw", "chu", "chv", "cym",
     "dan", "dak", "dar", "dav", "deu", "del", "den", "dgr",
     "din", "dje", "doi", "dsb", "dtp", "dua", "dum", "div",
     "dyo", "dyu", "dzo", "dzg",
@@ -252,7 +252,7 @@ static const char * const LANGUAGES_3[] = {
     "kkj", "kal", "kln", "khm", "kmb", "kan", "kor", "koi",
     "kok", "kos", "kpe", "kau", "krc", "kri", "krj", "krl",
     "kru", "kas", "ksb", "ksf", "ksh", "kur", "kum", "kut",
-    "kom", "cor", "kir",
+    "kom", "cor", "kxv", "kir",
     "lat", "lad", "lag", "lah", "lam", "ltz", "lez", "lfn",
     "lug", "lim", "lij", "liv", "lkt", "lmo", "lin", "lao",
     "lol", "loz", "lrc", "lit", "ltg", "lub", "lua", "lui",
@@ -286,14 +286,14 @@ static const char * const LANGUAGES_3[] = {
     "swe", "swa", "swb", "syc", "syr", "szl",
     "tam", "tcy", "tel", "tem", "teo", "ter", "tet", "tgk",
     "tha", "tir", "tig", "tiv", "tuk", "tkl", "tkr",
-    "tlh", "tli", "tly", "tmh", "tsn", "ton", "tog", "tpi",
+    "tlh", "tli", "tly", "tmh", "tsn", "ton", "tog", "tok", "tpi",
     "tur", "tru", "trv", "tso", "tsd", "tsi", "tat", "ttt",
     "tum", "tvl", "twi", "twq", "tah", "tyv", "tzm",
     "udm", "uig", "uga", "ukr", "umb", "und", "urd", "uzb",
-    "vai", "ven", "vec", "vep", "vie", "vls", "vmf", "vol",
-    "vot", "vro", "vun",
+    "vai", "ven", "vec", "vep", "vie", "vls", "vmf", "vmw",
+    "vol", "vot", "vro", "vun",
     "wln", "wae", "wal", "war", "was", "wbp", "wol", "wuu",
-    "xal", "xho", "xmf", "xog",
+    "xal", "xho", "xmf", "xnr", "xog",
     "yao", "yap", "yav", "ybb", "yid", "yor", "yrl", "yue",
     "zha", "zap", "zbl", "zea", "zen", "zgh", "zho", "zul",
     "zun", "zxx", "zza",
@@ -477,25 +477,6 @@ static const CanonicalizationMap CANONICALIZE_MAP[] = {
 /* ### BCP47 Conversion *******************************************/
 /* Test if the locale id has BCP47 u extension and does not have '@' */
 #define _hasBCP47Extension(id) (id && uprv_strstr(id, "@") == nullptr && getShortestSubtagLength(localeID) == 1)
-/* Converts the BCP47 id to Unicode id. Does nothing to id if conversion fails */
-static const char* _ConvertBCP47(
-        const char* id, char* buffer, int32_t length,
-        UErrorCode* err, int32_t* pLocaleIdSize) {
-    const char* finalID;
-    int32_t localeIDSize = uloc_forLanguageTag(id, buffer, length, nullptr, err);
-    if (localeIDSize <= 0 || U_FAILURE(*err) || *err == U_STRING_NOT_TERMINATED_WARNING) {
-        finalID=id;
-        if (*err == U_STRING_NOT_TERMINATED_WARNING) {
-            *err = U_BUFFER_OVERFLOW_ERROR;
-        }
-    } else {
-        finalID=buffer;
-    }
-    if (pLocaleIdSize != nullptr) {
-        *pLocaleIdSize = localeIDSize;
-    }
-    return finalID;
-}
 /* Gets the size of the shortest subtag in the given localeID. */
 static int32_t getShortestSubtagLength(const char *localeID) {
     int32_t localeIDLength = static_cast<int32_t>(uprv_strlen(localeID));
@@ -762,7 +743,7 @@ ulocimp_getKeywordValue(const char* localeID,
     char localeKeywordNameBuffer[ULOC_KEYWORD_BUFFER_LEN];
 
     if(status && U_SUCCESS(*status) && localeID) {
-      char tempBuffer[ULOC_FULLNAME_CAPACITY];
+      CharString tempBuffer;
       const char* tmpLocaleID;
 
       if (keywordName == nullptr || keywordName[0] == 0) {
@@ -776,8 +757,9 @@ ulocimp_getKeywordValue(const char* localeID,
       }
 
       if (_hasBCP47Extension(localeID)) {
-          tmpLocaleID = _ConvertBCP47(localeID, tempBuffer,
-                                      sizeof(tempBuffer), status, nullptr);
+        CharStringByteSink sink(&tempBuffer);
+        ulocimp_forLanguageTag(localeID, -1, sink, nullptr, status);
+        tmpLocaleID = U_SUCCESS(*status) && !tempBuffer.isEmpty() ? tempBuffer.data() : localeID;
       } else {
           tmpLocaleID=localeID;
       }
@@ -1406,7 +1388,7 @@ U_CAPI UEnumeration* U_EXPORT2
 uloc_openKeywords(const char* localeID,
                         UErrorCode* status)
 {
-    char tempBuffer[ULOC_FULLNAME_CAPACITY];
+    CharString tempBuffer;
     const char* tmpLocaleID;
 
     if(status==nullptr || U_FAILURE(*status)) {
@@ -1414,8 +1396,9 @@ uloc_openKeywords(const char* localeID,
     }
 
     if (_hasBCP47Extension(localeID)) {
-        tmpLocaleID = _ConvertBCP47(localeID, tempBuffer,
-                                    sizeof(tempBuffer), status, nullptr);
+        CharStringByteSink sink(&tempBuffer);
+        ulocimp_forLanguageTag(localeID, -1, sink, nullptr, status);
+        tmpLocaleID = U_SUCCESS(*status) && !tempBuffer.isEmpty() ? tempBuffer.data() : localeID;
     } else {
         if (localeID==nullptr) {
             localeID=uloc_getDefault();
@@ -1489,7 +1472,7 @@ _canonicalize(const char* localeID,
     }
 
     int32_t j, fieldCount=0, scriptSize=0, variantSize=0;
-    PreflightingLocaleIDBuffer tempBuffer;  // if localeID has a BCP47 extension, tmpLocaleID points to this
+    CharString tempBuffer;  // if localeID has a BCP47 extension, tmpLocaleID points to this
     CharString localeIDWithHyphens;  // if localeID has a BPC47 extension and have _, tmpLocaleID points to this
     const char* origLocaleID;
     const char* tmpLocaleID;
@@ -1512,13 +1495,9 @@ _canonicalize(const char* localeID,
             }
         }
 
-        do {
-            // After this call tmpLocaleID may point to localeIDPtr which may
-            // point to either localeID or localeIDWithHyphens.data().
-            tmpLocaleID = _ConvertBCP47(localeIDPtr, tempBuffer.getBuffer(),
-                                        tempBuffer.getCapacity(), err,
-                                        &(tempBuffer.requestedCapacity));
-        } while (tempBuffer.needToTryAgain(err));
+        CharStringByteSink tempSink(&tempBuffer);
+        ulocimp_forLanguageTag(localeIDPtr, -1, tempSink, nullptr, err);
+        tmpLocaleID = U_SUCCESS(*err) && !tempBuffer.isEmpty() ? tempBuffer.data() : localeIDPtr;
     } else {
         if (localeID==nullptr) {
            localeID=uloc_getDefault();
@@ -1677,11 +1656,38 @@ uloc_getParent(const char*    localeID,
                int32_t parentCapacity,
                UErrorCode* err)
 {
+    if (U_FAILURE(*err)) {
+        return 0;
+    }
+
+    CheckedArrayByteSink sink(parent, parentCapacity);
+    ulocimp_getParent(localeID, sink, err);
+
+    int32_t reslen = sink.NumberOfBytesAppended();
+
+    if (U_FAILURE(*err)) {
+        return reslen;
+    }
+
+    if (sink.Overflowed()) {
+        *err = U_BUFFER_OVERFLOW_ERROR;
+    } else {
+        u_terminateChars(parent, parentCapacity, reslen, err);
+    }
+
+    return reslen;
+}
+
+U_CAPI void U_EXPORT2
+ulocimp_getParent(const char* localeID,
+                  icu::ByteSink& sink,
+                  UErrorCode* err)
+{
     const char *lastUnderscore;
     int32_t i;
 
     if (U_FAILURE(*err))
-        return 0;
+        return;
 
     if (localeID == nullptr)
         localeID = uloc_getDefault();
@@ -1697,13 +1703,9 @@ uloc_getParent(const char*    localeID,
         if (uprv_strnicmp(localeID, "und_", 4) == 0) {
             localeID += 3;
             i -= 3;
-            uprv_memmove(parent, localeID, uprv_min(i, parentCapacity));
-        } else if (parent != localeID) {
-            uprv_memcpy(parent, localeID, uprv_min(i, parentCapacity));
         }
+        sink.Append(localeID, i);
     }
-
-    return u_terminateChars(parent, parentCapacity, i, err);
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -1795,7 +1797,7 @@ uloc_getVariant(const char* localeID,
                 int32_t variantCapacity,
                 UErrorCode* err)
 {
-    char tempBuffer[ULOC_FULLNAME_CAPACITY];
+    CharString tempBuffer;
     const char* tmpLocaleID;
     int32_t i=0;
 
@@ -1804,7 +1806,9 @@ uloc_getVariant(const char* localeID,
     }
 
     if (_hasBCP47Extension(localeID)) {
-        tmpLocaleID =_ConvertBCP47(localeID, tempBuffer, sizeof(tempBuffer), err, nullptr);
+        CharStringByteSink sink(&tempBuffer);
+        ulocimp_forLanguageTag(localeID, -1, sink, nullptr, err);
+        tmpLocaleID = U_SUCCESS(*err) && !tempBuffer.isEmpty() ? tempBuffer.data() : localeID;
     } else {
         if (localeID==nullptr) {
            localeID=uloc_getDefault();
