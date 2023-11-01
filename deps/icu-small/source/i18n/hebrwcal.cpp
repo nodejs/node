@@ -777,7 +777,7 @@ int32_t HebrewCalendar::internalGetMonth() const {
         HebrewCalendar *nonConstThis = (HebrewCalendar*)this; // cast away const
 
         int32_t year = nonConstThis->handleGetExtendedYear();
-        return ordinalMonth + ((isLeapYear(year) && (ordinalMonth > ADAR_1)) ? 1: 0);
+        return ordinalMonth + (((!isLeapYear(year)) && (ordinalMonth > ADAR_1)) ? 1: 0);
     }
     return Calendar::internalGetMonth();
 }
