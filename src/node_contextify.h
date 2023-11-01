@@ -18,6 +18,7 @@ struct ContextOptions {
   v8::Local<v8::Boolean> allow_code_gen_strings;
   v8::Local<v8::Boolean> allow_code_gen_wasm;
   std::unique_ptr<v8::MicrotaskQueue> own_microtask_queue;
+  v8::Local<v8::Symbol> host_defined_options_id;
 };
 
 class ContextifyContext : public BaseObject {
