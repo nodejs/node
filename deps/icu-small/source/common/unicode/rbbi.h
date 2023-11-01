@@ -43,6 +43,69 @@ class  RBBIDataWrapper;
 class  UnhandledEngine;
 class  UStack;
 
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * The ExternalBreakEngine class define an abstract interface for the host environment
+ * to provide a low level facility to break text for unicode text in script that the text boundary
+ * cannot be handled by upper level rule based logic, for example, for Chinese and Japanese
+ * word breaking, Thai, Khmer, Burmese, Lao and other Southeast Asian scripts.
+ * The host environment implement one or more subclass of ExternalBreakEngine and
+ * register them in the initialization time by calling
+ * RuleBasedBreakIterator::registerExternalBreakEngine(). ICU adopt and own the engine and will
+ * delete the registered external engine in proper time during the clean up
+ * event.
+ * @internal ICU 74 technology preview
+ */
+class ExternalBreakEngine : public UObject {
+  public:
+    /**
+     * destructor
+     * @internal ICU 74 technology preview
+     */
+    virtual ~ExternalBreakEngine() {}
+
+    /**
+     * <p>Indicate whether this engine handles a particular character when
+     * the RuleBasedBreakIterator is used for a particular locale. This method is used
+     * by the RuleBasedBreakIterator to find a break engine.</p>
+     * @param c A character which begins a run that the engine might handle.
+     * @param locale    The locale.
+     * @return true if this engine handles the particular character for that locale.
+     * @internal ICU 74 technology preview
+     */
+    virtual bool isFor(UChar32 c, const char* locale) const = 0;
+
+    /**
+     * <p>Indicate whether this engine handles a particular character.This method is
+     * used by the RuleBasedBreakIterator after it already find a break engine to see which
+     * characters after the first one can be handled by this break engine.</p>
+     * @param c A character that the engine might handle.
+     * @return true if this engine handles the particular character.
+     * @internal ICU 74 technology preview
+     */
+    virtual bool handles(UChar32 c) const = 0;
+
+    /**
+     * <p>Divide up a range of text handled by this break engine.</p>
+     *
+     * @param text A UText representing the text
+     * @param start The start of the range of known characters
+     * @param end The end of the range of known characters
+     * @param foundBreaks Output of C array of int32_t break positions, or
+     * nullptr
+     * @param foundBreaksCapacity The capacity of foundBreaks
+     * @param status Information on any errors encountered.
+     * @return The number of breaks found
+     * @internal ICU 74 technology preview
+     */
+     virtual int32_t fillBreaks(UText* text,  int32_t start, int32_t end,
+                               int32_t* foundBreaks, int32_t foundBreaksCapacity,
+                               UErrorCode& status) const = 0;
+};
+#endif  /* U_HIDE_DRAFT_API */
+
+
 /**
  *
  * A subclass of BreakIterator whose behavior is specified using a list of rules.
@@ -716,9 +779,10 @@ private:
      * This function returns the appropriate LanguageBreakEngine for a
      * given character c.
      * @param c         A character in the dictionary set
+     * @param locale    The locale.
      * @internal (private)
      */
-    const LanguageBreakEngine *getLanguageBreakEngine(UChar32 c);
+    const LanguageBreakEngine *getLanguageBreakEngine(UChar32 c, const char* locale);
 
   public:
 #ifndef U_HIDE_INTERNAL_API
@@ -734,7 +798,23 @@ private:
      */
     void dumpTables();
 #endif  /* U_HIDE_INTERNAL_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Register a new external break engine. The external break engine will be adopted.
+     * Because ICU may choose to cache break engine internally, this must
+     * be called at application startup, prior to any calls to
+     * object methods of RuleBasedBreakIterator to avoid undefined behavior.
+     * @param toAdopt the ExternalBreakEngine instance to be adopted
+     * @param status the in/out status code, no special meanings are assigned
+     * @internal ICU 74 technology preview
+     */
+    static void U_EXPORT2 registerExternalBreakEngine(
+                  ExternalBreakEngine* toAdopt, UErrorCode& status);
+#endif  /* U_HIDE_DRAFT_API */
+
 };
+
 
 U_NAMESPACE_END
 
