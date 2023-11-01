@@ -41,16 +41,37 @@ NEW_VERSION_TGZ="icu4c-${LOW_DASHED_NEW_VERSION}-src.tgz"
 NEW_VERSION_TGZ_URL="https://github.com/unicode-org/icu/releases/download/release-${DASHED_NEW_VERSION}/$NEW_VERSION_TGZ"
 
 NEW_VERSION_MD5="https://github.com/unicode-org/icu/releases/download/release-${DASHED_NEW_VERSION}/icu4c-${LOW_DASHED_NEW_VERSION}-sources.md5"
+NEW_VERSION_TGZ_ASC_URL="https://github.com/unicode-org/icu/releases/download/release-${DASHED_NEW_VERSION}/icu4c-${LOW_DASHED_NEW_VERSION}-src.tgz.asc"
+
+KEY_URL="https://raw.githubusercontent.com/unicode-org/icu/release-$(echo $NEW_VERSION | sed 's/\./-/')/KEYS"
 
 CHECKSUM=$(curl -sL "$NEW_VERSION_MD5" | grep "$NEW_VERSION_TGZ" | grep -v "\.asc$" | awk '{print $1}')
 
-GENERATED_CHECKSUM=$( curl -sL "$NEW_VERSION_TGZ_URL" | md5sum | cut -d ' ' -f1)
 
 echo "Comparing checksums: deposited '$CHECKSUM' with '$GENERATED_CHECKSUM'"
 
-if [ "$CHECKSUM" != "$GENERATED_CHECKSUM" ]; then
-  echo "Skipped because checksums do not match."
-  exit 0
+if [ -n "$CHECKSUM" ]; then
+  GENERATED_CHECKSUM=$( curl -sL "$NEW_VERSION_TGZ_URL" | md5sum | cut -d ' ' -f1)
+  echo "Comparing checksums: deposited $CHECKSUM with $GENERATED_CHECKSUM"
+  if [ "$CHECKSUM" != "$GENERATED_CHECKSUM" ]; then
+    echo "Skipped because checksums do not match."
+    exit 0
+  fi
+else
+  echo "Checksum not found"
+  echo "check with gpg"
+  curl -sL "$KEY_URL" > KEYS
+  curl -sL "$NEW_VERSION_TGZ_URL" > data.tgz
+  curl -sL "$NEW_VERSION_TGZ_ASC_URL" > signature.asc
+  gpg --import KEYS
+  if gpg --verify signature.asc data.tgz; then
+    echo "Signature verified"
+    rm data.tgz signature.asc KEYS
+  else
+    echo "Skipped because signature verification failed."
+    rm data.tgz signature.asc KEYS
+    exit 1
+  fi
 fi
 
 ./configure --with-intl=full-icu --with-icu-source="$NEW_VERSION_TGZ_URL"
