@@ -984,7 +984,10 @@ public:
     static const char* const* U_EXPORT2 getISOCountries();
 
     /**
-     * Gets a list of all available language codes defined in ISO 639.  This is a pointer
+     * Returns a list of all unique language codes defined in ISO 639.
+     * They can be 2 or 3 letter codes, as defined by
+     * <a href="https://www.ietf.org/rfc/bcp/bcp47.html#section-2.2.1">
+     * BCP 47, section 2.2.1</a>. This is a pointer
      * to an array of pointers to arrays of char.  All of these pointers are owned
      * by ICU-- do not delete them, and do not write through them.  The array is
      * terminated with a null pointer.
@@ -1110,6 +1113,15 @@ protected: /* only protected for testing purposes. DO NOT USE. */
      * @internal
      */
     void setFromPOSIXID(const char *posixID);
+    /**
+     * Minimize the subtags for this Locale, per the algorithm described
+     * @param favorScript favor to keep script if true, to keep region if false.
+     * @param status  error information if maximizing this Locale failed.
+     *                If this Locale is not well-formed, the error code is
+     *                U_ILLEGAL_ARGUMENT_ERROR.
+     * @internal
+     */
+    void minimizeSubtags(bool favorScript, UErrorCode& status);
 #endif  /* U_HIDE_INTERNAL_API */
 
 private:
