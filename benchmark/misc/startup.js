@@ -9,6 +9,7 @@ const bench = common.createBenchmark(main, {
   script: [
     'benchmark/fixtures/require-builtins',
     'test/fixtures/semicolon',
+    'benchmark/fixtures/load-esm-dir-file',
   ],
   mode: ['process', 'worker'],
   count: [30],
