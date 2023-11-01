@@ -116,6 +116,7 @@ const testFixtures = fixtures.path('test-runner');
 }
 
 {
+  // Test --test-timeout flag
   const args = [
     '--test',
     '--test-timeout',
