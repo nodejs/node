@@ -80,6 +80,9 @@
  * This API is based on the <em>fluent</em> design pattern popularized by libraries such as Google's Guava. For
  * extensive details on the design of this API, read <a href="https://goo.gl/szi5VB">the design doc</a>.
  *
+ * <p>
+ * Note: To format monetary/currency values, specify the currency in the `.unit()` function.
+ *
  * @author Shane Carr
  */
 
@@ -2257,14 +2260,13 @@ class U_I18N_API NumberFormatterSettings {
      */
     Derived usage(StringPiece usage) &&;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Specifies the DisplayOptions. For example, UDisplayOptionsGrammaticalCase specifies
      * the desired case for a unit formatter's output (e.g. accusative, dative, genitive).
      *
      * @param displayOptions
      * @return The fluent chain.
-     * @draft ICU 72
+     * @stable ICU 72
      */
     Derived displayOptions(const DisplayOptions &displayOptions) const &;
 
@@ -2273,10 +2275,9 @@ class U_I18N_API NumberFormatterSettings {
      *
      * @param displayOptions
      * @return The fluent chain.
-     * @draft ICU 72
+     * @stable ICU 72
      */
     Derived displayOptions(const DisplayOptions &displayOptions) &&;
-#endif // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_INTERNAL_API
     /**

@@ -15,6 +15,7 @@
 *
 *   Unicode Spoof Detection
 */
+#include "unicode/ubidi.h"
 #include "unicode/utypes.h"
 #include "unicode/normalizer2.h"
 #include "unicode/uspoof.h"
@@ -141,8 +142,8 @@ void U_CALLCONV initializeStatics(UErrorCode &status) {
         u"\\U0001DF00-\\U0001DF1E\\U0001DF25-\\U0001DF2A\\U0001E08F\\U0001E7E0-"
         u"\\U0001E7E6\\U0001E7E8-\\U0001E7EB\\U0001E7ED\\U0001E7EE\\U0001E7F0-"
         u"\\U0001E7FE\\U00020000-\\U0002A6DF\\U0002A700-\\U0002B739\\U0002B740-"
-        u"\\U0002B81D\\U0002B820-\\U0002CEA1\\U0002CEB0-\\U0002EBE0\\U00030000-"
-        u"\\U0003134A\\U00031350-\\U000323AF]";
+        u"\\U0002B81D\\U0002B820-\\U0002CEA1\\U0002CEB0-\\U0002EBE0\\U0002EBF0-"
+        u"\\U0002EE5D\\U00030000-\\U0003134A\\U00031350-\\U000323AF]";
 
     gRecommendedSet = new UnicodeSet(UnicodeString(recommendedPat), status);
     if (gRecommendedSet == nullptr) {
@@ -538,6 +539,90 @@ uspoof_areConfusableUnicodeString(const USpoofChecker *sc,
     return result;
 }
 
+U_CAPI uint32_t U_EXPORT2 uspoof_areBidiConfusable(const USpoofChecker *sc, UBiDiDirection direction,
+                                                  const char16_t *id1, int32_t length1,
+                                                  const char16_t *id2, int32_t length2,
+                                                   UErrorCode *status) {
+    UnicodeString id1Str((length1 == -1), id1, length1); // Aliasing constructor
+    UnicodeString id2Str((length2 == -1), id2, length2); // Aliasing constructor
+    if (id1Str.isBogus() || id2Str.isBogus()) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+    return uspoof_areBidiConfusableUnicodeString(sc, direction, id1Str, id2Str, status);
+}
+
+U_CAPI uint32_t U_EXPORT2 uspoof_areBidiConfusableUTF8(const USpoofChecker *sc, UBiDiDirection direction,
+                                                      const char *id1, int32_t length1, const char *id2,
+                                                      int32_t length2, UErrorCode *status) {
+    if (length1 < -1 || length2 < -1) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+    UnicodeString id1Str = UnicodeString::fromUTF8(
+        StringPiece(id1, length1 >= 0 ? length1 : static_cast<int32_t>(uprv_strlen(id1))));
+    UnicodeString id2Str = UnicodeString::fromUTF8(
+        StringPiece(id2, length2 >= 0 ? length2 : static_cast<int32_t>(uprv_strlen(id2))));
+    return uspoof_areBidiConfusableUnicodeString(sc, direction, id1Str, id2Str, status);
+}
+
+U_CAPI uint32_t U_EXPORT2 uspoof_areBidiConfusableUnicodeString(const USpoofChecker *sc,
+                                                               UBiDiDirection direction,
+                                                               const icu::UnicodeString &id1,
+                                                               const icu::UnicodeString &id2,
+                                                               UErrorCode *status) {
+    const SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    //
+    // See section 4 of UTS 39 for the algorithm for checking whether two strings are confusable,
+    //   and for definitions of the types (single, whole, mixed-script) of confusables.
+
+    // We only care about a few of the check flags.  Ignore the others.
+    // If no tests relevant to this function have been specified, return an error.
+    // TODO:  is this really the right thing to do?  It's probably an error on the caller's part,
+    //        but logically we would just return 0 (no error).
+    if ((This->fChecks & USPOOF_CONFUSABLE) == 0) {
+        *status = U_INVALID_STATE_ERROR;
+        return 0;
+    }
+
+    // Compute the skeletons and check for confusability.
+    UnicodeString id1Skeleton;
+    uspoof_getBidiSkeletonUnicodeString(sc, direction, id1, id1Skeleton, status);
+    UnicodeString id2Skeleton;
+    uspoof_getBidiSkeletonUnicodeString(sc, direction, id2, id2Skeleton, status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    if (id1Skeleton != id2Skeleton) {
+        return 0;
+    }
+
+    // If we get here, the strings are confusable.  Now we just need to set the flags for the appropriate
+    // classes of confusables according to UTS 39 section 4. Start by computing the resolved script sets
+    // of id1 and id2.
+    ScriptSet id1RSS;
+    This->getResolvedScriptSet(id1, id1RSS, *status);
+    ScriptSet id2RSS;
+    This->getResolvedScriptSet(id2, id2RSS, *status);
+
+    // Turn on all applicable flags
+    uint32_t result = 0;
+    if (id1RSS.intersects(id2RSS)) {
+        result |= USPOOF_SINGLE_SCRIPT_CONFUSABLE;
+    } else {
+        result |= USPOOF_MIXED_SCRIPT_CONFUSABLE;
+        if (!id1RSS.isEmpty() && !id2RSS.isEmpty()) {
+            result |= USPOOF_WHOLE_SCRIPT_CONFUSABLE;
+        }
+    }
+
+    // Turn off flags that the user doesn't want
+    return result & This->fChecks;
+}
+
 
 U_CAPI int32_t U_EXPORT2
 uspoof_checkUnicodeString(const USpoofChecker *sc,
@@ -697,6 +782,60 @@ uspoof_getSkeleton(const USpoofChecker *sc,
     return destStr.length();
 }
 
+U_CAPI int32_t U_EXPORT2 uspoof_getBidiSkeleton(const USpoofChecker *sc, UBiDiDirection direction,
+                                                const UChar *id, int32_t length, UChar *dest,
+                                                int32_t destCapacity, UErrorCode *status) {
+    UnicodeString idStr((length == -1), id, length); // Aliasing constructor
+    if (idStr.isBogus()) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+    UnicodeString destStr;
+    uspoof_getBidiSkeletonUnicodeString(sc, direction, idStr, destStr, status);
+    return destStr.extract(dest, destCapacity, *status);
+}
+
+
+
+U_I18N_API UnicodeString &U_EXPORT2 uspoof_getBidiSkeletonUnicodeString(const USpoofChecker *sc,
+                                                                        UBiDiDirection direction,
+                                                                        const UnicodeString &id,
+                                                                        UnicodeString &dest,
+                                                                        UErrorCode *status) {
+    dest.remove();
+    if (direction != UBIDI_LTR && direction != UBIDI_RTL) {
+      *status = U_ILLEGAL_ARGUMENT_ERROR;
+      return dest;
+    }
+    UBiDi *bidi = ubidi_open();
+    ubidi_setPara(bidi, id.getBuffer(), id.length(), direction,
+                  /*embeddingLevels*/ nullptr, status);
+    if (U_FAILURE(*status)) {
+        ubidi_close(bidi);
+        return dest;
+    }
+    UnicodeString reordered;
+    int32_t const size = ubidi_getProcessedLength(bidi);
+    UChar* const reorderedBuffer = reordered.getBuffer(size);
+    if (reorderedBuffer == nullptr) {
+        *status = U_MEMORY_ALLOCATION_ERROR;
+        ubidi_close(bidi);
+        return dest;
+    }
+    ubidi_writeReordered(bidi, reorderedBuffer, size,
+                         UBIDI_KEEP_BASE_COMBINING | UBIDI_DO_MIRRORING, status);
+    reordered.releaseBuffer(size);
+    ubidi_close(bidi);
+
+    if (U_FAILURE(*status)) {
+        return dest;
+    }
+
+    // The type parameter is deprecated since ICU 58; any number may be passed.
+    constexpr uint32_t deprecatedType = 58;
+    return uspoof_getSkeletonUnicodeString(sc, deprecatedType, reordered, dest, status);
+}
+
 
 
 U_I18N_API UnicodeString &  U_EXPORT2
@@ -721,19 +860,17 @@ uspoof_getSkeletonUnicodeString(const USpoofChecker *sc,
     for (inputIndex=0; inputIndex < normalizedLen; ) {
         UChar32 c = nfdId.char32At(inputIndex);
         inputIndex += U16_LENGTH(c);
-        This->fSpoofData->confusableLookup(c, skelStr);
+        if (!u_hasBinaryProperty(c, UCHAR_DEFAULT_IGNORABLE_CODE_POINT)) {
+            This->fSpoofData->confusableLookup(c, skelStr);
+        }
     }
 
     gNfdNormalizer->normalize(skelStr, dest, *status);
     return dest;
 }
 
-
-U_CAPI int32_t U_EXPORT2
-uspoof_getSkeletonUTF8(const USpoofChecker *sc,
-                       uint32_t type,
-                       const char *id,  int32_t length,
-                       char *dest, int32_t destCapacity,
+U_CAPI int32_t U_EXPORT2 uspoof_getSkeletonUTF8(const USpoofChecker *sc, uint32_t type, const char *id,
+                                                int32_t length, char *dest, int32_t destCapacity,
                        UErrorCode *status) {
     SpoofImpl::validateThis(sc, *status);
     if (U_FAILURE(*status)) {
@@ -744,7 +881,8 @@ uspoof_getSkeletonUTF8(const USpoofChecker *sc,
         return 0;
     }
 
-    UnicodeString srcStr = UnicodeString::fromUTF8(StringPiece(id, length>=0 ? length : static_cast<int32_t>(uprv_strlen(id))));
+    UnicodeString srcStr = UnicodeString::fromUTF8(
+        StringPiece(id, length >= 0 ? length : static_cast<int32_t>(uprv_strlen(id))));
     UnicodeString destStr;
     uspoof_getSkeletonUnicodeString(sc, type, srcStr, destStr, status);
     if (U_FAILURE(*status)) {
@@ -752,8 +890,28 @@ uspoof_getSkeletonUTF8(const USpoofChecker *sc,
     }
 
     int32_t lengthInUTF8 = 0;
-    u_strToUTF8(dest, destCapacity, &lengthInUTF8,
-                destStr.getBuffer(), destStr.length(), status);
+    u_strToUTF8(dest, destCapacity, &lengthInUTF8, destStr.getBuffer(), destStr.length(), status);
+    return lengthInUTF8;
+}
+
+U_CAPI int32_t U_EXPORT2 uspoof_getBidiSkeletonUTF8(const USpoofChecker *sc, UBiDiDirection direction,
+                                                    const char *id, int32_t length, char *dest,
+                                                    int32_t destCapacity, UErrorCode *status) {
+    if (length < -1) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+
+    UnicodeString srcStr = UnicodeString::fromUTF8(
+        StringPiece(id, length >= 0 ? length : static_cast<int32_t>(uprv_strlen(id))));
+    UnicodeString destStr;
+    uspoof_getBidiSkeletonUnicodeString(sc, direction, srcStr, destStr, status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+
+    int32_t lengthInUTF8 = 0;
+    u_strToUTF8(dest, destCapacity, &lengthInUTF8, destStr.getBuffer(), destStr.length(), status);
     return lengthInUTF8;
 }
 
