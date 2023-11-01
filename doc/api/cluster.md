@@ -901,7 +901,7 @@ values are `'rr'` and `'none'`.
 added: v0.7.1
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/xxx
+    pr-url: https://github.com/nodejs/node/pull/49292
     description: The `schedulingPolicy` option is supported now.
   - version:
      - v13.2.0
