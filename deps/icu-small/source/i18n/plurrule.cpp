@@ -12,6 +12,8 @@
 #include <math.h>
 #include <stdio.h>
 
+#include <utility>
+
 #include "unicode/utypes.h"
 #include "unicode/localpointer.h"
 #include "unicode/plurrule.h"
@@ -20,6 +22,7 @@
 #include "unicode/numfmt.h"
 #include "unicode/decimfmt.h"
 #include "unicode/numberrangeformatter.h"
+#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
@@ -40,6 +43,7 @@
 #include "util.h"
 #include "pluralranges.h"
 #include "numrange_impl.h"
+#include "ulocimp.h"
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -827,14 +831,19 @@ PluralRules::getRuleFromResource(const Locale& locale, UPluralType type, UErrorC
     if (s == nullptr) {
         // Check parent locales.
         UErrorCode status = U_ZERO_ERROR;
-        char parentLocaleName[ULOC_FULLNAME_CAPACITY];
         const char *curLocaleName2=locale.getBaseName();
-        uprv_strcpy(parentLocaleName, curLocaleName2);
+        CharString parentLocaleName(curLocaleName2, status);
 
-        while (uloc_getParent(parentLocaleName, parentLocaleName,
-                                       ULOC_FULLNAME_CAPACITY, &status) > 0) {
+        for (;;) {
+            {
+                CharString tmp;
+                CharStringByteSink sink(&tmp);
+                ulocimp_getParent(parentLocaleName.data(), sink, &status);
+                if (tmp.isEmpty()) break;
+                parentLocaleName = std::move(tmp);
+            }
             resLen=0;
-            s = ures_getStringByKey(locRes.getAlias(), parentLocaleName, &resLen, &status);
+            s = ures_getStringByKey(locRes.getAlias(), parentLocaleName.data(), &resLen, &status);
             if (s != nullptr) {
                 errCode = U_ZERO_ERROR;
                 break;

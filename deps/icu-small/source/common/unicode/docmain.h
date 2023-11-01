@@ -114,7 +114,7 @@
  *   </tr>
  *   <tr>
  *     <td>Locales </td>
- *     <td>uloc.h</a></td>
+ *     <td>uloc.h, ulocale.h, ulocbuilder.h</a></td>
  *     <td>icu::Locale, icu::LocaleBuilder, icu::LocaleMatcher</td>
  *   </tr>
  *   <tr>

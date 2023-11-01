@@ -789,7 +789,8 @@ unorm_getFCD16(UChar32 c);
  *
  * Normalizer2 .nrm data files provide data for the Unicode Normalization algorithms.
  * ICU ships with data files for standard Unicode Normalization Forms
- * NFC and NFD (nfc.nrm), NFKC and NFKD (nfkc.nrm) and NFKC_Casefold (nfkc_cf.nrm).
+ * NFC and NFD (nfc.nrm), NFKC and NFKD (nfkc.nrm),
+ * NFKC_Casefold (nfkc_cf.nrm) and NFKC_Simple_Casefold (nfkc_scf.nrm).
  * Custom (application-specific) data can be built into additional .nrm files
  * with the gennorm2 build tool.
  * ICU ships with one such file, uts46.nrm, for the implementation of UTS #46.
